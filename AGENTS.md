@@ -24,9 +24,7 @@ Reading order for any task:
    the constitution defines it)
 2. `specs/NNN-feature-name/` — the spec, plan, and tasks for the feature
    you are working on
-3. [HACKING.md](HACKING.md) / [BUILDING.md](BUILDING.md) /
-   [CONTRIBUTING.md](CONTRIBUTING.md) — build, test, and contribution
-   mechanics
+3. [README.md](README.md) — build, test, and contribution mechanics
 
 ## Spec-Driven Development
 
@@ -57,7 +55,7 @@ or build configuration must not.
 
 ## Build, Test, Verify
 
-Preset-driven CMake (see [HACKING.md](HACKING.md) for the developer-mode
+Preset-driven CMake (see [README.md](README.md) for the developer-mode
 setup; `CMakeUserPresets.json` is machine-local and must never be
 committed).
 
@@ -74,8 +72,7 @@ cppcheck clean; 100% line, branch, and DBC coverage. The CI matrix
 stays green: Linux (clang-tidy + cppcheck), macOS, Windows, sanitizers,
 coverage.
 
-See [HACKING.md](HACKING.md), [BUILDING.md](BUILDING.md) and
-[CONTRIBUTING.md](CONTRIBUTING.md) for details.
+See [README.md](README.md) for details.
 
 ## Commits
 

@@ -1,23 +1,16 @@
 <!--
 Sync Impact Report (constitution amendment)
 ===========================================
-Version change: 2.1.0 -> 2.2.0 (MINOR: new normative standard - the
-commit message and linear-history standard, derived from the MPICH git
-workflow; every pushed commit MUST conform)
+Version change: 2.2.0 -> 2.2.1 (PATCH: non-semantic refinement - the
+runtime-guidance cross-references now point at the consolidated
+README.md, which replaces the former standalone BUILDING.md,
+CONTRIBUTING.md, and HACKING.md)
 
 Modified sections:
-  Pull Request Quality -> mandatory commit message template
-       (`<Section>: <one-line description>`, <= 50 chars) and
-       commit-quality rules derived from the MPICH git workflow:
-       72-column why-body, one logical change per commit (bisectable),
-       refactoring and reformatting in separate commits, GitHub
-       issue-reference keywords (Fixes/Resolves/See #N), an Approved-by
-       footer to preserve review history, and a linear base-branch
-       history (rebase + squash, no gratuitous merge commits).
-       Post-merge history is immutable.
+  Governance -> "Runtime guidance" reference updated to README.md
+  (build/test/contribution instructions now live there)
 
-Added sections: none (the commit standard lives in Pull Request
-  Quality, the project's PR etiquette section).
+Added sections: none.
 Removed sections: none.
 
 Deferred / follow-up:
@@ -32,8 +25,10 @@ Deferred / follow-up:
     VII mandates it and it will be delivered through a future spec.
 
 History:
-  2.2.0  2026-09-06  Commit message template + commit-quality rules
-                     (Pull Request Quality)
+  2.2.1  2026-09-06  Consolidate docs into README.md; update
+                     runtime-guidance cross-references
+  2.2.0  2026-09-06  Commit message + linear-history standard
+                     (MPICH-derived, Pull Request Quality)
   2.1.0  2026-09-06  SDD <-> R-DCUT artifact mapping, UML design
                      mandate, TDD execution mode
   2.0.0  2026-09-06  Wholesale redefinition from the software
@@ -415,7 +410,7 @@ wins.
   version (MAJOR for incompatible principle removals or redefinitions,
   MINOR for new principles or materially expanded guidance, PATCH for
   wording), and must update the `Last Amended` date below.
-- **Runtime guidance**: see `HACKING.md` for build/test instructions and
-  `CONTRIBUTING.md` for contribution rules.
+- **Runtime guidance**: see `README.md` for build/test and contribution
+  instructions.
 
-**Version**: 2.2.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-06
+**Version**: 2.2.1 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-06
