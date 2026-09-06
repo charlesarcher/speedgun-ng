@@ -83,3 +83,9 @@ genuinely trivial changes), an `Approved-by:` footer, and issue/spec
 refs. Commits are atomic and bisectable; the base branch stays linear
 (rebase + squash, no gratuitous merge commits); vague or WIP messages
 are never pushed; history after merge is immutable.
+
+Merging into `master` is PR-only: its branch protection requires an
+approved pull request from contributors. The maintainer (repository
+owner) bypasses the review gate when landing a ready PR with
+`gh pr merge <n> --squash --admin` (API: `admin_enforced: true`); use
+it only when the change is complete and the PR is mergeable.
