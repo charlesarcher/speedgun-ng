@@ -11,3 +11,8 @@ CMakeUserPresets.json
 compile_commands.json
 env.bat
 env.ps1
+# Agent scratch state (machine-local, never committed)
+.omo/
+# Spec Kit: share the commands, ignore any other agent state
+.opencode/*
+!.opencode/commands/

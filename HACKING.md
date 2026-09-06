@@ -6,6 +6,51 @@ potential contributor.
 If you plan to contribute, please read the [CONTRIBUTING](CONTRIBUTING.md)
 guide.
 
+## Spec-driven development
+
+This project is developed spec-driven using
+[Spec Kit][3] from GitHub. The process is: specification →
+technical plan → task list → implementation, and it is enforced by
+[the project constitution][constitution].
+
+The workflow is available to AI coding agents as slash commands. With
+[OpenCode][4] (the primary supported agent), the commands live in
+`.opencode/commands/`:
+
+| Command             | Purpose                                                       |
+| ------------------- | ------------------------------------------------------------- |
+| `/speckit.constitution` | Create or amend the project constitution                 |
+| `/speckit.specify`  | Write the feature specification from a description           |
+| `/speckit.clarify`  | (optional) De-risk ambiguous areas of a spec before planning |
+| `/speckit.plan`     | Create the technical implementation plan                     |
+| `/speckit.tasks`    | Generate the actionable task list                            |
+| `/speckit.analyze`  | (optional) Cross-artifact consistency report                 |
+| `/speckit.checklist`| (optional) Quality checklists for the requirements           |
+| `/speckit.implement`| Execute all tasks                                            |
+| `/speckit.converge` | Assess the codebase against the spec/plan/tasks and append remaining work |
+| `/speckit.taskstoissues` | Convert the task list into GitHub issues (needs `gh`)   |
+
+Feature artifacts live under `specs/NNN-feature-name/` (`spec.md`,
+`plan.md`, `tasks.md`). Templates and helper scripts are installed under
+`.specify/`, which — together with `.opencode/commands/` — is checked into
+source control so every developer and agent works from the same
+process. Only machine-local state (e.g. `.specify/memory/feature.json`)
+is git-ignored.
+
+Bug fixes and trivial changes (typos, formatting, build fixes) may skip
+the workflow; anything touching public API, behavior, or build
+configuration must not.
+
+The Spec Kit CLI is run on demand with [uv][5] (no global install needed):
+
+```sh
+# Show the installed CLI version / update it
+uvx --from specify-cli specify --version
+
+# Reinitialize the project (keeps existing files, refreshes templates)
+uvx --from specify-cli specify init --here --force --non-interactive --integration opencode
+```
+
 ## Developer mode
 
 Build system targets that are only useful for developers of this project are
@@ -171,4 +216,8 @@ script sourced. Look for `(Debug)` in the prompt to confirm, then run e.g.
 `code .` for VScode or `devenv .` for Visual Studio.
 
 [1]: https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html
+[3]: https://github.com/github/spec-kit
+[4]: https://opencode.ai
+[5]: https://docs.astral.sh/uv/
+[constitution]: .specify/memory/constitution.md
 [2]: https://cmake.org/download/
