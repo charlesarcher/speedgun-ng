@@ -1,0 +1,4 @@
+# All paths in the repository are owned by the maintainer. Combined with
+# master's branch protection (require code owner reviews), every pull
+# request requires the maintainer's approval before it can merge.
+*       @charlesarcher
