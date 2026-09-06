@@ -76,3 +76,13 @@ coverage.
 
 See [HACKING.md](HACKING.md), [BUILDING.md](BUILDING.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## Commits
+
+Every commit follows the message template and quality rules in the
+constitution (Pull Request Quality): a `<Section>: <one-line
+description>` title (≤ 50 characters), a why-body (omitted only for
+genuinely trivial changes), an `Approved-by:` footer, and issue/spec
+refs. Commits are atomic and bisectable; the base branch stays linear
+(rebase + squash, no gratuitous merge commits); vague or WIP messages
+are never pushed; history after merge is immutable.

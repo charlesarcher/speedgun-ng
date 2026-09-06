@@ -1,31 +1,29 @@
 <!--
 Sync Impact Report (constitution amendment)
 ===========================================
-Version change: 2.0.0 -> 2.1.0 (MINOR: materially expanded guidance on
-Principles III and IX - the Spec Kit workflow is now the mandatory
-vehicle for R-DCUT, with a fixed artifact mapping, UML-driven design
-requirements (logical and physical views), and a defined TDD execution
-mode)
+Version change: 2.1.0 -> 2.2.0 (MINOR: new normative standard - the
+commit message and linear-history standard, derived from the MPICH git
+workflow; every pushed commit MUST conform)
 
-Modified principles:
-  III. R-DCUT Design Process -> requirements now mandate EARS form plus
-       user stories (each testable and traceable to a requirement);
-       design is mandated UML-driven with explicit logical and physical
-       views; code and unit tests have canonical locations
-       (include/ + source/, test/); TDD execution mode added
-  IX.  Spec-Driven Development -> artifact mapping table added:
-       spec.md = EARS requirements + user stories (/speckit.specify),
-       plan.md = UML logical + physical design + test plan
-       (/speckit.plan), tasks.md = code/test task pairs
-       (/speckit.tasks), implementation = code + unit tests in
-       canonical locations (/speckit.implement); TDD mode defined as
-       test tasks preceding the code tasks they gate; "all four
-       artifacts" rule added
+Modified sections:
+  Pull Request Quality -> mandatory commit message template
+       (`<Section>: <one-line description>`, <= 50 chars) and
+       commit-quality rules derived from the MPICH git workflow:
+       72-column why-body, one logical change per commit (bisectable),
+       refactoring and reformatting in separate commits, GitHub
+       issue-reference keywords (Fixes/Resolves/See #N), an Approved-by
+       footer to preserve review history, and a linear base-branch
+       history (rebase + squash, no gratuitous merge commits).
+       Post-merge history is immutable.
 
-Added sections: none.
+Added sections: none (the commit standard lives in Pull Request
+  Quality, the project's PR etiquette section).
 Removed sections: none.
 
 Deferred / follow-up:
+  - Machine enforcement of the commit template (commit-msg hook / CI
+    commit lint) does not exist yet; authors MUST self-verify, and
+    tooling enforcement will be delivered through a future spec.
   - DCRs and P2 exception justifications are tracked in the issue
     tracker; the exact label/convention is project policy, not
     governance.
@@ -34,6 +32,8 @@ Deferred / follow-up:
     VII mandates it and it will be delivered through a future spec.
 
 History:
+  2.2.0  2026-09-06  Commit message template + commit-quality rules
+                     (Pull Request Quality)
   2.1.0  2026-09-06  SDD <-> R-DCUT artifact mapping, UML design
                      mandate, TDD execution mode
   2.0.0  2026-09-06  Wholesale redefinition from the software
@@ -314,9 +314,59 @@ mapping:
   final PRs carry a complete description and a link to the tracking
   issue.
 - Bug-fix PRs describe both the bug and how it is fixed.
-- Commits are squashed into logical blocks. History is more important
-  than content: reviewers and maintainers review from the perspective of
-  the future maintainer of the code.
+- Every pushed commit MUST follow the commit message template and the
+  commit-quality rules below.
+  - **Template:**
+
+    ```
+    <Section>: <one-line imperative description>
+
+    <body: the why - motivation, context, non-obvious consequences;
+    wrapped at 72 columns; omitted only for genuinely trivial changes>
+
+    Approved-by: <reviewer(s)>
+
+    Fixes #123
+    Refs: specs/NNN-name
+    ```
+
+  - **Title.** Format is `<Section>: <One Line Description>`, where
+    Section names the area of the codebase (e.g. `CMake`, `Docs`,
+    `runner`, `dbc`). Imperative mood: "Add X", "Fix Y" - never
+    "Added X" / "Adds X" / "X was added". Keep the whole title to 50
+    characters or fewer.
+  - **Body.** A blank line separates the title from the body. The body
+    states the *why*, is complete but concise, wraps at 72 columns, and
+    uses correct punctuation and capitalization. Omit the body only for
+    genuinely trivial changes.
+  - **One idea per commit.** A commit is one logical change, sized so it
+    can be rolled back on its own (if features A and B ship together and
+    B must be reverted, A must not be lost). Each commit compiles and
+    passes its tests so history is bisectable with `git bisect`.
+  - **Separate concerns.** Refactoring (e.g. changing API call sites)
+    goes in its own commit, separate from behavior changes. Do not
+    reformat or "fix" code you did not write in the same commit as your
+    change (keep reformatting separate) so authorship of each line stays
+    clear.
+  - **Issue references.** When a commit fixes an issue, use a GitHub
+    keyword so the issue is linked (and auto-closed on merge): `Fixes
+    #123`, `Resolves #123`, or `See #123` (or the full
+    `<owner>/<repo>#123`). Reference the governing spec as `Refs:
+    specs/NNN-<name>` where one exists.
+  - **Approval footer.** Record `Approved-by: <reviewer(s)>` in the
+    landing commit so the review history is preserved in `git log`.
+  - **Linear history.** The base branch stays linear: rebase a PR onto
+    the base branch (never merge the base into the feature branch),
+    squash the PR's commits into logical blocks that each carry the
+    template, and land them as a linear sequence - no gratuitous merge
+    commits on the base branch. Vague messages ("fix stuff", "wip",
+    "updates") MUST NOT be pushed; unfinished work stays in a `[WIP]`
+    PR, not in pushed history.
+  - **Immutability.** Before a PR is merged, its commits may be freely
+    rewritten (squash/rebase) into logical blocks; the template applies
+    to the result. History is more important than content: write for the
+    future maintainer. Once merged, history is immutable and is
+    corrected only by new commits.
 - The main branch is not pushed to directly. All changes merge through
   reviewed PRs, and only designated maintainers merge.
 - Reviewers review in a timely manner and give feedback rather than
@@ -368,4 +418,4 @@ wins.
 - **Runtime guidance**: see `HACKING.md` for build/test instructions and
   `CONTRIBUTING.md` for contribution rules.
 
-**Version**: 2.1.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-06
+**Version**: 2.2.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-06
