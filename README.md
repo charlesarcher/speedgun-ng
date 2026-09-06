@@ -152,13 +152,6 @@ Invoke these with the build command plus `-t <target>`:
 - `spell-check` / `spell-fix` — run codespell to check or fix the
   codebase.
 
-### Running tests on Windows with `BUILD_SHARED_LIBS=ON`
-
-When building a shared library on Windows, add the DLL directory to
-`PATH` before running tests (e.g. a machine-local `env.ps1` at the
-project root that appends `build\dev\Debug`), source it (`. env.ps1`),
-and launch your editor from that console so it inherits the path.
-
 ## Contributing
 
 Changes are developed **spec-driven** through
@@ -177,12 +170,6 @@ the [constitution](.specify/memory/constitution.md). See
   [constitution](.specify/memory/constitution.md) (Pull Request
   Quality): `<Section>: <description>` title, a why-body, an
   `Approved-by:` footer, and a linear base-branch history.
-
-## Code of Conduct
-
-- You will be judged by your contributions first, and your sense of
-  humor second.
-- Nobody owes you anything.
 
 ## Licensing
 
