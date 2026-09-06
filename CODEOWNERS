@@ -1,4 +1,8 @@
-# All paths in the repository are owned by the maintainer. Combined with
-# master's branch protection (require code owner reviews), every pull
-# request requires the maintainer's approval before it can merge.
+# All paths in the repository are owned by the maintainer.
+#
+# This file records ownership. Whether it is enforced depends on
+# master's branch protection settings: enabling "require code owner
+# reviews" makes the maintainer's approval mandatory on every
+# pull request. The maintainer can also bypass branch protection
+# when merging with `gh pr merge --squash --admin`.
 *       @charlesarcher
