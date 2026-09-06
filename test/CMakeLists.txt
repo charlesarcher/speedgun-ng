@@ -16,7 +16,7 @@ endif()
 
 add_executable(speedgun-ng_test source/speedgun-ng_test.cpp)
 target_link_libraries(speedgun-ng_test PRIVATE speedgun-ng::speedgun-ng)
-target_compile_features(speedgun-ng_test PRIVATE cxx_std_17)
+target_compile_features(speedgun-ng_test PRIVATE cxx_std_20)
 
 add_test(NAME speedgun-ng_test COMMAND speedgun-ng_test)
 

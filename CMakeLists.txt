@@ -55,7 +55,7 @@ target_include_directories(
     "\$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/export>"
 )
 
-target_compile_features(speedgun-ng_speedgun-ng PUBLIC cxx_std_17)
+target_compile_features(speedgun-ng_speedgun-ng PUBLIC cxx_std_20)
 
 # ---- Install rules ----
 
