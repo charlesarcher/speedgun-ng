@@ -50,17 +50,38 @@
  * @brief Reports the name of the library
  *
  * Please see the note above for considerations when creating shared libraries.
+ *
+ * \invariant The object holds a valid project-name string.
  */
 class SPEEDGUN_NG_EXPORT exported_class
 {
 public:
   /**
    * @brief Initializes the name field to the name of the project
+   *
+   * \pre none
+   * \post name() returns the project name
    */
   exported_class();
 
+  exported_class(exported_class const&) = default;
+  exported_class(exported_class&&) = default;
+  auto operator=(exported_class const&) -> exported_class& = default;
+  auto operator=(exported_class&&) -> exported_class& = default;
+
+  /**
+   * @brief Destroys the object
+   *
+   * \pre none
+   * \post none
+   */
+  ~exported_class();
+
   /**
    * @brief Returns a non-owning pointer to the string stored in this class
+   *
+   * \pre the object is in a valid state (class invariant)
+   * \post returns a non-owning pointer to the stored string
    */
   auto name() const -> char const*;
 
