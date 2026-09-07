@@ -57,6 +57,8 @@ target_include_directories(
 
 target_compile_features(speedgun-ng_speedgun-ng PUBLIC cxx_std_20)
 
+include(cmake/dbc.cmake)
+
 # ---- Install rules ----
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)
