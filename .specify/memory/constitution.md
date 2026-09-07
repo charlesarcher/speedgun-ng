@@ -88,7 +88,15 @@ communicate intent, and narrow the testing surface.
   aborts loudly, like a fuse; it is never caught, logged-and-continued,
   or otherwise softened.
 - Contract checks MUST NOT emit any code in release builds: zero
-  performance cost on critical paths.
+  performance cost on critical paths. This applies to semantic-gated
+  contract checks — those selected by the `ignore` / `observe` /
+  `enforce` / `quick_enforce` evaluation switch. A contract MAY be
+  explicitly designated always-on; always-on contracts are present and
+  enforced in every build configuration, including release, and are the
+  deliberate, sparing exception reserved for critical invariants that
+  must hold even in release binaries. The macro registry and
+  release-artifact verification MUST distinguish always-on sites from
+  semantic-gated ones.
 - The header documents the contract; the source enforces it. The contract
   facility MUST keep the contract stated in one place (single source of
   truth); documenting it in comments and enforcing a second copy is
