@@ -1,5 +1,9 @@
 # speedgun-ng
 
+<p align="center">
+  <img src="docs/images/sg.jpg" alt="speedgun-ng" width="280">
+</p>
+
 Speedgun Next Generation - a modern C++20 benchmarking framework
 (benchmarking in the spirit of Google Benchmark, with additional
 features). CMake build system, BSD 3-Clause license.
