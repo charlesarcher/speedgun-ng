@@ -30,9 +30,9 @@ auto main(int argc, char** argv) -> int
   {
     std::ifstream probe(fixture);
     if (!probe) {
-      std::fprintf(
-          stderr, "DBC TRAP-CHECKED FAIL: fixture not found: %s\n",
-          fixture.c_str());
+      std::fprintf(stderr,
+                   "DBC TRAP-CHECKED FAIL: fixture not found: %s\n",
+                   fixture.c_str());
       return 1;
     }
   }
@@ -47,16 +47,15 @@ auto main(int argc, char** argv) -> int
   std::system(cmd);
 
   std::ifstream f(out);
-  std::string content {
-      std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+  std::string content {std::istreambuf_iterator<char>(f),
+                       std::istreambuf_iterator<char>()};
 
   bool has_marker = content.find("gated-site-passed") != std::string::npos;
   if (has_marker) {
-    std::fprintf(
-        stderr,
-        "DBC TRAP-CHECKED FAIL: gated site did NOT abort in a checked build "
-        "(marker present):\n%s\n",
-        content.c_str());
+    std::fprintf(stderr,
+                 "DBC TRAP-CHECKED FAIL: gated site did NOT abort in a checked "
+                 "build " "(marker present):\n%s\n",
+                 content.c_str());
     return 1;
   }
 

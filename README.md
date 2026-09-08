@@ -155,6 +155,9 @@ Invoke these with the build command plus `-t <target>`:
 - `run-examples` — run all examples created by `add_example`.
 - `spell-check` / `spell-fix` — run codespell to check or fix the
   codebase.
+- `dbc-gate` - runs the DBC documentation-presence and pairing gate.
+
+The `speedgun-ng_CONTRACTS` option (default enforce; values: ignore, observe, enforce, quick_enforce) drives the consumer-release and dbc-gate CI jobs. See docs/pages/dbc-overhead.md and docs/pages/dbc-migration.md.
 
 ## Contributing
 

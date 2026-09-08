@@ -10,10 +10,11 @@
 namespace
 {
 
-template <int N>
+template<int N>
 constexpr auto get_positive() -> int
 {
-  static_assert(N > 0, "N must be positive (ct constraint for constexpr interface)");
+  static_assert(N > 0,
+                "N must be positive (ct constraint for constexpr interface)");
   return N;
 }
 

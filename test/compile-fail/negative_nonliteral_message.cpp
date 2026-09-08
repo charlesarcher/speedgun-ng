@@ -6,8 +6,10 @@
 // expect: const char
 //
 // Actual diagnostics observed:
-//   gcc:   error: invalid initialization of reference of type ‘const char (&)[]’ from expression of type ‘const char*’
-//   clang: error: reference to incomplete type 'const char[]' could not bind to an lvalue of type 'const char *'
+//   gcc:   error: invalid initialization of reference of type ‘const char
+//   (&)[]’ from expression of type ‘const char*’ clang: error: reference to
+//   incomplete type 'const char[]' could not bind to an lvalue of type 'const
+//   char *'
 
 #include <speedgun-ng/dbc.hpp>
 

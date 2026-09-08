@@ -37,6 +37,9 @@
 namespace sg::dbc
 {
 
+/**
+ * @brief Discriminates the four contract kinds.
+ */
 // NOLINTNEXTLINE(readability-identifier-naming)
 enum class Kind : std::uint8_t
 {
@@ -46,6 +49,13 @@ enum class Kind : std::uint8_t
   assertion
 };
 
+/**
+ * @brief Stable identity of a contract violation (FR-021).
+ *
+ * Captured at the violation site for delivery to observer or default
+ * response. All pointers are non-owning and valid for the duration of
+ * the response.
+ */
 // NOLINTNEXTLINE(readability-identifier-naming)
 struct ViolationRecord
 {
@@ -56,6 +66,9 @@ struct ViolationRecord
   char const* predicateText {};  // NOLINT(readability-identifier-naming)
 };
 
+/**
+ * @brief Observer hook type installed via set_observer.
+ */
 using violation_observer = std::function<void(ViolationRecord const&)>;
 
 namespace detail
@@ -209,6 +222,10 @@ inline SG_NOINLINE SG_COLD auto dispatch(Kind const kind,
 /**
  * @brief Install the process-wide violation observer (unique hook).
  *
+ * The observer (if non-null) is invoked from the violation path in
+ * observe and enforce semantics, before any default response. Only one
+ * observer may be active at a time.
+ *
  * \pre none
  * \post none
  */
@@ -222,6 +239,10 @@ inline auto set_observer(violation_observer observer) -> void
 #if SG_CONTRACTS_SEMANTIC != 0
 /**
  * @brief Dispatch a precondition violation under the active semantic.
+ *
+ * Message argument must be a string literal constant (enforced by the
+ * char const(&)[] parameter per FR-020). On failure in a terminating
+ * semantic the violation response is invoked and execution ends.
  *
  * \pre none
  * \post none
@@ -238,6 +259,10 @@ inline auto check_precondition(char const (&message)[],
 /**
  * @brief Dispatch a postcondition violation under the active semantic.
  *
+ * Message argument must be a string literal constant (enforced by the
+ * char const(&)[] parameter per FR-020). On failure in a terminating
+ * semantic the violation response is invoked and execution ends.
+ *
  * \pre none
  * \post none
  */
@@ -253,6 +278,10 @@ inline auto check_postcondition(char const (&message)[],
 /**
  * @brief Dispatch an invariant violation under the active semantic.
  *
+ * Message argument must be a string literal constant (enforced by the
+ * char const(&)[] parameter per FR-020). On failure in a terminating
+ * semantic the violation response is invoked and execution ends.
+ *
  * \pre none
  * \post none
  */
@@ -267,6 +296,10 @@ inline auto check_invariant(char const (&message)[],
 
 /**
  * @brief Dispatch an in-body assertion violation under the active semantic.
+ *
+ * Message argument must be a string literal constant (enforced by the
+ * char const(&)[] parameter per FR-020). On failure in a terminating
+ * semantic the violation response is invoked and execution ends.
  *
  * \pre none
  * \post none
@@ -285,6 +318,8 @@ inline auto check_assertion(char const (&message)[],
  * @brief Dispatch a precondition violation and terminate.
  *
  * Always-on: present in every evaluation semantic, including ignore.
+ * Message must be string literal (FR-020). Invokes response then
+ * terminates (FR-013 for quick path uses trap instead).
  *
  * \pre none
  * \post none
@@ -303,6 +338,8 @@ inline auto check_assertion(char const (&message)[],
  * @brief Dispatch a postcondition violation and terminate.
  *
  * Always-on: present in every evaluation semantic, including ignore.
+ * Message must be string literal (FR-020). Invokes response then
+ * terminates.
  *
  * \pre none
  * \post none
@@ -321,6 +358,8 @@ inline auto check_assertion(char const (&message)[],
  * @brief Dispatch an invariant violation and terminate.
  *
  * Always-on: present in every evaluation semantic, including ignore.
+ * Message must be string literal (FR-020). Invokes response then
+ * terminates.
  *
  * \pre none
  * \post none
@@ -338,6 +377,8 @@ inline auto check_assertion(char const (&message)[],
  * @brief Dispatch an in-body assertion violation and terminate.
  *
  * Always-on: present in every evaluation semantic, including ignore.
+ * Message must be string literal (FR-020). Invokes response then
+ * terminates.
  *
  * \pre none
  * \post none
