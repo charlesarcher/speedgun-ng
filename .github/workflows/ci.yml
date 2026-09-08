@@ -147,6 +147,93 @@ jobs:
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j 2
 
+  consumer-release:
+    needs: [lint]
+
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure consumer release
+      run: >
+        cmake -S . -B build/consumer-release
+        -D CMAKE_BUILD_TYPE=Release
+        -D speedgun-ng_DEVELOPER_MODE=OFF
+        -D speedgun-ng_CONTRACTS=ignore
+
+    - name: Assert consumer-release cache
+      run: |
+        grep -F 'CMAKE_BUILD_TYPE:STRING=Release' \
+          build/consumer-release/CMakeCache.txt
+        grep -F 'speedgun-ng_DEVELOPER_MODE:BOOL=OFF' \
+          build/consumer-release/CMakeCache.txt
+        grep -F 'speedgun-ng_CONTRACTS:STRING=ignore' \
+          build/consumer-release/CMakeCache.txt
+
+    - name: Build consumer library
+      run: cmake --build build/consumer-release -j 2
+
+    - name: Assert no gated check_ symbols
+      run: |
+        lib=build/consumer-release/libspeedgun-ng.a
+        test -f "$lib"
+        nm -C "$lib" > /tmp/consumer-release-nm.txt
+        if grep -F 'sg::dbc::check_' /tmp/consumer-release-nm.txt; then
+          echo "FAIL: sg::dbc::check_ symbols present under ignore"
+          exit 1
+        fi
+        echo "PASS: no sg::dbc::check_ symbols"
+
+    - name: Configure ignore developer build
+      run: >
+        cmake -S . -B build/consumer-release-dev
+        -D CMAKE_BUILD_TYPE=Release
+        -D speedgun-ng_DEVELOPER_MODE=ON
+        -D speedgun-ng_CONTRACTS=ignore
+
+    - name: Build trap fixture and dbc_test
+      run: cmake --build build/consumer-release-dev -j 2
+        --target dbc_trap_fixture dbc_test
+
+    - name: Run dbc_trap_fixture under ignore
+      run: |
+        set +e
+        ulimit -c 0
+        timeout 30 ./build/consumer-release-dev/test/dbc_trap_fixture \
+          > /tmp/trap.stdout 2> /tmp/trap.stderr
+        status=$?
+        set -e
+        echo "fixture-exit=$status"
+        echo "----- stdout -----"
+        cat /tmp/trap.stdout
+        echo "----- stderr -----"
+        cat /tmp/trap.stderr
+        grep -F 'gated-site-passed' /tmp/trap.stdout
+        test "$status" -ne 0
+        test "$status" -ne 124
+        grep -F '[precondition]' /tmp/trap.stderr
+        grep -F 'always-on' /tmp/trap.stderr
+
+    - name: Run dbc_test under ignore
+      run: |
+        set +e
+        ./build/consumer-release-dev/test/dbc_test \
+          > /tmp/dbc.stdout 2> /tmp/dbc.stderr
+        status=$?
+        set -e
+        echo "dbc_test-exit=$status"
+        echo "----- stdout -----"
+        cat /tmp/dbc.stdout
+        echo "----- stderr -----"
+        cat /tmp/dbc.stderr
+        test "$status" -eq 1
+        first=$(head -n 1 /tmp/dbc.stderr)
+        if [ -z "$first" ]; then
+          first=$(head -n 1 /tmp/dbc.stdout)
+        fi
+        test "$first" = "DBC TEST FAIL: pre: violation delivered to the observer"
+
   docs:
     # Deploy docs only when builds succeed
     needs: [sanitize, test]
