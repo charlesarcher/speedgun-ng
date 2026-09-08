@@ -85,4 +85,5 @@ elseif(NOT PROJECT_IS_TOP_LEVEL)
   )
 endif()
 
+include(cmake/dbc-gate.cmake)
 include(cmake/dev-mode.cmake)

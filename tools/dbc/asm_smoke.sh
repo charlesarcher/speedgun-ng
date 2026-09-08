@@ -201,19 +201,19 @@ EOF
   fi
 
   # Negative probe: unguarded throw must exhibit EH (detector self-check).
-  local tdump tasm tfunc teh
+  local tdump tasm tfunc eh_hits
   tdump=$(objdump -d -C -r "$slot/throw.o")
   tasm=$(cat "$slot/throw.s")
   tfunc=$(extract_objdump_symbol "$tdump" 'unguarded(int)')
-  teh=$(printf '%s\n' "$tasm" "$tdump" | grep -E "$EH_RX" || true)
+  eh_hits=$(printf '%s\n' "$tasm" "$tdump" | grep -E "$EH_RX" || true)
 
   echo
   echo "--- negative probe: unguarded(int) ---"
   printf '%s\n' "$tfunc"
   echo "--- grep: EH in throwing TU ---"
-  if [ -n "$teh" ]; then printf '%s\n' "$teh"; else echo "(none)"; fi
+  if [ -n "$eh_hits" ]; then printf '%s\n' "$eh_hits"; else echo "(none)"; fi
 
-  if [ -z "$teh" ]; then
+  if [ -z "$eh_hits" ]; then
     echo "FAIL $cxx: negative probe did not find EH (detector is not discriminating)"
     rc=1
   else

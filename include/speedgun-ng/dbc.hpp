@@ -206,6 +206,12 @@ inline SG_NOINLINE SG_COLD auto dispatch(Kind const kind,
 
 }  // namespace detail
 
+/**
+ * @brief Install the process-wide violation observer (unique hook).
+ *
+ * \pre none
+ * \post none
+ */
 inline auto set_observer(violation_observer observer) -> void
 {
   detail::observer_slot() = std::move(observer);
@@ -214,6 +220,12 @@ inline auto set_observer(violation_observer observer) -> void
 // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 
 #if SG_CONTRACTS_SEMANTIC != 0
+/**
+ * @brief Dispatch a precondition violation under the active semantic.
+ *
+ * \pre none
+ * \post none
+ */
 inline auto check_precondition(char const (&message)[],
                                char const* const file,
                                unsigned const line,
@@ -223,6 +235,12 @@ inline auto check_precondition(char const (&message)[],
       Kind::precondition, file, line, static_cast<char const*>(message), pred);
 }
 
+/**
+ * @brief Dispatch a postcondition violation under the active semantic.
+ *
+ * \pre none
+ * \post none
+ */
 inline auto check_postcondition(char const (&message)[],
                                 char const* const file,
                                 unsigned const line,
@@ -232,6 +250,12 @@ inline auto check_postcondition(char const (&message)[],
       Kind::postcondition, file, line, static_cast<char const*>(message), pred);
 }
 
+/**
+ * @brief Dispatch an invariant violation under the active semantic.
+ *
+ * \pre none
+ * \post none
+ */
 inline auto check_invariant(char const (&message)[],
                             char const* const file,
                             unsigned const line,
@@ -241,6 +265,12 @@ inline auto check_invariant(char const (&message)[],
       Kind::invariant, file, line, static_cast<char const*>(message), pred);
 }
 
+/**
+ * @brief Dispatch an in-body assertion violation under the active semantic.
+ *
+ * \pre none
+ * \post none
+ */
 inline auto check_assertion(char const (&message)[],
                             char const* const file,
                             unsigned const line,
@@ -251,6 +281,14 @@ inline auto check_assertion(char const (&message)[],
 }
 #endif
 
+/**
+ * @brief Dispatch a precondition violation and terminate.
+ *
+ * Always-on: present in every evaluation semantic, including ignore.
+ *
+ * \pre none
+ * \post none
+ */
 [[noreturn]] inline auto check_precondition_always(char const (&message)[],
                                                    char const* const file,
                                                    unsigned const line,
@@ -261,6 +299,14 @@ inline auto check_assertion(char const (&message)[],
       Kind::precondition, file, line, static_cast<char const*>(message), pred);
 }
 
+/**
+ * @brief Dispatch a postcondition violation and terminate.
+ *
+ * Always-on: present in every evaluation semantic, including ignore.
+ *
+ * \pre none
+ * \post none
+ */
 [[noreturn]] inline auto check_postcondition_always(char const (&message)[],
                                                     char const* const file,
                                                     unsigned const line,
@@ -271,6 +317,14 @@ inline auto check_assertion(char const (&message)[],
       Kind::postcondition, file, line, static_cast<char const*>(message), pred);
 }
 
+/**
+ * @brief Dispatch an invariant violation and terminate.
+ *
+ * Always-on: present in every evaluation semantic, including ignore.
+ *
+ * \pre none
+ * \post none
+ */
 [[noreturn]] inline auto check_invariant_always(char const (&message)[],
                                                 char const* const file,
                                                 unsigned const line,
@@ -280,6 +334,14 @@ inline auto check_assertion(char const (&message)[],
       Kind::invariant, file, line, static_cast<char const*>(message), pred);
 }
 
+/**
+ * @brief Dispatch an in-body assertion violation and terminate.
+ *
+ * Always-on: present in every evaluation semantic, including ignore.
+ *
+ * \pre none
+ * \post none
+ */
 [[noreturn]] inline auto check_assertion_always(char const (&message)[],
                                                 char const* const file,
                                                 unsigned const line,
