@@ -65,9 +65,9 @@ public:
   exported_class();
 
   exported_class(exported_class const&) = default;
-  exported_class(exported_class&&) = default;
+  exported_class(exported_class&&) = delete;
   auto operator=(exported_class const&) -> exported_class& = default;
-  auto operator=(exported_class&&) -> exported_class& = default;
+  auto operator=(exported_class&&) -> exported_class& = delete;
 
   /**
    * @brief Destroys the object

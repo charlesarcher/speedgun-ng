@@ -89,6 +89,11 @@ Build-system targets that only developers need are hidden unless the
 tests and other developer targets and options. CI always builds with
 developer mode on; a consumer of the library does not need it.
 
+Developer mode **requires** `lcov` and `genhtml` at configure time
+(typically the `lcov` package). Configure fails if they are missing;
+coverage is not turned off to paper over a missing tool. Top-level
+builds treat compiler warnings as errors (`-Werror` / `/WX`).
+
 ### Presets and developer mode
 
 Create a `CMakeUserPresets.json` at the project root. This file is
@@ -144,10 +149,12 @@ Code, CLion, Visual Studio) can pick up the same user presets.
 
 Invoke these with the build command plus `-t <target>`:
 
-- `coverage` (if `ENABLE_COVERAGE`) — processes the output of a
-  previously coverage-configured test run into an info file (submittable
-  to CI services) and, by default, an HTML report in
-  `<binary-dir>/coverage_html`.
+- `coverage` — requires `lcov` and `genhtml` at configure time (install
+  the `lcov` package; missing tools fail configure, they do not skip
+  the target). After a coverage-instrumented test run (`ci-coverage`
+  / `ENABLE_COVERAGE`), this writes `coverage.info` plus HTML under
+  `<binary-dir>/coverage_html` and **fails unless line and branch
+  coverage are both 100%**.
 - `docs` (if `BUILD_MCSS_DOCS`) — builds documentation with Doxygen and
   m.css into `<binary-dir>/docs`.
 - `format-check` / `format-fix` — run clang-format to check or fix the

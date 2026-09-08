@@ -500,9 +500,9 @@ auto main() -> int
         []
         {
           sg::dbc::set_observer(
-              [](sg::dbc::ViolationRecord const& rec)
+              [](sg::dbc::ViolationRecord const& record)
               {
-                if (std::string(rec.message ? rec.message : "")
+                if (std::string(record.message ? record.message : "")
                         .find("reentry-outer")
                     != std::string::npos)
                 {
@@ -657,6 +657,6 @@ auto main() -> int
 #endif  // SG_CONTRACTS_SEMANTIC == 2
 
   std::printf("dbc_test PASS (SG_CONTRACTS_SEMANTIC=%d)\n",
-              (int)SG_CONTRACTS_SEMANTIC);
+              static_cast<int>(SG_CONTRACTS_SEMANTIC));
   return 0;
 }

@@ -10,10 +10,11 @@ if(BUILD_MCSS_DOCS)
   include(cmake/docs.cmake)
 endif()
 
-option(ENABLE_COVERAGE "Enable coverage support separate from CTest's" OFF)
-if(ENABLE_COVERAGE)
-  include(cmake/coverage.cmake)
-endif()
+# Coverage tooling is required in developer mode. ENABLE_COVERAGE turns
+# on instrumentation (via the coverage preset); the coverage target and
+# lcov/genhtml requirement are unconditional. Never skip if missing.
+option(ENABLE_COVERAGE "Enable coverage instrumentation (gcov flags)" OFF)
+include(cmake/coverage.cmake)
 
 include(cmake/lint-targets.cmake)
 include(cmake/spell-targets.cmake)

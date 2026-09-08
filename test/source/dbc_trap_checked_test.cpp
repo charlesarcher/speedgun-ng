@@ -16,7 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <iterator>
+#include <sstream>
 #include <string>
 
 auto main(int argc, char** argv) -> int
@@ -40,15 +40,17 @@ auto main(int argc, char** argv) -> int
   std::string out = "/tmp/dbc_trap_checked_out.txt";
   std::remove(out.c_str());
 
-  char cmd[8192];
-  std::snprintf(
-      cmd, sizeof(cmd), "\"%s\" > \"%s\" 2>&1", fixture.c_str(), out.c_str());
+  std::string cmd = "\"" + fixture + "\" > \"" + out + "\" 2>&1";
   // The fixture aborts; we inspect the redirected output, not the exit code.
-  std::system(cmd);
+  int const status = std::system(cmd.c_str());
+  static_cast<void>(status);
 
   std::ifstream f(out);
-  std::string content {std::istreambuf_iterator<char>(f),
-                       std::istreambuf_iterator<char>()};
+  std::ostringstream body;
+  if (f) {
+    body << f.rdbuf();
+  }
+  std::string content = body.str();
 
   bool has_marker = content.find("gated-site-passed") != std::string::npos;
   if (has_marker) {
