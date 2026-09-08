@@ -4,4 +4,8 @@
  * This page is auto generated using
  * <a href="https://www.doxygen.nl/">Doxygen</a>, making use of some useful
  * <a href="https://www.doxygen.nl/manual/commands.html">special commands</a>.
+ *
+ * @section about-dbc DBC facility
+ * - dbc-overhead.md (checked-build overhead, SC-008)
+ * - dbc-migration.md (C++26 migration mapping, SC-010)
  */

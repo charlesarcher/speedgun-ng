@@ -11,7 +11,8 @@
 
 auto main() -> int
 {
-  constexpr bool kConstraint = sizeof(int) == 4;  // NOLINT(readability-identifier-naming)
+  constexpr bool kConstraint =
+      sizeof(int) == 4;  // NOLINT(readability-identifier-naming)
   static_assert(kConstraint, "int size constraint via static_assert (FR-022)");
   return 0;
 }
