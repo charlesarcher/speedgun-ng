@@ -1,0 +1,38 @@
+# Macro registry for the DBC gate (FR-026).
+# Single source of truth: maps each SG_* contract macro to its enforcement
+# function and contract kind. The four ALWAYS variants share the gated
+# enforcement function name (per plan) but are flagged always_on.
+# Consumed by dbc_doc_gate.py, dbc_pair_gate.py, and future AST gate.
+---
+- macro: SG_REQUIRE
+  enforcement_function: sg::dbc::check_precondition
+  kind: precondition
+  always_on: false
+- macro: SG_ENSURE
+  enforcement_function: sg::dbc::check_postcondition
+  kind: postcondition
+  always_on: false
+- macro: SG_INVARIANT
+  enforcement_function: sg::dbc::check_invariant
+  kind: invariant
+  always_on: false
+- macro: SG_ASSERT
+  enforcement_function: sg::dbc::check_assertion
+  kind: assertion
+  always_on: false
+- macro: SG_REQUIRE_ALWAYS
+  enforcement_function: sg::dbc::check_precondition
+  kind: precondition
+  always_on: true
+- macro: SG_ENSURE_ALWAYS
+  enforcement_function: sg::dbc::check_postcondition
+  kind: postcondition
+  always_on: true
+- macro: SG_INVARIANT_ALWAYS
+  enforcement_function: sg::dbc::check_invariant
+  kind: invariant
+  always_on: true
+- macro: SG_ASSERT_ALWAYS
+  enforcement_function: sg::dbc::check_assertion
+  kind: assertion
+  always_on: true

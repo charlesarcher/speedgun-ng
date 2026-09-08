@@ -18,6 +18,8 @@ exported_class::~exported_class()
 
 auto exported_class::name() const -> char const*
 {
+  SG_REQUIRE(!m_name.empty(),
+             "the object is in a valid state (class invariant)");
   SG_INVARIANT(!m_name.empty(), "stored name is non-empty");
   char const* const result = m_name.c_str();
   SG_ENSURE(result == m_name.c_str(),

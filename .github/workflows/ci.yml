@@ -45,7 +45,7 @@ jobs:
 
     - name: Install LCov
       run: sudo apt-get update -q
-        && sudo apt-get install lcov -q -y
+        && sudo apt-get install lcov doxygen python3-yaml -q -y
 
     - name: Configure
       run: cmake --preset=ci-coverage
@@ -75,6 +75,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install Doxygen and python3-yaml
+      run: sudo apt-get update -q
+        && sudo apt-get install doxygen python3-yaml -q -y
 
     - name: Configure
       run: cmake --preset=ci-sanitize
@@ -116,7 +120,7 @@ jobs:
     - name: Install static analyzers
       if: matrix.os == 'ubuntu-24.04'
       run: >-
-        sudo apt-get install clang-tidy-18 cppcheck -y -q
+        sudo apt-get install clang-tidy-18 cppcheck doxygen python3-yaml -y -q
 
         sudo update-alternatives --install
         /usr/bin/clang-tidy clang-tidy
@@ -145,7 +149,10 @@ jobs:
 
     - name: Test
       working-directory: build
-      run: ctest --output-on-failure --no-tests=error -C Release -j 2
+      shell: bash
+      run: >-
+        ctest --output-on-failure --no-tests=error -C Release -j 2
+        $([ "${{ matrix.os }}" != "ubuntu-24.04" ] && echo "-E dbc_gate_fixtures" || true)
 
   consumer-release:
     needs: [lint]
@@ -233,6 +240,34 @@ jobs:
           first=$(head -n 1 /tmp/dbc.stdout)
         fi
         test "$first" = "DBC TEST FAIL: pre: violation delivered to the observer"
+
+  dbc-gate:
+    needs: [lint]
+
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Doxygen and python3-yaml
+      run: sudo apt-get update -q
+        && sudo apt-get install doxygen python3-yaml -q -y
+
+    - name: Configure
+      run: cmake -S . -B build/dev --preset=ci-ubuntu
+
+    - name: Build dbc-gate
+      run: cmake --build build/dev -t dbc-gate -j 2
+
+    - name: Test dbc gate fixtures
+      working-directory: build/dev
+      run: ctest -R dbc_gate_fixtures --output-on-failure --no-tests=error -j 2
+
+    - name: Upload dbc-matrix
+      uses: actions/upload-artifact@v4
+      with:
+        name: dbc-matrix
+        path: build/dev/dbc-gate/matrix.json
 
   docs:
     # Deploy docs only when builds succeed

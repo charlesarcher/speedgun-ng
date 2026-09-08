@@ -26,7 +26,7 @@
 #endif
 
 // Measurement harness, not a library TU: short names in the timed
-// loops and parseable stdio are the point of the file.
+// loops and parseable standard I/O are the point of the file.
 // NOLINTBEGIN(readability-identifier-length,bugprone-easily-swappable-parameters,cppcoreguidelines-avoid-magic-numbers,cppcoreguidelines-pro-type-vararg,hicpp-vararg,cert-err33-c,google-runtime-int,cppcoreguidelines-pro-bounds-pointer-arithmetic,readability-use-std-min-max,readability-math-missing-parentheses,modernize-use-ranges,boost-use-ranges)
 
 namespace
@@ -154,7 +154,7 @@ auto main(int argc, char** argv) -> int
   int const x = seed;
 
   std::int64_t sink = 0;
-  // Full-N warmup so timed trials are not dominated by cold I-cache.
+  // Full-N warm-up so timed trials are not dominated by cold I-cache.
   sink += uncontracted_loop(n, x);
   sink += contracted_loop(n, x);
   sink += uncontracted_loop(n, x);
@@ -174,7 +174,7 @@ auto main(int argc, char** argv) -> int
   bool any_zero = false;
 
   for (int trial = 0; trial < trials; ++trial) {
-    // ABBA pairing cancels first-of-pair warmup bias.
+    // ABBA pairing cancels first-of-pair warm-up bias.
     std::int64_t u_ns = 0;
     std::int64_t c_ns = 0;
     if (trial % 2 == 0) {

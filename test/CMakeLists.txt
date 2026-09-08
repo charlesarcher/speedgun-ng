@@ -61,6 +61,15 @@ target_include_directories(dbc_standalone_test PRIVATE ${CMAKE_SOURCE_DIR}/inclu
 target_compile_features(dbc_standalone_test PRIVATE cxx_std_20)
 add_test(NAME dbc_standalone_test COMMAND dbc_standalone_test)
 
+# Dependency scan (T031 / FR-033 / SC-009): asserts the library target has
+# zero external runtime dependencies (no find_package/FetchContent/external
+# target_link_libraries on speedgun-ng_speedgun-ng). Registered so it is
+# exercised in CI. Pure grep script; runs on any platform with bash.
+add_test(
+  NAME dbc_dependency_scan
+  COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/dependency_scan.sh ${CMAKE_SOURCE_DIR}
+)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # The following two tests are registered for tasks T010/T012 (parallel);
   # the scripts are not present yet and these tests are not executed here.
@@ -73,6 +82,21 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR}
   )
 endif()
+
+# Gate-effectiveness harness (T024 / SC-006). Self-contained: invokes the
+# Python driver directly (no dbc-gate CMake target). TDD red until T025/T026
+# land tools/dbc/dbc_doc_gate.py and dbc_pair_gate.py: while they are missing
+# the harness exits with "gate scripts not present (TDD red)".
+add_test(
+  NAME dbc_gate_fixtures
+  COMMAND
+    python3
+    ${CMAKE_CURRENT_SOURCE_DIR}/dbc-gate-fixture/run_gate_fixtures.py
+    --gate both
+    --registry ${CMAKE_SOURCE_DIR}/tools/dbc/macros.yaml
+    --out ${CMAKE_BINARY_DIR}/dbc-gate-fixtures
+    ${CMAKE_CURRENT_SOURCE_DIR}/dbc-gate-fixture
+)
 
 # ---- End-of-file commands ----
 
