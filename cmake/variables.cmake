@@ -21,6 +21,20 @@ set(pragma_suppress_c4251 "
 #endif
 ")
 
+# ---- Warnings as errors (constitution VIII) ----
+# Top-level builds never treat diagnostics as advisory. Consumers who
+# add_subdirectory this project do not inherit the error promotion.
+if(PROJECT_IS_TOP_LEVEL)
+  set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+  if(CMAKE_VERSION VERSION_LESS "3.24")
+    if(MSVC)
+      add_compile_options(/WX)
+    else()
+      add_compile_options(-Werror)
+    endif()
+  endif()
+endif()
+
 # ---- Warning guard ----
 
 # target_include_directories with the SYSTEM modifier will request the compiler

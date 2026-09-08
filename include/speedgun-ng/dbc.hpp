@@ -236,6 +236,8 @@ inline auto set_observer(violation_observer observer) -> void
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 
+// Enforcement entry points are the fuse box (FR-032), not application code.
+// LCOV_EXCL_START
 #if SG_CONTRACTS_SEMANTIC != 0
 /**
  * @brief Dispatch a precondition violation under the active semantic.
@@ -391,6 +393,8 @@ inline auto check_assertion(char const (&message)[],
   detail::enforce(
       Kind::assertion, file, line, static_cast<char const*>(message), pred);
 }
+
+// LCOV_EXCL_STOP
 
 // NOLINTEND(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 

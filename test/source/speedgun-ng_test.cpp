@@ -75,6 +75,16 @@ auto run() -> int
     auto const exported = exported_class {};
     check(std::string("speedgun-ng") == exported.name(),
           "pass: name() returns the project name");
+    auto copied = exported;
+    check(std::string("speedgun-ng") == copied.name(),
+          "pass: copy name() returns the project name");
+    copied = exported;
+    check(std::string("speedgun-ng") == copied.name(),
+          "pass: copy-assign name() returns the project name");
+    exported_class& same = copied;
+    copied = same;
+    check(std::string("speedgun-ng") == copied.name(),
+          "pass: self-assign name() returns the project name");
   }
 
   // FAIL-side: observer-capture of an intentional invariant violation.
@@ -92,7 +102,7 @@ auto run() -> int
   // FAIL-side: observer-capture of an intentional postcondition violation
   // over a named result capture (the name() ENSURE shape).
   rec = sg::dbc::ViolationRecord {};
-  check(capture_violation(rec, [] { (void)violate_name_postcondition(); }),
+  check(capture_violation(rec, violate_name_postcondition),
         "fail: postcondition violation delivered to the observer");
   check(rec.kind == Kind::postcondition, "fail: kind == postcondition");
   check(std::string(rec.message) == "post: name() returns the project name",
