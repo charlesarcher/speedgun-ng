@@ -1,14 +1,13 @@
 <!--
 Sync Impact Report (constitution amendment)
 ===========================================
-Version change: 2.2.0 -> 2.2.1 (PATCH: non-semantic refinement - the
-runtime-guidance cross-references now point at the consolidated
-README.md, which replaces the former standalone BUILDING.md,
-CONTRIBUTING.md, and HACKING.md)
+Version change: 2.2.1 -> 2.3.0 (MINOR: language pin C++20 -> C++23;
+CMake minimum 3.14 -> 3.20 for cxx_std_23)
 
 Modified sections:
-  Governance -> "Runtime guidance" reference updated to README.md
-  (build/test/contribution instructions now live there)
+  I. Standard-First Coding -> C++23
+  III. R-DCUT -> Code is C++23
+  Additional Constraints -> Language C++23; Build system CMake >= 3.20
 
 Added sections: none.
 Removed sections: none.
@@ -25,6 +24,7 @@ Deferred / follow-up:
     VII mandates it and it will be delivered through a future spec.
 
 History:
+  2.3.0  2026-09-09  Pin language to C++23; CMake >= 3.20
   2.2.1  2026-09-06  Consolidate docs into README.md; update
                      runtime-guidance cross-references
   2.2.0  2026-09-06  Commit message + linear-history standard
@@ -66,7 +66,7 @@ enforced by tooling and is the calibration baseline for code review.
      registered.
   4. **P3 — Default rules.** The pinned C++ Core Guidelines, enforced by
      clang-tidy and cppcheck via the project presets.
-- Code that is not C++20, or that requires a compiler extension, MUST NOT
+- Code that is not C++23, or that requires a compiler extension, MUST NOT
   be merged (see Additional Constraints).
 
 ### II. Design By Contract (NON-NEGOTIABLE)
@@ -132,7 +132,7 @@ produces its artifact in the canonical location given there.
   - *Physical view* — where the feature lives: module/namespace/file
     layout, build targets and link relationships, and the public API
     surface it adds.
-- **Code.** C++20 (Principle I and all other principles), in
+- **Code.** C++23 (Principle I and all other principles), in
   `include/speedgun-ng/` for the public interface and `source/` for the
   implementation.
 - **Unit Test.** In `test/`, registered with CTest, following Principle
@@ -378,7 +378,7 @@ mapping:
 
 ## Additional Constraints
 
-- **Language**: C++20 only (`CMAKE_CXX_EXTENSIONS=OFF`). The CI matrix —
+- **Language**: C++23 only (`CMAKE_CXX_EXTENSIONS=OFF`). The CI matrix —
   Linux (GCC/Clang), macOS (AppleClang), Windows (MSVC) — defines the
   supported platforms; new code must not break any of them.
 - **Warnings and hardening**: the strict warning sets in
@@ -393,7 +393,7 @@ mapping:
 - **Dependencies**: no new hard runtime dependencies without documented
   justification in the feature spec. The project currently has zero
   external runtime dependencies; keep it that way.
-- **Build system**: CMake ≥ 3.14, preset-driven configuration.
+- **Build system**: CMake ≥ 3.20, preset-driven configuration.
   `CMakeUserPresets.json` is machine-local and must NEVER be checked
   into source control.
 - **Licensing**: BSD 3-Clause. All contributed code is compatible and
@@ -421,4 +421,4 @@ wins.
 - **Runtime guidance**: see `README.md` for build/test and contribution
   instructions.
 
-**Version**: 2.2.1 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-06
+**Version**: 2.3.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-09
