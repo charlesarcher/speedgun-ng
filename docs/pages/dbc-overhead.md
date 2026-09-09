@@ -12,7 +12,7 @@ the script rewrites this file.
 ## Protocol
 
 - Clock: `std::chrono::steady_clock`
-- Optimization: `-O2 -std=c++20` (no LTO)
+- Optimization: `-O2 -std=c++23` (no LTO)
 - Semantic: `SG_CONTRACTS_SEMANTIC=2` (enforce)
 - Iterations per trial (N): 100000000
 - Trials: 51

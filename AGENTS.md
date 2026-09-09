@@ -1,6 +1,6 @@
 # speedgun-ng
 
-Modern C++20 benchmarking framework (in the spirit of Google Benchmark, with
+Modern C++23 benchmarking framework (in the spirit of Google Benchmark, with
 additional features). CMake build system, BSD 3-Clause license.
 
 ## Mandatory First Reading

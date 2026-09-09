@@ -7,7 +7,7 @@
 #
 # For each of g++ and clang++ that is present:
 #   compile a hot function containing a satisfied SG_REQUIRE with a
-#   *runtime* (non-constant) predicate at -O2 -std=c++20, objdump it,
+#   *runtime* (non-constant) predicate at -O2 -std=c++23, objdump it,
 #   and assert the satisfied path is predicate + one branch, with no
 #   call to sg::dbc and no EH personality in that function.
 #
@@ -129,10 +129,10 @@ int unguarded(int x)
 }
 EOF
 
-  "$cxx" -O2 -std=c++20 -I "$INCLUDE_DIR" -c -o "$slot/hot.o" "$slot/hot.cpp"
-  "$cxx" -O2 -std=c++20 -I "$INCLUDE_DIR" -S -o "$slot/hot.s" "$slot/hot.cpp"
-  "$cxx" -O2 -std=c++20 -c -o "$slot/throw.o" "$slot/throw.cpp"
-  "$cxx" -O2 -std=c++20 -S -o "$slot/throw.s" "$slot/throw.cpp"
+  "$cxx" -O2 -std=c++23 -I "$INCLUDE_DIR" -c -o "$slot/hot.o" "$slot/hot.cpp"
+  "$cxx" -O2 -std=c++23 -I "$INCLUDE_DIR" -S -o "$slot/hot.s" "$slot/hot.cpp"
+  "$cxx" -O2 -std=c++23 -c -o "$slot/throw.o" "$slot/throw.cpp"
+  "$cxx" -O2 -std=c++23 -S -o "$slot/throw.s" "$slot/throw.cpp"
 
   local dump asm
   dump=$(objdump -d -C -r "$slot/hot.o")

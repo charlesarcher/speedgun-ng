@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 
 project(speedgun-ngTests LANGUAGES CXX)
 
@@ -16,7 +16,7 @@ endif()
 
 add_executable(speedgun-ng_test source/speedgun-ng_test.cpp)
 target_link_libraries(speedgun-ng_test PRIVATE speedgun-ng::speedgun-ng)
-target_compile_features(speedgun-ng_test PRIVATE cxx_std_20)
+target_compile_features(speedgun-ng_test PRIVATE cxx_std_23)
 
 add_test(NAME speedgun-ng_test COMMAND speedgun-ng_test)
 
@@ -24,7 +24,7 @@ add_test(NAME speedgun-ng_test COMMAND speedgun-ng_test)
 
 add_executable(dbc_test source/dbc_test.cpp)
 target_link_libraries(dbc_test PRIVATE speedgun-ng::speedgun-ng)
-target_compile_features(dbc_test PRIVATE cxx_std_20)
+target_compile_features(dbc_test PRIVATE cxx_std_23)
 add_test(NAME dbc_test COMMAND dbc_test)
 
 # The trap fixture is NOT a test (it aborts in checked builds); it is a driven
@@ -32,14 +32,14 @@ add_test(NAME dbc_test COMMAND dbc_test)
 # prove the release-clean / always-on contrast (SC-002, FR-036).
 add_executable(dbc_trap_fixture source/dbc_trap_fixture.cpp)
 target_link_libraries(dbc_trap_fixture PRIVATE speedgun-ng::speedgun-ng)
-target_compile_features(dbc_trap_fixture PRIVATE cxx_std_20)
+target_compile_features(dbc_trap_fixture PRIVATE cxx_std_23)
 
 # Checked-build trap verification: spawns the fixture and asserts the gated
 # site aborted (no marker) under the default (enforce) dev semantic (SC-002
 # half (a)). The ignore-build contrast is the consumer-release job's job (T016).
 add_executable(dbc_trap_checked_test source/dbc_trap_checked_test.cpp)
 target_link_libraries(dbc_trap_checked_test PRIVATE speedgun-ng::speedgun-ng)
-target_compile_features(dbc_trap_checked_test PRIVATE cxx_std_20)
+target_compile_features(dbc_trap_checked_test PRIVATE cxx_std_23)
 add_test(
   NAME dbc_trap_checked
   COMMAND dbc_trap_checked_test $<TARGET_FILE:dbc_trap_fixture>
@@ -58,7 +58,7 @@ add_test(
 # Uses runtime (non-constant) predicates only.
 add_executable(dbc_standalone_test source/dbc_standalone.cpp)
 target_include_directories(dbc_standalone_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_compile_features(dbc_standalone_test PRIVATE cxx_std_20)
+target_compile_features(dbc_standalone_test PRIVATE cxx_std_23)
 add_test(NAME dbc_standalone_test COMMAND dbc_standalone_test)
 
 # Dependency scan (T031 / FR-033 / SC-009): asserts the library target has

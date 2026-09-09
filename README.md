@@ -4,7 +4,7 @@
   <img src="docs/images/sg.jpg" alt="speedgun-ng" width="280">
 </p>
 
-Speedgun Next Generation - a modern C++20 benchmarking framework
+Speedgun Next Generation - a modern C++23 benchmarking framework
 (benchmarking in the spirit of Google Benchmark, with additional
 features). CMake build system, BSD 3-Clause license.
 
@@ -104,7 +104,7 @@ preset inherits a developer-mode preset and an OS-specific CI preset
 ```json
 {
   "version": 2,
-  "cmakeMinimumRequired": { "major": 3, "minor": 14, "patch": 0 },
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
   "configurePresets": [
     {
       "name": "dev",
