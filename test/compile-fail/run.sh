@@ -13,7 +13,7 @@
 #   - // platforms: gcc,clang or all (default all); skip if active not listed
 # For positive/*.cpp: must compile to exit 0 (clean).
 #
-# Compile flags (per spec): -std=c++20 + strict warnings + -I <repo>/include -I<exportdir>
+# Compile flags (per spec): -std=c++23 + strict warnings + -I <repo>/include -I<exportdir>
 #
 # Exit non-zero if any verdict is FAIL.
 
@@ -57,7 +57,7 @@ if [ ! -f "$export_incdir/speedgun-ng/speedgun-ng_export.hpp" ]; then
 fi
 
 INC_FLAGS="-I $REPO_ROOT/include -I $export_incdir"
-WARN_FLAGS="-std=c++20 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wold-style-cast"
+WARN_FLAGS="-std=c++23 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wold-style-cast"
 CXX=${CXX:-c++}
 
 # Determine active platform for SKIP logic.

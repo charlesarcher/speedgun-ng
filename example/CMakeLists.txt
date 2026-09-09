@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 
 project(speedgun-ngExamples CXX)
 
@@ -14,7 +14,7 @@ add_custom_target(run-examples)
 function(add_example NAME)
   add_executable("${NAME}" "${NAME}.cpp")
   target_link_libraries("${NAME}" PRIVATE speedgun-ng::speedgun-ng)
-  target_compile_features("${NAME}" PRIVATE cxx_std_20)
+  target_compile_features("${NAME}" PRIVATE cxx_std_23)
   add_custom_target("run_${NAME}" COMMAND "${NAME}" VERBATIM)
   add_dependencies("run_${NAME}" "${NAME}")
   add_dependencies(run-examples "run_${NAME}")

@@ -40,7 +40,7 @@ fi
 WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
 
-CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wold-style-cast"
+CXX_FLAGS="-std=c++23 -O2 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wold-style-cast"
 
 compile() {
   local cxx=$1
@@ -165,7 +165,7 @@ the script rewrites this file.
 ## Protocol
 
 - Clock: \`std::chrono::steady_clock\`
-- Optimization: \`-O2 -std=c++20\` (no LTO)
+- Optimization: \`-O2 -std=c++23\` (no LTO)
 - Semantic: \`SG_CONTRACTS_SEMANTIC=2\` (enforce)
 - Iterations per trial (N): ${N}
 - Trials: ${TRIALS}

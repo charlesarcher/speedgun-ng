@@ -11,7 +11,7 @@
 # CMake build directory configured with:
 #   speedgun-ng_DEVELOPER_MODE=ON
 #   speedgun-ng_CONTRACTS=enforce
-#   CMAKE_CXX_STANDARD=20, CMAKE_CXX_EXTENSIONS=OFF
+#   CMAKE_CXX_STANDARD=23, CMAKE_CXX_EXTENSIONS=OFF
 # plus the per-cell flags via CMAKE_CXX_FLAGS.
 #
 # dbc_test is built in every cell. Under enforce the suite currently
@@ -175,7 +175,7 @@ run_cell() {
   cmake -S "$REPO_ROOT" -B "$dir" \
     -Dspeedgun-ng_DEVELOPER_MODE=ON \
     -Dspeedgun-ng_CONTRACTS="$contracts" \
-    -DCMAKE_CXX_STANDARD=20 \
+    -DCMAKE_CXX_STANDARD=23 \
     -DCMAKE_CXX_STANDARD_REQUIRED=ON \
     -DCMAKE_CXX_EXTENSIONS=OFF \
     -DCMAKE_BUILD_TYPE=None \
@@ -198,8 +198,8 @@ run_cell() {
     echo "FAIL: $name cache CONTRACTS=$got_contracts want $contracts" >&2
     return 1
   fi
-  if [ "$got_std" != "20" ]; then
-    echo "FAIL: $name CMAKE_CXX_STANDARD=$got_std want 20" >&2
+  if [ "$got_std" != "23" ]; then
+    echo "FAIL: $name CMAKE_CXX_STANDARD=$got_std want 23" >&2
     return 1
   fi
   if [ "$got_ext" != "OFF" ]; then
@@ -219,8 +219,8 @@ run_cell() {
     echo "FAIL: $name compile_commands uses gnu++ (extensions not off)" >&2
     return 1
   fi
-  if ! grep -q -- '-std=c++20' "$cc"; then
-    echo "FAIL: $name compile_commands missing -std=c++20" >&2
+  if ! grep -q -- '-std=c++23' "$cc"; then
+    echo "FAIL: $name compile_commands missing -std=c++23" >&2
     return 1
   fi
 
@@ -262,7 +262,7 @@ run_cell() {
   fi
 
   local echo_bin="$dir/semantic_echo"
-  "$CXX" -std=c++20 $flags -DSG_CONTRACTS_SEMANTIC="$sem" \
+  "$CXX" -std=c++23 $flags -DSG_CONTRACTS_SEMANTIC="$sem" \
     "$MATRIX_ROOT/semantic_echo.cpp" -o "$echo_bin"
   local echo_out
   echo_out=$("$echo_bin")
@@ -273,7 +273,7 @@ run_cell() {
   fi
 
   local once_bin="$dir/exactly_once"
-  "$CXX" -std=c++20 $flags -DSG_CONTRACTS_SEMANTIC="$sem" \
+  "$CXX" -std=c++23 $flags -DSG_CONTRACTS_SEMANTIC="$sem" \
     -I "$REPO_ROOT/include" \
     "$MATRIX_ROOT/exactly_once.cpp" -o "$once_bin"
   local once_out
@@ -293,7 +293,7 @@ run_cell() {
   fi
 
   local assert_bin="$dir/assert_false"
-  "$CXX" -std=c++20 $flags "$MATRIX_ROOT/assert_false.cpp" -o "$assert_bin"
+  "$CXX" -std=c++23 $flags "$MATRIX_ROOT/assert_false.cpp" -o "$assert_bin"
   local assert_rc=0
   set +e
   (ulimit -c 0; run_to 10 "$assert_bin") >/dev/null 2>&1
