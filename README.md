@@ -6,6 +6,12 @@
 
 A C++23 benchmarking framework in the spirit of Google Benchmark.
 
+The name and the idea come from Speedgun, a tool I worked on at Akuna.
+I wanted something like it for personal projects, so this is a
+ground-up rethink: Speedgun Next Generation. It shares no code with
+that project. Everything here is written by the author and a local AI
+army.
+
 ## Build
 
 ```sh
