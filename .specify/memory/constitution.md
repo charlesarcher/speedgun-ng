@@ -1,21 +1,53 @@
 <!--
 Sync Impact Report (constitution amendment)
 ===========================================
-Version change: 2.2.1 -> 2.3.0 (MINOR: language pin C++20 -> C++23;
-CMake minimum 3.14 -> 3.20 for cxx_std_23)
+Version change: 2.3.0 -> 2.4.0 (MINOR: two new principles, X and XI,
+covering anti-slop code discipline and discourse and prose standards,
+written for C++23 plus Design By Contract, with machine-checkable
+enforcement)
 
 Modified sections:
-  I. Standard-First Coding -> C++23
-  III. R-DCUT -> Code is C++23
-  Additional Constraints -> Language C++23; Build system CMake >= 3.20
+  VIII. CI Quality Gates -> prose defects recorded at lint parity; the
+  machine check for Principle XI is listed as deferred enforcement
+  alongside the existing commit-template gate.
 
-Added sections: none.
+Added sections:
+  X. Anti-Slop Code Discipline (X.1 surface assumptions, X.2 simplicity
+  first, X.3 surgical changes, X.4 verifiable success)
+  XI. Discourse and Prose Standards, Anti-Slop (XI.1..XI.6)
+
 Removed sections: none.
+
+Rationale: this project is written by an AI army under the README's own
+description, so the characteristic failure modes of generated work are
+first-order risks: silent interpretation choices, speculative
+generality, drive-by diffs, completion claims without evidence, and
+LLM prose tics. Principle II already forbids catching a violated
+contract and Principle IV already bans content-free comments and
+TODOs; the new principles close the remaining gaps (speculative
+abstraction, unsound cast suppression used to silence diagnostics,
+unverifiable success claims, and discourse habits). Enforcement parity
+with lint is what makes them rules and not preferences.
+
+Compatibility: X and XI add no requirement that contradicts I through
+IX. Where they touch an existing principle they cross-reference it and
+never restate it, keeping one canonical home per rule. Scope follows the
+Principle IX scope rule: bug fixes and trivial changes may bypass; work
+touching public API, behavior, or build configuration cannot.
 
 Deferred / follow-up:
   - Machine enforcement of the commit template (commit-msg hook / CI
     commit lint) does not exist yet; authors MUST self-verify, and
     tooling enforcement will be delivered through a future spec.
+  - Machine enforcement of Principle XI (prose lint over tracked Markdown,
+    comments, and commit subjects, using the grep-checkable patterns
+    listed in XI.6) does not exist yet; reviewers enforce it by hand
+    until a future spec delivers the gate. It lands as one target shared
+    with the commit-lint deferral above.
+  - Grandfathered prose: text written before XI.1 contains banned
+    tokens, including em-dashes in existing Principle headings. A change
+    brings the lines it touches into compliance; a tree-wide sweep is a
+    formatting-only change under Principle V and is scheduled separately.
   - DCRs and P2 exception justifications are tracked in the issue
     tracker; the exact label/convention is project policy, not
     governance.
@@ -24,13 +56,16 @@ Deferred / follow-up:
     VII mandates it and it will be delivered through a future spec.
 
 History:
+  2.4.0  2026-09-10  Anti-slop principles X and XI (code discipline +
+                     discourse standards); prose enforcement listed as
+                     deferred
   2.3.0  2026-09-09  Pin language to C++23; CMake >= 3.20
   2.2.1  2026-09-06  Consolidate docs into README.md; update
                      runtime-guidance cross-references
   2.2.0  2026-09-06  Commit message + linear-history standard
                      (MPICH-derived, Pull Request Quality)
   2.1.0  2026-09-06  SDD <-> R-DCUT artifact mapping, UML design
-                     mandate, TDD execution mode
+                      mandate, TDD execution mode
   2.0.0  2026-09-06  Wholesale redefinition from the software
                      engineering standards (DBC, R-DCUT, coverage
                      gates, performance discipline, hard CI gates)
@@ -240,6 +275,9 @@ Every change passes all of the following gates in CI; each is hard.
   Core Guidelines baseline (Principle I) is enforced by the same
   configuration.
 - `format-check` and `spell-check` pass.
+- Generated prose satisfies Principle XI. A discourse violation is a
+  review defect at lint parity; the automated prose check is pending
+  (Sync Impact Report, deferred items) and review carries it meanwhile.
 - Coverage gates of Principle VI pass (100% LOC, 100% branch, 100%
   DBC).
 - DBC completeness is checked (Principle II).
@@ -290,6 +328,205 @@ mapping:
 - **Scope:** bug fixes and trivial changes (typo, format, build fix)
   may bypass the full workflow; anything touching public API, behavior,
   or build configuration must not.
+
+### X. Anti-Slop Code Discipline (NON-NEGOTIABLE)
+
+Behavioral guardrails for every implementer, human or AI. They bias
+toward caution over speed: minimal diffs, traceable intent, and rare
+rework. Scope follows Principle IX: bug fixes and trivial changes call
+for judgment; everything else obeys all four rules.
+
+#### X.1 Think before coding: surface assumptions
+
+- Assumptions are stated in writing before implementation: the spec, the
+  plan, the commit body, or a comment adjacent to the affected lines.
+- When a requirement admits several readings, each candidate is recorded
+  and the chosen one justified. Silent selection is PROHIBITED.
+- When a simpler approach exists than the one requested, the alternative
+  is surfaced in writing before proceeding.
+- When ambiguity blocks correctness (style disagreements do not count),
+  the implementer names it and resolves it from an authoritative source:
+  the governing spec, this constitution, or the established code
+  pattern. The user is asked only when those three cannot settle it.
+
+Rationale: hidden assumptions are the largest single source of rework,
+and generated code hides them well. Written assumptions are auditable at
+review and cheap to revisit.
+
+#### X.2 Simplicity first: no speculative generality
+
+- Implementations contain the minimum code satisfying the stated
+  requirement and its covering tests.
+- The following are PROHIBITED unless the spec asks for them or another
+  principle requires them:
+  - features beyond what the requirement specifies;
+  - abstractions, indirection, or configurability serving one caller;
+  - extension hooks, injection seams, template parameters, or
+    customization points for use cases that do not exist yet;
+  - overloads, specializations, or branches for inputs the call site
+    excludes;
+  - defensive handling of conditions a contract already rules out:
+    Principle II makes a violated precondition abort, so a `try`/`catch`,
+    an error code, or a fallback path around it is dead weight at best
+    and a suppressed fuse at worst.
+- Suppression of diagnostics is never silent. A `const_cast`,
+  `reinterpret_cast`, a `std::any`/`std::variant` down-cast, a C-style
+  cast, or a `(void)parameter` discard exists only where a contract makes
+  it sound; each is a P2 exception (Principle I) with the justification
+  written at the site, and each `NOLINT` carries its reason in the same
+  comment.
+- A `DoNotOptimize`-style barrier appears only where the compiler would
+  otherwise eliminate the measured work. A barrier with nothing to defeat
+  is noise, and noise in a benchmarking framework is a defect.
+- A function roughly four times the length a senior engineer writes for
+  the same problem is rewritten before merge.
+
+Rationale: speculative generality is a maintenance liability that must be
+re-justified at every API change, and it survives review precisely because
+it looks like foresight. Banned here, it stops being a default.
+
+#### X.3 Surgical changes: touch only what you must
+
+- Every changed line traces to the requirement, task, or defect this
+  change addresses. Diffs carrying drive-by refactors, adjacent comment
+  polishing, or unrelated cleanup are rejected at review.
+- Local style wins. Naming, indentation, comment conventions, and file
+  organization in the edited file are matched even when the implementer
+  prefers otherwise; adopting a different convention is a dedicated
+  formatting-only change (Principle V).
+- Working code is not refactored because another shape looks cleaner.
+- Orphans created by this change are removed in this change: unused
+  includes, variables, functions, template instantiations, and dead
+  branches. Pre-existing dead code is filed as an issue and removed in
+  its own change.
+- Code you did not write is not "fixed" inside a change about something
+  else (Principle V and Pull Request Quality).
+
+Rationale: surgical diffs keep review tractable, `git bisect` reliable,
+and rollback safe, which is what the linear-history rule depends on.
+
+#### X.4 Goal-driven execution: define verifiable success
+
+- Every non-trivial task is converted into a verifiable goal before
+  implementation. "Make it work" is a non-goal.
+- Multi-step work is recorded as a step and check plan in the plan, the
+  tasks artifact, or the commit body:
+
+  ```
+  1. <step> -> verify: <observable check>
+  2. <step> -> verify: <observable check>
+  ```
+
+- Checks are observable and binary: a test passes or fails, a command
+  exits zero or non-zero, a diff is empty, output matches a fixture.
+  Subjective checks ("looks right", "should be fine") are PROHIBITED.
+- Standard conversions:
+  - "Add validation" becomes "list the invalid inputs, write the tests,
+    make them pass".
+  - "Fix the bug" becomes "write the failing test, confirm it fails
+    against the unfixed baseline, fix, confirm it passes" (Principle VI
+    already requires the reproducing test).
+  - "Refactor X" becomes "record the passing test set, refactor, confirm
+    the identical set passes, add no new tests".
+  - "Speed up the hot path" becomes "record the baseline distribution,
+    change, confirm the improvement exceeds noise on the same platform"
+    (Principle VII).
+- Completion is reported with evidence: the command run, the exit code,
+  the test name, or the output excerpt. A completion claim without
+  recorded evidence is non-compliant.
+
+Rationale: an AI army produces confident prose for free and verified work
+only under obligation. Evidence is the difference between the two, and it
+is the only thing Principle VIII's gates can consume.
+
+### XI. Discourse and Prose Standards (Anti-Slop) (NON-NEGOTIABLE)
+
+These rules govern every word generated in this repository, in every
+channel: interactive replies, code comments, commit messages, specs,
+plans, tasks, documentation, figure labels, and slide text. A reply typed
+into a conversation is generated output and is held to the same standard
+as a shipped document. Common LLM writing habits damage technical
+discourse, so they are removed by rule. Ratified by the maintainer,
+2026-09-10. This principle is the canonical home: other guides reference
+it and never restate it.
+
+#### XI.1 No em-dashes
+
+Use a colon, a semicolon, a comma, or parentheses. The rule applies to
+every generated sentence, including bullets and figure text. The en-dash
+(U+2013) is permitted for numeric ranges alone (`P0–P3`, `C++11–C++23`);
+it carries a precise meaning unrelated to the em-dash-as-connector habit.
+ASCII `--` and `---` are forbidden in prose everywhere, including
+Markdown source that a converter might rewrite.
+
+Scope and grandfathering: the rule binds output generated after this
+amendment. Text written earlier carries violations, this document's own
+Principle headings among them, and those are pre-existing rather than
+non-compliant. A change brings the lines it touches into compliance; a
+tree-wide sweep is a formatting-only change under Principle V, scheduled
+on its own.
+
+#### XI.2 No contrastive framing
+
+Never use "X, not Y", "X rather than Y", or "X instead of Y" as a
+rhetorical device, and never structure a claim as "does this, not that".
+State what the thing IS.
+- Wrong: "the runner is a scheduler, not a thread pool"
+- Right: "the runner dispatches benchmark executions onto a fixed pool of
+  worker threads"
+
+Where a distinction is technically load-bearing, each fact gets its own
+sentence and both are stated on their own terms.
+
+#### XI.3 Never vouch for truthfulness
+
+Banned: "honest", "honestly", "to be honest", "candid", "candidly",
+"frankly", "transparent", "transparently", "genuinely", "straight
+answer", and any phrasing that certifies the truthfulness of a statement.
+Vouching for one statement implies the others lack it. Every statement
+here is grounded in evidence (X.4) or is labeled as an estimate with its
+uncertainty; none needs a marker.
+
+#### XI.4 No meta-editorializing
+
+Do not narrate the authoring process, the reading process, or the framing
+inside the artifact. Banned patterns: "in this section we", "this
+document will cover", "my approach to this file", "what this would take",
+"how we read your input", "as an AI", "I notice that", "let me walk you
+through". State the content. The artifact is the content; it does not
+describe itself.
+
+#### XI.5 No filler, hedge, or marketing vocabulary
+
+Filler and hedge drops: "it's worth noting", "importantly", "notably",
+"essentially", "basically", "simply", "just", "very", "actually", "in
+fact", "of course", "needless to say", "in order to".
+
+Marketing vocabulary is banned from technical claims: "seamlessly",
+"cutting-edge", "leverages", "world-class", "best-in-class",
+"industry-leading", "robust", "blazing-fast", "elegant", "powerful". A
+performance claim carries a number, a platform, and a distribution
+(Principle VII). An interface claim carries a contract (Principle II).
+
+Weak requirement language stays banned in EARS statements per Principle
+III: "should", "may", "might", "approximately".
+
+#### XI.6 Enforcement
+
+- A violation of this principle in generated text is a defect at lint
+  parity: reviewers reject it and the author fixes it before merge, the
+  same way a clang-tidy finding is handled.
+- Machine checks cover the grep-checkable subset: the em-dash code point,
+  `--` or `---` in prose, `, not `, ` rather than `, ` instead of `, the
+  XI.3 voucher list, the XI.5 filler list, and the XI.5 marketing list.
+  Wiring is deferred to a future spec together with the commit-template
+  lint (see the Sync Impact Report); until it lands, review enforces it.
+- Exemptions: a banned token inside a verbatim quotation, a code span, a
+  command, a file name, or a literal that is itself the subject under
+  discussion. Mark the quotation as quoted.
+- Principle XI binds generated output. It does not rewrite a contributor's
+  personal voice in prose they author by hand, and it never weakens
+  Principles IV or V.
 
 ## Refactoring and Evolution
 
@@ -421,4 +658,4 @@ wins.
 - **Runtime guidance**: see `README.md` for build/test and contribution
   instructions.
 
-**Version**: 2.3.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-09
+**Version**: 2.4.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-10
