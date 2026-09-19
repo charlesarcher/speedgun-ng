@@ -17,8 +17,8 @@ pull request targeting `master` and on every push to `master`.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # R-07: default 1 cannot support a range
-      - name: Install PyYAML
-        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml
+      - name: Install PyYAML, Doxygen, and lcov
+        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml doxygen lcov
       - name: Resolve range
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -64,7 +64,10 @@ The `Resolve range` step exports `PROSE_BASE` and `PROSE_HEAD` through
 `|| true` keeps configure and build noise from masking a fixture failure:
 the `ctest` step re-runs the fixture harness and is the fixture verdict.
 The job runs the runner's distribution `python3` with the apt
-`python3-yaml` package (decision D1). It does not use
+`python3-yaml` package (decision D1), plus `doxygen` and `lcov`:
+the `ci-ubuntu` preset enters developer mode, whose
+`cmake/dbc-gate.cmake` and `cmake/coverage.cmake` fail configure
+at include time without their tools on PATH. It does not use
 `actions/setup-python`: that step belongs to the `lint` job
 (`ci.yml:19-20`) and installs a standalone CPython without PyYAML, so
 importing it here would break the `yaml` import. The fixture steps follow
@@ -106,9 +109,11 @@ errors are swallowed, silently checks nothing.
 `needs: [lint]` places the job beside `coverage`, `sanitize`, `test`,
 `test-rocky`, `consumer-release`, and `dbc-gate`, which all wait on the
 `lint` root (`ci.yml` job graph). Nothing depends on `prose-lint`, so it
-adds latency to no other job. It installs `python3-yaml` through apt, the
-same package five existing jobs install (`ci.yml:48`, `81`, `110`, `156`,
-`247`), and nothing through pip, so SC-006 holds: no runner installs
+adds latency to no other job. It installs `python3-yaml`,
+`doxygen`, and `lcov` through apt, packages existing jobs already
+install (python3-yaml at `ci.yml:48`, `81`, `110`, `156`, `247`;
+doxygen and lcov in every job that configures with `ci-ubuntu`),
+and nothing through pip, so SC-006 holds: no runner installs
 anything beyond what existing jobs already install.
 
 ## Failure behavior
@@ -157,6 +162,6 @@ CI reads it from the event payload, and `--preset=dev` where CI uses
 | FR-016 pull-request range plus newly pushed commits | Event input resolution table |
 | FR-019 one command, documented | Reproduction block, mirrored in `quickstart.md` |
 | FR-020 Linux job on pull request and push, existing conventions, re-creable | Job shape, `needs: [lint]`, reproduction block |
-| FR-021, SC-006 no new dependency | apt `python3-yaml`, no pip, no Node, no new binary |
+| FR-021, SC-006 no new dependency | apt `python3-yaml`, `doxygen`, and `lcov`, all already installed by existing jobs; no pip, no Node, no new binary |
 | FR-023 fixtures run inside the gate | `ctest -R prose_gate_fixtures` step |
 | SC-001 refused before merge | Landing marks the job a required status check in branch protection, same standing as `dbc-gate` |
