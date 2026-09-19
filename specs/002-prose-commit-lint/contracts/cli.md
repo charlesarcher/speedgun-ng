@@ -30,7 +30,7 @@ fail on pre-gate history (R-11, immutability).
 ### Exit codes
 
 | Code | Meaning | Basis |
-| --- | --- | --- |
+| - | - | - |
 | 0 | No findings. Also the result of an empty range and of an all-excluded path set | FR-018, `spec.md:110` |
 | 1 | At least one finding | FR-018 |
 | 2 | Usage error, unreadable or invalid rule data, git missing or failing, or a range that cannot be resolved | `tools/dbc/dbc_gate_common.py:10-14`, `cmake/coverage.cmake:6-13`, R-07 |

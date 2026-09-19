@@ -545,7 +545,7 @@ forbidden by Principle IV, and markup no tool reads is exactly that).
 Every item the spec recorded as a plan decision is now decided:
 
 | Spec item | Resolution |
-| --- | --- |
+| - | - |
 | Interpreter and libraries (Assumption, `spec.md:174`) | Python 3.12, the runner's distribution `python3` with apt `python3-yaml`; the job does not run `actions/setup-python`, which stays with the `lint` job at `ci.yml:19-20` (R-01, R-02, D1) |
 | Rule data location and format | `tools/prose/prose_rules.yaml` (R-02) |
 | Exemption marker spelling | `prose-lint: allow reason="..."`, line-scoped (R-06) |
