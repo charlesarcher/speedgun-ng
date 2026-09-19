@@ -296,6 +296,10 @@ jobs:
             echo "::error::resolved range is empty (base equals head)"
             exit 2
           fi
+          echo "resolved base=$(git rev-parse "$base")"
+          echo "resolved head=$(git rev-parse "$head_sha")"
+          echo "merge-base=$(git merge-base "$base" "$head_sha")"
+          echo "range resolved, $(git rev-list --count "$base".."$head_sha") commits"
           echo "PROSE_BASE=$(git rev-parse "$base")" >> "$GITHUB_ENV"
           echo "PROSE_HEAD=$(git rev-parse "$head_sha")" >> "$GITHUB_ENV"
       - name: Prose and commit lint

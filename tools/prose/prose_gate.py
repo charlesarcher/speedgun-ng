@@ -1187,6 +1187,10 @@ def evaluate_commits(
     repo = resolve_repo_root()
     base = resolve_base(repo, args.base, args.head)
     records = build_commit_records(repo, base, args.head)
+    if not records:
+        # A clean resolution that holds no commits prints its count
+        # (spec.md:111); exit 0 follows from the empty findings set.
+        sys.stderr.write("prose-lint: range resolved, 0 commits\n")
     matchers = compile_prose_matchers(data["rules"])
     marker_literal = data["marker"]
     units = 0
