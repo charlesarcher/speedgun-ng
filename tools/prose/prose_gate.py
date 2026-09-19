@@ -29,7 +29,9 @@ unreadable, invalid rule data.
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -84,6 +86,38 @@ CODEPOINT_MISS_SENTENCE = "P0-P3 and P0\u2013P3 numeric ranges"
 # literals from a pattern source.
 REGEX_META = {"\\", "^", ".", "[", "]", "(", ")", "{", "}", "?", "*", "+", "|"}
 REPEAT = re.compile(r"\{(\d+)(?:,(\d*))?\}")
+
+# --- prose pipeline (T013-T017) -------------------------------------------
+
+# Markdown roots (FR-006): a root-level README*, a root-level AGENTS.md, or
+# anything under these three directory prefixes. Comment languages are
+# in scope wherever they live.
+MD_ROOT_PREFIXES = (".specify/memory/", "specs/", "docs/")
+C_EXTS = {".c", ".h", ".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx"}
+SHELL_EXTS = {".sh"}
+CMAKE_EXTS = {".cmake"}
+
+# Auto-exempt construct detectors, one per precedence row (contract:
+# contracts/rule-data.md "Exemption precedence"). Rows 1 and 2 are
+# markdown block idioms and apply only to markdown sources; rows 3 to 7
+# apply to any unit text.
+FENCE_MARKERS = ("```", "~~~")
+INDENTED_CODE_RE = re.compile(r"^(?: {4}|\t)")
+INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+URL_RE = re.compile(r"(?:https?|ftp)://|www\.")
+PATH_TOKEN_RE = re.compile(r"(?<![\w/.-])((?:[\w.+-]+/)+[\w.+-]*)")
+SHELL_COMMAND_RE = re.compile(r"^\s*\$\s")
+BLOCKQUOTE_RE = re.compile(r"^\s*>")
+
+# The built-in meta-finding outside the rule data (contracts/rule-data.md
+# namespace table): family XI.6, constitution reference Principle XI.6.
+MARKER_NO_REASON_ID = "MARKER.NO-REASON"
+MARKER_NO_REASON_FAMILY = "XI.6"
+MARKER_NO_REASON_CONSTITUTION = "Principle XI.6"
+MARKER_NO_REASON_MESSAGE = "the exemption marker needs a non-empty reason=\"...\""
+
+HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+DIFF_FILE_RE = re.compile(r"^diff --git a/(\S+) b/(\S+)")
 
 
 def die(message: str, code: int = EXIT_USAGE) -> None:
@@ -432,6 +466,487 @@ def _neighbor_case(candidate: str) -> str:
     return "whole-file"
 
 
+# --- git access (T013, T016) ------------------------------------------------
+
+
+def run_git(repo: Path, git_args: list[str], purpose: str) -> str:
+    """Run git in repo, returning stdout; any failure is an exit-2 error."""
+    try:
+        proc = subprocess.run(
+            ["git", *git_args],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        die("git: command not found; the prose gate needs git")
+    if proc.returncode != 0:
+        die(f"{purpose}: git {' '.join(git_args)} failed: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def resolve_repo_root() -> Path:
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        die("git: command not found; the prose gate needs git")
+    if proc.returncode != 0:
+        die(f"prose gate: not a git repository: {Path.cwd()}")
+    return Path(proc.stdout.strip())
+
+
+def resolve_base(repo: Path, base_arg: str | None, head: str) -> str:
+    if base_arg is not None:
+        return base_arg
+    try:
+        proc = subprocess.run(
+            ["git", "merge-base", "origin/master", head],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        die("git: command not found; the prose gate needs git")
+    if proc.returncode != 0 or not proc.stdout.strip():
+        die(
+            f"range: cannot resolve a default base: no merge-base between "
+            f"origin/master and {head}; pass --base explicitly"
+        )
+    return proc.stdout.strip()
+
+
+# --- discovery and language classification (T013) ---------------------------
+
+
+def classify_source(path: str) -> str | None:
+    """Return the unit scope of a tracked path, or None if out of scope.
+
+    FR-006 verbatim: Markdown is read in the repository root and under
+    the three directory prefixes; comment languages are in scope
+    wherever they live.
+    """
+    name = path.rsplit("/", 1)[-1]
+    suffix = Path(name).suffix
+    if suffix in (".md", ".markdown"):
+        if "/" not in path or path.startswith(MD_ROOT_PREFIXES):
+            return "markdown"
+        return None
+    if suffix in C_EXTS:
+        return "c-comment"
+    if suffix in SHELL_EXTS:
+        return "shell-comment"
+    if suffix in CMAKE_EXTS or name == "CMakeLists.txt":
+        return "cmake-comment"
+    return None
+
+
+def in_narrowed(path: str, paths: list[str] | None) -> bool:
+    if paths is None:
+        return True
+    return any(path == p or path.startswith(p.rstrip("/") + "/") for p in paths)
+
+
+def collect_candidates(
+    repo: Path, mode: str, base: str | None, head: str
+) -> tuple[list[str], dict[str, dict[int, str]] | None]:
+    """Tracked in-scope-range paths plus the range authorship map."""
+    if mode == "tree":
+        listing = run_git(repo, ["ls-files"], "discovery")
+        return sorted(p for p in listing.split("\n") if p), None
+    resolved = resolve_base(repo, base, head)
+    diff = run_git(
+        repo,
+        ["diff", "-U1", "--no-color", "--no-renames", f"{resolved}...{head}"],
+        "range",
+    )
+    authorship = parse_authorship(diff)
+    return sorted(authorship), authorship
+
+
+# --- comment extraction (T013) ----------------------------------------------
+
+
+def _skipped_string(text: str, index: int) -> int:
+    """Index just past the quoted span opening at index, escapes honored."""
+    quote = text[index]
+    i = index + 1
+    while i < len(text):
+        if text[i] == "\\":
+            i += 2
+            continue
+        if text[i] == quote:
+            return i + 1
+        i += 1
+    return i
+
+
+def extract_c_comment_units(lines: list[str]) -> list[tuple[int, str]]:
+    """Quote-aware C/C++ comment text as (line, text) in original coordinates.
+
+    Block-comment continuation markers (a leading run of asterisks) are
+    stripped; units whose text is empty after stripping are dropped.
+    """
+    units: list[tuple[int, str]] = []
+    in_block = False
+    for lineno, line in enumerate(lines, 1):
+        collected: list[str] = []
+        i = 0
+        while i < len(line):
+            if in_block:
+                end = line.find("*/", i)
+                if end == -1:
+                    collected.append(line[i:])
+                    i = len(line)
+                else:
+                    collected.append(line[i:end])
+                    in_block = False
+                    i = end + 2
+                continue
+            if line.startswith("//", i):
+                collected.append(line[i + 2 :])
+                break
+            if line.startswith("/*", i):
+                in_block = True
+                i += 2
+                continue
+            if line[i] in ("\"", "'"):
+                i = _skipped_string(line, i)
+                continue
+            i += 1
+        text = re.sub(r"^\s*\*+\s*", "", "".join(collected)).strip()
+        if text:
+            units.append((lineno, text))
+    return units
+
+
+def extract_hash_comment_units(
+    lines: list[str], skip_shebang: bool
+) -> list[tuple[int, str]]:
+    """Quote-aware '#' comment text for shell and CMake sources.
+
+    A '#' opens a comment only at line start or after whitespace, so
+    word-internal hashes stay code.
+    """
+    units: list[tuple[int, str]] = []
+    for lineno, line in enumerate(lines, 1):
+        if skip_shebang and lineno == 1 and line.startswith("#!"):
+            continue
+        i = 0
+        start = -1
+        while i < len(line):
+            if line[i] == "\\":
+                i += 2
+                continue
+            if line[i] in ("\"", "'"):
+                i = _skipped_string(line, i)
+                continue
+            if line[i] == "#" and (i == 0 or line[i - 1] in " \t"):
+                start = i
+                break
+            i += 1
+        if start == -1:
+            continue
+        text = line[start + 1 :].strip()
+        if text:
+            units.append((lineno, text))
+    return units
+
+
+def build_units(
+    lang: str, lines: list[str]
+) -> list[tuple[int, str]] | None:
+    """Candidate units for a source; None marks a markdown source."""
+    if lang == "markdown":
+        return None
+    if lang == "c-comment":
+        return extract_c_comment_units(lines)
+    return extract_hash_comment_units(lines, skip_shebang=lang == "shell-comment")
+
+
+# --- authorship from git diff (T016) ----------------------------------------
+
+
+def parse_authorship(diff_text: str) -> dict[str, dict[int, str]]:
+    """New-file line statuses from `git diff -U1 --no-color --no-renames`.
+
+    ``+`` lines become ``new``; context lines inside a hunk that also
+    carries ``+`` lines become ``modified`` (the R-08 amendment);
+    context of pure-deletion hunks stays unlisted, hence grandfathered.
+    Files whose new side is ``/dev/null`` get no entry at all, so
+    deleted-side lines are never reported.
+    """
+    statuses: dict[str, dict[int, str]] = {}
+    file_map: dict[int, str] | None = None
+    lines = diff_text.split("\n")
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        file_match = DIFF_FILE_RE.match(line)
+        if file_match is not None:
+            file_map = statuses.setdefault(file_match.group(2), {})
+            i += 1
+            continue
+        if line.startswith("+++ "):
+            target = line[4:]
+            if target == "/dev/null":
+                file_map = None
+            elif target.startswith("b/"):
+                file_map = statuses.setdefault(target[2:], {})
+            i += 1
+            continue
+        hunk = HUNK_RE.match(line)
+        if hunk is None or file_map is None:
+            i += 1
+            continue
+        i = _consume_hunk(lines, i + 1, int(hunk.group(1)), file_map)
+    return statuses
+
+
+def _consume_hunk(
+    lines: list[str], index: int, new_no: int, file_map: dict[int, str]
+) -> int:
+    body: list[tuple[str, int]] = []
+    i = index
+    while i < len(lines):
+        body_line = lines[i]
+        if body_line.startswith(("@@", "diff --git")):
+            break
+        marker = body_line[:1]
+        if marker == "+":
+            body.append(("new", new_no))
+            new_no += 1
+        elif marker == "-":
+            pass
+        elif marker in (" ", "\\"):
+            if body_line.startswith("\\"):
+                pass
+            else:
+                body.append(("context", new_no))
+                new_no += 1
+        else:
+            break
+        i += 1
+    has_new = any(kind == "new" for kind, _ in body)
+    for kind, lineno in body:
+        if kind == "new":
+            file_map[lineno] = "new"
+        elif has_new:
+            file_map[lineno] = "modified"
+    return i
+
+
+# --- exemption precedence, marker, matching (T014, T015) --------------------
+
+
+def path_like(text: str) -> bool:
+    return any(
+        re.search(r"[A-Za-z]", token) for token in PATH_TOKEN_RE.findall(text)
+    )
+
+
+def inspect_marker(text: str, marker_literal: str) -> str:
+    """Classify the line's marker as none, valid, or invalid.
+
+    Grammar per contracts/rule-data.md: valid is the marker literal
+    followed by reason="..." closing at the next straight double quote
+    with non-empty stripped text; the literal appearing without that
+    shape (absent, unbalanced, empty) is invalid.
+    """
+    verdict = "none"
+    start = 0
+    while True:
+        index = text.find(marker_literal, start)
+        if index == -1:
+            return verdict
+        rest = text[index + len(marker_literal) :]
+        reason = re.search(r'\s+reason="([^"]*)"', rest)
+        if reason is not None and reason.group(1).strip():
+            return "valid"
+        verdict = "invalid"
+        start = index + len(marker_literal)
+
+
+def compile_prose_matchers(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Attach one scan function per rule, vocabulary compiled longest-first."""
+    matchers: list[dict[str, Any]] = []
+    for entry in rules:
+        kind = entry["kind"]
+        if kind == "vocabulary":
+            ordered = sorted(entry["tokens"], key=len, reverse=True)
+            scan = re.compile(
+                r"\b(?:" + "|".join(re.escape(t) for t in ordered) + r")\b",
+                re.IGNORECASE,
+            ).finditer
+        elif kind == "codepoint":
+            scan = re.compile(re.escape(entry["pattern"])).finditer
+        elif kind == "regex":
+            scan = re.compile(entry["pattern"]).finditer
+        else:
+            continue
+        matchers.append(
+            {
+                "id": entry["id"],
+                "family": entry["family"],
+                "constitution": entry["constitution"],
+                "message": entry["message"],
+                "scope": entry["scope"],
+                "scan": scan,
+            }
+        )
+    return matchers
+
+
+# --- evaluation and verdict (T016, T017) -------------------------------------
+
+Finding = tuple[str, int, str, str, str, str, str]
+
+
+def read_source(repo: Path, path: str) -> tuple[list[str] | None, str | None]:
+    """File lines with CRLF tails stripped, or None plus a skip reason."""
+    source_path = repo / path
+    if source_path.is_symlink():
+        return None, "symlink"
+    try:
+        raw = source_path.read_bytes()
+    except OSError as exc:
+        return None, f"unreadable: {exc}"
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return None, "byte-order mark present"
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        return None, f"invalid UTF-8 at byte {exc.start}"
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    return [ln[:-1] if ln.endswith("\r") else ln for ln in lines], None
+
+
+def evaluate_unit(
+    unit_text: str,
+    lang: str,
+    inside_fence: bool,
+    fence_line: bool,
+    marker_literal: str,
+    matchers: list[dict[str, Any]],
+) -> list[tuple[str, str, str, str]]:
+    """Apply precedence rows 1 to 10 to one examined unit."""
+    if lang == "markdown" and (inside_fence or fence_line):
+        return []
+    if lang == "markdown" and INDENTED_CODE_RE.match(unit_text):
+        return []
+    if (
+        INLINE_CODE_RE.search(unit_text)
+        or URL_RE.search(unit_text)
+        or path_like(unit_text)
+        or SHELL_COMMAND_RE.match(unit_text)
+        or BLOCKQUOTE_RE.match(unit_text)
+    ):
+        return []
+    marker_state = inspect_marker(unit_text, marker_literal)
+    if marker_state == "valid":
+        return []
+    if marker_state == "invalid":
+        return [
+            (
+                MARKER_NO_REASON_ID,
+                MARKER_NO_REASON_FAMILY,
+                marker_literal,
+                f"{MARKER_NO_REASON_MESSAGE} ({MARKER_NO_REASON_CONSTITUTION})",
+            )
+        ]
+    hits: list[tuple[str, str, str, str]] = []
+    for matcher in matchers:
+        if lang not in matcher["scope"]:
+            continue
+        for match in matcher["scan"](unit_text):
+            hits.append(
+                (
+                    matcher["id"],
+                    matcher["family"],
+                    match.group(0),
+                    f"{matcher['message']} ({matcher['constitution']})",
+                )
+            )
+    return hits
+
+
+def evaluate_prose(args: argparse.Namespace, data: dict[str, Any]) -> int:
+    repo = resolve_repo_root()
+    candidates, authorship = collect_candidates(
+        repo, args.mode, args.base, args.head
+    )
+    matchers = compile_prose_matchers(data["rules"])
+    exclusions = tuple(data["exclusions"])
+    marker_literal = data["marker"]
+    annotations = os.environ.get("GITHUB_ACTIONS", "") == "true"
+    findings: list[Finding] = []
+    skip_reasons: list[str] = []
+    sources = 0
+    skipped = 0
+    units_examined = 0
+    for path in candidates:
+        lang = classify_source(path)
+        if lang is None or path.startswith(exclusions):
+            continue
+        if not in_narrowed(path, args.paths):
+            continue
+        lines, reason = read_source(repo, path)
+        if lines is None:
+            skipped += 1
+            skip_reasons.append(f"{path}: skipped ({reason})")
+            continue
+        sources += 1
+        built = build_units(lang, lines)
+        stream = built if built is not None else list(enumerate(lines, 1))
+        fence = False
+        for lineno, unit_text in stream:
+            fence_line = False
+            inside_fence = False
+            if lang == "markdown":
+                stripped = unit_text.strip()
+                fence_line = stripped.startswith(FENCE_MARKERS)
+                inside_fence = fence
+                if fence_line:
+                    fence = not fence
+            if not unit_text.strip():
+                continue
+            if authorship is None:
+                status = "new"
+            else:
+                status = authorship.get(path, {}).get(lineno, "grandfathered")
+            if status == "grandfathered":
+                continue
+            units_examined += 1
+            for rule_id, family, token, shown in evaluate_unit(
+                unit_text, lang, inside_fence, fence_line, marker_literal, matchers
+            ):
+                findings.append((path, lineno, rule_id, family, token, shown))
+    findings.sort(key=lambda finding: (finding[0], finding[1], finding[2]))
+    for path, lineno, rule_id, family, token, shown in findings:
+        sys.stderr.write(
+            f"{path}:{lineno}: {rule_id} family={family} '{token}': {shown}\n"
+        )
+        if annotations:
+            sys.stderr.write(
+                f"::error file={path},line={lineno}::{rule_id} {shown}\n"
+            )
+    for note in skip_reasons:
+        sys.stderr.write(note + "\n")
+    print(
+        f"prose-lint: {sources} sources, {units_examined} units examined, "
+        f"{len(findings)} findings, {skipped} skipped"
+    )
+    return EXIT_GAPS if findings else EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     data = load_rules(args.rules)
@@ -441,12 +956,12 @@ def main(argv: list[str] | None = None) -> int:
             f"(rule data version {data['version']})"
         )
         return EXIT_OK
-    # TODO(T013-T017): prose discovery, extraction, exemption precedence,
-    # marker handling, rule matching, and findings for --check prose/all.
-    # TODO(T019-T022): commit range resolution, commit-template rules,
-    # authorship attribution, and the commit verdict for --check commit/all.
-    print("prose-lint: 0 sources, 0 units examined, 0 findings, 0 skipped")
-    return EXIT_OK
+    if args.check == "commit":
+        # TODO(T019-T022): commit range resolution, commit-template rules,
+        # authorship attribution, and the commit verdict for --check commit.
+        print("prose-lint: 0 sources, 0 units examined, 0 findings, 0 skipped")
+        return EXIT_OK
+    return evaluate_prose(args, data)
 
 
 if __name__ == "__main__":

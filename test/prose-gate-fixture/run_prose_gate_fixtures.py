@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import re
 import shutil
 import subprocess
 import sys
@@ -564,8 +565,14 @@ def run_loader_cases(rules: Path, out_dir: Path) -> tuple[int, list[dict[str, An
 
     # The loader's canonical coverage check enforces the id set equals the
     # seven canonical ids of the rule-data namespace table, so a clean load
-    # IS the id-set assertion.
-    proc = run_gate(["--check", "prose"], out_dir, rules)
+    # IS the id-set assertion. Discovery is real code now, so this assert
+    # runs in an empty staged repository: no sources, zero summary, exit 0.
+    empty_repo = out_dir / "work" / "loader-empty"
+    shutil.rmtree(empty_repo, ignore_errors=True)
+    empty_repo.mkdir(parents=True)
+    run_git(empty_repo, "init")
+    run_git(empty_repo, "commit", "--allow-empty", "-m", "loader empty base")
+    proc = run_gate(["--check", "prose", "--mode", "tree"], empty_repo, rules)
     code = proc.returncode
     expected = "exit:0"
     observed = f"exit:{code}"
@@ -585,26 +592,280 @@ def run_prose_check(
     prose: dict[str, Path],
     rules: Path,
     out_dir: Path,
-) -> list[dict[str, Any]]:
+) -> tuple[int, list[dict[str, Any]]]:
+    """T018 prose asserts: per-family reports, silence, marker, authorship.
+
+    Scenario surfaces are throwaway staged repositories under --out; the
+    fixture corpus itself is never mutated. The corpus's designed oracle:
+    violations.md lines 7 to 15 (one finding each, ids and tokens below),
+    comments.c line 11, comments.sh line 4, comments.cmake line 3, and
+    silent.md silent. The em dash token is written as an escape so this
+    source carries no dash code point.
+    """
     stage_repo = out_dir / "work" / "prose-stage"
     stage_prose_repo(prose, stage_repo)
     proc = run_gate(["--check", "prose", "--mode", "tree"], stage_repo, rules)
     echo(proc)
-    # TODO(T018): replace the SKIP placeholder below with the per-file prose
-    # verdict asserts: reported file, line, rule id, and token per family,
-    # every silent case silent, authorship and marker behavior included.
+
+    findings = parse_findings(proc.stderr)
+    expected = {
+        ("violations.md", 7, "XI1.EMDASH", "\u2014"),
+        ("violations.md", 8, "XI1.DOUBLE-HYHEN", "--"),
+        ("violations.md", 9, "XI2.CONTRASTIVE", ", not "),
+        ("violations.md", 10, "XI2.CONTRASTIVE", " rather than "),
+        ("violations.md", 11, "XI2.CONTRASTIVE", " instead of "),
+        ("violations.md", 12, "XI3.VOUCHER", "Frankly"),
+        ("violations.md", 13, "XI4.META-EDITORIALIZING", "In this section we"),
+        ("violations.md", 14, "XI5.FILLER", "in order to"),
+        ("violations.md", 15, "XI5.MARKETING", "robust"),
+        ("comments.c", 11, "XI1.EMDASH", "\u2014"),
+        ("comments.sh", 4, "XI1.EMDASH", "\u2014"),
+        ("comments.cmake", 3, "XI1.EMDASH", "\u2014"),
+    }
+
+    failures = 0
     rows: list[dict[str, Any]] = []
-    for name in prose:
-        print_verdict(name, "prose", "pending(T018)", "not asserted", "SKIP")
+
+    def verdict(name: str, expected_text: str, observed_text: str, ok: bool) -> None:
+        nonlocal failures
+        result = "PASS" if ok else "FAIL"
+        print_verdict(name, "prose", expected_text, observed_text, result)
         rows.append(
             {
                 "interface": name,
                 "check": "prose",
-                "expected": "pending(T018)",
-                "result": "SKIP",
+                "expected": expected_text,
+                "observed": observed_text,
+                "result": result,
             }
         )
-    return rows
+        if not ok:
+            failures += 1
+
+    for path, line, rule_id, token in sorted(expected):
+        found = (path, line, rule_id, token) in findings
+        verdict(
+            f"prose.report.{path}:{line}",
+            f"fires {rule_id} '{token}' at {path}:{line}",
+            "fires" if found else "missing",
+            found,
+        )
+
+    set_ok = findings == expected
+    verdict(
+        "prose.silent.no-extras",
+        "finding set equals the 12 designed findings exactly",
+        f"{len(findings)} findings, {len(findings ^ expected)} unmatched",
+        set_ok,
+    )
+    silent_md = sorted(item for item in findings if item[0] == "silent.md")
+    verdict(
+        "prose.silent.silent-md",
+        "silent.md contributes zero findings",
+        f"{len(silent_md)} findings",
+        not silent_md,
+    )
+    comments = {item for item in findings if item[0].startswith("comments.")}
+    verdict(
+        "prose.silent.comment-lines",
+        "comment files fire only on their designed lines",
+        f"{sorted(comments)}",
+        comments == {item for item in expected if item[0].startswith("comments.")},
+    )
+    marker_line = [item for item in findings if item[0] == "silent.md" and item[1] == 26]
+    verdict(
+        "prose.silent.marked-quotation",
+        "valid marker suppresses the marked quotation at silent.md:26",
+        f"{marker_line}",
+        not marker_line,
+    )
+
+    marker_failures, marker_rows = run_marker_cases(rules, out_dir)
+    marker_author_failures, marker_author_rows = run_authorship_case(rules, out_dir)
+    clean_failures, clean_rows = run_clean_tree_case(
+        rules, out_dir, prose["silent.md"]
+    )
+    failures += marker_failures + marker_author_failures + clean_failures
+    rows.extend(marker_rows)
+    rows.extend(marker_author_rows)
+    rows.extend(clean_rows)
+    return failures, rows
+
+
+FINDING_RE = re.compile(
+    r"^(\S+):(\d+): ([A-Z0-9][A-Z0-9._-]*) family=(\S+) '(.*)': "
+)
+
+
+def parse_findings(stderr_text: str) -> set[tuple[str, int, str, str]]:
+    hits: set[tuple[str, int, str, str]] = set()
+    for line in stderr_text.split("\n"):
+        match = FINDING_RE.match(line)
+        if match is not None:
+            hits.add((match.group(1), int(match.group(2)), match.group(3), match.group(5)))
+    return hits
+
+
+MARKER_FILE_LINES = [
+    "bare marker prose-lint: allow at end\n",
+    'empty reason prose-lint: allow reason="  " ok\n',
+    "guarded `prose-lint: allow` inside code span stays silent\n",
+    'valid prose-lint: allow reason="quoted term" suppresses robust marketing\n',
+]
+
+
+def run_marker_cases(
+    rules: Path, out_dir: Path
+) -> tuple[int, list[dict[str, Any]]]:
+    """MARKER.NO-REASON positives and the guarded/valid silent halves."""
+    stage_repo = out_dir / "work" / "marker-stage"
+    shutil.rmtree(stage_repo, ignore_errors=True)
+    stage_repo.mkdir(parents=True)
+    (stage_repo / "m.md").write_text("".join(MARKER_FILE_LINES), encoding="utf-8")
+    run_git(stage_repo, "init")
+    run_git(stage_repo, "add", "-A")
+    run_git(stage_repo, "commit", "-m", "Docs: stage marker fixture")
+    proc = run_gate(["--check", "prose", "--mode", "tree"], stage_repo, rules)
+    echo(proc)
+    findings = parse_findings(proc.stderr)
+    failures = 0
+    rows: list[dict[str, Any]] = []
+
+    def verdict(name: str, expected_text: str, observed_text: str, ok: bool) -> None:
+        nonlocal failures
+        result = "PASS" if ok else "FAIL"
+        print_verdict(name, "prose", expected_text, observed_text, result)
+        rows.append(
+            {
+                "interface": name,
+                "check": "prose",
+                "expected": expected_text,
+                "observed": observed_text,
+                "result": result,
+            }
+        )
+        if not ok:
+            failures += 1
+
+    bare = ("m.md", 1, "MARKER.NO-REASON", "prose-lint: allow") in findings
+    empty = ("m.md", 2, "MARKER.NO-REASON", "prose-lint: allow") in findings
+    verdict("prose.marker.bare", "bare marker raises MARKER.NO-REASON", "raised" if bare else "missing", bare)
+    verdict("prose.marker.empty-reason", "empty reason raises MARKER.NO-REASON", "raised" if empty else "missing", empty)
+    designed = {
+        ("m.md", 1, "MARKER.NO-REASON", "prose-lint: allow"),
+        ("m.md", 2, "MARKER.NO-REASON", "prose-lint: allow"),
+    }
+    extra = findings - designed
+    verdict(
+        "prose.marker.silent-guarded",
+        "code-span guard and valid marker stay silent, nothing extra",
+        f"{sorted(extra)}",
+        not extra,
+    )
+    return failures, rows
+
+
+AUTHORSHIP_BASE_LINES = [
+    "alpha\n",
+    "alpha\n",
+    "alpha\n",
+    "alpha\n",
+    "one dash \u2014 here\n",
+    "alpha\n",
+    "alpha\n",
+    "alpha\n",
+    "alpha\n",
+    "distant dash \u2014 silent\n",
+    "alpha\n",
+    "distant dash \u2014 silent\n",
+    "alpha\n",
+]
+
+
+def run_authorship_case(
+    rules: Path, out_dir: Path
+) -> tuple[int, list[dict[str, Any]]]:
+    """R-08: modified one below an added line fires; two below stays silent."""
+    stage_repo = out_dir / "work" / "authorship-stage"
+    shutil.rmtree(stage_repo, ignore_errors=True)
+    stage_repo.mkdir(parents=True)
+    doc = stage_repo / "doc.md"
+    doc.write_text("".join(AUTHORSHIP_BASE_LINES), encoding="utf-8")
+    run_git(stage_repo, "init")
+    run_git(stage_repo, "add", "-A")
+    run_git(stage_repo, "commit", "-m", "Docs: authorship base")
+    lines = list(AUTHORSHIP_BASE_LINES)
+    lines.insert(4, "added line \u2014 here\n")
+    doc.write_text("".join(lines), encoding="utf-8")
+    run_git(stage_repo, "add", "-A")
+    run_git(stage_repo, "commit", "-m", "Docs: authorship insert")
+    base = run_git(stage_repo, "rev-parse", "HEAD~1").stdout.strip()
+    proc = run_gate(
+        ["--check", "prose", "--base", base, "--head", "HEAD"], stage_repo, rules
+    )
+    echo(proc)
+    findings = parse_findings(proc.stderr)
+    expected = {
+        ("doc.md", 5, "XI1.EMDASH", "\u2014"),
+        ("doc.md", 6, "XI1.EMDASH", "\u2014"),
+    }
+    ok = findings == expected
+    print_verdict(
+        "prose.authorship.modified-one-below",
+        "prose",
+        "added line 5 and modified line 6 fire, lines 11 and 13 grandfathered",
+        f"{sorted(findings)}",
+        "PASS" if ok else "FAIL",
+    )
+    row = {
+        "interface": "prose.authorship.modified-one-below",
+        "check": "prose",
+        "expected": "doc.md:5 new and doc.md:6 modified only",
+        "observed": sorted(findings),
+        "result": "PASS" if ok else "FAIL",
+    }
+    return (0 if ok else 1), [row]
+
+
+def run_clean_tree_case(
+    rules: Path, out_dir: Path, silent_src: Path
+) -> tuple[int, list[dict[str, Any]]]:
+    """US1 scenario 7: clean tree exits 0 with a nonzero units count."""
+    stage_repo = out_dir / "work" / "clean-stage"
+    shutil.rmtree(stage_repo, ignore_errors=True)
+    stage_repo.mkdir(parents=True)
+    shutil.copy2(silent_src, stage_repo / "silent.md")
+    run_git(stage_repo, "init")
+    run_git(stage_repo, "add", "-A")
+    run_git(stage_repo, "commit", "-m", "Docs: clean tree base")
+    proc = run_gate(["--check", "prose", "--mode", "tree"], stage_repo, rules)
+    echo(proc)
+    summary = re.search(
+        r"prose-lint: (\d+) sources, (\d+) units examined, (\d+) findings",
+        proc.stdout,
+    )
+    ok = (
+        proc.returncode == 0
+        and summary is not None
+        and int(summary.group(1)) == 1
+        and int(summary.group(2)) > 0
+        and int(summary.group(3)) == 0
+    )
+    print_verdict(
+        "prose.clean-tree",
+        "prose",
+        "exit 0, one source, units > 0, zero findings",
+        proc.stdout.strip(),
+        "PASS" if ok else "FAIL",
+    )
+    row = {
+        "interface": "prose.clean-tree",
+        "check": "prose",
+        "expected": "exit:0 units>0 findings:0",
+        "observed": proc.stdout.strip(),
+        "result": "PASS" if ok else "FAIL",
+    }
+    return (0 if ok else 1), [row]
 
 
 def run_commit_cases(
@@ -689,7 +950,9 @@ def main(argv: list[str] | None = None) -> int:
     failures += loader_failures
     rows.extend(loader_rows)
     if "prose" in checks:
-        rows.extend(run_prose_check(prose, rules, out_dir))
+        prose_failures, prose_rows = run_prose_check(prose, rules, out_dir)
+        failures += prose_failures
+        rows.extend(prose_rows)
     if "commit" in checks:
         commit_failures, commit_rows = run_commit_cases(cases, rules, out_dir)
         failures += commit_failures
