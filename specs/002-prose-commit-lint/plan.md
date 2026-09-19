@@ -50,8 +50,8 @@ no cache, no database.
 **Testing**: `test/prose-gate-fixture/run_prose_gate_fixtures.py`,
 registered through `add_test(NAME prose_gate_fixtures ...)` in
 `test/CMakeLists.txt`, mirroring `test/CMakeLists.txt:90-99`, and run in CI
-through `ctest -R prose_gate_fixtures --output-on-failure
---no-tests=error`. The `unittest` module covers the extractor's internal
+through `ctest -R prose_gate_fixtures` with `--output-on-failure` and
+`--no-tests=error`. The `unittest` module covers the extractor's internal
 units inside the same harness. Rationale at R-13.
 
 **Target Platform**: Linux, `runs-on: ubuntu-26.04`, the label every
