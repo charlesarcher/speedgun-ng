@@ -2,8 +2,8 @@
 Sync Impact Report (2.4.1, PATCH): token compression. Every rule,
 threshold, identifier, gate, and banned-word list survives; wording
 tightened, rationale prose dropped, repeated rules given one canonical
-home with cross-references. Amendment history: `git log --oneline --
-.specify/memory/constitution.md`.
+home with cross-references. Amendment history lives in the git log of
+this file.
 
 Open deferrals, binding until a spec lands them:
 - Commit-template lint (commit-msg hook / CI) absent; authors
@@ -348,9 +348,9 @@ under V, scheduled on its own.
 #### XI.2 No contrastive framing
 
 Never use `X, not Y`, `X rather than Y`, or `X instead of Y` as a rhetorical
-device, and never structure a claim as "does this, not that". State what the
+device, and never structure a claim as "does this, not that". State what the <!-- prose-lint: allow reason="XI.2 self-quotation of the banned claim shape" -->
 thing IS.
-- Wrong: "the runner is a scheduler, not a thread pool"
+- Wrong: "the runner is a scheduler, not a thread pool" <!-- prose-lint: allow reason="XI.2 self-quotation of the Wrong example" -->
 - Right: "the runner dispatches benchmark executions onto a fixed pool of
   worker threads"
 
@@ -359,8 +359,8 @@ sentence, both stated on their own terms.
 
 #### XI.3 Never vouch for truthfulness
 
-Banned: "honest", "honestly", "to be honest", "candid", "candidly", "frankly",
-"transparent", "transparently", "genuinely", "straight answer", and any
+Banned: "honest", "honestly", "to be honest", "candid", "candidly", "frankly", <!-- prose-lint: allow reason="XI.3 self-quotation of the banned voucher list" -->
+"transparent", "transparently", "genuinely", "straight answer", and any <!-- prose-lint: allow reason="XI.3 self-quotation of the banned voucher list" -->
 phrasing certifying the truthfulness of a statement. Vouching for one statement
 implies the others lack it. Every statement here is grounded in evidence (X.4)
 or labeled an estimate with its uncertainty; none needs a marker.
@@ -368,20 +368,20 @@ or labeled an estimate with its uncertainty; none needs a marker.
 #### XI.4 No meta-editorializing
 
 Do not narrate the authoring process, the reading process, or the framing
-inside the artifact. Banned patterns: "in this section we", "this document
-will cover", "my approach to this file", "what this would take", "how we read
-your input", "as an AI", "I notice that", "let me walk you through". State the
+inside the artifact. Banned patterns: "in this section we", "this document <!-- prose-lint: allow reason="XI.4 self-quotation of banned meta-editorializing patterns" -->
+will cover", "my approach to this file", "what this would take", "how we read <!-- prose-lint: allow reason="XI.4 self-quotation of banned meta-editorializing patterns" -->
+your input", "as an AI", "I notice that", "let me walk you through". State the <!-- prose-lint: allow reason="XI.4 self-quotation of banned meta-editorializing patterns" -->
 content. The artifact is the content, and it does not describe itself.
 
 #### XI.5 No filler, hedge, or marketing vocabulary
 
-Filler and hedge drops: "it's worth noting", "importantly", "notably",
-"essentially", "basically", "simply", "just", "very", "actually", "in fact",
-"of course", "needless to say", "in order to".
+Filler and hedge drops: "it's worth noting", "importantly", "notably", <!-- prose-lint: allow reason="XI.5 self-quotation of the filler and hedge list" -->
+"essentially", "basically", "simply", "just", "very", "actually", "in fact", <!-- prose-lint: allow reason="XI.5 self-quotation of the filler and hedge list" -->
+"of course", "needless to say", "in order to". <!-- prose-lint: allow reason="XI.5 self-quotation of the filler and hedge list" -->
 
-Marketing vocabulary is banned from technical claims: "seamlessly",
-"cutting-edge", "leverages", "world-class", "best-in-class",
-"industry-leading", "robust", "blazing-fast", "elegant", "powerful". A
+Marketing vocabulary is banned from technical claims: "seamlessly", <!-- prose-lint: allow reason="XI.5 self-quotation of the marketing vocabulary list" -->
+"cutting-edge", "leverages", "world-class", "best-in-class", <!-- prose-lint: allow reason="XI.5 self-quotation of the marketing vocabulary list" -->
+"industry-leading", "robust", "blazing-fast", "elegant", "powerful". A <!-- prose-lint: allow reason="XI.5 self-quotation of the marketing vocabulary list" -->
 performance claim carries a number, a platform, a distribution (VII). An
 interface claim carries a contract (II).
 
