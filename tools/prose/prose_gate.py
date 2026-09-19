@@ -99,7 +99,7 @@ SHELL_EXTS = {".sh"}
 CMAKE_EXTS = {".cmake"}
 
 # Auto-exempt construct detectors, one per precedence row (contract:
-# contracts/rule-data.md "Exemption precedence"). Rows 1 and 2 are
+# contracts/rule-data.md "Exemption precedence"). Rows 1, 2, and 8 are
 # markdown block idioms and apply only to markdown sources; rows 3 to 7
 # apply to any unit text.
 FENCE_MARKERS = ("```", "~~~")
@@ -109,6 +109,10 @@ URL_RE = re.compile(r"(?:https?|ftp)://|www\.")
 PATH_TOKEN_RE = re.compile(r"(?<![\w/.-])((?:[\w.+-]+/)+[\w.+-]*)")
 SHELL_COMMAND_RE = re.compile(r"^\s*\$\s")
 BLOCKQUOTE_RE = re.compile(r"^\s*>")
+# Row 8, markdown only: thematic breaks, table delimiter rows, and bare
+# HTML comment delimiters are markup structure (FR-004, row 8 of the
+# precedence table in contracts/rule-data.md), never prose.
+MD_STRUCTURAL_RE = re.compile(r"^[-: |]*--[-: |]*$|^(?:<!--|--!?>|<!-->)$")
 
 # The built-in meta-finding outside the rule data (contracts/rule-data.md
 # namespace table): family XI.6, constitution reference Principle XI.6.
@@ -838,7 +842,7 @@ def evaluate_unit(
     marker_literal: str,
     matchers: list[dict[str, Any]],
 ) -> list[tuple[str, str, str, str]]:
-    """Apply precedence rows 1 to 10 to one examined unit."""
+    """Apply precedence rows 1 to 11 to one examined unit."""
     if lang in ("markdown", "commit-body") and (inside_fence or fence_line):
         return []
     if lang == "markdown" and INDENTED_CODE_RE.match(unit_text):
@@ -850,6 +854,8 @@ def evaluate_unit(
         or SHELL_COMMAND_RE.match(unit_text)
         or BLOCKQUOTE_RE.match(unit_text)
     ):
+        return []
+    if lang == "markdown" and MD_STRUCTURAL_RE.match(unit_text):
         return []
     marker_state = inspect_marker(unit_text, marker_literal)
     if marker_state == "valid":
