@@ -506,25 +506,51 @@ def resolve_repo_root() -> Path:
     return Path(proc.stdout.strip())
 
 
+_DEGENERATE_WARNED = False
+
+
 def resolve_base(repo: Path, base_arg: str | None, head: str) -> str:
     if base_arg is not None:
-        return base_arg
-    try:
-        proc = subprocess.run(
-            ["git", "merge-base", "origin/master", head],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            check=False,
+        base = base_arg
+    else:
+        try:
+            proc = subprocess.run(
+                ["git", "merge-base", "origin/master", head],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            die("git: command not found; the prose gate needs git")
+        if proc.returncode != 0 or not proc.stdout.strip():
+            die(
+                f"range: cannot resolve a default base: no merge-base between "
+                f"origin/master and {head}; pass --base explicitly"
+            )
+        base = proc.stdout.strip()
+    _warn_degenerate(repo, base, head)
+    return base
+
+
+def _warn_degenerate(repo: Path, base: str, head: str) -> None:
+    """Warn once per run on a degenerate range (spec.md:111, 2026-09-16).
+
+    CI exits 2 on base equals head; locally the same condition warns on
+    stderr and keeps its exit status, because a vacuous pass is never
+    taken silently.
+    """
+    global _DEGENERATE_WARNED
+    if _DEGENERATE_WARNED:
+        return
+    base_sha = run_git(repo, ["rev-parse", base], "range base")
+    head_sha = run_git(repo, ["rev-parse", head], "range head")
+    if base_sha.strip() == head_sha.strip():
+        _DEGENERATE_WARNED = True
+        sys.stderr.write(
+            "prose-lint: warning: resolved range is degenerate "
+            "(base equals head): nothing was checked\n"
         )
-    except FileNotFoundError:
-        die("git: command not found; the prose gate needs git")
-    if proc.returncode != 0 or not proc.stdout.strip():
-        die(
-            f"range: cannot resolve a default base: no merge-base between "
-            f"origin/master and {head}; pass --base explicitly"
-        )
-    return proc.stdout.strip()
 
 
 # --- discovery and language classification (T013) ---------------------------
