@@ -98,6 +98,20 @@ add_test(
     ${CMAKE_CURRENT_SOURCE_DIR}/dbc-gate-fixture
 )
 
+# Gate-effectiveness harness for the prose and commit lint gate (feature 002,
+# T009). Self-contained: invokes the Python driver directly. TDD red until
+# tools/prose/prose_gate.py lands: while it is missing the harness exits with
+# "gate script not present (TDD red)".
+add_test(
+    NAME prose_gate_fixtures
+    COMMAND
+      python3
+      ${CMAKE_CURRENT_SOURCE_DIR}/prose-gate-fixture/run_prose_gate_fixtures.py
+      --check both
+      --out ${CMAKE_BINARY_DIR}/prose-gate-fixtures
+      ${CMAKE_CURRENT_SOURCE_DIR}/prose-gate-fixture
+)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

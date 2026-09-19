@@ -1,0 +1,274 @@
+# Commit-message lint fixture cases for the prose gate (tasks.md T007).
+#
+# Case list pinned by specs/002-prose-commit-lint/tasks.md line 41: one case
+# per enumerated scenario, each naming its own expectation. The harness
+# (T023) builds each case as a real commit in a throwaway git repo under
+# /tmp and runs `python3 tools/prose/prose_gate.py --check commit
+# --base <a> --head <b>` over a range containing exactly the case commit,
+# then holds one assert per case against the expectation below.
+#
+# Assertion semantics per case:
+#   - expect.exit: the gate process exit code (FR-018).
+#   - expect.findings []: stderr carries no finding lines at all.
+#   - expect.findings [{rule: ...}]: stderr carries exactly one finding
+#     line matching `commit <short7>: <rule>`, where <short7> is the 7-hex
+#     short hash the harness computed when it built the commit (the short
+#     identity asserted, contracts/cli.md and data-model.md CommitRecord).
+#   - A `scope` key on a finding names the commit-record field the prose
+#     rule fired on (FR-015); CM.* rules carry none.
+#   - expect.records (empty-range case): the resolved range holds zero
+#     CommitRecords (spec.md:110).
+#
+# How the harness builds each case commit from the fields alone:
+#   - kind absent (plain commit): create a new text file
+#     `fixture/changed.txt` whose line count equals `changed_lines`
+#     (added lines only, so `git show --numstat -M` sums to exactly that
+#     count), then commit the message assembled below.
+#   - kind rename: run `setup_commit` first (it becomes the range base),
+#     then `git mv <rename.from> <rename.to>` and commit the case message.
+#     A pure rename sums to 0 changed lines under `git show --numstat -M`
+#     (R-10 amendment).
+#   - kind binary: write `binary_file` with bytes(range(256)) so git treats
+#     it as binary and numstat prints `-\t-\t`, counted as 0
+#     (data-model.md CommitRecord.changed_lines).
+#   - kind merge: run `side_commit` on branch `side` off the base, return
+#     to the base branch, and create the case commit as
+#     `git merge --no-ff side` with the case message (parents length 2,
+#     R-09). The side commit is itself conforming so it contributes no
+#     findings regardless of how the harness picks the range base.
+#   - kind empty-range: build nothing; pass --base and --head at the same
+#     commit.
+#   - Message assembly: title; blank line; body lines, one per entry,
+#     joined by newlines (omitted when `body` is absent); blank line;
+#     footer line (omitted when `footer` is absent, which is how the
+#     footer-missing case carries no footer).
+#
+# Thresholds mirrored from specs/002-prose-commit-lint/contracts/rule-data.md
+# for reading this file; the gate reads its own values from the rule file.
+version: 1
+
+thresholds:                        # reference mirror, not consumed here
+  title_max: 50                    # FR-009
+  body_wrap: 72                    # FR-013
+  trivial_max_changed_lines: 5     # FR-013, R-10
+
+cases:
+  # Control: fully conforming commit. Title is exactly 50 characters
+  # (title_max boundary, the length-50 control beside the 51-character
+  # case below). Body present and wrapped within 72 columns at 8 changed
+  # lines (> trivial_max_changed_lines). Footer carries the approval.
+  - name: conforming-exact-50
+    changed_lines: 8
+    title: "test: guard arena block release versus double free"
+    body:
+      - "Release the arena block only when its reference count reaches zero."
+      - "The worker decrements the counter under the pool mutex first."
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 0
+      findings: []
+
+  # CM.TITLE-FORMAT (FR-009): no section colon, so the title is not
+  # `<Section>: <description>`.
+  - name: title-missing-section-colon
+    changed_lines: 1
+    title: "runner guard teardown of idle workers"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.TITLE-FORMAT
+
+  # CM.TITLE-LENGTH (FR-009): title is exactly 51 characters, one over
+  # title_max 50; every other rule holds.
+  - name: title-length-51
+    changed_lines: 1
+    title: "test: guard arena block release against double free"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.TITLE-LENGTH
+
+  # CM.SECTION-UNKNOWN (FR-010): `Kubernetes` is not one of the nine
+  # section tokens.
+  - name: section-unknown-kubernetes
+    changed_lines: 1
+    title: "Kubernetes: fix crash"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.SECTION-UNKNOWN
+
+  # CM.NON-IMPERATIVE (FR-011): the description begins with the
+  # non_imperative_shapes entry `Added`.
+  - name: non-imperative-added
+    changed_lines: 1
+    title: "dbc: Added worker pool"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.NON-IMPERATIVE
+
+  # CM.TITLE-FORMAT (FR-009): trailing period on the title.
+  - name: title-trailing-period
+    changed_lines: 1
+    title: "CI: Fix teardown race in worker loop."
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.TITLE-FORMAT
+
+  # CM.VAGUE-TITLE (FR-012): the description is exactly `wip`, an entry
+  # of vague_titles.
+  - name: vague-title-wip
+    changed_lines: 1
+    title: "Docs: wip"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.VAGUE-TITLE
+
+  # CM.BODY-REQUIRED (FR-013): 40 changed lines, above
+  # trivial_max_changed_lines 5, with no body; otherwise conforming.
+  - name: body-required-40-lines-no-body
+    changed_lines: 40
+    title: "test: widen coverage for pool allocator paths"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.BODY-REQUIRED
+
+  # Passing contrast for CM.BODY-REQUIRED (FR-013, R-10): body-less at 3
+  # changed lines, within trivial_max_changed_lines 5.
+  - name: body-less-trivial-3-passes
+    changed_lines: 3
+    title: "deploy: rotate tls material on edge listener"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 0
+      findings: []
+
+  # CM.BODY-WRAP (FR-013): second body line is exactly 73 columns, one
+  # over body_wrap 72, with no marker on it.
+  - name: body-wrap-73-columns
+    changed_lines: 8
+    title: "runner: document quit flag recheck policy"
+    body:
+      - "Explain the change in a short sentence."
+      - "The worker loop must recheck the quit flag before sleeping again to avoid"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.BODY-WRAP
+
+  # Passing contrast for CM.BODY-WRAP (FR-013, marker grammar last bullet
+  # in contracts/rule-data.md): the line runs 82 columns raw and exceeds
+  # 72 only because of the marker substring `prose-lint: allow
+  # reason="verbatim quote"` (41 columns); measured with the marker
+  # substring stripped the line is 40 columns, so the case passes.
+  - name: marker-stripped-wrap-passes
+    changed_lines: 2
+    title: "Meta: annotate quoted note with exemption marker"
+    body:
+      - "The body wraps normally around seventy-two columns."
+      - 'Keep this quoted note inside the limits. prose-lint: allow reason="verbatim quote"'
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 0
+      findings: []
+
+  # CM.FOOTER-APPROVAL (FR-014): no `Approved-by:` footer; body-less at 2
+  # changed lines, so CM.BODY-REQUIRED stays exempt and only the footer
+  # rule fires.
+  - name: footer-approval-missing
+    changed_lines: 2
+    title: "Meta: record owner decision on fixture scope"
+    expect:
+      exit: 1
+      findings:
+        - rule: CM.FOOTER-APPROVAL
+
+  # XI1.EMDASH over commit text (FR-015): the body line carries a real
+  # U+2014 em dash, the single deliberate one in this file. Line length
+  # stays within body_wrap, so only the prose rule fires, on scope
+  # commit-body.
+  - name: emdash-in-body
+    changed_lines: 2
+    title: "Docs: clarify ownership of the epoch header"
+    body:
+      - "Drop the stale epoch marker — the header owns it now."
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 1
+      findings:
+        - rule: XI1.EMDASH
+          scope: commit-body
+
+  # Merge commit (R-09): parents length 2, title conforms, Approved-by
+  # footer present, no body. CM.BODY-REQUIRED is skipped for merges; a
+  # merge prints no numstat lines and sums to 0 changed lines (R-10
+  # amendment). Every other rule holds, so the case passes.
+  - name: merge-commit-no-body-passes
+    kind: merge
+    side_commit:
+      title: "test: seed quiesce note on side branch"
+      files:
+        - path: "notes/quiesce.md"
+          lines: 1
+      footer: "Approved-by: charlesarcher"
+    title: "test: merge worker quiesce branch"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 0
+      findings: []
+
+  # Rename-only commit (R-10 amendment): `git show --numstat -M` sums a
+  # pure rename to 0 changed lines, so the body-less commit sits within
+  # trivial_max_changed_lines and passes. A gate that counted the rename
+  # as added-plus-removed lines would wrongly fire CM.BODY-REQUIRED.
+  - name: rename-only-counts-zero-passes
+    kind: rename
+    setup_commit:
+      title: "Docs: seed worker notes file"
+      files:
+        - path: "notes/worker.md"
+          lines: 3
+      footer: "Approved-by: charlesarcher"
+    rename:
+      from: "notes/worker.md"
+      to: "aux/worker.md"
+    title: "Docs: move worker notes to aux tree"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 0
+      findings: []
+
+  # Binary-file commit (data-model.md CommitRecord.changed_lines): the
+  # added blob makes numstat print `-\t-\t`, counted as 0, so the
+  # body-less commit stays within trivial_max_changed_lines and passes.
+  # A gate that treated the binary row as many lines would wrongly fire
+  # CM.BODY-REQUIRED.
+  - name: binary-file-counts-zero-passes
+    kind: binary
+    binary_file: "fixtures/golden.bin"
+    title: "test: track golden blob for codec fixtures"
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 0
+      findings: []
+
+  # Empty range (spec.md:110): base equals head, the run succeeds with
+  # zero records and no findings.
+  - name: empty-range-exits-zero
+    kind: empty-range
+    expect:
+      exit: 0
+      records: 0
+      findings: []
