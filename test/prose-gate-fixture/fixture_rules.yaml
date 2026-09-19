@@ -1,0 +1,120 @@
+# Fixture rule subset for the prose gate fixtures (tasks.md T001).
+# Derived from specs/002-prose-commit-lint/contracts/rule-data.md: the seven
+# canonical prose rule ids with their vocabularies, the commit thresholds,
+# the nine section tokens, vague titles, non-imperative shapes, and the
+# marker literal. Consumed only by the fixture harness; the package is
+# checker input under the FR-006 exclusion, never checked by the gate.
+---
+version: 1
+
+thresholds:
+  title_max: 50                    # FR-009
+  body_wrap: 72                    # FR-013
+  trivial_max_changed_lines: 5     # FR-013, R-10
+
+marker: "prose-lint: allow"        # FR-005, R-06
+
+sections:                          # FR-010, R-11, D4
+  - CMake
+  - CI
+  - Constitution
+  - Docs
+  - Meta
+  - dbc
+  - deploy
+  - runner
+  - test
+
+vague_titles:                      # FR-012
+  - wip
+  - fix stuff
+  - fixes
+  - updates
+  - update
+  - cleanup
+  - misc
+
+non_imperative_shapes:             # FR-011, R-11
+  - Added
+  - Adds
+  - Fixing
+  - Fixes
+  - Updating
+  - Update of
+  - was added
+  - were added
+
+rules:
+  - id: XI1.EMDASH
+    family: XI.1
+    constitution: Principle XI.1
+    kind: codepoint
+    pattern: "\u2014"
+    scope: [markdown, c-comment, shell-comment, cmake-comment,
+            commit-title, commit-body]
+    message: use a colon, semicolon, comma, or parentheses
+
+  - id: XI1.DOUBLE-HYHEN
+    family: XI.1
+    constitution: Principle XI.1
+    kind: regex
+    pattern: "(?<!-)-{2,3}(?!-)"
+    scope: [markdown, c-comment, shell-comment, cmake-comment,
+            commit-title, commit-body]
+    message: use a colon, semicolon, comma, or parentheses
+
+  - id: XI2.CONTRASTIVE
+    family: XI.2
+    constitution: Principle XI.2
+    kind: regex
+    pattern: "(?:, not | rather than | instead of )"
+    scope: [markdown, c-comment, shell-comment, cmake-comment,
+            commit-title, commit-body]
+    message: state what the thing is, each fact in its own sentence
+
+  - id: XI3.VOUCHER
+    family: XI.3
+    constitution: Principle XI.3
+    kind: vocabulary
+    tokens_source: constitution
+    tokens: [honest, honestly, to be honest, candid, candidly, frankly,
+             transparent, transparently, genuinely, straight answer]
+    scope: [markdown, c-comment, shell-comment, cmake-comment,
+            commit-title, commit-body]
+    message: ground the statement in evidence or label it an estimate
+
+  - id: XI4.META-EDITORIALIZING
+    family: XI.4
+    constitution: Principle XI.4
+    kind: vocabulary
+    tokens_source: constitution
+    tokens: [in this section we, this document will cover,
+             my approach to this file, what this would take,
+             how we read your input, as an AI, I notice that,
+             let me walk you through]
+    scope: [markdown, c-comment, shell-comment, cmake-comment,
+            commit-title, commit-body]
+    message: state the content; the artifact does not describe itself
+
+  - id: XI5.FILLER
+    family: XI.5
+    constitution: Principle XI.5
+    kind: vocabulary
+    tokens_source: constitution
+    tokens: [it's worth noting, importantly, notably, essentially, basically,
+             simply, just, very, actually, in fact, of course,
+             needless to say, in order to]
+    scope: [markdown, c-comment, shell-comment, cmake-comment,
+            commit-title, commit-body]
+    message: drop the filler and keep the claim
+
+  - id: XI5.MARKETING
+    family: XI.5
+    constitution: Principle XI.5
+    kind: vocabulary
+    tokens_source: constitution
+    tokens: [seamlessly, cutting-edge, leverages, world-class, best-in-class,
+             industry-leading, robust, blazing-fast, elegant, powerful]
+    scope: [markdown, c-comment, shell-comment, cmake-comment,
+            commit-title, commit-body]
+    message: a performance claim carries a number, a platform, and a distribution
