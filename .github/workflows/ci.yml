@@ -262,6 +262,54 @@ jobs:
         name: dbc-matrix
         path: build/dev/dbc-gate/matrix.json
 
+  prose-lint:
+    needs: [lint]
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # R-07: default 1 cannot support a range
+      - name: Install PyYAML
+        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml
+      - name: Resolve range
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = pull_request ]; then
+            base="$PR_BASE"; head_sha="$PR_HEAD"
+          else
+            base="$PUSH_BEFORE"; head_sha="$PUSH_AFTER"
+            if ! git cat-file -e "${base}^{commit}" 2>/dev/null \
+               || ! git merge-base --is-ancestor "$base" "$head_sha"; then
+              first="${{ github.event.commits[0].id }}"
+              base="${first}^"
+            fi
+          fi
+          git cat-file -e "${base}^{commit}" \
+            || { echo "::error::cannot resolve a base commit"; exit 2; }
+          if [ "$(git rev-parse "$base")" = "$(git rev-parse "$head_sha")" ]; then
+            echo "::error::resolved range is empty (base equals head)"
+            exit 2
+          fi
+          echo "PROSE_BASE=$(git rev-parse "$base")" >> "$GITHUB_ENV"
+          echo "PROSE_HEAD=$(git rev-parse "$head_sha")" >> "$GITHUB_ENV"
+      - name: Prose and commit lint
+        run: >
+          cmake -D PROSE_MODE=range
+          -D PROSE_BASE="${PROSE_BASE}"
+          -D PROSE_HEAD="${PROSE_HEAD}"
+          -P cmake/prose-lint.cmake
+      - name: Configure
+        run: cmake --preset=ci-ubuntu -B build/dev
+      - run: cmake --build build/dev -t prose-lint-fixtures || true
+      - run: ctest --test-dir build/dev -R prose_gate_fixtures
+             --output-on-failure --no-tests=error
+
   docs:
     # Deploy docs only when builds succeed
     needs: [sanitize, test, test-rocky]
