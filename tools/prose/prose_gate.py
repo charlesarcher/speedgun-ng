@@ -17,9 +17,10 @@ CLI::
 Every run loads and validates the Rule Data File per
 specs/002-prose-commit-lint/contracts/rule-data.md, --version included;
 any load-time failure exits 2 naming the offending field path. The
-prose and commit checks themselves land in later tasks (T013-T017 and
-T019-T022): until then a valid load prints the zero summary line and
-exits 0.
+prose check covers tracked Markdown and comments in C, C++, CMake, and
+shell sources over a changed range or the whole tree; the commit check
+covers the Pull Request Quality template over a resolved commit range,
+with the prose rules applied to each title and body.
 
 Exit codes per specs/002-prose-commit-lint/contracts/cli.md:
 0 = no findings, 1 = at least one finding, 2 = usage error or
@@ -838,7 +839,7 @@ def evaluate_unit(
     matchers: list[dict[str, Any]],
 ) -> list[tuple[str, str, str, str]]:
     """Apply precedence rows 1 to 10 to one examined unit."""
-    if lang == "markdown" and (inside_fence or fence_line):
+    if lang in ("markdown", "commit-body") and (inside_fence or fence_line):
         return []
     if lang == "markdown" and INDENTED_CODE_RE.match(unit_text):
         return []
@@ -878,7 +879,9 @@ def evaluate_unit(
     return hits
 
 
-def evaluate_prose(args: argparse.Namespace, data: dict[str, Any]) -> int:
+def evaluate_prose(
+    args: argparse.Namespace, data: dict[str, Any]
+) -> tuple[int, int, int, int]:
     repo = resolve_repo_root()
     candidates, authorship = collect_candidates(
         repo, args.mode, args.base, args.head
@@ -940,11 +943,225 @@ def evaluate_prose(args: argparse.Namespace, data: dict[str, Any]) -> int:
             )
     for note in skip_reasons:
         sys.stderr.write(note + "\n")
-    print(
-        f"prose-lint: {sources} sources, {units_examined} units examined, "
-        f"{len(findings)} findings, {skipped} skipped"
+    return sources, units_examined, len(findings), skipped
+
+
+# --- commit check (T019-T022) ------------------------------------------------
+
+TRAILER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9-]*: \S")
+TITLE_FORMAT_RE = re.compile(r"^([^: ]+): (\S.*)$")
+APPROVAL_KEY = "approved-by"
+CM_CONSTITUTION = "Pull Request Quality"
+CM_MESSAGES = {
+    "CM.TITLE-FORMAT": (
+        "title reads `<Section>: <Imperative description>`, one space "
+        "after the colon, no trailing period"
+    ),
+    "CM.TITLE-LENGTH": "title fits the configured maximum length",
+    "CM.SECTION-UNKNOWN": "section token is one of the configured sections",
+    "CM.NON-IMPERATIVE": "title begins with an imperative verb",
+    "CM.VAGUE-TITLE": "title names the change, not a vague placeholder",
+    "CM.BODY-REQUIRED": (
+        "body explains the why; merge commits and changes within the "
+        "trivial changed-line limit are exempt"
+    ),
+    "CM.BODY-WRAP": "body lines fit the configured wrap column",
+    "CM.FOOTER-APPROVAL": "missing Approved-by footer",
+}
+
+
+def strip_marker_reason(text: str, marker_literal: str) -> str:
+    """Remove the marker substring so width measures the visible text."""
+    return re.sub(re.escape(marker_literal) + r'\s*reason="[^"]*"', "", text)
+
+
+def parse_commit_message(
+    message: str,
+) -> tuple[str, list[str], list[tuple[str, str]]]:
+    """Title, body lines without the footer paragraph, and parsed footers.
+
+    The body is everything after the first blank line; the trailing
+    paragraph counts as footers when every one of its lines reads
+    `Key: value`.
+    """
+    lines = message.rstrip("\n").split("\n")
+    title = lines[0] if lines else ""
+    rest = lines[1:]
+    start = 0
+    while start < len(rest) and rest[start].strip() == "":
+        start += 1
+    paragraphs: list[list[str]] = []
+    current: list[str] = []
+    for line in rest[start:]:
+        if line.strip() == "":
+            if current:
+                paragraphs.append(current)
+                current = []
+        else:
+            current.append(line)
+    if current:
+        paragraphs.append(current)
+    footers: list[tuple[str, str]] = []
+    if paragraphs and all(TRAILER_RE.match(line) for line in paragraphs[-1]):
+        footers = [
+            (line[: line.index(":")], line[line.index(":") + 1 :].strip())
+            for line in paragraphs[-1]
+        ]
+        paragraphs = paragraphs[:-1]
+    body_lines = [line for paragraph in paragraphs for line in paragraph]
+    return title, body_lines, footers
+
+
+def count_changed_lines(repo: Path, sha: str) -> int:
+    """Added plus removed with rename detection; binary rows count 0.
+
+    A merge commit prints no numstat rows, so its changed lines are 0.
+    """
+    numstat = run_git(
+        repo, ["show", "--numstat", "-M", "--format=", sha], "changed lines"
     )
-    return EXIT_GAPS if findings else EXIT_OK
+    total = 0
+    for row in numstat.split("\n"):
+        columns = row.split("\t")
+        if len(columns) >= 2 and columns[0] != "-" and columns[0].isdigit():
+            total += int(columns[0]) + int(columns[1])
+    return total
+
+
+def build_commit_records(
+    repo: Path, base: str, head: str
+) -> list[dict[str, Any]]:
+    """CommitRecords for the two-dot range `git rev-list BASE..HEAD`.
+
+    An empty range is a success with zero records; a default base that
+    cannot be resolved never becomes an empty pass because resolve_base
+    exits 2 instead.
+    """
+    listing = run_git(repo, ["rev-list", f"{base}..{head}"], "commit range")
+    records: list[dict[str, Any]] = []
+    for sha in [entry for entry in listing.split("\n") if entry]:
+        parents = run_git(
+            repo, ["show", "-s", "--format=%P", sha], "commit parents"
+        ).split()
+        message = run_git(
+            repo, ["show", "-s", "--format=%B", sha], "commit message"
+        )
+        title, body_lines, footers = parse_commit_message(message)
+        records.append(
+            {
+                "sha": sha,
+                "short": sha[:7],
+                "title": title,
+                "body_lines": body_lines,
+                "footers": footers,
+                "changed_lines": count_changed_lines(repo, sha),
+                "is_merge": len(parents) >= 2,
+            }
+        )
+    return records
+
+
+def evaluate_commit_rules(
+    record: dict[str, Any], data: dict[str, Any]
+) -> list[str]:
+    """The eight CM rules for one record, as lines ordered by rule id."""
+    thresholds = data["thresholds"]
+    title = record["title"]
+    title_match = TITLE_FORMAT_RE.match(title)
+    hits: set[str] = set()
+    if title_match is None or title.endswith("."):
+        hits.add("CM.TITLE-FORMAT")
+    if len(title) > thresholds["title_max"]:
+        hits.add("CM.TITLE-LENGTH")
+    if title_match is not None:
+        lowered = title_match.group(2).strip().lower()
+        if title_match.group(1) not in data["sections"]:
+            hits.add("CM.SECTION-UNKNOWN")
+        if lowered in {vague.lower() for vague in data["vague_titles"]}:
+            hits.add("CM.VAGUE-TITLE")
+        if any(
+            re.match(rf"(?:{re.escape(shape.lower())})\b", lowered)
+            for shape in data["non_imperative_shapes"]
+        ):
+            hits.add("CM.NON-IMPERATIVE")
+    if (
+        not record["body_lines"]
+        and not record["is_merge"]
+        and record["changed_lines"] > thresholds["trivial_max_changed_lines"]
+    ):
+        hits.add("CM.BODY-REQUIRED")
+    for line in record["body_lines"]:
+        measured = strip_marker_reason(line, data["marker"])
+        if len(measured) > thresholds["body_wrap"]:
+            hits.add("CM.BODY-WRAP")
+            break
+    if not any(key.lower() == APPROVAL_KEY for key, _ in record["footers"]):
+        hits.add("CM.FOOTER-APPROVAL")
+    return [
+        f"commit {record['short']}: {rule_id}: {CM_MESSAGES[rule_id]} "
+        f"({CM_CONSTITUTION})"
+        for rule_id in sorted(hits)
+    ]
+
+
+def evaluate_prose_over_commits(
+    record: dict[str, Any],
+    matchers: list[dict[str, Any]],
+    marker_literal: str,
+) -> list[str]:
+    """Prose rules over commit text: title and body as separate scopes."""
+    results: list[tuple[str, str]] = []
+    for scope, unit_lines in (
+        ("commit-title", [record["title"]]),
+        ("commit-body", record["body_lines"]),
+    ):
+        fence = False
+        for unit_text in unit_lines:
+            stripped = unit_text.strip()
+            fence_line = stripped.startswith(FENCE_MARKERS)
+            inside_fence = fence
+            if fence_line:
+                fence = not fence
+            if not stripped:
+                continue
+            for rule_id, family, token, shown in evaluate_unit(
+                unit_text,
+                scope,
+                inside_fence,
+                fence_line,
+                marker_literal,
+                matchers,
+            ):
+                results.append(
+                    (
+                        rule_id,
+                        f"commit {record['short']}: {rule_id} "
+                        f"family={family} '{token}': {shown}",
+                    )
+                )
+    results.sort(key=lambda item: item[0])
+    return [line for _, line in results]
+
+
+def evaluate_commits(
+    args: argparse.Namespace, data: dict[str, Any]
+) -> tuple[int, int, int]:
+    """Check the commit range; print findings, return record/unit counts."""
+    repo = resolve_repo_root()
+    base = resolve_base(repo, args.base, args.head)
+    records = build_commit_records(repo, base, args.head)
+    matchers = compile_prose_matchers(data["rules"])
+    marker_literal = data["marker"]
+    units = 0
+    findings = 0
+    for record in records:
+        units += 1 + len(record["body_lines"])
+        lines = evaluate_commit_rules(record, data)
+        lines += evaluate_prose_over_commits(record, matchers, marker_literal)
+        for line in lines:
+            sys.stderr.write(line + "\n")
+        findings += len(lines)
+    return len(records), units, findings
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -956,12 +1173,26 @@ def main(argv: list[str] | None = None) -> int:
             f"(rule data version {data['version']})"
         )
         return EXIT_OK
-    if args.check == "commit":
-        # TODO(T019-T022): commit range resolution, commit-template rules,
-        # authorship attribution, and the commit verdict for --check commit.
-        print("prose-lint: 0 sources, 0 units examined, 0 findings, 0 skipped")
-        return EXIT_OK
-    return evaluate_prose(args, data)
+    sources = 0
+    units_examined = 0
+    findings = 0
+    skipped = 0
+    if args.check in ("prose", "all"):
+        sources, units_examined, findings, skipped = evaluate_prose(
+            args, data
+        )
+    if args.check in ("commit", "all"):
+        commit_sources, commit_units, commit_findings = evaluate_commits(
+            args, data
+        )
+        sources += commit_sources
+        units_examined += commit_units
+        findings += commit_findings
+    print(
+        f"prose-lint: {sources} sources, {units_examined} units examined, "
+        f"{findings} findings, {skipped} skipped"
+    )
+    return EXIT_GAPS if findings else EXIT_OK
 
 
 if __name__ == "__main__":
