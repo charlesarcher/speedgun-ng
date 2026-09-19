@@ -1079,12 +1079,17 @@ def evaluate_commit_rules(
         hits.add("CM.TITLE-FORMAT")
     if len(title) > thresholds["title_max"]:
         hits.add("CM.TITLE-LENGTH")
+    # CM.VAGUE-TITLE per the data-model row: the whole title equals, case
+    # insensitively, a vague_titles entry, so a bare ``wip`` names the
+    # vague rule beside the format rule (FR-012, US2 scenario 8).
+    if title.strip().lower() in {
+        vague.lower() for vague in data["vague_titles"]
+    }:
+        hits.add("CM.VAGUE-TITLE")
     if title_match is not None:
         lowered = title_match.group(2).strip().lower()
         if title_match.group(1) not in data["sections"]:
             hits.add("CM.SECTION-UNKNOWN")
-        if lowered in {vague.lower() for vague in data["vague_titles"]}:
-            hits.add("CM.VAGUE-TITLE")
         if any(
             re.match(rf"(?:{re.escape(shape.lower())})\b", lowered)
             for shape in data["non_imperative_shapes"]

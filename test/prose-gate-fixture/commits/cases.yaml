@@ -122,15 +122,18 @@ cases:
       findings:
         - rule: CM.TITLE-FORMAT
 
-  # CM.VAGUE-TITLE (FR-012): the description is exactly `wip`, an entry
-  # of vague_titles.
+  # CM.VAGUE-TITLE (FR-012, data-model row): the whole title equals, case
+  # insensitively, the vague_titles entry `wip` (the T007 example, bare),
+  # so the format rule fires beside it: an unparseable title names
+  # CM.TITLE-FORMAT and the vague rule both.
   - name: vague-title-wip
     changed_lines: 1
-    title: "Docs: wip"
+    title: "wip"
     footer: "Approved-by: charlesarcher"
     expect:
       exit: 1
       findings:
+        - rule: CM.TITLE-FORMAT
         - rule: CM.VAGUE-TITLE
 
   # CM.BODY-REQUIRED (FR-013): 40 changed lines, above

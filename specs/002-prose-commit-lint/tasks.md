@@ -208,3 +208,14 @@ Task: "T011 tools/prose/prose_gate.py kernel"
 - Exit 2 is never a pass (cli.md exit-code table)
 - Identical input means byte-identical findings in CI and locally (parity rule, cli.md section 4)
 - Commit after each phase checkpoint; template compliance applies to those commits too
+
+---
+
+## Phase 7: Convergence
+
+**Purpose**: Close the remaining gaps between the artifacts and the current code found by the converge assessment of 2026-09-18. The gate kernel, rule data, entry points, CI job, fixtures, README, and the constitution amendment all verified in place; the machine check runs clean over the constitution and AGENTS.md, `ctest -R prose_gate_fixtures` passes, and spell-check passes. What follows is everything still outstanding.
+
+- [x] T033 Implement `CM.VAGUE-TITLE` as the data-model defines it, case-insensitive equality of the whole title against `vague_titles`, so a commit titled bare `wip` names `CM.VAGUE-TITLE` beside `CM.TITLE-FORMAT`; re-point the `vague-title-wip` harness case in `test/prose-gate-fixture/commits/cases.yaml` from `Docs: wip` to the bare `wip` example T007 pins, and keep every other commit case green per US2/AC8, FR-012 (partial)
+- [ ] T034 Warn on stderr in `tools/prose/prose_gate.py` when the resolved base equals its head, prose and commit paths alike, keeping exit 0 and the `empty-range-exits-zero` fixture expectation intact per spec.md:111, degenerate-range edge case amended 2026-09-16, and contracts/ci-job.md (partial)
+- [ ] T035 Mark the `prose-lint` job a required status check in branch protection at landing, the same standing as the eight existing jobs, the owner action SC-001 records and the branch has not yet reached per SC-001 (partial)
+- [ ] T036 Print the resolved `BASE`, `HEAD`, the merge-base, and the commit count from the `Resolve range` CI step, and print the commit count of a clean zero-commit resolution (`range resolved, 0 commits`), keeping the pinned exit semantics untouched per contracts/ci-job.md event resolution and spec.md:111 (partial)

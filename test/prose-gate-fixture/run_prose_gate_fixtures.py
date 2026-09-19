@@ -1153,7 +1153,7 @@ def run_mixed_range_case(
         "--allow-empty",
         "-m",
         assemble_message(
-            "Docs: wip",
+            "wip",
             None,
             "Approved-by: charlesarcher",
         ),
@@ -1166,9 +1166,16 @@ def run_mixed_range_case(
         rules,
     )
     got = {(short, rule) for short, rule, _ in commit_findings(proc.stderr)}
-    want = {(first, "CM.TITLE-FORMAT"), (second, "CM.VAGUE-TITLE")}
+    want = {
+        (first, "CM.TITLE-FORMAT"),
+        (second, "CM.TITLE-FORMAT"),
+        (second, "CM.VAGUE-TITLE"),
+    }
     ok = proc.returncode == 1 and got == want
-    expected = f"exit:1 findings:[{first}:CM.TITLE-FORMAT,{second}:CM.VAGUE-TITLE]"
+    expected = (
+        f"exit:1 findings:[{first}:CM.TITLE-FORMAT,"
+        f"{second}:CM.TITLE-FORMAT,{second}:CM.VAGUE-TITLE]"
+    )
     observed = (
         f"exit:{proc.returncode} "
         f"findings:[{','.join(f'{s}:{r}' for s, r in sorted(got))}]"
