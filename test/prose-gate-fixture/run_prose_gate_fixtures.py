@@ -24,10 +24,12 @@ from __future__ import annotations
 
 import argparse
 import copy
+import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -77,6 +79,9 @@ GIT_IDENTITY = (
 WILDCARD_RULE_ID = "XI2.CONTRASTIVE"
 FILLER_RULE_ID = "XI5.FILLER"
 ZERO_SUMMARY = "prose-lint: 0 sources, 0 units examined, 0 findings, 0 skipped"
+
+# SC-003 developer-machine bound, measured 0.062 s whole tree by plan R-04.
+TIMING_BOUND_SECONDS = 10.0
 
 
 def die(message: str, code: int = EXIT_USAGE) -> None:
@@ -448,10 +453,13 @@ def run_gate(
     extra_args: list[str],
     cwd: Path,
     rules: Path,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     argv = [sys.executable, str(GATE), "--rules", str(rules), *extra_args]
     try:
-        return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
+        return subprocess.run(
+            argv, cwd=cwd, env=env, capture_output=True, text=True, check=False
+        )
     except OSError as exc:
         die(f"failed to invoke {GATE}: {exc}")
 
@@ -594,7 +602,8 @@ def run_prose_check(
     rules: Path,
     out_dir: Path,
 ) -> tuple[int, list[dict[str, Any]]]:
-    """T018 prose asserts: per-family reports, silence, marker, authorship.
+    """T018 prose asserts: per-family reports, silence, marker, authorship,
+    plus the T026 parity and whole-tree timing asserts.
 
     Scenario surfaces are throwaway staged repositories under --out; the
     fixture corpus itself is never mutated. The corpus's designed oracle:
@@ -686,10 +695,20 @@ def run_prose_check(
     clean_failures, clean_rows = run_clean_tree_case(
         rules, out_dir, prose["silent.md"]
     )
-    failures += marker_failures + marker_author_failures + clean_failures
+    parity_failures, parity_rows = run_parity_case(rules, stage_repo)
+    timing_failures, timing_rows = run_timing_case()
+    failures += (
+        marker_failures
+        + marker_author_failures
+        + clean_failures
+        + parity_failures
+        + timing_failures
+    )
     rows.extend(marker_rows)
     rows.extend(marker_author_rows)
     rows.extend(clean_rows)
+    rows.extend(parity_rows)
+    rows.extend(timing_rows)
     return failures, rows
 
 
@@ -865,6 +884,132 @@ def run_clean_tree_case(
         "expected": "exit:0 units>0 findings:0",
         "observed": proc.stdout.strip(),
         "result": "PASS" if ok else "FAIL",
+    }
+    return (0 if ok else 1), [row]
+
+
+def error_annotation_lines(stderr_text: str) -> list[str]:
+    return [line for line in stderr_text.splitlines() if line.startswith("::error")]
+
+
+def run_parity_case(
+    rules: Path, stage_repo: Path
+) -> tuple[int, list[dict[str, Any]]]:
+    """T026 parity assert (contracts/cli.md section 4, FR-017).
+
+    The same tree-mode prose run over the same staged repository, once with
+    GITHUB_ACTIONS=true in the child environment and once without it, must
+    yield identical finding sets once the ::error workflow annotation lines
+    are removed, and those annotations must appear only in the
+    GITHUB_ACTIONS run, one per finding.
+    """
+    plain_env = {k: v for k, v in os.environ.items() if k != "GITHUB_ACTIONS"}
+    actions_env = {**os.environ, "GITHUB_ACTIONS": "true"}
+    plain = run_gate(
+        ["--check", "prose", "--mode", "tree"], stage_repo, rules, env=plain_env
+    )
+    actions = run_gate(
+        ["--check", "prose", "--mode", "tree"], stage_repo, rules, env=actions_env
+    )
+    plain_findings = parse_findings(plain.stderr)
+    actions_findings = parse_findings(actions.stderr)
+    plain_marks = error_annotation_lines(plain.stderr)
+    actions_marks = error_annotation_lines(actions.stderr)
+
+    failures = 0
+    rows: list[dict[str, Any]] = []
+
+    def verdict(name: str, expected_text: str, observed_text: str, ok: bool) -> None:
+        nonlocal failures
+        result = "PASS" if ok else "FAIL"
+        print_verdict(name, "prose", expected_text, observed_text, result)
+        rows.append(
+            {
+                "interface": name,
+                "check": "prose",
+                "expected": expected_text,
+                "observed": observed_text,
+                "result": result,
+            }
+        )
+        if not ok:
+            failures += 1
+
+    verdict(
+        "prose.parity.finding-sets",
+        "identical finding sets with and without GITHUB_ACTIONS",
+        f"{len(plain_findings)} vs {len(actions_findings)} findings, "
+        f"{len(plain_findings ^ actions_findings)} unmatched",
+        plain_findings == actions_findings,
+    )
+    verdict(
+        "prose.parity.annotations",
+        "::error lines only in the GITHUB_ACTIONS run, one per finding",
+        f"plain:{len(plain_marks)} actions:{len(actions_marks)} "
+        f"for {len(actions_findings)} findings",
+        not plain_marks
+        and bool(actions_marks)
+        and len(actions_marks) == len(actions_findings),
+    )
+    return failures, rows
+
+
+TIMING_SUMMARY_RE = re.compile(r"prose-lint: .*")
+
+
+def run_timing_case() -> tuple[int, list[dict[str, Any]]]:
+    """T026 timing assert (SC-003, plan R-04 measured 0.062 s whole tree).
+
+    The whole-tree prose scan of the real repository (REPO_ROOT, not the
+    throwaway fixture repo) against the repo rules file must finish under
+    the 10 s bound. It is a developer-machine bound, so the case is
+    evaluated only when GITHUB_ACTIONS is unset in this harness process;
+    under CI it prints a SKIP verdict instead of holding a developer bound
+    against runner load.
+
+    Adapted from the task sketch's `--paths .`: the gate's in_narrowed()
+    matches repo-relative paths against `p` or `p/` prefixes, and no such
+    path equals `.` or starts with `./`, so that invocation reports 0
+    sources and times an empty scan, the vacuous pass the repository
+    treats as a defect. The case uses plain tree-mode discovery, the
+    canonical SC-003 surface (68 sources on this checkout). The real tree
+    carries grandfathered banned tokens, so whole-file mode legitimately
+    exits 1 with findings; the assert measures wall clock and accepts
+    exit 0 or 1, never 2, because exit 2 means nothing was checked and no
+    bound was proven.
+    """
+    name = "timing.whole-tree"
+    expected = f"exit:0|1 wall<{TIMING_BOUND_SECONDS}s"
+    if "GITHUB_ACTIONS" in os.environ:
+        observed = "skipped: developer-machine bound under GITHUB_ACTIONS"
+        print_verdict(name, "timing", expected, observed, "SKIP")
+        return 0, [
+            {
+                "interface": name,
+                "check": "timing",
+                "expected": expected,
+                "observed": observed,
+                "result": "SKIP",
+            }
+        ]
+    started = time.monotonic()
+    proc = run_gate(["--check", "prose", "--mode", "tree"], REPO_ROOT, DEFAULT_RULES)
+    elapsed = time.monotonic() - started
+    ok = proc.returncode in (0, 1) and elapsed < TIMING_BOUND_SECONDS
+    summary = TIMING_SUMMARY_RE.search(proc.stdout)
+    observed = f"exit:{proc.returncode} wall:{elapsed:.3f}s"
+    if summary is not None:
+        observed += f" {summary.group(0)}"
+    result = "PASS" if ok else "FAIL"
+    print_verdict(name, "timing", expected, observed, result)
+    row = {
+        "interface": name,
+        "check": "timing",
+        "expected": expected,
+        "observed": observed,
+        "result": result,
+        "exit_code": proc.returncode,
+        "elapsed_seconds": round(elapsed, 3),
     }
     return (0 if ok else 1), [row]
 
