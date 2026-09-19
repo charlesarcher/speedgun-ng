@@ -1,16 +1,13 @@
 <!--
-Sync Impact Report (2.4.1, PATCH): token compression. Every rule,
-threshold, identifier, gate, and banned-word list survives; wording
-tightened, rationale prose dropped, repeated rules given one canonical
-home with cross-references. Amendment history lives in the git log of
-this file.
+Sync Impact Report (2.5.0, MINOR): the prose and commit gate lands as
+prose-lint (specs/002-prose-commit-lint). Principle XI.6 names the
+delivered machine check; Principle VIII lists it among the hard gates;
+the commit-template lint and XI machine-check deferrals resolve and
+leave this block. Guidance is materially expanded; no principle is
+redefined. Every rule, threshold, identifier, gate, and banned-word
+list survives; amendment history lives in the git log of this file.
 
 Open deferrals, binding until a spec lands them:
-- Commit-template lint (commit-msg hook / CI) absent; authors
-  self-verify (Pull Request Quality).
-- Principle XI machine check absent; review enforces the XI.6
-  grep-checkable subset. Both land together as one gate, specced in
-  specs/002-prose-commit-lint.
 - Principle VII baseline infrastructure absent; VII mandates it, a
   future spec delivers it.
 - DCR and P2 exception label conventions: project policy, tracked in
@@ -186,9 +183,11 @@ Every change passes all of the following; each is hard.
   report no new findings, against the pinned Core Guidelines baseline (I)
   from the same configuration.
 - `format-check` and `spell-check` pass.
-- Generated prose satisfies XI: a discourse violation is a review defect at
-  lint parity; the automated check is pending (Sync Impact Report) and review
-  carries it meanwhile.
+- Generated prose satisfies XI: a discourse violation is a defect at lint
+  parity. The `prose-lint` job enforces Principle XI and the commit template
+  in CI over the pull-request range, and
+  `cmake -P cmake/prose-lint.cmake` reproduces the verdict locally
+  (specs/002-prose-commit-lint).
 - Coverage gates of VI pass: 100% LOC, 100% branch, 100% DBC. DBC
   completeness is checked (II).
 - Critical-path performance metrics stay within baseline (VII) once
@@ -394,9 +393,13 @@ Weak requirement language stays banned in EARS statements per III: "should",
   it, the author fixes it before merge, as with a clang-tidy finding.
 - Machine checks cover the grep-checkable subset: the em-dash code point, `--`
   or `---` in prose, `, not `, ` rather than `, ` instead of `, the XI.3
-  voucher list, the XI.5 filler list, the XI.5 marketing list. Wiring is
-  deferred to a future spec with the commit-template lint, per the
-  Sync Impact Report; until it lands, review enforces it.
+  voucher list, the XI.5 filler list, the XI.5 marketing list. The delivered
+  check is `prose-lint` (specs/002-prose-commit-lint): one gate script, one
+  rule-data file, a CI job, and fixtures asserting every family in both
+  directions over added and modified lines. Rule data mirrors this
+  principle, and renaming a rule identifier is a breaking change. The
+  exemption constructs, precedence, and marker grammar are specified in
+  specs/002-prose-commit-lint/contracts/rule-data.md.
 - Exemptions: a banned token inside a verbatim quotation, code span, command,
   file name, or a literal that is itself the subject under discussion. Mark
   the quotation as quoted.
@@ -520,6 +523,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.5.0 | 2026-09-18 | prose-lint gate: XI.6 machine check, commit-template lint, deferrals closed |
 | 2.4.1 | 2026-09-10 | token compression, no rule changed |
 | 2.4.0 | 2026-09-10 | principles X (anti-slop code) and XI (discourse) |
 | 2.3.0 | 2026-09-09 | language pinned to C++23, CMake >= 3.20 |
@@ -529,4 +533,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.4.1 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-10
+**Version**: 2.5.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-18
