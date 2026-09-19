@@ -100,8 +100,8 @@ checks:
            comments.cmake); verdict asserts land in task T018, loader
            asserts in task T012
   commit   range commit check over a throwaway repo under --out holding
-           exactly the case commit; the skeleton evaluates each case
-           against expect.exit alone, full asserts land in task T023
+           exactly the case commits; each case asserts exit code, the
+           named finding rules with scope tokens, and expect.records
   both     run both checks (default)
 
 loader phase (runs on every invocation, whatever --check selects, T012):
@@ -112,9 +112,10 @@ loader phase (runs on every invocation, whatever --check selects, T012):
 
 expected matrix:
   authoritative per-case expectations live in commits/cases.yaml
-  cases with expect.exit 0   harness PASS when the gate exits 0
-  cases with expect.exit 1   harness PASS when the gate exits 1
-  prose fixtures             SKIP placeholder until T018 asserts
+  per commit case            harness PASS when exit code, expect.findings
+                             rule lines (scope tokens present in the named
+                             commit field), and expect.records all match
+  prose fixtures             T018 verdict asserts against the real gate
 
 every run writes a prose matrix artifact under --out.
 when the gate script is absent the harness exits 2 with:
@@ -868,6 +869,68 @@ def run_clean_tree_case(
     return (0 if ok else 1), [row]
 
 
+SUMMARY_SOURCES_RE = re.compile(r"prose-lint: (\d+) sources,")
+
+
+COMMIT_FINDING_RE = re.compile(
+    r"^commit ([0-9a-f]{7}): ([A-Z0-9][A-Z0-9._-]*)"
+    r"(?: family=(\S+) '([^']*)')?: (.*)$"
+)
+
+
+def commit_findings(stderr_text: str) -> list[tuple[str, str, str]]:
+    """(short hash, rule id, token) triples from the gate's finding lines."""
+    findings: list[tuple[str, str, str]] = []
+    for line in stderr_text.splitlines():
+        match = COMMIT_FINDING_RE.match(line)
+        if match:
+            findings.append((match.group(1), match.group(2), match.group(4)))
+    return findings
+
+
+def scope_field_text(case: dict[str, Any], scope: str) -> str:
+    if scope == "commit-title":
+        return str(case.get("title") or "")
+    body = case.get("body")
+    if isinstance(body, list):
+        return "\n".join(str(line) for line in body)
+    return str(body or "")
+
+
+def evaluate_commit_case(
+    case: dict[str, Any], proc: subprocess.CompletedProcess[str]
+) -> tuple[str, str, str]:
+    """PASS only when exit code, findings, scopes, and records all match."""
+    expect = case["expect"]
+    want_rules = sorted(
+        str(entry.get("rule")) for entry in expect.get("findings") or []
+    )
+    want_records = expect.get("records")
+    findings = commit_findings(proc.stderr)
+    got_rules = sorted(rule for _, rule, _ in findings)
+    expected = f"exit:{expect['exit']} findings:[{','.join(want_rules)}]"
+    observed = f"exit:{proc.returncode} findings:[{','.join(got_rules)}]"
+    if want_records is not None:
+        summary = SUMMARY_SOURCES_RE.search(proc.stdout)
+        got_records = int(summary.group(1)) if summary else -1
+        expected += f" records:{want_records}"
+        observed += f" records:{got_records}"
+        if got_records != want_records:
+            return expected, observed, "FAIL"
+    if proc.returncode != expect["exit"] or got_rules != want_rules:
+        return expected, observed, "FAIL"
+    for entry in expect.get("findings") or []:
+        scope = entry.get("scope")
+        if not scope:
+            continue
+        rule = str(entry.get("rule"))
+        tokens = [tok for _, matched, tok in findings if matched == rule]
+        text = scope_field_text(case, str(scope))
+        if not any(tok and tok in text for tok in tokens):
+            return expected, observed + f" scope:{scope}-mismatch", "FAIL"
+    return expected, observed, "PASS"
+
+
 def run_commit_cases(
     cases: list[dict[str, Any]],
     rules: Path,
@@ -884,12 +947,7 @@ def run_commit_cases(
             stage_repo,
             rules,
         )
-        expected = f"exit:{case['expect']['exit']}"
-        observed = f"exit:{proc.returncode}"
-        # TODO(T023): upgrade this exit-code-only evaluation to the full
-        # per-case assert suite: expect.findings rule matches against the
-        # stderr finding lines, finding scopes, and expect.records.
-        result = "PASS" if proc.returncode == case["expect"]["exit"] else "FAIL"
+        expected, observed, result = evaluate_commit_case(case, proc)
         print_verdict(case["name"], "commit", expected, observed, result)
         echo(proc)
         if result == "FAIL":
@@ -906,7 +964,86 @@ def run_commit_cases(
                 "head": head,
             }
         )
+    mixed_failures, mixed_rows = run_mixed_range_case(rules, stage_repo.parent)
+    failures += mixed_failures
+    rows.extend(mixed_rows)
     return failures, rows
+
+
+def run_mixed_range_case(
+    rules: Path, work_dir: Path
+) -> tuple[int, list[dict[str, Any]]]:
+    """US2 mixed range (T023): one range, two offenders, named by short hash."""
+    stage_repo = work_dir / "mixed-range"
+    shutil.rmtree(stage_repo, ignore_errors=True)
+    stage_repo.mkdir(parents=True)
+    run_git(stage_repo, "init")
+    run_git(
+        stage_repo,
+        "commit",
+        "--allow-empty",
+        "-m",
+        assemble_message(
+            "test: seed mixed range fixture base",
+            None,
+            "Approved-by: charlesarcher",
+        ),
+    )
+    base = git_head(stage_repo)
+    run_git(
+        stage_repo,
+        "commit",
+        "--allow-empty",
+        "-m",
+        assemble_message(
+            "runner guard teardown of idle workers",
+            None,
+            "Approved-by: charlesarcher",
+        ),
+    )
+    first = git_head(stage_repo)[:7]
+    run_git(
+        stage_repo,
+        "commit",
+        "--allow-empty",
+        "-m",
+        assemble_message(
+            "Docs: wip",
+            None,
+            "Approved-by: charlesarcher",
+        ),
+    )
+    head = git_head(stage_repo)
+    second = head[:7]
+    proc = run_gate(
+        ["--check", "commit", "--base", base, "--head", head],
+        stage_repo,
+        rules,
+    )
+    got = {(short, rule) for short, rule, _ in commit_findings(proc.stderr)}
+    want = {(first, "CM.TITLE-FORMAT"), (second, "CM.VAGUE-TITLE")}
+    ok = proc.returncode == 1 and got == want
+    expected = f"exit:1 findings:[{first}:CM.TITLE-FORMAT,{second}:CM.VAGUE-TITLE]"
+    observed = (
+        f"exit:{proc.returncode} "
+        f"findings:[{','.join(f'{s}:{r}' for s, r in sorted(got))}]"
+    )
+    result = "PASS" if ok else "FAIL"
+    print_verdict(
+        "us2-mixed-range-two-offenders", "commit", expected, observed, result
+    )
+    echo(proc)
+    row = {
+        "interface": "us2-mixed-range-two-offenders",
+        "check": "commit",
+        "expected": expected,
+        "observed": observed,
+        "result": result,
+        "exit_code": proc.returncode,
+        "base": base,
+        "head": head,
+    }
+    return (0 if ok else 1), [row]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -970,10 +1107,7 @@ def main(argv: list[str] | None = None) -> int:
             f"prose gate assertions failed: {failures} FAIL verdict(s)\n"
         )
         return EXIT_ASSERT
-    print(
-        "prose gate assertions passed (prose verdict asserts land in T018)",
-        flush=True,
-    )
+    print("prose gate assertions passed", flush=True)
     return EXIT_OK
 
 
