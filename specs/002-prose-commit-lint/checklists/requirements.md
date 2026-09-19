@@ -10,28 +10,28 @@
 
 ## Content Quality
 
-- [ ] CHK001 No implementation details leak in: the spec names surfaces, thresholds, and verdicts, and leaves interpreter, library, file layout, and algorithm to the plan
-- [ ] CHK002 Focused on user value: each story states the maintainer or contributor outcome it delivers
-- [ ] CHK003 Written for a non-technical reader: rules are described by behavior and by the constitution subsection they implement
-- [ ] CHK004 All mandatory sections completed: User Scenarios, Requirements, Success Criteria, Assumptions
+- [x] CHK001 No implementation details leak in: the spec names surfaces, thresholds, and verdicts, and leaves interpreter, library, file layout, and algorithm to the plan
+- [x] CHK002 Focused on user value: each story states the maintainer or contributor outcome it delivers
+- [x] CHK003 Written for a non-technical reader: rules are described by behavior and by the constitution subsection they implement
+- [x] CHK004 All mandatory sections completed: User Scenarios, Requirements, Success Criteria, Assumptions
 
 ## Requirement Completeness
 
-- [ ] CHK005 No `[NEEDS CLARIFICATION]` markers remain
-- [ ] CHK006 Requirements are testable and unambiguous: each FR states a decidable condition, and each acceptance scenario is a Given/When/Then over an observable outcome
-- [ ] CHK007 Success criteria are measurable: counts, thresholds, and fixture coverage carry numbers
-- [ ] CHK008 Success criteria are technology-agnostic: SC-001 to SC-006 name no framework, language, or tool
-- [ ] CHK009 All acceptance scenarios are defined for all three stories
-- [ ] CHK010 Edge cases are identified, including the false-positive corpus (substrings, URLs, commands, ranges), the self-quoting constitution section, empty ranges, invalid encoding, and merge commits
-- [ ] CHK011 Scope is clearly bounded: tree-wide sweep, editor hooks, chat-reply checking, historical message rewriting, and spell-check are each named out of scope
-- [ ] CHK012 Dependencies and assumptions identified, including the dependency-parity assumption about CI runner tooling and the two accepted mechanical approximations
+- [x] CHK005 No `[NEEDS CLARIFICATION]` markers remain
+- [x] CHK006 Requirements are testable and unambiguous: each FR states a decidable condition, and each acceptance scenario is a Given/When/Then over an observable outcome
+- [x] CHK007 Success criteria are measurable: counts, thresholds, and fixture coverage carry numbers
+- [x] CHK008 Success criteria are technology-agnostic: SC-001 to SC-006 name no framework, language, or tool
+- [x] CHK009 All acceptance scenarios are defined for all three stories
+- [x] CHK010 Edge cases are identified, including the false-positive corpus (substrings, URLs, commands, ranges), the self-quoting constitution section, empty ranges, invalid encoding, and merge commits
+- [x] CHK011 Scope is clearly bounded: tree-wide sweep, editor hooks, chat-reply checking, historical message rewriting, and spell-check are each named out of scope
+- [x] CHK012 Dependencies and assumptions identified, including the dependency-parity assumption about CI runner tooling and the two accepted mechanical approximations
 
 ## Feature Readiness
 
-- [ ] CHK013 Every functional requirement has at least one acceptance scenario or success criterion that verifies it
-- [ ] CHK014 User scenarios cover the primary flows: enforcement on pull request (P1), commit template (P2), local parity (P3), each independently deliverable
-- [ ] CHK015 Measurable outcomes in Success Criteria correspond to the enforcement the stories promise
-- [ ] CHK016 Governance requirement present: FR-022 forces the constitution amendment that closes both deferrals in the same landing change, so no stale deferral survives the merge
+- [x] CHK013 Every functional requirement has at least one acceptance scenario or success criterion that verifies it
+- [x] CHK014 User scenarios cover the primary flows: enforcement on pull request (P1), commit template (P2), local parity (P3), each independently deliverable
+- [x] CHK015 Measurable outcomes in Success Criteria correspond to the enforcement the stories promise
+- [x] CHK016 Governance requirement present: FR-022 forces the constitution amendment that closes both deferrals in the same landing change, so no stale deferral survives the merge
 
 ## Notes
 

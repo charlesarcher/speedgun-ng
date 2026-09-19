@@ -21,6 +21,20 @@
 - **Q: Imperative mood is a grammatical property. How is it checked?** → **A:** A narrow rejection list of the observed non-imperative shapes (`Added`, `Adds`, `Fixing`, `Fixes`, `Update of`, `was added`, and similar) plus a capitalization rule. Full grammatical detection is out of scope. Recorded in Assumptions.
 - **Q: What happens when the rule data and the constitution disagree?** → **A:** The constitution is normative. The disagreement is a defect, and a fix updates the constitution and the data file in one change (constitution §Governance).
 
+### Session 2026-09-16 (review disposition)
+
+Four open points were resolved by the owner, each accepted as the default:
+
+- **D1 (Interpreter):** The gate runs on the interpreter and libraries already present in the developer environment and on the CI runners, so it adds no new runtime dependency (FR-021, SC-006). The concrete interpreter version, package, and CI setup mechanism are plan decisions recorded in plan.md.
+- **D2 (Blockquote exemption):** `auto_exempts` gains `blockquote-line`, matching a line whose stripped form begins with `>`. Plain quoted paragraphs stay marker-only.
+- **D3 (`--summary-only`):** Dropped. It has no consumers, and Principle X.2 forbids speculative surface.
+- **D4 (Section seed):** `sections` gains a ninth token, `runner`, because the constitution names `runner` as a section area (`.specify/memory/constitution.md`, line 443), so the gate accepts it as a valid section token for future commits.
+- **Q: Which section token serves as the unknown-section example now that D4 seeds `runner`?** → **A:** `Kubernetes`. User Story 2 scenario 3's example title is `Kubernetes: fix crash`, a token no seed entry contains.
+- **Q: What verdict on a resolved range whose base equals its head, given the empty-range edge case said success?** → **A:** Degenerate ranges exit 2 in CI and warn locally, a vacuous pass is never taken; the edge case is amended to match the pinned contracts.
+- **Q: Does the checker's own fixture corpus qualify for the exclusions list under FR-006?** → **A:** Yes. The criterion now names checker-input corpora carrying deliberate violations beside generated and vendored paths.
+- **Q: What makes prose-lint blocking at merge when branch protection lives outside the repository?** → **A:** The owner marks prose-lint a required status check at landing, as with every existing job; SC-001 records that action.
+- **Q: How does the commit body wrap rule measure a line that carries an exemption marker?** → **A:** With the marker substring stripped; the marker is annotation, and the quotation text itself stays inside 72 columns.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A violating pull request is refused before merge (Priority: P1)
@@ -39,7 +53,7 @@ As a maintainer, when a pull request adds generated prose that breaks a discours
 4. **Given** a pull request that adds a line where a banned word is a substring of a longer identifier such as `candidate`, **when** the gate runs, **then** it reports nothing for that line.
 5. **Given** a pull request that adds a verbatim quotation carrying a banned token, marked with the exemption marker and a reason, **when** the gate runs, **then** it reports nothing for that line.
 6. **Given** the same quotation marked with the exemption marker and an empty reason, **when** the gate runs, **then** it fails and reports the marker as the problem.
-7. **Given** a pull request whose added lines violate no rule, **when** the gate runs, **then** it exits zero and reports the number of files examined.
+7. **Given** a pull request whose added lines violate no rule, **when** the gate runs, **then** it exits zero and reports the number of sources examined.
 8. **Given** a violation sitting on a line the pull request did not add or modify, **when** the gate runs in pull-request mode, **then** it reports nothing for that line.
 
 ---
@@ -56,8 +70,8 @@ As a maintainer, when a commit in a pull request breaks the message template in 
 
 1. **Given** a commit titled `Docs: Clarify runner shutdown` with a why-body, a blank line between title and body, and an `Approved-by:` footer, **when** the commit check runs, **then** it passes.
 2. **Given** a commit whose title is 51 characters long, **when** the commit check runs, **then** it fails and names the title-length rule.
-3. **Given** a commit titled `runner: fix crash` where the section token is absent from the configured list, **when** the commit check runs, **then** it fails and names the section rule.
-4. **Given** a commit titled `Docs: Added the runner section.`, **when** the commit check runs, **then** it fails and names the non-imperative-shape rule and the trailing-period rule.
+3. **Given** a commit titled `Kubernetes: fix crash` where the section token is absent from the configured list, **when** the commit check runs, **then** it fails and names the section rule.
+4. **Given** a commit titled `Docs: Added the runner section.`, **when** the commit check runs, **then** it fails and names `CM.NON-IMPERATIVE` (the `Added` shape) and `CM.TITLE-FORMAT` (the trailing period).
 5. **Given** a commit with a title and no body and 40 changed lines, **when** the commit check runs, **then** it fails and names the missing-body rule.
 6. **Given** a commit with a title and no body and 3 changed lines, **when** the commit check runs, **then** it passes the body rule.
 7. **Given** a commit with no `Approved-by:` footer, **when** the commit check runs, **then** it fails and names the footer rule.
@@ -93,7 +107,7 @@ As a contributor, when I run one command in my own checkout, I want the identica
 - The rule text of Principle XI quotes its own banned vocabulary; that quotation must carry the exemption marker, else the constitution fails its own gate.
 - A comment in a source file that is a URL, a license header, or a generated block must stay unreported.
 - A commit message that quotes a violating line from a document, for example a revert body citing the original text, needs the same exemption mechanism available to it. Otherwise the marker rule and the commit rule contradict each other.
-- An empty commit range, from a pull request with no commits or a push that moves no refs, reports success.
+- A resolved range whose base equals its head is degenerate: it exits 2 in CI and warns locally, because a vacuous pass is never taken; a zero-commit result from any other clean resolution prints its count and exits 0.
 - A file that is invalid UTF-8, or that carries a byte-order mark, is handled without a crash and reported as skipped with a reason.
 - A merge commit, which the constitution forbids on the base branch, can still appear inside a contributor branch range: it is checked as any other commit except for the body rule.
 - A line longer than the report column budget is still reported with enough context to locate it.
@@ -107,11 +121,11 @@ As a contributor, when I run one command in my own checkout, I want the identica
 **Rule vocabulary and scope**
 
 - **FR-001** (ubiquitous): The gate shall enforce the six rule families of Principle XI: the em-dash ban (XI.1), the contrastive-framing ban (XI.2), the truth-voucher ban (XI.3), the meta-editorializing ban (XI.4), the filler ban (XI.5), and the marketing-vocabulary ban (XI.5), with the exact token and pattern lists drawn from machine-readable rule data.
-- **FR-002** (ubiquitous): The gate shall treat the en-dash (U+2013) as legal wherever it separates numeric or enumerated values, and shall treat it as out of scope otherwise.
+- **FR-002** (ubiquitous): The gate shall treat the en-dash (U+2013) as legal wherever it separates numeric or alphanumeric values, and shall treat it as out of scope otherwise.
 - **FR-003** (ubiquitous): Vocabulary rules shall match whole words only, so a banned token inside a longer word stays unreported.
-- **FR-004** (ubiquitous): The gate shall exempt fenced code blocks, inline code spans, indented code, URLs, file paths, and shell command lines from every prose rule.
+- **FR-004** (ubiquitous): The gate shall exempt fenced code blocks, inline code spans, indented code, blockquote lines, URLs, file paths, and shell command lines from every prose rule.
 - **FR-005** (event-driven): When a line carries the documented exemption marker, the gate shall suppress prose-rule reports for that line and shall require a non-empty reason within the marker, reporting the marker itself when the reason is absent.
-- **FR-006** (ubiquitous): The prose check shall read tracked Markdown in the repository root, in `.specify/memory/`, in `specs/`, and in `docs/`, together with comments in tracked C, C++, CMake, and shell sources, and it shall exclude generated and vendored paths named in an explicit exclusions list.
+- **FR-006** (ubiquitous): The prose check shall read tracked Markdown in the repository root, in `.specify/memory/`, in `specs/`, and in `docs/`, together with comments in tracked C, C++, CMake, and shell sources, and it shall exclude generated paths, vendored paths, and checker-input corpora carrying deliberate violations, all named in an explicit exclusions list.
 - **FR-007** (event-driven): When the gate runs against a pull request, the prose check shall report violations only on lines that pull request adds or modifies, which implements the scope clause of Principle XI.1.
 - **FR-008** (optional): Where a caller selects whole-file mode, the prose check shall report every violation in the named files, which serves local use and the scheduled tree-wide sweep.
 
@@ -119,9 +133,9 @@ As a contributor, when I run one command in my own checkout, I want the identica
 
 - **FR-009** (ubiquitous): For every commit in the checked range, the title shall have the form `<Section>: <Imperative description>`, with a single space after the colon, no trailing period, and a total length of 50 characters or fewer.
 - **FR-010** (ubiquitous): The section token shall be present in the configured section list, and that list shall be editable as data so a new section token is a one-line change carried in the pull request that first uses it.
-- **FR-011** (unwanted-behavior): If a title begins with a non-imperative shape named in the rule data, or contains a passive shape named in the rule data, the commit shall be rejected.
+- **FR-011** (unwanted-behavior): If a title begins with a non-imperative or passive shape named in the rule data, the commit shall be rejected; matching is at the title head, so a passive phrase inside an otherwise imperative title stays silent.
 - **FR-012** (unwanted-behavior): If a title matches a member of the vague-message list in the rule data, the commit shall be rejected.
-- **FR-013** (ubiquitous): A body shall follow the title after one blank line, wrapped at 72 columns or fewer, except where the commit changes no more than the configured number of lines (default 5), the mechanical stand-in for the template's `genuinely trivial` exemption.
+- **FR-013** (ubiquitous): A body shall follow the title after one blank line, wrapped at 72 columns or fewer, with any exemption marker substring stripped before measuring, except where the commit changes no more than the configured number of lines (default 5), the mechanical stand-in for the template's `genuinely trivial` exemption.
 - **FR-014** (ubiquitous): Every commit shall carry an `Approved-by:` footer.
 - **FR-015** (ubiquitous): The prose rules shall apply to commit titles and bodies with the exemptions of FR-004 and FR-005 available to a quoted line.
 - **FR-016** (ubiquitous): The commit check shall cover every commit in the head range of a pull request and every commit newly pushed to the default branch, so a squash-merged landing commit is checked separately from the commits it collapses.
@@ -133,7 +147,7 @@ As a contributor, when I run one command in my own checkout, I want the identica
 - **FR-019** (ubiquitous): One command shall run both checks locally from a clean checkout, using tooling already present in the developer environment, and that command shall be documented in the README alongside the existing quality gates.
 - **FR-020** (ubiquitous): The gate shall run as a Linux CI job on every pull request and on every push to the default branch, following the existing job conventions so the CI artifact is re-creable interactively from the same commands (constitution Principle VIII).
 - **FR-021** (ubiquitous): The gate shall add no external runtime dependency to the library and no dependency to the project beyond tooling the CI runners already install for the existing checks (constitution, Additional Constraints: Dependencies).
-- **FR-022** (ubiquitous): Landing this feature shall amend the constitution: the two deferred items in the Sync Impact Report resolve, Principle XI.6 names the delivered check in place of the deferral, and Principle VIII's gate bullet names it, so the tree carries no stale deferral after the merge.
+- **FR-022** (ubiquitous): Landing this feature shall amend the constitution in three parts: (i) the deferral-resolution edits, the two deferred items in the Sync Impact Report resolve, Principle XI.6 names the delivered check in place of the deferral, and Principle VIII's gate bullet names it, so the tree carries no stale deferral after the merge; (ii) the self-quotation markers, every double-quoted self-quoting line of Principle XI.1 through XI.5 gains a `prose-lint: allow reason="..."` marker per the canonical inventory in [contracts/rule-data.md](contracts/rule-data.md), so the constitution passes its own gate; (iii) the version and lineage edits, the bump to 2.5.0 with its lineage row and footer dates.
 - **FR-023** (ubiquitous): The checker's own fixtures shall cover every rule family in both directions, a case that must be reported and a case that must stay silent, and those fixtures shall run inside the gate itself.
 
 ### Key Entities
@@ -148,16 +162,16 @@ As a contributor, when I run one command in my own checkout, I want the identica
 
 ### Measurable Outcomes
 
-- **SC-001**: Every pull request that adds a prose violation on an added or modified line is refused by the gate before merge, demonstrated by a fixture set covering all six rule families with a reported case and a silent case each.
-- **SC-002**: The gate reports zero findings on grandfathered text and zero false positives across a fixture corpus of legal constructs covering numeric ranges, inline code spans, fenced blocks, URLs, file paths, shell commands, longer-word substrings, and marked quotations.
+- **SC-001**: Every pull request that adds a prose violation on an added or modified line is refused by the gate before merge, the gate's CI job marked a required status check in branch protection at landing as with every existing job, demonstrated by a fixture set covering all six rule families with a reported case and a silent case each.
+- **SC-002**: The gate reports zero findings on grandfathered text and zero false positives across a fixture corpus of legal constructs covering numeric ranges, inline code spans, fenced blocks, blockquote lines, URLs, file paths, shell commands, longer-word substrings, and marked quotations.
 - **SC-003**: One local command produces the CI verdict on the whole repository in under 10 seconds on a developer machine, and the local and CI verdicts on identical input list the identical findings.
-- **SC-004**: Every commit in a checked range conforms to the message template, measured over a fixture range carrying deliberate violations in at least five distinct template rules, each caught and named.
-- **SC-005**: After the landing merge, the constitution states zero open deferrals for prose checking or commit-message checking, and the gate appears in the Principle VIII gate list.
+- **SC-004**: Every commit in a checked range conforms to the message template, measured over a fixture range carrying deliberate violations in all eight commit rules, each caught and named.
+- **SC-005**: After the landing merge, the constitution states zero open deferrals for prose checking or commit-message checking, and the gate appears in the Principle VIII gate list. The machine gate for this criterion: after the landing merge, the delivered prose check, run over the constitution and AGENTS.md in whole-file mode, reports zero findings and exits zero. A tree-wide clean run is no part of this criterion: the 225 grandfathered em-dashes and the separate Principle V sweep stay out of scope.
 - **SC-006**: The library still links no external runtime dependency and the CI runners install nothing beyond what the existing jobs already install.
 
 ## Assumptions
 
-- The CI runners already provide the interpreter and libraries the existing `tools/dbc` check scripts use, so the gate needs no new dependency. Which interpreter and which libraries are a plan decision.
+- The CI runners already provide the interpreter and libraries the existing `tools/dbc` check scripts use, so the gate needs no new dependency; decision D1 records the interpreter and library choice.
 - Diff-scoped checking in pull-request mode is the correct first deployment, matching Principle XI.1. The tree-wide em-dash sweep stays a separate, formatting-only change under Principle V, after which whole-file mode can become the CI default. That sweep is out of scope here.
 - Triviality of a body-less commit is approximated by a changed-line threshold (default 5). An explicit skip footer would extend the commit template and require a constitution amendment, so this feature rejects it.
 - Imperative mood is checked by rejecting the observed non-imperative shapes. Full grammatical detection is out of scope, and the rule data is where a further shape is added when one appears.
@@ -166,3 +180,4 @@ As a contributor, when I run one command in my own checkout, I want the identica
 - Historical commit messages are immutable (constitution: history after merge is immutable), so the commit check applies to ranges moving forward.
 - The constitution stays the normative text and the rule data stays its mechanical projection. On disagreement the constitution wins and the fix lands in both in one change (constitution §Governance).
 - Spell-checking already exists as `spell-check` and stays separate. This gate covers the discourse rules and the commit template.
+- Source comments outside the four languages FR-006 names are out of the prose-check scope. The check reads only the comment styles FR-006 enumerates, so comments in any other language go unchecked, matching the bounded language set the Clarifications settled; the concrete tracked file types and discovery rules are a plan decision. Adding a language to FR-006 is a spec change.
