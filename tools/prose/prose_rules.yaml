@@ -64,6 +64,8 @@ auto_exempts:                      # FR-004, R-06, D2. Documents gate behavior.
   - path
   - shell-command-line
   - blockquote-line                # a line whose stripped form begins with '>'
+  - markdown-structure             # thematic breaks, table delimiter rows,
+                                   # bare HTML comment delimiters (FR-004)
 
 rules:
   - id: XI1.EMDASH

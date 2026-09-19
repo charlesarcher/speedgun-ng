@@ -30,3 +30,17 @@ Robust prose with an invalid marker. prose-lint: allow
 ```
 
 The tiers P0–P3 remain ordered.
+
+A structural table stays silent, delimiter row included:
+
+| Name | Meaning | Left |
+| --- | :--- | ---: |
+| tier | priority rank | high |
+
+---
+
+<!--
+
+A quoted block delimited by raw HTML comment markers stays silent.
+
+-->

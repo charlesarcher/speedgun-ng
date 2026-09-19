@@ -70,6 +70,8 @@ auto_exempts:                      # FR-004, R-06, D2. Documents gate behavior.
   - path
   - shell-command-line
   - blockquote-line                # a line whose stripped form begins with '>'
+  - markdown-structure             # thematic breaks, table delimiter rows,
+                                   # bare HTML comment delimiters (D5, FR-004)
 
 rules:
   - id: XI1.EMDASH
@@ -106,7 +108,7 @@ eight commit rules through `thresholds`, `sections`, `vague_titles`, and
 | `XI5.MARKETING` tokens | Principle XI.5 marketing list | Verbatim |
 | `XI2.CONTRASTIVE` pattern | Principle XI.2 named constructions | Three alternations: `, not `, ` rather than `, ` instead of `, plus the `does this, not that` shape |
 | `XI4.META-EDITORIALIZING` tokens | Principle XI.4 banned patterns | Verbatim phrases |
-| `XI1.*` | Principle XI.1 | U+2014 for `XI1.EMDASH`. `XI1.DOUBLE-HYHEN` uses the pinned regex `(?<!-)-{2,3}(?!-)`: a run of exactly two or three hyphens, so `foo--bar` and ` -- ` fire, single hyphens like `whole-file` stay silent, and the two rejected readings ("word-edge adjacent" versus "word-edge rejecting") collapse into one. Consequence recorded: Markdown thematic-break lines (`---`) and table separator rows match, so tree mode reports them; range mode plus grandfathering covers the existing tree, and the separate Principle V sweep is the home of that cleanup. En-dash U+2013 is legal between numeric or alphanumeric endpoints (FR-002). No other dash code point is in scope until added here |
+| `XI1.*` | Principle XI.1 | U+2014 for `XI1.EMDASH`. `XI1.DOUBLE-HYHEN` uses the pinned regex `(?<!-)-{2,3}(?!-)`: a run of exactly two or three hyphens, so `foo--bar` and ` -- ` fire, single hyphens like `whole-file` stay silent, and the two rejected readings ("word-edge adjacent" versus "word-edge rejecting") collapse into one. Coverage recorded (D5): Markdown thematic-break lines (`---`), table delimiter rows (`| --- |`), and bare HTML comment delimiters (`<!--`, `-->`) match that regex as markup structure, so precedence row 8, `markdown-structure`, exempts lines composed solely of `-`, `:`, `|`, and space with a hyphen run inside, plus lines that are exactly one comment delimiter. En-dash U+2013 is legal between numeric or alphanumeric endpoints (FR-002). No other dash code point is in scope until added here |
 | `sections` | Pull Request Quality, Title | Observed history via `git log --all --pretty=%s`, case preserved, counted 2026-09-16: 21 `Docs`, 15 `dbc`, 6 `deploy`, 5 `Constitution`, 4 each `test`, `CMake`, `CI`, `Meta`; `runner` is the D4 seed, not observed |
 | `thresholds.title_max`, `body_wrap` | Pull Request Quality, Title and Body | 50 characters, 72 columns |
 | `thresholds.trivial_max_changed_lines` | spec Assumption, R-10 | Mechanical stand-in for the trivial-change body exemption |
@@ -153,10 +155,12 @@ wins, and no later row runs on that line:
 5. `path`
 6. `shell-command-line`
 7. `blockquote-line`
-8. valid marker (suppresses rule findings on the line)
-9. invalid marker (`MARKER.NO-REASON`, raised only when rows 1 to 7 do not
-   already exempt the line)
-10. rule matching, in `rules` order, on the remaining text
+8. `markdown-structure` (markdown sources only; thematic breaks, table
+   delimiter rows, bare HTML comment delimiters)
+9. valid marker (suppresses rule findings on the line)
+10. invalid marker (`MARKER.NO-REASON`, raised only when rows 1 to 8 do not
+    already exempt the line)
+11. rule matching, in `rules` order, on the remaining text
 
 Three consequences follow the order and are part of the contract:
 

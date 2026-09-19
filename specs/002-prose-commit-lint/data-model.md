@@ -89,7 +89,7 @@ non-imperative shape list, the exclusions, and the thresholds.
 | `vague_titles` | list of strings | Non-empty, matched case-insensitively against the whole title | FR-012 |
 | `non_imperative_shapes` | list of strings | Non-empty; entries are word forms such as `Added`, `Adds`, `Fixing`, `Fixes`, `Update of`, `was added` | FR-011, R-11 |
 | `exclusions` | list of path prefixes | Non-empty; seeded with `.opencode/`, `.specify/scripts/`, `.specify/templates/`, `build/`, `docs/images/` | FR-006, R-05 |
-| `auto_exempts` | list of constructs | Fixed set: fenced block, inline code span, indented code, URL, path, shell command line, blockquote line. Present as documentation of gate behavior and for fixture assertions | FR-004, R-06 |
+| `auto_exempts` | list of constructs | Fixed set: fenced block, inline code span, indented code, URL, path, shell command line, blockquote line, markdown structural lines (thematic breaks, table delimiter rows, bare HTML comment delimiters). Present as documentation of gate behavior and for fixture assertions | FR-004, R-06, D5 |
 | `marker` | string | The literal `prose-lint: allow`, used to detect markers | FR-005, R-06 |
 | `thresholds.title_max` | integer | 1 to 100, default 50 | FR-009 |
 | `thresholds.body_wrap` | integer | 40 to 100, default 72 | FR-013 |
