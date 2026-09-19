@@ -269,8 +269,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # R-07: default 1 cannot support a range
-      - name: Install PyYAML
-        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml
+      - name: Install PyYAML, Doxygen, and lcov
+        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml doxygen lcov
       - name: Resolve range
         env:
           EVENT_NAME: ${{ github.event_name }}
