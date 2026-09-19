@@ -21,7 +21,7 @@ asserted from prose, and the one upstream behavior that could not be
 measured was quoted from the tool's own README. Where a claim rests on
 documentation alone it is labeled doc.
 
-## R-01 Build the gate in-repo rather than adopt an existing linter
+## R-01 Build the gate in-repo; adopt no existing linter
 
 **Decision**: Implement one Python 3 gate script under `tools/prose/`,
 stdlib plus PyYAML, structured as a twin of the existing `tools/dbc/`
@@ -63,7 +63,7 @@ rule, has no off-the-shelf expression.
   (`header-maxlength`, `type-enum`, `subject-case`, `body-leading-blank`,
   `footer-leading-blank`), a close match for the template shape.
   Rejected: CI installs no Node runtime in any of the eight jobs, so it
-  is a toolchain addition, not a dependency addition.
+  is a toolchain addition. The dependency list stays untouched.
 - **Vale** (Go binary). A serious prose linter with YAML rule definitions
   and a diff mode. Rejected for this feature: it does not lint commit
   messages at all, so the commit half stays custom; it needs an install
@@ -71,7 +71,7 @@ rule, has no off-the-shelf expression.
   would become a second home for rules the constitution already
   enumerates, which is drift risk against the single-canonical-home rule
   the constitution states for Principle XI. It is the right tool to
-  revisit if the rule set grows into style guidance rather than literal
+  revisit if the rule set grows into style guidance beyond literal
   patterns.
 - **proselint** (Python). Vocabulary rules overlap Principle XI.5
   partially. Rejected: pip dependency, no commit support, and no
@@ -133,7 +133,7 @@ A suffix wildcard turns the voucher stem `candid` into a hit on
 directions, and it is the mechanical projection of exactly what
 Principle XI.3 and XI.5 enumerate, so the rule file and the constitution
 cannot drift in vocabulary. Prohibiting wildcards in rule data at load
-time makes the mistake structurally impossible rather than relying on a
+time makes the mistake structurally impossible, independent of any
 reviewer noticing a pattern.
 
 **Alternatives considered**: `re.ASCII` flags, `\b` with a lookaround
@@ -175,9 +175,9 @@ SC-003 bound evidence: the scanned set is nowhere near the 10 s bound at
 either count.
 
 **Alternatives considered**: A Unicode category or `unicodedata.name`
-test for connector dashes instead of the neighbor heuristic; rejected as
+test for connector dashes in place of the neighbor heuristic; rejected as
 over-precise for a rule the constitution states in terms of numeric
-ranges. Scanning with a single regex over whole files instead of lines;
+ranges. Scanning whole files with one regex, bypassing the line loop;
 rejected because findings must carry line numbers, and a per-line loop is
 already 160 times inside budget.
 
@@ -221,7 +221,7 @@ The reason must be non-empty or the marker itself becomes a finding
 (FR-005, `spec.md:55`). There is no block form, no `off` and `on` pair,
 and no file-level exemption. Auto-exemptions for fenced blocks, inline
 code spans, indented code, URLs, paths, and shell command lines are
-implemented in the extractor, not expressed as markers (FR-004).
+implemented in the extractor. Markers carry none of them (FR-004).
 
 **Rationale**: The constitution requires a justification written at the
 site for every suppression, which is Principle X.2's rule for casts and
@@ -289,7 +289,7 @@ appears occasionally); fetching only the base branch plus head with
 repository of this size, roughly 30 Markdown and 45 source files in
 scope); trusting `github.event.pull_request.commits` as the sole source
 (rejected as primary because it can lag a force-push, retained as the
-push-mode fallback only); three-dot diff of refs instead of SHAs
+push-mode fallback only); three-dot diff of refs in place of SHAs
 (rejected: refs move during a review, SHAs do not, and the event payload
 gives SHAs).
 
@@ -359,7 +359,7 @@ squash-merged landing commits appear in both:
 
 That equivalence is incidental and will not survive a contributor branch
 containing merges, which is why the gate enumerates by range and applies
-the carve-out per commit type rather than filtering merges away. FR-016's
+the carve-out per commit type, keeping every merge enumerated. FR-016's
 requirement to check a squash landing commit separately from the commits
 it collapses follows from range enumeration: on the push to the default
 branch the landing commit is the only commit in range, and the collapsed
@@ -371,7 +371,7 @@ need checking); `--no-merges` as the enumeration (rejected for the same
 reason: it would let a merge commit inside a contributor range skip the
 title and footer rules entirely); skipping the body rule for every
 two-parent commit found on the default branch (rejected: too broad, and
-the carve-out is about merge commits, not about branch position).
+the carve-out is about merge commits; branch position carries no weight).
 
 ## R-10 Triviality of a body-less commit is a changed-line count
 
@@ -430,7 +430,7 @@ no section at all; all predate the gate and history after merge is
 immutable (`constitution.md`, Pull Request Quality, Immutability), so the
 gate applies forward from its landing commit. That asymmetry is the
 commit-mode equivalent of XI.1 grandfathering, and it is why commit mode
-runs on ranges rather than on the whole repository.
+runs on ranges. Whole-repository history stays out of scope.
 
 **Alternatives considered**: A dependency on a POS tagger to detect
 imperative mood (rejected: a new dependency plus non-deterministic
@@ -489,7 +489,7 @@ Amendment (002 review): the block being mirrored spans
 at `test/CMakeLists.txt:88`.
 
 **Rationale**: This is how the repository already proves a gate fails the
-way it claims, rather than trusting the gate to be correct because it
+way it claims. The harness refuses to trust a gate merely because it
 runs. The dbc harness takes `--gate`, `--registry`, `--out`, and a fixture
 directory (`test/CMakeLists.txt:91-99`); mirroring the shape keeps one
 mental model. Building the commit fixtures in a temp repository is
@@ -501,7 +501,7 @@ discover` (rejected as the sole mechanism: it would not run under
 `ctest --preset=dev`, so the CI job and the developer loop would diverge,
 costing US3 its parity claim. `unittest` is still used inside the harness
 for the extractor's own unit tests); shell-based golden-file comparison
-(rejected: verdict text changes would produce diffs instead of named
+(rejected: verdict text changes would produce diffs lacking named
 assertions, and FR-023 asks for both directions per family, which reads
 better as explicit assertions).
 
@@ -513,7 +513,7 @@ because the feature adds no C++. The gate script follows the established
 Python conventions of `tools/dbc/`: `from __future__ import annotations`,
 type hints, `main(argv) -> int` with `sys.exit(main())`, argparse for
 preconditions, and `die()` for usage failures. This is recorded as an
-interpretation, not a violation.
+interpretation; no violation is recorded.
 
 **Rationale**: Principle II speaks of interfaces documented with doxygen
 `\pre`, `\post`, `\invariant` and of a contract facility that emits no
