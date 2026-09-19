@@ -31,3 +31,27 @@ Use from CMake:
 find_package(speedgun-ng REQUIRED)
 target_link_libraries(your_target PRIVATE speedgun-ng::speedgun-ng)
 ```
+
+## Quality gates
+
+One command runs the prose and commit-message gate over the range from
+the merge base with `origin/master` to `HEAD`, the same verdict CI
+produces:
+
+```sh
+cmake -P cmake/prose-lint.cmake
+```
+
+Direct and build-target equivalents:
+
+```sh
+python3 tools/prose/prose_gate.py --check all
+cmake --build build/dev -t prose-lint
+cmake --build build/dev -t prose-lint-fixtures
+```
+
+Exit 0 is clean, 1 reports findings, and 2 signals a usage error or an
+unusable environment. The vocabulary and thresholds live in
+`tools/prose/prose_rules.yaml`, a mechanical projection of constitution
+Principle XI and the Pull Request Quality template. The gate's own
+fixtures run through `ctest -R prose_gate_fixtures`.

@@ -18,5 +18,6 @@ include(cmake/coverage.cmake)
 
 include(cmake/lint-targets.cmake)
 include(cmake/spell-targets.cmake)
+include(cmake/prose-lint-targets.cmake)
 
 add_folders(Project)
