@@ -1,11 +1,11 @@
 <!--
-Sync Impact Report (2.5.0, MINOR): the prose and commit gate lands as
-prose-lint (specs/002-prose-commit-lint). Principle XI.6 names the
-delivered machine check; Principle VIII lists it among the hard gates;
-the commit-template lint and XI machine-check deferrals resolve and
-leave this block. Guidance is materially expanded; no principle is
-redefined. Every rule, threshold, identifier, gate, and banned-word
-list survives; amendment history lives in the git log of this file.
+Sync Impact Report (2.6.0, MINOR): XI.5 gains a banned-jargon entry,
+the token `smoke test`, with the downstream consumer test as its
+canonical replacement. Guidance expanded; no principle redefined.
+The prose-lint rule data XI5.FILLER gains the token in the same
+change per the Editing contract. Every rule, threshold, identifier,
+gate, and banned-word list survives; amendment history lives in the
+git log of this file.
 
 Open deferrals, binding until a spec lands them:
 - Principle VII baseline infrastructure absent; VII mandates it, a
@@ -384,6 +384,11 @@ Marketing vocabulary is banned from technical claims: "seamlessly", <!-- prose-l
 performance claim carries a number, a platform, a distribution (VII). An
 interface claim carries a contract (II).
 
+Banned jargon: `smoke test`. Name a check by what it does: the
+downstream consumer test configures, builds, and runs an installed
+package. Owner directive 2026-09-20; the token joins the prose-lint
+filler vocabulary.
+
 Weak requirement language stays banned in EARS statements per III: "should",
 "may", "might", "approximately".
 
@@ -523,6 +528,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.6.0 | 2026-09-20 | XI.5 banned jargon `smoke test`; downstream consumer test canonical |
 | 2.5.0 | 2026-09-18 | prose-lint gate: XI.6 machine check, commit-template lint, deferrals closed |
 | 2.4.1 | 2026-09-10 | token compression, no rule changed |
 | 2.4.0 | 2026-09-10 | principles X (anti-slop code) and XI (discourse) |
@@ -533,4 +539,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.5.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-18
+**Version**: 2.6.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-20
