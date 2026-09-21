@@ -222,7 +222,7 @@ acceptable.
   additionally removes any collision when a consumer process loads
   speedgun-ng and a system hwloc together, the same reason Charm++
   prefixes its embedded copy.
-- A downstream smoke test must exist: configure a trivial consumer
+- A downstream consumer test must exist: configure a trivial consumer
   project against the *installed* speedgun-ng on a machine image
   with no system hwloc, build it, run it. This is the authoritative
   proof of the privacy contract.
@@ -241,7 +241,7 @@ acceptable.
 5. Package-config audit: `speedgun-ng*.cmake` files contain no hwloc
    references.
 6. Symbol audit on shared build: no `hwloc_*` in exported symbols.
-7. Downstream consumer smoke test passes with no system hwloc
+7. Downstream consumer test passes with no system hwloc
    present.
 8. Lint, cppcheck, coverage, and sanitizer configurations explicitly
    exclude the vendored path (sanitizer policy per the recorded
