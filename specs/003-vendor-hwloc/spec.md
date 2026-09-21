@@ -8,6 +8,17 @@
 
 **Input**: User description: "read hwloc.md as your prompt ulw". The feature brief is `hwloc.md` at the repository root: import hwloc 2.14.0 as a git submodule, build it as part of the speedgun-ng build, and link it into the speedgun-ng library as a strictly internal dependency. This feature delivers dependency infrastructure. It defines no topology API built on top of hwloc.
 
+## Clarifications
+
+### Session 2026-09-20
+
+- Q: Since this feature ships no hwloc-calling functionality, what is the binary-observable proof that hwloc is linked into the speedgun-ng library? → A: The internal wrapper unit calls one hwloc function (`hwloc_get_api_version()`); `nm` on the built speedgun-ng static archive shows hwloc objects pulled in.
+- Q: In the `ci-sanitize` job, should the vendored hwloc C archive be excluded from sanitizer instrumentation or compiled with it? → A: Exclude the vendored archive from sanitizer instrumentation; every Linux job applies the policy identically.
+- Q: Should the build apply hwloc's symbol prefix (`HWLOC_SET_SYMBOL_PREFIX`) to the embedded copy? → A: Adopt the prefix.
+- Q: What mechanism gives the consumer test its "machine image with no system hwloc"? → A: No hwloc-free environment exists: hwloc is always present because the project vendors it as a submodule, and system copies are common. The consumer test runs on a machine with hwloc present, and the consumer build resolves zero hwloc through speedgun-ng. The term `smoke test` is banned from project prose (constitution amendment 2.6.0); the canonical name is downstream consumer test.
+- Q: Which vendored-path root does the hwloc submodule get? → A: `external/hwloc`, the root convention for every vendored dependency.
+- Q: Should the compile-time version assertion accept only exactly 2.14.0, or any release in the 2.14 series? → A: Exactly 2.14.0; any other revision, including a 2.14.x patch release, fails the assertion.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - The project builds with a pinned, vendored hwloc (Priority: P1)
@@ -23,26 +34,27 @@ A developer clones speedgun-ng with submodules and builds it. hwloc 2.14.0 compi
 1. **Given** a clean clone with submodules initialized, **When** a developer builds on Linux, **Then** the build succeeds, hwloc compiles from the submodule, and the speedgun-ng library links it statically.
 2. **Given** the same clone, **When** a developer builds on macOS, **Then** the build succeeds.
 3. **Given** `git submodule status`, **When** inspected, **Then** the recorded commit is `b5660dff631a171a96a4b3abf5a170c9cf62d6ef`, the commit named by tag `hwloc-2.14.0`.
-4. **Given** the submodule checked out at any other revision, **When** the build runs, **Then** compilation fails with a readable version-assertion diagnostic naming expected hwloc 2.14.
+4. **Given** the submodule checked out at any other revision, **When** the build runs, **Then** compilation fails with a readable version-assertion diagnostic naming expected hwloc 2.14.0.
 5. **Given** a machine with a system hwloc installed, **When** the build runs, **Then** the build still compiles the submodule copy and never consults system package discovery.
 6. **Given** a clone where the submodule directory is empty, **When** configuration runs, **Then** it aborts with a message naming the submodule init command, and it never falls back to a system hwloc.
+7. **Given** the built speedgun-ng static archive, **When** audited with `nm`, **Then** hwloc objects are present, pulled in by the internal wrapper unit's `hwloc_get_api_version()` reference.
 
 ---
 
 ### User Story 2 - Consumers cannot observe hwloc (Priority: P1)
 
-A downstream project installs speedgun-ng, configures a trivial consumer against it with `find_package(speedgun-ng)` on a machine with no system hwloc, then builds and runs the consumer. Nothing a consumer can observe mentions hwloc: installed headers, package files, link interfaces, and exported symbols are all free of it.
+A downstream project installs speedgun-ng, configures a trivial consumer against it with `find_package(speedgun-ng)` on a machine with hwloc present, then builds and runs the consumer. Nothing a consumer can observe mentions hwloc: installed headers, package files, link interfaces, and exported symbols are all free of it, and the consumer build resolves zero hwloc.
 
 **Why this priority**: Invisibility is the contract of this feature. Once hwloc leaks into an installed artifact, removing it later becomes a breaking change, and a hidden dependency in a published library is a maintenance trap for every downstream user.
 
-**Independent Test**: Install the library, audit the install tree, the package config files, and the shared-library symbol table, then build and run a consumer on an image carrying no hwloc. These checks run against any build that satisfies User Story 1.
+**Independent Test**: Install the library, audit the install tree, the package config files, and the shared-library symbol table, then build and run a consumer on a machine carrying hwloc and audit that the consumer build resolves zero hwloc. These checks run against any build that satisfies User Story 1.
 
 **Acceptance Scenarios**:
 
 1. **Given** an installed speedgun-ng, **When** the install prefix is audited, **Then** it contains zero hwloc headers, archives, shared objects, package files, or config files.
 2. **Given** the installed package files, **When** audited, **Then** `speedgun-ngConfig.cmake` and `speedgun-ngTargets.cmake` contain zero hwloc references, and no link-interface entry of a shared speedgun-ng resolves to hwloc.
 3. **Given** a shared-library build, **When** the dynamic symbol table is audited in CI, **Then** zero hwloc symbols are exported and the runtime dependency list of the installed shared library names no hwloc object.
-4. **Given** a machine image with no system hwloc, **When** a trivial consumer is configured, built, and run against the installed tree, **Then** all three steps exit 0.
+4. **Given** a machine with hwloc present, the vendored submodule in-tree and a system copy optional, **When** a trivial consumer is configured, built, and run against the installed tree, **Then** all three steps exit 0, and the consumer's configure log and link command resolve zero hwloc.
 
 ---
 
@@ -75,7 +87,7 @@ A maintainer updates the pinned hwloc by checking out a new tag, committing the 
 **Acceptance Scenarios**:
 
 1. **Given** the documentation section, **When** followed step by step, **Then** the pinned revision changes, the pointer commit lands, and the build stays green.
-2. **Given** a submodule bump to a revision outside 2.14 with the version assertion untouched, **When** the build runs, **Then** it fails with the version-assertion diagnostic.
+2. **Given** a submodule bump to any revision other than the pinned 2.14.0, with the version assertion untouched, **When** the build runs, **Then** it fails with the version-assertion diagnostic.
 
 ---
 
@@ -87,8 +99,8 @@ A maintainer updates the pinned hwloc by checking out a new tag, committing the 
 - Ninja generator ordering: the static archive is declared a build byproduct so the link step orders correctly.
 - A configure step rerunning on every build wastes time: the ingestion re-runs configure only when its inputs change, per `CONFIGURE_HANDLED_BY_BUILD` semantics (CMake 3.20+).
 - Host packages varying the archive (libxml2, plugins, and the other optional features): all optional features are disabled, so the built archive contents never depend on what the host happens to carry.
-- A consumer process loads a system hwloc in the same address space as speedgun-ng: the symbol-prefix decision (Assumptions) addresses name collision, and the symbol audit proves hidden visibility keeps hwloc out of exports either way.
-- Sanitizer builds: the vendored C archive follows one recorded policy across every Linux job, instrumented or excluded, with silent inconsistency between jobs treated as a defect.
+- A consumer process loads a system hwloc in the same address space as speedgun-ng: the applied symbol prefix removes name collision, and the symbol audit proves hidden visibility keeps hwloc out of exports.
+- Sanitizer builds: the vendored C archive is excluded from instrumentation across every Linux job, with silent inconsistency between jobs treated as a defect.
 - Windows: nothing in this feature blocks a later Windows port. Platform specifics stay confined to per-platform blocks; the upstream `contrib/windows-cmake/` wrapper (present at the `hwloc-2.14.0` tag) stands as the documented on-ramp. This feature installs no MSYS, drives no autotools on Windows, and chases no MSVC issues.
 - Licensing: the vendored tree carries its own BSD 3-Clause license (file `COPYING`); it stays in-tree and ships with source distributions.
 
@@ -106,23 +118,23 @@ A maintainer updates the pinned hwloc by checking out a new tag, committing the 
 
 Pinning and integrity:
 
-- **FR-001**: The repository shall carry the hwloc sources as a git submodule at a vendored path outside `include/`, `source/`, and `test/`, recording submodule commit `b5660dff631a171a96a4b3abf5a170c9cf62d6ef` (tag `hwloc-2.14.0`).
+- **FR-001**: The repository shall carry the hwloc sources as a git submodule at `external/hwloc`, outside `include/`, `source/`, and `test/`, recording submodule commit `b5660dff631a171a96a4b3abf5a170c9cf62d6ef` (tag `hwloc-2.14.0`).
 - **FR-002**: When the build starts with the vendored directory empty, the configuration shall abort with a message naming the submodule init command.
-- **FR-003**: When the internal wrapper translation unit compiles, a compile-time assertion shall verify the vendored hwloc reports version 2.14, and the diagnostic shall identify the expected version and the mismatch.
+- **FR-003**: When the internal wrapper translation unit compiles, a compile-time assertion shall verify the vendored hwloc reports exactly version 2.14.0 (no other revision passes, including a 2.14.x patch), and the diagnostic shall identify the expected version and the mismatch.
 - **FR-004**: The build shall never consult a system hwloc: `find_package(hwloc)`, `pkg_check_modules(hwloc)`, and system fallback paths are prohibited anywhere in the build files.
 - **FR-005**: The vendored hwloc `COPYING` license shall remain in-tree and ship with source distributions.
 - **FR-006**: The documentation shall carry a re-pinning section: check out the new tag, commit the submodule pointer, bump the version assertion.
 
 Build integration:
 
-- **FR-007**: The build shall compile hwloc into a static archive and link it into the speedgun-ng library target with private usage requirements only; no PUBLIC dependency edge shall exist.
+- **FR-007**: The build shall compile hwloc into a static archive and link it into the speedgun-ng library target with private usage requirements only; no PUBLIC dependency edge shall exist. The internal wrapper unit shall reference `hwloc_get_api_version()`, so the link is proven at object level: `nm` on the built static speedgun-ng archive shows hwloc objects present.
 - **FR-008**: When CI builds on Linux, every existing Linux job shall stay green with submodules fetched, and the same build shall succeed on macOS.
 - **FR-009**: CI checkout steps shall initialize submodules, and lint, cppcheck, and coverage configurations shall exclude the vendored path. Vendored code is exempt from warning gates, clang-tidy, cppcheck, and coverage; speedgun-ng code that calls hwloc is held to all of them.
-- **FR-010**: The build shall apply one recorded sanitizer policy for the vendored archive (instrument or exclude), documented with its rationale, consistent across every Linux job.
+- **FR-010**: The build shall exclude the vendored archive from sanitizer instrumentation, the recorded policy, documented with its rationale and consistent across every Linux job.
 
 Autotools ingestion capability:
 
-- **FR-011**: The feature shall deliver a documented, reusable CMake module (working name `cmake/ImportAutotoolsSubmodule.cmake`) that ingests an autotools submodule; the hwloc call site shall supply inputs only, and contain no bespoke build logic.
+- **FR-011**: The feature shall deliver a documented, reusable CMake module (final name `cmake/ImportAutotoolsSubmodule.cmake`) that ingests an autotools submodule; the hwloc call site shall supply inputs only, and contain no bespoke build logic.
 - **FR-012**: The module inputs shall cover: vendored submodule path, configure invocation (`autogen.sh` then `configure`, or a pre-generated `configure`), configure arguments disabling optional features, expected output archive, and imported target name.
 - **FR-013**: The module shall produce a first-class imported static-library target with correct build ordering for its consumer; the module owns the imported-target dependency problem.
 - **FR-014**: The module shall bootstrap autotools generation in a copy of the sources under the build tree, keeping the submodule directory pristine under `git status`.
@@ -139,15 +151,15 @@ Non-exposure (the privacy contract):
 - **FR-022**: The output of `cmake --install` shall contain zero hwloc files: headers, archives, shared objects, CMake package files, and config files.
 - **FR-023**: The installed `speedgun-ngConfig.cmake` and `speedgun-ngTargets.cmake` shall contain zero references to any hwloc target, path, or discovery call; a shared speedgun-ng shall carry no link-interface entry resolving to hwloc.
 - **FR-024**: On a shared-library build, the dynamic symbol table shall export zero hwloc symbols, audited in CI.
-- **FR-025**: The symbol-prefix decision shall be recorded with its rationale; a prefix additionally removes collision when a consumer process loads speedgun-ng and a system hwloc together.
-- **FR-026**: A downstream smoke test shall configure, build, and run a trivial consumer against the installed speedgun-ng on a machine image with no system hwloc; it is the authoritative proof of the privacy contract.
+- **FR-025**: The build shall apply hwloc's symbol prefix through the `HWLOC_SET_SYMBOL_PREFIX` mechanism, with its rationale recorded: the prefix removes symbol collision when a consumer process links speedgun-ng and a system hwloc together.
+- **FR-026**: A downstream consumer test shall configure, build, and run a trivial consumer against the installed speedgun-ng on a machine with hwloc present, and the consumer build shall resolve zero hwloc through speedgun-ng; it is the authoritative proof of the privacy contract.
 
 ### Key Entities
 
-- **Vendored submodule**: the hwloc sources carried in-tree; attributes: vendored path, release tag `hwloc-2.14.0`, pinned commit `b5660dff631a171a96a4b3abf5a170c9cf62d6ef`, license `COPYING` (BSD 3-Clause).
+- **Vendored submodule**: the hwloc sources carried in-tree; attributes: vendored path `external/hwloc`, release tag `hwloc-2.14.0`, pinned commit `b5660dff631a171a96a4b3abf5a170c9cf62d6ef`, license `COPYING` (BSD 3-Clause).
 - **Autotools ingestion module**: the reusable build capability; inputs: vendored path, configure invocation, configure arguments, expected archive, imported target name; guarantees: build ordering, pristine submodule worktree, stamp invalidation, private install prefix, toolchain diagnostics, per-platform structure.
 - **Imported static target**: the build-system handle through which the speedgun-ng library links hwloc privately.
-- **Internal wrapper unit**: the single translation unit where hwloc headers enter the build, and where the version assertion lives.
+- **Internal wrapper unit**: the single translation unit where hwloc headers enter the build, where the version assertion lives, and where the linkage-proving `hwloc_get_api_version()` reference sits.
 - **Privacy contract**: the set of consumer-observable surfaces that must remain hwloc-free: installed headers, package config files, target link interfaces, exported symbols, and include paths.
 
 ## Success Criteria *(mandatory)*
@@ -158,19 +170,20 @@ Non-exposure (the privacy contract):
 - **SC-002**: The install-tree audit finds 0 files matching hwloc under the install prefix.
 - **SC-003**: The package-config audit finds 0 hwloc references in the installed `speedgun-ng*.cmake` files.
 - **SC-004**: The symbol audit finds 0 hwloc symbols in the exported dynamic symbols of a shared build, and its runtime dependency list names no hwloc object.
-- **SC-005**: The consumer smoke test on a machine image without any system hwloc: configure, build, and run all exit 0.
+- **SC-005**: The downstream consumer test on a machine with hwloc present: configure, build, and run all exit 0, and a grep of the consumer's configure log and link command finds zero hwloc resolutions.
 - **SC-006**: Flipping the submodule to any other release tag fails the build at compile time with a version-assertion message readable in one glance.
 - **SC-007**: After a full build, `git status` reports the submodule directory unmodified.
 - **SC-008**: A compiler, build-type, sanitizer, or configure-argument change forces a visible hwloc rebuild in the build log.
-- **SC-009**: The grep audit finds 0 occurrences of `find_package(hwloc` and `pkg_check_modules(hwloc` in the repository.
+- **SC-009**: The grep audit finds 0 occurrences of `find_package(hwloc` and `pkg_check_modules(hwloc` in the project's build files, the vendored `external/` tree excluded.
 - **SC-010**: The hwloc call site of the ingestion module contains 0 build commands: inputs and imported-target usage only.
+- **SC-011**: `nm` on the built speedgun-ng static archive lists hwloc objects pulled in by the wrapper unit's `hwloc_get_api_version()` reference, and the shared-build audit of SC-004 stays at 0 exported hwloc symbols.
 
 ## Assumptions
 
-- **Vendored path**: `external/hwloc` per the brief's proposal. Planning confirms it once; the tree never mixes `external/` with `third_party/`.
-- **Sanitizer policy**: planning records the final choice with rationale. Working default: exclude the vendored C archive from sanitizer instrumentation. The vendored C code sits outside our defect surface, and instrumented callers still get out-of-bounds detection on hwloc-allocated memory. Whichever choice lands, every Linux job applies it identically.
+- **Vendored path**: settled at clarification 2026-09-20: `external/hwloc`, the root convention for every vendored dependency; the tree never mixes `external/` with `third_party/`.
+- **Sanitizer policy**: settled at clarification 2026-09-20: exclude the vendored C archive from sanitizer instrumentation. The vendored C code sits outside our defect surface, and instrumented callers still get out-of-bounds detection on hwloc-allocated memory. Every Linux job applies this policy identically.
 - **Build subset**: adopt the upstream `--enable-embedded-mode` path (the convenience-archive embedding story: header install, documentation, tools, and tests switched off) plus the optional-feature disable list in FR-020. This keeps host packages from varying the artifact and keeps the archive minimal.
-- **Symbol prefix**: adopt it (the `HWLOC_SET_SYMBOL_PREFIX` mechanism under autotools). A benchmarking framework can live in the same address space as MPI runtimes and other hwloc consumers, and Charm++ prefixes its embedded copy for exactly that collision risk. Planning confirms.
+- **Symbol prefix**: settled at clarification 2026-09-20: adopt it (the `HWLOC_SET_SYMBOL_PREFIX` mechanism under autotools). A benchmarking framework can live in the same address space as MPI runtimes and other hwloc consumers, and Charm++ prefixes its embedded copy for exactly that collision risk.
 - **Host toolchain**: Linux CI runners install autoconf, automake, and libtool as apt packages; macOS developers get them from Homebrew, and the missing-toolchain diagnostic names them.
 - **Constitution dependency clause**: hwloc enters as a build-time, statically linked, internal dependency. The installed speedgun-ng gains zero external runtime dependencies (SC-004 proves it), satisfying the documented-justification requirement for dependencies with this record: the library needs hardware-topology discovery internally for future pinning work, the vendored copy guarantees identical behavior on every user machine, and invisibility keeps the public dependency count at zero.
 - **Pinned commit provenance**: `hwloc-2.14.0` verified 2026-09-19 via `git ls-remote` against `open-mpi/hwloc`; it is a lightweight tag naming commit `b5660dff631a171a96a4b3abf5a170c9cf62d6ef`. Master has moved to 3.0.0 development and stays untracked.
