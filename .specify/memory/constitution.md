@@ -1,11 +1,19 @@
 <!--
-Sync Impact Report (2.6.0, MINOR): XI.5 gains a banned-jargon entry,
+Sync Impact Report (2.7.0, MINOR): VIII's Windows (MSVC) preset
+build gate is suspended for the lifetime of the vendored autotools
+ingestion of specs/003-vendor-hwloc. The ingestion module aborts
+Windows configuration by design, naming the upstream
+`contrib/windows-cmake/` on-ramp; platform blocks keep that port
+additive, and landing it reinstates the gate. Additional
+Constraints carries the pointer. No other principle, rule,
+threshold, identifier, gate, or banned-word list changes; amendment
+history lives in the git log of this file.
+
+Prior report (2.6.0, MINOR): XI.5 gains a banned-jargon entry,
 the token `smoke test`, with the downstream consumer test as its
 canonical replacement. Guidance expanded; no principle redefined.
 The prose-lint rule data XI5.FILLER gains the token in the same
-change per the Editing contract. Every rule, threshold, identifier,
-gate, and banned-word list survives; amendment history lives in the
-git log of this file.
+change per the Editing contract.
 
 Open deferrals, binding until a spec lands them:
 - Principle VII baseline infrastructure absent; VII mandates it, a
@@ -177,6 +185,12 @@ Every change passes all of the following; each is hard.
 - Builds succeed for developer and CI presets on Linux (GCC/Clang), macOS
   (AppleClang), Windows (MSVC). Build tooling is decoupled from the OS
   target; CI artifacts are re-creable interactively with the same presets.
+  Windows (MSVC) conformance is suspended from 2026-09-21 for the lifetime
+  of the vendored autotools ingestion (specs/003-vendor-hwloc): the
+  ingestion module aborts Windows configuration naming the upstream
+  `contrib/windows-cmake/` on-ramp, the port stays additive through the
+  module's per-platform blocks (R-014), and landing that port reinstates
+  this gate.
 - All tests pass (`ctest`).
 - Sanitizer-clean: ASan/UBSan (`ci-sanitize`) report no errors.
 - Static-analysis-clean: clang-tidy and cppcheck (per `CMakePresets.json`)
@@ -486,7 +500,9 @@ Weak requirement language stays banned in EARS statements per III: "should",
 
 - **Language:** C++23 only (`CMAKE_CXX_EXTENSIONS=OFF`). The CI matrix (Linux
   GCC/Clang, macOS AppleClang, Windows MSVC) defines supported platforms; new
-  code must not break any.
+  code must not break any. Windows MSVC build conformance is suspended per
+  Principle VIII (amendment 2.7.0) while the vendored autotools dependency is
+  in the tree.
 - **Warnings and hardening:** the strict warning sets in `CMakePresets.json`
   (`-Wall -Wextra -Wpedantic -Wconversion -Wshadow -Wold-style-cast` family;
   `/W4 /permissive-` on MSVC) are preserved, as are the security-hardening
@@ -528,6 +544,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.7.0 | 2026-09-21 | Windows MSVC preset-build gate suspended for the vendored-autotools lifetime; reinstated when the port lands |
 | 2.6.0 | 2026-09-20 | XI.5 banned jargon `smoke test`; downstream consumer test canonical |
 | 2.5.0 | 2026-09-18 | prose-lint gate: XI.6 machine check, commit-template lint, deferrals closed |
 | 2.4.1 | 2026-09-10 | token compression, no rule changed |
@@ -539,4 +556,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.6.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-20
+**Version**: 2.7.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-21
