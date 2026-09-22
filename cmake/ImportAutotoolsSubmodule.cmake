@@ -89,6 +89,7 @@
 # of any speedgun-ng shared library dynamic table (FR-024).
 
 include_guard(GLOBAL)
+include(ExternalProject)
 
 function(import_autotools_submodule)
   # ---- Shared logic: argument parse and validation (FR-019) ----
@@ -311,17 +312,24 @@ function(import_autotools_submodule)
     # ExternalProject runs a single command per step, and out-of-tree
     # configure needs the cwd moved after autogen. CONFIGURE_ARGS carry
     # no spaces (hwloc flags), so the space-joined string is exact.
-    string(JOIN " " _ias_args_str "${IAS_CONFIGURE_ARGS}")
+    # CMake has no CONFIGURE_COMMAND_ENV keyword: the child environment
+    # rides as shell exports at the head of the same sh -c string.
+    set(_ias_env_exports "")
+    foreach(_ias_env ${_ias_child_env})
+      string(APPEND _ias_env_exports "export \"${_ias_env}\" && ")
+    endforeach()
+    string(JOIN " " _ias_args_str ${IAS_CONFIGURE_ARGS})
     if(IAS_BOOTSTRAP STREQUAL "autogen.sh")
       set(_ias_conf_script
-          "cd \"${_ias_src_dir}\" && ./autogen.sh"
+          "${_ias_env_exports}cd \"${_ias_src_dir}\" && ./autogen.sh"
           "&& cd \"${_ias_build_dir}\""
           "&& sh \"${_ias_src_dir}/configure\" --prefix=\"${_ias_stage_dir}\" ${_ias_args_str}")
     else()
       set(_ias_conf_script
-          "cd \"${_ias_build_dir}\""
+          "${_ias_env_exports}cd \"${_ias_build_dir}\""
           "&& sh \"${_ias_src_dir}/configure\" --prefix=\"${_ias_stage_dir}\" ${_ias_args_str}")
     endif()
+    string(JOIN " " _ias_conf_script ${_ias_conf_script})
 
     # Staging script: verify the artifact, then populate the private
     # prefix (lib archive, public headers, generated config header
@@ -329,17 +337,27 @@ function(import_autotools_submodule)
     # generated include/hwloc/autogen/config.h lands beside the
     # public headers (R-004, FR-025). Absence of the archive aborts
     # naming the expected path and the vendor prefix (contract
-    # failure mode 3).
+    # failure mode 3). libtool leaves the real archive for a
+    # convenience library in the .libs/ sibling of the .la, so the
+    # check accepts the named path or that .libs/ location.
     set(_ias_stage_script "${_ias_prefix}/stage-script.cmake")
+    get_filename_component(_ias_archive_dir "${IAS_ARCHIVE}" DIRECTORY)
+    set(_ias_libs_archive
+        "${_ias_build_dir}/${_ias_archive_dir}/.libs/${_ias_archive_name}")
     file(GENERATE
         OUTPUT "${_ias_stage_script}"
         CONTENT
-        "if(NOT EXISTS \"${_ias_build_archive}\")
-  message(FATAL_ERROR
-    \"import_autotools_submodule(${IAS_NAME}): expected archive not found at ${_ias_build_archive}. Inspect the vendor prefix ${_ias_prefix} for the failed vendor build.\")
+        "set(_ias_archive \"${_ias_build_archive}\")
+if(NOT EXISTS \"\${_ias_archive}\")
+  if(EXISTS \"${_ias_libs_archive}\")
+    set(_ias_archive \"${_ias_libs_archive}\")
+  else()
+    message(FATAL_ERROR
+      \"import_autotools_submodule(${IAS_NAME}): expected archive not found at ${_ias_build_archive} or ${_ias_libs_archive}. Inspect the vendor prefix ${_ias_prefix} for the failed vendor build.\")
+  endif()
 endif()
 file(MAKE_DIRECTORY \"${_ias_stage_dir}/lib\" \"${_ias_stage_dir}/include\")
-file(COPY \"${_ias_build_archive}\" DESTINATION \"${_ias_stage_dir}/lib\")
+file(COPY \"\${_ias_archive}\" DESTINATION \"${_ias_stage_dir}/lib\")
 execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy_directory
   \"${_ias_src_dir}/include\" \"${_ias_stage_dir}/include\"
   COMMAND_ERROR_IS_FATAL ANY)
@@ -363,7 +381,6 @@ execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy_directory
         PATCH_COMMAND ""
         TEST_COMMAND ""
         CONFIGURE_COMMAND "${IAS_PROG_SH}" -c "${_ias_conf_script}"
-        CONFIGURE_COMMAND_ENV ${_ias_child_env}
         CONFIGURE_HANDLED_BY_BUILD ON
         BUILD_COMMAND "${IAS_PROG_MAKE}"
         INSTALL_COMMAND
@@ -383,6 +400,9 @@ execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy_directory
     set_target_properties(Threads::Threads PROPERTIES IMPORTED_GLOBAL TRUE)
 
     add_library(${IAS_NAME} STATIC IMPORTED GLOBAL)
+    # Imported-target interface directories must exist at generate time;
+    # the staging step populates them later (contract section 2).
+    file(MAKE_DIRECTORY "${_ias_stage_dir}/include")
     set_target_properties(
         ${IAS_NAME}
         PROPERTIES
@@ -429,9 +449,10 @@ END
 ")
         # Ordering holds: the imported target's add_dependencies edge
         # runs the external project before any consumer links, and a
-        # POST_BUILD step runs after the consumer link; the DEPENDS
-        # on the staged archive adds the explicit file-level edge
-        # Ninja needs (FR-015).
+        # POST_BUILD step runs after the consumer link. No DEPENDS
+        # here: TARGET-mode add_custom_command rejects it under
+        # CMP0175, and the target-level edge above already orders the
+        # staged archive ahead of this step on Make and Ninja (FR-015).
         if(CMAKE_RANLIB)
           set(_ias_reindex_commands
               COMMAND "${CMAKE_RANLIB}" "$<TARGET_FILE:${IAS_MERGE_INTO}>")
@@ -449,7 +470,6 @@ END
             ${_ias_reindex_commands}
             COMMENT
                 "Merging ${IAS_NAME} members into ${IAS_MERGE_INTO}"
-            DEPENDS "${_ias_staged_archive}"
             VERBATIM
         )
       else()

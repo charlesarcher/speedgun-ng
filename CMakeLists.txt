@@ -57,6 +57,33 @@ target_include_directories(
 
 target_compile_features(speedgun-ng_speedgun-ng PUBLIC cxx_std_23)
 
+# Vendored hwloc ingestion. hwloc is a private internal dependency:
+# the link below is PRIVATE and the imported target is never exported,
+# so no consumer of speedgun-ng::speedgun-ng can observe it (FR-007).
+# Re-pinning the submodule: follow the re-pinning section of README.md
+# (checkout the new tag, commit the submodule pointer, bump the
+# version assertion in source/hwloc/hwloc_gate.cpp) (FR-006).
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(ImportAutotoolsSubmodule)
+
+target_sources(speedgun-ng_speedgun-ng PRIVATE source/hwloc/hwloc_gate.cpp)
+
+import_autotools_submodule(
+    NAME hwloc_vendor
+    SUBMODULE_DIR external/hwloc
+    BOOTSTRAP autogen.sh
+    CONFIGURE_ARGS --enable-embedded-mode
+        --with-hwloc-symbol-prefix=sg_
+        --disable-libxml2 --disable-opencl --disable-cairo
+        --disable-cuda --disable-levelzero --disable-nvml
+        --disable-rsmi --disable-libudev --disable-pci
+        --disable-plugin-dlopen --disable-plugin-ltdl
+    ARCHIVE hwloc/libhwloc_embedded.a
+    MERGE_INTO speedgun-ng_speedgun-ng
+)
+
+target_link_libraries(speedgun-ng_speedgun-ng PRIVATE hwloc_vendor)
+
 include(cmake/dbc.cmake)
 
 # ---- Install rules ----
