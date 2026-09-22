@@ -82,7 +82,10 @@ import_autotools_submodule(
     MERGE_INTO speedgun-ng_speedgun-ng
 )
 
-target_link_libraries(speedgun-ng_speedgun-ng PRIVATE hwloc_vendor)
+# BUILD_INTERFACE keeps the vendored target out of the exported
+# package files: the merged members ship inside libspeedgun-ng.a, so
+# consumers must never resolve the name hwloc_vendor (privacy A2).
+target_link_libraries(speedgun-ng_speedgun-ng PRIVATE $<BUILD_INTERFACE:hwloc_vendor>)
 
 include(cmake/dbc.cmake)
 
