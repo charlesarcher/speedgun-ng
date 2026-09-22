@@ -15,6 +15,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with: { submodules: true }
 
     - uses: actions/setup-python@v5
       with: { python-version: "3.12" }
@@ -42,10 +43,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with: { submodules: true }
 
     - name: Install LCov
       run: sudo apt-get update -q
-        && sudo apt-get install lcov doxygen python3-yaml -q -y
+        && sudo apt-get install lcov doxygen python3-yaml autoconf automake libtool patch -q -y
 
     - name: Configure
       run: cmake --preset=ci-coverage
@@ -75,10 +77,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with: { submodules: true }
 
     - name: Install clang, Doxygen, and python3-yaml
       run: sudo apt-get update -q
-        && sudo apt-get install clang doxygen python3-yaml lcov -q -y
+        && sudo apt-get install clang doxygen python3-yaml lcov autoconf automake libtool patch -q -y
 
     - name: Configure
       run: cmake --preset=ci-sanitize
@@ -104,16 +107,21 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v4
+      with: { submodules: true }
     - name: Install analyzers
       run: >-
         sudo apt-get update -q &&
-        sudo apt-get install clang-tidy cppcheck doxygen python3-yaml lcov -y -q
+        sudo apt-get install clang-tidy cppcheck doxygen python3-yaml lcov autoconf automake libtool patch -y -q
     - name: Configure
       run: cmake --preset=ci-ubuntu
     - name: Build
       run: cmake --build build --config Release -j 2
     - name: Install
       run: cmake --install build --config Release --prefix prefix
+    - name: Audit install tree for hwloc
+      run: test -z "$(find prefix/ -iname '*hwloc*')"
+    - name: Audit package files for hwloc
+      run: "! grep -qi hwloc prefix/lib/cmake/speedgun-ng/*.cmake"
     - name: Test
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j 2
@@ -132,7 +140,9 @@ jobs:
           dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
         dnf -y install gcc-c++ cmake git python3 python3-pip python3-pyyaml \
           make doxygen lcov tar gzip diffutils
+        dnf -y install autoconf automake libtool patch
     - uses: actions/checkout@v4
+      with: { submodules: true }
     - name: Configure
       run: cmake --preset=ci-rocky
     - name: Build
@@ -143,6 +153,54 @@ jobs:
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j 2
 
+  shared-audit:
+    needs: [lint]
+    runs-on: ubuntu-26.04
+    steps:
+    - uses: actions/checkout@v4
+      with: { submodules: true }
+    - name: Install autotools and audit tools
+      run: >-
+        sudo apt-get update -q &&
+        sudo apt-get install autoconf automake libtool patch doxygen python3-yaml lcov -q -y
+    - name: Configure
+      run: cmake -S . -B build-shared -D BUILD_SHARED_LIBS=ON -D CMAKE_BUILD_TYPE=Release
+    - name: Build
+      run: cmake --build build-shared -j 2
+    - name: Install
+      run: cmake --install build-shared --prefix prefix-shared
+    - name: Audit shared symbols for hwloc
+      run: "! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -i hwloc"
+    - name: Audit shared runtime deps for hwloc
+      run: "! ldd prefix-shared/lib/libspeedgun-ng.so | grep -i hwloc"
+
+  downstream-consumer:
+    needs: [lint]
+    runs-on: ubuntu-26.04
+    steps:
+    - uses: actions/checkout@v4
+      with: { submodules: true }
+    - name: Install autotools, libhwloc-dev, and build tools
+      run: >-
+        sudo apt-get update -q &&
+        sudo apt-get install autoconf automake libtool patch libhwloc-dev doxygen python3-yaml lcov -q -y
+    - name: Install library
+      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+        && cmake --build build -j 2
+        && cmake --install build --prefix prefix
+    - name: Configure consumer
+      run: >-
+        cmake -S test/consumer -B build-consumer
+        -D CMAKE_PREFIX_PATH=$PWD/prefix
+        -D CMAKE_BUILD_TYPE=Release
+        | tee consumer-configure.log
+    - name: Build consumer verbose
+      run: cmake --build build-consumer -v | tee consumer-build.log
+    - name: Run consumer
+      run: ./build-consumer/consumer
+    - name: Audit consumer logs for hwloc
+      run: test -z "$(grep -i hwloc consumer-configure.log consumer-build.log)"
+
   consumer-release:
     needs: [lint]
 
@@ -150,10 +208,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with: { submodules: true }
 
     - name: Install Doxygen and python3-yaml
       run: sudo apt-get update -q
-        && sudo apt-get install doxygen python3-yaml lcov -q -y
+        && sudo apt-get install doxygen python3-yaml lcov autoconf automake libtool patch -q -y
 
     - name: Configure consumer release
       run: >
@@ -241,10 +300,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with: { submodules: true }
 
     - name: Install Doxygen and python3-yaml
       run: sudo apt-get update -q
-        && sudo apt-get install doxygen python3-yaml lcov -q -y
+        && sudo apt-get install doxygen python3-yaml lcov autoconf automake libtool patch -q -y
 
     - name: Configure
       run: cmake -S . -B build/dev --preset=ci-ubuntu
@@ -269,8 +329,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # R-07: default 1 cannot support a range
+          submodules: true
       - name: Install PyYAML, Doxygen, and lcov
-        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml doxygen lcov
+        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml doxygen lcov autoconf automake libtool patch
       - name: Resolve range
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -340,6 +401,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with: { submodules: true }
 
     - uses: actions/setup-python@v5
       with: { python-version: "3.12" }
@@ -349,7 +411,7 @@ jobs:
 
     - name: Install Doxygen
       run: sudo apt-get update -q
-        && sudo apt-get install doxygen -q -y
+        && sudo apt-get install doxygen autoconf automake libtool patch -q -y
 
     - name: Build docs
       run: cmake "-DPROJECT_SOURCE_DIR=$PWD" "-DPROJECT_BINARY_DIR=$PWD/build"
