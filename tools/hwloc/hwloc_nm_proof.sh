@@ -7,8 +7,8 @@
 # (source/hwloc/hwloc_gate.cpp) links against them:
 #
 #   A. Vendored members present: > 0 defined sg_hwloc_* symbols (nm T/t).
-#      The sg_ prefix comes from hwloc configure
-#      --with-hwloc-symbol-prefix=sg_ (research R-003), so a case-insensitive
+#      The sg_ prefix comes from the hwloc configure symbol-prefix
+#      option (research R-003), so a case-insensitive
 #      'hwloc' audit still matches.
 #   B. The gate contributes the reference: some member whose name contains
 #      hwloc_gate carries an UNDEFINED sg_hwloc_get_api_version (nm U).
@@ -27,7 +27,7 @@
 #   else first match <repo-root>/build/*/libspeedgun-ng.a
 # Exit 0 only when A, B and C all hold. Exit 1 otherwise, naming the archive.
 #
-# Parsing: GNU nm (ubuntu CI) --format=bsd; per-member headers
+# Parsing: GNU nm (ubuntu CI) in bsd output format; per-member headers
 # ("member.o:" or "archive.a[member.o]:") attribute symbols to members.
 
 set -euo pipefail
