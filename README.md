@@ -32,6 +32,31 @@ find_package(speedgun-ng REQUIRED)
 target_link_libraries(your_target PRIVATE speedgun-ng::speedgun-ng)
 ```
 
+## Re-pinning hwloc
+
+hwloc is a vendored git submodule at `external/hwloc`, pinned by commit.
+To update it:
+
+1. Check out the new tag: `git -C external/hwloc checkout <tag>`
+2. Commit the submodule pointer.
+3. Bump the version assertion in `source/hwloc/hwloc_gate.cpp`.
+
+The build fails until the assertion matches. That is the point: the
+compile-time check keeps the pinned sources and the recorded version in
+lockstep.
+
+Building the vendored autotools tree needs autoconf, automake, libtool
+and patch:
+
+```sh
+# Debian-family
+sudo apt-get install autoconf automake libtool patch
+# RPM-family
+sudo dnf install autoconf automake libtool patch
+# macOS: BSD patch ships with the OS
+brew install autoconf automake libtool
+```
+
 ## Quality gates
 
 One command runs the prose and commit-message gate over the range from
