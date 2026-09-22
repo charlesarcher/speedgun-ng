@@ -11,16 +11,21 @@
 #       .specify/, .omo/.
 #   A8: zero hwloc references under include/ (public headers stay clean).
 #
+#   SC-010: the root CMakeLists.txt call site holds inputs and
+#       imported-target usage only. Four prohibition families fail the
+#       scan: add_custom_command / execute_process, archiver invocation
+#       (ar, llvm-ar, ADDLIB), target_compile_options, -fsanitize,
+#       -Werror.
+#
 # Every hit prints as `path:line: text`. Exit 0 (PASS) only when the
 # finding count is zero; exit 1 (FAIL) naming every hit.
 #
 # Usage: bash tools/hwloc/hwloc_purity_scan.sh [repo-root]
 #   repo-root defaults to two levels up or $1 (for ctest: ${CMAKE_SOURCE_DIR})
 #
-# The scan set is CMakeLists.txt/*.cmake/include/ only; this .sh file is
-# never scanned, so its own pattern strings cannot self-match.
-# T015 extends this scan: add one check_* function, call it below, and the
-# shared FINDINGS accumulator plus the single verdict handle the rest.
+# The scan set is CMakeLists.txt/*.cmake/include/root call site only;
+# this .sh file is never scanned, so its own pattern strings cannot
+# self-match.
 
 set -euo pipefail
 
@@ -78,14 +83,31 @@ check_include_references() {
   done < <(find "$dir" -type f -print)
 }
 
-echo "hwloc purity scan (FR-004 / FR-021 / SC-009)"
+# SC-010: the ingestion call site in the root CMakeLists.txt holds inputs
+# and imported-target usage only. Four prohibition families: bespoke
+# build commands (add_custom_command, execute_process), archiver
+# invocation (ar, llvm-ar, ADDLIB), compiler-flag manipulation
+# (target_compile_options), and sanitizer or warnings-as-errors flags
+# (-fsanitize, -Werror).
+CALL_SITE="$REPO_ROOT/CMakeLists.txt"
+CALL_SITE_PATTERN='add_custom_command|execute_process|target_compile_options|-fsanitize|-Werror'
+check_call_site_prohibitions() {
+  [ -f "$CALL_SITE" ] || return 0
+  record_hits "CMakeLists.txt" "$CALL_SITE" "$CALL_SITE_PATTERN"
+  # Bare archiver tokens: whole-word only, so words containing ar stay.
+  record_hits "CMakeLists.txt" "$CALL_SITE" '\<ar\>|\<llvm-ar\>|ADDLIB'
+}
+
+echo "hwloc purity scan (FR-004 / FR-021 / SC-009 / SC-010)"
 echo "Repo root: $REPO_ROOT"
-echo "Checks: A7 build-file discovery calls, A8 include/ references"
+echo "Checks: A7 build-file discovery calls, A8 include/ references,"
+echo "        SC-010 call-site prohibitions"
 echo
 
-# Scan sections. T015 appends further check_* calls here.
+# Scan sections.
 check_discovery_calls
 check_include_references
+check_call_site_prohibitions
 
 if [ "${#FINDINGS[@]}" -gt 0 ]; then
   for f in "${FINDINGS[@]}"; do
@@ -96,10 +118,10 @@ fi
 echo
 if [ "${#FINDINGS[@]}" -eq 0 ]; then
   echo "Summary: 0 findings."
-  echo "PASS: zero hwloc discovery calls in build files, zero hwloc references under include/ (A7/A8)."
+  echo "PASS: zero discovery calls in build files, zero hwloc in include/, clean call site (A7/A8/SC-010)."
   exit 0
 else
   echo "Summary: ${#FINDINGS[@]} finding(s)."
-  echo "FAIL: ${#FINDINGS[@]} hwloc purity violation(s) (A7/A8)."
+  echo "FAIL: ${#FINDINGS[@]} hwloc purity violation(s) (A7/A8/SC-010)."
   exit 1
 fi
