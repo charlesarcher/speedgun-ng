@@ -7,11 +7,14 @@
 #   find_package, FetchContent, target_link_libraries touching the library.
 # Prints a classification table:
 #   library-runtime : would ship to consumers / affect lib (FAIL)
+#   vendored-private: documented vendored PRIVATE link, ships no external dep (OK)
 #   dev-tooling     : docs, gates, CI/dev only (documented exceptions, OK)
 #
 # Documented exceptions (per plan):
 #   - m.css FetchContent in cmake/docs.cmake (developer-mode docs tooling)
 #   - Python3 / doxygen (gate/CI/dev tooling, not library link deps)
+#   - hwloc_vendor PRIVATE link (specs/003-vendor-hwloc, FR-007/R-010:
+#     merged static members, never exported; audits A2/A3/A6 prove zero leakage)
 #
 # Usage: bash tools/dbc/dependency_scan.sh [repo-root]
 #   repo-root defaults to two levels up or $1 (for ctest: ${CMAKE_SOURCE_DIR})
@@ -75,6 +78,7 @@ printf "%-35s | %-16s | %s\n" "Finding" "Classification" "Note"
 printf '%.0s-' {1..90}; echo
 
 lib_runtime=0
+vendored_private=0
 dev_tooling=0
 printed=0
 
@@ -87,7 +91,11 @@ for entry in "${candidates[@]}"; do
   class="dev-tooling"
   note=""
 
-  if echo "$text" | grep -q 'speedgun-ng_speedgun-ng'; then
+  if echo "$text" | grep -q 'hwloc_vendor'; then
+    class="vendored-private"
+    note="specs/003 FR-007: PRIVATE link of the merged vendored archive; the installed library ships zero external runtime deps (privacy contract A2/A3/A6)"
+    vendored_private=$((vendored_private + 1))
+  elif echo "$text" | grep -q 'speedgun-ng_speedgun-ng'; then
     class="library-runtime"
     note="external target_link_libraries on library target"
     lib_runtime=$((lib_runtime + 1))
@@ -116,7 +124,7 @@ if [ "$printed" -eq 0 ]; then
 fi
 
 echo
-echo "Summary: $lib_runtime library-runtime, $dev_tooling dev-tooling"
+echo "Summary: $lib_runtime library-runtime, $vendored_private vendored-private, $dev_tooling dev-tooling"
 
 if [ "$lib_runtime" -eq 0 ]; then
   echo "Library target speedgun-ng_speedgun-ng has ZERO external runtime dependencies."
