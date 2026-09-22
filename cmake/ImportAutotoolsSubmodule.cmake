@@ -425,6 +425,21 @@ execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy_directory
     )
     add_dependencies(${IAS_NAME} ${IAS_NAME}-ep)
 
+    # The hwloc public API carries visibility("default") attributes
+    # (HWLOC_DECLSPEC), which override -fvisibility=hidden at compile
+    # time; linking the archive into a shared library would re-export
+    # the whole prefixed API. The exclude-libs option localizes every symbol
+    # sourced from a static archive at link time (privacy A5, SC-004).
+    # ELF-only: Apple ld64 has no such flag, and Windows never reaches
+    # this branch.
+    if(NOT APPLE)
+        set_target_properties(
+            ${IAS_NAME}
+            PROPERTIES
+            INTERFACE_LINK_OPTIONS "-Wl,--exclude-libs,ALL"
+        )
+    endif()
+
     # (f) MERGE_INTO: static archive slurp (R-010).
     #
     # Static archives never absorb members of other archives at
