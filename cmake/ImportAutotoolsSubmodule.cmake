@@ -250,10 +250,22 @@ function(import_autotools_submodule)
       set(_ias_sanitizer_state "OFF")
     endif()
 
+    # The submodule checkout is part of the prefix key: a re-pinned
+    # tree (README re-pinning section) must never reuse a vendor
+    # archive built from the old sources, and the fresh prefix forces
+    # the version gate to compile against newly staged headers
+    # (SC-006).
+    execute_process(
+        COMMAND git -C "${_ias_sub_dir}" rev-parse HEAD
+        OUTPUT_VARIABLE _ias_submodule_sha
+        ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
     string(JOIN " " _ias_args_joined "${IAS_CONFIGURE_ARGS}")
     string(JOIN "|" _ias_hash_input
         "${CMAKE_C_COMPILER}" "${_ias_cc_version}"
         "${CMAKE_BUILD_TYPE}" "${_ias_sanitizer_state}"
+        "${_ias_submodule_sha}"
         "${_ias_args_joined}")
     string(SHA1 _ias_hash "${_ias_hash_input}")
     string(SUBSTRING "${_ias_hash}" 0 8 _ias_hash8)
