@@ -18,5 +18,11 @@ namespace
 // A function address, a link-time constant resolved to the prefixed
 // symbol sg_hwloc_get_api_version. constinit forbids any startup
 // initializer; this file carries zero runtime lines.
+// gnu::used keeps this static alive under the coverage flag set,
+// which otherwise dead-strips it and the nm proof loses the U
+// reference (GCC/Clang; MSVC has no coverage build here).
+#if defined(__GNUC__)
+[[gnu::used]]
+#endif
 [[maybe_unused]] constinit auto const link_proof = &hwloc_get_api_version;
 }  // namespace
