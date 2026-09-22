@@ -5,9 +5,11 @@ check-hidden =
 # node_modules appears in .opencode/ when AI coding agents install plugin
 # dependencies there; never spell-check vendored JS. .omo is OhMyOpenCode
 # agent scratch state (session transcripts), not project content.
-skip = */.git,*/build,*/prefix,*/node_modules,*/.omo
+skip = */.git,*/build,*/prefix,*/node_modules,*/.omo,*/external
 # False positives from Spec Kit's vendored shell scripts
 # (.specify/scripts/bash/common.sh): "unparseable" is valid English and
 # "strat" is a shell variable (short for strategy).
-ignore-words-list = unparseable,strat
+# "Sur" is the macOS Big Sur codename in specs/003-vendor-hwloc docs.
+# "analogue" is British spelling in specs/003-vendor-hwloc/plan.md:42.
+ignore-words-list = unparseable,strat,sur,analogue
 quiet-level = 2
