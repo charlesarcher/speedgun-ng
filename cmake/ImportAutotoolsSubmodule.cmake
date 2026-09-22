@@ -430,22 +430,62 @@ execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy_directory
       endif()
       get_target_property(_ias_merge_type ${IAS_MERGE_INTO} TYPE)
       if(_ias_merge_type STREQUAL "STATIC_LIBRARY")
-        # The merge rewrites the archive through a temporary: CREATE a
-        # fresh archive, ADDLIB the target's own members first, ADDLIB
-        # the vendored archive, SAVE. MRI CREATE truncates, so
-        # rebuilding from both sources keeps every member and behaves
-        # the same under GNU ar and llvm-ar. Rename and ranlib refresh
-        # the index in place.
-        set(_ias_mri_script "${_ias_prefix}/merge-script.mri")
-        set(_ias_merge_tmp "${_ias_prefix}/merge-output.tmp")
+        # The merge runs inside a clean temp directory: GNU ar
+        # tokenizes MRI script paths at '=', so a build tree whose
+        # path contains '=' (scratch cell dirs such as NDEBUG=on_-O0)
+        # breaks a direct CREATE/ADDLIB line. Copying both archives to
+        # simple names under /tmp keeps every member and behaves the
+        # same under GNU ar and llvm-ar: CREATE a fresh archive,
+        # ADDLIB the target's own members first, ADDLIB the vendored
+        # archive, SAVE. A hash of the target path isolates concurrent
+        # merges of different targets; ranlib refreshes the index.
+        set(_ias_merge_script "${_ias_prefix}/merge-step.cmake")
         file(GENERATE
-            OUTPUT "${_ias_mri_script}"
+            OUTPUT "${_ias_merge_script}"
             CONTENT
-            "CREATE ${_ias_merge_tmp}
-ADDLIB $<TARGET_FILE:${IAS_MERGE_INTO}>
-ADDLIB ${_ias_staged_archive}
+            "set(_ias_target \"$<TARGET_FILE:${IAS_MERGE_INTO}>\")
+set(_ias_staged \"${_ias_staged_archive}\")
+set(_ias_ar \"${CMAKE_AR}\")
+set(_ias_ranlib \"${CMAKE_RANLIB}\")
+string(SHA1 _ias_sha \"\${_ias_target}\")
+string(SUBSTRING \"\${_ias_sha}\" 0 8 _ias_sha8)
+set(_ias_dir \"/tmp/ias-merge-${IAS_NAME}-\${_ias_sha8}\")
+file(REMOVE_RECURSE \"\${_ias_dir}\")
+file(MAKE_DIRECTORY \"\${_ias_dir}\")
+file(COPY \"\${_ias_target}\" DESTINATION \"\${_ias_dir}\")
+file(COPY \"\${_ias_staged}\" DESTINATION \"\${_ias_dir}\")
+get_filename_component(_ias_target_name \"\${_ias_target}\" NAME)
+get_filename_component(_ias_staged_name \"\${_ias_staged}\" NAME)
+file(WRITE \"\${_ias_dir}/merge.mri\"
+  \"CREATE \${_ias_dir}/out.a
+ADDLIB \${_ias_dir}/\${_ias_target_name}
+ADDLIB \${_ias_dir}/\${_ias_staged_name}
 SAVE
 END
+\")
+execute_process(COMMAND \"\${_ias_ar}\" -M
+    INPUT_FILE \"\${_ias_dir}/merge.mri\"
+    OUTPUT_QUIET
+    RESULT_VARIABLE _ias_rc
+    ERROR_VARIABLE _ias_err)
+if(NOT _ias_rc EQUAL 0)
+  message(FATAL_ERROR
+    \"import_autotools_submodule(${IAS_NAME}): archive merge failed for \${_ias_target}: \${_ias_err}\")
+endif()
+execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy
+    \"\${_ias_dir}/out.a\" \"\${_ias_target}\"
+    RESULT_VARIABLE _ias_cp_rc
+    ERROR_VARIABLE _ias_cp_err)
+if(NOT _ias_cp_rc EQUAL 0)
+  message(FATAL_ERROR
+    \"import_autotools_submodule(${IAS_NAME}): could not move the merged archive into place: \${_ias_cp_err}\")
+endif()
+if(_ias_ranlib)
+  execute_process(COMMAND \"\${_ias_ranlib}\" \"\${_ias_target}\")
+else()
+  execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E touch \"\${_ias_target}\")
+endif()
+file(REMOVE_RECURSE \"\${_ias_dir}\")
 ")
         # Ordering holds: the imported target's add_dependencies edge
         # runs the external project before any consumer links, and a
@@ -453,21 +493,9 @@ END
         # here: TARGET-mode add_custom_command rejects it under
         # CMP0175, and the target-level edge above already orders the
         # staged archive ahead of this step on Make and Ninja (FR-015).
-        if(CMAKE_RANLIB)
-          set(_ias_reindex_commands
-              COMMAND "${CMAKE_RANLIB}" "$<TARGET_FILE:${IAS_MERGE_INTO}>")
-        else()
-          set(_ias_reindex_commands
-              COMMAND "${CMAKE_COMMAND}" -E touch
-                      "$<TARGET_FILE:${IAS_MERGE_INTO}>")
-        endif()
         add_custom_command(
             TARGET ${IAS_MERGE_INTO} POST_BUILD
-            COMMAND "${IAS_PROG_SH}" -c
-                    "${CMAKE_AR} -M < '${_ias_mri_script}'"
-            COMMAND "${CMAKE_COMMAND}" -E rename
-                    "${_ias_merge_tmp}" "$<TARGET_FILE:${IAS_MERGE_INTO}>"
-            ${_ias_reindex_commands}
+            COMMAND "${CMAKE_COMMAND}" -P "${_ias_merge_script}"
             COMMENT
                 "Merging ${IAS_NAME} members into ${IAS_MERGE_INTO}"
             VERBATIM
