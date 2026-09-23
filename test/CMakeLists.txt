@@ -76,6 +76,11 @@ add_test(
 add_test(NAME hwloc_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/hwloc/hwloc_purity_scan.sh ${CMAKE_SOURCE_DIR})
 add_test(NAME hwloc_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/hwloc/hwloc_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 
+# simdjson purity scan (feature 004-vendor-simdjson, T006; FR-004/FR-013,
+# SC-008): privacy contract A7/A8. Same pure-grep-script registration
+# pattern as the hwloc pair.
+add_test(NAME simdjson_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/simdjson/simdjson_purity_scan.sh ${CMAKE_SOURCE_DIR})
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # The following two tests are registered for tasks T010/T012 (parallel);
   # the scripts are not present yet and these tests are not executed here.
