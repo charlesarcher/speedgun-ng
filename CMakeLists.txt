@@ -145,6 +145,15 @@ endfunction()
 
 import_simdjson()
 
+# The wrapper is the only TU that includes <simdjson.h> (FR-013); its
+# static_assert is the version tripwire and its link-proof reference
+# is the object-level proof (FR-003, FR-007). BUILD_INTERFACE keeps
+# the vendored name out of the exported package files: the merged
+# members ship inside libspeedgun-ng.a, so consumers must never
+# resolve the name simdjson::simdjson (privacy A2).
+target_sources(speedgun-ng_speedgun-ng PRIVATE source/simdjson/simdjson_gate.cpp)
+target_link_libraries(speedgun-ng_speedgun-ng PRIVATE $<BUILD_INTERFACE:simdjson::simdjson>)
+
 include(cmake/dbc.cmake)
 
 # ---- Install rules ----
