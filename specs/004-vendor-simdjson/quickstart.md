@@ -27,14 +27,14 @@ ctest --preset=dev --output-on-failure
 git submodule status external/simdjson
 ```
 
-**Expected**: the line begins with the pinned SHA `e153ffadd9ae29b00c90bedc76f65d25a993d2b5` (tag `v4.6.11`).
+**Expected**: the line begins with the pinned SHA `f5de14f09256982933af2849beb43778bd421ca7` (tag `v4.6.11`).
 
 ## 3. Version tripwire (FR-003, SC-006, US1 scenario 4)
 
 ```sh
 git -C external/simdjson checkout v4.6.4
 cmake --build --preset=dev 2>&1 | grep -A3 'static_assert\|error'
-git -C external/simdjson checkout e153ffadd9ae29b00c90bedc76f65d25a993d2b5
+git -C external/simdjson checkout f5de14f09256982933af2849beb43778bd421ca7
 ```
 
 **Expected**: compilation of `source/simdjson/simdjson_gate.cpp` fails with a `static_assert` diagnostic naming the expected simdjson 4.6.11 and the mismatching enum values (`SIMDJSON_VERSION_REVISION = 4`, say); restoring the pin restores a green build. The same fire pattern applies to a 4.6.x patch revision: the revision component breaks the equality (research R-002). A 3.x or 4.7 revision fails on the major/minor components.
@@ -142,4 +142,4 @@ On a scratch clone, follow the README re-pinning section against any newer tag: 
 
 ## Teardown
 
-Scenario artifacts are disposable: `rm -rf build-consumer build-shared build-shared-check prefix prefix-shared consumer-*.log sanitize.log` and, where section 3 or 13 moved it, `git -C external/simdjson checkout e153ffadd9ae29b00c90bedc76f65d25a993d2b5`. Nothing outside the build tree is altered by this feature's runs (SC-007).
+Scenario artifacts are disposable: `rm -rf build-consumer build-shared build-shared-check prefix prefix-shared consumer-*.log sanitize.log` and, where section 3 or 13 moved it, `git -C external/simdjson checkout f5de14f09256982933af2849beb43778bd421ca7`. Nothing outside the build tree is altered by this feature's runs (SC-007).

@@ -22,7 +22,7 @@ A developer clones speedgun-ng with submodules and builds it. simdjson compiles 
 
 1. **Given** a clean clone with submodules initialized, **When** a developer builds on Linux, **Then** the build succeeds, simdjson compiles from the submodule, and the speedgun-ng library links it statically.
 2. **Given** the same clone, **When** a developer builds on macOS, **Then** the build succeeds.
-3. **Given** `git submodule status`, **When** inspected, **Then** the recorded commit is `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`, the commit named by tag `v4.6.11`.
+3. **Given** `git submodule status`, **When** inspected, **Then** the recorded commit is `f5de14f09256982933af2849beb43778bd421ca7`, the commit the annotated tag `v4.6.11` points to.
 4. **Given** the submodule checked out at any other revision, **When** the build runs, **Then** compilation fails with a readable version-assertion diagnostic naming the expected simdjson version.
 5. **Given** a machine with a system simdjson installed, **When** the build runs, **Then** the build still compiles the submodule copy and never consults system package discovery.
 6. **Given** a clone where the submodule directory is empty, **When** configuration runs, **Then** it aborts with a message naming the submodule init command, and it never falls back to a system simdjson.
@@ -78,7 +78,7 @@ A maintainer updates the pinned simdjson by checking out a new tag, committing t
 
 ### Fixed decisions (settled by the brief and the hwloc precedent)
 
-1. **Submodule, pinned.** simdjson enters as a git submodule at tag `v4.6.11`, commit `e153ffadd9ae29b00c90bedc76f65d25a993d2b5` (verified 2026-09-23 via `git ls-remote`: a lightweight tag naming the commit directly). No floating `GIT_TAG`, no branches, no shallow tracking.
+1. **Submodule, pinned.** simdjson enters as a git submodule at tag `v4.6.11`, commit `f5de14f09256982933af2849beb43778bd421ca7` (verified 2026-09-23 via `git ls-remote`: `v4.6.11` is an annotated tag whose tag object is `e153ffadd9ae29b00c90bedc76f65d25a993d2b5` and whose commit, the value the gitlink records, is `f5de14f09256982933af2849beb43778bd421ca7`). No floating `GIT_TAG`, no branches, no shallow tracking.
 2. **Never resolve simdjson from elsewhere.** The only simdjson that exists for this project is the pinned one.
 3. **Static, internal linkage.** The archive is consumed by the speedgun-ng library target alone.
 4. **Invisible to users.** Every surface a downstream `find_package(speedgun-ng)` consumer can observe stays free of simdjson.
@@ -88,7 +88,7 @@ A maintainer updates the pinned simdjson by checking out a new tag, committing t
 
 Pinning and integrity:
 
-- **FR-001**: The repository shall carry the simdjson sources as a git submodule at `external/simdjson`, outside `include/`, `source/`, and `test/`, recording submodule commit `e153ffadd9ae29b00c90bedc76f65d25a993d2b5` (tag `v4.6.11`).
+- **FR-001**: The repository shall carry the simdjson sources as a git submodule at `external/simdjson`, outside `include/`, `source/`, and `test/`, recording submodule commit `f5de14f09256982933af2849beb43778bd421ca7` (tag `v4.6.11`, whose tag object is `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`).
 - **FR-002**: When the build starts with the vendored directory empty, the configuration shall abort with a message naming the submodule init command.
 - **FR-003**: When the internal wrapper translation unit compiles, a compile-time assertion shall verify the vendored simdjson reports exactly the pinned version 4.6.11 (no other revision passes, including a 4.6.x patch), and the diagnostic shall identify the expected version and the mismatch.
 - **FR-004**: The build shall never consult a system simdjson: `find_package(simdjson)`, `pkg_check_modules(simdjson)`, and system fallback paths are prohibited anywhere in the build files.
@@ -114,7 +114,7 @@ Non-exposure (the privacy contract):
 
 ### Key Entities
 
-- **Vendored submodule**: the simdjson sources carried in-tree; attributes: vendored path `external/simdjson`, release tag `v4.6.11`, pinned commit `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`, licenses MIT and Apache-2.0.
+- **Vendored submodule**: the simdjson sources carried in-tree; attributes: vendored path `external/simdjson`, release tag `v4.6.11`, pinned commit `f5de14f09256982933af2849beb43778bd421ca7` (tag object `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`), licenses MIT and Apache-2.0.
 - **Imported static target**: the build-system handle through which the speedgun-ng library links simdjson privately.
 - **Internal wrapper unit**: the single translation unit where simdjson headers enter the build, where the version assertion lives, and where the linkage-proving simdjson symbol reference sits.
 - **Privacy contract**: the set of consumer-observable surfaces that must remain simdjson-free: installed headers, package config files, target link interfaces, exported symbols, and include paths.
@@ -140,6 +140,6 @@ Non-exposure (the privacy contract):
 - **Ingestion mechanism**: simdjson is a native CMake library. It is consumed through `add_subdirectory` with `EXCLUDE_FROM_ALL` plus simdjson's own `SIMDJSON_INSTALL=OFF` and `SIMDJSON_DEVELOPER_MODE=OFF`, so the `ImportAutotoolsSubmodule` module (written for the autotools hwloc tree) stays unused here. No autotools bootstrap, no host autoconf/automake/libtool requirement is introduced.
 - **Symbol collision**: simdjson carries no upstream symbol-prefix mechanism equivalent to `HWLOC_SET_SYMBOL_PREFIX`. Collision avoidance rests on hidden visibility for the vendored objects plus static absorption into the speedgun-ng archive; the plan records the concrete mechanism.
 - **Constitution dependency clause**: simdjson enters as a build-time, statically linked, internal dependency. The installed speedgun-ng gains zero external runtime dependencies (SC-004 proves it), satisfying the documented-justification requirement for dependencies with this record: the library needs JSON parsing internally for future serialization work, the vendored copy guarantees identical behavior on every user machine, and invisibility keeps the public dependency count at zero.
-- **Pinned commit provenance**: `v4.6.11` verified 2026-09-23 via `git ls-remote` against `simdjson/simdjson`; it is a lightweight tag naming commit `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`. Master has moved on and stays untracked.
+- **Pinned commit provenance**: `v4.6.11` verified 2026-09-23 via `git ls-remote` against `simdjson/simdjson`; it is an annotated tag, so the tag object is `e153ffadd9ae29b00c90bedc76f65d25a993d2b5` and the commit it points to, the value the submodule gitlink records, is `f5de14f09256982933af2849beb43778bd421ca7`. Master has moved on and stays untracked.
 - **macOS verification**: developer-local. The CI matrix carries no macOS runner today; the `ci-macos` preset exists and must stay usable.
 - **Scope boundaries**: excluded work: any public speedgun-ng API exposing JSON values, parsers, or simdjson types (simdjson crosses zero API boundaries here); the serialization work that will consume simdjson internally (a separate spec listing this one as prerequisite); FetchContent or registry distribution of simdjson (vendoring or nothing); all Windows build work beyond staying unprecluded.

@@ -14,7 +14,7 @@ The simdjson sources carried in-tree at the fixed root, input to everything else
 |---|---|---|
 | `path` | `external/simdjson` | Fixed by the spec assumption: the root convention for every vendored dependency, matching `external/hwloc`; outside `include/`, `source/`, `test/` (FR-001) |
 | `release_tag` | `v4.6.11` | Lightweight tag naming the commit directly (verified via `git ls-remote` 2026-09-23) |
-| `pinned_commit` | `e153ffadd9ae29b00c90bedc76f65d25a993d2b5` | The exactness authority (FR-001); floating `GIT_TAG`, branches, shallow tracking prohibited |
+| `pinned_commit` | `f5de14f09256982933af2849beb43778bd421ca7` | The exactness authority (FR-001); the annotated tag `v4.6.11` object is `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`; floating `GIT_TAG`, branches, shallow tracking prohibited |
 | `licenses` | MIT and Apache-2.0 | Stay in-tree, ship with source distributions (FR-005) |
 | `self_reported_version` | `4.6.11` (macro `SIMDJSON_VERSION` = `"4.6.11"`) | Verified at the tag 2026-09-23; a clean dotted triple, no greek/snapshot suffix (contrast hwloc's `2.14.0rc2-git`), so both the enum triple and the string equality pass on the pin (research R-002) |
 | `version_identifiers` | `simdjson::SIMDJSON_VERSION_MAJOR=4`, `MINOR=6`, `REVISION=11` (enum constants in `include/simdjson/simdjson_version.h`) | Inputs to the wrapper assertion; `#if` reads only macros and cannot see them, `static_assert` can (R-002) |

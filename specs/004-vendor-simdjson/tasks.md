@@ -24,7 +24,7 @@ Paths are repository-relative (`CMakeLists.txt`, `source/`, `tools/`, `test/`); 
 
 **Purpose**: Bring the pinned vendored tree into the repository
 
-- [X] T001 Register the simdjson submodule: `git submodule add https://github.com/simdjson/simdjson.git external/simdjson`, check out pinned commit `e153ffadd9ae29b00c90bedc76f65d25a993d2b5` (tag `v4.6.11`), commit the `.gitmodules` entry and gitlink; verify `git submodule status external/simdjson` reports exactly that SHA (FR-001; do NOT edit `.codespellrc`, `*/external` already skips it per specs/003)
+- [X] T001 Register the simdjson submodule: `git submodule add https://github.com/simdjson/simdjson.git external/simdjson`, check out pinned commit `f5de14f09256982933af2849beb43778bd421ca7` (annotated tag `v4.6.11`, tag object `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`), commit the `.gitmodules` entry and gitlink; verify `git submodule status external/simdjson` reports exactly that SHA (FR-001; do NOT edit `.codespellrc`, `*/external` already skips it per specs/003)
 
 **Checkpoint**: `external/simdjson` exists at the pinned SHA with MIT and Apache-2.0 license files in-tree (FR-005).
 
@@ -152,7 +152,7 @@ Task: "T006 [US1] TDD purity scan script in tools/simdjson/simdjson_purity_scan.
 
 ### MVP First (User Story 1)
 
-1. Phase 1: submodule at `e153ffad...`
+1. Phase 1: submodule at `f5de14f0...`
 2. Phase 2: bracket + filter + classifier + foundation checkpoint (CRITICAL: blocks everything)
 3. Phase 3: wrapper TU, nm proof (red), merge (green), US1 validation
 4. **STOP and VALIDATE**: US1 standalone per quickstart sections 2-5, 10-12
@@ -171,3 +171,10 @@ Task: "T006 [US1] TDD purity scan script in tools/simdjson/simdjson_purity_scan.
 - The audit pattern is the bare substring `simdjson` (case-insensitive): mangled symbols `_ZN8simdjson...`, discovery calls, and `include/` cleanliness all read on one pattern (privacy contract §1).
 - No `find_package(simdjson`, no PUBLIC edge, no `--exclude-libs` (rejected: R-007), no `.codespellrc` edit (already covered).
 - Commit after each task or logical group; `<Section>: <one-line imperative>` per the constitution PR template.
+
+---
+
+## Phase 7: Convergence
+
+- [X] T020 Correct the simdjson pin provenance wording: tag `v4.6.11` is an annotated tag, so `e153ffadd9ae29b00c90bedc76f65d25a993d2b5` is the tag-object SHA while the pinned commit the gitlink records is `f5de14f09256982933af2849beb43778bd421ca7` (`git rev-parse v4.6.11^{commit}`); restate FR-001, US1/AC3, and the spec "Pinned commit provenance" assumption to name `f5de14f0…` as the recorded commit, delete the false "lightweight tag naming the commit directly" claim (an annotated tag object cannot be a gitlink), and update the expected `git submodule status` SHA in quickstart section 2 to `f5de14f0…`. Documentation only: the submodule is already correctly pinned at `f5de14f0` (v4.6.11), the version tripwire (FR-003) and every audit pass on it; no code, build, or submodule change. per FR-001 / US1-AC3 / spec Assumptions "Pinned commit provenance" (contradicts)
+  - Status 2026-09-23: done. Provenance wording corrected across spec.md, plan.md, research.md, data-model.md, quickstart.md, and this tasks.md: the recorded/pinned commit now reads `f5de14f0…` everywhere, with `e153ffad…` kept only as the annotated-tag object. `git ls-remote` and `git submodule status` confirm the split (`v4.6.11` tag object `e153ffad`, commit `f5de14f0`). No code, build, or submodule change.
