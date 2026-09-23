@@ -154,6 +154,15 @@ import_simdjson()
 target_sources(speedgun-ng_speedgun-ng PRIVATE source/simdjson/simdjson_gate.cpp)
 target_link_libraries(speedgun-ng_speedgun-ng PRIVATE $<BUILD_INTERFACE:simdjson::simdjson>)
 
+# Static builds merge the vendored members into libspeedgun-ng.a so
+# the installed archive is self-contained and the gate reference
+# resolves in-archive (R-009, SC-009); shared configurations absorb
+# the private link at link time and skip the merge. The mechanism
+# lives in the module: the archiver step belongs out of this call
+# site (specs/003 SC-010).
+include(cmake/SimdjsonArchiveMerge.cmake)
+simdjson_archive_merge(speedgun-ng_speedgun-ng)
+
 include(cmake/dbc.cmake)
 
 # ---- Install rules ----
