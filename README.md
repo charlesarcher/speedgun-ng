@@ -57,6 +57,21 @@ sudo dnf install autoconf automake libtool patch
 brew install autoconf automake libtool
 ```
 
+## Re-pinning simdjson
+
+simdjson is a vendored git submodule at `external/simdjson`, pinned
+by commit. To update it:
+
+1. Check out the new tag: `git -C external/simdjson checkout <tag>`
+2. Commit the submodule pointer.
+3. Bump the version assertion in
+   `source/simdjson/simdjson_gate.cpp`.
+
+The build fails until the assertion matches. That is the point: the
+compile-time check keeps the pinned sources and the recorded version
+in lockstep. simdjson is a native CMake library, so no autotools
+bootstrap tools are needed for it.
+
 ## Quality gates
 
 One command runs the prose and commit-message gate over the range from
