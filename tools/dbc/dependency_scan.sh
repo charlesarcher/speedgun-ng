@@ -15,6 +15,8 @@
 #   - Python3 / doxygen (gate/CI/dev tooling, not library link deps)
 #   - hwloc_vendor PRIVATE link (specs/003-vendor-hwloc, FR-007/R-010:
 #     merged static members, never exported; audits A2/A3/A6 prove zero leakage)
+#   - simdjson PRIVATE link (specs/004-vendor-simdjson, FR-007/R-010:
+#     merged static members, never exported; audits A2/A3/A6 prove zero leakage)
 #
 # Usage: bash tools/dbc/dependency_scan.sh [repo-root]
 #   repo-root defaults to two levels up or $1 (for ctest: ${CMAKE_SOURCE_DIR})
@@ -94,6 +96,10 @@ for entry in "${candidates[@]}"; do
   if echo "$text" | grep -q 'hwloc_vendor'; then
     class="vendored-private"
     note="specs/003 FR-007: PRIVATE link of the merged vendored archive; the installed library ships zero external runtime deps (privacy contract A2/A3/A6)"
+    vendored_private=$((vendored_private + 1))
+  elif echo "$text" | grep -q 'simdjson'; then
+    class="vendored-private"
+    note="specs/004 FR-007: PRIVATE link of the merged vendored archive; the installed library ships zero external runtime deps (privacy contract A2/A3/A6)"
     vendored_private=$((vendored_private + 1))
   elif echo "$text" | grep -q 'speedgun-ng_speedgun-ng'; then
     class="library-runtime"
