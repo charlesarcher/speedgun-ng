@@ -1,3 +1,6 @@
 [submodule "external/hwloc"]
 	path = external/hwloc
 	url = https://github.com/open-mpi/hwloc.git
+[submodule "external/simdjson"]
+	path = external/simdjson
+	url = https://github.com/simdjson/simdjson.git
