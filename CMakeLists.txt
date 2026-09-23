@@ -87,6 +87,64 @@ import_autotools_submodule(
 # consumers must never resolve the name hwloc_vendor (privacy A2).
 target_link_libraries(speedgun-ng_speedgun-ng PRIVATE $<BUILD_INTERFACE:hwloc_vendor>)
 
+# Vendored simdjson ingestion. simdjson is a private internal
+# dependency with a native CMake build, ingested through
+# add_subdirectory below. A CMake child inherits the parent's compile
+# flags, sanitizer and coverage instrumentation, clang-tidy and
+# cppcheck; an autotools ExternalProject child inherits none of them.
+# The exemptions FR-009 and FR-010 are therefore set explicitly, and
+# the function scope keeps them off the rest of the build
+# (research R-006). The link added beside this bracket is PRIVATE and
+# BUILD_INTERFACE only: consumers of speedgun-ng::speedgun-ng observe
+# nothing of simdjson (FR-007). Re-pinning the submodule: follow the
+# re-pinning section of README.md (checkout the new tag, commit the
+# submodule pointer, bump the version assertion in
+# source/simdjson/simdjson_gate.cpp) (FR-006).
+function(import_simdjson)
+  # FR-002: abort configure with the init command, no fallback path.
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/simdjson/CMakeLists.txt")
+    message(
+        FATAL_ERROR
+        "external/simdjson is uninitialized; run: "
+        "git submodule update --init external/simdjson"
+    )
+  endif()
+  # FR-009/FR-010: the vendored compile carries no parent warning
+  # set, no warnings-as-errors promotion, no sanitizer or coverage
+  # instrumentation, no clang-tidy, no cppcheck. FR-016: hidden
+  # symbols baked in at compile time (R-007). FR-007: a static
+  # archive in every configuration (R-005). FR-014: simdjson defines
+  # no install rule (R-004). SIMDJSON_DEVELOPER_MODE stays unset: a
+  # subproject is library-only without it (R-004).
+  set(CMAKE_CXX_FLAGS "")
+  set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+  set(CMAKE_CXX_FLAGS_SANITIZE "")
+  set(CMAKE_CXX_FLAGS_COVERAGE "")
+  set(CMAKE_CXX_CLANG_TIDY "")
+  set(CMAKE_CXX_CPPCHECK "")
+  set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+  # The shared configuration absorbs the static vendored archive at
+  # link time, so every vendored object must be position-independent
+  # (SC-004); the property covers all vendored targets and is inert
+  # for a static parent.
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+  set(BUILD_SHARED_LIBS OFF)
+  set(SIMDJSON_INSTALL OFF)
+  add_subdirectory(
+      external/simdjson "${CMAKE_BINARY_DIR}/_simdjson" EXCLUDE_FROM_ALL
+  )
+  # FR-013/R-008: the wrapper compiles <simdjson.h> with -isystem, so
+  # header diagnostics stay out of the strict set while the wrapper's
+  # own lines stay gated.
+  get_target_property(_simdjson_inc simdjson INTERFACE_INCLUDE_DIRECTORIES)
+  set_target_properties(
+      simdjson PROPERTIES
+      INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_simdjson_inc}"
+  )
+endfunction()
+
+import_simdjson()
+
 include(cmake/dbc.cmake)
 
 # ---- Install rules ----
