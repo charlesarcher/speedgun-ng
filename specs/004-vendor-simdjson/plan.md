@@ -8,7 +8,7 @@
 
 ## Summary
 
-simdjson 4.6.11 (pinned commit `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`, the commit the lightweight tag `v4.6.11` names, re-verified 2026-09-23) enters the tree as a git submodule at `external/simdjson` and builds inside the speedgun-ng build as a strictly internal, statically absorbed dependency. Unlike the hwloc import (specs/003-vendor-hwloc), simdjson is a native CMake library: it is consumed through `add_subdirectory(external/simdjson ... EXCLUDE_FROM_ALL)` with the `ImportAutotoolsSubmodule` module left unused, and no autotools bootstrap or host autoconf/automake/libtool/patch is introduced (FR-011; research R-001). The central engineering fact is an inheritance asymmetry: a CMake `add_subdirectory` child inherits the parent's compile flags, sanitizer flags, coverage instrumentation, clang-tidy, and cppcheck, while an `ExternalProject` autotools child inherits none. Every exemption the spec mandates (FR-009 warning/tidy/cppcheck/coverage, FR-010 sanitizer exclusion, FR-016 hidden visibility, R-004 install-off, R-005 forced static) is therefore built explicitly, through one scoped variable-reset bracket that wraps the `add_subdirectory` call (R-006).
+simdjson 4.6.11 (pinned commit `f5de14f09256982933af2849beb43778bd421ca7`, the commit the annotated tag `v4.6.11` points to (tag object `e153ffadd9ae29b00c90bedc76f65d25a993d2b5`), re-verified 2026-09-23) enters the tree as a git submodule at `external/simdjson` and builds inside the speedgun-ng build as a strictly internal, statically absorbed dependency. Unlike the hwloc import (specs/003-vendor-hwloc), simdjson is a native CMake library: it is consumed through `add_subdirectory(external/simdjson ... EXCLUDE_FROM_ALL)` with the `ImportAutotoolsSubmodule` module left unused, and no autotools bootstrap or host autoconf/automake/libtool/patch is introduced (FR-011; research R-001). The central engineering fact is an inheritance asymmetry: a CMake `add_subdirectory` child inherits the parent's compile flags, sanitizer flags, coverage instrumentation, clang-tidy, and cppcheck, while an `ExternalProject` autotools child inherits none. Every exemption the spec mandates (FR-009 warning/tidy/cppcheck/coverage, FR-010 sanitizer exclusion, FR-016 hidden visibility, R-004 install-off, R-005 forced static) is therefore built explicitly, through one scoped variable-reset bracket that wraps the `add_subdirectory` call (R-006).
 
 The speedgun-ng library links `simdjson::simdjson` PRIVATE through one wrapper translation unit, `source/simdjson/simdjson_gate.cpp`: the only TU that includes `<simdjson.h>`, home of the compile-time `static_assert(simdjson::SIMDJSON_VERSION_{MAJOR,MINOR,REVISION} == (4,6,11))` version tripwire and the `&simdjson::get_active_implementation` reference that proves the link at object level (FR-003, FR-007, FR-013; R-002, R-003). Static builds merge `libsimdjson.a` into `libspeedgun-ng.a` through the archiver, so the installed static library is self-contained while its package files name nothing foreign (R-009); shared builds absorb the archive at link time with the vendored objects compiled hidden (simdjson ships no symbol prefix, so `-fvisibility=hidden` is stamped at the vendored compile; R-007), keeping every simdjson symbol out of the dynamic table (FR-016). The privacy contract (FR-013 through FR-017) is proven by audits and the downstream consumer test on a machine that carries simdjson. Nothing in the build consults a system simdjson; a configure-time guard rejects an uninitialized submodule with the init command in the message (FR-002, FR-004).
 
@@ -71,7 +71,7 @@ specs/004-vendor-simdjson/
 ### Source Code (repository root)
 
 ```text
-external/simdjson                   # NEW git submodule @ e153ffad... (tag v4.6.11);
+external/simdjson                   # NEW git submodule @ f5de14f0... (tag v4.6.11);
                                     #   consumed via add_subdirectory, never built in a
                                     #   copy; exempt from all gates (FR-001, FR-009);
                                     #   MIT and Apache-2.0 license files stay in-tree and
@@ -240,7 +240,7 @@ There is no path from any state to a system simdjson: no discovery call exists i
 
 | Path | Duty | Requirements |
 |---|---|---|
-| `external/simdjson` | Vendored sources @ `e153ffad...`; consumed via add_subdirectory, built in-tree | FR-001, FR-011 |
+| `external/simdjson` | Vendored sources @ `f5de14f0...`; consumed via add_subdirectory, built in-tree | FR-001, FR-011 |
 | `CMakeLists.txt` (bracket) | Scoped flag/option reset + `add_subdirectory` + SYSTEM-include promotion + PRIVATE link + static merge | FR-007, FR-009, FR-010, FR-011, FR-016, R-004/R-005/R-006/R-007/R-008/R-009 |
 | `source/simdjson/simdjson_gate.cpp` | Sole `<simdjson.h>` includer (SYSTEM); `(4,6,11)` static_assert; constinit link-proof reference | FR-003, FR-007, FR-013, R-002/R-003 |
 | `tools/simdjson/simdjson_purity_scan.sh` | Grep audits over build files and `include/` | FR-004, FR-013, SC-008 |
@@ -289,7 +289,7 @@ TDD applies where a code seam exists: `tools/simdjson/simdjson_purity_scan.sh` (
 
 | US / FR / SC | Check (surface) | Pass condition |
 |---|---|---|
-| US1 / FR-001/008 / SC-001 | Clean clone with submodules; every Linux CI job; macOS developer run | All jobs exit 0; submodule SHA equals `e153ffad...` |
+| US1 / FR-001/008 / SC-001 | Clean clone with submodules; every Linux CI job; macOS developer run | All jobs exit 0; submodule SHA equals `f5de14f0...` |
 | US1 / FR-002 | Empty submodule dir; `cmake --preset` | Configure exits non-zero; message contains `git submodule update --init` |
 | US1 / FR-003, SC-006 | `git checkout` the submodule to another tag; build | Compile fails at `simdjson_gate.cpp`; the `static_assert` diagnostic names expected 4.6.11 and the mismatching enum values |
 | US1 / FR-004, SC-008 | `ctest -R simdjson_purity_scan` + CI grep | Zero `find_package(simdjson` / `pkg_check_modules(simdjson` hits; zero simdjson includes under `include/` |
