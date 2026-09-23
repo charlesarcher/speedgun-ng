@@ -122,6 +122,10 @@ jobs:
       run: test -z "$(find prefix/ -iname '*hwloc*')"
     - name: Audit package files for hwloc
       run: "! grep -qi hwloc prefix/lib/cmake/speedgun-ng/*.cmake"
+    - name: Audit install tree for simdjson
+      run: test -z "$(find prefix/ -iname '*simdjson*')"
+    - name: Audit package files for simdjson
+      run: "! grep -qi simdjson prefix/lib/cmake/speedgun-ng/*.cmake"
     - name: Test
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j 2
@@ -173,6 +177,10 @@ jobs:
       run: "! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -i hwloc"
     - name: Audit shared runtime deps for hwloc
       run: "! ldd prefix-shared/lib/libspeedgun-ng.so | grep -i hwloc"
+    - name: Audit shared symbols for simdjson
+      run: "! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -i simdjson"
+    - name: Audit shared runtime deps for simdjson
+      run: "! ldd prefix-shared/lib/libspeedgun-ng.so | grep -i simdjson"
 
   downstream-consumer:
     needs: [lint]
@@ -180,10 +188,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
-    - name: Install autotools, libhwloc-dev, and build tools
+    - name: Install autotools, libhwloc-dev, libsimdjson-dev, and build tools
       run: >-
         sudo apt-get update -q &&
-        sudo apt-get install autoconf automake libtool patch libhwloc-dev doxygen python3-yaml lcov -q -y
+        sudo apt-get install autoconf automake libtool patch libhwloc-dev libsimdjson-dev doxygen python3-yaml lcov -q -y
     - name: Install library
       run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
         && cmake --build build -j 2
@@ -200,6 +208,8 @@ jobs:
       run: ./build-consumer/consumer
     - name: Audit consumer logs for hwloc
       run: test -z "$(grep -i hwloc consumer-configure.log consumer-build.log)"
+    - name: Audit consumer logs for simdjson
+      run: test -z "$(grep -i simdjson consumer-configure.log consumer-build.log)"
 
   consumer-release:
     needs: [lint]
