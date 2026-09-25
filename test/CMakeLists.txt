@@ -92,6 +92,12 @@ add_test(NAME hdrhistogram_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../
 add_test(NAME zlib_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/zlib/zlib_purity_scan.sh ${CMAKE_SOURCE_DIR})
 add_test(NAME zlib_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/zlib/zlib_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 
+# yaml-cpp proof scripts (feature 006-vendor-yaml-cpp; FR-004/FR-007/FR-014,
+# SC-008/SC-009): purity scan and nm symbol-isolation proof, privacy contract
+# A7/A8/A6. Same pure-grep-script registration pattern as the simdjson pair.
+add_test(NAME yaml_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/yaml/yaml_purity_scan.sh ${CMAKE_SOURCE_DIR})
+add_test(NAME yaml_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/yaml/yaml_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # The following two tests are registered for tasks T010/T012 (parallel);
   # the scripts are not present yet and these tests are not executed here.
