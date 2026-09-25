@@ -451,15 +451,155 @@ set_property(
     PROPERTY COMPILE_DEFINITIONS Z_PREFIX
 )
 
-# Static builds merge the two vendored archives into libspeedgun-ng.a
-# beside the simdjson merge: the module steps compose, each rebuilding
-# the archive from the target's current members plus its own vendored
-# ones (specs/005 R-006, SC-009, SC-010). Shared configurations skip
-# the merges; the PRIVATE links plus the hidden objects absorb both
-# archives at link time.
+# Vendored yaml-cpp ingestion. yaml-cpp is a private internal
+# dependency with a native CMake build, ingested through
+# add_subdirectory below, after the HdrHistogram_c bracket: the
+# install() override defined inside import_hdrhistogram() is global
+# from its definition point, so it stands guard over this bracket too:
+# a yaml-cpp install rule escaping YAML_CPP_INSTALL would abort
+# configure loudly (specs/006 R-006). The inheritance asymmetry the
+# simdjson bracket above records applies to this native-CMake child
+# the same way (specs/006 R-001), so the exemptions FR-009 and FR-010
+# are set explicitly and the function scope keeps them off the rest of
+# the build. The link added beside this bracket is PRIVATE and
+# BUILD_INTERFACE only: consumers of speedgun-ng::speedgun-ng observe
+# nothing of yaml-cpp (FR-007). Re-pinning the submodule: follow the
+# re-pinning section of README.md (checkout the new tag, commit the
+# submodule pointer, bump the expected-version constant below)
+# (FR-006).
+function(import_yaml_cpp)
+  # FR-002: abort configure with the init command, no fallback path.
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp/CMakeLists.txt")
+    message(
+        FATAL_ERROR
+        "external/yaml-cpp is uninitialized; run: "
+        "git submodule update --init external/yaml-cpp"
+    )
+  endif()
+  # FR-003/R-002: the version tripwire. The pinned tree exposes no
+  # version macro in any header, so the check reads the version
+  # declaration in the submodule's own build files: the
+  # project(YAML_CPP VERSION ...) line. Version-string granularity per
+  # the Clarifications (2026-09-25): a revision that still declares
+  # the expected version passes; no git metadata is consulted, so a
+  # configure from a source archive without git history works.
+  # Re-pinning bumps the expected-version constant beside the
+  # README re-pinning steps (FR-006).
+  set(_yaml_cpp_expected_version 0.9.0)
+  file(
+      READ "${CMAKE_CURRENT_SOURCE_DIR}/external/yaml-cpp/CMakeLists.txt"
+      _yaml_cpp_declaration
+  )
+  if(NOT _yaml_cpp_declaration MATCHES "project\\( *YAML_CPP[^\\)]*VERSION ([0-9.]+)")
+    message(
+        FATAL_ERROR
+        "cannot read the yaml-cpp version declaration from "
+        "external/yaml-cpp/CMakeLists.txt: the project(YAML_CPP "
+        "VERSION ...) line is missing or moved; expected "
+        "${_yaml_cpp_expected_version}"
+    )
+  endif()
+  if(NOT CMAKE_MATCH_1 STREQUAL _yaml_cpp_expected_version)
+    message(
+        FATAL_ERROR
+        "vendored yaml-cpp declares version ${CMAKE_MATCH_1}; "
+        "expected ${_yaml_cpp_expected_version}: re-pin "
+        "external/yaml-cpp (README re-pinning) or bump the constant "
+        "in the import_yaml_cpp bracket"
+    )
+  endif()
+  # FR-009/FR-010: the vendored compile carries no parent warning
+  # set, no warnings-as-errors promotion, no sanitizer or coverage
+  # instrumentation, no clang-tidy, no cppcheck (R-008; yaml-cpp is
+  # LANGUAGES CXX, so no C-family resets). FR-017: hidden symbols
+  # baked in at compile time, and yaml-cpp's static target propagates
+  # YAML_CPP_STATIC_DEFINE PUBLIC, resolving YAML_CPP_API to nothing
+  # on every declaration, so the hidden presets reach every symbol
+  # including the heavily instantiated templates (R-007). FR-011: a
+  # static archive in every configuration, no contrib, no tools, no
+  # tests (R-004, R-005). FR-012: YAML_CPP_INSTALL OFF removes every
+  # upstream install rule, export set, package-config file, .pc file,
+  # and the uninstall target (R-006).
+  # The vendored subtree declares cmake_minimum_required(VERSION
+  # 3.5...3.30), below CMP0077's 3.13 introduction: without the
+  # default, its option() calls clear the normal variables below and
+  # the exemptions silently evaporate, the same trap the HdrHistogram_c
+  # bracket documents (R-004).
+  set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+  # Silence the warn-uninitialized dev diagnostic: the CMAKE_HOST_WIN32
+  # read in the vendored genex composition is undefined on a
+  # non-Windows host. Initialize it only when the platform has not
+  # defined it, so a Windows build keeps its real value. The ci-rocky
+  # preset promotes developer warnings to errors, so this silence is a
+  # build fix (the same class the zlib and HdrHistogram_c brackets
+  # document).
+  if(NOT DEFINED CMAKE_HOST_WIN32)
+    set(CMAKE_HOST_WIN32 "")
+  endif()
+  set(CMAKE_CXX_FLAGS "")
+  set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+  set(CMAKE_CXX_FLAGS_SANITIZE "")
+  set(CMAKE_CXX_FLAGS_COVERAGE "")
+  set(CMAKE_CXX_CLANG_TIDY "")
+  set(CMAKE_CXX_CPPCHECK "")
+  set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+  set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+  # The shared configuration absorbs the static vendored archive at
+  # link time, so every vendored object must be position-independent
+  # (SC-004); the property covers all vendored targets and is inert
+  # for a static parent.
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+  set(BUILD_SHARED_LIBS OFF)
+  # Upstream's shared switch defaults to ${BUILD_SHARED_LIBS}: a
+  # shared-parent build would build yaml-cpp shared, the exact state
+  # FR-011 forbids (R-005). Forcing it OFF under the CMP0077 NEW
+  # default selects the static library type.
+  set(YAML_BUILD_SHARED_LIBS OFF)
+  set(YAML_CPP_BUILD_CONTRIB OFF)
+  set(YAML_CPP_BUILD_TOOLS OFF)
+  set(YAML_CPP_BUILD_TESTS OFF)
+  set(YAML_CPP_INSTALL OFF)
+  set(YAML_CPP_FORMAT_SOURCE OFF)
+  # CMAKE_CXX_STANDARD stays untouched: the presets define 23 in the
+  # cache, so upstream's C++11 fallback never fires and the vendored
+  # sources inherit the project standard (R-008).
+  add_subdirectory(
+      external/yaml-cpp "${CMAKE_BINARY_DIR}/_yaml-cpp" EXCLUDE_FROM_ALL
+  )
+  # FR-014/R-009: the gate compiles <yaml-cpp/yaml.h> with -isystem,
+  # so header diagnostics stay out of the strict set while the gate's
+  # own lines stay gated.
+  get_target_property(_yaml_cpp_inc yaml-cpp INTERFACE_INCLUDE_DIRECTORIES)
+  set_target_properties(
+      yaml-cpp PROPERTIES
+      INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_yaml_cpp_inc}"
+  )
+endfunction()
+
+import_yaml_cpp()
+
+# The gate TU is the only TU that includes <yaml-cpp/yaml.h> (FR-014);
+# its link-proof reference is the object-level proof (FR-007, SC-009).
+# The version tripwire lives at configure time in the bracket above
+# (R-002). BUILD_INTERFACE keeps the vendored name out of the exported
+# package files: the merged members ship inside libspeedgun-ng.a, so
+# consumers must never resolve the name yaml-cpp::yaml-cpp (privacy
+# A2).
+target_sources(speedgun-ng_speedgun-ng PRIVATE source/yaml/yaml_gate.cpp)
+target_link_libraries(
+    speedgun-ng_speedgun-ng PRIVATE $<BUILD_INTERFACE:yaml-cpp::yaml-cpp>
+)
+
+# Static builds merge the three vendored archives into
+# libspeedgun-ng.a beside the simdjson merge: the module steps
+# compose, each rebuilding the archive from the target's current
+# members plus its own vendored ones (specs/005 R-006, specs/006
+# R-010, SC-009, SC-010). Shared configurations skip the merges; the
+# PRIVATE links plus the hidden objects absorb the archives at link
+# time.
 include(cmake/VendoredArchiveMerge.cmake)
 vendored_archive_merge(
-    speedgun-ng_speedgun-ng hdr_histogram_static zlibstatic
+    speedgun-ng_speedgun-ng hdr_histogram_static zlibstatic yaml-cpp
 )
 
 # ---- Examples ----
