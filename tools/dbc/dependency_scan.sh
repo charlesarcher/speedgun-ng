@@ -17,6 +17,12 @@
 #     merged static members, never exported; audits A2/A3/A6 prove zero leakage)
 #   - simdjson PRIVATE link (specs/004-vendor-simdjson, FR-007/R-010:
 #     merged static members, never exported; audits A2/A3/A6 prove zero leakage)
+#   - hdr_histogram_static PRIVATE link (specs/005-vendor-hdrhistogram,
+#     FR-007/FR-021: merged static members, never exported; privacy
+#     contract A2/A3/A6)
+#   - zlibstatic PRIVATE link (specs/005-vendor-hdrhistogram,
+#     FR-007/FR-021: merged static members, never exported; privacy
+#     contract A2/A3/A6)
 #
 # Usage: bash tools/dbc/dependency_scan.sh [repo-root]
 #   repo-root defaults to two levels up or $1 (for ctest: ${CMAKE_SOURCE_DIR})
@@ -100,6 +106,14 @@ for entry in "${candidates[@]}"; do
   elif echo "$text" | grep -q 'simdjson'; then
     class="vendored-private"
     note="specs/004 FR-007: PRIVATE link of the merged vendored archive; the installed library ships zero external runtime deps (privacy contract A2/A3/A6)"
+    vendored_private=$((vendored_private + 1))
+  elif echo "$text" | grep -q 'hdr_histogram'; then
+    class="vendored-private"
+    note="specs/005 FR-007/FR-021: PRIVATE link of the merged vendored archive; the installed library ships zero external runtime deps (privacy contract A2/A3/A6)"
+    vendored_private=$((vendored_private + 1))
+  elif echo "$text" | grep -q 'zlibstatic\|ZLIB::ZLIB'; then
+    class="vendored-private"
+    note="specs/005 FR-007/FR-021: PRIVATE link of the merged vendored archive; the installed library ships zero external runtime deps (privacy contract A2/A3/A6)"
     vendored_private=$((vendored_private + 1))
   elif echo "$text" | grep -q 'speedgun-ng_speedgun-ng'; then
     class="library-runtime"
