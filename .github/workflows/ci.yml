@@ -134,6 +134,10 @@ jobs:
       run: test -z "$(find prefix/ \( -iname '*zlib*' -o -iname '*libz*' \))"
     - name: Audit package files for zlib
       run: "! grep -qiE 'zlib|libz' prefix/lib/cmake/speedgun-ng/*.cmake"
+    - name: Audit install tree for yaml-cpp
+      run: test -z "$(find prefix/ -iname '*yaml*cpp*')"
+    - name: Audit package files for yaml-cpp
+      run: "! grep -riE 'yaml[-_]?cpp' prefix/lib/cmake/speedgun-ng/*.cmake"
     - name: Test
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j 2
@@ -199,6 +203,12 @@ jobs:
         | grep -iE 'zlib|libz|(z_)?(inflate|deflate|compress|uncompress|crc32)'
     - name: Audit shared runtime deps for zlib
       run: "! ldd prefix-shared/lib/libspeedgun-ng.so | grep -iE 'zlib|libz'"
+    - name: Audit shared symbols for yaml-cpp
+      run: "! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -iE 'yaml[-_]?cpp'"
+    - name: Audit shared symbols for the 4YAML namespace marker
+      run: "! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep '4YAML'"
+    - name: Audit shared runtime deps for yaml-cpp
+      run: "! ldd prefix-shared/lib/libspeedgun-ng.so | grep -iE 'yaml[-_]?cpp'"
 
   downstream-consumer:
     needs: [lint]
@@ -220,6 +230,16 @@ jobs:
         -DHDR_HISTOGRAM_BUILD_PROGRAMS=OFF -DCMAKE_BUILD_TYPE=Release
         && cmake --build sys-hdr -j 2
         && sudo cmake --install sys-hdr --prefix /usr/local
+    # The same premise for yaml-cpp, the sys-hdr pattern: build the
+    # vendored tree out-of-tree and put it on the default search path,
+    # so the machine carries a system yaml-cpp for the consumer to
+    # resolve zero of (specs/006 FR-019).
+    - name: Install a system yaml-cpp for the consumer premise
+      run: >-
+        cmake -S external/yaml-cpp -B sys-yaml
+        -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF
+        && cmake --build sys-yaml -j 2
+        && sudo cmake --install sys-yaml --prefix /usr/local
     - name: Install library
       run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
         && cmake --build build -j 2
@@ -242,6 +262,8 @@ jobs:
       run: test -z "$(grep -i hdr consumer-configure.log consumer-build.log)"
     - name: Audit consumer logs for zlib
       run: test -z "$(grep -iE 'zlib|libz' consumer-configure.log consumer-build.log)"
+    - name: Audit consumer logs for yaml-cpp
+      run: test -z "$(grep -riE 'yaml[-_]?cpp' consumer-configure.log consumer-build.log)"
 
   consumer-release:
     needs: [lint]
