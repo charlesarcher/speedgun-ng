@@ -1,5 +1,12 @@
 <!--
-Sync Impact Report (2.7.0, MINOR): VIII's Windows (MSVC) preset
+Sync Impact Report (2.8.0, MINOR): the Open deferrals block gains the
+macOS runner entry. Principle VIII's macOS preset-build clause is
+enforced developer-local until a runner spec lands; the deferral
+records the existing, spec-documented practice and binds nothing new.
+No principle, rule, threshold, identifier, gate, or banned-word list
+changes. Amendment history lives in the git log of this file.
+
+Prior report (2.7.0, MINOR): VIII's Windows (MSVC) preset
 build gate is suspended for the lifetime of the vendored autotools
 ingestion of specs/003-vendor-hwloc. The ingestion module aborts
 Windows configuration by design, naming the upstream
@@ -18,6 +25,12 @@ change per the Editing contract.
 Open deferrals, binding until a spec lands them:
 - Principle VII baseline infrastructure absent; VII mandates it, a
   future spec delivers it.
+- Principle VIII macOS enforcement: the CI matrix carries no macOS
+  runner; the macOS preset-build gate is enforced developer-local.
+  The `ci-macos` preset stays usable, every macOS claim needs
+  recorded developer evidence, and a future spec lands the runner to
+  end the deferral (specs/004 T019 and specs/005 T024 stay open
+  under it).
 - DCR and P2 exception label conventions: project policy, tracked in
   the issue tracker.
 -->
@@ -544,6 +557,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.8.0 | 2026-09-25 | macOS gate enforcement recorded as a deferral: developer-local until a runner spec lands |
 | 2.7.0 | 2026-09-21 | Windows MSVC preset-build gate suspended for the vendored-autotools lifetime; reinstated when the port lands |
 | 2.6.0 | 2026-09-20 | XI.5 banned jargon `smoke test`; downstream consumer test canonical |
 | 2.5.0 | 2026-09-18 | prose-lint gate: XI.6 machine check, commit-template lint, deferrals closed |
@@ -556,4 +570,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.7.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-21
+**Version**: 2.8.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-25
