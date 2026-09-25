@@ -82,6 +82,16 @@ add_test(NAME hwloc_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/h
 add_test(NAME simdjson_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/simdjson/simdjson_purity_scan.sh ${CMAKE_SOURCE_DIR})
 add_test(NAME simdjson_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/simdjson/simdjson_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 
+# hdrhistogram and zlib proof scripts (feature 005-vendor-hdrhistogram,
+# T009/T010/T013; FR-004/FR-007/FR-014/FR-019/FR-021, SC-008/SC-009/SC-010):
+# purity scans and nm symbol-isolation proofs, privacy contract
+# A7/A8/A7z/A8z/A6/A6z. Same pure-grep-script registration pattern as the
+# simdjson pair. The nm proofs are TDD red until the ADDLIB merge lands.
+add_test(NAME hdrhistogram_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/hdrhistogram/hdrhistogram_purity_scan.sh ${CMAKE_SOURCE_DIR})
+add_test(NAME hdrhistogram_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/hdrhistogram/hdrhistogram_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+add_test(NAME zlib_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/zlib/zlib_purity_scan.sh ${CMAKE_SOURCE_DIR})
+add_test(NAME zlib_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/zlib/zlib_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # The following two tests are registered for tasks T010/T012 (parallel);
   # the scripts are not present yet and these tests are not executed here.
