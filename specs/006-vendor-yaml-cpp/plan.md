@@ -67,7 +67,7 @@ specs/006-vendor-yaml-cpp/
 ├── contracts/
 │   ├── build-integration.md       # Phase 1 output (the bracket + link + merge contract)
 │   └── privacy-contract.md        # Phase 1 output (surfaces + audit commands, FR-018 pattern + 4YAML)
-└── tasks.md                       # Phase 2 output (/speckit.tasks, NOT created here)
+└── tasks.md                       # Phase 2 output (/speckit.tasks; generated after this file)
 ```
 
 ### Source Code (repository root)
@@ -282,7 +282,7 @@ TDD applies where a code seam exists: the two `tools/` scripts (seed a violation
 |---|---|---|
 | US1 / FR-001/FR-008 / SC-001 | Clean clone with submodules; every Linux CI job; macOS developer run | All jobs exit 0; `git submodule status` SHA equals `56e3bb550c91fd7005566f19c079cb7a503223cf` |
 | US1 / FR-002 | Empty submodule dir; `cmake --preset` | Configure exits non-zero; message contains `git submodule update --init external/yaml-cpp` |
-| US1 / FR-003, SC-006 | `git -C external/yaml-cpp checkout` another release tag; configure | Configure exits non-zero; the diagnostic names the expected version `0.9.0` and the version found, readable in one glance; a revision still declaring 0.9.0 configures clean (Clarifications 2026-09-25) |
+| US1 / FR-003, SC-006 | `git -C external/yaml-cpp checkout` another release tag; configure | Configure exits non-zero; one diagnostic names the expected version `0.9.0` and the version found; a revision still declaring 0.9.0 configures clean (Clarifications 2026-09-25) |
 | US1 / FR-004, SC-008 | `ctest -R yaml_purity_scan` + CI grep | Zero `find_package(`/`pkg_check_modules(` calls naming `yaml[-_]?cpp` in build files; zero `yaml[-_]?cpp` under `include/` |
 | US1 / FR-007, SC-009 | `ctest -R yaml_nm_proof` (static build tree) | `nm libspeedgun-ng.a` lists members defining `4YAML` symbols; the gate member's `_ZN4YAML4Load` `U` reference resolves into them |
 | US1 / SC-007 | Full build, then `git status` inside the submodule | Worktree reports unmodified (out-of-source build dir `_yaml-cpp`) |
