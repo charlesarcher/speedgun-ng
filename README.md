@@ -72,6 +72,43 @@ compile-time check keeps the pinned sources and the recorded version
 in lockstep. simdjson is a native CMake library, so no autotools
 bootstrap tools are needed for it.
 
+## Re-pinning HdrHistogram_c
+
+HdrHistogram_c is a vendored git submodule at `external/hdrhistogram_c`,
+pinned by commit. To update it:
+
+1. Check out the new tag: `git -C external/hdrhistogram_c checkout <tag>`
+2. Commit the submodule pointer.
+3. Bump the version assertion in
+   `source/hdrhistogram/hdrhistogram_gate.cpp`.
+
+The build fails until the assertion matches. That is the point: the
+compile-time check keeps the pinned sources and the recorded version
+in lockstep. HdrHistogram_c is a native CMake library, so no autotools
+bootstrap tools are needed for it. Its logging support uses the
+vendored zlib: the redirect in the root CMakeLists.txt resolves that
+lookup to `external/zlib`, so no system HdrHistogram_c or zlib package
+is consulted during the build.
+
+## Re-pinning zlib
+
+zlib is a vendored git submodule at `external/zlib`, pinned by commit.
+To update it:
+
+1. Check out the new tag: `git -C external/zlib checkout <tag>`
+2. Commit the submodule pointer.
+3. Bump both version assertions in `source/zlib/zlib_gate.cpp`: the
+   `ZLIB_VERSION` string and the `ZLIB_VERNUM` number. The number is
+   the version digits read as hex, so 1.3.2 corresponds to `0x1320`.
+
+The build fails until both assertions match. That is the point: the
+compile-time check keeps the pinned sources and the recorded version
+in lockstep. The vendored zlib carries the `Z_PREFIX` rename of its
+public symbols in every configuration: the rename lives in the root
+CMakeLists.txt bracket, and the gate proves the renamed archive symbol
+resolves. zlib is a native CMake library, so no autotools bootstrap
+tools are needed for it.
+
 ## Quality gates
 
 One command runs the prose and commit-message gate over the range from
