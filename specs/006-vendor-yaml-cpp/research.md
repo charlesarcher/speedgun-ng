@@ -1,0 +1,87 @@
+# Research: Vendor yaml-cpp as a Private, Pinned Submodule
+
+**Feature**: `006-vendor-yaml-cpp` | **Date**: 2026-09-25
+**Upstream verified against**: `jbeder/yaml-cpp` @ `56e3bb550c91fd7005566f19c079cb7a503223cf` (tag `yaml-cpp-0.9.0`), re-fetched 2026-09-25 (tag, `CMakeLists.txt`, `include/yaml-cpp/dll.h`, `include/yaml-cpp/yaml.h`, `include/yaml-cpp/node/parse.h`, `LICENSE`).
+
+## Phase 0 Findings
+
+### R-001: Ingestion mechanism = one `add_subdirectory` scoped bracket; `ImportAutotoolsSubmodule` stays unused
+
+- **Decision**: consume yaml-cpp through `import_yaml_cpp()`, a function-scoped `add_subdirectory(external/yaml-cpp "${CMAKE_BINARY_DIR}/_yaml-cpp" EXCLUDE_FROM_ALL)` bracket in the root `CMakeLists.txt`, placed beside the HdrHistogram_c block and following the `import_simdjson`/`import_zlib`/`import_hdrhistogram` shape.
+- **Rationale**: yaml-cpp is a native CMake library (`project(YAML_CPP VERSION 0.9.0 LANGUAGES CXX)` at line 11 of its `CMakeLists.txt`) with zero sub-dependencies: no companion submodule (spec Fixed decision 6 counts five; yaml-cpp itself carries none), no autotools bootstrap, no new host tool. As a CMake child it inherits parent flags, sanitizers, coverage, clang-tidy and cppcheck, so FR-009/FR-010 exemptions must be set explicitly inside the bracket scope, the asymmetry the simdjson bracket comment records.
+- **Alternatives considered**: FetchContent (spec Assumptions: vendoring or nothing); `ImportAutotoolsSubmodule` (built for the hwloc autotools tree; wrong tool for a CMake child, same conclusion specs/005 R-001 reached for HdrHistogram_c).
+
+### R-002: Version tripwire = configure-time version-string check of the submodule's own `project()` line
+
+- **Decision**: inside `import_yaml_cpp()`, before `add_subdirectory`, `file(READ .../external/yaml-cpp/CMakeLists.txt)` and match the regex `project\( *YAML_CPP[^\)]*VERSION ([0-9.]+)`; compare the captured version to the expected constant `0.9.0`; a mismatch aborts configure with a `FATAL_ERROR` naming the expected version `0.9.0` and the version found. The expected constant lives in the bracket; the README re-pinning section bumps it.
+- **Rationale**: the pinned tree exposes no version macro in any header (spec FR-003 records the verification; confirmed again 2026-09-25 against the tag's `include/` tree), so the simdjson-style compile-time `static_assert` on a version macro is unavailable verbatim. The Clarifications (2026-09-25) settled version-string granularity: a revision that still declares `0.9.0` passes; the check must consult no git metadata, which keeps configure from a source archive working. The `project(YAML_CPP VERSION 0.9.0 ...)` line is the version declaration in the submodule's own build files; a text read needs no git, no target graph, and fires before any compilation.
+- **Alternatives considered**: compile-time `static_assert` on a version macro (impossible: no macro exists); reading `yaml-cpp`'s `VERSION` target property after `add_subdirectory` (runs late, after the whole graph generates, and depends on upstream keeping `set_target_properties(... VERSION "${PROJECT_VERSION}")` wired; the file read depends on the one line upstream has carried since the version was declared); `git describe` in the bracket (violates the FR-003 no-git-metadata clause); SHA compare of the submodule pointer via git (same violation).
+
+### R-003: Link-proof symbol = `&YAML::Load`
+
+- **Decision**: `source/yaml/yaml_gate.cpp` holds `[[maybe_unused]] constinit auto const link_proof = &YAML::Load;` under `[[gnu::used]]`, the pattern of the simdjson and HdrHistogram_c gates.
+- **Rationale**: `YAML_CPP_API Node Load(const std::string& input);` is declared in `include/yaml-cpp/node/parse.h` (verified against the tag; reached through `#include <yaml-cpp/yaml.h>`), a free function in namespace `YAML` stable across releases. Its mangled name begins `_ZN4YAML4Load`, so the nm proofs and the shared-build audit read one namespace marker, `4YAML`, for both presence and absence. `constinit` keeps the gate TU at zero runtime lines.
+- **Alternatives considered**: `&YAML::LoadFile` (equivalent; `Load` reads one string argument and avoids any file premise), `YAML::Dump` (returns `std::string`, heavier template surface at the reference site), `YAML::Node` constructor (weak-symbol mangling; a free function gives a clean `T` in the archive).
+
+### R-004: Build options = force library-only, static, install-off; `CMP0077 NEW` is mandatory
+
+- **Decision**: inside the bracket, before `add_subdirectory`: `YAML_CPP_BUILD_CONTRIB OFF`, `YAML_CPP_BUILD_TOOLS OFF`, `YAML_CPP_BUILD_TESTS OFF`, `YAML_CPP_INSTALL OFF`, `YAML_CPP_FORMAT_SOURCE OFF`, `YAML_BUILD_SHARED_LIBS OFF`, plus `set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)`. `YAML_USE_SYSTEM_GTEST` stays at its `OFF` default; `YAML_ENABLE_PIC` stays at its `ON` default, and the bracket also sets `CMAKE_POSITION_INDEPENDENT_CODE ON`.
+- **Rationale** (all option defaults read from the tag's `CMakeLists.txt` lines 24 through 36): `YAML_CPP_BUILD_CONTRIB` and `YAML_CPP_BUILD_TOOLS` default `ON` and add `src/contrib/*.cpp` and the `util/` parse tools; FR-011 switches both off. Contrib carries no external requirement; switching it off declines unused optional integration sources. `YAML_CPP_BUILD_TESTS` is a `cmake_dependent_option` that can turn on only with `YAML_CPP_MAIN_PROJECT`; as a subproject it is off by construction, set explicitly anyway per FR-011, and the `test/` subdirectory (the only `find_package(GTest)` site) is never added. `YAML_CPP_INSTALL` defaults to `${YAML_CPP_MAIN_PROJECT}`, off as a child, set explicitly per FR-012. `YAML_CPP_FORMAT_SOURCE` defaults to `${YAML_CPP_MAIN_PROJECT}`; the `format` custom target it gates is dead as a child, set off for explicitness. `CMP0077 NEW` is required because yaml-cpp declares `cmake_minimum_required(VERSION 3.5...3.30)`: below CMP0077's 3.13 introduction, its `option()` calls clear the scoped normal variables and the exemptions would silently evaporate, the same trap the hdrhistogram bracket documents.
+- **Alternatives considered**: relying on the main-project defaults alone (the FR-011 spellings must be visible at the call site, and `YAML_BUILD_SHARED_LIBS` defaults to `${BUILD_SHARED_LIBS}`, which is `ON` in a shared-parent build; R-005).
+
+### R-005: Forced static under any parent = `YAML_BUILD_SHARED_LIBS OFF` beats the `${BUILD_SHARED_LIBS}` default
+
+- **Decision**: set `YAML_BUILD_SHARED_LIBS OFF` and `BUILD_SHARED_LIBS OFF` in the bracket scope; `CMAKE_POSITION_INDEPENDENT_CODE ON` keeps the static objects linkable into a shared `speedgun-ng`.
+- **Rationale**: yaml-cpp's shared switch defaults to `${BUILD_SHARED_LIBS}` (line 26): building `speedgun-ng` shared would silently build `yaml-cpp` shared, and the build tree would then carry a shared yaml-cpp object, the exact state FR-011 forbids. The `option()` honors the scoped variable under `CMP0077 NEW` (R-004); `if (YAML_BUILD_SHARED_LIBS)` then selects `set(yaml-cpp-type STATIC)` (lines 46 through 52), and line 84 `add_library(yaml-cpp ${yaml-cpp-type} "")` creates the static archive in every configuration.
+- **Alternatives considered**: relying on the parent's `BUILD_SHARED_LIBS` default (fails the shared-parent case).
+
+### R-006: Install-rule suppression = `YAML_CPP_INSTALL OFF` is sufficient; no override macro needed
+
+- **Decision**: switch `YAML_CPP_INSTALL OFF` and rely on it; no `install()` override of the specs/005 kind. The install-tree audit (quickstart section 6) is the empirical proof.
+- **Rationale**: every install rule in the tag's `CMakeLists.txt` is guarded: the `install(TARGETS yaml-cpp ...)`, header directory, `install(EXPORT yaml-cpp-targets ...)`, package-config files, and the `.pc` file sit inside `if (YAML_CPP_INSTALL)` (lines 167 through 184), and the `uninstall` target is guarded by the same option (line 205). Unlike HdrHistogram_c, yaml-cpp carries zero unconditional `install()` calls. The `configure_package_config_file`, `write_basic_package_version_file`, and `configure_file(yaml-cpp.pc ...)` calls write only into yaml-cpp's binary directory (`${CMAKE_BINARY_DIR}/_yaml-cpp`), which never reaches `CMAKE_INSTALL_PREFIX`. Defense in depth: the HdrHistogram_c `install()` override macro (root `CMakeLists.txt`, global and permanent from its definition point) sits before this bracket's call site, so a hypothetical install rule escaping the guard would abort configure loudly at the override's `FATAL_ERROR`; no rule can leak silently.
+- **Alternatives considered**: the 005 `install()` override macro (unneeded: there is nothing to swallow; adding it would be dead machinery).
+
+### R-007: Symbol privacy = `YAML_CPP_STATIC_DEFINE` propagates from the static target; hidden visibility closes the rest
+
+- **Decision**: compile the vendored objects with `CMAKE_CXX_VISIBILITY_PRESET hidden` and `CMAKE_VISIBILITY_INLINES_HIDDEN ON` in the bracket scope; rely on yaml-cpp's own `target_compile_definitions(yaml-cpp PUBLIC $<$<NOT:$<BOOL:${YAML_BUILD_SHARED_LIBS}>>:YAML_CPP_STATIC_DEFINE>)` (verified at lines 131 through 133) to resolve `YAML_CPP_API` to nothing. No `--exclude-libs`, no rename mechanism.
+- **Rationale**: `include/yaml-cpp/dll.h` (verified) defines `YAML_CPP_API` as empty when `YAML_CPP_STATIC_DEFINE` is set, and as `__attribute__((visibility("default")))` when it is absent on GCC/Clang. Because the macro is `PUBLIC` on the static target, the vendored objects and the gate TU both see the empty spelling: no declaration requests default visibility, the hidden presets take effect on every vendored symbol including the heavily instantiated templates, and a shared `speedgun-ng` that absorbs the archive exports zero `yaml-cpp` symbols and zero `4YAML` symbols (FR-017, SC-004). Static builds merge the hidden members into `libspeedgun-ng.a` (R-010), where `.dynsym` does not exist at all. yaml-cpp carries no symbol-prefix mechanism (spec Assumptions); hidden visibility plus static absorption is the posture the HdrHistogram_c import took.
+- **Alternatives considered**: `-Wl,--exclude-libs` at the shared link (rejected for the same reason specs/005 R-009 rejected it: redundant once the objects carry hidden visibility in-tree); forcing `YAML_CPP_STATIC_DEFINE` by hand on top of the propagation (dead duplicate).
+
+### R-008: Exemptions and the C++ standard = scoped variable resets; the C++23 preset value is inherited, the 11 fallback never fires
+
+- **Decision**: in the bracket, clear `CMAKE_CXX_FLAGS`, `CMAKE_COMPILE_WARNING_AS_ERROR`, `CMAKE_CXX_FLAGS_SANITIZE`, `CMAKE_CXX_FLAGS_COVERAGE`, `CMAKE_CXX_CLANG_TIDY`, `CMAKE_CXX_CPPCHECK` (the `import_simdjson` list applies verbatim: yaml-cpp is `LANGUAGES CXX` only, so no C-family resets). Leave `CMAKE_CXX_STANDARD` alone.
+- **Rationale**: the presets define `CMAKE_CXX_STANDARD: 23` in the cache (`CMakePresets.json` line 52, all build presets), so upstream's `if (NOT DEFINED CMAKE_CXX_STANDARD) set(CXX_STANDARD 11)` fallback (lines 105 through 108) never fires: the vendored sources compile under the project's C++23 setting, which is what the spec edge case mandates. The recorded outcome: C++23 inherited; the compile itself is proven at implement by the Linux GCC/Clang CI jobs and the macOS developer run, the only acceptable evidence. If a toolchain ever rejects a construct, the recorded escape is `set(CMAKE_CXX_STANDARD 11)` inside the bracket scope (the vendored tree is C++11 code); the spec's exemption FR-009 permits that fallback and it is a one-line change at implement.
+- **Alternatives considered**: forcing C++11 preemptively (speculates a failure the CI gate will show immediately; the spec edge case says the vendored library must compile under our setting, so inherit it and let the gate record the outcome).
+
+### R-009: Gate-TU includes = vendored headers as SYSTEM
+
+- **Decision**: after `add_subdirectory`, copy `yaml-cpp`'s `INTERFACE_INCLUDE_DIRECTORIES` into `INTERFACE_SYSTEM_INCLUDE_DIRECTORIES` inside the bracket, the `import_simdjson` pattern.
+- **Rationale**: `source/yaml/yaml_gate.cpp` then compiles `<yaml-cpp/yaml.h>` with `-isystem`: header diagnostics stay out of the strict warning set while the gate's own lines stay gated (FR-009 applies to the vendored code; the gate TU is speedgun-ng code held to the full gate set).
+- **Alternatives considered**: per-TU `-isystem` flags (the property is the established spelling in all three prior brackets).
+
+### R-010: Static absorption = extend the existing variadic merge call
+
+- **Decision**: `vendored_archive_merge(speedgun-ng_speedgun-ng hdr_histogram_static zlibstatic yaml-cpp)`: append the `yaml-cpp` target to the existing call in the root `CMakeLists.txt`.
+- **Rationale**: `cmake/VendoredArchiveMerge.cmake` takes `<merge-into> <archived-target>...` and generates one POST_BUILD MRI script (CREATE own members, ADDLIB each archived target in argument order, SAVE, ranlib), so the third archive rides the mechanism specs/005 generalized with zero module change. The generator expression resolves through `$<TARGET_FILE:...>` per target: yaml-cpp's `DEBUG_POSTFIX "d"` (its `CMakeLists.txt` sets `CMAKE_DEBUG_POSTFIX "d"` when undefined) lands in the Debug archive name automatically, the merge reads the file that was built, and a Debug merge stays correct. Shared configurations skip the merge; the `PRIVATE` link absorbs the archive at link time (R-007).
+- **Alternatives considered**: a second `vendored_archive_merge` call naming the same library (the module supports it, per its call-site comment; one call is one step script and one rebuild).
+
+### R-011: Audit wiring = two scripts, two CTest registrations, one classifier branch, four CI audit groups; FR-018 pattern plus `4YAML`
+
+- **Decision**:
+  - `tools/yaml/yaml_purity_scan.sh`, modeled on `tools/simdjson/simdjson_purity_scan.sh`: discovery-call audit over all `CMakeLists.txt`/`*.cmake` outside `external/`, `build/`, `prefix*`, `.git/`, `.specify/`, `.omo/`, pattern `find_package\( *yaml[-_]?cpp|pkg_check_modules\( *yaml[-_]?cpp`, case-insensitive (FR-004, SC-008); zero `yaml[-_]?cpp` references under `include/` (FR-014).
+  - `tools/yaml/yaml_nm_proof.sh`, modeled on `tools/zlib/zlib_nm_proof.sh`, three facts from one `nm --format=bsd` pass over `libspeedgun-ng.a`: (A) more than zero defined `T`/`t` symbols containing `4YAML` from members not named `yaml_gate`; (B) a member named `*yaml_gate*` carries an undefined (`U`) reference matching `_ZN4YAML4Load`; (C) a defined `_ZN4YAML4Load...` symbol lives in a different member, resolving the gate reference inside the archive (FR-007, SC-009).
+  - `test/CMakeLists.txt`: `add_test` registrations for both, the one-line-per-test pattern at lines 90 through 93.
+  - `tools/dbc/dependency_scan.sh`: one `elif grep -q 'yaml-cpp'` classifier branch marking the `PRIVATE` link vendored-private, beside the `hwloc_vendor`/`simdjson`/`hdr_histogram`/`zlibstatic` branches.
+  - `.github/workflows/ci.yml`: test job (install-tree audit `find prefix/ -iname '*yaml*cpp*'` empty; package-file audit `grep -qiE 'yaml[-_]?cpp' prefix/lib/cmake/speedgun-ng/*.cmake` empty); shared-audit job (`nm -D --defined-only` free of `yaml[-_]?cpp` and of `4YAML`; `ldd` names no yaml-cpp object); downstream-consumer job (premise step installs a system yaml-cpp from the vendored tree into `/usr/local`, mirroring the `sys-hdr` step; consumer configure/build logs greped with `yaml[-_]?cpp`). Checkout steps already carry `submodules: true`.
+- **Rationale**: FR-018 fixes the pattern `yaml[-_]?cpp` (hyphen, underscore, glued spellings; the `-iname '*yaml*cpp*'` glob covers all three spellings plus any interleaving, a superset that cannot produce a false pass; the `4YAML` spelling is impossible as a path name, so the path audits carry the version-free pattern and the symbol audits add the namespace marker). The `.sh` files themselves sit outside every scan set, the documented self-match property of the simdjson purity scan.
+- **Alternatives considered**: reusing the existing scans with extra patterns inside them (the house pattern is one script pair per dependency; keeping them separate keeps each feature's contract readable at one path).
+
+### R-012: Pristine submodule = out-of-tree build dir, read-only globs, no in-tree generation
+
+- **Decision**: the bracket passes the explicit binary dir `"${CMAKE_BINARY_DIR}/_yaml-cpp"` to `add_subdirectory`; no further action.
+- **Rationale**: everything yaml-cpp generates is configure-time output into its binary directory (`yaml-cpp-config.cmake`, `yaml-cpp-config-version.cmake`, `yaml-cpp.pc`, `cmake_uninstall.cmake`; the export header does not exist in this tree, `dll.h` is hand-written and static), and its `file(GLOB ... CONFIGURE_DEPENDS src/*.cpp src/contrib/*.cpp)` reads only. A full build leaves `git status` reporting `external/yaml-cpp` unmodified (SC-007).
+- **Alternatives considered**: none needed; the in-tree-generation case that forced work in the hwloc import does not exist for this tree.
+
+## Open Items Resolved
+
+- All spec Technical Context unknowns are settled above: tripwire mechanism (R-002), install suppression (R-006), symbol privacy (R-007), C++ standard outcome path (R-008), merge mechanism (R-010), wrapper spelling `source/yaml/yaml_gate.cpp` (spec Assumptions, adopted verbatim; tools at `tools/yaml/`).
