@@ -4,3 +4,9 @@
 [submodule "external/simdjson"]
 	path = external/simdjson
 	url = https://github.com/simdjson/simdjson.git
+[submodule "external/hdrhistogram_c"]
+	path = external/hdrhistogram_c
+	url = https://github.com/hdrhistogram/HdrHistogram_c.git
+[submodule "external/zlib"]
+	path = external/zlib
+	url = https://github.com/madler/zlib.git
