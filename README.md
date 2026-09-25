@@ -109,6 +109,25 @@ CMakeLists.txt bracket, and the gate proves the renamed archive symbol
 resolves. zlib is a native CMake library, so no autotools bootstrap
 tools are needed for it.
 
+## Re-pinning yaml-cpp
+
+yaml-cpp is a vendored git submodule at `external/yaml-cpp`, pinned
+by commit. To update it:
+
+1. Check out the new tag: `git -C external/yaml-cpp checkout <tag>`
+2. Commit the submodule pointer.
+3. Bump the expected-version constant in the `import_yaml_cpp`
+   bracket of `CMakeLists.txt`.
+
+Configure fails until the constant matches. That is the point: the
+check keeps the pinned sources and the recorded version in lockstep.
+Unlike the simdjson and HdrHistogram_c assertions, which the compiler
+checks against a version macro, this tripwire is configure-time:
+yaml-cpp 0.9.0 exposes no version macro, so the bracket reads the
+version declaration from the submodule's own `project()` line and
+consults no git metadata. yaml-cpp is a native CMake library, so no
+autotools bootstrap tools are needed for it.
+
 ## Quality gates
 
 One command runs the prose and commit-message gate over the range from
