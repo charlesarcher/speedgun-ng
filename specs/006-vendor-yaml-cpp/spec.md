@@ -143,7 +143,7 @@ Non-exposure (the privacy contract):
 - **SC-003**: The package-config audit finds 0 references matching the FR-018 pattern in the installed `speedgun-ng*.cmake` files.
 - **SC-004**: The symbol audit finds 0 exported symbols matching the FR-018 pattern in a shared build, flags 0 exported symbols containing `4YAML`, and the runtime dependency list of the installed shared library names no yaml-cpp object.
 - **SC-005**: The downstream consumer test on a machine with yaml-cpp present: configure, build, and run all exit 0, and a grep of the consumer's configure log and link command with the FR-018 pattern finds zero yaml-cpp resolutions.
-- **SC-006**: Flipping the vendored submodule to any other release tag fails the build with the version diagnostic, readable in one glance.
+- **SC-006**: Flipping the vendored submodule to any other release tag fails the build with one version diagnostic naming the expected version 0.9.0 and the version found.
 - **SC-007**: After a full build, `git status` reports the vendored submodule directory unmodified.
 - **SC-008**: The grep audit finds 0 occurrences of a `find_package(` or `pkg_check_modules(` call naming yaml-cpp under any FR-018 spelling (`yaml-cpp`, `yaml_cpp`, `yamlcpp`) in the project's build files, the vendored `external/` tree excluded.
 - **SC-009**: `nm` on the built speedgun-ng static archive lists yaml-cpp objects pulled in by the wrapper unit's yaml-cpp symbol reference, and the shared-build audit of SC-004 stays at 0 exported yaml-cpp symbols.
@@ -151,6 +151,7 @@ Non-exposure (the privacy contract):
 ## Assumptions
 
 - **Vendored path**: `external/yaml-cpp`, the root convention for every vendored dependency (`external/hwloc`, `external/simdjson`, `external/hdrhistogram_c`, `external/zlib`), the repository name kept as upstream spells it; the tree never mixes `external/` with `third_party/`.
+- **Source distribution**: this repository defines no packaging mechanism. FR-005's "ships with source distributions" means the vendored tree travels with the repository sources: a clone with submodules, or a snapshot of a populated working tree, carries `external/yaml-cpp` with its `LICENSE`; no separate packaging step exists.
 - **Wrapper unit path**: `source/yaml/yaml_gate.cpp`, following the one-wrapper-unit-per-dependency pattern (`source/simdjson/simdjson_gate.cpp`, `source/hdrhistogram/hdrhistogram_gate.cpp`); the plan records the final spelling.
 - **Sanitizer policy**: exclude the vendored archive from sanitizer instrumentation, the identical policy all three prior imports record (specs/003-vendor-hwloc, specs/004-vendor-simdjson, specs/005-vendor-hdrhistogram). The vendored code sits outside our defect surface, and instrumented callers still get out-of-bounds detection on memory the vendored code allocates. Every Linux job applies this policy identically.
 - **Ingestion mechanism**: yaml-cpp is a native CMake library with no sub-dependencies. It is consumed through the established scope-isolated `add_subdirectory` bracket that the simdjson import established, with the shared-library form, tests, tools, contrib sources, and install-to-export option switched off. No companion submodule is required (unlike HdrHistogram_c's zlib). No new host build tool is introduced beyond what the existing specs already mandate.

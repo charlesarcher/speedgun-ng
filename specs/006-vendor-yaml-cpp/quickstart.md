@@ -36,7 +36,7 @@ git -C external/yaml-cpp checkout yaml-cpp-0.8.0
 cmake --preset=dev
 ```
 
-Verdict: configure exits non-zero; the diagnostic is readable in one glance, naming the expected yaml-cpp version `0.9.0` and the version found (`0.8.0`). No compilation starts. Restore: `git -C external/yaml-cpp checkout yaml-cpp-0.9.0`, reconfigure, exit 0.
+Verdict: configure exits non-zero; one diagnostic names the expected yaml-cpp version `0.9.0` and the version found (`0.8.0`). No compilation starts. Restore: `git -C external/yaml-cpp checkout yaml-cpp-0.9.0`, reconfigure, exit 0.
 
 Version-string granularity (Clarifications 2026-09-25): a revision that still declares `0.9.0` (for example a branch point after the release tag) configures clean by design; the check consults no git metadata, so the same configure works from a source archive without git history.
 
