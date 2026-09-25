@@ -32,6 +32,30 @@ find_package(speedgun-ng REQUIRED)
 target_link_libraries(your_target PRIVATE speedgun-ng::speedgun-ng)
 ```
 
+## Contracts
+
+Public interfaces carry design-by-contract annotations: doxygen
+`\pre`/`\post`/`\invariant` plus runtime enforcement through the
+`SG_REQUIRE`, `SG_ENSURE`, `SG_INVARIANT`, and `SG_ASSERT` macros
+(`include/speedgun-ng/dbc.hpp`, spec `001-dbc-facility`). The
+`speedgun-ng_CONTRACTS` cache option selects the semantic: `ignore`
+(release: semantic-gated checks emit no code), `observe` (report and
+continue), `enforce` (report and terminate; the dev and CI default), or
+`quick_enforce` (terminate without reporting). The `SG_*_ALWAYS`
+variants enforce in every configuration.
+
+Documentation-to-enforcement pairing is a hard gate. Run it locally:
+
+```sh
+cmake --build build/dev -t dbc-gate
+```
+
+CI enforces the pairing in the `dbc-gate` job, and the
+`consumer-release` job proves release builds carry no semantic-gated
+contract code. The C++26 migration mapping lives in
+`docs/pages/dbc-migration.md`; measured enforcement overhead:
+`docs/pages/dbc-overhead.md`.
+
 ## Re-pinning hwloc
 
 hwloc is a vendored git submodule at `external/hwloc`, pinned by commit.
