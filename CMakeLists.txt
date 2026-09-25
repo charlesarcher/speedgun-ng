@@ -245,14 +245,17 @@ function(import_zlib)
   # renamed prototypes to every consumer through the target's include
   # interface (R-009).
   set(Z_PREFIX ON)
-  # Silence the warn-uninitialized configure option here: the
-  # vendored tree initializes zlib_static_suffix only on its WIN32
-  # branch,
-  # where the set there takes precedence; the empty suffix matches
-  # the libz.a artifact the redirect cache pre-seed records. The
-  # subtree's ${MSVC} reference stays unfixable from scope without
-  # touching the system variable; that warning is accepted.
+  # Silence the warn-uninitialized dev diagnostics the vendored tree
+  # raises: zlib_static_suffix initializes only on its WIN32 branch
+  # (empty elsewhere, matching the libz.a the redirect records), and the
+  # MSVC read in the target commands is undefined on a non-Windows
+  # build. Initialize it only when the platform has not defined it, so a
+  # Windows build keeps its real value. The ci-rocky preset promotes
+  # developer warnings to errors, so this silence is a build fix.
   set(zlib_static_suffix "")
+  if(NOT DEFINED MSVC)
+    set(MSVC "")
+  endif()
   add_subdirectory(
       external/zlib "${CMAKE_BINARY_DIR}/_zlib" EXCLUDE_FROM_ALL
   )
@@ -339,17 +342,18 @@ function(import_hdrhistogram)
   # forces NEW inside the subtree so its option() calls honor the
   # scoped exemptions (R-004).
   set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-  # Silence the warn-uninitialized configure option here: the
-  # vendored CMakeLists references HDR_HISTOGRAM_PUBLIC_HEADERS
-  # from the sibling include/ scope, invisible here; its expansion
-  # is empty
-  # either way (the headers are never compiled). The subtree's own
-  # ${WIN32} reference and its unconditional include(CPack) stay
-  # unfixable from scope (the system variable must not be
-  # overridden; the CPack re-include is a no-op with a warning, the
-  # speedgun-ng config was included first); those warnings are
-  # accepted.
+  # Silence the warn-uninitialized dev diagnostics: HDR_HISTOGRAM_PUBLIC_HEADERS
+  # lives in the sibling include/ scope, invisible here, and expands empty
+  # either way (those headers are never compiled); the WIN32 read in the
+  # vendored target commands is undefined on a non-Windows build. Initialize
+  # it only when the platform has not defined it, so a Windows build keeps
+  # its real value. The ci-rocky preset promotes developer warnings to
+  # errors; the unconditional include(CPack) re-include stays a benign
+  # warning.
   set(HDR_HISTOGRAM_PUBLIC_HEADERS "")
+  if(NOT DEFINED WIN32)
+    set(WIN32 "")
+  endif()
   # Z_PREFIX for the vendored compile of this subtree (R-009):
   # zlib.h includes <zconf.h> (the generated, renamed header) only
   # under its private ZLIB_BUILD switch; a consumer's quotes-include
