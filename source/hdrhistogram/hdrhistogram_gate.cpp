@@ -6,10 +6,10 @@
 // below is the object-level link proof that keeps the vendored
 // archive a real dependency (FR-007, SC-009).
 
+#include <string_view>
+
 #include <hdr/hdr_histogram.h>
 #include <hdr/hdr_histogram_version.h>
-
-#include <string_view>
 
 // HDR_HISTOGRAM_VERSION lives only in hdr/hdr_histogram_version.h:
 // the single string macro is the version identifier HdrHistogram_c

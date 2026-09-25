@@ -6,9 +6,9 @@
 // object-level link proof that keeps the vendored archive a real
 // dependency (FR-021, SC-010).
 
-#include <zlib.h>
-
 #include <string_view>
+
+#include <zlib.h>
 
 // ZLIB_VERSION is the macro FR-003 names; ZLIB_VERNUM rejects a
 // patch drift with no ambiguity (no ZLIB_VER_PATCH exists, R-003).
