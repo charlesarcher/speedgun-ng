@@ -364,3 +364,34 @@ Every assertion is a value equality, a command exit, a grep verdict, or an exit-
 |---|---|---|
 | P2: x86 intrinsics (`__rdtsc`, `_rdpmc`) and `reinterpret_cast` of the mmap'd perf user-access page, inside provider implementations only | FR-034, FR-040 mandate the exact hardware mechanisms; the kernel ABI for the page is a fixed published struct, and the probe (capability bits, version, sysctl) establishes soundness before any read (R-007, R-011) | Any portable abstraction over these reads either forfeits the tens-of-cycles budget (defeating SC-004) or invents a second mechanism the kernel does not provide |
 | P2 anticipated: none beyond the above; if the toolchain check (R-002) finds `std::expected` unavailable, a minimal in-house expected in a detail header joins the registry with that justification | Tier-2 errors must carry typed suggestion lists (FR-008) | Error codes alone cannot carry diagnostics; exceptions have no place in this repo's release semantics |
+
+## Vendored data provenance (T001, T002, implement-time records)
+
+**Toolchain check (T001, R-002)**: `std::expected` compiles under
+`-std=c++23` on the dev-preset toolchains of the implementation host
+(GCC 16.2.1, Clang 22.1.8). The in-house expected fallback in a detail
+header is not needed and not created; the registry gains no entry.
+
+**Licensing confirmation (T002, R-012)**: the kernel
+`tools/perf/pmu-events` table data is dual-licensed MIT /
+GPL-2.0-or-later. The MIT option permits redistribution inside a
+BSD-3 project verbatim, with the condition being preservation of the
+copyright and license notices. Verdict: compatible. The vendored tree
+carries the upstream notices verbatim beside the data, the `RECORD`
+manifest names the license per file, and `update_pmu_events.py --check`
+verifies the tree byte-exactly. The R-012 fallback (sysfs-discovered
+catalog only) stays inactive; T044, T045, and T057..T061 proceed
+unadjusted.
+
+**Source-ref policy DCR (owner directive 2026-09-26)**: the default
+source for the vendored tree and for `update_pmu_events.py` is the
+running kernel, not a fixed constant. The tool resolves the upstream
+tag from `uname -r` with distro and localversion suffixes stripped (for
+example `7.2.4-1-cachyos` resolves to tag `linux-7.2.4`), fetches
+that tag from kernel.org cgit (GitHub mirror as the documented
+fallback), and records the exact ref in `RECORD`. A `--to <ref>` option
+overrides the running-kernel resolution and pins a specific kernel.
+The configure-time gate bracket, `--check`, and the CMake gate constant
+all verify against the recorded ref, exactly as R-012 specifies; only
+the default-ref resolution changes. R-013 and T059 read this section as
+their governing amendment.

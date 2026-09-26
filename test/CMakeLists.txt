@@ -140,6 +140,21 @@ add_test(
       ${CMAKE_CURRENT_SOURCE_DIR}/prose-gate-fixture
 )
 
+# ---- Counters library tests (feature 007) ----
+
+add_executable(counters_core_test source/counters_core_test.cpp)
+target_link_libraries(counters_core_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_core_test PRIVATE cxx_std_23)
+add_test(NAME counters_core_test COMMAND counters_core_test)
+
+# Vocabulary purity scan (T010; FR-010): platform terms stay out of the
+# public counters headers. Pure-grep-script registration pattern, same
+# as the vendored-dependency purity scans.
+add_test(
+  NAME counters_header_purity
+  COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/counters_header_purity.sh ${CMAKE_SOURCE_DIR}
+)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

@@ -602,6 +602,21 @@ vendored_archive_merge(
     speedgun-ng_speedgun-ng hdr_histogram_static zlibstatic yaml-cpp
 )
 
+# Counters library sources (specs/007-counters-and-timers, T003). The
+# tree grows one translation unit per story task: GLOB with
+# CONFIGURE_DEPENDS keeps the bracket current as files land, and the
+# guarded call tolerates the empty tree at setup time. Public surface
+# is flat in include/speedgun-ng/counters*.hpp; everything compiled
+# here is PRIVATE. The format glob in cmake/lint.cmake
+# (source/*.cpp, recursive) already reaches this subtree.
+file(
+    GLOB speedgun-ng_counters_sources
+    CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/counters/*.cpp"
+)
+if(speedgun-ng_counters_sources)
+  target_sources(speedgun-ng_speedgun-ng PRIVATE ${speedgun-ng_counters_sources})
+endif()
+
 # ---- Examples ----
 
 if(PROJECT_IS_TOP_LEVEL)
