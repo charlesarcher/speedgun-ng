@@ -80,11 +80,16 @@ auto fold_core(const expr_core& core,
   if (core.empty()) {
     return metric_result {};
   }
+  // A wrapped ring stores the retained window from the oldest point
+  // at physical slot `dropped % stride`; folds address it logically
+  // and consult the drops (FR-028).
+  const std::size_t offset =
+      rec.wrapped ? static_cast<std::size_t>(rec.dropped % rec.stride) : 0;
   const fold_context ctx {
       .layout = *static_cast<const plan_impl*>(rec.impl),
       .rec = rec,
-      .i = i,
-      .j = j,
+      .i = rec.wrapped ? (offset + i) % rec.stride : i,
+      .j = rec.wrapped ? (offset + j) % rec.stride : j,
   };
   return metric_result {
       .value = eval(ctx, core, core.root()),

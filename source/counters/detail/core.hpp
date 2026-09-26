@@ -76,6 +76,9 @@ struct plan_impl
   std::vector<slot> slots;
   std::map<std::string, std::size_t> by_address;
   std::vector<read_group> groups;
+  // Recorder arenas: one buffer per minted recorder, owned by the
+  // plan; recorders are non-owning cursors (FR-029).
+  std::vector<std::unique_ptr<std::uint64_t[]>> arenas;
   target bound_target;
   std::thread::id bound_thread = std::this_thread::get_id();
 

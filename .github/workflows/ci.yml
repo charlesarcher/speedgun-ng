@@ -317,7 +317,7 @@ jobs:
 
     - name: Build trap fixture and dbc_test
       run: cmake --build build/consumer-release-dev -j 2
-        --target dbc_trap_fixture dbc_test
+        --target dbc_trap_fixture counters_trap_fixture dbc_test
 
     - name: Run dbc_trap_fixture under ignore
       run: |
@@ -337,6 +337,37 @@ jobs:
         test "$status" -ne 124
         grep -F '[precondition]' /tmp/trap.stderr
         grep -F 'always-on' /tmp/trap.stderr
+
+    - name: Run counters_trap_fixture under ignore
+      run: |
+        set +e
+        ulimit -c 0
+        bin=./build/consumer-release-dev/test/counters_trap_fixture
+        timeout 30 $bin metric-before-finish > /tmp/ctrap-mbf.out 2>&1
+        mbf=$?
+        timeout 30 $bin fold-range > /tmp/ctrap-fold.out 2>&1
+        fold=$?
+        timeout 30 $bin overrun > /tmp/ctrap-over.out 2> /tmp/ctrap-over.err
+        over=$?
+        set -e
+        echo "mbf=$mbf fold=$fold overrun=$over"
+        echo "----- metric-before-finish -----"
+        cat /tmp/ctrap-mbf.out
+        echo "----- fold-range -----"
+        cat /tmp/ctrap-fold.out
+        echo "----- overrun -----"
+        cat /tmp/ctrap-over.out /tmp/ctrap-over.err
+        test "$mbf" -eq 0
+        test "$fold" -eq 0
+        grep -F 'counters-trap-survived-metric-before-finish' /tmp/ctrap-mbf.out
+        grep -F 'counters-trap-survived-fold-range' /tmp/ctrap-fold.out
+        test "$over" -ne 0
+        test "$over" -ne 124
+        if grep -qF 'counters-trap-survived-overrun' /tmp/ctrap-over.out; then
+          echo "FAIL: FR-027 overrun did not fire under ignore"
+          exit 1
+        fi
+        grep -F 'FR-027' /tmp/ctrap-over.err
 
     - name: Run dbc_test under ignore
       run: |

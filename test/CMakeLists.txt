@@ -166,6 +166,36 @@ add_test(
   COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/counters_header_purity.sh ${CMAKE_SOURCE_DIR}
 )
 
+# Recorder arena, overflow policies, and independent cursors (T028;
+# FR-025..FR-029).
+add_executable(counters_recorder_test source/counters_recorder_test.cpp)
+target_link_libraries(counters_recorder_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_recorder_test PRIVATE cxx_std_23)
+add_test(NAME counters_recorder_test COMMAND counters_recorder_test)
+
+# Allocation-free sampling proof (T027; FR-026): counting global
+# operator new/delete in this TU, sampling under the counter.
+add_executable(counters_noalloc_test source/counters_noalloc_test.cpp)
+target_link_libraries(counters_noalloc_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_noalloc_test PRIVATE cxx_std_23)
+add_test(NAME counters_noalloc_test COMMAND counters_noalloc_test)
+
+# The recorder trap fixture is NOT a test (it aborts); it is a driven
+# executable used by counters_trap_checked_test and the consumer-release
+# CI job (T023): scope misuse and fold-range abort only in checked
+# builds, the FR-027 overrun (always-on) aborts in every configuration.
+add_executable(counters_trap_fixture source/counters_trap_fixture.cpp)
+target_link_libraries(counters_trap_fixture PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_trap_fixture PRIVATE cxx_std_23)
+
+add_executable(counters_trap_checked_test source/counters_trap_checked_test.cpp)
+target_link_libraries(counters_trap_checked_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_trap_checked_test PRIVATE cxx_std_23)
+add_test(
+  NAME counters_trap_checked
+  COMMAND counters_trap_checked_test $<TARGET_FILE:counters_trap_fixture>
+)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
