@@ -1,0 +1,351 @@
+#ifndef SPEEDGUN_NG_COUNTERS_PROVIDER_HPP
+#define SPEEDGUN_NG_COUNTERS_PROVIDER_HPP
+
+#include <concepts>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "speedgun-ng/counters_core.hpp"
+#include "speedgun-ng/dbc.hpp"
+#include "speedgun-ng/speedgun-ng_export.hpp"
+
+/**
+ * @file counters_provider.hpp
+ * @brief The provider seam: what every count source implements and what
+ * the system calls, once at setup and once per sampling action.
+ *
+ * A provider registers objects with named catalog entries
+ * (`enumerate`), and yields cumulative points for the leaves the system
+ * asks it to manage (`open`, then `read_points` per action). Virtual
+ * calls belong to setup; the compiled read path reaches providers
+ * through the resolved `window_reader::thunk` slot (R-004).
+ */
+
+namespace sg::counters
+{
+
+/**
+ * @brief One catalog entry as a provider seeds it.
+ *
+ * `unit` is the provider's unit token; the system maps it through the
+ * closed switch at registration (FR-017).
+ *
+ */
+// NOLINTNEXTLINE(readability-identifier-naming)
+struct catalog_seed
+{
+  std::string_view name;
+  std::string_view description;
+  std::string_view unit;
+  availability avail = availability::countable;
+  read_mode mode = read_mode::syscall;
+};
+
+/**
+ * @brief One countable object as a provider seeds it, with its entries.
+ *
+ * `path` is the canonical structured spelling; `alias` is the optional
+ * platform instance name, empty when the object has none (FR-002).
+ * String views must stay valid for the duration of the `enumerate`
+ * call; the system copies what it keeps.
+ *
+ */
+// NOLINTNEXTLINE(readability-identifier-naming)
+struct object_seed
+{
+  std::string_view kind;
+  std::string_view path;
+  std::string_view alias;
+  std::string_view description;
+  std::vector<catalog_seed> entries;
+};
+
+/**
+ * @brief Receiver for provider enumeration at registration time.
+ *
+ * The system implements this; a provider calls `add_object` once per
+ * object it owns. A duplicate canonical path under one parent, or a
+ * duplicate counter name within one object, is reported after
+ * `enumerate` returns, through the `register_provider` result, with the
+ * tree left unchanged (FR-008).
+ *
+ */
+class SPEEDGUN_NG_EXPORT object_sink
+{
+public:
+  object_sink(const object_sink&) = default;
+  object_sink(object_sink&&) = delete;
+  auto operator=(const object_sink&) -> object_sink& = default;
+  auto operator=(object_sink&&) -> object_sink& = delete;
+
+  /**
+   * @brief Destruction through the base pointer.
+   *
+   * \pre none
+   * \post none
+   */
+  virtual ~object_sink() = default;
+
+  /**
+   * @brief Accepts one object with its catalog entries.
+   *
+   * The seed's strings are copied before the call returns.
+   *
+   * \pre none
+   * \post none
+   */
+  virtual void add_object(const object_seed& seed) = 0;
+};
+
+/**
+ * @brief The leaves one provider is asked to manage.
+ *
+ * Addresses are canonical leaf spellings, `<object path>/<name>`, in
+ * stable order; `read_points` yields one point per address in exactly
+ * this order (C-PRO-2).
+ *
+ */
+// NOLINTNEXTLINE(readability-identifier-naming)
+struct leaf_set
+{
+  std::vector<std::string> addresses;
+};
+
+/**
+ * @brief What a plan samples on: the machine, the current thread, or a
+ * pinned cpu.
+ */
+// NOLINTNEXTLINE(readability-identifier-naming)
+enum class target_kind : std::uint8_t
+{
+  machine,
+  thread,
+  cpu
+};
+
+/**
+ * @brief Sampling target handed to a provider at open (FR-031).
+ *
+ * `cpu` is meaningful only for `target_kind::cpu`; other kinds ignore
+ * it.
+ *
+ */
+// NOLINTNEXTLINE(readability-identifier-naming)
+struct target
+{
+  target_kind kind = target_kind::thread;
+  int cpu = -1;
+};
+
+/**
+ * @brief The per-action write cursor a provider fills.
+ *
+ * A concrete, non-virtual cursor over the column buffer being recorded
+ * for one sampling action: each `put` appends the next managed leaf's
+ * cumulative point. The cursor advances; the recorder commits the row
+ * after the action completes.
+ */
+class point_sink
+{
+public:
+  /**
+   * @brief Positions the cursor over `columns`, `leaf_count` columns of
+   * `stride` rows, at row `row`.
+   *
+   * \pre columns is non-null and holds `leaf_count` columns of `stride`
+   *      `uint64` cells; `row` is within `stride`.
+   * \post none
+   */
+  point_sink(std::uint64_t* columns,
+             std::size_t leaf_count,
+             std::size_t stride,
+             std::size_t row) noexcept
+      : m_columns(columns)
+      , m_leaf_count(leaf_count)
+      , m_stride(stride)
+      , m_row(row)
+  {
+    SG_REQUIRE(columns != nullptr && row < stride,
+               "point sink positioned over a valid column block and row");
+  }
+
+  /**
+   * @brief Appends one cumulative point to the next managed column.
+   *
+   * \pre Fewer than `leaf_count` points have been put this action.
+   * \post The point lands in the column matching the call index, at the
+   *       constructed row; the call index advances by one.
+   */
+  void put(const std::uint64_t value) noexcept
+  {
+    const std::size_t index = m_index;
+    SG_REQUIRE(index < m_leaf_count,
+               "point sink filled beyond the managed leaf count");
+    m_columns[index * m_stride + m_row] = value;
+    ++m_index;
+    SG_ENSURE(
+        m_columns[index * m_stride + m_row] == value && m_index == index + 1,
+        "the point lands in the column matching the call index");
+  }
+
+private:
+  std::uint64_t* m_columns = nullptr;
+  std::size_t m_leaf_count = 0;
+  std::size_t m_stride = 0;
+  std::size_t m_row = 0;
+  std::size_t m_index = 0;
+};
+
+/**
+ * @brief The sampling primitive a provider implements for one open
+ * window.
+ *
+ * `read_points` fills exactly one cumulative point per managed leaf, in
+ * `leaf_set` order, within one sampling action (C-PRO-2). Providers
+ * whose read is a plain instruction sequence set `thunk` in their
+ * constructor so the compiled plan bypasses the vtable; the default
+ * thunk routes to `read_points`, keeping correctness for every
+ * provider (R-004).
+ *
+ * \invariant `thunk` is non-null.
+ */
+class SPEEDGUN_NG_EXPORT window_reader
+{
+public:
+  /**
+   * @brief Direct-call signature the compiled plan stores; equal in
+   * effect to `read_points`.
+   */
+  using read_thunk = void (*)(window_reader&, point_sink&) noexcept;
+
+  window_reader(const window_reader&) = default;
+  window_reader(window_reader&&) = delete;
+  auto operator=(const window_reader&) -> window_reader& = default;
+  auto operator=(window_reader&&) -> window_reader& = delete;
+
+  /**
+   * @brief Destruction through the base pointer.
+   *
+   * \pre none
+   * \post none
+   */
+  virtual ~window_reader() = default;
+
+  /**
+   * @brief Yields one cumulative `uint64` point per managed leaf, in
+   * `leaf_set` order, for one sampling action.
+   *
+   * The sink receives exactly one point per managed leaf, read within
+   * this action (FR-011, FR-047); the obligation binds the
+   * implementation.
+   *
+   * \pre none
+   * \post none
+   */
+  virtual void read_points(point_sink& sink) noexcept = 0;
+
+  /**
+   * @brief Resolves the direct-call slot for the compiled read path.
+   *
+   * Called once per reader at plan finalization (setup region). The
+   * default returns the slot as stored; providers may point it at a
+   * static function equivalent to `read_points`.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto resolve_thunk() noexcept -> read_thunk
+  {
+    check_thunk();
+    return m_thunk;
+  }
+
+protected:
+  /**
+   * @brief Replaces the direct-call slot; for provider constructors.
+   *
+   * \pre fn is non-null and equivalent to `read_points` for this
+   *      reader.
+   * \post `resolve_thunk` returns fn.
+   */
+  void set_thunk(const read_thunk fn) noexcept { m_thunk = fn; }
+
+private:
+  static auto default_thunk(window_reader& reader, point_sink& sink) noexcept
+      -> void
+  {
+    reader.read_points(sink);
+  }
+
+  auto check_thunk() const noexcept -> void
+  {
+    SG_INVARIANT(m_thunk != nullptr, "window reader thunk is set");
+  }
+
+  read_thunk m_thunk = &default_thunk;
+};
+
+/**
+ * @brief The registration base every provider derives from.
+ *
+ * The system stores providers through this base; virtual calls happen
+ * only during registration, system open, and plan compile (R-004).
+ *
+ */
+class SPEEDGUN_NG_EXPORT provider_iface
+{
+public:
+  provider_iface(const provider_iface&) = default;
+  provider_iface(provider_iface&&) = delete;
+  auto operator=(const provider_iface&) -> provider_iface& = default;
+  auto operator=(provider_iface&&) -> provider_iface& = delete;
+
+  /**
+   * @brief Destruction through the base pointer.
+   *
+   * \pre none
+   * \post none
+   */
+  virtual ~provider_iface() = default;
+
+  /**
+   * @brief Reports every object this provider owns, with catalog
+   * entries.
+   *
+   * Each owned object is handed to the sink exactly once, with
+   * canonical paths and described entries (C-PRO-1); the obligation
+   * binds the implementation.
+   *
+   * \pre none
+   * \post none
+   */
+  virtual void enumerate(object_sink& sink) const = 0;
+
+  /**
+   * @brief Opens the sampling window for the given leaves and target.
+   *
+   * The reader yields points for every address in `leaves`, in order,
+   * per sampling action. A provider that cannot manage the leaves
+   * returns null; the system reports a recoverable error. The
+   * obligation binds the implementation.
+   *
+   * \pre none
+   * \post none
+   */
+  virtual std::unique_ptr<window_reader> open(const leaf_set& leaves,
+                                              const target& where) = 0;
+};
+
+/**
+ * @brief The shape an out-of-tree provider implements: registration
+ * through `provider_iface` (FR-011, FR-012).
+ */
+template<class T>
+concept provider = std::derived_from<T, provider_iface>;
+
+}  // namespace sg::counters
+
+#endif  // SPEEDGUN_NG_COUNTERS_PROVIDER_HPP
