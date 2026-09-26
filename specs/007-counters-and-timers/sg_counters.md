@@ -1,4 +1,4 @@
-# sg_counters — discussion journal
+# sg_counters: discussion journal
 
 **Purpose:** working notes that become the initial prompt for
 `/speckit.specify` of the counters-and-timers library (future spec
@@ -19,7 +19,7 @@ A15→A17; A5/A2-TSC→deferred list).
   simdjson, hdrhistogram_c, yaml-cpp (plus zlib).
 - Public surface today: `include/speedgun-ng/dbc.hpp` only. No
   measurement code yet. The vendored deps are load-bearing ahead of
-  any user-facing feature — they were staged for this.
+  any user-facing feature: they were staged for this.
 - Implied architecture from the vendoring: hwloc for topology/pinning,
   HdrHistogram_c for latency distributions, simdjson + yaml-cpp for
   report output, zlib for compressed artifacts.
@@ -31,14 +31,14 @@ everything above it (harness, reporting, calibration) is built from.
 
 ## Design axes (closed: A1–A4 mechanics per leaf kind, rest below)
 
-### A1 — Layer position
+### A1: Layer position
 Primitive library only (timers, counters, no user-facing harness), or
 does this spec also define the registration/run API a user touches?
 
 - **Lean:** primitives only. Harness is spec 008+. Keeps 007 testable
   in isolation and keeps the spec small enough to plan.
 
-### A2 — Clock sources
+### A2: Clock sources
 Which time bases must the timer abstraction cover at v1?
 
 - Wall / monotonic (`steady_clock`-grade).
@@ -51,7 +51,7 @@ Which time bases must the timer abstraction cover at v1?
   TSC gated behind its own requirement because calibration drags in
   a whole subsystem.
 
-### A3 — Timer shape
+### A3: Timer shape
 - Scoped/RAII (`{ sg::timer t(rec); }`)?
 - Manual start/stop, restartable, pausable?
 - Single-shot vs accumulated laps?
@@ -62,7 +62,7 @@ Which time bases must the timer abstraction cover at v1?
   overhead calibration is a requirement (benchmark frameworks that
   skip it lie at the low end).
 
-### A4 — Counters
+### A4: Counters
 - Monotonic increment counter (operations completed)?
 - Rate/throughput derived from counter + timer window?
 - Concurrency: per-thread shards with fold, or plain `atomic<uint64>`?
@@ -72,19 +72,19 @@ Which time bases must the timer abstraction cover at v1?
   perf concern for a later spec; overflow undetected, documented
   (2^64 at GHz rates still takes ~195 years).
 
-### A8 — Unified counter model (COMPOSITE) — DECIDED 2026-09-25
+### A8: Unified counter model (COMPOSITE); DECIDED 2026-09-25
 Owner directive: timers and counters are one concept. A counter counts
 events of a class over a window; a timer is a counter whose events are
 clock ticks. The generalization is the design.
 
 Consequences:
-- Core abstraction: a **count source** leaf — anything that yields a
+- Core abstraction: a **count source** leaf: anything that yields a
   delta over a measurement window (clock ticks, PMU events,
   user-incremented events).
-- **Composite counters**: algebra over leaves — sum, difference,
-  scalar scaling, and especially ratio — build derived metrics.
+- **Composite counters**: algebra over leaves: sum, difference,
+  scalar scaling, and especially ratio, build derived metrics.
   IPC = instructions / cycles: instruction-count leaf ÷ cycles leaf.
-- The algebra operates on **same-window deltas**, not point values.
+- The algebra operates on **same-window deltas**, never point values.
   A composite is meaningless unless every member counts the same
   measurement scope. That makes the measurement scope object (start
   all leaves, stop all leaves, fold) the real central type.
@@ -101,10 +101,10 @@ on macOS (no user PMU API on Apple Silicon) and awkward on Windows.
 Questions: is a PMU leaf in 007 Linux-only with a clean
 `unsupported` result elsewhere? And a design constraint either way:
 composite metrics with more leaf events than physical counters force
-multiplexing (scaled estimates, error) — expose group limits as a
+multiplexing (scaled estimates, error): expose group limits as a
 contract?
 
-### A21 — Scope owns the snapshot — DECIDED 2026-09-25 (Option A)
+### A21: Scope owns the snapshot; DECIDED 2026-09-25 (Option A)
 The scope is the record of one window in time and the sole snapshot
 owner. Composites are formulas + views that fold a scope's stored
 deltas; they never read hardware themselves.
@@ -114,15 +114,15 @@ deltas; they never read hardware themselves.
 - `finish()`: one group read + clock leaf reads + relaxed loads →
   snapshot of all deltas, one instant of truth.
 - Any composite's `.metric()` folds from that snapshot. Composites
-  sharing leaves share identical deltas — cross-metric agreement is
-  structural, not luck.
+  sharing leaves share identical deltas: cross-metric agreement is
+  structural by construction.
 - Single-composite sugar `ipc.start(); ...; ipc.finish();` is exactly
   a scope containing only `ipc`; one semantics, no special case.
 - Anti-pattern prevented (why Option B was rejected): per-composite
   begin/end = double hardware reads and divergent windows for metrics
   the user believes were "the same run".
 
-### A10 — Unit system for the algebra — DECIDED 2026-09-25 (option a)
+### A10: Unit system for the algebra; DECIDED 2026-09-25 (option a)
 Two compile-time dimensions: `time^t × events^c`, carried in the
 counter/composite type, checked at construction, erased at read time
 (zero A19 cost).
@@ -130,8 +130,8 @@ counter/composite type, checked at construction, erased at read time
 - `+`/`-` require identical tags; `/` subtracts exponents; `×` adds;
   scalar scale free. `bytes + monotonic` is a compile error.
 - Limitation accepted and documented: `events^1 + events^1` (wrong
-  which-count) still compiles. Catches the time-vs-count class — the
-  one people actually make.
+  which-count) still compiles. Catches the time-vs-count class: the
+  one people make.
 - Option b (per-event-kind units) rejected: template hostility,
   cast-escape-hatch erosion. Option c (plain double) rejected:
   nonsense ships.
@@ -140,14 +140,14 @@ counter/composite type, checked at construction, erased at read time
   resolution error, never a guessed type). The switch is the review
   surface for accepted units.
 
-### A20 — Raw access + lazy metric evaluation — DECIDED 2026-09-25
+### A20: Raw access + lazy metric evaluation; DECIDED 2026-09-25
 Owner directive: a composite must expose **every constituent raw
 counter**, and the algebraic metric is **evaluated only on demand**,
 via a `.metric()` routine. Construction of the algebra performs no
 reads; nothing computes the fold that the caller did not ask for.
 
 Model:
-- Algebra builds the expression (typed, A10-checked) — pure setup.
+- Algebra builds the expression (typed, A10-checked): pure setup.
 - Scope boundaries refresh **raw leaf deltas** (uint64 snapshots) in
   the compiled plan's slot array. This is the only hardware-touching
   step (A19 budget).
@@ -157,7 +157,7 @@ Model:
   what refreshes inputs.
 - Raw access: composite exposes each leaf by catalog name/handle →
   `{ name, description, unit, raw_delta, multiplex_ratio }`. Full
-  provenance, always available — the metric is a *derived view* over
+  provenance, always available: the metric is a *derived view* over
   inspectable parts, never a black box. Report layer (008) consumes
   raw + metric together: "IPC 1.31 ← instructions 12.3e9 / cycles
   9.4e9, running ratio 0.98".
@@ -173,9 +173,9 @@ counts too); fold promotes at first division/scaling to `double`;
 fold plan orders early-division to keep magnitudes bounded. Document,
 not hide: integer counts beyond 2^53 lose exactness in the double
 fold — at 1e9 counts/sec that is ~104 days of continuous counting in
-one scope. Scopes that long are aggregates, not measurements.
+one scope. Scopes that long count as aggregates.
 
-### A11 — Value model of the algebra — RESOLVED by A20
+### A11: Value model of the algebra; RESOLVED by A20
 Leaf deltas `uint64`; promotion at fold to `double`; raw kept for
 provenance. See A20.
 
@@ -195,19 +195,19 @@ returns a list of **named counters with descriptions**; the user
 composes metrics from that catalog by name.
 
 pmu-tools mechanics to borrow (verified against repo 2026-09-25):
-- **jevents** — the C library, closest analogue for us: resolves
+- **jevents**, the C library, closest analogue for us: resolves
   named events (`INST_RETIRED.ANY`) to `perf_event_attr`; higher-level
   functions for self-profiling from C programs; `jestat` as perf-stat
-  clone. Named-event resolution over data tables, not hardcoded
+  clone. Named-event resolution over data tables and never hardcoded
   constants.
 - Event dictionaries derive from `intel/perfmon` JSON (pmu-tools
   downloads on first run, caches for offline). Per-arch tables: event
   name, unit masks, descriptions, scaling. Unit masks/config bits
   never surface to the user.
 - `ucevent` computes higher-level metrics derived from multiple
-  events — the composite pattern (A8) proven at the uncore level.
+  events: the composite pattern (A8) proven at the uncore level.
 - `ocperf` supplies the *full* event list for a CPU, not just perf
-  builtins — enumeration beats builtin assumptions.
+  builtins: enumeration beats builtin assumptions.
 
 Shape for speedgun-ng:
 - `system::enumerate()` → catalog entries: `{name, description,
@@ -215,12 +215,12 @@ Shape for speedgun-ng:
   kinds on equal footing: clock ticks (time unit), PMU events where
   available (count unit), and synthetic/push counters.
 - Name resolution: string → leaf. Typos fail with a catalog-driven
-  diagnostic (did-you-mean over descriptions), not a syscall errno.
+  diagnostic (did-you-mean over descriptions), replacing a syscall errno.
 - Composition (A8 algebra) then operates on resolved leaves.
 - Platform abstraction: Linux = real PMU catalog (perf sysfs
   `/sys/bus/event_source/devices/*/`, possibly perf-core JSON
   vendor tables) merged with clock leaves. macOS/Windows = reduced
-  catalog (clock ticks, push counters) — same interface, shorter
+  catalog (clock ticks, push counters): same interface, shorter
   list, no lying. The catalog *is* the capability report.
 
 Consequences:
@@ -232,7 +232,7 @@ Consequences:
 - Metric *definitions* become data too (name → expression). Whether
   users author expressions as strings or as C++ algebra: open (A14).
 
-### A14 — Composition front-end — DECIDED 2026-09-25
+### A14: Composition front-end; DECIDED 2026-09-25
 Owner call: **(a) C++ algebra.** `sys["instructions"] / sys["cycles"]`.
 String formulas deferred to 008; grammar pinned now as perf
 MetricExpr-subset (no second speedgun dialect when they arrive).
@@ -248,8 +248,8 @@ Two phases, contractually separate:
 **Setup (slow allowed):** catalog name resolution (string map,
 did-you-mean diagnostics), expression-tree building, dimension
 checking (A10), PMU group layout, scratch allocation, plan
-compilation. A composite compiles once into a flat read plan —
-leaf slots + fold sequence — no tree, no vtable, no closures, no
+compilation. A composite compiles once into a flat read plan:
+leaf slots + fold sequence; no tree, no vtable, no closures, no
 lookups at read time.
 
 **Read path budget (the contract):**
@@ -262,8 +262,8 @@ lookups at read time.
 - Fold: doubles over a fixed array; preallocated result slot; no
   malloc, no lock, `noexcept`, branchless where the fold allows.
 
-Honest consequence, documented not hidden: a composite containing PMU
-leaves has per-scope cost dominated by the group read — sub-µs
+The consequence, documented: a composite containing PMU
+leaves has per-scope cost dominated by the group read: sub-µs
 scopes cannot measure it. Clock-only scopes stay in the tens of ns.
 A3's overhead calibration measures exactly this floor per composite
 plan, so every number a user reports carries its own measurement
@@ -282,9 +282,9 @@ never a surprise at read.
 
 Hot-loop pattern (documented idiom): leaves accumulate inside the
 loop; composites are read at scope boundaries, never per iteration.
-PMU counting is scope-granular physics, not an implementation flaw.
+PMU counting is scope-granular physics; no implementation flaw.
 
-### A15 — Catalog provenance — RESOLVED by A17 (bundled ∪ sysfs ∪ distro merge)
+### A15: Catalog provenance; RESOLVED by A17 (bundled ∪ sysfs ∪ distro merge)
 Where do descriptions/event tables come from?
 - (a) OS-provided only: perf sysfs `/sys/bus/event_source/devices/*`
   (format dirs, some alias events with descriptions) and
@@ -300,26 +300,26 @@ Where do descriptions/event tables come from?
   discovered (covers AMD/uncore/new CPUs the table lacks). sysfs wins
   on conflicts.
 
-### A17 — Obtaining the rich layer — PROPOSED 2026-09-25
+### A17: Obtaining the rich layer; PROPOSED 2026-09-25
 Owner call: our catalog *is* the rich layer; we do not inherit the
 distro's thinness. How to obtain it:
 
 **Source: the Linux kernel's `tools/perf/pmu-events` tree.** It is
 canonical, covers Intel *and* AMD, and includes `mapfile.csv`
-(CPUID-signature → table-directory regex map — perf's own resolution
+(CPUID-signature → table-directory regex map: perf's own resolution
 mechanism, free with the tree). Licensing: `tools/perf` is dual
 GPLv2-or-later/MIT; the JSON data is therefore BSD-3-compatible —
 confirm in a legal pass before vendoring. Rejected alternatives:
 - intel/perfmon alone: cleanest licence (BSD+), but Intel-only —
   thin catalog on the author's AMD box. Dead on arrival.
 - pmu-tools itself: GPL-2.0, Python + C mix; we want the data, not
-  the tree. jevents is prior art for the mechanism, not a dependency.
+  the tree. jevents is prior art for the mechanism; no dependency.
 - Runtime download (pmu-tools behaviour): never. Reproducibility and
   the vendoring constitution forbid it.
 
 **Acquisition mechanism** (fits the existing re-pinning house style):
 1. Snapshot the `tools/perf/pmu-events` path at a pinned kernel
-   commit — cgit archive of the path is a few MB of JSON, not the
+   commit: cgit archive of the path is a few MB of JSON, never the
    whole 140 MB tarball. Vendor under `external/pmu-events`.
 2. Version gate, same tripwire pattern as `zlib_gate.cpp`: assert the
    recorded kernel commit/tag matches the vendored tree. Re-pinning
@@ -346,10 +346,10 @@ CPUID-matched arch dir, once at system-open. simdjson makes this
 noise.
 
 Metric rows (`MetricName`/`MetricExpr`/`MetricGroup`) come along for
-free — the seed catalog for composite named metrics (A14) ships in
+free: the seed catalog for composite named metrics (A14) ships in
 the same data.
 
-### A18 — Upgrade utility for the vendored tables — DECIDED 2026-09-25
+### A18: Upgrade utility for the vendored tables; DECIDED 2026-09-25
 Owner directive: the JSON tables need a first-class upgrade tool, not
 a README recipe. House precedent: `tools/prose/` (python3, `--check`
 mode, ctest fixtures).
@@ -387,47 +387,47 @@ Design calls:
 - Fixtures: tiny synthetic table tree under `--check`/strip, wired to
   ctest like `prose_gate_fixtures`.
 
-### A22 — Provider abstraction: the system counts stuff — DECIDED 2026-09-25 (owner directive, organizing principle)
-PMU and clocks are **implementation details**, not concepts. The
+### A22: Provider abstraction, the system counts stuff; DECIDED 2026-09-25 (owner directive, organizing principle)
+PMU and clocks are **implementation details**, never concepts. The
 abstraction: *a system counts things*. A source may be a PMU, a
 clock, a push counter, or "a giraffe attached to the system that
-honks a horn — I'm counting the honks". Nothing in the core model may
+honks a horn: I'm counting the honks". Nothing in the core model may
 know or care which.
 
-Consequences — the spec is organized around this interface:
+Consequences. The spec is organized around this interface:
 
 - **Core abstraction: the provider contract.** A count provider
   registers named entries into the system catalog; per measurement
   window it yields `raw_delta (uint64) + unit/dimension + per-entry
   metadata (description, availability, caveats like multiplex
   ratios)`. That is the whole contract a provider signs.
-- Core vocabulary — catalog, algebra, dimensions, scope, snapshot,
+- Core vocabulary: catalog, algebra, dimensions, scope, snapshot,
   `.metric()`, provenance — contains **no** `perf_event`, no
   `clock_gettime`, no PMU concept. Those live exclusively inside
   provider implementations.
-- Built-in providers are *examples* proving the interface, not the
-  design center: `clock` (monotonic, thread/process CPU),
+- Built-in providers are *examples* proving the interface. They
+  are not the design center: `clock` (monotonic, thread/process CPU),
   `linux_pmu` (vendored tables ⊕ sysfs ⊕ probe — all of A16/A17
   machinery confined here), `push` (user hot-path increments),
   `fake` (deterministic provider powering the test suite; A7 falls
-  out of the abstraction for free, not as a bolt-on).
+  out of the abstraction for free; nothing bolted on).
 - Extensibility: a new source = catalog entry (name, description,
   unit→dimension) + window implementation. The giraffe is a
   100-line provider and a README example; it is not a spec revision.
 - Availability stays per-provider, per-entry (A16 two-phase): the
   giraffe may be described-and-countable, described-but-horn-stuck,
-  or absent. User code branches on catalog state only — never on
+  or absent. User code branches on catalog state only, never on
   `#ifdef`, never on provider identity.
 - Re-reads earlier questions: "does 007 include clocks?" dissolves.
   007's deliverable is the abstraction, *proven* by shipping
-  structurally different providers through one interface —
+  structurally different providers through one interface:
   time-from-kernel, events-from-hardware, increments-from-user,
   determinism-from-test.
 
-### A23 — Countable objects: the system returns *things* that have counters — DECIDED 2026-09-25 (owner directive)
+### A23: Countable objects: the system returns *things* that have counters; DECIDED 2026-09-25 (owner directive)
 Counters attach to **objects**. The system returns named objects that
 have counters: the uncore, a core, a CPU package, an IOMMU, a
-memory controller — and the giraffe. A counter is never free-floating
+memory controller, and the giraffe. A counter is never free-floating
 global truth; it belongs to *a thing*, and the thing has a name.
 
 Structure:
@@ -439,16 +439,16 @@ Structure:
   catalog, so earlier sketches survive unchanged). PMU events attach
   to the objects whose hardware they measure: core-PMU events to
   cores, DRAM controllers to their uncore instances.
-- Platform naming maps in honestly: sysfs PMU device instances
+- Platform naming maps in directly: sysfs PMU device instances
   (`cpu`, `uncore_imc_0`, `ibs_op`, `amd_iommu_0`) are already
-  per-instance devices — the PMU provider instantiates them as
+  per-instance devices: the PMU provider instantiates them as
   objects. Core objects fan out per-CPU with the kernel's own
   cpu-id naming. hwloc (A22 "later") becomes an *object-tree
   provider*: its topology tree is literally named countable objects,
   and its cpu masks give the PMU targeting for free.
 - **Scope measures `(object, expression)` pairs.** Same expression
-  measured across many objects — IPC per core, bandwidth per memory
-  controller — is fan-out registration: one group per (PMU-instance,
+  measured across many objects: IPC per core, bandwidth per memory
+  controller, is fan-out registration: one group per (PMU-instance,
   object) laid out at construction; one window; per-object snapshots.
 - **Cross-object composition remains legal** (the scope guarantees
   the shared window): `imc_0["dram_read"] / machine["monotonic"]` is
@@ -456,18 +456,18 @@ Structure:
   objects. The algebra doesn't care; the window alignment is what
   makes it meaningful, and scopes provide it.
 - Provenance gains the object: `uncore_imc_0.dram_read = 4.1e9
-  (LLC fill bandwidth, ratio 1.00)` — object path in every raw
+  (LLC fill bandwidth, ratio 1.00)`: object path in every raw
   entry and metric line.
 - Giraffe restated: `sys["menagerie/giraffe-2"]["honks"]`. The
   provider registers objects; objects hold counters; nothing else in
-  the model changes — which is the test that A22's abstraction is
+  the model changes, which is the test that A22's abstraction is
   load-bearing.
 
-Open detail (A24): naming scheme for object paths — hierarchical
+Open detail (A24): naming scheme for object paths: hierarchical
 paths (`package-0/core-3`) vs flat platform instance names
 (`uncore_imc_0` as-is). See below.
 
-### A24 — Object naming scheme — DECIDED 2026-09-25
+### A24: Object naming scheme; DECIDED 2026-09-25
 Owner call: **(b) canonical, (a) alias.** Structured identity:
 kind + index per level (`package-1/core-3`), enabling structured
 selection (`sys.objects(kind=core, package=1)`). The platform name
@@ -475,8 +475,8 @@ selection (`sys.objects(kind=core, package=1)`). The platform name
 both resolve; the structured path is the canonical spelling in all
 APIs, provenance, and output.
 
-### A16 — Linux query knobs (answered 2026-09-25, verified on dev box)
-What Linux actually gives us for "named counters + descriptions":
+### A16: Linux query knobs (answered 2026-09-25, verified on dev box)
+What Linux gives us for "named counters + descriptions":
 
 1. **sysfs PMU registry** — `/sys/bus/event_source/devices/<pmu>/`.
    One dir per PMU: `cpu` (core), `software`, `tracepoint`, `kprobe`,
@@ -492,7 +492,7 @@ What Linux actually gives us for "named counters + descriptions":
      (multiplexer slice length).
    sysfs is the authoritative list of *what this kernel exposes*, and
    it is always present. Descriptions are not its job.
-2. **perf vendor-events JSON** — the only rich description source
+2. **perf vendor-events JSON**, the only rich description source
    the OS can carry: `/usr/share/perf-core/vendor-events/<arch>/*.json`
    (shipped by the perf tools package from kernel
    `tools/perf/pmu-events/arch/...`). Fields: `EventName`, `UMask`,
@@ -504,7 +504,7 @@ What Linux actually gives us for "named counters + descriptions":
 3. **Upstream tables** — `intel/perfmon` JSON (Intel, BSD+) and AMD
    PPR-derived tables in perf's amd dirs. Pinnable, gate-able,
    complete. Dev box is AMD, so Intel-perfmon-only bundling would be
-   thin on the author's own machine — the bundle must carry AMD too
+   thin on the author's own machine: the bundle must carry AMD too
    or discovery-first is the default posture.
 4. **`perf_event_open` probe** — the only truth of *schedulability
    and permission*. Encoding known ≠ countable now. Catalog entries
@@ -532,7 +532,7 @@ computed per entry by probe-open and permission read. A counter
 "exists" (described) and "is countable now" (probed) are different
 predicates; the catalog reports both.
 
-### A5 — Histogram boundary — DECIDED (histograms → 008; in non-goals list)
+### A5: Histogram boundary; DECIDED (histograms → 008; in non-goals list)
 HdrHistogram_c is vendored. Does 007 record latencies into histograms
 (timer output feeds histogram), or is 007 timer+counter only and
 histograms are spec 008?
@@ -547,17 +547,17 @@ concepts. `std::chrono` is the model: `time_point` (instant) vs
 does not compile, subtraction yields the quantity. We adopt the
 identical split:
 
-- **Point:** one leaf's cumulative reading at an instant —
+- **Point:** one leaf's cumulative reading at an instant:
   `uint64`, monotonic. PMU counters, clock ticks, push counters:
   *all leaves are cumulative tick streams*, including the giraffe's
   honks-since-registration. Nothing leaf-level is ever a delta.
 - **Delta:** `point[j] − point[i]`, modular at 2^64 (a single
-  hardware wrap subtracts out correctly — the wrap contract moves
+  hardware wrap subtracts out correctly: the wrap contract moves
   here and becomes trivially true). Only deltas carry dimensions;
   only deltas enter the algebra.
 - **Metric:** a fold over deltas drawn from a point *sequence*.
   Two points (first→last) is one case; adjacent pairs per loop
-  iteration is the time-series case — sampling-based metrics come
+  iteration is the time-series case: sampling-based metrics come
   free with the model, they aren't a later feature.
 
 **Compact sample layout (the hot loop):** `count(); code(); count();
@@ -577,12 +577,12 @@ rec.sample();      //   no fold, no metric, no branch into algebra
   point columns.
 - **Parsing the array is the metric layer:** `fold(rec, i, j)` for a
   window; `fold_pairs(rec)` for a per-interval series; `fold(rec)` =
-  first→last. Composites are unchanged algebra — they are now
+  first→last. Composites are unchanged algebra: they are now
   precisely parsers over point sequences.
 - **`time_enabled`/`time_running` are just leaves** of every PMU
   object: cumulative, sampled with the group. Multiplex ratio at any
   interval = `delta(running)/delta(enabled)` — falls out of the same
-  delta machinery, structurally honest, zero special cases.
+  delta machinery, structurally uniform, zero special cases.
 - **A21 scope refined:** a scope is a recorder with exactly two
   points. `scope.start()/finish()/metric()` survives as sugar over
   `sample(); work; sample(); fold(rec, 0, 1)`. One semantics, two
@@ -590,7 +590,7 @@ rec.sample();      //   no fold, no metric, no branch into algebra
   point buffer; composites are folds over it."
 - A19 budget refined: `sample()` is now the named critical-path
   operation (one group read + clock reads + loads, append). Fold
-  runs at parse time — off the measurement path entirely, potentially
+  runs at parse time, off the measurement path entirely, potentially
   much later, even in a different process if point buffers get
   serialized (future report layer).
 - A20 survives: raw access = read point columns directly;
@@ -605,15 +605,15 @@ rec.sample();      //   no fold, no metric, no branch into algebra
 
 ### A29 — Near-single-instruction sample: fast read modes — DECIDED 2026-09-25 (owner directive; supersedes A19/A25 budgets and the A2 TSC exclusion for fast-mode leaves)
 Owner expectation: the critical-path counter query must be *near
-single instruction* — RDPMC, RDTSC, and equivalents — wherever the
+single instruction*: RDPMC, RDTSC, and equivalents, wherever the
 platform permits. The prior µs-class `read(2)` budget is demoted to
-the fallback, not the norm.
+the fallback only.
 
 **Per-leaf read mode, chosen at plan compile, recorded, disclosed:**
 - `fast_tsc`: `rdtsc`/`rdtscp` (~20–30 cycles, no syscall) — the
   fast clock leaf. Calibration: nominal/actual frequency from sysfs
   `tsc_khz` + CPUID invariance check at system-open; scaled-TSC
-  machines flagged honestly (A22 capability-report style). This
+  machines flagged by the scaling bit (A22 capability-report style). This
   **reverses the A2 "TSC excluded"** call: TSC is now a first-class
   clock leaf precisely because the hot path needs it.
 - `fast_rdpmc`: `perf_event_open` + single-page `mmap` exposes the
@@ -621,10 +621,10 @@ the fallback, not the norm.
   cumulative value, i.e. exactly a *point* (A25): no model change,
   the fastest thing yet fits the ontology.
   Constraints, probed not assumed: kernel support (Intel ~5.15
-  series, AMD later — verify per-kernel during planning, do not
+  series, AMD later: verify per-kernel during planning, do not
   trust folklore); `kernel.perf_user_access` sysctl (Intel default
   off — TSX side-channel history); pinning/index constraints;
-  a multiplexed event's rdpmc value is stale while off-CPU —
+  a multiplexed event's rdpmc value is stale while off-CPU:
   honesty preserved via the mmap page's `timeenable/timerunning`
   (still leaves; folds still compute the ratio; `scaled` still
   structural).
@@ -632,7 +632,7 @@ the fallback, not the norm.
   points, same folds; only cadence budget differs.
 - `push`: relaxed atomic load (already in-instruction).
 
-**Honest budget table (measured, not asserted — acceptance):**
+**Budget table (measured, never asserted; acceptance):**
 
 | mode | per-leaf cost |
 |---|---|
@@ -643,7 +643,7 @@ the fallback, not the norm.
 
 A29 supersedes the A19 "one group read per boundary" framing for
 fast leaves: a fast plan's `sample()` is a short sequence of
-in-instruction reads + pushes into the SoA column — the
+in-instruction reads + pushes into the SoA column: the
 `count();code();count()` loop now means what it visually implies.
 Tight per-iteration PMU sampling becomes viable (the A28 cadence
 warning applies only to syscall-mode plans).
@@ -657,7 +657,7 @@ needs access too — fake/clock carry the suite).
 **Reference implementation (owner directive): andikleen/pmu-tools
 `jevents/rdpmc.{c,h}` — the canonical ring-3 mmap-page read.**
 Verified from source 2026-09-25 (master). Licence: BSD-style Intel
-permit-with-attribution — BSD-3-compatible; attribution required
+permit-with-attribution: BSD-3-compatible; attribution required
 for any code reuse (unlike A17 data, this prior art is legally
 touchable). Protocol to mirror:
 - `perf_event_open(attr, 0, -1, leader_fd_or_-1, 0)`: per-thread;
@@ -684,11 +684,11 @@ touchable). Protocol to mirror:
   (perf-stat clone: group open/read orchestration).
 - Kernel floor for the mmap-page mechanism itself: 3.3+ (jevents
   doc), with the `perf_user_access`/version caveats already listed
-  above — still "verify per-kernel during planning, not folklore".
+  above: still "verify per-kernel during planning, never folklore".
 
-### A26 — Recorder overflow policy — DECIDED 2026-09-25 (both, as compile-time policy)
+### A26: Recorder overflow policy; DECIDED 2026-09-25 (both, as compile-time policy)
 Owner call: ship both behaviors, selected by **policy type parameter**
-at recorder construction — not a runtime flag. `recorder<plan,
+at recorder construction, never at runtime. `recorder<plan,
 hard_stop>` vs `recorder<plan, ring>`: one sample-path implementation
 per instantiation, no branch ladder; hot path stays branch-minimal by
 construction.
@@ -699,23 +699,23 @@ construction.
   buffer overflow, and memory safety is never semantic-gated (spec
   001's own vocabulary: `SG_*_ALWAYS` enforces in every
   configuration). Cost: one always-there, perfectly-predicted
-  branch beside a ~40 ns clock read — noise, kept deliberately.
+  branch beside a ~40 ns clock read: noise, kept deliberately.
 - `ring`: index = `idx & (cap−1)` (branchless, cap must be a power
-  of two — enforced at construction); a one-shot promotion branch
+  of two, enforced at construction); a one-shot promotion branch
   (`if unlikely(idx == cap)`) flips the buffer to wrapped state
   once, then settles; wrapped state + dropped count are recorded.
   Folds over a wrapped ring **must** consult `dropped` (parse-time,
-  off the hot path) or the metric silently lies — that check lives
+  off the hot path) or the metric silently lies: that check lives
   in the fold layer, structurally, like the multiplex ratio.
-- Grow-on-demand: still rejected — allocation on the read path is
+- Grow-on-demand: still rejected: allocation on the read path is
   the one inviolable rule (A19).
 - Rationale for policy-type over runtime config: a runtime flag is
   a branch per `sample()` forever; the type is a branch zero times,
   chosen where slow is allowed (construction). C++23 concept:
   `overflow_policy` with exactly these two models in 007; ring is
-  opt-in, never the default — benchmarks know their budgets.
+  opt-in, never the default: benchmarks know their budgets.
 
-### A27 — Recorder construction syntax — DECIDED 2026-09-25 (exploration)
+### A27: Recorder construction syntax; DECIDED 2026-09-25 (exploration)
 No visible templates at call sites. Policy passes as a constexpr
 **tag value** through a single factory; CTAD selects the
 instantiation; codegen identical to explicit template args:
@@ -727,7 +727,7 @@ auto b = plan.recorder(1024, sg::ring);    // tag argument, no <>
 
 - `recorder_opts` designated-initializer config (`.cap`,
   `.on_full`, CTAD on the policy member) is the documented upgrade
-  path when a second knob genuinely appears — not before (A19
+  path when a second knob appears, never before (A19
   YAGNI discipline).
 - Separate factory names per policy rejected: combinatorial naming
   under future options.
@@ -738,7 +738,7 @@ auto b = plan.recorder(1024, sg::ring);    // tag argument, no <>
   Multiple recorders over one plan = independent buffers from the
   arena, shared compiled layout.
 
-### A6 — Contract surface — DECIDED 2026-09-25 (table adopted as recommended)
+### A6: Contract surface; DECIDED 2026-09-25 (table adopted as recommended)
 Enforcement tiers: (1) compile-time types, (2) recoverable error,
 (3) contract violation (`SG_REQUIRE`, terminate in dev/CI).
 
@@ -758,67 +758,67 @@ Enforcement tiers: (1) compile-time types, (2) recoverable error,
 - `SG_INVARIANT` on every snapshot: all leaves opened/closed in one
   window. The central promise, checked.
 - Read-path no-malloc/no-lock/`noexcept`: proven by tests and
-  benchmarks (constitution VII), not runtime checks.
+  benchmarks (constitution VII); runtime checks stay out.
 
-### A7 — Testability — RESOLVED by A22
+### A7: Testability; RESOLVED by A22
 The `fake` provider (deterministic, hand-driven counts) is a first
-citizen of the provider abstraction, not a bolt-on fake clock. All
+citizen of the provider abstraction, first-class like any source. All
 scope/snapshot/algebra/dimension/provenance logic tests against
-fakes — no sleeps, no flakes, no privileges. Real-clock tolerance-
+fakes: no sleeps, no flakes, no privileges. Real-clock tolerance-
 band tests remain for the clock provider itself.
 
 ## Decisions log
 
-- 2026-09-25 — A8 adopted: unified counter model. Timer is a counter
+- 2026-09-25: A8 adopted: unified counter model. Timer is a counter
   over clock ticks. Composite counters (ratio/sum/scale over
   same-window deltas) are first-class. Central type is the
-  measurement scope, not the individual timer. Supersedes the
+  measurement scope; individual timers do not carry it. Supersedes the
   timer/counter split in A3/A4 framing (their mechanics still apply
   per leaf kind).
 - 2026-09-25 — A13 adopted: `system` abstraction with catalog-driven,
   named, described counters (pmu-tools inspiration); catalog is the
-  capability report; platform honesty = shorter catalog, not lies.
-- 2026-09-25 — A14 decided: C++ algebra front-end in 007; strings
+  capability report; a reduced platform shows a shorter catalog.
+- 2026-09-25: A14 decided: C++ algebra front-end in 007; strings
   deferred to 008 with perf-MetricExpr-subset grammar pinned.
-- 2026-09-25 — A19 adopted: construction never on critical path,
+- 2026-09-25: A19 adopted: construction never on critical path,
   reads always; flat compiled read plan; one group read per scope
   boundary; no malloc/lock/lookup in read path.
-- 2026-09-25 — A20 adopted: raw leaf access + provenance from every
+- 2026-09-25: A20 adopted: raw leaf access + provenance from every
   composite; metric fold lazy, on `.metric()`, over stored deltas;
   metric result carries multiplex ratio. Resolves A11 value model.
-- 2026-09-25 — A17 proposed / A18 decided: rich layer vendored from
+- 2026-09-25: A17 proposed / A18 decided: rich layer vendored from
   kernel `tools/perf/pmu-events` (path snapshot + gate), byte-exact,
   with `tools/pmu_events/` upgrade + `--check` utility. Linux-only
   focus per owner; hwloc et al. enter `system` later.
-- 2026-09-25 — A21 decided (Option A): scope owns the snapshot;
+- 2026-09-25: A21 decided (Option A): scope owns the snapshot;
   composites fold; single-composite begin/end is sugar over a
   one-composite scope.
-- 2026-09-25 — A10 decided (option a): two compile-time dimensions
+- 2026-09-25: A10 decided (option a): two compile-time dimensions
   (time, events), construction-side checking, runtime erasure;
   catalog Unit → tag closed switch with unknown-unit resolution
   error.
-- 2026-09-25 — A22 adopted as organizing principle: provider
+- 2026-09-25: A22 adopted as organizing principle: provider
   abstraction. The system counts stuff; PMU/clock/push/fake are
   interchangeable providers behind one contract. Core model is
   provider-agnostic.
-- 2026-09-25 — A23 adopted: counters attach to named countable
+- 2026-09-25: A23 adopted: counters attach to named countable
   objects (uncore, core, package, giraffe); scopes measure
   (object, expression) pairs with fan-out; cross-object composition
   legal under one scope window.
-- 2026-09-25 — A24 decided: structured paths canonical
+- 2026-09-25: A24 decided: structured paths canonical
   (`package-1/core-3`), platform names as resolvable aliases.
-- 2026-09-25 — A6 adopted as recommended: three-tier enforcement
+- 2026-09-25: A6 adopted as recommended: three-tier enforcement
   (types / recoverable errors / contract violations), snapshot
   carries the same-window `SG_INVARIANT`.
-- 2026-09-25 — A7 resolved by A22: fake provider is the test spine.
-- 2026-09-25 — Discussion closed. Scope statement below is the
+- 2026-09-25: A7 resolved by A22: fake provider is the test spine.
+- 2026-09-25: Discussion closed. Scope statement below is the
   `/speckit.specify` input.
-- 2026-09-25 — A28 gbench suitability: suitable; threading and
+- 2026-09-25: A28 gbench suitability: suitable; threading and
   cadence contracts added to 007; harness mapping notes fenced to
   008. Mermaid confirmed as house diagram convention (all six
-  prior plans; constitution names views, not tools).
-- 2026-09-25 — Final review pass: Momus gate returned REJECT on
-  form only (journal is spec input, not a work plan — plan review
+  prior plans; constitution names views and leaves tools free).
+- 2026-09-25: Final review pass: Momus gate returned REJECT on
+  form only (journal is spec input. Work-plan review
   belongs at `/speckit.plan` output in `.omo/plans/`); its
   reference check confirmed all repo claims. Own pass found and
   fixed three content defects: provider contract restated in
@@ -826,7 +826,7 @@ band tests remain for the clock provider itself.
   budget corrected to per-PMU (groups don't span PMU boundaries);
   snapshot invariant restated per-sample-column per-plan-binding.
   Journal closed for handoff to `/speckit.specify`.
-- 2026-09-25 — A29 (owner directive): critical-path reads must be
+- 2026-09-25: A29 (owner directive): critical-path reads must be
   near single instruction — per-leaf read modes `fast_tsc` (rdtsc,
   reversing the A2 TSC exclusion), `fast_rdpmc` (mmap'd perf page +
   userspace rdpmc, probed: kernel version, `perf_user_access`,
@@ -834,19 +834,19 @@ band tests remain for the clock provider itself.
   achieved mode; catalog discloses it; acceptance benchmarks both
   budgets. Scope statement amended (principle 6, clock provider,
   PMU provider, non-goals TSC reversal, acceptance fast-mode test).
-- 2026-09-25 — POST-CLOSURE A25: chrono split adopted — point
+- 2026-09-25: POST-CLOSURE A25: chrono split adopted: point
   (cumulative snapshot) vs delta (quantity); all leaves are
   cumulative streams; metrics are folds over point sequences;
   compact SoA recorder for `count();code();count()` hot loops;
   enabled/running become leaves (ratio = delta quotient); scope =
   2-point recorder sugar. Refines A19/A20/A21. Scope statement
   amended below.
-- 2026-09-25 — POST-CLOSURE A26: overflow = compile-time policy
+- 2026-09-25: POST-CLOSURE A26: overflow = compile-time policy
   type (`hard_stop` default with `SG_REQUIRE_ALWAYS` bounds; `ring`
   opt-in, power-of-two, dropped-count mandatory at fold). Runtime
   mode flags rejected (branch per sample). Scope statement
   amended; all axes now closed.
-- 2026-09-25 — POST-CLOSURE A27: call sites carry no templates —
+- 2026-09-25: POST-CLOSURE A27: call sites carry no templates:
   constexpr tag value through one factory (`plan.recorder(cap,
   sg::ring)`), CTAD under the hood; recorder is a value handle
   into a plan arena; designated-init config struct is the
@@ -867,9 +867,9 @@ counters; counters compose with C++ arithmetic into metrics; a
 recorder samples points in the hot path and composites fold them,
 with full provenance.
 
-**Standalone is the product.** 007 ships classes, not a harness:
+**Standalone is the product.** 007 ships classes; the harness belongs to a later spec:
 zero dependency on any benchmarking framework, usable directly in
-ordinary C++ code — manual loops, daemons, services, other
+ordinary C++ code: manual loops, daemons, services, other
 frameworks. The speedgun benchmark harness is a future spec built
 *on top of* these classes; 007 must not anticipate it and must not
 preclude it.
@@ -891,10 +891,10 @@ timer/counter split exists in the model.
 1. **Provider abstraction.** "The system counts stuff." Providers
    register named counters; each `sample()` yields for every leaf
    under management a cumulative `uint64` **point** + unit +
-   metadata (description, availability, caveats) — deltas are
-   fold-time arithmetic, not a provider concept (see 5). The core
+   metadata (description, availability, caveats): deltas are
+   fold-time arithmetic; nothing provider-side (see 5). The core
    vocabulary contains no `perf_event`, no `clock_gettime`, no PMU
-   concept — those live only inside provider implementations. A
+   concept: those live only inside provider implementations. A
    counter source may be hardware PMU, the kernel's clock, user
    code increments, or a giraffe honking a horn; the model must not
    care.
@@ -957,12 +957,12 @@ timer/counter split exists in the model.
 - `clock`: monotonic wall, thread CPU, process CPU (no privileges;
   dimension `time^1`) — plus the fast `tsc` leaf (`rdtsc`-grade,
   frequency calibrated at system-open from sysfs/CPUID, scaled-TSC
-  machines flagged honestly).
+  machines flagged by the scaling bit).
 - `push`: user hot-path increments (`add(n)`, relaxed atomic).
 - `fake`: deterministic, hand-driven; the test spine for all
   scope/algebra/provenance logic — no sleeps, no flakes, no root.
 - `linux_pmu`: the rich backend (below). Linux-only; other platforms
-  simply have shorter catalogs — no API difference.
+  have shorter catalogs: no API difference.
 
 ### Linux PMU provider: rich catalog, vendored and gated
 
@@ -977,9 +977,9 @@ timer/counter split exists in the model.
   encoding composes JSON semantic codes with sysfs `format/` bit
   layouts; availability from `perf_event_open` probe +
   `perf_event_paranoid` state.
-- **Fast read mode**: where probed available — mmap'd single page
+- **Fast read mode**: where probed available: mmap'd single page
   + userspace `rdpmc` (kernel-version and `perf_user_access`
-  sysctl gates verified per-kernel during planning, not folklore;
+  sysctl gates verified per-kernel during planning and never folklore;
   pinning/index constraints enforced at plan compile). A
   multiplexed event's fast value is stale while off-CPU; the mmap
   page's `timeenable/timerunning` remain leaves, so the fold's
@@ -1011,7 +1011,7 @@ timer/counter split exists in the model.
   before `finish()` (scope sugar); registering a composite into a
   started scope; `sample()` past capacity under `hard_stop`; push
   counter decrement between points; provider-internal non-modular
-  go-backwards. Hardware wrap is not a violation — modular delta
+  go-backwards. Hardware wrap is not a violation: modular delta
   handles it (see 5).
 - `SG_INVARIANT` per sample column: all leaf values in a column
   were read within one sampling action under one plan binding;
@@ -1023,7 +1023,7 @@ timer/counter split exists in the model.
   is never semantic-gated) or `ring` (power-of-two mask,
   branchless, wrapped-state recorded; folds must consult
   `dropped`). No grow-on-demand, no runtime mode flag.
-- Read-path budget proven by benchmark tests, not runtime checks.
+- Read-path budget proven by benchmark tests; runtime checks stay out.
 
 ### Non-goals / deferred (explicit)
 
@@ -1045,13 +1045,13 @@ timer/counter split exists in the model.
 ### Acceptance must include
 
 - Standalone proof: an example target using only the public headers
-  + std — no benchmarking framework, no third-party deps — compiles,
+  + std: no benchmarking framework, no third-party deps; compiles,
   runs, and folds a metric; link manifest shows only speedgun-ng.
 - Giraffe test: an out-of-tree provider (100-line example) registers
-  objects + counters and composes through the unchanged core — the
+  objects + counters and composes through the unchanged core: the
   abstraction's proof.
 - Privilege-free CI: full suite green with `perf_event_paranoid=2`
-  via fake + clock providers; PMU tests assert honest
+  via fake + clock providers; PMU tests assert reported
   `permission-blocked` states instead of failing.
 - Read-path benchmark: clock-only `sample()` within stated ns
   budget; PMU group read cost stated per plan; overhead calibration
@@ -1062,7 +1062,7 @@ timer/counter split exists in the model.
   host (probe-gated test, honest skip elsewhere) a `fast_tsc` +
   `fast_rdpmc` plan's `sample()` lands in the tens-of-cycles
   regime, and the same plan in `syscall` mode lands in the
-  µs-regime — the two budgets documented side by side.
+  µs-regime; the two budgets documented side by side.
 - Cross-object fan-out: IPC for all cores, one window, one group
   read per core, values reconcile against shared `instructions`
   deltas.
@@ -1074,7 +1074,7 @@ timer/counter split exists in the model.
   over a fixed-capacity recorder, sampled in a benchmark, shows fold
   cost entirely absent from the sample path.
 
-## A28 — Google Benchmark suitability review — CLOSED 2026-09-25
+## A28: Google Benchmark suitability review; CLOSED 2026-09-25
 
 Reviewing 007 as standalone classes that a gbench function uses
 directly (harness itself remains 008). Verdict: suitable. gbench's
@@ -1189,8 +1189,8 @@ namespace sg {
   `N/K + 1`, `fold_pairs` yields per-window metrics (K=1 =
   per-iteration, with its observer-effect cost stated numerically
   from the overhead calibration).
-- A fold window includes the sample cost of its endpoints — stated,
-  calibrated (A3), not hidden.
+- A fold window includes the sample cost of its endpoints: stated,
+  calibrated (A3), never hidden.
 
 ### Harness seam notes (008, recorded so the mapping survives)
 
@@ -1200,7 +1200,7 @@ namespace sg {
   (bytes processed) use defaults. Getting this wrong silently
   divides correct numbers into nonsense.
 - `state.SkipWithCrash` / workload exceptions: all construction
-  resources (fds, arenas) are RAII, unwind-clean — acceptance item.
+  resources (fds, arenas) are RAII, unwind-clean: acceptance item.
 - gbench's own wall-clock and the monotonic leaf are independent
   measurements of the same window; agreement within calibration is
-  an integration test for 008, not a 007 promise.
+  an integration test for 008; 007 promises nothing there.
