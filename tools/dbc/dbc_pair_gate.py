@@ -623,12 +623,21 @@ def lookup_collected(
     if interface in collected:
         return set(collected[interface])
     last = interface.split("::")[-1]
+    iface_class = interface.split("::")[-2] if "::" in interface else ""
     hits = [
         qname
         for qname in collected
-        if qname == last
-        or qname.endswith("::" + last)
-        or qname.endswith("::" + interface)
+        if (
+            qname == last
+            or qname.endswith("::" + last)
+            or qname.endswith("::" + interface)
+        )
+        and (
+            iface_class == ""
+            or qname == last
+            or qname.endswith("::" + interface)
+            or qname.split("::")[-2] == iface_class
+        )
     ]
     aligned = [
         qname
