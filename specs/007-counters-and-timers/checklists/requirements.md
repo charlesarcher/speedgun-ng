@@ -39,7 +39,8 @@
   names, `uint64`/`noexcept`/relaxed-atomic wording, the read-mode names,
   and the Linux permission knob appear as binding constraints of a
   library whose product is precisely those properties. Constitution VII
-  and the journal make them requirements, not choices left to the plan.
+  and the journal make them requirements. The plan has no discretion
+  to re-litigate them.
 - Prose gate (Principle XI) self-check run over the spec: no banned
   patterns; `--check`/`--to` tokens are command literals inside code
   spans (XI.6 exemption).
