@@ -147,6 +147,17 @@ target_link_libraries(counters_core_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_core_test PRIVATE cxx_std_23)
 add_test(NAME counters_core_test COMMAND counters_core_test)
 
+add_executable(counters_fake_test source/counters_fake_test.cpp)
+target_link_libraries(counters_fake_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_fake_test PRIVATE cxx_std_23)
+add_test(NAME counters_fake_test COMMAND counters_fake_test)
+
+# Dimension-algebra negative-compile cases (T012 / FR-014, FR-015).
+add_test(
+  NAME counters_compile_fail
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/compile-fail/run.sh -B ${CMAKE_BINARY_DIR}
+)
+
 # Vocabulary purity scan (T010; FR-010): platform terms stay out of the
 # public counters headers. Pure-grep-script registration pattern, same
 # as the vendored-dependency purity scans.

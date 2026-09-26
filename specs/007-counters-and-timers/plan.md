@@ -385,7 +385,7 @@ unadjusted.
 
 **Source-ref policy DCR (owner directive 2026-09-26)**: the default
 source for the vendored tree and for `update_pmu_events.py` is the
-running kernel, not a fixed constant. The tool resolves the upstream
+running kernel. The tool resolves the upstream
 tag from `uname -r` with distro and localversion suffixes stripped (for
 example `7.2.4-1-cachyos` resolves to tag `linux-7.2.4`), fetches
 that tag from kernel.org cgit (GitHub mirror as the documented
