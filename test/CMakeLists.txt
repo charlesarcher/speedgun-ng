@@ -196,6 +196,13 @@ add_test(
   COMMAND counters_trap_checked_test $<TARGET_FILE:counters_trap_fixture>
 )
 
+# Multi-object tree, selection, cross-object composition, and fan-out
+# (T029, T033; FR-002, FR-003, FR-047, SC-007).
+add_executable(counters_objects_test source/counters_objects_test.cpp)
+target_link_libraries(counters_objects_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_objects_test PRIVATE cxx_std_23)
+add_test(NAME counters_objects_test COMMAND counters_objects_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

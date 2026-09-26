@@ -1,6 +1,7 @@
 // Plan compilation, the plan handle, and the scope window
 // (specs/007-counters-and-timers, FR-021, FR-022, FR-030).
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -37,6 +38,41 @@ auto sample_row(const plan_impl& layout,
   }
 }
 
+// Fan-out instantiation: the exemplar spine re-homed under `path` by
+// re-addressing every leaf (US3 scenario 5); the fold layer resolves
+// the instances through the plan's address map.
+auto instantiate_core(const detail::expr_core& core, const std::string& path)
+    -> detail::expr_core
+{
+  auto out = core;
+  for (auto& leaf : out.leaves) {
+    leaf.address = path + "/" + leaf.name;
+  }
+  return out;
+}
+
+// The one object path shared by every spine leaf; empty for an empty
+// spine or a spine spanning several objects.
+auto exemplar_prefix(const detail::expr_core& core) -> std::string
+{
+  if (core.leaves.empty()) {
+    return {};
+  }
+  const auto& address = core.leaves.front().address;
+  const auto slash = address.rfind('/');
+  if (slash == std::string::npos) {
+    return {};
+  }
+  const std::string prefix = address.substr(0, slash);
+  const std::string home = prefix + "/";
+  for (const auto& leaf : core.leaves) {
+    if (leaf.address.compare(0, home.size(), home) != 0) {
+      return {};
+    }
+  }
+  return prefix;
+}
+
 }  // namespace
 
 plan::plan(plan&& other) noexcept
@@ -60,6 +96,40 @@ auto plan::operator=(plan&& other) noexcept -> plan&
 plan::~plan()
 {
   delete static_cast<plan_impl*>(m_impl);
+}
+
+fanout_plan::fanout_plan(fanout_plan&& other) noexcept
+    : m_impl(other.m_impl)
+{
+  other.m_impl = nullptr;
+  SG_ENSURE(other.m_impl == nullptr,
+            "the moved-from fan-out plan holds no layout (FR-022)");
+}
+
+auto fanout_plan::operator=(fanout_plan&& other) noexcept -> fanout_plan&
+{
+  if (this != &other) {
+    delete static_cast<fanout_impl*>(m_impl);
+    m_impl = other.m_impl;
+    other.m_impl = nullptr;
+  }
+  return *this;
+}
+
+fanout_plan::~fanout_plan()
+{
+  delete static_cast<fanout_impl*>(m_impl);
+}
+
+auto fanout_plan::recorder(const std::size_t capacity) const
+    -> recorder_handle<hard_stop_t>
+{
+  return static_cast<const fanout_impl*>(m_impl)->inner->recorder(capacity);
+}
+
+auto fanout_plan::object_paths() const -> std::vector<std::string>
+{
+  return static_cast<const fanout_impl*>(m_impl)->paths;
 }
 
 auto plan::recorder(const std::size_t capacity) const
@@ -258,6 +328,75 @@ auto compile_core(const system& sys,
         .message = "leaf has no owning provider (FR-011)", .suggestions = {}});
   }
   return plan(layout.release());
+}
+
+auto compile_fanout_core(const system& sys,
+                         const target& tg,
+                         const expr_core& exemplar,
+                         const std::vector<const object*>& selection)
+    -> std::expected<fanout_plan, error>
+{
+  if (exemplar.empty()) {
+    return std::unexpected(
+        error {.message = "fan-out exemplar carries no leaves (FR-024)",
+               .suggestions = {}});
+  }
+  if (selection.empty()) {
+    return std::unexpected(
+        error {.message = "fan-out needs a non-empty selection (FR-024)",
+               .suggestions = {}});
+  }
+  if (exemplar_prefix(exemplar).empty()) {
+    return std::unexpected(
+        error {.message = "fan-out exemplar spans several objects (FR-024)",
+               .suggestions = {}});
+  }
+  std::vector<const expr_core*> instantiated;
+  std::vector<expr_core> instances;
+  std::vector<std::string> paths;
+  for (const object* selected : selection) {
+    if (selected == nullptr) {
+      return std::unexpected(
+          error {.message = "fan-out selection holds a null object (FR-024)",
+                 .suggestions = {}});
+    }
+    const std::string path(selected->path());
+    if (std::find(paths.begin(), paths.end(), path) != paths.end()) {
+      return std::unexpected(error {
+          .message = "fan-out selection duplicates '" + path + "' (FR-024)",
+          .suggestions = {}});
+    }
+    paths.push_back(path);
+    instances.push_back(instantiate_core(exemplar, path));
+  }
+  for (const auto& instance : instances) {
+    instantiated.push_back(&instance);
+  }
+  auto inner = compile_core(sys, tg, instantiated);
+  if (!inner.has_value()) {
+    return std::unexpected(inner.error());
+  }
+  auto impl = std::make_unique<fanout_impl>();
+  impl->inner = std::make_unique<plan>(std::move(*inner));
+  impl->paths = std::move(paths);
+  return fanout_plan(impl.release());
+}
+
+auto fanout_fold_core(const void* fanout,
+                      const expr_core& core,
+                      const recorder_api& rec) -> std::vector<fanout_result>
+{
+  const auto& impl = *static_cast<const fanout_impl*>(fanout);
+  std::vector<fanout_result> out;
+  out.reserve(impl.paths.size());
+  for (const auto& path : impl.paths) {
+    out.push_back(fanout_result {
+        .object_path = path,
+        .metric =
+            fold_core(instantiate_core(core, path), rec, 0, rec.count - 1),
+    });
+  }
+  return out;
 }
 
 }  // namespace detail

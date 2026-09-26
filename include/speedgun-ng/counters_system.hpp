@@ -2,6 +2,7 @@
 #define SPEEDGUN_NG_COUNTERS_SYSTEM_HPP
 
 #include <expected>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -200,6 +201,31 @@ public:
    */
   [[nodiscard]] auto object(std::string_view path)
       -> std::expected<sg::counters::object, error>;
+
+  /**
+   * @brief One equality predicate of an `objects` selection (FR-003).
+   */
+  struct filter
+  {
+    std::string_view key;
+    std::string_view value;
+  };
+
+  /**
+   * @brief Selects every object of one kind whose canonical path
+   * satisfies all filters (FR-003, C-SYS-2); predicates combine with
+   * AND. Defined keys are the ancestor selectors `package` and `core`
+   * matched against canonical-path components: key `package`, value
+   * `1` matches component `package-1`. An unknown kind or an unknown
+   * filter key is a recoverable error (FR-003, FR-008); results print
+   * canonical spelling only (FR-002).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto objects(std::string_view kind,
+                             std::initializer_list<filter> filters = {})
+      -> std::expected<std::vector<const sg::counters::object*>, error>;
 
 private:
   system();
