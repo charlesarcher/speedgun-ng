@@ -23,13 +23,15 @@ namespace
 {
 
 // One sampling action across every read group: fill row `row` of the
-// point buffer. Groups write contiguous slot ranges through one shared
-// sink, so call order equals column order (C-PRO-2).
+// point buffer, `stride` rows reserved per column. Groups write
+// contiguous slot ranges through one shared sink, so call order equals
+// column order (C-PRO-2).
 auto sample_row(const plan_impl& layout,
                 std::uint64_t* buffer,
+                const std::size_t stride,
                 const std::size_t row) -> void
 {
-  point_sink sink(buffer, layout.leaf_count(), 2, row);
+  point_sink sink(buffer, layout.leaf_count(), stride, row);
   for (const auto& group : layout.groups) {
     group.thunk(*group.reader, sink);
   }
@@ -60,6 +62,33 @@ plan::~plan()
   delete static_cast<plan_impl*>(m_impl);
 }
 
+auto plan::recorder(const std::size_t capacity) const
+    -> recorder_handle<hard_stop_t>
+{
+  auto& impl = *static_cast<plan_impl*>(m_impl);
+  auto arena = std::make_unique<std::uint64_t[]>(capacity * impl.leaf_count());
+  auto* columns = arena.get();
+  impl.arenas.push_back(std::move(arena));
+  return recorder_handle<hard_stop_t> {
+      .m_impl = m_impl, .m_columns = columns, .m_capacity = capacity};
+}
+
+auto plan::recorder(const std::size_t capacity, const ring_t) const
+    -> std::expected<recorder_handle<ring_t>, error>
+{
+  if (capacity == 0 || (capacity & (capacity - 1)) != 0) {
+    return std::unexpected(error {
+        .message = "ring capacity must be a non-zero power of two (FR-025)",
+        .suggestions = {}});
+  }
+  auto& impl = *static_cast<plan_impl*>(m_impl);
+  auto arena = std::make_unique<std::uint64_t[]>(capacity * impl.leaf_count());
+  auto* columns = arena.get();
+  impl.arenas.push_back(std::move(arena));
+  return recorder_handle<ring_t> {
+      .m_impl = m_impl, .m_columns = columns, .m_capacity = capacity};
+}
+
 scope::scope(const plan& compiled)
 {
   auto* core = new scope_core();
@@ -77,7 +106,7 @@ void scope::start()
 {
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(!core->started, "scope start runs once per scope (FR-046)");
-  sample_row(*core->impl, core->buffer.data(), 0);
+  sample_row(*core->impl, core->buffer.data(), 2, 0);
   core->state.head = 1;
   core->started = true;
   SG_ENSURE(core->state.head == 1 && core->started,
@@ -89,7 +118,7 @@ void scope::finish()
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(core->started && !core->finished,
              "scope finish runs on a started, open window (FR-046)");
-  sample_row(*core->impl, core->buffer.data(), 1);
+  sample_row(*core->impl, core->buffer.data(), 2, 1);
   core->state.head = 2;
   core->finished = true;
   SG_ENSURE(core->state.head == 2 && core->finished,
@@ -103,6 +132,35 @@ auto scope::view() const noexcept -> recorder_api
 
 namespace detail
 {
+
+auto hard_stop_sample_core(const void* impl,
+                           std::uint64_t* columns,
+                           const std::size_t capacity,
+                           std::size_t& head) noexcept -> void
+{
+  SG_REQUIRE_ALWAYS(head < capacity,
+                    "hard_stop recorder samples within capacity (FR-027)");
+  sample_row(*static_cast<const plan_impl*>(impl), columns, capacity, head);
+  ++head;
+}
+
+auto ring_sample_core(const void* impl,
+                      std::uint64_t* columns,
+                      const std::size_t capacity,
+                      std::size_t& head,
+                      bool& wrapped,
+                      std::uint64_t& dropped) noexcept -> void
+{
+  sample_row(*static_cast<const plan_impl*>(impl),
+             columns,
+             capacity,
+             head & (capacity - 1));
+  ++head;
+  if (head > capacity) {
+    wrapped = true;
+    ++dropped;
+  }
+}
 
 auto compile_core(const system& sys,
                   const target& tg,

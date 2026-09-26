@@ -250,6 +250,155 @@ struct points_view
   double ratio = 1.0;
 };
 
+/**
+ * @brief Overflow policy tag: a sample past capacity is a violation
+ * (FR-025). The default policy.
+ *
+ * \pre none
+ * \post none
+ */
+struct hard_stop_t
+{
+};
+
+/**
+ * @brief Overflow policy tag: writes mask into the ring, drop with
+ * accounting (FR-025, FR-028).
+ *
+ * \pre none
+ * \post none
+ */
+struct ring_t
+{
+};
+
+inline constexpr hard_stop_t hard_stop {};
+inline constexpr ring_t ring {};
+
+namespace detail
+{
+
+// Sampling cores behind recorder_handle::sample: the bounds-checked
+// hard_stop path and the masked ring path (FR-026, FR-027, FR-028).
+SPEEDGUN_NG_EXPORT auto hard_stop_sample_core(const void* impl,
+                                              std::uint64_t* columns,
+                                              std::size_t capacity,
+                                              std::size_t& head) noexcept
+    -> void;
+
+SPEEDGUN_NG_EXPORT auto ring_sample_core(const void* impl,
+                                         std::uint64_t* columns,
+                                         std::size_t capacity,
+                                         std::size_t& head,
+                                         bool& wrapped,
+                                         std::uint64_t& dropped) noexcept
+    -> void;
+
+}  // namespace detail
+
+/**
+ * @brief The recorder value handle (E-08, FR-029): a trivially
+ * copyable cursor over one plan-arena buffer of `capacity` point
+ * columns, one per compiled leaf. `P` is the overflow policy tag:
+ * `hard_stop_t` or `ring_t`, chosen by the plan factory (FR-025).
+ * The plan owns the buffer; the plan outlives its recorders.
+ */
+template<class P>
+class recorder_handle
+{
+public:
+  const void* m_impl = nullptr;
+  std::uint64_t* m_columns = nullptr;
+  std::size_t m_capacity = 0;
+  std::size_t m_head = 0;
+  bool m_wrapped = false;
+  std::uint64_t m_dropped = 0;
+
+  /**
+   * @brief THE critical path: one sampling action appends one point
+   * per column (FR-026). Zero allocation, zero lock, zero virtual
+   * call. hard_stop overrun is an `SG_REQUIRE_ALWAYS` violation in
+   * every build configuration (FR-027); ring masks into the buffer
+   * and records wrapped plus dropped (FR-028).
+   *
+   * \pre none
+   * \post none
+   */
+  auto sample() noexcept -> void
+  {
+    if constexpr (std::is_same_v<P, hard_stop_t>) {
+      detail::hard_stop_sample_core(m_impl, m_columns, m_capacity, m_head);
+    } else {
+      detail::ring_sample_core(
+          m_impl, m_columns, m_capacity, m_head, m_wrapped, m_dropped);
+    }
+  }
+
+  /**
+   * @brief The recorded-window view a fold reads: extent, wrap, and
+   * drops of the retained window (FR-018, FR-028).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto view() const noexcept -> recorder_api
+  {
+    const auto committed =
+        m_head < m_capacity ? m_head : static_cast<std::size_t>(m_capacity);
+    return recorder_api {
+        .impl = m_impl,
+        .columns = m_columns,
+        .stride = m_capacity,
+        .count = committed,
+        .wrapped = m_wrapped,
+        .dropped = m_dropped,
+    };
+  }
+
+  /**
+   * @brief The stored point columns fixed at construction (FR-025).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto capacity() const noexcept -> std::size_t
+  {
+    return m_capacity;
+  }
+
+  /**
+   * @brief The retained point count: samples committed, capped at
+   * capacity (FR-028).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto count() const noexcept -> std::size_t
+  {
+    return view().count;
+  }
+
+  /**
+   * @brief True once a ring write has overwritten a retained point
+   * (FR-028).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto wrapped() const noexcept -> bool { return m_wrapped; }
+
+  /**
+   * @brief The count of overwritten points (FR-028).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto dropped() const noexcept -> std::uint64_t
+  {
+    return m_dropped;
+  }
+};
+
 namespace detail
 {
 
@@ -577,6 +726,28 @@ public:
    * \post none
    */
   ~plan();
+
+  /**
+   * @brief Mints a hard_stop recorder: `capacity` point columns are
+   * allocated now from the plan arena; sampling allocates nothing
+   * later (FR-025, FR-029). The plan outlives its recorders.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto recorder(std::size_t capacity) const
+      -> recorder_handle<hard_stop_t>;
+
+  /**
+   * @brief Mints a ring recorder: `capacity` point columns are
+   * allocated now. A capacity that is not a power of two is a
+   * recoverable construction error (FR-025, R-006).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto recorder(std::size_t capacity, ring_t) const
+      -> std::expected<recorder_handle<ring_t>, error>;
 
 private:
   friend auto detail::compile_core(
