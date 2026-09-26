@@ -88,6 +88,15 @@ struct plan_impl
   }
 };
 
+// The compiled fan-out layout behind the fanout_plan handle
+// (US3 scenario 5): the instantiated inner plan and the selected
+// canonical paths in selection order.
+struct fanout_impl
+{
+  std::unique_ptr<plan> inner;
+  std::vector<std::string> paths;
+};
+
 // The two-point window behind the scope handle (FR-030).
 struct scope_core
 {

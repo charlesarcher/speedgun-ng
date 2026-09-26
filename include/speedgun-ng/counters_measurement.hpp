@@ -884,6 +884,148 @@ template<class... E>
   return detail::compile_core(sys, tg, cores);
 }
 
+/**
+ * @brief One object's result of a fan-out fold (SC-007): the canonical
+ * path and the metric over that object's instantiated leaves.
+ */
+struct fanout_result
+{
+  std::string object_path;  // canonical spelling (FR-002)
+  metric_result metric;
+};
+
+class object;
+class fanout_plan;
+
+namespace detail
+{
+
+SPEEDGUN_NG_EXPORT auto compile_fanout_core(
+    const system& sys,
+    const target& tg,
+    const expr_core& exemplar,
+    const std::vector<const object*>& selection)
+    -> std::expected<fanout_plan, error>;
+
+SPEEDGUN_NG_EXPORT auto fanout_fold_core(const void* fanout,
+                                         const expr_core& core,
+                                         const recorder_api& rec)
+    -> std::vector<fanout_result>;
+
+}  // namespace detail
+
+/**
+ * @brief A fan-out plan (US3 scenario 5, SC-007): the exemplar
+ * expression instantiated per selected object; every instantiated
+ * leaf is read inside each shared sampling action (FR-047).
+ * Move-only; the plan owns the layout and the recorder arenas.
+ */
+class SPEEDGUN_NG_EXPORT fanout_plan
+{
+public:
+  fanout_plan(const fanout_plan&) = delete;
+  auto operator=(const fanout_plan&) -> fanout_plan& = delete;
+
+  /**
+   * @brief Moves the compiled fan-out layout.
+   *
+   * \pre none
+   * \post `other` holds no layout.
+   */
+  fanout_plan(fanout_plan&& other) noexcept;
+
+  /**
+   * @brief Move assignment: `other` holds no layout.
+   *
+   * \pre none
+   * \post none
+   */
+  auto operator=(fanout_plan&& other) noexcept -> fanout_plan&;
+
+  /**
+   * @brief Releases the fan-out layout and arenas; every recorder
+   * over this plan must be destroyed first.
+   *
+   * \pre none
+   * \post none
+   */
+  ~fanout_plan();
+
+  /**
+   * @brief Mints a hard_stop recorder over the shared window:
+   * `capacity` point columns per instantiated leaf; one sampling
+   * action reads every instance (FR-047, FR-029). The plan outlives
+   * its recorders.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto recorder(std::size_t capacity) const
+      -> recorder_handle<hard_stop_t>;
+
+  /**
+   * @brief The selected objects' canonical paths, selection order.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto object_paths() const -> std::vector<std::string>;
+
+  /**
+   * @brief First-to-last fold per selected object in selection order
+   * (SC-007): the expression instantiated at each object, keyed by
+   * canonical path. Pure like every fold (FR-021); the window follows
+   * the fold range rules (FR-018).
+   *
+   * \pre none
+   * \post none
+   */
+  template<class D>
+  [[nodiscard]] auto fold(const expression<D>& e, const recorder_api& rec) const
+      -> std::vector<fanout_result>
+  {
+    return detail::fanout_fold_core(m_impl, e.core, rec);
+  }
+
+private:
+  friend auto detail::compile_fanout_core(
+      const system& sys,
+      const target& tg,
+      const detail::expr_core& exemplar,
+      const std::vector<const object*>& selection)
+      -> std::expected<fanout_plan, error>;
+  friend auto detail::fanout_fold_core(const void* fanout,
+                                       const detail::expr_core& core,
+                                       const recorder_api& rec)
+      -> std::vector<fanout_result>;
+
+  explicit fanout_plan(void* impl) noexcept
+      : m_impl(impl)
+  {
+  }
+
+  void* m_impl = nullptr;  // the compiled fan-out layout
+};
+
+/**
+ * @brief Compiles one fan-out plan: the exemplar expression
+ * instantiated at every selected object, all leaves read within one
+ * sampling action (FR-047, US3 scenario 5). An empty selection, a
+ * duplicate selection entry, or a leaf missing on a selected object
+ * is a recoverable construction error (FR-024).
+ *
+ * \pre none
+ * \post none
+ */
+template<class D>
+[[nodiscard]] auto compile(const system& sys,
+                           const expression<D>& expr,
+                           const std::vector<const object*>& selection)
+    -> std::expected<fanout_plan, error>
+{
+  return detail::compile_fanout_core(sys, target {}, expr.core, selection);
+}
+
 }  // namespace sg::counters
 
 #endif  // SPEEDGUN_NG_COUNTERS_MEASUREMENT_HPP

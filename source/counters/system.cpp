@@ -259,6 +259,68 @@ auto system::handle_for(const std::string& canonical) -> sg::counters::object&
   return *inserted.first->second;
 }
 
+auto system::objects(const std::string_view kind,
+                     const std::initializer_list<filter> filters)
+    -> std::expected<std::vector<const sg::counters::object*>, error>
+{
+  m_impl->ensure_open();
+  bool known_kind = false;
+  for (const auto& [path, node] : m_impl->objects) {
+    if (node->kind == kind) {
+      known_kind = true;
+      break;
+    }
+  }
+  if (!known_kind) {
+    return std::unexpected(error {.message = "no object of kind '"
+                                      + std::string(kind)
+                                      + "' in the tree (FR-003)",
+                                  .suggestions = {}});
+  }
+  for (const auto& one : filters) {
+    if (one.key != "package" && one.key != "core") {
+      return std::unexpected(error {.message = "unknown filter key '"
+                                        + std::string(one.key) + "' (FR-003)",
+                                    .suggestions = {}});
+    }
+  }
+  std::vector<const sg::counters::object*> matches;
+  for (const auto& [path, node] : m_impl->objects) {
+    if (node->kind != kind) {
+      continue;
+    }
+    bool matches_all = true;
+    for (const auto& one : filters) {
+      const std::string wanted =
+          std::string(one.key) + "-" + std::string(one.value);
+      bool component_hit = false;
+      std::size_t pos = 0;
+      while (true) {
+        const auto next = path.find('/', pos);
+        const std::string_view component = next == std::string::npos
+            ? std::string_view(path).substr(pos)
+            : std::string_view(path).substr(pos, next - pos);
+        if (component == wanted) {
+          component_hit = true;
+          break;
+        }
+        if (next == std::string::npos) {
+          break;
+        }
+        pos = next + 1;
+      }
+      if (!component_hit) {
+        matches_all = false;
+        break;
+      }
+    }
+    if (matches_all) {
+      matches.push_back(&handle_for(path));
+    }
+  }
+  return matches;
+}
+
 auto object::path() const noexcept -> std::string_view
 {
   return static_cast<const tree_node*>(m_node)->path;
