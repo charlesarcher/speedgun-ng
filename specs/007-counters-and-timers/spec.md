@@ -17,6 +17,14 @@ Two correctness promises run through the whole design:
 1. **One window, one truth.** All leaves of a compiled plan are read within a single sampling action, so every composite folded from the same recorder sees identical deltas. Cross-metric agreement is structural.
 2. **No number without its provenance.** Every metric result carries the multiplex ratio and a scaled flag; every composite exposes each constituent's raw point column with object path, description, unit, and availability. A derived metric is a view over inspectable parts.
 
+## Clarifications
+
+### Session 2026-09-25
+
+- Q: When you build a recorder with capacity N, does N count stored point columns or measured intervals? (FR-025) → A: N counts stored point columns; capacity 1 holds exactly one sample, and the minimum capacity for any fold is 2.
+- Q: What running-ratio and scaled values must a fold report when its sources have no enabled/running pair, such as `bytes / monotonic` over push and clock counters? (FR-019) → A: Sources without enabled/running leaves disclose ratio 1.0 and scaled false; a composite's ratio is the product of constituent ratios each raised to its algebraic exponent.
+- Q: May several threads call `add()` on the same push counter at the same time, and what should a sample see? (FR-035, FR-050) → A: Single-threaded access only; the counter is confined to its owning thread, cross-thread access is a contract violation, and increment plus read are plain non-atomic operations for minimal overhead; threading policy is left to a future spec built on top.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Compose and read a derived metric in one measurement window (Priority: P1)
@@ -55,8 +63,7 @@ A developer compiling an expression gets a plan, then a recorder with a fixed ca
 4. **Given** a recorded fake sequence where one PMU-style leaf wraps past 2^64 between two points, **When** any window containing that boundary is folded, **Then** the delta equals the true count (the wrap subtracts out under modular arithmetic).
 5. **Given** a recorded sequence of three or more points, **When** `fold_pairs` runs, **Then** each adjacent pair yields its own metric result, giving a per-interval series.
 6. **Given** a fold range `[i, j]` where `i >= j` or `j` exceeds the recorded extent, **When** the fold runs, **Then** it is a contract violation (developer error, checked in dev/CI).
-7. **Given** a push counter decremented between two recorded points, **When** the fold's monotonicity check runs, **Then** it is a contract violation.
-8. **Given** the same compiled plan, **When** the user creates two recorders, **Then** each has an independent point buffer and both share the compiled layout.
+7. **Given** the same compiled plan, **When** the user creates two recorders, **Then** each has an independent point buffer and both share the compiled layout.
 
 ---
 
@@ -81,7 +88,7 @@ Counters never float free: each belongs to exactly one object in a system tree, 
 
 ### User Story 4 - Measure real time and user events with no privileges (Priority: P2)
 
-The shipped `clock` provider puts monotonic wall time, thread CPU time, and process CPU time on the machine object, all with dimension `time^1`, readable with zero privileges. The shipped `push` provider lets user code count its own events from the hot path (`add(n)`, relaxed atomic load at sample time). Composites mix them freely: bytes-per-second is a push byte counter divided by a clock counter. The fast `tsc` leaf adds a rdtsc-grade time source, calibrated at system-open from platform frequency data, with its achieved read mode disclosed in the catalog.
+The shipped `clock` provider puts monotonic wall time, thread CPU time, and process CPU time on the machine object, all with dimension `time^1`, readable with zero privileges. The shipped `push` provider lets user code count its own events from the hot path: the counter is confined to one thread, `add(n)` is a plain non-atomic increment the compiler can keep register-resident, and sample time is a plain load. Composites mix them freely: bytes-per-second is a push byte counter divided by a clock counter. The fast `tsc` leaf adds a rdtsc-grade time source, calibrated at system-open from platform frequency data, with its achieved read mode disclosed in the catalog.
 
 **Why this priority**: These providers make the library useful in an unprivileged process today and prove the provider contract covers both kernel time and user increments. They are the acceptance vehicle on every platform.
 
@@ -90,10 +97,11 @@ The shipped `clock` provider puts monotonic wall time, thread CPU time, and proc
 **Acceptance Scenarios**:
 
 1. **Given** an unprivileged process, **When** a scope over monotonic, thread-CPU, and process-CPU leaves wraps known work, **Then** all three deltas are positive and fall within the calibration tolerance of each other for CPU-bound work.
-2. **Given** a push counter, **When** user code calls `add(1000)` between two samples, **Then** the folded delta equals exactly 1000 and the sample path performed one relaxed atomic load.
+2. **Given** a push counter, **When** user code on its owning thread calls `add(1000)` between two samples, **Then** the folded delta equals exactly 1000 and the increment and the sample read are plain non-atomic operations.
 3. **Given** `bytes / monotonic` where `bytes` is a push counter, **When** folded over a window, **Then** the result is the byte rate with the same ratio-disclosure structure as any other metric.
 4. **Given** the machine catalog, **When** enumerated on any platform, **Then** the clock leaves and push counters appear with descriptions and `countable` availability, and each entry reports its achieved read mode.
 5. **Given** a platform whose TSC frequency is calibrated, **When** the `tsc` leaf is used, **Then** its frequency provenance is reported; **And** when the platform reports a scaled TSC, **Then** the catalog flags the leaf accordingly.
+6. **Given** a push counter decremented between two recorded points, **When** the fold's monotonicity check runs, **Then** it is a contract violation (fold mechanics from US2; the push-specific check lands with this provider).
 
 ---
 
@@ -136,7 +144,7 @@ On Linux, the `linux_pmu` provider turns the machine into a catalog of real hard
 
 ### User Story 7 - Near-single-instruction reads where the platform permits (Priority: P3)
 
-The critical-path query must be near a single instruction wherever the platform allows. Each leaf gets a read mode at plan compile, from probing: `fast_tsc` (the rdtsc-grade clock, tens of cycles), `fast_rdpmc` (a pinned PMU event exposed through a read-only mapped page, read with the userspace counter instruction, tens of cycles), `syscall` (the fallback: group reads and vDSO clock reads, the microsecond regime), and push-load (in-instruction by construction). The catalog discloses the achieved mode per entry; plans compile against achieved modes; the same expression in fast versus syscall mode differs only in cadence budget. A fast value for an off-CPU multiplexed event is stale, and the enabled/running leaves make the fold disclose it in every mode.
+The critical-path query must be near a single instruction wherever the platform allows. Each leaf gets a read mode at plan compile, from probing: `fast_tsc` (the rdtsc-grade clock, tens of cycles), `fast_rdpmc` (a pinned PMU event exposed through a read-only mapped page, read with the userspace counter instruction, tens of cycles), `syscall` (the fallback: group reads and vDSO clock reads, the microsecond regime), and `push_load` (in-instruction by construction). The catalog discloses the achieved mode per entry; plans compile against achieved modes; the same expression in fast versus syscall mode differs only in cadence budget. A fast value for an off-CPU multiplexed event is stale, and the enabled/running leaves make the fold disclose it in every mode.
 
 **Why this priority**: This is the performance promise of the feature: `count(); code(); count();` means what it visually implies. It is P3 because it is a per-leaf mode layered on story 6's mechanisms, probe-gated, and skipped with the failure named where the kernel refuses.
 
@@ -187,9 +195,9 @@ The PMU event tables are vendored data under a version gate, byte-exact from the
 - **Event present in table but unencodable by the running kernel** (missing format field): availability `not_encodable`; description still available.
 - **Scaled-TSC platform**: the fast clock leaf reports its calibration provenance including the scaling flag.
 - **Fast-mode off-CPU staleness**: disclosed through the enabled/running ratio leaves in every mode; the fold never presents a stale fast value as a fresh one.
-- **Cross-thread recorder or plan use**: plans and recorders are per-thread objects; PMU targeting binds at plan open; misuse is a contract violation.
+- **Cross-thread recorder, plan, or push-counter use**: plans and recorders are per-thread objects, push counters are confined to the thread that samples them; PMU targeting binds at plan open; misuse is a contract violation.
 - **Non-Linux platforms**: the same interface with a reduced catalog (clocks, push counters, fakes); zero API differences, and the empty PMU section is a catalog fact the user can branch on.
-- **Recorder capacity of one point**: valid; supports the two-point window case (`sample()` twice yields a one-interval fold).
+- **Recorder capacity of two points**: the minimum foldable recorder; `sample()` twice yields a one-interval fold. Capacity one is valid and holds a single point; a fold over it is impossible (`i < j` can never hold) and is a contract violation.
 - **Zero-leaf expression or empty plan**: construction-time recoverable error.
 - **Capacity exhaustion mid-loop under `hard_stop`**: aborts in every build configuration, release included; memory safety is never semantic-gated.
 
@@ -201,7 +209,7 @@ The PMU event tables are vendored data under a version gate, byte-exact from the
 
 - **FR-001**: The system MUST present countable objects as a tree; each object MUST carry kind, canonical structured path, description, parent link, optional platform alias, and a catalog of named counters.
 - **FR-002**: When the user resolves an object by canonical path or by platform alias, the system shall return the same object; canonical spelling MUST be used in all API results, provenance lines, and diagnostics.
-- **FR-003**: When the user selects objects by kind with attribute filters, the system shall return exactly the matching objects.
+- **FR-003**: When the user selects objects by kind with attribute filters, the system shall return exactly the matching objects. Filters are equality predicates that combine with AND; defined keys are the ancestor selectors `package` and `core` (matched against the canonical path components) plus attribute keys a provider declares for the selected kind; an unknown filter key is a recoverable error.
 - **FR-004**: Every counter MUST belong to exactly one object; clock leaves MUST attach to the machine (root) object.
 - **FR-005**: The catalog MUST report per entry: name, description, unit with its dimension mapping, availability state, and achieved read mode where applicable.
 - **FR-006**: When a catalog entry is enumerated, the system shall report described-ness (from data) and countability (from probe, permission-aware) as separate predicates, with availability states at least: `countable`, `permission_blocked`, `not_encodable`, `absent`.
@@ -222,18 +230,18 @@ The PMU event tables are vendored data under a version gate, byte-exact from the
 - **FR-015**: The algebra MUST support addition, subtraction, division, and scalar scaling over resolved counters with compile-time dimension tags of the form `time^t x events^c`: addition and subtraction require identical tags, division subtracts exponents, scalar multiplication is unrestricted; `bytes + monotonic` MUST fail to compile.
 - **FR-016**: Dimension tags MUST be construction-time only and erased on the read path (zero read-path cost).
 - **FR-017**: When catalog unit metadata maps to a dimension, the library shall map it through a closed switch; an unrecognized unit MUST produce a resolution error and MUST NOT be guessed.
-- **FR-018**: A metric MUST be a fold over deltas drawn from a recorded point sequence; the fold API MUST include a window fold `fold(rec, i, j)`, a per-interval series fold `fold_pairs(rec)`, and the first-to-last fold; valid ranges require `i < j` within the recorded extent (tier-3 checked).
-- **FR-019**: Every fold MUST return a result carrying value, running ratio, and scaled flag; the ratio MUST be computed from the enabled/running delta pair of the contributing sources; the disclosure fields MUST be structurally impossible to omit.
+- **FR-018**: A metric MUST be a fold over deltas drawn from a recorded point sequence; the fold API MUST include the expression-member window fold `expr.fold(rec, i, j)`, a per-interval series fold `expr.fold_pairs(rec)`, and the first-to-last fold `expr.fold(rec)`; valid ranges require `i < j` within the recorded extent (tier-3 checked).
+- **FR-019**: Every fold MUST return a result carrying value, running ratio, and scaled flag; for a source with an enabled/running pair the ratio MUST be computed from that delta pair; a source without such a pair (clock, push, fake) MUST disclose ratio 1.0 with scaled false; a composite's ratio MUST be the product of its constituent ratios each raised to its algebraic exponent; the disclosure fields MUST be structurally impossible to omit.
 - **FR-020**: Every composite MUST expose each constituent leaf's raw point column with provenance: object path, name, description, unit, raw values, point identity, and multiplex ratio.
 - **FR-021**: Expression construction MUST perform zero hardware reads; folds MUST compute only on demand, MUST be callable any number of times and for any subset after measurement, and MUST NOT trigger provider reads.
 
 **Plans and recorders**
 
 - **FR-022**: When a set of expressions is compiled, the system shall produce a flat read plan (leaf slots, grouping layout, fold sequence, compact column layout); the read path MUST contain no expression tree, dynamic dispatch, or name lookup.
-- **FR-023**: The system MUST assign each leaf a read mode at plan compile, chosen by probe: `fast_tsc`, `fast_rdpmc`, `syscall`, or push-load; achieved modes MUST be recorded and disclosed in the catalog.
+- **FR-023**: The system MUST assign each leaf a read mode at plan compile, chosen by probe: `fast_tsc`, `fast_rdpmc`, `syscall`, or `push_load`; achieved modes MUST be recorded and disclosed in the catalog.
 - **FR-024**: When a plan lays out hardware event groups, the library shall validate shared target and clock identity at construction; mismatch MUST be a construction error, never a read-time surprise.
-- **FR-025**: A recorder MUST be created from a plan through one factory taking a compile-time overflow-policy tag (default `hard_stop`, opt-in `ring`) and a capacity; call sites MUST NOT require visible template arguments.
-- **FR-026**: `recorder.sample()` MUST be the named critical-path operation: `noexcept`, zero allocation, zero lock; a fast-mode sample MUST be a short in-instruction read sequence appending one column; a syscall-mode sample MUST perform one group read per PMU leader plus vDSO clock reads plus relaxed loads within one sampling action.
+- **FR-025**: A recorder MUST be created from a plan through one factory taking a compile-time overflow-policy tag (default `hard_stop`, opt-in `ring`) and a capacity measured in point columns (capacity 1 holds a single sample; folds require capacity at least 2); call sites MUST NOT require visible template arguments.
+- **FR-026**: `recorder.sample()` MUST be the named critical-path operation: `noexcept`, zero allocation, zero lock; a fast-mode sample MUST be a short in-instruction read sequence appending one column; a syscall-mode sample MUST perform one group read per PMU leader plus vDSO clock reads plus plain push loads within one sampling action.
 - **FR-027**: Under `hard_stop`, sampling past capacity MUST abort through an always-enforced contract check (present in every build configuration, release included).
 - **FR-028**: Under `ring`, capacity MUST be a power of two (enforced at construction), the write index MUST mask branchlessly, wrapped state and dropped count MUST be recorded, and folds MUST account for drops.
 - **FR-029**: A recorder MUST be a small value handle over a plan-arena buffer allocated at construction; multiple recorders of one plan MUST get independent buffers sharing the compiled layout.
@@ -245,7 +253,7 @@ The PMU event tables are vendored data under a version gate, byte-exact from the
 
 - **FR-033**: The library MUST ship a `clock` provider offering monotonic wall time, thread CPU time, and process CPU time on the machine object, dimension `time^1`, requiring no privileges.
 - **FR-034**: The `clock` provider MUST offer a fast `tsc` leaf (rdtsc-grade) whose frequency is calibrated at system-open from platform data, with calibration provenance and any scaling flag reported in the catalog.
-- **FR-035**: The library MUST ship a `push` provider with `add(n)` increments read as relaxed atomic loads at sample time; a decrement of a push counter between points MUST be a tier-3 violation.
+- **FR-035**: The library MUST ship a `push` provider whose counter is confined to a single thread: `add(n)` is a plain non-atomic increment and the sample-time read is a plain non-atomic load, with no atomic read-modify-write on any path; `add()` or sampling from a thread other than the owning thread MUST be a tier-3 violation; a decrement of a push counter between points MUST be a tier-3 violation.
 - **FR-036**: The library MUST ship a deterministic `fake` provider, hand-driven, sufficient to test all catalog, algebra, dimension, recorder, fold, and provenance logic without sleeps or privileges.
 - **FR-037**: The library MUST ship a `linux_pmu` provider whose catalog merges bundled vendored tables with kernel-discovered aliases (kernel discoveries winning conflicts), encodes events by composing table semantics with the running kernel's format bit layouts, and marks events lacking required format fields `not_encodable`.
 - **FR-038**: When the `linux_pmu` provider opens, the library shall select the architecture event table by CPU identification through the upstream mapping file, parsing only the matched table, once, lazily.
@@ -262,7 +270,7 @@ The PMU event tables are vendored data under a version gate, byte-exact from the
 
 **Contracts, threading, cadence, standalone**
 
-- **FR-046**: Enforcement MUST follow three tiers: dimension violations and the fold-result shape are compile-time; catalog resolution failures and registration duplicates are recoverable errors; scope misuse, capacity overrun under `hard_stop`, push decrements, invalid fold ranges, and cross-thread misuse are contract violations that terminate in dev/CI.
+- **FR-046**: Enforcement MUST follow three tiers: dimension violations and the fold-result shape are compile-time; catalog resolution failures and registration duplicates are recoverable errors; scope misuse, capacity overrun under `hard_stop` (FR-027), push decrements, invalid fold ranges, and cross-thread misuse are contract violations that terminate in dev/CI.
 - **FR-047**: Each recorded sample column MUST satisfy the invariant that all leaf values in the column were read within one sampling action under one plan binding; folds MUST consume columns of a single recorder.
 - **FR-048**: Sampling cadence MUST be caller-owned; the documented idiom for tight loops MUST be chunked sampling with capacity `N/K + 1` and per-interval series folds, with the K=1 observer-effect cost stated numerically from the plan's overhead calibration.
 - **FR-049**: The public surface MUST be standalone: an example using only the public headers and the standard library MUST compile, run, and fold a metric with a link manifest showing only this library; no benchmarking-framework code, API, or dependency appears anywhere in 007.
@@ -290,7 +298,7 @@ The PMU event tables are vendored data under a version gate, byte-exact from the
 - **SC-001**: A developer with only this library and the standard library writes, builds, and runs a program that measures a composed metric (an `instructions / cycles` shape over fake or clock sources) in a manual loop; the standalone example passes in CI with a link manifest of only this library.
 - **SC-002**: The complete test suite passes on an unprivileged CI runner at the standard hardware-access paranoia level: fake, clock, and push providers carry every assertion; PMU-dependent assertions verify `permission_blocked` states and pass.
 - **SC-003**: The giraffe provider example registers objects and counters out of tree and measures `honks / monotonic` with zero modifications to library core sources.
-- **SC-004**: Both budgets are measured and published: on the reference Linux host, a clock-only plan's `sample()` stays within its stated nanosecond budget, and on a fast-capable, probe-passing host a fast-mode plan's `sample()` lands in the tens-of-cycles regime while the same plan in syscall mode lands in the microsecond regime, both budgets published side by side with distributions (min/median/max).
+- **SC-004**: Both budgets are measured and published: on the reference Linux host, a clock-only plan's `sample()` publishes a stated nanosecond distribution (min/median/max); on a fast-capable, probe-passing host a fast-mode plan's `sample()` lands in the tens-of-cycles regime while the same plan in syscall mode lands in the microsecond regime. The pass check is binary on the same host: the fast-mode median is at least 100x below the syscall-mode median, and both distributions are published side by side.
 - **SC-005**: `sample()` performs zero allocations, proven by an allocation-counting test in the suite.
 - **SC-006**: A hand-built point buffer (fake provider) folds to exactly the expected metrics for known sequences, including a crafted 2^64 wrap and a per-interval series: zero tolerance on these fixtures.
 - **SC-007**: One fan-out window yields IPC for every core on a multi-core host; per-core instruction deltas reconcile against the shared total within the plan's calibration.
