@@ -20,6 +20,7 @@ sections:                          # FR-010, seeded from history plus the
   - CMake
   - CI
   - Constitution
+  - Counters
   - Docs
   - Meta
   - dbc

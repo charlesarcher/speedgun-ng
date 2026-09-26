@@ -76,6 +76,14 @@ struct object_seed
 class SPEEDGUN_NG_EXPORT object_sink
 {
 public:
+  /**
+   * @brief The empty receiver state.
+   *
+   * \pre none
+   * \post none
+   */
+  object_sink() = default;
+
   object_sink(const object_sink&) = default;
   object_sink(object_sink&&) = delete;
   auto operator=(const object_sink&) -> object_sink& = default;
@@ -216,6 +224,14 @@ class SPEEDGUN_NG_EXPORT window_reader
 {
 public:
   /**
+   * @brief A reader at its initial state.
+   *
+   * \pre none
+   * \post none
+   */
+  window_reader() = default;
+
+  /**
    * @brief Direct-call signature the compiled plan stores; equal in
    * effect to `read_points`.
    */
@@ -298,6 +314,14 @@ private:
 class SPEEDGUN_NG_EXPORT provider_iface
 {
 public:
+  /**
+   * @brief The unregistered provider state.
+   *
+   * \pre none
+   * \post none
+   */
+  provider_iface() = default;
+
   provider_iface(const provider_iface&) = default;
   provider_iface(provider_iface&&) = delete;
   auto operator=(const provider_iface&) -> provider_iface& = default;
