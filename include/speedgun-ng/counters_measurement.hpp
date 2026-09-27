@@ -40,14 +40,14 @@
  * per adjacent interval, which is the per-chunk series. A
  * first-to-last `fold()` answers the single total. A window
  * from `i` to `j` costs the sampling actions at both endpoints, so
- * `K = 1` charges `N` actions: on the reference host in
- * [docs/pages/counters-overhead.md](docs/pages/counters-overhead.md)
- * a clock plan costs 60 ns per action and a core-PMU group 210 ns, so
- * sampling every iteration adds 120 ns and 420 ns per measured window
- * respectively. A benchmark whose measured work is shorter than that
- * reads its own instrumentation, so the cadence must be coarse enough
- * for the work. `plan::sample_overhead_ns_median()` reports the figure
- * for the plan in hand (FR-032).
+ * `K = 1` charges `N` actions: on the reference host published in
+ * `docs/pages/counters-overhead.md`, a clock plan costs 60 ns per
+ * action and a core-PMU group 210 ns, so sampling every iteration adds
+ * 120 ns and 420 ns per measured window respectively. A benchmark whose
+ * measured work is shorter than that reads its own instrumentation, so
+ * the cadence must be coarse enough for the work.
+ * `plan::sample_overhead_ns_median()` reports the figure for the plan in
+ * hand (FR-032).
  *
  * @section exactness Numeric exactness
  *
