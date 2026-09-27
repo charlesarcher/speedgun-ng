@@ -64,6 +64,14 @@ struct read_group
   std::size_t count = 0;
 };
 
+// The measured per-action cost of one `sample()` on one plan (FR-032).
+struct overhead_sample
+{
+  double min_ns = 0.0;
+  double median_ns = 0.0;
+  double max_ns = 0.0;
+};
+
 // The compiled plan behind the opaque handle (E-07).
 struct plan_impl
 {
@@ -78,8 +86,7 @@ struct plan_impl
     std::size_t ratio_running = no_ratio_slot;
   };
 
-  static constexpr std::size_t no_ratio_slot =
-      static_cast<std::size_t>(-1);
+  static constexpr std::size_t no_ratio_slot = static_cast<std::size_t>(-1);
 
   std::vector<slot> slots;
   std::map<std::string, std::size_t> by_address;
@@ -89,6 +96,11 @@ struct plan_impl
   std::vector<std::unique_ptr<std::uint64_t[]>> arenas;
   target bound_target;
   std::thread::id bound_thread = std::this_thread::get_id();
+  // Calibration state (FR-032): the first accessor call measures the
+  // plan's own read sequence and the distribution is kept here.
+  mutable bool calibrated = false;
+  mutable overhead_sample overhead;
+  mutable std::vector<std::uint64_t> calibration_buffer;
 
   [[nodiscard]] auto leaf_count() const noexcept -> std::size_t
   {

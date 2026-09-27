@@ -246,6 +246,20 @@ target_link_libraries(counters_pmu_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_pmu_test PRIVATE cxx_std_23)
 add_test(NAME counters_pmu_test COMMAND counters_pmu_test)
 
+# Sampling-cost benchmark and mode disclosure (T051; US7 scenarios 1
+# and 6; SC-004, SC-010, quickstart 12). Publishes the min/median/max
+# per-action distribution of each regime this host probes, the achieved
+# read mode per catalog entry with the refusal reason where a fast
+# mechanism was rejected, and the fold cost measured off the sampling
+# path. Exit 2 skips with the reason printed, so a host without a
+# probe-passing fast mechanism reports its skip and stays green
+# (Principle VII, FR-023, FR-032).
+add_executable(counters_overhead source/counters_overhead.cpp)
+target_link_libraries(counters_overhead PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_overhead PRIVATE cxx_std_23)
+add_test(NAME counters_overhead COMMAND counters_overhead)
+set_tests_properties(counters_overhead PROPERTIES SKIP_RETURN_CODE 2)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

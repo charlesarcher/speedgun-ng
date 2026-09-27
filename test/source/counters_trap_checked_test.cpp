@@ -4,10 +4,10 @@
 // Spawns the counters trap fixture per mode and asserts the checked-build
 // (default dev = enforce) behavior: every mode must abort BEFORE printing
 // its survival marker (SC: FR-046 misuse, FR-018 fold range, FR-027
-// capacity). The ignore-build contrast (gated modes survive, the
-// always-on overrun still fires) is asserted by the consumer-release CI
-// job. Cross-platform: std::system with output redirection, as in the
-// dbc precedent; a missing fixture binary is reported, never passed.
+// capacity, FR-031 per-thread plans and recorders). The ignore-build contrast
+// (gated modes survive, the always-on overrun still fires) is asserted by the
+// consumer-release CI job. Cross-platform: std::system with output redirection,
+// as in the dbc precedent; a missing fixture binary is reported, never passed.
 // ============================================================================
 
 #include <cstdio>
@@ -23,7 +23,9 @@ constexpr const char* kModes[] = {"metric-before-finish",
                                   "fold-range",
                                   "overrun",
                                   "push-cross-thread",
-                                  "push-decrement"};
+                                  "push-decrement",
+                                  "recorder-cross-thread",
+                                  "scope-cross-thread"};
 
 auto run_mode(const std::string& fixture, const char* mode) -> int
 {

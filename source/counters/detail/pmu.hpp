@@ -25,7 +25,7 @@ namespace sg::counters::detail
 // One architecture event-table entry, semantic fields only: the
 // encoder composes them with the running kernel's bit layouts
 // (FR-037). Metric-definition rows are not entries: they ship as
-// catalog data for a future release, not countables (US6).
+// catalog data for a future release; they are no countables (US6).
 struct pmu_table_entry
 {
   std::string name;
@@ -88,9 +88,9 @@ struct format_range
 // (provider.cpp, FR-039): the availability the kernel grants this
 // caller for this event: countable, permission_blocked, or absent on
 // other refusals.
-[[nodiscard]] auto pmu_probe(int type,
-                             const std::vector<std::pair<int, std::uint64_t>>&
-                                 words) -> availability;
+[[nodiscard]] auto pmu_probe(
+    int type, const std::vector<std::pair<int, std::uint64_t>>& words)
+    -> availability;
 
 // One catalog entry the provider built: the composed config words, the
 // description, and the probed availability (FR-037, FR-039).
@@ -139,10 +139,10 @@ struct pmu_state
 // Opens the syscall-mode window for `leaves` (group_io.cpp, FR-041):
 // one group per device, one read per group leader per sampling action.
 // Null when a leaf names no device or no countable entry.
-[[nodiscard]] auto pmu_open_window(
-    const pmu_state& state,
-    const leaf_set& leaves,
-    const target& where) -> std::unique_ptr<window_reader>;
+[[nodiscard]] auto pmu_open_window(const pmu_state& state,
+                                   const leaf_set& leaves,
+                                   const target& where)
+    -> std::unique_ptr<window_reader>;
 
 // The fast-read probe verdict (fast_read.cpp, FR-023, R-011). Written
 // into `state`; the catalog discloses the achieved mode.
@@ -153,7 +153,7 @@ enum class fast_read_verdict : std::uint8_t
 {
   ok,
   not_allowed,  // no capability, no valid index, or a foreign thread
-  unstable      // the page sequence moved; the caller retries
+  unstable  // the page sequence moved; the caller retries
 };
 
 // The width the kernel publishes counters at for user counter reads.
@@ -188,8 +188,7 @@ struct fast_context
     -> std::unique_ptr<fast_context>;
 
 [[nodiscard]] auto fast_context_read(const fast_context& context,
-                                     std::uint64_t& value)
-    -> fast_read_verdict;
+                                     std::uint64_t& value) -> fast_read_verdict;
 
 void fast_context_close(fast_context& context);
 
@@ -197,9 +196,9 @@ void fast_context_close(fast_context& context);
 // leaf, the enabled/running pair taken from the leader's page. Null
 // when a leaf names no device, no countable entry, or a context the
 // kernel refuses.
-[[nodiscard]] auto pmu_open_fast_window(
-    const pmu_state& state,
-    const leaf_set& leaves,
-    const target& where) -> std::unique_ptr<window_reader>;
+[[nodiscard]] auto pmu_open_fast_window(const pmu_state& state,
+                                        const leaf_set& leaves,
+                                        const target& where)
+    -> std::unique_ptr<window_reader>;
 
 }  // namespace sg::counters::detail

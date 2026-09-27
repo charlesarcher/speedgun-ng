@@ -6,10 +6,11 @@
 //   - the consumer-release CI job (ignore builds)
 //
 // Behavior per mode (argv[1]):
-//   - metric-before-finish, fold-range, push-cross-thread, and
-//     push-decrement are semantic-gated sites: they abort in checked
-//     builds, so their markers stay absent; under ignore they survive
-//     and print their markers.
+//   - metric-before-finish, fold-range, push-cross-thread,
+//     push-decrement, recorder-cross-thread, and scope-cross-thread are
+//     semantic-gated sites: they abort in checked builds, so their
+//     markers stay absent; under ignore they survive and print their
+//     markers.
 //   - overrun is an SG_REQUIRE_ALWAYS site (FR-027 memory safety is
 //     never semantic-gated): it aborts in EVERY configuration, marker
 //     absent everywhere.
@@ -140,6 +141,29 @@ auto main(int argc, char** argv) -> int
     window.finish();
     const auto result = ipc.fold(window.view(), 1, 0);
     static_cast<void>(result);
+    survived(mode);
+    return 0;
+  }
+
+  if (mode == "recorder-cross-thread") {
+    auto rec = compiled.recorder(4);
+    rec.sample();
+    std::thread foreign {[&rec] { rec.sample(); }};
+    foreign.join();
+    survived(mode);
+    return 0;
+  }
+
+  if (mode == "scope-cross-thread") {
+    const auto core = *system::local().object("package-1/core-3");
+    const auto cycles = *core.counter<events>("cycles");
+    const auto instructions = *core.counter<events>("instructions");
+    const auto ipc = instructions / cycles;
+    sg::counters::scope window {compiled};
+    window.start();
+    std::thread foreign {[&window] { window.finish(); }};
+    foreign.join();
+    static_cast<void>(window.metric(ipc));
     survived(mode);
     return 0;
   }

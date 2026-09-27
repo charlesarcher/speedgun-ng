@@ -26,6 +26,40 @@
  * Dimensions live in types and are erased before the point buffer
  * (FR-016). The read path holds no expression tree, no dispatch, and
  * no name lookup (FR-022).
+ *
+ * @section cadence The cadence idiom
+ *
+ * A tight loop pays for every `sample()`, so the caller chooses a
+ * cadence. For a loop of `N` known iterations sampling every `K` of
+ * them, mint `plan::recorder(N / K + 1)` and call `sample()` once per
+ * chunk; the extra row holds the endpoint that closes the last
+ * chunk. The first sample lands before the work, so the count is
+ * `N / K + 1` exactly.
+ *
+ * `expression::fold_pairs(recorder)` then yields one `metric_result`
+ * per adjacent interval, which is the per-chunk series. A
+ * first-to-last `fold()` answers the single total. A window
+ * from `i` to `j` costs the sampling actions at both endpoints, so
+ * `K = 1` charges `N` actions: on the reference host in
+ * [docs/pages/counters-overhead.md](docs/pages/counters-overhead.md)
+ * a clock plan costs 60 ns per action and a core-PMU group 210 ns, so
+ * sampling every iteration adds 120 ns and 420 ns per measured window
+ * respectively. A benchmark whose measured work is shorter than that
+ * reads its own instrumentation, so the cadence must be coarse enough
+ * for the work. `plan::sample_overhead_ns_median()` reports the figure
+ * for the plan in hand (FR-032).
+ *
+ * @section exactness Numeric exactness
+ *
+ * Points are `uint64` and deltas subtract modularly at `2^64`, so a
+ * counter wrap subtracts out and a long window stays exact (FR-013).
+ * Folds then convert to `double`, which carries 53 bits of mantissa:
+ * a delta above `2^53` loses its low bits. A count reaches `2^53` at
+ * roughly 285 events per nanosecond sustained for one second, so any
+ * counter-backed delta is exact on every host this feature targets. A
+ * scaled expression, such as a per-iteration rate, can reach the
+ * threshold through its scale factor alone; `metric_result::scaled`
+ * reports that the value carries a scale the caller applied.
  */
 
 namespace sg::counters
@@ -845,6 +879,42 @@ public:
    */
   [[nodiscard]] auto recorder(std::size_t capacity, ring_t) const
       -> std::expected<recorder_handle<ring_t>, error>;
+
+  /**
+   * @brief The cheapest `sample()` in the recorded distribution, in
+   * nanoseconds (FR-032).
+   *
+   * The first call on a plan runs the calibration: it samples the
+   * plan's own read sequence over an empty workload and stores the
+   * distribution on the plan. Compile itself performs no hardware read
+   * (FR-021), so the reads happen here, on the caller's request. Fold a
+   * window from `i` to `j` and its two endpoints cost
+   * `2 * sample_overhead_ns_median()` of sampling on top of the work
+   * the window measured (FR-032, FR-048).
+   *
+   * \pre none
+   * \post The returned nanosecond count is at least 0.
+   */
+  [[nodiscard]] auto sample_overhead_ns_min() const -> double;
+
+  /**
+   * @brief The median `sample()` in the recorded distribution, in
+   * nanoseconds (FR-032). The value a fold window's two endpoints cost.
+   *
+   * \pre none
+   * \post The returned nanosecond count is at least 0.
+   */
+  [[nodiscard]] auto sample_overhead_ns_median() const -> double;
+
+  /**
+   * @brief The dearest `sample()` in the recorded distribution, in
+   * nanoseconds (FR-032). A long tail is investigated, never assumed
+   * away (Principle VII).
+   *
+   * \pre none
+   * \post The returned nanosecond count is at least `min()`.
+   */
+  [[nodiscard]] auto sample_overhead_ns_max() const -> double;
 
 private:
   friend auto detail::compile_core(

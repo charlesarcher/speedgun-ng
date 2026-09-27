@@ -57,16 +57,17 @@ auto parse_format_field(const std::string_view spec,
   while (cursor <= spec.size()) {
     const std::size_t comma = spec.find(',', cursor);
     const std::string_view piece =
-        spec.substr(cursor, comma == std::string_view::npos
-                               ? std::string_view::npos
-                               : comma - cursor);
+        spec.substr(cursor,
+                    comma == std::string_view::npos ? std::string_view::npos
+                                                    : comma - cursor);
     if (piece.empty()) {
       break;
     }
     const std::size_t dash = piece.find('-');
     int low = 0;
     int high = 0;
-    auto read = [](const std::string_view digits, int& value) -> bool {
+    auto read = [](const std::string_view digits, int& value) -> bool
+    {
       if (digits.empty() || digits.size() > 2) {
         return false;
       }
@@ -79,17 +80,14 @@ auto parse_format_field(const std::string_view spec,
       }
       return true;
     };
-    const bool low_ok =
-        read(piece.substr(0, dash), low);
-    const bool high_ok =
-        dash == std::string_view::npos
-            ? (high = low, true)
-            : read(piece.substr(dash + 1), high);
+    const bool low_ok = read(piece.substr(0, dash), low);
+    const bool high_ok = dash == std::string_view::npos
+        ? (high = low, true)
+        : read(piece.substr(dash + 1), high);
     if (!low_ok || !high_ok || high < low) {
       return false;
     }
-    out.push_back(format_range {
-        .config_word = word, .low = low, .high = high});
+    out.push_back(format_range {.config_word = word, .low = low, .high = high});
     ++parsed;
     if (comma == std::string_view::npos) {
       break;
@@ -131,8 +129,7 @@ auto pmu_compose_config(
       if (shift >= 64) {
         return false;
       }
-      const auto width =
-          static_cast<std::uint64_t>(range.high - range.low + 1);
+      const auto width = static_cast<std::uint64_t>(range.high - range.low + 1);
       const std::uint64_t capacity = width >= 64
           ? std::numeric_limits<std::uint64_t>::max()
           : (1ULL << width) - 1ULL;
