@@ -226,11 +226,15 @@ public:
   /**
    * @brief Selects every object of one kind whose canonical path
    * satisfies all filters (FR-003, C-SYS-2); predicates combine with
-   * AND. Defined keys are the ancestor selectors `package` and `core`
-   * matched against canonical-path components: key `package`, value
-   * `1` matches component `package-1`. An unknown kind or an unknown
-   * filter key is a recoverable error (FR-003, FR-008); results print
-   * canonical spelling only (FR-002).
+   * AND. Every key is matched against the canonical-path components:
+   * key `package`, value `1` matches component `package-1`. Defined
+   * keys are the ancestor selectors `package` and `core`, which hold
+   * for every kind, plus every key an object of the selected kind
+   * spells as a component prefix, so a provider declares an attribute
+   * key in the paths it seeds. A declared key whose value matches
+   * nothing selects nothing. An unknown kind or an unknown filter key
+   * is a recoverable error (FR-003, FR-008); results print canonical
+   * spelling only (FR-002).
    *
    * \pre none
    * \post none

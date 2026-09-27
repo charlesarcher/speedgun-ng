@@ -89,6 +89,13 @@ struct plan_impl
   static constexpr std::size_t no_ratio_slot = static_cast<std::size_t>(-1);
 
   std::vector<slot> slots;
+  // Address to column slot, read by the fold layer. A composite's ops
+  // and algebraic exponents travel with its spine, and no per-composite
+  // program is stored here (T091): a fold accepts any expression over
+  // these slots, a temporary or an instance a fan-out builds after
+  // compile, so a program bound to the compiled objects covers few
+  // folds, and one keyed on a compiled expression's address covers
+  // whichever composite lands there (FR-022).
   std::map<std::string, std::size_t> by_address;
   std::vector<read_group> groups;
   // Recorder arenas: one buffer per minted recorder, owned by the
