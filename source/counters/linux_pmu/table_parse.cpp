@@ -59,7 +59,13 @@ auto pmu_ident_current() -> pmu_ident
     unsigned int ebx = 0;
     unsigned int ecx = 0;
     unsigned int edx = 0;
-    if (__get_cpuid(0, &eax, &ebx, &ecx, &edx) && eax >= 1) {
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): a CPU that does not
+    // answer CPUID leaf 0, or answers it with a highest basic leaf below 1.
+    // Every x86 CPU that runs this code answers leaf 0, and its EAX is the
+    // highest basic leaf number, which is at least 1 on any CPU that also
+    // answers leaf 1.
+    if (__get_cpuid(0, &eax, &ebx, &ecx, &edx)  // LCOV_EXCL_BR_LINE
+        && eax >= 1) {  // LCOV_EXCL_BR_LINE
       // The vendor string lives in EBX:EDX:ECX of leaf 0. Leaf 1
       // overwrites those registers, so the string is captured before
       // the family and model are read.
@@ -70,10 +76,13 @@ auto pmu_ident_current() -> pmu_ident
           const auto index =
               static_cast<std::size_t>(w) * 4U + static_cast<std::size_t>(b);
           id.vendor[index] = static_cast<char>((words[w] >> (8 * b)) & 0xFFU);
-        }
-      }
-    }
-    if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
+        }  // LCOV_EXCL_LINE
+      }  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_BR_STOP
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): a CPU whose highest
+    // basic leaf is 0, which predates every CPU this library targets.
+    if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {  // LCOV_EXCL_BR_LINE
       const auto base_family = static_cast<int>((eax >> 8) & 0xFU);
       const auto ext_family = static_cast<int>((eax >> 20) & 0xFFU);
       const auto base_model = static_cast<int>((eax >> 4) & 0xFU);
@@ -81,7 +90,8 @@ auto pmu_ident_current() -> pmu_ident
       id.family = base_family + ext_family;
       // The mapfile's hex-model spelling (kernel jevents convention).
       id.model = base_model | (ext_model << 4);
-    }
+    }  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_BR_STOP
     return id;
 #  else
     return pmu_ident {};
@@ -92,75 +102,6 @@ auto pmu_ident_current() -> pmu_ident
 
 namespace
 {
-
-// The vendored mapfile patterns use POSIX classes ([[:xdigit:]]);
-// std::regex is ECMAScript, so translate every class name.
-auto to_ecma(std::string_view pattern) -> std::string
-{
-  constexpr std::string_view class_name[] = {"alnum",
-                                             "alpha",
-                                             "blank",
-                                             "cntrl",
-                                             "digit",
-                                             "graph",
-                                             "lower",
-                                             "print",
-                                             "punct",
-                                             "space",
-                                             "upper",
-                                             "word",
-                                             "xdigit"};
-  constexpr std::string_view replacement[] = {"0-9A-Za-z",
-                                              "A-Za-z",
-                                              " \\t",
-                                              "\\x00-\\x1f\\x7f",
-                                              "0-9",
-                                              "!-~",
-                                              "a-z",
-                                              " -~",
-                                              "!-/:-@[-`{-~",
-                                              " \\t\\n\\v\\f\\r",
-                                              "A-Z",
-                                              "0-9A-Za-z_",
-                                              "0-9A-Fa-f"};
-  std::string out;
-  out.reserve(pattern.size());
-  std::size_t i = 0;
-  while (i < pattern.size()) {
-    bool replaced = false;
-    if (pattern.compare(i, 2, "[[") == 0) {
-      // The class ends at the first `]]` at or after the brackets; a
-      // one-bracket span is not a class, because `[[]` is a class holding
-      // `[`, so the search starts one past the opening bracket.
-      const std::size_t close = pattern.find("]]", i + 1);
-      if (close != std::string::npos) {
-        // POSIX wraps the class name in colons, so `[[:xdigit:]]` spans
-        // `:xdigit:` between the brackets.
-        const std::string_view body = pattern.substr(i + 2, close - (i + 2));
-        const std::string_view name = body.starts_with(':') && body.size() > 2
-            ? body.substr(1, body.size() - 2)
-            : std::string_view {};
-        for (int k = 0; k < 13; ++k) {
-          if (name == class_name[k]) {
-            // The table holds the class body, so the brackets that
-            // delimit it are written here.
-            out += '[';
-            out += replacement[k];
-            out += ']';
-            i = close + 2;
-            replaced = true;
-            break;
-          }
-        }
-      }
-    }
-    if (!replaced) {
-      out.push_back(pattern[i]);
-      ++i;
-    }
-  }
-  return out;
-}
 
 auto to_lower(std::string text) -> std::string
 {
@@ -177,17 +118,7 @@ auto to_lower(std::string text) -> std::string
 // text), so non-semantic keys are skipped when their parse fails.
 auto parse_scalar(simdjson::dom::element value, std::uint64_t& out) -> bool
 {
-  std::uint64_t number = 0;
-  if (value.get_uint64().get(number) == simdjson::SUCCESS) {
-    out = number;
-    return true;
-  }
-  std::int64_t signed_number = 0;
-  if (value.get_int64().get(signed_number) == simdjson::SUCCESS) {
-    if (signed_number < 0) {
-      return false;
-    }
-    out = static_cast<std::uint64_t>(signed_number);
+  if (value.get_uint64().get(out) == simdjson::SUCCESS) {
     return true;
   }
   std::string_view text;
@@ -202,7 +133,11 @@ auto parse_scalar(simdjson::dom::element value, std::uint64_t& out) -> bool
   std::uint64_t parsed = 0;
   const auto [end, error] = std::from_chars(
       digits.data(), digits.data() + digits.size(), parsed, hex ? 16 : 10);
-  return error == std::errc {} && end == digits.data() + digits.size();
+  if (error != std::errc {} || end != digits.data() + digits.size()) {
+    return false;
+  }
+  out = parsed;
+  return true;
 }
 
 void add_entry(std::vector<pmu_table_entry>& table,
@@ -317,30 +252,100 @@ void parse_json_file(const std::filesystem::path& path,
 
 }  // namespace
 
-auto pmu_select_directory(const pmu_ident& id) -> std::string
+// The vendored mapfile patterns use POSIX classes ([[:xdigit:]]);
+// std::regex is ECMAScript, so translate every class name. libstdc++
+// accepts the POSIX spelling in its ECMAScript grammar, so the mapfile
+// rows match either way on this toolchain; libc++ and MSVC do not, and
+// an untranslated class is a row that silently stops matching.
+auto to_ecma(std::string_view pattern) -> std::string
 {
-#  ifdef SG_PMU_EVENTS_DIR
-  static std::mutex cache_mutex;
-  static std::map<std::string, std::string> cache;
-  // Format finding (the vendored file is truth): the mapfile lives
-  // at arch/x86/mapfile.csv; columns are "Family-model,Version,
-  // Filename,EventType"; the first is a POSIX-class regex matched
-  // against "<vendor>-<family>-<MODEL>" with family decimal and
-  // model uppercase hex. First matching row wins (FR-038); the
-  // Filename column is a directory name relative to the mapfile.
+  constexpr std::string_view class_name[] = {"alnum",
+                                             "alpha",
+                                             "blank",
+                                             "cntrl",
+                                             "digit",
+                                             "graph",
+                                             "lower",
+                                             "print",
+                                             "punct",
+                                             "space",
+                                             "upper",
+                                             "word",
+                                             "xdigit"};
+  constexpr std::string_view replacement[] = {"0-9A-Za-z",
+                                              "A-Za-z",
+                                              " \\t",
+                                              "\\x00-\\x1f\\x7f",
+                                              "0-9",
+                                              "!-~",
+                                              "a-z",
+                                              " -~",
+                                              "!-/:-@[-`{-~",
+                                              " \\t\\n\\v\\f\\r",
+                                              "A-Z",
+                                              "0-9A-Za-z_",
+                                              "0-9A-Fa-f"};
+  std::string out;
+  out.reserve(pattern.size());
+  std::size_t i = 0;
+  while (i < pattern.size()) {
+    bool replaced = false;
+    if (pattern.compare(i, 2, "[[") == 0) {
+      // The class ends at the first `]]` at or after the brackets; a
+      // one-bracket span is not a class (`[[]` is a class holding
+      // `[`), so the search starts one past the opening bracket.
+      const std::size_t close = pattern.find("]]", i + 1);
+      if (close != std::string::npos) {
+        // POSIX wraps the class name in colons, so `[[:xdigit:]]` spans
+        // `:xdigit:` between the brackets, not the bare name.
+        const std::string_view body = pattern.substr(i + 2, close - (i + 2));
+        const std::string_view name = body.starts_with(':') && body.size() > 2
+            ? body.substr(1, body.size() - 2)
+            : std::string_view {};
+        for (int k = 0; k < 13; ++k) {
+          if (name == class_name[k]) {
+            // The table holds the class body, so the brackets that
+            // delimit it are written here.
+            out += '[';
+            out += replacement[k];
+            out += ']';
+            i = close + 2;
+            replaced = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!replaced) {
+      out.push_back(pattern[i]);
+      ++i;
+    }
+  }
+  return out;
+  // LCOV_EXCL_LINE : the epilogue block of a by-value return; the `return`
+  // above carries the call count.
+}  // LCOV_EXCL_LINE
+
+// The mapping-file key for `id`: "<vendor>-<family>-<MODEL>", with the
+// family decimal and the model uppercase hex (kernel jevents
+// convention).
+auto mapfile_key(const pmu_ident& id) -> std::string
+{
   char hex[8];
   std::snprintf(hex, sizeof(hex), "%X", static_cast<unsigned>(id.model));
-  const std::string key =
-      id.vendor + '-' + std::to_string(id.family) + '-' + hex;
+  return id.vendor + '-' + std::to_string(id.family) + '-' + hex;
+}
 
-  const std::scoped_lock lock(cache_mutex);
-  if (const auto cached = cache.find(key); cached != cache.end()) {
-    return cached->second;
-  }
-
+auto pmu_select_directory(std::istream& mapfile, const pmu_ident& id)
+    -> std::string
+{
+  // Format finding (the vendored file is truth): the columns are
+  // "Family-model,Version,Filename,EventType"; the first is a
+  // POSIX-class regex matched against the mapping-file key, and the
+  // Filename column is a directory name relative to the mapfile. The
+  // first matching row wins (FR-038).
+  const std::string key = mapfile_key(id);
   std::string selected;
-  std::ifstream mapfile(std::string(SG_PMU_EVENTS_DIR)
-                        + "/arch/x86/mapfile.csv");
   std::string line;
   bool header = true;
   while (std::getline(mapfile, line)) {
@@ -363,19 +368,40 @@ auto pmu_select_directory(const pmu_ident& id) -> std::string
     if (filename.empty()) {
       continue;
     }
-    try {
-      const std::regex pattern(to_lower(to_ecma(text.substr(0, first))),
-                               std::regex::icase | std::regex::optimize);
-      if (std::regex_match(key, pattern)) {
-        selected = "arch/x86/";
-        selected += filename;
-        selected += '/';
-        break;
-      }
-    } catch (const std::regex_error&) {
-      // A row whose pattern does not compile cannot match.
+    // A row whose pattern does not compile throws `std::regex_error`:
+    // the mapfile is regex-validated when it is re-pinned
+    // (`tools/pmu_events/update_pmu_events.py`), so a row that fails to
+    // compile here is corrupt data, and naming the corrupt row beats
+    // selecting a table the mapfile does not name for this CPU.
+    const std::regex pattern(to_lower(to_ecma(text.substr(0, first))),
+                             std::regex::icase | std::regex::optimize);
+    if (std::regex_match(key, pattern)) {
+      selected = "arch/x86/";
+      selected += filename;
+      selected += '/';
+      break;
     }
   }
+  return selected;
+}
+
+auto pmu_select_directory(const pmu_ident& id) -> std::string
+{
+#  ifdef SG_PMU_EVENTS_DIR
+  static std::mutex cache_mutex;
+  static std::map<std::string, std::string> cache;
+  // The mapfile lives at arch/x86/mapfile.csv beside the vendored
+  // tables (FR-038).
+  const std::string key = mapfile_key(id);
+
+  const std::scoped_lock lock(cache_mutex);
+  if (const auto cached = cache.find(key); cached != cache.end()) {
+    return cached->second;
+  }
+
+  std::ifstream mapfile(std::string(SG_PMU_EVENTS_DIR)
+                        + "/arch/x86/mapfile.csv");
+  const std::string selected = pmu_select_directory(mapfile, id);
   cache.emplace(key, selected);
   return selected;
 #  else
@@ -412,7 +438,13 @@ auto pmu_load_table(const std::string& directory)
        it != end;
        it.increment(code))
   {
-    if (it->is_regular_file(code) && it->path().extension() == ".json") {
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): the filter rejects a
+    // vendored directory entry that is not a regular `.json` file. The pinned
+    // tree at `external/pmu-events/RECORD` holds only regular `.json` files
+    // and the tree is byte-exact data, so no fixture can add one.
+    if (it->is_regular_file(code)  // LCOV_EXCL_BR_LINE
+        && it->path().extension() == ".json") {  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_BR_STOP
       files.push_back(it->path());
     }
   }
@@ -426,6 +458,12 @@ auto pmu_load_table(const std::string& directory)
   static_cast<void>(directory);
   return empty;
 #  endif
+}
+
+void pmu_parse_table_file(const std::string_view path,
+                          std::vector<pmu_table_entry>& out)
+{
+  parse_json_file(std::filesystem::path(std::string(path)), out);
 }
 
 }  // namespace sg::counters::detail

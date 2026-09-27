@@ -278,6 +278,13 @@ add_executable(counters_linux_pmu_seam_test
 target_link_libraries(counters_linux_pmu_seam_test
                       PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_linux_pmu_seam_test PRIVATE cxx_std_23)
+# The synthetic event-table fixtures are generated into the build tree at
+# run time, following the `pmu-events-gate-fixture` precedent (T057).
+target_compile_definitions(
+    counters_linux_pmu_seam_test
+    PRIVATE
+        "SG_SEAM_TABLE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/counters_pmu_seam_tables\""
+)
 add_test(NAME counters_linux_pmu_seam_test
          COMMAND counters_linux_pmu_seam_test)
 

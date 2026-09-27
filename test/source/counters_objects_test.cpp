@@ -99,11 +99,42 @@ auto test_duplicate_registration() -> void
   check(contains(rejected_name.error().message, "duplicate"),
         "the name rejection names the duplicate (FR-008)");
 
+  // Two objects of one registration claiming the same alias. The batch
+  // search refuses the second, so the first keeps the alias (FR-002,
+  // FR-008).
+  auto batch_clash = std::make_unique<fake_provider>();
+  batch_clash->add_object("package-8/core-1", "cpu8", "core", "eighth core");
+  batch_clash->add_object("package-8/core-2", "cpu8", "core", "other core");
+  const auto rejected_batch =
+      system::local().register_provider(std::move(batch_clash));
+  check(!rejected_batch.has_value(),
+        "an alias held twice inside one registration is rejected (FR-002)");
+  check(contains(rejected_batch.error().message, "cpu8")
+            && contains(rejected_batch.error().message, "duplicate"),
+        "the batch rejection names the colliding alias (FR-002)");
+
+  // A second object claiming an alias another object already holds: the
+  // alias resolves to the first registrant, so the collision is refused
+  // and the tree stands unchanged (FR-002, FR-008).
+  auto alias_clash = std::make_unique<fake_provider>();
+  alias_clash->add_object("package-9/core-1", "cpu3", "core", "ninth core");
+  const auto rejected_alias =
+      system::local().register_provider(std::move(alias_clash));
+  check(!rejected_alias.has_value(),
+        "a duplicate platform alias is rejected (FR-002)");
+  check(contains(rejected_alias.error().message, "cpu3")
+            && contains(rejected_alias.error().message, "duplicate"),
+        "the alias rejection names the colliding alias (FR-002)");
+  const auto held = system::local().object("cpu3");
+  check(held.has_value() && held->path() == "package-1/core-3",
+        "the held alias still resolves to its first registrant (FR-002)");
+
   const auto pkgs = system::local().objects("package");
   check(pkgs.has_value() && pkgs->size() == 2,
         "the tree stands unchanged after rejection (FR-008)");
-  check(!system::local().object("package-9").has_value(),
-        "the rejected provider left no object behind (FR-008)");
+  check(!system::local().object("package-9").has_value()
+            && !system::local().object("package-8").has_value(),
+        "the rejected registrations left no object behind (FR-008)");
 }
 
 auto test_enumeration() -> void
@@ -209,6 +240,32 @@ auto test_selection() -> void
   const auto badkey = system::local().objects("core", {{"socket", "1"}});
   check(!badkey.has_value() && contains(badkey.error().message, "filter"),
         "unknown filter key is a recoverable error (FR-003)");
+
+  // A key the tree declares through a path component. The declaration
+  // is per kind, so a key one kind spells is still unknown to another.
+  const auto engines = system::local().objects("engine");
+  check(engines.has_value()
+            && joined(*engines) == "package-1/socket-0/accelerator-1;",
+        "the deeper object is selectable by its own kind (FR-003)");
+  const auto on_socket = system::local().objects("engine", {{"socket", "0"}});
+  check(on_socket.has_value()
+            && joined(*on_socket) == "package-1/socket-0/accelerator-1;",
+        "a provider-declared attribute key selects its own object (FR-003)");
+  const auto off_socket = system::local().objects("engine", {{"socket", "9"}});
+  check(
+      off_socket.has_value() && off_socket->empty(),
+      "a declared key whose value matches nothing selects nothing " "(FR-003)");
+  const auto socket_on_core =
+      system::local().objects("core", {{"socket", "0"}});
+  check(!socket_on_core.has_value(),
+        "a key another kind declares stays unknown to this one (FR-003)");
+
+  // A top-level object outside the package hierarchy hangs off the
+  // machine root, which is its parent (FR-001).
+  const auto imc = *system::local().object("uncore_imc_0");
+  check(imc.parent() != nullptr && imc.parent()->path() == "machine",
+        "a top-level object outside any package parents at the machine "
+        "(FR-001)");
 }
 
 auto test_cross_object_composition() -> void
@@ -238,7 +295,7 @@ auto test_fanout_reconciliation() -> void
   const auto c3 = *core3.counter<events>("cycles");
   const auto i3 = *core3.counter<events>("instructions");
   const auto ipc = i3 / c3;
-  const auto fanout = compile(system::local(), ipc, *all);
+  auto fanout = compile(system::local(), ipc, *all);
   check(fanout.has_value(), "the fan-out ipc plan compiles (FR-047)");
   const auto paths = fanout->object_paths();
   check(paths.size() == 3 && paths[0] == "package-1/core-3"
@@ -256,6 +313,28 @@ auto test_fanout_reconciliation() -> void
         "core-4 ipc folds 900 / 200 (FR-047)");
   check(same_double(results[2].metric.value, 14.0),
         "core-7 ipc folds 1400 / 100 (FR-047)");
+
+  // A fan-out plan assigned to itself: the assignment guards on identity,
+  // so the layout and its selection survive and the same recorder folds to
+  // the same numbers afterwards (FR-022).
+  auto rec2 = fanout->recorder(2);
+  rec2.sample();
+  rec2.sample();
+  const auto before = fanout->fold(ipc, rec2.view());
+  auto& alias = *fanout;
+  alias = std::move(*fanout);
+  const auto after = fanout->fold(ipc, rec2.view());
+  check(after.size() == before.size() && after.size() == 3,
+        "a self-move-assigned fan-out keeps its selection (FR-022)");
+  bool identical = true;
+  for (std::size_t index = 0; index < after.size(); ++index) {
+    identical = identical
+        && after[index].object_path == before[index].object_path
+        && same_double(after[index].metric.value, before[index].metric.value);
+  }
+  check(identical,
+        "a self-move-assigned fan-out folds its per-object metrics exactly "
+        "as before (FR-022)");
 
   const auto d3 = expression<events> {i3}.fold(rec.view());
   const auto core4 = *system::local().object("package-1/core-4");
@@ -290,6 +369,11 @@ auto register_everything() -> void
   provider->add_object("package-1/core-4", "cpu4", "core", "fourth core");
   provider->add_object("package-2/core-7", "core", "seventh core");
   provider->add_object("uncore_imc_0", "imc", "memory controller");
+  // A deeper path carrying provider-declared attribute keys: the path
+  // components spell the attributes, so a filter on either key is a
+  // defined key for this kind (FR-003, T097).
+  provider->add_object(
+      "package-1/socket-0/accelerator-1", "engine", "first engine");
   provider->add_counter(
       "machine", "monotonic", "nanoseconds", "monotonic wall clock");
   provider->add_counter(

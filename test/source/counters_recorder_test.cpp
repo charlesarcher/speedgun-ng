@@ -148,6 +148,18 @@ auto test_ring_overflow() -> void
   const auto pairs = sc.ipc.fold_pairs(rec.view());
   check(pairs.size() == 1 && same_double(pairs[0].value, 5.25),
         "a retained window of two folds into one interval (FR-018)");
+  // The raw view of a wrapped recorder spans the oldest to the newest
+  // retained row, physically at `dropped % stride` (FR-020, FR-028).
+  // Two samples were dropped, so the retained rows sit at physical
+  // slots 0 and 1 and the view reports them in logical order.
+  const auto column = sc.ipc.raw(rec.view(), "package-1/core-3", "ins1");
+  check(column.has_value() && column->count == 2
+            && column->points[0] == 5200 && column->points[1] == 7300,
+        "a wrapped raw view spans the retained window oldest first "
+        "(FR-020, FR-028)");
+  check(column.has_value() && same_double(column->ratio, 1.0),
+        "a source with no time pair discloses ratio 1.0 in its raw view "
+        "(FR-020)");
 }
 
 auto test_ring_capacity_guard() -> void
@@ -226,6 +238,26 @@ auto register_everything() -> void
   }
 }
 
+// A plan assigned to itself. The assignment guards on identity, so the
+// layout survives and the plan still folds (FR-022).
+auto test_self_move_assignment() -> void
+{
+  auto sc = ipc_scenario("cyc0", "ins0");
+  auto rec = sc.compiled.recorder(2);
+  rec.sample();
+  rec.sample();
+  const auto before = sc.ipc.fold(rec.view()).value;
+  // A plan holds an owning layout pointer, so the assignment guards on
+  // identity: assigning a plan to itself keeps the layout (FR-022).
+  auto& alias = sc.compiled;
+  alias = std::move(sc.compiled);
+  auto rec2 = sc.compiled.recorder(2);
+  rec2.sample();
+  rec2.sample();
+  check(same_double(sc.ipc.fold(rec2.view()).value, before),
+        "a self-move-assigned plan still folds its own window (FR-022)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -236,6 +268,7 @@ auto main() -> int
   test_ring_capacity_guard();
   test_independent_cursors();
   test_wrap_through_recorder();
+  test_self_move_assignment();
   std::printf("counters recorder tests passed\n");
   return 0;
 }

@@ -65,12 +65,14 @@ using sg::counters::clock_provider;
 using sg::counters::compile;
 using sg::counters::dim;
 using sg::counters::expression;
+using sg::counters::leaf_set;
 using sg::counters::object;
 using sg::counters::push_counter;
 using sg::counters::push_provider;
 using sg::counters::read_mode;
 using sg::counters::scope;
 using sg::counters::system;
+using sg::counters::target;
 
 using events = dim<0, 1>;
 using time_dim = dim<1, 0>;
@@ -299,6 +301,56 @@ auto push_name_scenario(const push_counter& first, const push_counter& second)
         "two push handles name two distinct counters (FR-035)");
 }
 
+// A window opened directly over addresses a provider does not serve.
+// Every address the system resolves names a published leaf, so these
+// refusals are reachable only through the open contract itself
+// (FR-011, T066).
+auto open_refusal_scenario() -> void
+{
+  const target where {};
+  push_provider pushes;
+  static_cast<void>(
+      pushes.add_counter("bytes", "bytes", "hot-path bytes written"));
+  check(
+      pushes.open(leaf_set {.addresses = {"machine/bytes"}}, where) != nullptr,
+      "a declared push counter opens a window");
+  check(pushes.open(leaf_set {.addresses = {"machine/nosuchcounter"}}, where)
+            == nullptr,
+        "an address naming an undeclared push counter opens no window");
+  check(pushes.open(leaf_set {.addresses = {"other/bytes"}}, where) == nullptr,
+        "an address on another object opens no window");
+
+  clock_provider clocks;
+  check(clocks.open(leaf_set {.addresses = {"machine/monotonic"}}, where)
+            != nullptr,
+        "a published clock leaf opens a window");
+  check(clocks.open(leaf_set {.addresses = {"machine/nosuchclock"}}, where)
+            == nullptr,
+        "an address naming no published clock leaf opens no window");
+  check(clocks.open(leaf_set {.addresses = {"other/monotonic"}}, where)
+            == nullptr,
+        "an address on another object opens no window");
+
+  // The time-stamp leaf exists only where sysfs publishes a calibration
+  // (FR-034). Where it is absent the leaf is omitted and the open is
+  // refused; where it is present the leaf opens. The fixture asks the
+  // catalog which, and holds the open to the same answer.
+  const auto machine = *system::local().object("machine");
+  bool catalog_has_tsc = false;
+  for (const auto& entry : machine.counters()) {
+    if (entry.name == "tsc") {
+      catalog_has_tsc = true;
+    }
+  }
+  const auto tsc_window =
+      clocks.open(leaf_set {.addresses = {"machine/tsc"}}, where);
+  check((tsc_window != nullptr) == catalog_has_tsc,
+        "the time-stamp leaf opens exactly where the catalog publishes it "
+        "(FR-034)");
+  std::printf("clock: the catalog publishes the tsc leaf: %s\n",
+              catalog_has_tsc ? "yes" : "no");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -320,6 +372,7 @@ auto main() -> int
   clock_windows_scenario();
   push_exact_scenario(bytes_handle);
   byte_rate_scenario(bytes_handle);
+  open_refusal_scenario();
 
   std::printf("counters_clock_push_test PASS: clock, push, and composites\n");
   return 0;

@@ -86,7 +86,13 @@ public:
    * \pre none
    * \post none
    */
-  object_sink() = default;
+  // LCOV_EXCL_LINE : coverage exclusion (T066, P2 recorded in
+  // specs/007-counters-and-timers/plan.md Complexity Tracking): a defaulted
+  // default constructor emits no code, so gcov attaches a line record no
+  // execution can ever advance. Verified with `gcov -b`: this line reports
+  // an unexecuted block on every build while the copy constructor on the
+  // next line reports a count.
+  object_sink() = default;  // LCOV_EXCL_LINE
 
   object_sink(const object_sink&) = default;
   object_sink(object_sink&&) = delete;

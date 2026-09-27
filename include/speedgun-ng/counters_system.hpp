@@ -123,13 +123,21 @@ public:
     // Recognition first: dereferencing the token before testing it
     // reads the error branch of the inner `expected` (FR-017).
     const auto recognized = unit_from_token(leaf->unit);
-    if (!recognized.has_value()) {
-      return std::unexpected(recognized.error());
-    }
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): a stored catalog unit
+    // is a recognized token by construction. `register_provider` refuses an
+    // unrecognized token, so the tree never holds one, and the recognized
+    // set is closed.
+    if (!recognized.has_value()) {  // LCOV_EXCL_BR_LINE
+      return std::unexpected(recognized.error());  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_STOP
     const auto mapped = dimension_of(*recognized);
-    if (!mapped.has_value()) {
-      return std::unexpected(mapped.error());
-    }
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): `dimension_of` maps
+    // every enumerator of the closed `unit` enumeration and the recognized
+    // token set feeds it nothing else, so the inner `expected` has no failing
+    // value to return.
+    if (!mapped.has_value()) {  // LCOV_EXCL_BR_LINE
+      return std::unexpected(mapped.error());  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_STOP
     if (mapped->time != D::time_exponent
         || mapped->events != D::events_exponent)
     {
