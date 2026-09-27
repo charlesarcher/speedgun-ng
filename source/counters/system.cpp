@@ -201,7 +201,7 @@ auto system::register_provider(std::unique_ptr<provider_iface> provider)
                   .frequency_hz = entry.frequency_hz,
                   .scaled = entry.scaled,
               },
-          .has_ratio_pair = false,
+          .has_ratio_pair = entry.has_ratio_pair,
           .provider_index = provider_index,
       });
     }

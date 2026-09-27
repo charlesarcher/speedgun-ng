@@ -44,6 +44,10 @@ struct catalog_seed
   read_mode mode = read_mode::syscall;
   std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
   bool scaled = false;  // platform-scaled tick source disclosure
+  // True when the source discloses a time pair (`enabled` and
+  // `running` leaves on the same object) so folds can compute a
+  // multiplex ratio (FR-019, FR-041).
+  bool has_ratio_pair = false;
 };
 
 /**

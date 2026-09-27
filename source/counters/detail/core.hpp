@@ -71,7 +71,15 @@ struct plan_impl
   {
     detail::leaf_core core;
     bool has_ratio_pair = false;
+    // Slot indices of this leaf's object-level enabled and running
+    // leaves, or npos when the object discloses no time pair. The fold
+    // reads them for the multiplex ratio (FR-019, FR-041).
+    std::size_t ratio_enabled = no_ratio_slot;
+    std::size_t ratio_running = no_ratio_slot;
   };
+
+  static constexpr std::size_t no_ratio_slot =
+      static_cast<std::size_t>(-1);
 
   std::vector<slot> slots;
   std::map<std::string, std::size_t> by_address;
