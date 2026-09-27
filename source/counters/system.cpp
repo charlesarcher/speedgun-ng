@@ -174,6 +174,68 @@ constexpr int near_miss_distance = 2;
                              { return one.first == alias; });
 }
 
+// The canonical path split at its separators, so both filter tests
+// below read one component list. The tree is frozen once open, so the
+// views stay valid for the call (FR-009).
+[[nodiscard]] auto path_components(const std::string& path)
+    -> std::vector<std::string_view>
+{
+  std::vector<std::string_view> components;
+  std::size_t start = 0;
+  while (start <= path.size()) {
+    const auto end = path.find('/', start);
+    const auto stop = end == std::string::npos ? path.size() : end;
+    components.push_back(std::string_view(path).substr(start, stop - start));
+    if (end == std::string::npos) {
+      break;
+    }
+    start = end + 1;
+  }
+  return components;
+}
+
+// True when the canonical path carries the component the filter spells,
+// `key-value` (FR-003).
+[[nodiscard]] auto path_carries(const std::string& path,
+                                const system::filter& one) -> bool
+{
+  const std::string wanted =
+      std::string(one.key) + "-" + std::string(one.value);
+  return std::ranges::any_of(path_components(path),
+                             [&](const std::string_view component)
+                             { return component == wanted; });
+}
+
+// True when the filter's key is a defined attribute key for objects of
+// `kind` (FR-003). The two ancestor selectors hold for every kind;
+// every other key is defined when an object of that kind spells it as
+// a canonical-path component prefix, which is how a provider declares
+// an attribute key: the path carries the attributes, so a key needs no
+// field of its own in the seed. A declared key whose value matches
+// nothing stays defined, so a filter that matches nothing selects
+// nothing.
+[[nodiscard]] auto key_defined(
+    const std::map<std::string, std::unique_ptr<tree_node>>& objects,
+    const std::string_view kind,
+    const system::filter& one) -> bool
+{
+  if (one.key == "package" || one.key == "core") {
+    return true;
+  }
+  const std::string prefix = std::string(one.key) + "-";
+  for (const auto& [path, node] : objects) {
+    if (node->kind != kind) {
+      continue;
+    }
+    for (const auto component : path_components(path)) {
+      if (component.starts_with(prefix)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 system::system()
@@ -327,7 +389,7 @@ auto system::objects(const std::string_view kind,
                                   .suggestions = {}});
   }
   for (const auto& one : filters) {
-    if (one.key != "package" && one.key != "core") {
+    if (!key_defined(m_impl->objects, kind, one)) {
       return std::unexpected(error {.message = "unknown filter key '"
                                         + std::string(one.key) + "' (FR-003)",
                                     .suggestions = {}});
@@ -340,25 +402,7 @@ auto system::objects(const std::string_view kind,
     }
     bool matches_all = true;
     for (const auto& one : filters) {
-      const std::string wanted =
-          std::string(one.key) + "-" + std::string(one.value);
-      bool component_hit = false;
-      std::size_t pos = 0;
-      while (true) {
-        const auto next = path.find('/', pos);
-        const std::string_view component = next == std::string::npos
-            ? std::string_view(path).substr(pos)
-            : std::string_view(path).substr(pos, next - pos);
-        if (component == wanted) {
-          component_hit = true;
-          break;
-        }
-        if (next == std::string::npos) {
-          break;
-        }
-        pos = next + 1;
-      }
-      if (!component_hit) {
+      if (!path_carries(path, one)) {
         matches_all = false;
         break;
       }

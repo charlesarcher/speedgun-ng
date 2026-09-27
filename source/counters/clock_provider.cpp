@@ -171,10 +171,17 @@ clock_provider::clock_provider()
 {
 #if defined(SG_COUNTERS_X86) && defined(__linux__)
   // Calibration (FR-034, R-007): the sysfs TSC frequency is the
-  // source of truth; CPUID leaf 0x16 nominal core frequency is the
-  // frequency-invariance cross-check. A mismatch marks the counter
-  // as platform-scaled; no tsc_khz means no usable calibration, so
-  // the leaf is omitted (catalog fact, zero API difference).
+  // source of truth, and the scaling flag is one comparison against
+  // a second source: `scaled` is set when that rate differs from the
+  // nominal core frequency CPUID leaf 0x16 EAX reports in MHz.
+  // Invariance lives in leaf 0x80000007 EDX bit 8; this flag claims a
+  // rate comparison, so a host reporting no nominal never sets it.
+  // The calibration runs here, at construction, because `enumerate`
+  // is const and runs at registration, and registration is refused
+  // after open: the catalog freezes at that boundary (FR-009), so a
+  // calibration deferred to open would publish an uncalibrated leaf.
+  // No tsc_khz means no usable calibration, so the leaf is omitted
+  // (catalog fact, zero API difference).
   std::ifstream khz_file("/sys/devices/system/cpu/tsc_khz");
   std::uint64_t khz = 0;
   if (khz_file >> khz && khz != 0) {
@@ -224,8 +231,11 @@ void clock_provider::enumerate(object_sink& sink) const
     const std::string description =
         "raw time-stamp counter ticks; calibrated at " + std::to_string(mhz)
         + " MHz from sysfs tsc_khz, "
-        + (m_tsc.scaled ? "cross-checked against CPUID: platform-scaled"
-                        : "cross-checked against CPUID: constant rate");
+        + (m_tsc.scaled
+               ? "CPUID leaf 0x16 reports a different nominal core "
+                 "frequency (platform-scaled)"
+               : "no CPUID leaf 0x16 nominal core frequency differs "
+                 "(constant rate)");
     entries.push_back(catalog_seed {
         .name = "tsc",
         .description = description,

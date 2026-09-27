@@ -44,11 +44,14 @@ auto sample_row(const plan_impl& layout,
 
 // One sampling action: the thread a plan bound to, the read sequence,
 // and the head advance. The scope, the hard-stop recorder, and the ring
-// recorder spell the write index and the wrap bookkeeping differently,
-// and nothing else (FR-026, FR-030, FR-031). The cached `bound_thread`
-// names the one allowed thread; the current thread's identity is read
-// per call, because caching it would cache the answer for the thread
-// that cached it.
+// recorder all call this, which is what makes FR-030's one semantics an
+// implementation fact. The two overflow policies keep one core each,
+// because FR-027's always-enforced bounds check and FR-028's branchless
+// mask are mutually exclusive, and `recorder_handle<P>::sample()` picks
+// between them at compile time (FR-026, FR-027, FR-028, FR-031). The
+// cached `bound_thread` names the one allowed thread; the current
+// thread's identity is read per call, because caching it would cache
+// the answer for the thread that cached it.
 auto sample_point(const plan_impl& layout,
                   std::uint64_t* columns,
                   const std::size_t stride,
@@ -307,7 +310,11 @@ void scope::start()
 {
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(!core->started, "scope start runs once per scope (FR-046)");
-  sample_point(*core->impl, core->buffer.data(), 2, 0, core->state.head);
+  // The window is a two-point hard-stop recorder, so its points are
+  // sampled by the recorder's own core, capacity check included
+  // (FR-027, FR-030).
+  detail::hard_stop_sample_core(
+      core->impl, core->buffer.data(), 2, core->state.head);
   core->started = true;
   SG_ENSURE(core->state.head == 1 && core->started,
             "the first point of the window is recorded (FR-011)");
@@ -318,7 +325,8 @@ void scope::finish()
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(core->started && !core->finished,
              "scope finish runs on a started, open window (FR-046)");
-  sample_point(*core->impl, core->buffer.data(), 2, 1, core->state.head);
+  detail::hard_stop_sample_core(
+      core->impl, core->buffer.data(), 2, core->state.head);
   core->finished = true;
   SG_ENSURE(core->state.head == 2 && core->finished,
             "the window is closed with two recorded points (FR-011)");
@@ -427,6 +435,13 @@ auto compile_core(const system& sys,
 
   auto layout = std::make_unique<plan_impl>();
   layout->bound_target = tg;
+  // One read group per provider, carrying every leaf that provider
+  // owns, so a fan-out over many objects is one `open` and one sampling
+  // action (FR-047). The instance is provider-internal, the PMU window
+  // issuing one group read per leader from inside its own reader
+  // (`source/counters/linux_pmu/group_io.cpp:216-239`); a per-instance
+  // split would multiply the setup cost and add one indirect call per
+  // instance to every sample (T098).
   for (std::size_t p = 0; p < impl.providers.size(); ++p) {
     std::vector<std::string> addresses;
     for (const auto& one : pending) {
