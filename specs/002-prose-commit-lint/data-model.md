@@ -85,7 +85,7 @@ non-imperative shape list, the exclusions, and the thresholds.
 | --- | --- | --- | --- |
 | `version` | integer | Must be 1; unknown versions exit 2 | Data evolution |
 | `rules` | list of Rule | Non-empty, ids unique, all seven canonical prose rule ids present, checked by id so dropping one of the two XI.5 rules fails load | FR-001, FR-023 |
-| `sections` | list of strings | Non-empty, case-sensitive, seeded with nine tokens, the eight observed plus `runner` named by the constitution's example section areas (`constitution.md:443`): `CMake`, `CI`, `Constitution`, `Docs`, `Meta`, `dbc`, `deploy`, `runner`, `test` | FR-010, R-11, D4 |
+| `sections` | list of strings | Non-empty, case-sensitive, seeded with ten tokens, the eight observed plus `runner` named by the constitution's example section areas (`constitution.md:443`) and `Counters` for the 007 subsystem: `CMake`, `CI`, `Constitution`, `Counters`, `Docs`, `Meta`, `dbc`, `deploy`, `runner`, `test` | FR-010, R-11, D4 |
 | `vague_titles` | list of strings | Non-empty, matched case-insensitively against the whole title | FR-012 |
 | `non_imperative_shapes` | list of strings | Non-empty; entries are word forms such as `Added`, `Adds`, `Fixing`, `Fixes`, `Update of`, `was added` | FR-011, R-11 |
 | `exclusions` | list of path prefixes | Non-empty; seeded with `.opencode/`, `.specify/scripts/`, `.specify/templates/`, `build/`, `docs/images/` | FR-006, R-05 |
@@ -94,6 +94,17 @@ non-imperative shape list, the exclusions, and the thresholds.
 | `thresholds.title_max` | integer | 1 to 100, default 50 | FR-009 |
 | `thresholds.body_wrap` | integer | 40 to 100, default 72 | FR-013 |
 | `thresholds.trivial_max_changed_lines` | integer | 0 to 50, default 5 | FR-013, R-10 |
+
+**Vocabulary extension, 2026-09-26**: `Counters` joined `sections` in commit
+`cef354b` ("Counters: Add system, scope, folds, fake spine"), the second
+007 commit to carry that section token; the first, `b0951cc`, predates the
+line. The addition follows the procedure FR-010 designs for: the list is
+editable data, and a new section token is a one-line change carried in the
+pull request that first uses it. The change widens the accepted section
+vocabulary by one token and leaves the other nine, the canonical-id
+coverage check, and the case-sensitive comparison untouched. The gate
+verdict over the 007 range is the evidence: the ten commits titled
+`Counters:` carry no `CM.SECTION-UNKNOWN` finding.
 
 **Load-time validation**, run before any check. A violation exits 2 with a
 message naming the offending field, because a gate reading a broken rule

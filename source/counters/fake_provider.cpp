@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -17,6 +18,20 @@
 
 namespace sg::counters
 {
+namespace
+{
+
+// One step of the seeded per-sample tail: a full-period 16-bit linear
+// congruential step, `state = (state * 37 + 11) mod 2^16`. A stronger
+// mixer would cost the test suite hand-reproducible tails, and this
+// one already gives a spread sequence from any seed (T014).
+[[nodiscard]] auto next_delta(const std::uint64_t state) noexcept
+    -> std::uint64_t
+{
+  return (state * 37U + 11U) & 0xFFFFU;
+}
+
+}  // namespace
 
 struct detail::fake_window final : window_reader
 {
@@ -31,6 +46,9 @@ struct detail::fake_window final : window_reader
       if (item->position < item->script.points.size()) {
         value = item->script.points[item->position];
         ++item->position;
+      } else if (item->script.delta_seed.has_value()) {
+        item->delta_state = next_delta(item->delta_state);
+        value = item->last + item->delta_state;
       } else {
         value = item->last + item->script.tail_delta;
       }
@@ -84,7 +102,8 @@ auto fake_provider::add_counter(const std::string_view object_path,
                                 const std::string_view unit,
                                 const std::string_view description,
                                 const availability avail,
-                                const read_mode mode) -> fake_provider&
+                                const read_mode mode,
+                                const bool ratio_pair) -> fake_provider&
 {
   const std::string path(object_path);
   SG_REQUIRE(!path.empty(), "add_counter names an object path (FR-002)");
@@ -98,6 +117,7 @@ auto fake_provider::add_counter(const std::string_view object_path,
   item.unit = std::string(unit);
   item.avail = avail;
   item.mode = mode;
+  item.ratio_pair = ratio_pair;
   SG_ENSURE(object.counters.count(std::string(name)) > 0,
             "the declared counter is enumerable (FR-002)");
   return *this;
@@ -106,7 +126,9 @@ auto fake_provider::add_counter(const std::string_view object_path,
 auto fake_provider::set_points(const std::string_view object_path,
                                const std::string_view name,
                                std::vector<std::uint64_t> points,
-                               const std::uint64_t tail_delta) -> fake_provider&
+                               const std::uint64_t tail_delta,
+                               const std::optional<std::uint64_t> delta_seed)
+    -> fake_provider&
 {
   const std::string path(object_path);
   const std::string leaf(name);
@@ -115,10 +137,14 @@ auto fake_provider::set_points(const std::string_view object_path,
       "set_points scripts a declared counter (FR-036)");
   const auto scripted = points.size();
   auto& item = counter(path, leaf);
-  item.script =
-      fake_script {.points = std::move(points), .tail_delta = tail_delta};
+  item.script = fake_script {.points = std::move(points),
+                             .tail_delta = tail_delta,
+                             .delta_seed = delta_seed};
   item.position = 0;
   item.last = 0;
+  // The seeded tail starts from the seed itself, so the first delta a
+  // reader sees is `next_delta(seed)` (T014).
+  item.delta_state = delta_seed.value_or(0);
   SG_ENSURE(counter(path, leaf).script.points.size() == scripted,
             "the scripted sequence is held in order (FR-036)");
   return *this;
@@ -136,6 +162,7 @@ void fake_provider::enumerate(object_sink& sink) const
           .unit = item.unit,
           .avail = item.avail,
           .mode = item.mode,
+          .has_ratio_pair = item.ratio_pair,
       });
     }
     sink.add_object(object_seed {

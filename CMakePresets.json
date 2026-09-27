@@ -159,5 +159,23 @@
       "name": "ci-windows",
       "inherits": ["ci-build", "ci-win64", "dev-mode", "ci-multi-config"]
     }
+  ],
+  "buildPresets": [
+    {
+      "name": "ci-sanitize",
+      "configurePreset": "ci-sanitize"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "ci-sanitize",
+      "configurePreset": "ci-sanitize",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    }
   ]
 }

@@ -32,7 +32,7 @@ The linux_pmu provider consumes a new vendored data tree: `external/pmu-events`,
 
 **Constraints**: read path free of expression tree, dynamic dispatch, name lookup (FR-022); bounds check `SG_REQUIRE_ALWAYS` under `hard_stop` (memory safety never semantic-gated); per-thread plans/recorders with binding checked in dev/CI; dimensions erased before the buffer; catalog immutable after open; standalone example link manifest names this library alone (FR-049).
 
-**Scale/Scope**: 6 new public headers (`include/speedgun-ng/counters*.hpp`), `source/counters/` (~8 TUs plus provider-private internals), 4 built-in providers, ~11 new test executables plus compile-fail cases and fixtures, 2 example targets, 1 python tool with fixtures, `external/pmu-events` data tree plus gate bracket, CI step, README re-pinning section, one docs overhead page. Infrastructure: root `CMakeLists.txt`, `test/CMakeLists.txt`, `cmake/lint.cmake` (glob reach into `source/counters/`), `.github/workflows/ci.yml`.
+**Scale/Scope**: 9 new public headers (`include/speedgun-ng/counters*.hpp`), `source/counters/` (~8 TUs plus provider-private internals), 4 built-in providers, ~11 new test executables plus compile-fail cases and fixtures, 2 example targets, 1 python tool with fixtures, `external/pmu-events` data tree plus gate bracket, CI step, README re-pinning section, one docs overhead page. Infrastructure: root `CMakeLists.txt`, `test/CMakeLists.txt`, `cmake/lint.cmake` (glob reach into `source/counters/`), `.github/workflows/ci.yml`.
 
 ## Constitution Check
 
@@ -43,7 +43,7 @@ The linux_pmu provider consumes a new vendored data tree: `external/pmu-events`,
 | I. Standard-First Coding | PASS | C++23, extensions off. P0 invoked (documented, designated in spec FR-026/FR-035 and [contracts/measurement-contract.md](contracts/measurement-contract.md)): `sample()` and push `add()` carry the P0 techniques (register-resident push load, branchless ring mask, dispatch-free flat read loop). Two P2 exceptions anticipated and recorded here for written justification at the site: x86 intrinsics (`__rdtsc`, `_rdpmc`) and the `reinterpret_cast` of the mmap'd perf user-access page, both confined inside provider implementations where the probe plus kernel ABI make them sound (FR-034, FR-040; R-007, R-011). |
 | II. Design By Contract | PASS | Every new public interface carries doxygen `\pre`/`\post`/`\invariant` plus runtime enforcement (dbc-gate covers `include/speedgun-ng/` automatically). Tier mapping per FR-046 (R-002): dimensions and result shape in types; `std::expected<T, error>` for resolution/registration/construction-input failures; `SG_REQUIRE` for misuse sequences, `SG_REQUIRE_ALWAYS` for the `hard_stop` bounds. Contracts state each rule once (header doc pairs one enforcement site). |
 | III. R-DCUT | PASS | spec → plan (this artifact set, logical and physical views, test plan) → tasks → code+tests. TDD mode recorded in the Test Plan. |
-| IV. Documentation | PASS | Full doxygen on the six public headers (docs target picks them up); the unit-to-dimension switch, the 2^53 exactness note, the cadence idiom, and the fold-endpoint-cost statement are documented behavior per spec, per Principle IV. The overhead page and README re-pinning section complete the written surface. |
+| IV. Documentation | PASS | Full doxygen on the nine public headers (docs target picks them up); the unit-to-dimension switch, the 2^53 exactness note, the cadence idiom, and the fold-endpoint-cost statement are documented behavior per spec, per Principle IV. The overhead page and README re-pinning section complete the written surface. |
 | V. Style and Formatting | PASS | `.clang-format` governs new files; `cmake/lint.cmake`'s glob gains reach into `source/counters/` (verify at implement; the hwloc/simdjson gate subdirs prove the pattern the glob needs to match). Formatting-only changes commit separately. |
 | VI. Test-Backed Code | PASS | Tests ship with every component (Test Plan table covers US1–US8, all FR tiers, SC-001..SC-010). 100% line/branch/DBC gates apply to the new `include/`+`source/` code; contract-macro lines stay excluded by the existing `--omit-lines` mechanism; the fake provider makes fold/provenance exactness testable with zero tolerance (SC-006). Measurement correctness (wrap, drop accounting, ratio products, endpoint cost) is the safety property of this feature and carries the fixtures. |
 | VII. Performance Discipline | PASS | Critical paths designated and documented (Constraints). The feature ships the measurement artifacts: per-plan overhead calibration (FR-032), probe-gated fast/syscall regime benchmark with distributions published side by side (`docs/pages/counters-overhead.md`, following the `docs/pages/dbc-overhead.md` precedent). The open deferral (baseline infrastructure absent) stays open: this plan delivers baselines as published data; regression-gate wiring lands with the baseline spec. |
@@ -86,7 +86,15 @@ include/speedgun-ng/
 ├── counters_measurement.hpp       # NEW counter<D>/expression<D>, compile<plan>,
 │                                  #   recorder factory + handle, folds, scope sugar,
 │                                  #   push counter handle (inline add(), FR-035)
-└── counters_fake.hpp              # NEW fake provider control surface (FR-036)
+├── counters_fake.hpp              # NEW fake provider control surface (FR-036)
+├── counters_clock.hpp             # NEW clock_provider: monotonic, thread CPU and
+│                                  #   process CPU leaves plus the calibrated tsc
+│                                  #   leaf (FR-033/034, R-007)
+├── counters_push.hpp              # NEW push_provider: thread-confined user
+│                                  #   counters sampled by plain load (FR-035, R-008)
+└── counters_pmu.hpp               # NEW pmu_provider: the merged hardware event
+                                   #   catalog and its probed availability
+                                   #   (FR-037..FR-042, R-010)
 
 source/counters/                   # NEW implementation dir (root CMakeLists owns
 │   │                              #   every addition via target_sources PRIVATE)
@@ -314,7 +322,7 @@ Key properties, each traced: the public link surface stays `speedgun-ng::speedgu
 
 ### Public API surface added
 
-Namespace `sg::counters`: `system`, `object`, `catalog_entry`, `unit`, `availability`, `read_mode`, `error`, `dim<T,C>`, `counter<D>`, `expression<D>`, `metric_result`, `plan`, `recorder` factory + `recorder_handle<P>`, `hard_stop`/`ring` tags, `scope`, `push counter` handle, `fake_provider`, `provider_iface` + `provider` concept, `compile()`. This is the entire contract surface of the feature ([contracts/](contracts/)); nothing else becomes public.
+Namespace `sg::counters`: `system`, `object`, `catalog_entry`, `unit`, `availability`, `read_mode`, `error`, `dim<T,C>`, `counter<D>`, `expression<D>`, `metric_result`, `plan`, `recorder` factory + `recorder_handle<P>`, `hard_stop`/`ring` tags, `scope`, `push counter` handle, `fake_provider`, `clock_provider`, `push_provider`, `pmu_provider`, `provider_iface` + `provider` concept, `compile()`. This is the entire contract surface of the feature ([contracts/](contracts/)); nothing else becomes public. The nine public headers carry it: `counters.hpp` (umbrella), `counters_core.hpp`, `counters_provider.hpp`, `counters_system.hpp`, `counters_measurement.hpp`, `counters_fake.hpp`, `counters_clock.hpp`, `counters_push.hpp`, `counters_pmu.hpp`.
 
 ---
 

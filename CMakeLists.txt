@@ -646,31 +646,26 @@ endif()
 # Counters library sources (specs/007-counters-and-timers, T003). The
 # tree grows one translation unit per story task: GLOB with
 # CONFIGURE_DEPENDS keeps the bracket current as files land, and the
-# guarded call tolerates the empty tree at setup time. Public surface
-# is flat in include/speedgun-ng/counters*.hpp; everything compiled
-# here is PRIVATE. The format glob in cmake/lint.cmake
-# (source/*.cpp, recursive) already reaches this subtree.
+# guarded call tolerates the empty tree at setup time. GLOB_RECURSE
+# reaches every subtree, so a source/counters/detail/ or
+# source/counters/linux_pmu/ translation unit cannot be dropped by a
+# non-recursive pattern. Public surface is flat in
+# include/speedgun-ng/counters*.hpp; everything compiled here is
+# PRIVATE. The format glob in cmake/lint.cmake (source/*.cpp,
+# recursive) already reaches this subtree. Every Linux PMU TU (T045..
+# T048) carries its own __linux__ guard, so the reduced-catalog build
+# off Linux compiles from the same list (FR-042).
 file(
-    GLOB speedgun-ng_counters_sources
+    GLOB_RECURSE speedgun-ng_counters_sources
     CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/counters/*.cpp"
 )
 if(speedgun-ng_counters_sources)
   target_sources(speedgun-ng_speedgun-ng PRIVATE ${speedgun-ng_counters_sources})
 endif()
 
-# Linux PMU provider sources (T045..T048): always globbed; every TU
-# carries its own __linux__ guard so the reduced-catalog build off
-# Linux compiles from the same list (FR-042). The compile definition
-# hands the provider the vendored table root, the same way the clock
-# provider reaches sysfs by path (T045).
-file(
-    GLOB speedgun-ng_pmu_sources
-    CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/counters/linux_pmu/*.cpp"
-)
-if(speedgun-ng_pmu_sources)
-  target_sources(speedgun-ng_speedgun-ng PRIVATE ${speedgun-ng_pmu_sources})
-endif()
+# The compile definition hands the vendored table root to the Linux
+# PMU provider, the same way the clock provider reaches sysfs by path
+# (T045).
 target_compile_definitions(
     speedgun-ng_speedgun-ng
     PRIVATE SG_PMU_EVENTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/external/pmu-events"

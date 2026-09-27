@@ -166,6 +166,15 @@ add_test(
   COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/counters_header_purity.sh ${CMAKE_SOURCE_DIR}
 )
 
+# Atomic read-modify-write scan of the push path (T100; FR-035, R-008):
+# the hot-path add, the sampled load, and the fold-time read are plain
+# accesses on a thread-confined cell. Same pure-grep-script registration
+# pattern; the script exits 0 clean and 1 naming each violation.
+add_test(
+  NAME counters_push_atomic_scan
+  COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/counters_push_atomic_scan.sh ${CMAKE_SOURCE_DIR}
+)
+
 # Recorder arena, overflow policies, and independent cursors (T028;
 # FR-025..FR-029).
 add_executable(counters_recorder_test source/counters_recorder_test.cpp)
@@ -188,6 +197,16 @@ add_executable(counters_trap_fixture source/counters_trap_fixture.cpp)
 target_link_libraries(counters_trap_fixture PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_trap_fixture PRIVATE cxx_std_23)
 
+# Trap verification, both directions (T023, T090, T105). The expectations
+# follow SG_CONTRACTS_SEMANTIC, the PUBLIC definition of the library this
+# test links, so one target covers both configurations. In a checked build
+# every mode must abort before printing its marker. In an ignore build the
+# gated modes must run through and print theirs while the always-on
+# overrun still aborts; that is the FR-027 release proof, and it is
+# reproducible locally in a release-configured binary directory:
+#   cmake -S . -B build/release-dev -D CMAKE_BUILD_TYPE=Release
+#     -D speedgun-ng_DEVELOPER_MODE=ON -D speedgun-ng_CONTRACTS=ignore
+#   ctest --test-dir build/release-dev -R counters_trap --output-on-failure
 add_executable(counters_trap_checked_test source/counters_trap_checked_test.cpp)
 target_link_libraries(counters_trap_checked_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_trap_checked_test PRIVATE cxx_std_23)
