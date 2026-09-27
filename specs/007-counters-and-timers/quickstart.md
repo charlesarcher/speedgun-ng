@@ -147,3 +147,29 @@ Rows this pass could not close: SC-004's fast side, gated by the probe
 spans the dbc and vendored-dependency tests as well. Section 13's gates
 were out of this pass's scope for the same reason, and `dbc-gate` could
 not run here because the environment lacks PyYAML.
+
+## Section 13 gate pass, 2026-09-27
+
+A second pass closed section 13 on `build/coverage` and `build/dev`, both
+configured from this repository's presets. Every gate below ran with no
+threshold relaxed and no gate skipped.
+
+| Gate | Command | Verdict | Evidence |
+|---|---|---|---|
+| Coverage | `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` | PASS, exit 0: lines 100.0% (1800 of 1800), branches 100.0% (676 of 676) | `t066-coverage-gate.log` |
+| Coverage exclusions | `rg -c 'LCOV_EXCL' source/counters include/speedgun-ng/counters*.hpp` | 296 marker lines, each carrying its reason at its site; the registry is the plan's Complexity Tracking row | `t066-marker-count.txt` |
+| dbc-gate | `cmake --build build/dev -t dbc-gate` | PASS: 135 interfaces, 0 doc gaps, 0 pair gaps | `t066-dbc-gate.log` |
+| prose-lint | `cmake -P cmake/prose-lint.cmake` | PASS, exit 0: 92 sources, 5968 units, 0 findings | `t066-prose-lint.log` |
+| format-check | `cmake --build build/dev -t format-check` | PASS, exit 0 | `t066-format-check.log` |
+| Sanitizers | `cmake --preset=ci-sanitize && cmake --build --preset=ci-sanitize && ctest --preset=ci-sanitize` | PASS: 35 of 35, `counters_overhead` probe-skipped | `t066-ci-sanitize.log` |
+| Tests | `ctest --preset=dev` | PASS: 35 of 35, `counters_overhead` probe-skipped | `t066-ctest-dev.log` |
+
+Two notes a reviewer needs. First, the coverage figure rests on
+measurement. An audit cleared 91 exclusion tokens whose stated reasons
+were false, and the two real defects those tokens concealed are fixed
+and named in the plan's Complexity Tracking row. Second, the
+`coverage` target's last step, the `genhtml` HTML report, cannot run on
+this host because `GD.pm` is absent and no `sudo` is available; the gate
+itself, `coverage_gate.sh`, is the command in the table and it exits 0.
+CI installs `lcov` through `apt`, which carries `libgd-perl`, so the HTML
+step runs there.
