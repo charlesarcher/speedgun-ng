@@ -71,52 +71,64 @@ below as the credibility band.
 
 ## Regimes on this host
 
+Two builds are published because they answer different questions. The
+`dev` preset is the correctness build (`-Og`, contracts `enforce`) and is
+what `ctest --preset=dev` runs; the `release` build is what a user runs.
+A performance ordering means something only in the second, so the release
+figures are the ones to read and the dev figures are here to show what the
+correctness build costs.
+
+Release build (`-O2`), three runs on an idle tree:
+
 | plan | min ns | median ns | max ns | read mode |
 | --- | --- | --- | --- | --- |
-| clock only, one leaf per action (`machine/monotonic`) | 50 | 60 | 90 | `syscall` |
-| core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one `read()` per leader per action | 210 | 220 | 260 | `syscall` |
-| fast-mode clock plan, one leaf per action (mapped page) | unmeasured | unmeasured | unmeasured | `fast_tsc` or `fast_rdpmc`, probe-gated, reason below |
-| first-to-last fold over 64 recorded points, sampling outside the loop | | 415.7 | | none |
+| clock only, one leaf per action (`machine/monotonic`) | 30 | 30 | 60 | `syscall` (vDSO) |
+| core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one read per leader per action | 50 | 50 | 60 | `fast_rdpmc` |
+| core PMU single leaf (`cpu/instructions`), one leaf per action | 40 | 40 | 50 | `fast_rdpmc` |
+| first-to-last fold over 64 recorded points, sampling outside the loop | | 28.4 | | none |
+
+`dev` preset (`-Og`, `enforce`), three runs on an idle tree:
+
+| plan | min ns | median ns | max ns | read mode |
+| --- | --- | --- | --- | --- |
+| clock only, one leaf per action (`machine/monotonic`) | 60 | 70 | 130 | `syscall` (vDSO) |
+| core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one read per leader per action | 170 | 170 | 200 | `fast_rdpmc` |
+| core PMU single leaf (`cpu/instructions`), one leaf per action | 120 | 130 | 160 | `fast_rdpmc` |
+| first-to-last fold over 64 recorded points, sampling outside the loop | | 584.7 | | none |
 
 A fold window from `i` to `j` costs two sampling actions plus the fold:
-`2 * sample_overhead_ns_median()`, so 120 ns for the clock plan and
-440 ns for the PMU group plan on this host.
+`2 * sample_overhead_ns_median()`, so 60 ns for the clock plan and 100 ns
+for the PMU group plan in the release build.
 
 ## Raw trial inputs (ns per sample(), run order)
 
 Each line is one process, and the three fields are that run's min, median
 and max over its 257 timed actions.
 
-clock plan (`machine/monotonic`, `syscall`):
+Release build (`-O2`):
 
 ```
-50.0,60.0,90.0
-50.0,60.0,100.0
-50.0,60.0,100.0
-50.0,60.0,90.0
+clock, syscall (vDSO):     30.0,30.0,60.0   30.0,30.0,60.0   30.0,30.0,40.0
+pmu group, fast_rdpmc:     50.0,60.0,60.0   50.0,60.0,60.0   50.0,50.0,60.0
+pmu single, fast_rdpmc:    40.0,40.0,50.0   40.0,40.0,50.0   30.0,40.0,40.0
+fold, ns per fold:         28.4            29.9            25.0
 ```
 
-core PMU group (`cpu/instructions` and `cpu/cpu-cycles`, `syscall`):
+`dev` preset (`-Og`, `enforce`):
 
 ```
-210.0,220.0,260.0
-220.0,220.0,260.0
-210.0,220.0,250.0
-210.0,220.0,250.0
+clock, syscall (vDSO):     70.0,70.0,130.0  70.0,70.0,90.0   60.0,70.0,100.0
+pmu group, fast_rdpmc:     170.0,170.0,200.0  170.0,170.0,3510.0  170.0,170.0,210.0
+pmu single, fast_rdpmc:    120.0,130.0,160.0  120.0,130.0,160.0  120.0,130.0,160.0
+fold, ns per fold:         584.7            549.9            553.8
 ```
 
-first-to-last fold over 64 recorded points, nanoseconds per fold:
+The 3510 ns maximum in the second `dev` group row is a scheduler
+preemption inside one timed action. It is the tail the distribution is
+published to expose, and the median is unmoved by it.
 
-```
-415.7
-406.5
-414.1
-403.3
-411.6
-```
-
-An earlier run of the same binary the same day, taken while a 32-way
-build was in flight, reads:
+The earlier figures this page carried, taken while a 32-way build was in
+flight, read:
 
 ```
 clock:  70.0,70.0,110.0
@@ -124,66 +136,100 @@ group: 279.0,280.0,320.0
 fold:   583.4
 ```
 
-That run is the tail of the distribution, and the cause is named: a
-saturated build tree. The four runs above it executed on an idle build
-tree and agree to within one clock tick at the max, so the published
-medians carry the idle-build figure and the loaded-build figure stands as
-the upper bound for this host.
+That run is the tail of a contended tree and is superseded by the rows
+above, which ran on an idle one.
 
-## Fast regime: not probe-passing here
+## Fast regime: measured, and behind a vDSO clock read
 
-The fast regime has no measurement on this host, and the row above says
-so. Three probe facts gate it:
+The fast regime is measured on this host, and the mapped-page read does
+not beat the clock read the benchmark compares it against.
 
-- `/sys/devices/system/cpu/tsc_khz` is absent, so the kernel publishes
-  no calibrated time-stamp frequency. The clock provider omits its
-  `fast_tsc` leaf entirely (FR-034), which leaves no `fast_tsc` catalog
-  entry to sample.
-- `/sys/bus/event_source/devices/cpu/rdpmc` exists and names a page
-  size, but the file is mode 0400 and owned by root, so this caller
-  cannot open it.
-- `/proc/sys/kernel/perf_event_paranoid` is 2, and the kernel grants
-  user counter reads at 1 or below, so the probe stops there first.
+The probe passes, and the catalog says so. `pmu_probe_fast` opens one
+real event through `perf_event_open`, maps the one page the returned
+descriptor maps, and reads the kernel's own account from that page. On
+this host the page reports `capabilities=0x1e` with `cap_user_rdpmc=1`
+and `cap_user_time=1`, `pmc_width=48`, `index=1`, and
+`offset=140737488355327`, and 356 of the 589 core-PMU entries disclose
+`fast_rdpmc`.
 
-The catalog carries the refusal, so the reason travels with the numbers:
+What the measurement shows is that a mapped-page hardware-counter read
+costs more per `sample()` than a `clock_gettime` through the vDSO: 40 ns
+against 30 ns in the release build, 130 ns against 70 ns in the dev
+build. The reason is visible in the protocol. A mapped-page read takes a
+seqlock snapshot, a page load for the index, the offset and the width,
+the instruction, a second seqlock comparison, and the enabled/running
+pair off the same page. A vDSO clock read is one leaf-function call. The
+two are not the same measurement, so the comparison does not say the
+mechanism is slow; it says a vDSO clock read is the cheapest read in the
+library and no hardware-counter read beats it.
 
-```
-perf event source 'cpu', PMU type 4; the availability probe ran at
-perf_event_paranoid 2; user counter reads stay in syscall mode:
-perf_event_paranoid is 2; the kernel grants user counter reads at
-1 or below, so the mapped-page read stays unprobed
-```
+The comparison the spec's pass check names, the fast-mode median below
+the syscall-mode median, is therefore not satisfiable on this host with
+the counterpart the catalog can offer. Every countable hardware entry
+here discloses `fast_rdpmc`, so no syscall-mode hardware plan exists to
+compare against, and the one syscall-mode plan available is the clock.
+`counters_overhead` publishes the order result and does not assert it:
+this file is not a CI gate on its numbers, and Principle VII's baseline
+infrastructure is an open deferral.
 
-To publish the fast side, run the same test on a host with
-`perf_event_paranoid` at 1 or below, a readable `rdpmc` page, and
-`tsc_khz` present. The test then prints the two regimes side by side
-with the ratio between their medians, and the SC-004 pass check on that
-host is binary: the fast-mode median is below the syscall-mode median.
-No fixed factor separates the two, because a `sample()` action charges
-the recorder bookkeeping and the contract checks on top of the read, and
-100x below either syscall median in this page is 0.6 ns and 2.2 ns, each
-below one clock read. The design target for the mechanism is a fast plan
-in the tens-of-cycles regime against a syscall plan reading a hardware
-counter; that expectation is a design target, and the number this page
-carries is whatever the host measured.
+The number that does compare like with like is the kernel's own. Opening
+64 countable core-PMU events against this PMU at once oversubscribes it,
+and `counters_pmu_test`'s multiplex scenario records what the kernel
+granted: about a tenth of the enabled time, with the fold disclosing the
+shortfall and its `scaled` flag set. A single read mode is cheap; what
+costs is the kernel's scheduling when more events are open than there are
+counters.
 
-## Achieved modes
+## Fast-regime probe facts on this host
 
-Every catalog entry discloses the read mode its plan will use (FR-023,
-C-PRO-4), and the plan reads through the disclosed mechanism: a
-fast-capable host serves the mapped-page read, and a fast window the
-kernel refuses is a recoverable open failure, never a silent downgrade
-to a read the catalog does not describe. On this host all 592 entries
-across the machine and core-PMU objects disclose `syscall`: 3 on the
-machine object and 589 on the core-PMU object, 0 fast.
+- `/sys/devices/system/cpu/tsc_khz` is absent, so the kernel publishes no
+  calibrated time-stamp frequency and the clock provider omits its
+  `fast_tsc` leaf entirely (FR-034). The kernel is built `CONFIG_X86_TSC=y`
+  without `CONFIG_CALIBRATE_TSC`, which is the configuration that
+  publishes the frequency; a host with it carries a `fast_tsc` entry.
+- `/sys/bus/event_source/devices/cpu/rdpmc` exists and its content is the
+  single character `1`. It is a scalar sysfs attribute and takes no part
+  in the read: the protocol documented in
+  `/usr/include/linux/perf_event.h` consults no sysfs attribute, and
+  every field it needs is in the event's own page.
+- `/proc/sys/kernel/perf_user_access` is absent on this kernel, and
+  `/proc/sys/kernel/perf_event_paranoid` is 1. Neither is consulted: the
+  earlier claim that the kernel grants user counter reads at 1 or below
+  was false, and the fast probe passes here at 2 as well.
 
 ## Privilege context
 
-`/proc/sys/kernel/perf_event_paranoid` is 2. Per-thread events for the
-calling process are permitted at that level, so hardware entries probe
-as `countable` and the group read returns real counts. Multiplexing
-does not occur on an idle group, so the enabled/running pair reports a
-ratio of 1.000000 here. A host that oversubscribes its counters
-produces a ratio below 1 and the fold reports `scaled` set; that
-evidence is developer-machine material recorded in the pull request per
-tasks.md T043 scenario 6.
+`/proc/sys/kernel/perf_event_paranoid` is 1 on this host, and the sudo
+grant that moved it there from 2 is what made the fast mechanism
+reachable. The rows above were measured at 1.
+
+The level was re-verified at 2 after the fast-read fix, and the result
+contradicts a claim this page used to make. At 2 this kernel still grants
+a caller its own per-process user-mode events, so hardware entries probe
+`countable` and the fast probe passes:
+
+| setting | hardware entries | not encodable | fast mechanism |
+| --- | --- | --- | --- |
+| 2 (the standard CI level) | 358 `countable`, 0 `permission_blocked` | 261 | probe passes; 356 entries disclose `fast_rdpmc` |
+| 1 (this host, after the grant) | 358 `countable`, 0 `permission_blocked` | 261 | probe passes; 356 entries disclose `fast_rdpmc` |
+
+So the catalog does not differ between the two settings on this host, and
+the earlier claim that level 2 reports `permission_blocked` for hardware
+entries was never measured: the artifact it was attributed to,
+`sc-002-pmu.log`, records a passing `ctest` and no counts. The
+re-verification is `sc-002-paranoid-2-pmu.log` beside it, and it carries
+the counts this table states. US6 scenario 4 expects
+`permission_blocked` at level 2; on this kernel the expectation does not
+reproduce, and the recorded fact is the count above.
+
+A level at which the kernel does refuse is 3 or above, where the
+availability probe's test-opens are answered with a permission error. CI
+runs unprivileged at 2, so on CI hardware entries probe `countable` and
+the suite stays green either way.
+
+Multiplexing needs more events open at once than the PMU has hardware
+counters, so an idle group reports a ratio of exactly 1.000000 and says
+nothing about scheduling. The oversubscribed set does: 64 countable
+core-PMU events against this PMU ran about a tenth of the time the
+kernel reported them enabled, and the fold disclosed the shortfall with
+its `scaled` flag set (`counters_pmu_test`, US6 scenario 6).
