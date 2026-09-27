@@ -302,8 +302,18 @@ def skip_trailing_return(text: str, j: int) -> int:
         if j >= n or text[j] in "{;":
             return j
         if text[j] == "<":
-            close = match_bracket(text, j)
-            j = (close + 1) if close is not None else j + 1
+            # A template argument list; match_bracket spans only ()[]{}.
+            depth = 0
+            k = j
+            while k < n:
+                if text[k] == "<":
+                    depth += 1
+                elif text[k] == ">":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                k += 1
+            j = (k + 1) if k < n else n
             continue
         if text[j] in "*&":
             j += 1
@@ -346,6 +356,34 @@ def skip_ctor_init(text: str, colon: int) -> tuple[str, int] | None:
             brace -= 1
         j += 1
     return None
+
+
+def declarator_start(text: str, i: int) -> bool:
+    """True when text[i] opens a declarator rather than a call or init-list name.
+
+    A member in a constructor-initialiser list, a call through `.` or `->`,
+    and a call on a qualified name all match FUNC_START yet define nothing.
+    Treating one as a definition swallows the following brace and hides
+    every region after it from the gate. The immediate preceding character
+    still decides token continuation, so a return type on its own line
+    keeps its declarator.
+    """
+    if i and (text[i - 1].isalnum() or text[i - 1] == "_"):
+        return False
+    j = i - 1
+    while j >= 0 and text[j].isspace():
+        j -= 1
+    if j < 0:
+        return True
+    prev = text[j]
+    if prev == ".":
+        return False
+    if prev == ":":
+        # A constructor-initialiser name defines nothing; an access
+        # specifier precedes a real member, so only ')' or ',' marks the
+        # initialiser list.
+        return not (j >= 1 and text[j - 1] in "),")
+    return not (prev == ">" and j >= 1 and text[j - 1] == "-")
 
 
 def after_params(text: str, close_paren: int) -> tuple[str, int] | None:
@@ -506,9 +544,7 @@ def parse_regions(text: str, path: Path, macros: set[str]) -> list[Region]:
                     i = brace + 1
                     continue
         func = FUNC_START.match(text, i)
-        if func is not None and (
-            i == 0 or not (text[i - 1].isalnum() or text[i - 1] == "_")
-        ):
+        if func is not None and declarator_start(text, i):
             name = func.group("name")
             if name not in NOT_FUNCTION and name not in macros:
                 open_paren = func.end() - 1
