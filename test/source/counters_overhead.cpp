@@ -254,19 +254,18 @@ auto main() -> int
   }();
 
   if (fast_leaf.empty()) {
+    // The reason comes from the catalog, which the provider fills from its
+    // own probe. A sentence written here goes stale the moment a host
+    // clears one gate and stops at another.
     std::printf(
         "\nSKIP: this host probes no fast read mechanism, so the fast "
-        "regime is unmeasured and the comparison has no fast side. Three "
-        "probe facts gate it: "
-        "'/sys/devices/system/cpu/tsc_khz' is absent, so the kernel "
-        "publishes no calibrated time-stamp frequency; "
-        "'/sys/bus/event_source/devices/cpu/rdpmc' is mode 0400 and "
-        "root-owned, so this caller cannot open the mapped page; and "
-        "perf_event_paranoid is 2, where the kernel grants user counter "
-        "reads at 1 or below. Every catalog entry disclosed syscall mode, "
-        "so both plans measured above ran in syscall mode. The page "
+        "regime is unmeasured and the comparison has no fast side. The "
+        "catalog reports the gating fact: %s\n"
+        "Every catalog entry disclosed syscall mode, so both plans "
+        "measured above ran in syscall mode. The page "
         "docs/pages/counters-overhead.md records the probe reason beside "
-        "the syscall rows and leaves the fast row unmeasured.\n");
+        "the syscall rows and leaves the fast row unmeasured.\n",
+        std::string(cpu.description()).c_str());
     return 2;
   }
 
