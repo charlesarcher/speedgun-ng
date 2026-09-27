@@ -21,5 +21,7 @@ function(add_example NAME)
 endfunction()
 
 add_example(empty_example)
+add_example(counters_giraffe_example)
+add_example(counters_standalone_example)
 
 add_folders(Example)

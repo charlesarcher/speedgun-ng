@@ -211,6 +211,16 @@ target_link_libraries(counters_clock_push_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_clock_push_test PRIVATE cxx_std_23)
 add_test(NAME counters_clock_push_test COMMAND counters_clock_push_test)
 
+# Out-of-tree provider extension from public headers only (T039;
+# FR-011, FR-012, FR-047): the giraffe counts honks through a mini
+# provider defined in the test TU.
+add_executable(counters_provider_ext_test
+               source/counters_provider_ext_test.cpp)
+target_link_libraries(counters_provider_ext_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_provider_ext_test PRIVATE cxx_std_23)
+add_test(NAME counters_provider_ext_test COMMAND counters_provider_ext_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
