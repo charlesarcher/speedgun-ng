@@ -5,9 +5,10 @@
 // The plan requires the mapped-page protocol logic and the config
 // encoder to be exercised with injected page and index inputs, so CI
 // covers them without privileges. The kernel glue that feeds them
-// (mmap, perf_event_open, the instruction itself) runs on a
-// fast-capable, probe-passing developer host; its unreachable lines
-// carry a recorded coverage exclusion with written justification
+// (perf_event_open, the mapping, the instruction itself) runs for real
+// on any host the kernel lets open a per-process user event, which
+// includes the CI matrix; the arms no host can reach carry a recorded
+// coverage exclusion with written justification at their own site
 // (Principle VI, VIII).
 //
 // This is the one test in the repository that reaches a private seam
@@ -82,75 +83,86 @@ using sg::counters::detail::to_hex;
 // fixture carries the fields the protocol gates on and nothing else.
 struct synthetic_page
 {
-  std::uint32_t version = 0;
-  std::uint32_t compat_version = 0;
   std::uint32_t index = 0;
-  std::uint64_t slot_id = 0;
   std::uint16_t pmc_width = 0;
 };
 
 // The gates a synthetic page reaches, in the order the protocol applies
-// them: the structure version, then the one-based index and its slot id,
-// then the counter width the decode masks to.
+// them: the one-based index the instruction takes, the counter width the
+// decode masks to, and the seqlock comparison that closes the window.
 auto page_gate_scenario() -> void
 {
   using sg::counters::detail::fast_counter_width;
   using sg::counters::detail::fast_index_valid;
-  using sg::counters::detail::fast_page_version_readable;
-  using sg::counters::detail::kRnpmcPageVersion;
-  using sg::counters::detail::kRnpmcSlots;
+  using sg::counters::detail::fast_pair_stable;
+  using sg::counters::detail::kRnpmcMaxIndex;
 
-  // The kernel leaves both version fields zero; a page declaring the
-  // version this reader implements, or the lowest it still serves, is
-  // readable; a page declaring more is refused fail-closed.
-  check(fast_page_version_readable(0, 0),
-        "a page declaring no version is read at the compiled offsets");
-  check(fast_page_version_readable(kRnpmcPageVersion, 0),
-        "a page declaring the implemented version is readable");
-  check(fast_page_version_readable(0, kRnpmcPageVersion),
-        "a page declaring the implemented compat version is readable");
-  check(!fast_page_version_readable(kRnpmcPageVersion + 1, 0),
-        "a page declaring a newer structure version is refused");
-  check(!fast_page_version_readable(0, kRnpmcPageVersion + 1),
-        "a page refusing every older compat version is refused");
+  // One-based index validity over the page index alone: the kernel
+  // publishes the index in the event page and the caller reads
+  // `rdpmc(index - 1)`, so no second page and no slot id take part.
+  check(fast_index_valid(1), "index 1 names the first counter");
+  check(fast_index_valid(kRnpmcMaxIndex),
+        "the highest operand bound is a valid index");
+  check(
+      !fast_index_valid(0),
+      "index 0 reports no usable counter and falls back to the group " "read");
+  check(!fast_index_valid(kRnpmcMaxIndex + 1),
+        "an index past the operand bound is refused");
 
-  // One-based index validity over the page index and the id the
-  // user-access page publishes for its slot.
-  check(fast_index_valid(1, 1), "index 1 with slot id 1 is valid");
-  check(fast_index_valid(kRnpmcSlots, kRnpmcSlots),
-        "the last published index with the last slot id is valid");
-  check(!fast_index_valid(0, 1),
-        "index 0 reports no usable counter and falls back to the group read");
-  check(!fast_index_valid(kRnpmcSlots + 1, 1),
-        "an index past the slot array is refused");
-  check(!fast_index_valid(1, 0),
-        "a slot the user page publishes no id for is refused");
-  check(!fast_index_valid(1, kRnpmcSlots + 1),
-        "a slot id past the slot array is refused");
-
-  // The width the decode masks to: the published width, or the protocol
-  // default when the page publishes none.
+  // The width the decode masks to: the published width, or the fallback
+  // when the page publishes none. A host whose counters are wider or
+  // narrower than the fallback is read at the width it publishes.
   check(fast_counter_width(0) == kRnpmcCounterWidth,
-        "a page publishing no width is read at the protocol width");
+        "a page publishing no width is read at the fallback width");
   check(fast_counter_width(32) == 32,
         "a published width is the width the decode masks to");
+  check(fast_counter_width(64) == 64,
+        "a full-width published width is taken as published");
+
+  // The seqlock comparison, both directions.
+  check(fast_pair_stable(11, 11), "an unmoved sequence is stable");
+  check(!fast_pair_stable(11, 12), "a moved sequence is not stable");
 
   // The three gates compose with the decode over one synthetic page, so
   // the whole protocol is exercised without a mapping.
-  const synthetic_page page {.version = 0,
-                             .compat_version = 0,
-                             .index = 3,
-                             .slot_id = 3,
-                             .pmc_width = 0};
+  const synthetic_page page {.index = 3, .pmc_width = 0};
   std::uint64_t value = 0;
-  check(
-      fast_page_version_readable(page.version, page.compat_version)
-          && fast_index_valid(page.index, page.slot_id)
-          && sg::counters::detail::fast_decode(
-                 11, 11, 1, 0xabc, 0, fast_counter_width(page.pmc_width), value)
-              == fast_read_verdict::ok
-          && value == 0xabc,
-      "a readable page with a valid index decodes to the raw read");
+  check(fast_index_valid(page.index)
+            && sg::counters::detail::fast_decode(
+                   11,
+                   11,
+                   page.index,
+                   1,
+                   0xabc,
+                   0,
+                   fast_counter_width(page.pmc_width),
+                   value)
+                == fast_read_verdict::ok
+            && value == 0xabc,
+        "a page with a valid index decodes to the raw read");
+}
+
+// The probe's verdict over the three fields the mapped event page
+// publishes, every arm, so the catalog's refusal sentence is covered
+// without a host the kernel refuses (FR-023, R-011).
+auto probe_verdict_scenario() -> void
+{
+  using sg::counters::detail::fast_probe_allows;
+
+  std::string refusal = "unset";
+  check(fast_probe_allows(true, 1, refusal) && refusal.empty(),
+        "a page granting the capability with a usable index allows the "
+        "mapped-page read and clears the refusal");
+  check(!fast_probe_allows(false, 1, refusal)
+            && refusal.find("cap_user_rdpmc") != std::string::npos,
+        "a page publishing no capability refuses and names the bit it "
+        "looked for");
+  check(!fast_probe_allows(true, 0, refusal)
+            && refusal.find("counter index 0") != std::string::npos,
+        "a page indexing no counter refuses and names the index");
+  check(!fast_probe_allows(false, 0, refusal)
+            && refusal.find("cap_user_rdpmc") != std::string::npos,
+        "the capability gate is the first one the protocol states");
 }
 
 using field_map =
@@ -272,42 +284,75 @@ auto compose_scenario() -> void
 }
 
 // The decode half of the mapped-page protocol, over injected values
-// (FR-040, R-011): the capability gate runs before the read, the
-// sequence comparison closes it, and the kernel offset and counter width
-// are applied last.
+// (FR-040, R-011): the capability gate runs first, then the one-based
+// index gate, then the sequence comparison closes the window, and the
+// kernel offset and counter width are applied last.
 auto decode_scenario() -> void
 {
   std::uint64_t value = 0;
   check(sg::counters::detail::fast_decode(
-            7, 7, 1, 0x1234, 0, kRnpmcCounterWidth, value)
+            7, 7, 1, 1, 0x1234, 0, kRnpmcCounterWidth, value)
                 == fast_read_verdict::ok
             && value == 0x1234,
         "a stable sequence with the capability granted decodes the read");
-  check(sg::counters::detail::fast_decode(7, 7, 0, 0x1234, 0,
+  check(
+      sg::counters::detail::fast_decode(
+          7, 7, 1, 0, 0x1234, 0, kRnpmcCounterWidth, value)
+          == fast_read_verdict::not_allowed,
+      "a page with no read capability refuses before the index is " "consulte"
+                                                                    "d");
+  check(sg::counters::detail::fast_decode(7, 7, 0, 1, 0x1234, 0,
                                           kRnpmcCounterWidth, value)
             == fast_read_verdict::not_allowed,
-        "a page with no read capability refuses before the sequence is "
-        "consulted");
+        "a page indexing no counter refuses the read, so the instruction is "
+        "never issued for it");
   value = 0xdeadbeef;
   check(sg::counters::detail::fast_decode(
-            7, 9, 1, 0x1234, 0, kRnpmcCounterWidth, value)
+            7, 9, 1, 1, 0x1234, 0, kRnpmcCounterWidth, value)
                 == fast_read_verdict::unstable
             && value == 0xdeadbeef,
         "a sequence that moved reports instability and writes no value");
   check(sg::counters::detail::fast_decode(
-            7, 7, 1, 0x10, -16, kRnpmcCounterWidth, value)
+            7, 7, 1, 1, 0x10, -16, kRnpmcCounterWidth, value)
                 == fast_read_verdict::ok
             && value == 0,
         "a negative kernel offset subtracts from the raw read");
   check(sg::counters::detail::fast_decode(
-            7, 7, 1, 0x10, 16, kRnpmcCounterWidth, value)
+            7, 7, 1, 1, 0x10, 16, kRnpmcCounterWidth, value)
                 == fast_read_verdict::ok
             && value == 0x20,
         "a positive kernel offset adds to the raw read");
-  check(sg::counters::detail::fast_decode(7, 7, 1, 0x1234, 0, 8, value)
+  check(sg::counters::detail::fast_decode(7, 7, 1, 1, 0x1234, 0, 8, value)
                 == fast_read_verdict::ok
             && value == 0x34,
         "the value is masked to the counter width the kernel publishes");
+}
+
+// The open-refusal arm of `fast_context_open`, reached without a host
+// the kernel refuses: `perf_event_open` rejects a PMU type no kernel
+// publishes, and the refusal the catalog would disclose is the sentence
+// the open wrote out (FR-023, R-011).
+auto context_open_refusal_scenario() -> void
+{
+  std::string refusal;
+  const target where {};
+  auto context =
+      sg::counters::detail::fast_context_open(999999, 0, where, &refusal);
+  check(!context, "an event type no kernel publishes opens no context");
+  check(refusal.find("perf_event_open") != std::string::npos,
+        "the refusal names the syscall the kernel refused");
+  // The refusal is optional, because a window open names no catalog fact:
+  // the window reports the refusal to its caller by refusing, and only the
+  // probe has a catalog sentence to fill.
+  check(sg::counters::detail::fast_context_open(999999, 0, where) == nullptr,
+        "the same refusal is reported by refusing when no sentence is asked "
+        "for");
+  // Closing a context that owns nothing touches nothing, so a window that
+  // refuses mid-open leaves no descriptor and no mapping behind.
+  sg::counters::detail::fast_context empty;
+  sg::counters::detail::fast_context_close(empty);
+  check(empty.fd == -1 && empty.map == nullptr,
+        "closing a context that owns nothing is a no-op (FR-040)");
 }
 
 // The mapping file selects the architecture directory for a CPU
@@ -853,7 +898,7 @@ auto group_open_scenario() -> void
   // A member beside the leader's enabled leaf: one group read delivers
   // the member and the pair, in the requested order (FR-026, FR-041).
   const auto pair = sg::counters::detail::pmu_open_window(
-      state, leaf_set_of({"cpu/cycle", "cpu/enabled"}), where);
+      state, leaf_set_of({"cpu/cycle", "cpu/enabled", "cpu/running"}), where);
   const bool pair_granted =
       sg::counters::detail::pmu_probe(state.devices[0].type,
                                       {{0, PERF_COUNT_HW_CPU_CYCLES}})
@@ -866,24 +911,48 @@ auto group_open_scenario() -> void
     // committed row carries the two points, the row this action did not
     // commit stays untouched, and no counter ever decreases across the
     // two reads (FR-013, FR-026, FR-041, FR-047).
-    std::uint64_t first[4] = {0, 0, 0, 0};
-    point_sink one {first, 2, 2, 0};
+    std::uint64_t first[6] = {0, 0, 0, 0, 0, 0};
+    point_sink one {first, 3, 2, 0};
     pair->read_points(one);
     one.check_action();
-    std::uint64_t second[4] = {0, 0, 0, 0};
-    point_sink two {second, 2, 2, 0};
+    std::uint64_t second[6] = {0, 0, 0, 0, 0, 0};
+    point_sink two {second, 3, 2, 0};
     pair->read_points(two);
     two.check_action();
-    check(first[1] == 0 && first[3] == 0 && second[1] == 0
-              && second[3] == 0,
+    check(first[1] == 0 && first[3] == 0 && first[5] == 0
+              && second[1] == 0 && second[3] == 0 && second[5] == 0,
           "one group read fills the managed columns of the committed row "
           "only (FR-026, FR-047)");
     check(second[0] >= first[0],
           "the member counter never decreases between two group reads "
           "(FR-013)");
-    check(second[2] >= first[2],
-          "the leader's enabled time never decreases between two group "
-          "reads (FR-041)");
+    check(second[2] >= first[2] && second[4] >= first[4],
+          "the leader's enabled and running times never decrease between "
+          "two group reads (FR-041)");
+  }
+  // Two members in one group: the follower is opened disabled into its
+  // leader's group, which is the arm a single-member open never reaches.
+  const auto duo = sg::counters::detail::pmu_open_window(
+      state, leaf_set_of({"cpu/work", "cpu/cycle"}), where);
+  const bool duo_granted =
+      sg::counters::detail::pmu_probe(state.devices[0].type,
+                                      {{0, PERF_COUNT_HW_INSTRUCTIONS}})
+          == availability::countable
+      && sg::counters::detail::pmu_probe(state.devices[0].type,
+                                         {{0, PERF_COUNT_HW_CPU_CYCLES}})
+          == availability::countable;
+  check(
+      (duo != nullptr) == duo_granted,
+      "a two-member group opens exactly when the probe grants both " "configs");
+  if (duo != nullptr) {
+    // Two columns, the two members: the read fills one row of a two-row
+    // block, and the row this action did not commit stays untouched.
+    std::uint64_t cells[4] = {0, 0, 0, 0};
+    point_sink sink {cells, 2, 2, 0};
+    duo->read_points(sink);
+    sink.check_action();
+    check(cells[1] == 0 && cells[3] == 0,
+          "a two-member group read fills the committed row only (FR-047)");
   }
   std::printf("seam: the synthetic group open granted %zu of %zu configs\n",
               granted_count,
@@ -906,10 +975,6 @@ auto fast_branch_scenario() -> void
       state, leaf_set_of({"cpu/fast"}), where);
   std::printf("seam: the synthetic fast-capable open returned %s\n",
               fast != nullptr ? "a fast window" : "no window");
-  const auto syscall_mode = sg::counters::detail::pmu_open_fast_window(
-      state, leaf_set_of({"cpu/work"}), where);
-  check(syscall_mode == nullptr,
-        "an entry whose disclosed mode is syscall opens no fast window");
   pmu_state twin = state;
   twin.devices.push_back(twin.devices[0]);
   twin.devices.back().path = "cpu-uncore";
@@ -917,6 +982,20 @@ auto fast_branch_scenario() -> void
             twin, leaf_set_of({"cpu/fast", "cpu-uncore/fast"}), where)
             == nullptr,
         "a leaf set spanning two event sources opens no fast window");
+  // The mapped-page read addresses the first config word only, so an entry
+  // whose encoding also sets a later word names a different event once that
+  // word is dropped. The window refuses it. Counting the wrong event is
+  // the one outcome it will not produce, and the caller's group path
+  // encodes the whole entry (FR-037, FR-040).
+  check(sg::counters::detail::pmu_open_fast_window(
+            state, leaf_set_of({"cpu/word1"}), where)
+            == nullptr,
+        "an entry encoded across more than the first config word opens no "
+        "fast window");
+  check(sg::counters::detail::pmu_open_fast_window(
+            state, leaf_set_of({"cpu/word2"}), where)
+            == nullptr,
+        "the refusal holds for a third config word as well");
 
   // The general open takes the mapped-page branch only for a fast-capable
   // catalog whose every member discloses it; one syscall-mode member
@@ -961,6 +1040,8 @@ auto main() -> int
   window_refusal_scenario();
   group_open_scenario();
   fast_branch_scenario();
+  probe_verdict_scenario();
+  context_open_refusal_scenario();
   std::printf("counters_linux_pmu_seam_test PASS: encoder and protocol\n");
   return 0;
 }

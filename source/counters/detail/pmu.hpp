@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+#include <sys/types.h>
+
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_provider.hpp"
 
@@ -210,60 +212,94 @@ enum class fast_read_verdict : std::uint8_t
   unstable  // the page sequence moved; the caller retries
 };
 
-// The width the kernel publishes counters at for user counter reads.
+// The width the kernel publishes counters at for a page that publishes
+// none. It is the fallback, never the mask: a page that publishes
+// `pmc_width` is read at that width, so a host whose counters differ is
+// measured correctly (FR-040, R-011).
 constexpr std::uint32_t kRnpmcCounterWidth = 48;
 
-// The number of counter slots one perf user-access page publishes, and
-// the highest structure version this reader implements (R-011). Both
-// pages of the mapped-page protocol declare them (kernel
-// include/uapi/linux/perf_event.h), and a page declaring a higher
-// version is refused.
-constexpr std::uint32_t kRnpmcSlots = 1024;
-constexpr std::uint32_t kRnpmcPageVersion = 1;
+// The highest counter index the rdpmc instruction is given. The kernel
+// publishes a one-based index in the event page and the caller reads
+// `rdpmc(index - 1)`, so an index past this names no counter any host
+// has. The gate bounds the instruction operand and states no property of
+// any page (FR-040, R-011).
+constexpr std::uint32_t kRnpmcMaxIndex = 1024;
 
-// The pure halves of the mapped-page protocol over the fields a page
-// publishes (FR-040, R-011, T066; plan.md Coverage strategy names these
-// the functions a synthetic page fixture covers in CI):
-//   - the structure-version gate, over `version` and `compat_version`;
-//   - the one-based index and slot-id gate, over `index` and `id`;
+// The pure halves of the mapped-page protocol over the fields the
+// kernel's event page publishes (FR-040, R-011, T066; plan.md Coverage
+// strategy names these the functions a synthetic page fixture covers in
+// CI):
+//   - the one-based index gate, over `index` alone;
 //   - the counter width, defaulting to kRnpmcCounterWidth when the page
-//     publishes none.
-[[nodiscard]] auto fast_page_version_readable(
-    std::uint32_t version, std::uint32_t compat_version) noexcept -> bool;
-
-[[nodiscard]] auto fast_index_valid(std::uint32_t index,
-                                    std::uint64_t slot_id) noexcept -> bool;
+//     publishes none;
+//   - the seqlock comparison, over the sequence before and after.
+[[nodiscard]] auto fast_index_valid(std::uint32_t index) noexcept -> bool;
 
 [[nodiscard]] auto fast_counter_width(std::uint16_t published) noexcept
     -> std::uint32_t;
 
+[[nodiscard]] auto fast_pair_stable(std::uint32_t sequence_before,
+                                    std::uint32_t sequence_after) noexcept
+    -> bool;
+
 // The decode half of the protocol, over values the caller already
-// sampled: the page sequence before and after, the capability word, the
-// raw instruction result, the kernel offset, and the counter width. The
-// caller gates the capability ahead of the instruction these values come
-// from, so a caller with no capability never pays for the read
+// sampled: the page sequence before and after, the one-based index, the
+// capability, the raw instruction result, the kernel offset, and the
+// counter width. The caller reads the instruction only for a nonzero
+// index, so the gate here costs a page load and never an instruction
 // (FR-040, R-011).
 [[nodiscard]] auto fast_decode(std::uint32_t sequence_before,
                                std::uint32_t sequence_after,
+                               std::uint32_t index,
                                std::uint64_t capability,
                                std::uint64_t raw,
                                std::int64_t offset,
                                std::uint32_t width,
                                std::uint64_t& value) -> fast_read_verdict;
 
-// One per-thread fast-read context: the event file descriptor, its
-// mapped page, the shared user counter page, and the owning thread. A
-// context belongs to the thread that opened it (FR-031, FR-040).
+// The probe's verdict over the three fields the mapped event page
+// publishes: the capability, the index, and the width (FR-023, R-011).
+// Writes the refusal the catalog discloses and answers whether the
+// mapped-page read is usable on this host.
+[[nodiscard]] auto fast_probe_allows(bool capability_granted,
+                                     std::uint32_t index,
+                                     std::string& refusal) -> bool;
+
+// One per-thread fast-read context: the event file descriptor and the
+// one page the kernel maps for it. A context belongs to the thread that
+// opened it (FR-031, FR-040).
 struct fast_context
 {
   int fd = -1;
   void* map = nullptr;
-  void* user = nullptr;
-  std::size_t user_length = 0;
+  std::size_t map_length = 0;
   std::thread::id owner {};
 };
 
-[[nodiscard]] auto fast_context_open(int type, std::uint64_t config)
+// The pid and cpu a `perf_event_open` for `where` binds to: a
+// thread-bound plan counts the calling thread on any cpu, and a
+// cpu-pinned plan counts that cpu for every task (FR-024, FR-031). Both
+// read modes bind the same way, so a plan reads what its target names
+// whichever mechanism the catalog discloses.
+[[nodiscard]] inline auto leader_pid(const target& where) noexcept
+    -> std::pair<pid_t, int>
+{
+  if (where.kind == target_kind::cpu) {
+    return {-1, where.cpu};
+  }
+  return {0, -1};
+}
+
+// Opens the context for one event and maps the page the kernel returns.
+// The event is bound to `where` exactly as a group member is, so a plan
+// pinned to a cpu counts that cpu and a thread-bound plan counts the
+// calling thread (FR-024, FR-031). `refusal`, when given, receives the
+// reason the kernel gave for refusing, which is the sentence the catalog
+// discloses (FR-023).
+[[nodiscard]] auto fast_context_open(int type,
+                                     std::uint64_t config,
+                                     const target& where,
+                                     std::string* refusal = nullptr)
     -> std::unique_ptr<fast_context>;
 
 [[nodiscard]] auto fast_context_read(const fast_context& context,
