@@ -276,13 +276,21 @@ auto main() -> int
   // The counter covers every replaceable form, so arm it and take one
   // allocation of each form that is not the plain one: three
   // allocations, three counts, and the aligned one still aligned.
+  // Each form is written through before the count is read: an unused
+  // new paired with its delete is an elision candidate, and the
+  // optimizing build drops two of the three, which would leave the
+  // count asserting nothing about the forms it names.
   counting.store(true);
   const auto array = new int[4];
-  const auto nothrow = new (std::nothrow) int;
+  array[0] = 7;
+  const auto nothrow = new (std::nothrow) int {11};
   const auto aligned = new aligned_cell;
+  aligned->value = 13;
   counting.store(false);
   check(allocations.load() == 3,
         "the array, nothrow, and aligned forms are counted (SC-005)");
+  check(array[0] == 7 && *nothrow == 11 && aligned->value == 13,
+        "each form hands back writable storage (SC-005)");
   check(reinterpret_cast<std::uintptr_t>(aligned) % 64 == 0,
         "the aligned form hands back 64-byte aligned storage (SC-005)");
   delete[] array;
