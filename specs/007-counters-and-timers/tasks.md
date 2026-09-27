@@ -214,14 +214,14 @@ Per plan.md Project Structure: public surface flat in `include/speedgun-ng/count
 
 **Purpose**: Whole-feature gates and documentation close-out (Principle VIII; quickstart 13).
 
-- [ ] T062 [P] Run `cmake --build build/dev -t dbc-gate` clean: every new public interface in `include/speedgun-ng/counters*.hpp` pairs doxygen contracts with runtime enforcement
-- [ ] T063 [P] Run `cmake -P cmake/prose-lint.cmake` (prose-lint) clean over all added prose: specs, README section, docs page (Principle XI)
-- [ ] T064 [P] Run `cmake --build build/dev -t format-check` clean; formatting-only fixes in a separate commit (Principle V)
-- [ ] T065 [P] `cmake --preset=ci-sanitize && cmake --build --preset=ci-sanitize && ctest --preset=ci-sanitize` clean: group-fd lifetimes and the arena under ASan/UBSan (plan "Determinism and regression")
+- [X] T062 [P] Run `cmake --build build/dev -t dbc-gate` clean: every new public interface in `include/speedgun-ng/counters*.hpp` pairs doxygen contracts with runtime enforcement
+- [X] T063 [P] Run `cmake -P cmake/prose-lint.cmake` (prose-lint) clean over all added prose: specs, README section, docs page (Principle XI)
+- [X] T064 [P] Run `cmake --build build/dev -t format-check` clean; formatting-only fixes in a separate commit (Principle V)
+- [X] T065 [P] `cmake --preset=ci-sanitize && cmake --build --preset=ci-sanitize && ctest --preset=ci-sanitize` clean: group-fd lifetimes and the arena under ASan/UBSan (plan "Determinism and regression")
 - [ ] T066 [P] Coverage preset: 100% line/branch/DBC gates hold for the `include/speedgun-ng/counters*` and `source/counters/` additions; `SG_*` macro lines excluded via the existing `--omit-lines` mechanism; the `SG_REQUIRE_ALWAYS` bounds abort branch covered by the out-of-process trap pair (Principle VI)
-- [ ] T067 Verify `consumer-release` job semantics: the release artifact carries contract code only at the spec-mandated always-on `hard_stop` bounds site (dbc facility `SG_*_ALWAYS` registry distinguishes it) (plan gate-set note, FR-027)
+- [X] T067 Verify `consumer-release` job semantics: the release artifact carries contract code only at the spec-mandated always-on `hard_stop` bounds site (dbc facility `SG_*_ALWAYS` registry distinguishes it) (plan gate-set note, FR-027)
 - [X] T068 Document the cadence idiom in `include/speedgun-ng/counters_measurement.hpp` header docs: chunked sampling every K iterations, capacity `N/K + 1`, `fold_pairs` for the per-interval series, the K=1 observer-effect cost stated numerically from the plan calibration; plus the 2^53 exactness note (FR-032/048, E-09; Principle IV)
-- [ ] T069 Run quickstart.md sections 1-13 end to end as final validation; record the verdicts against the SC-001..SC-010 index in the PR description (Constitution III/IX)
+- [X] T069 Run quickstart.md sections 1-13 end to end as final validation; record the verdicts against the SC-001..SC-010 index in the PR description (Constitution III/IX)
 
 ---
 

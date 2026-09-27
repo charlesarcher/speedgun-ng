@@ -353,10 +353,16 @@ jobs:
         pxt=$?
         timeout 30 $bin push-decrement > /tmp/ctrap-pdec.out 2>&1
         pdec=$?
+        timeout 30 $bin recorder-cross-thread \
+          > /tmp/ctrap-rxt.out 2>&1
+        rxt=$?
+        timeout 30 $bin scope-cross-thread > /tmp/ctrap-sxt.out 2>&1
+        sxt=$?
         timeout 30 $bin overrun > /tmp/ctrap-over.out 2> /tmp/ctrap-over.err
         over=$?
         set -e
-        echo "mbf=$mbf fold=$fold pxt=$pxt pdec=$pdec overrun=$over"
+        echo "mbf=$mbf fold=$fold pxt=$pxt pdec=$pdec rxt=$rxt sxt=$sxt"
+        echo "overrun=$over"
         echo "----- metric-before-finish -----"
         cat /tmp/ctrap-mbf.out
         echo "----- fold-range -----"
@@ -365,16 +371,24 @@ jobs:
         cat /tmp/ctrap-pxt.out
         echo "----- push-decrement -----"
         cat /tmp/ctrap-pdec.out
+        echo "----- recorder-cross-thread -----"
+        cat /tmp/ctrap-rxt.out
+        echo "----- scope-cross-thread -----"
+        cat /tmp/ctrap-sxt.out
         echo "----- overrun -----"
         cat /tmp/ctrap-over.out /tmp/ctrap-over.err
         test "$mbf" -eq 0
         test "$fold" -eq 0
         test "$pxt" -eq 0
         test "$pdec" -eq 0
+        test "$rxt" -eq 0
+        test "$sxt" -eq 0
         grep -F 'counters-trap-survived-metric-before-finish' /tmp/ctrap-mbf.out
         grep -F 'counters-trap-survived-fold-range' /tmp/ctrap-fold.out
         grep -F 'counters-trap-survived-push-cross-thread' /tmp/ctrap-pxt.out
         grep -F 'counters-trap-survived-push-decrement' /tmp/ctrap-pdec.out
+        grep -F 'counters-trap-survived-recorder-cross-thread' /tmp/ctrap-rxt.out
+        grep -F 'counters-trap-survived-scope-cross-thread' /tmp/ctrap-sxt.out
         test "$over" -ne 0
         test "$over" -ne 124
         if grep -qF 'counters-trap-survived-overrun' /tmp/ctrap-over.out; then
