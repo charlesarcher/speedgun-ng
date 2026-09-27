@@ -221,6 +221,21 @@ target_link_libraries(counters_provider_ext_test
 target_compile_features(counters_provider_ext_test PRIVATE cxx_std_23)
 add_test(NAME counters_provider_ext_test COMMAND counters_provider_ext_test)
 
+# Gate-effectiveness fixtures for the pmu-events integrity tool (feature
+# 007, T057; FR-045). Self-contained: the Python driver builds synthetic
+# repo-like roots under the build dir (clean tree, hash drift, gate
+# disagreement, missing and extra files, offline replace-last re-pin) and
+# asserts the tool's exit codes and named files in both directions. No
+# network, and the real external/pmu-events tree is never touched.
+add_test(
+    NAME pmu_events_check
+    COMMAND
+      python3
+      ${CMAKE_CURRENT_SOURCE_DIR}/pmu-events-gate-fixture/run_pmu_events_fixtures.py
+      --out ${CMAKE_BINARY_DIR}/pmu-events-gate-fixtures
+      ${CMAKE_CURRENT_SOURCE_DIR}/pmu-events-gate-fixture
+)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
