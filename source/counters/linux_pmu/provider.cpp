@@ -110,12 +110,11 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     entry.avail = detail::pmu_probe(device.type, entry.words);
     if (entry.avail == availability::countable) {
       countable = true;
-      // LCOV_EXCL_BR_START : coverage exclusion (T066): the `fast_rdpmc`
-      // side. `pmu_probe_fast` sets `fast_available` only above
-      // `perf_event_paranoid` 1, and this host reads 2, so no catalog entry
-      // claims the mapped-page mode here. `test/source/counters_pmu_test.cpp`
-      // asserts the refusal in the other direction on a host above that
-      // level.
+      // LCOV_EXCL_BR_START : coverage exclusion (T140): the `syscall` arm.
+      // It needs a host whose mapped page publishes no `cap_user_rdpmc` bit,
+      // which is a property of the running kernel and not of this tree; the
+      // probe's verdict over that bit is covered for both arms by
+      // `fast_probe_allows` in `test/source/counters_linux_pmu_seam_test.cpp`.
       entry.mode = fast_capable  // LCOV_EXCL_BR_LINE
           ? read_mode::fast_rdpmc  // LCOV_EXCL_BR_LINE
           : read_mode::syscall;  // LCOV_EXCL_BR_LINE
@@ -475,15 +474,13 @@ pmu_provider::pmu_provider()
                     // unreadable sysctl the `read_paranoid` fallback above is
                     // excluded for.
       ? "an unreadable perf_event_paranoid"  // LCOV_EXCL_LINE
-      : "perf_event_paranoid " + std::to_string(paranoid);
+      : "perf_event_paranoid " + std::to_string(paranoid);  // LCOV_EXCL_BR_LINE
   // The probe verdict rides the device description, so a reader of the
   // catalog learns which mechanism the entries disclose and, when the
   // fast one is refused, the reason it was refused (FR-023).
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): the probe-available
-  // wording. `pmu_probe_fast` clears only above `perf_event_paranoid` 1 and
-  // this host reads 2, so the catalog never publishes that sentence here.
-  const std::string verdict = "; the availability probe ran at "
-      + level  // LCOV_EXCL_LINE
+  // LCOV_EXCL_BR_START : coverage exclusion (T140): the refusal wording, on
+  // the same kernel-gate ground as the mode ternary in `probe_device` above.
+  const std::string verdict = "; the availability probe ran at " + level
       + (fast_capable  // LCOV_EXCL_BR_LINE
              ? "; user counter reads are probe-available, entries "  // LCOV_EXCL_LINE
                "disclose fast_rdpmc"  // LCOV_EXCL_LINE

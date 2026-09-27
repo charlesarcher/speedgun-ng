@@ -166,14 +166,6 @@ auto fill_attr(perf_event_attr& attr,
       | PERF_FORMAT_TOTAL_TIME_RUNNING;
 }
 
-auto leader_pid(const target& where) noexcept -> std::pair<pid_t, int>
-{
-  if (where.kind == target_kind::cpu) {
-    return {-1, where.cpu};
-  }
-  return {0, -1};
-}
-
 // The group-read payload header: member count, enabled nanoseconds,
 // running nanoseconds, then one value per member.
 constexpr std::size_t kHeaderWords = 3;
@@ -270,22 +262,12 @@ struct pmu_window final : window_reader
   }  // LCOV_EXCL_BR_LINE
 };  // LCOV_EXCL_BR_STOP
 
-// LCOV_EXCL_START : coverage exclusion (T066, P2 recorded in
-// specs/007-counters-and-timers/plan.md Complexity Tracking): the fast-mode
-// window and the fast branch of the open.
-//
-// A `pmu_fast_window` needs a mapped perf user-access page and a granted
-// `perf_event_open` per member. On this host the page is unreadable
-// (`/sys/bus/event_source/devices/cpu/rdpmc` answers "Permission denied")
-// and the probe refuses the mechanism at `perf_event_paranoid=2`, so no
-// member context ever opens; the CI matrix is unprivileged and at the same
-// level (constitution VIII, SC-002). The catalog-side gates the fast
-// branch depends on are covered instead: `all_fast` refuses an entry whose
-// disclosed mode is syscall, and a leaf set spanning two event sources
-// opens no fast window, both asserted in
-// `test/source/counters_linux_pmu_seam_test.cpp`.
-//
-// LCOV_EXCL_BR_START
+// The fast-mode window: one mapped page per member leaf, read inside one
+// sampling action, and the enabled/running pair taken from the leader's
+// page (FR-040, FR-041). The window runs for real on any host the kernel
+// lets open a per-process user event, so the reads below carry no blanket
+// coverage exclusion; the two arms no host reaches are marked at their own
+// sites.
 struct pmu_fast_window final : window_reader
 {
   struct member
@@ -313,41 +295,57 @@ struct pmu_fast_window final : window_reader
   void read_points(point_sink& sink) noexcept override
   {
     for (auto& one : members) {
-      if (fast_context_read(*one.context, one.value)
-          == fast_read_verdict::unstable)
+      // LCOV_EXCL_BR_START : coverage exclusion (T140): the retry arm. The
+      // sequence moves only when the kernel rewrites the page between the
+      // two reads of it, which a test cannot force deterministically. The
+      // same verdict is covered for both arms by `fast_pair_stable` inside
+      // `fast_decode` in `test/source/counters_linux_pmu_seam_test.cpp`.
+      if (fast_context_read(*one.context, one.value)  // LCOV_EXCL_BR_LINE
+          == fast_read_verdict::unstable)  // LCOV_EXCL_BR_LINE
       {
         // The page sequence moved under the read; the protocol's
         // stated fallback is a second attempt (FR-040).
-        static_cast<void>(fast_context_read(*one.context, one.value));
-      }
+        static_cast<void>(
+            fast_context_read(*one.context, one.value));  // LCOV_EXCL_LINE
+      }  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_BR_STOP
     }
     // The enabled/running pair rides the leader's user page, the same
     // pair the group read takes from the leader, so the multiplex
     // ratio is computed inside folds in this read mode too (FR-041).
-    if (!fast_context_time_pair(*members[leader].context, enabled, running)) {
+    // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that reports
+    // no pair. It needs the kernel to rewrite the leader's page between the
+    // two reads of its sequence, which a test cannot force
+    // deterministically; the comparison itself is covered for both arms by
+    // `fast_pair_stable`.
+    if (!fast_context_time_pair(
+            *members[leader].context, enabled, running)) {  // LCOV_EXCL_BR_LINE
       // A leader whose page disclosed no stable pair this action
       // reports none; the fold reads the gap as zero and the pair
       // discloses ratio 0. A time is never fabricated.
-      enabled = 0;
-      running = 0;
-    }
+      enabled = 0;  // LCOV_EXCL_LINE
+      running = 0;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_BR_STOP
     for (const auto& slot : slots) {
+      // LCOV_EXCL_BR_LINE : coverage exclusion (T140): the switch's
+      // implicit no-case arc. `slot_source` has three enumerators and all
+      // three are taken above, so the arc is the block the compiler emits
+      // for a value the enumeration cannot hold.
       switch (slot.source) {  // LCOV_EXCL_BR_LINE
         case slot_source::member:
-          sink.put(members[slot.index].value);  // LCOV_EXCL_LINE
-          break;  // LCOV_EXCL_LINE
+          sink.put(members[slot.index].value);
+          break;
         case slot_source::time_enabled:
-          sink.put(enabled);  // LCOV_EXCL_LINE
-          break;  // LCOV_EXCL_LINE
+          sink.put(enabled);
+          break;
         case slot_source::time_running:
-          sink.put(running);  // LCOV_EXCL_LINE
-          break;  // LCOV_EXCL_LINE
+          sink.put(running);
+          break;
       }  // LCOV_EXCL_BR_LINE
-    }  // LCOV_EXCL_BR_LINE
-  }  // LCOV_EXCL_BR_LINE
-};  // LCOV_EXCL_STOP
-
-// LCOV_EXCL_BR_STOP
+    }
+  }
+};
 
 namespace
 {
@@ -432,23 +430,20 @@ auto open_group_window(const pmu_state& state,
   // LCOV_EXCL_STOP
 }
 
-// LCOV_EXCL_START : coverage exclusion (T066): the body that opens a member
-// context. `fast_context_open` needs a granted `perf_event_open` and a
-// readable perf user-access page, which this host refuses (see the
-// `pmu_fast_window` region above). The two refusals above and below the
-// region, the multi-source refusal and the empty-member refusal, are
-// reachable without the kernel and carry fixtures in
-// `test/source/counters_linux_pmu_seam_test.cpp`.
+// The body that opens a member context. The refusals are marked at their
+// own sites: the multi-source refusal and the empty-member refusal carry
+// fixtures in `test/source/counters_linux_pmu_seam_test.cpp`, and the
+// context-open refusal is the same refusal that fixture drives directly.
 auto open_fast_window(const pmu_state& state,
                       const std::vector<resolved_leaf>& leaves,
-                      const group_layout& layout)
-    -> std::unique_ptr<window_reader>
+                      const group_layout& layout,
+                      const target& where) -> std::unique_ptr<window_reader>
 {
   if (layout.count() != 1) {
     // The mapped-page protocol reads the counters of one event source;
     // a plan spanning several sources takes the group path.
     return nullptr;
-  }  // LCOV_EXCL_LINE
+  }
   auto window = std::make_unique<pmu_fast_window>();
   window->slots.reserve(leaves.size());
   std::size_t leader = static_cast<std::size_t>(-1);
@@ -458,16 +453,41 @@ auto open_fast_window(const pmu_state& state,
           leaf_slot {.group = 0, .index = 0, .source = one.source});
       continue;
     }
+    // The mapped-page read addresses one config word, the `config` word a
+    // core PMU event encodes into. An entry whose encoding also sets
+    // `config1` or `config2` names a different event once those words are
+    // dropped, so the window refuses it and the caller's group path
+    // encodes the whole entry (FR-037, FR-040).
     std::uint64_t config = 0;
+    bool single_word = true;
     for (const auto& [word, value] : one.entry->words) {
       if (word == 0) {
         config = value;
+      } else {
+        single_word = false;
       }
     }
-    auto context = fast_context_open(state.devices[one.device].type, config);
-    if (!context) {
-      return nullptr;
-    }
+    // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that refuses a
+    // multi-word encoding. It needs a countable entry that sets a config
+    // word above the first, which no core PMU event does; the refusal is
+    // asserted for a synthetic such entry in
+    // `test/source/counters_linux_pmu_seam_test.cpp`.
+    if (!single_word) {  // LCOV_EXCL_BR_LINE
+      return nullptr;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_BR_STOP
+    auto context =
+        fast_context_open(state.devices[one.device].type, config, where);
+    // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that refuses
+    // the whole window because one member's event was refused. It needs a
+    // catalog entry the kernel counts, whose event `perf_event_open` then
+    // refuses; the refusal itself is covered for both arms by
+    // `context_open_refusal_scenario` in
+    // `test/source/counters_linux_pmu_seam_test.cpp`.
+    if (!context) {  // LCOV_EXCL_BR_LINE
+      return nullptr;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_BR_STOP
     if (leader == static_cast<std::size_t>(-1)) {
       leader = window->members.size();
     }
@@ -477,25 +497,15 @@ auto open_fast_window(const pmu_state& state,
                                        .index = window->members.size() - 1,
                                        .source = slot_source::member});
   }
-  // LCOV_EXCL_STOP
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): the member-count and
-  // leader bookkeeping. Reaching `window->leader` needs at least one member
-  // context, which needs a granted `perf_event_open` and a readable
-  // user-access page; the empty-member refusal above is the reachable half
-  // and carries a fixture.
-  if (window->members.empty()) {  // LCOV_EXCL_LINE  // LCOV_EXCL_BR_LINE
-    return nullptr;  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_BR_LINE
-  window->leader = leader;  // LCOV_EXCL_LINE
-  return window;  // LCOV_EXCL_LINE
-}  // LCOV_EXCL_BR_STOP
+  window->leader = leader;
+  return window;
+}
 
 }  // namespace
 
 auto pmu_open_fast_window(const pmu_state& state,
                           const leaf_set& leaves,
-                          const target& /*where*/)
-    -> std::unique_ptr<window_reader>
+                          const target& where) -> std::unique_ptr<window_reader>
 {
   std::vector<resolved_leaf> resolved;
   if (!resolve(state, leaves, resolved)) {
@@ -503,7 +513,7 @@ auto pmu_open_fast_window(const pmu_state& state,
   }
   group_layout layout(state.devices.size());
   layout.assign(resolved);
-  return open_fast_window(state, resolved, layout);
+  return open_fast_window(state, resolved, layout, where);
 }
 
 auto pmu_open_window(const pmu_state& state,
@@ -521,16 +531,16 @@ auto pmu_open_window(const pmu_state& state,
     // host, so the read must be the mapped-page read; a fast window the
     // kernel refuses is a recoverable open failure, never a silent
     // downgrade to a read the catalog does not describe (FR-023).
-    // LCOV_EXCL_START : coverage exclusion (T066): the accepting arm needs
-    // a fast window the kernel opens, which this host refuses (see the
-    // `pmu_fast_window` region above). The condition itself is reached with
-    // `fast_available` set and a syscall-mode entry, asserted in
-    // `test/source/counters_linux_pmu_seam_test.cpp`.
-    if (auto fast = open_fast_window(state, resolved, layout);
+    // LCOV_EXCL_BR_START : coverage exclusion (T140): the falling-through
+    // arm. It needs a fast-capable catalog whose leaf set the fast window
+    // then refuses, which `open_fast_window` answers only when a member
+    // event is refused (marked at its own site above). The accepting arm
+    // is reached on every host the probe passes.
+    if (auto fast = open_fast_window(state, resolved, layout, where);
         fast) {  // LCOV_EXCL_BR_LINE
-      return fast;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-    // LCOV_EXCL_STOP
+      return fast;
+    }  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_BR_STOP
   }
   return open_group_window(state, resolved, layout, where);
 }

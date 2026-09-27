@@ -194,8 +194,19 @@ auto main() -> int
   std::printf("\nsampling cost by regime (nanoseconds per sample()):\n");
   const regime syscall_regime = measure(*clock_plan, "clock, syscall (vDSO)");
 
-  // The PMU group regime: one read per leader per action (FR-041).
+  // The PMU group regime: one read per leader per action (FR-041). The
+  // catalog decides which mechanism the plan reads, so the row carries
+  // the mode the catalog disclosed (FR-023, C-PRO-4).
   const auto entries = cpu.counters();
+  const auto disclosed_mode = [&entries](const std::string& name) -> read_mode
+  {
+    for (const auto& entry : entries) {
+      if (entry.name == name) {
+        return entry.mode;
+      }
+    }
+    return read_mode::syscall;
+  };
   std::string work;
   std::string cycle;
   for (const auto& entry : entries) {
@@ -226,72 +237,105 @@ auto main() -> int
       if (!group_plan.has_value()) {
         fail("the pmu group plan compiles");
       }
+      const bool fast = disclosed_mode(work) == read_mode::fast_rdpmc;
       std::printf("group plan reads cpu/%s and cpu/%s, one read per leader "
                   "per action\n",
                   work.c_str(),
                   cycle.c_str());
-      measure(*group_plan, "pmu group, syscall");
+      measure(*group_plan,
+              fast ? "pmu group, fast_rdpmc" : "pmu group, syscall");
       measure_fold(*group_plan, work_expr, cycle_expr, "pmu group, fold only");
+
+      // The fast side of SC-004, measured against the clock plan above:
+      // one leaf per sampling action in each, so the two rows differ in
+      // the read mechanism and in nothing else the plan charges. A
+      // single cpu-PMU leaf is the pair on a host that discloses
+      // fast_rdpmc; the calibration below then charges one mapped-page
+      // read against the clock plan's one vDSO read.
+      if (fast) {
+        auto single = compile(system::local(), work_expr);
+        if (!single.has_value()) {
+          std::printf("\nSKIP: the catalog discloses fast_rdpmc for cpu/%s "
+                      "but the plan did not open: %s\n",
+                      work.c_str(),
+                      single.error().message.c_str());
+          return 2;
+        }
+        const regime fast_regime = measure(*single, "pmu single, fast_rdpmc");
+        std::printf("\nfast median %.1f ns against syscall median %.1f ns: "
+                    "the fast regime is %.1fx cheaper per sampling action\n",
+                    fast_regime.median_ns,
+                    syscall_regime.median_ns,
+                    syscall_regime.median_ns / fast_regime.median_ns);
+        // The two rows read different leaves, which the spec states and no
+        // fixed factor follows from: a vDSO clock read is the cheapest read
+        // this host offers, so it is not a syscall-mode counterpart for a
+        // hardware counter. The order comparison is therefore published
+        // and not asserted, and the judgement belongs to the published
+        // page. This file is not a CI gate on its numbers (Principle VII
+        // baseline infrastructure is an open deferral).
+        std::printf("order check: the fast-mode median is %s the "
+                    "syscall-mode median\n",
+                    fast_regime.median_ns < syscall_regime.median_ns
+                        ? "below"
+                        : "above");
+        std::printf("counters_overhead PASS: distributions published, modes "
+                    "disclosed\n");
+        return 0;
+      }
     }
   }
 
-  // The fast regime: a leaf the probe passed. Without one the host
-  // cannot publish the comparison, and the reason is named (quickstart
-  // 12).
-  const auto fast_leaf = [&]() -> std::string
-  {
-    for (const auto& entry : machine.counters()) {
-      if (entry.mode == read_mode::fast_tsc) {
-        return std::string(entry.name);
-      }
+  // No fast-mode cpu leaf. A calibrated `tsc` clock leaf would still give
+  // the pair, one rdtsc read per action against the clock plan's one vDSO
+  // read; a host publishing neither has no fast regime to publish, and
+  // the reason is named (quickstart 12).
+  for (const auto& entry : machine.counters()) {
+    if (entry.mode != read_mode::fast_tsc) {
+      continue;
     }
-    for (const auto& entry : cpu.counters()) {
-      if (entry.mode == read_mode::fast_rdpmc) {
-        return "cpu/" + std::string(entry.name);
-      }
+    const auto fast_counter = machine.counter<time_dim>(entry.name);
+    if (!fast_counter.has_value()) {
+      continue;
     }
-    return {};
-  }();
-
-  if (fast_leaf.empty()) {
-    // The reason comes from the catalog, which the provider fills from its
-    // own probe. A sentence written here goes stale the moment a host
-    // clears one gate and stops at another.
+    const sg::counters::expression<time_dim> fast_expression {*fast_counter};
+    auto fast_plan = compile(system::local(), fast_expression);
+    if (!fast_plan.has_value()) {
+      std::printf("\nSKIP: the catalog discloses fast_tsc for machine/%s "
+                  "but the plan did not open: %s\n",
+                  std::string(entry.name).c_str(),
+                  fast_plan.error().message.c_str());
+      return 2;
+    }
+    const regime fast_regime = measure(*fast_plan, "clock, fast_tsc");
+    std::printf("\nfast median %.1f ns against syscall median %.1f ns: "
+                "the fast regime is %.1fx cheaper per sampling action\n",
+                fast_regime.median_ns,
+                syscall_regime.median_ns,
+                syscall_regime.median_ns / fast_regime.median_ns);
+    // Published and reported. It is deliberately not asserted, for the
+    // reason the fast_rdpmc branch above states: this file is not a CI
+    // gate on its numbers.
     std::printf(
-        "\nSKIP: this host probes no fast read mechanism, so the fast "
-        "regime is unmeasured and the comparison has no fast side. The "
-        "catalog reports the gating fact: %s\n"
-        "Every catalog entry disclosed syscall mode, so both plans "
-        "measured above ran in syscall mode. The page "
-        "docs/pages/counters-overhead.md records the probe reason beside "
-        "the syscall rows and leaves the fast row unmeasured.\n",
-        std::string(cpu.description()).c_str());
-    return 2;
+        "order check: the fast-mode median is %s the " "syscall-mode median\n",
+        fast_regime.median_ns < syscall_regime.median_ns ? "below" : "above");
+    std::printf(
+        "counters_overhead PASS: distributions published, modes " "disclosed"
+                                                                  "\n");
+    return 0;
   }
 
-  const auto slash = fast_leaf.rfind('/');
-  const auto& fast_object = slash == std::string::npos ? machine : cpu;
-  const std::string fast_name =
-      slash == std::string::npos ? fast_leaf : fast_leaf.substr(slash + 1);
-  const auto fast_counter = fast_object.counter<time_dim>(fast_name);
-  if (!fast_counter.has_value()) {
-    std::printf("\nSKIP: the fast leaf '%s' does not resolve in this "
-                "build; no fast regime to publish\n",
-                fast_leaf.c_str());
-    return 2;
-  }
-  const sg::counters::expression<time_dim> fast_expression {*fast_counter};
-  auto fast_plan = compile(system::local(), fast_expression);
-  if (!fast_plan.has_value()) {
-    fail("the fast plan compiles");
-  }
-  const regime fast_regime = measure(*fast_plan, "clock, fast");
-  std::printf("\nfast median %.1f ns against syscall median %.1f ns: "
-              "the fast regime is %.1fx cheaper per sampling action\n",
-              fast_regime.median_ns,
-              syscall_regime.median_ns,
-              syscall_regime.median_ns / fast_regime.median_ns);
+  // The reason comes from the catalog, which the provider fills from its
+  // own probe. A sentence written here goes stale the moment a host
+  // clears one gate and stops at another.
   std::printf(
-      "counters_overhead PASS: distributions published, modes " "disclosed\n");
-  return 0;
+      "\nSKIP: this host probes no fast read mechanism, so the fast "
+      "regime is unmeasured and the comparison has no fast side. The "
+      "catalog reports the gating fact: %s\n"
+      "Every catalog entry disclosed syscall mode, so both plans "
+      "measured above ran in syscall mode. The page "
+      "docs/pages/counters-overhead.md records the probe reason beside "
+      "the syscall rows and leaves the fast row unmeasured.\n",
+      std::string(cpu.description()).c_str());
+  return 2;
 }

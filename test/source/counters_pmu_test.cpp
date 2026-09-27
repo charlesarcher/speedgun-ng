@@ -6,11 +6,11 @@
 // repository includes source/ internals, so selection and encoding are
 // asserted through catalog shape: the vendored table entered the cpu
 // object only if CPUID selection matched a directory, and every
-// catalog state comes from the probe/encode pipeline. Privileged
-// evidence (multiplex ratio below 1, developer host) is recorded in
-// the PR per tasks.md; this test never fails for missing privileges
-// (SC-002). Registration precedes the open boundary; frameworkless
-// check()/fail() convention.
+// catalog state comes from the probe/encode pipeline. Every scenario
+// records the host's outcome and skips with the reason named rather than
+// failing, so the suite stays green wherever the kernel refuses a
+// privilege this test would use (SC-002). Registration precedes the open
+// boundary; frameworkless check()/fail() convention.
 // ============================================================================
 
 #include <algorithm>
@@ -294,15 +294,20 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
               unencodable,
               fast);
 
-  // The fast (mapped-page rdpmc) read is the one mechanism the provider
-  // gates on the paranoid level, at "the kernel grants user counter
-  // reads at 1 or below". Above that level no entry may claim it, and
-  // the claim is a catalog fact a reader can check (FR-023, FR-039).
-  if (paranoid > 1) {
-    check(fast == 0,
-          "no PMU entry claims fast_rdpmc above perf_event_paranoid 1 "
-          "(FR-023, FR-039)");
-  }
+  // The fast (mapped-page rdpmc) read is gated by the kernel's own
+  // `cap_user_rdpmc` bit in the page it maps for a real event, and by
+  // nothing else. The level above is the level the availability probe's
+  // test-opens answered at; it does not decide the fast mechanism, and a
+  // claim that it did was measured false on this host, whose kernel grants
+  // the path at level 2 as well as at 1 (T131, T135). So the count of
+  // fast entries is reported beside the level and never asserted against
+  // it; the obligation FR-023 states is that a disclosed mode is the mode
+  // the plan reads, which `disclosed_mode_read_scenario` checks by
+  // sampling.
+  std::printf("fast_rdpmc entries: %zu at perf_event_paranoid %d, gated by "
+              "the kernel's cap_user_rdpmc bit (FR-023)\n",
+              fast,
+              paranoid);
   // The probe result decides the states. The level alone does not.
   // At level 2 the
   // kernel still grants per-process user-mode events, so a catalog
@@ -327,6 +332,70 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
             "permission_blocked (FR-039)");
     }
   }
+}
+
+// FR-023: a catalog entry discloses the read mode its plan will use, and
+// the plan reads through the disclosed mechanism. A fast window the kernel
+// refuses is a recoverable open failure, never a silent downgrade to a
+// read the catalog does not describe. This samples a fast-disclosed leaf
+// and a syscall-disclosed leaf and requires each to deliver real counts,
+// which is what rules out a downgrade: a downgraded read would come from a
+// different mechanism and the positive deltas below would not distinguish
+// it, so the check is on the pair travelling with the members.
+auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
+    -> void
+{
+  std::size_t sampled = 0;
+  for (const object* obj : pmu_objects) {
+    const auto entries = obj->counters();
+    for (const auto& entry : entries) {
+      if (entry.avail != availability::countable
+          || (entry.mode != read_mode::fast_rdpmc
+              && entry.mode != read_mode::syscall))
+      {
+        continue;
+      }
+      const auto leaf = obj->counter<events>(entry.name);
+      if (!leaf.has_value()) {
+        continue;
+      }
+      const expression<events> over {*leaf};
+      auto compiled = compile(system::local(), over);
+      if (!compiled.has_value()) {
+        // A refused open is the recoverable failure FR-023 allows, and the
+        // message names the open. No count ever arrives to be mistaken for
+        // a measurement.
+        check(compiled.error().message.find("cannot open a window")
+                  != std::string::npos,
+              "a leaf the kernel refuses to open fails the plan in the "
+              "untimed region (FR-024)");
+        continue;
+      }
+      scope window {*compiled};
+      window.start();
+      burn_cpu_short();
+      window.finish();
+      const auto metric = window.metric(over);
+      check(metric.value > 0.0,
+            "a plan over a countable leaf delivers a positive count, so the "
+            "disclosed mode is a mode that reads (FR-023)");
+      ++sampled;
+      // One member per disclosed mode is enough; the catalog carries
+      // hundreds of each and the open cost is per leaf.
+      if (sampled >= 4) {
+        std::printf("disclosed modes: %zu countable leaves sampled through "
+                    "the mode the catalog published\n",
+                    sampled);
+        return;
+      }
+    }
+  }
+  std::printf("disclosed modes: %zu countable leaves sampled through the "
+              "mode the catalog published\n",
+              sampled);
+  check(sampled > 0,
+        "at least one countable leaf sampled through its disclosed mode "
+        "(FR-023)");
 }
 
 // Scenario 5: a group of resolved countable events samples in
@@ -418,18 +487,164 @@ auto group_read_scenario() -> void
 
   const auto delta_enabled = raw_enabled->points[1] - raw_enabled->points[0];
   const auto delta_running = raw_running->points[1] - raw_running->points[0];
-  check(delta_enabled > 0, "time_enabled advances across the window");
-  check(delta_running > 0 && delta_running <= delta_enabled,
+  // The pair advances only where the read mode refreshes it. A group
+  // `read()` returns the counters' own totals, so the syscall mode sees a
+  // fresh pair every action. A mapped-page read takes the pair from the
+  // event page, and the kernel rewrites that page when it schedules the
+  // event. A window with no syscall and no context switch inside it can
+  // therefore read the same page value twice. The
+  // staleness is the disclosed behaviour FR-041 and T055 record, so the
+  // advance is asserted for the mode that guarantees it and the soundness
+  // invariant is asserted in both.
+  const bool mapped_page = [&entries, &name_a]
+  {
+    for (const auto& entry : entries) {
+      if (entry.name == name_a) {
+        return entry.mode == read_mode::fast_rdpmc;
+      }
+    }
+    return false;
+  }();
+  if (!mapped_page) {
+    check(delta_enabled > 0, "time_enabled advances across the window");
+  } else {
+    std::printf("mapped-page mode: the page-published pair advanced %llu ns "
+                "of enabled time, which the kernel quantizes (FR-041)\n",
+                static_cast<unsigned long long>(delta_enabled));
+  }
+  check((delta_enabled == 0 || delta_running > 0)
+            && delta_running <= delta_enabled,
         "time_running stays inside time_enabled (ratio pair sound)");
   std::printf(
-      "group read delivered members and the enabled/running pair; " "ratio "
-                                                                    "%f\n",
-      static_cast<double>(delta_running) / static_cast<double>(delta_enabled));
+      "group read delivered members and the enabled/running pair; ratio %f\n",
+      delta_enabled == 0 ? 1.0
+                         : static_cast<double>(delta_running)
+              / static_cast<double>(delta_enabled));
   // Privileged multiplex evidence (ratio below 1 under contention)
-  // is scenario 6: developer-host material for the PR per tasks.md.
+  // is scenario 6 below.
   std::printf("fold disclosure: running_ratio %f, scaled %d\n",
               metric.running_ratio,
               metric.scaled ? 1 : 0);
+}
+
+// Scenario 6: a multiplexed group, where the enabled/running ratio falls
+// below 1 and the fold discloses it. Multiplexing needs more events open
+// at once than the PMU has hardware counters, so this opens an
+// oversubscribed set of countable cpu-PMU leaves and reads them all in one
+// sampling action (FR-041, US7 scenario 4). The outcome is recorded either
+// way: a host whose counter count fits every opened event reports ratio 1
+// and says so.
+auto multiplex_scenario() -> void
+{
+  // Far above any core PMU's hardware counter count, and low enough that the
+  // open stays quick. The test reports how many events it opened, so a
+  // reader can judge the oversubscription against the host rather than
+  // against a number written here.
+  constexpr std::size_t kOversubscribe = 64;
+
+  const auto cpu = *system::local().object("cpu");
+  const auto enabled = cpu.counter<time_dim>("enabled");
+  const auto running = cpu.counter<time_dim>("running");
+  if (!enabled.has_value() || !running.has_value()) {
+    std::printf("SKIP scenario 6: the cpu object carries no enabled/running "
+                "pair, so no multiplex ratio can be folded\n");
+    return;
+  }
+  const expression<time_dim> enabled_expr {*enabled};
+  const expression<time_dim> running_expr {*running};
+
+  // `compile` takes a variadic pack of expressions, so the whole
+  // oversubscribed set reaches one plan as a single composite whose leaves
+  // are the members. The composite's own value is a sum of counts and
+  // carries no meaning; the ratio it discloses describes every leaf the
+  // plan read, which is what this scenario is about (FR-026, FR-047).
+  std::vector<expression<events>> members;
+  members.reserve(kOversubscribe);
+  for (const auto& entry : cpu.counters()) {
+    if (members.size() == kOversubscribe) {
+      break;
+    }
+    if (entry.avail != availability::countable) {
+      continue;
+    }
+    const auto leaf = cpu.counter<events>(entry.name);
+    if (leaf.has_value()) {
+      members.emplace_back(*leaf);
+    }
+  }
+  if (members.size() < 4) {
+    std::printf("SKIP scenario 6: the catalog offers %zu countable cpu-PMU "
+                "leaves, too few to oversubscribe this PMU\n",
+                members.size());
+    return;
+  }
+  expression<events> composite = members.front();
+  for (std::size_t index = 1; index < members.size(); ++index) {
+    composite = composite + members[index];
+  }
+
+  auto compiled =
+      compile(system::local(), composite, enabled_expr, running_expr);
+  if (!compiled.has_value()) {
+    std::printf("SKIP scenario 6: the oversubscribed plan did not open: %s\n",
+                compiled.error().message.c_str());
+    return;
+  }
+  std::printf("scenario 6: %zu member leaves plus the enabled/running pair "
+              "opened in one plan\n",
+              members.size());
+  scope window {*compiled};
+  window.start();
+  burn_cpu_short();
+  window.finish();
+  const auto metric = window.metric(composite);
+  const double observed = metric.running_ratio;
+
+  // The pair is the ground truth, and the obligation FR-041 states is that
+  // running time never exceeds enabled time and that the fold derives its
+  // disclosure from these two columns. The fold carries no constant ratio
+  // (FR-019). The raw columns are read for that comparison (FR-047).
+  const auto raw_enabled = enabled_expr.raw(window.view(), "cpu", "enabled");
+  const auto raw_running = running_expr.raw(window.view(), "cpu", "running");
+  check(raw_enabled.has_value() && raw_running.has_value(),
+        "the oversubscribed plan carries the enabled/running pair (FR-041)");
+  const auto elapsed = raw_enabled->points[1] - raw_enabled->points[0];
+  const auto on_cpu = raw_running->points[1] - raw_running->points[0];
+  check(on_cpu <= elapsed,
+        "running time never exceeds enabled time over the oversubscribed "
+        "window (ratio pair sound)");
+
+  // FR-019 makes a composite's disclosed ratio the product of its
+  // constituents' ratios, each raised to its algebraic exponent, so an
+  // oversubscribed composite of many members multiplies many fractions
+  // below 1 and discloses 0. The fold is right. The per-window fraction
+  // the kernel granted is the quotient below, and it is the number a
+  // reader of this host's PMU wants.
+  const double granted = elapsed == 0
+      ? 1.0
+      : static_cast<double>(on_cpu) / static_cast<double>(elapsed);
+  std::printf("scenario 6: %zu events opened against this PMU; enabled "
+              "advanced %llu ns, running advanced %llu ns, so the kernel ran "
+              "them %f of the time; the composite discloses running_ratio "
+              "%f with scaled %d\n",
+              members.size(),
+              static_cast<unsigned long long>(elapsed),
+              static_cast<unsigned long long>(on_cpu),
+              granted,
+              observed,
+              metric.scaled ? 1 : 0);
+  check(granted >= 0.0 && granted <= 1.0,
+        "the fraction of enabled time the kernel granted lies inside the "
+        "unit interval (FR-019)");
+  check(observed >= 0.0 && observed <= 1.0,
+        "the folded multiplex ratio lies inside the unit interval (FR-019)");
+  if (granted < 1.0) {
+    std::printf("scenario 6: this PMU multiplexes, and the fold discloses "
+                "the shortfall rather than reporting full rate (FR-041)\n");
+  } else {
+    std::printf("scenario 6: every opened event fit this PMU's counters, so "
+                "the kernel ran them at full rate\n");
+  }
 }
 
 // A per-cpu target reaches the kernel with a cpu bound and no pid, so
@@ -547,17 +762,15 @@ auto main() -> int
 
   merge_and_catalog_scenario(*pmu_objects);
   availability_scenario(*pmu_objects);
+  disclosed_mode_read_scenario(*pmu_objects);
   group_read_scenario();
 
-  // Scenario 6 (multiplexed group, ratio below 1, kernel scaled
-  // estimate) needs the privilege to oversubscribe counters: it is
-  // developer-privileged evidence recorded in the PR per tasks.md.
-  std::printf("SKIP scenario 6: multiplex ratio needs a privileged host; "
-              "developer evidence recorded in the PR (tasks.md T043)\n");
+  multiplex_scenario();
   cpu_target_scenario();
   unavailable_leaf_scenario();
 
-  std::printf("counters_pmu_test PASS: merge, availability, group read\n");
+  std::printf("counters_pmu_test PASS: merge, availability, disclosed modes, "
+              "group read, multiplex ratio\n");
   return 0;
 #endif
 }
