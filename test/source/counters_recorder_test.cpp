@@ -104,8 +104,25 @@ auto test_hard_stop_extent() -> void
     rec.sample();
   }
   check(rec.count() == 4, "hard_stop fills to capacity (FR-026)");
-  check(!rec.wrapped() && rec.dropped() == 0,
-        "a full hard_stop recorder never wraps (FR-027)");
+  // The full recorder's own state cannot report a wrap, so the retained
+  // window is checked where it can fail: through the columns. The
+  // fixture scripts cyc0 as {100, 300, 600, 1000, 1500} and ins0 as
+  // {1000, 3100, 5200, 7300, 9500}, and four sampling actions take the
+  // first four of each, so a recorder that held fewer points, or a
+  // different four, fails here (FR-027).
+  const auto cycles = sc.ipc.raw(rec.view(), "package-1/core-3", "cyc0");
+  const auto instructions = sc.ipc.raw(rec.view(), "package-1/core-3", "ins0");
+  check(cycles.has_value() && instructions.has_value(),
+        "the full recorder exposes both retained columns (FR-020)");
+  check(cycles->count == 4 && cycles->points[0] == 100
+            && cycles->points[1] == 300 && cycles->points[2] == 600
+            && cycles->points[3] == 1000,
+        "a full hard_stop recorder retains exactly its capacity window "
+        "(FR-027)");
+  check(instructions->points[0] == 1000 && instructions->points[1] == 3100
+            && instructions->points[2] == 5200
+            && instructions->points[3] == 7300,
+        "the second member's column is retained whole (FR-027)");
   const auto pairs = sc.ipc.fold_pairs(rec.view());
   check(pairs.size() == 3, "four points fold into three intervals (FR-018)");
   check(same_double(pairs[0].value, 10.5) && same_double(pairs[1].value, 7.0)
@@ -146,7 +163,7 @@ auto test_ring_capacity_guard() -> void
 
 auto test_independent_cursors() -> void
 {
-  const auto sc = ipc_scenario("cyc3", "ins3");
+  const auto sc = ipc_scenario("cyc2", "ins2");
   auto first = sc.compiled.recorder(2);
   first.sample();
   first.sample();
@@ -184,7 +201,9 @@ auto register_everything() -> void
 {
   auto provider = std::make_unique<fake_provider>();
   provider->add_object("package-1/core-3", "cpu3", "core", "third core");
-  for (int scenario = 0; scenario < 4; ++scenario) {
+  // One leaf pair per sampling scenario, and no pair beyond them: a
+  // registered leaf nothing samples is dead fixture weight.
+  for (int scenario = 0; scenario < 3; ++scenario) {
     const char cycles_name[] = {'c', 'y', 'c', char('0' + scenario), '\0'};
     const char instr_name[] = {'i', 'n', 's', char('0' + scenario), '\0'};
     provider->add_counter(

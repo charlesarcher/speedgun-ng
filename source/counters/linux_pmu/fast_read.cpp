@@ -72,6 +72,12 @@ auto fast_context_read(const fast_context&, std::uint64_t&) -> fast_read_verdict
   return fast_read_verdict::not_allowed;
 }
 
+auto fast_context_time_pair(const fast_context&, std::uint64_t&, std::uint64_t&)
+    -> bool
+{
+  return false;
+}
+
 void fast_context_close(fast_context& context)
 {
   static_cast<void>(context);
@@ -112,9 +118,10 @@ struct user_access_page
 };
 
 // The leading fields of the per-event page the mmap of an event file
-// descriptor returns. `index` is the kernel's sequence counter for the
-// page, `offset` the kernel's signed per-counter adjustment, and
-// `pmc_width` the width counters are read at.
+// descriptor returns. `lock` is the kernel's seqlock for the page,
+// `index` the one-based counter index it publishes, `offset` the
+// kernel's signed per-counter adjustment, and `pmc_width` the width
+// counters are read at.
 struct event_page
 {
   std::uint32_t version;
@@ -146,6 +153,39 @@ auto read_paranoid() -> int
   return -1;
 }
 
+// The global userspace counter gate. The kernel requires
+// /proc/sys/kernel/perf_user_access enabled before a caller reads
+// hardware counters outside the kernel
+// (Documentation/arch/arm64/perf.rst). A host publishing the switch as
+// zero refuses the read; a host publishing no switch leaves the
+// paranoid level and the page capability word as the gates this probe
+// reads, which is the -1 outcome (R-011).
+auto read_user_access_switch() -> int
+{
+  std::ifstream file("/proc/sys/kernel/perf_user_access");
+  int value = -1;
+  if (file >> value) {
+    return value;
+  }
+  return -1;
+}
+
+// The page structure version this reader implements. The published ABI
+// (include/uapi/linux/perf_event.h) gives the page a `version`, the
+// version of the structure, and a `compat_version`, the lowest version
+// it still serves. A page declaring either above the version this reader
+// implements is refused, since its later fields may have moved. The
+// running kernel leaves both fields zero, and a page declaring nothing
+// is read at the offsets this file compiles against, which that header
+// fixes (R-011, fail closed).
+constexpr std::uint32_t kPageVersion = 1;
+
+auto page_version_readable(const std::uint32_t version,
+                           const std::uint32_t compat_version) noexcept -> bool
+{
+  return version <= kPageVersion && compat_version <= kPageVersion;
+}
+
 }  // namespace
 
 void pmu_probe_fast(pmu_state& state)
@@ -158,6 +198,12 @@ void pmu_probe_fast(pmu_state& state)
     state.fast_refusal = "perf_event_paranoid is " + std::to_string(paranoid)
                          + "; the kernel grants user counter reads at 1 or "
                            "below, so the mapped-page read stays unprobed";
+    return;
+  }
+  if (const int user_access = read_user_access_switch(); user_access == 0) {
+    state.fast_refusal =
+        "the kernel publishes /proc/sys/kernel/perf_user_access as 0 and "
+        "refuses hardware counter reads outside the kernel";
     return;
   }
   std::ifstream shift_file("/sys/bus/event_source/devices/cpu/rdpmc");
@@ -180,8 +226,10 @@ void pmu_probe_fast(pmu_state& state)
   // P2 cast at the kernel ABI boundary (I, plan Complexity Tracking):
   // the mapping is the kernel's published perf_user_access page and
   // the fields are read in place at their ABI offsets. Soundness rests
-  // on the probe above, which read the page size from sysfs and the
-  // capability word from the mapping before any counter is read.
+  // on the probe above, which established the permission sysctls, the
+  // page size from sysfs, the page's declared version, and the
+  // capability word from the mapping, all of them before any counter
+  // is read.
   void* mapping = ::mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, 0);
   ::close(fd);
   if (mapping == MAP_FAILED) {
@@ -189,8 +237,16 @@ void pmu_probe_fast(pmu_state& state)
     return;
   }
   const auto* user = static_cast<const user_access_page*>(mapping);
+  const bool readable =
+      page_version_readable(user->version, user->compat_version);
   const bool granted = (user->cap_user_rdpmc & 1U) != 0;
   ::munmap(mapping, length);
+  if (!readable) {
+    state.fast_refusal =
+        "the user counter page declares a structure version this reader "
+        "does not implement";
+    return;
+  }
   if (!granted) {
     state.fast_refusal =
         "the user counter page publishes no read capability for this "
@@ -228,6 +284,13 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
     return nullptr;
   }
   context->map = mapping;
+  const auto* page = static_cast<const event_page*>(mapping);
+  if (!page_version_readable(page->version, page->compat_version)) {
+    // A page whose declared version this reader does not implement may
+    // have moved the fields read below, so the context is refused (R-011).
+    fast_context_close(*context);
+    return nullptr;
+  }
 
   std::ifstream shift_file("/sys/bus/event_source/devices/cpu/rdpmc");
   int shift = 0;
@@ -266,6 +329,20 @@ auto fast_context_read(const fast_context& context, std::uint64_t& value)
   if (page == nullptr || user == nullptr) {
     return fast_read_verdict::not_allowed;
   }
+  // Capability gate ahead of the instruction (FR-040, R-011): the
+  // published protocol tests the capability before it takes the read,
+  // so a caller the kernel grants no read capability never pays for the
+  // instruction.
+  if ((user->cap_user_rdpmc & 1U) == 0) {
+    return fast_read_verdict::not_allowed;
+  }
+  // Seqlock snapshot: the kernel increments the page `lock` around every
+  // user-page update, and `index`, `offset` and the counter width are the
+  // payload that update carries (kernel/events/core.c,
+  // perf_event_update_userpage). jevents/rdpmc reads the sequence from
+  // the same field, and the comparison below closes the window (R-011).
+  const auto sequence = page->lock;
+  _mm_lfence();
   // One-based index validity: index 0 means the kernel published no
   // usable counter, and the caller falls back to the group read.
   const auto index = page->index;
@@ -276,20 +353,39 @@ auto fast_context_read(const fast_context& context, std::uint64_t& value)
   if (id == 0 || id > 1024) {
     return fast_read_verdict::not_allowed;
   }
+  const auto offset = page->offset;
+  const auto width =
+      page->pmc_width == 0 ? kRnpmcCounterWidth : page->pmc_width;
   // Read barriers around the instruction: the kernel writes the
   // counter while a sampling action may read it, and the sequence
   // comparison below closes the window (R-011).
-  _mm_lfence();
   const auto raw = static_cast<std::uint64_t>(_rdpmc(static_cast<int>(id) - 1));
   _mm_lfence();
   return fast_decode(
-      index,
-      page->index,
-      user->cap_user_rdpmc,
-      raw,
-      page->offset,
-      page->pmc_width == 0 ? kRnpmcCounterWidth : page->pmc_width,
-      value);
+      sequence, page->lock, user->cap_user_rdpmc, raw, offset, width, value);
+}
+
+auto fast_context_time_pair(const fast_context& context,
+                            std::uint64_t& enabled,
+                            std::uint64_t& running) -> bool
+{
+  const auto* page = static_cast<const event_page*>(context.map);
+  if (page == nullptr) {
+    return false;
+  }
+  // The pair is payload of the same user-page update the counter value
+  // rides, so it is read under the same seqlock snapshot (FR-041, R-011).
+  const auto sequence = page->lock;
+  _mm_lfence();
+  const auto page_enabled = page->time_enabled;
+  const auto page_running = page->time_running;
+  _mm_lfence();
+  if (sequence != page->lock) {
+    return false;
+  }
+  enabled = page_enabled;
+  running = page_running;
+  return true;
 }
 
 void fast_context_close(fast_context& context)

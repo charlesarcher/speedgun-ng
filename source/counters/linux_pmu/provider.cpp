@@ -79,6 +79,19 @@ auto slurp(const std::filesystem::path& path) -> std::string
   return text;
 }
 
+// The kernel's permission level for performance events, the level the
+// per-entry test-opens answered at. -1 when the sysctl is unreadable,
+// and the catalog then says so (FR-039).
+auto read_paranoid() -> int
+{
+  std::ifstream file("/proc/sys/kernel/perf_event_paranoid");
+  int value = -1;
+  if (file >> value) {
+    return value;
+  }
+  return -1;
+}
+
 // Splits a kernel event_attr file into its field/value pairs: the text
 // is "field=value[,field=value...]", every value hexadecimal or
 // decimal.
@@ -369,14 +382,22 @@ pmu_provider::pmu_provider()
 
   detail::pmu_probe_fast(*m_state);
   const bool fast_capable = m_state->fast_available;
+  // The permission level the availability probe ran at rides the device
+  // description, so a reader of the catalog learns the level at which
+  // the kernel answered each test-open, and which refusals are that
+  // level (FR-039).
+  const int paranoid = read_paranoid();
+  const std::string level = paranoid < 0
+      ? "an unreadable perf_event_paranoid"
+      : "perf_event_paranoid " + std::to_string(paranoid);
   // The probe verdict rides the device description, so a reader of the
   // catalog learns which mechanism the entries disclose and, when the
   // fast one is refused, the reason it was refused (FR-023).
-  const std::string verdict =
-      fast_capable ? "; user counter reads are probe-available, entries "
-                     "disclose " "fast_rdpmc"
-                   : "; user counter reads stay in syscall mode: "
-          + m_state->fast_refusal;
+  const std::string verdict = "; the availability probe ran at " + level
+      + (fast_capable ? "; user counter reads are probe-available, entries "
+                        "disclose fast_rdpmc"
+                      : "; user counter reads stay in syscall mode: "
+                 + m_state->fast_refusal);
 
   for (const auto& dir : devices) {
     auto device = load_device(dir);

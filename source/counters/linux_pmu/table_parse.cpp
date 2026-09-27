@@ -15,12 +15,12 @@
 // variable, and the same translation unit compiles clean at -Og. This
 // suppression covers exactly the mapfile pattern match, the only
 // `std::regex` use in the library, and the file-scope form is required
-// because GCC attributes the diagnostic to the system header location
-// rather than to the call site. Replacing the matcher with a bespoke
-// regular-expression engine would trade a compiler false positive for a
-// silent mis-selection of the architecture event table, which is a far
-// worse failure; the gate stays on for every other diagnostic and for
-// every other translation unit.
+// because GCC attributes the diagnostic to the system header location.
+// The call site never receives the diagnostic. Replacing the matcher
+// with a bespoke regular-expression engine would trade a compiler
+// false positive for a silent mis-selection of the architecture event
+// table, which is a far worse failure; the gate stays on for every
+// other diagnostic and for every other translation unit.
 #  if defined(__GNUC__) && !defined(__clang__)
 #    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #  endif

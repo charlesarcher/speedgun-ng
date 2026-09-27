@@ -213,7 +213,6 @@ struct dimension
  * are immutable once the system is open (FR-009).
  *
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 struct catalog_entry
 {
   std::string_view name;
@@ -231,7 +230,6 @@ struct catalog_entry
  * omitting the disclosure is structurally impossible (FR-019).
  *
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 struct metric_result
 {
   double value = 0.0;

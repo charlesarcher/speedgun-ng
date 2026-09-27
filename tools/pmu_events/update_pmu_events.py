@@ -39,9 +39,7 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import sys
-import tempfile
 from pathlib import Path
 
 EXIT_OK = 0
@@ -319,21 +317,18 @@ def repin(root: Path, ref: str, tarball: Path | None) -> int:
         sys.stderr.write(f"{cmake}: no set(_pmu_events_expected_ref ...) constant to bump\n")
         return EXIT_FINDINGS
 
-    # Replace-last: staging holds the validated tree until this point.
+    # Replace-last is already spent: validate() returned on failure above, so
+    # the tree is untouched on every path that can fail. The dict holds the
+    # only copy of the new tree, so the rewrite is last-writer-wins: a re-run
+    # over a partially written tree repairs it.
     old = disk_entries(tree)
     old_counts = event_counts(old)
-    with tempfile.TemporaryDirectory(prefix="pmu-events-stage-") as stage_name:
-        stage = Path(stage_name)
-        for rel, data in files.items():
-            target = stage / rel
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
-        for rel in old:
-            (tree / rel).unlink()
-        for rel, data in files.items():
-            target = tree / rel
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
+    for rel in old:
+        (tree / rel).unlink()
+    for rel, data in files.items():
+        target = tree / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
 
     write_record(
         tree / RECORD_NAME,

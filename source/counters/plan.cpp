@@ -28,7 +28,8 @@ namespace
 // One sampling action across every read group: fill row `row` of the
 // point buffer, `stride` rows reserved per column. Groups write
 // contiguous slot ranges through one shared sink, so call order equals
-// column order (C-PRO-2).
+// column order (C-PRO-2). The closing check is the semantic-gated
+// kind, so a release build pays nothing for it.
 auto sample_row(const plan_impl& layout,
                 std::uint64_t* buffer,
                 const std::size_t stride,
@@ -38,6 +39,7 @@ auto sample_row(const plan_impl& layout,
   for (const auto& group : layout.groups) {
     group.thunk(*group.reader, sink);
   }
+  sink.check_action();
 }
 
 // Fan-out instantiation: the exemplar spine re-homed under `path` by
@@ -273,6 +275,8 @@ scope::scope(const plan& compiled)
   core->impl = static_cast<const plan_impl*>(compiled.m_impl);
   core->buffer.assign(core->impl->leaf_count() * 2, 0);
   m_core = core;
+  SG_ENSURE(!core->started && !core->finished,
+            "a fresh scope awaits start() (FR-030)");
 }
 
 scope::~scope()

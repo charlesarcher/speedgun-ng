@@ -21,11 +21,22 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
 #include "speedgun-ng/counters.hpp"
+
+// CPUID is x86-only, and the tsc leaf is x86-only with it, so the
+// nominal-frequency read is guarded to the architectures that have it.
+#if (defined(__x86_64__) || defined(__i386__)) && defined(__linux__)
+#  include <cpuid.h>
+#  define SG_TEST_HAS_CPUID 1
+#else
+#  define SG_TEST_HAS_CPUID 0
+#endif
 
 namespace
 {
@@ -73,6 +84,38 @@ auto find_entry(const std::vector<catalog_entry>& entries,
     }
   }
   return nullptr;
+}
+
+auto contains(std::string_view haystack, std::string_view needle) -> bool
+{
+  return haystack.find(needle) != std::string_view::npos;
+}
+
+// One sysfs scalar, trimmed, empty when the file is absent or unreadable.
+auto read_file(const std::string& path) -> std::string
+{
+  std::ifstream file(path);
+  std::string text;
+  if (file >> text) {
+    return text;
+  }
+  return {};
+}
+
+// CPUID leaf 0x16 eax, the nominal core frequency in kHz, or 0 when the
+// leaf reports none.
+auto nominal_core_khz() -> std::uint64_t
+{
+#if SG_TEST_HAS_CPUID
+  unsigned int eax = 0;
+  unsigned int ebx = 0;
+  unsigned int ecx = 0;
+  unsigned int edx = 0;
+  if (__get_cpuid(0x16, &eax, &ebx, &ecx, &edx) && eax != 0) {
+    return static_cast<std::uint64_t>(eax) * 1000ULL;
+  }
+#endif
+  return 0;
 }
 
 // CPU-bound work: a few tens of milliseconds of scalar arithmetic.
@@ -162,11 +205,62 @@ auto byte_rate_scenario(push_counter& bytes_handle) -> void
         "the composite carries the standard disclosure");
 }
 
+// Scenario 5 (US4): a calibrated tsc reports its frequency provenance
+// and flags a platform-scaled tick source (FR-034, R-007). The
+// expectations are computed from the platform sources the provider
+// itself reads, so the checks can fail: frequency_hz is the sysfs
+// tsc_khz in Hz, and `scaled` is the CPUID leaf 0x16 nominal core
+// frequency disagreeing with it. A host publishing no tsc_khz has no
+// calibration, so the provider omits the leaf and the checks skip with
+// that reason named.
+auto tsc_scenario(const catalog_entry* tsc) -> void
+{
+  const std::string khz_text = read_file("/sys/devices/system/cpu/tsc_khz");
+  if (tsc == nullptr) {
+    std::printf("SKIP scenario 5: tsc leaf absent; /sys/devices/system/cpu/"
+                "tsc_khz reads '%s', so the platform has no calibration to "
+                "report (FR-034)\n",
+                khz_text.empty() ? "no such file" : khz_text.c_str());
+    return;
+  }
+  const std::uint64_t khz = std::stoull(khz_text);
+  check(tsc->mode == read_mode::fast_tsc,
+        "tsc reports the fast tick read mode");
+  check(tsc->frequency_hz == khz * 1000ULL,
+        "tsc frequency provenance is the sysfs tsc_khz in Hz (FR-034)");
+  check(tsc->avail == availability::countable,
+        "a calibrated tsc is countable (FR-034)");
+  const std::uint64_t nominal_khz = nominal_core_khz();
+  if (nominal_khz == 0) {
+    std::printf("tsc: sysfs tsc_khz %llu Hz; CPUID leaf 0x16 reports no "
+                "nominal frequency, so the platform is not scaled\n",
+                static_cast<unsigned long long>(khz * 1000ULL));
+    check(!tsc->scaled, "a host with no CPUID nominal reports a constant "
+                        "rate, not a scaled tick source (FR-034)");
+    return;
+  }
+  // Derived: the two frequencies are equal exactly when the tick source
+  // runs at a constant rate, so the flag is the inequality.
+  const bool scaled_expected = nominal_khz != khz;
+  check(tsc->scaled == scaled_expected,
+        "the tsc scaled flag is the CPUID nominal disagreeing with sysfs "
+        "tsc_khz (US4 scenario 5)");
+  const std::string_view claimed =
+      tsc->scaled ? "platform-scaled" : "constant rate";
+  check(
+      contains(tsc->description, claimed),
+      "the tsc description states the rate its scaled flag claims " "(FR-034)");
+  std::printf(
+      "tsc: %llu Hz, CPUID nominal %llu kHz, scaled %d, description " "'%s'\n",
+      static_cast<unsigned long long>(khz * 1000ULL),
+      static_cast<unsigned long long>(nominal_khz),
+      tsc->scaled ? 1 : 0,
+      std::string(tsc->description).c_str());
+}
+
 // Scenario 4: the machine catalog lists clock leaves and the push
 // counter countable with descriptions and achieved read modes
-// (FR-009). Scenario 5: where the platform calibrated a tsc, it
-// reports fast mode, frequency provenance, and the scaled flag
-// (FR-034, R-007).
+// (FR-009).
 auto catalog_scenario() -> void
 {
   const auto machine = *system::local().object("machine");
@@ -187,13 +281,9 @@ auto catalog_scenario() -> void
   check(!bytes->description.empty(), "push counter is described");
 
   const auto* tsc = find_entry(entries, "tsc");
-  if (tsc != nullptr) {
-    check(tsc->mode == read_mode::fast_tsc,
-          "tsc reports the fast tick read mode");
-    check(tsc->frequency_hz > 0, "tsc reports frequency provenance");
-  } else {
-    std::printf("tsc leaf absent on this platform: catalog fact, skipped\n");
-  }
+  check(tsc != nullptr || read_file("/sys/devices/system/cpu/tsc_khz").empty(),
+        "the tsc leaf appears exactly when the platform published tsc_khz");
+  tsc_scenario(tsc);
 }
 
 // A push handle names the counter it was declared for, so a caller can
