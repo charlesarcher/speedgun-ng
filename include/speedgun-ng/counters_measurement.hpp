@@ -7,6 +7,7 @@
 #include <expected>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -48,6 +49,8 @@ struct leaf_core
   std::string unit;  // canonical unit token
   availability avail = availability::countable;
   read_mode mode = read_mode::syscall;
+  std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
+  bool scaled = false;  // platform-scaled tick source disclosure
 };
 
 // One node of the erased expression spine: nodes reference leaves and
@@ -212,6 +215,100 @@ public:
   {
     return leaf.address;
   }
+};
+
+/**
+ * @brief Hot-path handle of a push counter: a plain, non-atomic
+ * `uint64` increment on the creating thread, sampled by plain load
+ * (FR-035, R-008).
+ *
+ * Declared through `push_provider` before registration. Cross-thread
+ * `add` is a tier-3 violation, checked by default and elided under
+ * `SG_CONTRACTS_IGNORE`.
+ */
+class SPEEDGUN_NG_EXPORT push_counter
+{
+public:
+  /**
+   * @brief Copies of a handle name the same counter.
+   *
+   * \pre none
+   * \post none
+   */
+  push_counter(const push_counter&) = default;
+
+  /**
+   * @brief Moves of a handle name the same counter.
+   *
+   * \pre none
+   * \post none
+   */
+  push_counter(push_counter&&) noexcept = default;
+
+  /**
+   * @brief Assignment names the same counter.
+   *
+   * \pre none
+   * \post none
+   */
+  auto operator=(const push_counter&) -> push_counter& = default;
+
+  /**
+   * @brief Move assignment names the same counter.
+   *
+   * \pre none
+   * \post none
+   */
+  auto operator=(push_counter&&) noexcept -> push_counter& = default;
+
+  /**
+   * @brief The trivial destruction of a handle.
+   *
+   * \pre none
+   * \post none
+   */
+  ~push_counter() = default;
+
+  /**
+   * @brief Adds `n` to the counter's running total: a plain
+   * non-atomic increment on the hot path (FR-035).
+   *
+   * \pre Called on the thread that declared this counter.
+   * \post none
+   */
+  auto add(const std::uint64_t n) const noexcept -> void
+  {
+    SG_REQUIRE(std::this_thread::get_id() == m_owner,
+               "push counter add runs on its creating thread (FR-035)");
+    *m_value += n;
+  }
+
+  /**
+   * @brief The counter name within the machine object.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto name() const noexcept -> std::string_view
+  {
+    return m_name;
+  }
+
+private:
+  friend class push_provider;
+
+  push_counter(std::uint64_t* const value,
+               const std::thread::id owner,
+               std::string_view name) noexcept
+      : m_value(value)
+      , m_owner(owner)
+      , m_name(name.data(), name.size())
+  {
+  }
+
+  std::uint64_t* m_value = nullptr;
+  std::thread::id m_owner;
+  std::string m_name;
 };
 
 /**

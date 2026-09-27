@@ -203,6 +203,14 @@ target_link_libraries(counters_objects_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_objects_test PRIVATE cxx_std_23)
 add_test(NAME counters_objects_test COMMAND counters_objects_test)
 
+# Shipped clock and push providers (T034, T038; FR-033..FR-035): clock
+# windows, push hot-path adds, composites with standard disclosure, and
+# catalog facts including tsc calibration provenance.
+add_executable(counters_clock_push_test source/counters_clock_push_test.cpp)
+target_link_libraries(counters_clock_push_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_clock_push_test PRIVATE cxx_std_23)
+add_test(NAME counters_clock_push_test COMMAND counters_clock_push_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

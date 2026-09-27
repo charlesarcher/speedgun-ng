@@ -42,6 +42,8 @@ struct catalog_seed
   std::string_view unit;
   availability avail = availability::countable;
   read_mode mode = read_mode::syscall;
+  std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
+  bool scaled = false;  // platform-scaled tick source disclosure
 };
 
 /**

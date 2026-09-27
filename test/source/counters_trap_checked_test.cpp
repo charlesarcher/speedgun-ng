@@ -19,8 +19,11 @@
 namespace
 {
 
-constexpr const char* kModes[] = {
-    "metric-before-finish", "fold-range", "overrun"};
+constexpr const char* kModes[] = {"metric-before-finish",
+                                  "fold-range",
+                                  "overrun",
+                                  "push-cross-thread",
+                                  "push-decrement"};
 
 auto run_mode(const std::string& fixture, const char* mode) -> int
 {

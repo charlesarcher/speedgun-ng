@@ -221,6 +221,8 @@ struct catalog_entry
   sg::counters::unit unit;
   availability avail;
   read_mode mode;
+  std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
+  bool scaled = false;  // platform-scaled tick source disclosure
 };
 
 /**

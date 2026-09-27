@@ -91,6 +91,17 @@ auto fold_core(const expr_core& core,
       .i = rec.wrapped ? (offset + i) % rec.stride : i,
       .j = rec.wrapped ? (offset + j) % rec.stride : j,
   };
+  // Push counters carry no hardware monotonicity guarantee: a value
+  // that decreased between the two folded points is user misuse,
+  // tier-3 (FR-035).
+  for (const auto& leaf : core.leaves) {
+    if (leaf.mode == read_mode::push_load) {
+      const std::size_t slot = ctx.layout.by_address.at(leaf.address);
+      const auto* column = ctx.rec.columns + slot * ctx.rec.stride;
+      SG_REQUIRE(column[ctx.j] >= column[ctx.i],
+                 "push counters never decrease between folded points (FR-035)");
+    }
+  }
   return metric_result {
       .value = eval(ctx, core, core.root()),
       .running_ratio = 1.0,

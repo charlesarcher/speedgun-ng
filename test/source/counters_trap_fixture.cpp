@@ -6,9 +6,10 @@
 //   - the consumer-release CI job (ignore builds)
 //
 // Behavior per mode (argv[1]):
-//   - metric-before-finish and fold-range are semantic-gated sites:
-//     they abort in checked builds, so their markers stay absent; under
-//     ignore they survive and print their markers.
+//   - metric-before-finish, fold-range, push-cross-thread, and
+//     push-decrement are semantic-gated sites: they abort in checked
+//     builds, so their markers stay absent; under ignore they survive
+//     and print their markers.
 //   - overrun is an SG_REQUIRE_ALWAYS site (FR-027 memory safety is
 //     never semantic-gated): it aborts in EVERY configuration, marker
 //     absent everywhere.
@@ -20,6 +21,8 @@
 #include <cstdlib>
 #include <memory>
 #include <string_view>
+#include <thread>
+#include <utility>
 
 #include "speedgun-ng/counters.hpp"
 
@@ -28,7 +31,10 @@ namespace
 
 using sg::counters::compile;
 using sg::counters::dim;
+using sg::counters::expression;
 using sg::counters::fake_provider;
+using sg::counters::push_counter;
+using sg::counters::push_provider;
 using sg::counters::system;
 
 using events = dim<0, 1>;
@@ -74,6 +80,42 @@ auto main(int argc, char** argv) -> int
 {
   const std::string_view mode =
       argc >= 2 ? std::string_view {argv[1]} : std::string_view {};
+
+  if (mode == "push-cross-thread" || mode == "push-decrement") {
+    auto push = std::make_unique<push_provider>();
+    auto handle = push->add_counter("bytes", "bytes", "hot-path bytes");
+    const auto registered = system::local().register_provider(std::move(push));
+    if (!registered.has_value()) {
+      std::fprintf(stderr, "fixture: push provider registration failed\n");
+      std::exit(2);
+    }
+    if (mode == "push-cross-thread") {
+      std::thread foreign {[&handle] { handle.add(1); }};
+      foreign.join();
+      survived(mode);
+      return 0;
+    }
+    const auto machine = *system::local().object("machine");
+    const auto bytes = *machine.counter<events>("bytes");
+    const expression<events> counted {bytes};
+    const auto plan = compile(system::local(), counted);
+    if (!plan.has_value()) {
+      std::fprintf(stderr, "fixture: push plan compile failed\n");
+      std::exit(2);
+    }
+    auto rec = plan->recorder(4);
+    rec.sample();
+    handle.add(1500);
+    rec.sample();
+    // Unsigned wrap back below the previous point: a fold-time
+    // decrement, tier-3 misuse (FR-035).
+    handle.add(0ULL - 1400ULL);
+    rec.sample();
+    static_cast<void>(counted.fold(rec.view(), 1, 2));
+    survived(mode);
+    return 0;
+  }
+
   auto compiled = setup();
 
   if (mode == "metric-before-finish") {
