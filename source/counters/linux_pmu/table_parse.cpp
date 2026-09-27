@@ -129,12 +129,24 @@ auto to_ecma(std::string_view pattern) -> std::string
   while (i < pattern.size()) {
     bool replaced = false;
     if (pattern.compare(i, 2, "[[") == 0) {
-      const std::size_t close = pattern.find("]]", i);
+      // The class ends at the first `]]` at or after the brackets; a
+      // one-bracket span is not a class, because `[[]` is a class holding
+      // `[`, so the search starts one past the opening bracket.
+      const std::size_t close = pattern.find("]]", i + 1);
       if (close != std::string::npos) {
-        const std::string_view name = pattern.substr(i + 2, close - (i + 2));
+        // POSIX wraps the class name in colons, so `[[:xdigit:]]` spans
+        // `:xdigit:` between the brackets.
+        const std::string_view body = pattern.substr(i + 2, close - (i + 2));
+        const std::string_view name = body.starts_with(':') && body.size() > 2
+            ? body.substr(1, body.size() - 2)
+            : std::string_view {};
         for (int k = 0; k < 13; ++k) {
           if (name == class_name[k]) {
+            // The table holds the class body, so the brackets that
+            // delimit it are written here.
+            out += '[';
             out += replacement[k];
+            out += ']';
             i = close + 2;
             replaced = true;
             break;
