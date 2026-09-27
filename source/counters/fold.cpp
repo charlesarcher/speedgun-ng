@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -89,6 +90,39 @@ struct fold_context
   return left * right;
 }
 
+// One leaf's measured fraction of the window it was enabled for. The
+// fold over a composite and the raw view of a single leaf disclose the
+// same pair, so both read it here and the two disclosures cannot drift
+// (FR-019, FR-020). No value means the leaf discloses no measured
+// fraction: it carries no enabled/running pair, or no enabled time
+// elapsed across the window.
+[[nodiscard]] auto leaf_ratio(const fold_context& ctx, const std::size_t slot)
+    -> std::optional<double>
+{
+  const auto& entry = ctx.layout.slots[slot];
+  if (entry.ratio_enabled == plan_impl::no_ratio_slot
+      || entry.ratio_running == plan_impl::no_ratio_slot)
+  {
+    return std::nullopt;
+  }
+  const auto* enabled = ctx.rec.columns + entry.ratio_enabled * ctx.rec.stride;
+  const auto* running = ctx.rec.columns + entry.ratio_running * ctx.rec.stride;
+  const auto elapsed = enabled[ctx.j] - enabled[ctx.i];
+  if (elapsed == 0) {
+    return std::nullopt;
+  }
+  return static_cast<double>(running[ctx.j] - running[ctx.i])
+      / static_cast<double>(elapsed);
+}
+
+// A disclosed fraction, and whether the window ran any source below
+// full rate.
+struct ratio_result
+{
+  double ratio = 1.0;
+  bool multiplexed = false;
+};
+
 }  // namespace
 
 // The multiplex ratio of one window: the product of the constituent
@@ -96,12 +130,6 @@ struct fold_context
 // without an enabled/running pair contributes 1.0 by construction. A
 // pair with no elapsed enabled time contributes 1.0; the fold has no
 // measured fraction to report and states full rate.
-struct ratio_result
-{
-  double ratio = 1.0;
-  bool multiplexed = false;
-};
-
 [[nodiscard]] auto window_ratio(const fold_context& ctx, const expr_core& core)
     -> ratio_result
 {
@@ -112,24 +140,13 @@ struct ratio_result
     if (located == ctx.layout.by_address.end()) {
       continue;
     }
-    const auto& slot = ctx.layout.slots[located->second];
-    if (slot.ratio_enabled == plan_impl::no_ratio_slot
-        || slot.ratio_running == plan_impl::no_ratio_slot)
-    {
+    const auto one = leaf_ratio(ctx, located->second);
+    if (!one.has_value()) {
       continue;
     }
-    const auto* enabled = ctx.rec.columns + slot.ratio_enabled * ctx.rec.stride;
-    const auto* running = ctx.rec.columns + slot.ratio_running * ctx.rec.stride;
-    const auto elapsed = enabled[ctx.j] - enabled[ctx.i];
-    if (elapsed == 0) {
-      continue;
-    }
-    const auto counted = running[ctx.j] - running[ctx.i];
-    const double one =
-        static_cast<double>(counted) / static_cast<double>(elapsed);
     const int sign = leaf_sign(core, core.root(), static_cast<int>(index), 1);
-    out.ratio *= sign > 0 ? one : (1.0 / one);
-    if (one < 1.0) {
+    out.ratio *= sign > 0 ? *one : (1.0 / *one);
+    if (*one < 1.0) {
       out.multiplexed = true;
     }
   }
@@ -204,6 +221,20 @@ auto raw_core(const expr_core& core,
     if (leaf.address == address) {
       const auto* layout = static_cast<const plan_impl*>(rec.impl);
       const std::size_t slot = layout->by_address.at(address);
+      // The ratio covers the window this view spans: the first to the
+      // last recorded point, and, for a wrapped ring, the oldest to the
+      // newest retained row (FR-020, FR-028). A view with no recorded
+      // point has no window, so both ends are row zero and no elapsed
+      // time discloses a fraction.
+      const std::size_t oldest =
+          rec.wrapped ? static_cast<std::size_t>(rec.dropped % rec.stride) : 0;
+      const fold_context ctx {
+          .layout = *layout,
+          .rec = rec,
+          .i = oldest,
+          .j = rec.wrapped ? (oldest + rec.stride - 1) % rec.stride
+                           : (rec.count == 0 ? 0 : rec.count - 1),
+      };
       return points_view {
           .object_path = object_path,
           .name = leaf.name,
@@ -212,7 +243,7 @@ auto raw_core(const expr_core& core,
           .slot = slot,
           .points = rec.columns + slot * rec.stride,
           .count = rec.count,
-          .ratio = 1.0,
+          .ratio = leaf_ratio(ctx, slot).value_or(1.0),
       };
     }
   }

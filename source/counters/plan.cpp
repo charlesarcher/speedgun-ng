@@ -42,6 +42,25 @@ auto sample_row(const plan_impl& layout,
   sink.check_action();
 }
 
+// One sampling action: the thread a plan bound to, the read sequence,
+// and the head advance. The scope, the hard-stop recorder, and the ring
+// recorder spell the write index and the wrap bookkeeping differently,
+// and nothing else (FR-026, FR-030, FR-031). The cached `bound_thread`
+// names the one allowed thread; the current thread's identity is read
+// per call, because caching it would cache the answer for the thread
+// that cached it.
+auto sample_point(const plan_impl& layout,
+                  std::uint64_t* columns,
+                  const std::size_t stride,
+                  const std::size_t row,
+                  std::size_t& head) noexcept -> void
+{
+  SG_REQUIRE(std::this_thread::get_id() == layout.bound_thread,
+             "a sample_point runs on the thread its plan bound to (FR-031)");
+  sample_row(layout, columns, stride, row);
+  ++head;
+}
+
 // Fan-out instantiation: the exemplar spine re-homed under `path` by
 // re-addressing every leaf (US3 scenario 5); the fold layer resolves
 // the instances through the plan's address map.
@@ -288,10 +307,7 @@ void scope::start()
 {
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(!core->started, "scope start runs once per scope (FR-046)");
-  SG_REQUIRE(std::this_thread::get_id() == core->impl->bound_thread,
-             "a scope samples on the thread its plan bound to (FR-031)");
-  sample_row(*core->impl, core->buffer.data(), 2, 0);
-  core->state.head = 1;
+  sample_point(*core->impl, core->buffer.data(), 2, 0, core->state.head);
   core->started = true;
   SG_ENSURE(core->state.head == 1 && core->started,
             "the first point of the window is recorded (FR-011)");
@@ -302,10 +318,7 @@ void scope::finish()
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(core->started && !core->finished,
              "scope finish runs on a started, open window (FR-046)");
-  SG_REQUIRE(std::this_thread::get_id() == core->impl->bound_thread,
-             "a scope samples on the thread its plan bound to (FR-031)");
-  sample_row(*core->impl, core->buffer.data(), 2, 1);
-  core->state.head = 2;
+  sample_point(*core->impl, core->buffer.data(), 2, 1, core->state.head);
   core->finished = true;
   SG_ENSURE(core->state.head == 2 && core->finished,
             "the window is closed with two recorded points (FR-011)");
@@ -327,10 +340,7 @@ auto hard_stop_sample_core(const void* impl,
   SG_REQUIRE_ALWAYS(head < capacity,
                     "hard_stop recorder samples within capacity (FR-027)");
   const auto& layout = *static_cast<const plan_impl*>(impl);
-  SG_REQUIRE(std::this_thread::get_id() == layout.bound_thread,
-             "a recorder samples on the thread its plan bound to (FR-031)");
-  sample_row(layout, columns, capacity, head);
-  ++head;
+  sample_point(layout, columns, capacity, head, head);
 }
 
 auto ring_sample_core(const void* impl,
@@ -341,10 +351,7 @@ auto ring_sample_core(const void* impl,
                       std::uint64_t& dropped) noexcept -> void
 {
   const auto& layout = *static_cast<const plan_impl*>(impl);
-  SG_REQUIRE(std::this_thread::get_id() == layout.bound_thread,
-             "a recorder samples on the thread its plan bound to (FR-031)");
-  sample_row(layout, columns, capacity, head & (capacity - 1));
-  ++head;
+  sample_point(layout, columns, capacity, head & (capacity - 1), head);
   if (head > capacity) {
     wrapped = true;
     ++dropped;

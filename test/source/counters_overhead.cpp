@@ -11,8 +11,9 @@
 //
 // Exit 0: the fast-versus-syscall comparison ran. Exit 2: this host
 // publishes no probe-passing fast regime; the reason is named and the
-// syscall figures were printed first, so CTest reports the skip with
-// its cause. Frameworkless check()/fail() convention.
+// syscall figures were printed first. CTest's console line for a
+// skipped test carries no reason, so `ctest -V` shows it. Frameworkless
+// check()/fail() convention.
 // ============================================================================
 
 #include <algorithm>
@@ -189,6 +190,7 @@ auto main() -> int
   if (!clock_plan.has_value()) {
     fail("the clock-only plan compiles");
   }
+  std::printf("clock plan reads machine/monotonic, one leaf per action\n");
   std::printf("\nsampling cost by regime (nanoseconds per sample()):\n");
   const regime syscall_regime = measure(*clock_plan, "clock, syscall (vDSO)");
 
@@ -224,6 +226,10 @@ auto main() -> int
       if (!group_plan.has_value()) {
         fail("the pmu group plan compiles");
       }
+      std::printf("group plan reads cpu/%s and cpu/%s, one read per leader "
+                  "per action\n",
+                  work.c_str(),
+                  cycle.c_str());
       measure(*group_plan, "pmu group, syscall");
       measure_fold(*group_plan, work_expr, cycle_expr, "pmu group, fold only");
     }
@@ -249,13 +255,18 @@ auto main() -> int
 
   if (fast_leaf.empty()) {
     std::printf(
-        "\nSKIP: this host probes no fast read mechanism, so the "
-        "fast-versus-syscall comparison has no fast side. The kernel "
-        "publishes no calibrated time-stamp frequency "
-        "('/sys/devices/system/cpu/tsc_khz' absent) and the user counter "
-        "page is unprobeable; both regimes above ran in syscall mode. "
-        "Published budgets per platform live in "
-        "docs/pages/counters-overhead.md.\n");
+        "\nSKIP: this host probes no fast read mechanism, so the fast "
+        "regime is unmeasured and the comparison has no fast side. Three "
+        "probe facts gate it: "
+        "'/sys/devices/system/cpu/tsc_khz' is absent, so the kernel "
+        "publishes no calibrated time-stamp frequency; "
+        "'/sys/bus/event_source/devices/cpu/rdpmc' is mode 0400 and "
+        "root-owned, so this caller cannot open the mapped page; and "
+        "perf_event_paranoid is 2, where the kernel grants user counter "
+        "reads at 1 or below. Every catalog entry disclosed syscall mode, "
+        "so both plans measured above ran in syscall mode. The page "
+        "docs/pages/counters-overhead.md records the probe reason beside "
+        "the syscall rows and leaves the fast row unmeasured.\n");
     return 2;
   }
 

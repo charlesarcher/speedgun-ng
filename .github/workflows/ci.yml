@@ -349,6 +349,8 @@ jobs:
         mbf=$?
         timeout 30 $bin fold-range > /tmp/ctrap-fold.out 2>&1
         fold=$?
+        timeout 30 $bin fold-out-of-extent > /tmp/ctrap-foe.out 2>&1
+        foe=$?
         timeout 30 $bin push-cross-thread > /tmp/ctrap-pxt.out 2>&1
         pxt=$?
         timeout 30 $bin push-decrement > /tmp/ctrap-pdec.out 2>&1
@@ -361,12 +363,14 @@ jobs:
         timeout 30 $bin overrun > /tmp/ctrap-over.out 2> /tmp/ctrap-over.err
         over=$?
         set -e
-        echo "mbf=$mbf fold=$fold pxt=$pxt pdec=$pdec rxt=$rxt sxt=$sxt"
+        echo "mbf=$mbf fold=$fold foe=$foe pxt=$pxt pdec=$pdec rxt=$rxt sxt=$sxt"
         echo "overrun=$over"
         echo "----- metric-before-finish -----"
         cat /tmp/ctrap-mbf.out
         echo "----- fold-range -----"
         cat /tmp/ctrap-fold.out
+        echo "----- fold-out-of-extent -----"
+        cat /tmp/ctrap-foe.out
         echo "----- push-cross-thread -----"
         cat /tmp/ctrap-pxt.out
         echo "----- push-decrement -----"
@@ -379,12 +383,14 @@ jobs:
         cat /tmp/ctrap-over.out /tmp/ctrap-over.err
         test "$mbf" -eq 0
         test "$fold" -eq 0
+        test "$foe" -eq 0
         test "$pxt" -eq 0
         test "$pdec" -eq 0
         test "$rxt" -eq 0
         test "$sxt" -eq 0
         grep -F 'counters-trap-survived-metric-before-finish' /tmp/ctrap-mbf.out
         grep -F 'counters-trap-survived-fold-range' /tmp/ctrap-fold.out
+        grep -F 'counters-trap-survived-fold-out-of-extent' /tmp/ctrap-foe.out
         grep -F 'counters-trap-survived-push-cross-thread' /tmp/ctrap-pxt.out
         grep -F 'counters-trap-survived-push-decrement' /tmp/ctrap-pdec.out
         grep -F 'counters-trap-survived-recorder-cross-thread' /tmp/ctrap-rxt.out
@@ -396,6 +402,14 @@ jobs:
           exit 1
         fi
         grep -F 'FR-027' /tmp/ctrap-over.err
+
+    - name: Run counters_trap_checked under ignore
+      run: |
+        ulimit -c 0
+        cmake --build build/consumer-release-dev -j 2
+          --target counters_trap_checked_test
+        ctest --test-dir build/consumer-release-dev -R counters_trap
+          --output-on-failure
 
     - name: Run dbc_test under ignore
       run: |

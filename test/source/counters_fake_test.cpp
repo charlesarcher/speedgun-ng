@@ -5,13 +5,17 @@
 // and unit rejection (FR-008, FR-017), tree and catalog walk
 // (FR-001..FR-006), path and alias resolution (FR-002), typed counter
 // resolution with near-miss diagnostics (FR-005, FR-008), expression
-// algebra with zero-read compile (FR-015, FR-021), and scope window
-// exactness including the 2^64 wrap (FR-013, FR-030). Hand-computed
+// algebra with zero-read compile (FR-015, FR-021), scope window
+// exactness including the 2^64 wrap (FR-013, FR-030), the composite
+// multiplex ratio product (FR-019), the assembled provenance record
+// (SC-008), and the seeded per-sample tail (T014). Hand-computed
 // expectations, frameworkless check()/fail() convention.
 // ============================================================================
 
 #include <algorithm>
+#include <array>
 #include <bit>
+#include <charconv>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -53,6 +57,9 @@ using sg::counters::dim;
 using sg::counters::dim_same;
 using sg::counters::expression;
 using sg::counters::fake_provider;
+using sg::counters::metric_result;
+using sg::counters::points_view;
+using sg::counters::read_mode;
 using sg::counters::system;
 using sg::counters::target;
 using sg::counters::target_kind;
@@ -65,6 +72,42 @@ fake_provider* probe = nullptr;
 auto contains(std::string_view haystack, std::string_view needle) -> bool
 {
   return haystack.find(needle) != std::string_view::npos;
+}
+
+// The shortest round-trip spelling of a number, so a hand-computed
+// expectation can be compared as a string with no format drift.
+template<class T>
+auto number(const T value) -> std::string
+{
+  std::array<char, 32> buffer {};
+  const auto written =
+      std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+  return std::string(buffer.data(), written.ptr);
+}
+
+// The provenance record SC-008 names, assembled from the public surface
+// alone: the folded value, each constituent's raw window delta, and the
+// ratio disclosure. No artifact fixes the spelling, so the shape is
+// derived from the one example in the tree, spec.md:305's
+// `IPC = 1.31 <- instructions 12.3e9 / cycles 9.4e9, ratio 0.98`:
+//
+//   <label> = <value> <- <leaf> <delta> / <leaf> <delta>, ratio <ratio>
+auto provenance_record(const std::string_view label,
+                       const metric_result& metric,
+                       const std::vector<points_view>& leaves) -> std::string
+{
+  std::string record =
+      std::string(label) + " = " + number(metric.value) + " <- ";
+  for (std::size_t index = 0; index < leaves.size(); ++index) {
+    if (index > 0) {
+      record += " / ";
+    }
+    const auto& leaf = leaves[index];
+    record += std::string(leaf.name) + " ";
+    record += number(leaf.points[leaf.count - 1] - leaf.points[0]);
+  }
+  record += ", ratio " + number(metric.running_ratio);
+  return record;
 }
 
 auto test_registration() -> void
@@ -131,6 +174,47 @@ auto test_registration() -> void
   provider->set_points(
       "package-1/move/core-1", "instructions", {0, 2100}, 2100);
 
+  // Two objects each disclosing an enabled/running time pair, so a
+  // composite over both discloses a multiplex ratio. The pair-carrying
+  // leaf sits on opposite sides of the quotient, which is what puts a
+  // negative exponent on one constituent ratio (FR-019).
+  provider->add_object("package-1/ratio-a", "scratch", "multiplexed source a");
+  provider->add_counter("package-1/ratio-a",
+                        "enabled",
+                        "nanoseconds",
+                        "nanoseconds the event counter was enabled",
+                        availability::countable,
+                        read_mode::syscall,
+                        true);
+  provider->add_counter("package-1/ratio-a",
+                        "running",
+                        "nanoseconds",
+                        "nanoseconds the event counter was scheduled");
+  provider->set_points("package-1/ratio-a", "enabled", {0, 200});
+  provider->set_points("package-1/ratio-a", "running", {0, 50});
+  provider->add_object("package-1/ratio-b", "scratch", "multiplexed source b");
+  provider->add_counter("package-1/ratio-b",
+                        "enabled",
+                        "nanoseconds",
+                        "nanoseconds the event counter was enabled");
+  provider->add_counter("package-1/ratio-b",
+                        "running",
+                        "nanoseconds",
+                        "nanoseconds the event counter was scheduled",
+                        availability::countable,
+                        read_mode::syscall,
+                        true);
+  provider->set_points("package-1/ratio-b", "enabled", {0, 100});
+  provider->set_points("package-1/ratio-b", "running", {0, 50});
+
+  // A leaf with no explicit sequence at all, whose whole trace comes
+  // from the seeded per-sample delta generator (T014).
+  provider->add_object(
+      "package-1/seeded", "scratch", "seeded delta generator object");
+  provider->add_counter(
+      "package-1/seeded", "walk", "ops", "seeded per-sample delta walk");
+  provider->set_points("package-1/seeded", "walk", {}, 0, 1);
+
   probe = provider.get();
   const auto registered =
       system::local().register_provider(std::move(provider));
@@ -142,6 +226,11 @@ auto test_registration() -> void
   check(!clash.has_value() && contains(clash.error().message, "duplicate"),
         "duplicate object path rejected, tree unchanged (FR-008)");
 
+  // A unit token outside the closed mapping is refused where the tree
+  // is built, and the tree keeps the invariant `object::counters`
+  // enforces at `source/counters/system.cpp:417`: every stored catalog
+  // unit maps. Deferring the refusal to resolution would leave that
+  // accessor a fuse on a tree the library had accepted.
   auto bad_unit = std::make_unique<fake_provider>();
   bad_unit->add_counter("package-3", "watts", "watts", "power draw");
   const auto rejected = system::local().register_provider(std::move(bad_unit));
@@ -198,6 +287,8 @@ auto test_resolution_diagnostics() -> void
   check(cycles.has_value(), "events counter resolves (FR-005)");
   check(cycles->name() == "cycles" && cycles->unit_token() == "ops",
         "resolved counter carries catalog metadata");
+  check(cycles->description() == "core cycles elapsed",
+        "the handle carries the catalog description (US1 scenario 1)");
   check(cycles->address() == "package-1/core-3/cycles",
         "canonical leaf address (E-05)");
 
@@ -278,8 +369,34 @@ auto test_scope_exactness() -> void
             && raw->unit == "ops" && raw->points[1] - raw->points[0] == 2100ULL
             && same_double(raw->ratio, 1.0),
         "raw view exposes provenance and the raw point column (FR-020)");
+  // The quotient spine lists instructions first, so it takes slot 0 of
+  // the plan's two point columns; the scope window holds exactly the
+  // points start() and finish() committed.
+  check(raw.has_value() && raw->slot == 0 && raw->count == 2,
+        "the raw view names the point column and extent it read "
+        "(US1 scenario 7)");
   check(probe->read_actions() == 2,
         "start and finish are one sampling action each (FR-011)");
+
+  const auto cycles_raw = ipc.raw(window.view(), "package-1/core-3", "cycles");
+  check(cycles_raw.has_value(), "the quotient discloses its second leaf");
+  // SC-008: 2100 / 200 folds to 10.5, both leaves carry no enabled/
+  // running pair so the disclosure is ratio 1.
+  check(provenance_record("IPC", metric, {*raw, *cycles_raw})
+            == "IPC = 10.5 <- instructions 2100 / cycles 200, ratio 1",
+        "the assembled provenance record carries value, leaves, and ratio "
+        "(SC-008)");
+
+  const auto reads_after_first_fold = probe->read_actions();
+  for (int repeat = 0; repeat < 10; ++repeat) {
+    const auto again = window.metric(ipc);
+    check(same_double(again.value, 10.5)
+              && same_double(again.running_ratio, 1.0) && !again.scaled,
+          "a repeated metric re-folds the stored points exactly "
+          "(US1 scenario 5, FR-021)");
+  }
+  check(probe->read_actions() == reads_after_first_fold,
+        "ten further metrics perform zero provider reads (US1 scenario 5)");
 
   const auto second = compile(system::local(), ipc);
   check(second.has_value(), "multiple plans over one system (FR-031)");
@@ -555,6 +672,79 @@ auto test_wrap() -> void
         "one hardware wrap subtracts out mod 2^64 (FR-013, SC-006)");
 }
 
+// The composite multiplex ratio, the one product no fold of a
+// pairless source can reach: each constituent contributes its
+// enabled/running delta ratio raised to its algebraic exponent, and the
+// pair-carrying leaves sit on opposite sides of the quotient so one
+// exponent is negative (FR-019).
+auto test_ratio_product() -> void
+{
+  const auto source_a = *system::local().object("package-1/ratio-a");
+  const auto source_b = *system::local().object("package-1/ratio-b");
+  const auto a_enabled = *source_a.counter<time_dim>("enabled");
+  const auto a_running = *source_a.counter<time_dim>("running");
+  const auto b_running = *source_b.counter<time_dim>("running");
+  const auto b_enabled = *source_b.counter<time_dim>("enabled");
+
+  // The pair leaves are quoted by the same object, so every ratio in
+  // the product has both halves in the spine. Scripted deltas:
+  // a/enabled 200, a/running 50, b/running 50, b/enabled 100.
+  const auto composite = a_enabled / (b_running - a_running + b_enabled);
+  const auto compiled = compile(system::local(), composite);
+  check(compiled.has_value(), "the ratio plan compiles");
+
+  sg::counters::scope window {*compiled};
+  window.start();
+  window.finish();
+  const auto metric = window.metric(composite);
+  // 200 / (50 - 50 + 100) = 2.
+  check(same_double(metric.value, 2.0),
+        "the composite folds its own arithmetic exactly (FR-019)");
+  // 50 / 200 = 0.25 at exponent +1, and 50 / 100 = 0.5 at exponent -1,
+  // so the product is 0.25 * (1 / 0.5) = 0.5, strictly between the two
+  // bounds a single-source product would report.
+  check(same_double(metric.running_ratio, 0.5) && metric.running_ratio < 1.0
+            && metric.running_ratio > 0.0 && metric.scaled,
+        "the folded ratio is the product of the constituent ratios raised "
+        "to their exponents (FR-019)");
+}
+
+// The seeded per-sample delta generator, exercised over a whole
+// recorder trace: one seed reproduces the sequence a reader can redo
+// on paper (T014, FR-036).
+auto test_seeded_tail() -> void
+{
+  const auto walk =
+      *system::local().object("package-1/seeded")->counter<events>("walk");
+  const expression<events> walk_expr {walk};
+  const auto compiled = compile(system::local(), walk_expr);
+  check(compiled.has_value(), "the seeded plan compiles");
+
+  auto recorder = compiled->recorder(4);
+  recorder.sample();
+  recorder.sample();
+  recorder.sample();
+  recorder.sample();
+  // One step is (state * 37 + 11) mod 2^16. From seed 1: 48, 1787,
+  // 66130 reduced to 594, then 21989. Cumulative points: 48, 1835,
+  // 2429, 24418.
+  const auto column =
+      walk_expr.raw(recorder.view(), "package-1/seeded", "walk");
+  check(column.has_value() && column->points[0] == 48
+            && column->points[1] == 1835 && column->points[2] == 2429
+            && column->points[3] == 24418,
+        "the seeded tail walks its whole trace from one seed (T014)");
+  // 24418 - 48 = 48 + 1787 + 594 + 21989, the sum of every seeded step
+  // the window spans.
+  check(same_double(walk_expr.fold(recorder.view()).value, 24370.0),
+        "the first-to-last fold over the seeded tail sums every step (T014)");
+  const auto pairs = walk_expr.fold_pairs(recorder.view());
+  check(pairs.size() == 3 && same_double(pairs[0].value, 1787.0)
+            && same_double(pairs[1].value, 594.0)
+            && same_double(pairs[2].value, 21989.0),
+        "each pair fold yields its own seeded step (T014, FR-018)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -572,6 +762,8 @@ auto main() -> int
   test_fanout_construction_errors();
   test_permission_blocked_leaf();
   test_wrap();
+  test_ratio_product();
+  test_seeded_tail();
   std::printf("counters_fake_test: all checks passed\n");
   return 0;
 }

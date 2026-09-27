@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -30,15 +31,19 @@ namespace sg::counters
 
 /**
  * @brief One scripted leaf: an explicit point sequence, optionally
- * followed by a constant per-sample delta (FR-036).
+ * followed by a per-sample tail (FR-036, T014).
  *
  * When the explicit sequence is exhausted, the script keeps stepping
- * by `tail_delta` (zero holds the last value, freezing the leaf).
+ * the tail. A `tail_delta` of zero holds the last value, freezing the
+ * leaf. A `delta_seed` steps the seeded per-sample delta sequence
+ * documented beside `set_points` and supersedes `tail_delta`, so one
+ * seed reproduces a whole workload.
  */
 struct fake_script
 {
   std::vector<std::uint64_t> points;
   std::uint64_t tail_delta = 0;
+  std::optional<std::uint64_t> delta_seed;
 };
 
 namespace detail
@@ -56,9 +61,13 @@ struct fake_counter_data
   std::string unit;
   availability avail = availability::countable;
   read_mode mode = read_mode::syscall;
+  bool ratio_pair = false;
   fake_script script;
   std::size_t position = 0;
   std::uint64_t last = 0;
+  // The seeded tail's running state, held across sampling actions so
+  // the sequence resumes where the previous one stopped.
+  std::uint64_t delta_state = 0;
 };
 
 /**
@@ -124,19 +133,33 @@ public:
    * Declaring a counter on an undeclared path auto-creates that
    * object with default kind and description.
    *
+   * `ratio_pair` declares that the owning object discloses a time
+   * pair, which the seam reads as the counters named `enabled` and
+   * `running` on the same object. A fold over such a leaf multiplies
+   * their delta ratio into its disclosure (FR-019, FR-041).
+   *
    * \pre `object_path` is non-empty.
    * \post Enumeration will report the entry with the given unit,
-   *       availability, and mode.
+   *       availability, mode, and ratio-pair declaration.
    */
   auto add_counter(std::string_view object_path,
                    std::string_view name,
                    std::string_view unit,
                    std::string_view description,
                    availability avail = availability::countable,
-                   read_mode mode = read_mode::syscall) -> fake_provider&;
+                   read_mode mode = read_mode::syscall,
+                   bool ratio_pair = false) -> fake_provider&;
 
   /**
    * @brief Scripts one leaf with an explicit cumulative sequence.
+   *
+   * Once the sequence is exhausted the tail steps by `tail_delta`.
+   * A `delta_seed` puts the tail on the seeded per-sample delta
+   * sequence instead: the leaf adds `step(seed)`, then
+   * `step(step(seed))`, and so on, where one step is
+   * `state = (state * 37 + 11) mod 2^16`. A single-digit multiplier
+   * and a power-of-two modulus keep the whole tail reproducible by
+   * hand, which the suite's exactness tests need (T014).
    *
    * \pre the counter was declared.
    * \post Sampling yields the scripted points in order, one per
@@ -145,7 +168,9 @@ public:
   auto set_points(std::string_view object_path,
                   std::string_view name,
                   std::vector<std::uint64_t> points,
-                  std::uint64_t tail_delta = 0) -> fake_provider&;
+                  std::uint64_t tail_delta = 0,
+                  std::optional<std::uint64_t> delta_seed = std::nullopt)
+      -> fake_provider&;
 
   /**
    * @brief The number of `read_points` actions performed by readers
