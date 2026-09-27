@@ -49,11 +49,17 @@ auto parse_format_field(const std::string_view spec,
   // Anything without that separator describes no config bits.
   const std::size_t colon = spec.find(':');
   if (colon == std::string_view::npos) {
+    out.clear();
     return false;
   }
   const int word = word_of(spec.substr(0, colon));
+  // Parsed into a local and moved out on success, so the caller's vector
+  // ends up holding exactly this file's ranges: a second parse into the
+  // same vector replaces the first result, and a failed parse leaves
+  // nothing behind.
+  std::vector<format_range> parsed;
   std::size_t cursor = colon + 1;
-  std::size_t parsed = 0;
+  std::size_t found = 0;
   while (cursor <= spec.size()) {
     const std::size_t comma = spec.find(',', cursor);
     const std::string_view piece =
@@ -85,16 +91,23 @@ auto parse_format_field(const std::string_view spec,
         ? (high = low, true)
         : read(piece.substr(dash + 1), high);
     if (!low_ok || !high_ok || high < low) {
+      out.clear();
       return false;
     }
-    out.push_back(format_range {.config_word = word, .low = low, .high = high});
-    ++parsed;
+    parsed.push_back(
+        format_range {.config_word = word, .low = low, .high = high});
+    ++found;
     if (comma == std::string_view::npos) {
       break;
     }
     cursor = comma + 1;
   }
-  return parsed != 0;
+  if (found == 0) {
+    out.clear();
+    return false;
+  }
+  out = std::move(parsed);
+  return true;
 }
 
 auto pmu_compose_config(

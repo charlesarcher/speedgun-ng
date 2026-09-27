@@ -338,6 +338,50 @@ auto group_read_scenario() -> void
               metric.scaled ? 1 : 0);
 }
 
+// A per-cpu target reaches the kernel with a cpu bound and no pid, so
+// the kernel grants it only at a paranoia level this host does not
+// offer. The refusal surfaces as a recoverable construction error in the
+// untimed region, never as a read-time surprise (FR-024, FR-031).
+auto cpu_target_scenario() -> void
+{
+  const auto cpu = *system::local().object("cpu");
+  const auto entries = cpu.counters();
+  std::string work;
+  for (const auto& entry : entries) {
+    if (entry.avail == availability::countable
+        && (entry.name == "instructions" || entry.name == "ex_ret_instr"))
+    {
+      work = std::string(entry.name);
+      break;
+    }
+  }
+  if (work.empty()) {
+    std::printf("SKIP cpu-target: no countable instruction counter here\n");
+    return;
+  }
+  const auto leaf = cpu.counter<events>(work);
+  check(leaf.has_value(), "the instruction counter resolves");
+  const sg::counters::expression<events> over {*leaf};
+  const sg::counters::target pinned {.kind = sg::counters::target_kind::cpu,
+                                     .cpu = 0};
+  const auto refused = compile(system::local(), pinned, over);
+  if (refused.has_value()) {
+    // A host that grants per-cpu events binds the plan and folds it.
+    sg::counters::scope window {*refused};
+    window.start();
+    window.finish();
+    check(window.metric(over).value >= 0.0,
+          "a granted per-cpu plan samples and folds");
+    std::printf("cpu target: granted, plan folds\n");
+    return;
+  }
+  check(refused.error().message.find("cannot open a window")
+            != std::string::npos,
+        "a per-cpu target the kernel refuses is a recoverable construction "
+        "error (FR-024)");
+  std::printf("cpu target: %s\n", refused.error().message.c_str());
+}
+
 // Scenario 7: an expression over a leaf the catalog reports as not
 // countable is a recoverable construction error naming the leaf and its
 // catalog state, refused in the untimed region before any provider
@@ -416,6 +460,7 @@ auto main() -> int
   // developer-privileged evidence recorded in the PR per tasks.md.
   std::printf("SKIP scenario 6: multiplex ratio needs a privileged host; "
               "developer evidence recorded in the PR (tasks.md T043)\n");
+  cpu_target_scenario();
   unavailable_leaf_scenario();
 
   std::printf("counters_pmu_test PASS: merge, availability, group read\n");

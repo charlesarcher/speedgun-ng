@@ -196,6 +196,19 @@ auto catalog_scenario() -> void
   }
 }
 
+// A push handle names the counter it was declared for, so a caller can
+// report which cell a number came from (FR-035).
+auto push_name_scenario(const push_counter& first, const push_counter& second)
+    -> void
+{
+  check(first.name() == "bytes",
+        "a push handle names the counter it was declared for (FR-035)");
+  check(second.name() == "records",
+        "a second push handle names its own counter (FR-035)");
+  check(first.name() != second.name(),
+        "two push handles name two distinct counters (FR-035)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -204,6 +217,7 @@ auto main() -> int
   auto push = std::make_unique<push_provider>();
   auto bytes_handle =
       push->add_counter("bytes", "bytes", "hot-path bytes written");
+  auto second_handle = push->add_counter("records", "ops", "records appended");
   if (!system::local().register_provider(std::move(clock)).has_value()) {
     fail("clock provider registers");
   }
@@ -212,6 +226,7 @@ auto main() -> int
   }
 
   catalog_scenario();
+  push_name_scenario(bytes_handle, second_handle);
   clock_windows_scenario();
   push_exact_scenario(bytes_handle);
   byte_rate_scenario(bytes_handle);

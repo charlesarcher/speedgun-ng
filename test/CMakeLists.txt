@@ -246,6 +246,22 @@ target_link_libraries(counters_pmu_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_pmu_test PRIVATE cxx_std_23)
 add_test(NAME counters_pmu_test COMMAND counters_pmu_test)
 
+# Synthetic-fixture coverage for the Linux PMU provider's pure seam
+# functions (T066, plan.md Test Plan; FR-037, FR-040, R-010, R-011).
+# The config encoder and the mapped-page decode are covered here with
+# injected inputs, so CI reaches them without privileges; the kernel glue
+# that feeds them runs on a fast-capable developer host. This is the one
+# target that includes a private seam header, because a pure function
+# behind it is otherwise reachable only from a host that owns the
+# hardware.
+add_executable(counters_linux_pmu_seam_test
+               source/counters_linux_pmu_seam_test.cpp)
+target_link_libraries(counters_linux_pmu_seam_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_linux_pmu_seam_test PRIVATE cxx_std_23)
+add_test(NAME counters_linux_pmu_seam_test
+         COMMAND counters_linux_pmu_seam_test)
+
 # Sampling-cost benchmark and mode disclosure (T051; US7 scenarios 1
 # and 6; SC-004, SC-010, quickstart 12). Publishes the min/median/max
 # per-action distribution of each regime this host probes, the achieved
