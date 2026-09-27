@@ -86,8 +86,12 @@ struct format_range
 
 // Probe one config through a test-open against the PMU `type`
 // (provider.cpp, FR-039): the availability the kernel grants this
-// caller for this event: countable, permission_blocked, or absent on
-// other refusals.
+// caller for this event. The probe answers `countable`,
+// `not_encodable`, or `permission_blocked`, which is the closed set of
+// states a pmu catalog entry carries. `availability::absent` belongs to
+// a provider that declares a leaf absent from the object it seeds, and
+// a device the kernel does not publish is dropped at discovery, so no
+// entry carries it.
 [[nodiscard]] auto pmu_probe(
     int type, const std::vector<std::pair<int, std::uint64_t>>& words)
     -> availability;
@@ -162,8 +166,9 @@ constexpr std::uint32_t kRnpmcCounterWidth = 48;
 // The decode half of the protocol, over values the caller already
 // sampled: the page sequence before and after, the capability word, the
 // raw instruction result, the kernel offset, and the counter width. The
-// gates run in protocol order, so a caller that has no capability never
-// pays for the read (FR-040, R-011).
+// caller gates the capability ahead of the instruction these values come
+// from, so a caller with no capability never pays for the read
+// (FR-040, R-011).
 [[nodiscard]] auto fast_decode(std::uint32_t sequence_before,
                                std::uint32_t sequence_after,
                                std::uint64_t capability,
@@ -189,6 +194,16 @@ struct fast_context
 
 [[nodiscard]] auto fast_context_read(const fast_context& context,
                                      std::uint64_t& value) -> fast_read_verdict;
+
+// The context's event page enabled/running pair in nanoseconds, read
+// inside the page's own sequence lock. The pair gives a mapped-page
+// window its multiplex ratio in every read mode, like the leader's read
+// does for a group window (FR-041, FR-040). False when the page carries
+// no pair or the sequence moved under the read, and the caller then
+// reports a zero pair.
+[[nodiscard]] auto fast_context_time_pair(const fast_context& context,
+                                          std::uint64_t& enabled,
+                                          std::uint64_t& running) -> bool;
 
 void fast_context_close(fast_context& context);
 

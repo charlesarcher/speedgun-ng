@@ -28,12 +28,12 @@ struct pmu_state;
  * merges the vendored event tables with kernel-discovered aliases,
  * kernel discoveries winning conflicts, every entry described.
  * Availability is a probe fact per entry: `countable`,
- * `permission_blocked`, or `not_encodable` (FR-039). Windows open in
- * syscall mode: one group read per event-source leader per sampling
- * action, with the enabled/running time pair as ordinary leaves so
- * every fold discloses its ratio (FR-041). Off Linux the provider
- * keeps the identical interface and seeds no objects: the reduced
- * catalog is the whole difference (FR-042).
+ * `permission_blocked`, or `not_encodable` (FR-039). Every read mode
+ * models the enabled and running times as ordinary cumulative leaves
+ * beside their group, so each fold computes its multiplex ratio as the
+ * pair's delta quotient (FR-041). Off Linux the provider keeps the
+ * identical interface and seeds no objects: the reduced catalog is the
+ * whole difference (FR-042).
  */
 class SPEEDGUN_NG_EXPORT pmu_provider final : public provider_iface
 {

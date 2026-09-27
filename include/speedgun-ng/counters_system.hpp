@@ -81,7 +81,10 @@ public:
   /**
    * @brief This object's catalog entries (FR-001, FR-004).
    *
-   * \pre none
+   * \pre Every stored leaf carries a unit token the closed switch maps.
+   *      Registration admits no other, so a violation is a provider
+   *      contract breach and reports. The leaf is never presented as
+   *      `unit::none` (FR-017).
    * \post none
    */
   [[nodiscard]] auto counters() const -> std::vector<catalog_entry>;
@@ -99,8 +102,9 @@ public:
    * (FR-005, FR-008).
    *
    * The catalog unit of the named counter must map to `D`; a mismatch
-   * is a recoverable error naming both, and a wrong name is a
-   * recoverable error carrying near-miss suggestions (at most five,
+   * is a recoverable error naming both, a unit token outside the closed
+   * mapping is a recoverable error naming the unit, and a wrong name is
+   * a recoverable error carrying near-miss suggestions (at most five,
    * names within edit distance two first, then description word
    * overlaps, catalog order breaking ties). Nothing is guessed
    * (FR-017).
@@ -116,7 +120,13 @@ public:
     if (!leaf.has_value()) {
       return std::unexpected(leaf.error());
     }
-    const auto mapped = dimension_of(*unit_from_token(leaf->unit));
+    // Recognition first: dereferencing the token before testing it
+    // reads the error branch of the inner `expected` (FR-017).
+    const auto recognized = unit_from_token(leaf->unit);
+    if (!recognized.has_value()) {
+      return std::unexpected(recognized.error());
+    }
+    const auto mapped = dimension_of(*recognized);
     if (!mapped.has_value()) {
       return std::unexpected(mapped.error());
     }
@@ -178,10 +188,12 @@ public:
    * @brief Registers a provider and merges its objects (FR-009).
    *
    * Registration after the system opened is a recoverable error. A
-   * duplicate canonical path under one parent, or a duplicate counter
-   * name within one object, is a recoverable error leaving the tree
-   * unchanged (FR-008). A provider unit token outside the closed
-   * mapping is a recoverable error naming the unit (FR-017).
+   * duplicate canonical path under one parent, a duplicate counter name
+   * within one object, or a platform alias already resolving to another
+   * object is a recoverable error naming the clash, and the whole
+   * provider is refused with the tree left unchanged (FR-008, FR-002).
+   * A provider unit token outside the closed mapping is a recoverable
+   * error naming the unit (FR-017).
    *
    * \pre none
    * \post none
@@ -246,7 +258,7 @@ private:
       -> std::expected<detail::leaf_core, error>;
 
   struct impl;  // the tree behind the handle
-  impl* m_impl = nullptr;
+  std::unique_ptr<impl> m_impl;
 };
 
 }  // namespace sg::counters

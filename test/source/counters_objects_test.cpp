@@ -3,7 +3,8 @@
 // US3 scenarios 1..6).
 //
 // Covers enumeration facts (FR-001, FR-005), alias and canonical
-// resolution to one object with canonical spelling (FR-002, C-SYS-1),
+// resolution to one object with canonical spelling in resolution,
+// provenance, and diagnostics (FR-002, C-SYS-1, US3 scenario 2),
 // objects(kind, filters) with AND-combined equality predicates and
 // recoverable unknown-kind/key errors (FR-003, C-SYS-2), cross-object
 // composition read within one sampling action (US3 scenario 4), fan-out
@@ -133,6 +134,8 @@ auto test_enumeration() -> void
         "the cycles entry carries description and state (FR-005, FR-006)");
 }
 
+// US3 scenario 2: both spellings resolve to one object, and every
+// output the API produces for that object names the canonical path.
 auto test_alias_resolution() -> void
 {
   const auto by_alias = *system::local().object("cpu3");
@@ -143,6 +146,44 @@ auto test_alias_resolution() -> void
         "canonical and alias hits name one object (FR-002, C-SYS-1)");
   check(by_alias.alias() == "cpu3", "the declared alias is kept (FR-001)");
   check(by_canon.children().empty(), "a core has no children");
+
+  // US3 scenario 2: the diagnostic and the provenance line both print
+  // the canonical path, neither the alias the caller typed. Both come
+  // from the fourth core, reached through its alias.
+  const auto core4 = *system::local().object("cpu4");
+  check(core4.path() == "package-1/core-4",
+        "the cpu4 alias resolves to the canonical path (FR-002)");
+
+  const auto missing = core4.counter<events>("no_such_counter");
+  check(!missing.has_value(), "an unknown counter name is refused (FR-008)");
+  const std::string& message = missing.error().message;
+  check(contains(message, "package-1/core-4"),
+        "the resolution diagnostic names the canonical path (US3 scenario 2)");
+  check(!contains(message, "cpu4"),
+        "the resolution diagnostic prints no platform alias (US3 scenario 2)");
+
+  // A dedicated leaf: every sampling action advances a leaf's script one
+  // point, so this scenario must not touch another scenario's leaves.
+  // Scripted {400, 1000}, so the fold is 1000 - 400 = 600.
+  const expression<events> misses {*core4.counter<events>("cache_misses")};
+  auto compiled = compile(system::local(), misses);
+  check(compiled.has_value(), "the alias-resolved plan compiles");
+  auto rec = compiled->recorder(2);
+  rec.sample();
+  rec.sample();
+  const auto provenance =
+      misses.raw(rec.view(), "package-1/core-4", "cache_misses");
+  check(provenance.has_value(),
+        "the raw view resolves the canonical leaf address (FR-020)");
+  check(provenance->object_path == "package-1/core-4",
+        "the provenance line reports the canonical path (US3 scenario 2)");
+  check(!contains(provenance->object_path, "cpu4"),
+        "the provenance line prints no platform alias (US3 scenario 2)");
+  check(provenance->count == 2 && provenance->points[0] == 400
+            && provenance->points[1] == 1000,
+        "the provenance line carries the raw scripted column (FR-020)");
+  check(same_double(misses.fold(rec.view()).value, 600.0),
+        "the same window folds 1000 - 400 to 600 (FR-018)");
 }
 
 auto test_selection() -> void
@@ -264,8 +305,12 @@ auto register_everything() -> void
       "package-1/core-4", "cycles", "ops", "core cycles elapsed");
   provider->add_counter(
       "package-1/core-4", "instructions", "ops", "instructions retired");
+  provider->add_counter(
+      "package-1/core-4", "cache_misses", "ops", "last-level cache misses");
   provider->set_points("package-1/core-4", "cycles", {50, 250}, 0);
   provider->set_points("package-1/core-4", "instructions", {2000, 2900}, 0);
+  provider->set_points(
+      "package-1/core-4", "cache_misses", {400, 1000, 1600}, 0);
   provider->add_counter(
       "package-2/core-7", "cycles", "ops", "core cycles elapsed");
   provider->add_counter(

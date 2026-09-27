@@ -34,7 +34,6 @@ namespace sg::counters
  * closed switch at registration (FR-017).
  *
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 struct catalog_seed
 {
   std::string_view name;
@@ -59,7 +58,6 @@ struct catalog_seed
  * call; the system copies what it keeps.
  *
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 struct object_seed
 {
   std::string_view kind;
@@ -122,7 +120,6 @@ public:
  * this order (C-PRO-2).
  *
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 struct leaf_set
 {
   std::vector<std::string> addresses;
@@ -132,7 +129,6 @@ struct leaf_set
  * @brief What a plan samples on: the machine, the current thread, or a
  * pinned cpu.
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 enum class target_kind : std::uint8_t
 {
   machine,
@@ -147,7 +143,6 @@ enum class target_kind : std::uint8_t
  * it.
  *
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 struct target
 {
   target_kind kind = target_kind::thread;
@@ -161,6 +156,10 @@ struct target
  * for one sampling action: each `put` appends the next managed leaf's
  * cumulative point. The cursor advances; the recorder commits the row
  * after the action completes.
+ *
+ * \invariant A finished sampling action wrote one point per managed
+ *            column, which is the one-sampling-action obligation
+ *            FR-047 binds the reader to.
  */
 class point_sink
 {
@@ -203,6 +202,23 @@ public:
     SG_ENSURE(
         m_columns[index * m_stride + m_row] == value && m_index == index + 1,
         "the point lands in the column matching the call index");
+  }
+
+  /**
+   * @brief Checks that a finished action wrote one point per managed
+   * column (FR-047).
+   *
+   * The read path calls this where the row is committed, so a reader
+   * that filled fewer columns than the plan compiled fails the
+   * obligation where the shortfall is visible.
+   *
+   * \pre none
+   * \post none
+   */
+  void check_action() const noexcept
+  {
+    SG_INVARIANT(m_index == m_leaf_count,
+                 "one action writes one point per managed column (FR-047)");
   }
 
 private:

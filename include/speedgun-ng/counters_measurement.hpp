@@ -40,14 +40,16 @@
  * per adjacent interval, which is the per-chunk series. A
  * first-to-last `fold()` answers the single total. A window
  * from `i` to `j` costs the sampling actions at both endpoints, so
- * `K = 1` charges `N` actions: on the reference host published in
- * `docs/pages/counters-overhead.md`, a clock plan costs 60 ns per
- * action and a core-PMU group 210 ns, so sampling every iteration adds
- * 120 ns and 420 ns per measured window respectively. A benchmark whose
- * measured work is shorter than that reads its own instrumentation, so
- * the cadence must be coarse enough for the work.
- * `plan::sample_overhead_ns_median()` reports the figure for the plan in
- * hand (FR-032).
+ * `K = 1` charges `N` actions. The figures
+ * `docs/pages/counters-overhead.md` publishes for its reference host
+ * are 60 ns per action for a clock plan and 210 ns for a core-PMU
+ * group, so sampling every iteration adds 120 ns and 420 ns per
+ * measured window respectively. Those are the page's published
+ * numbers, and the page owns the refresh.
+ * `plan::sample_overhead_ns_median()` reports the figure for the plan
+ * in hand (FR-032). A benchmark whose measured work is shorter than
+ * that reads its own instrumentation, so the cadence must be coarse
+ * enough for the work.
  *
  * @section exactness Numeric exactness
  *
@@ -144,7 +146,7 @@ struct expr_core
 // Splices a whole spine into `dst` with index remapping and returns
 // the spliced root index.
 //
-// Leaf indices are remapped through the slot `add_leaf` actually assigns,
+// Leaf indices are remapped through the slot `add_leaf` assigns,
 // because `add_leaf` deduplicates by address: two operands that share a
 // leaf contribute one slot between them, so the pre-splice leaf count is
 // not the offset the second operand's nodes must use. An operand built
@@ -539,6 +541,12 @@ public:
   }
 };
 
+// A recorder is a plain cursor, so copying one copies the six members
+// and calls nothing; a non-trivial copy would reach the allocator on
+// the read path (FR-029).
+static_assert(std::is_trivially_copyable_v<recorder_handle<hard_stop_t>>);
+static_assert(std::is_trivially_copyable_v<recorder_handle<ring_t>>);
+
 namespace detail
 {
 
@@ -607,6 +615,10 @@ public:
    */
   template<class C>
     requires dim_same<D, C>
+  // The suppressed check asks for `explicit` on this single-argument
+  // constructor. Converting a resolved counter into its expression is
+  // the public composition spelling, and `explicit` would force every
+  // operand form to name `expression<D>(leaf)` by hand.
   // NOLINTNEXTLINE(google-explicit-constructor,hicpp-explicit-conversions)
   expression(const counter<C>& leaf)
   {
@@ -648,15 +660,21 @@ public:
   }
 
   /**
-   * @brief One metric per adjacent recorded interval (FR-018); the
-   * recorder holds at least two committed points (tier-3).
+   * @brief One metric per adjacent recorded interval (FR-018).
    *
-   * \pre none
+   * One metric per adjacent pair, so a recorder with `n` committed
+   * points yields `n - 1` metrics. The core behind this wrapper checks
+   * the same bound; the check here pairs the precondition with the
+   * public entry point, so this signature keeps a deduced return type
+   * for the pairing gate to attribute.
+   *
+   * \pre the recorder holds two or more committed points (tier-3).
    * \post none
    */
   [[nodiscard]] auto fold_pairs(const recorder_api& rec) const
-      -> std::vector<metric_result>
   {
+    SG_REQUIRE(rec.count >= 2,
+               "pair folds need at least two committed points (FR-018)");
     return detail::fold_pairs_core(core, rec);
   }
 
@@ -947,7 +965,17 @@ private:
  * the window. One semantics, two spellings with the recorder.
  *
  * The two point columns live in the scope object; the plan behind the
- * scope must outlive it.
+ * scope must outlive it. A constructor cannot read a lifetime, so that
+ * obligation is the caller's and this note carries it.
+ *
+ * A composite reaches a scope through the plan it was compiled into,
+ * in the untimed region, and that plan is fixed before the window
+ * opens. A scope registry would be the only way to register a
+ * composite into a running scope, and the API has none: the misuse is
+ * unrepresentable. The four misuse sequences the API can spell are
+ * `metric` before `finish`, `finish` without `start`, a double
+ * `start`, and `metric` after `finish`; each is a contract violation
+ * (FR-046).
  */
 class SPEEDGUN_NG_EXPORT scope
 {
@@ -955,7 +983,7 @@ public:
   /**
    * @brief Prepares a two-point window over a compiled plan.
    *
-   * \pre `compiled` outlives the scope.
+   * \pre none
    * \post The scope awaits `start()`.
    */
   explicit scope(const plan& compiled);
@@ -992,7 +1020,8 @@ public:
 
   /**
    * @brief Folds the expression over the closed window (FR-030);
-   * `start` and `finish` must have been called (tier-3).
+   * `start` and `finish` must have been called (tier-3). The fold layer
+   * enforces that bound (FR-046).
    *
    * \pre none
    * \post none

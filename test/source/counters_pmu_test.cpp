@@ -15,6 +15,8 @@
 
 #include <algorithm>
 #include <bit>
+#include <cerrno>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +29,10 @@
 #include <vector>
 
 #include "speedgun-ng/counters.hpp"
+
+#include <linux/perf_event.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "speedgun-ng/counters_pmu.hpp"
 
@@ -59,6 +65,7 @@ using sg::counters::dim;
 using sg::counters::expression;
 using sg::counters::object;
 using sg::counters::pmu_provider;
+using sg::counters::read_mode;
 using sg::counters::scope;
 using sg::counters::system;
 
@@ -86,6 +93,58 @@ auto read_paranoid() -> int
     return value;
   }
   return -999;
+}
+
+// What the kernel answers when this process test-opens the plain
+// hardware cycle event the way the provider's own availability probe
+// does: this thread, user mode only, no group. The answer is the ground
+// truth the catalog is held to, so the assertion below never has to
+// name this host's outcome in advance.
+enum class probe_verdict
+{
+  granted,
+  refused_permission,
+  refused_encoding
+};
+
+auto name(const probe_verdict verdict) -> const char*
+{
+  switch (verdict) {
+    case probe_verdict::granted:
+      return "granted";
+    case probe_verdict::refused_permission:
+      return "refused for permission";
+    case probe_verdict::refused_encoding:
+      return "refused for encoding";
+  }
+  return "unclassified";
+}
+
+auto hardware_event_probe() -> probe_verdict
+{
+  perf_event_attr attr {};
+  attr.type = PERF_TYPE_HARDWARE;
+  attr.size = sizeof(perf_event_attr);
+  attr.config = PERF_COUNT_HW_CPU_CYCLES;
+  attr.disabled = 1;
+  attr.exclude_kernel = 1;
+  attr.exclude_hv = 1;
+  const long fd =
+      ::syscall(SYS_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
+  if (fd >= 0) {
+    ::close(static_cast<int>(fd));
+    return probe_verdict::granted;
+  }
+  // The provider's probe separates the same two refusal classes, and
+  // this test reproduces that split. It does not import the seam.
+  switch (errno) {
+    case EINVAL:
+    case EOPNOTSUPP:
+    case ENOENT:
+      return probe_verdict::refused_encoding;
+    default:
+      return probe_verdict::refused_permission;
+  }
 }
 
 // Kernel-discovered alias names for one PMU device (the events/
@@ -182,15 +241,19 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
               table_only);
 }
 
-// Scenario 4: availability matches probe reality at the host's
-// paranoia level. Clocks and push stay countable; hardware entries
-// are permission_blocked where the kernel refuses and countable on
-// permissive hosts (never a hard-fail either way, SC-002).
+// Scenario 4: the reported availability is consistent with the probe
+// result and with the host's paranoia level. Clocks and push stay
+// countable; hardware entries report whatever the kernel's own test-open
+// says, at whatever level the host runs (never a hard-fail either way,
+// SC-002).
 auto availability_scenario(const std::vector<const object*>& pmu_objects)
     -> void
 {
   const int paranoid = read_paranoid();
-  std::printf("perf_event_paranoid = %d\n", paranoid);
+  const probe_verdict verdict = hardware_event_probe();
+  std::printf("perf_event_paranoid = %d; hardware event probe %s\n",
+              paranoid,
+              name(verdict));
 
   const auto machine = *system::local().object("machine");
   const auto machine_entries = machine.counters();
@@ -201,6 +264,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   std::size_t countable = 0;
   std::size_t blocked = 0;
   std::size_t unencodable = 0;
+  std::size_t fast = 0;
   for (const object* obj : pmu_objects) {
     for (const auto& entry : obj->counters()) {
       switch (entry.avail) {
@@ -216,23 +280,52 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
         case availability::absent:
           fail("absent is never seeded by the provider");
       }
+      if (entry.mode == read_mode::fast_rdpmc) {
+        ++fast;
+      }
     }
   }
+  // The paranoid-2 hardware-entry state, recorded from the catalog this
+  // host produced: the counts beside the probe that produced them.
   std::printf("pmu availability: %zu countable, %zu permission_blocked, "
-              "%zu not_encodable\n",
+              "%zu not_encodable, %zu fast_rdpmc\n",
               countable,
               blocked,
-              unencodable);
-  if (paranoid >= 2 && blocked > 0) {
-    // The SC-002 shape: the kernel refused, the suite stays green.
-    check(true, "permission_blocked reported at paranoid 2 (SC-002)");
+              unencodable,
+              fast);
+
+  // The fast (mapped-page rdpmc) read is the one mechanism the provider
+  // gates on the paranoid level, at "the kernel grants user counter
+  // reads at 1 or below". Above that level no entry may claim it, and
+  // the claim is a catalog fact a reader can check (FR-023, FR-039).
+  if (paranoid > 1) {
+    check(fast == 0,
+          "no PMU entry claims fast_rdpmc above perf_event_paranoid 1 "
+          "(FR-023, FR-039)");
   }
-  if (paranoid >= 2 && blocked == 0) {
-    // Permissive host: per-thread measurement is allowed; the probe
-    // result IS the reality the contract demands.
-    std::printf("host permits per-thread measurement at paranoid %d: "
-                "hardware entries countable, probe reality asserted\n",
-                paranoid);
+  // The probe result decides the states. The level alone does not.
+  // At level 2 the
+  // kernel still grants per-process user-mode events, so a catalog
+  // that reported only refusals at level 2 would be a false refusal, and
+  // one that reported a grant where the kernel refuses would be a false
+  // permission. Both directions can fail, so neither is hard-coded.
+  if (verdict == probe_verdict::granted) {
+    check(countable > 0,
+          "a granted hardware probe leaves a countable catalog entry "
+          "(US6 scenario 4)");
+  } else {
+    check(countable == 0,
+          "a refused hardware probe leaves no countable catalog entry "
+          "(US6 scenario 4)");
+    if (verdict == probe_verdict::refused_permission) {
+      check(blocked > 0,
+            "a permission refusal surfaces as permission_blocked, not "
+            "not_encodable (FR-039)");
+    } else {
+      check(unencodable > 0,
+            "an encoding refusal surfaces as not_encodable, not "
+            "permission_blocked (FR-039)");
+    }
   }
 }
 
@@ -278,8 +371,9 @@ auto group_read_scenario() -> void
   }
   if (name_a.empty() || name_b.empty()) {
     std::printf("SKIP scenario 5: no two countable cpu-PMU events on this "
-                "host (permission_blocked at paranoid %d); privileged "
-                "evidence recorded in the PR per tasks.md\n",
+                "host (hardware event probe %s at perf_event_paranoid %d); "
+                "privileged evidence recorded in the PR per tasks.md\n",
+                name(hardware_event_probe()),
                 read_paranoid());
     return;
   }

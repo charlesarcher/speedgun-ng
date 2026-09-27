@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -16,6 +17,7 @@
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_provider.hpp"
 #include "speedgun-ng/counters_system.hpp"
+#include "speedgun-ng/dbc.hpp"
 
 namespace sg::counters
 {
@@ -107,10 +109,75 @@ constexpr int near_miss_distance = 2;
   return suggestions;
 }
 
+// One seed's leaves, refusing a unit token outside the closed mapping
+// and a counter name the object already carries (FR-008, FR-017).
+// `root_leaves` holds the machine root's committed leaves plus the batch
+// this call has staged, so a machine seed is checked against both.
+[[nodiscard]] auto build_leaves(const object_seed& seed,
+                                const std::string& path,
+                                const bool on_root,
+                                const std::vector<leaf_record>& root_leaves,
+                                const int provider_index)
+    -> std::expected<std::vector<leaf_record>, error>
+{
+  std::vector<leaf_record> leaves;
+  for (const auto& entry : seed.entries) {
+    const auto mapped = unit_from_token(entry.unit);
+    if (!mapped.has_value()) {
+      return std::unexpected(mapped.error());
+    }
+    const std::string name(entry.name);
+    const bool taken = std::ranges::any_of(leaves,
+                                           [&](const leaf_record& leaf)
+                                           { return leaf.core.name == name; });
+    const bool clashes = on_root
+        && std::ranges::any_of(root_leaves,
+                               [&](const leaf_record& leaf)
+                               { return leaf.core.name == name; });
+    if (taken || clashes) {
+      return std::unexpected(error {.message = "duplicate counter name '" + name
+                                        + "' within object '" + path
+                                        + "' (FR-008)",
+                                    .suggestions = {}});
+    }
+    leaves.push_back(leaf_record {
+        .core =
+            detail::leaf_core {
+                .address = path + "/" + name,
+                .name = name,
+                .description = std::string(entry.description),
+                .unit = std::string(entry.unit),
+                .avail = entry.avail,
+                .mode = entry.mode,
+                .frequency_hz = entry.frequency_hz,
+                .scaled = entry.scaled,
+            },
+        .has_ratio_pair = entry.has_ratio_pair,
+        .provider_index = provider_index,
+    });
+  }
+  return leaves;
+}
+
+// True when `alias` already resolves to an object, in the merged table
+// or in the batch this call has staged. An alias resolving to two
+// objects would hand every lookup of it to whichever registered first,
+// so a clash is refused rather than dropped by `map::emplace` (FR-002).
+[[nodiscard]] auto alias_is_held(
+    const std::map<std::string, std::string>& merged,
+    const std::vector<std::pair<std::string, std::string>>& staged,
+    const std::string& alias) -> bool
+{
+  return merged.contains(alias)
+      || std::ranges::any_of(staged,
+                             [&](const std::pair<std::string, std::string>& one)
+                             { return one.first == alias; });
+}
+
 }  // namespace
 
 system::system()
-    : m_impl(new impl)
+    : m_impl(std::make_unique<impl>())
 {
   auto root = std::make_unique<tree_node>();
   root->kind = "machine";
@@ -149,77 +216,55 @@ auto system::register_provider(std::unique_ptr<provider_iface> provider)
 
   const int provider_index = static_cast<int>(m_impl->providers.size());
   std::vector<std::unique_ptr<tree_node>> staged;
+  // Seeded with the machine root's committed leaves so the whole merge
+  // lands in one assignment after every seed validates (FR-008).
+  auto root_leaves = m_impl->objects.at("machine")->leaves;
   std::vector<std::pair<std::string, std::string>> staged_aliases;
 
   for (const auto& seed : sink.seeds) {
     const std::string path(seed.path);
-    const bool is_root = path == "machine";
-    if (!is_root && m_impl->objects.contains(path)) {
+    const bool on_root = path == "machine";
+    if (!on_root && m_impl->objects.contains(path)) {
       return std::unexpected(error {.message = "duplicate object path '" + path
                                         + "' under one parent (FR-008)",
                                     .suggestions = {}});
     }
 
-    auto node = is_root ? nullptr : std::make_unique<tree_node>();
-    if (node != nullptr) {
-      node->kind = std::string(seed.kind);
-      node->path = path;
-      node->alias = std::string(seed.alias);
-      node->description = std::string(seed.description);
-      node->provider_index = provider_index;
+    auto leaves =
+        build_leaves(seed, path, on_root, root_leaves, provider_index);
+    if (!leaves.has_value()) {
+      return std::unexpected(leaves.error());
     }
 
-    std::vector<leaf_record> leaves;
-    for (const auto& entry : seed.entries) {
-      const auto mapped = unit_from_token(entry.unit);
-      if (!mapped.has_value()) {
-        return std::unexpected(mapped.error());
-      }
-      const std::string name(entry.name);
-      const bool taken = std::ranges::any_of(
-          leaves,
-          [&](const leaf_record& leaf) { return leaf.core.name == name; });
-      const bool clashes = is_root
-          && std::ranges::any_of(m_impl->objects.at("machine")->leaves,
-                                 [&](const leaf_record& leaf)
-                                 { return leaf.core.name == name; });
-      if (taken || clashes) {
-        return std::unexpected(error {.message = "duplicate counter name '"
-                                          + name + "' within object '" + path
-                                          + "' (FR-008)",
-                                      .suggestions = {}});
-      }
-      leaves.push_back(leaf_record {
-          .core =
-              detail::leaf_core {
-                  .address = path + "/" + name,
-                  .name = name,
-                  .description = std::string(entry.description),
-                  .unit = std::string(entry.unit),
-                  .avail = entry.avail,
-                  .mode = entry.mode,
-                  .frequency_hz = entry.frequency_hz,
-                  .scaled = entry.scaled,
-              },
-          .has_ratio_pair = entry.has_ratio_pair,
-          .provider_index = provider_index,
-      });
-    }
-
-    if (is_root) {
-      auto& root = m_impl->objects.at("machine");
-      root->leaves.insert(root->leaves.end(),
-                          std::make_move_iterator(leaves.begin()),
-                          std::make_move_iterator(leaves.end()));
+    if (on_root) {
+      root_leaves.insert(root_leaves.end(),
+                         std::make_move_iterator(leaves->begin()),
+                         std::make_move_iterator(leaves->end()));
       continue;
     }
+
+    auto node = std::make_unique<tree_node>();
+    node->kind = std::string(seed.kind);
+    node->path = path;
+    node->alias = std::string(seed.alias);
+    node->description = std::string(seed.description);
+    node->provider_index = provider_index;
+
     if (!seed.alias.empty()) {
-      staged_aliases.emplace_back(std::string(seed.alias), path);
+      const std::string alias(seed.alias);
+      if (alias_is_held(m_impl->aliases, staged_aliases, alias)) {
+        return std::unexpected(
+            error {.message = "duplicate platform alias '" + alias
+                       + "' already held by another " "object (FR-002)",
+                   .suggestions = {}});
+      }
+      staged_aliases.emplace_back(alias, path);
     }
-    node->leaves = std::move(leaves);
+    node->leaves = std::move(*leaves);
     staged.push_back(std::move(node));
   }
 
+  m_impl->objects.at("machine")->leaves = std::move(root_leaves);
   for (auto& node : staged) {
     m_impl->objects.emplace(node->path, std::move(node));
   }
@@ -254,6 +299,8 @@ auto system::handle_for(const std::string& canonical) -> sg::counters::object&
   if (existing != m_impl->handles.end()) {
     return *existing->second;
   }
+  // `make_unique` cannot build this handle: `object`'s node constructor
+  // is private and `system` is its only friend (T113).
   const auto inserted = m_impl->handles.emplace(
       canonical,
       std::unique_ptr<sg::counters::object>(
@@ -366,11 +413,15 @@ auto object::counters() const -> std::vector<catalog_entry>
   std::vector<catalog_entry> entries;
   entries.reserve(node->leaves.size());
   for (const auto& leaf : node->leaves) {
-    const auto mapped = unit_from_token(leaf.core.unit);
+    const auto recognized = unit_from_token(leaf.core.unit);
+    SG_REQUIRE(recognized.has_value(),
+               "every stored catalog unit maps (FR-017)");
     entries.push_back(catalog_entry {
         .name = leaf.core.name,
         .description = leaf.core.description,
-        .unit = mapped.value_or(unit::none),
+        // Unreachable behind the checked precondition; in a build with
+        // contract checking compiled out the entry still needs a value.
+        .unit = recognized.value_or(unit::none),
         .avail = leaf.core.avail,
         .mode = leaf.core.mode,
         .frequency_hz = leaf.core.frequency_hz,

@@ -266,6 +266,9 @@ struct pmu_fast_window final : window_reader
 
   std::vector<leaf_slot> slots;
   std::vector<member> members;
+  // The member whose page carries the group's enabled/running pair, the
+  // pair a syscall-mode window reads from the leader (FR-041).
+  std::size_t leader = 0;
   std::uint64_t enabled = 0;
   std::uint64_t running = 0;
 
@@ -287,6 +290,16 @@ struct pmu_fast_window final : window_reader
         // stated fallback is a second attempt (FR-040).
         static_cast<void>(fast_context_read(*one.context, one.value));
       }
+    }
+    // The enabled/running pair rides the leader's user page, the same
+    // pair the group read takes from the leader, so the multiplex
+    // ratio is computed inside folds in this read mode too (FR-041).
+    if (!fast_context_time_pair(*members[leader].context, enabled, running)) {
+      // A leader whose page disclosed no stable pair this action
+      // reports none; the fold reads the gap as zero and the pair
+      // discloses ratio 0. A time is never fabricated.
+      enabled = 0;
+      running = 0;
     }
     for (const auto& slot : slots) {
       switch (slot.source) {
@@ -422,6 +435,7 @@ auto open_fast_window(const pmu_state& state,
   if (window->members.empty()) {
     return nullptr;
   }
+  window->leader = leader;
   return window;
 }
 
