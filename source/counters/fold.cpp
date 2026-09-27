@@ -84,8 +84,8 @@ struct fold_context
     return node.leaf == target_leaf ? sign : 1;
   }
   const int left = leaf_sign(core, node.left, target_leaf, sign);
-  const int right = leaf_sign(core, node.right, target_leaf,
-                              node.kind == 3 ? -sign : sign);
+  const int right =
+      leaf_sign(core, node.right, target_leaf, node.kind == 3 ? -sign : sign);
   return left * right;
 }
 
@@ -102,8 +102,8 @@ struct ratio_result
   bool multiplexed = false;
 };
 
-[[nodiscard]] auto window_ratio(const fold_context& ctx,
-                                const expr_core& core) -> ratio_result
+[[nodiscard]] auto window_ratio(const fold_context& ctx, const expr_core& core)
+    -> ratio_result
 {
   ratio_result out;
   for (std::size_t index = 0; index < core.leaves.size(); ++index) {
@@ -118,10 +118,8 @@ struct ratio_result
     {
       continue;
     }
-    const auto* enabled =
-        ctx.rec.columns + slot.ratio_enabled * ctx.rec.stride;
-    const auto* running =
-        ctx.rec.columns + slot.ratio_running * ctx.rec.stride;
+    const auto* enabled = ctx.rec.columns + slot.ratio_enabled * ctx.rec.stride;
+    const auto* running = ctx.rec.columns + slot.ratio_running * ctx.rec.stride;
     const auto elapsed = enabled[ctx.j] - enabled[ctx.i];
     if (elapsed == 0) {
       continue;

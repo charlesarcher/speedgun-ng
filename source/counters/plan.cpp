@@ -2,6 +2,7 @@
 // (specs/007-counters-and-timers, FR-021, FR-022, FR-030).
 
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -200,6 +201,72 @@ auto plan::recorder(const std::size_t capacity, const ring_t) const
       .m_impl = m_impl, .m_columns = columns, .m_capacity = capacity};
 }
 
+namespace
+{
+
+// Calibration sample counts: the warm-up fills the caches and lets the
+// clock settle, the measured run is long enough for a median.
+constexpr int kCalibrationWarmup = 64;
+constexpr int kCalibrationSamples = 257;
+
+}  // namespace
+
+// Runs the calibration on first request (FR-032): the plan's own read
+// sequence over an empty workload, timed one action at a time. The
+// scratch buffer is the plan's own, so no recorder observes it.
+static auto calibrate(plan_impl& layout) -> const overhead_sample&
+{
+  if (layout.calibrated) {
+    return layout.overhead;
+  }
+  constexpr std::size_t rows = 2;
+  layout.calibration_buffer.assign(layout.leaf_count() * rows, 0);
+  auto* columns = layout.calibration_buffer.data();
+  std::size_t head = 0;
+  for (int warm = 0; warm < kCalibrationWarmup; ++warm) {
+    sample_row(layout, columns, rows, head & (rows - 1));
+    ++head;
+  }
+  std::vector<double> costs;
+  costs.reserve(static_cast<std::size_t>(kCalibrationSamples));
+  for (int index = 0; index < kCalibrationSamples; ++index) {
+    const auto before = std::chrono::steady_clock::now();
+    sample_row(layout, columns, rows, head & (rows - 1));
+    ++head;
+    const auto after = std::chrono::steady_clock::now();
+    costs.push_back(
+        std::chrono::duration<double, std::nano>(after - before).count());
+  }
+  std::sort(costs.begin(), costs.end());
+  layout.overhead.min_ns = costs.front();
+  layout.overhead.median_ns = costs[costs.size() / 2];
+  layout.overhead.max_ns = costs.back();
+  layout.calibrated = true;
+  return layout.overhead;
+}
+
+auto plan::sample_overhead_ns_min() const -> double
+{
+  const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
+  SG_ENSURE(cost.min_ns >= 0.0, "the calibrated minimum is a real duration");
+  return cost.min_ns;
+}
+
+auto plan::sample_overhead_ns_median() const -> double
+{
+  const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
+  SG_ENSURE(cost.median_ns >= 0.0, "the calibrated median is a real duration");
+  return cost.median_ns;
+}
+
+auto plan::sample_overhead_ns_max() const -> double
+{
+  const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
+  SG_ENSURE(cost.max_ns >= cost.min_ns,
+            "the dearest sampled action is at least the cheapest");
+  return cost.max_ns;
+}
+
 scope::scope(const plan& compiled)
 {
   auto* core = new scope_core();
@@ -272,10 +339,7 @@ auto ring_sample_core(const void* impl,
   const auto& layout = *static_cast<const plan_impl*>(impl);
   SG_REQUIRE(std::this_thread::get_id() == layout.bound_thread,
              "a recorder samples on the thread its plan bound to (FR-031)");
-  sample_row(layout,
-             columns,
-             capacity,
-             head & (capacity - 1));
+  sample_row(layout, columns, capacity, head & (capacity - 1));
   ++head;
   if (head > capacity) {
     wrapped = true;
@@ -335,14 +399,14 @@ auto compile_core(const system& sys,
       // untimed region before any provider window opens and before any
       // hardware read (FR-021, FR-024, FR-046).
       if (record->core.avail != availability::countable) {
+        std::string message = "counter '" + leaf.address
+                              + "' is not countable on this host: the "
+                                "catalog reports ";
+        message += availability_name(record->core.avail);
+        message += "; pick a countable counter or branch on the catalog "
+                   "state before composing (FR-024)";
         return std::unexpected(
-            error {.message = "counter '" + leaf.address
-                       + "' is not countable on this host: the catalog "
-                         "reports "
-                       + std::string(availability_name(record->core.avail))
-                       + "; pick a countable counter or branch on the "
-                         "catalog state before composing (FR-024)",
-                   .suggestions = {}});
+            error {.message = std::move(message), .suggestions = {}});
       }
       seen.emplace(leaf.address, pending.size());
       pending.push_back(pending_leaf {.address = leaf.address,

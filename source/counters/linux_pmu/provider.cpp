@@ -16,11 +16,10 @@
 #include <utility>
 #include <vector>
 
+#include "../detail/pmu.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_pmu.hpp"
 #include "speedgun-ng/counters_provider.hpp"
-
-#include "../detail/pmu.hpp"
 
 #if defined(__linux__)
 #  include <cerrno>
@@ -49,12 +48,10 @@ pmu_provider::pmu_provider()
 
 pmu_provider::~pmu_provider() = default;
 
-void pmu_provider::enumerate(object_sink& /*sink*/) const
-{
-}
+void pmu_provider::enumerate(object_sink& /*sink*/) const {}
 
 std::unique_ptr<window_reader> pmu_provider::open(const leaf_set& /*leaves*/,
-                                                 const target& /*where*/)
+                                                  const target& /*where*/)
 {
   return nullptr;
 }
@@ -86,17 +83,15 @@ auto slurp(const std::filesystem::path& path) -> std::string
 // is "field=value[,field=value...]", every value hexadecimal or
 // decimal.
 auto parse_attr(const std::string& text)
-    -> std::vector<std::pair<std::string, std::uint64_t>>
+    -> std::vector<std::pair<std::string, std::uint64_t> >
 {
-  std::vector<std::pair<std::string, std::uint64_t>> fields;
+  std::vector<std::pair<std::string, std::uint64_t> > fields;
   std::size_t cursor = 0;
   while (cursor < text.size()) {
     const std::size_t comma = text.find(',', cursor);
-    const std::string_view piece =
-        std::string_view(text)
-            .substr(cursor, comma == std::string::npos
-                               ? std::string::npos
-                               : comma - cursor);
+    const std::string_view piece = std::string_view(text).substr(
+        cursor,
+        comma == std::string::npos ? std::string::npos : comma - cursor);
     const std::size_t equals = piece.find('=');
     if (equals != std::string_view::npos && equals != 0) {
       const std::string_view name = piece.substr(0, equals);
@@ -108,14 +103,15 @@ auto parse_attr(const std::string& text)
         for (const char digit : digits) {
           const int nibble = digit >= '0' && digit <= '9'
               ? digit - '0'
-              : (digit >= 'a' && digit <= 'f' ? digit - 'a' + 10
-                 : (digit >= 'A' && digit <= 'F' ? digit - 'A' + 10 : -1));
+              : (digit >= 'a' && digit <= 'f'
+                     ? digit - 'a' + 10
+                     : (digit >= 'A' && digit <= 'F' ? digit - 'A' + 10 : -1));
           if (nibble < 0) {
             number = 0;
             break;
           }
-          number = number * (hex ? 16U : 10U)
-                   + static_cast<std::uint64_t>(nibble);
+          number =
+              number * (hex ? 16U : 10U) + static_cast<std::uint64_t>(nibble);
         }
         if (number != 0) {
           fields.emplace_back(std::string(name), number);
@@ -165,7 +161,7 @@ auto table_description(const detail::pmu_table_entry& entry) -> std::string
   std::string out = entry.description;
   if (out.empty()) {
     out = "hardware event '" + entry.name
-          + "'; the vendored kernel table carries no description";
+        + "'; the vendored kernel table carries no description";
     for (const auto& [field, value] : entry.fields) {
       if (field == "event") {
         out += " (event code " + to_hex(value) + ")";
@@ -174,17 +170,16 @@ auto table_description(const detail::pmu_table_entry& entry) -> std::string
   }
   if (!entry.unit.empty() && entry.unit != "none") {
     // The table's Unit column is a scope label naming the shared unit
-    // the event counts into (DFPMC, iMC, and the rest), not a physical
-    // dimension: no vendored table in the pinned tree names a physical
-    // unit. The label rides along as provenance; the catalog unit stays
-    // the closed event count (FR-017).
+    // the event counts into (DFPMC, iMC, and the rest). It carries no
+    // physical dimension: no vendored table in the pinned tree names a
+    // physical unit. The label rides along as provenance; the catalog
+    // unit stays the closed event count (FR-017).
     out += " [table scope: " + entry.unit + "]";
   }
   return out;
 }
 
-auto probe_device(detail::pmu_device& device,
-                  const bool fast_capable) -> void
+auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
 {
   bool countable = false;
   for (auto& entry : device.entries) {
@@ -240,12 +235,14 @@ auto load_device(const std::filesystem::path& dir)
   detail::pmu_device device;
   device.path = dir.filename().string();
   device.type = type;
-  device.description = "perf event source '" + device.path
-                       + "', PMU type " + std::to_string(type);
+  device.description = "perf event source '" + device.path + "', PMU type "
+      + std::to_string(type);
 
   const auto format_dir = dir / "format";
   for (auto it = std::filesystem::directory_iterator(format_dir, code);
-       it != std::filesystem::directory_iterator(); it.increment(code)) {
+       it != std::filesystem::directory_iterator();
+       it.increment(code))
+  {
     std::vector<detail::format_range> ranges;
     if (detail::parse_format_field(slurp(it->path()), ranges)) {
       device.formats.emplace_back(it->path().filename().string(),
@@ -255,7 +252,9 @@ auto load_device(const std::filesystem::path& dir)
 
   const auto events_dir = dir / "events";
   for (auto it = std::filesystem::directory_iterator(events_dir, code);
-       it != std::filesystem::directory_iterator(); it.increment(code)) {
+       it != std::filesystem::directory_iterator();
+       it.increment(code))
+  {
     const std::string name = it->path().filename().string();
     if (!is_event_file(name)) {
       continue;
@@ -264,8 +263,9 @@ auto load_device(const std::filesystem::path& dir)
     detail::pmu_entry entry;
     entry.name = name;
     entry.description = alias_description(name, text);
-    if (!detail::pmu_compose_config(parse_attr(text), device.formats,
-                                    entry.words)) {
+    if (!detail::pmu_compose_config(
+            parse_attr(text), device.formats, entry.words))
+    {
       entry.words.clear();
     }
     device.entries.push_back(std::move(entry));
@@ -285,17 +285,16 @@ auto merge_vendored(detail::pmu_device& device) -> void
   }
   const auto& table = detail::pmu_load_table(directory);
   for (const auto& row : table) {
-    const bool taken = std::ranges::any_of(
-        device.entries,
-        [&](const detail::pmu_entry& entry) { return entry.name == row.name; });
+    const bool taken = std::ranges::any_of(device.entries,
+                                           [&](const detail::pmu_entry& entry)
+                                           { return entry.name == row.name; });
     if (taken) {
       continue;
     }
     detail::pmu_entry entry;
     entry.name = row.name;
     entry.description = table_description(row);
-    if (!detail::pmu_compose_config(row.fields, device.formats,
-                                    entry.words)) {
+    if (!detail::pmu_compose_config(row.fields, device.formats, entry.words)) {
       entry.words.clear();
     }
     device.entries.push_back(std::move(entry));
@@ -308,7 +307,7 @@ namespace detail
 {
 
 auto pmu_probe(const int type,
-               const std::vector<std::pair<int, std::uint64_t>>& words)
+               const std::vector<std::pair<int, std::uint64_t> >& words)
     -> availability
 {
   perf_event_attr attr {};
@@ -335,8 +334,8 @@ auto pmu_probe(const int type,
   attr.exclude_hv = 1;
   // The probe counts nothing: it asks the kernel whether this caller may
   // open this event at all (FR-039).
-  const long fd = ::syscall(SYS_perf_event_open, &attr, 0, -1, -1,
-                            PERF_FLAG_FD_CLOEXEC);
+  const long fd =
+      ::syscall(SYS_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
   if (fd >= 0) {
     ::close(static_cast<int>(fd));
     return availability::countable;
@@ -360,7 +359,9 @@ pmu_provider::pmu_provider()
   std::vector<std::filesystem::path> devices;
   for (auto it = std::filesystem::directory_iterator(
            std::filesystem::path(kDevicesRoot), code);
-       it != std::filesystem::directory_iterator(); it.increment(code)) {
+       it != std::filesystem::directory_iterator();
+       it.increment(code))
+  {
     devices.push_back(it->path());
   }
   // Deterministic seed order: the catalog is frozen at open (FR-009).
@@ -368,6 +369,14 @@ pmu_provider::pmu_provider()
 
   detail::pmu_probe_fast(*m_state);
   const bool fast_capable = m_state->fast_available;
+  // The probe verdict rides the device description, so a reader of the
+  // catalog learns which mechanism the entries disclose and, when the
+  // fast one is refused, the reason it was refused (FR-023).
+  const std::string verdict =
+      fast_capable ? "; user counter reads are probe-available, entries "
+                     "disclose " "fast_rdpmc"
+                   : "; user counter reads stay in syscall mode: "
+          + m_state->fast_refusal;
 
   for (const auto& dir : devices) {
     auto device = load_device(dir);
@@ -381,6 +390,7 @@ pmu_provider::pmu_provider()
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.
     if (!device->entries.empty()) {
+      device->description += verdict;
       m_state->devices.push_back(std::move(*device));
     }
   }
@@ -420,7 +430,7 @@ void pmu_provider::enumerate(object_sink& sink) const
 }
 
 std::unique_ptr<window_reader> pmu_provider::open(const leaf_set& leaves,
-                                                 const target& where)
+                                                  const target& where)
 {
   return detail::pmu_open_window(*m_state, leaves, where);
 }

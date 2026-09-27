@@ -51,6 +51,20 @@ auto operator new(std::size_t size) -> void*
   return p;
 }
 
+// Both delete forms are required: GCC 16 reports
+// `-Wsized-deallocation` when a translation unit that allocates has only
+// the unsized replacement. With the sized form present, the same
+// compiler reports `-Wmismatched-new-delete` at each `free` below,
+// because its warning pass attributes every allocation in the
+// translation unit to the default `operator new` and never consults the
+// replacement declared here. The pair is correct: this file's
+// `operator new` hands out `malloc` memory and both deletes return it
+// with `free`. The suppression covers exactly that false positive
+// (constitution I, X.2).
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wmismatched-new-delete"
+#endif
+
 auto operator delete(void* p) noexcept -> void
 {
   std::free(p);

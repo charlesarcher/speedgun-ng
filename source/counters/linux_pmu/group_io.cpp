@@ -133,9 +133,8 @@ auto resolve(const pmu_state& state,
     } else if (leaf_name == "running") {
       source = slot_source::time_running;
     }
-    out.push_back(resolved_leaf {.device = located->second,
-                                 .entry = found,
-                                 .source = source});
+    out.push_back(resolved_leaf {
+        .device = located->second, .entry = found, .source = source});
   }
   return true;
 }
@@ -164,7 +163,7 @@ auto fill_attr(perf_event_attr& attr,
   attr.exclude_kernel = 1;
   attr.exclude_hv = 1;
   attr.read_format = PERF_FORMAT_GROUP | PERF_FORMAT_TOTAL_TIME_ENABLED
-                     | PERF_FORMAT_TOTAL_TIME_RUNNING;
+      | PERF_FORMAT_TOTAL_TIME_RUNNING;
 }
 
 auto leader_pid(const target& where) noexcept -> std::pair<pid_t, int>
@@ -221,9 +220,12 @@ struct pmu_window final : window_reader
         scratch.resize(want);
       }
       const auto got = ::read(group.leader, scratch.data(), want);
-      if (got < static_cast<long>(kHeaderWords * sizeof(std::uint64_t))) {        // A group the kernel could not read this action reports no
+      if (got < static_cast<long>(
+              kHeaderWords
+              * sizeof(std::uint64_t))) {  // A group the kernel could not read
+                                           // this action reports no
         // point; the fold reads the gap as zero and the pair discloses
-        // ratio 0 rather than a fabricated count.
+        // ratio 0. A count is never fabricated.
         group.enabled = 0;
         group.running = 0;
         std::ranges::fill(group.values, 0);
@@ -305,6 +307,21 @@ struct pmu_fast_window final : window_reader
 namespace
 {
 
+// Every requested leaf must have the catalog's fast mode recorded, so
+// the read the plan performs is the read the catalog disclosed
+// (FR-023, C-PRO-4).
+auto all_fast(const std::vector<resolved_leaf>& leaves) -> bool
+{
+  for (const auto& leaf : leaves) {
+    if (leaf.source == slot_source::member
+        && leaf.entry->mode != read_mode::fast_rdpmc)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 auto open_group_window(const pmu_state& state,
                        const std::vector<resolved_leaf>& leaves,
                        const group_layout& layout,
@@ -328,7 +345,10 @@ auto open_group_window(const pmu_state& state,
     fill_attr(attr, state.devices[one.device], *one.entry);
     const bool is_leader = window->groups[group].leader < 0;
     attr.disabled = is_leader ? 1U : 0U;
-    const long fd = ::syscall(SYS_perf_event_open, &attr, pid, cpu,
+    const long fd = ::syscall(SYS_perf_event_open,
+                              &attr,
+                              pid,
+                              cpu,
                               is_leader ? -1 : window->groups[group].leader,
                               PERF_FLAG_FD_CLOEXEC);
     if (fd < 0) {
@@ -339,10 +359,10 @@ auto open_group_window(const pmu_state& state,
       window->groups[group].leader = handle;
     }
     window->groups[group].members.push_back(handle);
-    window->slots.push_back(leaf_slot {
-        .group = group,
-        .index = window->groups[group].members.size() - 1,
-        .source = slot_source::member});
+    window->slots.push_back(
+        leaf_slot {.group = group,
+                   .index = window->groups[group].members.size() - 1,
+                   .source = slot_source::member});
   }
   for (auto& group : window->groups) {
     if (group.leader < 0) {
@@ -353,7 +373,7 @@ auto open_group_window(const pmu_state& state,
     // enable instant and the enabled/running pair describes the group.
     if (::ioctl(group.leader, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) != 0
         || ::ioctl(group.leader, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP)
-               != 0)
+            != 0)
     {
       return nullptr;
     }
@@ -363,7 +383,8 @@ auto open_group_window(const pmu_state& state,
 
 auto open_fast_window(const pmu_state& state,
                       const std::vector<resolved_leaf>& leaves,
-                      const group_layout& layout) -> std::unique_ptr<window_reader>
+                      const group_layout& layout)
+    -> std::unique_ptr<window_reader>
 {
   if (layout.count() != 1) {
     // The mapped-page protocol reads the counters of one event source;
@@ -375,9 +396,8 @@ auto open_fast_window(const pmu_state& state,
   std::size_t leader = static_cast<std::size_t>(-1);
   for (const auto& one : leaves) {
     if (one.source != slot_source::member) {
-      window->slots.push_back(leaf_slot {.group = 0,
-                                        .index = 0,
-                                        .source = one.source});
+      window->slots.push_back(
+          leaf_slot {.group = 0, .index = 0, .source = one.source});
       continue;
     }
     std::uint64_t config = 0;
@@ -393,12 +413,11 @@ auto open_fast_window(const pmu_state& state,
     if (leader == static_cast<std::size_t>(-1)) {
       leader = window->members.size();
     }
-    window->members.push_back(pmu_fast_window::member {
-        .context = std::move(context), .value = 0});
-    window->slots.push_back(leaf_slot {
-        .group = 0,
-        .index = window->members.size() - 1,
-        .source = slot_source::member});
+    window->members.push_back(
+        pmu_fast_window::member {.context = std::move(context), .value = 0});
+    window->slots.push_back(leaf_slot {.group = 0,
+                                       .index = window->members.size() - 1,
+                                       .source = slot_source::member});
   }
   if (window->members.empty()) {
     return nullptr;
@@ -432,7 +451,7 @@ auto pmu_open_window(const pmu_state& state,
   }
   group_layout layout(state.devices.size());
   layout.assign(resolved);
-  if (state.fast_available) {
+  if (state.fast_available && all_fast(resolved)) {
     // The catalog discloses fast_rdpmc for the entries of a fast-capable
     // host, so the read must be the mapped-page read; a fast window the
     // kernel refuses is a recoverable open failure, never a silent

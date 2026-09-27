@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "speedgun-ng/counters.hpp"
+
 #include "speedgun-ng/counters_pmu.hpp"
 
 namespace
@@ -47,8 +48,7 @@ auto check(const bool cond, const char* what) -> void
 
 auto same_double(const double lhs, const double rhs) -> bool
 {
-  return std::bit_cast<std::uint64_t>(lhs)
-      == std::bit_cast<std::uint64_t>(rhs);
+  return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
 using sg::counters::availability;
@@ -65,8 +65,7 @@ using sg::counters::system;
 using events = dim<0, 1>;
 using time_dim = dim<1, 0>;
 
-constexpr std::string_view kDevicesRoot =
-    "/sys/bus/event_source/devices";
+constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
 
 auto find_entry(const std::vector<catalog_entry>& entries,
                 const std::string_view name) -> const catalog_entry*
@@ -196,8 +195,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   const auto machine = *system::local().object("machine");
   const auto machine_entries = machine.counters();
   const auto* mono = find_entry(machine_entries, "monotonic");
-  check(mono != nullptr
-            && mono->avail == availability::countable,
+  check(mono != nullptr && mono->avail == availability::countable,
         "clock leaf stays countable beside the PMU provider (SC-002)");
 
   std::size_t countable = 0;
@@ -257,7 +255,8 @@ auto group_read_scenario() -> void
   constexpr std::string_view kCycleNames[] = {
       "cpu-cycles", "cycles", "cpu/cycles/", "ex_ret_ops", "ref-cycles"};
   auto first_countable = [&](const std::string_view* names,
-                             const std::size_t count) -> std::string {
+                             const std::size_t count) -> std::string
+  {
     for (std::size_t index = 0; index < count; ++index) {
       const auto* entry = find_entry(entries, names[index]);
       if (entry != nullptr && entry->avail == availability::countable) {
@@ -328,10 +327,10 @@ auto group_read_scenario() -> void
   check(delta_enabled > 0, "time_enabled advances across the window");
   check(delta_running > 0 && delta_running <= delta_enabled,
         "time_running stays inside time_enabled (ratio pair sound)");
-  std::printf("group read delivered members and the enabled/running pair; "
-              "ratio %f\n",
-              static_cast<double>(delta_running)
-                  / static_cast<double>(delta_enabled));
+  std::printf(
+      "group read delivered members and the enabled/running pair; " "ratio "
+                                                                    "%f\n",
+      static_cast<double>(delta_running) / static_cast<double>(delta_enabled));
   // Privileged multiplex evidence (ratio below 1 under contention)
   // is scenario 6: developer-host material for the PR per tasks.md.
   std::printf("fold disclosure: running_ratio %f, scaled %d\n",

@@ -7,6 +7,24 @@
 
 #ifdef __linux__
 
+// P2 diagnostic suppression, written justification (constitution I, VIII):
+// GCC 16 reports `-Wmaybe-uninitialized` inside libstdc++'s own
+// `std::regex` NFA builder (`std_function.h:395` and `:252`, reached from
+// `regex_automaton.h:_M_insert_subexpr_begin`) at -O2 and above. The
+// reported objects are libstdc++'s, the diagnostic names no local
+// variable, and the same translation unit compiles clean at -Og. This
+// suppression covers exactly the mapfile pattern match, the only
+// `std::regex` use in the library, and the file-scope form is required
+// because GCC attributes the diagnostic to the system header location
+// rather than to the call site. Replacing the matcher with a bespoke
+// regular-expression engine would trade a compiler false positive for a
+// silent mis-selection of the architecture event table, which is a far
+// worse failure; the gate stays on for every other diagnostic and for
+// every other translation unit.
+#  if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#  endif
+
 #  include <algorithm>
 #  include <cctype>
 #  include <charconv>
@@ -49,10 +67,9 @@ auto pmu_ident_current() -> pmu_ident
       id.vendor.resize(12);
       for (int w = 0; w < 3; ++w) {
         for (int b = 0; b < 4; ++b) {
-          const auto index = static_cast<std::size_t>(w) * 4U
-                           + static_cast<std::size_t>(b);
-          id.vendor[index] =
-              static_cast<char>((words[w] >> (8 * b)) & 0xFFU);
+          const auto index =
+              static_cast<std::size_t>(w) * 4U + static_cast<std::size_t>(b);
+          id.vendor[index] = static_cast<char>((words[w] >> (8 * b)) & 0xFFU);
         }
       }
     }
@@ -135,10 +152,11 @@ auto to_ecma(std::string_view pattern) -> std::string
 
 auto to_lower(std::string text) -> std::string
 {
-  std::transform(text.begin(), text.end(), text.begin(),
-                 [](unsigned char c) {
-                   return static_cast<char>(std::tolower(c));
-                 });
+  std::transform(text.begin(),
+                 text.end(),
+                 text.begin(),
+                 [](unsigned char c)
+                 { return static_cast<char>(std::tolower(c)); });
   return text;
 }
 
@@ -182,7 +200,8 @@ void add_entry(std::vector<pmu_table_entry>& table,
   // Metric definitions are catalog data for a future release,
   // never countables (R-010, US6).
   if (attributes["MetricExpr"].error() == simdjson::SUCCESS
-      || attributes["MetricName"].error() == simdjson::SUCCESS) {
+      || attributes["MetricName"].error() == simdjson::SUCCESS)
+  {
     return;
   }
   pmu_table_entry entry;
@@ -203,7 +222,8 @@ void add_entry(std::vector<pmu_table_entry>& table,
       }
     } else if (key == "EventName" || key == "Description"
                || key == "PublicDescription" || key == "BriefDescription"
-               || key == "Unit") {
+               || key == "Unit")
+    {
       // Descriptive keys carry no config semantic.
     } else if (parse_scalar(value, number)) {
       // Any other integer-valued key names a format field
@@ -212,15 +232,18 @@ void add_entry(std::vector<pmu_table_entry>& table,
     }
   }
   // Description precedence; AMD tables ship only "BriefDescription".
-  for (const auto candidate : {
+  for (const auto candidate :
+       {
            "Description",
            "PublicDescription",
            "BriefDescription",
-       }) {
+       })
+  {
     simdjson::dom::element found;
     std::string_view text;
     if (attributes[candidate].get(found) == simdjson::SUCCESS
-        && found.get_string().get(text) == simdjson::SUCCESS) {
+        && found.get_string().get(text) == simdjson::SUCCESS)
+    {
       entry.description = std::string(text);
       break;
     }
@@ -228,7 +251,8 @@ void add_entry(std::vector<pmu_table_entry>& table,
   simdjson::dom::element unit;
   std::string_view unit_text;
   if (attributes["Unit"].get(unit) == simdjson::SUCCESS
-      && unit.get_string().get(unit_text) == simdjson::SUCCESS) {
+      && unit.get_string().get(unit_text) == simdjson::SUCCESS)
+  {
     entry.unit = std::string(unit_text);
   }
   table.push_back(std::move(entry));
@@ -261,7 +285,8 @@ void parse_json_file(const std::filesystem::path& path,
       std::string_view name_text;
       if (item.get_object().get(attributes) == simdjson::SUCCESS
           && attributes["EventName"].get(name) == simdjson::SUCCESS
-          && name.get_string().get(name_text) == simdjson::SUCCESS) {
+          && name.get_string().get(name_text) == simdjson::SUCCESS)
+      {
         add_entry(table, name_text, attributes);
       }
     }
@@ -369,9 +394,12 @@ auto pmu_load_table(const std::string& directory)
   std::error_code code;
   const std::filesystem::directory_iterator end;
   for (auto it = std::filesystem::directory_iterator(
-           dir, std::filesystem::directory_options::skip_permission_denied,
+           dir,
+           std::filesystem::directory_options::skip_permission_denied,
            code);
-       it != end; it.increment(code)) {
+       it != end;
+       it.increment(code))
+  {
     if (it->is_regular_file(code) && it->path().extension() == ".json") {
       files.push_back(it->path());
     }

@@ -16,13 +16,13 @@
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__i386__))
 #  define SG_PMU_FAST_X86 1
+#  include <thread>
+
 #  include <fcntl.h>
 #  include <linux/perf_event.h>
 #  include <sys/mman.h>
 #  include <sys/syscall.h>
-#  include <thread>
 #  include <unistd.h>
-
 #  include <x86intrin.h>
 #endif
 
@@ -46,8 +46,8 @@ auto fast_decode(const std::uint32_t sequence_before,
   if (sequence_before != sequence_after) {
     return fast_read_verdict::unstable;
   }
-  const auto adjusted = static_cast<std::uint64_t>(
-      static_cast<std::int64_t>(raw) + offset);
+  const auto adjusted =
+      static_cast<std::uint64_t>(static_cast<std::int64_t>(raw) + offset);
   value = adjusted & ((1ULL << width) - 1ULL);
   return fast_read_verdict::ok;
 }
@@ -103,6 +103,7 @@ struct user_access_page
   std::uint64_t time_enabled;
   std::uint64_t time_running;
   std::uint64_t reserved_4[32 * 1024];
+
   struct counter_slot
   {
     std::uint64_t value;
@@ -213,14 +214,14 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   attr.disabled = 0;
   attr.exclude_kernel = 1;
   attr.exclude_hv = 1;
-  const long fd = ::syscall(SYS_perf_event_open, &attr, 0, -1, -1,
-                            PERF_FLAG_FD_CLOEXEC);
+  const long fd =
+      ::syscall(SYS_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
   if (fd < 0) {
     return nullptr;
   }
   context->fd = static_cast<int>(fd);
-  void* mapping = ::mmap(nullptr, sizeof(event_page), PROT_READ, MAP_SHARED,
-                         context->fd, 0);
+  void* mapping = ::mmap(
+      nullptr, sizeof(event_page), PROT_READ, MAP_SHARED, context->fd, 0);
   if (mapping == MAP_FAILED) {
     ::close(context->fd);
     context->fd = -1;
@@ -234,15 +235,14 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
     fast_context_close(*context);
     return nullptr;
   }
-  const int user_fd = ::open("/sys/bus/event_source/devices/cpu/rdpmc",
-                             O_RDONLY | O_CLOEXEC);
+  const int user_fd =
+      ::open("/sys/bus/event_source/devices/cpu/rdpmc", O_RDONLY | O_CLOEXEC);
   if (user_fd < 0) {
     fast_context_close(*context);
     return nullptr;
   }
   const auto length = static_cast<std::size_t>(1) << shift;
-  void* user_map =
-      ::mmap(nullptr, length, PROT_READ, MAP_SHARED, user_fd, 0);
+  void* user_map = ::mmap(nullptr, length, PROT_READ, MAP_SHARED, user_fd, 0);
   ::close(user_fd);
   if (user_map == MAP_FAILED) {
     fast_context_close(*context);
@@ -280,14 +280,16 @@ auto fast_context_read(const fast_context& context, std::uint64_t& value)
   // counter while a sampling action may read it, and the sequence
   // comparison below closes the window (R-011).
   _mm_lfence();
-  const auto raw =
-      static_cast<std::uint64_t>(_rdpmc(static_cast<int>(id) - 1));
+  const auto raw = static_cast<std::uint64_t>(_rdpmc(static_cast<int>(id) - 1));
   _mm_lfence();
-  return fast_decode(index, page->index, user->cap_user_rdpmc, raw,
-                     page->offset,
-                     page->pmc_width == 0 ? kRnpmcCounterWidth
-                                          : page->pmc_width,
-                     value);
+  return fast_decode(
+      index,
+      page->index,
+      user->cap_user_rdpmc,
+      raw,
+      page->offset,
+      page->pmc_width == 0 ? kRnpmcCounterWidth : page->pmc_width,
+      value);
 }
 
 void fast_context_close(fast_context& context)
