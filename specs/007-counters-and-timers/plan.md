@@ -340,8 +340,66 @@ TDD applies at every seam that a test can fail first: dimension compile-fail cas
 - Contract-macro lines drop via the existing `--omit-lines` filter; the `SG_REQUIRE_ALWAYS` bounds site is exercised by the release-configured trap checker (its abort branch covered by the out-of-process fixture pair).
 - Linux-only provider code compiles (and is measured) on Linux CI; on other platforms it is excluded from the build, so the reduced-catalog path carries the macOS/Windows developer evidence.
 - Fast-mode hardware reads are probe-gated: hosts failing the probe skip with the reason named (CTest `SKIP_RETURN_CODE`), the skip reports, and the suite stays green everywhere (SC-002).
+- The fast read is the product. FR-040's tens-of-cycles regime is the reason the library exists, and SC-004 is its acceptance criterion. The fast path therefore has its own subsection below and its own open tasks, and no host may report SC-004 as met on syscall-mode evidence.
 - Coverage of probe-gated and privileged code: the mapped-page protocol logic (seqcount retry, capability/index gates, offset, width mask) and the fold ratio arithmetic are implemented as pure functions over injected page and index inputs, so CI covers them with synthetic-page fixtures without privileges. The residual kernel glue (`mmap`, `perf_event_open`, `rdpmc` execution) runs on the fast-capable, probe-passing developer host; its CI-unreachable lines carry a recorded P2 coverage exclusion with written justification (VI, VIII: the exception is recorded, nothing weakens). The exclusion is registered in the Complexity Tracking table below. T066 closed the reachable remainder by measurement, so the markers that survive name a kernel gate, a cited-callers-guaranteed invariant, or a compiler-emitted block, and each states which at its own site.
 - The frameworkless convention holds: the dependency-scan test keeps zero external test deps.
+
+### The fast read path
+
+FR-040 and SC-004 are the point of the library: a sampling action that
+costs tens of cycles is what separates this from a syscall-mode counter
+wrapper, and every other story in this spec is a consumer of the leaves
+the fast path provides. The path is therefore held to a stricter
+standard than the rest, in three respects.
+
+First, the protocol is the kernel's, taken from
+`/usr/include/linux/perf_event.h` and nothing else. A caller opens one
+`perf_event_attr` per leaf with `exclude_kernel` and `exclude_hv` set,
+maps exactly one page, and reads the seqlock loop the header documents:
+`lock` for the sequence, `index` and `offset` for the counter, the
+`cap_user_rdpmc` bit of `capabilities` for the permission, and
+`pmc_width` for the value width. The instruction issued is
+`rdpmc(index - 1)` and the value is `(raw + offset)` masked to
+`pmc_width`. No sysfs attribute takes part in the read.
+
+Second, the width comes from `pmc_width` and never from a constant. A
+hardcoded mask encodes one host's counter width and silently truncates on
+any host that differs.
+
+Third, the path is measured. A host that reports
+`cap_user_rdpmc` set and a non-zero `index` is fast-capable by the
+kernel's own account, and the suite measures the fast regime there
+rather than skipping. A skip is correct only when the kernel refuses, and
+the refusal must be the reason printed.
+
+This subsection exists because the path was shipped unexercised, and
+the reason was a defect in the probe, and no hardware limit was involved. The probe obtained
+the `cap_user_rdpmc` capability by `mmap`ing
+`/sys/bus/event_source/devices/cpu/rdpmc` and reading the mapping as a
+perf user-access page. That attribute is a scalar sysfs file; its
+content on this host is the single character `1`. A mapping of it can
+never hold a perf page, and the probe guarded the attempt with a demand
+that the file's value fall in `12..21`, treating it as a page-size
+shift. The gate therefore refused, and the library reported no fast
+mechanism on a host where the fast mechanism works.
+
+A standalone probe following the header's protocol on that same host
+opened the event with `perf_event_open`, mapped one page of the returned
+file descriptor, and read `capabilities` with `cap_user_rdpmc` set,
+`pmc_width` 48, `index` 1, and `offset` 140737488355327, then took a real
+`rdpmc` reading. The kernel grants the path. The probe, not the kernel,
+was the obstacle, and the runtime reader inherited the same wrong page:
+`fast_context_read` reads its capability bit from the same bogus mapping,
+so the defect would have survived a relaxed band check as well.
+
+Two consequences follow for the design. The capability bit and the value
+width come from the event's own mapping, so the `user_access_page` mirror
+and the sysfs attribute both leave the file, and the kernel's own
+`<linux/perf_event.h>` supplies the page type, which retires the
+hand-mirrored struct and the version-matching arithmetic that justified
+it. The width mask comes from `pmc_width`, so a host whose counter width
+differs from this one's is measured correctly. The fix and the
+measurement it unblocks are tracked as T131, T132, and T133.
 
 ### Scenario and check mapping
 
@@ -371,7 +429,7 @@ Every assertion is a value equality, a command exit, a grep verdict, or an exit-
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
 | P2: x86 intrinsics (`__rdtsc`, `_rdpmc`) and the `static_cast` of a `void*` mapping base to the provider-local mirror of the kernel's published perf user-access and per-event page structs, inside provider implementations only (`source/counters/linux_pmu/fast_read.cpp`) | FR-034, FR-040 mandate the exact hardware mechanisms; the kernel ABI for both pages is a fixed published struct, and the probe (capability bits, version, sysctl) establishes soundness before any read (R-007, R-011). The spelling is `static_cast` because `void*` to object pointer is a standard conversion, so the P2 substance is the type-pun read of a mapping and the cast operator itself carries no exception | Any portable abstraction over these reads either forfeits the tens-of-cycles budget (defeating SC-004) or invents a second mechanism the kernel does not provide. A `reinterpret_cast` spelling of the same conversion buys nothing here and would be the only such cast in `source/` and `include/` |
-| P2 coverage exclusion, settled by T066 (2026-09-27). An audit of the first pass over this scope found 382 `LCOV_EXCL_*` tokens and cleared 91 of them: seven pure functions carried a stated reason that was false, `parse_attr` claiming a test cannot hand it text without an `=` when its only parameter is a `std::string`, and `table_description` claiming no test-controlled input reaches it when the same change had added the `pmu_parse_table_file` seam that reaches it. Those functions are now exported from `source/counters/linux_pmu/provider.cpp` and `table_parse.cpp` into `sg::counters::detail` and covered by value-equality assertions in `counters_linux_pmu_seam_test`; the audit also found and fixed two real defects the markers had hidden, a `to_ecma` slice that captured `:xdigit:` instead of `xdigit` and so never translated a POSIX class, and a `parse_scalar` integer arm whose tail was unreachable. A const `find` overload with no callers was deleted rather than excluded. What remains is 296 tokens in three categories, each stated at its own site: (1) kernel and privilege gates, the mapped-page glue in `fast_read.cpp`, the fast-mode window and the kernel-capped group-read arms in `group_io.cpp`, the sysfs and `/proc/sys` catalog refusals in `provider.cpp`, and the `tsc_khz` calibration in `clock_provider.cpp`; (2) invariants a cited caller guarantees, in `plan.cpp`, `fold.cpp`, and `counters_system.hpp`; (3) blocks gcc emits with no source construct, the function epilogues of by-value returns and the short-circuit edges of multi-term conditions, which `geninfo_unexecuted_blocks=1` in `cmake/coverage.cmake` counts. That flag is unchanged, so no threshold moved. The gate reports 100% line and 100% branch on the coverage preset | A portable abstraction over the hardware reads forfeits the tens-of-cycles budget SC-004 sets, and an injection seam for the kernel's own pages and sysfs trees would be a second mechanism the kernel does not provide. Excluding the category-1 sites with a fixture would mean reimplementing the kernel, and the category-3 blocks are compiler output rather than source. The exclusion now rests on measurement instead of assertion: every function a fixture can reach is measured, and the reachability claims that failed the audit are gone rather than reworded | The prior two-region scope left an 83.7% line and 72.4% branch shortfall open, and the first attempt to close it bought 100% with false claims. Clearing 91 tokens and fixing the two defects they concealed left the same gate green on a defensible set, which is the whole point of recording it |
+| P2 coverage exclusion, settled by T066 (2026-09-27). An audit of the first pass over this scope found 382 `LCOV_EXCL_*` tokens and cleared 91 of them: seven pure functions carried a stated reason that was false, `parse_attr` claiming a test cannot hand it text without an `=` when its only parameter is a `std::string`, and `table_description` claiming no test-controlled input reaches it when the same change had added the `pmu_parse_table_file` seam that reaches it. Those functions are now exported from `source/counters/linux_pmu/provider.cpp` and `table_parse.cpp` into `sg::counters::detail` and covered by value-equality assertions in `counters_linux_pmu_seam_test`; the audit also found and fixed two real defects the markers had hidden, a `to_ecma` slice that captured `:xdigit:` instead of `xdigit` and so never translated a POSIX class, and a `parse_scalar` integer arm whose tail was unreachable. A const `find` overload with no callers was deleted rather than excluded. What remains is 296 tokens in three categories, each stated at its own site: (1) kernel and privilege gates, the fast-mode window and the kernel-capped group-read arms in `group_io.cpp`, the sysfs and `/proc/sys` catalog refusals in `provider.cpp`, and the `tsc_khz` calibration in `clock_provider.cpp`. The mapped-page glue in `fast_read.cpp` was filed here as kernel-gated and that reason is WITHDRAWN: T132 measured the kernel granting the path on this host, and the code never reached it because the probe `mmap`ed a scalar sysfs attribute and read the mapping as a perf page. Those markers stay in place only until T131 lands, and they come out with it | (2) invariants a cited caller guarantees, in `plan.cpp`, `fold.cpp`, and `counters_system.hpp`; (3) blocks gcc emits with no source construct, the function epilogues of by-value returns and the short-circuit edges of multi-term conditions, which `geninfo_unexecuted_blocks=1` in `cmake/coverage.cmake` counts. That flag is unchanged, so no threshold moved. The gate reports 100% line and 100% branch on the coverage preset | A portable abstraction over the hardware reads forfeits the tens-of-cycles budget SC-004 sets, and an injection seam for the kernel's own pages and sysfs trees would be a second mechanism the kernel does not provide. Excluding the category-1 sites with a fixture would mean reimplementing the kernel, and the category-3 blocks are compiler output rather than source. The exclusion now rests on measurement instead of assertion: every function a fixture can reach is measured, and the reachability claims that failed the audit are gone rather than reworded | The prior two-region scope left an 83.7% line and 72.4% branch shortfall open, and the first attempt to close it bought 100% with false claims. Clearing 91 tokens and fixing the two defects they concealed left the same gate green on a defensible set, which is the whole point of recording it |
 | P2 anticipated: none beyond the above; if the toolchain check (R-002) finds `std::expected` unavailable, a minimal in-house expected in a detail header joins the registry with that justification | Tier-2 errors must carry typed suggestion lists (FR-008) | Error codes alone cannot carry diagnostics; exceptions have no place in this repo's release semantics |
 
 ## Vendored data provenance (T001, T002, implement-time records)
