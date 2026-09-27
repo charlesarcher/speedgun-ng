@@ -17,7 +17,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <memory>
 #include <new>
 
@@ -72,21 +71,22 @@ auto alloc_nothrow(const std::size_t size) noexcept -> void*
   return std::malloc(size == 0 ? 1 : size);
 }
 
-// The aligned forms: malloc one alignment wider than the request, keep
-// the malloc'd base in the word before the aligned address, and hand the
-// aligned address out. The paired delete reads the base back, so each
-// block returns to malloc exactly once and the alignment survives.
+// The aligned forms. std::aligned_alloc returns a pointer the matching
+// free accepts directly, so the block needs no side header and the
+// allocation carries no hidden word. A hand-rolled alignment that
+// stashed the malloc base in the word below the aligned address wrote
+// that word as far as base + align - 1 + sizeof(void*), which runs past
+// the end of a malloc of size + align whenever the request is smaller
+// than sizeof(void*).
 auto alloc_aligned(const std::size_t size, const std::size_t align) -> void*
 {
   note_allocation();
-  void* base = std::malloc((size == 0 ? 1 : size) + align);
-  if (base == nullptr) {
+  const auto request = size == 0 ? 1 : size;
+  const auto rounded = (request + align - 1) & ~(align - 1);
+  void* out = std::aligned_alloc(align, rounded);
+  if (out == nullptr) {
     throw std::bad_alloc();
   }
-  const auto mask = static_cast<std::uintptr_t>(align) - 1;
-  const auto address = reinterpret_cast<std::uintptr_t>(base);
-  auto* out = reinterpret_cast<void*>((address + mask) & ~mask);
-  std::memcpy(out, &base, sizeof(base));
   return out;
 }
 
@@ -102,13 +102,18 @@ auto alloc_aligned_nothrow(const std::size_t size,
 
 auto free_aligned(void* p) noexcept -> void
 {
-  if (p == nullptr) {
-    return;
-  }
-  void* base = nullptr;
-  std::memcpy(&base, p, sizeof(base));
-  std::free(base);
+  std::free(p);
 }
+
+// An over-aligned type, so the new and the delete both resolve to the
+// aligned replacement forms. Allocating through an explicit
+// `new (std::align_val_t{64}) int` and freeing through a plain `delete`
+// pairs an aligned allocation with an unaligned deallocation, which is
+// undefined behaviour and which AddressSanitizer reports as a bad free.
+struct alignas(64) aligned_cell
+{
+  int value = 0;
+};
 
 }  // namespace
 
@@ -274,7 +279,7 @@ auto main() -> int
   counting.store(true);
   const auto array = new int[4];
   const auto nothrow = new (std::nothrow) int;
-  const auto aligned = new (std::align_val_t {64}) int;
+  const auto aligned = new aligned_cell;
   counting.store(false);
   check(allocations.load() == 3,
         "the array, nothrow, and aligned forms are counted (SC-005)");
