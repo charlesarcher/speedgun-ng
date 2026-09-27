@@ -92,6 +92,45 @@ auto test_registration() -> void
   provider->set_points("machine", "wrap", {UINT64_MAX - 3, 7});
   provider->set_points("machine", "monotonic", {0, 1000000000});
 
+  // Each scenario below reads its own counters, so the scripted position
+  // starts at zero however many actions the earlier scenarios spent
+  // (FR-036).
+  provider->add_object(
+      "package-1/algebra", "scratch", "additive algebra object");
+  provider->add_counter("package-1/algebra", "addend_a", "ops", "first addend");
+  provider->add_counter(
+      "package-1/algebra", "addend_b", "ops", "second addend");
+  provider->set_points("package-1/algebra", "addend_a", {0, 2100}, 2100);
+  provider->set_points("package-1/algebra", "addend_b", {0, 200}, 200);
+
+  provider->add_object("package-1/splice", "scratch", "splice object");
+  provider->add_counter(
+      "package-1/splice", "only", "ops", "leaf spliced first");
+  provider->add_counter(
+      "package-1/splice", "numerator", "ops", "quotient numerator");
+  provider->add_counter(
+      "package-1/splice", "denominator", "ops", "quotient denominator");
+  provider->set_points("package-1/splice", "only", {0, 200}, 200);
+  provider->set_points("package-1/splice", "numerator", {0, 2100}, 2100);
+  provider->set_points("package-1/splice", "denominator", {0, 200}, 200);
+
+  provider->add_object("package-1/edge", "scratch", "fold edge object");
+  provider->add_counter("package-1/edge", "single", "ops", "the only leaf");
+  provider->set_points("package-1/edge", "single", {0, 700}, 700);
+
+  provider->add_object(
+      "package-1/move/core-1", "core", "core for move assignment");
+  provider->add_counter(
+      "package-1/move/core-1", "cycles", "ops", "core cycles elapsed");
+  provider->add_counter(
+      "package-1/move/core-1", "instructions", "ops", "instructions retired");
+  provider->add_counter(
+      "package-1/move/core-1", "deep_only", "ops", "counter on one core only");
+  provider->set_points("package-1/move/core-1", "cycles", {0, 200}, 200);
+  provider->set_points("package-1/move/core-1", "deep_only", {0, 700}, 700);
+  provider->set_points(
+      "package-1/move/core-1", "instructions", {0, 2100}, 2100);
+
   probe = provider.get();
   const auto registered =
       system::local().register_provider(std::move(provider));
@@ -261,6 +300,248 @@ auto test_scope_exactness() -> void
         "scalar multiplication scales the fold and flags scaled (FR-015)");
 }
 
+// The additive and subtractive halves of the algebra, which the
+// quotient-only tests elsewhere never reach: both operands must share a
+// tag, and the fold evaluates the binary node (FR-015, FR-018).
+auto test_additive_algebra() -> void
+{
+  const auto scratch = *system::local().object("package-1/algebra");
+  const auto addend_a = *scratch.counter<events>("addend_a");
+  const auto addend_b = *scratch.counter<events>("addend_b");
+
+  const auto sum = addend_a + addend_b;
+  const auto difference = addend_a - addend_b;
+  check(dim_same<decltype(sum)::dimension_tag, events>,
+        "addition preserves the shared tag");
+  const auto compiled = compile(system::local(), sum, difference);
+  check(compiled.has_value(), "the additive plan compiles");
+
+  sg::counters::scope window {*compiled};
+  window.start();
+  window.finish();
+  // addend_a steps 2100 and addend_b steps 200 across the window.
+  check(same_double(window.metric(sum).value, 2300.0),
+        "addition folds the sum of both deltas exactly");
+  check(same_double(window.metric(difference).value, 1900.0),
+        "subtraction folds the difference of both deltas exactly");
+}
+
+// The construction-error surface compile owes the caller, and the
+// two corner cases the folds guard: a default-constructed spine and a
+// raw view for a leaf the expression does not contain (FR-018, FR-020,
+// FR-021, FR-024).
+auto test_construction_and_fold_edges() -> void
+{
+  const auto edge = *system::local().object("package-1/edge");
+  const auto single = *edge.counter<events>("single");
+  const auto ipc = single / single;
+
+  const auto empty = compile(system::local(), expression<events> {});
+  check(!empty.has_value(),
+        "an expression carrying no resolved leaves is refused (FR-021)");
+
+  const auto compiled = compile(system::local(), ipc);
+  check(compiled.has_value(), "the quotient plan compiles");
+  sg::counters::scope window {*compiled};
+  window.start();
+  window.finish();
+  check(same_double(expression<events> {}.fold(window.view(), 0, 1).value, 0.0),
+        "an empty spine folds to the zeroed result shape (FR-018)");
+  // Both operands of this quotient carry the same leaf, so the spine
+  // holds one leaf slot for the pair. Folding it must read that slot
+  // twice and stay inside the leaf vector.
+  check(same_double(window.metric(ipc).value, 1.0),
+        "a quotient of one counter by itself folds inside the leaf vector "
+        "(FR-015, FR-018)");
+
+  const auto absent =
+      ipc.raw(window.view(), "package-1/core-3", "instructions");
+  check(!absent.has_value() && contains(absent.error().message, "instructions"),
+        "a raw view for a leaf the expression lacks names it (FR-020)");
+}
+
+// Compiling several expressions into one plan splices each spine into
+// the shared one, remapping node indices and reusing a leaf that two
+// expressions share (FR-021, FR-022).
+auto test_multi_expression_splice() -> void
+{
+  const auto scratch = *system::local().object("package-1/splice");
+  const auto only = *scratch.counter<events>("only");
+  const auto numerator = *scratch.counter<events>("numerator");
+  const auto denominator = *scratch.counter<events>("denominator");
+  const auto ipc = numerator / denominator;
+  // The binary expression lands in the second position, so its node
+  // indices need remapping into the shared spine.
+  const expression<events> leaf_expr {only};
+  // Two ratios share a tag, so their sum splices the second quotient's
+  // binary node into the first one's spine, re-addressing that node's
+  // operands there.
+  const auto numerator_ratio = numerator / numerator;
+  const auto denominator_ratio = denominator / denominator;
+  const auto ratio_sum = numerator_ratio + denominator_ratio;
+  const auto compiled = compile(system::local(), leaf_expr, ipc, ratio_sum);
+  check(compiled.has_value(), "leaf, quotient, and their sum share a plan");
+  sg::counters::scope window {*compiled};
+  window.start();
+  window.finish();
+  check(same_double(window.metric(ipc).value, 10.5),
+        "the spliced quotient still folds exactly");
+  check(same_double(window.metric(leaf_expr).value, 200.0),
+        "the leaf spliced ahead of the quotient still folds exactly");
+  // (2100 / 2100) + (200 / 200) over the same window.
+  check(same_double(window.metric(ratio_sum).value, 2.0),
+        "the sum of two spliced ratios folds exactly");
+}
+
+// A plan and a fan-out plan are move-only values: move assignment
+// releases the target's layout and takes the source's (FR-022, FR-031).
+auto test_move_assignment() -> void
+{
+  const auto core = *system::local().object("package-1/move/core-1");
+  const auto cycles = *core.counter<events>("cycles");
+  const auto instructions = *core.counter<events>("instructions");
+  const auto ipc = instructions / cycles;
+
+  auto first = compile(system::local(), ipc);
+  auto second = compile(system::local(), ipc);
+  check(first.has_value() && second.has_value(), "both plans compile");
+  // A plan is move-only and its constructor is private to compile, so
+  // the target is reached through the public move constructor.
+  sg::counters::plan target = std::move(*first);
+  target = std::move(*second);
+  sg::counters::scope window {target};
+  window.start();
+  window.finish();
+  check(same_double(window.metric(ipc).value, 10.5),
+        "the move-assigned plan folds exactly");
+
+  const auto cores = system::local().objects("core", {{"core", "1"}});
+  check(cores.has_value() && cores->size() == 1,
+        "the dedicated core is selected on its own");
+  auto fanout = compile(system::local(), ipc, *cores);
+  check(fanout.has_value(), "the fan-out plan compiles");
+  auto other = compile(system::local(), ipc, *cores);
+  check(other.has_value(), "a second fan-out plan compiles");
+  sg::counters::fanout_plan fanout_target = std::move(*fanout);
+  fanout_target = std::move(*other);
+  check(fanout_target.object_paths().size() == 1,
+        "the move-assigned fan-out plan keeps the selection");
+  auto rec = fanout_target.recorder(2);
+  rec.sample();
+  rec.sample();
+  const auto folded = fanout_target.fold(ipc, rec.view());
+  check(folded.size() == 1 && same_double(folded.front().metric.value, 10.5),
+        "the move-assigned fan-out plan folds exactly");
+}
+
+// A three-level path resolves its parent through the separator, and a
+// near-miss query reports the two diagnostic families the catalog
+// distinguishes: names within the edit distance, then description word
+// overlaps (FR-001, FR-008).
+auto test_nested_parent_and_suggestions() -> void
+{
+  const auto deep = *system::local().object("package-1/move/core-1");
+  check(deep.kind() == "core", "the nested object reports its kind");
+  // The path names an intermediate object the catalog never declared, so
+  // the parent link has nothing to resolve to and reports none
+  // (FR-001).
+  check(deep.parent() == nullptr,
+        "a path whose intermediate object is absent reports no parent "
+        "(FR-001)");
+
+  const auto scratch = *system::local().object("package-1/algebra");
+  check(scratch.counters().size() == 2,
+        "the scratch object carries exactly its two declared counters");
+
+  // "addend_x" sits within the edit distance of both addends, so the
+  // suggestions come from the name family.
+  const auto near = scratch.counter<events>("addend_x");
+  check(!near.has_value() && near.error().suggestions.size() == 2
+            && near.error().suggestions[0] == "addend_a"
+            && near.error().suggestions[1] == "addend_b",
+        "a one-character miss suggests both near names (FR-008)");
+
+  // "elapsed" is far from every counter name and shares a word with one
+  // description, so the suggestions come from the description family.
+  const auto core = *system::local().object("package-1/core-3");
+  const auto by_word = core.counter<events>("elapsed");
+  check(!by_word.has_value() && by_word.error().suggestions.size() == 1
+            && by_word.error().suggestions[0] == "cycles",
+        "a distant query falls back to description word overlap (FR-008)");
+}
+
+// The recoverable construction errors a fan-out owes its caller, each one
+// refused in the untimed region before any window opens (FR-024).
+auto test_fanout_construction_errors() -> void
+{
+  const auto core = *system::local().object("package-1/core-3");
+  const auto cycles = *core.counter<events>("cycles");
+  const auto ipc = cycles / cycles;
+  const auto cores = system::local().objects("core");
+
+  const auto no_leaves =
+      compile(system::local(), expression<events> {}, *cores);
+  check(!no_leaves.has_value()
+            && contains(no_leaves.error().message, "carries no leaves"),
+        "an empty exemplar spine is refused (FR-024)");
+
+  const std::vector<const sg::counters::object*> nothing;
+  const auto no_selection = compile(system::local(), ipc, nothing);
+  check(!no_selection.has_value()
+            && contains(no_selection.error().message, "non-empty selection"),
+        "an empty selection is refused (FR-024)");
+
+  const auto scratch = *system::local().object("package-1/splice");
+  const auto numerator = *scratch.counter<events>("numerator");
+  // The exemplar draws one leaf from each of two objects, so no single
+  // prefix can instantiate it across the selection.
+  const auto spanning = numerator / cycles;
+  const auto not_same_object = compile(system::local(), spanning, *cores);
+  check(!not_same_object.has_value()
+            && contains(not_same_object.error().message, "several objects"),
+        "an exemplar spanning two objects is refused (FR-024)");
+
+  const std::vector<const sg::counters::object*> with_null {nullptr};
+  const auto null_member = compile(system::local(), ipc, with_null);
+  check(!null_member.has_value()
+            && contains(null_member.error().message, "null object"),
+        "a selection holding a null object is refused (FR-024)");
+
+  const std::vector<const sg::counters::object*> twice {&core, &core};
+  const auto duplicated = compile(system::local(), ipc, twice);
+  check(!duplicated.has_value()
+            && contains(duplicated.error().message, "duplicates"),
+        "a selection repeating an object is refused (FR-024)");
+
+  // An exemplar whose leaves the selected objects do not carry resolves
+  // against the tree and is refused by name (FR-024, FR-017).
+  const auto deep = *system::local().object("package-1/move/core-1");
+  const auto deep_only = *deep.counter<events>("deep_only");
+  const auto moved = deep_only / deep_only;
+  const auto wrong_object = compile(system::local(), moved, *cores);
+  check(!wrong_object.has_value()
+            && contains(wrong_object.error().message, "not in the system tree"),
+        "an exemplar missing from a selected object is refused by name "
+        "(FR-024)");
+}
+
+// A leaf the catalog reports as permission-blocked resolves and carries
+// its state, and compiling over it names that state. Nothing is guessed
+// (FR-006, FR-007, FR-024).
+auto test_permission_blocked_leaf() -> void
+{
+  const auto core = *system::local().object("package-1/core-3");
+  const auto blocked = core.counter<events>("stalled");
+  check(blocked.has_value()
+            && blocked->avail() == availability::permission_blocked,
+        "a blocked leaf resolves and carries the probed state (FR-007)");
+  const expression<events> over {*blocked};
+  const auto refused = compile(system::local(), over);
+  check(!refused.has_value()
+            && contains(refused.error().message, "permission_blocked"),
+        "compiling over a blocked leaf names its catalog state (FR-024)");
+}
+
 auto test_wrap() -> void
 {
   const auto wrap = *system::local().object("machine")->counter<events>("wrap");
@@ -283,6 +564,13 @@ auto main() -> int
   test_resolution_diagnostics();
   test_compile_zero_reads();
   test_scope_exactness();
+  test_additive_algebra();
+  test_construction_and_fold_edges();
+  test_multi_expression_splice();
+  test_move_assignment();
+  test_nested_parent_and_suggestions();
+  test_fanout_construction_errors();
+  test_permission_blocked_leaf();
   test_wrap();
   std::printf("counters_fake_test: all checks passed\n");
   return 0;

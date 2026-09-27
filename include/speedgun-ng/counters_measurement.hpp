@@ -143,12 +143,21 @@ struct expr_core
 
 // Splices a whole spine into `dst` with index remapping and returns
 // the spliced root index.
+//
+// Leaf indices are remapped through the slot `add_leaf` actually assigns,
+// because `add_leaf` deduplicates by address: two operands that share a
+// leaf contribute one slot between them, so the pre-splice leaf count is
+// not the offset the second operand's nodes must use. An operand built
+// as `x / x` has both operands carrying the same leaf, and remapping by
+// the leaf count would point its second node past the end of the leaf
+// vector, so the fold read out of bounds.
 inline auto splice(detail::expr_core& dst, const detail::expr_core& src) -> int
 {
-  const int leaf_base = static_cast<int>(dst.leaves.size());
   const int node_base = static_cast<int>(dst.nodes.size());
+  std::vector<int> leaf_remap;
+  leaf_remap.reserve(src.leaves.size());
   for (const auto& leaf : src.leaves) {
-    dst.add_leaf(leaf);
+    leaf_remap.push_back(dst.add_leaf(leaf));
   }
   for (auto node : src.nodes) {
     if (node.left >= 0) {
@@ -158,7 +167,7 @@ inline auto splice(detail::expr_core& dst, const detail::expr_core& src) -> int
       node.right += node_base;
     }
     if (node.leaf >= 0) {
-      node.leaf += leaf_base;
+      node.leaf = leaf_remap[static_cast<std::size_t>(node.leaf)];
     }
     dst.add_node(node);
   }
