@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -71,6 +72,46 @@ auto exemplar_prefix(const detail::expr_core& core) -> std::string
     }
   }
   return prefix;
+}
+
+auto availability_name(const availability state) -> std::string_view
+{
+  switch (state) {
+    case availability::countable:
+      return "countable";
+    case availability::permission_blocked:
+      return "permission_blocked";
+    case availability::not_encodable:
+      return "not_encodable";
+    case availability::absent:
+      return "absent";
+  }
+  return "outside the closed enumeration";
+}
+
+// Resolves each slot's enabled/running partners once every slot exists,
+// so a fold reads the multiplex pair by index and never by name lookup
+// (FR-019, FR-020, FR-022).
+void link_ratio_slots(plan_impl& layout)
+{
+  for (std::size_t index = 0; index < layout.slots.size(); ++index) {
+    auto& slot = layout.slots[index];
+    if (!slot.has_ratio_pair) {
+      continue;
+    }
+    const auto slash = slot.core.address.rfind('/');
+    if (slash == std::string::npos) {
+      continue;
+    }
+    const std::string home = slot.core.address.substr(0, slash);
+    for (const auto& [name, slot_index] : layout.by_address) {
+      if (name == home + "/enabled") {
+        slot.ratio_enabled = slot_index;
+      } else if (name == home + "/running") {
+        slot.ratio_running = slot_index;
+      }
+    }
+  }
 }
 
 }  // namespace
@@ -176,6 +217,8 @@ void scope::start()
 {
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(!core->started, "scope start runs once per scope (FR-046)");
+  SG_REQUIRE(std::this_thread::get_id() == core->impl->bound_thread,
+             "a scope samples on the thread its plan bound to (FR-031)");
   sample_row(*core->impl, core->buffer.data(), 2, 0);
   core->state.head = 1;
   core->started = true;
@@ -188,6 +231,8 @@ void scope::finish()
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(core->started && !core->finished,
              "scope finish runs on a started, open window (FR-046)");
+  SG_REQUIRE(std::this_thread::get_id() == core->impl->bound_thread,
+             "a scope samples on the thread its plan bound to (FR-031)");
   sample_row(*core->impl, core->buffer.data(), 2, 1);
   core->state.head = 2;
   core->finished = true;
@@ -210,7 +255,10 @@ auto hard_stop_sample_core(const void* impl,
 {
   SG_REQUIRE_ALWAYS(head < capacity,
                     "hard_stop recorder samples within capacity (FR-027)");
-  sample_row(*static_cast<const plan_impl*>(impl), columns, capacity, head);
+  const auto& layout = *static_cast<const plan_impl*>(impl);
+  SG_REQUIRE(std::this_thread::get_id() == layout.bound_thread,
+             "a recorder samples on the thread its plan bound to (FR-031)");
+  sample_row(layout, columns, capacity, head);
   ++head;
 }
 
@@ -221,7 +269,10 @@ auto ring_sample_core(const void* impl,
                       bool& wrapped,
                       std::uint64_t& dropped) noexcept -> void
 {
-  sample_row(*static_cast<const plan_impl*>(impl),
+  const auto& layout = *static_cast<const plan_impl*>(impl);
+  SG_REQUIRE(std::this_thread::get_id() == layout.bound_thread,
+             "a recorder samples on the thread its plan bound to (FR-031)");
+  sample_row(layout,
              columns,
              capacity,
              head & (capacity - 1));
@@ -279,6 +330,20 @@ auto compile_core(const system& sys,
                        + "' is not in the system tree (FR-017)",
                    .suggestions = {}});
       }
+      // A leaf the catalog reports as not countable now is a
+      // construction error naming the catalog state, refused in the
+      // untimed region before any provider window opens and before any
+      // hardware read (FR-021, FR-024, FR-046).
+      if (record->core.avail != availability::countable) {
+        return std::unexpected(
+            error {.message = "counter '" + leaf.address
+                       + "' is not countable on this host: the catalog "
+                         "reports "
+                       + std::string(availability_name(record->core.avail))
+                       + "; pick a countable counter or branch on the "
+                         "catalog state before composing (FR-024)",
+                   .suggestions = {}});
+      }
       seen.emplace(leaf.address, pending.size());
       pending.push_back(pending_leaf {.address = leaf.address,
                                       .provider = record->provider_index});
@@ -327,6 +392,7 @@ auto compile_core(const system& sys,
     return std::unexpected(error {
         .message = "leaf has no owning provider (FR-011)", .suggestions = {}});
   }
+  link_ratio_slots(*layout);
   return plan(layout.release());
 }
 

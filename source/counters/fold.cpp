@@ -68,7 +68,75 @@ struct fold_context
   return false;
 }
 
+// The algebraic exponent of one leaf in the spine, as a sign: a
+// quotient inverts the sign of its right operand, an addition and a
+// subtraction leave it alone. "instructions / cycles" therefore weighs
+// the instructions ratio with +1 and the cycles ratio with -1, which is
+// what the composite ratio product needs (FR-019, measurement-contract
+// clarification 2). One for any other leaf.
+[[nodiscard]] auto leaf_sign(const expr_core& core,
+                             const int node_index,
+                             const int target_leaf,
+                             const int sign) -> int
+{
+  const auto& node = core.nodes[static_cast<std::size_t>(node_index)];
+  if (node.kind == 0) {
+    return node.leaf == target_leaf ? sign : 1;
+  }
+  const int left = leaf_sign(core, node.left, target_leaf, sign);
+  const int right = leaf_sign(core, node.right, target_leaf,
+                              node.kind == 3 ? -sign : sign);
+  return left * right;
+}
+
 }  // namespace
+
+// The multiplex ratio of one window: the product of the constituent
+// ratios, each raised to its algebraic exponent (FR-019). A source
+// without an enabled/running pair contributes 1.0 by construction. A
+// pair with no elapsed enabled time contributes 1.0; the fold has no
+// measured fraction to report and states full rate.
+struct ratio_result
+{
+  double ratio = 1.0;
+  bool multiplexed = false;
+};
+
+[[nodiscard]] auto window_ratio(const fold_context& ctx,
+                                const expr_core& core) -> ratio_result
+{
+  ratio_result out;
+  for (std::size_t index = 0; index < core.leaves.size(); ++index) {
+    const auto& leaf = core.leaves[index];
+    const auto located = ctx.layout.by_address.find(leaf.address);
+    if (located == ctx.layout.by_address.end()) {
+      continue;
+    }
+    const auto& slot = ctx.layout.slots[located->second];
+    if (slot.ratio_enabled == plan_impl::no_ratio_slot
+        || slot.ratio_running == plan_impl::no_ratio_slot)
+    {
+      continue;
+    }
+    const auto* enabled =
+        ctx.rec.columns + slot.ratio_enabled * ctx.rec.stride;
+    const auto* running =
+        ctx.rec.columns + slot.ratio_running * ctx.rec.stride;
+    const auto elapsed = enabled[ctx.j] - enabled[ctx.i];
+    if (elapsed == 0) {
+      continue;
+    }
+    const auto counted = running[ctx.j] - running[ctx.i];
+    const double one =
+        static_cast<double>(counted) / static_cast<double>(elapsed);
+    const int sign = leaf_sign(core, core.root(), static_cast<int>(index), 1);
+    out.ratio *= sign > 0 ? one : (1.0 / one);
+    if (one < 1.0) {
+      out.multiplexed = true;
+    }
+  }
+  return out;
+}
 
 auto fold_core(const expr_core& core,
                const recorder_api& rec,
@@ -102,10 +170,15 @@ auto fold_core(const expr_core& core,
                  "push counters never decrease between folded points (FR-035)");
     }
   }
+  const ratio_result disclosure = window_ratio(ctx, core);
   return metric_result {
       .value = eval(ctx, core, core.root()),
-      .running_ratio = 1.0,
-      .scaled = carries_scale(core),
+      .running_ratio = disclosure.ratio,
+      // A window whose sources were multiplexed carries the kernel's
+      // scaled estimate, and a fold the caller scaled carries one too;
+      // a window that ran to completion at full rate carries neither
+      // (FR-019).
+      .scaled = disclosure.multiplexed || carries_scale(core),
   };
 }
 

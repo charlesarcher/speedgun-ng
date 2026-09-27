@@ -658,6 +658,24 @@ if(speedgun-ng_counters_sources)
   target_sources(speedgun-ng_speedgun-ng PRIVATE ${speedgun-ng_counters_sources})
 endif()
 
+# Linux PMU provider sources (T045..T048): always globbed; every TU
+# carries its own __linux__ guard so the reduced-catalog build off
+# Linux compiles from the same list (FR-042). The compile definition
+# hands the provider the vendored table root, the same way the clock
+# provider reaches sysfs by path (T045).
+file(
+    GLOB speedgun-ng_pmu_sources
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/counters/linux_pmu/*.cpp"
+)
+if(speedgun-ng_pmu_sources)
+  target_sources(speedgun-ng_speedgun-ng PRIVATE ${speedgun-ng_pmu_sources})
+endif()
+target_compile_definitions(
+    speedgun-ng_speedgun-ng
+    PRIVATE SG_PMU_EVENTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/external/pmu-events"
+)
+
 # ---- Examples ----
 
 if(PROJECT_IS_TOP_LEVEL)

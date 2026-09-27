@@ -236,6 +236,16 @@ add_test(
       ${CMAKE_CURRENT_SOURCE_DIR}/pmu-events-gate-fixture
 )
 
+# Linux PMU provider: merged catalog, probed availability at the
+# host's paranoia level, and the syscall-mode group read with the
+# enabled/running ratio pair (T043; FR-037..FR-041, SC-002). Privilege
+# gates skip with the reason printed; the test never fails an
+# unprivileged host.
+add_executable(counters_pmu_test source/counters_pmu_test.cpp)
+target_link_libraries(counters_pmu_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_pmu_test PRIVATE cxx_std_23)
+add_test(NAME counters_pmu_test COMMAND counters_pmu_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
