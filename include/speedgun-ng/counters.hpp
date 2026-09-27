@@ -11,10 +11,12 @@
  * claim stays visible in the include graph (T011).
  */
 
+#include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_provider.hpp"
+#include "speedgun-ng/counters_push.hpp"
 #include "speedgun-ng/counters_system.hpp"
 
 #endif  // SPEEDGUN_NG_COUNTERS_HPP

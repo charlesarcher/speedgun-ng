@@ -198,6 +198,8 @@ auto system::register_provider(std::unique_ptr<provider_iface> provider)
                   .unit = std::string(entry.unit),
                   .avail = entry.avail,
                   .mode = entry.mode,
+                  .frequency_hz = entry.frequency_hz,
+                  .scaled = entry.scaled,
               },
           .has_ratio_pair = false,
           .provider_index = provider_index,
@@ -371,6 +373,8 @@ auto object::counters() const -> std::vector<catalog_entry>
         .unit = mapped.value_or(unit::none),
         .avail = leaf.core.avail,
         .mode = leaf.core.mode,
+        .frequency_hz = leaf.core.frequency_hz,
+        .scaled = leaf.core.scaled,
     });
   }
   return entries;
