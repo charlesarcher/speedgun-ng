@@ -152,6 +152,39 @@ version declaration from the submodule's own `project()` line and
 consults no git metadata. yaml-cpp is a native CMake library, so no
 autotools bootstrap tools are needed for it.
 
+## Re-pinning pmu-events
+
+The kernel x86 PMU event tables are vendored data under
+`external/pmu-events`, pinned to a kernel tag by the `RECORD` manifest
+holding the ref, fetch URL, date, and per-file sha256. Two checks
+enforce the pin: the configure-time tripwire in the pmu-events bracket
+of `CMakeLists.txt` fails configuration when the gate constant and the
+recorded ref disagree, and
+
+```sh
+python3 tools/pmu_events/update_pmu_events.py --check
+```
+
+verifies every file's sha256 against `RECORD` and the gate constant
+against the recorded ref, exiting 1 and naming each drifted file. CI
+runs `--check` in the test job; the check never touches the network.
+To re-pin:
+
+```sh
+python3 tools/pmu_events/update_pmu_events.py --to <kernel-ref>
+```
+
+The tool fetches the snapshot from kernel.org cgit, with the GitHub
+mirror as the documented fallback, validates that every JSON file
+parses and every mapfile regex compiles, and replaces the tree only
+after all validation passes. It rewrites `RECORD`, bumps the gate
+constant (the single bump point in the bracket), and prints a
+per-architecture event-count digest. Omitting `--to` resolves the tag
+from the running kernel per the source-ref policy DCR (owner directive
+2026-09-26): distro and localversion suffixes are stripped, so
+`7.2.4-1-cachyos` resolves to `linux-7.2.4`. The fixture suite runs
+through `ctest -R pmu_events_check`.
+
 ## Quality gates
 
 One command runs the prose and commit-message gate over the range from

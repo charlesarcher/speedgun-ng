@@ -138,6 +138,8 @@ jobs:
       run: test -z "$(find prefix/ -iname '*yaml*cpp*')"
     - name: Audit package files for yaml-cpp
       run: "! grep -riE 'yaml[-_]?cpp' prefix/lib/cmake/speedgun-ng/*.cmake"
+    - name: Check vendored pmu-events integrity
+      run: python3 tools/pmu_events/update_pmu_events.py --check
     - name: Test
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j 2
