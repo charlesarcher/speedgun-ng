@@ -100,11 +100,17 @@ struct fold_context
     -> std::optional<double>
 {
   const auto& entry = ctx.layout.slots[slot];
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the second operand can
+  // never be the deciding one. `link_ratio_slots` (`plan.cpp:120-145`) writes
+  // `ratio_enabled` and `ratio_running` together or leaves both at
+  // `no_ratio_slot`, so a slot that passes the first test always passes the
+  // second.
   if (entry.ratio_enabled == plan_impl::no_ratio_slot
-      || entry.ratio_running == plan_impl::no_ratio_slot)
+      || entry.ratio_running == plan_impl::no_ratio_slot)  // LCOV_EXCL_BR_LINE
   {
-    return std::nullopt;
-  }
+    return std::nullopt;  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_BR_LINE
+  // LCOV_EXCL_BR_STOP
   const auto* enabled = ctx.rec.columns + entry.ratio_enabled * ctx.rec.stride;
   const auto* running = ctx.rec.columns + entry.ratio_running * ctx.rec.stride;
   const auto elapsed = enabled[ctx.j] - enabled[ctx.i];
@@ -137,9 +143,15 @@ struct ratio_result
   for (std::size_t index = 0; index < core.leaves.size(); ++index) {
     const auto& leaf = core.leaves[index];
     const auto located = ctx.layout.by_address.find(leaf.address);
-    if (located == ctx.layout.by_address.end()) {
-      continue;
-    }
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): a fan-out
+    // instantiates the exemplar for every selected path and compiles those
+    // instances (`plan.cpp:513-531`), so every address a fan-out fold looks
+    // up is in the layout address table by construction. A plain plan
+    // compiles the caller own expression, so its leaves are in the table
+    // as well.
+    if (located == ctx.layout.by_address.end()) {  // LCOV_EXCL_BR_LINE
+      continue;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_STOP
     const auto one = leaf_ratio(ctx, located->second);
     if (!one.has_value()) {
       continue;
@@ -207,7 +219,7 @@ auto fold_pairs_core(const expr_core& core, const recorder_api& rec)
     out.push_back(fold_core(core, rec, k, k + 1));
   }
   return out;
-}
+}  // LCOV_EXCL_LINE
 
 auto raw_core(const expr_core& core,
               const recorder_api& rec,

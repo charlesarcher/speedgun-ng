@@ -165,15 +165,8 @@ struct system::impl
     return std::string(path);
   }
 
-  [[nodiscard]] auto find(std::string_view path) const -> const tree_node*
-  {
-    const auto it = objects.find(canonicalize(path));
-    if (it == objects.end()) {
-      return nullptr;
-    }
-    return it->second.get();
-  }
-
+  // Deliberately no const overload: every call site reaches the tree through a
+  // non-const `system::impl`, so one would be dead code (X.3).
   [[nodiscard]] auto find(std::string_view path) -> tree_node*
   {
     const auto it = objects.find(canonicalize(path));

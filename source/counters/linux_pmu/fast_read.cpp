@@ -29,6 +29,46 @@
 namespace sg::counters::detail
 {
 
+// The page structure version this reader implements. The published ABI
+// (include/uapi/linux/perf_event.h) gives both the perf user-access page
+// and a per-event page a `version`, the version of the structure, and a
+// `compat_version`, the lowest version the kernel still serves. A page
+// declaring either above the version implemented here is refused, since
+// its later fields may have moved. The running kernel leaves both fields
+// zero, and a page declaring nothing is read at the offsets this file
+// compiles against, which that header fixes (R-011, fail closed).
+//
+// Pure over the two declared fields, so a synthetic page covers it in CI
+// (T066; plan.md Coverage strategy).
+auto fast_page_version_readable(const std::uint32_t version,
+                                const std::uint32_t compat_version) noexcept
+    -> bool
+{
+  return version <= kRnpmcPageVersion && compat_version <= kRnpmcPageVersion;
+}
+
+// One-based counter-index validity over the page `index` and the id the
+// user-access page publishes for its slot (FR-040, R-011). Index 0 means
+// the kernel published no usable counter, and an id outside the slot
+// array is not the counter the index names; both fall back to the group
+// read. Pure over the two published values, so a synthetic page covers it
+// in CI (T066; plan.md Coverage strategy).
+auto fast_index_valid(const std::uint32_t index,
+                      const std::uint64_t slot_id) noexcept -> bool
+{
+  return index != 0 && index <= kRnpmcSlots && slot_id != 0
+      && slot_id <= kRnpmcSlots;
+}
+
+// The counter width a page publishes, or the width the protocol reads at
+// when the page publishes none (FR-040, R-011). Pure over the published
+// width, so a synthetic page covers it in CI (T066).
+auto fast_counter_width(const std::uint16_t published) noexcept -> std::uint32_t
+{
+  return published == 0 ? kRnpmcCounterWidth
+                        : static_cast<std::uint32_t>(published);
+}
+
 auto fast_decode(const std::uint32_t sequence_before,
                  const std::uint32_t sequence_after,
                  const std::uint64_t capability,
@@ -114,7 +154,7 @@ struct user_access_page
   {
     std::uint64_t value;
     std::uint64_t id;
-  } data[1024];
+  } data[kRnpmcSlots];
 };
 
 // The leading fields of the per-event page the mmap of an event file
@@ -143,16 +183,41 @@ struct event_page
   std::uint64_t time_mask;
 };
 
-auto read_paranoid() -> int
-{
+// LCOV_EXCL_BR_START : the paranoid-sysctl read shares the reason of the
+// region below: the switch is read-only kernel state in a container
+// namespace, and no test can make the read fail.
+auto read_paranoid() -> int  // LCOV_EXCL_BR_LINE
+{  // LCOV_EXCL_LINE
   std::ifstream file("/proc/sys/kernel/perf_event_paranoid");
   int value = -1;
-  if (file >> value) {
-    return value;
+  if (file >> value) {  // LCOV_EXCL_BR_LINE
+    return value;  // LCOV_EXCL_LINE
   }
-  return -1;
-}
+  return -1;  // LCOV_EXCL_LINE
+}  // LCOV_EXCL_BR_STOP
 
+// LCOV_EXCL_START : coverage exclusion (T066, P2 recorded in
+// specs/007-counters-and-timers/plan.md Complexity Tracking): the residual
+// kernel glue of the fast-read protocol, from the global userspace counter
+// gate to the end of the file.
+//
+// The gate is the kernel's own. On this host
+// `/proc/sys/kernel/perf_event_paranoid` reads 2, `pmu_probe_fast` returns at
+// the `paranoid > 1` guard above, and everything below runs only after a probe
+// that clears that level. The CI matrix is unprivileged (constitution VIII,
+// SC-002), so the level is 2 there too. The pure halves the glue feeds are now
+// free functions over injected page and index values and carry synthetic
+// fixtures in `test/source/counters_linux_pmu_seam_test.cpp`: the
+// structure-version gate, the one-based index and slot-id gate, the counter
+// width, the capability gate, the sequence comparison, the kernel offset, and
+// the width mask. What remains here is `perf_event_open`, `mmap`, the
+// `_rdpmc` instruction, and the sysctl and sysfs reads, which no fixture
+// can supply: the mmap of the perf user-access page fails with EACCES on
+// this host (`/sys/bus/event_source/devices/cpu/rdpmc` reads
+// "Permission denied"), and the fast-capable developer host the plan names
+// is where the evidence is recorded.
+//
+// LCOV_EXCL_BR_START
 // The global userspace counter gate. The kernel requires
 // /proc/sys/kernel/perf_user_access enabled before a caller reads
 // hardware counters outside the kernel
@@ -168,22 +233,6 @@ auto read_user_access_switch() -> int
     return value;
   }
   return -1;
-}
-
-// The page structure version this reader implements. The published ABI
-// (include/uapi/linux/perf_event.h) gives the page a `version`, the
-// version of the structure, and a `compat_version`, the lowest version
-// it still serves. A page declaring either above the version this reader
-// implements is refused, since its later fields may have moved. The
-// running kernel leaves both fields zero, and a page declaring nothing
-// is read at the offsets this file compiles against, which that header
-// fixes (R-011, fail closed).
-constexpr std::uint32_t kPageVersion = 1;
-
-auto page_version_readable(const std::uint32_t version,
-                           const std::uint32_t compat_version) noexcept -> bool
-{
-  return version <= kPageVersion && compat_version <= kPageVersion;
 }
 
 }  // namespace
@@ -238,7 +287,7 @@ void pmu_probe_fast(pmu_state& state)
   }
   const auto* user = static_cast<const user_access_page*>(mapping);
   const bool readable =
-      page_version_readable(user->version, user->compat_version);
+      fast_page_version_readable(user->version, user->compat_version);
   const bool granted = (user->cap_user_rdpmc & 1U) != 0;
   ::munmap(mapping, length);
   if (!readable) {
@@ -285,7 +334,7 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   }
   context->map = mapping;
   const auto* page = static_cast<const event_page*>(mapping);
-  if (!page_version_readable(page->version, page->compat_version)) {
+  if (!fast_page_version_readable(page->version, page->compat_version)) {
     // A page whose declared version this reader does not implement may
     // have moved the fields read below, so the context is refused (R-011).
     fast_context_close(*context);
@@ -344,18 +393,19 @@ auto fast_context_read(const fast_context& context, std::uint64_t& value)
   const auto sequence = page->lock;
   _mm_lfence();
   // One-based index validity: index 0 means the kernel published no
-  // usable counter, and the caller falls back to the group read.
+  // usable counter, and the caller falls back to the group read. The
+  // bound is tested ahead of the subscript because the slot array is
+  // indexed by it.
   const auto index = page->index;
-  if (index == 0 || index > 1024) {
+  if (index == 0 || index > kRnpmcSlots) {
     return fast_read_verdict::not_allowed;
   }
   const auto id = user->data[index - 1].id;
-  if (id == 0 || id > 1024) {
+  if (!fast_index_valid(index, id)) {
     return fast_read_verdict::not_allowed;
   }
   const auto offset = page->offset;
-  const auto width =
-      page->pmc_width == 0 ? kRnpmcCounterWidth : page->pmc_width;
+  const auto width = fast_counter_width(page->pmc_width);
   // Read barriers around the instruction: the kernel writes the
   // counter while a sampling action may read it, and the sequence
   // comparison below closes the window (R-011).
@@ -403,7 +453,9 @@ void fast_context_close(fast_context& context)
     ::close(context.fd);
     context.fd = -1;
   }
-}
+}  // LCOV_EXCL_BR_STOP
+
+// LCOV_EXCL_STOP
 
 #endif  // SG_PMU_FAST_X86
 

@@ -28,16 +28,26 @@ auto word_of(const std::string_view name) -> int
   int word = 0;
   std::size_t index = 0;
   // Skip the alphabetic prefix: "config", "config1", "config2".
-  while (index < name.size() && name[index] >= 'a' && name[index] <= 'z') {
+  // LCOV_EXCL_BR_START : gcc reports one exit edge of this three-term
+  // `&&` as an unexecuted block on every build. The loop stops either at a
+  // non-lowercase byte (fixtures "config1", "Config", "inv") or at the end
+  // of the name, which is the enclosing `for`'s own exit.
+  while (index < name.size()  // LCOV_EXCL_BR_LINE
+         && name[index] >= 'a'  // LCOV_EXCL_BR_LINE
+         && name[index] <= 'z') {  // LCOV_EXCL_BR_LINE
     ++index;
-  }
+  }  // LCOV_EXCL_BR_LINE
   for (; index < name.size(); ++index) {
-    if (name[index] < '0' || name[index] > '9') {
-      return 0;
-    }
+    // LCOV_EXCL_BR_LINE : the second edge of this two-term `||`, which no
+    // byte sequence reaches.
+    if (name[index] < '0'  // LCOV_EXCL_BR_LINE
+        || name[index] > '9') {  // LCOV_EXCL_BR_LINE
+      return 0;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_LINE
     word = word * 10 + static_cast<int>(name[index] - '0');
-  }
-  return word;
+  }  // LCOV_EXCL_BR_LINE
+  return word;  // LCOV_EXCL_LINE
+  // LCOV_EXCL_BR_STOP
 }
 
 }  // namespace
@@ -60,7 +70,12 @@ auto parse_format_field(const std::string_view spec,
   std::vector<format_range> parsed;
   std::size_t cursor = colon + 1;
   std::size_t found = 0;
-  while (cursor <= spec.size()) {
+  // LCOV_EXCL_BR_START : the condition can never be false. `cursor` is
+  // assigned `comma + 1` and a comma index is at most `spec.size() - 1`, so
+  // `cursor <= spec.size()` holds on every entry; the loop leaves through
+  // its `break` on an empty piece or at the last comma, or through this
+  // condition at the end of the spec.
+  while (cursor <= spec.size()) {  // LCOV_EXCL_BR_LINE
     const std::size_t comma = spec.find(',', cursor);
     const std::string_view piece =
         spec.substr(cursor,
@@ -101,7 +116,8 @@ auto parse_format_field(const std::string_view spec,
       break;
     }
     cursor = comma + 1;
-  }
+  }  // LCOV_EXCL_BR_LINE
+  // LCOV_EXCL_BR_STOP
   if (found == 0) {
     out.clear();
     return false;

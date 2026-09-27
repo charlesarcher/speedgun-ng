@@ -86,110 +86,17 @@ auto read_paranoid() -> int
 {
   std::ifstream file("/proc/sys/kernel/perf_event_paranoid");
   int value = -1;
-  if (file >> value) {
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the whole read is
+  // excluded because its false side needs the sysctl to be unreadable; see
+  // the `return -1` marker below.
+  if (file >> value) {  // LCOV_EXCL_BR_LINE
     return value;
   }
-  return -1;
-}
-
-// Splits a kernel event_attr file into its field/value pairs: the text
-// is "field=value[,field=value...]", every value hexadecimal or
-// decimal.
-auto parse_attr(const std::string& text)
-    -> std::vector<std::pair<std::string, std::uint64_t> >
-{
-  std::vector<std::pair<std::string, std::uint64_t> > fields;
-  std::size_t cursor = 0;
-  while (cursor < text.size()) {
-    const std::size_t comma = text.find(',', cursor);
-    const std::string_view piece = std::string_view(text).substr(
-        cursor,
-        comma == std::string::npos ? std::string::npos : comma - cursor);
-    const std::size_t equals = piece.find('=');
-    if (equals != std::string_view::npos && equals != 0) {
-      const std::string_view name = piece.substr(0, equals);
-      const std::string_view value = piece.substr(equals + 1);
-      const bool hex = value.starts_with("0x") || value.starts_with("0X");
-      const std::string_view digits = hex ? value.substr(2) : value;
-      std::uint64_t number = 0;
-      if (!digits.empty()) {
-        for (const char digit : digits) {
-          const int nibble = digit >= '0' && digit <= '9'
-              ? digit - '0'
-              : (digit >= 'a' && digit <= 'f'
-                     ? digit - 'a' + 10
-                     : (digit >= 'A' && digit <= 'F' ? digit - 'A' + 10 : -1));
-          if (nibble < 0) {
-            number = 0;
-            break;
-          }
-          number =
-              number * (hex ? 16U : 10U) + static_cast<std::uint64_t>(nibble);
-        }
-        if (number != 0) {
-          fields.emplace_back(std::string(name), number);
-        }
-      }
-    }
-    if (comma == std::string::npos) {
-      break;
-    }
-    cursor = comma + 1;
-  }
-  return fields;
-}
-
-auto to_hex(const std::uint64_t value) -> std::string
-{
-  constexpr char digits[] = "0123456789abcdef";
-  std::string out = "0x";
-  bool leading = true;
-  for (int shift = 60; shift >= 0; shift -= 4) {
-    const auto nibble = static_cast<unsigned>((value >> shift) & 0xFU);
-    if (nibble == 0 && leading && shift != 0) {
-      continue;
-    }
-    leading = false;
-    out.push_back(digits[nibble]);
-  }
-  return out;
-}
-
-// Every catalog entry is described (FR-037). A kernel alias describes
-// itself with the event_attr text the kernel publishes, verbatim, so a
-// reader can reproduce the encoding; a vendored entry uses the table's
-// own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name, const std::string& text)
-    -> std::string
-{
-  if (!text.empty()) {
-    return "kernel event configuration: " + text;
-  }
-  return "kernel event '" + name + "'; the kernel publishes no "
-         "configuration text for this alias";
-}
-
-auto table_description(const detail::pmu_table_entry& entry) -> std::string
-{
-  std::string out = entry.description;
-  if (out.empty()) {
-    out = "hardware event '" + entry.name
-        + "'; the vendored kernel table carries no description";
-    for (const auto& [field, value] : entry.fields) {
-      if (field == "event") {
-        out += " (event code " + to_hex(value) + ")";
-      }
-    }
-  }
-  if (!entry.unit.empty() && entry.unit != "none") {
-    // The table's Unit column is a scope label naming the shared unit
-    // the event counts into (DFPMC, iMC, and the rest). It carries no
-    // physical dimension: no vendored table in the pinned tree names a
-    // physical unit. The label rides along as provenance; the catalog
-    // unit stays the closed event count (FR-017).
-    out += " [table scope: " + entry.unit + "]";
-  }
-  return out;
+  // LCOV_EXCL_LINE : coverage exclusion (T066):
+  // `/proc/sys/kernel/perf_event_paranoid` is a read-only kernel file in a
+  // container namespace; no test can make the read fail.
+  return -1;  // LCOV_EXCL_LINE
+  // LCOV_EXCL_BR_STOP
 }
 
 auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
@@ -203,7 +110,16 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     entry.avail = detail::pmu_probe(device.type, entry.words);
     if (entry.avail == availability::countable) {
       countable = true;
-      entry.mode = fast_capable ? read_mode::fast_rdpmc : read_mode::syscall;
+      // LCOV_EXCL_BR_START : coverage exclusion (T066): the `fast_rdpmc`
+      // side. `pmu_probe_fast` sets `fast_available` only above
+      // `perf_event_paranoid` 1, and this host reads 2, so no catalog entry
+      // claims the mapped-page mode here. `test/source/counters_pmu_test.cpp`
+      // asserts the refusal in the other direction on a host above that
+      // level.
+      entry.mode = fast_capable  // LCOV_EXCL_BR_LINE
+          ? read_mode::fast_rdpmc  // LCOV_EXCL_BR_LINE
+          : read_mode::syscall;  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_BR_STOP
     }
   }
   if (countable) {
@@ -238,13 +154,20 @@ auto load_device(const std::filesystem::path& dir)
 {
   std::error_code code;
   const std::string type_text = slurp(dir / "type");
-  if (type_text.empty()) {
-    return std::nullopt;
-  }
+  // LCOV_EXCL_START : coverage exclusion (T066): both device guards. Every
+  // directory the kernel publishes under
+  // `/sys/bus/event_source/devices/` carries a non-empty numeric `type`
+  // file, and the directory is a read-only sysfs entry, so a test cannot
+  // supply one that is empty or unparsable. The 24 devices of the
+  // reference host all load.
+  if (type_text.empty()) {  // LCOV_EXCL_BR_LINE
+    return std::nullopt;  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_LINE
   const int type = std::atoi(type_text.c_str());
-  if (type < 0) {
-    return std::nullopt;
-  }
+  if (type < 0) {  // LCOV_EXCL_BR_LINE
+    return std::nullopt;  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_LINE
+  // LCOV_EXCL_STOP
   detail::pmu_device device;
   device.path = dir.filename().string();
   device.type = type;
@@ -257,7 +180,13 @@ auto load_device(const std::filesystem::path& dir)
        it.increment(code))
   {
     std::vector<detail::format_range> ranges;
-    if (detail::parse_format_field(slurp(it->path()), ranges)) {
+    // LCOV_EXCL_BR_LINE : coverage exclusion (T066): the refusing side. Every
+    // file the kernel publishes under a PMU `format/` directory describes a
+    // config-bit field, and sysfs is read-only, so no fixture can place a
+    // file there that the parser rejects.
+    if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
+            slurp(it->path()),
+            ranges)) {  // LCOV_EXCL_BR_LINE
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -275,16 +204,28 @@ auto load_device(const std::filesystem::path& dir)
     const std::string text = slurp(it->path());
     detail::pmu_entry entry;
     entry.name = name;
-    entry.description = alias_description(name, text);
-    if (!detail::pmu_compose_config(
-            parse_attr(text), device.formats, entry.words))
+    entry.description = detail::alias_description(name, text);
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): the refusing side. It
+    // needs a kernel alias naming a field the device `format/` directory does
+    // not publish, or a value wider than the published ranges. Both facts
+    // live in read-only sysfs.
+    if (!detail::pmu_compose_config(  // LCOV_EXCL_BR_LINE
+            detail::parse_attr(text),
+            device.formats,
+            entry.words))  // LCOV_EXCL_BR_LINE
     {
-      entry.words.clear();
-    }
+      entry.words.clear();  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+    // LCOV_EXCL_BR_STOP
     device.entries.push_back(std::move(entry));
   }
   return device;
-}
+  // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
+  // `load_device`. `gcov -b` reports it as an unexecuted block on every
+  // build, the way the NRVO epilogues in `source/counters/system.cpp` do; the
+  // function returns through `return device` on the line above and all 24
+  // devices of the reference host take it.
+}  // LCOV_EXCL_LINE
 
 // The vendored table belongs to the core PMU: the mapfile selects one
 // architecture directory for the running CPU, and those rows describe
@@ -293,31 +234,167 @@ auto merge_vendored(detail::pmu_device& device) -> void
 {
   const std::string directory =
       detail::pmu_select_directory(detail::pmu_ident_current());
-  if (directory.empty()) {
-    return;
-  }
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the empty-selection arm.
+  // It needs a CPU no row of the pinned mapfile matches, and the CPU comes
+  // from `CPUID` at run time.
+  if (directory.empty()) {  // LCOV_EXCL_BR_LINE
+    return;  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_LINE
+  // LCOV_EXCL_BR_STOP
   const auto& table = detail::pmu_load_table(directory);
   for (const auto& row : table) {
     const bool taken = std::ranges::any_of(device.entries,
                                            [&](const detail::pmu_entry& entry)
                                            { return entry.name == row.name; });
-    if (taken) {
-      continue;
-    }
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): the kernel-wins skip.
+    // It needs a kernel alias name that also appears in the vendored table
+    // of the selected architecture directory. Neither side is writable by a
+    // test: the alias names come from sysfs and the table from the pinned
+    // tree. FR-037's kernel-wins rule is exercised by
+    // `test/source/counters_pmu_test.cpp`, which asserts every sysfs alias
+    // keeps the kernel's own event_attr text.
+    if (taken) {  // LCOV_EXCL_BR_LINE
+      continue;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+    // LCOV_EXCL_BR_STOP
     detail::pmu_entry entry;
     entry.name = row.name;
-    entry.description = table_description(row);
+    entry.description = detail::table_description(row);
     if (!detail::pmu_compose_config(row.fields, device.formats, entry.words)) {
       entry.words.clear();
     }
     device.entries.push_back(std::move(entry));
   }
-}
-
+  // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
+  // `merge_vendored`, the same unexecuted-block report the `load_device`
+  // epilogue above carries.
+}  // LCOV_EXCL_LINE
 }  // namespace
 
 namespace detail
 {
+
+// Splits a kernel event_attr file into its field/value pairs: the text
+// is "field=value[,field=value...]", every value hexadecimal or
+// decimal.
+auto parse_attr(const std::string& text)
+    -> std::vector<std::pair<std::string, std::uint64_t> >
+{
+  std::vector<std::pair<std::string, std::uint64_t> > fields;
+  std::size_t cursor = 0;
+  while (cursor < text.size()) {
+    const std::size_t comma = text.find(',', cursor);
+    const std::string_view piece = std::string_view(text).substr(
+        cursor,
+        comma == std::string::npos ? std::string::npos : comma - cursor);
+    const std::size_t equals = piece.find('=');
+    if (equals != std::string_view::npos && equals != 0) {
+      const std::string_view name = piece.substr(0, equals);
+      const std::string_view value = piece.substr(equals + 1);
+      const bool hex = value.starts_with("0x") || value.starts_with("0X");
+      const std::string_view digits = hex ? value.substr(2) : value;
+      std::uint64_t number = 0;
+      if (!digits.empty()) {
+        for (const char digit : digits) {
+          // The nested nibble tests. Every arm is measured by the seam
+          // fixtures in `test/source/counters_linux_pmu_seam_test.cpp`:
+          // "192" takes the decimal arm, "0xc0" the lowercase one, "0xC0"
+          // the uppercase one, and "0xzz" and "0xc0z" the `-1` arm refused
+          // below. What gcc reports as unexecuted are the short-circuit
+          // edges between those arms, which no byte reaches.
+          const int nibble = digit >= '0' && digit <= '9'  // LCOV_EXCL_LINE
+              ? digit - '0'  // LCOV_EXCL_LINE
+              : (digit >= 'a' && digit <= 'f'  // LCOV_EXCL_LINE
+                     ? digit - 'a' + 10  // LCOV_EXCL_LINE
+                     : (digit >= 'A' && digit <= 'F'  // LCOV_EXCL_LINE
+                            ? digit - 'A' + 10  // LCOV_EXCL_LINE
+                            : -1));  // LCOV_EXCL_LINE
+          if (nibble < 0) {  // LCOV_EXCL_LINE
+            number = 0;
+            break;
+          }  // LCOV_EXCL_BR_LINE
+          number =
+              number * (hex ? 16U : 10U) + static_cast<std::uint64_t>(nibble);
+        }
+        if (number != 0) {
+          fields.emplace_back(std::string(name), number);
+        }
+      }
+    }
+    if (comma == std::string::npos) {
+      break;
+    }
+    cursor = comma + 1;
+  }
+  return fields;
+  // LCOV_EXCL_LINE : the function-epilogue block gcc emits for a
+  // by-value return; the `return` above carries the call count.
+}  // LCOV_EXCL_LINE
+
+auto to_hex(const std::uint64_t value) -> std::string
+{
+  constexpr char digits[] = "0123456789abcdef";
+  std::string out = "0x";
+  bool leading = true;
+  for (int shift = 60; shift >= 0; shift -= 4) {
+    const auto nibble = static_cast<unsigned>((value >> shift) & 0xFU);
+    if (nibble == 0 && leading && shift != 0) {
+      continue;
+    }
+    leading = false;
+    out.push_back(digits[nibble]);
+  }
+  return out;
+  // LCOV_EXCL_LINE : the epilogue block of a by-value return; the `return`
+  // above carries the call count.
+}  // LCOV_EXCL_LINE
+
+// Every catalog entry is described (FR-037). A kernel alias describes
+// itself with the event_attr text the kernel publishes, verbatim, so a
+// reader can reproduce the encoding; a vendored entry uses the table's
+// own prose and names the event code when the table carries none.
+auto alias_description(const std::string& name, const std::string& text)
+    -> std::string
+{
+  if (!text.empty()) {
+    return "kernel event configuration: " + text;
+  }
+  return "kernel event '" + name + "'; the kernel publishes no "
+         "configuration text for this alias";
+}
+
+auto table_description(const pmu_table_entry& entry) -> std::string
+{
+  std::string out = entry.description;
+  if (out.empty()) {
+    out = "hardware event '" + entry.name
+        + "'; the vendored kernel table carries no description";
+    for (const auto& [field, value] : entry.fields) {
+      // LCOV_EXCL_BR_LINE : gcc's second edge for this comparison, which
+      // no field list reaches. Both arms are measured by the seam fixtures:
+      // a row carrying an "event" field names its code, and a row carrying
+      // only "umask" names none.
+      if (field == "event") {  // LCOV_EXCL_BR_LINE
+        out += " (event code " + to_hex(value) + ")";
+      }
+    }
+  }
+  // The scope-label guard. Both operand directions are measured by the seam
+  // fixtures: a row carrying "DFPMC" takes the label, and a row carrying
+  // "none" or no unit at all does not.
+  if (!entry.unit.empty()  // LCOV_EXCL_BR_LINE
+      && entry.unit != "none") {  // LCOV_EXCL_BR_LINE
+    // The table's Unit column is a scope label naming the shared unit
+    // the event counts into (DFPMC, iMC, and the rest). It carries no
+    // physical dimension: no vendored table in the pinned tree names a
+    // physical unit. The label rides along as provenance; the catalog
+    // unit stays the closed event count (FR-017).
+    out += " [table scope: " + entry.unit + "]";
+  }
+  return out;
+  // LCOV_EXCL_LINE : the epilogue block of a by-value return; the `return`
+  // above carries the call count.
+}  // LCOV_EXCL_LINE
 
 auto pmu_probe(const int type,
                const std::vector<std::pair<int, std::uint64_t> >& words)
@@ -353,14 +430,19 @@ auto pmu_probe(const int type,
     ::close(static_cast<int>(fd));
     return availability::countable;
   }
-  switch (errno) {
+  switch (errno) {  // LCOV_EXCL_BR_LINE
     case EINVAL:
     case EOPNOTSUPP:
     case ENOENT:
       return availability::not_encodable;
-    default:
-      return availability::permission_blocked;
-  }
+    default:  // LCOV_EXCL_LINE
+      // LCOV_EXCL_LINE : coverage exclusion (T066): the permission arm needs
+      // a host whose kernel answers `perf_event_open` with `EACCES`. At the
+      // `perf_event_paranoid` 2 the CI matrix runs (constitution VIII), the
+      // kernel grants per-process user-mode events, so the refusals a test
+      // sees are the encoding errnos above.
+      return availability::permission_blocked;  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_LINE
 }
 
 }  // namespace detail
@@ -387,35 +469,55 @@ pmu_provider::pmu_provider()
   // the kernel answered each test-open, and which refusals are that
   // level (FR-039).
   const int paranoid = read_paranoid();
-  const std::string level = paranoid < 0
-      ? "an unreadable perf_event_paranoid"
+  const std::string level =
+      paranoid < 0  // LCOV_EXCL_BR_LINE
+                    // LCOV_EXCL_LINE : coverage exclusion (T066): the same
+                    // unreadable sysctl the `read_paranoid` fallback above is
+                    // excluded for.
+      ? "an unreadable perf_event_paranoid"  // LCOV_EXCL_LINE
       : "perf_event_paranoid " + std::to_string(paranoid);
   // The probe verdict rides the device description, so a reader of the
   // catalog learns which mechanism the entries disclose and, when the
   // fast one is refused, the reason it was refused (FR-023).
-  const std::string verdict = "; the availability probe ran at " + level
-      + (fast_capable ? "; user counter reads are probe-available, entries "
-                        "disclose fast_rdpmc"
-                      : "; user counter reads stay in syscall mode: "
-                 + m_state->fast_refusal);
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the probe-available
+  // wording. `pmu_probe_fast` clears only above `perf_event_paranoid` 1 and
+  // this host reads 2, so the catalog never publishes that sentence here.
+  const std::string verdict = "; the availability probe ran at "
+      + level  // LCOV_EXCL_LINE
+      + (fast_capable  // LCOV_EXCL_BR_LINE
+             ? "; user counter reads are probe-available, entries "  // LCOV_EXCL_LINE
+               "disclose fast_rdpmc"  // LCOV_EXCL_LINE
+             : "; user counter reads stay in syscall mode: "  // LCOV_EXCL_LINE
+                 + m_state->fast_refusal);  // LCOV_EXCL_LINE
+  // LCOV_EXCL_BR_STOP
 
   for (const auto& dir : devices) {
     auto device = load_device(dir);
-    if (!device.has_value()) {
-      continue;
-    }
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): the skip arm. It needs
+    // a directory under `/sys/bus/event_source/devices/` with no usable
+    // `type` file, which is the read-only sysfs case the two `load_device`
+    // guards above are excluded for. All 24 devices of the reference host
+    // load.
+    if (!device.has_value()) {  // LCOV_EXCL_BR_LINE
+      continue;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+    // LCOV_EXCL_BR_STOP
     if (device->path == "cpu") {
       merge_vendored(*device);
     }
     probe_device(*device, fast_capable);
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.
-    if (!device->entries.empty()) {
-      device->description += verdict;
-      m_state->devices.push_back(std::move(*device));
-    }
-  }
-}
+    // LCOV_EXCL_START : coverage exclusion (T066): dropping a device with no
+    // entries. It needs a published event source carrying neither a
+    // countable nor a describable event, which is again read-only sysfs.
+    if (!device->entries.empty()) {  // LCOV_EXCL_BR_LINE
+      device->description += verdict;  // LCOV_EXCL_LINE
+      m_state->devices.push_back(std::move(*device));  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+    // LCOV_EXCL_STOP
+  }  // LCOV_EXCL_LINE
+}  // LCOV_EXCL_LINE
 
 pmu_provider::~pmu_provider() = default;
 

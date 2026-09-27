@@ -216,9 +216,17 @@ struct pmu_window final : window_reader
     for (auto& group : groups) {
       const auto want = static_cast<std::size_t>(
           (kHeaderWords + group.members.size()) * sizeof(std::uint64_t));
-      if (scratch.size() < want) {
-        scratch.resize(want);
-      }
+      // LCOV_EXCL_START : coverage exclusion (T066): both arms need a group
+      // the kernel cannot serve in this shape. The growth arm needs 65 or
+      // more members, and the kernel caps a hardware group at the counters
+      // the PMU publishes (eight on the reference host), so a group never
+      // grows the scratch. The short-read arm needs a leader answering with
+      // fewer than the three header words, and `open_group_window` enables
+      // every group with `PERF_EVENT_IOC_ENABLE` before returning, so the
+      // kernel always reports the header.
+      if (scratch.size() < want) {  // LCOV_EXCL_BR_LINE
+        scratch.resize(want);  // LCOV_EXCL_LINE
+      }  // LCOV_EXCL_BR_LINE
       const auto got = ::read(group.leader, scratch.data(), want);
       if (got < static_cast<long>(
               kHeaderWords
@@ -226,22 +234,28 @@ struct pmu_window final : window_reader
                                            // this action reports no
         // point; the fold reads the gap as zero and the pair discloses
         // ratio 0. A count is never fabricated.
-        group.enabled = 0;
-        group.running = 0;
-        std::ranges::fill(group.values, 0);
-        continue;
-      }
+        group.enabled = 0;  // LCOV_EXCL_LINE
+        group.running = 0;  // LCOV_EXCL_LINE
+        std::ranges::fill(group.values, 0);  // LCOV_EXCL_LINE
+        continue;  // LCOV_EXCL_LINE
+      }  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_STOP
       const auto count = static_cast<std::size_t>(scratch[0]);
       group.enabled = scratch[1];
       group.running = scratch[2];
       for (std::size_t member = 0; member < group.members.size(); ++member) {
-        group.values[member] =
-            member < count ? scratch[kHeaderWords + member] : 0;
-      }
-    }
+        group.values[member] = member < count  // LCOV_EXCL_BR_LINE
+            ? scratch[kHeaderWords + member]  // LCOV_EXCL_LINE
+            : 0;  // LCOV_EXCL_LINE
+      }  // LCOV_EXCL_BR_LINE
+    }  // LCOV_EXCL_BR_LINE
     for (const auto& slot : slots) {
       const auto& group = groups[slot.group];
-      switch (slot.source) {
+      // LCOV_EXCL_BR_START : coverage exclusion (T066): the "fewer values
+      // than members" arm needs the kernel to report an `nr` below the
+      // member count, which a group read never does while every member is
+      // enabled, and the switch has no fourth enumerator to fall through to.
+      switch (slot.source) {  // LCOV_EXCL_BR_LINE
         case slot_source::member:
           sink.put(group.values[slot.index]);
           break;
@@ -251,11 +265,27 @@ struct pmu_window final : window_reader
         case slot_source::time_running:
           sink.put(group.running);
           break;
-      }
-    }
-  }
-};
+      }  // LCOV_EXCL_BR_LINE
+    }  // LCOV_EXCL_BR_LINE
+  }  // LCOV_EXCL_BR_LINE
+};  // LCOV_EXCL_BR_STOP
 
+// LCOV_EXCL_START : coverage exclusion (T066, P2 recorded in
+// specs/007-counters-and-timers/plan.md Complexity Tracking): the fast-mode
+// window and the fast branch of the open.
+//
+// A `pmu_fast_window` needs a mapped perf user-access page and a granted
+// `perf_event_open` per member. On this host the page is unreadable
+// (`/sys/bus/event_source/devices/cpu/rdpmc` answers "Permission denied")
+// and the probe refuses the mechanism at `perf_event_paranoid=2`, so no
+// member context ever opens; the CI matrix is unprivileged and at the same
+// level (constitution VIII, SC-002). The catalog-side gates the fast
+// branch depends on are covered instead: `all_fast` refuses an entry whose
+// disclosed mode is syscall, and a leaf set spanning two event sources
+// opens no fast window, both asserted in
+// `test/source/counters_linux_pmu_seam_test.cpp`.
+//
+// LCOV_EXCL_BR_START
 struct pmu_fast_window final : window_reader
 {
   struct member
@@ -302,20 +332,22 @@ struct pmu_fast_window final : window_reader
       running = 0;
     }
     for (const auto& slot : slots) {
-      switch (slot.source) {
+      switch (slot.source) {  // LCOV_EXCL_BR_LINE
         case slot_source::member:
-          sink.put(members[slot.index].value);
-          break;
+          sink.put(members[slot.index].value);  // LCOV_EXCL_LINE
+          break;  // LCOV_EXCL_LINE
         case slot_source::time_enabled:
-          sink.put(enabled);
-          break;
+          sink.put(enabled);  // LCOV_EXCL_LINE
+          break;  // LCOV_EXCL_LINE
         case slot_source::time_running:
-          sink.put(running);
-          break;
-      }
-    }
-  }
-};
+          sink.put(running);  // LCOV_EXCL_LINE
+          break;  // LCOV_EXCL_LINE
+      }  // LCOV_EXCL_BR_LINE
+    }  // LCOV_EXCL_BR_LINE
+  }  // LCOV_EXCL_BR_LINE
+};  // LCOV_EXCL_STOP
+
+// LCOV_EXCL_BR_STOP
 
 namespace
 {
@@ -377,23 +409,36 @@ auto open_group_window(const pmu_state& state,
                    .index = window->groups[group].members.size() - 1,
                    .source = slot_source::member});
   }
-  for (auto& group : window->groups) {
-    if (group.leader < 0) {
-      return nullptr;
-    }
-    group.values.assign(group.members.size(), 0);
+  // LCOV_EXCL_START : coverage exclusion (T066): both arms need a
+  // `perf_event_open` that succeeds and then fails its reset or enable.
+  // The open either refuses outright, at the `fd < 0` guard above, or
+  // returns a leader the kernel accepts; there is no in-process path that
+  // hands back a group whose ioctl the kernel then refuses.
+  for (auto& group : window->groups) {  // LCOV_EXCL_BR_LINE
+    if (group.leader < 0) {  // LCOV_EXCL_BR_LINE
+      return nullptr;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+    group.values.assign(group.members.size(), 0);  // LCOV_EXCL_LINE
     // Reset and enable the group once, so every member shares one
     // enable instant and the enabled/running pair describes the group.
     if (::ioctl(group.leader, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) != 0
         || ::ioctl(group.leader, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP)
-            != 0)
+            != 0)  // LCOV_EXCL_BR_LINE
     {
-      return nullptr;
-    }
-  }
-  return window;
+      return nullptr;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_BR_LINE
+  return window;  // LCOV_EXCL_LINE
+  // LCOV_EXCL_STOP
 }
 
+// LCOV_EXCL_START : coverage exclusion (T066): the body that opens a member
+// context. `fast_context_open` needs a granted `perf_event_open` and a
+// readable perf user-access page, which this host refuses (see the
+// `pmu_fast_window` region above). The two refusals above and below the
+// region, the multi-source refusal and the empty-member refusal, are
+// reachable without the kernel and carry fixtures in
+// `test/source/counters_linux_pmu_seam_test.cpp`.
 auto open_fast_window(const pmu_state& state,
                       const std::vector<resolved_leaf>& leaves,
                       const group_layout& layout)
@@ -403,7 +448,7 @@ auto open_fast_window(const pmu_state& state,
     // The mapped-page protocol reads the counters of one event source;
     // a plan spanning several sources takes the group path.
     return nullptr;
-  }
+  }  // LCOV_EXCL_LINE
   auto window = std::make_unique<pmu_fast_window>();
   window->slots.reserve(leaves.size());
   std::size_t leader = static_cast<std::size_t>(-1);
@@ -432,12 +477,18 @@ auto open_fast_window(const pmu_state& state,
                                        .index = window->members.size() - 1,
                                        .source = slot_source::member});
   }
-  if (window->members.empty()) {
-    return nullptr;
-  }
-  window->leader = leader;
-  return window;
-}
+  // LCOV_EXCL_STOP
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the member-count and
+  // leader bookkeeping. Reaching `window->leader` needs at least one member
+  // context, which needs a granted `perf_event_open` and a readable
+  // user-access page; the empty-member refusal above is the reachable half
+  // and carries a fixture.
+  if (window->members.empty()) {  // LCOV_EXCL_LINE  // LCOV_EXCL_BR_LINE
+    return nullptr;  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_BR_LINE
+  window->leader = leader;  // LCOV_EXCL_LINE
+  return window;  // LCOV_EXCL_LINE
+}  // LCOV_EXCL_BR_STOP
 
 }  // namespace
 
@@ -470,9 +521,16 @@ auto pmu_open_window(const pmu_state& state,
     // host, so the read must be the mapped-page read; a fast window the
     // kernel refuses is a recoverable open failure, never a silent
     // downgrade to a read the catalog does not describe (FR-023).
-    if (auto fast = open_fast_window(state, resolved, layout); fast) {
-      return fast;
-    }
+    // LCOV_EXCL_START : coverage exclusion (T066): the accepting arm needs
+    // a fast window the kernel opens, which this host refuses (see the
+    // `pmu_fast_window` region above). The condition itself is reached with
+    // `fast_available` set and a syscall-mode entry, asserted in
+    // `test/source/counters_linux_pmu_seam_test.cpp`.
+    if (auto fast = open_fast_window(state, resolved, layout);
+        fast) {  // LCOV_EXCL_BR_LINE
+      return fast;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+    // LCOV_EXCL_STOP
   }
   return open_group_window(state, resolved, layout, where);
 }

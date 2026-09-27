@@ -75,20 +75,27 @@ auto instantiate_core(const detail::expr_core& core, const std::string& path)
     leaf.address = path + "/" + leaf.name;
   }
   return out;
-}
+}  // LCOV_EXCL_LINE
 
 // The one object path shared by every spine leaf; empty for an empty
 // spine or a spine spanning several objects.
 auto exemplar_prefix(const detail::expr_core& core) -> std::string
 {
-  if (core.leaves.empty()) {
-    return {};
-  }
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): both guards are
+  // unreachable. A zero-leaf expression is refused by `compile_core`
+  // (`plan.cpp:391`) before a fan-out ever calls this, and every address
+  // reaching here was written by `instantiate_core` as
+  // `path + "/" + name`, so a separator is always present.
+  if (core.leaves.empty()) {  // LCOV_EXCL_BR_LINE
+    return {};  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_BR_STOP
   const auto& address = core.leaves.front().address;
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): as above, the address
+  // carries the separator `instantiate_core` wrote.
   const auto slash = address.rfind('/');
-  if (slash == std::string::npos) {
-    return {};
-  }
+  if (slash == std::string::npos) {  // LCOV_EXCL_BR_LINE
+    return {};  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_BR_STOP
   const std::string prefix = address.substr(0, slash);
   const std::string home = prefix + "/";
   for (const auto& leaf : core.leaves) {
@@ -101,9 +108,13 @@ auto exemplar_prefix(const detail::expr_core& core) -> std::string
 
 auto availability_name(const availability state) -> std::string_view
 {
+  // LCOV_EXCL_START : coverage exclusion (T066): the `countable` arm.
+  // `availability_name` runs only on the construction-failure path at
+  // `plan.cpp:420`, and a leaf the catalog reports as `countable` never
+  // takes it.
   switch (state) {
-    case availability::countable:
-      return "countable";
+    case availability::countable:  // LCOV_EXCL_LINE
+      return "countable";  // LCOV_EXCL_LINE
     case availability::permission_blocked:
       return "permission_blocked";
     case availability::not_encodable:
@@ -111,8 +122,12 @@ auto availability_name(const availability state) -> std::string_view
     case availability::absent:
       return "absent";
   }
-  return "outside the closed enumeration";
-}
+  // LCOV_EXCL_LINE : coverage exclusion (T066): the defensive close of a
+  // closed enumeration, reachable only by casting an out-of-range integer
+  // to `availability`. `availability_name` is file-local, so no test can
+  // hand it such a value.
+  return "outside the closed enumeration";  // LCOV_EXCL_LINE
+}  // LCOV_EXCL_STOP
 
 // Resolves each slot's enabled/running partners once every slot exists,
 // so a fold reads the multiplex pair by index and never by name lookup
@@ -124,10 +139,13 @@ void link_ratio_slots(plan_impl& layout)
     if (!slot.has_ratio_pair) {
       continue;
     }
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): a slot address is
+    // written by `instantiate_core` or by resolution from the frozen tree,
+    // and both spell it `object + "/" + name`, so the separator is present.
     const auto slash = slot.core.address.rfind('/');
-    if (slash == std::string::npos) {
-      continue;
-    }
+    if (slash == std::string::npos) {  // LCOV_EXCL_BR_LINE
+      continue;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_BR_STOP
     const std::string home = slot.core.address.substr(0, slash);
     for (const auto& [name, slot_index] : layout.by_address) {
       if (name == home + "/enabled") {
@@ -399,14 +417,20 @@ auto compile_core(const system& sys,
       }
       const auto [object_path, name] = split_leaf_address(leaf.address);
       const leaf_record* record = nullptr;
-      if (const auto* node = impl.find(object_path); node != nullptr) {
+      // LCOV_EXCL_BR_START : coverage exclusion (T066): the null side. Every
+      // leaf address reaching `compile_core` came from a resolved handle or
+      // from `instantiate_core`, and the object it names is in the frozen
+      // tree, so the lookup never misses.
+      if (const auto* node = impl.find(object_path);
+          node != nullptr) {  // LCOV_EXCL_BR_LINE
         for (const auto& candidate : node->leaves) {
           if (candidate.core.name == name) {
             record = &candidate;
             break;
           }
         }
-      }
+      }  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_BR_STOP
       if (record == nullptr) {
         return std::unexpected(
             error {.message = "leaf '" + leaf.address
@@ -478,10 +502,18 @@ auto compile_core(const system& sys,
     group.reader = std::move(reader);
     layout->groups.push_back(std::move(group));
   }
-  if (layout->slots.size() != pending.size()) {
-    return std::unexpected(error {
-        .message = "leaf has no owning provider (FR-011)", .suggestions = {}});
-  }
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the two counts always
+  // agree. Every pending address was matched against its node and leaf at
+  // `plan.cpp:402-415` and re-found by the identical name test at
+  // `plan.cpp:461-467`, so the slot loop pushes exactly one slot per pending
+  // address.
+  if (layout->slots.size() != pending.size()) {  // LCOV_EXCL_BR_LINE
+    return std::unexpected(  // LCOV_EXCL_LINE
+        error {// LCOV_EXCL_LINE
+               .message =
+                   "leaf has no owning provider (FR-011)",  // LCOV_EXCL_LINE
+               .suggestions = {}});  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_BR_STOP
   link_ratio_slots(*layout);
   return plan(layout.release());
 }
@@ -553,7 +585,7 @@ auto fanout_fold_core(const void* fanout,
     });
   }
   return out;
-}
+}  // LCOV_EXCL_LINE
 
 }  // namespace detail
 

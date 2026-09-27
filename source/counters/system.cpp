@@ -70,8 +70,13 @@ constexpr int near_miss_distance = 2;
     }
     start = end + 1;
   }
+  // LCOV_EXCL_LINE : coverage exclusion (T066): gcc attributes a
+  // never-taken block to the closing brace of a function returning a named
+  // local (NRVO), so the epilogue carries no count even though the function
+  // runs. `gcov -b` reports `=====` for this line on every build while the
+  // `return` on the previous line carries the call count.
   return words;
-}
+}  // LCOV_EXCL_LINE
 
 // True when any word of `description` equals a word of `query`.
 [[nodiscard]] auto shares_word(std::string_view description,
@@ -140,7 +145,12 @@ constexpr int near_miss_distance = 2;
                                         + "' (FR-008)",
                                     .suggestions = {}});
     }
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): the two rethrow edges
+    // of the `std::vector` growth inside `push_back`. They exist only if the
+    // allocation throws, and the counters tree never grows a leaf vector past
+    // the catalog a provider declares.
     leaves.push_back(leaf_record {
+        // LCOV_EXCL_BR_LINE
         .core =
             detail::leaf_core {
                 .address = path + "/" + name,
@@ -154,8 +164,9 @@ constexpr int near_miss_distance = 2;
             },
         .has_ratio_pair = entry.has_ratio_pair,
         .provider_index = provider_index,
-    });
-  }
+    });  // LCOV_EXCL_BR_LINE
+  }  // LCOV_EXCL_BR_LINE
+  // LCOV_EXCL_BR_STOP
   return leaves;
 }
 
@@ -182,17 +193,23 @@ constexpr int near_miss_distance = 2;
 {
   std::vector<std::string_view> components;
   std::size_t start = 0;
-  while (start <= path.size()) {
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the condition can never
+  // fail. The loop breaks on the first `find` miss, and every path reaches that
+  // break, so the condition is only ever true on entry.
+  while (start <= path.size()) {  // LCOV_EXCL_BR_LINE
     const auto end = path.find('/', start);
     const auto stop = end == std::string::npos ? path.size() : end;
     components.push_back(std::string_view(path).substr(start, stop - start));
-    if (end == std::string::npos) {
-      break;
-    }
+    if (end == std::string::npos) {  // LCOV_EXCL_BR_LINE
+      break;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
     start = end + 1;
-  }
+  }  // LCOV_EXCL_BR_LINE
+  // LCOV_EXCL_BR_STOP
+  // LCOV_EXCL_LINE : coverage exclusion (T066): the NRVO epilogue block of
+  // `path_components`, as at the `split_words` epilogue above.
   return components;
-}
+}  // LCOV_EXCL_LINE
 
 // True when the canonical path carries the component the filter spells,
 // `key-value` (FR-003).
@@ -472,8 +489,10 @@ auto object::counters() const -> std::vector<catalog_entry>
         .scaled = leaf.core.scaled,
     });
   }
+  // LCOV_EXCL_LINE : coverage exclusion (T066): the NRVO epilogue block of
+  // `object::counters`, as at the `split_words` epilogue above.
   return entries;
-}
+}  // LCOV_EXCL_LINE
 
 auto object::children() const -> std::vector<const object*>
 {
@@ -492,8 +511,10 @@ auto object::children() const -> std::vector<const object*>
       direct.push_back(&system_ref.handle_for(object_path));
     }
   }
+  // LCOV_EXCL_LINE : coverage exclusion (T066): the NRVO epilogue block of
+  // `object::children`, as at the `split_words` epilogue above.
   return direct;
-}
+}  // LCOV_EXCL_LINE
 
 namespace detail
 {

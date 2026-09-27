@@ -9,6 +9,7 @@
 // types.
 
 #include <cstdint>
+#include <iosfwd>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -54,10 +55,59 @@ struct pmu_ident
 // when no row matches; parse failures surface as an empty table.
 [[nodiscard]] auto pmu_select_directory(const pmu_ident& id) -> std::string;
 
+// The same selection over an already-open mapping file, so a fixture
+// supplies the rows (T066). The header line is skipped, a row without
+// the three leading columns is skipped, and a row whose pattern does
+// not compile throws `std::regex_error`: the pinned mapfile is
+// regex-validated when it is re-pinned
+// (`tools/pmu_events/update_pmu_events.py`), so a row that fails to
+// compile is corrupt data and a corrupt table is worse than a loud
+// failure.
+[[nodiscard]] auto pmu_select_directory(std::istream& mapfile,
+                                        const pmu_ident& id) -> std::string;
+
 // The parsed event table for `directory`, lazily and once per
 // directory (FR-038). Entries carry semantic fields only.
 [[nodiscard]] auto pmu_load_table(const std::string& directory)
     -> const std::vector<pmu_table_entry>&;
+
+// One event-table file parsed into `out` (table_parse.cpp). The seam
+// entry for a synthetic fixture: the pinned tree at
+// `external/pmu-events/` carries hex-string values and array-shaped
+// files, so a fixture is the only way CI reaches the numeric and
+// object-shaped parses (T066).
+void pmu_parse_table_file(std::string_view path,
+                          std::vector<pmu_table_entry>& out);
+
+// The field/value pairs a kernel event_attr text carries (FR-037): the
+// text is "field=value[,field=value...]" and every value is
+// hexadecimal or decimal. A piece with no `=`, an empty value, a
+// non-hexadecimal character, and a value decoding to zero carry no
+// field, so the accepting pairs are the whole result.
+[[nodiscard]] auto parse_attr(const std::string& text)
+    -> std::vector<std::pair<std::string, std::uint64_t>>;
+
+// The event code as the catalog spells it: hexadecimal with a `0x`
+// prefix and no leading zero nibble, so zero reads as "0x0".
+[[nodiscard]] auto to_hex(std::uint64_t value) -> std::string;
+
+// The catalog description of one kernel event alias: the event_attr
+// text the kernel publishes, verbatim (FR-037). Empty when the kernel
+// publishes no text for the alias.
+[[nodiscard]] auto alias_description(const std::string& name,
+                                     const std::string& text) -> std::string;
+
+// The catalog description of one vendored table row: the table's own
+// prose, its event code when the row carries no prose, and the Unit
+// scope label when the table names one (FR-017, FR-038).
+[[nodiscard]] auto table_description(const pmu_table_entry& entry)
+    -> std::string;
+
+// A mapping-file pattern with every POSIX character class translated
+// to its ECMAScript spelling (FR-038). std::regex is ECMAScript, and
+// libstdc++ happens to accept `[[:name:]]` there; the other standard
+// libraries do not.
+[[nodiscard]] auto to_ecma(std::string_view pattern) -> std::string;
 
 // One bit range of a sysfs format field: which config word, inclusive
 // low and high bit.
@@ -162,6 +212,30 @@ enum class fast_read_verdict : std::uint8_t
 
 // The width the kernel publishes counters at for user counter reads.
 constexpr std::uint32_t kRnpmcCounterWidth = 48;
+
+// The number of counter slots one perf user-access page publishes, and
+// the highest structure version this reader implements (R-011). Both
+// pages of the mapped-page protocol declare them (kernel
+// include/uapi/linux/perf_event.h), and a page declaring a higher
+// version is refused.
+constexpr std::uint32_t kRnpmcSlots = 1024;
+constexpr std::uint32_t kRnpmcPageVersion = 1;
+
+// The pure halves of the mapped-page protocol over the fields a page
+// publishes (FR-040, R-011, T066; plan.md Coverage strategy names these
+// the functions a synthetic page fixture covers in CI):
+//   - the structure-version gate, over `version` and `compat_version`;
+//   - the one-based index and slot-id gate, over `index` and `id`;
+//   - the counter width, defaulting to kRnpmcCounterWidth when the page
+//     publishes none.
+[[nodiscard]] auto fast_page_version_readable(
+    std::uint32_t version, std::uint32_t compat_version) noexcept -> bool;
+
+[[nodiscard]] auto fast_index_valid(std::uint32_t index,
+                                    std::uint64_t slot_id) noexcept -> bool;
+
+[[nodiscard]] auto fast_counter_width(std::uint16_t published) noexcept
+    -> std::uint32_t;
 
 // The decode half of the protocol, over values the caller already
 // sampled: the page sequence before and after, the capability word, the

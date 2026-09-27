@@ -57,6 +57,7 @@ using sg::counters::dim;
 using sg::counters::dim_same;
 using sg::counters::expression;
 using sg::counters::fake_provider;
+using sg::counters::leaf_set;
 using sg::counters::metric_result;
 using sg::counters::points_view;
 using sg::counters::read_mode;
@@ -207,6 +208,24 @@ auto test_registration() -> void
   provider->set_points("package-1/ratio-b", "enabled", {0, 100});
   provider->set_points("package-1/ratio-b", "running", {0, 50});
 
+  // A pair-carrying leaf whose enabled leaf never advances: the pair
+  // carries no measured fraction over the window, so the fold states
+  // full rate (FR-019, T066).
+  provider->add_object("package-1/ratio-frozen", "scratch", "frozen pair");
+  provider->add_counter("package-1/ratio-frozen",
+                        "enabled",
+                        "nanoseconds",
+                        "nanoseconds the event counter was enabled",
+                        availability::countable,
+                        read_mode::syscall,
+                        true);
+  provider->add_counter("package-1/ratio-frozen",
+                        "running",
+                        "nanoseconds",
+                        "nanoseconds the event counter was scheduled");
+  provider->set_points("package-1/ratio-frozen", "enabled", {7, 7});
+  provider->set_points("package-1/ratio-frozen", "running", {0, 50});
+
   // A leaf with no explicit sequence at all, whose whole trace comes
   // from the seeded per-sample delta generator (T014).
   provider->add_object(
@@ -307,6 +326,17 @@ auto test_resolution_diagnostics() -> void
   check(blocked.has_value()
             && blocked->avail() == availability::permission_blocked,
         "availability travels with the handle (FR-006)");
+
+  // A query carrying an empty word (a doubled separator) splits into
+  // words with an empty one between them; the near-miss scan drops the
+  // empty word and still offers the real name (FR-008).
+  const auto doubled = core.counter<events>("cyc__les");
+  check(!doubled.has_value(),
+        "a query with a doubled separator resolves to nothing (FR-008)");
+  check(
+      std::ranges::find(doubled.error().suggestions, "cycles")
+          != doubled.error().suggestions.end(),
+      "a query with a doubled separator still finds its near miss " "(FR-008)");
 }
 
 auto test_compile_zero_reads() -> void
@@ -745,6 +775,90 @@ auto test_seeded_tail() -> void
         "each pair fold yields its own seeded step (T014, FR-018)");
 }
 
+// A pair-carrying leaf whose enabled time never advances across the
+// window. The fold has no measured fraction to report and states full
+// rate, scaled false (FR-019).
+auto test_frozen_pair_ratio() -> void
+{
+  const auto source = *system::local().object("package-1/ratio-frozen");
+  const auto enabled = *source.counter<time_dim>("enabled");
+  const auto running = *source.counter<time_dim>("running");
+  const auto ratio = enabled / running;
+  const auto compiled = compile(system::local(), ratio);
+  check(compiled.has_value(), "the frozen-pair plan compiles");
+  sg::counters::scope window {*compiled};
+  window.start();
+  window.finish();
+  const auto metric = window.metric(ratio);
+  // 7 / 50 across the window: enabled did not move, so the leaf
+  // discloses no measured fraction and the fold states full rate.
+  // (7 - 7) / (50 - 0) = 0: the enabled delta is zero, so the
+  // quotient folds to zero while the disclosure states full rate.
+  check(same_double(metric.value, 0.0),
+        "the frozen-pair composite folds its own arithmetic exactly");
+  check(same_double(metric.running_ratio, 1.0) && !metric.scaled,
+        "a pair with no elapsed enabled time discloses full rate, scaled "
+        "false (FR-019)");
+}
+
+// A window reader opened directly over addresses the scripted provider
+// does not serve. Every scripted address the system resolves passes this
+// path, so the two refusals below are reachable only through the open
+// contract itself: a leaf set the provider cannot serve opens no window,
+// and an address carrying no separator names no object at all
+// (FR-011, FR-036, T066).
+auto open_refusal_scenario() -> void
+{
+  fake_provider provider;
+  provider.add_object("package-1/core-3", "core", "a scripted core");
+  static_cast<void>(provider.add_counter(
+      "package-1/core-3", "cycles", "ops", "cycles elapsed"));
+  const target where {};
+  check(
+      provider.open(leaf_set {.addresses = {"package-1/core-3/cycles"}}, where)
+          != nullptr,
+      "a scripted address opens a window");
+  check(provider.open(leaf_set {.addresses = {"nosuchobject/cycles"}}, where)
+            == nullptr,
+        "an address naming an undeclared object opens no window");
+  check(provider.open(leaf_set {.addresses = {"package-1/core-3/nosuchleaf"}},
+                      where)
+            == nullptr,
+        "an address naming an undeclared leaf opens no window");
+  check(
+      provider.open(leaf_set {.addresses = {"nodelimiter"}}, where) == nullptr,
+      "an address carrying no separator names no object at all");
+}
+
+// A scalar multiple of a composite: the scale reaches the leaves and
+// leaves the arithmetic node alone, which is the branch the fold
+// algebra's scaling has to hold (FR-016, T066).
+auto scaled_composite_scenario() -> void
+{
+  using sg::counters::expression;
+  using sg::counters::scope;
+  const auto core = *system::local().object("package-1/core-3");
+  const auto work = core.counter<events>("instructions");
+  const auto cycle = core.counter<events>("cycles");
+  check(work.has_value() && cycle.has_value(),
+        "the scripted core serves the two leaves the composite spans");
+  const expression<events> a {*work};
+  const expression<events> b {*cycle};
+  const auto sum = a + b;
+  const auto scaled = 3.0 * sum;
+  auto compiled = compile(system::local(), scaled, a, b);
+  if (!compiled.has_value()) {
+    fail("the scaled composite plan compiles");
+  }
+  scope window {*compiled};
+  window.start();
+  window.finish();
+  check(
+      same_double(window.metric(scaled).value,
+                  3.0 * (window.metric(a).value + window.metric(b).value)),
+      "a scalar multiple of a composite scales every leaf exactly " "(FR-016)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -763,7 +877,10 @@ auto main() -> int
   test_permission_blocked_leaf();
   test_wrap();
   test_ratio_product();
+  test_frozen_pair_ratio();
   test_seeded_tail();
+  open_refusal_scenario();
+  scaled_composite_scenario();
   std::printf("counters_fake_test: all checks passed\n");
   return 0;
 }

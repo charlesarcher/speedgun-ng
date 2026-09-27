@@ -142,6 +142,25 @@ auto test_catalog_entry_shape() -> void
   check(entry.mode == read_mode::syscall, "entry read mode");
 }
 
+// The defensive close of the closed unit enumeration, which the header
+// documents as the failure branch of `dimension_of` and as the fallback
+// `unit_name` returns. A value outside the enumeration is reachable only
+// through a cast, and both functions must then refuse or say "unknown"
+// rather than read past the switch (T066).
+auto test_closed_enumeration_defensive_close() -> void
+{
+  const auto outside = static_cast<unit>(99);
+  const auto mapped = dimension_of(outside);
+  check(!mapped.has_value(),
+        "a unit value outside the enumeration maps to " "nothing");
+  check(mapped.error().message == "unit value outside the closed enumeration",
+        "the defensive close names the closed enumeration");
+  check(mapped.error().suggestions.empty(),
+        "the defensive close carries no suggestion");
+  check(unit_name(outside) == "unknown",
+        "a unit value outside the enumeration has no canonical name");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -152,6 +171,7 @@ auto main() -> int
   test_metric_result_fields();
   test_error_shape();
   test_catalog_entry_shape();
+  test_closed_enumeration_defensive_close();
   std::printf("counters_core_test PASS\n");
   return 0;
 }
