@@ -602,6 +602,47 @@ vendored_archive_merge(
     speedgun-ng_speedgun-ng hdr_histogram_static zlibstatic yaml-cpp
 )
 
+# Vendored pmu-events data (T044; FR-043, FR-044, R-012): the kernel
+# x86 PMU event tables and mapfile.csv, byte-exact path snapshots of
+# tools/perf/pmu-events/arch/x86, pinned with per-file sha256 in the
+# RECORD manifest. The tree is data alone, so no ingestion bracket
+# applies: the configure-time tripwire follows the yaml-cpp
+# precedent, the
+# recorded gate constant versus the ref line at the head of RECORD,
+# with no git metadata consulted so a configure from a source
+# archive works. Re-pinning runs the upgrade tool
+# tools/pmu_events/update_pmu_events.py (FR-045), which rewrites
+# RECORD; the constant is bumped alongside it per the README
+# re-pinning section (FR-006 kin).
+set(_pmu_events_expected_ref linux-7.2.4)
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/pmu-events/RECORD")
+  message(
+      FATAL_ERROR
+      "external/pmu-events/RECORD is missing; the vendored pmu-events "
+      "data tree is incomplete (specs/007 FR-044)"
+  )
+endif()
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/external/pmu-events/RECORD"
+     _pmu_events_record
+)
+if(NOT _pmu_events_record MATCHES "^ref: +([^ \n]+)")
+  message(
+      FATAL_ERROR
+      "cannot read the ref line from external/pmu-events/RECORD: the "
+      "'ref:' header line is missing or moved; expected "
+      "${_pmu_events_expected_ref}"
+  )
+endif()
+if(NOT CMAKE_MATCH_1 STREQUAL _pmu_events_expected_ref)
+  message(
+      FATAL_ERROR
+      "vendored pmu-events RECORD pins ${CMAKE_MATCH_1}; expected "
+      "${_pmu_events_expected_ref}: re-pin via "
+      "tools/pmu_events/update_pmu_events.py or bump the constant in "
+      "the pmu-events bracket (specs/007 FR-044)"
+  )
+endif()
+
 # Counters library sources (specs/007-counters-and-timers, T003). The
 # tree grows one translation unit per story task: GLOB with
 # CONFIGURE_DEPENDS keeps the bracket current as files land, and the
