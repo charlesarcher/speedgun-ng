@@ -6,7 +6,10 @@
 //
 //   - enforce and quick_enforce: every mode must abort BEFORE printing its
 //     survival marker (SC: FR-046 misuse, FR-018 fold range and extent,
-//     FR-027 capacity, FR-031 per-thread plans and recorders).
+//     FR-027 capacity, FR-031 per-thread plans and recorders). The
+//     aborting configuration must also report the violation, so an
+//     abort the contract facility did not produce is read as a mode
+//     the fixture has no body for and fails the check.
 //   - ignore and observe: the semantic-gated modes must run through and
 //     print their marker, which proves the gated check emitted no code,
 //     while the always-on overrun (SG_REQUIRE_ALWAYS) must still abort
@@ -42,6 +45,15 @@ constexpr bool kGatedChecksFire = false;
 #else
 constexpr bool kGatedChecksFire = true;
 #endif
+
+// The contract facility prints one report per violation it terminates on
+// and never returns, so a report in the captured output names a guard
+// the mode reached. A mode the fixture has no body for prints its own
+// refusal and returns, and a fault in a mode body prints neither, so the
+// report is what separates both from the abort under test. The
+// quick_enforce semantic terminates on a trap and reports nothing by
+// design, so the report cannot carry the check there.
+constexpr bool kViolationIsReported = SG_CONTRACTS_SEMANTIC != 3;
 
 struct mode_case
 {
@@ -79,6 +91,8 @@ auto run_mode(const std::string& fixture,
   const std::string content = body.str();
   const std::string marker = "counters-trap-survived-" + name;
   const bool printed_marker = content.find(marker) != std::string::npos;
+  const bool reported_violation =
+      content.find("(predicate: ") != std::string::npos;
 
   if (expect_abort) {
     if (status == 0) {
@@ -86,6 +100,16 @@ auto run_mode(const std::string& fixture,
                    "COUNTERS TRAP-CHECKED FAIL: mode '%s' exited 0, the "
                    "violation was not caught:\n%s\n",
                    name.c_str(),
+                   content.c_str());
+      return 1;
+    }
+    if (kViolationIsReported && !reported_violation) {
+      std::fprintf(stderr,
+                   "COUNTERS TRAP-CHECKED FAIL: mode '%s' exited %d without "
+                   "the contract facility's violation report, so no guard of "
+                   "that mode was reached:\n%s\n",
+                   name.c_str(),
+                   status,
                    content.c_str());
       return 1;
     }
