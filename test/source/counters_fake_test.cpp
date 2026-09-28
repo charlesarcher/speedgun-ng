@@ -89,7 +89,7 @@ auto number(const T value) -> std::string
 // The provenance record SC-008 names, assembled from the public surface
 // alone: the folded value, each constituent's raw window delta, and the
 // ratio disclosure. No artifact fixes the spelling, so the shape is
-// derived from the one example in the tree, spec.md:305's
+// derived from the one example in the tree, spec.md:315's
 // `IPC = 1.31 <- instructions 12.3e9 / cycles 9.4e9, ratio 0.98`:
 //
 //   <label> = <value> <- <leaf> <delta> / <leaf> <delta>, ratio <ratio>

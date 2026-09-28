@@ -362,7 +362,7 @@ runs and reports `lines 85.1% (1686 of 1982), functions 90.2% (230 of 255), bran
 - [X] T074 Stop dereferencing before checking: `include/speedgun-ng/counters_system.hpp:119` evaluates `dimension_of(*unit_from_token(leaf->unit))` and only tests `mapped.has_value()` at `:120-122`; test the inner `std::expected` first (HIGH, FR-017, `partial`)
 - [X] T075 Assign `enabled` and `running` on `pmu_fast_window` at `source/counters/linux_pmu/group_io.cpp:269-270` from the leader's `user_access_page::time_enabled`/`time_running` before yielding them at `:296-300`; today fast mode publishes a hardcoded multiplex ratio of 0 (HIGH, FR-041, `contradicts`)
 - [X] T076 Probe the two missing fast-read inputs in `source/counters/linux_pmu/fast_read.cpp`: the `perf_user_access` sysctl and the page `version`/`compat_version` fields declared at `:91-92` and `:120-121` and never read; correct T053's claim that mode assignment lives in `source/counters/plan.cpp`, since it happens in `linux_pmu/provider.cpp:193` and `clock_provider.cpp:234` (HIGH, R-011, `partial`)
-- [X] T077 Hoist the capability gate ahead of the instruction: test `user->cap_user_rdpmc` in `fast_context_read` at `source/counters/linux_pmu/fast_read.cpp` before the `_rdpmc` at `:283`, so the protocol order stated at `:40-42` and `source/counters/detail/pmu.hpp:165-166` actually holds (HIGH, FR-040, `contradicts`)
+- [X] T077 Apply the capability gate inside the decode, the ordering the code ships and the header documents: `fast_context_read` reads the page capability bit and issues the instruction under the index test alone at `:281`, and `fast_decode` applies the capability gate as its first check at `:86-88`. The hoist this task originally required was withdrawn by commit `2889608`, which deleted the gate and its comment from `fast_context_read` and moved the gate into the decode; the reason is recorded at `source/counters/detail/pmu.hpp:249-254`, where the header states that the caller reads the instruction only for a nonzero index, so the gate costs a page load and never an instruction (HIGH, FR-040, `contradicts`, amended)
 - [X] T078 Either read `event_page::lock` at `source/counters/linux_pmu/fast_read.cpp:122`, which is declared and never read anywhere in the repository, or amend T052's "seqcount `lock` snapshot" wording to name the index field the code compares at `:271` and `:287` (HIGH, FR-040, `partial`)
 - [X] T079 Reconcile `specs/007-counters-and-timers/plan.md:43` and `:365`, which register a `reinterpret_cast` P2 exception, with the `static_cast` at `source/counters/linux_pmu/fast_read.cpp:191` and `:264-265`; either spell the cast as the plan records it or amend the plan (HIGH, plan: Complexity Tracking, `contradicts`)
 - [X] T080 Add a forced-`syscall` read-mode override to `compile()` so `test/source/counters_overhead.cpp` measures one plan in both regimes, and assert the SC-004 binary check from `quickstart.md:108` that the fast median sits at least 100x below the syscall median; or amend `spec.md:301` and `quickstart.md:108` to the two-plan comparison the benchmark performs, and publish a fast row in `docs/pages/counters-overhead.md` whose `:63-94` section currently records no measurement (HIGH, SC-004, `partial`)
@@ -3850,3 +3850,357 @@ population is T283.
   does not return. No gate changes, no marker is added, and no file outside
   `specs/007-counters-and-timers/citations.md` moves (LOW, Constitution VIII,
   Constitution X.4, T206, T268, `partial`)
+
+## Phase 40: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `8a62b69`
+and of the residue the twenty-eight waves before it left. Nothing above this
+line changed.
+
+Audit evidence, all produced by this pass from the repository root on Linux.
+`python3 tools/prose/prose_gate.py --check all` exits 0, and
+`cmake -P cmake/prose-lint.cmake` exits 0 on the same verdict,
+`prose-lint: 135 sources, 12313 units examined, 0 findings, 1 skipped`, the
+one skipped source being `hwloc.md`. Both forms take their candidate file set
+and their per-line authorship filter from the range `collect_candidates` at
+`tools/prose/prose_gate.py:587` runs as `git diff -U1` at `:597` over the
+merge base with `origin/master` and the head, defaulting to `HEAD`, and
+`read_source` at `:842` reads the examined text from the working tree in both
+modes, as the call at `:936` shows. The working tree is clean and equals
+`8a62b69`, so at this head the total reproduces at
+`python3 tools/prose/prose_gate.py --check all --head 8a62b69`, which reports
+the same 135 sources and 12313 units; the same command at `b60b361`,
+`31363e8`, `9c5dfa5`, `b82fb7e` and `9da43ac` reports 131 and 10906, 130 and
+10849, 132 and 11315, 133 and 11585, and 134 and 11867, so the figure moves
+with the range. `python3 tools/prose/prose_gate.py --check prose --mode tree`
+exits 1 at
+`prose-lint: 183 sources, 19152 units examined, 108 findings, 0 skipped`,
+distributed 89 in `specs/001-dbc-facility/`, 9 in `test/`, 5 in `tools/dbc/`,
+3 in `docs/pages/dbc-overhead.md` and 2 in `include/speedgun-ng/`, every one
+outside the feature scope; the branch touches two of the files carrying them,
+`specs/001-dbc-facility/tasks.md` with 22 and `test/source/dbc_test.cpp` with
+2. Read narrowed to this feature,
+`python3 tools/prose/prose_gate.py --check prose --mode tree --paths
+specs/007-counters-and-timers docs/pages/counters-overhead.md` exits 0 at
+`13 sources, 6357 units examined, 0 findings, 0 skipped`.
+
+`ctest --test-dir build -N` exits 0 and reports `Total Tests: 37`, of which
+`ctest --test-dir build -N -R counters` reports 16. `cmake --preset=dev`
+exits 0, and `cmake --build --preset=dev` exits 0 over a fully incremental
+tree whose 26-line log reports `Built target` 26 times. `ctest --preset=dev`
+exits 0 with 100.0 percent of 37 tests passed, 0 failed, 0 skipped, in 43.89 s.
+`ctest --test-dir build -R prose_gate_fixtures` exits 0 with 1 of 1.
+`cmake --build build/dev -t format-check` exits 0.
+`cmake --build build/dev -t dbc-gate` exits 0, reporting
+`doc-gate: 135 interfaces, 0 gaps` and `pair-gate: 135 interfaces, 0 gaps`.
+`cmake -P cmake/spell.cmake` exits 0, and
+`python3 tools/pmu_events/update_pmu_events.py --check` exits 0.
+`bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 over
+21 source files at lines 100.0 percent (1955 of 1955), branches 100.0 percent
+(705 of 705), and functions 98.0 percent (289 of 295) on an axis no gate
+scores. The tracefile is timestamped 2026-09-28 10:21:54,
+`find source include test example tools/pmu_events -newer
+build/coverage/coverage.info` names `test/source/counters_trap_fixture.cpp`
+alone, and the tracefile's 21 `SF:` entries name no path under `test/` or
+`example/`, so the trace describes every file the gate measures.
+`cmake --preset=ci-ubuntu` exits 0, and `cmake --build build`, the release
+build Principle IX requires once per feature, exits 0 over a fully incremental
+26-line log holding 0 lines matching the token `warning` and 0 matching
+`error:`. No forced recompile ran, so this pass states no static-analysis
+diagnostic count. `bash test/counters_header_purity.sh` exits 0 at
+`counters_header_purity: clean`, and `bash test/counters_push_atomic_scan.sh`
+exits 0 at `counters_push_atomic_scan: clean`. `readelf -d` on
+`build/dev/example/counters_standalone_example` and on
+`build/dev/example/counters_giraffe_example` names `libstdc++.so.6`,
+`libgcc_s.so.1` and `libc.so.6` in each, with 0 `speedgun-ng` entries, and
+both executables exit 0; `ldd` on the standalone example names those three
+beside `libm.so.6`, `linux-vdso.so.1` and the loader.
+`./build/dev/test/counters_pmu_test` exits 0 reporting
+`pmu catalog: 581 table-selected entries beyond kernel aliases` beside
+`pmu availability: 358 countable, 0 permission_blocked, 261 not_encodable,
+356 fast_rdpmc` with `perf_event_paranoid = 1`.
+`./build/dev/test/counters_trap_fixture push-mixed-owner` exits 134 on the
+precondition at `source/counters/push_provider.cpp:120`. The feature scope
+carries 301 `LCOV_EXCL` tokens.
+
+Counting rule for every anchor total in this preamble, the rule
+`specs/007-counters-and-timers/citations.md:32-41` states, applied with
+CPython 3.14.7 `re.finditer` over whole matches `m.group(0)`: applied to
+`specs/007-counters-and-timers/tasks.md` lines 1 through 2422 the count is 702
+occurrences, 467 distinct tokens, and 420 bare continuations; lines 1 through
+2578 give 724, 476, and 449; lines 1 through 2905 give 776, 518, and 472; lines
+1 through 3192 give 815, 548, and 485; lines 1 through 3362 give 844, 565, and
+501; lines 1 through 3599 give 880, 579, and 540, so the figures the Phase 37,
+Phase 38, and Phase 39 preambles carry reproduce exactly; lines 1 through 3852
+give 921, 594, and 557 before this section appends its own. The nine live
+artifacts over their whole length give 44 occurrences, distributed `spec.md` 28,
+`plan.md` 7, `quickstart.md` 4, `research.md` 3, and
+`contracts/system-contract.md` 2, with none in `data-model.md`,
+`sg_counters.md`, `contracts/provider-contract.md`, or
+`contracts/measurement-contract.md`. `specs/007-counters-and-timers/citations.md`
+over its whole length gives 129 occurrences and 112 distinct tokens, the pair
+its own section records.
+
+Coverage of the check: 127 requirement keys, counted as 50 functional
+requirements numbering `FR-001` through `FR-050` with no gap, 10 success
+criteria numbering `SC-001` through `SC-010` with no gap, 49 user-story
+acceptance scenarios counted as US1 7, US2 7, US3 6, US4 6, US5 4, US6 7, US7 6,
+and US8 6, and 18 edge cases at
+`specs/007-counters-and-timers/spec.md:195-212`; 45 design keys, counted as 15
+research decisions `R-001` through `R-015`, 11 data-model entities `E-01`
+through `E-11`, and 19 contract clauses `C-MEA-1` through `C-MEA-7`,
+`C-PRO-1` through `C-PRO-6`, and `C-SYS-1` through `C-SYS-6`; and 11
+constitution principles with X.1 through X.4 and XI.1 through XI.6 read one by
+one. Re-measured here: the 9 headers `include/speedgun-ng/counters*.hpp`
+matches, the 11 translation units `find source/counters -name '*.cpp'`
+returns beside the 2 headers under `source/counters/detail/` and the 5 under
+`source/counters/linux_pmu/`, the 12 `add_executable(counters_` calls
+`test/CMakeLists.txt` carries, no line matching `TODO` or `FIXME` over the
+feature scope, the single `NOLINT` directive at
+`include/speedgun-ng/counters_measurement.hpp:634` carrying its reason in the
+same comment block at `:630-633`, and no `std::atomic` in
+`source/counters/push_provider.cpp` or in the push handle. Every one of the 44
+`file:line` anchors the nine live artifacts place was resolved and read
+against the claim its sentence makes, and each lands inside the file it names
+on non-blank text. The 19 anchors the code scope places were resolved under
+the same pattern: eleven carry the short form `plan.cpp:NNN` inside
+`source/counters/plan.cpp` and `source/counters/fold.cpp` and each lands on
+the text its comment names, and the remaining one, `spec.md:305` at
+`test/source/counters_fake_test.cpp:92`, names a blank line, which is T290
+below. The eleven commits at the tip were read in full with `git show`:
+`88bbd2c` removes the `target_kind::machine` enumerator and touches one file,
+and a search for that name over `source/`, `include/`, `test/`, and `example/`
+returns no line; `01f905b`, `30f6361`, `1827d76`, `f1d3023`, `9c5dfa5`,
+`b82fb7e`, `9da43ac`, and `8a62b69` touch no executable code; `31363e8` adds
+the mixed-owner refusal at `source/counters/push_provider.cpp:120` with the
+precondition it states at `include/speedgun-ng/counters_push.hpp:88-90` and
+the trap mode that drives it; and `b60b361` adds the accepted fold-lookup cost
+at `source/counters/detail/core.hpp:100-114`. The history of every file a
+finding cites was read to date the commit that moved it. No closure claim in
+the Phase 12 through Phase 39 preambles was accepted as evidence.
+
+Six findings: 3 `contradicts` and 3 `partial`; 1 HIGH, 2 MEDIUM, and 3 LOW.
+None is `missing` or `unrequested`, and none is a constitution MUST violation.
+One finding names a code shape two artifacts report as present; one names an
+acceptance clause the fold does not meet; one names a contract guard with no
+covering test; one names a gate-coverage property the record states
+incompletely; two name drifted pointers in the record's table and in one
+source comment. The code the earlier waves converged is untouched by every one
+of them. `T267`'s mixed-owner refusal is landed and its trap exits 134,
+`T271`'s accepted fold-lookup cost is recorded at
+`source/counters/detail/core.hpp:100-114`, `T272`'s six functions are named and
+explained at `specs/007-counters-and-timers/plan.md:459`, `T283`'s
+coverage-exclusion figure reads 301 and reproduces, and `T284`'s
+whole-repository distribution reproduces figure for figure above.
+
+The four residue items the previous passes reported were assessed on their own
+evidence, and three do not survive. The link manifest, a claim that has now
+taken four waves, survives in no live site: `specs/007-counters-and-timers/spec.md:31`
+and `specs/007-counters-and-timers/quickstart.md:25` each name the measured
+three, `specs/007-counters-and-timers/plan.md:33`, `:324`, and `:437`,
+`specs/007-counters-and-timers/contracts/measurement-contract.md:126`,
+`specs/007-counters-and-timers/contracts/provider-contract.md:56`, and
+`.github/workflows/ci.yml:148-152` state the demonstration without a count, and
+the only sites still enumerating four libraries are the closed task lines and
+dated preambles `specs/007-counters-and-timers/citations.md:376-379` already
+names, together with `T279`'s own task text, which is the subject of the
+finding that text reports. The red whole-tree gate beside a green range gate
+obliges nothing: the constitution's own gate is the range form at
+`.specify/memory/constitution.md:245-248`, every one of the 108 findings is
+pre-existing and outside the feature scope, and `T284` recorded the state with
+the distribution and the exit code, so the obligation `T284` left open is
+settled. The functions axis needs no scoring: Constitution VI at
+`.specify/memory/constitution.md:190-192` names line, branch, and DBC as its
+three hard gates, Principle VIII at `:258-260` makes a gate-set change a
+constitution amendment, `tools/dbc/coverage_gate.sh:25-27` and `:35-37` read
+the line row and the branch row alone, and the six uncovered entries are the
+defaulted `expression` constructor at
+`include/speedgun-ng/counters_measurement.hpp:619` and the deleting
+destructors the compiler emits for the defaulted virtual destructors at
+`include/speedgun-ng/counters_provider.hpp:110`, `:281`, and `:367`, which
+`specs/007-counters-and-timers/plan.md:459` names and explains. The fourth
+residue item survives, and it is T288 below.
+
+### HIGH: the capability gate `T077` hoisted ahead of the instruction is gone, and two artifacts report it as present
+
+- [X] T285 Record that `T077` at
+  `specs/007-counters-and-timers/tasks.md:365` is closed with a requirement the
+  code no longer carries, and correct the two rows that repeat the claim. The
+  task text reads `Hoist the capability gate ahead of the instruction: test
+  user->cap_user_rdpmc in fast_context_read at
+  source/counters/linux_pmu/fast_read.cpp before the _rdpmc at :283, so the
+  protocol order stated at :40-42 and
+  source/counters/detail/pmu.hpp:165-166 actually holds`, and the row at
+  `specs/007-counters-and-timers/citations.md:115` gives the landing as
+  `:281, the _rdpmc the hoisted capability gate now precedes`. The shipped
+  `fast_context_read` reads the capability bit at
+  `source/counters/linux_pmu/fast_read.cpp:272`, issues the instruction at
+  `:281` under an index test alone at `:278`, and applies the capability gate
+  as the first check of `fast_decode`, which is called at `:284` and returns
+  `not_allowed` at `:86-88` after the instruction has run.
+  `git show 2889608 -- source/counters/linux_pmu/fast_read.cpp` is the commit
+  that removed the hoist: its diff deletes, at the `1ff4128` revision, the
+  block reading `Capability gate ahead of the instruction (FR-040, R-011):
+  the published protocol tests the capability before it takes the read, so a
+  caller the kernel grants no read capability never pays for the instruction`
+  together with `if ((user->cap_user_rdpmc & 1U) == 0) { return
+  fast_read_verdict::not_allowed; }`, and adds the comment at `:262-266` that
+  `fast_decode` applies the gates. `FR-040` at
+  `specs/007-counters-and-timers/spec.md:271` names capability gating among the
+  protocol steps, and the comment at `source/counters/linux_pmu/fast_read.cpp:82-85`
+  states the decode order the code does follow, so the two artifacts above are
+  the ones that assert the removed shape. The second `T077` row, at
+  `specs/007-counters-and-timers/citations.md:116`, gives
+  `source/counters/linux_pmu/fast_read.cpp:41-43` and
+  `source/counters/detail/pmu.hpp:166-168` as the landing, and those ranges
+  hold the `fast_index_valid` comment and the `pmu_device` comment, so that
+  landing names no protocol-order text either. Record which of the two
+  orderings governs: the decode gate as the settled one, which restates the
+  task's requirement to the shape the code has, or the instruction gate, which
+  reinstates the hoist. Correct both rows either way, `T077` and every dated
+  preamble keep their bytes, and the record's counting rule and every figure it
+  carries keep their values (HIGH, FR-040, R-011, T052, T077, T137, T139,
+  T253, `contradicts`)
+
+### MEDIUM: US6 scenario 6 requires a scaled value, and the fold discloses a ratio
+
+- [X] T286 Settle the third clause of US6 scenario 6 at
+  `specs/007-counters-and-timers/spec.md:150`, which reads `and the value is
+  the scaled estimate the kernel computed`, against the shipped fold and
+  against the closed task text at
+  `specs/007-counters-and-timers/tasks.md:159` that carries the same clause as
+  `ratio below 1, scaled set, value is the kernel scaled estimate`. A leaf node
+  returns the raw modular delta as `static_cast<double>(delta)` at
+  `source/counters/fold.cpp:45-46`, no scaling appears on the path, the
+  disclosure the fold returns is the product of the constituent ratios at
+  `:170-177`, and `test/source/counters_pmu_test.cpp:644-650` states the
+  consequence and calls the fold right, so no assertion anywhere asks for a
+  scaled value. `FR-019` at `specs/007-counters-and-timers/spec.md:244` and
+  the clarification at `:25` make the disclosure a triple of value, ratio, and
+  scaled flag, and neither scales the value; the product form also makes a
+  scaled value meaningless for the scenario's own composite, because a sum of
+  64 oversubscribed members at a kernel fraction near 0.4 discloses a ratio
+  near zero, as this pass measured on this host, where
+  `./build/dev/test/counters_pmu_test` printed
+  `running_ratio 0.000000 with scaled 1` beside a granted fraction of 0.384213.
+  A kernel group read publishes `time_enabled` and `time_running` and leaves
+  the scaling to its caller, so no read yields a scaled estimate to report. The
+  resolution is a requirement decision, which Principle IX makes binding and
+  Principle III takes a DCR for, so this pass records the gap and names the two
+  readings: amend the scenario to state that the fold discloses the fraction and
+  the flag and leaves scaling to the caller, or scale the value by the
+  disclosed ratio, which then contradicts `FR-019`'s product-of-ratios
+  disclosure for every composite. No code, gate, threshold, and no requirement
+  number or position moves until the decision is recorded (MEDIUM, FR-019,
+  FR-041, US6 scenario 6, T043, T134, Constitution III: Design Change Request,
+  Constitution IX, `contradicts`)
+
+### MEDIUM: the `FR-035` sampling-side guard `T267` named has no covering trap mode
+
+- [X] T287 Add a trap mode that drives the tier-3 sampling-side violation
+  `FR-035` requires, or record at the guard why the construction refusal
+  `T267` added leaves the site without a covering test. `T267` at
+  `specs/007-counters-and-timers/tasks.md:3024-3058` reported that no test
+  reached the guard's violating branch and asked for a trap mode that drives
+  the violation; the fix that landed took the task's second branch and added
+  the refusal at `source/counters/push_provider.cpp:120` with the trap mode
+  `push-mixed-owner` at `test/source/counters_trap_fixture.cpp:120-155`, while
+  the guard the report named, the window owner compare at
+  `source/counters/push_provider.cpp:40-43`, is the only site that detects a
+  single-owner leaf sampled from a thread other than its owner, because
+  `sample_point` binds the plan to the compiling thread at
+  `source/counters/plan.cpp:61-62` and a leaf set carrying one owner passes the
+  refusal. The nine modes the fixture registers are `metric-before-finish`,
+  `fold-range`, `fold-out-of-extent`, `push-cross-thread`, `push-decrement`,
+  `push-mixed-owner`, `recorder-cross-thread`, `scope-cross-thread`, and
+  `overrun`; `push-cross-thread` calls `add` on a foreign thread and trips the
+  handle guard at `include/speedgun-ng/counters_measurement.hpp:335`, and
+  `recorder-cross-thread` and `scope-cross-thread` trip the plan binding, so
+  none reaches `:40`. Reproduced in this session by a program compiled outside
+  the repository against `build/dev/libspeedgun-ng.a` and this tree's headers:
+  one `push_provider` with a counter declared on the main thread and a second
+  declared on a joined worker that adds 10, a leaf set naming the worker's
+  counter, a plan compiled and sampled on the main thread, and two `sample()`
+  calls; the run aborts with exit 134 on `[precondition] push counters are
+  sampled on the thread that created them (FR-035) (predicate:
+  std::this_thread::get_id() == owner) at
+  /home/archerc/code/speedgun-ng/source/counters/push_provider.cpp:40`, which
+  is the violation no mode reaches. The new mode must keep the add a plain
+  non-atomic increment and the sample read a plain load, must stay
+  semantic-gated, and must leave the plan binding and the mixed-owner refusal
+  as they are (MEDIUM, FR-035, FR-046, US4 scenario 2, US7 scenario 5, T267,
+  Constitution VI, plan: Test Plan threading row, `partial`)
+
+### MEDIUM: the range form's per-line default is recorded nowhere, and the record names one condition
+
+- [X] T288 Record in `specs/007-counters-and-timers/citations.md` that the
+  range form examines a line only when the range's authorship map holds an
+  entry for it, so a new line the committed range has no entry for is examined
+  by `--mode tree` alone, and correct the sentence that names one condition
+  where the code has two. `tools/prose/prose_gate.py:959` reads `status =
+  authorship.get(path, {}).get(lineno, "grandfathered")` and `:960-961` skips a
+  `grandfathered` line, while `collect_candidates` at `:587` builds that map
+  from the `git diff -U1` at `:597` and returns `authorship = None` only in
+  tree mode, where `:592` lists the candidates with `git ls-files`, and
+  `read_source` at `:842` reads the examined text from disk in both modes, as
+  the call at `:936` shows. The record's paragraph at
+  `specs/007-counters-and-timers/citations.md:233-243` names `a file predating
+  the range's left edge` as what leaves a line unexamined, which covers a
+  file outside the candidate set and leaves the per-line default unnamed, and
+  the token `grandfathered` appears in no artifact of this feature. A committed
+  line the branch's own diff added always has an entry, so the range form's
+  green verdict still covers the branch's added prose; the unexamined
+  population is an uncommitted insertion inside a ranged file, whose number
+  the map holds nothing for, and a pre-existing line of a file the range
+  touches. The Phase 34 preamble at
+  `specs/007-counters-and-timers/tasks.md:2432-2435` reads `the text it
+  examines from the working tree, so an uncommitted line inside a ranged file
+  is examined, and no commit reproduces the total`, whose clause overstates for
+  the insertion case that paragraph's own account leaves out; that preamble
+  keeps its bytes under the Immutability clause of Pull Request Quality, so
+  the correction belongs in the record. The record must name both conditions,
+  state that a range figure reproduces at a head only when the working tree
+  equals that head, and keep the counting rule and every figure it carries
+  (MEDIUM, Constitution X.4, Constitution XI.6, T206, T269, T275, T284,
+  `contradicts`)
+
+### LOW: four rows of the anchor table name the wrong line in `tasks.md`
+
+- [X] T289 Correct the `Line in tasks.md` column of the four rows at
+  `specs/007-counters-and-timers/citations.md:115`, `:116`, `:126`, and
+  `:127`, which read `364` for `T077` and `391` for `T101` where those task
+  lines stand at `specs/007-counters-and-timers/tasks.md:365` and `:392`, so
+  those numbers name `T076` and `T100` and a reader who follows the column
+  reaches the adjacent task. The other task-keyed rows of the table carry
+  their own line, resolved in this pass under the same read: `T072` 357,
+  `T076` 364, `T078` 366, `T079` 367, `T080` 368, `T091` 379, `T129` 423,
+  `T145` 493, `T166` 581, `T171` 589, `T195` 1066, `T231` 1828, `T236` 1968,
+  `T274` 3308, and the `T255` and `T256` rows name lines inside those task
+  bodies at `:2355` and `:2365`, which is the sense the column takes there and
+  needs no change. The two `T101` rows' own landings reproduce, at
+  `source/counters/system.cpp:163` and `source/counters/clock_provider.cpp:232`,
+  and `T101`'s requirement is met, since
+  `test/source/counters_clock_push_test.cpp:240` and `:247` read
+  `catalog_entry::scaled`; the two `T077` rows' landings are the subject of
+  T285 above. No row's landing, no dated preamble, and no closed task line
+  moves, and the counting rule and every figure the record carries keep their
+  values (LOW, Constitution X.4, T253, T260, T278, T285, `partial`)
+
+### LOW: a live test comment names a blank line for the record `SC-008` derives
+
+- [X] T290 Correct the anchor at `test/source/counters_fake_test.cpp:92`, which
+  reads `the shape is derived from the one example in the tree, spec.md:305's
+  IPC = 1.31 <- instructions 12.3e9 / cycles 9.4e9, ratio 0.98`, where
+  `specs/007-counters-and-timers/spec.md:305` is blank and the `SC-008`
+  sentence carrying that example stands at `:315`, and where the record's drift
+  criteria at `specs/007-counters-and-timers/citations.md:91-93` cover the
+  blank-line case while the record's own population at `:43-50` is the Phase 1
+  through Phase 33 record in `tasks.md`, which a source comment sits outside. A
+  source comment is live text, so the correction belongs at the comment and
+  stays out of the record, and the eleven short-form `plan.cpp:NNN` anchors the
+  code scope places inside `source/counters/plan.cpp` and
+  `source/counters/fold.cpp` all land on the text their comments name, so this
+  is the one anchor in the code scope that fails the second criterion. The
+  expected string the helper builds at `:96-113` and the assertion at
+  `:480-482` keep their bytes, and the test keeps passing (LOW, Constitution
+  IV, SC-008, T084, T253, `partial`)
