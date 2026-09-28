@@ -200,7 +200,7 @@ jobs:
         sudo apt-get update -q &&
         sudo apt-get install autoconf automake libtool patch doxygen python3-yaml lcov -q -y
     - name: Configure
-      run: cmake -S . -B build-shared -D BUILD_SHARED_LIBS=ON -D CMAKE_BUILD_TYPE=Release
+      run: cmake --preset=ci-linux-audit -B build-shared -D BUILD_SHARED_LIBS=ON -D CMAKE_BUILD_TYPE=Release
     - name: Build
       run: cmake --build build-shared -j 2
     - name: Install
@@ -261,7 +261,7 @@ jobs:
         && cmake --build sys-yaml -j 2
         && sudo cmake --install sys-yaml --prefix /usr/local
     - name: Install library
-      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+      run: cmake --preset=ci-linux-audit -B build -D CMAKE_BUILD_TYPE=Release
         && cmake --build build -j 2
         && cmake --install build --prefix prefix
     - name: Configure consumer

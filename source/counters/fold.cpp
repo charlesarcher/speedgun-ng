@@ -111,10 +111,10 @@ struct fold_context
 {
   const auto& entry = ctx.layout.slots[slot];
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the second operand can
-  // never be the deciding one. `link_ratio_slots` (`plan.cpp:120-145`) writes
-  // `ratio_enabled` and `ratio_running` together or leaves both at
-  // `no_ratio_slot`, so a slot that passes the first test always passes the
-  // second.
+  // never be the deciding one. `link_ratio_slots` (`plan.cpp:135-158`) writes
+  // `ratio_enabled` and `ratio_running` together at `plan.cpp:150-156` or
+  // leaves both at `no_ratio_slot`, so a slot that passes the first test
+  // always passes the second.
   if (entry.ratio_enabled == plan_impl::no_ratio_slot
       || entry.ratio_running == plan_impl::no_ratio_slot)  // LCOV_EXCL_BR_LINE
   {
@@ -155,7 +155,7 @@ struct ratio_result
     const auto located = ctx.layout.by_address.find(leaf.address);
     // LCOV_EXCL_BR_START : coverage exclusion (T066): a fan-out
     // instantiates the exemplar for every selected path and compiles those
-    // instances (`plan.cpp:513-531`), so every address a fan-out fold looks
+    // instances (`plan.cpp:551-572`), so every address a fan-out fold looks
     // up is in the layout address table by construction. A plain plan
     // compiles the caller own expression, so its leaves are in the table
     // as well.

@@ -83,9 +83,9 @@ auto exemplar_prefix(const detail::expr_core& core) -> std::string
 {
   // LCOV_EXCL_BR_START : coverage exclusion (T066): both guards are
   // unreachable. A zero-leaf expression is refused by `compile_core`
-  // (`plan.cpp:391`) before a fan-out ever calls this, and every address
-  // reaching here was written by `instantiate_core` as
-  // `path + "/" + name`, so a separator is always present.
+  // (`plan.cpp:417`), and for a fan-out by `compile_fanout_core`
+  // (`plan.cpp:536`). Every address reaching here was written by
+  // `instantiate_core` as `path + "/" + name`: a separator is always present.
   if (core.leaves.empty()) {  // LCOV_EXCL_BR_LINE
     return {};  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_STOP
@@ -110,7 +110,7 @@ auto availability_name(const availability state) -> std::string_view
 {
   // LCOV_EXCL_START : coverage exclusion (T066): the `countable` arm.
   // `availability_name` runs only on the construction-failure path at
-  // `plan.cpp:420`, and a leaf the catalog reports as `countable` never
+  // `plan.cpp:456`, and a leaf the catalog reports as `countable` never
   // takes it.
   switch (state) {
     case availability::countable:  // LCOV_EXCL_LINE
