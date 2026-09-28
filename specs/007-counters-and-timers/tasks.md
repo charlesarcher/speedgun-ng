@@ -825,8 +825,8 @@ pre-`T175` fan-out exemplar passes the node-count guard, reaches `exemplar_prefi
 scaled operand's delta of 400 differs from every other leaf of its composition, so a
 dropped remap moves 2.875. The `denominator` leaf the splice case stopped reading is still
 read at `test/source/counters_fake_test.cpp:610-620`, so that change left no orphan. A
-closed task's citations describe the tree it was written against, which is why `T184`
-still names `.specify/memory/constitution.md:250` where the clause now stands at `:258-264`.
+closed task's citations describe the tree it was written against, so `T184`'s citation
+moved with the clause and now names `.specify/memory/constitution.md:279-287` at `:770`.
 
 Coverage of the check: 127 requirement keys (50 FR, 10 SC, 49 user-story acceptance
 scenarios, 18 spec edge cases), 32 plan decision keys (R-001 through R-015, the nine
@@ -853,7 +853,7 @@ jobs, and the two trees that previously carried no committed set take it through
 configurations the constitution requires are still built by no job, `ci-macos` and
 `ci-windows`, and both absences are recorded in the constitution itself, at the Open
 deferral `.specify/memory/constitution.md:59-64` for the macOS runner and inside Principle
-VIII at `:211-216` for the MSVC suspension, so they are deferrals with owners and spec-004
+VIII at `:232-237` for the MSVC suspension, so they are deferrals with owners and spec-004
 and spec-005 tasks already open under them. What the clause leaves behind is a text defect
 instead of a missing build: its MUST names no platform while its prescription names one,
 and `AGENTS.md:43-44` repeats that single preset four lines above the sentence at `:48-50`
@@ -884,3 +884,99 @@ it claims.
 ### LOW: four exclusion justifications cite lines holding other code
 
 - [X] T188 Re-anchor the four coverage-exclusion justifications whose cited lines hold other code, the class `T177` removed from this tree: `source/counters/plan.cpp:113` names `plan.cpp:420` for the construction-failure path, while the file's only `availability_name` call stands at `source/counters/plan.cpp:456`; `source/counters/plan.cpp:86` names `plan.cpp:391`, `compile_core`'s opening brace, for the zero-leaf refusal that stands at `source/counters/plan.cpp:417`; `source/counters/fold.cpp:114` names `plan.cpp:120-145` for `link_ratio_slots`, which spans `source/counters/plan.cpp:135-158` and writes the enabled/running pair at `:150-156`; and `source/counters/fold.cpp:158` names `plan.cpp:513-531` for the fan-out instantiation and compile, which stand at `source/counters/plan.cpp:551-572` after the five lines `afd851e` added below `:511`; each comment must cite the lines holding its claim, following the exclusion at `source/counters/plan.cpp:511-515` that `afd851e` re-anchored and this pass verified line by line, and no marker may be added, moved off an executable line, or removed, and no exclusion may be widened (Constitution VI, plan: Complexity Tracking, T177, `contradicts`)
+
+## Phase 19: Convergence
+
+Appended by `/speckit.converge` after an audit of `11bc422` and of the residue the six
+waves before it left. Nothing above this line changed.
+
+Audit evidence, all produced by this pass. `cmake --preset=ci-ubuntu` then
+`cmake --build build` exits 0 with zero warnings in the project's own C++ sources, and
+`ctest --test-dir build` runs all 37 in 43.31 s with 0 failed and 0 skipped.
+`dbc-gate` reports 135 interfaces with 0 gaps in the doc gate and 0 in the pair gate,
+`format-check` exits 0, and `cmake -P cmake/spell.cmake` exits 0.
+`python3 tools/prose/prose_gate.py --check all` exits 0 over 107 sources and 7846 units
+with 0 findings and 1 skipped; `--mode tree` reports 108 findings over 224 sources, and
+the two inside `test/source/dbc_test.cpp` are ruled out of this feature on the grounds
+Phase 18 established. `build/coverage/coverage.info` carries mtime 23:46:53, later than
+the newest source in the tree (23:34:53, `source/counters/fold.cpp`), and
+`bash tools/dbc/coverage_gate.sh` exits 0 at lines 100.0% (1955 of 1955), branches
+100.0% (705 of 705), functions 98.0% (289 of 295). `python3
+tools/pmu_events/update_pmu_events.py --check` exits 0. A fresh `ci-linux-audit` tree
+configured into `/tmp` carries the committed `flags-gcc-clang` set in
+`CMAKE_CXX_FLAGS`, `-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3` in
+`CMAKE_CXX_FLAGS_RELEASE`, `speedgun-ng_CONTRACTS:STRING=enforce` and
+`speedgun-ng_DEVELOPER_MODE:BOOL=OFF`, which is what `T186` claimed and what no earlier
+pass measured.
+
+The code reproduces every claim Phase 18 made about it. The four exclusion
+justifications `T188` re-anchored each resolve to the code they describe:
+`source/counters/plan.cpp:456` is the `availability_name` call, `:417` and `:536` are
+the two zero-leaf refusals, `source/counters/plan.cpp:135-158` is `link_ratio_slots`
+with the enabled/running write at `:150-156`, and `:551-572` is the fan-out
+instantiation and compile. The exclusion at `source/counters/plan.cpp:511-515` cites
+`:436`, `:442`, `:481`, `:492` and `:496`, and each holds the statement the reason
+attributes to it. The `LCOV_EXCL_*` count inside this feature's own scope,
+`source/counters/**` plus `include/speedgun-ng/counters*.hpp`, is 304, which is the
+figure `plan.md:454` records; the 308 a whole-tree count returns differ by the four
+tokens in `include/speedgun-ng/dbc.hpp`, which spec 001 owns. `FR-035`'s
+push-decrement check is enforced at `source/counters/fold.cpp:211` and driven by
+`test/source/counters_trap_fixture.cpp:112`, so US4 scenario 6 and the matching Edge
+Case are covered. `FR-010`'s purity scan exempts `fast_rdpmc` for a reason stated at
+`test/counters_header_purity.sh:22-36`, and `FR-049`'s standalone example resolves to
+`libstdc++`, `libgcc_s`, `libc` and `libm` with zero `speedgun-ng` entries under both
+`readelf -d` and `ldd`. `format-check`'s `GLOB_RECURSE` patterns at
+`cmake/lint.cmake:12-15` reach `source/counters/**` and `include/speedgun-ng/**`, and
+every counters source and header this pass sampled matches `clang-format` exactly.
+
+Coverage of the check: 127 requirement keys (50 FR, 10 SC, 49 user-story acceptance
+scenarios, 18 spec edge cases), 32 plan decision keys, and 11 constitution principles
+with X.1 through X.4 and XI.1 through XI.6 read one by one. Four findings: 4
+`contradicts`; 1 HIGH, 2 MEDIUM, 1 LOW. No requirement is missing and no requirement is
+partially built.
+
+All four findings are the one class the constitution's own Sync Impact Report predicted.
+The 2.9.1 amendment grew the file from 588 lines to 612, and `:19-20` states the
+consequence in its own words: "This report shifts every line in the file, so a citation
+into the constitution, including the Phase 18 citations in
+`specs/007-counters-and-timers/tasks.md`, needs re-anchoring by the next convergence
+pass." The report named the debt and the wave that owes it, and `11bc422` settled three
+of the five citations it touched while leaving three others naming lines that hold
+different text.
+
+The shift is not one number, and that is what the three hunks of the amendment's diff
+record: `2c2,23` grows the comment block, `262,264c283,287` replaces the three-line
+release-build clause `11bc422` widened, and `573a597` adds the lineage row. An anchor
+below old line 262 therefore moved by 21, one between old lines 265 and 573 by 23, and
+one below old line 574 by 24, so `:211` and `:258-264` sit above the widened clause and
+`:443`, `:447-448` and `:554-556` sit below it. `T189` and `T190` carry the two
+different shifts, and no clause was renumbered, only moved.
+
+What `11bc422` got right, verified anchor by anchor against `HEAD~1`. `T073` moved
+`constitution.md:424-425` to `:447-448` and the two ranges hold identical text.
+`T106` moved `:531-533` to `:554-556` and they match. `T184` moved `:250` to
+`:279-287`, and `:279` is where the per-task verification clause starts.
+`prose_rules.yaml:19` moved `:443` to `:466`, and both lines held the `prose-lint`
+enforcement bullet, so the shift preserved an anchor that was already wrong, which is
+`T190` below. `T187`'s own citations into `AGENTS.md:43-44` and `:48-50` and
+`CMakePresets.json:156-158` hold: `AGENTS.md:43-44` carries the per-platform release
+presets, `:48-50` carries the machine-local presets sentence and the matrix paragraph
+naming macOS and Windows, and `CMakePresets.json:156-158` is the `ci-multi-config`
+block whose `CMAKE_CONFIGURATION_TYPES` the `Xcode` generator reads, with the
+`ci-macos` preset itself at `:161-164`.
+
+### HIGH: the amendment's own Sync Impact Report named the debt, and two citations still name other text
+
+- [X] T189 Re-anchor the two Phase 18 preamble citations into the constitution that the 2.9.1 Sync Impact Report at `.specify/memory/constitution.md:19-20` names as owed to this pass, where the 23-line header insert moved both: `:855-856` places the MSVC suspension "inside Principle VIII at `:211-216`", and that range holds the P0-techniques bullet, the distributions bullet, and the per-platform baselines bullet, while the suspension stands at `.specify/memory/constitution.md:232-237`; `:829` places the per-task verification clause at `:258-264`, and that range holds the gate-weakening bullet, the `### IX.` heading, and Principle IX's first two lines, while the clause stands at `:279-287` and `T184`'s own body at `:770` already names it correctly, so the preamble at `:829` asserts of `T184` that it "still names `.specify/memory/constitution.md:250`" on a line whose `T184` names `:279-287`; each amended citation must name the line holding its claim, the `:829` sentence must stop asserting a state of `T184` that the same file contradicts, and the constitution, the `Sync Impact Report`, the version, and the lineage row may not move (Constitution IX, IV, T187, `contradicts`)
+
+### MEDIUM: a shifted anchor preserved an error the shift created
+
+- [X] T190 Point `tools/prose/prose_rules.yaml:19` at the line that holds the `runner` section token, which stands at `.specify/memory/constitution.md:515` and names `(`CMake`, `Docs`, `runner`, `dbc`)` as the Section vocabulary; the comment currently cites `:466`, which holds the `prose-lint` enforcement bullet, and `11bc422` reached it by shifting the previous `:443` by the amendment's 23 lines while `:443` already held that same bullet at `HEAD~1` and the token stood at `:492` there, so the shift preserved the error instead of correcting it; the citation must name the line holding the token, the `runner` entry itself at `tools/prose/prose_rules.yaml:28` may not move, and no rule may be added, removed, or renamed (Constitution IV, specs/002 R-11, D4, T114, `contradicts`)
+
+### MEDIUM: the quickstart records a suite size the tree no longer has
+
+- [X] T191 Restate the two suite counts in the SC-002 row at `specs/007-counters-and-timers/quickstart.md:138`, which reads "the suite is 35 tests and all 35 pass, none skipped" and reports "`ctest --test-dir build/dev -R counters` 14 passed, 0 skipped, exit 0", while `test/CMakeLists.txt` registers 37 `add_test` entries, `ctest --test-dir build -N` reports 37, and `-R counters` selects 16, because `8848f4e` registered `counters_standalone_example` and `counters_giraffe_example` after `6e6e769` wrote the row; the counts must match the tree the row reports on, the PASS verdict stands on the 37 of 37 this pass measured, and no SC row's verdict, evidence filename, or `permission_blocked` finding may change (Constitution X.4, plan: Test Plan, quickstart §SC-002, `contradicts`)
+
+### LOW: four citations in the owning spec drifted the same way
+
+- [X] T192 Re-anchor the four citations into the constitution that `specs/002-prose-commit-lint` owns, all correct at `a00b208` and all stale now: `contracts/rule-data.md:25` and `data-model.md:88` and `research.md:413` name `constitution.md:443` for the `runner` section token, and `research.md:248` names `constitution.md:361-388` for the span Principle XI quotes its own banned vocabulary across, where 443 held the token and XI ran 324 to the file's end at `a00b208`, while the token is at `.specify/memory/constitution.md:515` and XI runs `:387-476`; `T114` records that `specs/002` owns `tools/prose/prose_rules.yaml`, so the fix lands in the owning spec's own change and the four citations must each name the line holding its claim, with no rule, token, or decision in `rule-data.md` or `data-model.md` altered (Constitution IV, IX, T114, T190, `contradicts`)

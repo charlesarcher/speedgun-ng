@@ -22,7 +22,7 @@ marker: "prose-lint: allow"        # FR-005, R-06
 
 sections:                          # FR-010, seeded from history plus the
                                    # constitution example token `runner`
-                                   # (constitution.md:443), R-11, D4
+                                   # (constitution.md:515), R-11, D4
   - CMake
   - CI
   - Constitution

@@ -85,7 +85,7 @@ non-imperative shape list, the exclusions, and the thresholds.
 | --- | --- | --- | --- |
 | `version` | integer | Must be 1; unknown versions exit 2 | Data evolution |
 | `rules` | list of Rule | Non-empty, ids unique, all seven canonical prose rule ids present, checked by id so dropping one of the two XI.5 rules fails load | FR-001, FR-023 |
-| `sections` | list of strings | Non-empty, case-sensitive, seeded with ten tokens, the eight observed plus `runner` named by the constitution's example section areas (`constitution.md:443`) and `Counters` for the 007 subsystem: `CMake`, `CI`, `Constitution`, `Counters`, `Docs`, `Meta`, `dbc`, `deploy`, `runner`, `test` | FR-010, R-11, D4 |
+| `sections` | list of strings | Non-empty, case-sensitive, seeded with ten tokens, the eight observed plus `runner` named by the constitution's example section areas (`constitution.md:515`) and `Counters` for the 007 subsystem: `CMake`, `CI`, `Constitution`, `Counters`, `Docs`, `Meta`, `dbc`, `deploy`, `runner`, `test` | FR-010, R-11, D4 |
 | `vague_titles` | list of strings | Non-empty, matched case-insensitively against the whole title | FR-012 |
 | `non_imperative_shapes` | list of strings | Non-empty; entries are word forms such as `Added`, `Adds`, `Fixing`, `Fixes`, `Update of`, `was added` | FR-011, R-11 |
 | `exclusions` | list of path prefixes | Non-empty; seeded with `.opencode/`, `.specify/scripts/`, `.specify/templates/`, `build/`, `docs/images/` | FR-006, R-05 |

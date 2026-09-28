@@ -245,7 +245,7 @@ matches the mandatory-reason shape but not the reason text; a file-level
 exclusions list in R-05 already serves that need with less force.
 
 **Consequence to record in the rule file**: Principle XI quotes its own
-banned vocabulary (`constitution.md:361-388`), and the commit template
+banned vocabulary (`constitution.md:387-476`), and the commit template
 block quotes `genuinely trivial` (`constitution.md`, Pull Request
 Quality). Those lines are exempt today through XI.6's literal clause and
 through the fenced-block auto-exemption, implicitly. The rule file shall
@@ -410,7 +410,7 @@ is rejected when its first word or a passive shape matches an entry in
 
 Amendment (002 review): `sections` carries nine tokens, the eight observed
 plus `runner`, a token the constitution's own example of section areas
-names (`constitution.md:443`), per decision D4.
+names (`constitution.md:515`), per decision D4.
 
 **Rationale**: Full grammatical detection is out of scope by spec
 (`spec.md:21`, `spec.md:177`), and the observed failure shapes are few.
