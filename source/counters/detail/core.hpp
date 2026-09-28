@@ -96,6 +96,22 @@ struct plan_impl
   // compile, so a program bound to the compiled objects covers few
   // folds, and one keyed on a compiled expression's address covers
   // whichever composite lands there (FR-022).
+  //
+  // The cost this decision accepts, recorded here because the decision
+  // site is where a reader looks for it (Constitution X.1). A fold
+  // resolves each of its leaves through this map with one lookup at
+  // `source/counters/fold.cpp:43`, and `fold_pairs_core` at `:237-238`
+  // calls the fold once per committed point pair, so a pair fold over
+  // `N` committed points repeats every lookup `N - 1` times. The ceiling
+  // that makes it acceptable is that the fold runs off the measurement
+  // path: `recorder::sample()` never reads this map, and
+  // `specs/007-counters-and-timers/plan.md:31` designates
+  // `recorder::sample()` and push `add()` as the critical paths. A plan
+  // over `L` leaves and `N` committed points therefore costs `(N - 1) *
+  // L` lookups in the untimed reporting region, linear in the size of
+  // the recorded window. Slot references stored per composite would
+  // remove the lookup and would bind the plan to the composites that
+  // existed at compile time, which is the reading T091 rejected above.
   std::map<std::string, std::size_t> by_address;
   std::vector<read_group> groups;
   // Recorder arenas: one buffer per minted recorder, owned by the
