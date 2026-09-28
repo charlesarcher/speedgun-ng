@@ -44,7 +44,7 @@ Validation: `objects(kind=..., attribute filters)` returns exactly the matching 
 | `description` | string | FR-005 |
 | `unit` | unit string plus its dimension mapping | closed switch: recognized unit to `time^T x events^C`; unrecognized is a resolution error (FR-017) |
 | `availability` | `countable` / `permission_blocked` / `not_encodable` / `absent` | described-ness from data and countability from probe are separate predicates (FR-006) |
-| `read_mode` | achieved mode where applicable: `fast_tsc` / `fast_rdpmc` / `syscall` / `push_load` | recorded at plan compile from probe (FR-023); disclosed per catalog entry |
+| `read_mode` | achieved mode where applicable: `fast_tsc` / `fast_rdpmc` / `syscall` / `push_load` | recorded by the provider's enumeration-time probe, before the catalog freezes at the open boundary (FR-023); disclosed per catalog entry |
 
 Validation: user code branches on this state alone; no compile-time platform branching in the public API (FR-007).
 

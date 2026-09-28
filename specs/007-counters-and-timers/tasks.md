@@ -182,8 +182,8 @@ Per plan.md Project Structure: public surface flat in `include/speedgun-ng/count
 
 ### Implementation for User Story 7
 
-- [X] T052 [US7] Implement `source/counters/linux_pmu/fast_read.cpp`: per-thread `perf_event_open` context, single-page read-only `mmap`; read descriptor implementing the mapped-page protocol in order - seqcount `lock` snapshot + retry, `rmb` fences, `cap_user_rdpmc` capability gate, one-based `index` validity with the stated fallback path when not allowed, `_rdpmc(index - 1)`, kernel offset adjustment, `(val + offset) & 0xFFFFFFFFFFFF` counter-width mask, per-thread same-thread context binding (FR-040, R-011, US7 scenario 2); P2 `reinterpret_cast` at the kernel ABI boundary with written justification at the site + attribution comment citing `jevents/rdpmc.{c,h}` from andikleen/pmu-tools (no file copied) (plan Complexity Tracking)
-- [X] T053 [US7] Implement per-leaf mode assignment at plan compile in `source/counters/plan.cpp`: probe mechanism availability, the `perf_user_access` sysctl on affected Intel parts, version, pinning/index validity - achieved mode recorded per leaf and disclosed in the catalog; support probed, never assumed (FR-023, R-011, US7 scenario 1)
+- [X] T052 [US7] Implement `source/counters/linux_pmu/fast_read.cpp`: per-thread `perf_event_open` context, single-page read-only `mmap`; read descriptor implementing the mapped-page protocol in order - seqcount `lock` snapshot + retry, `rmb` fences, `cap_user_rdpmc` capability gate, one-based `index` validity with the stated fallback path when not allowed, `_rdpmc(index - 1)`, kernel offset adjustment, the counter width `pmc_width` publishes on that page as the mask, per-thread same-thread context binding (FR-040, R-011, US7 scenario 2); a standard `static_cast` of the mapping base to the kernel's own `perf_event_mmap_page` from `<linux/perf_event.h>`, which carries no P2 exception + attribution comment citing `jevents/rdpmc.{c,h}` from andikleen/pmu-tools (no file copied) (plan Complexity Tracking)
+- [X] T053 [US7] Implement per-leaf mode assignment in the providers' enumeration path, which runs before the catalog freezes at the open boundary and before `source/counters/plan.cpp:469` binds the plan target: probe mechanism availability, the `perf_user_access` sysctl on affected Intel parts, version, pinning/index validity - achieved mode recorded per leaf and disclosed in the catalog; support probed, never assumed (FR-023, R-011, US7 scenario 1)
 - [X] T054 [US7] Implement per-plan overhead calibration in `source/counters/plan.cpp`: after finalization, repeatedly run the plan's `sample()` over an empty workload, store min/median/max ns on the plan, expose `sample_overhead_ns_min/median/max()`; fold windows state their endpoints' sample cost (FR-032, R-014)
 - [X] T070 [P] [US7] Write the cross-thread trap test extending `test/source/counters_trap_fixture.cpp` and its checker: recorder and plan used from a non-binding thread abort in the dev/CI build (TDD: RED before T055 implements the binding check); register in `test/CMakeLists.txt` (FR-031, FR-047; C-MEA-6; plan Test Plan threading row)
 - [X] T055 [US7] Cross-thread misuse contract (test T070 first): recorder/plan/push use from a non-binding thread is a tier-3 `SG_REQUIRE` beside the existing bounds check (cached `thread::id` compare); fast contexts bind same-thread (FR-031/040, US7 scenarios 4-5; R-015); fast-mode off-CPU staleness stays disclosed through the enabled/running ratio leaves in every mode (FR-041, US7 scenario 4)
@@ -1826,3 +1826,67 @@ FR-029, FR-034, and FR-046 never reached.
 
 - [X] T230 Extend R-001's header enumeration at `specs/007-counters-and-timers/research.md:9` to the nine public headers the tree carries, naming `counters_clock.hpp`, `counters_push.hpp`, and `counters_pmu.hpp` beside the six it lists, where the glob `include/speedgun-ng/counters*.hpp` matches 9 headers and `specs/007-counters-and-timers/plan.md:35`, `:298`, and `:325` record nine, and where T117 made the same amendment at `specs/007-counters-and-timers/tasks.md:30`; no R-entry, decision, or alternative is renumbered (LOW, T117, R-001, partial)
 - [X] T231 Correct the test-executable count the Phase 23 preamble records at `specs/007-counters-and-timers/tasks.md:1312`, which reads `the 11 counters test executables` in a sentence enumerating what the tree holds, where `test/CMakeLists.txt` carries 12 `add_executable(counters_*)` calls at `:145`, `:150`, `:180`, `:187`, `:196`, `:210`, `:220`, `:228`, `:236`, `:263`, `:276`, and `:299`, and where the seam test that makes the twelfth arrived in commit `19902b2`; the count must read twelve, or the sentence must name the eleven project-structure sources `specs/007-counters-and-timers/plan.md:147-164` lists, and the sibling counts the same paragraph records, the 9 headers and the 11 translation units, are correct and do not move (LOW, Constitution X.4, contradicts)
+
+## Phase 30: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `d522396`
+and of the residue the eleven waves before it left. Nothing above this line
+changed.
+
+Audit evidence, all produced by this pass from the repository root.
+`python3 tools/prose/prose_gate.py --check all` exits 0 and
+`cmake -P cmake/prose-lint.cmake` exits 0 on the same verdict. This preamble
+records no source or unit figure for the range holding it, and no
+`--mode tree` total, because that form collects its files with `git ls-files`
+and reads them from the working tree, which is the reading the Phase 21 preamble
+states at `specs/007-counters-and-timers/tasks.md:1112-1119`.
+`cmake --preset=dev` and `cmake --build --preset=dev` exit 0, and
+`ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed, 0 failed, 0
+skipped. `cmake --preset=ci-ubuntu` and `cmake --build build`, the release build
+Principle IX requires once per feature, exit 0 with zero compiler warnings in
+the project's own C++ sources. `format-check` and `dbc-gate` exit 0, the pair
+reporting 135 interfaces with 0 gaps in the doc gate and in the pair gate.
+`python3 tools/pmu_events/update_pmu_events.py --check` exits 0, `cmake -P
+cmake/spell.cmake` exits 0, and `bash tools/dbc/coverage_gate.sh
+build/coverage/coverage.info` exits 0 at lines 100.0 percent (1955 of 1955),
+branches 100.0 percent (705 of 705), and functions 98.0 percent (289 of 295) on
+an axis no gate scores. `ctest --test-dir build -N` reports 37 tests of which 16
+match `-R counters`. The commit-title limit holds on the twelve commits the
+branch carries from `11bc422` to `d522396`, whose titles measure 41, 37, 44, 50,
+45, 44, 50, 50, 49, 46, 50, and 49 characters against the limit
+`tools/prose/prose_rules.yaml:11` sets.
+
+Coverage of the check: 127 requirement keys (50 functional requirements
+numbering `FR-001` through `FR-050` with no gap, 10 success criteria numbering
+`SC-001` through `SC-010` with no gap, 49 user-story acceptance scenarios across
+8 stories, and 18 spec edge cases), 29 plan decision keys, and 11 constitution
+principles with X.1 through X.4 and XI.1 through XI.6 read one by one.
+Re-measured here: the glob `include/speedgun-ng/counters*.hpp` matches the 9
+headers `specs/007-counters-and-timers/plan.md:35`, `:298`, and `:325` record,
+`find source/counters -name '*.cpp'` returns the 11 translation units, and the
+`LCOV_EXCL_*` counts hold as the Phase 29 preamble records them, 304 tokens in
+the feature scope, 308 across `source/` plus `include/`, and 4 in
+`include/speedgun-ng/dbc.hpp`. Two findings: 2 `contradicts`; 0 CRITICAL,
+2 HIGH, and neither a constitution MUST violation. No requirement is missing or
+partially built. The code the earlier waves converged is untouched by both
+findings: each sits in the requirement text and in the task records that
+describe it.
+
+The classes the earlier passes closed hold where they closed them. The multiplex
+range, the FR-024 mismatch claim, the FR-022 dispatch claim, and every
+unanchored figure stay closed, and the four re-anchorings `T196`, `T197`,
+`T190`, and `T192` landed hold. The class they did not exhaust is the one a
+settled amendment leaves behind: a guarantee and a mechanism the T131..T141
+work reversed, still written in the requirement that names them, in the
+artifacts that restate that requirement, and in the two Phase 9 tasks that
+recorded the design the amendment replaced. `T076` and `T079` each named one
+half of it and closed without the text moving, the sibling-occurrence class
+`T175` recorded.
+
+### HIGH: FR-023 names a boundary the code does not use for read-mode assignment
+
+- [X] T232 Reconcile FR-023 at `specs/007-counters-and-timers/spec.md:251`, which requires the system to assign each leaf a read mode at plan compile, with the code, which assigns it during provider enumeration and nowhere in `compile()`: `source/counters/linux_pmu/provider.cpp:464-465` derives `fast_capable` and `probe_device` writes `entry.mode` at `:118-120` inside the seed loop `enumerate` calls at `:505`, `source/counters/clock_provider.cpp:248-283` and `source/counters/push_provider.cpp:83` set their modes the same way, a search for the token `mode` over `source/counters/plan.cpp` returns no line, and `source/counters/linux_pmu/group_io.cpp:391` reads the mode the catalog entry already carries; the four restatements of the same phrase at `specs/007-counters-and-timers/spec.md:157`, `specs/007-counters-and-timers/data-model.md:47`, `specs/007-counters-and-timers/contracts/provider-contract.md:44`, and `specs/007-counters-and-timers/tasks.md:186` must move with the requirement, `T076` at `specs/007-counters-and-timers/tasks.md:364` recorded the same correction and closed without it landing, the amended text must state where the probe runs relative to the plan target bound at `source/counters/plan.cpp:469` so a cpu-pinned plan's fast-mode eligibility is traceable, and FR-023's disclosure clause and C-PRO-4 at `specs/007-counters-and-timers/contracts/provider-contract.md:76` keep their present wording (HIGH, FR-023, FR-009, FR-031, `contradicts`)
+
+### HIGH: five sentences record the fast-read design the T131..T141 work replaced
+
+- [X] T233 Restate the five sentences that describe the mapped-page read as it stood before T137..T139: `specs/007-counters-and-timers/plan.md:124` names a `reinterpret_cast` at the ABI boundary and `:126` a `48-bit mask`, `specs/007-counters-and-timers/tasks.md:185` names the mask `(val + offset) & 0xFFFFFFFFFFFF` and a `P2 reinterpret_cast`, and `specs/007-counters-and-timers/research.md:89` names the `perf_user_access` sysctl on affected Intel parts beside that same `48-bit counter-width mask`, `:91` names `Every gate (sysctl, version, capability, index) is host state the probe reads at plan compile`, and `:93` names `assuming perf_user_access is on`; the code takes the mask from the width the event page publishes at `source/counters/linux_pmu/fast_read.cpp:271` and `:97`, casts with `static_cast` at `:195`, `:261`, and `:295` over the kernel's own `perf_event_mmap_page` aliased at `:165`, a search for `perf_user_access` over `source/`, `include/`, and `test/` returns no line, the mirrored page fields `T076` named are gone, and `specs/007-counters-and-timers/plan.md:362`, `:365-367`, and `:453` beside `specs/007-counters-and-timers/spec.md:326` and `specs/007-counters-and-timers/contracts/provider-contract.md:67` already carry the settled wording; each of the five sentences must name the page-published width and the standard conversion, the closed journal `specs/007-counters-and-timers/sg_counters.md` is a dated record and keeps its text, and no code, requirement, gate, or exclusion marker may move (HIGH, FR-040, Constitution I, IV, T079, T137, T139, `contradicts`)

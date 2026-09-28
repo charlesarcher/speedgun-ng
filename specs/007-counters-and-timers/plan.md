@@ -121,9 +121,9 @@ source/counters/                   # NEW implementation dir (root CMakeLists own
     ├── group_io.cpp               # syscall mode: group fds, one read(PERF_FORMAT_GROUP)
     │                              #   per PMU leader per action; enabled/running leaves
     └── fast_read.cpp              # mapped-page protocol (R-011): mmap page access
-                                   #   (P2: reinterpret_cast at the ABI boundary,
-                                   #   justification written at site), seqcount retry,
-                                   #   cap/index gates, offset, 48-bit mask, attribution
+                                   #   over the kernel's own perf_event_mmap_page under
+                                   #   a standard static_cast, cap/index gates, offset,
+                                   #   seqcount retry, pmc_width mask, attribution
 
 external/pmu-events/               # NEW vendored data tree: byte-exact path snapshot of
 │   │                              #   kernel tools/perf/pmu-events x86 dirs + mapfile.csv
