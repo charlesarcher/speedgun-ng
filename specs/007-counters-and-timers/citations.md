@@ -112,8 +112,8 @@ the remaining rows were found by this pass.
 | T076 | 364 | `source/counters/linux_pmu/provider.cpp:193` | `:505`, where the probe stamps the mode onto every countable entry | FR-023 | this pass |
 | T076 | 364 | `source/counters/clock_provider.cpp:234` | `:232`, where the scaling flag is set | FR-034 | this pass |
 | T076 | 364 | `source/counters/linux_pmu/fast_read.cpp:91-92` and `:120-121` | the mirrored page's `version` and `compat_version` fields were removed with the mirror; `fast_context_read` stands at `:255-286` | FR-040 | this pass |
-| T077 | 364 | `source/counters/linux_pmu/fast_read.cpp:283` | `:281`, the `_rdpmc` the hoisted capability gate now precedes | FR-040 | this pass |
-| T077 | 364 | `source/counters/linux_pmu/fast_read.cpp:40-42` and `source/counters/detail/pmu.hpp:165-166` | `:41-43` and `pmu.hpp:166-168` | FR-040 | this pass |
+| T077 | 365 | `source/counters/linux_pmu/fast_read.cpp:283` | the hoist is gone with commit `2889608`: `:281` issues the instruction under the index test at `:278`, and the capability gate runs at `:86-88` inside `fast_decode`, which `:284` calls | FR-040 | this pass |
+| T077 | 365 | `source/counters/linux_pmu/fast_read.cpp:40-42` and `source/counters/detail/pmu.hpp:165-166` | `:41-43` holds the `fast_index_valid` comment and `pmu.hpp:166-168` the `pmu_device` comment; the protocol order is stated at `fast_read.cpp:82-85` and `pmu.hpp:249-254` | FR-040 | this pass |
 | T078 | 366 | `source/counters/linux_pmu/fast_read.cpp:122` | `:267`, where the lock snapshot is read | FR-040 | this pass |
 | T078 | 366 | `source/counters/linux_pmu/fast_read.cpp:271` and `:287` | the index compare stands at `:278-281`; `:271` holds the width and `:287` is blank | FR-040 | this pass |
 | T079 | 367 | `specs/007-counters-and-timers/plan.md:43` and `:365` | the P2 cast row was withdrawn with the mirror; the protocol stands at `plan.md:363-365` | Constitution I, P2 | this pass |
@@ -123,8 +123,8 @@ the remaining rows were found by this pass.
 | T080 | 368 | `docs/pages/counters-overhead.md:63-94` | the measurement tables stand at `:158-173` | SC-004 | this pass |
 | T100 | 391 | `include/speedgun-ng/counters_measurement.hpp:264` and `:317` | `:275` and `:328` | FR-035 | T253 |
 | T100 | 391 | `source/counters/push_provider.cpp:31` | `:45`, the plain load that never performs an atomic read-modify-write | FR-035 | T253 |
-| T101 | 391 | `source/counters/system.cpp:377` | `:163`, where the seed's flag reaches the catalog entry | US4 scenario 5 | this pass |
-| T101 | 391 | `source/counters/clock_provider.cpp:236` | `:232` | FR-034 | this pass |
+| T101 | 392 | `source/counters/system.cpp:377` | `:163`, where the seed's flag reaches the catalog entry | US4 scenario 5 | this pass |
+| T101 | 392 | `source/counters/clock_provider.cpp:236` | `:232` | FR-034 | this pass |
 | T120 | 414 | `specs/007-counters-and-timers/spec.md:276` | `:286`, which carries FR-049 | FR-049 | T253, T260 |
 | T126 | 420 | `specs/007-counters-and-timers/spec.md:247` | `:257`, which carries FR-029 | FR-029 | T253, T260 |
 | T129 | 423 | `source/counters/detail/core.hpp:98` | `:105`, where `bound_thread` is declared | FR-031 | this pass |
@@ -391,8 +391,8 @@ this file carried 114 occurrences and 101 distinct tokens over its whole
 length at `9da43ac`, and 101 occurrences over 90 distinct tokens at the
 parent `b82fb7e`. The figure 101 is the occurrence total at the commit
 that authored the sentence and the distinct total at `9da43ac`, and the
-two senses are separate counts. The four sections appended above raised
-the totals to 129 occurrences and 112 distinct tokens, which is the
+two senses are separate counts. The sections appended after those four
+raised the totals to 144 occurrences and 126 distinct tokens, which is the
 reading the working tree yields. The counting rule and every figure the
 record carried at `9da43ac` keep their values, and the preamble keeps its
 bytes.
@@ -458,3 +458,105 @@ constitution's own gate is the range form at
 line the branch's diff added or modified. The units figure is a reading of
 the working tree and moves with every edit to it; the findings figure does
 not. No gate rule, threshold, or marker moved with this record.
+
+## The mapped-page protocol order `T077` required
+
+`T077` at `specs/007-counters-and-timers/tasks.md:365` is closed with a
+requirement the code has not carried since commit `2889608`. Its text read
+that the capability gate is hoisted ahead of the instruction, and the two
+anchor rows above recorded the landing as an instruction a hoisted gate
+precedes. The shipped `fast_context_read` reads the capability bit from the
+event page, issues the instruction under the index test alone, and applies
+the capability gate as the first check of `fast_decode`, which the call
+site invokes after the instruction has run
+(`source/counters/linux_pmu/fast_read.cpp:272`, `:278`, `:281`, `:284`, and
+`:86-88`). The decision is that the decode gate governs, and the task line
+now states the ordering the code ships. The competing reading is the
+instruction gate, which reinstates the hoist.
+
+`git show 2889608 -- source/counters/linux_pmu/fast_read.cpp` is the commit
+that withdrew the hoist. Its diff deletes the block reading `Capability gate ahead of the instruction (FR-040, R-011): the published protocol tests the capability before it takes the read, so a caller the kernel grants no read capability never pays for the instruction` together with the `cap_user_rdpmc` compare that followed it, and adds the comment stating that every gate is decided by the page. The reason is recorded where the
+shipped ordering is documented, at
+`source/counters/detail/pmu.hpp:249-254`: the caller reads the instruction
+only for a nonzero index, so a gate applied in the decode costs a page load
+and never an instruction. `FR-040` at
+`specs/007-counters-and-timers/spec.md:271` names capability gating among
+the protocol steps and orders none of them, and the decode-order comment at
+`source/counters/linux_pmu/fast_read.cpp:82-85` states the order the code
+follows.
+
+The decode gate costs one page load and one compare on a read whose page
+publishes no capability bit, and it leaves the capability word off the
+critical path of a read that succeeds. A restored hoist moves that load and
+compare ahead of the instruction, puts a branch in front of every
+successful read, and withholds no instruction the index test already
+withholds, because the kernel assigns a nonzero index only on a host that
+grants the capability. The amendment is recorded in the shape `T262` used,
+in this file and at the site that carries the decision; the repository's one
+DCR-form reference is the source-ref policy at
+`specs/007-counters-and-timers/plan.md:479`.
+
+## The scaled-value clause of US6 scenario 6
+
+The third clause of scenario 6 at
+`specs/007-counters-and-timers/spec.md:150` required that the folded value
+be the scaled estimate the kernel computed. A kernel group read publishes
+`time_enabled` and `time_running` and computes no scaled estimate, and a
+leaf node yields the raw modular delta as a double
+(`source/counters/fold.cpp:45-46`). The decision is that the fold discloses
+the fraction and the flag and leaves the scaling to the caller, and the
+clause now states that. The competing reading scales the value by the
+disclosed ratio, and it collides with the product form `FR-019` at
+`specs/007-counters-and-timers/spec.md:244` and the clarification at `:25`
+mandate, because a composite's ratio is the product of its constituent
+ratios and a scaled value would carry the multiplex correction once per
+constituent. `test/source/counters_pmu_test.cpp:644-650` states the
+consequence and calls the fold right, and no assertion anywhere asks for a
+scaled value.
+
+Measured in this pass, `./build/dev/test/counters_pmu_test` exits 0 and prints `scenario 6: 64 events opened against this PMU; enabled advanced 13986033 ns, running advanced 5972952 ns, so the kernel ran them 0.427065 of the time; the composite discloses running_ratio 0.000000 with scaled 1`. A
+composite of 64 oversubscribed members discloses a ratio near zero, and a
+value scaled by it is a number a caller cannot use. The closed task text at
+`specs/007-counters-and-timers/tasks.md:159` carries the withdrawn clause
+as `ratio below 1, scaled set, value is the kernel scaled estimate` and
+keeps its bytes.
+
+## The range form's per-line default
+
+The range form examines a line only when the range's authorship map holds an
+entry for it. `tools/prose/prose_gate.py:959` reads
+`status = authorship.get(path, {}).get(lineno, "grandfathered")` and `:960-961`
+skips a line whose status is `grandfathered`, so a line the map holds
+nothing for is left unexamined while the rest of its file is examined.
+`collect_candidates` at `:587` builds that map from the `git diff -U1` at
+`:597` and returns `authorship = None` in tree mode alone, where `:592`
+lists the candidates with `git ls-files`, and `read_source` at `:842` reads
+the examined text from the working tree in both modes, as the call at `:936`
+shows. The last paragraph of the em-dash section above names one condition
+that leaves a line unexamined, and the code has two.
+
+The first is a file the range's diff does not touch, which is no candidate
+at all. The range from the merge base with `origin/master` to `8a62b69` names
+623 files and holds none of `docs/pages/dbc-overhead.md`,
+`include/speedgun-ng/dbc.hpp`, or anything under `tools/dbc/`, which is where
+the whole-repository tree form reports three, one, and five of its findings.
+The second is a line inside a ranged file that the committed diff holds no
+entry for, which is every uncommitted insertion there, because the map's
+keys are the new-file line numbers of the committed diff while the text
+examined is the working tree. A committed line the branch's own diff added
+always carries an entry, so the range form's green verdict covers the
+branch's added prose.
+
+Measured on a scratch clone of this repository at `8a62b69` holding a
+two-line uncommitted insertion at the end of `docs/pages/counters-overhead.md`
+reading `really, basically very important, honestly`,
+`python3 tools/prose/prose_gate.py --check all --head 8a62b69` exits 0 at
+`135 sources, 12313 units examined, 0 findings, 1 skipped`, the figure the
+Phase 40 preamble records for that head, while
+`python3 tools/prose/prose_gate.py --check prose --mode tree --paths docs/pages/counters-overhead.md` exits 1 at
+`1 sources, 290 units examined, 3 findings, 0 skipped` and names the three
+at line 348. A range figure therefore reproduces at a head only when the
+working tree equals that head. The clause in the Phase 34 preamble at
+`specs/007-counters-and-timers/tasks.md:2432-2435` that reads `so an uncommitted line inside a ranged file is examined`
+overstates for the insertion case, and that preamble keeps its bytes under
+the Immutability clause of Pull Request Quality.
