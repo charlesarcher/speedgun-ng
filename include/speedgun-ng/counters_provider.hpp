@@ -134,12 +134,10 @@ struct leaf_set
 };
 
 /**
- * @brief What a plan samples on: the machine, the current thread, or a
- * pinned cpu.
+ * @brief What a plan samples on: the current thread, or a pinned cpu.
  */
 enum class target_kind : std::uint8_t
 {
-  machine,
   thread,
   cpu
 };
@@ -147,8 +145,8 @@ enum class target_kind : std::uint8_t
 /**
  * @brief Sampling target handed to a provider at open (FR-031).
  *
- * `cpu` is meaningful only for `target_kind::cpu`; other kinds ignore
- * it.
+ * `cpu` is meaningful only for `target_kind::cpu`; a `thread` target
+ * ignores it.
  *
  */
 struct target
