@@ -7,10 +7,10 @@
 //
 // Behavior per mode (argv[1]):
 //   - metric-before-finish, fold-range, fold-out-of-extent,
-//     push-cross-thread, push-decrement, recorder-cross-thread, and
-//     scope-cross-thread are semantic-gated sites: they abort in checked
-//     builds, so their markers stay absent; under ignore they survive and
-//     print their markers.
+//     push-cross-thread, push-decrement, push-mixed-owner,
+//     recorder-cross-thread, and scope-cross-thread are semantic-gated
+//     sites: they abort in checked builds, so their markers stay absent;
+//     under ignore they survive and print their markers.
 //   - overrun is an SG_REQUIRE_ALWAYS site (FR-027 memory safety is
 //     never semantic-gated): it aborts in EVERY configuration, marker
 //     absent everywhere.
@@ -113,6 +113,43 @@ auto main(int argc, char** argv) -> int
     handle.add(0ULL - 1400ULL);
     rec.sample();
     static_cast<void>(counted.fold(rec.view(), 1, 2));
+    survived(mode);
+    return 0;
+  }
+
+  if (mode == "push-mixed-owner") {
+    // Two push counters, one declared per thread, in one window. The
+    // expression names the main thread's counter last, so the leaf set
+    // ends on an owner the sampling thread holds, which is the order
+    // under which a plan holding a foreign counter passed the window's
+    // one-owner guard (FR-035).
+    auto push = std::make_unique<push_provider>();
+    auto main_bytes = push->add_counter("main-bytes", "ops", "main bytes");
+    auto worker_bytes = main_bytes;
+    std::thread worker {[&push, &worker_bytes]
+                        {
+                          worker_bytes = push->add_counter(
+                              "worker-bytes", "ops", "worker bytes");
+                          worker_bytes.add(10);
+                        }};
+    worker.join();
+    const auto registered = system::local().register_provider(std::move(push));
+    if (!registered.has_value()) {
+      std::fprintf(stderr, "fixture: push provider registration failed\n");
+      std::exit(2);
+    }
+    const auto machine = *system::local().object("machine");
+    const auto on_main = *machine.counter<events>("main-bytes");
+    const auto on_worker = *machine.counter<events>("worker-bytes");
+    const expression<events> mixed {on_worker + on_main};
+    const auto plan = compile(system::local(), mixed);
+    if (!plan.has_value()) {
+      std::fprintf(stderr, "fixture: push plan compile failed\n");
+      std::exit(2);
+    }
+    auto rec = plan->recorder(4);
+    rec.sample();
+    rec.sample();
     survived(mode);
     return 0;
   }

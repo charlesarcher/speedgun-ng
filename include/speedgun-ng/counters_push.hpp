@@ -85,7 +85,9 @@ public:
   /**
    * @brief Opens a reader loading the requested push leaves.
    *
-   * \pre none
+   * \pre Every address in `leaves` names a counter this provider
+   *      declared, and all of them were declared on one thread
+   *      (FR-035).
    * \post none
    */
   std::unique_ptr<window_reader> open(const leaf_set& leaves,
