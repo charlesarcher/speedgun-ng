@@ -197,6 +197,13 @@ add_executable(counters_trap_fixture source/counters_trap_fixture.cpp)
 target_link_libraries(counters_trap_fixture PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_trap_fixture PRIVATE cxx_std_23)
 
+# A fixture with no mode body, which stands in for a mode the checker
+# drives and the fixture does not implement. It is never run as a check
+# of its own; the CTest below asserts that the checker reports it.
+add_executable(counters_trap_noguard_fixture
+               source/counters_trap_noguard_fixture.cpp)
+target_compile_features(counters_trap_noguard_fixture PRIVATE cxx_std_23)
+
 # Trap verification, both directions (T023, T090, T105). The expectations
 # follow SG_CONTRACTS_SEMANTIC, the PUBLIC definition of the library this
 # test links, so one target covers both configurations. In a checked build
@@ -213,6 +220,29 @@ target_compile_features(counters_trap_checked_test PRIVATE cxx_std_23)
 add_test(
   NAME counters_trap_checked
   COMMAND counters_trap_checked_test $<TARGET_FILE:counters_trap_fixture>
+)
+# The checker redirects every run into one fixed scratch file, so the two
+# tests below share it and must not run at the same time.
+set_tests_properties(counters_trap_checked PROPERTIES
+                     RESOURCE_LOCK counters_trap_checked_out)
+
+# The check above trusts that every mode it drives reached its guard, so
+# the trust is itself covered: run the same checker against a fixture that
+# implements no mode, where every mode lands on a refusal that exits
+# non-zero with the marker absent. The test passes on the checker's own
+# wording for that outcome and on nothing else, so a missing fixture
+# binary and a checker that stopped demanding the contract facility's
+# report both turn it red. The two patterns are the aborting
+# configuration's report and the surviving configuration's report.
+add_test(
+  NAME counters_trap_checked_rejects_unknown_mode
+  COMMAND counters_trap_checked_test $<TARGET_FILE:counters_trap_noguard_fixture>
+)
+set_tests_properties(
+  counters_trap_checked_rejects_unknown_mode
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "no guard of that mode was reached;where the gated check must have emitted no code"
+             RESOURCE_LOCK counters_trap_checked_out
 )
 
 # Multi-object tree, selection, cross-object composition, and fan-out
