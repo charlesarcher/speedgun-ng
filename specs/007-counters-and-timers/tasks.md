@@ -3359,3 +3359,241 @@ compiler-emitted special member.
   written, so the edit belongs to the implement pass that takes the task, and
   no other figure in the file moves (LOW, Constitution X.4, T206, T215, T269,
   T273, `contradicts`)
+
+## Phase 38: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `b82fb7e`
+and of the residue the twenty-six waves before it left. Nothing above this
+line changed.
+
+Audit evidence, all produced by this pass from the repository root on Linux.
+`cmake --preset=dev` and `cmake --build --preset=dev` exit 0 over an
+incremental tree in which every target reported `Built target`.
+`ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed, 0 failed,
+0 skipped, 43.80 s. `ctest --test-dir build -N` exits 0 and reports
+`Total Tests: 37`, of which `-R counters` reports 16. `python3
+tools/prose/prose_gate.py --check all` exits 0, and `cmake -P
+cmake/prose-lint.cmake` exits 0 on the same verdict, `prose-lint: 133
+sources, 11585 units examined, 0 findings, 1 skipped`, the one skipped
+source being `hwloc.md`. `ctest --test-dir build -R prose_gate_fixtures`
+exits 0 with 1 of 1. `cmake --build build/dev -t format-check` exits 0.
+`cmake --build build/dev -t dbc-gate` exits 0, reporting `doc-gate: 135
+interfaces, 0 gaps` and `pair-gate: 135 interfaces, 0 gaps`. `cmake -P
+cmake/spell.cmake` exits 0, and `python3 tools/pmu_events/update_pmu_events.py
+--check` exits 0. `bash tools/dbc/coverage_gate.sh
+build/coverage/coverage.info` exits 0 over 21 source files at lines 100.0
+percent (1955 of 1955), branches 100.0 percent (705 of 705), and functions
+98.0 percent (289 of 295) on an axis the gate does not score. `cmake
+--preset=ci-ubuntu` exits 0, and `cmake --build build`, the release build
+Principle IX requires once per feature, exits 0 over a fully incremental
+tree whose log holds 0 lines matching the token `warning` and 0 matching
+`error:`, so this pass states no static-analysis diagnostic count. `bash
+test/counters_header_purity.sh` exits 0 at `counters_header_purity: clean`.
+`readelf -d` on `build/dev/example/counters_standalone_example` and on
+`build/dev/example/counters_giraffe_example` names `libstdc++.so.6`,
+`libgcc_s.so.1`, and `libc.so.6` in each, with zero `speedgun-ng` entries,
+and both executables exit 0. `./build/dev/test/counters_pmu_test` exits 0
+reporting `pmu catalog: 581 table-selected entries beyond kernel aliases`
+beside `pmu availability: 358 countable, 0 permission_blocked, 261
+not_encodable, 356 fast_rdpmc` and `perf_event_paranoid = 1`, the level
+`docs/pages/counters-overhead.md:310-322` records for this host.
+`./build/dev/test/counters_trap_fixture push-mixed-owner` exits 134 on the
+precondition at `source/counters/push_provider.cpp:120`.
+
+The coverage tracefile `build/coverage/coverage.info` is timestamped
+2026-09-28 10:21, the newest in-scope source mtime is
+`source/counters/detail/core.hpp` at 10:15, and the only file in the
+feature scope newer than the tracefile is
+`test/source/counters_trap_fixture.cpp` at 10:25, which the tracefile does
+not carry: its 21 `SF:` entries name 7 headers under
+`include/speedgun-ng/` and 14 files under `source/`, and none under `test/`
+or `example/`. The trace therefore describes the tree for every file the
+gate measures, and the functions axis holds at 98.0 percent. Run on the
+same tracefile, `lcov --branch-coverage --list` places the six uncovered
+entries at `counters_measurement.hpp` on 96.6 percent of 88 functions and
+at `counters_provider.hpp` on 80.0 percent of 15, the two figures
+`specs/007-counters-and-timers/plan.md:459` states.
+
+Counting rule for every anchor total in this preamble, the rule
+`specs/007-counters-and-timers/citations.md:32-41` states, applied with
+CPython 3.14.7 `re.finditer` over whole matches `m.group(0)`: applied to
+`specs/007-counters-and-timers/tasks.md` lines 1 through 2422 the count is
+702 occurrences, 467 distinct tokens, and 420 bare continuations; lines 1
+through 2578 give 724, 476, and 449; lines 1 through 2905 give 776, 518,
+and 472; lines 1 through 3192 give 815, 548, and 485; and the nine live
+artifacts over their whole length give 44 occurrences, distributed
+`spec.md` 28, `plan.md` 7, `quickstart.md` 4, `research.md` 3, and
+ `contracts/system-contract.md` 2, with none in `data-model.md`,
+ `sg_counters.md`, `contracts/provider-contract.md`, or
+ `contracts/measurement-contract.md`; those nine files are the set
+ `specs/007-counters-and-timers/citations.md:57-63` names, and
+ `citations.md` itself carries 101 occurrences of the path form.
+
+Coverage of the check: 127 requirement keys, counted as 50 functional
+requirements numbering `FR-001` through `FR-050` with no gap, 10 success
+criteria numbering `SC-001` through `SC-010` with no gap, 49 user-story
+acceptance scenarios counted as US1 7, US2 7, US3 6, US4 6, US5 4, US6 7,
+US7 6, and US8 6, and 18 edge cases at
+`specs/007-counters-and-timers/spec.md:195-212`; 45 design keys, counted as
+15 research decisions `R-001` through `R-015`, 11 data-model entities
+`E-01` through `E-11`, and 19 contract clauses `C-MEA-1` through
+`C-MEA-7`, `C-PRO-1` through `C-PRO-6`, and `C-SYS-1` through `C-SYS-6`;
+and 11 constitution principles with X.1 through X.4 and XI.1 through XI.6
+read one by one. Re-measured here: the 9 headers
+`include/speedgun-ng/counters*.hpp` matches, the 11 translation units
+`find source/counters -name '*.cpp'` returns beside the 2 provider-private
+headers under `source/counters/detail/`, the 12 `add_executable(counters_)`
+calls `test/CMakeLists.txt` carries, the `LCOV_EXCL` count at 301 tokens in
+the feature scope, 305 across `source/` plus `include/`, and 4 in
+`include/speedgun-ng/dbc.hpp`, no line matching `TODO` or `FIXME` over the
+feature scope, the single `NOLINT` directive at
+`include/speedgun-ng/counters_measurement.hpp:634` carrying its reason in
+the same comment block at `:630-633`, no `std::atomic` in
+`source/counters/push_provider.cpp` or in the push handle, and no platform
+macro in the 9 public headers.
+
+Every anchor the nine live artifacts place was resolved and read: each one
+lands inside the file it names, and each single-line anchor names a
+non-blank line. Every explicit `path:line` anchor in the nine live artifacts
+and in `tasks.md` was then resolved mechanically, and 13 distinct explicit
+anchors in `tasks.md` fail the first two drift criteria the record states
+at `specs/007-counters-and-timers/citations.md:91-92`. Six of the thirteen
+sit in a row the record already carries, at
+`specs/007-counters-and-timers/citations.md:109`, `:112`, `:132`, `:136`,
+`:141`, and `:157`; one at
+`specs/007-counters-and-timers/tasks.md:988` names a file under
+`specs/002-prose-commit-lint` and lies outside this feature's scope; one at
+`specs/007-counters-and-timers/tasks.md:2238` is quoted inside a finding as
+the anchor that finding reports; and five are absent from the record in
+every row. The short form `plan.md:147-164` at
+`specs/007-counters-and-timers/tasks.md:1312` and `:1828` fails the second
+criterion as well and joins the five. The nine commits at the tip were read
+in full with `git show`: `88bbd2c` removes the `target_kind::machine`
+enumerator and touches one file, and a search for `target_kind::machine`
+over `source/`, `include/`, `test/`, and `example/` returns no line;
+`01f905b`, `30f6361`, `1827d76`, `f1d3023`, `9c5dfa5`, and `b82fb7e` touch
+no executable code; `31363e8` adds the mixed-owner refusal at
+`source/counters/push_provider.cpp:120`, the precondition it states at
+`include/speedgun-ng/counters_push.hpp:88-90`, and the trap mode that
+drives it; and `b60b361` adds the accepted cost of the fold's address
+lookup at `source/counters/detail/core.hpp:100-114`. No closure claim in
+the Phase 12 through Phase 37 preambles was accepted as evidence.
+
+Three findings: 3 `partial`; 0 CRITICAL, 0 HIGH, 2 MEDIUM, 1 LOW. No
+finding is `missing`, `contradicts`, or `unrequested`, and none is a
+constitution MUST violation. All three sit in the feature's own record, and
+the code the earlier waves converged is untouched by every one of them.
+`T267`'s mixed-owner refusal is landed and its trap fires,
+`source/counters/plan.cpp:61-62` carries the per-thread binding its proof
+rests on, `T271`'s accepted fold-lookup cost is recorded at
+`source/counters/detail/core.hpp:100-114`, `T272`'s six functions are named
+and explained at `specs/007-counters-and-timers/plan.md:459` with the two
+`lcov` figures above confirming them, `T274`'s two figures now stand on the
+lines the record's table names, and `T091`'s settlement holds at
+`source/counters/plan.cpp:593`, the call site its task text never cited.
+
+The residue the last implement pass reported was assessed on its own
+evidence, and two of the four items do not survive it. The false clause is
+gone: a search for the token `existing tracked file` over the tree's
+Markdown returns no line, and
+`specs/007-counters-and-timers/citations.md:46-50` carries the attribution
+rule the correction installed, with no second instance of the withdrawn
+claim anywhere in the tree. The coverage tracefile does describe the tree
+and the functions axis holds, on the evidence in the paragraph above.
+`T274`'s stale citation and the engine question both survive; they are
+T278 and T277 below.
+
+### MEDIUM: five `plan.md` anchors the record does not carry, created by one inserted line
+
+- [X] T276 Record the drifted `plan.md` anchors of `T195`, `T231`, `T236`,
+  `T255`, `T256`, and the Phase 23 preamble, in
+  `specs/007-counters-and-timers/citations.md`, where `1827d76` added one
+  line at `specs/007-counters-and-timers/plan.md:74` and every anchor below
+  it shifted down by one, and where five distinct anchors now name a blank
+  line. `T195` at
+  `specs/007-counters-and-timers/tasks.md:1066` names
+  `specs/007-counters-and-timers/plan.md:298` for the Files-and-duties row
+  and `:325` for the sentence naming the nine headers, where `:298` and
+  `:325` are blank, the row stands at `:301` and reads
+  `| \`include/speedgun-ng/counters*.hpp\` (9 files) |`, and the sentence
+  stands at `:328`; the Phase 23 preamble at
+  `specs/007-counters-and-timers/tasks.md:1297-1299` names the same two.
+  `T231` at `:1828` and the Phase 23 preamble at `:1312` name
+  `plan.md:147-164`, whose opening line is blank, the block heading stands
+  at `:148`, and the eleven counters test sources sit at `:149-159`.
+  `T236` at `:1968` names
+  `specs/007-counters-and-timers/plan.md:282` for the scope-misuse
+  sentence, which is blank and the sentence stands at `:283`, and `T255` at
+  `:2355` quotes the same number in reporting what `T236` restated. `T256`
+  at `:2365` names `specs/007-counters-and-timers/plan.md:323` for the
+  Key-properties sentence, which is blank and the sentence stands at `:324`.
+  `git show 01f905b:specs/007-counters-and-timers/plan.md` places the
+  scope-misuse sentence at `:282`, the Key-properties sentence at `:323`,
+  and the test-source heading at `:147`, so the shift is the one line
+  `1827d76` added, and the pre-shift readings are confirmed for each. The
+  record's drift criteria at
+  `specs/007-counters-and-timers/citations.md:91-92` name the blank-line
+  case, and the record's anchor table at `:107-158` carries rows for the
+  other drifted populations, naming `T072`, `T076`, `T091`, `T100`, `T120`,
+  `T126`, `T129`, `T131`, `T139`, `T142`, `T145`, `T147`, `T152`, `T156`,
+  `T166`, `T170`, `T171`, `T178`, `T179`, `T185`, `T189`, `T223`, and the
+  Phase 20, Phase 21, and Phase 22 preambles, with no row for any of the six
+  texts this task names; the table's own re-anchor section at `:275-282`
+  states that it covers the texts citing the record, so the gap is inside the
+  record's stated scope. Each row names the task, the line in `tasks.md`,
+  the anchor as written, and the line now holding the claim, the rows land
+  at the end of the table, every dated preamble and every closed task line
+  keeps its bytes under the Immutability clause of Pull Request Quality,
+  and no figure in any dated preamble moves (MEDIUM, Constitution IV,
+  Constitution X.4, T260, T265, T253, `partial`)
+
+### MEDIUM: the counting rule names a pattern and no engine, and three engines disagree on it
+
+- [X] T277 State the engine the counting rule at
+  `specs/007-counters-and-timers/citations.md:32-41` requires, or restate
+  the rule so that one engine determines the figure, where the paragraph
+  states its purpose as being that `a reader can reproduce any of them` and
+  names the unit as one occurrence of
+  `(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` with a distinct token its
+  deduplicated form, naming no engine and no whole-match basis. Measured on
+  `specs/007-counters-and-timers/tasks.md` lines 1 through 2422 in this
+  session, the same rule over the same population yields three figures:
+  GNU grep 3.12 `grep -oE` returns 0 matches and prints the warnings `? at
+  start of expression` and `stray \ before d`, because the pattern's `(?:`
+  is outside POSIX ERE; CPython 3.14.7 `re.findall` returns 163 distinct
+  values, because the pattern holds exactly one capturing group `(-\d+)?`
+  and `findall` returns that group; and CPython 3.14.7 `re.finditer` with
+  `m.group(0)` returns 467, which is the figure
+  `specs/007-counters-and-timers/citations.md:46` and the Phase 34, Phase
+  35, and Phase 36 preambles carry. `grep -oP` on the same pattern returns
+  467 as well, so the second construct the rule states,
+  `(?<![\w./-]):\d+\b` for a bare continuation, is outside POSIX ERE too.
+  The record already explains what the discarded figures counted, at
+  `specs/007-counters-and-timers/citations.md:81-84`, and the engine facts
+  live only in the body of commit `b82fb7e`, a landed message the
+  Immutability clause of Pull Request Quality makes immutable, so no text
+  outside the record carries them for a reader who consults the record. The
+  paragraph must name the engine and the whole-match basis beside the
+  pattern it already states, the eight figures it and the table at
+  `specs/007-counters-and-timers/citations.md:46`, `:55`, `:56`, and
+  `:75-86` carry keep their values, and no dated preamble and no closed
+  task line moves (MEDIUM, Constitution IV, Constitution X.4, T265, T270,
+  T274, `partial`)
+
+### LOW: `T274`'s own citation is one line past the figure it names
+
+- [X] T278 Add the row the record's re-anchor table lacks for `T274`, whose
+  task text at `specs/007-counters-and-timers/tasks.md:3308-3330` cites
+  `specs/007-counters-and-timers/citations.md:46` and `:55` for the two
+  figures the rule yields and `:57` for a third, where `:46` and `:55` land
+  on `467` and `476` as the sentence says and `:57` is blank of the figure,
+  the Phase 34 contribution of 9 distinct tokens sitting at `:56` after
+  `b82fb7e` rewrote the sentence, and where the table at
+  `specs/007-counters-and-timers/citations.md:289-290` already carries a row
+  for each of the two that still land, reading `:46` and `:55` unchanged,
+  with no row for the third. The table's rows are keyed by the anchor as
+  written and `:57-58` at `:291` belongs to a different text, so the new
+  row must name the task and the anchor together. The row lands at the end
+  of that table, `T274` keeps its bytes, and the record's own counting rule
+  and every figure it carries keep their values (LOW, Constitution X.4,
+  T274, T260, `partial`)

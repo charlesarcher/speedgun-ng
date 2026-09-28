@@ -32,13 +32,13 @@ at or below line 321 unchanged.
 The counting rule every anchor total in this feature's records depends
 on, so a reader can reproduce any of them: the unit is one occurrence
 of the regular expression
-`(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` matched over a named
-line range of a named file, and a distinct token is the deduplicated
-form of that unit, so a token written on two lines counts twice as
-occurrences and once as a distinct token. A bare continuation is one
-occurrence of `(?<![\w./-]):\d+\b`, counted the same way. T265 added
-this paragraph, because before it the record named no rule and its
-figures reproduced under none.
+`(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` under CPython 3.14.7
+`re.finditer`, each match taken whole as `m.group(0)`. A distinct token
+is the deduplicated form of that unit, so a token written on two lines
+counts twice as occurrences and once as a distinct token. A bare
+continuation is one occurrence of `(?<![\w./-]):\d+\b` under the same
+engine and basis. T265 added this paragraph, because before it the
+record named no rule and its figures reproduced under none.
 
 The population is every anchor the Phase 1 through Phase 33 record in
 `specs/007-counters-and-timers/tasks.md` places, which is lines 1
@@ -156,6 +156,14 @@ the remaining rows were found by this pass.
 | Phase 22 preamble | 1180 | `.specify/memory/constitution.md:568-570` | the range already holds the machine-local `CMakeUserPresets.json` sentence at `:569-570`, so the anchor needs no correction; T263 recorded that the row named `:571-573` as the landing, and those three lines carry the Licensing bullet and one empty line | Constitution IX | T263 |
 | T223 | 1805 | `specs/007-counters-and-timers/contracts/measurement-contract.md:107` | `:110`, the single-target sentence | FR-024 | T253 |
 | T091 | 379 | `source/counters/detail/core.hpp:76-109` and `source/counters/fold.cpp:42` and `:165` | `plan_impl` spans `:76-116`; the two re-resolutions are the `by_address.at` at `source/counters/fold.cpp:43` and the `by_address.end()` guard at `:162` | FR-021, FR-022 | T262 |
+| T195 | 1066 | `specs/007-counters-and-timers/plan.md:298` | the line is blank; the Files-and-duties row naming nine public headers stands at `:301` | plan: Files and their duties | T276 |
+| T195 | 1066 | `specs/007-counters-and-timers/plan.md:325` | the line is blank; the sentence naming the nine public headers and listing them stands at `:328` | plan: Public API surface added | T276 |
+| Phase 23 preamble | 1298-1299 | `plan.md:298` and `:325` | both cited lines are blank, the two landings `T195` names | plan: Files and their duties | T276 |
+| Phase 23 preamble | 1312 | `plan.md:147-164` | the range's first line is blank, the block heading stands at `:148`, and the eleven sources span `:149-164` | Constitution IX | T276 |
+| T231 | 1828 | `plan.md:147-164` | the range's first line is blank and the eleven sources span `:149-164` | Constitution IX | T276 |
+| T236 | 1968 | `plan.md:282` | the line is blank; the scope-misuse sentence stands at `:283` | FR-046 | T276 |
+| T255 | 2355 | `plan.md:282` | the line is blank; the sentence `T236` restated stands at `:283` | FR-046 | T276 |
+| T256 | 2365 | `plan.md:323` | the line is blank; the Key-properties sentence stands at `:324` | FR-049 | T276 |
 
 ## Closed task clauses a later decision amended
 
@@ -274,7 +282,7 @@ is recorded above.
 
 ## Re-anchors inside this record
 
-T261, T262, T263, T264, T265, T266, and T267 through T275 grew this
+T261, T262, T263, T264, T265, T266, and T267 through T278 grew this
 record, so the line numbers the texts that cite it name have moved. The
 table gives the number each such text wrote and the line holding the
 same material now. The closed task lines, the dated preambles, and the
@@ -296,9 +304,13 @@ Principle VIII and Pull Request Quality: Immutability.
 | `:97` | `:150` |
 | `:100` | `:153` |
 | `:103` | `:156`, the row T263 corrected |
-| `:145-150` | `:162-167`, the T091 clause paragraph |
-| `:180-186` | `:197-203`, the 58-line journal list |
+| `:145-150` | `:170-175`, the T091 clause paragraph |
+| `:180-186` | `:205-211`, the 58-line journal list |
 | `research.md:33` and `:37` | `research.md:43` and `:45`, the two anchors `f1d3023` added; the task text of `T270` at `specs/007-counters-and-timers/tasks.md:3123` carries the stale pair |
+| `T274` `:57` | `:56`, the Phase 34 contribution of 9 distinct tokens, which `T278` at `specs/007-counters-and-timers/tasks.md:3589` names beside `T274` at `:3322` |
+| `T276` `citations.md:275-282` | `:283-290`, this section |
+| `citations.md:266-273` | `:274-281`, the paragraph on the body of commit `6121416`, which the Phase 37 preamble at `specs/007-counters-and-timers/tasks.md:3285` names |
+| `T278` `citations.md:289-290` | `:297-298`, the two rows this table carries for `:46` and `:55`, which stay unchanged at those numbers |
 
 ## The nine live artifacts at a second head
 
