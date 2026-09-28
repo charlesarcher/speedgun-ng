@@ -1236,3 +1236,86 @@ converged; the prose around it is not.
   the tip, and the count moved because recording the figure in this file added the units
   to a source the gate scans, so the sentence must name the commit whose run reproduces
   the count (LOW, Constitution X.4, `partial`)
+
+## Phase 23: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `5e2181e`, the
+fourth commit after the one the previous pass audited. Nothing above this line
+changed.
+
+Audit evidence, all produced by this pass from the repository root and
+reproducible by re-running each command.
+`python3 tools/prose/prose_gate.py --check all` exits 0 over 113 sources and
+8341 units with 0 findings and 1 skipped, and `cmake -P cmake/prose-lint.cmake`
+exits 0 on the same verdict. Passing each commit on the branch to `--head`
+reports 107 sources and 7846 units at `11bc422`, 110 sources and 7995 units at
+`2f27800`, 111 sources and 8092 units at `0dd797e`, 112 sources and 8200 units
+at `27a5659`, and 113 sources and 8341 units at `5e2181e`, every one of the five
+exit 0. `cmake --preset=dev` and `cmake --build --preset=dev` exit 0, and
+`ctest --preset=dev` exits 0 with 100 percent of 37 tests passed, 0 failed, 0
+skipped, in 43.26 s. `cmake --preset=ci-ubuntu` and `cmake --build build` exit
+0, and the two warnings in that configure log are CPack messages, with no
+compiler warning in the project's own C++ sources.
+`cmake --build build/dev -t format-check` exits 0, and `dbc-gate` exits 0 with
+135 interfaces and 0 gaps in both the doc gate and the pair gate.
+`python3 tools/pmu_events/update_pmu_events.py --check` exits 0, and
+`cmake -P cmake/spell.cmake` exits 0. The coverage gate run directly on
+`build/coverage/coverage.info` exits 0 at lines 100.0 percent (1955 of 1955),
+branches 100.0 percent (705 of 705), and functions 98.0 percent (289 of 295)
+on an axis no gate scores, and that trace carries an mtime later than every
+source, header, test, example, and tool file in the tree. The gate's
+`--mode tree` form exits 1 with 108 findings over 228 sources, and none of them
+sits in this feature's artifacts, in `include/speedgun-ng/counters*`, in
+`source/counters/`, in `test/source/counters_*`, in `example/counters_*`, in
+`docs/pages/counters-overhead.md`, or in `tools/pmu_events/`, which is the
+reading the Phase 21 preamble records at
+`specs/007-counters-and-timers/tasks.md:1112-1119` now states with no number.
+
+The commit-title limit holds for every commit on the branch.
+`tools/prose/prose_rules.yaml:11` sets `title_max: 50`, and the five titles
+measure 41, 37, 44, 50, and 45 characters at `11bc422`, `2f27800`, `0dd797e`,
+`27a5659`, and `5e2181e`.
+
+The citation residue the previous pass recorded as closed holds. Every anchor
+below was read against the text it holds, with the number it names serving as a
+pointer. `tools/prose/prose_rules.yaml:19` names `constitution.md:515` for the
+`runner` section token, and `constitution.md:515` holds the Title bullet
+carrying it. `constitution.md:568-570` holds the machine-local
+`CMakeUserPresets.json` sentence `T106` needs, `constitution.md:461-462` holds
+the lint-parity clause `T073` needs, `constitution.md:445-447` holds the tail of
+the XI.5 marketing-vocabulary list `T198` names, and
+`tools/prose/prose_rules.yaml:62` exempts the inline code span, while
+`cmake/prose-lint.cmake:41` raises the failure the Phase 22 preamble quotes.
+The counts the Phase 22 preamble records reproduce: the glob
+`include/speedgun-ng/counters*.hpp` matches 9 headers, the count
+`specs/007-counters-and-timers/plan.md:35`,
+`specs/007-counters-and-timers/plan.md:298`, and
+`specs/007-counters-and-timers/plan.md:325` record, and a
+`ctest --test-dir build -N` run reports 37 tests of which 16 match `-R counters`,
+the counts the SC-002 row of `quickstart.md` records.
+`.github/workflows/ci.yml:160` runs the table check on every change, and
+`test/CMakeLists.txt:249` registers the fixture pair, the two sites `FR-007` and
+`SC-009` rest on.
+
+Coverage of the check: 127 requirement keys (50 FR, 10 SC, 49 user-story
+acceptance scenarios, 18 spec edge cases), 29 plan decision keys, and 11
+constitution principles with X.1 through X.4 and XI.1 through XI.6 read one by
+one. Every file path `plan.md` names in its Project Structure and its physical
+view exists: the 9 public headers, the 11 translation units under
+`source/counters/`, the vendored `external/pmu-events` tree with its `RECORD`,
+the python tool, both examples, the 11 counters test executables, the fixture
+directory, and the overhead page. `cmake/lint.cmake` reaches
+`source/counters/**` through `GLOB_RECURSE` on `source/*.cpp` and
+`source/*.hpp`, so the format reach plan.md asks to verify holds, and
+`format-check` reports zero badly formatted files across it. One finding: 1
+`contradicts`. No requirement is missing or partially built, no requirement is
+contradicted by the code, and no plan decision is unmet.
+
+What is left is the class the last three passes have been closing, in the one
+source a commit message is. The body of `5e2181e` records a whole-range
+prose-gate figure that names no commit, in the position of a claim about the
+range the command it names scans, and that figure measures the parent's range.
+
+### HIGH: the tip commit's message records a whole-range figure its own command does not produce
+
+- [X] T202 Anchor the prose-gate figure the body of commit `5e2181e` records at lines 34 and 35 of that message, which read that `python3 tools/prose/prose_gate.py --check all` `exits 0 over 112 sources and 8200 units with 0 findings and 1 skipped` and name no commit, where `python3 tools/prose/prose_gate.py --check all --head 5e2181e` reports 113 sources and 8341 units and the pair 112 sources and 8200 units reproduces only at `--head 27a5659`, so the sentence must name `27a5659` as the commit whose range reproduces it or state no number, the anchoring T199 applied to the body of `2c45407`, T200 applied to the Phase 21 preamble, and the next clause of the same paragraph already applies to the figure it names `0dd797e`; the rewrite is pre-merge, which the Pull Request Quality section permits, and the message must keep the template, its `Refs:` and `Approved-by:` footers, and the 50-character title limit per Constitution X.4 (contradicts, HIGH)
