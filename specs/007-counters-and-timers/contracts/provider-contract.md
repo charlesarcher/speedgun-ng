@@ -17,7 +17,7 @@ struct provider_iface {                       // registration base (R-004)
 
 struct window_reader {
   // yields, for every managed leaf, one cumulative uint64 point per sampling
-  // action, plus the leaf's unit and metadata (FR-011):
+  // action; the leaf's unit and metadata are catalog facts (FR-011):
   void read_points(point_sink&) noexcept;
 };
 ```
@@ -26,11 +26,13 @@ A C++20 concept `provider` names the shape an out-of-tree provider implements; `
 
 ## Point yield (FR-011)
 
-| Yielded per leaf | Type / shape | Rule |
+| Per leaf | Type / shape | Rule |
 |---|---|---|
 | point | `std::uint64_t` | cumulative at the instant of the action; every leaf kind alike (clock ticks, PMU counts, push loads, honks) |
 | unit | catalog unit plus dimension mapping | fixed at registration; dimension check happens at resolution, never per read |
 | metadata | description, availability, caveats | caveats include multiplex times where the source has enabled/running pairs (FR-041) |
+
+The point is the whole yield of a sampling action: `point_sink::put` receives one `std::uint64_t` and nothing beside it, because `recorder.sample()` is `noexcept` with zero allocation (FR-026). The unit and the metadata are `catalog_seed` fields fixed at registration, and a source with an enabled/running pair discloses its multiplex ratio through those two ordinary leaves (FR-041), so each of them is reachable after measurement.
 
 - Cumulative means monotonic-modular: one provider read action never reports a value that moves backwards non-modularly; a provider-internal backwards jump is a provider contract violation, and a hardware wrap across actions is ordinary physics handled by modular delta (spec edge cases, FR-013).
 - `read_points` is the sampling-action primitive: all leaves it fills are read within one action, satisfying the per-column invariant (FR-047).
@@ -51,7 +53,7 @@ enum class read_mode { fast_tsc, fast_rdpmc, syscall, push_load };
 2. Implement `open` to yield cumulative points for the leaves the system asks it to manage.
 3. Report probed availability: `countable`, `permission_blocked`, `not_encodable`, `absent` (FR-006). Described-and-unavailable is a first-class state; user code branches on catalog state alone (FR-007, US5 scenario 4).
 
-No core file changes, no core compile flags, no internal headers. The giraffe example's acceptance (SC-003) is: public headers plus the standard library, link manifest names this library alone, and the source touches no `source/` include (FR-049).
+No core file changes, no core compile flags, no internal headers. The giraffe example's acceptance (SC-003) is: public headers plus the standard library, a link manifest that demonstrates no third-party dynamic dependency and names the platform C and C++ runtime, and the source touches no `source/` include (FR-049).
 
 ## Built-in providers shipped through this one contract
 
@@ -71,7 +73,7 @@ For each `fast_rdpmc` leaf the provider's read descriptor implements, in order: 
 | Clause | Guarantee | Requirement |
 |---|---|---|
 | C-PRO-1 | New count source needs catalog entries plus the window implementation; zero core changes | FR-012, SC-003 |
-| C-PRO-2 | Every sampling action yields cumulative `uint64` points plus unit and metadata for every managed leaf | FR-011, FR-047 |
+| C-PRO-2 | Every sampling action yields one cumulative `uint64` point for every managed leaf, and the unit, description, availability, and multiplex pair are catalog and plan facts the reader reaches after measurement | FR-011, FR-047 |
 | C-PRO-3 | Availability distinguishes described from countable-now, permission-aware | FR-006, FR-039 |
 | C-PRO-4 | Achieved read mode recorded and disclosed per entry; plans compile against achieved mode | FR-023 |
 | C-PRO-5 | Core vocabulary and public headers carry no platform terms | FR-010 |
