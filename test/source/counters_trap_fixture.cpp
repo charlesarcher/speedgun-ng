@@ -7,10 +7,10 @@
 //
 // Behavior per mode (argv[1]):
 //   - metric-before-finish, fold-range, fold-out-of-extent,
-//     push-cross-thread, push-decrement, push-mixed-owner,
-//     recorder-cross-thread, and scope-cross-thread are semantic-gated
-//     sites: they abort in checked builds, so their markers stay absent;
-//     under ignore they survive and print their markers.
+//     push-cross-thread, push-decrement, push-foreign-sample,
+//     push-mixed-owner, recorder-cross-thread, and scope-cross-thread
+//     are semantic-gated sites: they abort in checked builds, so their
+//     markers stay absent; under ignore they survive and print their markers.
 //   - overrun is an SG_REQUIRE_ALWAYS site (FR-027 memory safety is
 //     never semantic-gated): it aborts in EVERY configuration, marker
 //     absent everywhere.
@@ -143,6 +143,40 @@ auto main(int argc, char** argv) -> int
     const auto on_worker = *machine.counter<events>("worker-bytes");
     const expression<events> mixed {on_worker + on_main};
     const auto plan = compile(system::local(), mixed);
+    if (!plan.has_value()) {
+      std::fprintf(stderr, "fixture: push plan compile failed\n");
+      std::exit(2);
+    }
+    auto rec = plan->recorder(4);
+    rec.sample();
+    rec.sample();
+    survived(mode);
+    return 0;
+  }
+
+  if (mode == "push-foreign-sample") {
+    // One push counter, declared on a worker thread and sampled by the
+    // thread that compiled the plan. The leaf set names a single owner,
+    // so the one-owner window guard at `push_provider.cpp:120` admits it
+    // and the violation reaches the sampling-side guard at `:40`, which
+    // is the only site that detects it (FR-035, FR-031).
+    auto push = std::make_unique<push_provider>();
+    std::thread worker {[&push]
+                        {
+                          auto worker_ops = push->add_counter(
+                              "worker-ops", "ops", "worker ops");
+                          worker_ops.add(10);
+                        }};
+    worker.join();
+    const auto registered = system::local().register_provider(std::move(push));
+    if (!registered.has_value()) {
+      std::fprintf(stderr, "fixture: push provider registration failed\n");
+      std::exit(2);
+    }
+    const auto machine = *system::local().object("machine");
+    const auto on_worker = *machine.counter<events>("worker-ops");
+    const expression<events> counted {on_worker};
+    const auto plan = compile(system::local(), counted);
     if (!plan.has_value()) {
       std::fprintf(stderr, "fixture: push plan compile failed\n");
       std::exit(2);
