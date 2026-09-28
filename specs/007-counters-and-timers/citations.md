@@ -560,3 +560,421 @@ working tree equals that head. The clause in the Phase 34 preamble at
 `specs/007-counters-and-timers/tasks.md:2432-2435` that reads `so an uncommitted line inside a ranged file is examined`
 overstates for the insertion case, and that preamble keeps its bytes under
 the Immutability clause of Pull Request Quality.
+
+## The static-analysis figure the feature scope carries
+
+`specs/007-counters-and-timers/tasks.md:4270-4273`, the Phase 41
+preamble, records `reports 0` lines carrying `warning:` and 0 carrying
+`error:` for the feature scope, and
+`specs/007-counters-and-timers/tasks.md:4426-4430`, `T292`'s own text,
+carries the same figure at `:4428-4429` and rests a conclusion on it at
+`:4429-4430`: `so the report is clean and the clause's figure holds`.
+Both texts are closed records and both keep their bytes under the
+Immutability clause of Pull Request Quality. Both are wrong on the
+count, and the figure `T292` concluded from is the one the branch's own
+2.10.0 Sync Impact Report contradicts at
+`.specify/memory/constitution.md:10-20`.
+
+Measured at head `9d83823` over the working tree this record sits in,
+`run-clang-tidy` 22.1.8 over the eleven translation units
+`find source/counters -name '*.cpp'` returns, selected from
+`build/dev/compile_commands.json` with the repository `.clang-tidy`,
+exits 0 and reports 734 lines carrying `warning:` and 0 carrying
+`error:`. The invocation:
+
+```
+run-clang-tidy -p build/dev \
+  -header-filter='^/home/archerc/code/speedgun-ng/' \
+  -exclude-header-filter='^/home/archerc/code/speedgun-ng/external/' \
+  -source-filter='.*/source/counters/.*' \
+  $(find source/counters -name '*.cpp' | sort)
+```
+
+The 734 decompose by the file the diagnostic names. The eleven
+translation units contribute 358, their two provider-private headers
+contribute 42, the seven public `counters` headers contribute 320,
+`include/speedgun-ng/dbc.hpp` contributes 11 because the counters
+sources include it, and two vendored simdjson inline headers contribute
+3 despite the exclude filter, which the header filter does not reach
+for an inl-header diagnostic.
+
+| File the diagnostic names | `warning:` lines |
+| --- | --- |
+| `include/speedgun-ng/counters_measurement.hpp` | 196 |
+| `include/speedgun-ng/counters_provider.hpp` | 99 |
+| `source/counters/linux_pmu/table_parse.cpp` | 64 |
+| `source/counters/linux_pmu/group_io.cpp` | 54 |
+| `source/counters/fold.cpp` | 42 |
+| `source/counters/system.cpp` | 37 |
+| `source/counters/plan.cpp` | 35 |
+| `source/counters/linux_pmu/provider.cpp` | 33 |
+| `source/counters/linux_pmu/../detail/pmu.hpp`, which is `source/counters/detail/pmu.hpp` | 30 |
+| `source/counters/clock_provider.cpp` | 31 |
+| `source/counters/fake_provider.cpp` | 20 |
+| `source/counters/linux_pmu/encode.cpp` | 18 |
+| `source/counters/linux_pmu/fast_read.cpp` | 17 |
+| `include/speedgun-ng/counters_system.hpp` | 16 |
+| `source/counters/detail/core.hpp` | 12 |
+| `include/speedgun-ng/dbc.hpp` | 11 |
+| `source/counters/push_provider.cpp` | 7 |
+| `include/speedgun-ng/counters_push.hpp` | 3 |
+| `external/simdjson/include/simdjson/dom/document-inl.h` | 2 |
+| `include/speedgun-ng/counters_clock.hpp` | 2 |
+| `include/speedgun-ng/counters_fake.hpp` | 2 |
+| `include/speedgun-ng/counters_pmu.hpp` | 2 |
+| `external/simdjson/include/simdjson/padded_string-inl.h` | 1 |
+
+The single-translation-unit pair the 2.10.0 report and both sibling
+commit bodies state reproduces. `clang-tidy` 22.1.8 on
+`source/counters/plan.cpp` with the flags
+`build/CMakeFiles/speedgun-ng_speedgun-ng.dir/flags.make` records and
+the header and exclude filters `build/CMakeCache.txt` records exits 0
+with 92 lines carrying `warning:` and 0 carrying `error:`, and the same
+invocation under `--warnings-as-errors='*'` exits 1 with 0 carrying
+`warning:` and the same 92 carrying `error:`. The run reports `20811
+warnings generated.` before suppression. The 92 decompose
+`include/speedgun-ng/counters_measurement.hpp` 40,
+`source/counters/plan.cpp` 35,
+`include/speedgun-ng/counters_provider.hpp` 9,
+`include/speedgun-ng/counters_system.hpp` 4,
+`source/counters/detail/core.hpp` 3, and
+`include/speedgun-ng/dbc.hpp` 1. The largest check class is
+`readability-identifier-length` at 43 of the 92.
+
+The flag set is not the discriminator. The same file with the dev
+preset's flags, read from
+`build/dev/test/CMakeFiles/counters_trap_checked_test.dir/flags.make`
+form, exits 0 with the same 92 `warning:` lines. A run whose output was
+not read, or whose findings were filtered out of the log, produces the
+0 the two closed texts record. The branch's two most recent code-bearing
+commit bodies report lines that carry a finding, so the 0 is a
+measurement error in two closed texts and in no gate.
+
+| Site | Figure as written | Measured at `9d83823` | Governing |
+| --- | --- | --- | --- |
+| `specs/007-counters-and-timers/tasks.md:4272-4273`, the Phase 41 preamble | 0 `warning:`, 0 `error:` over the eleven translation units | 734 `warning:`, 0 `error:` over the same eleven | Principle VIII; X.4 |
+| `specs/007-counters-and-timers/tasks.md:4428-4429`, `T292` | 0 `warning:`, 0 `error:` over the same eleven | 734 `warning:`, 0 `error:` over the same eleven | Principle VIII; X.4 |
+| `specs/007-counters-and-timers/tasks.md:4429-4430`, `T292`'s conclusion | `so the report is clean and the clause's figure holds` | the report carries 734 findings and the clause states no count | Principle VIII; X.4 |
+
+A finding count and a new-finding count are different obligations, and
+the clause names only the second. `.specify/memory/constitution.md:269-274`
+requires that the two analyzers `report no new findings, against the
+pinned Core Guidelines baseline (I) from the same configuration`. The
+baseline that word names is the pinned rule set, a list of check names in
+`.clang-tidy`; it carries no finding count and no tree. Nothing in the
+clause, in `.clang-tidy`, or in the presets names a recorded per-tree
+count, so `new` has nothing to be new against: against this tree the
+pinned check set reports 734 over the feature scope's eleven
+translation units and 92 over one of them, and the 2.10.0 report records
+23700 of its whole-database total from the vendored trees. The clause is
+therefore not measurable as written, and the record states the fact
+rather than a remedy. A baseline is a governance decision under
+Principle IX and belongs to the repository owner: it would take a
+recorded per-tree finding count at a named head, pinned the way the Core
+Guidelines revision is pinned, with the rule that a change to
+`.clang-tidy` or to a vendored tree moves the baseline with it. No
+analyzer call was suppressed, no warning class demoted, and no
+`.clang-tidy` entry or preset value changed in reaching this section.
+
+## The constitution re-anchored after amendment 2.10.0
+
+Amendment 2.10.0, commit `cb5dee5`, states in its own Sync Impact
+Report at `.specify/memory/constitution.md:24-28` that it shifts every
+line in the file and that a citation into the constitution needs
+re-anchoring by the next convergence pass. The pass named is this one.
+The constitution held 612 lines at `4fd1189`, the head the 2.9.1 report
+held, and holds 645 at `9d83823`.
+
+`git diff -U0 4fd1189 cb5dee5 -- .specify/memory/constitution.md` gives
+three hunks, at old line 2, old line 242, and old line 596, so the shift
+map is arithmetic and a later amendment is re-derivable from it. An old
+line at or below 241 moves by 29, an old line from 243 through 595 moves
+by 32, and an old line at or above 596 moves by 33. Old line 242 is the
+static-analysis clause itself, which the amendment replaced, and it now
+occupies `:271-274`. The task text behind this section states the
+pre-hunk boundary as old line 238 and names two bands; the measured
+boundary is old line 241 and there are three bands, the third covering
+old lines at or above 596.
+
+Counted with the rule at `:32-41` over `git ls-files` output, the
+feature places 48 path-form anchors into the constitution: 45 in
+`specs/007-counters-and-timers/tasks.md` lines 1 through 4479 and 3 in
+this record. Every one of the 48 was read individually: at `4fd1189`
+the cited line holds the text the sentence naming it describes, and at
+`9d83823` the shifted line holds that same text while the cited line
+holds other text. The class of an anchor that was never right is empty
+over these 48. A hand attribution of the bare `:NN` continuations
+sitting on the same lines adds 17, of which 11 assert a current
+position and are stale by the same map, and 6 assert a pre-amendment
+position and stand as history. The 65 anchors divide into 59 stale and 6
+historical.
+
+The three rows in this record come first, because they are the ones a
+reader follows. `specs/007-counters-and-timers/citations.md:156` names
+`:568-570` for the machine-local `CMakeUserPresets.json` sentence,
+which stands at `:600-602`. The same row records that the landing it
+names, `:571-573`, held the Licensing bullet and one empty line at the
+head it was written at; that range stands at `:603-605` now.
+`specs/007-counters-and-timers/citations.md:222` names `:405-409` for
+the Principle XI.1 scope paragraph, which stands at `:437-441`.
+`specs/007-counters-and-timers/citations.md:455` names `:245-248` for
+the constitution's own prose-lint gate and the range form, which stands
+at `:277-280`; `:245-248` now holds Principle VII's per-platform
+baselines bullet, and `T284` and the Phase 40 preamble both lean on the
+row.
+
+| Site | Anchor as written | Line holding the same text at `9d83823` | Head the number was read at | Shift |
+| --- | --- | --- | --- | --- |
+| `citations.md:156` | `:568-570` | `:600-602` | `4fd1189` | 32 |
+| `citations.md:222` | `:405-409` | `:437-441` | `4fd1189` | 32 |
+| `citations.md:455` | `:245-248` | `:277-280` | `4fd1189` | 32 |
+| `tasks.md:358`, `T073` | `:461-462` | `:493-494` | `4fd1189` | 32 |
+| `tasks.md:397`, `T106` | `:568-570` | `:600-602` | `4fd1189` | 32 |
+| `tasks.md:751` | `:279-287` | `:311-319` | `4fd1189` | 32 |
+| `tasks.md:773`, `T184` | `:279-287` | `:311-319` | `4fd1189` | 32 |
+| `tasks.md:832` | `:279-287` | `:311-319` | `4fd1189` | 32 |
+| `tasks.md:861` | `:59-64` | `:88-93` | `4fd1189` | 29 |
+| `tasks.md:888`, `T187` | `:279-287` | `:311-319` | `4fd1189` | 32 |
+| `tasks.md:888`, `T187` | `:59-64` | `:88-93` | `4fd1189` | 29 |
+| `tasks.md:962` | `:424-425` | `:456-457` | `4fd1189` | 32 |
+| `tasks.md:976`, `T189` | `:19-20` | `:48-49` | `4fd1189` | 29 |
+| `tasks.md:976`, `T189` | `:232-237` | `:261-266` | `4fd1189` | 29 |
+| `tasks.md:976`, `T189` | `:250` | `:282` | `4fd1189` | 32 |
+| `tasks.md:980`, `T190` | `:515` | `:547` | `4fd1189` | 32 |
+| `tasks.md:988`, `T192` | `:443` | `:475` | `4fd1189` | 32 |
+| `tasks.md:988`, `T192` | `:361-388` | `:393-420` | `4fd1189` | 32 |
+| `tasks.md:988`, `T192` | `:515` | `:547` | `4fd1189` | 32 |
+| `tasks.md:1135`, `T196` | `:554-556` | `:586-588` | `4fd1189` | 32 |
+| `tasks.md:1135`, `T196` | `:568-570` | `:600-602` | `4fd1189` | 32 |
+| `tasks.md:1136`, `T197` | `:447-448` | `:479-480` | `4fd1189` | 32 |
+| `tasks.md:1136`, `T197` | `:461-462` | `:493-494` | `4fd1189` | 32 |
+| `tasks.md:1180` | `:568-570` | `:600-602` | `4fd1189` | 32 |
+| `tasks.md:1182` | `:461-462` | `:493-494` | `4fd1189` | 32 |
+| `tasks.md:1183` | `:515` | `:547` | `4fd1189` | 32 |
+| `tasks.md:1209` | `:445-447` | `:477-479` | `4fd1189` | 32 |
+| `tasks.md:1287` | `:515` | `:547` | `4fd1189` | 32 |
+| `tasks.md:1288` | `:515` | `:547` | `4fd1189` | 32 |
+| `tasks.md:1289` | `:568-570` | `:600-602` | `4fd1189` | 32 |
+| `tasks.md:1290` | `:461-462` | `:493-494` | `4fd1189` | 32 |
+| `tasks.md:1291` | `:445-447` | `:477-479` | `4fd1189` | 32 |
+| `tasks.md:2711` | `:568-570` | `:600-602` | `4fd1189` | 32 |
+| `tasks.md:2734` | `:397-403` | `:429-435` | `4fd1189` | 32 |
+| `tasks.md:2752` | `:408-409` | `:440-441` | `4fd1189` | 32 |
+| `tasks.md:2813` | `:568-570` | `:600-602` | `4fd1189` | 32 |
+| `tasks.md:2815` | `:571` | `:603` | `4fd1189` | 32 |
+| `tasks.md:2997` | `:472-474` | `:504-506` | `4fd1189` | 32 |
+| `tasks.md:3147` | `:203-205` | `:232-234` | `4fd1189` | 29 |
+| `tasks.md:3174` | `:190-192` | `:219-221` | `4fd1189` | 29 |
+| `tasks.md:3295` | `:112-118` | `:141-147` | `4fd1189` | 29 |
+| `tasks.md:3299` | `:190-192` | `:219-221` | `4fd1189` | 29 |
+| `tasks.md:3724` | `:190-192` | `:219-221` | `4fd1189` | 29 |
+| `tasks.md:3846` | `:245-248` | `:277-280` | `4fd1189` | 32 |
+| `tasks.md:4009` | `:245-248` | `:277-280` | `4fd1189` | 32 |
+| `tasks.md:4013` | `:190-192` | `:219-221` | `4fd1189` | 29 |
+| `tasks.md:4413`, `T292` | `:240-242` | `:269-271` | `4fd1189` | 29 |
+| `tasks.md:4475`, `T294` | `:405-409` | `:437-441` | `4fd1189` | 32 |
+
+The 11 bare continuations assert a current position and are stale by the
+same map. Six further continuations on the same lines name a
+pre-amendment position and stand as history, so they are listed with
+their head and take no correction: `tasks.md:980`'s `:443` twice and
+`:492`, `tasks.md:1135`'s `:531-533` and `:545-547`, and `tasks.md:1136`'s
+`:424-425`.
+
+| Site | Continuation as written | Line holding the same text at `9d83823` | Head the number was read at | Shift |
+| --- | --- | --- | --- | --- |
+| `tasks.md:962` | `:447-448` | `:479-480` | `4fd1189` | 32 |
+| `tasks.md:976`, `T189` | `:211-216` | `:240-245` | `4fd1189` | 29 |
+| `tasks.md:976`, `T189` | `:258-264` | `:290-296` | `4fd1189` | 32 |
+| `tasks.md:976`, `T189` | `:279-287` | `:311-319` | `4fd1189` | 32 |
+| `tasks.md:980`, `T190` | `:466` | `:498` | `4fd1189` | 32 |
+| `tasks.md:988`, `T192` | `:387-476` | `:419-508` | `4fd1189` | 32 |
+| `tasks.md:1136`, `T197` | `:411-421` | `:443-453` | `4fd1189` | 32 |
+| `tasks.md:1136`, `T197` | `:442` | `:474` | `4fd1189` | 32 |
+| `tasks.md:2813` | `:571-573` | `:603-605` | `4fd1189` | 32 |
+| `tasks.md:4014` | `:258-260` | `:290-292` | `4fd1189` | 32 |
+| `tasks.md:4414`, `T292` | `:227` | `:256` | `4fd1189` | 29 |
+
+The closed task lines and the dated preambles keep their bytes, so this
+table is the only vehicle. The record's own counting rule at `:32-41`
+and every figure the record carries keep their values, and the shift
+map above is what a later amendment is measured against.
+
+## The tree form takes its candidate set from `git ls-files`
+
+The sentence at `specs/007-counters-and-timers/tasks.md:3864-3867` is
+false in its first half and true in its second. It reads `Both forms
+take their candidate file set and their per-line authorship filter from
+the range`, and the code takes the candidate set from the range in the
+range mode alone. `tools/prose/prose_gate.py:591-593` returns the
+`git ls-files` listing with `authorship = None` under `if mode == "tree"`,
+the range path is `:594-600`, and `:956-957` sets every examined line's
+status to `new` whenever the map is `None`, so the tree form holds no
+per-line filter at all. The sentence's second half, that `read_source` at
+`:842` reads the examined text from the working tree in both modes as
+the call at `:936` shows, holds. The clause is at `:3868-3869`.
+
+The same preamble carries a tree-form figure at `:3875-3885`, and a
+tree-form run narrowed to this feature, so a reader applying its first
+half concludes the tree form is range-limited, which would drop every
+file the range does not touch. The Phase 41 sentence at
+`specs/007-counters-and-timers/tasks.md:4226-4231` states the same
+attribution about `collect_candidates` without the `Both forms`
+quantifier, and is saved by its surrounding paragraph, which declines to
+give a figure for the range holding it. Read on its own the attribution
+has the same gap, and a reader who quotes it needs the paragraph with it.
+The section above this one states the correct behaviour at `:526-536`
+and is the place a reader reaches for it.
+
+| Site | Clause as written | What the code does | Governing |
+| --- | --- | --- | --- |
+| `tasks.md:3864-3867` | `Both forms take their candidate file set and their per-line authorship filter from the range` | the range mode alone takes both; the tree mode takes `git ls-files` at `prose_gate.py:592` and no per-line filter, since `:956-957` sets every examined line to `new` | Principle X.4; XI.6 |
+| `tasks.md:3868-3869` | `read_source` reads the examined text from the working tree in both modes | holds, at `prose_gate.py:842` and its call at `:936` | Principle X.4 |
+| `tasks.md:4226-4231` | the same attribution about `collect_candidates`, unquantified | the tree mode returns `authorship = None` at `:593`; the sentence is saved by its paragraph's scope | Principle X.4 |
+
+The preamble keeps its bytes, and no gate rule, threshold, vocabulary, or
+marker moved with this row.
+
+## The code-span exemption is unit-wide
+
+`tools/prose/prose_gate.py:876-883` returns an empty finding list for a
+unit when any of five triggers matches anywhere in it: `INLINE_CODE_RE`
+at `:877`, `URL_RE` at `:878`, `path_like` at `:879`,
+`SHELL_COMMAND_RE` at `:880`, and `BLOCKQUOTE_RE` at `:881`. The row is
+a unit. `.specify/memory/constitution.md:504-506` scopes the exemption to
+`a banned token inside a verbatim quotation, code span, command, file
+name, or a literal that is itself the subject under discussion`, which
+is a token. A banned token outside the span on a line that carries one
+is therefore dropped, and the row sits above every rule matcher, so no
+rule sees the line at all. The blind-spot section at `:203-243` names the
+em-dash family and the split-span class and names neither this scope nor
+the three instances below.
+
+Three Principle XI violations in this feature's live artifacts rode the
+row, and all three are closed. Each sentence now states what the thing
+is, each fact in its own sentence, and no line count moved, so every
+anchor into these three files keeps its number.
+
+| Site | Token the row dropped | Sentence now reads |
+| --- | --- | --- |
+| `specs/007-counters-and-timers/plan.md:393` | XI.2 `, not ` | `The kernel grants the path. The probe was the obstacle.` |
+| `specs/007-counters-and-timers/quickstart.md:140` | XI.2 `, not ` | `the binary check is reported as a measurement` |
+| `specs/007-counters-and-timers/research.md:57` | XI.5 `simply` | `Platforms without a usable TSC omit the leaf` |
+
+The measured scope of the row, over `git ls-files` with the gate's own
+`classify_source`, `INLINE_CODE_RE`, `URL_RE`, `path_like`,
+`SHELL_COMMAND_RE`, and `BLOCKQUOTE_RE` and with the code spans masked
+before the token search, is 129 lines repository-wide that carry a token
+the row drops: 68 in `specs/007-counters-and-timers/tasks.md`, 13 in
+`specs/007-counters-and-timers/sg_counters.md`, 10 in
+`specs/001-dbc-facility/research.md`, 7 in
+`specs/001-dbc-facility/spec.md`, 6 in `specs/001-dbc-facility/plan.md`,
+4 in `CMakeLists.txt`, 3 in `specs/001-dbc-facility/tasks.md`, 2 in
+`specs/007-counters-and-timers/plan.md`, 2 in `tools/dbc/asm_smoke.sh`,
+and the remainder spread over 21 further files. The task text behind
+this section records 211 repository-wide with 3 in the feature's live
+artifacts; the measured total is 129, and after the three fixes the three
+lines remaining in the live artifacts are `plan.md:347`,
+`plan.md:457`, and `spec.md:33`, which no task authorizes closing.
+
+The 68 lines in `tasks.md` include the five the task text names at `:390`,
+`:487`, `:497`, `:1633`, and `:2723`; all five keep their bytes, and the
+sweep that would reach them is the tree-wide sweep the Principle XI.1
+scope paragraph at `:437-441` schedules. The 13 lines in the closed
+journal keep their bytes under the same clause. Whether they are swept
+belongs to that sweep and to a future pass, and no gate rule, threshold,
+vocabulary, or marker moves here. A narrower row belongs to
+`specs/002-prose-commit-lint` and to a constitutional reading of the
+exemption's scope, and that reading is the repository owner's under
+Principle IX.
+
+## The executable count the last three preambles carry
+
+`test/CMakeLists.txt` carries 13 `add_executable(counters_` calls at this
+head. The Phase 39 preamble at `specs/007-counters-and-timers/tasks.md:3684`,
+the Phase 40 preamble at `:3957`, and the Phase 41 preamble at
+`:4307-4308` each carry 12. Each figure was correct at the head its
+preamble was written at, so the three keep their bytes under the
+Immutability clause of Pull Request Quality. The movement is a test-side
+addition, commit `7920853`, which added the negative-control fixture
+`counters_trap_noguard_fixture` at `test/CMakeLists.txt:203-205` and
+changed no library code.
+
+| Site | Figure as written | Measured at `9d83823` | Commit that moved it | Governing |
+| --- | --- | --- | --- | --- |
+| `tasks.md:3684`, Phase 39 preamble | 12 `add_executable(counters_` calls | 13 | `7920853` | Principle X.4 |
+| `tasks.md:3957`, Phase 40 preamble | 12 `add_executable(counters_` calls | 13 | `7920853` | Principle X.4 |
+| `tasks.md:4307-4308`, Phase 41 preamble | 12 `add_executable(counters_` calls | 13 | `7920853` | Principle X.4 |
+
+## The release-configuration static-analysis total
+
+Principle IX requires one release-configuration build per feature, and
+`.specify/memory/constitution.md:269-274` states that the static-analysis
+gate reports. This is the measured total for the configuration the gate
+drives, forced from clean. The build before this one was a no-op with 26
+targets and 0 compile actions, which is why the Phase 39, Phase 40, and
+Phase 41 preambles each state no total.
+
+`cmake --preset=ci-ubuntu` exits 0 with `CMAKE_BUILD_TYPE:STRING=Release`
+and `CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^/home/archerc/code/speedgun-ng/;--exclude-header-filter=^/home/archerc/code/speedgun-ng/external/`
+in the cache. The 38 object files under `build/CMakeFiles`,
+`build/test/CMakeFiles`, and `build/example/CMakeFiles` were then
+deleted, the ci-ubuntu tree's own project targets, and 0 object or gcov
+files remained in those three directories. The `build/_zlib`,
+`build/_simdjson`, `build/_yaml-cpp`,`build/_hdrhistogram`, and
+`build/hwloc_vendor-prefix-e21a30e9` object files, 74 of them, were left
+in place, and the `build/agent-*` trees were not touched.
+`cmake --build build` then exits 0 over 38 compile actions and 27 built
+targets, 1 m 50 s.
+
+The log carries 2953 lines with `warning:` and 1 line with `error:`. The
+single `error:` line is
+`test/source/dbc_test.cpp:231:9: error: Unhandled exception thrown in
+function that is an entry point. [throwInEntryPoint]`, a static-analysis
+finding the launcher reports at error severity while the build succeeds,
+which is the design the 2.10.0 Sync Impact Report records. `cppcheck`
+contributed no line: the launcher form `cppcheck;--inline-suppr` in the
+cache produced no finding on any of the 38 translation units.
+
+| Population | `warning:` lines |
+| --- | --- |
+| feature scope: `source/counters/` and the seven public `counters` headers | 1467 |
+| feature scope: the twelve `test/source/counters_*` and two `example/counters_*` units | 1243 |
+| other project units: the feature 001 DBC tests | 185 |
+| other project units: `include/speedgun-ng/dbc.hpp` and `include/speedgun-ng/speedgun-ng.hpp` | 33 |
+| other project units: the five vendored-tree gate translation units under `source/` | 22 |
+| `external/`: two simdjson inline headers, which the exclude header filter does not reach for an inl-header diagnostic | 3 |
+
+The 2953 decompose between the feature scope, 2710, and everything else
+in the same tree, 240, with the 3 vendored lines sitting outside both.
+The vendored trees' own 74 object files were not recompiled, so a fully
+from-clean release build would add their diagnostics to this total, and
+the only figure recorded for them is the 23700 the 2.10.0 Sync Impact
+Report states for the whole database, which this pass did not
+re-measure. Head `9d83823` with one uncommitted change, the refusal
+check in `test/source/counters_trap_checked_test.cpp`, which contributes
+59 of the 2953 at `test/source/counters_trap_checked_test.cpp`. No
+analyzer call was suppressed and no gate moved in reaching this section.
+
+## The cppcheck half of the same gate, measured
+
+Principle VIII's static-analysis clause names two analyzers. The section
+on the feature scope's static-analysis figure above carries the
+`clang-tidy` half at 734 `warning:` lines over the eleven translation
+units. The `cppcheck` half is measured here, at head `9d83823`:
+
+```
+cppcheck --inline-suppr -q --force $(find source/counters -name '*.cpp') -I include
+```
+
+exits 0 and reports 0 findings. The same launcher form on
+`source/counters/plan.cpp` alone exits 0 and prints three progress lines
+and no finding. The `Phase 42` preamble at
+`specs/007-counters-and-timers/tasks.md:4548-4550` records that the same
+command `exits 0 with findings printed`, and no finding is printed at
+this head. The preamble keeps its bytes, and the figure that clause
+needs is 0 for `cppcheck` over the feature scope and 734 for
+`clang-tidy` over the same eleven translation units, so a reader
+collecting the report reads one analyzer's findings and none from the
+other. No `cppcheck` call was suppressed, no `--error-exitcode` added,
+and no configuration value changed in reaching this section.
