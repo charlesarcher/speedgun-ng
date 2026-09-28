@@ -896,7 +896,7 @@ Audit evidence, all produced by this pass. `cmake --preset=ci-ubuntu` then
 `dbc-gate` reports 135 interfaces with 0 gaps in the doc gate and 0 in the pair gate,
 `format-check` exits 0, and `cmake -P cmake/spell.cmake` exits 0.
 `python3 tools/prose/prose_gate.py --check all` exits 0 over 107 sources and 7846 units
-with 0 findings and 1 skipped over the range ending at `11bc422`, the commit this pass audited, and the range ending at the branch tip exits 0 with 0 findings after the message carrying the finding was rewritten; `--mode tree` collects its files with `git ls-files` and reads them from the working tree, so no commit reproduces its total (`tasks.md:1112-1119`), and its findings, of which
+with 0 findings and 1 skipped over the range ending at `11bc422`, the commit this pass audited, and the range ending at `0dd797e` exits 0 with 0 findings after the message carrying the finding was rewritten; `--mode tree` collects its files with `git ls-files` and reads them from the working tree, so no commit reproduces its total (`tasks.md:1112-1119`), and its findings, of which
 the two inside `test/source/dbc_test.cpp` are ruled out of this feature on the grounds
 Phase 18 established. `build/coverage/coverage.info` carries mtime 23:46:53, later than
 the newest source in the tree (23:34:53, `source/counters/fold.cpp`), and
@@ -1247,10 +1247,10 @@ Audit evidence, all produced by this pass from the repository root and
 reproducible by re-running each command.
 `python3 tools/prose/prose_gate.py --check all` and `cmake -P cmake/prose-lint.cmake`
 exit 0, and this preamble records no figure for the range that holds it. Passing each of the
-six commits from `11bc422` through `d27c466` to `--head` reports 107 sources and 7846 units
+six commits from `11bc422` through `cd3fc26` to `--head` reports 107 sources and 7846 units
 at `11bc422`, 110 sources and 7995 units at `2f27800`, 111 sources and 8092 units at
-`0dd797e`, 112 sources and 8200 units at `27a5659`, 113 sources and 8343 units at
-`5567f58`, and 114 sources and 8430 units at `d27c466`, all six
+`0dd797e`, 112 sources and 8200 units at `27a5659`, 113 sources and 8344 units at
+`17cb1a6`, and 114 sources and 8431 units at `cd3fc26`, all six
 exit 0. `cmake --preset=dev` and `cmake --build --preset=dev` exit 0, and
 `ctest --preset=dev` exits 0 with 100 percent of 37 tests passed, 0 failed, 0
 skipped, in 43.26 s. `cmake --preset=ci-ubuntu` and `cmake --build build` exit
@@ -1263,7 +1263,7 @@ compiler warning in the project's own C++ sources.
 `build/coverage/coverage.info` exits 0 at lines 100.0 percent (1955 of 1955),
 branches 100.0 percent (705 of 705), and functions 98.0 percent (289 of 295)
 on an axis no gate scores, and that trace carries an mtime later than every
-source, header, test, and example file in the tree the branch carries at `d27c466`, whose newest is `source/counters/fold.cpp` at 23:34:53; the newest tracked tool file, `tools/prose/prose_rules.yaml` at 2026-09-28 00:33:42, carries an mtime later than the trace. The gate's
+source, header, test, and example file in the tree the branch carries at `cd3fc26`, whose newest is `source/counters/fold.cpp` at 23:34:53; the newest tracked tool file, `tools/prose/prose_rules.yaml` at 2026-09-28 00:33:42, carries an mtime later than the trace. The gate's
 `--mode tree` form collects its files with `git ls-files` and reads them from the working tree, so no commit reproduces its total, exits 1, and none of them
 sits in this feature's artifacts, in `include/speedgun-ng/counters*`, in
 `source/counters/`, in `test/source/counters_*`, in `example/counters_*`, in
@@ -1272,9 +1272,9 @@ reading the Phase 21 preamble records at
 `specs/007-counters-and-timers/tasks.md:1112-1119` now states with no number.
 
 The commit-title limit holds for the seven commits from `11bc422` through
-`43ab52d`. `tools/prose/prose_rules.yaml:11` sets `title_max: 50`, and the
+`7afd296`. `tools/prose/prose_rules.yaml:11` sets `title_max: 50`, and the
 seven titles measure 41, 37, 44, 50, 45, 44, and 50 characters at `11bc422`,
-`2f27800`, `0dd797e`, `27a5659`, `5567f58`, `d27c466`, and `43ab52d`.
+`2f27800`, `0dd797e`, `27a5659`, `17cb1a6`, `cd3fc26`, and `7afd296`.
 
 The citation residue the previous pass recorded as closed holds. Every anchor
 below was read against the text it holds, with the number it names serving as a
@@ -1322,17 +1322,17 @@ range the command it names scans, and that figure measures the parent's range.
 
 ## Phase 24: Convergence
 
-Appended by `/speckit.converge` after an audit of the branch tip at `d27c466`
+Appended by `/speckit.converge` after an audit of the branch tip at `cd3fc26`
 and of the residue the five waves before it left. Nothing above this line
 changed.
 
 Audit evidence, all produced by this pass from the repository root.
 `python3 tools/prose/prose_gate.py --check all` exits 0, and `cmake -P
 cmake/prose-lint.cmake` reproduces that verdict. Passing each of the seven commits from `11bc422`
-through `43ab52d` to `--head` reports 107 sources and 7846 units at `11bc422`, 110 sources and
+through `7afd296` to `--head` reports 107 sources and 7846 units at `11bc422`, 110 sources and
 7995 units at `2f27800`, 111 sources and 8092 units at `0dd797e`, 112 sources and 8200 units at
-`27a5659`, 113 sources and 8343 units at `5567f58`, 114 sources and 8430 units at `d27c466`, and
-115 sources and 8523 units at `43ab52d`, every one of the seven exit 0. `cmake --preset=dev` and
+`27a5659`, 113 sources and 8344 units at `17cb1a6`, 114 sources and 8431 units at `cd3fc26`, and
+115 sources and 8529 units at `7afd296`, every one of the seven exit 0. `cmake --preset=dev` and
 `cmake --build --preset=dev` exit 0, and `ctest --preset=dev` exits 0 with
 100.0 percent of 37 tests passed, 0 failed, 0 skipped. `cmake
 --preset=ci-ubuntu` and `cmake --build build` exit 0. `cmake --build build/dev
@@ -1363,20 +1363,20 @@ plan decision is unmet. What is left is the newest audit record, and the code
 the last six waves converged is untouched by every finding below.
 
 The root cause of the two HIGH findings is one event. The amend that turned
-`5e2181e` into `5567f58` rewrote the branch after the Phase 23 preamble was
+`5e2181e` into `17cb1a6` rewrote the branch after the Phase 23 preamble was
 committed, and three sentences in that preamble now describe a commit the
 branch no longer carries. `git merge-base --is-ancestor 5e2181e HEAD` exits
 non-zero while `git cat-file -t 5e2181e` still reports a commit, so the object
 survives in the local database while the range the gate scans, and any fresh
 clone, have moved past it. The commit-title limit itself holds on the range
-from the merge base with `origin/master`, `65beada`, to `43ab52d`, whose 48
+from the merge base with `origin/master`, `65beada`, to `7afd296`, whose 48
 titles measure 50 characters or fewer, and on the seven commits from `11bc422`
-through `43ab52d`, whose titles measure 41, 37, 44, 50, 45, 44, and 50.
+through `7afd296`, whose titles measure 41, 37, 44, 50, 45, 44, and 50.
 
 ### HIGH: two recorded figures name a range no commit the branch carries reproduces
 
 - [X] T203 Anchor the prose-gate figure the Phase 23 preamble records at `specs/007-counters-and-timers/tasks.md:1248-1249`, which reads that `python3 tools/prose/prose_gate.py --check all` `exits 0 over 113 sources and 8341 units with 0 findings and 1 skipped` and names no commit, where the command it names carries no `--head` and run at the branch reports 114 sources and 8430 units, and the pair reproduces only at `--head 5e2181e`, a commit the branch no longer carries; the sentence must name the commit whose range reproduces each figure or state no number, the anchoring T199 applied to the body of the `2c45407` tip, T200 applied to the Phase 21 preamble, and T202 applied to the body of `5e2181e`; this preamble records no figure for the range holding it, and the five figures the next paragraph names stand (HIGH, Constitution X.4, XI.6, `contradicts`)
-- [X] T204 Restate the two branch inventories the Phase 23 preamble records at `specs/007-counters-and-timers/tasks.md:1250-1253` and `specs/007-counters-and-timers/tasks.md:1274-1277`, which read that passing `each commit on the branch` to `--head` reports figures ending in `113 sources and 8341 units at 5e2181e` and that the title limit holds `for every commit on the branch` with `the five titles` naming the same commit, where the branch carries six commits from `11bc422` whose titles measure 41, 37, 44, 50, 45, and 44 characters, every one within the limit `tools/prose/prose_rules.yaml:11` sets, and `5567f58` and `d27c466` appear in neither list; both sentences must enumerate the commits the branch carries, must name the commit each figure belongs to, and must record no figure and no title length for a commit the branch does not carry (MEDIUM, Constitution X.4, `contradicts`)
+- [X] T204 Restate the two branch inventories the Phase 23 preamble records at `specs/007-counters-and-timers/tasks.md:1250-1253` and `specs/007-counters-and-timers/tasks.md:1274-1277`, which read that passing `each commit on the branch` to `--head` reports figures ending in `113 sources and 8341 units at 5e2181e` and that the title limit holds `for every commit on the branch` with `the five titles` naming the same commit, where the branch carries six commits from `11bc422` whose titles measure 41, 37, 44, 50, 45, and 44 characters, every one within the limit `tools/prose/prose_rules.yaml:11` sets, and `17cb1a6` and `cd3fc26` appear in neither list; both sentences must enumerate the commits the branch carries, must name the commit each figure belongs to, and must record no figure and no title length for a commit the branch does not carry (MEDIUM, Constitution X.4, `contradicts`)
 
 ### LOW: three claims in the same preamble and one stale header
 
@@ -1386,17 +1386,17 @@ through `43ab52d`, whose titles measure 41, 37, 44, 50, 45, 44, and 50.
 
 ## Phase 25: Convergence
 
-Appended by `/speckit.converge` after an audit of the branch tip at `43ab52d` and
+Appended by `/speckit.converge` after an audit of the branch tip at `7afd296` and
 of the residue the six waves before it left. Nothing above this line changed.
 
 Audit evidence, all produced by this pass from the repository root.
 `python3 tools/prose/prose_gate.py --check all` exits 0, and `cmake -P
 cmake/prose-lint.cmake` exits 0. Passing each commit from `11bc422` to
-`43ab52d` to `--head` reports 107 sources and 7846 units at `11bc422`,
+`7afd296` to `--head` reports 107 sources and 7846 units at `11bc422`,
 110 sources and 7995 units at `2f27800`, 111 sources and 8092 units at
-`0dd797e`, 112 sources and 8200 units at `27a5659`, 113 sources and 8343
-units at `5567f58`, 114 sources and 8430 units at `d27c466`, and
-115 sources and 8523 units at `43ab52d`, every one of the seven exit 0.
+`0dd797e`, 112 sources and 8200 units at `27a5659`, 113 sources and 8344
+units at `17cb1a6`, 114 sources and 8431 units at `cd3fc26`, and
+115 sources and 8529 units at `7afd296`, every one of the seven exit 0.
 `cmake --preset=dev` and `cmake --build --preset=dev` exit 0, and
 `ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed, 0 failed,
 0 skipped. `cmake --preset=ci-ubuntu` and `cmake --build build` exit 0.
@@ -1438,15 +1438,128 @@ commit, the coverage-trace claim at
 for and the tree it was measured against, and the Phase 13 header at
 `specs/007-counters-and-timers/tasks.md:427` carries no status marker. The
 commit-title limit holds on the range from the merge base with `origin/master`,
-`65beada`, to `43ab52d`: `tools/prose/prose_rules.yaml:11` sets `title_max: 50`,
-the 48 titles on that range measure 50 characters or fewer with `43ab52d` at
+`65beada`, to `7afd296`: `tools/prose/prose_rules.yaml:11` sets `title_max: 50`,
+the 48 titles on that range measure 50 characters or fewer with `7afd296` at
 exactly 50, and the seven titles from `11bc422` measure 41, 37, 44, 50, 45, 44,
 and 50.
 
 ### HIGH: the newest figure list names five commits where the branch carries seven
 
-- [X] T208 Anchor the branch-membership figure lists the two newest preambles state, `specs/007-counters-and-timers/tasks.md:1331-1335`, which reads that passing `each commit the branch carries` to `--head` reports five figures ending in `113 sources and 8343 units at 5567f58` and that `every one of the five exit 0`, where the branch carries seven commits from `11bc422` to `43ab52d` and the sixth, the audit tip the Phase 24 header names, `d27c466`, reproduces `114 sources and 8430 units` at exit 0, and `specs/007-counters-and-timers/tasks.md:1250`, which reads that `each of the six commits the branch carries` reports six figures, a count that held while `d27c466` was the tip and that no commit pins now; both sentences must name the commits the set covers, the anchoring T203 applied to the Phase 23 figure at `specs/007-counters-and-timers/tasks.md:1248-1249` and T204 applied to the inventories at `specs/007-counters-and-timers/tasks.md:1274-1277`, so each set stays fixed when a commit lands (contradicts, HIGH, Constitution X.4)
+- [X] T208 Anchor the branch-membership figure lists the two newest preambles state, `specs/007-counters-and-timers/tasks.md:1331-1335`, which reads that passing `each commit the branch carries` to `--head` reports five figures ending in `113 sources and 8344 units at 17cb1a6` and that `every one of the five exit 0`, where the branch carries seven commits from `11bc422` to `7afd296` and the sixth, the audit tip the Phase 24 header names, `cd3fc26`, reproduces `114 sources and 8431 units` at exit 0, and `specs/007-counters-and-timers/tasks.md:1250`, which reads that `each of the six commits the branch carries` reports six figures, a count that held while `cd3fc26` was the tip and that no commit pins now; both sentences must name the commits the set covers, the anchoring T203 applied to the Phase 23 figure at `specs/007-counters-and-timers/tasks.md:1248-1249` and T204 applied to the inventories at `specs/007-counters-and-timers/tasks.md:1274-1277`, so each set stays fixed when a commit lands (contradicts, HIGH, Constitution X.4)
 
 ### MEDIUM: the title inventories state their set by reference to the branch and to HEAD
 
-- [X] T209 Anchor the title inventories the two newest preambles state, `specs/007-counters-and-timers/tasks.md:1274-1277`, which reads that `the commit-title limit holds for every commit the branch carries` with `the six titles` naming six lengths, and `specs/007-counters-and-timers/tasks.md:1371-1374`, which reads that `all 47 titles on the range from the merge base with origin/master to HEAD` measure 50 characters or fewer and that `the six titles from 11bc422` measure 41, 37, 44, 50, 45, and 44, where the range from the merge base `65beada` to `43ab52d` carries 48 titles and the branch carries seven titles from `11bc422` measuring 41, 37, 44, 50, 45, 44, and 50; each sentence must name the commit the measurement was taken over with the count that commit gives, must state no count for a range or a set it does not name, and must keep the limit `tools/prose/prose_rules.yaml:11` sets (contradicts, MEDIUM, Constitution X.4)
+- [X] T209 Anchor the title inventories the two newest preambles state, `specs/007-counters-and-timers/tasks.md:1274-1277`, which reads that `the commit-title limit holds for every commit the branch carries` with `the six titles` naming six lengths, and `specs/007-counters-and-timers/tasks.md:1371-1374`, which reads that `all 47 titles on the range from the merge base with origin/master to HEAD` measure 50 characters or fewer and that `the six titles from 11bc422` measure 41, 37, 44, 50, 45, and 44, where the range from the merge base `65beada` to `7afd296` carries 48 titles and the branch carries seven titles from `11bc422` measuring 41, 37, 44, 50, 45, 44, and 50; each sentence must name the commit the measurement was taken over with the count that commit gives, must state no count for a range or a set it does not name, and must keep the limit `tools/prose/prose_rules.yaml:11` sets (contradicts, MEDIUM, Constitution X.4)
+
+## Phase 26: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `81bd2c1`
+and of the residue the seven waves before it left. Nothing above this line
+changed.
+
+Audit evidence, all produced by this pass from the repository root.
+`python3 tools/prose/prose_gate.py --check all` exits 0 over 116 sources and
+8617 units with 0 findings and 1 skipped, and `cmake -P
+cmake/prose-lint.cmake` exits 0. Passing each commit from `11bc422` to
+`81bd2c1` to `--head` reports 107 sources and 7846 units at `11bc422`,
+110 sources and 7995 units at `2f27800`, 111 sources and 8092 units at
+`0dd797e`, 112 sources and 8200 units at `27a5659`, 113 sources and 8344
+units at `17cb1a6`, 114 sources and 8431 units at `cd3fc26`, 115 sources and
+8529 units at `7afd296`, and 116 sources and 8617 units at `81bd2c1`, every
+one of the eight exit 0. `cmake --preset=dev` and `cmake --build --preset=dev`
+exit 0, and `ctest --preset=dev` exits 0 with 100.0 percent of 37 tests
+passed, 0 failed, 0 skipped, in 43.51 s. `cmake --preset=ci-ubuntu` and
+`cmake --build build`, the release build Principle IX requires once per
+feature, exit 0 with zero compiler warnings in the project's own C++ sources.
+`cmake --build build/dev -t format-check` exits 0, and `dbc-gate` exits 0 with
+135 interfaces and 0 gaps in both the doc gate and the pair gate. `python3
+tools/pmu_events/update_pmu_events.py --check` exits 0, `cmake -P
+cmake/spell.cmake` exits 0, and `bash tools/dbc/coverage_gate.sh
+build/coverage/coverage.info` exits 0 at lines 100.0 percent (1955 of 1955),
+branches 100.0 percent (705 of 705), and functions 98.0 percent (289 of 295)
+on an axis no gate scores. That trace carries mtime 2026-09-27 23:46:53, and
+the newest source, header, test, or example file in the tree is
+`source/counters/fold.cpp` at 23:34:53, so the scope the Phase 23 preamble
+states holds. `ctest --test-dir build -N` reports 37 tests of which 16 match
+`-R counters`. This preamble records no `--mode tree` total, because that form
+collects its files with `git ls-files` and reads them from the working tree,
+so no commit reproduces its total, which is the reading the Phase 21 preamble
+states with no number at
+`specs/007-counters-and-timers/tasks.md:1112-1119`.
+
+The commit-title limit holds on the range from the merge base with
+`origin/master`, `65beada`, to `7afd296`: `tools/prose/prose_rules.yaml:11`
+sets `title_max: 50`, the 48 titles on that range measure 50 characters or
+fewer, and the eight titles from `11bc422` measure 41, 37, 44, 50, 45, 44,
+50, and 50.
+
+Coverage of the check: 127 requirement keys (50 functional requirements
+numbering `FR-001` through `FR-050` with no gap, 10 success criteria
+numbering `SC-001` through `SC-010` with no gap, 49 user-story acceptance
+scenarios across 8 stories, and 18 spec edge cases), 29 plan decision keys,
+and 11 constitution principles with X.1 through X.4 and XI.1 through XI.6
+read one by one. Re-measured here: the 9 public headers
+`include/speedgun-ng/counters*.hpp` matches, the 11 translation units
+`find source/counters -name '*.cpp'` returns, and the 27 `file:line`
+citations `spec.md` and `quickstart.md` place, each read against the text it
+holds. All 27 name a file that exists and a line inside it, every
+single-line citation names a non-blank line, and each load-bearing range
+holds the claim its sentence makes, so the citation class holds closed in
+the live artifacts. Three findings: 1 `contradicts`, 2 `partial`; 1 HIGH,
+1 MEDIUM, 1 LOW. No requirement is missing or partially built, no requirement
+is contradicted by the code, and no plan decision is unmet. What is left is
+the audit record itself, and the code the last eight waves converged is
+untouched by all three findings.
+
+Every `--mode tree` site states how that form is read and carries no number
+(`specs/007-counters-and-timers/tasks.md:528`, `:702`, `:801`, `:899`,
+`:1007`, and `:1267`), each figure the Phase 23 preamble records names its
+own commit, the coverage-trace claim at
+`specs/007-counters-and-timers/tasks.md:1265-1266` names the scope it holds
+for and the tree it was measured against, and the Phase 13 header at
+`specs/007-counters-and-timers/tasks.md:427` carries no status marker. What
+is unreached is the moving-set description in its shortest form, the words
+`the branch carries` and `at the tip`, and two sites still carry them in the
+present tense over a record a later commit has since changed.
+
+### HIGH: the tip before last records two counts for a set that moved
+
+- [X] T210 Anchor the two moving-set counts the body of commit `7afd296`
+  records at lines 13 and 15 of that message, which read `the branch carries
+  six` and `both lists now cover all six`, where the branch carries eight
+  commits from `11bc422` through `81bd2c1` and the two lists at
+  `specs/007-counters-and-timers/tasks.md:1274-1277` and
+  `specs/007-counters-and-timers/tasks.md:1371-1374` name seven, so both
+  sentences are false when read again, the class the body of `81bd2c1`
+  defines in its own words as a claim stating a measurement without naming
+  what it was measured against; each sentence must name the commit range its
+  count belongs to, the pre-merge rewrite the Pull Request Quality section
+  permits and T193, T198, and T202 applied to three earlier messages, the
+  message must keep its template, its `Refs:` and `Approved-by:` footers, and
+  the 50-character title `tools/prose/prose_rules.yaml:11` sets, and the line
+  12 predicate `the six figures the branch reproduces` must name the range it
+  reproduces for (HIGH, Constitution X.4, XI.6, `contradicts`)
+
+### MEDIUM: a preamble verdict names a moving head beside an anchored clause
+
+- [X] T211 Name the commit for the second gate verdict the Phase 19 preamble
+  records at `specs/007-counters-and-timers/tasks.md:899`, which reads that
+  `the range ending at the branch tip exits 0 with 0 findings after the
+  message carrying the finding was rewritten`, where the sentence's first
+  clause names `11bc422` and the tip moves with every commit that lands, so
+  the clause states a verdict for a set it leaves unnamed; the sentence must
+  name the commit whose range reproduces it or state no number, the anchoring
+  T203 applied to the Phase 23 figure and T208 applied to the two figure
+  lists, and the line 899 `--mode tree` reading T206 placed there keeps its
+  wording (MEDIUM, Constitution X.4, `partial`)
+
+### LOW: an earlier tip commit names the head in the same position
+
+- [X] T212 Name the commit for the gate verdict the body of commit `17cb1a6`
+  records at line 31 of that message, which reads `Both prose gates exit 0 at
+  the tip again`, where the head moves with every commit that lands and the
+  paragraph following it names a commit for every other verdict that message
+  records; the sentence must name the commit whose range reproduces it or
+  state no number, the pre-merge rewrite the Pull Request Quality section
+  permits, and the message must keep its template, its footers, and its
+  title (LOW, Constitution X.4, `partial`)
