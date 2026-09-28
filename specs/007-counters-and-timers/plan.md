@@ -390,8 +390,8 @@ A standalone probe following the header's protocol on that same host
 opened the event with `perf_event_open`, mapped one page of the returned
 file descriptor, and read `capabilities` with `cap_user_rdpmc` set,
 `pmc_width` 48, `index` 1, and `offset` 140737488355327, then took a real
-`rdpmc` reading. The kernel grants the path. The probe, not the kernel,
-was the obstacle, and the runtime reader inherited the same wrong page:
+`rdpmc` reading. The kernel grants the path. The probe was the obstacle.
+The runtime reader inherited the same wrong page:
 `fast_context_read` reads its capability bit from the same bogus mapping,
 so the defect would have survived a relaxed band check as well.
 
