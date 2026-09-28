@@ -1,5 +1,34 @@
 <!--
-Sync Impact Report (2.9.1, PATCH): Principle IX's per-feature release build
+Sync Impact Report (2.10.0, MINOR): Principle VIII's static-analysis
+clause states that the gate reports and names where a reader collects
+the report, and the report records the measurement behind that
+statement. Both analyzers already ran in the `test` job: the job
+installs them, configures `ci-ubuntu`, and every compile of every
+translation unit hands `CMAKE_CXX_CLANG_TIDY` and `CMAKE_CXX_CPPCHECK`
+to the compile launcher, with no `--error-exitcode` in the cppcheck
+launcher and `WarningsAsErrors: ''` in `.clang-tidy`. Measured on
+2026-09-28 at this repository's head, one translation unit,
+`source/counters/plan.cpp`, exits 0 with 92 `warning:` lines under the
+configured launcher form and exits 1 on the same 92 once
+`--warnings-as-errors=*` is added; the same holds for cppcheck, which
+exits 0 on its findings and exits 1 under `--error-exitcode=1`. The
+competing reading would make a finding fail the `test` job, and it was
+measured as unviable at this head: `run-clang-tidy` over the 92
+translation units of `build/dev/compile_commands.json` reports 28821
+`warning:` lines, 23700 of them from the vendored trees under
+`external/`, so the build would fail on its first translation unit
+unless the vendored trees left the launcher, and no analyzer call is
+suppressed and no warning class demoted to get there. The clause's
+obligation is unchanged, no analyzer invocation, warning class, gate,
+job, runner, or dependency changes, and the gate set is unchanged. This
+report shifts every line in the file, so a citation into the
+constitution, including the Phase 41 citations in
+`specs/007-counters-and-timers/tasks.md`, needs re-anchoring by the
+next convergence pass. Amendment history lives in the git log of this
+file.
+-->
+
+Prior report (2.9.1, PATCH): Principle IX's per-feature release build
 clause names the preset for the platform it runs on: `ci-ubuntu` plus
 `cmake --build build` on Linux, `ci-macos` on macOS, and `ci-windows` on
 Windows where the gate is reinstated. 2.9.0's MUST named no platform while
@@ -239,7 +268,10 @@ Every change passes all of the following; each is hard.
 - Sanitizer-clean: ASan/UBSan (`ci-sanitize`) report no errors.
 - Static-analysis-clean: clang-tidy and cppcheck (per `CMakePresets.json`)
   report no new findings, against the pinned Core Guidelines baseline (I)
-  from the same configuration.
+  from the same configuration. Both launchers reach every compile the
+  `ci-ubuntu` preset drives, so the report lands in the `test` job's build
+  log and in the build a contributor runs locally. The gate reports, and a
+  finding is a defect at lint parity: the author clears it before merge.
 - `format-check` and `spell-check` pass.
 - Generated prose satisfies XI: a discourse violation is a defect at lint
   parity. The `prose-lint` job enforces Principle XI and the commit template
@@ -594,6 +626,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.10.0 | 2026-09-28 | VIII static-analysis clause states the gate reports and names the step a reader collects the report from |
 | 2.9.1 | 2026-09-27 | IX per-feature release build names the preset per platform |
 | 2.9.0 | 2026-09-27 | IX per-task verification adds a release-configuration build once per feature; an unoptimized build cannot report an optimizer-backed finding |
 | 2.8.0 | 2026-09-25 | macOS gate enforcement recorded as a deferral: developer-local until a runner spec lands |
@@ -609,4 +642,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.9.1 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-27
+**Version**: 2.10.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-28
