@@ -50,9 +50,9 @@ constexpr bool kGatedChecksFire = true;
 // and never returns, so a report in the captured output names a guard
 // the mode reached. A mode the fixture has no body for prints its own
 // refusal and returns, and a fault in a mode body prints neither, so the
-// report is what separates both from the abort under test. The
-// quick_enforce semantic terminates on a trap and reports nothing by
-// design, so the report cannot carry the check there.
+// report separates both from the abort under test. The quick_enforce
+// semantic terminates on a trap and reports nothing by design, so the
+// report cannot carry the check there and run_mode's refusal test does.
 constexpr bool kViolationIsReported = SG_CONTRACTS_SEMANTIC != 3;
 
 struct mode_case
@@ -93,6 +93,13 @@ auto run_mode(const std::string& fixture,
   const bool printed_marker = content.find(marker) != std::string::npos;
   const bool reported_violation =
       content.find("(predicate: ") != std::string::npos;
+  // A mode the fixture has no body for lands on the refusal path, which
+  // exits non-zero with the marker absent and prints no report in any
+  // semantic, and quick_enforce prints no report for a real abort either.
+  // The refusal literal is then the one signal separating the two, and
+  // both fixtures write it.
+  const bool refused =
+      content.find("fixture: unknown mode") != std::string::npos;
 
   if (expect_abort) {
     if (status == 0) {
@@ -118,6 +125,16 @@ auto run_mode(const std::string& fixture,
                    "COUNTERS TRAP-CHECKED FAIL: mode '%s' printed its "
                    "survival marker despite aborting:\n%s\n",
                    name.c_str(),
+                   content.c_str());
+      return 1;
+    }
+    if (refused) {
+      std::fprintf(stderr,
+                   "COUNTERS TRAP-CHECKED FAIL: mode '%s' exited %d on the "
+                   "fixture's refusal, so no guard of that mode was "
+                   "reached:\n%s\n",
+                   name.c_str(),
+                   status,
                    content.c_str());
       return 1;
     }
