@@ -39,13 +39,21 @@
  * `expression::fold_pairs(recorder)` then yields one `metric_result`
  * per adjacent interval, which is the per-chunk series. A
  * first-to-last `fold()` answers the single total. A window
- * from `i` to `j` costs the sampling actions at both endpoints, so
- * `K = 1` charges `N` actions. The figures
- * `docs/pages/counters-overhead.md` publishes for its reference host
- * are 60 ns per action for a clock plan and 210 ns for a core-PMU
- * group, so sampling every iteration adds 120 ns and 420 ns per
- * measured window respectively. Those are the page's published
- * numbers, and the page owns the refresh.
+ * from `i` to `j` costs the sampling actions at both endpoints, and
+ * `K = 1` spends one action per iteration, so an `N`-iteration window
+ * pays `N` of them. The per-action medians behind those figures are
+ * the ones `docs/pages/counters-overhead.md` publishes for its
+ * reference host. Its release build (`-O3 -DNDEBUG`, contracts
+ * `ignore`) measures 40 ns for the clock plan's one clock read and
+ * 70 ns for a two-event-counter plan, one read per group leader per
+ * action, so sampling every iteration adds `N * 40 ns` and
+ * `N * 70 ns` across the window and the two endpoints of one window
+ * cost `2 * 40 = 80 ns` and `2 * 70 = 140 ns`. Its correctness build
+ * (`-g`, contracts `enforce`) measures 70 ns and 180 ns for those two
+ * plans, so the same arithmetic gives `N * 70 ns` and `N * 180 ns`
+ * across the window, with 140 ns and 360 ns at the endpoints. The
+ * page records the host, the load under it, and the commands, and the
+ * page owns the refresh.
  * `plan::sample_overhead_ns_median()` reports the figure for the plan
  * in hand (FR-032). A benchmark whose measured work is shorter than
  * that reads its own instrumentation, so the cadence must be coarse

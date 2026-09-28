@@ -226,6 +226,24 @@ auto test_registration() -> void
   provider->set_points("package-1/ratio-frozen", "enabled", {7, 7});
   provider->set_points("package-1/ratio-frozen", "running", {0, 50});
 
+  // A pair-carrying leaf whose enabled and running halves advance by the
+  // same amount, the ordinary un-multiplexed source: the fold discloses
+  // full rate and no scale (FR-019).
+  provider->add_object("package-1/ratio-full", "scratch", "full-rate pair");
+  provider->add_counter("package-1/ratio-full",
+                        "enabled",
+                        "nanoseconds",
+                        "nanoseconds the event counter was enabled",
+                        availability::countable,
+                        read_mode::syscall,
+                        true);
+  provider->add_counter("package-1/ratio-full",
+                        "running",
+                        "nanoseconds",
+                        "nanoseconds the event counter was scheduled");
+  provider->set_points("package-1/ratio-full", "enabled", {0, 900});
+  provider->set_points("package-1/ratio-full", "running", {0, 900});
+
   // A pair-carrying leaf quoted on both sides of one fold, so its two
   // occurrences carry opposite exponents and the exponent of the leaf
   // sums to zero (FR-019).
@@ -515,7 +533,7 @@ auto test_additive_algebra() -> void
 // The construction-error surface compile owes the caller, and the
 // two corner cases the folds guard: a default-constructed spine and a
 // raw view for a leaf the expression does not contain (FR-018, FR-020,
-// FR-021, FR-024).
+// FR-024, FR-046).
 auto test_construction_and_fold_edges() -> void
 {
   const auto edge = *system::local().object("package-1/edge");
@@ -524,7 +542,18 @@ auto test_construction_and_fold_edges() -> void
 
   const auto empty = compile(system::local(), expression<events> {});
   check(!empty.has_value(),
-        "an expression carrying no resolved leaves is refused (FR-021)");
+        "an expression carrying no resolved leaves is refused (FR-046)");
+
+  // A scalar multiple adds its scale node over whatever root the spine
+  // holds, so scaling a zero-leaf spine leaves one node over no operand.
+  // A spine needs a leaf to measure, so the refusal reads the leaf vector
+  // and the spine never reaches a window (FR-046).
+  const auto scaled_empty =
+      compile(system::local(), 2.0 * expression<events> {});
+  check(!scaled_empty.has_value()
+            && contains(scaled_empty.error().message, "no resolved leaves"),
+        "a scalar multiple of a zero-leaf expression is refused at "
+        "construction (FR-046)");
 
   const auto compiled = compile(system::local(), ipc);
   check(compiled.has_value(), "the quotient plan compiles");
@@ -880,6 +909,31 @@ auto test_frozen_pair_ratio() -> void
         "false (FR-019)");
 }
 
+// A pair-carrying leaf whose two halves advance by the same amount, the
+// ordinary un-multiplexed source. The fold compiles both halves, so the
+// pair discloses a full fraction: the rate test takes its full-rate edge
+// and the disclosure carries no scale (FR-019).
+auto test_full_rate_pair_ratio() -> void
+{
+  const auto source = *system::local().object("package-1/ratio-full");
+  const auto enabled = *source.counter<time_dim>("enabled");
+  const auto running = *source.counter<time_dim>("running");
+  const auto sum = enabled + running;
+  const auto compiled = compile(system::local(), sum);
+  check(compiled.has_value(), "the full-rate plan compiles");
+  sg::counters::scope window {*compiled};
+  window.start();
+  window.finish();
+  const auto metric = window.metric(sum);
+  // Both scripted halves step by 900 across the window, so the sum folds
+  // 900 + 900 and the pair discloses 900 / 900 = 1.
+  check(same_double(metric.value, 1800.0),
+        "the full-rate pair folds its own scripted arithmetic exactly");
+  check(same_double(metric.running_ratio, 1.0) && !metric.scaled,
+        "a source that ran at full rate discloses full rate, scaled false "
+        "(FR-019)");
+}
+
 // A window reader opened directly over addresses the scripted provider
 // does not serve. Every scripted address the system resolves passes this
 // path, so the two refusals below are reachable only through the open
@@ -909,9 +963,9 @@ auto open_refusal_scenario() -> void
       "an address carrying no separator names no object at all");
 }
 
-// A scalar multiple of a composite: the scale reaches the leaves and
-// leaves the arithmetic node alone, which is the branch the fold
-// algebra's scaling has to hold (FR-016, T066).
+// A scalar multiple of a composite: the scale is one node over the
+// spine root, so the fold multiplies the sum the addition node folds to
+// and that node keeps both operands at full weight (FR-016, T066).
 auto scaled_composite_scenario() -> void
 {
   using sg::counters::expression;
@@ -935,7 +989,8 @@ auto scaled_composite_scenario() -> void
   check(
       same_double(window.metric(scaled).value,
                   3.0 * (window.metric(a).value + window.metric(b).value)),
-      "a scalar multiple of a composite scales every leaf exactly " "(FR-016)");
+      "a scalar multiple of a composite scales the sum its operands fold "
+      "to exactly (FR-016)");
 }
 
 // A scalar multiple of a composite whose operands are themselves
@@ -981,6 +1036,39 @@ auto scaled_quotient_scenario() -> void
         "(FR-019)");
 }
 
+// A scaled expression taken as a spliced operand: the division splices
+// the scale node into a position past the three nodes the left operand
+// contributed, so the fold reaches it through a remapped left index. The
+// scaled spine is the right operand on purpose, because a left operand
+// splices at base zero and a remap there changes nothing
+// (FR-015, US1 scenario 3).
+auto scaled_spliced_operand_scenario() -> void
+{
+  using sg::counters::expression;
+  using sg::counters::scope;
+  const auto scratch = *system::local().object("package-1/splice");
+  const auto only = *scratch.counter<events>("only");
+  const auto numerator = *scratch.counter<events>("numerator");
+  const auto denominator = *scratch.counter<events>("denominator");
+  // Every window of this object sees the same deltas, because each
+  // leaf's tail step repeats its scripted step: only 200, numerator
+  // 2100, denominator 200 (FR-036).
+  const auto sum = only + numerator;
+  const auto scaled_denominator = 2.0 * expression<events> {denominator};
+  const auto folded = sum / scaled_denominator;
+  auto compiled = compile(system::local(), folded);
+  if (!compiled.has_value()) {
+    fail("the spliced scaled-operand plan compiles");
+  }
+  scope window {*compiled};
+  window.start();
+  window.finish();
+  // (200 + 2100) / (2 * 200) = 2300 / 400.
+  check(same_double(window.metric(folded).value, 5.75),
+        "a scaled expression spliced as an operand folds its own "
+        "arithmetic exactly (FR-015, US1 scenario 3)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -1001,10 +1089,12 @@ auto main() -> int
   test_ratio_product();
   test_shared_leaf_exponent();
   test_frozen_pair_ratio();
+  test_full_rate_pair_ratio();
   test_seeded_tail();
   open_refusal_scenario();
   scaled_composite_scenario();
   scaled_quotient_scenario();
+  scaled_spliced_operand_scenario();
   std::printf("counters_fake_test: all checks passed\n");
   return 0;
 }

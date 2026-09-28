@@ -30,7 +30,7 @@ The linux_pmu provider consumes a new vendored data tree: `external/pmu-events`,
 
 **Performance Goals**: designated critical paths: `recorder::sample()` (tens-of-cycles regime for a fast-mode plan where the probe passes; `noexcept`, zero allocation, zero lock) and push `add()` (plain non-atomic increment). Budgets published as min/median/max distributions per platform (VII): fast and syscall regimes side by side, clock-only ns distribution stated (SC-004, SC-010, `docs/pages/counters-overhead.md`; the `docs/pages/dbc-overhead.md` precedent).
 
-**Constraints**: read path free of expression tree, dynamic dispatch, name lookup (FR-022); bounds check `SG_REQUIRE_ALWAYS` under `hard_stop` (memory safety never semantic-gated); per-thread plans/recorders with binding checked in dev/CI; dimensions erased before the buffer; catalog immutable after open; standalone example link manifest names this library alone (FR-049).
+**Constraints**: read path free of expression tree and name lookup, entered through the direct-call thunk each window installs in its constructor, so the five shipped windows dispatch nothing while a provider window that installs no thunk pays one vtable lookup per sampling action on the seam's documented fallback (FR-022); bounds check `SG_REQUIRE_ALWAYS` under `hard_stop` (memory safety never semantic-gated); per-thread plans/recorders with binding checked in dev/CI; dimensions erased before the buffer; catalog immutable after open; standalone example link manifest names this library alone (FR-049).
 
 **Scale/Scope**: 9 new public headers (`include/speedgun-ng/counters*.hpp`), `source/counters/` (~8 TUs plus provider-private internals), 4 built-in providers, ~11 new test executables plus compile-fail cases and fixtures, 2 example targets, 1 python tool with fixtures, `external/pmu-events` data tree plus gate bracket, CI step, README re-pinning section, one docs overhead page. Infrastructure: root `CMakeLists.txt`, `test/CMakeLists.txt`, `cmake/lint.cmake` (glob reach into `source/counters/`), `.github/workflows/ci.yml`.
 
@@ -253,7 +253,7 @@ sequenceDiagram
 
     Note over U,G: setup region: compile(), recorder(cap), binding to T
     U->>R: sample()
-    R->>RD: flat loop, no dispatch, no lookup
+    R->>RD: flat loop, thunk call, no lookup
     RD->>G: read(PERF_FORMAT_GROUP): all member points + enabled + running
     RD->>C: clock_gettime points; plain load of push cell
     Note over RD: one column appended: FR-047 invariant holds

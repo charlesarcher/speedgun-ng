@@ -321,8 +321,11 @@ struct pmu_fast_window final : window_reader
       {
         // The page sequence moved under the read; the protocol's
         // stated fallback is a second attempt (FR-040).
-        static_cast<void>(
-            fast_context_read(*one.context, one.value));  // LCOV_EXCL_LINE
+        // clang-format off: gcov records every line of a call, and lcov
+        // excludes the line its marker sits on, so the marker and the call
+        // share one line; the column limit would split them apart again.
+        static_cast<void>(fast_context_read(*one.context, one.value));  // LCOV_EXCL_LINE
+        // clang-format on
       }  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_BR_STOP
     }

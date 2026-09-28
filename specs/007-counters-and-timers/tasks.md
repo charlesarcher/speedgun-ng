@@ -502,7 +502,7 @@ T150, T151, T156).
 
 - [X] T152 Sum exponents in `leaf_sign` at `source/counters/fold.cpp:78-91` where the function multiplies per-occurrence signs, so a leaf appearing on both sides of a subtraction, as in `(a - b) / (a + b)`, takes exponent zero and the composite ratio product at `:139-166` reports `ratio^0`; add the case to `test/source/counters_fake_test.cpp` beside the ratio-product check at `:710-740` (FR-019, `contradicts`)
 - [X] T153 Reconcile FR-034 at `specs/007-counters-and-timers/spec.md:262`, which calibrates the `tsc` leaf at system-open, with `source/counters/clock_provider.cpp:192-205`, where the calibration runs in the provider constructor because the catalog freezes at the open boundary; either move the calibration behind that boundary or amend FR-034 to name the construction boundary. T127 is marked done and took neither branch (FR-034, `contradicts`)
-- [ ] T154 Remove the platform-concept name from the core vocabulary header, where `include/speedgun-ng/counters_measurement.hpp:45` names a core-PMU group in the cadence idiom, and `test/counters_header_purity.sh:37-46` scans four terms so the one real FR-010 hit inside the core headers stays invisible; extend the scan across the three core headers with the `pmu` term added, or record in the script why they are exempt (FR-010, `partial`)
+- [X] T154 Remove the platform-concept name from the core vocabulary header, where `include/speedgun-ng/counters_measurement.hpp:45` names a core-PMU group in the cadence idiom, and `test/counters_header_purity.sh:37-46` scans four terms so the one real FR-010 hit inside the core headers stays invisible; extend the scan across the three core headers with the `pmu` term added, or record in the script why they are exempt (FR-010, `partial`)
 - [X] T155 Reconcile the scope-misuse edge case at `specs/007-counters-and-timers/spec.md:196`, which lists registering a composite into a started scope as a contract violation, with the shipped `scope` at `source/counters/plan.cpp:311-360`, which exposes `start`, `finish`, `view`, and `metric` and no registration entry point, so the misuse is unrepresentable; amend the edge case to the three enforceable sequences. T089 is marked done and took neither branch (FR-046, `partial`)
 - [X] T156 Replace the four assertions in `test/source/counters_linux_pmu_seam_test.cpp` that cannot fail: `:352-355` reads back the declared defaults of a default-constructed context, `:381-382` compares a pure function of the mapfile with itself, `:394` compares a count against a size the parser cannot produce, and `:976-977` prints the fast-window outcome with no assertion at all; each must fail when the behaviour its label names regresses (FR-040, FR-038, US7 scenario 2, `partial`)
 
@@ -512,3 +512,82 @@ T150, T151, T156).
 - [X] T158 Point the umbrella at the fourth shipped provider: `include/speedgun-ng/counters.hpp:14-20` is documented as the single include and omits `counters_pmu.hpp`, which carries no platform guard of its own, so a Linux reader of the standalone entry point finds no route to `pmu_provider`; add the include or a documented sentence naming the header (FR-042, plan: Public API surface, `partial`)
 - [X] T159 Carry the SC-002 caveat into the verdict it contradicts: `specs/007-counters-and-timers/quickstart.md:138` records PASS beside a recorded zero `permission_blocked`, while `docs/pages/counters-overhead.md:221-223` records that US6 scenario 4's `permission_blocked` expectation does not reproduce at level 2 on this kernel; the verdict column must name the unexercised path (SC-002, US6 scenario 4, `contradicts`)
 - [X] T160 Correct T025's allocation claim at `specs/007-counters-and-timers/tasks.md:88`, which says the arena is allocated at plan finalization, where `source/counters/plan.cpp:223` and `:239` allocate one arena per call inside `plan::recorder` and FR-029 at `specs/007-counters-and-timers/spec.md:254` says construction. T126 is marked done and the wording stands (T025, `contradicts`)
+
+## Phase 15: Convergence
+
+Appended by `/speckit.converge` after an audit of the `8848f4e` completion claims
+against the code, with the feature's own requirements as the inventory. Nothing above
+this line changed.
+
+Audit evidence, all produced by this pass with the committed `flags-gcc-clang` set
+verbatim (`-Werror`, `-Wold-style-cast`, `-Wconversion`, contracts `enforce`): a fresh
+`build/c2` tree configured and built to exit 0; `ctest --test-dir build/c2` passes 37
+of 37 with 0 failed and 0 skipped in 52.43 s, which includes the two example tests
+`8848f4e` registered; `dbc-gate` reports 135 interfaces with 0 gaps in the doc and the
+pair gate; `format-check` exits 0; `cmake -P cmake/spell.cmake` exits 1 with 20
+findings; `prose_gate.py --check prose --mode tree` reports 109 findings over 182
+sources, 2 of them in `include/speedgun-ng/` and none in a counters header, so that
+debt is pre-existing and outside this feature's boundary. A second tree, `build/cov`,
+ran the coverage preset: `ctest` passes 37 of 37 and the `coverage` target fails with
+lines 1954 of 1956 (99.9%), branches 699 of 703 (99.4%), and functions 289 of 295
+(98.0%), naming `source/counters/linux_pmu/group_io.cpp:324`,
+`source/counters/linux_pmu/table_parse.cpp:400`, and the branch edges
+`source/counters/fold.cpp:175`, `source/counters/linux_pmu/fast_read.cpp:318` and
+`:323`, `source/counters/linux_pmu/table_parse.cpp:399`.
+
+Coverage of the check: 109 requirement keys (50 FR, 10 SC, 49 user-story acceptance
+scenarios) with 17 spec edge cases, 19 plan decision keys (R-001 through R-015 and the
+four registered P2 exceptions), and 20 constitution clauses. Thirteen findings: 6
+`contradicts`, 4 `partial`, 3 `missing`; 5 CRITICAL, 1 HIGH, 6 MEDIUM, 1 LOW, the five
+CRITICAL ones being the red coverage and spell gates, which Principle VI and Principle
+VIII make hard.
+
+This phase covers three classes. The coverage gate, where the test rewrite in
+`8848f4e` deleted three covering calls (T161, T164, T165) and one exclusion marker
+sits on a line the trace never records (T163), with the configuration carrying the
+whole remedy in every case, spell included (T162). One memory-safety regression the
+new fold kind introduced, where a scale over an empty spine compiles and then reads
+past the end of the node vector (T166). And the amendment class, where the artifact
+text this wave added cites line ranges that hold other code (T171), two requirements
+promise a diagnostic and a dispatch-free loop the code does not deliver (T167, T168),
+the new node kind has one untested position (T169), and the cadence idiom publishes
+figures the measurement page does not (T170, T172).
+
+The coverage attribution in the `8848f4e` body is corrected here: its two uncovered
+lines are byte-identical to the pre-change tree, and the commit added no uncovered
+line, yet the same commit's test rewrite removed the only calls that covered
+`source/counters/linux_pmu/table_parse.cpp:399-400` and the two else edges at
+`source/counters/linux_pmu/fast_read.cpp:318` and `:323`. The pre-change tree
+therefore measured those three sites, and the commit body reports the line axis only.
+
+T154 was open when this pass ran, and the pass re-checked it and left it open. At
+that point the platform-concept name stood at
+`include/speedgun-ng/counters_measurement.hpp:45`, `test/counters_header_purity.sh:10-19`
+scanned four terms and recorded `pmu` as exempt, and the umbrella include added at
+`include/speedgun-ng/counters.hpp:18` put the provider header behind the same
+documented single include, which strengthens the case for the scan's second branch.
+T154 was neither closed nor superseded by this pass.
+
+### CRITICAL: the red hard gates
+
+- [X] T161 Restore the mapfile cache-hit assertion in `mapfile_scenario` at `test/source/counters_linux_pmu_seam_test.cpp:383`, which `8848f4e` replaced with a `pmu_load_table` assertion at `:397-406` and which was the only call covering `source/counters/linux_pmu/table_parse.cpp:399-400`; call `pmu_select_directory(identified)` a second time for the same identification and assert the result equals `directory`, so the line and the branch edge the coverage gate names are measured again and FR-038's "parsed once, lazily" has its covering test (FR-038, US6 scenario 2, `missing`)
+- [X] T162 Add `copyable,deque,behaviour,judgement,licence,serialisation` to `ignore-words-list` at `.codespellrc:14`, which clears all 20 findings `cmake -P cmake/spell.cmake` reports (verified against a config copy, whole tree clean), and leave every correct English spelling in place: `copyable` and `deque` are codespell false positives no text change removes, and four of the remaining words sit in `sg_counters.md`, `data-model.md`, and `research.md`, which are closed artifacts, so the gate configuration is the remedy (Constitution VIII, `partial`)
+- [X] T163 Re-anchor the existing exclusion for the unstable-retry statement at `source/counters/linux_pmu/group_io.cpp:325`: the marker sits on a line the trace never records while the executable line is `:324` (`DA:324,0` with no `DA:325` entry in `build/cov/coverage.info`), so put the marker where lcov attributes the line or collapse the `static_cast<void>(...)` call onto one line, keeping the kernel-seqlock reason already stated at `:313-318` and adding no new exclusion, because the arm is unreachable for a deterministic test (Constitution VI, `partial`)
+- [X] T164 Cover the close of a context that owns nothing in `context_open_refusal_scenario` at `test/source/counters_linux_pmu_seam_test.cpp:336-371`, where `8848f4e` deleted the assertion and left its rationale comment at `:351-352` describing the removed behavior, and where the else edges of `source/counters/linux_pmu/fast_read.cpp:318` and `:323` now stand uncovered; a `fast_context` with `fd == -1` and `map == nullptr` must pass through `fast_context_close` and be asserted unchanged, in an arm that runs whether or not the host grants a mapped page (FR-040, `missing`)
+- [X] T165 Cover the full-rate pair beside the frozen and shared fixtures at `test/source/counters_fake_test.cpp:211-243`, adding a scripted leaf whose `enabled` and `running` deltas are equal over the folded window so `source/counters/fold.cpp:175` takes its `*one < 1.0` false edge; the fold must then disclose `running_ratio` 1.0 with `scaled` false, which is the ordinary un-multiplexed disclosure no fixture reaches today (FR-019, `missing`)
+
+### HIGH
+
+- [X] T166 Refuse the zero-leaf spine at construction: `scale_all` at `include/speedgun-ng/counters_measurement.hpp:140-144` adds its kind-4 node unconditionally, so `2.0 * expression<events>{}` builds a one-node spine whose `left` is `-1`, passes the `core->empty()` refusal at `source/counters/plan.cpp:409` because that test reads the node vector, compiles, and then trips the point-sink precondition at `include/speedgun-ng/counters_provider.hpp:192` on the first `sample()` (reproduced, exit 134), while at contracts `ignore` `source/counters/fold.cpp:52-53` evaluates `core.nodes[-1]`; make the construction refusal test `core->leaves.empty()` (or add a precondition in `scale_all`) so a zero-leaf expression gets the construction-time recoverable error the edge case names, and add the case to `test/source/counters_fake_test.cpp` (spec edge case, FR-046, `contradicts`)
+
+### MEDIUM
+
+- [X] T167 Name the member at the open refusal: the amended FR-024 at `specs/007-counters-and-timers/spec.md:252` and its clarification at `:34` both promise that a target the kernel refuses to open is a recoverable construction error "naming the member at fault", while `source/counters/plan.cpp:496-500` emits "provider cannot open a window for its leaves (FR-011)" and the nine nullptr returns in `source/counters/linux_pmu/group_io.cpp` carry no member; either carry the refusing address out of `open` into the message, or amend both artifact sentences to what one diagnostic can say (FR-024, US6 scenario 7, `partial`)
+- [X] T168 Reconcile FR-022 at `specs/007-counters-and-timers/spec.md:250` with the constraints at `specs/007-counters-and-timers/plan.md:33` and `:256`, which claim a read path carrying no dynamic dispatch, and with the fallback `8848f4e` documented at `include/speedgun-ng/counters_provider.hpp:245-251` and implemented at `:326-337`: a provider installing no thunk reaches `read_points` through the vtable, and `example/counters_giraffe_example.cpp:46` is such a provider, so amend the requirement to name the seam and its per-action cost while the five shipped windows stay dispatch-free (FR-022, US5 scenario 1, `contradicts`)
+- [X] T169 Cover the scaled expression as a spliced operand: `splice` at `include/speedgun-ng/counters_measurement.hpp:157-178` remaps `left` for every node kind and the new kind-4 node created at `:142-143` reaches a non-root position as soon as `operator+` or `operator/` takes it as an operand, yet `test/source/counters_fake_test.cpp:927` and `:957` fold a scaled spine only as its own root; add a case composing `(k * a) op b` and assert the folded value, so a remap regression on the unary node is measured (Constitution VI, US1 scenario 3, `partial`)
+- [X] T170 Restate the cadence figures at `include/speedgun-ng/counters_measurement.hpp:43-48`, which publish "60 ns per action for a clock plan and 210 ns for a core-PMU group" and derive 120 ns and 420 ns of K=1 cost, against `docs/pages/counters-overhead.md:91-92` and `:100-101` whose medians are 30 and 50 in release and 70 and 170 in dev, whose fold-window line at `:105-107` is where 60 ns comes from, and whose 210 at `:127` is one run's maximum; re-run the overhead benchmark, cite the regenerated per-action medians with the build they came from, and recompute the K=1 consequence, since the thread checks `8848f4e` added to the mapped-page read also move the dev figures (FR-048, Constitution VII, `contradicts`)
+- [X] T171 Correct the five line citations the amendments add, each of which lands on other code: `specs/007-counters-and-timers/spec.md:34` names `source/counters/detail/pmu.hpp:284` for `leader_pid` (declared at `:292`) and `include/speedgun-ng/counters_measurement.hpp:1084` for `compile` (declared at `:1085`); `:35` names `source/counters/clock_provider.cpp:192-205` for the calibration, which runs in the constructor at `:206-235`; `:199` names `source/counters/fold.cpp:270-271` for the metric-not-closed guard, whose `SG_REQUIRE` is at `:285`; and `specs/007-counters-and-timers/quickstart.md:138` names `docs/pages/counters-overhead.md:225-228` for the level-3 refusal stated at `:231-232` and `:206-214` for the 358 countable entries tabulated at `:219`; every amended sentence must cite the line holding its claim (Constitution IV, `contradicts`)
+
+### LOW
+
+- [X] T172 Restate the two comments that still describe the removed per-leaf scaling: `test/source/counters_fake_test.cpp:912-914` says "the scale reaches the leaves and leaves the arithmetic node alone" and `:938` asserts "scales every leaf exactly", while `8848f4e` moved the scale to one node over the spine root at `include/speedgun-ng/counters_measurement.hpp:135-144`; the assertion stands, its stated mechanism must match the fold (Constitution IV, `contradicts`)
