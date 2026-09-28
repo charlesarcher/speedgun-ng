@@ -57,16 +57,33 @@ continuations, so the Phase 34 section contributes 22 occurrences, 5
 distinct tokens, and 29 continuations. The nine live artifacts named
 below, `spec.md`, `plan.md`, `research.md`, `data-model.md`,
 `quickstart.md`, `sg_counters.md`, and the three files under
-`contracts/`, carry 38 occurrences over their whole length,
-distributed `spec.md` 28, `quickstart.md` 4, `plan.md` 3,
-`contracts/system-contract.md` 2, `research.md` 1, and none in
+`contracts/`, carry 40 occurrences over their whole length at
+`f1d3023`, distributed `spec.md` 28, `quickstart.md` 4, `plan.md` 3,
+`research.md` 3, `contracts/system-contract.md` 2, and none in
 `data-model.md`, `sg_counters.md`, `contracts/provider-contract.md`, or
-`contracts/measurement-contract.md`. The 740 at
+`contracts/measurement-contract.md`. At `30f6361`, the head the Phase 34
+and Phase 35 sweeps ran at, the same rule yields 38 with `research.md` at
+1, and `f1d3023` added the two anchors
+`source/counters/detail/core.hpp:92-99` and
+`source/counters/plan.cpp:593` to
+`specs/007-counters-and-timers/research.md:43` and `:45`. The 740 at
 `specs/007-counters-and-timers/tasks.md:2530` is that 38 beside the 702
 of lines 1 through 2422, and the 762 at `:2536` is the same 38 beside
-the 724 of lines 1 through 2578. A distinct-token figure of 476 for
-lines 1 through 2578, which the Phase 35 preamble at `:2644` carries,
-does not reproduce under the rule stated here, which yields 168.
+the 724 of lines 1 through 2578.
+
+The distinct-token figures the dated preambles carry do not reproduce
+under the rule stated above. The 467 for lines 1 through 2422, which the
+Phase 34 preamble at
+`specs/007-counters-and-timers/tasks.md:2872` and the Phase 35 preamble at
+`:2642` carry, the 476 for lines 1 through 2578, which the Phase 35
+preamble at `:2644` carries, and the 518 for lines 1 through 2905, which
+the Phase 36 preamble at `:2964` carries, are each superseded by the
+rule's own yields of 163, 168, and 183. The occurrence totals and the
+bare-continuation totals those preambles carry reproduce exactly, at 702,
+724, and 776 occurrences and 420, 449, and 472 continuations. The task
+text of `T270` at `specs/007-counters-and-timers/tasks.md:3113-3114`
+states the reverse of that result, and this paragraph is the measurement
+the record rests on.
 
 Three criteria decide drift, and every row below was read against the
 tree as it stands on 2026-09-28:
@@ -217,25 +234,68 @@ the question: it reads `git diff -U1` over the merge base with
 58 sits in. A file predating the range's left edge is what leaves a
 line unexamined, and both of these files postdate it.
 
+## A superseded figure in the tip commit's body
+
+The Immutability clause of Pull Request Quality makes a landed message
+immutable and corrected only by new commits, and the same clause permits
+a pre-merge rewrite. The body of the tip commit `f1d3023` was composed
+before that commit existed, so the range the gate resolved while it was
+composed ended at its parent `1827d76`. One figure in the body's last
+evidence paragraph belongs to that range.
+
+The sentence reading that the gate over the whole repository `exits 0 at
+128 sources and 10250 units, 0 findings, 1 skipped` beside the command
+`python3 tools/prose/prose_gate.py --check all` records the head that
+command resolved, which is `1827d76`. Measured in a scratch clone of
+this repository on 2026-09-28, that command exits 0 and reports `128
+sources, 10250 units examined, 0 findings, 1 skipped` at that head, and
+exits 0 and reports `129 sources, 10737 units examined, 0 findings, 1
+skipped` at `f1d3023`, the tree the commit leaves. The form both
+readings use resolves the merge base with `origin/master`, at `65beada`,
+to the head, so the pair reproduces at one head only. The
+whole-repository claim is carried here by its exit code, and the form
+that reads the whole repository is
+`python3 tools/prose/prose_gate.py --check prose --mode tree`.
+
+The same body's paragraph on `T265` reports that a distinct-token figure
+of 476 does not reproduce under the rule the preamble states, which
+yields 168. This pass measured that result and recorded it above, and
+the three preambles carrying 467, 476, and 518 are the side that does
+not reproduce.
+
+The body of commit `6121416` carries the same class of claim and was
+named by `T222` at
+`specs/007-counters-and-timers/tasks.md:1801`, which the tree does not
+show as rewritten: the message still reads that the prose gate run at
+the branch tip exits 0 over 118 sources and 8862 units with 0 findings
+and 1 skipped, naming no commit. Both the task text and the message
+keep their bytes here, and the anchoring the four earlier passes applied
+is recorded above.
+
 ## Re-anchors inside this record
 
-T261, T262, T263, T264, T265, and T266 grew this record, so the line
-numbers the texts that cite it name have moved. The table gives the
-number each such text wrote and the line holding the same material
-now. The closed task lines, the dated preambles, and the Phase 35 task
-texts that carry the old numbers keep their bytes, per Principle VIII
-and Pull Request Quality: Immutability.
+T261, T262, T263, T264, T265, T266, and T267 through T273 grew this
+record, so the line numbers the texts that cite it name have moved. The
+table gives the number each such text wrote and the line holding the
+same material now. The closed task lines, the dated preambles, and the
+Phase 35 task texts that carry the old numbers keep their bytes, per
+Principle VIII and Pull Request Quality: Immutability.
 
 | Anchor as written | Line now holding the same material |
 | --- | --- |
 | `:20-24` | `:18-28`, the Precedence section |
-| `:28-31` | `:32-41` for the counting rule, `:43-50` for the population, `:52-69` for the two other readings |
-| `:40` | `:76`, the third drift criterion |
-| `:57-58` | `:93-94` |
-| `:59` | `:95` |
-| `:80` | `:116` |
-| `:94` | `:130` |
-| `:96` | `:132` |
-| `:97` | `:133` |
-| `:100` | `:136` |
-| `:103` | `:139`, the row T263 corrected |
+| `:28-31` | `:32-41` for the counting rule, `:43-50` for the population, `:52-86` for the two other readings and the distinct-token result |
+| `:40` | `:93`, the third drift criterion |
+| `:46` | `:46`, unchanged; the rule yields the 163 the line records |
+| `:55` | `:55`, unchanged; the rule yields the 168 the line records |
+| `:57-58` | `:110-111` |
+| `:59` | `:112` |
+| `:80` | `:97`, and a second `:80` written by another text at `:133` |
+| `:94` | `:147` |
+| `:96` | `:149` |
+| `:97` | `:150` |
+| `:100` | `:153` |
+| `:103` | `:156`, the row T263 corrected |
+| `:145-150` | `:162-167`, the T091 clause paragraph |
+| `:180-186` | `:197-203`, the 58-line journal list |
+| `research.md:33` and `:37` | `research.md:43` and `:45`, the two anchors `f1d3023` added; the task text of `T270` at `specs/007-counters-and-timers/tasks.md:3123` carries the stale pair |

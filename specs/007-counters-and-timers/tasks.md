@@ -2430,12 +2430,12 @@ Audit evidence, all produced by this pass from the repository root.
 `python3 tools/prose/prose_gate.py --check all` exits 0, and
 `cmake -P cmake/prose-lint.cmake` exits 0 on the same verdict,
 `prose-lint: 126 sources, 9919 units examined, 0 findings, 1 skipped`. That
-figure describes the committed range the gate scans, from the merge base with
-`origin/master` to `30f6361`. The `--mode tree` form collects its files with
-`git ls-files` and reads them from the working tree, so no commit reproduces its
-total, which is the reading the Phase 21 preamble states at
-`specs/007-counters-and-timers/tasks.md:1112-1119`; this preamble records no
-`--mode tree` total. `ctest --test-dir build -N` exits 0 and reports
+figure takes its candidate set and per-line authorship filter from the range,
+the merge base with `origin/master` to `30f6361`, and the text it examines from
+the working tree, so an uncommitted line inside a ranged file is examined, and
+no commit reproduces the total, which is the reading the Phase 21 preamble
+states at `specs/007-counters-and-timers/tasks.md:1112-1119`; this preamble
+records no `--mode tree` total. `ctest --test-dir build -N` exits 0 and reports
 `Total Tests: 37`, of which `ctest --test-dir build -N -R counters` reports 16.
 `cmake --preset=dev` and `cmake --build --preset=dev` exit 0, the build over an
 incremental tree in which every target reported `Built target`;
@@ -2587,14 +2587,14 @@ Audit evidence, all produced by this pass from the repository root on Linux.
 `python3 tools/prose/prose_gate.py --check all` exits 0, and
 `cmake -P cmake/prose-lint.cmake` exits 0 on the same verdict,
 `prose-lint: 128 sources, 10250 units examined, 0 findings, 1 skipped`. Both
-read the committed range from the merge base with `origin/master`, `65beada`,
-to `1827d76`, and the one skipped source is `hwloc.md`, which the gate names
-unreadable. The `--mode tree` form collects its files with `git ls-files` and
-reads them from the working tree, so no commit reproduces its total. Read
-narrowed to this feature, `python3 tools/prose/prose_gate.py --check prose
---mode tree --paths specs/007-counters-and-timers docs/pages/counters-overhead.md`
-exits 0 at `13 sources, 4865 units examined, 0 findings, 0 skipped`, and that
-figure describes the working-tree read of those thirteen files at this tip.
+read the range for its candidates and its line filter, the merge base with
+`origin/master`, `65beada`, to `1827d76`, and the working tree for the text it
+examines, so no commit reproduces it. The one skipped source is `hwloc.md`; the
+`--mode tree` form collects its files with `git ls-files` and reads the same
+working tree. Read narrowed to this feature, `python3 tools/prose/prose_gate.py
+--check prose --mode tree --paths specs/007-counters-and-timers
+docs/pages/counters-overhead.md` exits 0 at `13 sources, 4865 units examined, 0
+findings, 0 skipped`, measured against the tree `1827d76`.
 `ctest --test-dir build -N` exits 0 and reports `Total Tests: 37`, of which
 `ctest --test-dir build -N -R counters` reports 16. `cmake --preset=dev` and
 `cmake --build --preset=dev -j` exit 0, and `ctest --preset=dev` exits 0 with
@@ -2903,3 +2903,290 @@ of 331 lines, and `citations.md:80` records it. The owed sentence at
   `tasks.md`, the clause as written, the decision that governs it, and the test
   that shows the acceptance scenario holds. `T032` and `T098` keep their bytes
   (LOW, T032, T098, US3 scenario 5, FR-047, Constitution X.1, `partial`)
+
+## Phase 36: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `f1d3023`
+and of the residue the twenty-four waves before it left. Nothing above this
+line changed.
+
+Audit evidence, all produced by this pass from the repository root on Linux.
+`cmake --preset=dev` and `cmake --build --preset=dev` exit 0 over an
+incremental tree in which every target reported `Built target`, and
+`ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed, 0 failed,
+0 skipped, in 43.88 s. `ctest --test-dir build -N` exits 0 and reports
+`Total Tests: 37`. `python3 tools/prose/prose_gate.py --check all` exits 0 and
+`cmake -P cmake/prose-lint.cmake` reproduces that verdict,
+`prose-lint: 129 sources, 10737 units examined, 0 findings, 1 skipped`, the
+one skipped source being `hwloc.md`, which the gate names unreadable.
+`ctest --test-dir build -R prose_gate_fixtures` exits 0 with 1 of 1.
+`cmake --build build/dev -t format-check` exits 0.
+`cmake --build build/dev -t dbc-gate` exits 0, reporting
+`doc-gate: 135 interfaces, 0 gaps` and `pair-gate: 135 interfaces, 0 gaps`.
+`cmake -P cmake/spell.cmake` exits 0, and
+`python3 tools/pmu_events/update_pmu_events.py --check` exits 0.
+`bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 over
+21 source files at lines 100.0 percent (1955 of 1955), branches 100.0 percent
+(705 of 705), and functions 98.0 percent (289 of 295) on an axis the gate does
+not score. `cmake --preset=ci-ubuntu` exits 0, and `cmake --build build`, the
+release build Principle IX requires once per feature, exits 0 over an
+incremental 26-line log holding 0 lines matching the token `warning` and 0
+matching `error:`. No forced recompile ran, so this pass states no
+static-analysis diagnostic count. `readelf -d` on
+`build/dev/example/counters_standalone_example` and on
+`build/dev/example/counters_giraffe_example` names `libstdc++.so.6`,
+`libgcc_s.so.1`, and `libc.so.6` in each, with zero `speedgun-ng` entries.
+`bash test/counters_header_purity.sh` exits 0 at
+`counters_header_purity: clean`.
+
+Prose-gate figures measured at named heads, each reported with the command
+that produced it: `python3 tools/prose/prose_gate.py --check all --head
+f1d3023` exits 0 at 129 sources and 10737 units, the same pair the
+range-less `--check all` reports on this tree; `--head 1827d76` exits 0 at 128
+sources and 10250 units; `--head 30f6361` exits 0 at 126 sources and 9919
+units; and `python3 tools/prose/prose_gate.py --check prose --mode tree
+--paths specs/007-counters-and-timers docs/pages/counters-overhead.md` exits 0
+at 13 sources and 5278 units. The merge base with `origin/master` is
+`65beada`.
+
+Counting rule for every anchor total named in this preamble, so a reader can
+reproduce it, which is the rule `specs/007-counters-and-timers/citations.md:32-41`
+states: the unit is one occurrence of the regular expression
+`(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` matched over a named line
+range of a named file, a distinct token is the deduplicated form of that unit,
+and a bare continuation is one occurrence of `(?<![\w./-]):\d+\b`, counted the
+same way. Applied to `specs/007-counters-and-timers/tasks.md` lines 1 through
+2422, the population the Phase 1 through Phase 33 record occupies, the count
+is 702 occurrences, 467 distinct tokens, and 420 bare continuations. Applied
+to lines 1 through 2578, the file as it stood when the Phase 34 section was
+appended, the count is 724 occurrences, 476 distinct tokens, and 449 bare
+continuations. Applied to lines 1 through 2905, the file as it stands, the
+count is 776 occurrences, 518 distinct tokens, and 472 bare continuations.
+Applied to the nine live artifacts over their whole length, which are
+`spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`,
+`sg_counters.md`, and the three files under `contracts/`, the count is 40
+occurrences, distributed `spec.md` 28, `quickstart.md` 4, `plan.md` 3,
+`research.md` 3, and `contracts/system-contract.md` 2, with none in
+`data-model.md`, `sg_counters.md`, `contracts/provider-contract.md`, or
+`contracts/measurement-contract.md`.
+
+Coverage of the check: 127 requirement keys, counted as 50 functional
+requirements numbering `FR-001` through `FR-050` with no gap, 10 success
+criteria numbering `SC-001` through `SC-010` with no gap, 49 user-story
+acceptance scenarios counted as US1 7, US2 7, US3 6, US4 6, US5 4, US6 7, US7 6,
+US8 6, and 18 edge cases at `specs/007-counters-and-timers/spec.md:195-212`;
+45 design keys, counted as 11 data-model entities `E-01` through `E-11` and 19
+contract clauses `C-MEA-1` through `C-MEA-7`, `C-PRO-1` through `C-PRO-6`, and
+`C-SYS-1` through `C-SYS-6`; and 11 constitution principles with X.1 through
+X.4 and XI.1 through XI.6 read one by one. Re-measured here: the 9 public
+headers `include/speedgun-ng/counters*.hpp` matches, the 11 translation units
+`find source/counters -name '*.cpp'` returns beside the 2 provider-private
+headers under `source/counters/detail/`, the 12 `add_executable(counters_)`
+calls `test/CMakeLists.txt` carries, the `LCOV_EXCL` count at 301 tokens in the
+feature scope and 305 across `source/` plus `include/`, no line matching
+`TODO` or `FIXME` over the feature scope, the single `NOLINT` directive at
+`include/speedgun-ng/counters_measurement.hpp:634` carrying its reason in the
+same comment block at `:630-633`, no `std::atomic` in the push path, no
+platform macro in the 9 public headers, and
+`.github/workflows/ci.yml:160` running the table check on every change. Every
+`file:line` anchor the nine live artifacts place resolves to an existing file
+and a line inside it, and every single-line anchor names a non-blank line. The
+single code point U+2014 left in this file stands at
+`specs/007-counters-and-timers/tasks.md:2731` inside the quoted defective
+line `T261` cites as evidence, which the exemption at
+`.specify/memory/constitution.md:472-474` covers, and the 58 journal lines
+`citations.md:180-186` lists still read 58 under
+`grep -c`; neither is a finding.
+
+Seven findings: 4 `contradicts` and 3 `partial`; 0 CRITICAL, 2 HIGH, 3 MEDIUM,
+2 LOW. No finding is `missing`, and no `unrequested` addition was found. One
+finding sits in executable code and is reproduced outside the repository. The
+other six sit in the feature's own record.
+
+Every finding below was re-derived in this session from the files it cites.
+The Phase 12 through Phase 35 preambles were read for task identifiers, phase
+grouping, and the file paths each task names, and no closure claim in them was
+accepted as evidence. The five commits at the tip were read in full: `88bbd2c`
+removes the `target_kind::machine` enumerator and touches no other file, and a
+search for `target_kind::machine` over `source/`, `include/`, `test/`, and
+`example/` returns no line; `01f905b` restates ten artifact sentences and
+touches no executable code; `30f6361` restates seven more and touches no
+executable code; `1827d76` adds `specs/007-counters-and-timers/citations.md`
+and the Phase 34 section and touches no source, header, test, example, tool,
+or build file; `f1d3023` fixes the `T116` line and adds the Phase 35 section
+beside the restatements, and touches no source, header, test, example, tool,
+or build file. The residue the implement and commit passes reported for the
+last cycle was assessed on its own evidence, and T269 and T270 record the two
+items that survive it.
+
+### HIGH: the push sampling confinement check is one thread id and the last leaf decides it
+
+- [X] T267 Give `detail::push_window` a per-cell owner, or make `push_provider::open`
+  refuse a leaf set whose counters carry more than one owner, so the tier-3
+  sampling-side violation `FR-035` requires is detected for every counter in
+  the plan, and add a trap mode that drives the violation. Today
+  `push_window::owner` is one `std::thread::id` at
+  `source/counters/push_provider.cpp:36`, the guard at `:40-43` compares
+  `std::this_thread::get_id()` against that one value, and
+  `source/counters/push_provider.cpp:112` assigns `window->owner =
+  match->owner;` inside the per-address loop, so the last matched address
+  decides the verdict for all of them. `FR-035` at
+  `specs/007-counters-and-timers/spec.md:266` states that `add()` or sampling
+  from a thread other than the owning thread MUST be a tier-3 violation, and
+  `source/counters/fold.cpp:210-211` already refuses a push decrement at fold
+  time, so the fold layer and the window layer disagree about how much the
+  confinement is checked. Reproduced in this session by a program compiled
+  outside the repository against `build/dev/libspeedgun-ng.a` and this tree's
+  headers: one `push_provider` with counter `a` declared on the main thread
+  and counter `b` declared on a second thread that joins, one plan over
+  `machine/b + machine/a`, and two `sample()` calls on the main thread. With
+  the expression written `ca + cb` the run aborts with exit 134 on
+  `[precondition] push counters are sampled on the thread that created them
+  (FR-035) (predicate: std::this_thread::get_id() == owner) at
+  /home/archerc/code/speedgun-ng/source/counters/push_provider.cpp:40`; with
+  the same two counters and the expression written `cb + ca` the run exits 0,
+  prints `value=10 ratio=1 scaled=0`, and reads counter `b` from a thread
+  that does not own it. No test reaches the guard's violating branch: the
+  `push-cross-thread` mode at `test/source/counters_trap_fixture.cpp:93-97`
+  calls `handle.add(1)` on a foreign thread, which trips the handle guard at
+  `include/speedgun-ng/counters_measurement.hpp:333-336` and never opens a
+  window, so the plan's own check that the Test Plan row at
+  `specs/007-counters-and-timers/plan.md:442` names has no covering test. The
+  fix must keep `add()` a plain non-atomic increment and the sample-time read
+  a plain load, must keep the check semantic-gated so a release build carries
+  none, and must state at the site why a per-cell owner array costs nothing on
+  the sampling path (HIGH, FR-035, US4 scenario 2, US7 scenario 5, Constitution
+  II, VI, plan: Test Plan threading row, `partial`)
+
+### HIGH: the tip body records a whole-range figure for a command that scans the head
+
+- [X] T268 Anchor the prose-gate figure the body of commit `f1d3023` records in its
+  last evidence paragraph, which reads that the gate over the whole repository
+  `exits 0 at 128 sources and 10250 units, 0 findings, 1 skipped` beside the
+  command `python3 tools/prose/prose_gate.py --check all`, where that command
+  carries no `--head` and this pass measured it reporting 129 sources and
+  10737 units at exit 0 on the tree `f1d3023` leaves, while the recorded pair
+  reproduces only at `python3 tools/prose/prose_gate.py --check all --head
+  1827d76`, so the sentence states a verdict for a range the named command does
+  not scan. The sentence must name `1827d76` as the commit whose range
+  reproduces the figure or state the exit code alone, the anchoring `T199`
+  applied to the body of `2c45407`, `T200` applied to the Phase 21 preamble,
+  `T202` applied to the body of `5e2181e`, and `T222` applied to the body of
+  `6121416`; the rewrite is the pre-merge rewrite the Immutability clause of
+  Pull Request Quality permits for a message, and the message must keep its
+  template, its `Refs:` and `Approved-by:` footers, and the 50-character title
+  `tools/prose/prose_rules.yaml:11` sets. The same body's paragraph on `T265`
+  makes the companion claim, which T270 records (HIGH, Constitution X.4, XI.6,
+  T199, T222, T265, `contradicts`)
+
+### MEDIUM: two preambles describe the range form as reading committed content
+
+- [X] T269 Correct the two sentences that describe a range-mode prose-gate figure as
+  describing committed text, at
+  `specs/007-counters-and-timers/tasks.md:2432-2433`, which reads that the
+  figure `describes the committed range the gate scans, from the merge base
+  with origin/master to 30f6361`, and at
+  `specs/007-counters-and-timers/tasks.md:2589-2591`, which reads that the two
+  commands `read the committed range from the merge base with origin/master,
+  65beada, to 1827d76`. `tools/prose/prose_gate.py:936` calls `read_source` for
+  every candidate in both modes, `read_source` at `:842-860` reads
+  `repo / path` from disk, and `collect_candidates` at `:587-604` supplies
+  only the path list and the per-line authorship filter that
+  `git diff -U1` produces, so a range-mode run evaluates working-tree text
+  against a range-derived filter and a second sentence at each site contrasts
+  the range form with the `--mode tree` form as though only the latter read the
+  working tree. The two sentences must state that the candidate set and the
+  line filter come from the range while the examined text comes from the
+  working tree, and no prose-gate total in any dated preamble may be described
+  as reproducible from a commit (MEDIUM, Constitution IV, X.4, T206, T269, T268,
+  `contradicts`)
+
+### MEDIUM: the counting rule and the figures that claim to follow it disagree
+
+- [X] T270 Correct the three figures `specs/007-counters-and-timers/citations.md`
+  carries beside the counting rule it states at `:32-41`, where `:46` reads
+  `163 distinct tokens` for `tasks.md` lines 1 through 2422, `:55` reads `168
+  distinct tokens` for lines 1 through 2578, and `:67-69` reads that the
+  `476` the Phase 35 preamble carries at
+  `specs/007-counters-and-timers/tasks.md:2644` `does not reproduce under the
+  rule stated here, which yields 168`. Applying the rule the record states to
+  the populations the record names, this pass measured 467 distinct tokens for
+  lines 1 through 2422 and 476 for lines 1 through 2578, so the record's own
+  two figures reproduce at neither value and the sentence that reports the
+  Phase 35 figure as irreproducible inverts the result. The occurrence totals
+  702, 724, 420, and 449 in the same paragraph reproduce exactly. The
+  distribution at `:60-63` is stale on the same ground: it reads 38 occurrences
+  over the nine live artifacts with `research.md` at 1, and this pass measured
+  40 with `research.md` at 3, the two extra anchors being
+  `source/counters/detail/core.hpp:92-99` and
+  `source/counters/plan.cpp:593`, which `f1d3023` added to
+  `specs/007-counters-and-timers/research.md:33` and `:37`. Each figure must
+  be the one the stated rule yields for the population the record names, the
+  rule and its pattern stay as written, and no dated preamble and no closed
+  task line moves (MEDIUM, Constitution X.4, T265, T268, `contradicts`)
+
+### MEDIUM: the accepted cost of the fold's address lookup is recorded nowhere
+
+- [X] T271 Record the cost `T091` accepted at its decision site, or state at that site
+  that the cost is accepted without a written record, since
+  `source/counters/detail/core.hpp:90-99` records why `plan_impl` holds no
+  per-composite fold program and names the competing readings, and says
+  nothing about the lookup the fold still performs, while
+  `specs/007-counters-and-timers/tasks.md:2777-2778` states that the cost `T091`
+  named remains and that the decision at `core.hpp:95-99` accepts it, and
+  `specs/007-counters-and-timers/citations.md:145-150` states that the decision,
+  the competing reading, and the reason are recorded at
+  `source/counters/detail/core.hpp:92-99`. The cost is
+  `source/counters/fold.cpp:43`, a `std::map<std::string, std::size_t>` lookup
+  by leaf address, evaluated once per leaf occurrence per spine node visit, and
+  `source/counters/fold.cpp:237-238` calls `fold_core` once per recorded
+  column, so a series fold over `N` committed points repeats every lookup `N`
+  times. The fold runs off the measurement path by design, and
+  `specs/007-counters-and-timers/plan.md:31` designates `recorder::sample()`
+  and push `add()` as the critical paths, so the Constitution VII critical-path
+  clause at `.specify/memory/constitution.md:203-205` does not reach it; the
+  Principle X.1 clause at `:305-316` requires the cost of a chosen approach to
+  be surfaced, and no artifact does. The record must name the lookup, its
+  frequency over a pair fold, and the ceiling that makes it acceptable, and no
+  code change and no requirement change is in scope (MEDIUM, Constitution X.1,
+  IV, VII, FR-021, FR-022, T091, T262, `partial`)
+
+### LOW: the functions axis carries six uncovered public-header functions and no gate scores it
+
+- [X] T272 Name the six functions the functions axis leaves uncovered and the reason each
+  stays uncovered, or move each onto an executable line a test reaches, where
+  `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 at
+  functions 98.0 percent (289 of 295) while `tools/dbc/coverage_gate.sh:25-27`
+  greps only the `lines.......: 100.0%` line and `:35-37` only the
+  `branches.......: 100.0%` line, so no gate scores the axis, and
+  `lcov --branch-coverage --list` places the misses in the two public headers
+  at `include/speedgun-ng/counters_measurement.hpp`, 96.6 percent of 88
+  functions, and `include/speedgun-ng/counters_provider.hpp`, 80.0 percent of
+  15, every other measured file reading 100 percent. The six are compiler-
+  generated and defaulted special members, among them
+  `include/speedgun-ng/counters_provider.hpp:272` and `:273` and
+  `include/speedgun-ng/counters_measurement.hpp:619`, so each must either name
+  the members and the exclusion that covers it or reach one, and the
+  Complexity Tracking row at `specs/007-counters-and-timers/plan.md:457` must
+  list them, since that row enumerates every site the P2 exclusion leaves and
+  names none in `include/speedgun-ng/` beyond
+  `include/speedgun-ng/counters_provider.hpp:97`. The three hard gates of
+  Constitution VI at `.specify/memory/constitution.md:190-192` name lines,
+  branches, and DBC, all of which hold at 100.0 percent, and no threshold may
+  move (LOW, Constitution VI, plan: Complexity Tracking, `partial`)
+
+### LOW: the narrowed tree-mode figure the Phase 35 preamble records no longer reproduces
+
+- [X] T273 Restate the narrowed tree-mode figure the Phase 35 preamble records at
+  `specs/007-counters-and-timers/tasks.md:2594-2597`, which reads that the
+  narrowed run `exits 0 at 13 sources, 4865 units examined, 0 findings, 0
+  skipped` and that the figure describes the working-tree read of those
+  thirteen files at that tip, where this pass measured
+  `python3 tools/prose/prose_gate.py --check prose --mode tree --paths
+  specs/007-counters-and-timers docs/pages/counters-overhead.md` reporting 13
+  sources and 5278 units at exit 0, a difference of 413 units that
+  `f1d3023` added to the files the form reads. The sentence must name the
+  commit whose tree the figure was measured against, the anchoring `T215`
+  applied to the coverage-trace freshness claim and `T268` to the tip body, and
+  every other `--mode tree` total keeps its stated reading with no number
+  (LOW, Constitution X.4, T206, `contradicts`)
