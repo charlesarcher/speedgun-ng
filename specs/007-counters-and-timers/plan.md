@@ -70,6 +70,7 @@ specs/007-counters-and-timers/
 │   ├── system-contract.md         # Phase 1: system, objects, catalog, resolution
 │   ├── provider-contract.md       # Phase 1: provider obligations, point yield, read modes
 │   └── measurement-contract.md    # Phase 1: algebra, plan, recorder, folds, scope
+├── citations.md                   # Corrected anchors, superseded journal sentences
 └── tasks.md                       # Phase 2 output (/speckit.tasks, NOT created here)
 ```
 

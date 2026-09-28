@@ -2419,3 +2419,160 @@ and assigns it to this pass.
   calibration provenance, the scaled-TSC flag, the omission on a host without a
   usable TSC, and the P2 site justification all keep their place (LOW, FR-034,
   T127, T153, T228, `contradicts`)
+
+## Phase 34: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `30f6361`
+and of the residue the fifteen waves before it left. Nothing above this line
+changed.
+
+Audit evidence, all produced by this pass from the repository root.
+`python3 tools/prose/prose_gate.py --check all` exits 0, and
+`cmake -P cmake/prose-lint.cmake` exits 0 on the same verdict,
+`prose-lint: 126 sources, 9919 units examined, 0 findings, 1 skipped`. That
+figure describes the committed range the gate scans, from the merge base with
+`origin/master` to `30f6361`. The `--mode tree` form collects its files with
+`git ls-files` and reads them from the working tree, so no commit reproduces its
+total, which is the reading the Phase 21 preamble states at
+`specs/007-counters-and-timers/tasks.md:1112-1119`; this preamble records no
+`--mode tree` total. `ctest --test-dir build -N` exits 0 and reports
+`Total Tests: 37`, of which `ctest --test-dir build -N -R counters` reports 16.
+`cmake --preset=dev` and `cmake --build --preset=dev` exit 0, the build over an
+incremental tree in which every target reported `Built target`;
+`ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed, 0 failed,
+0 skipped, in 43.76 s. `cmake --preset=ci-ubuntu` exits 0, and
+`cmake --build build`, the release build Principle IX requires once per
+feature, exits 0 over an incremental 27-line log holding no line matching the
+token `warning`. Removing the library object files with
+`find build/CMakeFiles/speedgun-ng_speedgun-ng.dir -name '*.o' -delete` and
+running the same command forces a full recompile of the 17 translation units
+those objects belonged to: exit 0 over a 3677-line log with 759 lines matching
+the token, 758 carrying the compiler prefix, 0 carrying a `-W` tag, and 0
+matching `error:`. The leading checks are `readability-identifier-length` at
+234, `nodiscard` at 117,
+`cppcoreguidelines-pro-bounds-avoid-unchecked-container-access` at 63,
+`misc-include-cleaner` at 49, and
+`llvm-prefer-static-over-anonymous-namespace` at 42.
+`cmake --build build/dev -t format-check` exits 0.
+`cmake --build build/dev -t dbc-gate` exits 0, reporting
+`doc-gate: 135 interfaces, 0 gaps` and `pair-gate: 135 interfaces, 0 gaps`.
+`cmake -P cmake/spell.cmake` exits 0, and
+`python3 tools/pmu_events/update_pmu_events.py --check` exits 0.
+`bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 at
+lines 100.0 percent (1955 of 1955), branches 100.0 percent (705 of 705), and
+functions 98.0 percent (289 of 295) on an axis no gate scores, and
+`find source include test example tools/pmu_events -newer
+build/coverage/coverage.info` names no file. `readelf -d` on
+`build/dev/example/counters_standalone_example` and on
+`build/dev/example/counters_giraffe_example` names `libstdc++.so.6`,
+`libgcc_s.so.1`, and `libc.so.6`, with zero `speedgun-ng` entries in either.
+`./build/dev/test/counters_pmu_test` reports
+`pmu catalog: 581 table-selected entries beyond kernel aliases` beside
+`pmu availability: 358 countable, 0 permission_blocked, 261 not_encodable, 356 fast_rdpmc`.
+
+Coverage of the check: 127 requirement keys (50 functional requirements
+numbering `FR-001` through `FR-050` with no gap, 10 success criteria numbering
+`SC-001` through `SC-010` with no gap, 49 user-story acceptance scenarios
+across 8 stories, and 18 edge cases), 45 design keys (15 research decisions
+`R-001` through `R-015`, 11 data-model entities `E-01` through `E-11`, and 19
+contract clauses `C-MEA-1` through `C-MEA-7`, `C-PRO-1` through `C-PRO-6`, and
+`C-SYS-1` through `C-SYS-6`), and 11 constitution principles with X.1 through
+X.4 and XI.1 through XI.6 read one by one. Re-measured here: the 9 headers
+`include/speedgun-ng/counters*.hpp` matches, the 11 translation units
+`find source/counters -name '*.cpp'` returns beside the 2 provider-private
+headers under `source/counters/detail/`, the 12 `add_executable(counters_)`
+calls `test/CMakeLists.txt` carries, and the `LCOV_EXCL` counts at 301 tokens in
+the feature scope, 305 across `source/` plus `include/`, and 4 in
+`include/speedgun-ng/dbc.hpp`. The constitution checks are mechanical here:
+`dbc-gate` pairs 135 interfaces with 0 gaps on the documentation matrix and on
+the pairing matrix, the coverage gate holds 100.0 percent on lines and on
+branches, every gate in Principle VIII that this host can run exits 0, the
+per-feature release build of Principle IX exits 0, a search for `TODO` and
+`FIXME` over the feature scope returns no line, the single `NOLINT` directive
+at `include/speedgun-ng/counters_measurement.hpp:634` carries its reason in the
+same comment as Principle X.2 requires, and a search for `as any`,
+`@ts-ignore`, and `-Wno-error` over the feature scope and the root
+`CMakeLists.txt` returns no line. Two findings: 1 `contradicts` and 1
+`partial`; 0 CRITICAL, 0 HIGH, 2 MEDIUM, 0 LOW, and neither a constitution MUST
+violation. No finding is `missing`, no `unrequested` addition was found, every
+functional requirement this pass inspected has a realization in the code or in
+the shipped public surface, and both findings sit in a sentence the code
+contradicts or in a `file:line` anchor that no longer lands on the text it
+names.
+
+Every finding below was re-derived in this session from the files it cites. The
+Phase 12 through Phase 33 preambles were read for task identifiers, phase
+grouping, and the file paths each task names, and no closure claim in them was
+accepted as evidence. The three commits at the tip were read in full: `88bbd2c`
+removes the `target_kind::machine` enumerator from
+`include/speedgun-ng/counters_provider.hpp` and touches no other file, and a
+search for `target_kind::machine` over `source/`, `include/`, `test/`, and
+`example/` returns no line; `01f905b` restates ten artifact sentences across
+twelve files and touches no executable code; `30f6361` restates seven more
+across `specs/007-counters-and-timers/plan.md` and `tasks.md` and touches no
+executable code. All 38 explicit `file:line` anchors the eight live artifacts
+place into a source, a header, a script, or a second artifact were resolved and
+read against the claim each sentence makes, and every one lands on the text it
+names. The closed journal places none, and it is where the first finding sits.
+
+The two classes the earlier waves drove account for both findings, and the first
+is the settled amendment's reach inside the one file the previous wave swept for
+a single claim. The link-manifest claim has now taken three waves, and the sweep
+the body of `30f6361` records, "a tree-wide sweep finds one site left", was
+bounded to that one claim. Bounding the same sweep to the other eight settled
+amendments, over `*.md`, `*.hpp`, `*.cpp`, `*.sh`, and `*.py` across the whole
+tree with `build/`, `external/`, and `.omo/` excluded, finds four further sites
+in the same file, all inside the one section its own header names as the input
+to `/speckit.specify` and the spec's Assumptions name as the authoritative
+design record. The second is citation drift. `T253` moved 19 anchors, and its own
+second sub-paragraph records the remainder as debt "a later record carries";
+no such record exists in the tree, and the population no earlier wave covered is
+the Phase 1 through Phase 31 task texts. This pass resolved all 740 explicit
+`path:line` and `path:NN-MM` anchors those nine artifacts place and read each
+landing. The bare `:NN` continuation form is attributed by hand here, because a
+line naming two files attributes the continuation to the wrong one and the
+automated pass over that form returns false positives. The 740 anchors are the
+population as it stood before this phase was appended; a sweep run over the file
+as it now stands resolves 762, of which four are the drifted anchors T260
+quotes inside this phase, so the same sweep returns those four by design.
+
+### MEDIUM: four further sites of a settled amendment's reach, inside the section the closed journal hands to `/speckit.specify`
+
+- [X] T259 Record the supersession of the five sentences inside the closed journal's Resolved scope statement that carry claims the settled amendments withdrew, without rewriting that dated text, where the statement spans `specs/007-counters-and-timers/sg_counters.md:855-1076` and its header at `:7-12` names it as the input to `/speckit.specify`, and where the five sites are `:959`, which reads that the `tsc` frequency is `calibrated at system-open`, while the amended `FR-034` at `specs/007-counters-and-timers/spec.md:265` states provider construction and the calibration runs in the `clock_provider` constructor at `source/counters/clock_provider.cpp:206-236`; `:981-982`, which names the `perf_user_access` sysctl as a per-kernel gate, where a search for `perf_user_access` over `source/`, `include/`, and `test/` returns no line, `docs/pages/counters-overhead.md:303` records the sysctl absent on this kernel, and the capability bit and the counter width come from the event page at `source/counters/linux_pmu/fast_read.cpp:271-272`; `:983`, which reads `pinning/index constraints enforced at plan compile`, while the amended `FR-023` at `specs/007-counters-and-timers/spec.md:251` places the probe in provider enumeration and the index gate runs in `fast_context_read` at `source/counters/linux_pmu/fast_read.cpp:278-281`; `:1010-1011`, which lists `registering a composite into a started scope` among the tier-3 contract violations, while the amended edge case at `specs/007-counters-and-timers/spec.md:199` and the clarification at `:36` name the three enforceable sequences, `scope` exposes no registration entry point at `include/speedgun-ng/counters_measurement.hpp:992-1064`, and `source/counters/fold.cpp:289-290` permits `metric` on a closed window; and `:1049`, which reads that the `link manifest shows only speedgun-ng`, while the amended `FR-049` at `specs/007-counters-and-timers/spec.md:286` states that the target is a static archive whose manifest carries no `speedgun-ng` entry, and `readelf -d build/dev/example/counters_standalone_example` names `libstdc++.so.6`, `libgcc_s.so.1`, and `libc.so.6` alone. The journal's own precedence rule at `:9-12` settles every site before line 855, because those sit in the older axis headers the rule subordinates to the scope statement; no rule reaches a sentence inside the scope statement itself, which is the reason these five survive three waves of restating the same claims elsewhere. The record belongs in a live artifact, one sentence in the Assumptions paragraph at `specs/007-counters-and-timers/spec.md:321`, which already names the journal as the authoritative design record for intent, stating that where the journal's Resolved scope statement names a boundary, a gate, a mechanism, or a manifest that a later requirement withdrew, the requirement in `spec.md` governs, and the five sites above are the sentences that rule settles. The journal text, every requirement number and position, every gate, every exclusion marker, and every checkbox above this line keep their bytes (MEDIUM, FR-023, FR-034, FR-040, FR-046, FR-049, Constitution IV, Pull Request Quality: Immutability, T120, T137..T139, T153, T226, T232, T233, T246, T255, T256, T258, `contradicts`)
+
+### MEDIUM: the deferred citation correction no record in the tree carries
+
+- [X] T260 Record the corrected anchors for the Phase 1 through Phase 33 task
+  lines and phase preambles whose `file:line` no longer lands on the text it
+  names, in a new artifact `specs/007-counters-and-timers/citations.md` listed
+  beside `tasks.md` in the Project Structure block at
+  `specs/007-counters-and-timers/plan.md:61-74`, with every dated preamble and
+  every closed task line left byte-for-byte as written, where `T253` at
+  `specs/007-counters-and-timers/tasks.md:2290-2313` swept the population its
+  two commits change, moved 19 anchors, and records the rest as debt a later
+  record carries, and where no later record exists. Verified in this pass over
+  the 740 explicit `path:line` anchors those nine artifacts place, the landings
+  that no longer name the text their sentence names are `T072` at
+  `specs/007-counters-and-timers/tasks.md:357`, which names
+  `include/speedgun-ng/counters_measurement.hpp:610` for a `NOLINTNEXTLINE`
+  where that line is blank and the directive stands at `:634`;
+  `T147` at `:495`, which names `specs/007-counters-and-timers/spec.md:249` for
+  `FR-024` where that line is blank and the requirement stands at `:252`;
+  `T166` at `:581`, which names `source/counters/plan.cpp:409` for the zero-leaf
+  refusal where that line is blank and the refusal stands at `:417` beside
+  `:89` and `:536`; the Phase 22 preamble at `:1178`, which names
+  `source/counters/linux_pmu/fast_read.cpp:309-444` in a file of 331 lines;
+  and the three bare `spec.md` continuations `T253` itself names, `T120` at
+  `:414` naming `:276` for `FR-049`, `T126` at `:420` naming `:247` for
+  `FR-029`, and `T147` at `:495` naming `:249` for `FR-024`, where all three
+  name blank lines and the requirements stand at `:286`, `:257`, and `:252`.
+  Each row of the new artifact names the task, the line in `tasks.md`, the
+  anchor as written, the line now holding the claim, and the requirement that
+  governs, so a reader consulting a closed task body reaches the code; the
+  Phase 20 preamble at `:1037` and the Phase 21 preamble at `:1115` also name
+  `include/speedgun-ng/counters_measurement.hpp:1089-1095` for the
+  target-taking `compile`, whose declaration stands at `:1098-1100` and whose
+  doxygen brief starts at `:1088`, and those two rows belong in the same
+  artifact. No anchor above this line moves, no checkbox moves, and no source,
+  header, test, example, tool, or build file changes (MEDIUM, Constitution IV,
+  Constitution X.4, T253, T252, `partial`)
