@@ -11,5 +11,11 @@ skip = */.git,*/build,*/prefix,*/node_modules,*/.omo,*/external
 # "strat" is a shell variable (short for strategy).
 # "Sur" is the macOS Big Sur codename in specs/003-vendor-hwloc docs.
 # "analogue" is British spelling in specs/003-vendor-hwloc/plan.md:42.
-ignore-words-list = unparseable,strat,sur,analogue
+# The 007 counters and timers words below are the same class of finding.
+# "copyable" and "deque" are codespell false positives no text change
+# removes: "copiable" is not a word and "dequeue" would break
+# std::deque. "behaviour", "judgement", "licence", and "serialisation"
+# are correct British spellings, part of them in closed artifacts
+# (specs/007-counters-and-timers) and in the project's own prose.
+ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,behaviour,judgement,licence,serialisation
 quiet-level = 2

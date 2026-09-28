@@ -332,7 +332,9 @@ auto decode_scenario() -> void
 // The open-refusal arm of `fast_context_open`, reached without a host
 // the kernel refuses: `perf_event_open` rejects a PMU type no kernel
 // publishes, and the refusal the catalog would disclose is the sentence
-// the open wrote out (FR-023, R-011).
+// the open wrote out. The close follows the refusal, over a context the
+// kernel never filled and over one it granted, so both arms of the
+// release are measured on any host (FR-023, R-011, FR-040).
 auto context_open_refusal_scenario() -> void
 {
   std::string refusal;
@@ -349,10 +351,16 @@ auto context_open_refusal_scenario() -> void
         "the same refusal is reported by refusing when no sentence is asked "
         "for");
   // Closing a context that owns nothing touches nothing, so a window that
-  // refuses mid-open leaves no descriptor and no mapping behind. A close
-  // of a context the kernel did grant is the other half of the same
-  // contract: it releases what the open took and leaves the context
-  // reporting that it owns nothing (FR-040).
+  // refuses mid-open leaves no descriptor and no mapping behind. Both arms
+  // of the close run on any host: this one owns nothing, and the one below
+  // owns what the kernel granted (FR-040).
+  sg::counters::detail::fast_context unowned;
+  check(unowned.fd == -1 && unowned.map == nullptr,
+        "a context no open ever filled owns no descriptor and no mapping "
+        "(FR-040)");
+  sg::counters::detail::fast_context_close(unowned);
+  check(unowned.fd == -1 && unowned.map == nullptr && unowned.map_length == 0,
+        "closing a context that owns nothing is a no-op (FR-040)");
   std::string fast_refusal;
   auto granted = sg::counters::detail::fast_context_open(
       PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, where, &fast_refusal);
@@ -390,6 +398,12 @@ auto mapfile_scenario() -> void
   }
   check(directory.starts_with("arch/x86/") && directory.ends_with("/"),
         "a matched row names an architecture directory under the table root");
+
+  // The identification and its selected directory are cached once per
+  // process, so the second selection of the same identification reads the
+  // cache and names the directory the first selection named (FR-038).
+  check(pmu_select_directory(identified) == directory,
+        "selecting the same identification twice yields the same directory");
 
   // The table selections are made once per process and cached per
   // directory, so the second load of a directory hands back the same

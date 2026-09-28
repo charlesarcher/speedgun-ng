@@ -406,9 +406,13 @@ auto compile_core(const system& sys,
   std::vector<pending_leaf> pending;
   std::map<std::string, std::size_t> seen;
   for (const auto* core : exprs) {
-    if (core->empty()) {
+    // The leaf vector, because a scalar multiple adds its scale node
+    // unconditionally: a scaled zero-leaf spine holds one node over
+    // nothing, and the spec edge case makes that a recoverable
+    // construction error (specs/007-counters-and-timers, FR-046).
+    if (core->leaves.empty()) {
       return std::unexpected(
-          error {.message = "expression carries no resolved leaves (FR-021)",
+          error {.message = "expression carries no resolved leaves (FR-046)",
                  .suggestions = {}});
     }
     for (const auto& leaf : core->leaves) {
