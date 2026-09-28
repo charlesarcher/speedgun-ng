@@ -22,7 +22,7 @@ cmake --build --preset=dev -t counters_standalone_example
 ldd build/dev/example/counters_standalone_example | grep -i speedgun   # or: readelf -d | grep NEEDED
 ```
 
-Expected: the example builds against public headers plus std only, runs, prints a per-iteration folded metric line (an `instructions / cycles` value with ratio and scaled fields, and the clock-normalized rate beside it), exit 0. The target is a static archive, so the manifest carries no `speedgun-ng` line: the grep prints nothing, and `readelf -d` names the platform C and C++ runtime (`libstdc++`, `libm`, `libgcc_s`, `libc`) with no vendored dependency. The example source includes one public umbrella header plus standard headers.
+Expected: the example builds against public headers plus std only, runs, prints a per-iteration folded metric line (an `instructions / cycles` value with ratio and scaled fields, and the clock-normalized rate beside it), exit 0. The target is a static archive, so the manifest carries no `speedgun-ng` line: the grep prints nothing, and `readelf -d` names three entries, the platform C and C++ runtime (`libstdc++`, `libgcc_s`, `libc`), with no vendored dependency. The example source includes one public umbrella header plus standard headers.
 
 ## 3. Exactness of the fake spine (SC-006, US1, US2)
 
