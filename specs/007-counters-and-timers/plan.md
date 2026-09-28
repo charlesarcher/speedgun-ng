@@ -320,7 +320,7 @@ graph LR
     T[tests: counters_*] -- speedgun-ng::speedgun-ng --> L
 ```
 
-Key properties, each traced: the public link surface stays `speedgun-ng::speedgun-ng` alone (FR-049; the standalone example's manifest is the evidence); simdjson remains private to `source/counters/linux_pmu/table_parse.cpp`, preserving the 004 privacy audits unchanged; the vendored tree is data (no target, no link edge), gated at configure; `counters.hpp` does not enter `speedgun-ng.hpp`, keeping 007's standalone claim visible in the include graph; export uses the existing `generate_export_header` machinery (`SPEEDGUN_NG_EXPORT` on non-template public classes).
+Key properties, each traced: the public link surface stays `speedgun-ng::speedgun-ng` alone, and the standalone example's manifest demonstrates no third-party dynamic dependency and names the platform C and C++ runtime (FR-049); simdjson remains private to `source/counters/linux_pmu/table_parse.cpp`, preserving the 004 privacy audits unchanged; the vendored tree is data (no target, no link edge), gated at configure; `counters.hpp` does not enter `speedgun-ng.hpp`, keeping 007's standalone claim visible in the include graph; export uses the existing `generate_export_header` machinery (`SPEEDGUN_NG_EXPORT` on non-template public classes).
 
 ### Public API surface added
 
