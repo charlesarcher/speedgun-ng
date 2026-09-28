@@ -591,3 +591,89 @@ T154 was neither closed nor superseded by this pass.
 ### LOW
 
 - [X] T172 Restate the two comments that still describe the removed per-leaf scaling: `test/source/counters_fake_test.cpp:912-914` says "the scale reaches the leaves and leaves the arithmetic node alone" and `:938` asserts "scales every leaf exactly", while `8848f4e` moved the scale to one node over the spine root at `include/speedgun-ng/counters_measurement.hpp:135-144`; the assertion stands, its stated mechanism must match the fold (Constitution IV, `contradicts`)
+
+## Phase 16: Convergence
+
+Appended by `/speckit.converge` after an audit of the `e40f55e` completion claims and
+of the five residuals the second wave left unfixed. Nothing above this line changed.
+
+Audit evidence, all produced by this pass. A fresh `build/c3` tree configured and
+built to exit 0 with the committed `flags-gcc-clang` set verbatim (`-Werror`,
+`-Wold-style-cast`, `-Wconversion`, `-Wnull-dereference`) at contracts `enforce` in
+`Debug`; `ctest --test-dir build/c3` passes 37 of 37 with 0 failed and 0 skipped in
+52.73 s; `dbc-gate` reports 135 interfaces with 0 gaps in the doc and the pair gate;
+`format-check` exits 0; `cmake -P cmake/spell.cmake` exits 0; `prose_gate.py --check
+all` reports 101 sources, 7246 units, 0 findings, 1 skipped; the coverage gate run
+directly on `build/coverage/coverage.info` exits 0 at lines 100.0% (1955 of 1955) and
+branches 100.0% (703 of 703). Functions sit at 98.0% (289 of 295), an axis no gate
+scores. No source
+is newer than that trace. A second tree, `build/c3-ciubuntu`, configured with the
+project's own `ci-ubuntu` preset, reports `CMAKE_BUILD_TYPE=Release` with the full
+strict set and contracts `enforce`, and its library build FAILS:
+`source/counters/plan.cpp:489:42: error: potential null pointer dereference
+[-Werror=null-dereference]`. A third tree, `build/c3-rel` at `Release` with contracts
+`ignore`, fails on that same dereference plus two unused locals. Every earlier wave's
+evidence was the Debug `dev` preset, and GCC's null-dereference analysis runs from
+`-O1` upward, so a red CI preset went three waves unseen.
+
+Coverage of the check: 109 requirement keys (50 FR, 10 SC, 49 user-story acceptance
+scenarios) with 17 spec edge cases, 19 plan decision keys (R-001 through R-015 and the
+four registered P2 exceptions), and 20 constitution clauses. Nine findings: 5
+`contradicts`, 3 `partial`, 1 `missing`; 1 CRITICAL, 3 HIGH, 4 MEDIUM, 1 LOW.
+
+This phase covers the release-configuration class, the sites where a fix from an
+earlier wave landed at one occurrence and left its sibling, and the citation class the
+last commit re-broke while repairing it. One unchecked nullable dereference at
+`source/counters/plan.cpp:489` that stops the project's own `ci-ubuntu` preset from
+building (T173). One configuration the committed `Release` measurement depends on,
+which no preset and no CI job builds and which does not compile under the committed
+warning set (T174). T166's leaf-count refusal, landed at
+`source/counters/plan.cpp:413` and absent from its sibling at `:531` (T175). T169's
+covering test, whose assertion cannot fail on the remap regression it names (T176).
+And the citation class: a coverage exclusion whose justification cites two line ranges
+holding other code (T177), two `quickstart.md` references stale against the page the
+same commit rewrote (T178), a `spec.md` reference moved onto an empty doxygen line
+(T179), two artifact sites still publishing the superseded per-action medians (T180),
+and a `coverage` target that exits non-zero on a perl module nothing declares (T181).
+
+Verdicts on the five residuals, each re-derived from the code. Residual 1 is real and
+reaches above the second wave's reading: the second wave saw a `-Wnull-dereference`
+error at `-O3` and set the site down as unreachable, and the dereference is
+unreachable in practice because `source/counters/plan.cpp:428-436` resolves every
+address before the frozen tree is read again at `:486-497`, yet
+`cmake --preset=ci-ubuntu` configures `Release` with `-Werror` and the `test` job
+builds `build --config Release`, so the gate is red and the finding is CRITICAL
+(T173). Residual 2 is real and reproduced: the three locals at
+`source/counters/fold.cpp:209`, `source/counters/fake_provider.cpp:152`, and
+`test/source/dbc_test.cpp:65` are referenced only from contracts `ignore` elides, so
+the configuration is owed a preset or a CI job and the three sites owe live operands
+(T174). Residual 3 is real and larger than a misleading diagnostic: the node-count test
+T166 removed at `:413` still stands at `:531`, so the fix is partial (T175). Residual 4
+is an environment fact carrying a documentation debt: the gate runs at step 4 of
+`cmake/coverage.cmake:78-88` and prints its verdict before step 5 fails, so the
+Principle VI verdict stands and the debt is the undeclared module (T181). Residual 5
+holds as the second wave recommended: `specs/007-counters-and-timers/spec.md:30` and
+`specs/007-counters-and-timers/quickstart.md:140` still carry 60 ns and 220 ns while
+the page publishes 40 and 70 in `Release` and 70 and 180 in the correctness build, so
+the amendment is emitted as T180.
+
+### CRITICAL: the primary Linux CI preset does not build
+
+- [X] T173 Remove the unchecked nullable dereference at `source/counters/plan.cpp:489`, where `impl.find(object_path)` returns a `tree_node*` and the loop over `node->leaves` consumes the result with no check, and make `cmake --preset=ci-ubuntu` build to exit 0: that preset configures `CMAKE_BUILD_TYPE=Release` with the committed `flags-gcc-clang` set including `-Werror` and `-Wnull-dereference` at contracts `enforce`, the `test` job in `.github/workflows/ci.yml:116-118` configures and builds it, and the library build currently fails with `plan.cpp:489:42: error: potential null pointer dereference [-Werror=null-dereference]`, which no `Debug` build reaches; the per-provider slot loop must consume the resolution the leaf loop at `:428-436` already performed, so no nullable result crosses the loop boundary (the `pending_leaf` entries at `:400-404` are the only state that crosses), or the loop must carry an explicit check returning the `FR-017` error the first loop emits at `:438-443`, and no warning class may be demoted to reach a green build (Constitution VIII, FR-024, `contradicts`)
+
+### HIGH
+
+- [X] T174 Make `Release` with `speedgun-ng_CONTRACTS=ignore` compile under the committed warning set with nothing demoted, and name the configuration the project owes: `source/counters/fold.cpp:209` (`column`), `source/counters/fake_provider.cpp:152` (`scripted`), and `test/source/dbc_test.cpp:65` (`counting_predicate`) are referenced only from contracts `ignore` elides, so that combination exits 2 on two `-Werror=unused-variable` and one `-Werror=unused-function` error, and the `Release` figures at `docs/pages/counters-overhead.md:30-44` were taken with those classes demoted in a private tree; each of the three sites must keep its operand live outside the elided contract, and `specs/007-counters-and-timers/plan.md`'s Constraints must name the build configurations that must compile with the committed `flags-gcc-clang` set so a preset or a CI job carries them, and no `-Wno-error=` flag and no removed warning class is the remedy (Constitution VIII, plan Technical Context: Constraints, `missing`)
+- [X] T175 Apply T166's leaf-count test at the sibling refusal `source/counters/plan.cpp:531`, where `compile_fanout_core` still calls `exemplar.empty()` and `expr_core::empty()` at `include/speedgun-ng/counters_measurement.hpp:117` returns `nodes.empty()`, so a scaled zero-leaf fan-out exemplar passes the node-count guard the way it passed the one T166 fixed at `:413`, falls through to `exemplar_prefix` at `:541`, and returns "fan-out exemplar spans several objects (FR-024)" for a spine holding no leaf; the guard must test `exemplar.leaves.empty()`, and the case must be added to `test/source/counters_fake_test.cpp` beside the zero-leaf refusals at `:543-556`, where no fan-out exemplar case stands today and `compile_fanout` reaches this path unrepresented (T166, spec edge case "Zero-leaf expression or empty plan", FR-046, `partial`)
+- [X] T176 Give T169's spliced-scaled-operand case a scaled leaf whose delta differs from every other leaf in its composition, because `test/source/counters_fake_test.cpp:157` scripts `only` and `:159` scripts `denominator` to the identical `{0, 200}` with tail 200, so a kind-4 node whose `left` fails to remap at `include/speedgun-ng/counters_measurement.hpp:174-176` lands on `only`, carries the same delta, and leaves the value asserted at `:1067` unchanged at `5.75`; the assertion must change value when the remap is wrong, which means scaling `numerator` (2100 at `:158`) or adding a fourth leaf with a delta of its own (T169, Constitution VI, US1 scenario 3, `partial`)
+
+### MEDIUM
+
+- [X] T177 Re-anchor the justification at `source/counters/plan.cpp:509-513`, whose `LCOV_EXCL_BR` block excludes the "leaf has no owning provider" arm and cites `plan.cpp:402-415` for the first match and `plan.cpp:461-467` for the re-find, where `:402-415` holds the `pending_leaf` struct tail, the loop head, and the zero-leaf refusal, and `:461-467` holds the loop tail, the `plan_impl` allocation, and the target binding; the two sites the reason names are `:428-436` and `:486-497`, and a coverage exclusion whose stated reason does not hold at the lines it cites is the class the T066 audit removed from this tree (Constitution VI, plan Complexity Tracking, `contradicts`)
+- [X] T178 Re-cite the two `docs/pages/counters-overhead.md` references in the SC-002 verdict row at `specs/007-counters-and-timers/quickstart.md:138`, which T171 corrected against the page as it stood before `e40f55e` rewrote it in the same commit: `:219` must become `:303`, the level-2 row of the privilege table now at `:301-304` that tabulates 358 `countable` and 0 `permission_blocked`, and `:231-232` must become `:315-316`, the level-3 refusal now there, where `:219` reads `single:  120.0,130.0,160.0` inside the superseded pass and `:231` is the `## Fast regime` heading (T171, Constitution IV, `contradicts`)
+- [X] T179 Re-cite `compile` at `specs/007-counters-and-timers/spec.md:34`, where T171 moved the reference from `include/speedgun-ng/counters_measurement.hpp:1084` to `:1085` and `:1085` is the empty doxygen line ` *`, so the correction moved the citation off the brief at `:1084` and onto a line holding no claim; the declaration is at `:1089-1095` (T171, Constitution IV, `contradicts`)
+- [X] T180 Amend the two artifact sites still carrying the superseded per-action medians after T170 restated the header: `specs/007-counters-and-timers/spec.md:30` publishes "60 ns for a clock plan, 220 ns for a core-PMU group" and derives 0.6 ns and 2.2 ns from them, and the SC-004 evidence column at `specs/007-counters-and-timers/quickstart.md:140` reads "clock 60/70/100, pmu single fast_rdpmc 120/130/160, pmu group fast_rdpmc 170/170/200, fold 584.7", which `docs/pages/counters-overhead.md:217-221` now records under the pass that page marks superseded, while its current correctness-build medians at `:159-162` are clock 70, group 180, single 130 and a 520.4 ns fold; both sentences must cite the regenerated per-action medians with the build configuration they came from, matching the cadence comment at `include/speedgun-ng/counters_measurement.hpp:44-56` (FR-048, Constitution VII, T170, `contradicts`)
+
+### LOW
+
+- [X] T181 State the `genhtml` runtime prerequisite the coverage target needs and its configure-time check cannot see: `cmake/coverage.cmake:15-23` finds the `genhtml` executable and fails configuration when the executable is absent, so the `GD.pm` module the executable loads stays invisible to that check, and `cmake --build build/coverage -t coverage` exits 2 on this host after the gate at `:84` has printed its verdict, which a target named for a Principle VI hard gate should not do without a stated cause; the prerequisite belongs in `README.md` beside the vendored-dependency prerequisites the file already documents, and no step may be dropped or skipped to keep the target quiet (Constitution VIII, plan: Determinism and regression, `partial`)

@@ -400,7 +400,11 @@ auto compile_core(const system& sys,
   struct pending_leaf
   {
     std::string address;
-    int provider = -1;
+    // The record the loop above matched, carried into the provider
+    // grouping so no second tree lookup runs there. The catalog is
+    // frozen once opened and nothing between the loops reseats a
+    // node's leaf vector, so the pointer holds across the boundary.
+    const leaf_record* record = nullptr;
   };
 
   std::vector<pending_leaf> pending;
@@ -456,8 +460,8 @@ auto compile_core(const system& sys,
             error {.message = std::move(message), .suggestions = {}});
       }
       seen.emplace(leaf.address, pending.size());
-      pending.push_back(pending_leaf {.address = leaf.address,
-                                      .provider = record->provider_index});
+      pending.push_back(
+          pending_leaf {.address = leaf.address, .record = record});
     }
   }
 
@@ -471,9 +475,10 @@ auto compile_core(const system& sys,
   // split would multiply the setup cost and add one indirect call per
   // instance to every sample (T098).
   for (std::size_t p = 0; p < impl.providers.size(); ++p) {
+    const auto provider = static_cast<int>(p);
     std::vector<std::string> addresses;
     for (const auto& one : pending) {
-      if (one.provider == static_cast<int>(p)) {
+      if (one.record->provider_index == provider) {
         addresses.push_back(one.address);
       }
     }
@@ -483,17 +488,14 @@ auto compile_core(const system& sys,
     read_group group;
     group.offset = layout->slots.size();
     group.count = addresses.size();
-    for (const auto& address : addresses) {
-      const auto [object_path, name] = split_leaf_address(address);
-      const auto* node = impl.find(object_path);
-      for (const auto& candidate : node->leaves) {
-        if (candidate.core.name == name) {
-          layout->slots.push_back(
-              plan_impl::slot {.core = candidate.core,
-                               .has_ratio_pair = candidate.has_ratio_pair});
-        }
+    for (const auto& one : pending) {
+      if (one.record->provider_index != provider) {
+        continue;
       }
-      layout->by_address.emplace(address, layout->slots.size() - 1);
+      const auto& candidate = *one.record;
+      layout->slots.push_back(plan_impl::slot {
+          .core = candidate.core, .has_ratio_pair = candidate.has_ratio_pair});
+      layout->by_address.emplace(one.address, layout->slots.size() - 1);
     }
     auto reader =
         impl.providers[p]->open(leaf_set {.addresses = addresses}, tg);
@@ -507,10 +509,10 @@ auto compile_core(const system& sys,
     layout->groups.push_back(std::move(group));
   }
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the two counts always
-  // agree. Every pending address was matched against its node and leaf at
-  // `plan.cpp:402-415` and re-found by the identical name test at
-  // `plan.cpp:461-467`, so the slot loop pushes exactly one slot per pending
-  // address.
+  // agree. Each pending entry carries the record its leaf bound to at
+  // `plan.cpp:436`, and the refusal at `plan.cpp:442` rules a null one out.
+  // The partition at `plan.cpp:481` and `plan.cpp:492` gives every entry
+  // exactly one group, so the push at `plan.cpp:496` lands once per entry.
   if (layout->slots.size() != pending.size()) {  // LCOV_EXCL_BR_LINE
     return std::unexpected(  // LCOV_EXCL_LINE
         error {// LCOV_EXCL_LINE
@@ -528,7 +530,10 @@ auto compile_fanout_core(const system& sys,
                          const std::vector<const object*>& selection)
     -> std::expected<fanout_plan, error>
 {
-  if (exemplar.empty()) {
+  // The leaf vector, for the reason `compile_core` gives above: a
+  // scalar multiple adds its scale node over an empty spine, so a
+  // scaled zero-leaf exemplar holds one node over nothing.
+  if (exemplar.leaves.empty()) {
     return std::unexpected(
         error {.message = "fan-out exemplar carries no leaves (FR-024)",
                .suggestions = {}});

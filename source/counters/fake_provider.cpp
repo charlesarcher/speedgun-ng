@@ -161,6 +161,10 @@ auto fake_provider::set_points(const std::string_view object_path,
   item.delta_state = delta_seed.value_or(0);
   SG_ENSURE(counter(path, leaf).script.points.size() == scripted,
             "the scripted sequence is held in order (FR-036)");
+  // The postcondition is semantic-gated, so an ignoring build emits no
+  // code that reads `scripted`. The discard keeps the committed warning
+  // set intact (T174).
+  static_cast<void>(scripted);
   return *this;
 }
 

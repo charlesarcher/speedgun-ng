@@ -209,6 +209,11 @@ auto fold_core(const expr_core& core,
       const auto* column = ctx.rec.columns + slot * ctx.rec.stride;
       SG_REQUIRE(column[ctx.j] >= column[ctx.i],
                  "push counters never decrease between folded points (FR-035)");
+      // The check is semantic-gated, so an ignoring build emits no code
+      // for it and never reads `column`. The discard keeps the committed
+      // warning set intact (T174); writing the address lookup into the
+      // predicate instead would evaluate it twice per leaf.
+      static_cast<void>(column);
     }
   }
   const ratio_result disclosure = window_ratio(ctx, core);
