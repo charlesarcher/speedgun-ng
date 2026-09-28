@@ -677,3 +677,94 @@ the amendment is emitted as T180.
 ### LOW
 
 - [X] T181 State the `genhtml` runtime prerequisite the coverage target needs and its configure-time check cannot see: `cmake/coverage.cmake:15-23` finds the `genhtml` executable and fails configuration when the executable is absent, so the `GD.pm` module the executable loads stays invisible to that check, and `cmake --build build/coverage -t coverage` exits 2 on this host after the gate at `:84` has printed its verdict, which a target named for a Principle VI hard gate should not do without a stated cause; the prerequisite belongs in `README.md` beside the vendored-dependency prerequisites the file already documents, and no step may be dropped or skipped to keep the target quiet (Constitution VIII, plan: Determinism and regression, `partial`)
+
+## Phase 17: Convergence
+
+Appended by `/speckit.converge` after an audit of the `afd851e` completion claims and of
+the release-configuration class the previous wave closed. Nothing above this line changed.
+
+Audit evidence, all produced by this pass. Two fresh trees in `build/`, each configured
+with the committed `flags-gcc-clang` set verbatim from `plan.md:33`. `build/c4-rel` at
+`Release` with contracts `ignore` builds the whole tree to exit 0 with zero errors and
+zero warnings in the project's own C++ sources; the five warnings in its log are
+`-Wdiscarded-qualifiers` in the vendored hwloc C sources, which the project does not own.
+`ctest --test-dir build/c4-rel -j 8` passes 34 of 37 in 43.49 s; the three that fail are
+`speedgun-ng_test`, `dbc_test` and `dbc_trap_checked`, the DBC facility's own tests, which
+assert that a gated check delivers its violation and therefore cannot pass where `ignore`
+elides it. `.github/workflows/ci.yml:444` encodes the same fact, asserting
+`test "$status" -eq 1` for `dbc_test` under `ignore`, and the job runs a curated subset
+(`:424-430`) for the same reason. `build/c4-dbg` at `Debug` with contracts `ignore` and
+the same set builds to exit 0; its `dbc-gate` target reports 135 interfaces with 0 doc
+gaps and 0 pair gaps, and `format-check` exits 0. A coverage tree configured and built
+outside the workspace, then measured, reports lines 100.0% (1955 of 1955), branches
+100.0% (705 of 705) and functions 98.0% (289 of 295), and `coverage_gate.sh` exits 0.
+`python3 tools/prose/prose_gate.py --check all` exits 0 over 103 sources and 7441 units
+with 1 skipped (`hwloc.md`, absent); `--mode tree` reports 182 sources and 108 findings,
+of which `test/source/dbc_test.cpp:133` and `:437` are the two this feature's range does
+not see. `cmake -P cmake/spell.cmake` exits 0.
+
+Two corrections to the record this pass established. The coverage figure Phase 16's
+preamble reports at `:608`, branches 100.0% (703 of 703), came from
+`build/coverage/coverage.info` at mtime 21:53:14, while the three sources `afd851e`
+changed carry mtimes 22:12:52 (`source/counters/plan.cpp`), 22:14:52
+(`source/counters/fold.cpp`) and 22:19:08 (`source/counters/fake_provider.cpp`); the
+trace's own records carry execution counts on lines that now hold a comment and a closing
+brace. The current tree measures 705 of 705 branches and the gate exits 0, so the verdict
+stands and the figure on record did not measure this tree. The two prose findings in
+`test/source/dbc_test.cpp` are ruled out of this feature: `afd851e` touched
+`:58-73` and `:120-130`, Principle XI.1 scopes the rule to the lines a change touches,
+and the tree carries 108 findings of the same class across 182 sources, so a sweep is a
+formatting-only change under V on its own.
+
+Coverage of the check: 109 requirement keys (50 FR, 10 SC, 49 user-story acceptance
+scenarios) with 17 spec edge cases, 20 plan decision keys (R-001 through R-015, the four
+registered P2 exceptions, the Constraints configuration enumeration, and the five
+Complexity Tracking rows), and 21 constitution clauses. Four findings: 1 `contradicts`,
+3 `partial`; 1 CRITICAL, 1 HIGH, 2 MEDIUM.
+
+Three answers the previous wave's CRITICAL demands, each from the job list. First, the
+release configuration is covered by gates that run on every change. The `test` job
+(`.github/workflows/ci.yml:105`) configures `ci-ubuntu` (`:116`), which is `Release`
+(`ci-linux`), contracts `enforce`, the committed set, plus clang-tidy and cppcheck, and
+builds the whole tree and its test targets before `ctest` (`:118`, `:163`);
+`test-rocky` (`:165`, `:183`) configures `ci-rocky` to the same configuration; and
+`sanitize` (`:71`, `:87`) builds `ci-sanitize` at `-O2` with the same set, so an
+optimizer-backed analysis runs in three jobs rather than one. The `dbc-gate` (`:465`) and
+`prose-lint` (`:528`) jobs configure the same `Release` preset but build gate targets
+only. Second, no CI job builds `Release` at contracts `ignore` with the committed set.
+The only two configurations at that semantic are the `consumer-release` job's, and
+`.github/workflows/ci.yml:301-306` and `:331-336` configure them with a bare
+`cmake -S . -B`, which leaves `CMAKE_CXX_FLAGS` empty in both caches and with it the
+whole warning set, the fortified release flags and the hardened linker flags; the
+dev-mode-on tree then builds four named targets (`:338-340`, `:427-428`). The
+pre-correction `source/counters/fold.cpp` at contracts `ignore` with the committed set
+fails on `unused variable 'column'`, and the identical source with that set absent
+compiles clean, so the three sites T174 repaired can regress with every job green, and
+`plan.md:33` names a set of configurations nothing enforces (T182). Third, the `dev`
+preset stays `Debug` (`CMakeUserPresets.json:22`) and that is the right default for the
+loop it serves: it already carries the complete committed set through `ci-linux`, and the
+project's `Release` gate is the `test` job's `ci-ubuntu`, so nothing is lost at `-O0`. The
+defect sits in the verification instruction, and the preset keeps its place, because
+`.specify/memory/constitution.md:250` and `AGENTS.md:43` name `ctest --preset=dev` as the
+whole of a task's verification, and that loop cannot see what three waves of this feature
+missed (T184).
+
+This phase covers the enforcement class, the measurement record the enforcement gap left
+behind, and the verification instruction. One configuration the plan names and CI does
+not build, carrying neither the warning set nor the hardening flags the constitution
+requires of it (T182). One page that still tells a reader to take the measurement with
+three warning classes demoted, and still claims a compile state `afd851e` ended, with two
+citations that now name other code (T183). And the per-task verification loop, which
+compiles nothing above `-O0` (T184).
+
+### CRITICAL: the release artifact configuration carries no committed flags
+
+- [X] T182 Carry the committed `flags-gcc-clang` set into the two `Release` at contracts `ignore` configurations the `consumer-release` job builds: `.github/workflows/ci.yml:301-306` and `:331-336` configure them with a bare `cmake -S . -B`, so `CMAKE_CXX_FLAGS`, `CMAKE_CXX_FLAGS_RELEASE` and both linker flag variables are empty in the resulting caches and no job in the matrix compiles that semantic with the committed set, which leaves `source/counters/fold.cpp:209`, `source/counters/fake_provider.cpp:152` and `test/source/dbc_test.cpp:69` free to regress into the `-Werror=unused-variable` and `-Werror=unused-function` errors T174 repaired, and leaves the audited release library without the stack protector, control-flow protection, stack-clash protection, fortified release flags and hardened linker flags Additional Constraints requires of it; add one hidden preset to `CMakePresets.json` inheriting `ci-linux` with `speedgun-ng_CONTRACTS: ignore`, use it for both trees with `-B` as `prose-lint` already does at `:528`, and no warning class may be demoted, no `-Wno-error=` flag added and no build step dropped, so `plan.md:33`'s claim names configurations the pipeline builds (Constitution VIII, Additional Constraints: Warnings and hardening, `plan.md:33`, T174, `missing`)
+
+### HIGH: the measurement record still carries the defect and the old citations
+
+- [X] T183 Restate `docs/pages/counters-overhead.md:30-44`, which adds `-Wno-error=unused-variable -Wno-error=unused-function -Wno-error=null-dereference` to the release tree at `:32-33` and still claims at `:33-35` that the committed source carries four findings under `Release` with contracts `ignore`, all four ended by `afd851e` and the pre-correction `source/counters/fold.cpp` verified above to compile clean in that configuration now: the three demotions must leave the recipe, the claim must become that the configuration compiles with the committed set and nothing demoted, and the paragraph must record that the published medians stand because a diagnostic-severity demotion changes no codegen; the citation at `:39` must move to `test/source/dbc_test.cpp:69` where `counting_predicate` now sits, and the sentence at `:40-43` must name the tree lookup at `source/counters/detail/core.hpp:170` on the system impl, because `plan_impl` carries no `find` member and the dereference it describes is gone, while `spec.md:30` and `quickstart.md:140` derive the cadence figures from this page (Constitution IV, VIII, FR-048, `specs/007-counters-and-timers/spec.md:30`, `contradicts`)
+
+### MEDIUM: the per-task verification compiles nothing above `-O0`
+
+- [ ] T184 Name a `Release` compile in the per-task verification instruction: `.specify/memory/constitution.md:250` and `AGENTS.md:43` both define a task's whole verification as `ctest --preset=dev`, and that preset is `Debug` (`CMakeUserPresets.json:22`), so the optimizer-backed analyses that found the unchecked nullable dereference that kept `ci-ubuntu` from compiling never run in the loop every task is verified through, and three convergence waves reported green gates while the configuration the `test` job builds had never compiled; the instruction must add the `ci-ubuntu` configure and build the `test` job already runs, and the `dev` preset keeps its place as the fast iteration loop because it carries the complete committed set through `ci-linux` (Constitution IX, VIII, `plan.md:33`, T173, `partial`)

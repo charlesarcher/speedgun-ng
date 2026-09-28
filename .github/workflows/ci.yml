@@ -300,10 +300,9 @@ jobs:
 
     - name: Configure consumer release
       run: >
-        cmake -S . -B build/consumer-release
+        cmake --preset=ci-linux-ignore -B build/consumer-release
         -D CMAKE_BUILD_TYPE=Release
         -D speedgun-ng_DEVELOPER_MODE=OFF
-        -D speedgun-ng_CONTRACTS=ignore
 
     - name: Assert consumer-release cache
       run: |
@@ -330,10 +329,9 @@ jobs:
 
     - name: Configure ignore developer build
       run: >
-        cmake -S . -B build/consumer-release-dev
+        cmake --preset=ci-linux-ignore -B build/consumer-release-dev
         -D CMAKE_BUILD_TYPE=Release
         -D speedgun-ng_DEVELOPER_MODE=ON
-        -D speedgun-ng_CONTRACTS=ignore
 
     - name: Build trap fixture and dbc_test
       run: cmake --build build/consumer-release-dev -j 2

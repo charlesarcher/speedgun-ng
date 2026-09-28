@@ -92,6 +92,15 @@
       }
     },
     {
+      "name": "ci-linux-ignore",
+      "description": "ci-linux flags at the ignore contract semantic, for a job that audits a release archive. Developer mode stays off the preset because each tree passes its own value.",
+      "binaryDir": "${sourceDir}/build/ci-linux-ignore",
+      "inherits": "ci-linux",
+      "cacheVariables": {
+        "speedgun-ng_CONTRACTS": "ignore"
+      }
+    },
+    {
       "name": "ci-darwin",
       "inherits": ["flags-appleclang", "ci-std"],
       "generator": "Xcode",

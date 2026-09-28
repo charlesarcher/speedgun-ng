@@ -28,20 +28,31 @@ cmake --build build/p15-fig-dev -j 24
 ```
 
 `COMMITTED_FLAGS` is the `CMAKE_CXX_FLAGS` value of the `flags-gcc-clang`
-preset, which ends in `-Werror`. The release tree adds
+preset, which ends in `-Werror`. Both trees carry that set unchanged,
+the release tree at contracts `ignore` and the debug tree at contracts
+`enforce`, and both compile with no warning class demoted.
+
+The pass that produced the tables added three demotions the recipe above
+no longer carries, and it recorded them here so the build behind the
+figures stays legible. The demotions were
 `-Wno-error=unused-variable -Wno-error=unused-function
--Wno-error=null-dereference`, because the committed source carries four
-findings under `Release` with contracts `ignore`, and no configuration
-in CI compiles that combination with the strict set. Three are a local
-whose only use sits inside a contract that `ignore` elides:
-`source/counters/fold.cpp:209` (unused `column`),
-`source/counters/fake_provider.cpp:152` (unused `scripted`), and
-`test/source/dbc_test.cpp:65` (unused `counting_predicate`). The
-fourth is a potential null dereference at
-`source/counters/plan.cpp:489`: `plan_impl::find` returns `nullptr`
-when the object path is absent, and the loop over `node->leaves`
-dereferences the result without a check. The debug tree carries the
-same strict set with no demotion and compiles clean.
+-Wno-error=null-dereference`, which covered four findings under `Release`
+with contracts `ignore`. Three were locals whose only use sits inside a
+contract that `ignore` elides: `source/counters/fold.cpp:209` (`column`),
+`source/counters/fake_provider.cpp:152` (`scripted`), and
+`test/source/dbc_test.cpp:69` (`counting_predicate`). The fourth was an
+unchecked dereference of a tree lookup: the provider grouping looked an
+object path up through `find` on the system implementation
+(`source/counters/detail/core.hpp:170`), which returns `nullptr` when the
+path is absent, and iterated `node->leaves` on the result without a
+check. All four are fixed, and the grouping now reads the record the
+leaf loop already resolved at `source/counters/plan.cpp:432`. The
+release configuration at contracts `ignore` compiles with the committed
+set and no class demoted.
+
+Every demotion took the `-Wno-error=` form, which sets a diagnostic's
+severity and leaves code generation alone, so the figures below are the
+ones that pass produced.
 
 Measure with nothing else building, and record the load first:
 
