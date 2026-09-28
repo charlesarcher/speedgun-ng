@@ -154,9 +154,17 @@ auto test_registration() -> void
       "package-1/splice", "numerator", "ops", "quotient numerator");
   provider->add_counter(
       "package-1/splice", "denominator", "ops", "quotient denominator");
+  // A fourth leaf whose delta no other leaf of this object carries, so
+  // the scale node of the spliced-operand scenario reads a value of its
+  // own (T176).
+  provider->add_counter("package-1/splice",
+                        "scaled_operand",
+                        "ops",
+                        "leaf the spliced scale multiplies");
   provider->set_points("package-1/splice", "only", {0, 200}, 200);
   provider->set_points("package-1/splice", "numerator", {0, 2100}, 2100);
   provider->set_points("package-1/splice", "denominator", {0, 200}, 200);
+  provider->set_points("package-1/splice", "scaled_operand", {0, 400}, 400);
 
   provider->add_object("package-1/edge", "scratch", "fold edge object");
   provider->add_counter("package-1/edge", "single", "ops", "the only leaf");
@@ -554,6 +562,22 @@ auto test_construction_and_fold_edges() -> void
             && contains(scaled_empty.error().message, "no resolved leaves"),
         "a scalar multiple of a zero-leaf expression is refused at "
         "construction (FR-046)");
+
+  // The same spine as a fan-out exemplar. A scale node gives it one
+  // node, so an exemplar guard reading the node count passes it and the
+  // refusal reaches the span check, whose message names an exemplar
+  // spanning several objects for a spine holding no leaf. The leaf count
+  // is the vector the refusal reads (FR-046, FR-024, T166).
+  const auto cores = system::local().objects("core");
+  const auto scaled_empty_fanout =
+      compile(system::local(), 2.0 * expression<events> {}, *cores);
+  check(!scaled_empty_fanout.has_value()
+            && contains(scaled_empty_fanout.error().message,
+                        "carries no leaves")
+            && !contains(scaled_empty_fanout.error().message,
+                         "several objects"),
+        "a scalar multiple of a zero-leaf exemplar is refused as leafless "
+        "(FR-046, FR-024)");
 
   const auto compiled = compile(system::local(), ipc);
   check(compiled.has_value(), "the quotient plan compiles");
@@ -1049,13 +1073,16 @@ auto scaled_spliced_operand_scenario() -> void
   const auto scratch = *system::local().object("package-1/splice");
   const auto only = *scratch.counter<events>("only");
   const auto numerator = *scratch.counter<events>("numerator");
-  const auto denominator = *scratch.counter<events>("denominator");
+  const auto scaled_operand = *scratch.counter<events>("scaled_operand");
   // Every window of this object sees the same deltas, because each
   // leaf's tail step repeats its scripted step: only 200, numerator
-  // 2100, denominator 200 (FR-036).
+  // 2100, scaled_operand 400 (FR-036). The scaled leaf's delta differs
+  // from every other leaf of the composition, so a scale node reaching
+  // the wrong operand folds a value of its own: node 0 is the leaf
+  // `only` at 200, which divides as 2300 / 400 = 5.75.
   const auto sum = only + numerator;
-  const auto scaled_denominator = 2.0 * expression<events> {denominator};
-  const auto folded = sum / scaled_denominator;
+  const auto doubled_operand = 2.0 * expression<events> {scaled_operand};
+  const auto folded = sum / doubled_operand;
   auto compiled = compile(system::local(), folded);
   if (!compiled.has_value()) {
     fail("the spliced scaled-operand plan compiles");
@@ -1063,8 +1090,8 @@ auto scaled_spliced_operand_scenario() -> void
   scope window {*compiled};
   window.start();
   window.finish();
-  // (200 + 2100) / (2 * 200) = 2300 / 400.
-  check(same_double(window.metric(folded).value, 5.75),
+  // (200 + 2100) / (2 * 400) = 2300 / 800.
+  check(same_double(window.metric(folded).value, 2.875),
         "a scaled expression spliced as an operand folds its own "
         "arithmetic exactly (FR-015, US1 scenario 3)");
 }

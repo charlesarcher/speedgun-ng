@@ -58,11 +58,15 @@ struct violation_caught
 
 // Instrumentation for the exactly-once predicate test (FR-019). A pure
 // predicate cannot carry a side effect, so the test's *measurement probe* is
-// side-effecting on purpose; the production purity rule (FR-019) applies to
-// contract predicates, not to test probes.
+// side-effecting on purpose. The production purity rule (FR-019) binds
+// contract predicates; a test probe stands outside it. The probe stays a
+// named function because the count is the measurement and a contract may
+// evaluate its predicate twice (T174).
 int predicate_evaluations = 0;
 
-auto counting_predicate() -> bool
+// Named from a semantic-gated check alone, so an ignoring build elides the
+// only reference and the warning set would see none (T174).
+[[maybe_unused]] auto counting_predicate() -> bool
 {
   ++predicate_evaluations;
   return true;
@@ -116,7 +120,10 @@ auto violate_assertion() -> void
   SG_ASSERT(1 == 2, "assert: 1 == 2");
 }
 
-// Exactly-once probe site (a semantic-gated, satisfied check).
+// Exactly-once probe site (a semantic-gated, satisfied check). The predicate
+// counts its own evaluations and stays true across repeated calls, so a
+// second evaluation shows in the caller's count. A named probe function is
+// named from the gated check alone, which an ignoring build elides (T174).
 auto gated_satisfied_site() -> void
 {
   SG_REQUIRE(counting_predicate(), "positive");
