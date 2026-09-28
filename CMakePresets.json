@@ -101,6 +101,12 @@
       }
     },
     {
+      "name": "ci-linux-audit",
+      "description": "ci-linux flags for the two jobs that install a release tree to audit its package surface. The preset adds no cache variable: both trees already run at the enforcing contract semantic and with developer mode off, which are the defaults (T186).",
+      "binaryDir": "${sourceDir}/build/ci-linux-audit",
+      "inherits": "ci-linux"
+    },
+    {
       "name": "ci-darwin",
       "inherits": ["flags-appleclang", "ci-std"],
       "generator": "Xcode",

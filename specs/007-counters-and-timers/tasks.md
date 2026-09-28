@@ -355,7 +355,7 @@ runs and reports `lines 85.1% (1686 of 1982), functions 90.2% (230 of 255), bran
 
 - [X] T071 Add `SG_ENSURE(!started && !finished, "a fresh scope awaits start() (FR-030)")` to `scope::scope` at `source/counters/plan.cpp:270-276` and move the uncheckable `\pre compiled outlives the scope` clause out of the enforced contract into the lifetime note beside `include/speedgun-ng/counters_measurement.hpp:946-950`; also state `expression::fold_pairs`'s real two-point precondition at `counters_measurement.hpp:654-655` instead of `\pre none \post none` (CRITICAL, Constitution II, `partial`)
 - [X] T072 Write the reason in the same comment for all 8 bare `NOLINTNEXTLINE` directives: `include/speedgun-ng/counters_core.hpp:216` and `:234`, `include/speedgun-ng/counters_provider.hpp:37`, `:62`, `:125`, `:135`, `:150`, and `include/speedgun-ng/counters_measurement.hpp:610` (CRITICAL, Constitution X.2, `partial`)
-- [X] T073 Split the contrastive sentence in `source/counters/linux_pmu/table_parse.cpp:18-19` so no unit carries the `X rather than Y` shape, and drop the filler token `actually` from the comment at `include/speedgun-ng/counters_measurement.hpp:147`; both are reviewer-parity defects under `constitution.md:424-425` rather than mechanical prose-lint findings, because `prose_rules.yaml:94` matches a leading space the stripped comment unit does not carry and `prose_gate.py:876-883` exempts a whole unit containing a code span (CRITICAL, Constitution XI.2 and XI.5, `partial`)
+- [X] T073 Split the contrastive sentence in `source/counters/linux_pmu/table_parse.cpp:18-19` so no unit carries the `X rather than Y` shape, and drop the filler token `actually` from the comment at `include/speedgun-ng/counters_measurement.hpp:147`; both are reviewer-parity defects under `constitution.md:447-448` rather than mechanical prose-lint findings, because `prose_rules.yaml:94` matches a leading space the stripped comment unit does not carry and `prose_gate.py:876-883` exempts a whole unit containing a code span (CRITICAL, Constitution XI.2 and XI.5, `partial`)
 
 ### HIGH: core functional requirement and acceptance-criterion gaps
 
@@ -394,7 +394,7 @@ runs and reports `lines 85.1% (1686 of 1982), functions 90.2% (230 of 255), bran
 - [X] T103 Add contract blocks to the `include/speedgun-ng/counters.hpp` umbrella or amend T004, which names the umbrella among the six headers "with doxygen pre/post/invariant contract blocks"; the file carries none, and `\invariant` appears exactly once across the whole header set at `include/speedgun-ng/counters_provider.hpp:227` (MEDIUM, T004, `partial`)
 - [X] T104 Make the counters `target_sources` bracket in `CMakeLists.txt:653-670` recursive so a future `source/counters/detail/*.cpp` is not silently dropped, as the two non-recursive GLOBs do today (MEDIUM, T003, `partial`)
 - [X] T105 Add a release-configured CTest target so `ctest -R counters_trap` reproduces the FR-027 release proof, which today lives only in the CI shell step at `.github/workflows/ci.yml:343-398` and runs the fixture rather than the checker; or amend T023 and the US2 independent test at `tasks.md:78` (MEDIUM, FR-027, `partial`)
-- [X] T106 Add a `ci-sanitize` build preset and a `ci-sanitize` test preset to the committed `CMakePresets.json` so T065's command and `quickstart.md:114` can run; the file currently declares no `buildPresets` and no `testPresets`, and the `dev` presets must stay in the machine-local `CMakeUserPresets.json` (`constitution.md:531-533`) (MEDIUM, T065, `partial`)
+- [X] T106 Add a `ci-sanitize` build preset and a `ci-sanitize` test preset to the committed `CMakePresets.json` so T065's command and `quickstart.md:114` can run; the file currently declares no `buildPresets` and no `testPresets`, and the `dev` presets must stay in the machine-local `CMakeUserPresets.json` (`constitution.md:554-556`) (MEDIUM, T065, `partial`)
 - [X] T107 Read the staging tree when replacing in `tools/pmu_events/update_pmu_events.py:325-336`, where the staging directory is written and never used because the tree is rewritten from the in-memory dict; or drop the staging directory and record that the replace is last-writer-wins from memory (MEDIUM, T059, `partial`)
 - [X] T108 Replace the full set of allocation functions in `test/source/counters_noalloc_test.cpp:42-76`, which overrides only the plain `operator new(std::size_t)` and leaves `new[]`, the nothrow form and the aligned forms uncounted, so an array-form allocation on the sample path escapes the count (MEDIUM, SC-005, `partial`)
 - [X] T109 Delete or repair `test/source/counters_recorder_test.cpp:107`, which asserts that a full `hard_stop` recorder never wraps, a fact `hard_stop_sample_core` at `source/counters/plan.cpp:318-330` can never violate because it never assigns the flag (MEDIUM, T022, `partial`)
@@ -745,7 +745,7 @@ preset stays `Debug` (`CMakeUserPresets.json:22`) and that is the right default 
 loop it serves: it already carries the complete committed set through `ci-linux`, and the
 project's `Release` gate is the `test` job's `ci-ubuntu`, so nothing is lost at `-O0`. The
 defect sits in the verification instruction, and the preset keeps its place, because
-`.specify/memory/constitution.md:250` and `AGENTS.md:43` name `ctest --preset=dev` as the
+`.specify/memory/constitution.md:279-287` and `AGENTS.md:43` name `ctest --preset=dev` as the
 whole of a task's verification, and that loop cannot see what three waves of this feature
 missed (T184).
 
@@ -767,4 +767,120 @@ compiles nothing above `-O0` (T184).
 
 ### MEDIUM: the per-task verification compiles nothing above `-O0`
 
-- [X] T184 Name a `Release` compile in the per-task verification instruction: `.specify/memory/constitution.md:250` and `AGENTS.md:43` both define a task's whole verification as `ctest --preset=dev`, and that preset is `Debug` (`CMakeUserPresets.json:22`), so the optimizer-backed analyses that found the unchecked nullable dereference that kept `ci-ubuntu` from compiling never run in the loop every task is verified through, and three convergence waves reported green gates while the configuration the `test` job builds had never compiled; the instruction must add the `ci-ubuntu` configure and build the `test` job already runs, and the `dev` preset keeps its place as the fast iteration loop because it carries the complete committed set through `ci-linux` (Constitution IX, VIII, `plan.md:33`, T173, `partial`)
+- [X] T184 Name a `Release` compile in the per-task verification instruction: `.specify/memory/constitution.md:279-287` and `AGENTS.md:43` both define a task's whole verification as `ctest --preset=dev`, and that preset is `Debug` (`CMakeUserPresets.json:22`), so the optimizer-backed analyses that found the unchecked nullable dereference that kept `ci-ubuntu` from compiling never run in the loop every task is verified through, and three convergence waves reported green gates while the configuration the `test` job builds had never compiled; the instruction must add the `ci-ubuntu` configure and build the `test` job already runs, and the `dev` preset keeps its place as the fast iteration loop because it carries the complete committed set through `ci-linux` (Constitution IX, VIII, `plan.md:33`, T173, `partial`)
+
+## Phase 18: Convergence
+
+Appended by `/speckit.converge` after an audit of the three most recent commits and of the
+residue the four waves before them left. Nothing above this line changed.
+
+Audit evidence, all produced by this pass. `build/c5-rel` at `Release` with contracts
+`ignore` and the committed `flags-gcc-clang` set verbatim configures and builds to exit 0
+with zero warnings in the project's own C++ sources (the six in its log are
+`-Wdiscarded-qualifiers` in the vendored hwloc C tree, which the project does not own), and
+`ctest --test-dir build/c5-rel` runs all 37 in 51.76 s with 3 failing by design:
+`speedgun-ng_test`, `dbc_test` and `dbc_trap_checked` assert that a gated check delivers
+its violation, which `ignore` elides, and `.github/workflows/ci.yml:442` encodes the same
+fact by asserting `test "$status" -eq 1` for `dbc_test` under that semantic. A second tree
+configured through the preset `2606a5a` added, `cmake --preset=ci-linux-ignore` with
+`speedgun-ng_DEVELOPER_MODE=OFF`, carries the full set, the fortified release flags, the
+hardened linker flags, `CMAKE_BUILD_TYPE:STRING=Release`,
+`speedgun-ng_DEVELOPER_MODE:BOOL=OFF` and `speedgun-ng_CONTRACTS:STRING=ignore` in its
+cache, so the three assertions at `.github/workflows/ci.yml:309-314` hold unchanged, and
+that tree builds to exit 0. `dbc-gate` reports 135 interfaces with 0 gaps in both the doc
+gate and the pair gate, `format-check` exits 0, and `cmake -P cmake/spell.cmake` exits 0.
+The coverage trace is fresh and was checked before its figures were quoted:
+`build/coverage/coverage.info` carries mtime 23:08:17, later than the newest source in the
+tree (22:19:08, `source/counters/fake_provider.cpp`), it records execution counts on the
+lines `afd851e` created at `source/counters/plan.cpp:492`, `:493` and `:496`, and its
+branch total is 705, two edges more than the 703 the pre-`afd851e` tree measured, which is
+what the new `continue` guard adds. `bash tools/dbc/coverage_gate.sh
+build/coverage/coverage.info` exits 0 at lines 100.0% (1955 of 1955), branches 100.0%
+(705 of 705), functions 98.0% (289 of 295) on an axis no gate scores.
+`python3 tools/prose/prose_gate.py --check all` exits 0 over 106 sources and 7666 units
+with 0 findings and 1 skipped (`hwloc.md`, absent from the tree); `--mode tree` reports
+108 findings over 223 sources and none of them sits in this feature's artifacts.
+
+Verified line by line rather than taken from a commit body. The exclusion `afd851e`
+re-anchored at `source/counters/plan.cpp:511-515` cites `:436`, `:442`, `:481`, `:492` and
+`:496`, and each carries the statement the reason attributes to it. The build record
+`2606a5a` wrote at `docs/pages/counters-overhead.md:35-55` cites
+`source/counters/fold.cpp:209` (`column`), `source/counters/fake_provider.cpp:152`
+(`scripted`), `test/source/dbc_test.cpp:69` (`counting_predicate`) and
+`source/counters/detail/core.hpp:170` (`find`), and each holds it. All 20 `file:line`
+citations the live artifacts place into a source or a header resolve to a non-blank line
+and each was read, including `source/counters/fold.cpp:289-290` for the closed-window
+refusal, `source/counters/plan.cpp:330` and `:344-345` for the scope guards, and
+`source/counters/plan.cpp:469` and `:501` for the single-target binding. `readelf -d` and
+`ldd` on the standalone example from the release tree name `libstdc++`, `libm`, `libgcc_s`
+and `libc` and nothing else, which is what `spec.md:31` resolves FR-049 and SC-001 to. The
+`pending_leaf` rewrite holds: both partition loops at `source/counters/plan.cpp:480-484`
+and `:491-499` walk `pending` in order under one predicate, so a group's slot order matches
+the `addresses` order its window opens on, and the carried pointer is sound because the
+catalog is frozen at open and the only call between the loops is the provider's own
+`open`. All three zero-leaf guards read the leaf vector (`:89`, `:417`, `:536`), so the
+sibling `T175` fixed is the last of the three. Both tests `afd851e` added can fail: a
+pre-`T175` fan-out exemplar passes the node-count guard, reaches `exemplar_prefix`
+(`:546`), and returns the "spans several objects" message the new case excludes, and the
+scaled operand's delta of 400 differs from every other leaf of its composition, so a
+dropped remap moves 2.875. The `denominator` leaf the splice case stopped reading is still
+read at `test/source/counters_fake_test.cpp:610-620`, so that change left no orphan. A
+closed task's citations describe the tree it was written against, which is why `T184`
+still names `.specify/memory/constitution.md:250` where the clause now stands at `:258-264`.
+
+Coverage of the check: 127 requirement keys (50 FR, 10 SC, 49 user-story acceptance
+scenarios, 18 spec edge cases), 32 plan decision keys (R-001 through R-015, the nine
+Technical Context decisions, the three Complexity Tracking rows, the Structure Decision
+and the gate-set note), and 21 constitution clauses with X.1 through X.4 and XI.1 through
+XI.6 read one by one. Four findings: 3 `contradicts`, 1 `partial`; 1 HIGH, 2 MEDIUM,
+1 LOW.
+
+The two prose findings at `test/source/dbc_test.cpp:133` and `:437` are ruled out of this
+feature on independent grounds. `git log -L` puts both lines at `da18283`, the commit that
+created the file under spec-001, so no commit in this feature's range wrote them. The
+scoping rule is the principle's own: `XI.1` states that a change brings the lines it
+touches into compliance and a tree-wide sweep is a formatting-only change under `V`
+scheduled on its own, and the only form the gate runs is the range, which
+`.github/workflows/ci.yml`'s prose-lint job and `cmake -P cmake/prose-lint.cmake` both
+reproduce. A two-line edit here would also violate `X.3`, and it would split one sweep
+across two features while 106 of the 108 findings stayed in place.
+
+Answer to the question the previous wave raised and left open. On the platform the amended
+clause names, no configuration is unbuilt: `ci-ubuntu` is configured and built by the
+`test` (`.github/workflows/ci.yml:116`), `dbc-gate` (`:463`) and `prose-lint` (`:526`)
+jobs, and the two trees that previously carried no committed set take it through
+`ci-linux-ignore` (`:303`, `:332`), verified above against a real cache. Two
+configurations the constitution requires are still built by no job, `ci-macos` and
+`ci-windows`, and both absences are recorded in the constitution itself, at the Open
+deferral `.specify/memory/constitution.md:59-64` for the macOS runner and inside Principle
+VIII at `:211-216` for the MSVC suspension, so they are deferrals with owners and spec-004
+and spec-005 tasks already open under them. What the clause leaves behind is a text defect
+instead of a missing build: its MUST names no platform while its prescription names one,
+and `AGENTS.md:43-44` repeats that single preset four lines above the sentence at `:48-50`
+naming macOS and Windows in the matrix (T187).
+
+This phase covers the citation residue the measurement-page rewrite left in two artifacts
+(T185), the plan sentence claiming a coverage the matrix does not give it (T186), the
+platform-blind release-build clause the amendment added (T187), and the four
+coverage-exclusion justifications whose cited lines hold other code (T188). The three
+commits' own new code carries no finding: the amendment's Sync Impact Report, its lineage
+row and its version line agree at 2.9.0 with the comment opening and closing once, the
+preset the `consumer-release` job now names configures and that job's three cache
+assertions hold under it, and the page's restated build record cites lines that hold what
+it claims.
+
+### HIGH: the measurement page moved and seven inbound citations did not
+
+- [X] T185 Re-anchor the seven citations the two artifacts place into `docs/pages/counters-overhead.md`, which `2606a5a` moved eleven lines when it replaced the build record at `:30-55`, so each now names other code: `specs/007-counters-and-timers/spec.md:30` names `:149-150` for the release rows carrying 40 ns for the clock plan and 70 ns for the core-PMU group, which stand at `:160-161`, `:256-263` for the absence of a syscall-mode counterpart, stated at `:267-274`, and `:296-299` for the re-verification that a `perf_event_paranoid` 2 host probes a fast mechanism, stated at `:307-310`; `specs/007-counters-and-timers/quickstart.md:138` names `:303` for the level-2 row of the privilege table, which is `:314`, and `:315-316` for the level-3 refusal, stated at `:326-327`; and `specs/007-counters-and-timers/quickstart.md:140` names `:159-162` for the dev-configuration figures it quotes as clock 70/70/130, pmu single 129/130/170, pmu group 170/180/240 and fold 520.4, which stand at `:170-173` while the cited lines carry the release rows 40, 70 and 50, and `:203-226` for the superseded pass, which is `:214-237`; every amended sentence must cite the line holding its claim, and no figure, row, or wording of the page may move to make a citation fit, since the page is the record the cadence figures at `include/speedgun-ng/counters_measurement.hpp:44-56` derive from (Constitution IV, FR-048, T177, T178, T180, `contradicts`)
+
+### MEDIUM: the plan claims a coverage two audit trees do not carry
+
+- [X] T186 Make `specs/007-counters-and-timers/plan.md:33` true against `.github/workflows/ci.yml`: the sentence claims the committed `flags-gcc-clang` set governs every configuration the project builds with no class demoted, then enumerates six configurations, while `shared-audit` (`.github/workflows/ci.yml:203`) and `downstream-consumer` (`:264`) each configure a `Release` tree with a bare `cmake -S . -B` that leaves `CMAKE_CXX_FLAGS`, `CMAKE_CXX_FLAGS_RELEASE` and both linker flag variables empty; either extend the enumeration to name those two trees and state why the committed set is not owed there, since they audit the link and symbol surface of the release artifacts at the same contract semantic the `test` and `test-rocky` jobs already compile with it, or add one visible preset inheriting `ci-linux` without `dev-mode` and name it in both configure steps, which adds two non-developer-mode release builds carrying the full set at the roughly a quarter of a second per tree the `2606a5a` measurement recorded, and in either case no warning class may be demoted, no `-Wno-error=` flag added, and no build step dropped (Constitution VIII, Additional Constraints: Warnings and hardening, T174, T182, `partial`)
+
+### MEDIUM: the amended clause names one platform and governs three
+
+- [X] T187 Name the platform's release preset in the per-feature release build `.specify/memory/constitution.md:279-287` requires, where the MUST states no platform and the parenthetical names one: on macOS `cmake --preset=ci-ubuntu` configures the `Unix Makefiles` generator with the GCC and Clang flag set inherited through `ci-linux` and carries a `CMAKE_BUILD_TYPE` the `Xcode` generator of `ci-macos` (`CMakePresets.json:156-158`) ignores, so the build an agent on that platform runs is not the configuration the file calls that platform's release preset and Principle VIII's macOS clause names the other one; `AGENTS.md:43-44` carries the same single-preset wording four lines above the sentence at `:48-50` that names macOS and Windows in the matrix; the clause must name the preset per platform, must keep the Linux command `a6d26bf` measured as the Linux one, and must add no gate, job, or runner, and the macOS runner stays under the Open deferral at `.specify/memory/constitution.md:59-64` with `specs/004` T019 and `specs/005` T024 open under it (Constitution IX, VIII, `contradicts`)
+
+### LOW: four exclusion justifications cite lines holding other code
+
+- [X] T188 Re-anchor the four coverage-exclusion justifications whose cited lines hold other code, the class `T177` removed from this tree: `source/counters/plan.cpp:113` names `plan.cpp:420` for the construction-failure path, while the file's only `availability_name` call stands at `source/counters/plan.cpp:456`; `source/counters/plan.cpp:86` names `plan.cpp:391`, `compile_core`'s opening brace, for the zero-leaf refusal that stands at `source/counters/plan.cpp:417`; `source/counters/fold.cpp:114` names `plan.cpp:120-145` for `link_ratio_slots`, which spans `source/counters/plan.cpp:135-158` and writes the enabled/running pair at `:150-156`; and `source/counters/fold.cpp:158` names `plan.cpp:513-531` for the fan-out instantiation and compile, which stand at `source/counters/plan.cpp:551-572` after the five lines `afd851e` added below `:511`; each comment must cite the lines holding its claim, following the exclusion at `source/counters/plan.cpp:511-515` that `afd851e` re-anchored and this pass verified line by line, and no marker may be added, moved off an executable line, or removed, and no exclusion may be widened (Constitution VI, plan: Complexity Tracking, T177, `contradicts`)

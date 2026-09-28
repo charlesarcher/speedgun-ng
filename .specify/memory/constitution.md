@@ -1,5 +1,26 @@
 <!--
-Sync Impact Report (2.9.0, MINOR): Principle IX's per-task verification
+Sync Impact Report (2.9.1, PATCH): Principle IX's per-feature release build
+clause names the preset for the platform it runs on: `ci-ubuntu` plus
+`cmake --build build` on Linux, `ci-macos` on macOS, and `ci-windows` on
+Windows where the gate is reinstated. 2.9.0's MUST named no platform while
+its parenthetical named one, so a macOS developer's prescribed command
+configured the `Unix Makefiles` generator with the flag set inherited
+through `ci-linux` and carried a `CMAKE_BUILD_TYPE` the `Xcode` generator
+of `ci-macos` ignores, and AGENTS.md carried the same single-preset
+wording four lines above the sentence naming macOS and Windows. The
+obligation is unchanged, one release-configuration build per feature on
+its own platform, and the Linux command is the one commit a6d26bf measured,
+so this is a clarification of a defective clause and not an expansion of
+the obligation. No gate, job, runner, or dependency was added; Principle
+VIII's hard gate list is unchanged; the macOS runner stays under the Open
+deferral with `specs/004` T019 and `specs/005` T024 open under it, and the
+Windows gate stays under the 2.7.0 suspension. This report shifts every
+line in the file, so a citation into the constitution, including the
+Phase 18 citations in `specs/007-counters-and-timers/tasks.md`, needs
+re-anchoring by the next convergence pass.
+-->
+
+Prior report (2.9.0, MINOR): Principle IX's per-task verification
 clause gains a release-configuration build, once per feature, naming the
 `ci-ubuntu` preset. The `dev` preset remains the per-task loop and stays
 cheap. The clause binds because an unoptimized build cannot report a
@@ -259,9 +280,11 @@ workflow runs before code is written. It executes R-DCUT (III):
   tests in `test/`, registered with CTest; every task is verified (build plus
   `ctest --preset=dev`) before the next. That loop builds unoptimized, so it
   cannot report a finding an optimizer's analysis produces; each feature MUST
-  therefore also be built once in the release configuration
-  (`cmake --preset=ci-ubuntu`, then `cmake --build build`) before its tasks are
-  called done. A task closed only against the unoptimized build stays open.
+  therefore also be built once in its own platform's release preset
+  (`cmake --preset=ci-ubuntu`, then `cmake --build build` on Linux;
+  `cmake --preset=ci-macos` on macOS; `cmake --preset=ci-windows` on Windows
+  where that gate is reinstated) before its tasks are called done. A task
+  closed only against the unoptimized build stays open.
 - A feature going through the workflow MUST produce all four artifacts; a
   missing artifact is a failed feature.
 - Specs live under `specs/NNN-feature-name/`: the directory is the single
@@ -571,6 +594,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.9.1 | 2026-09-27 | IX per-feature release build names the preset per platform |
 | 2.9.0 | 2026-09-27 | IX per-task verification adds a release-configuration build once per feature; an unoptimized build cannot report an optimizer-backed finding |
 | 2.8.0 | 2026-09-25 | macOS gate enforcement recorded as a deferral: developer-local until a runner spec lands |
 | 2.7.0 | 2026-09-21 | Windows MSVC preset-build gate suspended for the vendored-autotools lifetime; reinstated when the port lands |
@@ -585,4 +609,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.9.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-27
+**Version**: 2.9.1 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-27
