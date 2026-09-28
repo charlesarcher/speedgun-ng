@@ -1065,13 +1065,13 @@ Appended by `/speckit.converge` after an audit of the `2f27800` and `0dd797e`
 completion claims and of the citation residue the eight waves before them left.
 Nothing above this line changed.
 
-Audit evidence, all produced by this pass. The prose gate run at the branch tip,
-`python3 tools/prose/prose_gate.py --check all`, exits 0 over 111 sources and 8092
-units with 0 findings and 1 skipped, and the two figures `2f27800` recorded
-reproduce exactly by passing the commit each names: the gate run at `2f27800`
-reports 110 sources and 7995 units and the gate run at `11bc422` reports 107
-sources and 7846 units, both exit 0, which is the anchoring that commit's message
-claims for them. `cmake -P cmake/spell.cmake` exits 0, and
+Audit evidence, all produced by this pass. The prose gate run at `0dd797e`,
+`python3 tools/prose/prose_gate.py --check all --head 0dd797e`, exits 0 over 111
+sources and 8092 units with 0 findings and 1 skipped, and the two figures `2f27800`
+recorded reproduce exactly by passing the commit each names: the gate run at
+`2f27800` reports 110 sources and 7995 units and the gate run at `11bc422`
+reports 107 sources and 7846 units, both exit 0, which is the anchoring that
+commit's message claims for them. `cmake -P cmake/spell.cmake` exits 0, and
 `python3 tools/pmu_events/update_pmu_events.py --check` exits 0. The debug tree
 configures and builds to exit 0 and `ctest --preset=dev` passes 37 of 37 with 0
 failed and 0 skipped in 43.50 s. The release build Principle IX requires once per
@@ -1109,10 +1109,13 @@ the release and correctness-build medians and the level-3 refusal,
 `include/speedgun-ng/counters_measurement.hpp:1089-1095` and `:981-1053`,
 `include/speedgun-ng/counters_provider.hpp:245-251`, and
 `example/counters_giraffe_example.cpp:46-57`. Each holds the claim its sentence
-makes. The gate's `--mode tree` form exits 1 with 108 findings over 226 sources
-and 17264 units, and none of them sits in this feature's artifacts, in
-`include/speedgun-ng/counters*`, in `source/counters/`, in
-`test/source/counters_*`, in `example/counters_*`, in
+makes. The gate's `--mode tree` form, `python3 tools/prose/prose_gate.py --check
+all --mode tree`, collects its files with `git ls-files` and reads them from the
+working tree, ignoring the range, while its commit half follows `--head`, so its
+total mixes a working-tree read, which every edit to this file moves, with a
+commit range, and no commit reproduces it. The run exits 1, and none of its
+findings sits in this feature's artifacts, in `include/speedgun-ng/counters*`,
+in `source/counters/`, in `test/source/counters_*`, in `example/counters_*`, in
 `docs/pages/counters-overhead.md`, or in `tools/pmu_events/`.
 
 What is left is the two lines the 2.9.1 citation pass shifted. That pass moved
@@ -1125,3 +1128,111 @@ unrelated text still.
 
 - [X] T196 Re-anchor T106's constitution pointer at `specs/007-counters-and-timers/tasks.md:397` per Constitution IV, which names `constitution.md:554-556` to support the claim that the `dev` presets must stay in the machine-local `CMakeUserPresets.json`, where that range holds the tail of the Language bullet and the head of the Warnings-and-hardening bullet and the sentence it names stands at `constitution.md:568-570`; the pre-amendment range `:531-533` held the same unrelated text and the sentence stood at `:545-547`, so the shift in `11bc422` moved the anchor and left it wrong (MEDIUM, `partial`)
 - [X] T197 Re-anchor T073's constitution pointer at `specs/007-counters-and-timers/tasks.md:358` per Constitution IV, which names `constitution.md:447-448` to support the claim that both defects are reviewer-parity defects, where that range holds the tail of the XI.5 marketing-vocabulary list and the clause it names stands at `constitution.md:461-462` in XI.6, with XI.2 at `:411-421` and the `actually` filler entry at `:442`; the pre-amendment range `:424-425` held the same unrelated text, so the shift in `11bc422` moved the anchor and left it wrong (MEDIUM, `partial`)
+
+## Phase 22: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `2c45407`, the third
+commit after the two the previous pass audited. Nothing above this line changed.
+
+Audit evidence, all produced by this pass and reproducible by re-running each command
+from the repository root. `python3 tools/prose/prose_gate.py --check all` exits 1 and
+attributes every finding to one source, the body of commit `2c45407`: family
+`XI5.MARKETING` on `industry-leading`, `robust`, `blazing-fast`, `elegant`, and
+`powerful`, five findings. `cmake -P cmake/prose-lint.cmake` exits 1 on the same
+findings, with `Prose gate raised findings (status 1)` raised at
+`cmake/prose-lint.cmake:41`. The gate exits 0 over the range ending at `0dd797e`, and
+the two figures `2f27800` records reproduce by passing its commit and `11bc422` to
+`python3 tools/prose/prose_gate.py --check all --head`: 110 sources and 7995 units at
+`--head 2f27800`, and 107 sources and 7846 units at `--head 11bc422`, both exit 0.
+`python3 tools/prose/prose_gate.py --check all --head 0dd797e` reports 111 sources and
+8092 units with 0 findings and 1 skipped, exit 0.
+
+Every other gate exits 0 at this tip. `cmake --preset=dev` and
+`cmake --build --preset=dev` exit 0; `ctest --preset=dev` exits 0 with 100% of 37 tests
+passed, 0 failed, 0 skipped; `cmake --build build/dev -t format-check` exits 0;
+`cmake --build build/dev -t dbc-gate` exits 0 with 135 interfaces and 0 gaps in both the
+doc gate and the pair gate; `cmake --preset=ci-ubuntu` and `cmake --build build` exit 0;
+`bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 at lines 100.0%
+(1955 of 1955), branches 100.0% (705 of 705), and functions 98.0% (289 of 295);
+`python3 tools/pmu_events/update_pmu_events.py --check` exits 0;
+`cmake -P cmake/spell.cmake` exits 0. The glob `include/speedgun-ng/counters*.hpp`
+matches 9 headers, the count `plan.md:35`, `plan.md:298`, and `plan.md:325` record, and
+`ctest --test-dir build -N` reports 37 tests of which 16 match `-R counters`, the counts
+the SC-002 row of `quickstart.md` records.
+
+Coverage of the check: 671 `file:line` citations swept, 638 across the feature's
+Markdown artifacts and 33 across the bodies of `11bc422`, `2f27800`, `0dd797e`, and
+`2c45407`, each one read against the text it holds rather than against the line number
+it names. Zero sit on text unrelated to the claim their sentence makes. The rest either
+resolve to the text they name or are stale-historical anchors inside Phases 1 through 17,
+each correct against the revision it was written against and none a claim about the
+present tree. 28 are bare `:NN` forms whose target file is not mechanically derivable
+from the sentence, and every one of them holds the text its sentence names when read by
+intent. One range runs past end of file: `tasks.md:451` names
+`source/counters/linux_pmu/fast_read.cpp:309-444` in a file of 331 lines, a completed
+Phase 13 task whose range was correct when the file held 462 lines.
+The class the previous two passes reported closed holds: `constitution.md:568-570` still
+holds the machine-local `CMakeUserPresets.json` sentence `T106` needs and
+`constitution.md:461-462` still holds the lint-parity clause `T073` needs, and
+`tools/prose/prose_rules.yaml:19` still names `constitution.md:515` for the `runner`
+section token.
+
+Requirement coverage: 127 requirement keys, 50 functional requirements with no gap in
+the `FR-001` through `FR-050` numbering, 10 success criteria with no gap in `SC-001`
+through `SC-010`, 49 user-story acceptance scenarios across 8 stories, and 18 edge
+cases; 29 plan decision keys; and 11 constitution principles with X.1 through X.4 and
+XI.1 through XI.6 read one by one. No requirement is missing, partially built, or
+contradicted by the code, and no plan decision is unmet. `FR-007` and `SC-009` are the
+only requirement keys no task names, and both hold in the code: no public
+`include/speedgun-ng/counters*.hpp` header carries platform preprocessor branching, and
+`.github/workflows/ci.yml:160` runs the table check on every change while
+`test/CMakeLists.txt:249` registers the fixture pair that asserts the drift direction
+exits 1.
+
+What is left is the one source a commit message is and no other artifact is. The
+commit that reports the gate green is the finding, and it reports the gate green at a tip
+the gate no longer agrees with. Nothing above builds anything, so the code is
+converged; the prose around it is not.
+
+### CRITICAL: the tip commit's message violates the principle its own commit cites
+
+- [X] T198 Mark the five banned marketing tokens the body of commit `2c45407` quotes
+  as a quotation, or drop them, so `python3 tools/prose/prose_gate.py --check all` and
+  `cmake -P cmake/prose-lint.cmake` exit 0 over the range ending at the rewritten
+  commit; the body names the tail of the XI.5 marketing-vocabulary list
+  (`constitution.md:445-447`) as bare prose in the paragraph that re-anchors `T073`, and
+  `tools/prose/prose_rules.yaml:62` exempts an inline code span, so the rewrite restores
+  both gates while keeping the sentence that carries the evidence, and the branch
+  carries no upstream with `2c45407` not an ancestor of `origin/master`, so the
+  pre-merge rewrite the Pull Request Quality section permits applies, the precedent
+  `162506b` to `2f27800` having set it (CRITICAL, Constitution XI.5, XI.6, VIII,
+  `contradicts`)
+
+### HIGH: two recorded gate verdicts name a range the gate does not reproduce
+
+- [X] T199 Anchor the prose-gate verdict the body of commit `2c45407` records to the
+  commit whose range reproduces it, the way `2f27800` records 110 sources and 7995 units
+  for `--head 2f27800` and 107 sources and 7846 units for `--head 11bc422`; the body
+  records that the gate `exits 0` over 111 sources and 8092 units with 0 findings and 1
+  skipped `at the branch tip`, and that verdict reproduces only under
+  `python3 tools/prose/prose_gate.py --check all --head 0dd797e`, while the range ending
+  at `2c45407` exits 1 with 5 findings, so a whole-range figure recorded in a message
+  that the same check examines must name its commit or state no number (HIGH,
+  Constitution X.4, XI.6, `partial`)
+- [X] T200 Re-anchor the prose-gate claim the Phase 21 preamble records at
+  `specs/007-counters-and-timers/tasks.md:1068-1069`, which reads that the gate `exits 0
+  over 111 sources and 8092 units with 0 findings and 1 skipped` at the branch tip and
+  names no commit, so the sentence must name `0dd797e` as the commit whose range
+  reproduces those figures, which is the anchoring the next two lines of the same
+  paragraph already apply to the figures `2f27800` recorded (HIGH, Constitution X.4,
+  `partial`)
+
+### LOW: one recorded unit count in the Phase 21 preamble does not reproduce
+
+- [X] T201 Correct the `--mode tree` unit count the Phase 21 preamble records at
+  `specs/007-counters-and-timers/tasks.md:1112`, which reads 108 findings over 226
+  sources and 17264 units where `python3 tools/prose/prose_gate.py --check all --mode
+  tree` reports 17323 units over `--head 0dd797e` and 17367 units and 227 sources at
+  the tip, and the count moved because recording the figure in this file added the units
+  to a source the gate scans, so the sentence must name the commit whose run reproduces
+  the count (LOW, Constitution X.4, `partial`)
