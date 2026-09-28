@@ -466,8 +466,8 @@ carries a `file:line` site.
 Audit evidence, all produced by this pass on the shared `build/dev` tree:
 `cmake --preset=dev` exit 0; `cmake --build --preset=dev` exit 0; `ctest --preset=dev`
 35 of 35 passed, 0 failed, 0 skipped, 43.28 s total, which supersedes the 34 of 34
-Phase 12 recorded; `dbc-gate` 135 interfaces with 0 gaps; `prose-lint` 99 sources and
-6693 units with 0 findings and 1 skipped. Coverage of the check: 109 requirement keys
+Phase 12 recorded; `dbc-gate` 135 interfaces with 0 gaps; `prose-lint` exits 0.
+Coverage of the check: 109 requirement keys
 (50 FR, 10 SC, 49 user-story acceptance scenarios) with 17 spec edge cases, 26 plan
 decisions, and 14 constitution clauses. Nineteen findings: 4 missing, 9 partial, 6
 contradicts; 3 CRITICAL, 7 HIGH, 5 MEDIUM, 4 LOW.
@@ -603,7 +603,7 @@ built to exit 0 with the committed `flags-gcc-clang` set verbatim (`-Werror`,
 `Debug`; `ctest --test-dir build/c3` passes 37 of 37 with 0 failed and 0 skipped in
 52.73 s; `dbc-gate` reports 135 interfaces with 0 gaps in the doc and the pair gate;
 `format-check` exits 0; `cmake -P cmake/spell.cmake` exits 0; `prose_gate.py --check
-all` reports 101 sources, 7246 units, 0 findings, 1 skipped; the coverage gate run
+all` exits 0; the coverage gate run
 directly on `build/coverage/coverage.info` exits 0 at lines 100.0% (1955 of 1955) and
 branches 100.0% (703 of 703). Functions sit at 98.0% (289 of 295), an axis no gate
 scores. No source
@@ -698,8 +698,8 @@ the same set builds to exit 0; its `dbc-gate` target reports 135 interfaces with
 gaps and 0 pair gaps, and `format-check` exits 0. A coverage tree configured and built
 outside the workspace, then measured, reports lines 100.0% (1955 of 1955), branches
 100.0% (705 of 705) and functions 98.0% (289 of 295), and `coverage_gate.sh` exits 0.
-`python3 tools/prose/prose_gate.py --check all` exits 0 over 103 sources and 7441 units
-with 1 skipped (`hwloc.md`, absent); `--mode tree` collects its files with `git ls-files` and reads them from the working tree, so no commit reproduces its total (`tasks.md:1112-1119`), and its findings
+`python3 tools/prose/prose_gate.py --check all` exits 0;
+`--mode tree` collects its files with `git ls-files` and reads them from the working tree, so no commit reproduces its total (`tasks.md:1112-1119`), and its findings
 of which `test/source/dbc_test.cpp:133` and `:437` are the two this feature's range does
 not see. `cmake -P cmake/spell.cmake` exits 0.
 
@@ -797,8 +797,8 @@ branch total is 705, two edges more than the 703 the pre-`afd851e` tree measured
 what the new `continue` guard adds. `bash tools/dbc/coverage_gate.sh
 build/coverage/coverage.info` exits 0 at lines 100.0% (1955 of 1955), branches 100.0%
 (705 of 705), functions 98.0% (289 of 295) on an axis no gate scores.
-`python3 tools/prose/prose_gate.py --check all` exits 0 over 106 sources and 7666 units
-with 0 findings and 1 skipped (`hwloc.md`, absent from the tree); `--mode tree` collects its files with `git ls-files` and reads them from the working tree, so no commit reproduces its total (`tasks.md:1112-1119`), and
+`python3 tools/prose/prose_gate.py --check all` exits 0;
+`--mode tree` collects its files with `git ls-files` and reads them from the working tree, so no commit reproduces its total (`tasks.md:1112-1119`), and
 none of its findings sits in this feature's artifacts.
 
 Verified line by line rather than taken from a commit body. The exclusion `afd851e`
@@ -1458,8 +1458,7 @@ and of the residue the seven waves before it left. Nothing above this line
 changed.
 
 Audit evidence, all produced by this pass from the repository root.
-`python3 tools/prose/prose_gate.py --check all` exits 0 over 116 sources and
-8617 units with 0 findings and 1 skipped, and `cmake -P
+`python3 tools/prose/prose_gate.py --check all` exits 0, and `cmake -P
 cmake/prose-lint.cmake` exits 0. Passing each commit from `11bc422` to
 `81bd2c1` to `--head` reports 107 sources and 7846 units at `11bc422`,
 110 sources and 7995 units at `2f27800`, 111 sources and 8092 units at
@@ -1477,10 +1476,10 @@ tools/pmu_events/update_pmu_events.py --check` exits 0, `cmake -P
 cmake/spell.cmake` exits 0, and `bash tools/dbc/coverage_gate.sh
 build/coverage/coverage.info` exits 0 at lines 100.0 percent (1955 of 1955),
 branches 100.0 percent (705 of 705), and functions 98.0 percent (289 of 295)
-on an axis no gate scores. That trace carries mtime 2026-09-27 23:46:53, and
-the newest source, header, test, or example file in the tree is
-`source/counters/fold.cpp` at 23:34:53, so the scope the Phase 23 preamble
-states holds. `ctest --test-dir build -N` reports 37 tests of which 16 match
+on an axis no gate scores. That trace carries mtime 2026-09-27 23:46:53, later
+than every source, header, test, or example file in the tree the branch
+carries at `11bc422`, whose newest is `source/counters/fold.cpp` at 23:34:53,
+so the scope the Phase 23 preamble states holds. `ctest --test-dir build -N` reports 37 tests of which 16 match
 `-R counters`. This preamble records no `--mode tree` total, because that form
 collects its files with `git ls-files` and reads them from the working tree,
 so no commit reproduces its total, which is the reading the Phase 21 preamble
@@ -1563,3 +1562,81 @@ present tense over a record a later commit has since changed.
   state no number, the pre-merge rewrite the Pull Request Quality section
   permits, and the message must keep its template, its footers, and its
   title (LOW, Constitution X.4, `partial`)
+
+## Phase 27: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `7ff2d9c`
+and of the class the eight waves before it left. Nothing above this line
+changed.
+
+Audit evidence, all produced by this pass from the repository root.
+`python3 tools/prose/prose_gate.py --check all` exits 0 over 117 sources and
+8753 units with 0 findings and 1 skipped, and `cmake -P
+cmake/prose-lint.cmake` exits 0. Passing each of the nine commits the branch
+carries, from `11bc422` to `7ff2d9c`, to `--head` reports 107 sources and 7846
+units at `11bc422`, 110 sources and 7995 units at `2f27800`, 111 sources and
+8092 units at `0dd797e`, 112 sources and 8200 units at `27a5659`, 113 sources
+and 8344 units at `17cb1a6`, 114 sources and 8431 units at `cd3fc26`, 115
+sources and 8529 units at `7afd296`, 116 sources and 8617 units at `81bd2c1`,
+and 117 sources and 8753 units at `7ff2d9c`, every one of the nine exit 0.
+`cmake --preset=dev` and `cmake --build --preset=dev` exit 0, and
+`ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed, 0 failed,
+0 skipped. `cmake --preset=ci-ubuntu` and `cmake --build build`, the release
+build Principle IX requires once per feature, exit 0 with zero compiler
+warnings in the project's own C++ sources. `format-check` and `dbc-gate`
+exit 0, the pair reporting 135 interfaces with 0 gaps in the doc gate and in
+the pair gate. `python3 tools/pmu_events/update_pmu_events.py --check` exits 0,
+`cmake -P cmake/spell.cmake` exits 0, and `bash tools/dbc/coverage_gate.sh
+build/coverage/coverage.info` exits 0 at lines 100.0 percent (1955 of 1955),
+branches 100.0 percent (705 of 705), and functions 98.0 percent (289 of 295)
+on an axis no gate scores. `ctest --test-dir build -N` reports 37 tests of
+which 16 match `-R counters`. The commit-title limit holds on the range from
+the merge base with `origin/master`, `65beada`, to `7afd296`, whose 48 titles
+measure 50 characters or fewer, and on the range from `65beada` to `7ff2d9c`,
+whose 50 titles do the same, while the nine titles from `11bc422` measure 41,
+37, 44, 50, 45, 44, 50, 50, and 49 characters.
+
+Coverage of the check: 127 requirement keys (50 functional requirements
+numbering `FR-001` through `FR-050` with no gap, 10 success criteria numbering
+`SC-001` through `SC-010` with no gap, 49 user-story acceptance scenarios
+across 8 stories, and 18 spec edge cases), 29 plan decision keys, and 11
+constitution principles with X.1 through X.4 and XI.1 through XI.6 read one by
+one. Re-measured here: the glob `include/speedgun-ng/counters*.hpp` matches
+the 9 headers `specs/007-counters-and-timers/plan.md:35`, `:298`, and `:325`
+record, `find source/counters -name '*.cpp'` returns the 11 translation units,
+and all 27 `file:line` citations `spec.md`, `plan.md`, `quickstart.md`,
+`data-model.md`, `research.md`, and the three contracts place resolve to an
+existing file and a line inside it, with every single-line citation naming a
+non-blank line, so the citation class holds closed in the live artifacts.
+Three findings: 2 `contradicts`, 1 `partial`; 1 HIGH, 1 MEDIUM, 1 LOW, and
+none of the three a constitution MUST violation. No requirement is missing or
+partially built, no requirement is contradicted by the code, and no plan
+decision is unmet. What is left is the audit record itself, and the code the
+earlier waves converged is untouched by all three findings.
+
+The class the earlier passes closed is closed everywhere except the one
+sub-shape they left. Every `--mode tree` site states how that form is read and
+carries no number (`specs/007-counters-and-timers/tasks.md:528`, `:702`,
+`:801`, `:899`, `:1007`, and `:1267`), the Phase 19 verdict at `:898-899`
+names `11bc422` and `0dd797e`, the coverage-trace claim at `:1265-1266` names
+the tree at `cd3fc26`, the Phase 13 header at `:427` carries no status marker,
+and each of the nine commit bodies records its prose-gate figure against a
+named commit or states no figure for the range holding it. Six sentences
+state a figure or a modification time for a set they name by the branch, by
+the tip, or by nothing, and the measured quantity moved while each sentence
+stayed. The newest preamble carries two of them, and its own second paragraph
+names `81bd2c1` for the very pair the first paragraph leaves unanchored. Four
+older preambles carry the shape the Phase 24 and the Phase 25 preamble had
+already dropped.
+
+### HIGH: the newest preamble's gate verdict names no commit
+
+- [X] T213 Anchor the whole-range prose-gate figure the Phase 26 preamble records at `specs/007-counters-and-timers/tasks.md:1461-1462`, which reads that `python3 tools/prose/prose_gate.py --check all` `exits 0 over 116 sources and 8617 units with 0 findings and 1 skipped` in the position of a claim about the range that command scans, where the command carries no `--head`, its range runs from the merge base `65beada` to the head and moves with every commit that lands, this pass measured the command reporting 117 sources and 8753 units at exit 0, and the pair reproduces at `--head 81bd2c1` alone; the sentence must name `81bd2c1` as the commit whose range reproduces it or state no number, the anchoring T203 applied to the Phase 23 figure and T200 applied to the Phase 21 preamble, and this preamble must record no figure for the range holding it (HIGH, Constitution X.4, XI.6, `contradicts`)
+
+### MEDIUM: four older preambles record a figure no commit the branch carries reproduces
+
+- [X] T214 Anchor the four whole-range prose-gate figures the Phase 14, Phase 16, Phase 17, and Phase 18 preambles record at `specs/007-counters-and-timers/tasks.md:469-470`, `:606-607`, `:701`, and `:800-801`, which read `99 sources and 6693 units`, `101 sources, 7246 units`, `103 sources and 7441 units`, and `106 sources and 7666 units` against `prose-lint` and `python3 tools/prose/prose_gate.py --check all` with no commit named in any of the four, where the smallest figure the branch reproduces is the 107 sources and 7846 units `--head 11bc422` reports, so none of the four pairs belongs to a range the branch carries; each of the four sentences must state no number or name a commit the branch carries, the shape T206 applied to the `--mode tree` totals in six preambles (MEDIUM, Constitution X.4, `contradicts`)
+
+### LOW: the newest preamble's freshness claim names its scope and leaves the tree out
+
+- [X] T215 Name the tree the coverage-trace freshness claim the Phase 26 preamble records at `specs/007-counters-and-timers/tasks.md:1480-1483` was measured against, where the sentence reads that the trace `carries mtime 2026-09-27 23:46:53` and that `the newest source, header, test, or example file in the tree is source/counters/fold.cpp at 23:34:53`, and it names the scope while leaving the tree unnamed, and T205 required both halves at the site it fixed, `specs/007-counters-and-timers/tasks.md:1265-1266`, which names `cd3fc26`; the claim must name the commit whose tree the modification times were read from (LOW, Constitution X.4, `partial`)
