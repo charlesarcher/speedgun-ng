@@ -156,8 +156,8 @@ the remaining rows were found by this pass.
 | Phase 22 preamble | 1180 | `.specify/memory/constitution.md:568-570` | the range already holds the machine-local `CMakeUserPresets.json` sentence at `:569-570`, so the anchor needs no correction; T263 recorded that the row named `:571-573` as the landing, and those three lines carry the Licensing bullet and one empty line | Constitution IX | T263 |
 | T223 | 1805 | `specs/007-counters-and-timers/contracts/measurement-contract.md:107` | `:110`, the single-target sentence | FR-024 | T253 |
 | T091 | 379 | `source/counters/detail/core.hpp:76-109` and `source/counters/fold.cpp:42` and `:165` | `plan_impl` spans `:76-116`; the two re-resolutions are the `by_address.at` at `source/counters/fold.cpp:43` and the `by_address.end()` guard at `:162` | FR-021, FR-022 | T262 |
-| T195 | 1066 | `specs/007-counters-and-timers/plan.md:298` | the line is blank; the Files-and-duties row naming nine public headers stands at `:301` | plan: Files and their duties | T276 |
-| T195 | 1066 | `specs/007-counters-and-timers/plan.md:325` | the line is blank; the sentence naming the nine public headers and listing them stands at `:328` | plan: Public API surface added | T276 |
+| T195 | 1066 | `specs/007-counters-and-timers/plan.md:298` | the line is blank; the Files-and-duties row naming nine public headers stands at `:301`; at `30f6361`, the parent of the one-line insert `1827d76` made, the cited line held the table header and the row stood at `:300`, two lines low, so the third criterion at `:93` applied there and the second at `:92` applies at this head | plan: Files and their duties | T276 |
+| T195 | 1066 | `specs/007-counters-and-timers/plan.md:325` | the line is blank; the sentence naming the nine public headers and listing them stands at `:328`; at `30f6361` the cited line held the `### Public API surface added` heading and the sentence stood at `:327`, two lines low, and `1827d76` added the one line at `plan.md:73` that accounts for the third | plan: Public API surface added | T276 |
 | Phase 23 preamble | 1298-1299 | `plan.md:298` and `:325` | both cited lines are blank, the two landings `T195` names | plan: Files and their duties | T276 |
 | Phase 23 preamble | 1312 | `plan.md:147-164` | the range's first line is blank, the block heading stands at `:148`, and the eleven sources span `:149-164` | Constitution IX | T276 |
 | T231 | 1828 | `plan.md:147-164` | the range's first line is blank and the eleven sources span `:149-164` | Constitution IX | T276 |
@@ -347,3 +347,114 @@ which confirms that the head argument selects no text in that mode, and
 the sentence now carries its exit code alone. `T206` applied that
 treatment to six earlier preambles, `T215` to the coverage-trace freshness
 claim, `T268` to the tip body, and `T269` to the two range-form sentences.
+
+## The measured link manifest
+
+`readelf -d build/dev/example/counters_standalone_example` and
+`readelf -d build/dev/example/counters_giraffe_example` each carry 3
+`NEEDED` entries at this head, `libstdc++.so.6`, `libgcc_s.so.1`, and
+`libc.so.6`, and name no `libm` entry. `ldd` on either binary prints 6
+lines, those three objects, `libm.so.6`, `linux-vdso.so.1`, and the loader
+`ld-linux-x86-64.so.2`, so the two tools name different sets. The
+clarification at `specs/007-counters-and-timers/spec.md:31` and section 2
+at `specs/007-counters-and-timers/quickstart.md:25` each enumerated four
+libraries including `libm`, and `T279` restated both to the measured
+three. The clarification's own question keeps its claim, because both
+tools name no `speedgun-ng` entry. The SC-001 row at
+`specs/007-counters-and-timers/quickstart.md:137` reported
+`readelf -d ... | grep -c NEEDED` at 4, and the evidence log
+`.omo/evidence/007-counters-and-timers/sc-001-link-manifest.txt` shows the
+`build/agent-dc` binary of that pass carrying four entries including
+`[libm.so.6]`, so the row records its own pass accurately and the figure
+in the table below is the one the current tree yields.
+
+| Site | Figure as written | Measured at this head | Governing |
+| --- | --- | --- | --- |
+| `specs/007-counters-and-timers/quickstart.md:137` | `readelf -d ... \| grep -c NEEDED` 4, all platform runtime | 3, `libstdc++.so.6`, `libgcc_s.so.1`, and `libc.so.6` | FR-049 at `specs/007-counters-and-timers/spec.md:286`, SC-001 at `:308`; T256 |
+
+The link-manifest row in the journal table above covers
+`specs/007-counters-and-timers/sg_counters.md:1049` alone. Every other
+site carrying the four-library enumeration is a closed task line or a
+dated preamble in `specs/007-counters-and-timers/tasks.md`, at `:818`,
+`:933`, `:2028`, and `:2370-2374`, and each keeps its bytes. The manifest
+check at `.github/workflows/ci.yml:148-158` filters the `NEEDED` lines
+against the four names, so it admits the measured three and states no
+count.
+
+## Anchor totals under each engine
+
+The Phase 38 preamble at
+`specs/007-counters-and-timers/tasks.md:3429-3430` states that this file
+carries 101 occurrences of the path form. Under the rule at `:32-41`
+applied with CPython 3.14.7 `re.finditer` over whole matches `m.group(0)`,
+this file carried 114 occurrences and 101 distinct tokens over its whole
+length at `9da43ac`, and 101 occurrences over 90 distinct tokens at the
+parent `b82fb7e`. The figure 101 is the occurrence total at the commit
+that authored the sentence and the distinct total at `9da43ac`, and the
+two senses are separate counts. The four sections appended above raised
+the totals to 129 occurrences and 112 distinct tokens, which is the
+reading the working tree yields. The counting rule and every figure the
+record carried at `9da43ac` keep their values, and the preamble keeps its
+bytes.
+
+Over `specs/007-counters-and-timers/tasks.md` lines 1 through 2422, the
+population `:43-50` names, each engine returns the following.
+
+| Engine | Basis | Occurrences | Distinct |
+| --- | --- | --- | --- |
+| CPython 3.14.7 `re.finditer` | whole matches, `m.group(0)` | 702 | 467 |
+| GNU grep 3.12 `grep -oP` | 467 after `sort -u` | 702 | 467 |
+| CPython 3.14.7 `re.findall` | 702 items, the one capturing group `(-\d+)?`, whose values are line-range suffixes | 702 | 163 |
+| GNU grep 3.12 `grep -oE` | no match, and the warnings `? at start of expression` and `stray \ before d`, because `(?:` is outside POSIX ERE | 0 | 0 |
+
+The `T277` task text at
+`specs/007-counters-and-timers/tasks.md:3568-3570` states that `grep -oP`
+returns 467, which is its deduplicated count, and that `re.findall`
+returns 163, which is the deduplicated form of the capturing group. The
+closed task line keeps its bytes.
+
+## The coverage-exclusion population at this head
+
+The command the dated gate-pass row names,
+`rg -c 'LCOV_EXCL' source/counters include/speedgun-ng/counters*.hpp`,
+returns 301 over 11 files, and `rg -o` returns 301 tokens over 301 marker
+lines, so the population is one token per line.
+`specs/007-counters-and-timers/quickstart.md:169` reports 296 marker
+lines, and the evidence log
+`.omo/evidence/007-counters-and-timers/t066-marker-count.txt` sums to 296
+over the same 11 files, so the row records that pass accurately. The
+figure moved from 304 to 301 at `b270503`, which changed
+`source/counters/linux_pmu/group_io.cpp` alone by 14 insertions and 14
+deletions, and the parent `a8ed1d6` yields 304 for the same command. The
+registered P2 justification at
+`specs/007-counters-and-timers/plan.md:457` governs the population the
+exception covers, so `T283` restated its leading figure to 301 and
+recorded the later movement beside it.
+
+| Site | Figure as written | Measured at this head | Governing |
+| --- | --- | --- | --- |
+| `specs/007-counters-and-timers/quickstart.md:169` | 296 marker lines | 301 marker lines and 301 tokens, 11 files | the P2 row at `specs/007-counters-and-timers/plan.md:457`; Constitution I, P2 |
+
+## The whole-repository prose-gate verdict
+
+The form the paragraph above names as the one reading the whole repository
+is the command
+`python3 tools/prose/prose_gate.py --check prose --mode tree`,
+which exits 1 and reports
+`prose-lint: 183 sources, 19055 units examined, 108 findings, 0 skipped`
+on the working tree that carried the Phase 39 append. The units total is a
+reading of the working tree, so it rises with every section appended here
+and with every other edit to the tree, while the findings total stays at
+108. The 108 findings fall outside the feature scope: 89
+in `specs/001-dbc-facility/`, 9 in `test/`, 5 in `tools/dbc/`, 3 in
+`docs/pages/dbc-overhead.md`, and 2 in `include/speedgun-ng/`. The branch
+touches two of the files carrying them,
+`specs/001-dbc-facility/tasks.md` and
+`test/source/dbc_test.cpp`, and those two carry 24 of the 108. The
+constitution's own gate is the range form at
+`.specify/memory/constitution.md:245-248`, and the commands
+`python3 tools/prose/prose_gate.py --check all` and
+`cmake -P cmake/prose-lint.cmake` both exit 0, so no finding falls on a
+line the branch's diff added or modified. The units figure is a reading of
+the working tree and moves with every edit to it; the findings figure does
+not. No gate rule, threshold, or marker moved with this record.
