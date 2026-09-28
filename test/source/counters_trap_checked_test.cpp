@@ -55,6 +55,7 @@ constexpr mode_case kModes[] = {{"metric-before-finish", false},
                                 {"overrun", true},
                                 {"push-cross-thread", false},
                                 {"push-decrement", false},
+                                {"push-foreign-sample", false},
                                 {"push-mixed-owner", false},
                                 {"recorder-cross-thread", false},
                                 {"scope-cross-thread", false}};
