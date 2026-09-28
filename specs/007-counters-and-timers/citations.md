@@ -771,7 +771,7 @@ row.
 | `tasks.md:3846` | `:245-248` | `:277-280` | `4fd1189` | 32 |
 | `tasks.md:4009` | `:245-248` | `:277-280` | `4fd1189` | 32 |
 | `tasks.md:4013` | `:190-192` | `:219-221` | `4fd1189` | 29 |
-| `tasks.md:4413`, `T292` | `:240-242` | `:269-271` | `4fd1189` | 29 |
+| `tasks.md:4413`, `T292` | `:240-242` | `:269-270` for `:240-241`, and `:271-274` for `:242`, the clause the amendment replaced | `4fd1189` | 29 |
 | `tasks.md:4475`, `T294` | `:405-409` | `:437-441` | `4fd1189` | 32 |
 
 The 11 bare continuations assert a current position and are stale by the
@@ -851,9 +851,9 @@ em-dash family and the split-span class and names neither this scope nor
 the three instances below.
 
 Three Principle XI violations in this feature's live artifacts rode the
-row, and all three are closed. Each sentence now states what the thing
-is, each fact in its own sentence, and no line count moved, so every
-anchor into these three files keeps its number.
+row, and `T298` closed all three. Each sentence now states what the
+thing is, each fact in its own sentence, and no line count moved, so
+every anchor into these three files keeps its number.
 
 | Site | Token the row dropped | Sentence now reads |
 | --- | --- | --- |
@@ -863,30 +863,30 @@ anchor into these three files keeps its number.
 
 The measured scope of the row, over `git ls-files` with the gate's own
 `classify_source`, `INLINE_CODE_RE`, `URL_RE`, `path_like`,
-`SHELL_COMMAND_RE`, and `BLOCKQUOTE_RE` and with the code spans masked
-before the token search, is 129 lines repository-wide that carry a token
-the row drops: 68 in `specs/007-counters-and-timers/tasks.md`, 13 in
-`specs/007-counters-and-timers/sg_counters.md`, 10 in
-`specs/001-dbc-facility/research.md`, 7 in
-`specs/001-dbc-facility/spec.md`, 6 in `specs/001-dbc-facility/plan.md`,
-4 in `CMakeLists.txt`, 3 in `specs/001-dbc-facility/tasks.md`, 2 in
-`specs/007-counters-and-timers/plan.md`, 2 in `tools/dbc/asm_smoke.sh`,
-and the remainder spread over 21 further files. The task text behind
-this section records 211 repository-wide with 3 in the feature's live
-artifacts; the measured total is 129, and after the three fixes the three
-lines remaining in the live artifacts are `plan.md:347`,
-`plan.md:457`, and `spec.md:33`, which no task authorizes closing.
+`SHELL_COMMAND_RE`, and `BLOCKQUOTE_RE` and with the carriers masked
+before the token search, is 279 lines repository-wide over 25 files that
+carry a token the row drops, read at `14b8e48`, whose uncommitted append
+adds none: 68 in `specs/007-counters-and-timers/tasks.md`, 61 in
+`specs/007-counters-and-timers/sg_counters.md`, 43 in
+`specs/001-dbc-facility/plan.md`, 33 in its `research.md`, 33 in its
+`tasks.md`, 12 in its `spec.md`, 5 in `.specify/scripts/bash/common.sh`,
+4 in its `contracts/api-contracts.md`, 3 in its `data-model.md`, 2 in
+`specs/007-counters-and-timers/plan.md`, and 1 in each of 15 further
+files. The feature's own files hold 132 of the 279 and the other 21 hold
+147, and no subset of the seven prose rules yields 129.
 
-The 68 lines in `tasks.md` include the five the task text names at `:390`,
-`:487`, `:497`, `:1633`, and `:2723`; all five keep their bytes, and the
-sweep that would reach them is the tree-wide sweep the Principle XI.1
-scope paragraph at `:437-441` schedules. The 13 lines in the closed
-journal keep their bytes under the same clause. Whether they are swept
-belongs to that sweep and to a future pass, and no gate rule, threshold,
-vocabulary, or marker moves here. A narrower row belongs to
-`specs/002-prose-commit-lint` and to a constitutional reading of the
-exemption's scope, and that reading is the repository owner's under
-Principle IX.
+The task text behind this section records 211 repository-wide; the
+measured total is 279, and the three lines it leaves in the live
+artifacts are `plan.md:347`, `plan.md:457`, and `spec.md:33`, which the
+final section of this file records closed. The 68 lines in `tasks.md`
+include the five the task text names at `:390`, `:487`, `:497`, `:1633`,
+and `:2723`; all five keep their bytes under the Principle XI.1 scope
+paragraph at `:437-441`, and the 61 lines in the closed journal keep
+theirs under the same clause. The tree this pass leaves carries 276 over
+23 files. No gate rule, threshold, vocabulary, or marker moves here. A
+narrower row belongs to `specs/002-prose-commit-lint` and to a
+constitutional reading of the exemption's scope, and that reading is the
+repository owner's under Principle IX.
 
 ## The executable count the last three preambles carry
 
@@ -978,3 +978,35 @@ needs is 0 for `cppcheck` over the feature scope and 734 for
 collecting the report reads one analyzer's findings and none from the
 other. No `cppcheck` call was suppressed, no `--error-exitcode` added,
 and no configuration value changed in reaching this section.
+
+## The scope the em-dash figure names
+
+The Phase 40 preamble at
+`specs/007-counters-and-timers/tasks.md:4593` reads that 0 occurrences
+of the em-dash code point stand in every feature-scope file, and the
+`T298` text at `:4790` reads the same. Measured at `14b8e48` over
+`git ls-files`, the code scope, which is the nine
+`include/speedgun-ng/counters*.hpp` headers, everything under
+`source/counters/`, the `test/source/counters_*.cpp` units,
+`test/compile-fail/`, `test/pmu-events-gate-fixture/`, `example/`,
+`tools/pmu_events/`, `docs/pages/counters-overhead.md`, `cmake/`,
+`CMakeLists.txt`, `.github/workflows/ci.yml`, and `test/counters_*.sh`,
+holds 81 tracked files and 0 occurrences of U+2014. The feature's 12
+tracked Markdown artifacts hold 65, 64 in the closed journal above and
+1 at `specs/007-counters-and-timers/tasks.md:2731` inside a closed task
+line, so a reader who takes that phrase to cover the artifacts reads 0
+where 65 stand.
+
+## The three violations `T303` closed
+
+Three Principle XI violations in this feature's live artifacts rode the
+row and stood after `T298` closed its three, and `T303` closed these.
+Each sentence now states what the thing is, each fact in its own
+sentence, and no line count moved in either file, so every anchor into
+them keeps its number.
+
+| Site | Token the row dropped | Sentence now reads |
+| --- | --- | --- |
+| `specs/007-counters-and-timers/plan.md:347` | XI.2 ` rather than ` | `are all measured, and each of the three sits inside the coverage the gate scores` |
+| `specs/007-counters-and-timers/plan.md:457` | XI.2 ` rather than ` three times and ` instead of ` twice | each of the five clauses states what the thing is, in its own sentence |
+| `specs/007-counters-and-timers/spec.md:33` | XI.2 ` rather than ` | `the regex is recorded where the matched text would go` |
