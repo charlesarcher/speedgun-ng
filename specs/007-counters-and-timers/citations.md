@@ -5,11 +5,13 @@ Created by T259 and T260 on 2026-09-28 for the
 paragraph names and that no artifact carried. The closed task lines and
 the dated phase preambles in `specs/007-counters-and-timers/tasks.md`
 keep their bytes, and the corrections a reader needs to reach the code
-from a closed task body live here. Two families are recorded.
+from a closed task body live here. Three families are recorded.
 The first is a `file:line` anchor that no longer lands on the text the
 sentence naming it describes. The second is a sentence of the closed
 journal `specs/007-counters-and-timers/sg_counters.md` that a later
-requirement withdrew.
+requirement withdrew. The third is a clause of a closed task line that
+a later decision amended, where the amendment landed in the code or in
+a live artifact and the closed line kept its bytes.
 
 ## Precedence over the closed journal
 
@@ -20,20 +22,54 @@ gate, a mechanism, or a manifest that a later requirement in
 the second family below. T259 places this rule in the Assumptions
 paragraph at `specs/007-counters-and-timers/spec.md:321`, in one
 sentence beside the existing sentence that names the journal the
-authoritative design record. This pass left `spec.md` byte for byte as
-written, so the rule is stated here and the sentence is owed there.
+authoritative design record. T264 wrote that sentence into the bullet on
+that line, so the rule now stands in the spec itself as well as here.
+T264 appended it to the bullet, which keeps every anchor into `spec.md`
+at or below line 321 unchanged.
 
 ## Method and population
 
+The counting rule every anchor total in this feature's records depends
+on, so a reader can reproduce any of them: the unit is one occurrence
+of the regular expression
+`(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` matched over a named
+line range of a named file, and a distinct token is the deduplicated
+form of that unit, so a token written on two lines counts twice as
+occurrences and once as a distinct token. A bare continuation is one
+occurrence of `(?<![\w./-]):\d+\b`, counted the same way. T265 added
+this paragraph, because before it the record named no rule and its
+figures reproduced under none.
+
 The population is every anchor the Phase 1 through Phase 33 record in
-`specs/007-counters-and-timers/tasks.md` places, which is the 724
-explicit `path:line` and `path:NN-MM` tokens the file carries, each
-resolved to an existing tracked file, plus the 449 bare `:NN`
-continuations, each attributed to the path it continues. A continuation
-is attributed by hand because a line naming two files attaches the
-continuation to the wrong one under an automated pass. Three criteria
-decide drift, and every row below was read against the tree as it
-stands on 2026-09-28:
+`specs/007-counters-and-timers/tasks.md` places, which is lines 1
+through 2422 of that file, the line before the Phase 34 heading: 702
+occurrences and 163 distinct tokens of the path form, each resolved to
+an existing tracked file, plus 420 bare `:NN` continuations, each
+attributed to the path it continues. A continuation is attributed by
+hand because a line naming two files attaches the continuation to the
+wrong one under an automated pass.
+
+Two other readings of the same rule are in circulation, and the
+difference between them is the Phase 34 section. Lines 1 through 2578
+of the file, the whole file as it stood when that section was
+appended, carry 724 occurrences, 168 distinct tokens, and 449
+continuations, so the Phase 34 section contributes 22 occurrences, 5
+distinct tokens, and 29 continuations. The nine live artifacts named
+below, `spec.md`, `plan.md`, `research.md`, `data-model.md`,
+`quickstart.md`, `sg_counters.md`, and the three files under
+`contracts/`, carry 38 occurrences over their whole length,
+distributed `spec.md` 28, `quickstart.md` 4, `plan.md` 3,
+`contracts/system-contract.md` 2, `research.md` 1, and none in
+`data-model.md`, `sg_counters.md`, `contracts/provider-contract.md`, or
+`contracts/measurement-contract.md`. The 740 at
+`specs/007-counters-and-timers/tasks.md:2530` is that 38 beside the 702
+of lines 1 through 2422, and the 762 at `:2536` is the same 38 beside
+the 724 of lines 1 through 2578. A distinct-token figure of 476 for
+lines 1 through 2578, which the Phase 35 preamble at `:2644` carries,
+does not reproduce under the rule stated here, which yields 168.
+
+Three criteria decide drift, and every row below was read against the
+tree as it stands on 2026-09-28:
 
 1. The cited line lies beyond the last line of the file.
 2. The cited line is blank.
@@ -100,8 +136,25 @@ the remaining rows were found by this pass.
 | Phase 20 preamble | 1042 | `docs/pages/counters-overhead.md:314` and `:326-327` | `:321` and `:333-336` | SC-002 | T253 |
 | Phase 21 preamble | 1115 | `include/speedgun-ng/counters_measurement.hpp:1089-1095` | `:1098-1100` | FR-022 | T253, T260 |
 | Phase 22 preamble | 1178 | `source/counters/linux_pmu/fast_read.cpp:309-444` | `:203` and `:255` | FR-040 | T260 |
-| Phase 22 preamble | 1180 | `.specify/memory/constitution.md:568-570` | `:571-573`, the machine-local `CMakeUserPresets.json` sentence | Constitution IX | this pass |
+| Phase 22 preamble | 1180 | `.specify/memory/constitution.md:568-570` | the range already holds the machine-local `CMakeUserPresets.json` sentence at `:569-570`, so the anchor needs no correction; T263 recorded that the row named `:571-573` as the landing, and those three lines carry the Licensing bullet and one empty line | Constitution IX | T263 |
 | T223 | 1805 | `specs/007-counters-and-timers/contracts/measurement-contract.md:107` | `:110`, the single-target sentence | FR-024 | T253 |
+| T091 | 379 | `source/counters/detail/core.hpp:76-109` and `source/counters/fold.cpp:42` and `:165` | `plan_impl` spans `:76-116`; the two re-resolutions are the `by_address.at` at `source/counters/fold.cpp:43` and the `by_address.end()` guard at `:162` | FR-021, FR-022 | T262 |
+
+## Closed task clauses a later decision amended
+
+Neither of the two shapes T091 offered ever landed, and the task was
+closed. The requirement and the eight live sites that named the first
+shape now state the second one, which is what the code has always done.
+The decision, the competing reading, and the reason are recorded at
+`source/counters/detail/core.hpp:92-99`, and the reading R-005 carries
+is in `specs/007-counters-and-timers/research.md:41`.
+
+| Site | Line in `tasks.md` | Clause as written | Amendment that governs it | Where the decision lives | Named by |
+| --- | --- | --- | --- | --- | --- |
+| T091 | 379 | "Store a per-composite fold program of slot references in `plan_impl`"; or "amend T017's 'fold program per composite (column references with algebraic exponents and ops)'" | the second branch, and neither shape reached the code while the task was checked | `source/counters/detail/core.hpp:92-99` | T262 |
+| T017 | 66 | "fold program per composite (column references with algebraic exponents and ops)" | a plan holds leaf slots, a grouping layout, and the column geometry; the fold spine is a flat node array the caller owns, so the plan holds no per-composite program | `source/counters/detail/core.hpp:92-99`; FR-022 at `specs/007-counters-and-timers/spec.md:250` | T262 |
+| T032 | 109 | "per-instance provider group reads (US3 scenario 5)" | one read group per provider, carrying every leaf that provider owns, so a fan-out over many objects is one `open` and one sampling action | `source/counters/plan.cpp:470-477`; `test/source/counters_objects_test.cpp:410-413` reconciles the per-core deltas against the shared total, so US3 scenario 5 holds on the shipped shape | T266 |
+| T098 | 389 | "Split plan read groups per provider instance as T032's 'per-instance provider group reads' states, or amend the task; grouping today is per provider at `source/counters/plan.cpp:419-454`" | the second branch; the per-provider loop stands at `source/counters/plan.cpp:477-510` | `source/counters/plan.cpp:470-477` | T266 |
 
 ## Journal sentences a later requirement withdrew
 
@@ -120,3 +173,69 @@ text keeps its bytes, and the precedence rule above settles each site.
 | `:983` | pinning and index constraints are enforced at plan compile | T232 places the read-mode probe in provider enumeration | FR-023 at `specs/007-counters-and-timers/spec.md:251`; the index gate runs in `fast_context_read` at `source/counters/linux_pmu/fast_read.cpp:278-281` |
 | `:1010-1011` | registering a composite into a started scope is a tier-3 contract violation | T226 and T255 name the three enforceable sequences | the edge case at `specs/007-counters-and-timers/spec.md:199` and the clarification at `:36`; `scope` exposes no registration entry point at `include/speedgun-ng/counters_measurement.hpp:992-1064`; `source/counters/fold.cpp:289-290` refuses `metric` on a window that is not closed |
 | `:1049` | the standalone example's link manifest shows only speedgun-ng | T120 and T256 state that the target is a static archive | FR-049 at `specs/007-counters-and-timers/spec.md:286`; `readelf -d build/dev/example/counters_standalone_example` names `libstdc++.so.6`, `libgcc_s.so.1`, and `libc.so.6` |
+| `:252` | "A composite compiles once into a flat read plan: leaf slots + fold sequence; no tree, no vtable, no closures, no lookups at read time" | T091 offered a per-composite program in the plan and the second branch amended the requirement to the shape the code has | FR-022 at `specs/007-counters-and-timers/spec.md:250`; the spine is a flat node array the caller owns at `include/speedgun-ng/counters_measurement.hpp:102-115`; the decision and its reason sit at `source/counters/detail/core.hpp:92-99` |
+
+## Em-dash debt no machine check reports
+
+T261 records what the shipped prose gate is structurally unable to
+report. The journal carries 58 lines holding the em-dash code point
+U+2014, at lines 47, 96, 154, 166, 175, 182, 187, 191, 245, 259, 278,
+294, 311, 313, 342, 361, 405, 410, 481, 485, 486, 489, 504, 509, 513,
+517, 521, 543, 584, 603, 606, 613, 620, 626, 631, 655, 658, 666, 673,
+679, 682, 697, 778, 830, 855, 881, 912, 919, 925, 934, 936, 947, 950,
+958, 963, 989, 1022, and 1035. Every one of the 58 leaves the gate
+before any rule matcher runs, and one precedence row accounts for all
+of them: `tools/prose/prose_gate.py:876-883` returns on a code span, a
+URL, a path-like token, a shell command, or a blockquote, and 40 of the
+58 carry a code span while 23 carry a path-like token. The row at
+`:874-875` returns on a four-or-more-space markdown continuation and
+catches 8 of the 58, at lines 361, 912, 919, 925, 934, 936, 947, and
+950. The two rows overlap, so their counts do not partition the 58.
+
+The 58 lines are pre-existing text in a dated closed record, and the
+Principle XI.1 scope paragraph at
+`.specify/memory/constitution.md:405-409` binds output generated after
+the 2026-09-10 amendment, so they keep their bytes. The remedy that
+paragraph names is a tree-wide sweep carried as a formatting-only
+change under Principle V, scheduled on its own.
+
+One line of a live artifact carried the same code point, and T261 fixed
+it in place. The T116 text at
+`specs/007-counters-and-timers/tasks.md:407` held two of them, one
+inside each clause that named one sampling point, and the text now
+carries the clauses inside one pair of parentheses.
+
+The blind spot is the precedence row, and the range is not a second
+one. T261 held that the line lay outside the range CI reads, on the
+ground that the first commit touching `specs/007-counters-and-timers/`
+is not an ancestor of the merge base. The gate's own range mode settles
+the question: it reads `git diff -U1` over the merge base with
+`origin/master` and the head, and its authorship map lists
+`specs/007-counters-and-timers/tasks.md:407` as a new line, along with
+2577 of the file's other lines and all 1206 lines of
+`specs/007-counters-and-timers/sg_counters.md`, which every one of the
+58 sits in. A file predating the range's left edge is what leaves a
+line unexamined, and both of these files postdate it.
+
+## Re-anchors inside this record
+
+T261, T262, T263, T264, T265, and T266 grew this record, so the line
+numbers the texts that cite it name have moved. The table gives the
+number each such text wrote and the line holding the same material
+now. The closed task lines, the dated preambles, and the Phase 35 task
+texts that carry the old numbers keep their bytes, per Principle VIII
+and Pull Request Quality: Immutability.
+
+| Anchor as written | Line now holding the same material |
+| --- | --- |
+| `:20-24` | `:18-28`, the Precedence section |
+| `:28-31` | `:32-41` for the counting rule, `:43-50` for the population, `:52-69` for the two other readings |
+| `:40` | `:76`, the third drift criterion |
+| `:57-58` | `:93-94` |
+| `:59` | `:95` |
+| `:80` | `:116` |
+| `:94` | `:130` |
+| `:96` | `:132` |
+| `:97` | `:133` |
+| `:100` | `:136` |
+| `:103` | `:139`, the row T263 corrected |
