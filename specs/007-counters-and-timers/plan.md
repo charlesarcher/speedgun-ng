@@ -295,7 +295,7 @@ The system's own transition closes provider registration at open and freezes the
 
 | Path | Duty | Requirements |
 |---|---|---|
-| `include/speedgun-ng/counters*.hpp` (6 files) | Entire public surface; doxygen contracts; inline hot-path pieces (push `add()`, `sample()` core loop) | FR-001..FR-035, FR-046..FR-050; R-001 |
+| `include/speedgun-ng/counters*.hpp` (9 files) | Entire public surface; doxygen contracts; inline hot-path pieces (push `add()`, `sample()` core loop) | FR-001..FR-035, FR-046..FR-050; R-001 |
 | `source/counters/{system,plan,fold}.cpp` | Tree/resolution, plan compile + arena + calibration, fold kernels | FR-008, FR-018..FR-024, FR-032 |
 | `source/counters/{clock,push,fake}_provider.cpp` | Three built-in providers | FR-033..FR-036; R-007..R-009 |
 | `source/counters/linux_pmu/` (5 TUs) | The rich Linux backend: table merge, encode, probe, group I/O, fast read | FR-037..FR-041; R-010, R-011 |
