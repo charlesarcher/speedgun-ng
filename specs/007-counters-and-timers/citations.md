@@ -251,18 +251,18 @@ before that commit existed, so the range the gate resolved while it was
 composed ended at its parent `1827d76`. One figure in the body's last
 evidence paragraph belongs to that range.
 
-The sentence reading that the gate over the whole repository `exits 0 at
-128 sources and 10250 units, 0 findings, 1 skipped` beside the command
-`python3 tools/prose/prose_gate.py --check all` records the head that
-command resolved, which is `1827d76`. Measured in a scratch clone of
-this repository on 2026-09-28, that command exits 0 and reports `128
-sources, 10250 units examined, 0 findings, 1 skipped` at that head, and
-exits 0 and reports `129 sources, 10737 units examined, 0 findings, 1
-skipped` at `f1d3023`, the tree the commit leaves. The form both
-readings use resolves the merge base with `origin/master`, at `65beada`,
-to the head, so the pair reproduces at one head only. The
-whole-repository claim is carried here by its exit code, and the form
-that reads the whole repository is
+The sentence reading that the gate over the whole repository
+`exits 0 at 128 sources and 10250 units, 0 findings, 1 skipped` beside
+the command `python3 tools/prose/prose_gate.py --check all` records the
+head that command resolved, which is `1827d76`. Measured in a scratch
+clone of this repository on 2026-09-28, that command exits 0 and
+reports `128 sources, 10250 units examined, 0 findings, 1 skipped`
+at that head, and exits 0 and reports
+`129 sources, 10737 units examined, 0 findings, 1 skipped` at `f1d3023`,
+the tree the commit leaves. The form both readings use resolves the merge
+base with `origin/master`, at `65beada`, to the head, so the pair
+reproduces at one head only. The whole-repository claim is carried here
+by its exit code, and the form that reads the whole repository is
 `python3 tools/prose/prose_gate.py --check prose --mode tree`.
 
 The same body's paragraph on `T265` reports that a distinct-token figure
@@ -334,19 +334,19 @@ this one records.
 
 The Phase 36 preamble at
 `specs/007-counters-and-timers/tasks.md:2942` opens by naming three heads
-for its prose-gate figures and then gives a fourth total, `13 sources and
-5278 units`, from `python3 tools/prose/prose_gate.py --check prose --mode
-tree --paths specs/007-counters-and-timers
-docs/pages/counters-overhead.md`, and names no head for it. That form
-takes its candidate set from `git ls-files` at
-`tools/prose/prose_gate.py:587-590` and reads every candidate from the
-working tree at `:842-860`, as `:936` shows it does in both modes, so its
-total is a reading of the working tree. Measured here, that form exits 0
-at 13 sources and reports one reading with and without `--head 9c5dfa5`,
-which confirms that the head argument selects no text in that mode, and
-the sentence now carries its exit code alone. `T206` applied that
-treatment to six earlier preambles, `T215` to the coverage-trace freshness
-claim, `T268` to the tip body, and `T269` to the two range-form sentences.
+for its prose-gate figures and then gives a fourth total,
+`13 sources and 5278 units`, from
+`python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/007-counters-and-timers docs/pages/counters-overhead.md`,
+and names no head for it. That form takes its candidate set from
+`git ls-files` at `tools/prose/prose_gate.py:587-590` and reads every
+candidate from the working tree at `:842-860`, as `:936` shows it does
+in both modes, so its total is a reading of the working tree. Measured
+here, that form exits 0 at 13 sources and reports one reading with and
+without `--head 9c5dfa5`, which confirms that the head argument selects
+no text in that mode, and the sentence now carries its exit code alone.
+`T206` applied that treatment to six earlier preambles, `T215` to the
+coverage-trace freshness claim, `T268` to the tip body, and `T269` to
+the two range-form sentences.
 
 ## The measured link manifest
 

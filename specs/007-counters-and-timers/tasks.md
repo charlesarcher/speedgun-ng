@@ -4204,3 +4204,276 @@ residue item survives, and it is T288 below.
   expected string the helper builds at `:96-113` and the assertion at
   `:480-482` keep their bytes, and the test keeps passing (LOW, Constitution
   IV, SC-008, T084, T253, `partial`)
+
+## Phase 41: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `4fd1189`
+and of the residue the twenty-nine waves before it left. Nothing above this
+line changed.
+
+Audit evidence, all produced by this pass from the repository root on Linux,
+over a working tree `git status --porcelain` reports clean and `4fd1189`
+carries. `cmake --preset=dev` and `cmake --build --preset=dev` exit 0 over a
+fully incremental tree whose log reports `Built target` and no compile
+action. `ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed,
+0 failed, 0 skipped, in 43.74 s. `ctest --test-dir build -N` exits 0 and
+reports `Total Tests: 37`, of which `ctest --test-dir build -N -R counters`
+reports 16. `python3 tools/prose/prose_gate.py --check all` and `cmake -P
+cmake/prose-lint.cmake` both exit 0 on the same verdict, `prose-lint: 137
+sources, 12878 units examined, 0 findings, 1 skipped`, the one skipped source
+being `hwloc.md`, which the gate names unreadable. The same command with
+`--head 4fd1189` reports the same pair, and this preamble records no figure
+for the range holding it: `collect_candidates` at
+`tools/prose/prose_gate.py:587` takes the candidate file set and the per-line
+authorship filter from the `git diff -U1` at `:597` over the merge base with
+`origin/master` and the head, while `read_source` at `:842` reads the examined
+text from the working tree in both modes, as the call at `:936` shows, so the
+total moves with every edit to any tracked file. `python3
+tools/prose/prose_gate.py --check prose --mode tree` exits 1 at `prose-lint:
+183 sources, 19582 units examined, 108 findings, 0 skipped`, and every finding
+falls outside the feature scope: 89 under `specs/`, 3 in
+`docs/pages/dbc-overhead.md`, 3 in `tools/dbc/overhead.cpp`, 2 each in
+`test/compile-fail/run.sh`, `test/dbc-gate-fixture/fixture_clean.hpp`,
+`test/dbc-gate-fixture/fixture_exempt.hpp` and `test/source/dbc_test.cpp`, and
+1 each in `include/speedgun-ng/dbc.hpp`, `include/speedgun-ng/speedgun-ng.hpp`,
+`test/source/dbc_trap_checked_test.cpp`, `tools/dbc/asm_smoke.sh` and
+`tools/dbc/overhead.sh`. Read narrowed to this feature, `python3
+tools/prose/prose_gate.py --check prose --mode tree --paths
+specs/007-counters-and-timers docs/pages/counters-overhead.md` exits 0 at
+`13 sources, 6782 units examined, 0 findings, 0 skipped`.
+`ctest --test-dir build -R prose_gate_fixtures` exits 0 with 1 of 1 in
+1.65 s. `cmake --build build/dev -t format-check` exits 0. `cmake --build
+build/dev -t dbc-gate` exits 0, reporting `doc-gate: 135 interfaces, 0 gaps`
+and `pair-gate: 135 interfaces, 0 gaps`. `cmake -P cmake/spell.cmake` exits
+0, and `python3 tools/pmu_events/update_pmu_events.py --check` exits 0. `bash
+tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 at
+`lines.......: 100.0% (1955 of 1955 lines)`,
+`branches....: 100.0% (705 of 705 branches)` and
+`functions...: 98.0% (289 of 295 functions)` on an axis the gate does not
+score. `cmake --preset=ci-ubuntu` exits 0 with `CMAKE_BUILD_TYPE:STRING=Release`
+and `CMAKE_CXX_FLAGS_RELEASE:STRING=-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -O3
+-DNDEBUG` in the cache, and `cmake --build build`, the release build Principle
+IX requires once per feature, exits 0 over a 26-line fully incremental log
+holding 0 lines matching the token `warning` and 0 matching `error:`. `readelf
+-d` on `build/dev/example/counters_standalone_example` and on
+`build/dev/example/counters_giraffe_example` names `libstdc++.so.6`,
+`libgcc_s.so.1` and `libc.so.6` in each, with 0 `speedgun-ng` entries, and
+`ldd` on the standalone example names those three beside `libm.so.6`,
+`linux-vdso.so.1` and the loader, so the two tools name different sets.
+`./build/dev/test/counters_pmu_test` exits 0 reporting `pmu catalog: 581
+table-selected entries beyond kernel aliases` beside `perf_event_paranoid =
+1; hardware event probe granted` and `pmu availability: 358 countable, 0
+permission_blocked, 261 not_encodable, 356 fast_rdpmc`.
+`./build/dev/test/counters_trap_fixture` exits 134 for
+`push-mixed-owner`, `push-foreign-sample`, `push-cross-thread`, `overrun` and
+`metric-before-finish`, and the first names the precondition at
+`source/counters/push_provider.cpp:120`. A separate `clang-tidy` 22.1.8 run
+over the eleven translation units `find source/counters -name '*.cpp'`
+returns, with the flags `build/dev/compile_commands.json` records, reports 0
+lines carrying `warning:` and 0 carrying `error:`.
+
+Counting rule for every anchor total in this preamble, the rule
+`specs/007-counters-and-timers/citations.md:32-41` states, applied with
+CPython 3.14.7 `re.finditer` over whole matches `m.group(0)`, the unit
+`(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` and the bare-continuation
+unit `(?<![\w./-]):\d+\b`: applied to
+`specs/007-counters-and-timers/tasks.md` lines 1 through 2422 the count is 702
+occurrences, 467 distinct tokens, and 420 bare continuations; lines 1 through
+2578 give 724, 476, and 449; lines 1 through 2905 give 776, 518, and 472;
+lines 1 through 3192 give 815, 548, and 485; lines 1 through 3362 give 844,
+565, and 501; lines 1 through 3599 give 880, 579, and 540; lines 1 through
+3852 give 921, 594, and 557, so the figures the Phase 37, Phase 38, and Phase
+39 preambles carry reproduce exactly. The nine live artifacts over their whole
+length give 44 occurrences, distributed `spec.md` 28, `plan.md` 7,
+`quickstart.md` 4, `research.md` 3, and `contracts/system-contract.md` 2, with
+none in `data-model.md`, `sg_counters.md`, `contracts/provider-contract.md`, or
+`contracts/measurement-contract.md`.
+`specs/007-counters-and-timers/citations.md` over its whole length gives 144
+occurrences and 126 distinct tokens, the pair its own section records.
+
+Coverage of the check: 127 requirement keys, counted as 50 functional
+requirements numbering `FR-001` through `FR-050` with no gap, 10 success
+criteria numbering `SC-001` through `SC-010` with no gap, 49 user-story
+acceptance scenarios counted as US1 7, US2 7, US3 6, US4 6, US5 4, US6 7, US7 6,
+and US8 6, and 18 edge cases at
+`specs/007-counters-and-timers/spec.md:195-212`; 45 design keys, counted as
+15 research decisions `R-001` through `R-015`, 11 data-model entities
+`E-01` through `E-11`, and 19 contract clauses `C-MEA-1` through `C-MEA-7`,
+`C-PRO-1` through `C-PRO-6`, and `C-SYS-1` through `C-SYS-6`; and 11
+constitution principles with X.1 through X.4 and XI.1 through XI.6 read one by
+one. Re-measured here: the 9 headers `include/speedgun-ng/counters*.hpp`
+matches, the 11 translation units `find source/counters -name '*.cpp'`
+returns beside the 2 provider-private headers under `source/counters/detail/`
+and the 5 `source/counters/linux_pmu/` translation units, the 12
+`add_executable(counters_` calls `test/CMakeLists.txt` carries, the
+`LCOV_EXCL` count at 301 tokens in the feature scope, no line matching `TODO`
+or `FIXME` over the feature scope, and `.github/workflows/ci.yml:159-160`
+running the table check in the test job.
+
+Every finding below was re-derived in this session from the files it cites.
+The Phase 12 through Phase 40 preambles were read for task identifiers, phase
+grouping, and the file paths each task names, and no closure claim in them was
+accepted as evidence. The thirteen commits at the tip were read with `git
+show`: `88bbd2c` removes the `target_kind::machine` enumerator and touches one
+file, and a search for that name over `source/`, `include/`, `test/`, and
+`example/` returns no line; `01f905b`, `30f6361`, `f1d3023`, `9c5dfa5`,
+`b82fb7e`, `9da43ac`, `8a62b69` and `4fd1189` touch no executable code;
+`31363e8` adds the mixed-owner refusal at
+`source/counters/push_provider.cpp:120` with the precondition it states at
+`include/speedgun-ng/counters_push.hpp:88-90` and the `push-mixed-owner` trap;
+`b60b361` adds the accepted fold-lookup cost at
+`source/counters/detail/core.hpp:100-114`; and `9aeb595` adds the
+`push-foreign-sample` trap mode and its `kModes` row.
+
+The productive class of the last four cycles, the false closure, is not
+exhausted. Thirty closed tasks whose text makes a checkable claim were read
+against the code, and every one holds. `T003`'s format reach stands at
+`cmake/lint.cmake:12-15` with `file(GLOB_RECURSE)` at `:26` covering
+`source/counters/**` and `include/speedgun-ng/counters*.hpp`. `T081`'s
+per-column check stands at `source/counters/plan.cpp:42` in `sample_row`.
+`T085` computes the raw-view ratio at `source/counters/fold.cpp:277` from
+`leaf_ratio`. `T100` and `T102` stand as registered gates at
+`test/CMakeLists.txt:165-167` and `:174-176`. `T104`'s bracket is recursive at
+`CMakeLists.txt:660`. `T108` replaces the eight `operator new` forms at
+`test/source/counters_noalloc_test.cpp:120-160` and the delete forms from
+`:179`. `T111` recognizes the unit token before dereferencing it at
+`include/speedgun-ng/counters_system.hpp:124-126`. `T113` owns the handles
+with `std::make_unique` at `source/counters/system.cpp:260`, `:262`, and
+`:335`. `T116`'s single sampling point stands at
+`source/counters/plan.cpp:54-65`, shared by the scope, the hard-stop
+recorder, and the ring. `T118` carries both trivially-copyable assertions at
+`include/speedgun-ng/counters_measurement.hpp:559-560`. `T123`'s
+regeneration timestamp stands at `docs/pages/counters-overhead.md:13`. `T142`
+scales the composite at `include/speedgun-ng/counters_measurement.hpp:141-148`.
+`T145` and `T096` stand at `source/counters/system.cpp:308` and `:344`. `T150`
+registers the push provider in `test/source/counters_pmu_test.cpp`. `T152`'s
+`leaf_sign` returns the exponent at `source/counters/fold.cpp:85-99`. `T166`
+and `T175` stand, all three zero-leaf guards reading `leaves.empty()` at
+`source/counters/plan.cpp:89`, `:417`, and `:536`. `T234` sizes the group
+scratch in the constructor at
+`source/counters/linux_pmu/group_io.cpp:191-196`. `T075` reads the fast
+window's pair from the leader's page at
+`source/counters/linux_pmu/group_io.cpp:341`. `T285`, `T288`, `T289`, and
+`T290` stand: `specs/007-counters-and-timers/citations.md:115-116` name the
+decode gate, `:524-562` name both conditions that leave a line unexamined,
+`:115`, `:116`, `:126`, and `:127` read 365, 365, 392, and 392, and
+`test/source/counters_fake_test.cpp:92` names `spec.md:315`.
+
+Four findings: 4 `partial`; 0 CRITICAL, 1 HIGH, 1 MEDIUM, 2 LOW. No finding
+is `missing`, `contradicts`, or `unrequested`, and none is a constitution MUST
+violation. The four residue items the previous pass reported were assessed on
+their own evidence. The claim that Principle VIII's static-analysis gate is
+developer-local does not survive: the `test` job at
+`.github/workflows/ci.yml:115-118` configures `ci-ubuntu`, which inherits the
+`clang-tidy` and `cppcheck` presets at `CMakePresets.json:167` and `:33-45`,
+setting `CMAKE_CXX_CLANG_TIDY` and `CMAKE_CXX_CPPCHECK`, which
+`build/dev/CMakeFiles/speedgun-ng_speedgun-ng.dir/build.make` passes to
+`cmake -E __run_co_compile --tidy= --cppcheck=` on every compile, and the
+counters sources, the test sources, and the example sources each go through it.
+The eleven jobs are `lint`, `coverage`, `sanitize`, `test`, `test-rocky`,
+`shared-audit`, `downstream-consumer`, `consumer-release`, `dbc-gate`,
+`prose-lint`, and `docs`. What survives from that item is narrower and is
+emitted below. The other three items survive as the first, the third, and the
+fourth findings.
+
+### HIGH: the trap checker reports an abort for any non-zero exit, so a mode with no fixture body passes
+
+- [X] T291 Distinguish a contract abort from any other non-zero exit in the
+  `expect_abort` branch of `run_mode` at
+  `test/source/counters_trap_checked_test.cpp:83-103`, so a mode registered in
+  `kModes` at `:52-61` without a fixture body cannot report `counters trap mode
+  '<name>' aborted before the marker` and return 0. Today the branch accepts any
+  status but 0 at `:84` and any absence of the marker at `:92`, and the
+  fixture's unrecognised-mode path prints `fixture: unknown mode` and returns 2
+  at `test/source/counters_trap_fixture.cpp:270-274`, so a mode with no body
+  satisfies both. Reproduced in this session by running the built
+  `./build/dev/test/counters_trap_checked_test` against a fixture written
+  outside the repository that recognizes no mode at all: the checker printed
+  `aborted before the marker` for all ten modes and exited 0 with
+  `counters_trap_checked_test PASS: every misuse mode behaved as the configured
+  contract semantic demands`. The check is the evidence for `FR-046`'s tier-3
+  list, for `FR-027`'s always-enforced bound, and for the release proof the
+  `consumer-release` job runs at `.github/workflows/ci.yml:422-428`, and a mode
+  added without a body passes in every checked configuration. Two readings: the
+  abort branch must also require the captured output to carry the facility's
+  abort diagnostic, which every real abort prints and which `.github/workflows/ci.yml:420`
+  already matches on for the `ignore` build, or the fixture must refuse an
+  unregistered mode with a status the checker rejects and the mode list must
+  come from the fixture. Either must keep the release proof at
+  `.github/workflows/ci.yml:400-420` and the survival branch at
+  `test/source/counters_trap_checked_test.cpp:105-124` unchanged in what they
+  assert, and the red must be observable in a contracts `ignore` tree, which is
+  where the mode is read (HIGH, FR-027, FR-035, FR-046, Constitution VI,
+  `partial`)
+
+### MEDIUM: the static-analysis gate runs in CI and reports, and a finding does not fail the job
+
+- [X] T292 Settle whether Principle VIII's static-analysis clause requires the
+  CI job to fail on a finding, and carry the decision into the configuration or
+  the clause. `.specify/memory/constitution.md:240-242` requires that
+  `clang-tidy` and `cppcheck` report no new findings, and `:227` reads `Every
+  change passes all of the following; each is hard.`. Both tools run in CI:
+  `.github/workflows/ci.yml:114` installs them, `:115-116` configures
+  `ci-ubuntu`, and `CMakePresets.json:167` inherits the `cppcheck` preset at
+  `:33-38` and the `clang-tidy` preset at `:40-45`, setting
+  `CMAKE_CXX_CPPCHECK=cppcheck;--inline-suppr` and `CMAKE_CXX_CLANG_TIDY`, which
+  `build/dev/CMakeFiles/speedgun-ng_speedgun-ng.dir/build.make` hands to
+  `cmake -E __run_co_compile` on every compile. Neither fails the build on a
+  finding: `cppcheck` carries no `--error-exitcode`, `.clang-tidy:15` carries
+  `WarningsAsErrors: ''`, and a scratch project configured outside the
+  repository with the same `CMAKE_CXX_CLANG_TIDY` form and this repository's
+  `.clang-tidy` copied in exited 0 with three `warning:` lines from a
+  deliberately offending translation unit. The counters sources are clean at
+  this head, which a separate `clang-tidy` 22.1.8 run over the eleven
+  translation units `find source/counters -name '*.cpp'` returns measured at 0
+  `warning:` and 0 `error:` lines, so the report is clean and the clause's
+  figure holds. The decision belongs to the clause, which is a governance
+  artifact, so the remedy is a spec-level one and not a CI edit: either the
+  configuration must make a finding fail the `test` job, which changes the
+  pinned pin under Principle I and takes a P2 with its written justification, or
+  the clause must state that the gate is a report and name the step a reader
+  runs. No analyzer call may be suppressed, no warning class may be demoted in
+  `.clang-tidy` or in the presets, and no existing gate may be dropped (MEDIUM,
+  Constitution I, P2, Constitution VIII, Constitution IV, Constitution X.1,
+  `partial`)
+
+### LOW: two gated trap modes are absent from the hand-maintained CI list
+
+- [X] T293 Add `push-mixed-owner` and `push-foreign-sample` to the mode list
+  the `consumer-release` job enumerates by hand, or derive that list from one
+  source. The `Run counters_trap_fixture under ignore` step at
+  `.github/workflows/ci.yml:359-420` invokes eight modes, at `:364`, `:366`,
+  `:368`, `:370`, `:372`, `:374`, `:377`, and `:379`, and asserts their exit
+  codes and markers at `:400-420`; the checker's `kModes` at
+  `test/source/counters_trap_checked_test.cpp:52-61` carries ten, the two
+  absent ones being the modes `T287` and `9aeb595` added. The step asserts
+  nothing about them, so a regression in either guard is invisible to it; the
+  CTest at `.github/workflows/ci.yml:427-428` runs the checker over the full
+  list and covers both, which is why the gap is duplication and not coverage.
+  `T287` set the precedent for leaving the list alone, so the record states no
+  decision, and a new mode will reproduce the gap. Either branch must keep the
+  eight existing assertions and must name, beside the list, that the CTest at
+  `:427-428` is the complete check, so a reader does not read the shell step as
+  the enumeration of record (LOW, FR-046, FR-027, Constitution IV, T287,
+  `partial`)
+
+### LOW: four split code spans the gate's precedence row cannot reach
+
+- [X] T294 Close the four split code spans in
+  `specs/007-counters-and-timers/citations.md`, counted with Python over the
+  file's lines: an odd backtick count stands at `:254` paired with `:255`, at
+  `:258` paired with `:259`, at `:260` paired with `:261`, and at `:337` paired
+  with `:340`, eight lines carrying four spans, where each opening backtick
+  closes on a later line, so a reader sees literal backticks in the rendered
+  page. The blind spot is the one the record itself documents: `T261` records
+  that `tools/prose/prose_gate.py:876-883` returns before any rule matcher runs
+  on a unit carrying an inline code span, and the record states the class at
+  `specs/007-counters-and-timers/citations.md:225-235` and `:233-243`, which
+  names the em-dash code point the same precedence row drops and names nothing
+  about a span that crosses a line. Every one of the eight lines is
+  pre-existing text in a dated record and binds under the Principle XI.1 scope
+  paragraph at `.specify/memory/constitution.md:405-409`, so each must be closed
+  inside the paragraph that carries it, and no figure the record states may
+  move, since the closing of a span changes the byte length of its lines and the
+  counting rule at `:32-41` reads occurrences over line ranges (LOW,
+  Constitution IV, Constitution XI.1, Constitution XI.6, T261, `partial`)
