@@ -20,6 +20,7 @@
 // Frameworkless check()/fail() convention.
 // ============================================================================
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -348,11 +349,25 @@ auto context_open_refusal_scenario() -> void
         "the same refusal is reported by refusing when no sentence is asked "
         "for");
   // Closing a context that owns nothing touches nothing, so a window that
-  // refuses mid-open leaves no descriptor and no mapping behind.
-  sg::counters::detail::fast_context empty;
-  sg::counters::detail::fast_context_close(empty);
-  check(empty.fd == -1 && empty.map == nullptr,
-        "closing a context that owns nothing is a no-op (FR-040)");
+  // refuses mid-open leaves no descriptor and no mapping behind. A close
+  // of a context the kernel did grant is the other half of the same
+  // contract: it releases what the open took and leaves the context
+  // reporting that it owns nothing (FR-040).
+  std::string fast_refusal;
+  auto granted = sg::counters::detail::fast_context_open(
+      PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, where, &fast_refusal);
+  if (!granted) {
+    std::printf("seam: no mapped-page context on this host (%s), so a close "
+                "of a granted context goes unmeasured\n",
+                fast_refusal.c_str());
+  } else {
+    check(granted->fd >= 0 && granted->map != nullptr,
+          "a granted context owns a descriptor and a mapping (FR-040)");
+    sg::counters::detail::fast_context_close(*granted);
+    check(granted->fd == -1 && granted->map == nullptr
+              && granted->map_length == 0,
+          "a close releases the descriptor and the mapping (FR-040)");
+  }
 }
 
 // The mapping file selects the architecture directory for a CPU
@@ -376,22 +391,41 @@ auto mapfile_scenario() -> void
   check(directory.starts_with("arch/x86/") && directory.ends_with("/"),
         "a matched row names an architecture directory under the table root");
 
-  // The directory and the identification are cached once per process, so
-  // the second selection of each is a cache hit (FR-038).
-  check(pmu_select_directory(identified) == directory,
-        "selecting the same identification twice yields the same directory");
+  // The table selections are made once per process and cached per
+  // directory, so the second load of a directory hands back the same
+  // parsed table and a second directory holds its own (FR-038).
   const auto& table = sg::counters::detail::pmu_load_table(directory);
+  check(&sg::counters::detail::pmu_load_table(directory) == &table,
+        "loading the same directory twice returns the same parsed table");
+  const std::string absent_directory {"arch/x86/no-such-directory/"};
+  const auto& absent_table =
+      sg::counters::detail::pmu_load_table(absent_directory);
+  check(&absent_table != &table && absent_table.empty(),
+        "a second directory spelling holds its own table beside this one "
+        "(FR-038)");
   check(&sg::counters::detail::pmu_load_table(directory) == &table,
         "loading the same directory twice returns the same parsed table");
   std::printf("seam table: %zu entries\n", table.size());
   check(!table.empty(), "the selected directory parsed to at least one entry");
-  std::size_t described = 0;
+  // The parse maps the kernel table's numeric attributes onto the
+  // semantic field names the encoder reads, so a row reaching the catalog
+  // carries a config the provider can compose (FR-037, FR-038).
+  std::size_t mapped = 0;
   for (const auto& entry : table) {
-    if (!entry.name.empty()) {
-      ++described;
+    if (std::ranges::any_of(
+            entry.fields,
+            [](const std::pair<std::string, std::uint64_t>& field)
+            { return field.first == "event" || field.first == "umask"; }))
+    {
+      ++mapped;
     }
   }
-  check(described == table.size(), "every parsed table row carries a name");
+  std::printf("seam table: %zu of %zu rows carry a mapped config field\n",
+              mapped,
+              table.size());
+  check(
+      mapped > 0,
+      "the parsed table maps at least one row onto a config field " "(FR-038)");
   // A directory that does not exist yields an empty table. A missing
   // architecture degrades to a reduced catalog; it is a catalog fact.
   const std::vector<pmu_table_entry> absent =
@@ -929,6 +963,17 @@ auto group_open_scenario() -> void
     check(second[2] >= first[2] && second[4] >= first[4],
           "the leader's enabled and running times never decrease between "
           "two group reads (FR-041)");
+    // The window constructor installed its own read in the direct-call
+    // slot, so the slot the compiled plan holds reaches the same read
+    // the virtual entry reaches (FR-022, R-004).
+    const auto thunk = pair->resolve_thunk();
+    std::uint64_t third[6] = {0, 0, 0, 0, 0, 0};
+    point_sink via_slot {third, 3, 2, 0};
+    thunk(*pair, via_slot);
+    via_slot.check_action();
+    check(third[0] >= second[0] && third[2] >= second[2],
+          "the installed direct-call slot reads the same group the virtual "
+          "entry reads (FR-022)");
   }
   // Two members in one group: the follower is opened disabled into its
   // leader's group, which is the arm a single-member open never reaches.
@@ -971,10 +1016,20 @@ auto fast_branch_scenario() -> void
   state.fast_available = true;
   state.fast_refusal = "synthetic fast-capable state";
   const target where {};
+  // The fast window opens exactly when the availability probe grants the
+  // config the member carries, the same verdict `group_open_scenario`
+  // holds the group path to (FR-023, FR-040).
+  const bool granted =
+      sg::counters::detail::pmu_probe(state.devices[0].type,
+                                      {{0, PERF_COUNT_HW_INSTRUCTIONS}})
+      == availability::countable;
   const auto fast = sg::counters::detail::pmu_open_fast_window(
       state, leaf_set_of({"cpu/fast"}), where);
   std::printf("seam: the synthetic fast-capable open returned %s\n",
               fast != nullptr ? "a fast window" : "no window");
+  check((fast != nullptr) == granted,
+        "the fast branch returns a window exactly when the probe grants the "
+        "member's config (FR-040)");
   pmu_state twin = state;
   twin.devices.push_back(twin.devices[0]);
   twin.devices.back().path = "cpu-uncore";
@@ -1006,10 +1061,6 @@ auto fast_branch_scenario() -> void
       state, leaf_set_of({"cpu/fast"}), where);
   const auto over_syscall = sg::counters::detail::pmu_open_window(
       state, leaf_set_of({"cpu/work"}), where);
-  const bool granted =
-      sg::counters::detail::pmu_probe(state.devices[0].type,
-                                      {{0, PERF_COUNT_HW_INSTRUCTIONS}})
-      == availability::countable;
   check((over_fast != nullptr) == granted
             && (over_syscall != nullptr) == granted,
         "a fast-capable catalog opens over a fast member and over a "

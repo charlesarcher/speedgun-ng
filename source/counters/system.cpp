@@ -173,7 +173,8 @@ constexpr int near_miss_distance = 2;
 // True when `alias` already resolves to an object, in the merged table
 // or in the batch this call has staged. An alias resolving to two
 // objects would hand every lookup of it to whichever registered first,
-// so a clash is refused rather than dropped by `map::emplace` (FR-002).
+// so a clash is refused. `map::emplace` would drop the second node and
+// leave it unreported (FR-002).
 [[nodiscard]] auto alias_is_held(
     const std::map<std::string, std::string>& merged,
     const std::vector<std::pair<std::string, std::string>>& staged,
@@ -303,7 +304,16 @@ auto system::register_provider(std::unique_ptr<provider_iface> provider)
   for (const auto& seed : sink.seeds) {
     const std::string path(seed.path);
     const bool on_root = path == "machine";
-    if (!on_root && m_impl->objects.contains(path)) {
+    if (!on_root
+        && (m_impl->objects.contains(path)
+            || std::ranges::any_of(staged,
+                                   [&](const std::unique_ptr<tree_node>& one)
+                                   { return one->path == path; })))
+    {
+      // A path the batch already staged collides the same way a path the
+      // merged tree holds does. `map::emplace` keeps the earlier node, so
+      // the later one would be dropped while its alias landed on the
+      // surviving node (FR-008).
       return std::unexpected(error {.message = "duplicate object path '" + path
                                         + "' under one parent (FR-008)",
                                     .suggestions = {}});

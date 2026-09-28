@@ -187,7 +187,11 @@ struct pmu_window final : window_reader
   std::vector<group_state> groups;
   std::vector<std::uint64_t> scratch;
 
-  pmu_window() { scratch.resize(kHeaderWords + 64); }
+  pmu_window()
+  {
+    set_thunk(&read_direct);
+    scratch.resize(kHeaderWords + 64);
+  }
 
   pmu_window(const pmu_window&) = delete;
   auto operator=(const pmu_window&) -> pmu_window& = delete;
@@ -260,6 +264,17 @@ struct pmu_window final : window_reader
       }  // LCOV_EXCL_BR_LINE
     }  // LCOV_EXCL_BR_LINE
   }  // LCOV_EXCL_BR_LINE
+
+  // The compiled plan hands the window over as the base reference
+  // `read_thunk` declares, and `pmu_open_window` constructs it as this
+  // final type, so the reference names a group window on every call.
+  // `final` fixes the target of the `read_points` call, so the sampling
+  // path takes one indirect call and no vtable lookup (FR-022, T146).
+  static auto read_direct(window_reader& base, point_sink& sink) noexcept
+      -> void
+  {
+    static_cast<pmu_window&>(base).read_points(sink);
+  }
 };  // LCOV_EXCL_BR_STOP
 
 // The fast-mode window: one mapped page per member leaf, read inside one
@@ -284,7 +299,8 @@ struct pmu_fast_window final : window_reader
   std::uint64_t enabled = 0;
   std::uint64_t running = 0;
 
-  pmu_fast_window() = default;
+  pmu_fast_window() { set_thunk(&read_direct); }
+
   pmu_fast_window(const pmu_fast_window&) = delete;
   auto operator=(const pmu_fast_window&) -> pmu_fast_window& = delete;
   pmu_fast_window(pmu_fast_window&&) = delete;
@@ -344,6 +360,18 @@ struct pmu_fast_window final : window_reader
           break;
       }  // LCOV_EXCL_BR_LINE
     }
+  }
+
+  // The compiled plan hands the window over as the base reference
+  // `read_thunk` declares, and `pmu_open_fast_window` constructs it as
+  // this final type, so the reference names a fast window on every
+  // call. `final` fixes the target of the `read_points` call, so the
+  // sampling path takes one indirect call and no vtable lookup
+  // (FR-022, T146).
+  static auto read_direct(window_reader& base, point_sink& sink) noexcept
+      -> void
+  {
+    static_cast<pmu_fast_window&>(base).read_points(sink);
   }
 };
 

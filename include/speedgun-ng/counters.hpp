@@ -15,6 +15,7 @@
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
+#include "speedgun-ng/counters_pmu.hpp"
 #include "speedgun-ng/counters_provider.hpp"
 #include "speedgun-ng/counters_push.hpp"
 #include "speedgun-ng/counters_system.hpp"

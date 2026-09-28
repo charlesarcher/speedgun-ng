@@ -93,12 +93,12 @@ struct leaf_core
 // each other by index; the dimension lives only in the wrapper type.
 struct expr_node
 {
-  // Kind codes: 0 leaf, 1 add, 2 subtract, 3 divide.
+  // Kind codes: 0 leaf, 1 add, 2 subtract, 3 divide, 4 scale.
   std::uint8_t kind = 0;
-  int left = -1;  // node index; -1 unless kind is binary
+  int left = -1;  // node index; -1 unless kind is binary or 4
   int right = -1;  // node index; -1 unless kind is binary
   int leaf = -1;  // leaf index for kind 0; else -1
-  double scale = 1.0;
+  double scale = 1.0;  // factor a kind 4 node applies to its operand
 };
 
 struct expr_core
@@ -132,14 +132,15 @@ struct expr_core
     return static_cast<int>(nodes.size()) - 1;
   }
 
-  // Scales every leaf node by `k` (scalar multiplication).
-  auto scale_all(double k) noexcept -> void
+  // Scales the spine's folded value by `k` (scalar multiplication):
+  // one node over the root, so a composite's own arithmetic keeps every
+  // operand at full weight. Scaling the leaves instead folds
+  // `2.0 * (a / b)` to `a / b`, because the quotient divides the two
+  // scaled operands back into each other.
+  auto scale_all(double k) -> void
   {
-    for (auto& node : nodes) {
-      if (node.kind == 0) {
-        node.scale *= k;
-      }
-    }
+    add_node(expr_node {
+        .kind = 4, .left = root(), .right = -1, .leaf = -1, .scale = k});
   }
 };
 

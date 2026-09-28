@@ -63,11 +63,17 @@ load average (`/proc/loadavg`):
 ```
 
 Four agents were building and editing in this tree during the pass, so
-the host carried a background load of about 0.75 on 16 cores. A
-measurement from a contended system MUST NOT update a platform baseline
-(Principle VII), and these figures are no baseline. Read them as the
-order of magnitude of each read regime, with the run-to-run spread
-below as the credibility band.
+the host carried a background load of about 0.75 on 16 cores. That pass
+produced the tables below, so the load recorded here is the load behind
+every figure this page publishes. A measurement from a contended system
+MUST NOT update a platform baseline (Principle VII), and these figures
+are no baseline. Read them as the order of magnitude of each read
+regime, with the run-to-run spread below as the credibility band.
+
+Before a reader treats any row here as a platform baseline, measure the
+pass again on an idle machine: run the commands at the top of this file
+with the tree quiet and the load average settled, and publish that pass
+beside the load average it ran under.
 
 ## Regimes on this host
 
@@ -78,7 +84,7 @@ A performance ordering means something only in the second, so the release
 figures are the ones to read and the dev figures are here to show what the
 correctness build costs.
 
-Release build (`-O2`), three runs on an idle tree:
+Release build (`-O2`), three runs at the load recorded above:
 
 | plan | min ns | median ns | max ns | read mode |
 | --- | --- | --- | --- | --- |
@@ -87,7 +93,7 @@ Release build (`-O2`), three runs on an idle tree:
 | core PMU single leaf (`cpu/instructions`), one leaf per action | 40 | 40 | 50 | `fast_rdpmc` |
 | first-to-last fold over 64 recorded points, sampling outside the loop | | 28.4 | | none |
 
-`dev` preset (`-Og`, `enforce`), three runs on an idle tree:
+`dev` preset (`-Og`, `enforce`), three runs at the same load:
 
 | plan | min ns | median ns | max ns | read mode |
 | --- | --- | --- | --- | --- |
@@ -137,7 +143,7 @@ fold:   583.4
 ```
 
 That run is the tail of a contended tree and is superseded by the rows
-above, which ran on an idle one.
+above, which come from the load recorded above.
 
 ## Fast regime: measured, and behind a vDSO clock read
 

@@ -26,6 +26,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 #include "speedgun-ng/counters.hpp"
@@ -65,6 +66,7 @@ using sg::counters::dim;
 using sg::counters::expression;
 using sg::counters::object;
 using sg::counters::pmu_provider;
+using sg::counters::push_provider;
 using sg::counters::read_mode;
 using sg::counters::scope;
 using sg::counters::system;
@@ -73,6 +75,10 @@ using events = dim<0, 1>;
 using time_dim = dim<1, 0>;
 
 constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
+
+// The push leaves the push provider declares below, so the catalog walk
+// in scenario 4 has a hand-computed count to compare (SC-002).
+constexpr std::size_t kDeclaredPushLeaves = 2;
 
 auto find_entry(const std::vector<catalog_entry>& entries,
                 const std::string_view name) -> const catalog_entry*
@@ -261,6 +267,28 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   check(mono != nullptr && mono->avail == availability::countable,
         "clock leaf stays countable beside the PMU provider (SC-002)");
 
+  // Scenario 4 names the push counters beside the clocks: with the pmu
+  // provider registered, every push leaf the catalog offers is countable,
+  // and the catalog offers exactly the declared ones.
+  std::size_t push_leaves = 0;
+  std::size_t countable_push = 0;
+  for (const auto& entry : machine_entries) {
+    if (entry.mode != read_mode::push_load) {
+      continue;
+    }
+    ++push_leaves;
+    if (entry.avail == availability::countable) {
+      ++countable_push;
+    }
+  }
+  std::printf("push availability: %zu of %zu declared leaves countable\n",
+              countable_push,
+              push_leaves);
+  check(push_leaves == kDeclaredPushLeaves,
+        "the catalog offers every declared push leaf (SC-002)");
+  check(countable_push == push_leaves,
+        "every push leaf stays countable beside the pmu provider (SC-002)");
+
   std::size_t countable = 0;
   std::size_t blocked = 0;
   std::size_t unencodable = 0;
@@ -324,12 +352,12 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
           "(US6 scenario 4)");
     if (verdict == probe_verdict::refused_permission) {
       check(blocked > 0,
-            "a permission refusal surfaces as permission_blocked, not "
-            "not_encodable (FR-039)");
+            "a permission refusal surfaces as permission_blocked and "
+            "leaves the encoding state clear (FR-039)");
     } else {
       check(unencodable > 0,
-            "an encoding refusal surfaces as not_encodable, not "
-            "permission_blocked (FR-039)");
+            "an encoding refusal surfaces as not_encodable and "
+            "leaves the permission state clear (FR-039)");
     }
   }
 }
@@ -640,7 +668,7 @@ auto multiplex_scenario() -> void
         "the folded multiplex ratio lies inside the unit interval (FR-019)");
   if (granted < 1.0) {
     std::printf("scenario 6: this PMU multiplexes, and the fold discloses "
-                "the shortfall rather than reporting full rate (FR-041)\n");
+                "the shortfall as a ratio below one (FR-041)\n");
   } else {
     std::printf("scenario 6: every opened event fit this PMU's counters, so "
                 "the kernel ran them at full rate\n");
@@ -749,11 +777,23 @@ auto main() -> int
 #else
   auto clock = std::make_unique<clock_provider>();
   auto pmu = std::make_unique<pmu_provider>();
+  // Scenario 4 holds the push counters countable while the pmu provider is
+  // registered, so the push provider joins it here and the catalog walk
+  // reads all three at once (SC-002). The handles stay unused: the
+  // hot-path add belongs to the shipped-provider test, and this scenario
+  // reads the catalog only.
+  auto push = std::make_unique<push_provider>();
+  static_cast<void>(
+      push->add_counter("bytes", "bytes", "hot-path bytes written"));
+  static_cast<void>(push->add_counter("records", "ops", "records appended"));
   if (!system::local().register_provider(std::move(clock)).has_value()) {
     fail("clock provider registers");
   }
   if (!system::local().register_provider(std::move(pmu)).has_value()) {
     fail("pmu provider registers");
+  }
+  if (!system::local().register_provider(std::move(push)).has_value()) {
+    fail("push provider registers");
   }
   const auto pmu_objects = system::local().objects("pmu");
   if (!pmu_objects.has_value()) {

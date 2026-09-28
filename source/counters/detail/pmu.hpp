@@ -204,11 +204,15 @@ struct pmu_state
 // into `state`; the catalog discloses the achieved mode.
 void pmu_probe_fast(pmu_state& state);
 
-// The outcome of one mapped-page read attempt (FR-040).
+// The outcome of one mapped-page read attempt (FR-040). A read from a
+// thread other than the one that opened the context falls outside these
+// verdicts: the two context reads below compare the calling thread
+// against `fast_context::owner` and report a contract violation
+// (FR-031, FR-040).
 enum class fast_read_verdict : std::uint8_t
 {
   ok,
-  not_allowed,  // no capability, no valid index, or a foreign thread
+  not_allowed,  // no capability bit, or no valid counter index
   unstable  // the page sequence moved; the caller retries
 };
 
@@ -266,8 +270,12 @@ constexpr std::uint32_t kRnpmcMaxIndex = 1024;
                                      std::string& refusal) -> bool;
 
 // One per-thread fast-read context: the event file descriptor and the
-// one page the kernel maps for it. A context belongs to the thread that
-// opened it (FR-031, FR-040).
+// one page the kernel maps for it. `owner` names the thread that opened
+// it, and the binding is checked at both read sites below, because the
+// event counts one task and the page publishes no marker of the reading
+// thread, so a foreign read hands back another task's count as a valid
+// point (FR-031, FR-040). The plan checks the same binding, and that
+// check is semantic-gated, so it is absent from a release build.
 struct fast_context
 {
   int fd = -1;
@@ -302,6 +310,10 @@ struct fast_context
                                      std::string* refusal = nullptr)
     -> std::unique_ptr<fast_context>;
 
+// The context's page, read under the mapped-page protocol and returning
+// the verdict the gates above produce. The calling thread is the thread
+// that opened `context`; any other thread is a contract violation
+// (FR-031, FR-040).
 [[nodiscard]] auto fast_context_read(const fast_context& context,
                                      std::uint64_t& value) -> fast_read_verdict;
 
@@ -310,7 +322,9 @@ struct fast_context
 // window its multiplex ratio in every read mode, like the leader's read
 // does for a group window (FR-041, FR-040). False when the page carries
 // no pair or the sequence moved under the read, and the caller then
-// reports a zero pair.
+// reports a zero pair. The calling thread is the thread that opened
+// `context`, on the same contract as `fast_context_read` (FR-031,
+// FR-040).
 [[nodiscard]] auto fast_context_time_pair(const fast_context& context,
                                           std::uint64_t& enabled,
                                           std::uint64_t& running) -> bool;

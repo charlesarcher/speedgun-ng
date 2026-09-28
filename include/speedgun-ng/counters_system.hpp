@@ -145,7 +145,9 @@ public:
           .message = "counter '" + std::string(name) + "' has unit '"
               + leaf->unit + "' (dimension time^" + std::to_string(mapped->time)
               + " x events^" + std::to_string(mapped->events)
-              + "), not the requested dimension",
+              + "); requested dimension time^"
+              + std::to_string(D::time_exponent) + " x events^"
+              + std::to_string(D::events_exponent),
           .suggestions = {}});
     }
     return sg::counters::counter<D> {std::move(*leaf)};

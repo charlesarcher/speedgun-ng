@@ -297,7 +297,8 @@ auto to_ecma(std::string_view pattern) -> std::string
       const std::size_t close = pattern.find("]]", i + 1);
       if (close != std::string::npos) {
         // POSIX wraps the class name in colons, so `[[:xdigit:]]` spans
-        // `:xdigit:` between the brackets, not the bare name.
+        // `:xdigit:` between the brackets. A bare name sits inside the
+        // brackets without colons.
         const std::string_view body = pattern.substr(i + 2, close - (i + 2));
         const std::string_view name = body.starts_with(':') && body.size() > 2
             ? body.substr(1, body.size() - 2)

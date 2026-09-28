@@ -18,6 +18,20 @@ namespace sg::counters
 
 struct detail::push_window final : window_reader
 {
+  push_window() { set_thunk(&read_direct); }
+
+  // The compiled plan hands the window over as the base reference
+  // `read_thunk` declares, and `push_provider::open` constructs it as
+  // this final type, so the reference names a push window on every
+  // call. `final` fixes the target of the `read_points` call, so the
+  // sampling path takes one indirect call and no vtable lookup
+  // (FR-022, T146).
+  static auto read_direct(window_reader& base, point_sink& sink) noexcept
+      -> void
+  {
+    static_cast<push_window&>(base).read_points(sink);
+  }
+
   std::vector<const std::uint64_t*> cells;
   std::thread::id owner {};
 

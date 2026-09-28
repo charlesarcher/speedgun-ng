@@ -35,6 +35,20 @@ namespace
 
 struct detail::fake_window final : window_reader
 {
+  fake_window() { set_thunk(&read_direct); }
+
+  // The compiled plan hands the window over as the base reference
+  // `read_thunk` declares, and `fake_provider::open` constructs it as
+  // this final type, so the reference names a fake window on every
+  // call. `final` fixes the target of the `read_points` call, so the
+  // sampling path takes one indirect call and no vtable lookup
+  // (FR-022, T146).
+  static auto read_direct(window_reader& base, point_sink& sink) noexcept
+      -> void
+  {
+    static_cast<fake_window&>(base).read_points(sink);
+  }
+
   fake_provider* owner = nullptr;
   std::vector<fake_counter_data*> counters;
 

@@ -162,6 +162,20 @@ auto tsc_ticks() noexcept -> std::uint64_t
 
 struct detail::clock_window final : window_reader
 {
+  clock_window() { set_thunk(&read_direct); }
+
+  // The compiled plan hands the window over as the base reference
+  // `read_thunk` declares, and `clock_provider::open` constructs it as
+  // this final type, so the reference names a clock window on every
+  // call. `final` fixes the target of the `read_points` call, so the
+  // sampling path takes one indirect call and no vtable lookup
+  // (FR-022, T146).
+  static auto read_direct(window_reader& base, point_sink& sink) noexcept
+      -> void
+  {
+    static_cast<clock_window&>(base).read_points(sink);
+  }
+
   std::vector<std::uint8_t> kinds;
 
   void read_points(point_sink& sink) noexcept override

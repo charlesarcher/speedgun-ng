@@ -226,6 +226,25 @@ auto test_registration() -> void
   provider->set_points("package-1/ratio-frozen", "enabled", {7, 7});
   provider->set_points("package-1/ratio-frozen", "running", {0, 50});
 
+  // A pair-carrying leaf quoted on both sides of one fold, so its two
+  // occurrences carry opposite exponents and the exponent of the leaf
+  // sums to zero (FR-019).
+  provider->add_object(
+      "package-1/ratio-shared", "scratch", "leaf on both sides of a fold");
+  provider->add_counter("package-1/ratio-shared",
+                        "enabled",
+                        "nanoseconds",
+                        "nanoseconds the event counter was enabled",
+                        availability::countable,
+                        read_mode::syscall,
+                        true);
+  provider->add_counter("package-1/ratio-shared",
+                        "running",
+                        "nanoseconds",
+                        "nanoseconds the event counter was scheduled");
+  provider->set_points("package-1/ratio-shared", "enabled", {0, 300});
+  provider->set_points("package-1/ratio-shared", "running", {0, 100});
+
   // A leaf with no explicit sequence at all, whose whole trace comes
   // from the seeded per-sample delta generator (T014).
   provider->add_object(
@@ -363,11 +382,30 @@ auto test_compile_zero_reads() -> void
   check(probe->read_actions() == 0,
         "plan compile performs zero reads (FR-021)");
 
-  auto moved_plan = std::move(*compiled);
+  // The moved plan is compiled over the object the suite reserves for its
+  // own move case, whose scripted steps repeat at every cursor position,
+  // so the window below costs the later move test nothing (FR-036).
+  const auto move_core = *system::local().object("package-1/move/core-1");
+  const auto move_ipc = *move_core.counter<events>("instructions")
+      / *move_core.counter<events>("cycles");
+  auto move_compiled = compile(system::local(), move_ipc);
+  check(move_compiled.has_value(), "the move-case plan compiles (FR-031)");
+
+  auto moved_plan = std::move(*move_compiled);
   static_assert(!std::is_copy_constructible_v<sg::counters::plan>,
                 "the plan is move-only");
   sg::counters::scope window_over_move {moved_plan};
-  check(true, "a plan moves and still prepares windows (FR-031)");
+  window_over_move.start();
+  window_over_move.finish();
+  // 2100 instructions over 200 cycles, the two steps scripted beside
+  // `package-1/move/core-1` in the fixture: the moved plan sampled the
+  // window, so folding it proves the move carried the measurement across
+  // (FR-030, FR-031).
+  const auto over_move = window_over_move.metric(move_ipc);
+  check(same_double(over_move.value, 10.5),
+        "a plan moves and folds the window it sampled (FR-031)");
+  check(same_double(over_move.running_ratio, 1.0) && !over_move.scaled,
+        "the moved plan discloses the same ratio and scale (FR-019)");
 
   const auto pinned = compile(
       system::local(), target {.kind = target_kind::cpu, .cpu = 0}, instr_expr);
@@ -384,6 +422,7 @@ auto test_scope_exactness() -> void
   const auto compiled = compile(system::local(), ipc);
   check(compiled.has_value(), "ipc plan compiles");
 
+  const auto reads_at_entry = probe->read_actions();
   sg::counters::scope window {*compiled};
   window.start();
   window.finish();
@@ -392,7 +431,7 @@ auto test_scope_exactness() -> void
   check(same_double(metric.value, 10.5),
         "scope window folds exactly: 2100 / 200 (FR-030)");
   check(same_double(metric.running_ratio, 1.0) && !metric.scaled,
-        "disclosure defaults honest: unscaled, full ratio");
+        "disclosure defaults: unscaled, full ratio");
   const auto raw = ipc.raw(window.view(), "package-1/core-3", "instructions");
   check(raw.has_value() && raw->object_path == "package-1/core-3"
             && raw->name == "instructions" && !raw->description.empty()
@@ -405,7 +444,7 @@ auto test_scope_exactness() -> void
   check(raw.has_value() && raw->slot == 0 && raw->count == 2,
         "the raw view names the point column and extent it read "
         "(US1 scenario 7)");
-  check(probe->read_actions() == 2,
+  check(probe->read_actions() - reads_at_entry == 2,
         "start and finish are one sampling action each (FR-011)");
 
   const auto cycles_raw = ipc.raw(window.view(), "package-1/core-3", "cycles");
@@ -739,6 +778,46 @@ auto test_ratio_product() -> void
         "to their exponents (FR-019)");
 }
 
+// One pair-carrying leaf quoted by both operands of a quotient, the case
+// where a per-occurrence sign cannot give the leaf's exponent: the leaf
+// enters the numerator's subtraction at +1 and the denominator's sum at
+// -1, so the exponent is 0 and the product is ratio^0 = 1.0. A sign
+// product reports the leaf at +1 or -1 there and moves the composite
+// ratio off 1.0 (FR-019).
+auto test_shared_leaf_exponent() -> void
+{
+  const auto source = *system::local().object("package-1/ratio-shared");
+  const auto enabled = *source.counter<time_dim>("enabled");
+  const auto running = *source.counter<time_dim>("running");
+  // Scripted deltas: enabled 300, running 100. The enabled slot carries
+  // the pair, so it discloses 100 / 300 on its own.
+  const auto composite = (enabled - running) / (enabled + running);
+  const auto doubled = 2.0 * composite;
+  const auto compiled = compile(system::local(), composite, doubled);
+  check(compiled.has_value(), "the shared-leaf ratio plan compiles");
+
+  sg::counters::scope window {*compiled};
+  window.start();
+  window.finish();
+  const auto metric = window.metric(composite);
+  // (300 - 100) / (300 + 100) = 200 / 400.
+  check(same_double(metric.value, 0.5),
+        "a leaf on both sides of the fold folds its own arithmetic exactly "
+        "(FR-019)");
+  // The two occurrences carry exponents +1 and -1, whose sum is 0, so
+  // the enabled leaf's 100 / 300 is raised to the zeroth power and the
+  // composite discloses 1.0.
+  check(same_double(metric.running_ratio, 1.0),
+        "a leaf on both sides of the fold has exponent zero, so the "
+        "composite ratio is 1.0 (FR-019)");
+  // A scalar multiple multiplies the folded value and leaves every
+  // exponent alone, so the disclosure is the 1.0 above.
+  const auto scaled = window.metric(doubled);
+  check(same_double(scaled.value, 1.0) && same_double(scaled.running_ratio, 1.0),
+        "a scalar multiple of the composite scales the value and leaves the "
+        "exponents alone (FR-015, FR-019)");
+}
+
 // The seeded per-sample delta generator, exercised over a whole
 // recorder trace: one seed reproduces the sequence a reader can redo
 // on paper (T014, FR-036).
@@ -859,6 +938,49 @@ auto scaled_composite_scenario() -> void
       "a scalar multiple of a composite scales every leaf exactly " "(FR-016)");
 }
 
+// A scalar multiple of a composite whose operands are themselves
+// arithmetic: the scale multiplies the composite's folded value, so the
+// quotient and the sum keep their own arithmetic (FR-015).
+auto scaled_quotient_scenario() -> void
+{
+  using sg::counters::expression;
+  using sg::counters::scope;
+  const auto core = *system::local().object("package-1/core-3");
+  const auto work = core.counter<events>("instructions");
+  const auto cycle = core.counter<events>("cycles");
+  check(work.has_value() && cycle.has_value(),
+        "the scripted core serves the two leaves the quotient spans");
+  const expression<events> a {*work};
+  const expression<events> b {*cycle};
+  const auto quotient = a / b;
+  const auto sum = a + b;
+  const auto doubled_quotient = 2.0 * quotient;
+  const auto doubled_sum = 2.0 * sum;
+  auto compiled = compile(
+      system::local(), a, b, quotient, sum, doubled_quotient, doubled_sum);
+  if (!compiled.has_value()) {
+    fail("the scaled quotient plan compiles");
+  }
+  scope window {*compiled};
+  window.start();
+  window.finish();
+  // Both scripted sequences are past their explicit points, so the
+  // window spans the tail deltas: instructions 2100, cycles 100. The
+  // two undoubled folds pin them.
+  check(same_double(window.metric(quotient).value, 21.0)
+            && same_double(window.metric(sum).value, 2200.0),
+        "the undoubled folds pin the window's scripted deltas (FR-036)");
+  // 2 * (2100 / 100) and 2 * (2100 + 100).
+  check(same_double(window.metric(doubled_quotient).value, 42.0)
+            && same_double(window.metric(doubled_sum).value, 4400.0),
+        "a scalar multiple of a composite scales its folded value (FR-015)");
+  check(window.metric(doubled_quotient).scaled
+            && window.metric(doubled_sum).scaled
+            && !window.metric(quotient).scaled && !window.metric(sum).scaled,
+        "the scaled flag reports a scale the caller applied and no other "
+        "(FR-019)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -877,10 +999,12 @@ auto main() -> int
   test_permission_blocked_leaf();
   test_wrap();
   test_ratio_product();
+  test_shared_leaf_exponent();
   test_frozen_pair_ratio();
   test_seeded_tail();
   open_refusal_scenario();
   scaled_composite_scenario();
+  scaled_quotient_scenario();
   std::printf("counters_fake_test: all checks passed\n");
   return 0;
 }

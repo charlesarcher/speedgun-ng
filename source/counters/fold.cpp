@@ -43,12 +43,14 @@ struct fold_context
       const std::size_t slot = ctx.layout.by_address.at(leaf.address);
       const auto* column = ctx.rec.columns + slot * ctx.rec.stride;
       const auto delta = column[ctx.j] - column[ctx.i];
-      return static_cast<double>(delta) * node.scale;
+      return static_cast<double>(delta);
     }
     case 1:
       return eval(ctx, core, node.left) + eval(ctx, core, node.right);
     case 2:
       return eval(ctx, core, node.left) - eval(ctx, core, node.right);
+    case 4:
+      return eval(ctx, core, node.left) * node.scale;
     default:
       return eval(ctx, core, node.left) / eval(ctx, core, node.right);
   }
@@ -59,22 +61,27 @@ struct fold_context
   return std::bit_cast<std::uint64_t>(a) == std::bit_cast<std::uint64_t>(b);
 }
 
+// Whether a scale the caller applied multiplied a value in this
+// window. A scale node multiplies the value its operand folds to, so
+// every node carrying a factor other than 1.0 reaches a value (FR-019).
 [[nodiscard]] auto carries_scale(const expr_core& core) -> bool
 {
   for (const auto& node : core.nodes) {
-    if (node.kind == 0 && !same_double(node.scale, 1.0)) {
+    if (!same_double(node.scale, 1.0)) {
       return true;
     }
   }
   return false;
 }
 
-// The algebraic exponent of one leaf in the spine, as a sign: a
-// quotient inverts the sign of its right operand, an addition and a
-// subtraction leave it alone. "instructions / cycles" therefore weighs
-// the instructions ratio with +1 and the cycles ratio with -1, which is
-// what the composite ratio product needs (FR-019, measurement-contract
-// clarification 2). One for any other leaf.
+// The algebraic exponent of one leaf in the spine, accumulated over
+// every occurrence: a quotient inverts the sign of its right operand,
+// an addition and a subtraction leave it alone, and a scalar multiple
+// passes it through. A leaf quoted on both sides of a subtraction, as
+// in `(a - b) / (a + b)`, therefore has exponent 0. "instructions /
+// cycles" weighs the instructions ratio with +1 and the cycles ratio
+// with -1, which is what the composite ratio product needs (FR-019,
+// measurement-contract clarification 2). Zero for any other leaf.
 [[nodiscard]] auto leaf_sign(const expr_core& core,
                              const int node_index,
                              const int target_leaf,
@@ -82,12 +89,15 @@ struct fold_context
 {
   const auto& node = core.nodes[static_cast<std::size_t>(node_index)];
   if (node.kind == 0) {
-    return node.leaf == target_leaf ? sign : 1;
+    return node.leaf == target_leaf ? sign : 0;
+  }
+  if (node.kind == 4) {
+    return leaf_sign(core, node.left, target_leaf, sign);
   }
   const int left = leaf_sign(core, node.left, target_leaf, sign);
   const int right =
       leaf_sign(core, node.right, target_leaf, node.kind == 3 ? -sign : sign);
-  return left * right;
+  return left + right;
 }
 
 // One leaf's measured fraction of the window it was enabled for. The
@@ -157,7 +167,11 @@ struct ratio_result
       continue;
     }
     const int sign = leaf_sign(core, core.root(), static_cast<int>(index), 1);
-    out.ratio *= sign > 0 ? *one : (1.0 / *one);
+    // A leaf quoted on both sides of a subtraction has exponent 0 and
+    // contributes ratio^0 = 1.0 to the product (FR-019).
+    if (sign != 0) {
+      out.ratio *= sign > 0 ? *one : (1.0 / *one);
+    }
     if (*one < 1.0) {
       out.multiplexed = true;
     }
