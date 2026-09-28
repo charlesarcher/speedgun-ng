@@ -187,10 +187,13 @@ struct pmu_window final : window_reader
   std::vector<group_state> groups;
   std::vector<std::uint64_t> scratch;
 
-  pmu_window()
+  // Every leaf opens into exactly one group, so the leaf count bounds the
+  // member count of every group; the scratch covers the header and one word
+  // per member of the widest group, and the sampling path never grows it.
+  explicit pmu_window(const std::size_t leaf_count)
   {
     set_thunk(&read_direct);
-    scratch.resize(kHeaderWords + 64);
+    scratch.resize(kHeaderWords + leaf_count);
   }
 
   pmu_window(const pmu_window&) = delete;
@@ -212,17 +215,14 @@ struct pmu_window final : window_reader
     for (auto& group : groups) {
       const auto want = static_cast<std::size_t>(
           (kHeaderWords + group.members.size()) * sizeof(std::uint64_t));
-      // LCOV_EXCL_START : coverage exclusion (T066): both arms need a group
-      // the kernel cannot serve in this shape. The growth arm needs 65 or
-      // more members, and the kernel caps a hardware group at the counters
-      // the PMU publishes (eight on the reference host), so a group never
-      // grows the scratch. The short-read arm needs a leader answering with
-      // fewer than the three header words, and `open_group_window` enables
-      // every group with `PERF_EVENT_IOC_ENABLE` before returning, so the
-      // kernel always reports the header.
-      if (scratch.size() < want) {  // LCOV_EXCL_BR_LINE
-        scratch.resize(want);  // LCOV_EXCL_LINE
-      }  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_START : coverage exclusion (T066): the arm needs a group
+      // the kernel cannot serve in this shape, a leader answering with fewer
+      // than the three header words. `open_group_window` enables every group
+      // with `PERF_EVENT_IOC_ENABLE` before returning, so the kernel always
+      // reports the header. The scratch is sized in the constructor, and
+      // every leaf opens into exactly one group, so the buffer covers the
+      // header and one word per member of any group: the read below never
+      // grows it, and the sampling path allocates nothing (FR-026).
       const auto got = ::read(group.leader, scratch.data(), want);
       if (got < static_cast<long>(
               kHeaderWords
@@ -405,7 +405,7 @@ auto open_group_window(const pmu_state& state,
     return nullptr;
   }
   const auto [pid, cpu] = leader_pid(where);
-  auto window = std::make_unique<pmu_window>();
+  auto window = std::make_unique<pmu_window>(leaves.size());
   window->groups.resize(layout.count());
   window->slots.reserve(leaves.size());
   for (const auto& one : leaves) {
