@@ -41,7 +41,7 @@ A C++20 concept `provider` names the shape an out-of-tree provider implements; `
 enum class read_mode { fast_tsc, fast_rdpmc, syscall, push_load };
 ```
 
-- Chosen per leaf at plan compile from probe results, recorded, and disclosed in the catalog. A provider may offer any subset; the achieved mode is reported per entry.
+- Chosen per leaf by the provider's enumeration-time probe, before the catalog freezes at the open boundary and before any plan binds a sampling target, recorded, and disclosed in the catalog. A provider may offer any subset; the achieved mode is reported per entry.
 - `syscall` is the universal fallback (group `read()` per PMU leader, vDSO clock reads, plain loads). `fast_tsc` and `fast_rdpmc` belong to the clock and PMU providers respectively; push counters are `push_load` by construction.
 - A fast-mode value for an off-CPU multiplexed event is stale; the enabled/running leaves keep every fold's disclosure complete in every mode (US7 scenario 4, FR-041).
 
