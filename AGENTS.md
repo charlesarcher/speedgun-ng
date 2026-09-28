@@ -40,8 +40,10 @@ configuration may not.
 ## Build, test, verify
 
 `cmake --preset=dev` then `cmake --build --preset=dev` then
-`ctest --preset=dev`. `CMakeUserPresets.json` is machine-local and never
-committed.
+`ctest --preset=dev`. Once per feature, also `cmake --preset=ci-ubuntu`
+then `cmake --build build`: the dev preset builds unoptimized, and an
+unoptimized build cannot report a finding an optimizer's analysis
+produces. `CMakeUserPresets.json` is machine-local and never committed.
 
 A finished change clears every hard gate in Principle VIII and keeps the CI
 matrix green: Linux (clang-tidy, cppcheck), macOS, Windows, sanitizers,

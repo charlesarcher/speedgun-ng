@@ -1,5 +1,15 @@
 <!--
-Sync Impact Report (2.8.0, MINOR): the Open deferrals block gains the
+Sync Impact Report (2.9.0, MINOR): Principle IX's per-task verification
+clause gains a release-configuration build, once per feature, naming the
+`ci-ubuntu` preset. The `dev` preset remains the per-task loop and stays
+cheap. The clause binds because an unoptimized build cannot report a
+finding an optimizer's analysis produces: a `-Werror=null-dereference` at
+`source/counters/plan.cpp` went unreported through three convergence
+waves, and the project's own release configuration did not compile for
+three cycles. No principle, threshold, identifier, gate, or banned-word
+list changes. Amendment history lives in the git log of this file.
+
+Prior report (2.8.0, MINOR): the Open deferrals block gains the
 macOS runner entry. Principle VIII's macOS preset-build clause is
 enforced developer-local until a runner spec lands; the deferral
 records the existing, spec-documented practice and binds nothing new.
@@ -247,7 +257,11 @@ workflow runs before code is written. It executes R-DCUT (III):
   test tasks precede the code tasks they gate.
 - `/speckit.implement` produces code in its canonical locations and unit
   tests in `test/`, registered with CTest; every task is verified (build plus
-  `ctest --preset=dev`) before the next.
+  `ctest --preset=dev`) before the next. That loop builds unoptimized, so it
+  cannot report a finding an optimizer's analysis produces; each feature MUST
+  therefore also be built once in the release configuration
+  (`cmake --preset=ci-ubuntu`, then `cmake --build build`) before its tasks are
+  called done. A task closed only against the unoptimized build stays open.
 - A feature going through the workflow MUST produce all four artifacts; a
   missing artifact is a failed feature.
 - Specs live under `specs/NNN-feature-name/`: the directory is the single
@@ -557,6 +571,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.9.0 | 2026-09-27 | IX per-task verification adds a release-configuration build once per feature; an unoptimized build cannot report an optimizer-backed finding |
 | 2.8.0 | 2026-09-25 | macOS gate enforcement recorded as a deferral: developer-local until a runner spec lands |
 | 2.7.0 | 2026-09-21 | Windows MSVC preset-build gate suspended for the vendored-autotools lifetime; reinstated when the port lands |
 | 2.6.0 | 2026-09-20 | XI.5 banned jargon `smoke test`; downstream consumer test canonical |
@@ -570,4 +585,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.8.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-25
+**Version**: 2.9.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-27
