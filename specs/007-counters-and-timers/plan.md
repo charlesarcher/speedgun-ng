@@ -420,8 +420,8 @@ only syscall-mode counterpart this host can offer is a clock leaf, and a
 `clock_gettime` through the vDSO is the cheapest read available anywhere
 in the library. The kernel-granted fraction that does matter is published
 beside it: with 64 events open against this PMU's counters the kernel ran
-them about a tenth of the enabled time, and the fold discloses that
-shortfall (T134).
+them 0.428174 and 0.543263 of the enabled time across the two recorded runs
+on this host, and the fold discloses that shortfall (T134).
 
 ### Scenario and check mapping
 

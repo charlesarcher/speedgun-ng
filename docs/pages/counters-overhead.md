@@ -276,10 +276,10 @@ infrastructure is an open deferral.
 The number that does compare like with like is the kernel's own. Opening
 64 countable core-PMU events against this PMU at once oversubscribes it,
 and `counters_pmu_test`'s multiplex scenario records what the kernel
-granted: about a tenth of the enabled time, with the fold disclosing the
-shortfall and its `scaled` flag set. A single read mode is cheap; what
-costs is the kernel's scheduling when more events are open than there are
-counters.
+granted: 0.428174 and 0.543263 of the enabled time across the two recorded
+runs on this host, with the fold disclosing the shortfall and its `scaled`
+flag set. A single read mode is cheap; what costs is the kernel's scheduling
+when more events are open than there are counters.
 
 ## Fast-regime probe facts on this host
 
@@ -331,6 +331,8 @@ the suite stays green either way.
 Multiplexing needs more events open at once than the PMU has hardware
 counters, so an idle group reports a ratio of exactly 1.000000 and says
 nothing about scheduling. The oversubscribed set does: 64 countable
-core-PMU events against this PMU ran about a tenth of the time the
-kernel reported them enabled, and the fold disclosed the shortfall with
-its `scaled` flag set (`counters_pmu_test`, US6 scenario 6).
+core-PMU events against this PMU ran 0.428174 and 0.543263 of the time
+the kernel reported them enabled, the two recorded runs on this host
+(`sc-002-paranoid-2-pmu.log`, `sc-004-counters-overhead-measured.log`),
+and the fold disclosed the shortfall with its `scaled` flag set
+(`counters_pmu_test`, US6 scenario 6).
