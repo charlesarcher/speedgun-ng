@@ -10,7 +10,9 @@ The provider contract is the seam the whole feature hangs on: "the system counts
 struct provider_iface {                       // registration base (R-004)
   virtual void enumerate(object_sink&) const = 0;   // objects + catalog entries
   virtual std::unique_ptr<window_reader> open(const leaf_set&, target) = 0;
-  // setup-time only: virtual calls never occur inside sample()
+  // setup-time only: the read path enters a window through the direct-call
+  // thunk its constructor installed, so a window installing no thunk reaches
+  // read_points through this vtable at one lookup per sampling action
 };
 
 struct window_reader {

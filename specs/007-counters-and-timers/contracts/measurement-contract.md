@@ -45,15 +45,18 @@ struct metric_result {
 std::expected<plan, error> compile(const system&, targets, /* expressions... */);
 // post: flat leaf slots, PMU group layout (one leader per PMU), per-leaf achieved
 //       read mode, fold programs, arena geometry; zero hardware reads performed
-// error: zero-leaf expression, empty plan, group target/clock mismatch (FR-024,
-//        spec edge case), expression over a non-countable leaf with catalog state
-//        in the message (spec edge case)
+// error: zero-leaf expression, empty plan, a leaf the catalog reports as not
+//        `countable` with the catalog state in the message, a window the
+//        provider refuses to open; every group and read mode in a plan opens
+//        against the one target that plan bound, so a target or clock-identity
+//        mismatch across group members is unrepresentable (FR-024, spec edge
+//        case)
 class plan {
   double sample_overhead_ns_min/median/max() const;   // FR-032 calibration
 };
 ```
 
-- The read path contains no expression tree, no dynamic dispatch, no name lookup (FR-022, R-004).
+- The read path contains no expression tree, no name lookup, and reaches `read_points` through the direct-call thunk each window's constructor installed, so the five shipped windows (clock, push, fake, PMU group, PMU mapped page) read with no vtable lookup; a provider window installing no thunk reaches it through the vtable at one lookup per sampling action (FR-022, R-004).
 - Hardware targeting (thread or cpu) binds at plan open; plans are per-thread; multiple plans over one system are first-class (FR-031).
 
 ## Recorder factory and handle (FR-025..FR-030)
@@ -104,7 +107,7 @@ template <dim D> class expression {
 
 ## Fan-out (US3 scenario 5, SC-007)
 
-`compile(system, expr, selection)` produces a plan with one fold program per selected object: leaf slots instantiated per object, one provider group read per instance per sampling action, all inside the shared window (FR-047). Folds over a fan-out plan yield one `metric_result` per object, keyed by canonical path; per-object instruction deltas reconcile against the shared total (SC-007). A layout conflict (duplicate instance slot, target/clock mismatch) is a recoverable construction error, the FR-024 pattern.
+`compile(system, expr, selection)` produces a plan with one fold program per selected object: leaf slots instantiated per object, one provider group read per instance per sampling action, all inside the shared window (FR-047). Folds over a fan-out plan yield one `metric_result` per object, keyed by canonical path; per-object instruction deltas reconcile against the shared total (SC-007). A layout conflict (duplicate instance slot) is a recoverable construction error, the FR-024 pattern; every group and read mode in a plan opens against the one target that plan bound, so a target or clock-identity mismatch across group members is unrepresentable.
 
 ## Scope sugar (FR-030)
 
@@ -116,7 +119,7 @@ class scope {                    // exactly a two-point recorder
 };
 ```
 
-One semantics, two spellings. Misuse sequences (`metric` before `finish`, `finish` without `start`, double `start`, use-after-finish, registering a composite into a started scope) are tier-3 contract violations (spec edge cases, FR-046, A6).
+One semantics, two spellings. The enforced misuse sequences are `metric` on a window that is not closed, `finish` without `start`, and a second `start`; each is a tier-3 contract violation (spec edge cases, FR-046, A6). A finished scope is a settled window, so ten further `metric` calls fold the same two points and read no hardware. Registering a composite into a started scope has no spelling: `scope` exposes `start`, `finish`, `view`, and `metric`, and a composite reaches a window through the plan compiled before that window opens.
 
 ## Standalone embeddability (FR-049, FR-050)
 

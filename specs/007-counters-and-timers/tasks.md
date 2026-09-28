@@ -1309,8 +1309,8 @@ constitution principles with X.1 through X.4 and XI.1 through XI.6 read one by
 one. Every file path `plan.md` names in its Project Structure and its physical
 view exists: the 9 public headers, the 11 translation units under
 `source/counters/`, the vendored `external/pmu-events` tree with its `RECORD`,
-the python tool, both examples, the 11 counters test executables, the fixture
-directory, and the overhead page. `cmake/lint.cmake` reaches
+the python tool, both examples, the 11 test executables `plan.md:147-164`
+names, the fixture directory, and the overhead page. `cmake/lint.cmake` reaches
 `source/counters/**` through `GLOB_RECURSE` on `source/*.cpp` and
 `source/*.hpp`, so the format reach plan.md asks to verify holds, and
 `format-check` reports zero badly formatted files across it. One finding: 1
@@ -1730,3 +1730,99 @@ holds, and the measured quantity moved while each sentence stayed.
 ### LOW: the newest body counts the shas it names by line and calls the total mentions
 
 - [X] T221 State the unit the count the body of commit `e95e413` records at its lines 27-28 counts, which reads that `The fifteen mentions of the two superseded shas that remain in this file sit inside closed tasks and preambles`, where the file carries the two shas on 15 lines and in 19 occurrences, so the figure the sentence holds by line count is four short of the occurrences a reader counts with `grep -o`, and the second half holds since all 15 lines sit in a phase preamble or a closed task body; the sentence must name the unit it counts (LOW, Constitution X.4, `contradicts`)
+
+## Phase 29: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `6121416`
+and of the residue the ten waves before it left. Nothing above this line changed.
+
+Audit evidence, all produced by this pass from the repository root.
+`python3 tools/prose/prose_gate.py --check all` exits 0, and `cmake -P
+cmake/prose-lint.cmake` exits 0 on the same verdict. This preamble records no
+source or unit figure for a range, because every such figure moves with the
+commit that states it, and no `--mode tree` total, because that form collects
+its files with `git ls-files` and reads them from the working tree, which is
+the reading the Phase 21 preamble states at
+`specs/007-counters-and-timers/tasks.md:1112-1119`. `cmake --preset=dev` and
+`cmake --build --preset=dev` exit 0, and `ctest --preset=dev` exits 0 with
+100.0 percent of 37 tests passed, 0 failed, 0 skipped. `cmake --preset=ci-ubuntu`
+and `cmake --build build`, the release build Principle IX requires once per
+feature, exit 0 with zero compiler warnings in the project's own C++ sources.
+`format-check` and `dbc-gate` exit 0, the pair reporting 135 interfaces with 0
+gaps in the doc gate and in the pair gate. `python3
+tools/pmu_events/update_pmu_events.py --check` exits 0, `cmake -P
+cmake/spell.cmake` exits 0, and `bash tools/dbc/coverage_gate.sh
+build/coverage/coverage.info` exits 0 at lines 100.0 percent (1955 of 1955),
+branches 100.0 percent (705 of 705), and functions 98.0 percent (289 of 295) on
+an axis no gate scores. That trace carries mtime 2026-09-27 23:46:53, later
+than the newest source, header, test, or example file in the tree this pass
+read, `source/counters/fold.cpp` at 23:34:53. `ctest --test-dir build -N`
+reports 37 tests of which 16 match `-R counters`. The commit-title limit holds
+on the range from the merge base with `origin/master`, `65beada`, to `6121416`,
+whose 52 titles measure 50 characters or fewer, and the eleven titles from
+`11bc422` measure 41, 37, 44, 50, 45, 44, 50, 50, 49, 46, and 50 characters.
+
+Coverage of the check: 127 requirement keys (50 functional requirements
+numbering `FR-001` through `FR-050` with no gap, 10 success criteria numbering
+`SC-001` through `SC-010` with no gap, 49 user-story acceptance scenarios across
+8 stories, and 18 spec edge cases), 29 plan decision keys, and 11 constitution
+principles with X.1 through X.4 and XI.1 through XI.6 read one by one.
+Re-measured here: the glob `include/speedgun-ng/counters*.hpp` matches the 9
+headers `specs/007-counters-and-timers/plan.md:35`, `:298`, and `:325` record,
+`find source/counters -name '*.cpp'` returns the 11 translation units, and every
+`file:line` citation `spec.md`, `plan.md`, `quickstart.md`, `data-model.md`,
+`research.md`, and the three contracts place resolves to an existing file and a
+line inside it, with every single-line citation naming a non-blank line, so the
+citation class holds closed in the live artifacts. The `LCOV_EXCL` counts hold
+as well: the feature scope carries 304 tokens, the whole `source/` plus
+`include/` tree carries 308, and the 4 tokens in the difference sit in
+`include/speedgun-ng/dbc.hpp`, the figures the Phase 19 preamble records at
+`specs/007-counters-and-timers/tasks.md:925-928`. Ten findings: 9
+`contradicts`, 1 `partial`; 2 HIGH, 3 MEDIUM, 5 LOW, and none of the ten a
+constitution MUST violation. No requirement is missing or partially built, no
+requirement is contradicted by the code, and no plan decision is unmet. What is
+left is the audit record and the design artifacts the settled amendments never
+reached, and the code the earlier waves converged is untouched by all ten
+findings.
+
+The two classes the earlier passes closed hold in the places they closed them.
+Every `--mode tree` site outside this preamble states how that form is read and
+carries no number, the coverage-trace claims name their tree, the Phase 13
+header at `specs/007-counters-and-timers/tasks.md:427` carries no status marker,
+and each of the ten bodies from `11bc422` to `e95e413` states its prose-gate
+figure against a commit it names or states no source or unit figure. The one
+body that reintroduces the shape is the tip. The second shape those waves
+closed, a requirement amended in one artifact and restated unchanged in another,
+has ten sites across six artifacts that the amendments of FR-022, FR-024,
+FR-029, FR-034, and FR-046 never reached.
+
+### HIGH: the tip body states a figure for the range holding it
+
+- [X] T222 Rewrite the body of commit `6121416` so its prose-gate figure names the commit whose range reproduces it, or states the exit code alone, where the message reads `The prose gate run at the branch tip exits 0 over 118 sources and 8862 units with 0 findings and 1 skipped` and `python3 tools/prose/prose_gate.py --check all --head 6121416` reports 119 sources and 8970 units while the 118 and 8862 pair reproduces at `--head e95e413`, and where it is the one body from `11bc422` to `6121416` that states a whole-range figure without naming a commit, the other ten carrying either a named commit or no figure; the pre-merge rewrite the Pull Request Quality section permits applies, and the message must keep its template, its `Refs:` and `Approved-by:` footers, and the 50-character title `tools/prose/prose_rules.yaml:11` sets (HIGH, Constitution X.4, XI.6, T213, T216, T219, contradicts)
+
+### HIGH: five sites still describe a mismatch FR-024 made unrepresentable
+
+- [X] T223 Restate the five sites that describe a group target or clock mismatch as a construction error, at `specs/007-counters-and-timers/data-model.md:83` and `:90`, `specs/007-counters-and-timers/contracts/measurement-contract.md:48` and `:107`, and `specs/007-counters-and-timers/research.md:81`, where FR-024 at `specs/007-counters-and-timers/spec.md:252` states that a target or clock-identity mismatch across group members is unrepresentable and that the two construction errors a single target can fail on are a leaf the catalog reports as not `countable` and a window a provider refuses to open, where `source/counters/plan.cpp:469` stores the one `bound_target` for the whole plan and `source/counters/detail/core.hpp:104` declares it with no cross-member identity check anywhere in `source/counters/`, and where the Phase 14 preamble recorded that absence before T147 amended FR-024; each of the five sentences must state the single-plan-target design, and no requirement, entity row, or contract clause is renumbered or dropped (HIGH, FR-024, T147, contradicts)
+
+### MEDIUM: six sites still claim a read path free of dynamic dispatch
+
+- [X] T224 Restate the six sites that claim a read path carrying no dynamic dispatch, at `specs/007-counters-and-timers/contracts/provider-contract.md:13`, `specs/007-counters-and-timers/contracts/measurement-contract.md:56`, `specs/007-counters-and-timers/data-model.md:82`, and `specs/007-counters-and-timers/research.md:33`, `:35`, and `:37`, where FR-022 at `specs/007-counters-and-timers/spec.md:250` states that a read group is entered through the direct-call thunk its window installed in its constructor, that the five shipped windows reach `read_points` with no vtable lookup, and that a provider window installing no thunk reaches it through the vtable at one lookup per sampling action, and where `example/counters_giraffe_example.cpp:46` installs no thunk, so that fallback is a live path the giraffe example runs; each of the six sentences must name the seam and its per-action cost (MEDIUM, FR-022, T168, contradicts)
+
+### MEDIUM: the quickstart's closing paragraph names no pass and a withdrawn reason
+
+- [X] T225 Name the pass the closing paragraph of the success-criteria index records at `specs/007-counters-and-timers/quickstart.md:148-153`, which reads `Rows this pass could not close` and gives the gating reasons `/sys/devices/system/cpu/tsc_khz` absent, `perf_event_paranoid` 2, and the `rdpmc` page mode 0400 and root-owned, where the SC-004 row at `specs/007-counters-and-timers/quickstart.md:140` records the fast regime measured with both distributions published, and where T141 withdrew the kernel-gate reason the paragraph names; the paragraph must name the pass and the tree it describes, or state that it records a superseded pass, and no verdict, evidence filename, or figure in the table changes (MEDIUM, SC-004, T141, contradicts)
+
+### MEDIUM: the contract names five scope-misuse sequences where three are enforced
+
+- [X] T226 Restate the scope-misuse list at `specs/007-counters-and-timers/contracts/measurement-contract.md:119`, which names five tier-3 sequences including `use-after-finish` and `registering a composite into a started scope`, where the spec edge case at `specs/007-counters-and-timers/spec.md:199` and the clarification at `specs/007-counters-and-timers/spec.md:36` name three enforceable sequences, record that a finished scope is a settled window, and state that the registration has no spelling, and where `source/counters/plan.cpp:330` refuses a second start, `source/counters/plan.cpp:344-345` refuses `finish` without `start` and a second `finish`, `source/counters/fold.cpp:289-290` refuses `metric` on a window that is not closed, and `test/source/counters_fake_test.cpp:488-494` asserts ten further `metric` calls on a finished scope succeed with zero provider reads; the list must name the three enforced sequences and cite the amended edge case (MEDIUM, FR-046, T155, contradicts)
+
+### LOW: three research-record sentences the settled amendments left behind
+
+- [X] T227 Restate the arena allocation sentence at `specs/007-counters-and-timers/research.md:41`, which reads that the arena allocates at plan finalization, where FR-029 at `specs/007-counters-and-timers/spec.md:257` states that the plan-arena buffer is allocated at construction and `source/counters/plan.cpp:223` and `:239` allocate one arena per `plan::recorder` call, the boundary T126 and T160 settled for `specs/007-counters-and-timers/tasks.md:88` (LOW, FR-029, T126, T160, contradicts)
+- [X] T228 Restate the calibration boundary at `specs/007-counters-and-timers/research.md:57`, which reads that the `tsc` frequency is calibrated at system-open, where FR-034 at `specs/007-counters-and-timers/spec.md:265` states provider construction and the rationale that the catalog freezes at the open boundary, the boundary T127 and T153 settled for FR-034 (LOW, FR-034, T153, contradicts)
+- [X] T229 Restate the two thread-check sentences at `specs/007-counters-and-timers/research.md:67` and `specs/007-counters-and-timers/research.md:121`, which read that the recorder thread check is one cached `thread::id` compare, where the comment at `source/counters/plan.cpp:52-54` states the design in its own words: the cached `bound_thread` names the one allowed thread and the current thread's identity is read per call, because caching it would cache the answer for the thread that cached it, and `source/counters/plan.cpp:61` makes the fresh `std::this_thread::get_id()` query, which is what T129 recorded (LOW, FR-031, T129, contradicts)
+
+### LOW: a header enumeration and a test count the tree has outgrown
+
+- [X] T230 Extend R-001's header enumeration at `specs/007-counters-and-timers/research.md:9` to the nine public headers the tree carries, naming `counters_clock.hpp`, `counters_push.hpp`, and `counters_pmu.hpp` beside the six it lists, where the glob `include/speedgun-ng/counters*.hpp` matches 9 headers and `specs/007-counters-and-timers/plan.md:35`, `:298`, and `:325` record nine, and where T117 made the same amendment at `specs/007-counters-and-timers/tasks.md:30`; no R-entry, decision, or alternative is renumbered (LOW, T117, R-001, partial)
+- [X] T231 Correct the test-executable count the Phase 23 preamble records at `specs/007-counters-and-timers/tasks.md:1312`, which reads `the 11 counters test executables` in a sentence enumerating what the tree holds, where `test/CMakeLists.txt` carries 12 `add_executable(counters_*)` calls at `:145`, `:150`, `:180`, `:187`, `:196`, `:210`, `:220`, `:228`, `:236`, `:263`, `:276`, and `:299`, and where the seam test that makes the twelfth arrived in commit `19902b2`; the count must read twelve, or the sentence must name the eleven project-structure sources `specs/007-counters-and-timers/plan.md:147-164` lists, and the sibling counts the same paragraph records, the 9 headers and the 11 translation units, are correct and do not move (LOW, Constitution X.4, contradicts)

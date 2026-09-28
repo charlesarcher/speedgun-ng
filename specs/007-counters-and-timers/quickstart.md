@@ -145,12 +145,17 @@ fact to record, and a verdict is not awarded for it.
 | SC-009 | 11 | PASS | `python3 tools/pmu_events/update_pmu_events.py --check` exit 0; `ctest --test-dir build/agent-dc -R pmu_events_check` 1 passed, exit 0; `--check` reads the tree, `RECORD` and the gate constant, with no fetch step | `sc-009-pmu-events-check.txt`, `sc-009-pmu-events-ctest.txt` |
 | SC-010 | 12 | PASS | `ctest --test-dir build/agent-dc -R counters_overhead -V`: the fold figure prints on its own line, separate from the per-`sample()` distributions | `sc-004-counters-overhead-V.log` |
 
-Rows this pass could not close: SC-004's fast side, gated by the probe
+Rows the 2026-09-27 verdict pass on the `build/agent-dc` tree could not
+close: SC-004's fast side, gated by the probe
 (`/sys/devices/system/cpu/tsc_khz` absent, `perf_event_paranoid` 2, the
 `rdpmc` page mode 0400 and root-owned); SC-002's complete suite, which
 spans the dbc and vendored-dependency tests as well. Section 13's gates
-were out of this pass's scope for the same reason, and `dbc-gate` could
-not run here because the environment lacks PyYAML.
+were out of that pass's scope for the same reason, and `dbc-gate` could
+not run there because the environment lacked PyYAML. That pass is
+superseded: the re-verification after the fast-read fix (T131..T141) took
+SC-002 and SC-004 on the shared `build/dev` tree, T141 withdrew the
+kernel-gate reason the fast side was gated on, and the section 13 gate
+pass below closed the gates that pass left out of scope.
 
 ## Section 13 gate pass, 2026-09-27
 
