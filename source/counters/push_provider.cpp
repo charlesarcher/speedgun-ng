@@ -108,6 +108,17 @@ std::unique_ptr<window_reader> push_provider::open(const leaf_set& leaves,
     if (match == nullptr) {
       return nullptr;
     }
+    // Every cell in one window shares the thread that created it, so
+    // one owner per window decides the `read_points` guard for all of
+    // them, and a per-cell owner array would add a load and a compare
+    // per cell to the sampling path `plan.md` designates critical for
+    // nothing. A leaf set carrying two owners has no safe sampling
+    // thread at all: `sample_point` binds a plan to the thread that
+    // compiled it (FR-031) and FR-035 confines a read to the owning
+    // thread, so the check belongs here in the untimed open rather
+    // than in the read (FR-035, FR-026, T267).
+    SG_REQUIRE(window->cells.empty() || match->owner == window->owner,
+               "one push window holds counters from one thread (FR-035)");
     window->cells.push_back(&match->value);
     window->owner = match->owner;
   }
