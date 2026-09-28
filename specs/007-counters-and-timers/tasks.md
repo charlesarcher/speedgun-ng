@@ -2939,15 +2939,15 @@ static-analysis diagnostic count. `readelf -d` on
 `bash test/counters_header_purity.sh` exits 0 at
 `counters_header_purity: clean`.
 
-Prose-gate figures measured at named heads, each reported with the command
-that produced it: `python3 tools/prose/prose_gate.py --check all --head
+Three prose-gate figures measured at named heads, each reported with the
+command that produced it, and a fourth command reported by its exit code:
+`python3 tools/prose/prose_gate.py --check all --head
 f1d3023` exits 0 at 129 sources and 10737 units, the same pair the
 range-less `--check all` reports on this tree; `--head 1827d76` exits 0 at 128
 sources and 10250 units; `--head 30f6361` exits 0 at 126 sources and 9919
 units; and `python3 tools/prose/prose_gate.py --check prose --mode tree
 --paths specs/007-counters-and-timers docs/pages/counters-overhead.md` exits 0
-at 13 sources and 5278 units. The merge base with `origin/master` is
-`65beada`.
+and no unit total. The merge base with `origin/master` is `65beada`.
 
 Counting rule for every anchor total named in this preamble, so a reader can
 reproduce it, which is the rule `specs/007-counters-and-timers/citations.md:32-41`
@@ -3190,3 +3190,172 @@ items that survive it.
   applied to the coverage-trace freshness claim and `T268` to the tip body, and
   every other `--mode tree` total keeps its stated reading with no number
   (LOW, Constitution X.4, T206, `contradicts`)
+
+## Phase 37: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `9c5dfa5`
+and of the residue the twenty-five waves before it left. Nothing above this
+line changed.
+
+Audit evidence, all produced by this pass from the repository root on Linux.
+`cmake --preset=dev` and `cmake --build --preset=dev` exit 0.
+`ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed, 0 failed,
+0 skipped, 43.64 s. `ctest --test-dir build -N` exits 0 and reports
+`Total Tests: 37`. `python3 tools/prose/prose_gate.py --check all` and
+`cmake -P cmake/prose-lint.cmake` both exit 0 on the same verdict,
+`prose-lint: 132 sources, 11315 units examined, 0 findings, 1 skipped`, the
+one skipped source being `hwloc.md`. `ctest --test-dir build -R
+prose_gate_fixtures` exits 0 with 1 of 1. `cmake --build build/dev -t
+format-check` exits 0. `cmake --build build/dev -t dbc-gate` exits 0,
+reporting `doc-gate: 135 interfaces, 0 gaps` and `pair-gate: 135
+interfaces, 0 gaps`. `cmake -P cmake/spell.cmake` exits 0, and `python3
+tools/pmu_events/update_pmu_events.py --check` exits 0. `bash
+tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 over 21
+source files at lines 100.0 percent (1955 of 1955), branches 100.0 percent
+(705 of 705), and functions 98.0 percent (289 of 295) on an axis the gate
+does not score. `cmake --preset=ci-ubuntu` exits 0 and `cmake --build
+build`, the release build Principle IX requires once per feature, exits 0
+over an incremental tree, so this pass states no static-analysis diagnostic
+count. `bash test/counters_header_purity.sh` exits 0 at
+`counters_header_purity: clean`. `readelf -d` on
+`build/dev/example/counters_standalone_example` and on
+`build/dev/example/counters_giraffe_example` names `libstdc++.so.6`,
+`libgcc_s.so.1`, and `libc.so.6` in each, with zero `speedgun-ng` entries.
+`./build/dev/test/counters_pmu_test` exits 0 reporting `pmu catalog: 581
+table-selected entries beyond kernel aliases` beside `pmu availability: 358
+countable, 0 permission_blocked, 261 not_encodable, 356 fast_rdpmc`.
+`./build/dev/test/counters_trap_fixture push-mixed-owner` exits 134 on the
+precondition at `source/counters/push_provider.cpp:120`.
+
+Counting rule for every anchor total named in this preamble, the rule
+`specs/007-counters-and-timers/citations.md:32-41` states: the unit is one
+occurrence of the regular expression
+`(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` matched over a named line
+range of a named file, a distinct token is the deduplicated form of that
+unit, and a bare continuation is one occurrence of `(?<![\w./-]):\d+\b`,
+counted the same way. Under that rule, applied to
+`specs/007-counters-and-timers/tasks.md` lines 1 through 3192, the file as
+it stood before this section was appended, the count is 815 occurrences, 548
+distinct tokens, and 485 bare continuations. Under the same rule, applied to the nine live artifacts over
+their whole length, `spec.md`, `plan.md`, `research.md`, `data-model.md`,
+`quickstart.md`, `sg_counters.md`, and the three files under `contracts/`,
+the count is 44 occurrences, distributed `spec.md` 28, `plan.md` 7,
+`quickstart.md` 4, `research.md` 3, and `contracts/system-contract.md` 2,
+with none in `data-model.md`, `sg_counters.md`,
+`contracts/provider-contract.md`, or `contracts/measurement-contract.md`.
+
+Coverage of the check: 127 requirement keys, counted as 50 functional
+requirements numbering `FR-001` through `FR-050` with no gap, 10 success
+criteria numbering `SC-001` through `SC-010` with no gap, 49 user-story
+acceptance scenarios counted as US1 7, US2 7, US3 6, US4 6, US5 4, US6 7,
+US7 6, US8 6, and 18 edge cases at `specs/007-counters-and-timers/spec.md:195-212`;
+45 design keys, counted as 15 research decisions `R-001` through `R-015`, 11
+data-model entities `E-01` through `E-11`, and 19 contract clauses
+`C-MEA-1` through `C-MEA-7`, `C-PRO-1` through `C-PRO-6`, and `C-SYS-1`
+through `C-SYS-6`; and 11 constitution principles with X.1 through X.4 and
+XI.1 through XI.6 read one by one. Re-measured here: the 9 headers
+`include/speedgun-ng/counters*.hpp` matches, the 11 translation units
+`find source/counters -name '*.cpp'` returns, the 12
+`add_executable(counters_)` calls `test/CMakeLists.txt` carries, and the
+`LCOV_EXCL` count at 301 tokens in the feature scope. Every finding below
+was re-derived in this session from the files it cites, and no closure claim
+in the Phase 12 through Phase 36 preambles was accepted as evidence.
+
+Two findings: 2 `contradicts`; 1 HIGH, 1 LOW; none is `missing`, `partial`,
+or `unrequested`, and neither is a constitution MUST violation. Both sit in
+the feature's own record, and the code the earlier waves converged is
+untouched by both. `T267`'s mixed-owner fix is landed and its trap fires,
+`T271`'s accepted fold-lookup cost is recorded at
+`source/counters/detail/core.hpp:100-114`, `T272`'s six functions are named
+and explained at `specs/007-counters-and-timers/plan.md:459`, and the four
+anchors that row names resolve where it says, at
+`include/speedgun-ng/counters_measurement.hpp:619` and
+`include/speedgun-ng/counters_provider.hpp:110`, `:281`, and `:367`. `T234`'s
+group scratch is sized in the constructor at
+`source/counters/linux_pmu/group_io.cpp:191-196` and the sampling-path growth
+arm is gone, `T075`'s fast window reads the pair from the leader's page at
+`source/counters/linux_pmu/group_io.cpp:341`, and `T145`'s staged duplicate
+path lookup and `T096`'s duplicate alias refusal both stand at
+`source/counters/system.cpp:308` and `:344`.
+
+Three residue items the previous passes reported were assessed on their own
+evidence and none becomes a task. The body of commit `6121416` is not on
+this branch: `git merge-base --is-ancestor 6121416 HEAD` exits non-zero
+while `git cat-file -t 6121416` still reports a commit, and
+`specs/007-counters-and-timers/citations.md:266-273` already records the
+unanchored figure that body carries, so the branch holds no commit to amend.
+Semantic gating is the established design for this facility: the
+mixed-owner check at `source/counters/push_provider.cpp:120` is an
+`SG_REQUIRE`, and so are the `add()` guard at
+`include/speedgun-ng/counters_measurement.hpp:334`, the window guard at
+`source/counters/push_provider.cpp:40`, and the plan binding at
+`source/counters/plan.cpp:61`; FR-035 at
+`specs/007-counters-and-timers/spec.md:266` classifies cross-thread push
+misuse as tier-3, which FR-046 at `spec.md:283` terminates in dev/CI, and
+Principle II at `.specify/memory/constitution.md:112-118` requires a
+semantic-gated check to emit no code in release, its one always-on exception
+being the `SG_REQUIRE_ALWAYS` bounds at `source/counters/plan.cpp:366` that
+FR-027 mandates. The functions axis needs no scoring: Constitution VI at
+`.specify/memory/constitution.md:190-192` names line, branch, and DBC as its
+three hard gates, `tools/dbc/coverage_gate.sh:25-27` and `:35-37` read the
+line row and the branch row alone, and
+`specs/007-counters-and-timers/plan.md:459` already states that the set of
+six is trace-dependent and that every entry in it is a defaulted or
+compiler-emitted special member.
+
+### HIGH: the anchor record's distinct-token axis is inverted against the counting rule it states
+
+- [X] T274 Restate the distinct-token axis of
+  `specs/007-counters-and-timers/citations.md` to the figures the record's
+  own counting rule yields, and correct the paragraph that declares the
+  preambles' figures irreproducible. The rule at
+  `specs/007-counters-and-timers/citations.md:32-41` states the unit as one
+  occurrence of `(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` with a
+  distinct token its deduplicated form. Applying that exact pattern to the
+  exact populations the record names yields 467 distinct tokens for
+  `specs/007-counters-and-timers/tasks.md` lines 1 through 2422, 476 for
+  lines 1 through 2578, and 518 for lines 1 through 2905, which are the
+  figures the Phase 34, Phase 35, and Phase 36 preambles carry at
+  `specs/007-counters-and-timers/tasks.md:2872`, `:2642`, `:2644`, and
+  `:2964`. The record instead carries 163 at
+  `specs/007-counters-and-timers/citations.md:46`, 168 at `:55`, a Phase 34
+  contribution of 5 distinct tokens at `:57` where the same rule yields 9,
+  and the paragraph at `:74-86` asserts that the preambles' 467, 476, and 518
+  "do not reproduce under the rule stated above" and are each "superseded by
+  the rule's own yields of 163, 168, and 183", which the rule named in the
+  same paragraph does not produce; the paragraph dismisses `T270` at `:83-85`
+  as stating "the reverse of that result", while the task text of `T270` at
+  `specs/007-counters-and-timers/tasks.md:3113-3114` states the correct
+  result and `T270` is checked `- [X]`, so the remediation ran opposite to
+  the correction the task specifies. The occurrence totals 702, 724, and 776
+  and the bare-continuation totals 420, 449, and 472 the same paragraph
+  carries reproduce exactly and keep their values. Restate
+  `specs/007-counters-and-timers/citations.md:46`, `:55`, and `:57` to 467,
+  476, and 9, correct `:74-86` so the preambles' figures are recorded as
+  reproducing under the stated rule, drop the dismissal of `T270`, keep the
+  counting rule and its pattern as written, and move no dated preamble and no
+  closed task line (HIGH, Constitution X.4, Constitution IV, T265, T270,
+  `contradicts`)
+
+### LOW: the newest preamble's narrowed tree-mode figure names no head and does not reproduce
+
+- [X] T275 Restate the narrowed `--mode tree` figure the Phase 36 preamble
+  carries at `specs/007-counters-and-timers/tasks.md:2942-2950`, which opens
+  `Prose-gate figures measured at named heads, each reported with the command
+  that produced it`, names three heads (`f1d3023`, `1827d76`, `30f6361`),
+  and then gives a fourth figure, `13 sources and 5278 units`, from
+  `python3 tools/prose/prose_gate.py --check prose --mode tree --paths
+  specs/007-counters-and-timers docs/pages/counters-overhead.md`, which names
+  no head and does not reproduce: the same command on the tree `9c5dfa5`
+  leaves exits 0 at `13 sources, 5598 units examined, 0 findings, 0 skipped`,
+  and `tools/prose/prose_gate.py:587-604`, `:842-860`, and `:936` establish
+  that the form takes its candidate set and its per-line authorship filter
+  from the range while `read_source` reads the working tree, so no commit
+  reproduces its total. The sentence must state the exit code alone, or name
+  the commit whose tree the figure was measured against, the anchoring `T206`
+  applied to six earlier preambles, `T215` to the coverage-trace freshness
+  claim, `T269` to the two range-form sentences, and `T273` to the Phase 35
+  narrowed figure. This pass leaves the Phase 36 preamble byte-for-byte as
+  written, so the edit belongs to the implement pass that takes the task, and
+  no other figure in the file moves (LOW, Constitution X.4, T206, T215, T269,
+  T273, `contradicts`)

@@ -43,17 +43,17 @@ figures reproduced under none.
 The population is every anchor the Phase 1 through Phase 33 record in
 `specs/007-counters-and-timers/tasks.md` places, which is lines 1
 through 2422 of that file, the line before the Phase 34 heading: 702
-occurrences and 163 distinct tokens of the path form, each resolved to
-an existing tracked file, plus 420 bare `:NN` continuations, each
-attributed to the path it continues. A continuation is attributed by
-hand because a line naming two files attaches the continuation to the
-wrong one under an automated pass.
+occurrences and 467 distinct tokens of the path form, plus 420 bare
+`:NN` continuations. Every token is attributed to the file it belongs to
+by hand, because a line naming two files attaches a continuation to the
+wrong one under an automated pass and a short path form matches several
+tracked files.
 
 Two other readings of the same rule are in circulation, and the
 difference between them is the Phase 34 section. Lines 1 through 2578
 of the file, the whole file as it stood when that section was
-appended, carry 724 occurrences, 168 distinct tokens, and 449
-continuations, so the Phase 34 section contributes 22 occurrences, 5
+appended, carry 724 occurrences, 476 distinct tokens, and 449
+continuations, so the Phase 34 section contributes 22 occurrences, 9
 distinct tokens, and 29 continuations. The nine live artifacts named
 below, `spec.md`, `plan.md`, `research.md`, `data-model.md`,
 `quickstart.md`, `sg_counters.md`, and the three files under
@@ -71,19 +71,19 @@ and Phase 35 sweeps ran at, the same rule yields 38 with `research.md` at
 of lines 1 through 2422, and the 762 at `:2536` is the same 38 beside
 the 724 of lines 1 through 2578.
 
-The distinct-token figures the dated preambles carry do not reproduce
-under the rule stated above. The 467 for lines 1 through 2422, which the
-Phase 34 preamble at
-`specs/007-counters-and-timers/tasks.md:2872` and the Phase 35 preamble at
-`:2642` carry, the 476 for lines 1 through 2578, which the Phase 35
+The distinct-token figures the dated preambles carry reproduce under the
+rule stated above, one figure per population. The 467 for lines 1 through
+2422, which the Phase 34 preamble at
+`specs/007-counters-and-timers/tasks.md:2872` and the Phase 35 preamble
+at `:2642` carry, the 476 for lines 1 through 2578, which the Phase 35
 preamble at `:2644` carries, and the 518 for lines 1 through 2905, which
-the Phase 36 preamble at `:2964` carries, are each superseded by the
-rule's own yields of 163, 168, and 183. The occurrence totals and the
-bare-continuation totals those preambles carry reproduce exactly, at 702,
-724, and 776 occurrences and 420, 449, and 472 continuations. The task
-text of `T270` at `specs/007-counters-and-timers/tasks.md:3113-3114`
-states the reverse of that result, and this paragraph is the measurement
-the record rests on.
+the Phase 36 preamble at `:2964` carries, are each the deduplicated form
+of the unit that rule names. A deduplication of the parenthesised group
+`(-\d+)?` alone yields 163, 168, and 183 for the same three populations,
+and those figures count distinct line-range suffixes, which hold no path
+and no line number. The occurrence totals and the bare-continuation
+totals those preambles carry reproduce exactly, at 702, 724, and 776
+occurrences and 420, 449, and 472 continuations.
 
 Three criteria decide drift, and every row below was read against the
 tree as it stands on 2026-09-28:
@@ -259,9 +259,9 @@ that reads the whole repository is
 
 The same body's paragraph on `T265` reports that a distinct-token figure
 of 476 does not reproduce under the rule the preamble states, which
-yields 168. This pass measured that result and recorded it above, and
-the three preambles carrying 467, 476, and 518 are the side that does
-not reproduce.
+yields 168. The measurement recorded above finds 476 reproducing and 168
+counting distinct line-range suffixes, so the three preambles carrying
+467, 476, and 518 agree with the rule the record states.
 
 The body of commit `6121416` carries the same class of claim and was
 named by `T222` at
@@ -274,7 +274,7 @@ is recorded above.
 
 ## Re-anchors inside this record
 
-T261, T262, T263, T264, T265, T266, and T267 through T273 grew this
+T261, T262, T263, T264, T265, T266, and T267 through T275 grew this
 record, so the line numbers the texts that cite it name have moved. The
 table gives the number each such text wrote and the line holding the
 same material now. The closed task lines, the dated preambles, and the
@@ -286,8 +286,8 @@ Principle VIII and Pull Request Quality: Immutability.
 | `:20-24` | `:18-28`, the Precedence section |
 | `:28-31` | `:32-41` for the counting rule, `:43-50` for the population, `:52-86` for the two other readings and the distinct-token result |
 | `:40` | `:93`, the third drift criterion |
-| `:46` | `:46`, unchanged; the rule yields the 163 the line records |
-| `:55` | `:55`, unchanged; the rule yields the 168 the line records |
+| `:46` | `:46`, unchanged; the line records the 467 the rule yields |
+| `:55` | `:55`, unchanged; the line records the 476 the rule yields |
 | `:57-58` | `:110-111` |
 | `:59` | `:112` |
 | `:80` | `:97`, and a second `:80` written by another text at `:133` |
@@ -299,3 +299,39 @@ Principle VIII and Pull Request Quality: Immutability.
 | `:145-150` | `:162-167`, the T091 clause paragraph |
 | `:180-186` | `:197-203`, the 58-line journal list |
 | `research.md:33` and `:37` | `research.md:43` and `:45`, the two anchors `f1d3023` added; the task text of `T270` at `specs/007-counters-and-timers/tasks.md:3123` carries the stale pair |
+
+## The nine live artifacts at a second head
+
+The distribution above names `f1d3023` as the head it was measured at, and
+that is the head the sentence is about, so both figures below name their
+own head. At `f1d3023` the nine live artifacts carry 40 occurrences,
+distributed `spec.md` 28, `quickstart.md` 4, `plan.md` 3, `research.md` 3,
+and `contracts/system-contract.md` 2. At `9c5dfa5` they carry 44 with the
+same distribution except `plan.md` at 7, the four added anchors being
+`tools/dbc/coverage_gate.sh:25-27`,
+`include/speedgun-ng/counters_measurement.hpp:619`,
+`include/speedgun-ng/counters_provider.hpp:110`, and
+`include/speedgun-ng/counters_measurement.hpp:1042-1045`. A pass that
+applies the rule to the working tree reads 44 and names no head, which is
+the reading the Phase 37 preamble at
+`specs/007-counters-and-timers/tasks.md:3242` carries, and a pass that
+applies it at `f1d3023` reads 40, which is the reading the paragraph above
+this one records.
+
+## A prose-gate total that names no head
+
+The Phase 36 preamble at
+`specs/007-counters-and-timers/tasks.md:2942` opens by naming three heads
+for its prose-gate figures and then gives a fourth total, `13 sources and
+5278 units`, from `python3 tools/prose/prose_gate.py --check prose --mode
+tree --paths specs/007-counters-and-timers
+docs/pages/counters-overhead.md`, and names no head for it. That form
+takes its candidate set from `git ls-files` at
+`tools/prose/prose_gate.py:587-590` and reads every candidate from the
+working tree at `:842-860`, as `:936` shows it does in both modes, so its
+total is a reading of the working tree. Measured here, that form exits 0
+at 13 sources and reports one reading with and without `--head 9c5dfa5`,
+which confirms that the head argument selects no text in that mode, and
+the sentence now carries its exit code alone. `T206` applied that
+treatment to six earlier preambles, `T215` to the coverage-trace freshness
+claim, `T268` to the tip body, and `T269` to the two range-form sentences.
