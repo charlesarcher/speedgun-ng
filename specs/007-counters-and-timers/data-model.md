@@ -79,15 +79,15 @@ Validation: dimension violations are compile errors (R-003); zero-leaf expressio
 
 | Field | Shape | Notes |
 |---|---|---|
-| leaf slots | slot id, provider read descriptor, point-column offset | flat; read path holds no tree, dispatch, or name lookup (FR-022) |
-| group layout | PMU leader per PMU, members attached | shared target and clock identity validated at construction (FR-024) |
+| leaf slots | slot id, provider read descriptor, point-column offset | flat; read path holds no tree and no name lookup, and enters a window through the direct-call thunk its constructor installed, so a window installing no thunk pays one vtable lookup per sampling action (FR-022) |
+| group layout | PMU leader per PMU, members attached | every group and read mode in a plan opens against the one target that plan bound, so a target or clock-identity mismatch across group members is unrepresentable (FR-024) |
 | read modes | per-leaf achieved mode from probe | `fast_tsc` / `fast_rdpmc` / `syscall` / `push_load` (FR-023) |
 | fold program | per composite: column references with exponents and ops | evaluated only on demand (FR-021) |
 | arena geometry | capacity x columns layout | allocated at construction (FR-029) |
 | targeting binding | thread or cpu | bound at plan open; plan is a per-thread object (FR-031) |
 | overhead calibration | min/median/max distribution of the plan's `sample()` cost | FR-032; R-014 |
 
-Validation: group target/clock mismatch is a recoverable construction error, never a read-time surprise (FR-024). State transitions:
+Validation: every group and read mode in a plan opens against the one target that plan bound, so a target or clock-identity mismatch across group members is unrepresentable; the construction errors a single target still fails on are a leaf the catalog reports as not `countable` and a window a provider refuses to open, both recovered before any hardware read (FR-024). State transitions:
 
 ```text
 compiling --(finalize: arena + calibration)--> bound(thread/cpu) --(per-thread use)--> in use
