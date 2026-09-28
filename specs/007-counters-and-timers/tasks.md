@@ -355,7 +355,7 @@ runs and reports `lines 85.1% (1686 of 1982), functions 90.2% (230 of 255), bran
 
 - [X] T071 Add `SG_ENSURE(!started && !finished, "a fresh scope awaits start() (FR-030)")` to `scope::scope` at `source/counters/plan.cpp:270-276` and move the uncheckable `\pre compiled outlives the scope` clause out of the enforced contract into the lifetime note beside `include/speedgun-ng/counters_measurement.hpp:946-950`; also state `expression::fold_pairs`'s real two-point precondition at `counters_measurement.hpp:654-655` instead of `\pre none \post none` (CRITICAL, Constitution II, `partial`)
 - [X] T072 Write the reason in the same comment for all 8 bare `NOLINTNEXTLINE` directives: `include/speedgun-ng/counters_core.hpp:216` and `:234`, `include/speedgun-ng/counters_provider.hpp:37`, `:62`, `:125`, `:135`, `:150`, and `include/speedgun-ng/counters_measurement.hpp:610` (CRITICAL, Constitution X.2, `partial`)
-- [X] T073 Split the contrastive sentence in `source/counters/linux_pmu/table_parse.cpp:18-19` so no unit carries the `X rather than Y` shape, and drop the filler token `actually` from the comment at `include/speedgun-ng/counters_measurement.hpp:147`; both are reviewer-parity defects under `constitution.md:447-448` rather than mechanical prose-lint findings, because `prose_rules.yaml:94` matches a leading space the stripped comment unit does not carry and `prose_gate.py:876-883` exempts a whole unit containing a code span (CRITICAL, Constitution XI.2 and XI.5, `partial`)
+- [X] T073 Split the contrastive sentence in `source/counters/linux_pmu/table_parse.cpp:18-19` so no unit carries the `X rather than Y` shape, and drop the filler token `actually` from the comment at `include/speedgun-ng/counters_measurement.hpp:147`; both are reviewer-parity defects under `constitution.md:461-462` rather than mechanical prose-lint findings, because `prose_rules.yaml:94` matches a leading space the stripped comment unit does not carry and `prose_gate.py:876-883` exempts a whole unit containing a code span (CRITICAL, Constitution XI.2 and XI.5, `partial`)
 
 ### HIGH: core functional requirement and acceptance-criterion gaps
 
@@ -394,7 +394,7 @@ runs and reports `lines 85.1% (1686 of 1982), functions 90.2% (230 of 255), bran
 - [X] T103 Add contract blocks to the `include/speedgun-ng/counters.hpp` umbrella or amend T004, which names the umbrella among the six headers "with doxygen pre/post/invariant contract blocks"; the file carries none, and `\invariant` appears exactly once across the whole header set at `include/speedgun-ng/counters_provider.hpp:227` (MEDIUM, T004, `partial`)
 - [X] T104 Make the counters `target_sources` bracket in `CMakeLists.txt:653-670` recursive so a future `source/counters/detail/*.cpp` is not silently dropped, as the two non-recursive GLOBs do today (MEDIUM, T003, `partial`)
 - [X] T105 Add a release-configured CTest target so `ctest -R counters_trap` reproduces the FR-027 release proof, which today lives only in the CI shell step at `.github/workflows/ci.yml:343-398` and runs the fixture rather than the checker; or amend T023 and the US2 independent test at `tasks.md:78` (MEDIUM, FR-027, `partial`)
-- [X] T106 Add a `ci-sanitize` build preset and a `ci-sanitize` test preset to the committed `CMakePresets.json` so T065's command and `quickstart.md:114` can run; the file currently declares no `buildPresets` and no `testPresets`, and the `dev` presets must stay in the machine-local `CMakeUserPresets.json` (`constitution.md:554-556`) (MEDIUM, T065, `partial`)
+- [X] T106 Add a `ci-sanitize` build preset and a `ci-sanitize` test preset to the committed `CMakePresets.json` so T065's command and `quickstart.md:114` can run; the file currently declares no `buildPresets` and no `testPresets`, and the `dev` presets must stay in the machine-local `CMakeUserPresets.json` (`constitution.md:568-570`) (MEDIUM, T065, `partial`)
 - [X] T107 Read the staging tree when replacing in `tools/pmu_events/update_pmu_events.py:325-336`, where the staging directory is written and never used because the tree is rewritten from the in-memory dict; or drop the staging directory and record that the replace is last-writer-wins from memory (MEDIUM, T059, `partial`)
 - [X] T108 Replace the full set of allocation functions in `test/source/counters_noalloc_test.cpp:42-76`, which overrides only the plain `operator new(std::size_t)` and leaves `new[]`, the nothrow form and the aligned forms uncounted, so an array-form allocation on the sample path escapes the count (MEDIUM, SC-005, `partial`)
 - [X] T109 Delete or repair `test/source/counters_recorder_test.cpp:107`, which asserts that a full `hard_stop` recorder never wraps, a fact `hard_stop_sample_core` at `source/counters/plan.cpp:318-330` can never violate because it never assigns the flag (MEDIUM, T022, `partial`)
@@ -1058,3 +1058,70 @@ behind is one count in the plan's physical-view table (T195).
 ### MEDIUM: the plan's physical-view table still names six public headers
 
 - [X] T195 Correct `specs/007-counters-and-timers/plan.md:298`, whose Files-and-duties row names the public surface as `include/speedgun-ng/counters*.hpp` "(6 files)" while the tree holds nine headers, while `specs/007-counters-and-timers/plan.md:35` states "9 new public headers", while `specs/007-counters-and-timers/plan.md:325` states "The nine public headers carry it" and lists them, and while `T117` amended `tasks.md:30` to name all nine; `T117` removed the claim from two of the three places it stood and left this one, which is the sibling-occurrence class `T175` recorded, and the count must read nine (MEDIUM, plan: Files and their duties, T117, `partial`)
+
+## Phase 21: Convergence
+
+Appended by `/speckit.converge` after an audit of the `2f27800` and `0dd797e`
+completion claims and of the citation residue the eight waves before them left.
+Nothing above this line changed.
+
+Audit evidence, all produced by this pass. The prose gate run at the branch tip,
+`python3 tools/prose/prose_gate.py --check all`, exits 0 over 111 sources and 8092
+units with 0 findings and 1 skipped, and the two figures `2f27800` recorded
+reproduce exactly by passing the commit each names: the gate run at `2f27800`
+reports 110 sources and 7995 units and the gate run at `11bc422` reports 107
+sources and 7846 units, both exit 0, which is the anchoring that commit's message
+claims for them. `cmake -P cmake/spell.cmake` exits 0, and
+`python3 tools/pmu_events/update_pmu_events.py --check` exits 0. The debug tree
+configures and builds to exit 0 and `ctest --preset=dev` passes 37 of 37 with 0
+failed and 0 skipped in 43.50 s. The release build Principle IX requires once per
+feature, `cmake --preset=ci-ubuntu` then `cmake --build build`, exits 0 with zero
+warnings in the project's own C++ sources, and the `format-check` and `dbc-gate`
+targets exit 0.
+`build/coverage/coverage.info` carries mtime 2026-09-27 23:46:53, later than the
+newest source in the tree (23:34:53, `source/counters/fold.cpp`), and
+`bash tools/dbc/coverage_gate.sh` run on it exits 0 at lines 100.0% (1955 of
+1955), branches 100.0% (705 of 705), and functions 98.0% (289 of 295) on an axis
+no gate scores. `readelf -d` and `ldd` on
+`build/example/counters_standalone_example` name the platform C and C++ runtime
+alone with zero `speedgun-ng` entries, and `ctest --test-dir build -N` reports 37
+tests of which 16 match `-R counters`, the two counts the SC-002 row records.
+
+Coverage of the check: 127 requirement keys (50 FR, 10 SC, 49 user-story
+acceptance scenarios, 18 spec edge cases), 29 plan decision keys, and 11
+constitution principles with X.1 through X.4 and XI.1 through XI.6 read one by
+one. Two findings: 2 `partial`; 0 CRITICAL, 0 HIGH, 2 MEDIUM. No requirement is
+missing, no requirement is partially built, and no requirement is contradicted by
+the code.
+
+The citation class the previous wave reported exhausted holds in the live
+artifacts, verified rather than taken on report. Every `file:line` citation
+`spec.md`, `plan.md`, `quickstart.md`, `data-model.md`, `research.md`, and the
+three contracts place into a source, a header, or a second artifact names a file
+that exists, every single-line citation names a non-blank line, and each
+load-bearing range was read against the claim it carries:
+`docs/pages/counters-overhead.md:160-161` and `:170-173` and `:326-327` against
+the release and correctness-build medians and the level-3 refusal,
+`source/counters/plan.cpp:448-457` and `:502-504` and `:61-62` and `:330` and
+`:344-345`, `source/counters/fold.cpp:289-290`,
+`source/counters/detail/core.hpp:104`, `source/counters/detail/pmu.hpp:292`,
+`source/counters/clock_provider.cpp:206-236`,
+`include/speedgun-ng/counters_measurement.hpp:1089-1095` and `:981-1053`,
+`include/speedgun-ng/counters_provider.hpp:245-251`, and
+`example/counters_giraffe_example.cpp:46-57`. Each holds the claim its sentence
+makes. The gate's `--mode tree` form exits 1 with 108 findings over 226 sources
+and 17264 units, and none of them sits in this feature's artifacts, in
+`include/speedgun-ng/counters*`, in `source/counters/`, in
+`test/source/counters_*`, in `example/counters_*`, in
+`docs/pages/counters-overhead.md`, or in `tools/pmu_events/`.
+
+What is left is the two lines the 2.9.1 citation pass shifted. That pass moved
+each cited anchor by the amendment's line count and confirmed the shift
+arithmetic, and arithmetic alone cannot tell whether the old anchor held the claim
+it was written to support. Two of them named unrelated text, and each names
+unrelated text still.
+
+### MEDIUM: two shifted anchors name text the sentence does not claim
+
+- [X] T196 Re-anchor T106's constitution pointer at `specs/007-counters-and-timers/tasks.md:397` per Constitution IV, which names `constitution.md:554-556` to support the claim that the `dev` presets must stay in the machine-local `CMakeUserPresets.json`, where that range holds the tail of the Language bullet and the head of the Warnings-and-hardening bullet and the sentence it names stands at `constitution.md:568-570`; the pre-amendment range `:531-533` held the same unrelated text and the sentence stood at `:545-547`, so the shift in `11bc422` moved the anchor and left it wrong (MEDIUM, `partial`)
+- [X] T197 Re-anchor T073's constitution pointer at `specs/007-counters-and-timers/tasks.md:358` per Constitution IV, which names `constitution.md:447-448` to support the claim that both defects are reviewer-parity defects, where that range holds the tail of the XI.5 marketing-vocabulary list and the clause it names stands at `constitution.md:461-462` in XI.6, with XI.2 at `:411-421` and the `actually` filler entry at `:442`; the pre-amendment range `:424-425` held the same unrelated text, so the shift in `11bc422` moved the anchor and left it wrong (MEDIUM, `partial`)
