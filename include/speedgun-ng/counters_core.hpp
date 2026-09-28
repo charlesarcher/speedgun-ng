@@ -86,8 +86,9 @@ enum class availability : std::uint8_t
 };
 
 /**
- * @brief The achieved read mechanism for a leaf, probed at plan compile
- * and disclosed per catalog entry (FR-023).
+ * @brief The achieved read mechanism for a leaf, probed during provider
+ * enumeration before the catalog freezes at the open boundary, and
+ * disclosed per catalog entry (FR-023).
  */
 enum class read_mode : std::uint8_t
 {

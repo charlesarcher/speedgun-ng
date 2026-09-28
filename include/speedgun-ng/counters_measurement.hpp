@@ -467,10 +467,13 @@ public:
 
   /**
    * @brief THE critical path: one sampling action appends one point
-   * per column (FR-026). Zero allocation, zero lock, zero virtual
-   * call. hard_stop overrun is an `SG_REQUIRE_ALWAYS` violation in
-   * every build configuration (FR-027); ring masks into the buffer
-   * and records wrapped plus dropped (FR-028).
+   * per column (FR-026). Zero allocation, zero lock; the five shipped
+   * windows reach `read_points` with no virtual call, and a window
+   * that installed no thunk pays one vtable lookup per sampling action
+   * on the seam's documented fallback (FR-022). hard_stop overrun is
+   * an `SG_REQUIRE_ALWAYS` violation in every build configuration
+   * (FR-027); ring masks into the buffer and records wrapped plus
+   * dropped (FR-028).
    *
    * \pre none
    * \post none
@@ -1063,8 +1066,10 @@ private:
 /**
  * @brief Compiles expressions into a plan (FR-021, FR-022): name
  * resolution through the system tree, dimension checking, group
- * layout, mode probing, and arena geometry, once in the untimed
- * region. Zero hardware reads (FR-021).
+ * layout, and arena geometry, once in the untimed region. The read
+ * mode each leaf opens through is the one the enumeration-time probe
+ * recorded and the catalog disclosed before that open boundary
+ * (FR-023). Zero hardware reads (FR-021).
  *
  * \pre none
  * \post none

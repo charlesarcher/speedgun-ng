@@ -42,7 +42,7 @@ struct metric_result {
 ## Plan compile (FR-022, FR-024, FR-031, FR-032)
 
 ```cpp
-std::expected<plan, error> compile(const system&, targets, /* expressions... */);
+std::expected<plan, error> compile(const system&, const target&, /* expressions... */);
 // post: flat leaf slots, PMU group layout (one leader per PMU), per-leaf achieved
 //       read mode, fold programs, arena geometry; zero hardware reads performed
 // error: zero-leaf expression, empty plan, a leaf the catalog reports as not

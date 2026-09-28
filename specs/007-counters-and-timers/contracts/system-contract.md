@@ -33,7 +33,7 @@ class system {
 
 class object {
   std::string_view path() const;          // canonical spelling, always (FR-002)
-  std::optional<std::string_view> alias() const;
+  std::string_view alias() const;         // empty when the object declares no alias
   std::string_view kind() const;          // FR-001
   std::string_view description() const;   // FR-001
   const object* parent() const;           // null only for machine (FR-001)
@@ -43,6 +43,7 @@ class object {
 ```
 
 - Every API result, provenance line, and diagnostic prints the canonical path; alias strings never appear in output (FR-002).
+- `alias()` returns `std::string_view` and yields an empty view for an object that declares no alias (`include/speedgun-ng/counters_system.hpp:49-55`, `source/counters/system.cpp:449-452`). FR-002 requires that both spellings resolve to one object and names no wrapper type, and an empty view already carries the absence, so this artifact follows the shipped accessor: changing a public accessor would touch its documentation contract block and every caller for no behavioral gain.
 - Filter keys (FR-003): equality predicates combined with AND. The ancestor selectors `package` and `core` match the corresponding canonical-path components; a provider may declare further attribute keys for the kinds it registers; an unknown filter key is a recoverable `error` (FR-008).
 
 ## Catalog enumeration

@@ -250,7 +250,14 @@ descriptor maps, and reads the kernel's own account from that page. On
 this host the page reports `capabilities=0x1e` with `cap_user_rdpmc=1`
 and `cap_user_time=1`, `pmc_width=48`, `index=1`, and
 `offset=140737488355327`, and 356 of the 589 core-PMU entries disclose
-`fast_rdpmc`.
+`fast_rdpmc`. Each figure on this page names the set it counts: 589 is
+the core-PMU object's catalog entry count at this pass, 356 counts the
+countable entries the provider stamped with that mode across the PMU
+provider's objects, and the table below reports the availability states
+the provider assigned to the entries it enumerates, 358 `countable`
+beside 261 `not_encodable`, 619 in all. A third set is the catalog's
+own size: `counters_pmu_test` prints 581, the table-selected entries
+beyond the kernel aliases.
 
 What the measurement shows is that a mapped-page hardware-counter read
 costs more per `sample()` than a `clock_gettime` through the vDSO: 50 ns

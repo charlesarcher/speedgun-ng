@@ -40,7 +40,7 @@ The linux_pmu provider consumes a new vendored data tree: `external/pmu-events`,
 
 | Principle | Status | Notes |
 |---|---|---|
-| I. Standard-First Coding | PASS | C++23, extensions off. P0 invoked (documented, designated in spec FR-026/FR-035 and [contracts/measurement-contract.md](contracts/measurement-contract.md)): `sample()` and push `add()` carry the P0 techniques (register-resident push load, branchless ring mask, dispatch-free flat read loop). Two P2 exceptions anticipated and recorded here for written justification at the site: x86 intrinsics (`__rdtsc`, `_rdpmc`) and the `static_cast` of a `void*` mapping base to the provider-local mirror of the kernel's published perf page, both confined inside provider implementations where the probe plus kernel ABI make them sound (FR-034, FR-040; R-007, R-011). The cast is the standard `void*`-to-object-pointer conversion; the exception is the read of a mapping through a hand-declared struct, which the published ABI and the probe make sound. |
+| I. Standard-First Coding | PASS | C++23, extensions off. P0 invoked (documented, designated in spec FR-026/FR-035 and [contracts/measurement-contract.md](contracts/measurement-contract.md)): `sample()` and push `add()` carry the P0 techniques (register-resident push load, branchless ring mask, dispatch-free flat read loop). Two P2 exceptions anticipated and recorded here for written justification at the site: x86 intrinsics (`__rdtsc`, `_rdpmc`), whose site justification stands at `source/counters/clock_provider.cpp:149`, and the read of a `perf_event_open` mapping through the kernel's own `perf_event_mmap_page`, both confined inside provider implementations where the probe plus kernel ABI make them sound (FR-034, FR-040; R-007, R-011). T137 replaced the hand-mirrored page structs with that kernel type, so the mapping base reaches it through the standard `void*`-to-object-pointer conversion at `source/counters/linux_pmu/fast_read.cpp:195`, `:261`, and `:295`, and the exception covers reading a published UAPI structure in place, which the probe makes sound. |
 | II. Design By Contract | PASS | Every new public interface carries doxygen `\pre`/`\post`/`\invariant` plus runtime enforcement (dbc-gate covers `include/speedgun-ng/` automatically). Tier mapping per FR-046 (R-002): dimensions and result shape in types; `std::expected<T, error>` for resolution/registration/construction-input failures; `SG_REQUIRE` for misuse sequences, `SG_REQUIRE_ALWAYS` for the `hard_stop` bounds. Contracts state each rule once (header doc pairs one enforcement site). |
 | III. R-DCUT | PASS | spec → plan (this artifact set, logical and physical views, test plan) → tasks → code+tests. TDD mode recorded in the Test Plan. |
 | IV. Documentation | PASS | Full doxygen on the nine public headers (docs target picks them up); the unit-to-dimension switch, the 2^53 exactness note, the cadence idiom, and the fold-endpoint-cost statement are documented behavior per spec, per Principle IV. The overhead page and README re-pinning section complete the written surface. |
@@ -201,7 +201,7 @@ classDiagram
     +objects(kind, filters) object_range }
   class object {
     +path() string_view canonical
-    +alias() optional~string_view~
+    +alias() string_view, empty when absent
     +kind() string_view
     +counters() counter_catalog
     +counter(name) expected~resolved_leaf,error~ }
@@ -240,6 +240,8 @@ classDiagram
   provider_iface <|.. linux_pmu_provider
   provider_iface ..> window_reader : open
 ```
+
+`object::alias()` returns `std::string_view` and yields an empty view for an object that declares no alias, which is the accessor the library ships (`include/speedgun-ng/counters_system.hpp:49-55`). FR-002 requires that both spellings resolve to one object and names no wrapper type, and an empty view already carries the absence, so the diagram follows the shipped accessor: changing a public accessor would touch its documentation contract block and every caller for no behavioral gain.
 
 ### Sequence: one measurement window (syscall-mode PMU + push + clock)
 

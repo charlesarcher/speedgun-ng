@@ -53,7 +53,7 @@ Validation: user code branches on this state alone; no compile-time platform bra
 | Field / operation | Shape | Notes |
 |---|---|---|
 | `enumerate` | objects plus entries (name, description, unit mapping, availability) | setup-time; type-erased registration (R-004) |
-| `open` | window reader yielding per-leaf cumulative `uint64` points plus unit and metadata (description, availability, caveats such as multiplex times) | FR-011 |
+| `open` | window reader yielding one cumulative `uint64` point per managed leaf per sampling action; unit, description, availability, and the multiplex pair are catalog and plan facts reachable after measurement | FR-011, FR-026 |
 
 Validation: a new source adds catalog entries plus the window implementation and touches no core file (FR-012; proven by the giraffe example and the out-of-tree provider test).
 

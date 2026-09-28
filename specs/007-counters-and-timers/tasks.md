@@ -40,7 +40,7 @@ Per plan.md Project Structure: public surface flat in `include/speedgun-ng/count
 - [X] T005 Implement `template <int T, int C> struct dim` with constexpr exponent arithmetic helpers (identical-tag check, quotient subtraction) in `include/speedgun-ng/counters_core.hpp` (R-003, FR-015/016)
 - [X] T006 Implement the `unit` enumeration and the closed `unit -> std::expected<dimension, error>` switch in `include/speedgun-ng/counters_core.hpp`: recognized units map (`seconds` to `time^1`, count units to `events^1` per contracts/measurement-contract.md); the error naming the unrecognized unit comes from the `unit_from_token` if-chain, which runs ahead of the switch (FR-017, US1 scenario 6)
 - [X] T007 Implement `availability` enum (`countable`, `permission_blocked`, `not_encodable`, `absent`), `read_mode` enum (`fast_tsc`, `fast_rdpmc`, `syscall`, `push_load`), `catalog_entry` struct (name, description, unit, availability, mode), `metric_result` struct (value, running_ratio, scaled; disclosure structurally impossible to omit), and tier-2 `error` struct (message + suggestions vector) in `include/speedgun-ng/counters_core.hpp` (FR-005, FR-006, FR-019, FR-008 shape; E-03/E-09/E-10)
-- [X] T008 Implement the provider seam in `include/speedgun-ng/counters_provider.hpp`: C++20 `provider` concept, `provider_iface` registration base (`enumerate(object_sink&) const`, `open(leaf_set, target)` returning a `window_reader`), `window_reader::read_points(point_sink&) noexcept`, per-leaf point + unit + metadata yield shapes; virtual calls confined to setup (FR-011, R-004, contracts/provider-contract.md)
+- [X] T008 Implement the provider seam in `include/speedgun-ng/counters_provider.hpp`: C++20 `provider` concept, `provider_iface` registration base (`enumerate(object_sink&) const`, `open(leaf_set, target)` returning a `window_reader`), `window_reader::read_points(point_sink&) noexcept`, per-leaf point yield shape with the unit and metadata as `catalog_seed` fields; virtual calls confined to setup (FR-011, R-004, contracts/provider-contract.md)
 - [X] T009 Write `test/source/counters_core_test.cpp` covering dims, the closed unit switch (known units map; unknown unit errors naming the unit), `metric_result` field presence, `error` shape; register in `test/CMakeLists.txt` with plain `add_test` (TDD: RED against skeletons, GREEN after T005..T007)
 - [X] T010 [P] Write the header vocabulary-purity scan test (terms `perf_event`, `clock_gettime`, `rdpmc`, `rdtsc` and hardware/clock-syscall names absent from `include/speedgun-ng/counters*`; violations named; exit 0 clean) as a fixture script under `test/`; register in `test/CMakeLists.txt` (FR-010, C-SYS-6)
 - [X] T011 Write `include/speedgun-ng/counters.hpp` umbrella (documented single include; deliberately NOT folded into `speedgun-ng.hpp`, keeping the FR-049 standalone claim visible in the include graph); run `cmake --build build/dev -t dbc-gate` and confirm contract/doc pairing passes on the new headers
@@ -183,7 +183,7 @@ Per plan.md Project Structure: public surface flat in `include/speedgun-ng/count
 ### Implementation for User Story 7
 
 - [X] T052 [US7] Implement `source/counters/linux_pmu/fast_read.cpp`: per-thread `perf_event_open` context, single-page read-only `mmap`; read descriptor implementing the mapped-page protocol in order - seqcount `lock` snapshot + retry, `rmb` fences, `cap_user_rdpmc` capability gate, one-based `index` validity with the stated fallback path when not allowed, `_rdpmc(index - 1)`, kernel offset adjustment, the counter width `pmc_width` publishes on that page as the mask, per-thread same-thread context binding (FR-040, R-011, US7 scenario 2); a standard `static_cast` of the mapping base to the kernel's own `perf_event_mmap_page` from `<linux/perf_event.h>`, which carries no P2 exception + attribution comment citing `jevents/rdpmc.{c,h}` from andikleen/pmu-tools (no file copied) (plan Complexity Tracking)
-- [X] T053 [US7] Implement per-leaf mode assignment in the providers' enumeration path, which runs before the catalog freezes at the open boundary and before `source/counters/plan.cpp:469` binds the plan target: probe mechanism availability, the `perf_user_access` sysctl on affected Intel parts, version, pinning/index validity - achieved mode recorded per leaf and disclosed in the catalog; support probed, never assumed (FR-023, R-011, US7 scenario 1)
+- [X] T053 [US7] Implement per-leaf mode assignment in the providers' enumeration path, which runs before the catalog freezes at the open boundary and before `source/counters/plan.cpp:469` binds the plan target: probe mechanism availability, namely the `cap_user_rdpmc` capability bit the event page publishes, the one-based counter index, and the `pmc_width` the same page publishes - achieved mode recorded per leaf and disclosed in the catalog; support probed, never assumed (FR-023, R-011, US7 scenario 1)
 - [X] T054 [US7] Implement per-plan overhead calibration in `source/counters/plan.cpp`: after finalization, repeatedly run the plan's `sample()` over an empty workload, store min/median/max ns on the plan, expose `sample_overhead_ns_min/median/max()`; fold windows state their endpoints' sample cost (FR-032, R-014)
 - [X] T070 [P] [US7] Write the cross-thread trap test extending `test/source/counters_trap_fixture.cpp` and its checker: recorder and plan used from a non-binding thread abort in the dev/CI build (TDD: RED before T055 implements the binding check); register in `test/CMakeLists.txt` (FR-031, FR-047; C-MEA-6; plan Test Plan threading row)
 - [X] T055 [US7] Cross-thread misuse contract (test T070 first): recorder/plan/push use from a non-binding thread is a tier-3 `SG_REQUIRE` beside the existing bounds check (cached `thread::id` compare); fast contexts bind same-thread (FR-031/040, US7 scenarios 4-5; R-015); fast-mode off-CPU staleness stays disclosed through the enabled/running ratio leaves in every mode (FR-041, US7 scenario 4)
@@ -1982,3 +1982,116 @@ the header beside them kept the superseded wording.
 ### LOW: the exactness note publishes a rate the code contradicts
 
 - [X] T240 Correct the rate at `include/speedgun-ng/counters_measurement.hpp:67-69`, which states that a count reaches `2^53` at roughly 285 events per nanosecond sustained for one second, where `2^53` is 9007199254740992 and one second holds 1000000000 nanoseconds, so the rate that reaches `2^53` in one second is about 9007199 events per nanosecond, and where `specs/007-counters-and-timers/spec.md:328` states the same limit as roughly 104 days at a sustained one-billion-per-second count, which `2^53 / 1e9` seconds confirms; the sentence must state the rate arithmetic supports and keep the conclusion that a counter-backed delta stays exact on a host this feature targets, and the cadence figures beside it stand (LOW, FR-032, Constitution IV, `contradicts`)
+
+## Phase 32: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `02c7db8`
+and of the residue the thirteen waves before it left. Nothing above this line
+changed.
+
+Audit evidence, all produced by this pass from the repository root.
+`python3 tools/prose/prose_gate.py --check all` exits 0, and
+`cmake -P cmake/prose-lint.cmake` exits 0 on the same verdict,
+`prose-lint: 123 sources, 9324 units examined, 0 findings, 1 skipped`. This
+preamble records no source or unit figure for the range holding that verdict
+and no `--mode tree` total, because that form collects its files with
+`git ls-files` and reads them from the working tree, the reading the Phase 21
+preamble states at `specs/007-counters-and-timers/tasks.md:1112-1119`.
+`ctest --test-dir build -N` exits 0 and reports `Total Tests: 37`, of which
+`ctest --test-dir build -N -R counters` reports 16. `cmake --preset=dev` and
+`cmake --build --preset=dev` exit 0, and `ctest --preset=dev` exits 0 with
+100.0 percent of 37 tests passed, 0 failed, 0 skipped, in 43.42 s.
+`cmake --preset=ci-ubuntu` and `cmake --build build`, the release build
+Principle IX requires once per feature, exit 0 with no line matching `warning`
+in the build log. `cmake --build build/dev -t dbc-gate` exits 0, reporting
+`doc-gate: 135 interfaces, 0 gaps` and `pair-gate: 135 interfaces, 0 gaps`.
+`cmake --build build/dev -t format-check` exits 0. `cmake -P cmake/spell.cmake`
+exits 0. `python3 tools/pmu_events/update_pmu_events.py --check` exits 0.
+`bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 at
+lines 100.0 percent (1955 of 1955), branches 100.0 percent (705 of 705), and
+functions 98.0 percent (289 of 295) on an axis no gate scores;
+`find source include -newer build/coverage/coverage.info` names no file, so
+that trace covers this tip.
+
+Coverage of the check: 127 requirement keys (50 functional requirements
+numbering `FR-001` through `FR-050` with no gap, 10 success criteria numbering
+`SC-001` through `SC-010` with no gap, 49 user-story acceptance scenarios
+across 8 stories, and 18 spec edge cases), 45 design keys (15 research
+decisions `R-001` through `R-015`, 11 data-model entities `E-01` through
+`E-11`, and 19 contract clauses `C-MEA-1` through `C-MEA-7`, `C-PRO-1` through
+`C-PRO-6`, `C-SYS-1` through `C-SYS-6`), and 11 constitution principles with
+X.1 through X.4 and XI.1 through XI.6 read one by one. Re-measured here: the
+glob `include/speedgun-ng/counters*.hpp` matches the 9 headers
+`specs/007-counters-and-timers/plan.md:35`, `:298`, and `:325` record;
+`find source/counters -name '*.cpp'` returns the 11 translation units;
+`readelf -d` on `build/dev/example/counters_standalone_example` and on
+`build/dev/example/counters_giraffe_example` names `libstdc++`, `libgcc_s`,
+and `libc` with no `speedgun-ng` entry in either; and
+`./build/dev/test/counters_pmu_test` reports
+`pmu catalog: 581 table-selected entries beyond kernel aliases` and
+`pmu availability: 358 countable, 0 permission_blocked, 261 not_encodable, 356 fast_rdpmc`.
+The `LCOV_EXCL` token counts hold at 301 in the feature scope and 305 across
+`source/` plus `include/`, with 4 in `include/speedgun-ng/dbc.hpp`; T234
+removed three with the growth arm it deleted. Eleven findings: 10 `contradicts`
+and 1 `unrequested`; 0 CRITICAL, 3 HIGH, 3 MEDIUM, and 5 LOW. No finding is
+`missing` or `partial`: every functional requirement this pass inspected has a
+realization in the code or in the shipped public surface, and every finding
+sits in a sentence an artifact states about that code.
+
+Every finding below was re-derived in this session from the files it cites.
+The Phase 12 through Phase 31 preambles were read for task identifiers, phase
+grouping, and the file paths each task names, and no closure claim in them was
+accepted as evidence. The two commits since `a8ed1d6` were read in full: `b270503`
+deletes the sampling-path growth arm and sizes the group scratch by leaf count
+(T234), and `02c7db8` restates six artifact sentences (T235..T240). Both hold
+where they landed, with one exception recorded as T244 below. The class the
+earlier waves did not exhaust has two sources. The first is a requirement whose
+letter no implementation can satisfy as written while the read path keeps its
+budget, which is T241. The second is the settled amendment's reach: a
+requirement restated at one site and left standing at its siblings, which
+T242, T243, T245, and T246 record, together with three smaller sites of the
+same shape at T247, T248, and T249.
+
+### HIGH: FR-011 names a per-action metadata yield the window contract does not provide
+
+- [X] T241 Reconcile the yield FR-011 at `specs/007-counters-and-timers/spec.md:233` requires of a sampling action, `a cumulative raw uint64 point plus the leaf's unit and metadata (description, availability, caveats such as multiplex times)`, with the contract the library ships, where `point_sink::put` at `include/speedgun-ng/counters_provider.hpp:203` takes one `std::uint64_t` and yields that value alone, where `leaf_set` at `:131-134` carries addresses with nothing beside them, and where the unit, description, and availability reach a caller as `catalog_seed` fields at `:39-52` fixed at registration and carried into a fold through `points_view` at `include/speedgun-ng/counters_measurement.hpp:392-402`; five artifacts repeat a yield that has no realization: `specs/007-counters-and-timers/data-model.md:56`, `specs/007-counters-and-timers/research.md:33`, `specs/007-counters-and-timers/contracts/provider-contract.md:20` and `:74` (C-PRO-2), and T008 at `specs/007-counters-and-timers/tasks.md:43`, which asked for `per-leaf point + unit + metadata yield shapes`; the multiplex caveat FR-011 names is already realized as the ordinary enabled and running leaves at `source/counters/linux_pmu/group_io.cpp:258-262` and `:358-362`, and the unit and description are realized as the same leaves' catalog fields; a per-action string yield collides with FR-026 at `specs/007-counters-and-timers/spec.md:254`, which requires `recorder.sample()` to be `noexcept` with zero allocation, so FR-011 and its restatements must state that the action yields the cumulative point and that the unit, description, availability, and multiplex pair are catalog and plan facts reachable after measurement, and `example/counters_giraffe_example.cpp:49-53` must keep implementing only the point (HIGH, FR-011, FR-019, FR-020, FR-026, C-PRO-2, T008, plan: R-004, Constitution II, X.2, `contradicts`)
+
+### HIGH: the Constitution Check row still registers a P2 exception the fast-read work withdrew
+
+- [X] T242 Restate the Principle I row of the Constitution Check table at `specs/007-counters-and-timers/plan.md:43`, which registers the second P2 exception as `the static_cast of a void* mapping base to the provider-local mirror of the kernel's published perf page` and names `the read of a mapping through a hand-declared struct` as the part carrying the exception, where T137 replaced both hand-mirrored page structs with the kernel's own type, where `source/counters/linux_pmu/fast_read.cpp:165` reads `using event_page = perf_event_mmap_page;`, where the comment at `:234-236` states that no cast of a mirrored layout is involved and that no P2 exception is claimed, and where the three remaining conversions are standard casts of the mapping base at `:195`, `:261`, and `:295`; `specs/007-counters-and-timers/plan.md:124`, `:126`, and `:453` already carry the settled wording, T233 restated the five superseded sentences at `specs/007-counters-and-timers/plan.md:124` and `:126` beside `specs/007-counters-and-timers/tasks.md:185` and `specs/007-counters-and-timers/research.md:89`, `:91`, and `:93` without naming this row, and the closed journal `specs/007-counters-and-timers/sg_counters.md` is a dated record that keeps its text; the row must name the kernel's own `perf_event_mmap_page` and the standard conversion, must keep the `__rdtsc` and `_rdpmc` intrinsic entry whose site justification stands at `source/counters/clock_provider.cpp:149`, and no code, requirement, gate, or exclusion marker may move (HIGH, plan: Constitution Check I, Constitution I, X.2, FR-040, T137, T139, T233, `contradicts`)
+
+### HIGH: two public headers still place read-mode assignment at plan compile
+
+- [X] T243 Restate the two public-header sentences that place read-mode assignment at plan compile, `include/speedgun-ng/counters_core.hpp:89-90`, where the `read_mode` brief reads `The achieved read mechanism for a leaf, probed at plan compile and disclosed per catalog entry (FR-023)`, and `include/speedgun-ng/counters_measurement.hpp:1064-1067`, where the `compile` brief lists `group layout, mode probing, and arena geometry` among the steps that call performs, with the code, which assigns each leaf its mode during provider enumeration: `source/counters/linux_pmu/provider.cpp:505` calls `probe_device`, which writes `entry.mode` at `:118-120` inside that seed loop, `source/counters/clock_provider.cpp:248`, `:255`, `:262`, and `:283` and `source/counters/push_provider.cpp:83` seed their modes the same way, `source/counters/linux_pmu/group_io.cpp:391` reads the mode the catalog entry already carries, and the amended FR-023 at `specs/007-counters-and-timers/spec.md:251` names that boundary together with the plan bind at `source/counters/plan.cpp:469`, which T232 established and applied to `specs/007-counters-and-timers/spec.md:157`, `specs/007-counters-and-timers/data-model.md:47`, and `specs/007-counters-and-timers/contracts/provider-contract.md:44`; each header sentence must name the enumeration-time probe and the open boundary it precedes, and FR-023's disclosure clause together with C-PRO-4 at `specs/007-counters-and-timers/contracts/provider-contract.md:76` keep their present wording (HIGH, FR-023, FR-009, FR-031, T232, `contradicts`)
+
+### MEDIUM: the read-path claim on `sample()` states a seam the shipped fallback contradicts
+
+- [X] T244 Restate the read-path claim in the `sample()` brief at `include/speedgun-ng/counters_measurement.hpp:469-473`, which states `Zero allocation, zero lock, zero virtual call`, where the seam's own documentation at `include/speedgun-ng/counters_provider.hpp:246-251` records that a window supplying no thunk keeps `default_thunk` and pays `one vtable lookup per sampling action`, where the fallback at `:326-330` implements exactly that call, where `example/counters_giraffe_example.cpp:46-57` installs no thunk and runs on the fallback path, and where FR-022 at `specs/007-counters-and-timers/spec.md:250` states the seam and its per-action cost after T168 amended it; T237 restated the file brief at `include/speedgun-ng/counters_measurement.hpp:26-28` and named this method comment neither, and the claim must name the seam and its per-action cost while the five shipped windows stay dispatch-free (MEDIUM, FR-022, T146, T237, `contradicts`)
+
+### MEDIUM: the provider contract still claims the link-manifest shape the build does not produce
+
+- [X] T245 Restate the giraffe acceptance sentence at `specs/007-counters-and-timers/contracts/provider-contract.md:54`, which requires that the `link manifest names this library alone`, where FR-049 at `specs/007-counters-and-timers/spec.md:286` states that the target is a static archive whose manifest carries no `speedgun-ng` entry and names the platform C and C++ runtime, where the clarification at `specs/007-counters-and-timers/spec.md:31` records the same, and where `readelf -d build/dev/example/counters_giraffe_example` names `libstdc++`, `libgcc_s`, and `libc` alone; T238 restated the three sentences at `specs/007-counters-and-timers/plan.md:33` and `:434` beside `specs/007-counters-and-timers/contracts/measurement-contract.md:126` without naming this fourth site, and the sentence must state that the manifest demonstrates no third-party dynamic dependency and names the platform runtime (MEDIUM, FR-049, SC-001, T120, T238, `contradicts`)
+
+### MEDIUM: T053 still names two probe inputs the settled fast read does not consult
+
+- [X] T246 Restate the probe-input clause of T053 at `specs/007-counters-and-timers/tasks.md:186`, which names `the perf_user_access sysctl on affected Intel parts, version, pinning/index validity` as what the mode assignment reads, where a search for the token `perf_user_access` over `source/`, `include/`, and `test/` returns no line, where `docs/pages/counters-overhead.md:296-299` records that the sysctl is absent on this kernel and that `Neither is consulted`, where the capability bit and the counter width come from the event page at `source/counters/linux_pmu/fast_read.cpp:271-272` and the index gate at `:278-281`, and where the version-matching arithmetic that justified the mirrored pages is gone with the mirrors themselves; T232 corrected this same task's boundary sentence to the enumeration path and T233 restated `perf_user_access` at `specs/007-counters-and-timers/research.md:89` and `:93` beside `specs/007-counters-and-timers/tasks.md:185` without naming this occurrence, and the clause must name the capability bit, the one-based index, and the page-published width (MEDIUM, FR-023, FR-040, T053, T137, T233, `contradicts`)
+
+### LOW: the research record names an errno the availability switch does not test
+
+- [X] T247 Correct the permission clause of R-010 at `specs/007-counters-and-timers/research.md:83`, which states that the provider reports `permission_blocked` only on a `perf_event_open` the kernel answers `EACCES`, where the probe's switch at `source/counters/linux_pmu/provider.cpp:432-444` names `EINVAL`, `EOPNOTSUPP`, and `ENOENT` as the errnos that map to `not_encodable` and returns `permission_blocked` from its `default` arm, which covers `EACCES` together with every other refusal, and where the token `EACCES` appears in `source/` only inside the coverage-exclusion comment at `:439`; T239 rewrote this sentence to name the recorded re-verification and left the mechanism clause standing, and the clause must describe the switch the code ships (LOW, FR-039, Constitution IV, T239, `contradicts`)
+
+### LOW: the measurement contract's compile signature names a plural target parameter
+
+- [X] T248 Correct the `compile` pseudocode signature at `specs/007-counters-and-timers/contracts/measurement-contract.md:45`, which reads `std::expected<plan, error> compile(const system&, targets, /* expressions... */);` and names a plural `targets`, where FR-024 at `specs/007-counters-and-timers/spec.md:252` binds exactly one sampling target, where the clarification at `specs/007-counters-and-timers/spec.md:34` records the single-plan-target design, and where the two shipped overloads take one `const target&` at `include/speedgun-ng/counters_measurement.hpp:1076` and `:1093-1095`, which T086 and T147 settled; the signature must name the single `target` the plan binds (LOW, FR-024, T086, T147, `contradicts`)
+
+### LOW: two design artifacts spell an alias accessor the library does not ship
+
+- [X] T249 Reconcile the `object::alias()` return type the design artifacts spell with the one the library ships, where `specs/007-counters-and-timers/contracts/system-contract.md:36` declares `std::optional<std::string_view> alias() const;` and the class diagram at `specs/007-counters-and-timers/plan.md:204` spells the same, where `include/speedgun-ng/counters_system.hpp:49-55` returns `std::string_view` documented as empty when the object carries no alias, where `source/counters/system.cpp:449-452` returns `node->alias` with an empty string for an object that declares none, and where FR-002 at `specs/007-counters-and-timers/spec.md:221` requires that both spellings resolve to one object without naming a wrapper type; either the artifacts adopt the shipped accessor or the accessor adopts the artifacts, and no other interface, test, or gate changes (LOW, FR-001, FR-002, R-001, `contradicts`)
+
+### LOW: the overhead page states two catalog totals that do not reconcile
+
+- [X] T250 State the denominator behind the `589` at `docs/pages/counters-overhead.md:252-253`, which reports that `356 of the 589 core-PMU entries disclose fast_rdpmc`, where the table at `:314` counts `358 countable, 0 permission_blocked` beside `261` not encodable for the same catalog, which sum to 619, where the probe assigns every entry exactly one of those two states at `source/counters/linux_pmu/provider.cpp:425-444`, and where `./build/dev/test/counters_pmu_test` on this host prints `pmu availability: 358 countable, 0 permission_blocked, 261 not_encodable, 356 fast_rdpmc` beside `pmu catalog: 581 table-selected entries beyond kernel aliases`; the page names no denominator that reconciles 589 with 619 or with 581, so each published figure must name the set it counts, and no recorded figure may change (LOW, SC-004, SC-008, Constitution IV, Principle VII, `contradicts`)
+
+### LOW: a public target enumerator has no producer and no consumer
+
+- [X] T251 Justify or remove `target_kind::machine`, the enumerator at `include/speedgun-ng/counters_provider.hpp:140-145`, which no code, test, or example constructs and no code reads: a search over `source/`, `include/`, `test/`, and `example/` finds `target_kind` named at `source/counters/detail/pmu.hpp:295`, where the branch tests `target_kind::cpu` alone, and at `test/source/counters_fake_test.cpp:437` and `test/source/counters_pmu_test.cpp:702`, which both construct the cpu spelling, while `include/speedgun-ng/counters_provider.hpp:156` defaults a target to `thread`; FR-031 at `specs/007-counters-and-timers/spec.md:259` names `thread or cpu` as the two bound targets, and a machine-wide reading is unrepresentable because plans and recorders are per-thread objects, the binding enforced at `source/counters/plan.cpp:61-62`; the enumerator must either state the reading it adds over `thread` or leave the public surface (LOW, FR-031, Constitution X.2, `unrequested`)
