@@ -62,7 +62,7 @@ Validation: a new source adds catalog entries plus the window implementation and
 | Field | Type / shape | Notes |
 |---|---|---|
 | resolved leaf (`counter<D>`) | leaf-slot index plus compile-time dimension tag `dim<T, C>` | produced by name resolution (E-03) |
-| composite (`expression<D>`) | typed tree at construction; compiled to a fold program by the plan | `+`/`-` identical tags; `/` subtracts exponents; scalar scale unrestricted (FR-015) |
+| composite (`expression<D>`) | typed tree at construction; a flat node array the fold walks on demand over the plan's slots | `+`/`-` identical tags; `/` subtracts exponents; scalar scale unrestricted (FR-015) |
 | dimension tag | `template<int T, int C>` | construction-time only, erased on the read path (FR-016) |
 
 Validation: dimension violations are compile errors (R-003); zero-leaf expressions and empty plans are construction-time recoverable errors (spec edge case); expression construction performs zero hardware reads (FR-021).
@@ -82,7 +82,7 @@ Validation: dimension violations are compile errors (R-003); zero-leaf expressio
 | leaf slots | slot id, provider read descriptor, point-column offset | flat; read path holds no tree and no name lookup, and enters a window through the direct-call thunk its constructor installed, so a window installing no thunk pays one vtable lookup per sampling action (FR-022) |
 | group layout | PMU leader per PMU, members attached | every group and read mode in a plan opens against the one target that plan bound, so a target or clock-identity mismatch across group members is unrepresentable (FR-024) |
 | read modes | per-leaf achieved mode from probe | `fast_tsc` / `fast_rdpmc` / `syscall` / `push_load` (FR-023) |
-| fold program | per composite: column references with exponents and ops | evaluated only on demand (FR-021) |
+| address table | leaf address to slot index | read by the fold layer, so the plan carries no per-composite program (FR-022) |
 | arena geometry | capacity x columns layout | allocated at construction (FR-029) |
 | targeting binding | thread or cpu | bound at plan open; plan is a per-thread object (FR-031) |
 | overhead calibration | min/median/max distribution of the plan's `sample()` cost | FR-032; R-014 |

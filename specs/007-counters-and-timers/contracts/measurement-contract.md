@@ -44,7 +44,7 @@ struct metric_result {
 ```cpp
 std::expected<plan, error> compile(const system&, const target&, /* expressions... */);
 // post: flat leaf slots, PMU group layout (one leader per PMU), per-leaf achieved
-//       read mode, fold programs, arena geometry; zero hardware reads performed
+//       read mode, address table, arena geometry; zero hardware reads performed
 // error: zero-leaf expression, empty plan, a leaf the catalog reports as not
 //        `countable` with the catalog state in the message, a window the
 //        provider refuses to open; every group and read mode in a plan opens
@@ -107,7 +107,7 @@ template <dim D> class expression {
 
 ## Fan-out (US3 scenario 5, SC-007)
 
-`compile(system, expr, selection)` produces a plan with one fold program per selected object: leaf slots instantiated per object, one provider group read per instance per sampling action, all inside the shared window (FR-047). Folds over a fan-out plan yield one `metric_result` per object, keyed by canonical path; per-object instruction deltas reconcile against the shared total (SC-007). A layout conflict (duplicate instance slot) is a recoverable construction error, the FR-024 pattern; every group and read mode in a plan opens against the one target that plan bound, so a target or clock-identity mismatch across group members is unrepresentable.
+`compile(system, expr, selection)` produces a plan whose leaf slots are instantiated per object, with the object path spelled into every instantiated leaf address and one provider group read per sampling action carrying every leaf that provider owns, all inside the shared window (FR-047). Folds over a fan-out plan yield one `metric_result` per object, keyed by canonical path; per-object instruction deltas reconcile against the shared total (SC-007). A layout conflict (duplicate instance slot) is a recoverable construction error, the FR-024 pattern; every group and read mode in a plan opens against the one target that plan bound, so a target or clock-identity mismatch across group members is unrepresentable.
 
 ## Scope sugar (FR-030)
 

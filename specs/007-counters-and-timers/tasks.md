@@ -404,7 +404,7 @@ runs and reports `lines 85.1% (1686 of 1982), functions 90.2% (230 of 255), bran
 - [X] T113 Own the opaque handles with `std::unique_ptr`: `source/counters/system.cpp:260` wraps `new` where `std::make_unique` applies, and `source/counters/system.cpp:124` leaves the destructor defaulted while nothing deletes `m_impl` declared at `include/speedgun-ng/counters_system.hpp:249`, so one heap block per process is never reclaimed (MEDIUM, Constitution I, `partial`)
 - [X] T114 Record the `Counters` section token added to `tools/prose/prose_rules.yaml:23` inside the 007 commit range in `specs/002-prose-commit-lint`, which owns that artifact, or revert it; the gate change at `tools/dbc/dbc_pair_gate.py` is already covered by commit `3c67647` with its `Approved-by` footer (MEDIUM, Constitution IX, `unrequested`)
 - [X] T115 Remove the Windows behaviour promise from the `pmu_provider` class doc at `include/speedgun-ng/counters_pmu.hpp:31-33`, which claims a syscall-mode group read per leader, where `:34-36` and `source/counters/linux_pmu/provider.cpp:40-49` state the provider seeds no objects off Linux and `spec.md:312` defers Windows and macOS hardware-PMU providers (MEDIUM, FR-042, `contradicts`)
-- [X] T116 Record an explicit decision on the three parallel implementations of one sampling point — `scope`'s own buffer and state at `source/counters/plan.cpp:270-276`, separate from `hard_stop_sample_core` at `:318-330` and `ring_sample_core` at `:332-345` — or fold them onto one implementation; FR-030's one-semantics claim currently rests on tests rather than shared code (MEDIUM, Constitution X.2, `unrequested`)
+- [X] T116 Record an explicit decision on the three parallel implementations of one sampling point (`scope`'s own buffer and state at `source/counters/plan.cpp:270-276`, separate from `hard_stop_sample_core` at `:318-330` and `ring_sample_core` at `:332-345`) or fold them onto one implementation; FR-030's one-semantics claim currently rests on tests rather than shared code (MEDIUM, Constitution X.2, `unrequested`)
 - [X] T117 Attribute `test/source/counters_linux_pmu_seam_test.cpp` to a task, and add the three shipped provider headers to T004's list and to `plan.md:317`'s public API surface; T004 at `tasks.md:30` and `plan.md:46` name six public headers where nine exist, and no artifact names `counters_clock.hpp`, `counters_push.hpp` or `counters_pmu.hpp` (MEDIUM, T004, `partial`)
 
 ### LOW
@@ -2576,3 +2576,330 @@ quotes inside this phase, so the same sweep returns those four by design.
   artifact. No anchor above this line moves, no checkbox moves, and no source,
   header, test, example, tool, or build file changes (MEDIUM, Constitution IV,
   Constitution X.4, T253, T252, `partial`)
+
+## Phase 35: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `1827d76`
+and of the residue the twenty-three waves before it left. Nothing above this
+line changed.
+
+Audit evidence, all produced by this pass from the repository root on Linux.
+`python3 tools/prose/prose_gate.py --check all` exits 0, and
+`cmake -P cmake/prose-lint.cmake` exits 0 on the same verdict,
+`prose-lint: 128 sources, 10250 units examined, 0 findings, 1 skipped`. Both
+read the committed range from the merge base with `origin/master`, `65beada`,
+to `1827d76`, and the one skipped source is `hwloc.md`, which the gate names
+unreadable. The `--mode tree` form collects its files with `git ls-files` and
+reads them from the working tree, so no commit reproduces its total. Read
+narrowed to this feature, `python3 tools/prose/prose_gate.py --check prose
+--mode tree --paths specs/007-counters-and-timers docs/pages/counters-overhead.md`
+exits 0 at `13 sources, 4865 units examined, 0 findings, 0 skipped`, and that
+figure describes the working-tree read of those thirteen files at this tip.
+`ctest --test-dir build -N` exits 0 and reports `Total Tests: 37`, of which
+`ctest --test-dir build -N -R counters` reports 16. `cmake --preset=dev` and
+`cmake --build --preset=dev -j` exit 0, and `ctest --preset=dev` exits 0 with
+100.0 percent of 37 tests passed, 0 failed, 0 skipped, in 43.66 s of total
+test time. `cmake --preset=ci-ubuntu` exits 0 with `CMAKE_BUILD_TYPE:STRING=Release`
+and `CMAKE_CXX_FLAGS_RELEASE:STRING=-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -O3
+-DNDEBUG`, and `cmake --build build` exits 0 over an incremental 26-line log in
+which every target reported `Built target`, holding 0 lines matching the token
+`warning` and 0 matching `error:`. No forced recompile ran, so this pass states
+no static-analysis diagnostic count; the two figures above cover an incremental
+build only. `cmake --build build/dev -t format-check` exits 0.
+`cmake --build build/dev -t dbc-gate` exits 0, reporting
+`doc-gate: 135 interfaces, 0 gaps` and `pair-gate: 135 interfaces, 0 gaps`.
+`cmake -P cmake/spell.cmake` exits 0, and
+`python3 tools/pmu_events/update_pmu_events.py --check` exits 0.
+`bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0 over
+21 source files at lines 100.0 percent (1955 of 1955), branches 100.0 percent
+(705 of 705), and functions 98.0 percent (289 of 295) on an axis no gate
+scores, and `find source include test example tools/pmu_events -newer
+build/coverage/coverage.info` names no file, so the tracefile is newer than
+every file the measurement covers. `readelf -d` on
+`build/dev/example/counters_standalone_example` and on
+`build/dev/example/counters_giraffe_example` names `libstdc++.so.6`,
+`libgcc_s.so.1`, and `libc.so.6` in each, with zero `speedgun-ng` entries.
+`./build/dev/test/counters_pmu_test` exits 0 reporting
+`pmu catalog: 581 table-selected entries beyond kernel aliases` beside
+`pmu availability: 358 countable, 0 permission_blocked, 261 not_encodable, 356
+fast_rdpmc`. `git status --porcelain` is empty at `1827d76` and
+`git log --oneline -8` shows the tip reading `1827d76`, `30f6361`, `01f905b`,
+`88bbd2c`, `02c7db8`.
+
+Counting rule for every anchor total named in this preamble, so a reader can
+reproduce it: the unit is one occurrence of the regular expression
+`(?:[\w./-]+/)*[\w.-]+\.[A-Za-z0-9]+:\d+(-\d+)?` matched over a named line range
+of a named file, and a distinct token is the deduplicated form of that unit.
+Applied to the nine live artifacts, which
+are `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`,
+`sg_counters.md`, and the three files under `contracts/`, the sum is 38
+occurrences, distributed `spec.md` 28, `quickstart.md` 4, `plan.md` 3,
+`contracts/system-contract.md` 2, `research.md` 1, `data-model.md` 0,
+`sg_counters.md` 0, `contracts/provider-contract.md` 0, and
+`contracts/measurement-contract.md` 0; the journal contributes none, which is
+what makes those eight the eight the Phase 34 preamble names. Applied to
+`tasks.md` lines 1 through 2422, the population the Phase 1 through Phase 33
+record occupies, the count is 702 occurrences and 467 distinct tokens, and the
+bare `:NN` continuation form counts 420. Applied to `tasks.md` lines 1 through
+2578, the file as it stands, the count is 724 occurrences and 476 distinct
+tokens, and the bare `:NN` form counts 449. The Phase 34 preamble's two
+totals reproduce exactly under this rule: 740 is the nine artifacts' 38 plus
+`tasks.md` 1-2422's 702, and 762 is the same 38 plus the whole file's 724. The
+difference of 22 occurrences and 29 continuations between the two readings is
+the Phase 34 section itself, appended after the first figure was taken.
+
+Coverage of the check: 127 requirement keys, counted as 50 functional
+requirements numbering `FR-001` through `FR-050` with no gap, 10 success
+criteria numbering `SC-001` through `SC-010` with no gap, 49 user-story
+acceptance scenarios counted as US1 7, US2 7, US3 6, US4 6, US5 4, US6 7, US7 6,
+US8 6, and 18 edge cases at `specs/007-counters-and-timers/spec.md:195-212`;
+45 design keys, counted as 15 research decisions `R-001` through `R-015`, 11
+data-model entities `E-01` through `E-11`, and 19 contract clauses
+`C-MEA-1` through `C-MEA-7`, `C-PRO-1` through `C-PRO-6`, and `C-SYS-1` through
+`C-SYS-6`; and 11 constitution principles with X.1 through X.4 and XI.1 through
+XI.6 read one by one. Every `FR-001` through `FR-050` was checked against the
+shipped code, and every one has a realization; no requirement this pass
+inspected is `missing`, and no `unrequested` addition was found. Every `SC-0NN`
+and every acceptance scenario was checked for a test, example, published page,
+or tool exit path that realizes it, and the two the artifacts already dispose
+of stay disposed: the `SC-002` row at
+`specs/007-counters-and-timers/quickstart.md:139` states that the
+`permission_blocked` branch US6 scenario 4 expects at paranoia 2 ran nowhere
+on the reference host and awards no verdict for it, and the `SC-004` row at
+`:140` states `MEASURED, order check not met` and awards no verdict. Re-measured
+here: the 9 headers `include/speedgun-ng/counters*.hpp`, the 11 translation
+units `find source/counters -name '*.cpp'` returns beside the 2 provider-private
+headers under `source/counters/detail/`, the 12 `add_executable(counters_)`
+calls `test/CMakeLists.txt` carries, the `LCOV_EXCL` count at 301 tokens in the
+feature scope and 305 across `source/` plus `include/`, no line matching `TODO`
+or `FIXME` over the feature scope, and the single `NOLINT` directive in the
+feature scope at `include/speedgun-ng/counters_measurement.hpp:634` carrying its
+reason in the same comment block at `:630-633` as Constitution X.2 requires.
+The four commits at the tip were read in full with `git show`: `88bbd2c` removes
+the `target_kind::machine` enumerator from
+`include/speedgun-ng/counters_provider.hpp` and touches no other file, and a
+search for `target_kind::machine` over `source/`, `include/`, `test/`, and
+`example/` returns no line; `01f905b` restates ten artifact sentences and
+touches no executable code; `30f6361` restates seven more across
+`specs/007-counters-and-timers/plan.md` and `tasks.md` and touches no
+executable code; `1827d76` adds `specs/007-counters-and-timers/citations.md`,
+one line to the plan's Project Structure block, and the Phase 34 section, and
+touches no source, header, test, example, tool, or build file. All 38 anchors
+the eight live artifacts place were resolved and read, and every one lies
+inside the file it names and none lands on blank lines. No closure claim in the
+Phase 12 through Phase 34 preambles was accepted as evidence.
+
+Six findings: 2 `contradicts` and 3 `partial` and 1 further `partial`; 1
+CRITICAL, 1 HIGH, 3 MEDIUM, 1 LOW; none is `missing` and none is `unrequested`.
+Five of the six sit in a sentence, a checkbox, or an anchor inside a dated
+record, and one is a Principle XI.1 violation in a live artifact the shipped
+prose gate structurally cannot report.
+
+The residue the implement and commit passes reported was assessed on its own
+evidence, and three of the nine items do not survive it. The Phase 34
+preamble's two anchor totals reproduce exactly under the rule stated above, so
+no finding rests on their irreproducibility; what survives is that
+`specs/007-counters-and-timers/citations.md:28-31` quotes the whole-file
+figures for a population it defines as the Phase 1 through Phase 33 record, and
+states no rule, which is T265. The Phase 34 preamble's claim that all 38
+anchors land holds for the population it names, which excludes `tasks.md`; the
+`source/counters/linux_pmu/provider.cpp:193` anchor the report raised belongs
+to `T076` at `specs/007-counters-and-timers/tasks.md:364`, inside the separate
+702-occurrence population, and `specs/007-counters-and-timers/citations.md:59`
+already records its correction. The Phase 22 preamble at
+`specs/007-counters-and-timers/tasks.md:1180` names
+`.specify/memory/constitution.md:568-570` and asserts that range still holds the
+machine-local `CMakeUserPresets.json` sentence, which it does, at `:569-570`;
+the false correction sits in `citations.md:103`, which is T263. The three
+drifted anchors the report attributes to uncovered sites, `T185`,
+`T178`, and the Phase 20 preamble, are recorded at `citations.md:96`, `:94`,
+and `:100`. The `T072` directive population is gone, and
+`specs/007-counters-and-timers/citations.md:57-58` records that. The
+`T189` pointers are wrong by three lines and two lines, and
+`specs/007-counters-and-timers/citations.md:97` records that. The Phase 22
+preamble at `:1177-1179` correctly reports the out-of-range
+`source/counters/linux_pmu/fast_read.cpp:309-444` as a `T139` citation in a file
+of 331 lines, and `citations.md:80` records it. The owed sentence at
+`specs/007-counters-and-timers/spec.md:321` is genuinely absent and
+`citations.md:20-24` records the debt, which is T264.
+
+### CRITICAL: a Principle XI.1 violation the shipped prose gate structurally cannot report
+
+- [X] T261 Bring `specs/007-counters-and-timers/tasks.md:407` into Principle
+  XI.1 compliance and record the journal's 58 em-dash lines and the gate's two
+  blind spots in `specs/007-counters-and-timers/citations.md`, where the line
+  at `:407` reads `... one sampling point — \`scope\`'s own buffer ...` and
+  carries the code point U+2014 between two clauses of the `T116` task, a
+  violation of the binding Principle XI.1 at
+  `.specify/memory/constitution.md:397-403`, which the line's own
+  2026-09-25 authorship places after the 2026-09-10 amendment the clause's
+  scope paragraph at `:405-409` says binds output generated after it. No
+  machine check reports it, for two independent reasons, both re-verified
+  here: `tools/prose/prose_gate.py:876-883` returns before any rule matcher
+  runs when the unit carries an inline code span, a URL, a path-like token, a
+  shell command, or a blockquote, and `INLINE_CODE_RE.search` and `path_like`
+  both match line 407; and the line is outside the CI range, because the first
+  commit touching `specs/007-counters-and-timers/`, `c6d9c19`, is not an
+  ancestor of the merge base `65beada`, so
+  `python3 tools/prose/prose_gate.py --check prose --mode tree --paths
+  specs/007-counters-and-timers docs/pages/counters-overhead.md` exits 0 at 0
+  findings over the line. The same rule carries
+  `specs/007-counters-and-timers/sg_counters.md:925` and `:936`, which the
+  `INDENTED_CODE_RE` precedence at `tools/prose/prose_gate.py:874-875` drops
+  because a four-or-more-space markdown continuation line matches it, and 54
+  further journal lines the code-span, URL, path-like, and blockquote
+  precedence drops, for 58 in all. Principle XI.1's own scope paragraph at
+  `.specify/memory/constitution.md:408-409` names the remedy, a tree-wide sweep
+  as a formatting-only change under Principle V, scheduled on its own, so the
+  change that fixes the `tasks.md` line may not share a commit with any content
+  change. The 58 journal lines stay as written, because the journal is a dated
+  closed record, and `citations.md` is the place the constitution permits for
+  recording them. No dated preamble, no closed task line, no checkbox above
+  this line, and no requirement number or position moves (CRITICAL,
+  Constitution XI.1, Constitution XI.6, Constitution V: Style and Formatting,
+  Constitution X.1, `contradicts`)
+
+### HIGH: `T091` is closed with neither branch landed, and nine live sites still assert the shape the code refuses
+
+- [X] T262 Reconcile the design record with the shipped shape of the plan's fold
+  program, where `T091` at `specs/007-counters-and-timers/tasks.md:379` is
+  checked `- [X]` and offers two branches, "Store a per-composite fold program
+  of slot references in `plan_impl`" or "amend `T017`'s 'fold program per
+  composite (column references with algebraic exponents and ops)'", and neither
+  landed. The code states the opposite of the first branch at
+  `source/counters/detail/core.hpp:92-99`, whose comment reads "no
+  per-composite program is stored here (T091)" and justifies it by citing
+  `FR-022` itself, while the second branch left `T017` at
+  `specs/007-counters-and-timers/tasks.md:66` carrying its original clause
+  verbatim, the only two mentions of `T017` in the file being that line and
+  `T091`'s reference to it. The cost `T091` named also remains: the fold
+  re-resolves leaf to slot through the string-keyed `by_address` map at
+  `source/counters/fold.cpp:43` and `:162`, which the decision at
+  `core.hpp:95-99` accepts. Eight live sites and one requirement still assert
+  the program exists: `FR-022` at
+  `specs/007-counters-and-timers/spec.md:250` names "fold sequence" among the
+  four things the flat read plan produces, the Key Entities entry at `:298`
+  names it again, `specs/007-counters-and-timers/data-model.md:65` reads
+  "compiled to a fold program by the plan" and `:85` lists "fold program |
+  per composite" as a plan field, `specs/007-counters-and-timers/research.md:41`
+  records it in the `R-005` decision, `specs/007-counters-and-timers/plan.md:111`
+  names "fold programs" in the `plan.cpp` duty and `:234` draws the class
+  diagram edge `plan ..> expression : fold programs`, and
+  `specs/007-counters-and-timers/contracts/measurement-contract.md:47` and
+  `:110` both state it. The read path itself complies with `FR-022`'s normative
+  clause: `sample_row` at `source/counters/plan.cpp:33-43` reaches
+  `group.thunk` over the column cursor and touches no expression node and no
+  name lookup, and the spine is a flat index-addressed node array at
+  `include/speedgun-ng/counters_measurement.hpp:102-110`, so the substance of a
+  fold sequence exists and the plan does not own it. `FR-021`'s requirements
+  hold, since a fold still accepts any expression over the plan's slots at any
+  time. Take `T091`'s second branch and amend the requirement and the eight
+  sites to the shape the code has, recording the decision, the competing
+  reading, and the reason `core.hpp:92-99` gives at the site, which is what
+  Constitution X.1 requires; a change to the code instead is a design change to
+  a requirement Principle IX makes binding and takes a DCR under Principle
+  III, so it may not be taken inside this task. `T091` and `T017` keep their
+  bytes as dated records. Record the journal site
+  `specs/007-counters-and-timers/sg_counters.md:252`, which reads "leaf slots +
+  fold sequence", in the same `citations.md` pass, and record the `T032` and
+  `T098` drift T266 names there too (HIGH, FR-022, FR-021, Constitution IX,
+  Constitution III: Design Change Request, Constitution X.1, `contradicts`)
+
+### MEDIUM: the anchor-correction record states a correction the tree contradicts
+
+- [X] T263 Correct the one row of `specs/007-counters-and-timers/citations.md`
+  whose "Line now holding the claim" holds other text, which is the row at
+  `:103`, reading "| Phase 22 preamble | 1180 |
+  `.specify/memory/constitution.md:568-570` | `:571-573`, the machine-local
+  `CMakeUserPresets.json` sentence | Constitution IX | this pass |".
+  `.specify/memory/constitution.md:571` reads "- **Licensing:** BSD 3-Clause.
+  All contributed code is compatible, with no", `:572` reads "  additional
+  license burden.", and `:573` is blank, so the range the row names as the new
+  landing holds the Licensing bullet and one empty line. The sentence is at
+  `:569-570`, "  `CMakeUserPresets.json` is machine-local and must NEVER be
+  checked into", "  source control.", which is inside the range `:568-570` the
+  Phase 22 preamble at `specs/007-counters-and-timers/tasks.md:1179-1181`
+  already names and asserts still holds it, so the preamble needs no correction
+  and the row invented one. This is the only one of the 49 anchor rows the
+  record carries that fails the third drift criterion it states at
+  `specs/007-counters-and-timers/citations.md:40`, "the cited line holds text
+  other than the claim the sentence makes"; the first two criteria pass over
+  every row, checked here line by line. Replace the row's landing with the
+  sentence's own lines and state that the Phase 22 preamble's range already
+  holds the claim, so a reader of the record is not sent three lines past the
+  text. Every other row, every dated preamble, every closed task line, and
+  every requirement number and position keeps its bytes (MEDIUM,
+  Constitution IX, Constitution X.4, `contradicts`)
+
+### MEDIUM: the precedence sentence `T259` asked for is still owed
+
+- [X] T264 Write the one precedence sentence `T259` asks for into the Assumptions
+  paragraph at `specs/007-counters-and-timers/spec.md:321`, beside the existing
+  sentence that names the journal the authoritative design record for intent,
+  stating that where the journal's resolved scope statement names a boundary, a
+  gate, a mechanism, or a manifest that a later requirement in this spec
+  withdrew, the requirement in `spec.md` governs, and that the five sentences
+  the rule settles are the ones `specs/007-counters-and-timers/citations.md`
+  lists under its journal table. `T259`'s body at
+  `specs/007-counters-and-timers/tasks.md:2541` names that paragraph and that
+  sentence as where the record belongs, and the task is checked `- [X]`;
+  `specs/007-counters-and-timers/spec.md:321` reads "The closed journal
+  `sg_counters.md` (2026-09-25) is the authoritative design record; where this
+  spec compresses it, the journal's resolved scope statement and decision
+  entries govern intent." and carries no precedence clause. A search of the
+  file for "resolved scope statement names" returns no line, and the only two
+  occurrences of "governs" are the Clarification answers at `:30` and `:32`.
+  The debt is recorded at `specs/007-counters-and-timers/citations.md:20-24`,
+  which states the rule in prose and that the sentence is owed. A reader who
+  follows the journal header at `specs/007-counters-and-timers/sg_counters.md:7-12`
+  needs the rule in the spec itself, because the journal carries 58 lines the
+  gate cannot read and its resolved scope statement names five boundaries later
+  requirements withdrew. No requirement number, position, or text moves, and no
+  other artifact changes (MEDIUM, T259, Constitution IV, Constitution IX,
+  `partial`)
+
+### MEDIUM: the record's anchor population has no stated counting rule, and its two figures are whole-file figures
+
+- [X] T265 State the counting rule the anchor totals in this feature's records
+  depend on, then restate the two figures at
+  `specs/007-counters-and-timers/citations.md:28-31` under it. The Method and
+  population paragraph reads "The population is every anchor the Phase 1
+  through Phase 33 record in `specs/007-counters-and-timers/tasks.md` places,
+  which is the 724 explicit `path:line` and `path:NN-MM` tokens the file
+  carries, plus the 449 bare `:NN` continuations", and it states the unit as
+  "tokens" where 724 is occurrences and 476 is distinct. Under the rule this
+  preamble states, the population the paragraph defines is
+  `tasks.md` lines 1 through 2422 and carries 702 occurrences and 467 distinct
+  tokens plus 420 bare `:NN` continuations; 724, 476, and 449 are the figures
+  for lines 1 through 2578, the file as it stands, which include the 22
+  occurrences and 29 continuations the Phase 34 section appends. The three
+  totals a reader compares, 740 and 762 at
+  `specs/007-counters-and-timers/tasks.md:2530-2531` and `:2534-2535` and 724
+  with 449 in the record, are all correct under a rule and irreconcilable
+  without one, and a reader has no way to tell which population any of them
+  names. State the rule, name the file set, the line range, the pattern, and
+  whether the unit is an occurrence or a distinct token, then restate the two
+  figures and correct the word "tokens". The rule and the figures this
+  preamble carries are the ones to state. No total in any dated preamble
+  changes, and no closed task line moves (MEDIUM, Constitution X.4, T253, T260,
+  `partial`)
+
+### LOW: a closed task line names the group shape the code records as rejected
+
+- [X] T266 Record in `specs/007-counters-and-timers/citations.md` the drift in
+  `T032` at `specs/007-counters-and-timers/tasks.md:109`, whose task text asks
+  for "per-instance provider group reads (US3 scenario 5)" while
+  `source/counters/plan.cpp:470-477` records the opposite decision with its
+  reason, "One read group per provider, carrying every leaf that provider owns,
+  so a fan-out over many objects is one `open` and one sampling action (FR-047)",
+  and names `T098` as the task that chose it. `T098` at
+  `specs/007-counters-and-timers/tasks.md:389` offered "Split plan read groups
+  per provider instance ... or amend the task" and was closed `- [X]`, and the
+  second branch left `T032`'s clause standing. `US3` scenario 5 holds on the
+  shipped shape: `test/source/counters_objects_test.cpp:410-413` asserts the
+  per-core instruction deltas sum to the shared total, so the drift is confined
+  to the closed task text, and the code records the decision at its own site as
+  Constitution X.1 requires. Add one row naming the task, the line in
+  `tasks.md`, the clause as written, the decision that governs it, and the test
+  that shows the acceptance scenario holds. `T032` and `T098` keep their bytes
+  (LOW, T032, T098, US3 scenario 5, FR-047, Constitution X.1, `partial`)

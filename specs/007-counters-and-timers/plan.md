@@ -108,7 +108,7 @@ source/counters/                   # NEW implementation dir (root CMakeLists own
 ├── fake_provider.cpp              # scripted deterministic point sequences (R-009)
 ├── plan.cpp                       # compile(): slots, group layout + target/clock
 │   │                              #   validation, mode assignment, arena geometry,
-│   │                              #   fold programs, overhead calibration (FR-032)
+│   │                              #   address table, overhead calibration (FR-032)
 ├── fold.cpp                       # modular deltas, ratio products, drop-aware fold,
 │   │                              #   series fold helpers (template entry points inline)
 ├── detail/                        # NEW provider-private headers (never installed)
@@ -231,7 +231,7 @@ classDiagram
   object "1" *-- "*" catalog_entry
   catalog_entry ..> counter : resolution
   expression o-- counter : leaves
-  plan ..> expression : fold programs
+  plan ..> expression : slot resolution
   recorder --> plan : arena buffer
   scope ..> recorder : two-point sugar
   expression ..> recorder : fold
