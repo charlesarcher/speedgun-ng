@@ -135,7 +135,7 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     detail::pmu_entry running {
         .name = "running",
         .description =
-            "wall-clock nanoseconds this event group has actually run; "
+            "wall-clock nanoseconds this event group has run; "
             "the ratio against 'enabled' discloses multiplexing (FR-041)",
         .words = {},
         .is_time_pair = true,

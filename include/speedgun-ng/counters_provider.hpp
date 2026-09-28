@@ -20,8 +20,10 @@
  * A provider registers objects with named catalog entries
  * (`enumerate`), and yields cumulative points for the leaves the system
  * asks it to manage (`open`, then `read_points` per action). Virtual
- * calls belong to setup; the compiled read path reaches providers
- * through the resolved `window_reader::thunk` slot (R-004).
+ * calls belong to setup; the compiled read path reaches a provider
+ * through the `window_reader::read_thunk` slot its window fills in the
+ * window constructor, one static function naming that window's own read
+ * (R-004, FR-022).
  */
 
 namespace sg::counters
@@ -240,11 +242,13 @@ private:
  * window.
  *
  * `read_points` fills exactly one cumulative point per managed leaf, in
- * `leaf_set` order, within one sampling action (C-PRO-2). Providers
- * whose read is a plain instruction sequence set `thunk` in their
- * constructor so the compiled plan bypasses the vtable; the default
- * thunk routes to `read_points`, keeping correctness for every
- * provider (R-004).
+ * `leaf_set` order, within one sampling action (C-PRO-2). Every window
+ * constructor calls `set_thunk` with a static function that reads that
+ * window's own points, so the compiled plan reaches the read with no
+ * vtable lookup (FR-022, R-004). A window that supplies no thunk keeps
+ * `default_thunk`, which routes to `read_points`; that fallback costs
+ * one vtable lookup per sampling action and serves a provider written
+ * against this interface alone.
  *
  * \invariant `thunk` is non-null.
  */
@@ -295,8 +299,9 @@ public:
    * @brief Resolves the direct-call slot for the compiled read path.
    *
    * Called once per reader at plan finalization (setup region). The
-   * default returns the slot as stored; providers may point it at a
-   * static function equivalent to `read_points`.
+   * slot holds the static function the window constructor installed
+   * through `set_thunk`, and `default_thunk` when the window installed
+   * none.
    *
    * \pre none
    * \post none

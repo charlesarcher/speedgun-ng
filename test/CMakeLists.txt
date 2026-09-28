@@ -302,6 +302,20 @@ target_compile_features(counters_overhead PRIVATE cxx_std_23)
 add_test(NAME counters_overhead COMMAND counters_overhead)
 set_tests_properties(counters_overhead PROPERTIES SKIP_RETURN_CODE 2)
 
+# The two counters examples as gates (T151; SC-001, SC-003, FR-049): the
+# standalone example is the SC-001 acceptance artifact, and the giraffe
+# example proves the extension seam from public headers alone. Neither
+# takes an argument, reads a hardware counter, or needs a privilege, so
+# every host in the matrix runs both, no SKIP_RETURN_CODE applies, and
+# their exit 1 is a real failure. Both are registered on the example
+# targets, so a configuration built without BUILD_EXAMPLES registers
+# neither.
+if(TARGET counters_standalone_example)
+  add_test(NAME counters_standalone_example
+           COMMAND counters_standalone_example)
+  add_test(NAME counters_giraffe_example COMMAND counters_giraffe_example)
+endif()
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

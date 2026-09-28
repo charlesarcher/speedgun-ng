@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "../detail/pmu.hpp"
+#include "speedgun-ng/dbc.hpp"
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__i386__))
 #  define SG_PMU_FAST_X86 1
@@ -254,6 +255,9 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
 auto fast_context_read(const fast_context& context, std::uint64_t& value)
     -> fast_read_verdict
 {
+  SG_REQUIRE(std::this_thread::get_id() == context.owner,
+             "a mapped-page read runs on the thread that opened its "
+             "context (FR-031, FR-040)");
   const auto* page = static_cast<const event_page*>(context.map);
   // The protocol the header publishes, in its order: snapshot the
   // sequence, take the payload and the instruction, compare the sequence
@@ -285,6 +289,9 @@ auto fast_context_time_pair(const fast_context& context,
                             std::uint64_t& enabled,
                             std::uint64_t& running) -> bool
 {
+  SG_REQUIRE(std::this_thread::get_id() == context.owner,
+             "the enabled/running pair is read on the thread that opened "
+             "its context (FR-031, FR-040)");
   const auto* page = static_cast<const event_page*>(context.map);
   // The pair is payload of the same user-page update the counter value
   // rides, so it is read under the same seqlock snapshot (FR-041, R-011).

@@ -138,6 +138,24 @@ jobs:
       run: test -z "$(find prefix/ -iname '*yaml*cpp*')"
     - name: Audit package files for yaml-cpp
       run: "! grep -riE 'yaml[-_]?cpp' prefix/lib/cmake/speedgun-ng/*.cmake"
+    # SC-001, FR-049. A shared build links libspeedgun-ng.so into the
+    # example, so this audit runs in the static test job and the
+    # shared-audit job keeps the vendored-dependency manifest checks.
+    - name: Audit standalone example link manifest
+      run: |
+        set -euo pipefail
+        bin=build/example/counters_standalone_example
+        readelf -d "$bin" | grep NEEDED
+        if readelf -d "$bin" | grep NEEDED \
+          | grep -vE '\[(libc|libm|libstdc\+\+|libgcc_s)\.so'; then
+          echo "FAIL: the manifest names a library outside the runtime"
+          exit 1
+        fi
+        if readelf -d "$bin" | grep -i speedgun; then
+          echo "FAIL: the manifest names speedgun-ng"
+          exit 1
+        fi
+        echo "PASS: the manifest names the platform C and C++ runtime alone"
     - name: Check vendored pmu-events integrity
       run: python3 tools/pmu_events/update_pmu_events.py --check
     - name: Test

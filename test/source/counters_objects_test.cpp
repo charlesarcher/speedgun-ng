@@ -56,8 +56,14 @@ using sg::counters::compile;
 using sg::counters::dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
+using sg::counters::leaf_set;
 using sg::counters::object;
+using sg::counters::object_seed;
+using sg::counters::object_sink;
+using sg::counters::provider_iface;
 using sg::counters::system;
+using sg::counters::target;
+using sg::counters::window_reader;
 
 using events = dim<0, 1>;
 using time_dim = dim<1, 0>;
@@ -91,7 +97,7 @@ auto test_duplicate_registration() -> void
 
   auto doubled = std::make_unique<fake_provider>();
   doubled->add_counter(
-      "machine", "monotonic", "nanoseconds", "re-declared clock");
+      "machine", "monotonic", "nanoseconds", "redeclared clock");
   const auto rejected_name =
       system::local().register_provider(std::move(doubled));
   check(!rejected_name.has_value(),
@@ -125,6 +131,53 @@ auto test_duplicate_registration() -> void
   check(contains(rejected_alias.error().message, "cpu3")
             && contains(rejected_alias.error().message, "duplicate"),
         "the alias rejection names the colliding alias (FR-002)");
+
+  // One seed batch declaring a canonical path twice, which
+  // `fake_provider` cannot express because it keys its objects by path.
+  // The batch is refused whole, so no object lands and neither alias
+  // survives (US3 scenario 6, FR-008).
+  class twice final : public provider_iface
+  {
+  public:
+    void enumerate(object_sink& sink) const override
+    {
+      sink.add_object(object_seed {
+          .kind = "core",
+          .path = "package-3/core-11",
+          .alias = "cpu11",
+          .description = "eleventh core, first declaration",
+          .entries = {},
+      });
+      sink.add_object(object_seed {
+          .kind = "core",
+          .path = "package-3/core-11",
+          .alias = "cpu12",
+          .description = "eleventh core, second declaration",
+          .entries = {},
+      });
+    }
+
+    std::unique_ptr<window_reader> open(const leaf_set& /*leaves*/,
+                                        const target& /*where*/) override
+    {
+      return nullptr;
+    }
+  };
+
+  const auto rejected_batch_path =
+      system::local().register_provider(std::make_unique<twice>());
+  check(!rejected_batch_path.has_value(),
+        "a canonical path declared twice in one batch is rejected "
+        "(US3 scenario 6)");
+  check(contains(rejected_batch_path.error().message, "package-3/core-11")
+            && contains(rejected_batch_path.error().message, "duplicate"),
+        "the batch rejection names the duplicated path (US3 scenario 6)");
+  check(!system::local().object("package-3/core-11").has_value(),
+        "the refused batch left no object at the duplicated path (FR-008)");
+  check(!system::local().object("cpu11").has_value()
+            && !system::local().object("cpu12").has_value(),
+        "the refused batch left neither of its aliases behind (FR-008)");
+
   const auto held = system::local().object("cpu3");
   check(held.has_value() && held->path() == "package-1/core-3",
         "the held alias still resolves to its first registrant (FR-002)");
