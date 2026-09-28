@@ -123,5 +123,5 @@ One semantics, two spellings. The enforced misuse sequences are `metric` on a wi
 
 ## Standalone embeddability (FR-049, FR-050)
 
-- An example using public headers plus the standard library compiles, runs, and folds a metric; the link manifest names this library alone; zero benchmarking-framework code appears anywhere in 007.
+- An example using public headers plus the standard library compiles, runs, and folds a metric; the link manifest demonstrates no third-party dynamic dependency and names the platform C and C++ runtime; zero benchmarking-framework code appears anywhere in 007.
 - All construction fits an untimed setup region; recorder capacity is computable from a known iteration count; per-thread plans; fold results serve as per-iteration counter inputs.

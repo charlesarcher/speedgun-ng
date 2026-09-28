@@ -23,9 +23,9 @@
  * the dimension algebra, plan compile, folds with disclosure, and the
  * scope sugar (FR-014..FR-030).
  *
- * Dimensions live in types and are erased before the point buffer
- * (FR-016). The read path holds no expression tree, no dispatch, and
- * no name lookup (FR-022).
+ * Dimensions live in types and are erased before the point buffer (FR-016).
+ * The read path holds no expression tree and no name lookup; a window that
+ * installed no thunk pays one vtable lookup per sample (FR-022).
  *
  * @section cadence The cadence idiom
  *
@@ -65,7 +65,7 @@
  * counter wrap subtracts out and a long window stays exact (FR-013).
  * Folds then convert to `double`, which carries 53 bits of mantissa:
  * a delta above `2^53` loses its low bits. A count reaches `2^53` at
- * roughly 285 events per nanosecond sustained for one second, so any
+ * roughly 9007199 events per nanosecond sustained for one second, so any
  * counter-backed delta is exact on every host this feature targets. A
  * scaled expression, such as a per-iteration rate, can reach the
  * threshold through its scale factor alone; `metric_result::scaled`
@@ -981,10 +981,10 @@ private:
  * in the untimed region, and that plan is fixed before the window
  * opens. A scope registry would be the only way to register a
  * composite into a running scope, and the API has none: the misuse is
- * unrepresentable. The four misuse sequences the API can spell are
- * `metric` before `finish`, `finish` without `start`, a double
- * `start`, and `metric` after `finish`; each is a contract violation
- * (FR-046).
+ * unrepresentable. The three misuse sequences the type refuses are
+ * `metric` on a window that is not closed, `finish` without `start`,
+ * and a second `start`, each a contract violation (FR-046, the
+ * scope-misuse edge case), and a finished scope is a settled window.
  */
 class SPEEDGUN_NG_EXPORT scope
 {

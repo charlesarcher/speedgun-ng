@@ -1890,3 +1890,95 @@ half of it and closed without the text moving, the sibling-occurrence class
 ### HIGH: five sentences record the fast-read design the T131..T141 work replaced
 
 - [X] T233 Restate the five sentences that describe the mapped-page read as it stood before T137..T139: `specs/007-counters-and-timers/plan.md:124` names a `reinterpret_cast` at the ABI boundary and `:126` a `48-bit mask`, `specs/007-counters-and-timers/tasks.md:185` names the mask `(val + offset) & 0xFFFFFFFFFFFF` and a `P2 reinterpret_cast`, and `specs/007-counters-and-timers/research.md:89` names the `perf_user_access` sysctl on affected Intel parts beside that same `48-bit counter-width mask`, `:91` names `Every gate (sysctl, version, capability, index) is host state the probe reads at plan compile`, and `:93` names `assuming perf_user_access is on`; the code takes the mask from the width the event page publishes at `source/counters/linux_pmu/fast_read.cpp:271` and `:97`, casts with `static_cast` at `:195`, `:261`, and `:295` over the kernel's own `perf_event_mmap_page` aliased at `:165`, a search for `perf_user_access` over `source/`, `include/`, and `test/` returns no line, the mirrored page fields `T076` named are gone, and `specs/007-counters-and-timers/plan.md:362`, `:365-367`, and `:453` beside `specs/007-counters-and-timers/spec.md:326` and `specs/007-counters-and-timers/contracts/provider-contract.md:67` already carry the settled wording; each of the five sentences must name the page-published width and the standard conversion, the closed journal `specs/007-counters-and-timers/sg_counters.md` is a dated record and keeps its text, and no code, requirement, gate, or exclusion marker may move (HIGH, FR-040, Constitution I, IV, T079, T137, T139, `contradicts`)
+
+## Phase 31: Convergence
+
+Appended by `/speckit.converge` after an audit of the branch tip at `a8ed1d6`
+and of the residue the twelve waves before it left. Nothing above this line
+changed.
+
+Audit evidence, all produced by this pass from the repository root.
+`python3 tools/prose/prose_gate.py --check all` exits 0, and
+`cmake -P cmake/prose-lint.cmake` exits 0 on the same verdict. This preamble
+records no source or unit figure for the range holding it, and no
+`--mode tree` total, because that form collects its files with `git ls-files`
+and reads them from the working tree, which is the reading the Phase 21
+preamble states at `specs/007-counters-and-timers/tasks.md:1112-1119`.
+`cmake --preset=dev` and `cmake --build --preset=dev` exit 0, and
+`ctest --preset=dev` exits 0 with 100.0 percent of 37 tests passed, 0 failed,
+0 skipped. `cmake --preset=ci-ubuntu` and `cmake --build build`, the release
+build Principle IX requires once per feature, exit 0 with zero compiler
+warnings in the project's own C++ sources. `format-check` and `dbc-gate`
+exit 0, the pair reporting 135 interfaces with 0 gaps in the doc gate and in
+the pair gate. `python3 tools/pmu_events/update_pmu_events.py --check` exits 0,
+`cmake -P cmake/spell.cmake` exits 0, and `bash tools/dbc/coverage_gate.sh
+build/coverage/coverage.info` exits 0 at lines 100.0 percent (1955 of 1955),
+branches 100.0 percent (705 of 705), and functions 98.0 percent (289 of 295)
+on an axis no gate scores. `ctest --test-dir build -N` reports 37 tests of
+which 16 match `-R counters`. The commit-title limit holds on the thirteen
+commits the branch carries from `11bc422` to `a8ed1d6`, whose titles measure
+41, 37, 44, 50, 45, 44, 50, 50, 49, 46, 50, 49, and 48 characters against
+the limit `tools/prose/prose_rules.yaml:11` sets, and every one of the
+thirteen titles opens with a section token `tools/prose/prose_rules.yaml:19-29`
+lists.
+
+Coverage of the check: 127 requirement keys (50 functional requirements
+numbering `FR-001` through `FR-050` with no gap, 10 success criteria numbering
+`SC-001` through `SC-010` with no gap, 49 user-story acceptance scenarios across
+8 stories, and 18 spec edge cases), 29 plan decision keys, and 11 constitution
+principles with X.1 through X.4 and XI.1 through XI.6 read one by one.
+Re-measured here: the glob `include/speedgun-ng/counters*.hpp` matches the 9
+headers `specs/007-counters-and-timers/plan.md:35`, `:298`, and `:325` record,
+`find source/counters -name '*.cpp'` returns the 11 translation units, the
+FR-022 thunk seam holds at all five shipped window constructors
+(`source/counters/clock_provider.cpp:165`, `source/counters/push_provider.cpp:21`,
+`source/counters/fake_provider.cpp:38`,
+`source/counters/linux_pmu/group_io.cpp:192` and `:302`), the
+`SG_REQUIRE_ALWAYS` bounds site stands at `source/counters/plan.cpp:366`, the
+`hard_stop` and `ring` cores allocate at `source/counters/plan.cpp:223` and
+`:239`, and the exactness, cadence, and fold-endpoint figures
+`include/speedgun-ng/counters_measurement.hpp:44-60` and `:66-72` publish
+match `docs/pages/counters-overhead.md:160-163` and `:170-181`. Seven
+findings: 7 `contradicts`; 0 CRITICAL, 2 HIGH, 4 MEDIUM, 1 LOW, and none of
+the seven a constitution MUST violation. No requirement is missing or
+partially built, and no plan decision is unmet. Every finding sits in a
+sentence the code contradicts, which is the class the settled amendments
+leave behind, and five of the seven name a site no earlier wave reached.
+
+The classes the earlier passes closed hold where they closed them. The
+multiplex range, the FR-024 mismatch claim, the FR-022 artifact dispatch
+claim, FR-023's read-mode boundary, the `perf_user_access` and mask claims,
+and every unanchored figure stay closed, and the four re-anchorings `T196`,
+`T197`, `T190`, and `T192` landed hold. What the earlier waves did not reach
+is the public surface: four of the seven findings sit in
+`include/speedgun-ng/counters_measurement.hpp` and two of those name a
+sentence T226 and T224 restated in the contract and the research record while
+the header beside them kept the superseded wording.
+
+### HIGH: the syscall group read allocates on the sampling path against FR-026
+
+- [X] T234 Fix the unit mismatch in the group-read scratch guard at `source/counters/linux_pmu/group_io.cpp:213-225`, which compares `scratch.size()`, an element count, against `want`, a byte count, so the guard `scratch.size() < want` holds for every group of six or more members rather than the 65 the exclusion reason at `:215-222` states, and the growth arm then calls `scratch.resize(want)`, which sets the element count to a byte count and over-allocates by a factor of eight; `source/counters/linux_pmu/group_io.cpp:193` sizes the buffer at `kHeaderWords + 64` elements, so a measured sweep of the guard shows it firing at 6, 8, 64, 65, and 100 members, while FR-026 at `specs/007-counters-and-timers/spec.md:254` requires `recorder.sample()` to be `noexcept` with zero allocation, the doc comment at `include/speedgun-ng/counters_measurement.hpp:469-473` states zero allocation and zero lock, and `test/source/counters_pmu_test.cpp:571` already opens 64 member leaves in one plan, so the fast-regime test at `docs/pages/counters-overhead.md:314` and the oversubscription scenario both reach the guard; the comparison must be in one unit, the resize must size the element count from the member count, the allocation must leave the sampling path, and the exclusion reason must state the corrected boundary (HIGH, FR-026, Constitution VII, `contradicts`)
+
+### HIGH: a header still names a scope misuse the code and the test permit
+
+- [X] T235 Restate the scope-misuse list in the public header at `include/speedgun-ng/counters_measurement.hpp:984-987`, which names four sequences and calls each a contract violation, where `source/counters/fold.cpp:289-290` refuses `metric` only on a window that is not closed, so `metric` after `finish` is permitted, where `test/source/counters_fake_test.cpp:486-494` asserts ten further `metric` calls on a finished scope succeed with zero provider reads, where the edge case at `specs/007-counters-and-timers/spec.md:199` and the clarification at `specs/007-counters-and-timers/spec.md:36` name three enforceable sequences and record that a finished scope is a settled window, and where T226 restated `specs/007-counters-and-timers/contracts/measurement-contract.md:122` to the three without reaching the header; the list must name the three enforced sequences and cite the amended edge case, and the same sentence's claim that the API spells no registration entry keeps its place (HIGH, FR-046, T155, T226, `contradicts`)
+
+### MEDIUM: the plan's scope-misuse sentence names a sequence the code permits
+
+- [X] T236 Restate the scope-misuse sentence at `specs/007-counters-and-timers/plan.md:280`, which names `metric` before `finish`, double `start`, and `use-after-finish` as terminal contract violations, where `source/counters/fold.cpp:289-290` permits `metric` on a closed window and `test/source/counters_fake_test.cpp:486-494` asserts ten further calls succeed, so a use after `finish` is the settled window the edge case at `specs/007-counters-and-timers/spec.md:199` describes, and where the sentence omits the second `finish` that `source/counters/plan.cpp:344-345` refuses; the sentence must name the three enforced sequences and cite the amended edge case, and T226's restatement of the contract clause stands (MEDIUM, FR-046, T155, T226, `contradicts`)
+
+### MEDIUM: the read-path header comment claims a seam the shipped fallback contradicts
+
+- [X] T237 Restate the read-path claim at `include/speedgun-ng/counters_measurement.hpp:26-28`, which states the read path holds no dispatch, where `include/speedgun-ng/counters_provider.hpp:326-330` routes a window that installed no thunk through the vtable at one lookup per sampling action, where `example/counters_giraffe_example.cpp:46-57` installs no thunk, so the giraffe example runs on that path, and where FR-022 at `specs/007-counters-and-timers/spec.md:250` states the seam and its per-action cost after T168 amended it; the sentence must name the seam and its per-action cost, and T224's restatement of the six artifact sites stands (MEDIUM, FR-022, T168, T224, `contradicts`)
+
+### MEDIUM: the plan and the measurement contract still claim a link-manifest shape the build does not produce
+
+- [X] T238 Restate the three sentences that say the standalone example's link manifest names this library alone, at `specs/007-counters-and-timers/plan.md:33`, `specs/007-counters-and-timers/plan.md:434`, and `specs/007-counters-and-timers/contracts/measurement-contract.md:126`, where FR-049 at `specs/007-counters-and-timers/spec.md:286` states the target is a static archive whose manifest carries no `speedgun-ng` entry and names the platform C and C++ runtime, where the clarification at `specs/007-counters-and-timers/spec.md:31` records the same, and where T120 amended FR-049 and SC-001 without reaching these three; each sentence must state that the manifest demonstrates no third-party dynamic dependency and names the platform runtime, and T120's amendment to the requirement and the success criterion stands (MEDIUM, FR-049, SC-001, T120, `contradicts`)
+
+### MEDIUM: the research record states a permission outcome the recorded measurement withdraws
+
+- [X] T239 Restate the permission sentence at `specs/007-counters-and-timers/research.md:83`, which states that at paranoid 2 the provider reports `permission_blocked`, where `source/counters/linux_pmu/provider.cpp:439-443` reports that state only on a `perf_event_open` the kernel answers `EACCES`, where `docs/pages/counters-overhead.md:307-324` records the re-verification that at level 2 all 358 hardware entries probe `countable` with 0 `permission_blocked`, and names 3 or above as the level that refuses, where `specs/007-counters-and-timers/quickstart.md:138` records the same for the suite, and where the page states the earlier level-2 claim was never measured; the sentence must name the level the recorded re-verification shows refusing and point at that record, and T232's amendment of FR-023 stands (MEDIUM, FR-039, SC-002, `contradicts`)
+
+### LOW: the exactness note publishes a rate the code contradicts
+
+- [X] T240 Correct the rate at `include/speedgun-ng/counters_measurement.hpp:67-69`, which states that a count reaches `2^53` at roughly 285 events per nanosecond sustained for one second, where `2^53` is 9007199254740992 and one second holds 1000000000 nanoseconds, so the rate that reaches `2^53` in one second is about 9007199 events per nanosecond, and where `specs/007-counters-and-timers/spec.md:328` states the same limit as roughly 104 days at a sustained one-billion-per-second count, which `2^53 / 1e9` seconds confirms; the sentence must state the rate arithmetic supports and keep the conclusion that a counter-backed delta stays exact on a host this feature targets, and the cadence figures beside it stand (LOW, FR-032, Constitution IV, `contradicts`)
