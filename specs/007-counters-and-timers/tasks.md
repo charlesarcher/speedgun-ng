@@ -896,7 +896,7 @@ Audit evidence, all produced by this pass. `cmake --preset=ci-ubuntu` then
 `dbc-gate` reports 135 interfaces with 0 gaps in the doc gate and 0 in the pair gate,
 `format-check` exits 0, and `cmake -P cmake/spell.cmake` exits 0.
 `python3 tools/prose/prose_gate.py --check all` exits 0 over 107 sources and 7846 units
-with 0 findings and 1 skipped; `--mode tree` reports 108 findings over 224 sources, and
+with 0 findings and 1 skipped over the range ending at `11bc422`, the commit this pass audited, and the range ending at the branch tip exits 0 with 0 findings after the message carrying the finding was rewritten; `--mode tree` reports 108 findings over 224 sources, and
 the two inside `test/source/dbc_test.cpp` are ruled out of this feature on the grounds
 Phase 18 established. `build/coverage/coverage.info` carries mtime 23:46:53, later than
 the newest source in the tree (23:34:53, `source/counters/fold.cpp`), and
@@ -980,3 +980,81 @@ block whose `CMAKE_CONFIGURATION_TYPES` the `Xcode` generator reads, with the
 ### LOW: four citations in the owning spec drifted the same way
 
 - [X] T192 Re-anchor the four citations into the constitution that `specs/002-prose-commit-lint` owns, all correct at `a00b208` and all stale now: `contracts/rule-data.md:25` and `data-model.md:88` and `research.md:413` name `constitution.md:443` for the `runner` section token, and `research.md:248` names `constitution.md:361-388` for the span Principle XI quotes its own banned vocabulary across, where 443 held the token and XI ran 324 to the file's end at `a00b208`, while the token is at `.specify/memory/constitution.md:515` and XI runs `:387-476`; `T114` records that `specs/002` owns `tools/prose/prose_rules.yaml`, so the fix lands in the owning spec's own change and the four citations must each name the line holding its claim, with no rule, token, or decision in `rule-data.md` or `data-model.md` altered (Constitution IV, IX, T114, T190, `contradicts`)
+
+## Phase 20: Convergence
+
+Appended by `/speckit.converge` after an audit of the `162506b` completion claim
+and of the residue the eight waves before it left. Nothing above this line changed.
+
+Audit evidence, all produced by this pass. `cmake --preset=dev` then
+`cmake --build --preset=dev` exits 0, and `ctest --preset=dev` passes 37 of 37 with
+0 failed and 0 skipped in 43.40 s. `cmake --preset=ci-ubuntu` then `cmake --build
+build`, the release build Principle IX requires once per feature, exits 0.
+`cmake --preset=ci-sanitize` then `cmake --build --preset=ci-sanitize` then
+`ctest --preset=ci-sanitize` exit 0 three times. `dbc-gate` reports 135 interfaces
+with 0 gaps in the doc gate and 0 in the pair gate, `format-check` exits 0, and
+`cmake -P cmake/spell.cmake` exits 0. `build/coverage/coverage.info` carries mtime
+2026-09-27 23:46:53, no file under `source/`, `include/`, or `test/` is newer than
+it, and `bash tools/dbc/coverage_gate.sh` run on it exits 0 at lines 100.0% (1955
+of 1955), branches 100.0% (705 of 705), and functions 98.0% (289 of 295) on an
+axis no gate scores. `python3 tools/pmu_events/update_pmu_events.py --check` exits
+0. `ctest --test-dir build -N` reports 37 tests, of which 16 match `-R counters`,
+the two counts the SC-002 row records.
+
+Two gates are red, and both name the same commit. `python3 tools/prose/prose_gate.py
+--check all` exits 1 with one finding, `commit 162506b: XI2.CONTRASTIVE family=XI.2`,
+and `cmake -P cmake/prose-lint.cmake` reproduces that verdict, exiting 1 on `Prose
+gate raised findings (status 1)` (T193). The gate's `--mode tree` form exits 1 with
+108 findings over 182 sources and 16102 units, and none of them sits in this
+feature's artifacts or in `include/speedgun-ng/counters*`, `source/counters/`,
+`test/source/counters_*`, `example/counters_*`, `docs/pages/counters-overhead.md`,
+or `tools/pmu_events/`, so the one red finding in the range is the commit message
+and nothing else. The commit that carries it also records a gate verdict this pass
+measured differently (T194).
+
+Coverage of the check: 127 requirement keys (50 FR, 10 SC, 49 user-story acceptance
+scenarios, 18 spec edge cases), 29 plan decision keys (R-001 through R-015, the
+nine Technical Context decisions, the three Complexity Tracking rows, the Structure
+Decision, and the gate-set note), and 11 constitution principles with X.1 through
+X.4 and XI.1 through XI.6 read one by one. Three findings: 2 `contradicts`, 1
+`partial`; 1 CRITICAL, 1 HIGH, 1 MEDIUM.
+
+The citation class the previous wave predicted is exhausted in the live artifacts.
+Every `file:line` citation `spec.md`, `plan.md`, `quickstart.md`, `data-model.md`,
+`research.md`, and the three contracts place into a source, a header, a script, or a
+second artifact names a file that exists and a line inside it, every single-line
+citation names a non-blank line, and each load-bearing range was read against the
+claim it carries: `spec.md:30` and the release rows at
+`docs/pages/counters-overhead.md:160-161`, `:34` and
+`source/counters/detail/core.hpp:104`, `source/counters/plan.cpp:469`, `:501`,
+`:448-457`, `:502-504`, `:61-62`, `source/counters/detail/pmu.hpp:292`,
+`include/speedgun-ng/counters_measurement.hpp:1089-1095`, `:35` and
+`source/counters/clock_provider.cpp:206-236`, `:36` and `:199` and
+`source/counters/fold.cpp:289-290` with `source/counters/plan.cpp:330` and `:344-345`,
+`:250` and `include/speedgun-ng/counters_provider.hpp:245-251` and `:326-337` with
+`example/counters_giraffe_example.cpp:46-57`, and `quickstart.md:138` and `:140`
+against `docs/pages/counters-overhead.md:314`, `:326-327`, `:170-173`, and
+`:214-237`. Each holds the claim its sentence makes. Four checks no earlier wave
+recorded came back clean: `test/CMakeLists.txt:313-316` registers both example
+targets with `add_test` and `.github/workflows/ci.yml:147-154` reads the standalone
+example's link manifest while `:160` runs the table check, `:303` and `:332`
+configure through `ci-linux-ignore`, and `:422-427` run the release-configured
+counters trap target; US2 scenario 3's construction refusal stands at
+`source/counters/plan.cpp:233-235` with its cases at
+`test/source/counters_recorder_test.cpp:168-173`; US1 scenario 5's ten further
+metrics assert zero provider reads at `test/source/counters_fake_test.cpp:493-494`;
+and FR-003's provider-declared attribute keys ship with the `filter` shape at
+`include/speedgun-ng/counters_system.hpp:230-253`. What the exhausted class leaves
+behind is one count in the plan's physical-view table (T195).
+
+### CRITICAL: the prose-lint hard gate is red over this feature's range
+
+- [X] T193 Restate the sentence the XI2.CONTRASTIVE pattern at `tools/prose/prose_rules.yaml:94` matches in the body of commit `162506b`, which reads `` `the shift preserved the error instead of correcting it` `` at line 25 of that message, so `python3 tools/prose/prose_gate.py --check all` exits 1 with `commit 162506b: XI2.CONTRASTIVE family=XI.2` and `cmake -P cmake/prose-lint.cmake` exits 1 on `Prose gate raised findings (status 1)`; the sentence must state what the shift did in its own terms, the Pull Request Quality section permits rewriting a commit before merge and the rewrite must carry the template, the gate must exit 0 over the rewritten range, and the constitution, its Sync Impact Report, its version, and its lineage row may not move (CRITICAL, Constitution VIII, XI.2, XI.6, `contradicts`)
+
+### HIGH: the commit records an exit code the gate does not produce
+
+- [X] T194 Correct the recorded gate verdict in the body of commit `162506b` and in the Phase 19 preamble at `specs/007-counters-and-timers/tasks.md:898-899`, which both state that `python3 tools/prose/prose_gate.py --check all` exits 0 over 107 sources and 7846 units with 0 findings, where this pass measured exit 1 over 110 sources and 7987 units with 1 finding because the measurement was taken before the commit carrying it entered the range the gate scans; the recorded claim must be one the scanned range reproduces, the source and unit counts must be re-measured after `T193`'s rewrite, and a commit message asserting a whole-range verdict its own text then changes may not stand (HIGH, Constitution X.4, `contradicts`)
+
+### MEDIUM: the plan's physical-view table still names six public headers
+
+- [X] T195 Correct `specs/007-counters-and-timers/plan.md:298`, whose Files-and-duties row names the public surface as `include/speedgun-ng/counters*.hpp` "(6 files)" while the tree holds nine headers, while `specs/007-counters-and-timers/plan.md:35` states "9 new public headers", while `specs/007-counters-and-timers/plan.md:325` states "The nine public headers carry it" and lists them, and while `T117` amended `tasks.md:30` to name all nine; `T117` removed the claim from two of the three places it stood and left this one, which is the sibling-occurrence class `T175` recorded, and the count must read nine (MEDIUM, plan: Files and their duties, T117, `partial`)
