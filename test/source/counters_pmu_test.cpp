@@ -445,7 +445,18 @@ auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
 // printed when the host refuses (SC-002).
 auto group_read_scenario() -> void
 {
-  const auto cpu = *system::local().object("cpu");
+  // A provider that seeds no cpu object leaves the hardware scenarios
+  // with no subject. A host whose perf_event_paranoid hides every event
+  // publishes none, and 007 recorded that as the expected CI shape
+  // (FR-039): the reason is named and the scenario skips.
+  const auto cpu_object = system::local().object("cpu");
+  if (!cpu_object.has_value()) {
+    std::printf("SKIP: no provider seeded a cpu object at this "
+                "perf_event_paranoid, so no hardware event is "
+                "reachable to exercise (FR-039)\n");
+    return;
+  }
+  const auto& cpu = *cpu_object;
   const auto entries = cpu.counters();
   std::string name_a;
   std::string name_b;
@@ -583,7 +594,18 @@ auto multiplex_scenario() -> void
   // against a number written here.
   constexpr std::size_t kOversubscribe = 64;
 
-  const auto cpu = *system::local().object("cpu");
+  // A provider that seeds no cpu object leaves the hardware scenarios
+  // with no subject. A host whose perf_event_paranoid hides every event
+  // publishes none, and 007 recorded that as the expected CI shape
+  // (FR-039): the reason is named and the scenario skips.
+  const auto cpu_object = system::local().object("cpu");
+  if (!cpu_object.has_value()) {
+    std::printf("SKIP: no provider seeded a cpu object at this "
+                "perf_event_paranoid, so no hardware event is "
+                "reachable to exercise (FR-039)\n");
+    return;
+  }
+  const auto& cpu = *cpu_object;
   const auto enabled = cpu.counter<time_dim>("enabled");
   const auto running = cpu.counter<time_dim>("running");
   if (!enabled.has_value() || !running.has_value()) {
@@ -694,7 +716,18 @@ auto multiplex_scenario() -> void
 // untimed region, never as a read-time surprise (FR-024, FR-031).
 auto cpu_target_scenario() -> void
 {
-  const auto cpu = *system::local().object("cpu");
+  // A provider that seeds no cpu object leaves the hardware scenarios
+  // with no subject. A host whose perf_event_paranoid hides every event
+  // publishes none, and 007 recorded that as the expected CI shape
+  // (FR-039): the reason is named and the scenario skips.
+  const auto cpu_object = system::local().object("cpu");
+  if (!cpu_object.has_value()) {
+    std::printf("SKIP: no provider seeded a cpu object at this "
+                "perf_event_paranoid, so no hardware event is "
+                "reachable to exercise (FR-039)\n");
+    return;
+  }
+  const auto& cpu = *cpu_object;
   const auto entries = cpu.counters();
   std::string work;
   for (const auto& entry : entries) {
@@ -739,7 +772,18 @@ auto cpu_target_scenario() -> void
 // can branch on the catalog state (FR-007).
 auto unavailable_leaf_scenario() -> void
 {
-  const auto cpu = *system::local().object("cpu");
+  // A provider that seeds no cpu object leaves the hardware scenarios
+  // with no subject. A host whose perf_event_paranoid hides every event
+  // publishes none, and 007 recorded that as the expected CI shape
+  // (FR-039): the reason is named and the scenario skips.
+  const auto cpu_object = system::local().object("cpu");
+  if (!cpu_object.has_value()) {
+    std::printf("SKIP: no provider seeded a cpu object at this "
+                "perf_event_paranoid, so no hardware event is "
+                "reachable to exercise (FR-039)\n");
+    return;
+  }
+  const auto& cpu = *cpu_object;
   const auto entries = cpu.counters();
   std::string blocked;
   for (const auto& entry : entries) {
