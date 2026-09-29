@@ -61,6 +61,99 @@ using sg::counters::system;
 using events = dim<0, 1>;
 using time_dim = dim<1, 0>;
 
+// The bare baseline for the raw time-stamp read needs the instruction, so
+// the measurement is guarded on the same condition the provider publishes
+// the entry under (008 FR-001). A build without it skips the comparison and
+// says so. It reports no figure it cannot measure.
+#if (defined(__x86_64__) || defined(__i386__)) && !defined(_MSC_VER)
+#  define SG_TEST_HAS_TSC 1
+#else
+#  define SG_TEST_HAS_TSC 0
+#endif
+
+#if SG_TEST_HAS_TSC
+#  include <x86intrin.h>
+#endif
+
+// One sampling action's cost in ticks, as a distribution over repeats.
+struct tick_cost
+{
+  std::uint64_t min = 0;
+  std::uint64_t median = 0;
+  std::uint64_t max = 0;
+};
+
+auto summarize_ticks(std::vector<std::uint64_t> samples) -> tick_cost
+{
+  std::sort(samples.begin(), samples.end());
+  return tick_cost {samples.front(),
+                    samples[samples.size() / 2],
+                    samples.back()};
+}
+
+// Actions per timed loop and repeats of that loop. Enough actions that one
+// scheduling interruption cannot dominate a repeat, enough repeats that the
+// median is stable.
+constexpr std::size_t kPerSampleActions = 1000;
+constexpr std::size_t kPerSampleRepeats = 64;
+
+// One sampling action's cost, bracketed by two reads and divided by the
+// action count. The same bracketing measures both sides, so the difference
+// between them is the library's own cost and not a difference of two timing
+// methods. The library side is measured in a tight loop because that is how
+// a plan samples; a lone pair measured cold costs about half again as much,
+// which the distribution's minimum shows.
+#if SG_TEST_HAS_TSC
+auto measure_bare_tsc() -> std::vector<std::uint64_t>
+{
+  std::vector<std::uint64_t> per_repeat;
+  per_repeat.reserve(kPerSampleRepeats);
+  for (std::size_t repeat = 0; repeat < kPerSampleRepeats; ++repeat) {
+    std::uint64_t total = 0;
+    for (std::size_t action = 0; action < kPerSampleActions; ++action) {
+      const auto start = __rdtsc();
+      total += __rdtsc() - start;
+    }
+    per_repeat.push_back(total / kPerSampleActions);
+  }
+  return per_repeat;
+}
+
+auto measure_library_tsc(const plan& compiled) -> std::vector<std::uint64_t>
+{
+  std::vector<std::uint64_t> per_repeat;
+  per_repeat.reserve(kPerSampleRepeats);
+  for (std::size_t repeat = 0; repeat < kPerSampleRepeats; ++repeat) {
+    auto actions = compiled.recorder(kPerSampleActions);
+    const auto start = __rdtsc();
+    for (std::size_t action = 0; action < kPerSampleActions; ++action) {
+      actions.sample();
+    }
+    per_repeat.push_back((__rdtsc() - start) / kPerSampleActions);
+  }
+  return per_repeat;
+}
+
+// The host's TSC rate, so a tick figure converts into the nanoseconds the
+// rest of this file publishes. Measured across a busy interval. A sleep
+// would hand the CPU to the scheduler mid-measurement.
+auto tsc_rate_hz() -> double
+{
+  const auto wall_start = std::chrono::steady_clock::now();
+  const auto tick_start = __rdtsc();
+  while (std::chrono::steady_clock::now() - wall_start
+         < std::chrono::milliseconds(50))
+  {
+    // Busy, so the interval measures this thread and not a descheduled one.
+  }
+  const auto tick_end = __rdtsc();
+  const auto wall_end = std::chrono::steady_clock::now();
+  const double seconds =
+      std::chrono::duration<double>(wall_end - wall_start).count();
+  return static_cast<double>(tick_end - tick_start) / seconds;
+}
+#endif
+
 // One published regime: what the plan reads, and the three numbers.
 struct regime
 {
@@ -233,6 +326,77 @@ auto main() -> int
   std::printf("clock plan reads machine/monotonic, one leaf per action\n");
   std::printf("\nsampling cost by regime (nanoseconds per sample()):\n");
   const regime syscall_regime = measure(*clock_plan, "clock, syscall (vDSO)");
+
+#if SG_TEST_HAS_TSC
+  // The library's own cost over a bare read of the same instruction. The
+  // raw entry publishes wherever the build executes the instruction, so this
+  // comparison sits with the clock plan. The fast-mechanism probe below may
+  // return before it. A host whose PMU refuses a fast mode still executes
+  // this instruction and still owes the figure.
+  const auto tsc_entry = machine.counter<events>("tsc");
+  if (!tsc_entry.has_value()) {
+    fail("the clock provider publishes the tsc entry on this build");
+  }
+  const sg::counters::expression<events> tick_expression {*tsc_entry};
+  const auto tick_plan = compile(system::local(), tick_expression);
+  if (!tick_plan.has_value()) {
+    fail("a plan over the raw time-stamp entry compiles");
+  }
+
+  // Both sides measured by one method, so the difference is the library's
+  // own cost and not a difference of two timing methods. A tick is a count,
+  // not a duration: the rate printed below is what converts it, because a
+  // tick is not a core cycle unless the two frequencies happen to match.
+  const tick_cost bare = summarize_ticks(measure_bare_tsc());
+  const tick_cost library = summarize_ticks(measure_library_tsc(*tick_plan));
+  const double rate = tsc_rate_hz();
+  const auto as_ns = [rate](const std::uint64_t ticks) {
+    return static_cast<double>(ticks) / rate * 1e9;
+  };
+  std::printf("\nper sampling action, %llu actions x %zu repeats, "
+              "TSC %.3f GHz\n",
+              static_cast<unsigned long long>(kPerSampleActions),
+              kPerSampleRepeats,
+              rate / 1e9);
+  std::printf(
+      "%-24s min %4llu t   median %4llu t   max %4llu t   (median %6.1f ns)\n",
+      "bare rdtsc pair",
+      static_cast<unsigned long long>(bare.min),
+      static_cast<unsigned long long>(bare.median),
+      static_cast<unsigned long long>(bare.max),
+      as_ns(bare.median));
+  std::printf(
+      "%-24s min %4llu t   median %4llu t   max %4llu t   (median %6.1f ns)\n",
+      "library sampling path",
+      static_cast<unsigned long long>(library.min),
+      static_cast<unsigned long long>(library.median),
+      static_cast<unsigned long long>(library.max),
+      as_ns(library.median));
+  std::printf("library cost over bare: %+lld ticks per sampling action\n",
+              static_cast<long long>(library.median)
+                  - static_cast<long long>(bare.median));
+  std::printf(
+      "the bare figure is a property of the instruction. The library "
+      "figure is a property of this build: an optimized build inlines the "
+      "read and the bookkeeping, an unoptimized one pays a call and a frame "
+      "per action. The published budget is the release-preset figure.\n");
+
+  // Liveness and ordering only. The ratio between the two is deliberately
+  // not asserted, because it moves with the build's optimization level by
+  // more than the difference it would be asserting: the same library costs
+  // about one bare read optimized and about five unoptimized. A threshold
+  // narrow enough to mean anything here would fail on half the presets, and
+  // one wide enough to pass on both would not detect a regression.
+  check(bare.median > 0,
+        "the bare read measured a positive cost, so the comparison is live");
+  check(library.median > 0,
+        "the library path measured a positive cost, so the comparison is "
+        "live");
+  check(bare.min <= bare.median && bare.median <= bare.max,
+        "the bare distribution is ordered min <= median <= max");
+  check(library.min <= library.median && library.median <= library.max,
+        "the library distribution is ordered min <= median <= max");
+#endif
 
   // The PMU group regime: one read per leader per action (FR-041). The
   // catalog decides which mechanism the plan reads, so the row carries
