@@ -52,7 +52,7 @@ The counter stays a counter. It keeps `unit::none`, which maps to `dimension {.t
 | X. Anti-Slop | PASS | One catalog seed, one reader condition, one accessor, zero new types. An earlier draft proposed a reading value carrying its own unit and calibration, a span type, a difference operator, a nanosecond conversion, and a defaulted virtual on the provider; all five are withdrawn, and the withdrawal is recorded in the spec and in research.md. The calibration struct and its two reads are deleted, never left dormant, which is the deletion this row asks for elsewhere. |
 | XI. Discourse and Prose | PASS | Generated prose in this directory follows XI and is verified with the prose gate in whole-tree mode, since the range mode reads only committed content. |
 
-**Gate-set note (Principle VIII)**: nothing weakens. No signature changes, no vtable changes, no build-configuration change. The behavioural correction lands in a merged feature, and the successor log records it as a correction so no silent edit ships.
+**Gate-set note (Principle VIII)**: nothing weakens. No signature changes, no vtable changes, no build-configuration change. The behavioral correction lands in a merged feature, and the successor log records it as a correction so no silent edit ships.
 
 ## Project Structure
 

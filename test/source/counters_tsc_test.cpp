@@ -134,8 +134,7 @@ auto test_entry_absent_but_provider_present() -> void
   check(!absent.has_value(),
         "the accessor reports the absent entry once a provider seeded the "
         "machine without one (FR-008)");
-  check(absent.error().message.find("no time-stamp entry")
-            != std::string::npos,
+  check(absent.error().message.find("no time-stamp entry") != std::string::npos,
         "the error names the absent entry (FR-008)");
   check(absent.error().suggestions.empty(),
         "the absent-entry error carries no catalog suggestion (FR-008)");
@@ -185,14 +184,13 @@ auto test_raw_entry() -> void
         "the raw entry carries a count, not a duration (FR-002)");
   check(unit_name(raw->unit) == "none",
         "the unit is the closed token 007 already assigned (FR-002)");
-  check(raw->frequency_hz == 0,
-        "the raw entry attaches no frequency (FR-002)");
+  check(raw->frequency_hz == 0, "the raw entry attaches no frequency (FR-002)");
   check(!raw->scaled, "the raw entry attaches no scaled flag (FR-002)");
   check(raw->description.find("raw") != std::string::npos,
         "the description states that the count is raw (FR-002)");
-  std::printf("tsc entry: mode fast_tsc, unit none, frequency 0, "
-              "description '%s'\n",
-              std::string(raw->description).c_str());
+  std::printf(
+      "tsc entry: mode fast_tsc, unit none, frequency 0, " "description '%s'\n",
+      std::string(raw->description).c_str());
 }
 
 // FR-004: the accessor and the uniform lookup name the same canonical
@@ -200,11 +198,10 @@ auto test_raw_entry() -> void
 auto test_accessor_matches_lookup() -> void
 {
   const auto direct = system::local().tsc();
-  check(direct.has_value(), "the accessor resolves once a provider is "
-                            "registered (FR-004)");
+  check(direct.has_value(),
+        "the accessor resolves once a provider is " "registered (FR-004)");
   const auto machine = *system::local().object("machine");
-  const auto named =
-      machine.counter<events>("tsc");  // the uniform spelling
+  const auto named = machine.counter<events>("tsc");  // the uniform spelling
   check(named.has_value(),
         "the uniform lookup resolves the same entry (FR-004)");
   check(direct->name() == named->name(),
@@ -231,8 +228,8 @@ auto test_accessor_reads_nothing() -> void
   bool identical = after.size() == before.size();
   for (std::size_t i = 0; identical && i < after.size(); ++i) {
     identical = after[i].name == before[i].name
-                && after[i].description == before[i].description
-                && after[i].mode == before[i].mode;
+        && after[i].description == before[i].description
+        && after[i].mode == before[i].mode;
   }
   check(identical,
         "a thousand accessor calls leave every catalog entry unchanged "
@@ -249,9 +246,10 @@ auto test_counter_composes() -> void
   const auto raw = *system::local().tsc();
   const auto per_tick = instructions / raw;
   const auto compiled = compile(system::local(), per_tick);
-  check(compiled.has_value(),
-        "a counted source divided by the time-stamp counter compiles "
-        "(FR-004)");
+  check(
+      compiled.has_value(),
+      "a counted source divided by the time-stamp counter compiles " "(FR-"
+                                                                     "004)");
 
   scope window {*compiled};
   window.start();
@@ -261,9 +259,10 @@ auto test_counter_composes() -> void
   check(folded.value > 0.0,
         "the quotient folds to a positive instructions-per-tick ratio "
         "(FR-004)");
-  check(same_double(folded.running_ratio, 1.0),
-        "the fold discloses ratio 1.0 for an unscaled counted source "
-        "(FR-002)");
+  check(
+      same_double(folded.running_ratio, 1.0),
+      "the fold discloses ratio 1.0 for an unscaled counted source " "(FR-"
+                                                                     "002)");
   std::printf("instructions per tick: %.6f, running ratio %.6f, scaled %s\n",
               folded.value,
               folded.running_ratio,

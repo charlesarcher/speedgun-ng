@@ -393,23 +393,40 @@ auto system::tsc() const -> std::expected<counter<dim<0, 1>>, error>
 {
   const auto* node = m_impl->find("machine");
   if (node == nullptr || node->leaves.empty()) {
-    return std::unexpected(
-        error {.message = "no clock provider is registered, so the tree "
-                          "holds no time-stamp entry to resolve "
-                          "(specs/008-timestamp-counter FR-007)",
-               .suggestions = {}});
+    return std::unexpected(error {.message =
+                                      "no clock provider is registered, so the "
+                                      "tree " "holds no time-stamp entry to "
+                                              "resolve " "(specs/"
+                                                         "008-timestamp-"
+                                                         "counter FR-007)",
+                                  .suggestions = {}});
   }
   for (const auto& leaf : node->leaves) {
     if (leaf.core.name == "tsc") {
       return counter<dim<0, 1>> {.leaf = leaf.core};
     }
   }
-  return std::unexpected(
-      error {.message = "the catalog publishes no time-stamp entry; a clock "
-                        "provider seeds it where the build executes the "
-                        "instruction, and no registered provider did "
-                        "(specs/008-timestamp-counter FR-008)",
-             .suggestions = {}});
+  return std::
+      unexpected(error {.message = "the catalog publishes no time-stamp entry; "
+                                   "a clock " "provider seeds it where the "
+                                              "build executes the " "instructio"
+                                                                    "n, and no "
+                                                                    "registered"
+                                                                    " provider "
+                                                                    "did " "(sp"
+                                                                           "ecs"
+                                                                           "/00"
+                                                                           "8-"
+                                                                           "time"
+                                                                           "est"
+                                                                           "amp"
+                                                                           "-co"
+                                                                           "unt"
+                                                                           "er "
+                                                                           "FR-"
+                                                                           "008"
+                                                                           ")",
+                        .suggestions = {}});
 }
 
 auto system::handle_for(const std::string& canonical) -> sg::counters::object&
