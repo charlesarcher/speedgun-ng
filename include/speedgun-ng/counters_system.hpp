@@ -158,11 +158,10 @@ private:
   friend auto detail::resolve_leaf_core(const object& obj,
                                         std::string_view name)
       -> std::expected<detail::leaf_core, error>;
-  friend auto detail::compile_core(
-      const system& sys,
-      const target& tg,
-      const std::vector<const detail::expr_core*>& exprs)
-      -> std::expected<plan, error>;
+  friend auto detail::compile_core(const system& sys,
+                                   const target& tg,
+                                   const std::vector<const detail::expr_core*>&
+                                       exprs) -> std::expected<plan, error>;
 
   explicit object(void* node) noexcept
       : m_node(node)
@@ -283,11 +282,10 @@ private:
   [[nodiscard]] auto handle_for(const std::string& canonical)
       -> sg::counters::object&;
 
-  friend auto detail::compile_core(
-      const system& sys,
-      const target& tg,
-      const std::vector<const detail::expr_core*>& exprs)
-      -> std::expected<plan, error>;
+  friend auto detail::compile_core(const system& sys,
+                                   const target& tg,
+                                   const std::vector<const detail::expr_core*>&
+                                       exprs) -> std::expected<plan, error>;
   friend auto detail::resolve_leaf_core(const sg::counters::object& obj,
                                         std::string_view name)
       -> std::expected<detail::leaf_core, error>;

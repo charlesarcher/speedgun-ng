@@ -321,8 +321,8 @@ protected:
   void set_thunk(const read_thunk fn) noexcept { m_thunk = fn; }
 
 private:
-  static auto default_thunk(window_reader& reader, point_sink& sink) noexcept
-      -> void
+  static auto default_thunk(window_reader& reader,
+                            point_sink& sink) noexcept -> void
   {
     reader.read_points(sink);
   }

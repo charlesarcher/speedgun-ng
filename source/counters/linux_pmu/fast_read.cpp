@@ -142,8 +142,9 @@ auto fast_context_read(const fast_context&, std::uint64_t&) -> fast_read_verdict
   return fast_read_verdict::not_allowed;
 }
 
-auto fast_context_time_pair(const fast_context&, std::uint64_t&, std::uint64_t&)
-    -> bool
+auto fast_context_time_pair(const fast_context&,
+                            std::uint64_t&,
+                            std::uint64_t&) -> bool
 {
   return false;
 }
@@ -252,8 +253,8 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   return context;
 }
 
-auto fast_context_read(const fast_context& context, std::uint64_t& value)
-    -> fast_read_verdict
+auto fast_context_read(const fast_context& context,
+                       std::uint64_t& value) -> fast_read_verdict
 {
   SG_REQUIRE(std::this_thread::get_id() == context.owner,
              "a mapped-page read runs on the thread that opened its "

@@ -393,40 +393,20 @@ auto system::tsc() const -> std::expected<counter<dim<0, 1>>, error>
 {
   const auto* node = m_impl->find("machine");
   if (node == nullptr || node->leaves.empty()) {
-    return std::unexpected(error {.message =
-                                      "no clock provider is registered, so the "
-                                      "tree " "holds no time-stamp entry to "
-                                              "resolve " "(specs/"
-                                                         "008-timestamp-"
-                                                         "counter FR-007)",
-                                  .suggestions = {}});
+    return std::unexpected(error {
+        .message =
+            "no clock provider is registered, so the " "tree " "holds " "no " "ti" "me" "-s" "ta" "mp" " " "entry to " "res" "olv" "e " "(specs/" "008-timestamp-" "counter FR-007)",
+        .suggestions = {}});
   }
   for (const auto& leaf : node->leaves) {
     if (leaf.core.name == "tsc") {
       return counter<dim<0, 1>> {.leaf = leaf.core};
     }
   }
-  return std::
-      unexpected(error {.message = "the catalog publishes no time-stamp entry; "
-                                   "a clock " "provider seeds it where the "
-                                              "build executes the " "instructio"
-                                                                    "n, and no "
-                                                                    "registered"
-                                                                    " provider "
-                                                                    "did " "(sp"
-                                                                           "ecs"
-                                                                           "/00"
-                                                                           "8-"
-                                                                           "time"
-                                                                           "est"
-                                                                           "amp"
-                                                                           "-co"
-                                                                           "unt"
-                                                                           "er "
-                                                                           "FR-"
-                                                                           "008"
-                                                                           ")",
-                        .suggestions = {}});
+  return std::unexpected(error {
+      .message =
+          "the catalog publishes no time-stamp " "entry; " "a clock " "provider" " seeds " "it " "wh" "er" "e " "th" "e " "build " "executes" " the " "instructio" "n, and no " "registered" " provider " "did " "(sp" "ecs" "/00" "8-" "time" "est" "amp" "-co" "unt" "er " "FR-" "008" ")",
+      .suggestions = {}});
 }
 
 auto system::handle_for(const std::string& canonical) -> sg::counters::object&
@@ -576,8 +556,8 @@ auto object::children() const -> std::vector<const object*>
 namespace detail
 {
 
-auto resolve_leaf_core(const object& obj, std::string_view name)
-    -> std::expected<leaf_core, error>
+auto resolve_leaf_core(const object& obj,
+                       std::string_view name) -> std::expected<leaf_core, error>
 {
   const auto* node = static_cast<const tree_node*>(obj.m_node);
   for (const auto& leaf : node->leaves) {
