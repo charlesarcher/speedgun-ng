@@ -75,7 +75,9 @@ regime is measured and which is skipped.
 
 ## Protocol
 
-- Clock: `std::chrono::steady_clock`
+- Clock: the library's own `machine/monotonic` counter, bracketed
+  through a compiled plan, so this page measures the library with the
+  library (FR-018)
 - Release build: `Release`, so `-O3 -DNDEBUG`, contracts `ignore`,
   developer mode on
 - Correctness build: `Debug`, so `-g`, contracts `enforce`, developer
@@ -181,6 +183,13 @@ tables above multiplied by two, and the cadence comment in
 the same two medians.
 
 ## Raw trial inputs (ns per sample(), run order)
+
+The time-stamp entry is reachable through `system::local().tsc()` and
+composes with every other counter, since it carries the unit 007 already
+assigned and the same counter type. Measured in the release build over
+200000 back-to-back read pairs: minimum 1 tick, first quartile 1, median
+42, third quartile 43, maximum 14533 ticks. A `sample()` over a plan
+holding that one leaf costs 20 ns at both the minimum and the median.
 
 Each line is one process, and the three fields are that run's min, median
 and max over its 257 timed actions. The first process of each line is
@@ -290,11 +299,23 @@ when more events are open than there are counters.
 
 ## Fast-regime probe facts on this host
 
+- The time-stamp entry publishes on this host, and it carries a count with
+  no rate: `frequency_hz` is 0, `scaled` is false, and the description
+  states it (`specs/008-timestamp-counter` FR-001, FR-002). The entry
+  follows the instruction, which x86-64 mandates, so publication is
+  decided at build time and no host configuration removes it.
 - `/sys/devices/system/cpu/tsc_khz` is absent, so the kernel publishes no
-  calibrated time-stamp frequency and the clock provider omits its
-  `fast_tsc` leaf entirely (FR-034). The kernel is built `CONFIG_X86_TSC=y`
-  without `CONFIG_CALIBRATE_TSC`, which is the configuration that
-  publishes the frequency; a host with it carries a `fast_tsc` entry.
+  counter frequency. 007 gated the entry on that file and omitted the leaf
+  on this host; the entry is raw now and publishes anyway, because a count
+  needs no rate (`specs/008-timestamp-counter` FR-011). The kernel is built
+  `CONFIG_X86_TSC=y` without `CONFIG_CALIBRATE_TSC`, which is the
+  configuration that publishes a frequency.
+- The read costs a 1-tick minimum against a 42-tick median, and the pair
+  distribution is bimodal because a read pair can overlap inside the
+  out-of-order window. The minimum is the floor and the median an upper
+  bound; one figure would misdescribe it. Through the library, a
+  `sample()` over a plan holding this one leaf costs 20 ns at both the
+  minimum and the median in the release build.
 - `/sys/bus/event_source/devices/cpu/rdpmc` exists and its content is the
   single character `1`. It is a scalar sysfs attribute and takes no part
   in the read: the protocol documented in
