@@ -17,7 +17,6 @@
 // ============================================================================
 
 #include <algorithm>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -100,6 +99,8 @@ auto measure(plan& compiled, const std::string& label) -> regime
 // Fold cost, measured over recorded points with the sampling path out
 // of the loop (SC-010).
 auto measure_fold(plan& compiled,
+                  plan& clock_plan,
+                  const sg::counters::expression<time_dim>& clock_expr,
                   const sg::counters::expression<events>& work_expr,
                   const sg::counters::expression<events>& cycle_expr,
                   const char* label) -> void
@@ -108,17 +109,29 @@ auto measure_fold(plan& compiled,
   for (int index = 0; index < 64; ++index) {
     recorder.sample();
   }
-  const auto before = std::chrono::steady_clock::now();
+  // The bracket is the library's own monotonic clock counter, so this file
+  // measures the library with the library (FR-018). Before the raw
+  // time-stamp entry shipped, the catalog withheld a fast counter and this
+  // call reached outside for a clock; the entry now exists, and the
+  // nanosecond figures still come from the monotonic leaf, which is the one
+  // library counter carrying a duration. The raw entry carries a count, so
+  // it cannot stand in here, and the library attaches no rate to it that
+  // would let a caller convert one into the other (FR-002).
+  auto bracket = clock_plan.recorder(2);
+  bracket.sample();
   volatile double sink = 0.0;
   for (int index = 0; index < 1000; ++index) {
     sink += (work_expr.fold(recorder.view(), 0, 63).value
              + cycle_expr.fold(recorder.view(), 0, 63).value);
   }
-  const auto after = std::chrono::steady_clock::now();
+  bracket.sample();
   static_cast<void>(sink);
-  const double per_fold =
-      std::chrono::duration<double, std::nano>(after - before).count() / 1000.0;
-  std::printf("%-34s %9.1f ns per first-to-last fold\n", label, per_fold);
+  const auto span = clock_expr.fold(bracket.view(), 0, 1);
+  const double per_fold = span.value / 1000.0;
+  std::printf("%-34s %9.1f ns per first-to-last fold (bracketed by the "
+              "library's monotonic counter)\n",
+              label,
+              per_fold);
 }
 
 auto describe_modes(const std::string& path) -> void
@@ -244,7 +257,12 @@ auto main() -> int
                   cycle.c_str());
       measure(*group_plan,
               fast ? "pmu group, fast_rdpmc" : "pmu group, syscall");
-      measure_fold(*group_plan, work_expr, cycle_expr, "pmu group, fold only");
+      measure_fold(*group_plan,
+                   *clock_plan,
+                   elapsed,
+                   work_expr,
+                   cycle_expr,
+                   "pmu group, fold only");
 
       // The fast side of SC-004, measured against the clock plan above:
       // one leaf per sampling action in each, so the two rows differ in
