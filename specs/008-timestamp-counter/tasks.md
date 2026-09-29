@@ -92,7 +92,7 @@ The accessor scenarios share the one executable T002 wrote, because one file cov
 
 - [X] T019 [P] Run `cmake --preset=dev && cmake --build --preset=dev && ctest --preset=dev`, with the test target rebuilt as part of the build step: 39 of 39 targets pass
 - [X] T020 [P] Run `cmake --build build/dev -t dbc-gate`, which needs `doxygen` on `PATH`: 136 interfaces with 0 gaps, up from 135
-- [X] T021 [P] Run `python3 tools/prose/prose_gate.py --check all --mode tree`. The `--mode tree` flag is mandatory: the default range mode reads only committed content and reports a green that the working tree does not carry
+- [X] T021 [P] Run `python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/008-timestamp-counter`, which exits 0 with 0 findings. The `--mode tree` flag is mandatory: the default range mode reads only committed content and reports a green that the working tree does not carry. The whole-tree form `--check all --mode tree` exits 1 on 108 findings, and every one of them sits in 007 and earlier, with none in this feature; that red is the expected state of the tree, and the next run reads it as a decision rather than a regression (T027)
 - [X] T022 Run `cmake --preset=ci-ubuntu && cmake --build build`, the release-preset build Principle IX makes mandatory for a public API change. It runs alone, with no other build or measurement in flight, so the budget measurement in T017 and T018 does not contend for the machine. The log's warning count is read against the pre-change baseline, because clang-tidy and cppcheck report without failing the build
 - [X] T023 [P] Run `cmake --preset=ci-sanitize && cmake --build build/sanitize`, then `ctest` with the CI `ASAN_OPTIONS` block carrying `detect_leaks=1` and `halt_on_error=1` and the CI `UBSAN_OPTIONS` block
 - [X] T024 [P] Run `test/counters_header_purity.sh` and `test/counters_push_atomic_scan.sh`, both clean (FR-010)
@@ -168,10 +168,29 @@ The build enables `-Werror=float-equal`, so an exactness assertion on a folded d
 
 ## Verified final state
 
-- `ctest --preset=dev`: 39 of 39 targets pass
+- `ctest --preset=dev`: 40 of 40 targets pass, the fortieth being `counters_tsc_read_shape` (T026)
 - `dbc-gate`: 136 interfaces with 0 gaps, up from 135 before the accessor
 - `test/counters_header_purity.sh` and `test/counters_push_atomic_scan.sh`: both clean
+- `test/counters_tsc_read_shape.sh`: the optimized read arm holds no call under g++ and clang++ at `SG_CONTRACTS_SEMANTIC` 0 and 2, 15, 25, 4, and 25 instructions respectively, with the negative probe live (T026)
 - `python3 tools/prose/prose_gate.py --check prose --mode tree` over `specs/008-timestamp-counter`: 0 findings
 - Observed on the development host, which executes the instruction and publishes no counter frequency: the entry reports `read_mode::fast_tsc`, `unit::none`, `frequency_hz` 0, `scaled` false, and the description `raw time-stamp counter ticks; a count asserting no rate`
 - The accessor and the uniform lookup both name `tsc` and agree on name and description
 - A counted source divided by the entry folds to a positive instructions-per-tick ratio with `running_ratio` 1.0 and `scaled` false
+- Bare-read baseline in the release preset, 1000 sampling actions per repeat over 64 repeats at a measured 4.300 GHz TSC: a hand-written `rdtsc` pair costs 28 ticks at the median and the library's sampling path costs 29, so the library adds one tick and 0.2 ns per action (T028)
+- The baseline ratio is published and stays unasserted, because the same library costs 29 ticks optimized and 151 unoptimized; a threshold narrow enough to carry the claim would fail on half the presets, so `counters_overhead` asserts only that both measurements are live and ordered (T028, SC-004, Principle VII)
+
+## Phase 5: Convergence
+
+**Purpose**: the four gaps below were found by `/speckit.converge` on
+2026-09-29, after T001..T025 landed. Three are traceability defects and one
+is a prose reconciliation. None is a functional gap: the 11 functional
+requirements, the 6 success criteria, the 3 stories, and the 4 edge cases
+are implemented and covered, and every gate in the plan's Test Plan passes.
+
+- [X] T026 Give the raw-read codegen gate a real task identity and correct the citations that name a foreign one, per FR-003 and the plan's Test Plan gate sequence (contradicts). `test/CMakeLists.txt:113` and `test/counters_tsc_read_shape.sh:3` cite `(T026; 008 FR-003, FR-022)`. This feature's task list ends at T025, and T026 in `specs/007-counters-and-timers/tasks.md:89` is the `sample()` core loop, so the reference sends a reader into another feature. Record the gate in this list, then point both citations at the recorded id. The gate itself is sound: it compiles `source/counters/clock_provider.cpp` at `-O2` because the property holds in optimized code only, checks both contract semantics, and carries a negative probe so a clean run cannot come from an extractor that reads nothing. Its scope is a codegen property the artifacts never asked for and SC-006's gate list does not name, so recording it also states why it belongs (FR-003, FR-022)
+
+- [X] T027 Reconcile T021's recorded command with the command the final state verified, per T021 (partial). `tasks.md:95` records `python3 tools/prose/prose_gate.py --check all --mode tree`, which exits 1 today on 108 findings, every one of them pre-existing in 007-and-earlier files and none in this feature's. `tasks.md:174` records the narrower `--check prose --mode tree` scoped to `specs/008-timestamp-counter`, which exits 0. A reader who follows T021 sees a red that the final state calls clean. State the scoped command in T021 and record that the whole-tree run is expected to exit 1 on the pre-existing set, so the next run reads as a decision rather than a regression (Principle XI)
+
+- [X] T028 Record the bare-read baseline measurement in the task list, per SC-004 (unrequested). `test/source/counters_overhead.cpp` now measures a hand-written `rdtsc` pair beside the library's sampling path, both bracketed identically and divided by the action count, and `docs/pages/counters-overhead.md` carries the resulting table. T017 and T018 cover bracketing a sampling action with the entry and publishing the read budget, and both predate this work. The release preset measures 28 ticks bare against 29 through the library. The ratio is reported and not asserted, because the same library costs 29 ticks optimized and 151 unoptimized, so no threshold survives both presets. Add a task recording what the baseline measures and why the ratio stays unasserted (SC-004, Principle VII)
+
+- [X] T029 Reconcile the two tick figures the overhead page gives for the same read, per SC-004 (partial). `docs/pages/counters-overhead.md:318` states a 1-tick minimum against a 42-tick median, and the table at `:344` gives 28 and 29 ticks for the same read. Both are correct: line 318 is an isolated pair measured cold, the table amortizes a thousand actions per repeat. The new subsection already reconciles the 20 ns row above it against the table and does not reconcile this one, and line 318 carries no pointer. Name the steady-state figure at line 318 or cross-reference the subsection, so a reader who meets the 42 first is not left holding two numbers (SC-004, Principle IV)

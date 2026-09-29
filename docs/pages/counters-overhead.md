@@ -318,9 +318,12 @@ when more events are open than there are counters.
 - The read costs a 1-tick minimum against a 42-tick median, and the pair
   distribution is bimodal because a read pair can overlap inside the
   out-of-order window. The minimum is the floor and the median an upper
-  bound; one figure would misdescribe it. Through the library, a
-  `sample()` over a plan holding this one leaf costs 20 ns at both the
-  minimum and the median in the release build.
+  bound; one figure would misdescribe it. Those two figures come from a
+  lone pair measured cold. Sampled back to back inside a loop the same pair
+  costs 28 ticks at the median, and the section "Overhead over a bare read
+  of the instruction" below carries that distribution beside the library's.
+  Through the library, a `sample()` over a plan holding this one leaf costs
+  20 ns at both the minimum and the median in the release build.
 - `/sys/bus/event_source/devices/cpu/rdpmc` exists and its content is the
   single character `1`. It is a scalar sysfs attribute and takes no part
   in the read: the protocol documented in
