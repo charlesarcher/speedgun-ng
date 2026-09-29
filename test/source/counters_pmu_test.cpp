@@ -374,6 +374,7 @@ auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
     -> void
 {
   std::size_t sampled = 0;
+  std::size_t countable = 0;
   for (const object* obj : pmu_objects) {
     const auto entries = obj->counters();
     for (const auto& entry : entries) {
@@ -383,6 +384,7 @@ auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
       {
         continue;
       }
+      ++countable;
       const auto leaf = obj->counter<events>(entry.name);
       if (!leaf.has_value()) {
         continue;
@@ -421,6 +423,17 @@ auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
   std::printf("disclosed modes: %zu countable leaves sampled through the "
               "mode the catalog published\n",
               sampled);
+  // A host whose perf_event_paranoid hides every hardware event
+  // publishes no countable leaf, so no mode is disclosed to sample and the
+  // positive count below is unreachable. 007 recorded this environment as
+  // the expected CI shape (FR-039); the reason is named and the scenario
+  // skips.
+  if (countable == 0) {
+    std::printf("SKIP disclosed modes: the catalog publishes no countable "
+                "leaf at this perf_event_paranoid, so no mode is "
+                "disclosed to sample (FR-039)\n");
+    return;
+  }
   check(sampled > 0,
         "at least one countable leaf sampled through its disclosed mode "
         "(FR-023)");

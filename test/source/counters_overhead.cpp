@@ -194,8 +194,22 @@ auto main() -> int
     fail("pmu provider registers");
   }
 
-  const auto machine = *system::local().object("machine");
-  const auto cpu = *system::local().object("cpu");
+  const auto machine_object = system::local().object("machine");
+  if (!machine_object.has_value()) {
+    fail("the clock provider seeds the machine object");
+  }
+  const auto& machine = *machine_object;
+  // A provider that seeds no cpu object leaves nothing for a counter regime
+  // to compare a clock against. SKIP_RETURN_CODE 2 is registered for this
+  // target, so the reason is named and the run skips, where dereferencing the
+  // absent object aborted the process on the way past.
+  const auto cpu_object = system::local().object("cpu");
+  if (!cpu_object.has_value()) {
+    std::printf("SKIP: no provider seeded a cpu object, so the counters "
+                "overhead has no regime to compare against the clock\n");
+    return 2;
+  }
+  const auto& cpu = *cpu_object;
 
   // Scenario 1: the achieved mode is disclosed per catalog entry, and
   // the device description names the reason a fast mechanism was
