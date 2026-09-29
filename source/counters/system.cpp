@@ -405,8 +405,9 @@ auto system::tsc() const -> std::expected<counter<dim<0, 1>>, error>
     }
   }
   return std::unexpected(
-      error {.message = "this build publishes no time-stamp entry; the host "
-                        "does not execute the instruction that reads it "
+      error {.message = "the catalog publishes no time-stamp entry; a clock "
+                        "provider seeds it where the build executes the "
+                        "instruction, and no registered provider did "
                         "(specs/008-timestamp-counter FR-008)",
              .suggestions = {}});
 }

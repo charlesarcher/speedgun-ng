@@ -112,8 +112,8 @@ docs/pages/
     unit          unit::none            -> dim<0,1>, unchanged from 007
     avail         availability::countable
     mode          read_mode::fast_tsc   -> the single-instruction read
-    frequency_hz  0                     -> the zero default, never written
-    scaled        false                 -> the zero default, never written
+    frequency_hz  0                     -> the zero default, assigned
+    scaled        false                 -> the zero default, assigned
 ```
 
 No type is added, no enumerator is added, and the entry's field list is unchanged. Two fields stop being written, because nothing in the library computes them for this entry any more. `dim<0,1>` is the dimension `unit::none` already maps to, so the composed expression type-checks through the existing algebra with no special case.
@@ -171,7 +171,7 @@ No hardware read happens. No plan is compiled. No recorder is minted. The access
 
 Checked against the shipped sources, with each item read out of the file:
 
-1. `source/counters/clock_provider.cpp:78` to :85 declares the private calibration struct and its sole member. Once the seed and the reader both key on the build guard, nothing reads either field, so the struct and the member go.
+1. `include/speedgun-ng/counters_clock.hpp:78` to :85 declares the private calibration struct and its sole member. Once the seed and the reader both key on the build guard, nothing reads either field, so the struct and the member go.
 2. The constructor body at lines 206 to 236 exists only to fill that struct. With the struct gone the whole guarded block goes, and with it the sysfs read, the parse, the nominal-frequency read, and the scaled comparison.
 3. The catalog seed at lines 265 to 288 moves from a runtime `if` to the build guard, and its description changes from a calibrated rate to a raw count.
 4. The reader at line 309 drops the presence condition, because the build guard now decides.
@@ -188,7 +188,7 @@ No build-configuration change, and none is needed. `CMakeLists.txt:658` globs `s
 
 ### Execution mode: TDD (recorded per Principle III)
 
-The test executable is written first and verified failing, then the implementation turns it green. Each increment lands as its own commit, so the branch head is green, and the commit body names the `git bisect` consequence so nobody meets a red commit by surprise.
+The test executable is written first and verified failing, then the implementation turns it green. Each increment landed as its own commit and every commit is green, so the history is bisectable. The test task was written and observed failing in the working tree before its implementation landed, so the red state is not in the history; see tasks.md for that record.
 
 ### Coverage strategy
 

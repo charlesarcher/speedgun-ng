@@ -57,6 +57,7 @@ using sg::counters::clock_provider;
 using sg::counters::compile;
 using sg::counters::dim;
 using sg::counters::fake_provider;
+using sg::counters::push_provider;
 using sg::counters::read_mode;
 using sg::counters::scope;
 using sg::counters::system;
@@ -116,6 +117,28 @@ auto test_absent_provider() -> void
         "the error names the absent provider (FR-007)");
   check(absent.error().suggestions.empty(),
         "the absent-provider error carries no catalog suggestion (FR-008)");
+}
+
+// FR-008 with FR-006: a provider that seeds the machine without a time-stamp
+// entry leaves the accessor reporting the absent entry, and the accessor opens
+// no boundary, so the clock provider still registers after these two calls. A
+// push counter is that provider: it seeds the same machine object and no
+// time-stamp entry.
+auto test_entry_absent_but_provider_present() -> void
+{
+  auto push = std::make_unique<push_provider>();
+  static_cast<void>(push->add_counter("records", "ops", "records pushed"));
+  check(system::local().register_provider(std::move(push)).has_value(),
+        "a provider seeding no time-stamp entry registers (FR-006)");
+  const auto absent = system::local().tsc();
+  check(!absent.has_value(),
+        "the accessor reports the absent entry once a provider seeded the "
+        "machine without one (FR-008)");
+  check(absent.error().message.find("no time-stamp entry")
+            != std::string::npos,
+        "the error names the absent entry (FR-008)");
+  check(absent.error().suggestions.empty(),
+        "the absent-entry error carries no catalog suggestion (FR-008)");
 }
 
 // FR-006: the accessor resolves an entry and opens no boundary, so the
@@ -252,6 +275,7 @@ auto test_counter_composes() -> void
 auto main() -> int
 {
   test_absent_provider();
+  test_entry_absent_but_provider_present();
   register_fixture();
   test_raw_entry();
   test_accessor_matches_lookup();

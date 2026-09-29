@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -117,6 +118,10 @@ auto measure_fold(plan& compiled,
   // library counter carrying a duration. The raw entry carries a count, so
   // it cannot stand in here, and the library attaches no rate to it that
   // would let a caller convert one into the other (FR-002).
+  // The standard-library bracket runs alongside the library one so the page
+  // keeps a comparable figure. Publishing both makes the bracket's own cost
+  // visible, and stops one figure from silently replacing the other.
+  const auto wall_before = std::chrono::steady_clock::now();
   auto bracket = clock_plan.recorder(2);
   bracket.sample();
   volatile double sink = 0.0;
@@ -125,13 +130,22 @@ auto measure_fold(plan& compiled,
              + cycle_expr.fold(recorder.view(), 0, 63).value);
   }
   bracket.sample();
+  const auto wall_after = std::chrono::steady_clock::now();
   static_cast<void>(sink);
   const auto span = clock_expr.fold(bracket.view(), 0, 1);
   const double per_fold = span.value / 1000.0;
+  const double wall_per_fold =
+      std::chrono::duration<double, std::nano>(wall_after - wall_before)
+          .count()
+      / 1000.0;
   std::printf("%-34s %9.1f ns per first-to-last fold (bracketed by the "
               "library's monotonic counter)\n",
               label,
               per_fold);
+  std::printf("%-34s %9.1f ns per first-to-last fold (bracketed by "
+              "std::chrono, the comparable figure)\n",
+              label,
+              wall_per_fold);
 }
 
 auto describe_modes(const std::string& path) -> void
