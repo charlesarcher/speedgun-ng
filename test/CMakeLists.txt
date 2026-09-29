@@ -83,10 +83,11 @@ add_test(NAME simdjson_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../t
 add_test(NAME simdjson_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/simdjson/simdjson_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 
 # hdrhistogram and zlib proof scripts (feature 005-vendor-hdrhistogram,
-# T009/T010/T013; FR-004/FR-007/FR-014/FR-019/FR-021, SC-008/SC-009/SC-010):
+# 005 T009/T010/T013; FR-004/FR-007/FR-014/FR-019/FR-021,
+# SC-008/SC-009/SC-010):
 # purity scans and nm symbol-isolation proofs, privacy contract
 # A7/A8/A7z/A8z/A6/A6z. Same pure-grep-script registration pattern as the
-# simdjson pair. The nm proofs are TDD red until the ADDLIB merge lands.
+# simdjson pair. The nm proofs were TDD red until the ADDLIB merge landed.
 add_test(NAME hdrhistogram_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/hdrhistogram/hdrhistogram_purity_scan.sh ${CMAKE_SOURCE_DIR})
 add_test(NAME hdrhistogram_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/hdrhistogram/hdrhistogram_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 add_test(NAME zlib_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/zlib/zlib_purity_scan.sh ${CMAKE_SOURCE_DIR})
@@ -123,10 +124,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   )
 endif()
 
-# Gate-effectiveness harness (T024 / SC-006). Self-contained: invokes the
-# Python driver directly (no dbc-gate CMake target). TDD red until T025/T026
-# land tools/dbc/dbc_doc_gate.py and dbc_pair_gate.py: while they are missing
-# the harness exits with "gate scripts not present (TDD red)".
+# Gate-effectiveness harness (001 T024 / SC-006). Self-contained: invokes
+# the Python driver directly (no dbc-gate CMake target). It was TDD red
+# until 001 T025 and T026 landed tools/dbc/dbc_doc_gate.py and
+# dbc_pair_gate.py, and it still exits with "gate scripts not present (TDD
+# red)" while either script is missing.
 add_test(
   NAME dbc_gate_fixtures
   COMMAND
@@ -139,9 +141,9 @@ add_test(
 )
 
 # Gate-effectiveness harness for the prose and commit lint gate (feature 002,
-# T009). Self-contained: invokes the Python driver directly. TDD red until
-# tools/prose/prose_gate.py lands: while it is missing the harness exits with
-# "gate script not present (TDD red)".
+# T009). Self-contained: invokes the Python driver directly. It was TDD red
+# until tools/prose/prose_gate.py landed, and it still exits with "gate
+# script not present (TDD red)" while that script is missing.
 add_test(
     NAME prose_gate_fixtures
     COMMAND
