@@ -17,8 +17,8 @@
 // ============================================================================
 
 #include <algorithm>
-#include <cstddef>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -135,8 +135,7 @@ auto measure_fold(plan& compiled,
   const auto span = clock_expr.fold(bracket.view(), 0, 1);
   const double per_fold = span.value / 1000.0;
   const double wall_per_fold =
-      std::chrono::duration<double, std::nano>(wall_after - wall_before)
-          .count()
+      std::chrono::duration<double, std::nano>(wall_after - wall_before).count()
       / 1000.0;
   std::printf("%-34s %9.1f ns per first-to-last fold (bracketed by the "
               "library's monotonic counter)\n",
