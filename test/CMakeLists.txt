@@ -109,6 +109,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     NAME dbc_semantics_matrix
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR}
   )
+
+  # Codegen-shape gate for the raw time-stamp read (T026; 008 FR-003,
+  # FR-022): the optimized read arm carries no function call, so nothing
+  # stands between the catalog entry and the instruction. The script
+  # compiles the translation unit at -O2 itself, because the property holds
+  # in optimized code only and an unoptimized object calls a helper for the
+  # read. Same pure-script registration pattern; the script exits 0 clean, 1
+  # naming the violation, and 0 with a skip line off x86.
+  add_test(
+    NAME counters_tsc_read_shape
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/counters_tsc_read_shape.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
+  )
 endif()
 
 # Gate-effectiveness harness (T024 / SC-006). Self-contained: invokes the
