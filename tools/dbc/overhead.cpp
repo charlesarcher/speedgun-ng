@@ -62,14 +62,15 @@ SG_OH_NOINLINE auto contracted_loop(int const n, int const x) -> std::int64_t
   return acc;
 }
 
-auto now_ns(clock::time_point const t0, clock::time_point const t1)
-    -> std::int64_t
+auto now_ns(clock::time_point const t0,
+            clock::time_point const t1) -> std::int64_t
 {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
 }
 
-auto time_uncontracted(int const n, int const x, std::int64_t& sink)
-    -> std::int64_t
+auto time_uncontracted(int const n,
+                       int const x,
+                       std::int64_t& sink) -> std::int64_t
 {
   auto const t0 = clock::now();
   sink += uncontracted_loop(n, x);
@@ -77,8 +78,9 @@ auto time_uncontracted(int const n, int const x, std::int64_t& sink)
   return now_ns(t0, t1);
 }
 
-auto time_contracted(int const n, int const x, std::int64_t& sink)
-    -> std::int64_t
+auto time_contracted(int const n,
+                     int const x,
+                     std::int64_t& sink) -> std::int64_t
 {
   auto const t0 = clock::now();
   sink += contracted_loop(n, x);
@@ -86,8 +88,8 @@ auto time_contracted(int const n, int const x, std::int64_t& sink)
   return now_ns(t0, t1);
 }
 
-auto nearest_rank(std::vector<double> const& sorted, int const percent)
-    -> double
+auto nearest_rank(std::vector<double> const& sorted,
+                  int const percent) -> double
 {
   auto const n = sorted.size();
   if (n == 0U) {

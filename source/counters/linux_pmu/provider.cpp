@@ -185,7 +185,8 @@ auto load_device(const std::filesystem::path& dir)
     // file there that the parser rejects.
     if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
             slurp(it->path()),
-            ranges)) {  // LCOV_EXCL_BR_LINE
+            ranges))
+    {  // LCOV_EXCL_BR_LINE
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -352,8 +353,8 @@ auto to_hex(const std::uint64_t value) -> std::string
 // itself with the event_attr text the kernel publishes, verbatim, so a
 // reader can reproduce the encoding; a vendored entry uses the table's
 // own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name, const std::string& text)
-    -> std::string
+auto alias_description(const std::string& name,
+                       const std::string& text) -> std::string
 {
   if (!text.empty()) {
     return "kernel event configuration: " + text;
@@ -382,7 +383,8 @@ auto table_description(const pmu_table_entry& entry) -> std::string
   // fixtures: a row carrying "DFPMC" takes the label, and a row carrying
   // "none" or no unit at all does not.
   if (!entry.unit.empty()  // LCOV_EXCL_BR_LINE
-      && entry.unit != "none") {  // LCOV_EXCL_BR_LINE
+      && entry.unit != "none")
+  {  // LCOV_EXCL_BR_LINE
     // The table's Unit column is a scope label naming the shared unit
     // the event counts into (DFPMC, iMC, and the rest). It carries no
     // physical dimension: no vendored table in the pinned tree names a

@@ -224,10 +224,9 @@ struct pmu_window final : window_reader
       // header and one word per member of any group: the read below never
       // grows it, and the sampling path allocates nothing (FR-026).
       const auto got = ::read(group.leader, scratch.data(), want);
-      if (got < static_cast<long>(
-              kHeaderWords
-              * sizeof(std::uint64_t))) {  // A group the kernel could not read
-                                           // this action reports no
+      if (got < static_cast<long>(kHeaderWords * sizeof(std::uint64_t)))
+      {  // A group the kernel could not read
+         // this action reports no
         // point; the fold reads the gap as zero and the pair discloses
         // ratio 0. A count is never fabricated.
         group.enabled = 0;  // LCOV_EXCL_LINE
@@ -270,8 +269,8 @@ struct pmu_window final : window_reader
   // final type, so the reference names a group window on every call.
   // `final` fixes the target of the `read_points` call, so the sampling
   // path takes one indirect call and no vtable lookup (FR-022, T146).
-  static auto read_direct(window_reader& base, point_sink& sink) noexcept
-      -> void
+  static auto read_direct(window_reader& base,
+                          point_sink& sink) noexcept -> void
   {
     static_cast<pmu_window&>(base).read_points(sink);
   }
@@ -337,8 +336,8 @@ struct pmu_fast_window final : window_reader
     // two reads of its sequence, which a test cannot force
     // deterministically; the comparison itself is covered for both arms by
     // `fast_pair_stable`.
-    if (!fast_context_time_pair(
-            *members[leader].context, enabled, running)) {  // LCOV_EXCL_BR_LINE
+    if (!fast_context_time_pair(*members[leader].context, enabled, running))
+    {  // LCOV_EXCL_BR_LINE
       // A leader whose page disclosed no stable pair this action
       // reports none; the fold reads the gap as zero and the pair
       // discloses ratio 0. A time is never fabricated.
@@ -371,8 +370,8 @@ struct pmu_fast_window final : window_reader
   // call. `final` fixes the target of the `read_points` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base, point_sink& sink) noexcept
-      -> void
+  static auto read_direct(window_reader& base,
+                          point_sink& sink) noexcept -> void
   {
     static_cast<pmu_fast_window&>(base).read_points(sink);
   }
@@ -567,8 +566,8 @@ auto pmu_open_window(const pmu_state& state,
     // then refuses, which `open_fast_window` answers only when a member
     // event is refused (marked at its own site above). The accepting arm
     // is reached on every host the probe passes.
-    if (auto fast = open_fast_window(state, resolved, layout, where);
-        fast) {  // LCOV_EXCL_BR_LINE
+    if (auto fast = open_fast_window(state, resolved, layout, where); fast)
+    {  // LCOV_EXCL_BR_LINE
       return fast;
     }  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_STOP

@@ -145,8 +145,8 @@ struct format_range
 // a device the kernel does not publish is dropped at discovery, so no
 // entry carries it.
 [[nodiscard]] auto pmu_probe(
-    int type, const std::vector<std::pair<int, std::uint64_t>>& words)
-    -> availability;
+    int type,
+    const std::vector<std::pair<int, std::uint64_t>>& words) -> availability;
 
 // One catalog entry the provider built: the composed config words, the
 // description, and the probed availability (FR-037, FR-039).

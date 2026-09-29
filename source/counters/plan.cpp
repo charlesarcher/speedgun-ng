@@ -67,8 +67,8 @@ auto sample_point(const plan_impl& layout,
 // Fan-out instantiation: the exemplar spine re-homed under `path` by
 // re-addressing every leaf (US3 scenario 5); the fold layer resolves
 // the instances through the plan's address map.
-auto instantiate_core(const detail::expr_core& core, const std::string& path)
-    -> detail::expr_core
+auto instantiate_core(const detail::expr_core& core,
+                      const std::string& path) -> detail::expr_core
 {
   auto out = core;
   for (auto& leaf : out.leaves) {
@@ -429,8 +429,8 @@ auto compile_core(const system& sys,
       // leaf address reaching `compile_core` came from a resolved handle or
       // from `instantiate_core`, and the object it names is in the frozen
       // tree, so the lookup never misses.
-      if (const auto* node = impl.find(object_path);
-          node != nullptr) {  // LCOV_EXCL_BR_LINE
+      if (const auto* node = impl.find(object_path); node != nullptr)
+      {  // LCOV_EXCL_BR_LINE
         for (const auto& candidate : node->leaves) {
           if (candidate.core.name == name) {
             record = &candidate;
