@@ -40,6 +40,24 @@ continuation is one occurrence of `(?<![\w./-]):\d+\b` under the same
 engine and basis. T265 added this paragraph, because before it the
 record named no rule and its figures reproduced under none.
 
+The whole-file reading of the file that carries the phase preambles belongs
+beside this rule, because the Phase 47 preamble at
+`specs/007-counters-and-timers/tasks.md:6191-6194` states a distinct-token
+total the rule does not yield. Counted under that rule with CPython 3.14.7
+`re.finditer` over whole matches `m.group(0)` and the bare unit
+`(?<![\w./-]):\d+\b`, `specs/007-counters-and-timers/tasks.md` over its whole
+length at `1a25e51` gives 1272 occurrences, 790 distinct tokens, and 880
+bare continuations, and over the 6025 lines the file held at `a2e0f67` it
+gives 1224, 766, and 835. The 48 occurrences and the 45 bare continuations
+the preamble credits to the section `1a25e51` appended both hold, and the 43
+distinct tokens it credits to that section do not, because 19 of them
+already appear over the 6025 lines above, so the file's distinct total rises
+by 24 and reaches 790. The figure 809 appears at
+`specs/007-counters-and-timers/tasks.md:6193` and at no other line of the
+record. The dated preamble keeps its bytes, no line this rule states moves,
+no closed task line moves, and no gate rule, threshold, vocabulary, or
+marker moved with this paragraph.
+
 The population is every anchor the Phase 1 through Phase 33 record in
 `specs/007-counters-and-timers/tasks.md` places, which is lines 1
 through 2422 of that file, the line before the Phase 34 heading: 702
@@ -127,7 +145,7 @@ the remaining rows were found by this pass.
 | T101 | 392 | `source/counters/clock_provider.cpp:236` | `:232` | FR-034 | this pass |
 | T120 | 414 | `specs/007-counters-and-timers/spec.md:276` | `:286`, which carries FR-049 | FR-049 | T253, T260 |
 | T126 | 420 | `specs/007-counters-and-timers/spec.md:247` | `:257`, which carries FR-029 | FR-029 | T253, T260 |
-| T129 | 423 | `source/counters/detail/core.hpp:98` | `:105`, where `bound_thread` is declared | FR-031 | this pass |
+| T129 | 423 | `source/counters/detail/core.hpp:98` | `:121`, where `bound_thread` is declared, read at `b945af8`; the line stood at `:105` at `b60b361^` | FR-031 | this pass |
 | T129 | 423 | `source/counters/plan.cpp:301`, `:326`, `:340` | the one surviving query stands at `:61`; the other two lines are blank | FR-031 | this pass |
 | T131 | 447 | `source/counters/linux_pmu/fast_read.cpp:346` and `:377` | both lie beyond the file's 331 lines; the shift band and the sysfs read were removed, and the width and capability are read at `:271-272` | FR-040 | this pass |
 | T139 | 451 | `source/counters/linux_pmu/fast_read.cpp:309-444` | `fast_context_open` stands at `:203` and `fast_context_read` at `:255` | FR-040 | this pass |
@@ -155,7 +173,7 @@ the remaining rows were found by this pass.
 | Phase 22 preamble | 1178 | `source/counters/linux_pmu/fast_read.cpp:309-444` | `:203` and `:255` | FR-040 | T260 |
 | Phase 22 preamble | 1180 | `.specify/memory/constitution.md:568-570` | the range already holds the machine-local `CMakeUserPresets.json` sentence at `:569-570`, so the anchor needs no correction; T263 recorded that the row named `:571-573` as the landing, and those three lines carry the Licensing bullet and one empty line | Constitution IX | T263 |
 | T223 | 1805 | `specs/007-counters-and-timers/contracts/measurement-contract.md:107` | `:110`, the single-target sentence | FR-024 | T253 |
-| T091 | 379 | `source/counters/detail/core.hpp:76-109` and `source/counters/fold.cpp:42` and `:165` | `plan_impl` spans `:76-116`; the two re-resolutions are the `by_address.at` at `source/counters/fold.cpp:43` and the `by_address.end()` guard at `:162` | FR-021, FR-022 | T262 |
+| T091 | 379 | `source/counters/detail/core.hpp:76-109` and `source/counters/fold.cpp:42` and `:165` | `plan_impl` spans `:76-132` at `b945af8` and spanned `:76-116` at `b60b361^`; the two re-resolutions are the `by_address.at` at `source/counters/fold.cpp:43` and the `by_address.end()` guard at `:162` | FR-021, FR-022 | T262 |
 | T195 | 1066 | `specs/007-counters-and-timers/plan.md:298` | the line is blank; the Files-and-duties row naming nine public headers stands at `:301`; at `30f6361`, the parent of the one-line insert `1827d76` made, the cited line held the table header and the row stood at `:300`, two lines low, so the third criterion at `:93` applied there and the second at `:92` applies at this head | plan: Files and their duties | T276 |
 | T195 | 1066 | `specs/007-counters-and-timers/plan.md:325` | the line is blank; the sentence naming the nine public headers and listing them stands at `:328`; at `30f6361` the cited line held the `### Public API surface added` heading and the sentence stood at `:327`, two lines low, and `1827d76` added the one line at `plan.md:73` that accounts for the third | plan: Public API surface added | T276 |
 | Phase 23 preamble | 1298-1299 | `plan.md:298` and `:325` | both cited lines are blank, the two landings `T195` names | plan: Files and their duties | T276 |
@@ -164,6 +182,10 @@ the remaining rows were found by this pass.
 | T236 | 1968 | `plan.md:282` | the line is blank; the scope-misuse sentence stands at `:283` | FR-046 | T276 |
 | T255 | 2355 | `plan.md:282` | the line is blank; the sentence `T236` restated stands at `:283` | FR-046 | T276 |
 | T256 | 2365 | `plan.md:323` | the line is blank; the Key-properties sentence stands at `:324` | FR-049 | T276 |
+| T112 | 403 | `plan.md:335` and `plan.md:363-366` | the first line is blank, standing between the Test Plan paragraph at `:334` and the `### Execution mode` heading at `:336`, and the range holds the fast-read protocol prose, the `cap_user_rdpmc` bit of `capabilities` through `pmc_width`; the P2 x86-intrinsics row stands at `:456` and the P2 coverage-exclusion row `T066` settled stands at `:457`, read at `a2e0f67`; the exclusion the closed task line asked for is registered | plan: Complexity Tracking | T321 |
+| Phase 22 preamble | 1165 | `plan.md:298` and `:325` | both cited lines are blank, the two landings `T195` names: the Files-and-duties row naming nine public headers stands at `:301` and the sentence naming the nine public headers and listing them stands at `:328`, read at `a2e0f67`; the third anchor `plan.md:35` resolves and reads `**Scale/Scope**: 9 new public headers`, and the glob `include/speedgun-ng/counters*.hpp` matches 9 headers at that head | plan: Files and their duties | T319 |
+| Phase 24 preamble | 1364 | `plan.md:298` and `:325` | both cited lines are blank, the two landings `T195` names: the Files-and-duties row naming nine public headers stands at `:301` and the sentence naming the nine public headers and listing them stands at `:328`, read at `a2e0f67`; the third anchor `plan.md:35` resolves and reads `**Scale/Scope**: 9 new public headers`, and the glob `include/speedgun-ng/counters*.hpp` matches 9 headers at that head | plan: Files and their duties | T319 |
+| Phase 25 preamble | 1428 | `plan.md:298` and `:325` | both cited lines are blank, the two landings `T195` names: the Files-and-duties row naming nine public headers stands at `:301` and the sentence naming the nine public headers and listing them stands at `:328`, read at `a2e0f67`; the third anchor `plan.md:35` resolves and reads `**Scale/Scope**: 9 new public headers`, and the glob `include/speedgun-ng/counters*.hpp` matches 9 headers at that head | plan: Files and their duties | T319 |
 
 ## Closed task clauses a later decision amended
 
@@ -304,13 +326,13 @@ Principle VIII and Pull Request Quality: Immutability.
 | `:97` | `:150` |
 | `:100` | `:153` |
 | `:103` | `:156`, the row T263 corrected |
-| `:145-150` | `:170-175`, the T091 clause paragraph |
-| `:180-186` | `:205-211`, the 58-line journal list |
+| `:145-150` | `:192-197`, the T091 clause paragraph |
+| `:180-186` | `:227-233`, the 58-line journal list |
 | `research.md:33` and `:37` | `research.md:43` and `:45`, the two anchors `f1d3023` added; the task text of `T270` at `specs/007-counters-and-timers/tasks.md:3123` carries the stale pair |
 | `T274` `:57` | `:56`, the Phase 34 contribution of 9 distinct tokens, which `T278` at `specs/007-counters-and-timers/tasks.md:3589` names beside `T274` at `:3322` |
-| `T276` `citations.md:275-282` | `:283-290`, this section |
-| `citations.md:266-273` | `:274-281`, the paragraph on the body of commit `6121416`, which the Phase 37 preamble at `specs/007-counters-and-timers/tasks.md:3285` names |
-| `T278` `citations.md:289-290` | `:297-298`, the two rows this table carries for `:46` and `:55`, which stay unchanged at those numbers |
+| `T276` `citations.md:275-282` | `:305-312`, this section |
+| `citations.md:266-273` | `:296-303`, the paragraph on the body of commit `6121416`, which the Phase 37 preamble at `specs/007-counters-and-timers/tasks.md:3285` names |
+| `T278` `citations.md:289-290` | `:319-320`, the two rows this table carries for `:46` and `:55`, which stay unchanged at those numbers |
 
 ## The nine live artifacts at a second head
 
@@ -392,10 +414,10 @@ length at `9da43ac`, and 101 occurrences over 90 distinct tokens at the
 parent `b82fb7e`. The figure 101 is the occurrence total at the commit
 that authored the sentence and the distinct total at `9da43ac`, and the
 two senses are separate counts. The sections appended after those four
-raised the totals to 144 occurrences and 126 distinct tokens, which is the
-reading the working tree yields. The counting rule and every figure the
-record carried at `9da43ac` keep their values, and the preamble keeps its
-bytes.
+raised the totals to 144 occurrences and 126 distinct tokens at `9d83823`, 246
+and 206 at `21fcb3a`, and 249, 208, and 351 at `b945af8`, and the occurrence
+total moves with the file's length. The counting rule and the figures
+carried at `9da43ac` keep their values, and the preamble keeps its bytes.
 
 Over `specs/007-counters-and-timers/tasks.md` lines 1 through 2422, the
 population `:43-50` names, each engine returns the following.
@@ -458,6 +480,28 @@ constitution's own gate is the range form at
 line the branch's diff added or modified. The units figure is a reading of
 the working tree and moves with every edit to it; the findings figure does
 not. No gate rule, threshold, or marker moved with this record.
+
+The Phase 46 preamble at `specs/007-counters-and-timers/tasks.md:5870` and
+`:5879` states 146 sources and 15469 units for the whole-repository form,
+and 90 sources and 11762 units for the form narrowed to this feature, and
+the Phase 45 preamble at `specs/007-counters-and-timers/tasks.md:5570-5577`
+gives its reason for stating neither. This file is a source the gate
+examines in every one of those forms, so each total rises by the units an
+appending section adds the moment the section lands, and that is what
+carried the Phase 43 and Phase 44 totals 325 units short in tree mode and 1
+short in range mode. Measured at `1a25e51` over the working tree, the
+whole-repository form, which is the command
+`python3 tools/prose/prose_gate.py --check all`, exits 0 and reports
+`148 sources, 16162 units examined, 0 findings, 1 skipped`, and the same
+command narrowed by
+`--paths specs/007-counters-and-timers docs/pages/counters-overhead.md`
+exits 0 and reports `92 sources, 12455 units examined, 0 findings, 0
+skipped`. Those four figures are a reading of that head and none of them
+outlives an append. The two findings totals carry no such dependence: they
+hold at 108 in tree mode and 0 in the two narrowed forms, and the 18-file
+distribution holds as the paragraph above records it. Both dated preambles
+keep their bytes, and no gate rule, threshold, vocabulary, or marker moved
+with this paragraph.
 
 ## The mapped-page protocol order `T077` required
 
@@ -590,13 +634,14 @@ run-clang-tidy -p build/dev \
   $(find source/counters -name '*.cpp' | sort)
 ```
 
-The 734 decompose by the file the diagnostic names. The eleven
-translation units contribute 358, their two provider-private headers
-contribute 42, the seven public `counters` headers contribute 320,
-`include/speedgun-ng/dbc.hpp` contributes 11 because the counters
-sources include it, and two vendored simdjson inline headers contribute
-3 despite the exclude filter, which the header filter does not reach
-for an inl-header diagnostic.
+The 734 decompose by the file the diagnostic names. The eleven translation
+units contribute 358, their two provider-private headers contribute 42, and
+seven of the nine public `counters` headers contribute 320; `counters.hpp`
+and `counters_core.hpp`, the two inside the nine, carry 0.
+`include/speedgun-ng/dbc.hpp` contributes 11 because the counters sources
+include it, and two vendored simdjson inline headers contribute 3 despite
+the exclude filter, which the header filter does not reach for an
+inl-header diagnostic.
 
 | File the diagnostic names | `warning:` lines |
 | --- | --- |
@@ -696,38 +741,37 @@ pre-hunk boundary as old line 238 and names two bands; the measured
 boundary is old line 241 and there are three bands, the third covering
 old lines at or above 596.
 
-Counted with the rule at `:32-41` over `git ls-files` output, the
-feature places 48 path-form anchors into the constitution: 45 in
-`specs/007-counters-and-timers/tasks.md` lines 1 through 4479 and 3 in
-this record. Every one of the 48 was read individually: at `4fd1189`
-the cited line holds the text the sentence naming it describes, and at
-`9d83823` the shifted line holds that same text while the cited line
-holds other text. The class of an anchor that was never right is empty
-over these 48. A hand attribution of the bare `:NN` continuations
-sitting on the same lines adds 17, of which 11 assert a current
-position and are stale by the same map, and 6 assert a pre-amendment
-position and stand as history. The 65 anchors divide into 59 stale and 6
-historical.
+Counted with the rule at `:32-41` over `git ls-files` output at `21fcb3a`,
+the feature places 61 path-form anchors into the constitution: 45 in
+`specs/007-counters-and-timers/tasks.md` lines 1 through 4479, 8 in the
+same file's lines 4480 through 5201, and 8 in this record. The 48 and the
+65 were the `9d83823` reading. Every one of the 61 was read individually:
+the 48 the 2.10.0 amendment moved hold their text at `4fd1189`, and the
+13 it left in place hold it at `21fcb3a`. The class of an anchor that was
+never right is empty over the 61. A hand attribution of the bare `:NN`
+continuations on the same lines adds 17 at `9d83823`, 11 stale by the
+same map and 6 pre-amendment positions standing as history, and the 13
+lines the later anchors sit on carry none. The 78 anchors divide into 59
+stale, 6 historical, and 13 naming the position their text stands at.
 
-The three rows in this record come first, because they are the ones a
-reader follows. `specs/007-counters-and-timers/citations.md:156` names
-`:568-570` for the machine-local `CMakeUserPresets.json` sentence,
-which stands at `:600-602`. The same row records that the landing it
-names, `:571-573`, held the Licensing bullet and one empty line at the
-head it was written at; that range stands at `:603-605` now.
-`specs/007-counters-and-timers/citations.md:222` names `:405-409` for
-the Principle XI.1 scope paragraph, which stands at `:437-441`.
-`specs/007-counters-and-timers/citations.md:455` names `:245-248` for
-the constitution's own prose-lint gate and the range form, which stands
-at `:277-280`; `:245-248` now holds Principle VII's per-platform
-baselines bullet, and `T284` and the Phase 40 preamble both lean on the
-row.
+The eight rows in this record come first, because they are the ones a
+reader follows, and the table gives each anchor, the line its text stands
+at, the head the number was read at, and the shift. Three were read at
+`4fd1189` and the amendment moved them; five were added at `14b8e48` and
+name the line their text stands at, with a shift of 0. The `:245-248` the
+`citations.md:477` row corrects now holds Principle VII's per-platform
+baselines bullet, and `T284` and the Phase 40 preamble lean on that row.
 
 | Site | Anchor as written | Line holding the same text at `9d83823` | Head the number was read at | Shift |
 | --- | --- | --- | --- | --- |
-| `citations.md:156` | `:568-570` | `:600-602` | `4fd1189` | 32 |
-| `citations.md:222` | `:405-409` | `:437-441` | `4fd1189` | 32 |
-| `citations.md:455` | `:245-248` | `:277-280` | `4fd1189` | 32 |
+| `citations.md:174` | `:568-570` | `:600-602` | `4fd1189` | 32 |
+| `citations.md:244` | `:405-409` | `:437-441` | `4fd1189` | 32 |
+| `citations.md:477` | `:245-248` | `:277-280` | `4fd1189` | 32 |
+| `citations.md:620` | `:10-20` | `:10-20` | `14b8e48` | 0 |
+| `citations.md:705` | `:269-274` | `:269-274` | `14b8e48` | 0 |
+| `citations.md:727` | `:24-28` | `:24-28` | `14b8e48` | 0 |
+| `citations.md:905` | `:504-506` | `:504-506` | `14b8e48` | 0 |
+| `citations.md:973` | `:269-274` | `:269-274` | `14b8e48` | 0 |
 | `tasks.md:358`, `T073` | `:461-462` | `:493-494` | `4fd1189` | 32 |
 | `tasks.md:397`, `T106` | `:568-570` | `:600-602` | `4fd1189` | 32 |
 | `tasks.md:751` | `:279-287` | `:311-319` | `4fd1189` | 32 |
@@ -773,6 +817,23 @@ row.
 | `tasks.md:4013` | `:190-192` | `:219-221` | `4fd1189` | 29 |
 | `tasks.md:4413`, `T292` | `:240-242` | `:269-270` for `:240-241`, and `:271-274` for `:242`, the clause the amendment replaced | `4fd1189` | 29 |
 | `tasks.md:4475`, `T294` | `:405-409` | `:437-441` | `4fd1189` | 32 |
+
+The Phase 45 preamble's constitution-anchor paragraph, which
+`specs/007-counters-and-timers/tasks.md:5682-5690` carries, overstates what
+it verified. It reads `The four the 2.10.0 amendment moved still resolve:`
+and then names three anchors. The count is 3, the 3 rows at shift 32 in
+the table above over this record's 8 rows, being the rows at
+`citations.md:174`, `citations.md:244`, and `citations.md:477`. The
+constitution carries the same bytes at `9d83823`, `b945af8`, and `ea6e48b`,
+so each landing line this paragraph names stands at all three heads. Two of
+the 3 do not hold the text the preamble attributes to them. `:568-570`
+carries the commit-message clause, and the machine-local
+`CMakeUserPresets.json` sentence stands at `:600-602`, which is the landing
+the row at `citations.md:767` already carries. `:405-409` carries the
+`- Standard conversions:` list, and the Principle XI.1 scope paragraph
+stands at `:437-441`, which is the landing the row at `citations.md:768`
+already carries. The third resolves, because `:245-248` carries the
+Principle VII per-platform baselines bullet. The preamble keeps its bytes.
 
 The 11 bare continuations assert a current position and are stale by the
 same map. Six further continuations on the same lines name a
@@ -882,8 +943,8 @@ final section of this file records closed. The 68 lines in `tasks.md`
 include the five the task text names at `:390`, `:487`, `:497`, `:1633`,
 and `:2723`; all five keep their bytes under the Principle XI.1 scope
 paragraph at `:437-441`, and the 61 lines in the closed journal keep
-theirs under the same clause. The tree this pass leaves carries 276 over
-23 files. No gate rule, threshold, vocabulary, or marker moves here. A
+theirs under the same clause. The tree at `21fcb3a` carries 276 over 23
+files. No gate rule, threshold, vocabulary, or marker moves here. A
 narrower row belongs to `specs/002-prose-commit-lint` and to a
 constitutional reading of the exemption's scope, and that reading is the
 repository owner's under Principle IX.
@@ -927,8 +988,8 @@ in place, and the `build/agent-*` trees were not touched.
 `cmake --build build` then exits 0 over 38 compile actions and 27 built
 targets, 1 m 50 s.
 
-The log carries 2953 lines with `warning:` and 1 line with `error:`. The
-single `error:` line is
+The log at `9d83823` carries 2953 lines with `warning:` and 1 line with
+`error:`. The single `error:` line is
 `test/source/dbc_test.cpp:231:9: error: Unhandled exception thrown in
 function that is an entry point. [throwInEntryPoint]`, a static-analysis
 finding the launcher reports at error severity while the build succeeds,
@@ -938,7 +999,7 @@ cache produced no finding on any of the 38 translation units.
 
 | Population | `warning:` lines |
 | --- | --- |
-| feature scope: `source/counters/` and the seven public `counters` headers | 1467 |
+| feature scope: `source/counters/` and the nine public `counters` headers, seven of which carry a diagnostic | 1467 |
 | feature scope: the twelve `test/source/counters_*` and two `example/counters_*` units | 1243 |
 | other project units: the feature 001 DBC tests | 185 |
 | other project units: `include/speedgun-ng/dbc.hpp` and `include/speedgun-ng/speedgun-ng.hpp` | 33 |
@@ -955,6 +1016,10 @@ re-measure. Head `9d83823` with one uncommitted change, the refusal
 check in `test/source/counters_trap_checked_test.cpp`, which contributes
 59 of the 2953 at `test/source/counters_trap_checked_test.cpp`. No
 analyzer call was suppressed and no gate moved in reaching this section.
+A later release build at `21fcb3a` exits 0 over a 27-line log carrying 0
+lines matching `Building` or `Linking` and 0 carrying `warning:`, so that
+pass states no release-configuration total and the 2953 stands on its own
+head.
 
 ## The cppcheck half of the same gate, measured
 
@@ -968,8 +1033,10 @@ cppcheck --inline-suppr -q --force $(find source/counters -name '*.cpp') -I incl
 ```
 
 exits 0 and reports 0 findings. The same launcher form on
-`source/counters/plan.cpp` alone exits 0 and prints three progress lines
-and no finding. The `Phase 42` preamble at
+`source/counters/plan.cpp` alone exits 0 and prints 0 lines, and the same
+command with `-q` dropped prints 3, being
+`Checking source/counters/plan.cpp ...` and its two macro-definition
+lines. The `Phase 42` preamble at
 `specs/007-counters-and-timers/tasks.md:4548-4550` records that the same
 command `exits 0 with findings printed`, and no finding is printed at
 this head. The preamble keeps its bytes, and the figure that clause
@@ -1010,3 +1077,309 @@ them keeps its number.
 | `specs/007-counters-and-timers/plan.md:347` | XI.2 ` rather than ` | `are all measured, and each of the three sits inside the coverage the gate scores` |
 | `specs/007-counters-and-timers/plan.md:457` | XI.2 ` rather than ` three times and ` instead of ` twice | each of the five clauses states what the thing is, in its own sentence |
 | `specs/007-counters-and-timers/spec.md:33` | XI.2 ` rather than ` | `the regex is recorded where the matched text would go` |
+
+## The last library commit and the four anchors it moved
+
+The three commands that measure it:
+
+```
+git log -1 --date=format:'%Y-%m-%d %H:%M' --format='%h %ad' -- include source/counters
+git show b60b361 --name-only
+git log --oneline 31363e8..b945af8 -- include source/counters
+```
+
+The first returns `b60b361 2026-09-28 10:43`, the second returns
+`source/counters/detail/core.hpp` over 16 insertions and no deletions, and
+the third returns `b60b361` alone, so `b60b361` is the last commit on this
+branch touching `include/` or `source/counters/` at `b945af8`. The Phase
+44 preamble's premise, which
+`specs/007-counters-and-timers/tasks.md:5251-5253` and `:5383-5386` state
+as `31363e8` at 2026-09-28 10:40, was wrong when that preamble was
+written. The conclusion both sentences draw holds, because the coverage
+capture is timestamped 2026-09-28 13:44:24 and `b60b361` precedes it, so
+no library line moved after the capture, and the coverage-exclusion
+population at `citations.md:438-458` keeps its figure and its head.
+
+The commit inserted 16 comment lines and no code, and the inserted lines
+are 99 through 114, so every line of that header from old 99 onward moved
+by 16. Old lines 96 through 98 did not move, because each is
+byte-identical at `ea6e48b` and old line 99 is the first line that
+differs. Two of the five sites that name such a line are the rows at
+`citations.md:148` and `citations.md:176`, whose third columns now carry
+the line and the head each figure was read at. The other three had no row
+and stand here.
+
+| Site | Line in `tasks.md` | Anchor as written | Line now holding the claim | Governing | Named by |
+| --- | --- | --- | --- | --- | --- |
+| `specs/007-counters-and-timers/spec.md:34` | 1035, 1113, 1805, 2326 | `source/counters/detail/core.hpp:104` | `:120`, where `bound_target` is declared, read at `b945af8`; the line stood at `:104` at `b60b361^` | FR-024 | T312 |
+| `docs/pages/counters-overhead.md:46` | 769, 813 | `source/counters/detail/core.hpp:170` | `:186`, where `find` is declared and returns `nullptr` for an absent path, read at `b945af8`; the line stood at `:170` at `b60b361^` | FR-048 | T312 |
+| `specs/007-counters-and-timers/tasks.md:495` | 495 | `source/counters/detail/core.hpp:105` | `:120`, where `bound_target` is declared, read at `ea6e48b`. The line `:105` held `std::thread::id bound_thread = std::this_thread::get_id();` at `11bc422`, `01f905b`, `31363e8`, and `b60b361^`, and `b60b361` is the commit that moved it off line 105, which carries a comment line at this head. `T147` names this site and this anchor, and the two anchors the rows above carry are `source/counters/detail/core.hpp:104` and `source/counters/detail/core.hpp:170`, so the enumeration above left this site out | FR-024 | T318 |
+
+The `core.hpp` anchor population over the live artifacts is stated in the
+Phase 47 preamble at `specs/007-counters-and-timers/tasks.md:6131-6143` as
+50 sites of which 47 reach 99, and the four classes it names do not partition
+that population. Counted at `a2e0f67` over the 12 feature Markdown files
+with the token unit the rule at `:32-41` states and `counters_core.hpp`
+excluded, the population is 49 occurrences over 46 sites, of which 46
+occurrences over 43 sites have a high number reaching 99. The 23 occurrences
+over 20 sites name a line the insertion moved, being every anchor whose
+cited range covers a line at or above 99 with the literal
+`core.hpp:100-114` range excepted, and the 14 occurrences over 14 sites name
+`core.hpp:92-99`, `:95-99`, or `:90-99`. Two class figures hold as the
+preamble states them: the 9 occurrences over 9 sites naming
+`core.hpp:100-114`, and the 9 occurrences over 8 sites the Phase 45 and
+Phase 46 preambles re-derive between
+`specs/007-counters-and-timers/tasks.md:5546` and `:6026`. The residue is 3
+occurrences over 3 sites naming `core.hpp:98`, at
+`specs/007-counters-and-timers/citations.md:148` and
+`specs/007-counters-and-timers/tasks.md:374` and `:423`, which no class of
+the enumeration names. The four classes overlap, because those 9
+re-derivations are a subset of the moved-line class and of the sub-99 class,
+so the four sum to 55 occurrences against a population of 49. The
+enumeration's own conclusion stands, and every `core.hpp` anchor in the live
+artifacts was read against the band and none drifted. The dated preamble
+keeps its bytes, so this paragraph carries the correction, and no line of
+this file and no gate moved with it.
+
+The library history over `include` and `source/counters` is 30 commits, and
+the Phase 47 preamble at `specs/007-counters-and-timers/tasks.md:6146`
+states 29. The commands that yield the count are
+
+```
+git log --format='%h' -- include source/counters | wc -l
+git log --oneline -- include source/counters | wc -l
+git rev-list --count HEAD -- include source/counters
+git log --numstat --format='%h' -- include source/counters | grep -cE '^[0-9a-f]{7,}$'
+```
+
+and each of the 4 returns 30 at `1b89b06`, the first at `6b50e99` on
+2026-09-06 14:09 and the last at `b60b361` on 2026-09-28 10:43. Measured at
+that head, `git log --numstat --format='%h' -- include source/counters` emits
+198 lines, of which 30 are the bare hash, 31 are blank, and 138 carry an
+insertion count, a deletion count, and a path. The form this paragraph
+formerly named returns 168, because that form counts distinct output lines:
+`sort -u` deduplicates the 138 numstat lines beside the 30 hashes down to 137
+and 30, and the blank lines collapse to 1, and 137 and 30 and 1 give the
+168. `git log --format='%h' --numstat -- include source/counters` over those
+30 confirms that every one carries at least one insertion or one deletion,
+and the 3 lines reading `0 0` name `source/counters/.gitkeep` and its two
+sibling paths, each of which sits beside a changed file in its commit. The
+preamble names both endpoints of the range correctly, so the count alone is
+the residue, which is why that finding is low. Its statement that the three
+commits after `b60b361` touch no library file holds, and `1a25e51` is a
+fourth that touches none. The dated preamble keeps its bytes, and no line of
+this file and no gate moved with this paragraph.
+
+## The suite count the Section 13 gate-pass rows carry
+
+`test/CMakeLists.txt` carries 38 `add_test` registrations at this head, and
+`ctest --test-dir build -N` exits 0 at `Total Tests: 38`.
+`ctest --preset=dev` exits 0 at `100% tests passed out of 38` with 0 failed
+and 0 skipped, and `ctest --test-dir build/dev -R counters_overhead` exits 0
+at `100% tests passed out of 1` with the test reported as `Passed`, so the
+overhead probe runs and passes at this head. The `ci-sanitize` binaryDir at
+`build/sanitize` was neither reconfigured nor rebuilt in this pass, so its
+registered count was not read on that preset. The Sanitizers row at
+`specs/007-counters-and-timers/quickstart.md:173` and the Tests row at
+`:174` each report ``PASS: 35 of 35, `counters_overhead` probe-skipped``, and
+both name the suite count their own pass recorded. The SC-002 row at
+`specs/007-counters-and-timers/quickstart.md:138` reports a suite of 38
+tests and 38 passing with none skipped, which `T191` and `T308` corrected
+in place from 35 to 37 to 38, so one row of this file states the figure the
+tree yields and two rows carry the earlier one. Both rows keep their bytes,
+and the figure in the table below is the one the current tree yields.
+
+The four figures this file states that the tree contradicts are the 4 at
+`:137`, the 296 marker lines at `:169`, and the 35 of 35 at `:173` and
+`:174`, and each carries a row in this record. The first two carry rows in
+the sections above, and the `LCOV_EXCL` population the second states holds
+at this head: the command
+`rg -c 'LCOV_EXCL' source/counters include/speedgun-ng/counters*.hpp`
+returns 301 over 11 files, `rg -o` returns 301 tokens over 301 marker
+lines, and the P2 coverage-exclusion row at
+`specs/007-counters-and-timers/plan.md:457` records the same 301 tokens
+over the same 11 files.
+
+| Site | Figure as written | Measured at this head | Governing |
+| --- | --- | --- | --- |
+| `specs/007-counters-and-timers/quickstart.md:173` | ``PASS: 35 of 35, `counters_overhead` probe-skipped`` | a suite of 38 with 38 passing, 0 failed, and 0 skipped, and `counters_overhead` passing, read at `a2e0f67` | the SC-002 row at `specs/007-counters-and-timers/quickstart.md:138`; `test/CMakeLists.txt`; T191, T308 |
+| `specs/007-counters-and-timers/quickstart.md:174` | ``PASS: 35 of 35, `counters_overhead` probe-skipped`` | a suite of 38 with 38 passing, 0 failed, and 0 skipped, and `counters_overhead` passing, read at `a2e0f67` | the SC-002 row at `specs/007-counters-and-timers/quickstart.md:138`; `test/CMakeLists.txt`; T191, T308 |
+
+## The line movement commit `1a25e51` caused
+
+Commit `1a25e51` moved the lines of this record and recorded no movement.
+The command that measures it is
+
+```
+git diff -U0 a2e0f67 1a25e51 -- specs/007-counters-and-timers/citations.md
+```
+
+and it reports two hunks and no deletion, `@@ -166,0 +167,4 @@` and
+`@@ -1072,0 +1077,35 @@`, and the first 166 lines are byte-identical at the
+two heads. Every record line at or above 167 therefore stands 4 higher at
+`1a25e51`, and every line at or below 166 keeps its number. The second hunk
+adds its 35 lines after old line 1072, which was the last line of the file,
+so it moves no line an anchor names. The file held 1072 lines at `a2e0f67`
+and holds 1111 at `1a25e51`.
+
+Counted under the rule at `:32-41` with CPython 3.14.7 `re.finditer` over
+whole matches `m.group(0)`, the 12 feature Markdown files carry 143
+path-form `citations.md` anchors at `a2e0f67` numbering over 139 sites.
+80 of the 143 name a line whose text moved, every one of the 80 is restored
+exactly by a uniform `+4`, and none of the 80 lands on a blank line. This
+file's own 20 path-form self-references at that head are the ones a reader
+follows, and 16 of the 20 name a line whose text moved. The 4 that do not
+write `:156` twice, `:130`, and `:158`, and each of the 4 lies at or below
+166.
+
+The 16 sites follow. Every row states its two line numbers at the head its
+column names. The two table columns the movement touched carry the numbers
+the working tree yields, which differ from the numbers below because the
+sections appended after `1a25e51` moved them again.
+
+| Site at `1a25e51` | Anchor as written | Line holding the same material at `1a25e51` | Head the anchor was read at | Shift |
+| --- | --- | --- | --- | --- |
+| `citations.md:315` | `citations.md:275-282` | `:279-286` | `a2e0f67` | 4 |
+| `citations.md:316` | `citations.md:266-273` | `:270-277` | `a2e0f67` | 4 |
+| `citations.md:317` | `citations.md:289-290` | `:293-294` | `a2e0f67` | 4 |
+| `citations.md:722` | `citations.md:455` | `:459` | `a2e0f67` | 4 |
+| `citations.md:728` | `citations.md:222` | `:226` | `a2e0f67` | 4 |
+| `citations.md:729` | `citations.md:455` | `:459` | `a2e0f67` | 4 |
+| `citations.md:730` | `citations.md:576` | `:580` | `a2e0f67` | 4 |
+| `citations.md:731` | `citations.md:661` | `:665` | `a2e0f67` | 4 |
+| `citations.md:732` | `citations.md:683` | `:687` | `a2e0f67` | 4 |
+| `citations.md:733` | `citations.md:844` | `:848` | `a2e0f67` | 4 |
+| `citations.md:734` | `citations.md:912` | `:916` | `a2e0f67` | 4 |
+| `citations.md:786` | `citations.md:222` | `:226` | `a2e0f67` | 4 |
+| `citations.md:786` | `citations.md:455` | `:459` | `a2e0f67` | 4 |
+| `citations.md:792` | `citations.md:723` | `:727` | `a2e0f67` | 4 |
+| `citations.md:794` | `citations.md:724` | `:728` | `a2e0f67` | 4 |
+| `citations.md:1061` | `citations.md:416-436` | `:420-440` | `a2e0f67` | 4 |
+
+The first correction is the target column of the re-anchor table above. Its
+5 values read `:170-175`, `:205-211`, `:274-281`, `:283-290`, and
+`:297-298` at `a2e0f67` and stand at `:174-179`, `:209-215`, `:278-285`,
+`:287-294`, and `:301-302` at `1a25e51`, and each landing holds the same
+text the number named at `a2e0f67`. The second is the Site column of the
+constitution table above. At `1a25e51` 7 of its 8 `citations.md` values
+stood 4 short, at `:222`, `:455`, `:576`, `:661`, `:683`, `:844`, and
+`:912`, and the one value `:156` stood unchanged because it lies below 167.
+The measurement also found that the values `:844` and `:912` name the
+numbering of `14b8e48`, where the file held 980 lines, the line carrying the
+anchor `:504-506` stood at 844, and the second line carrying the anchor
+`:269-274` stood at 912, so those two are 17 lower than the `a2e0f67`
+numbering and 21 higher than the column now carries. All
+8 rows keep their anchors and their shifts, and no gate rule, threshold,
+vocabulary, or marker moved with them.
+
+Two references name the tables and keep their bytes. The reference at
+`citations.md:1101` names the coverage-exclusion section as
+`citations.md:416-436` where it stands at `:438-458`, and the Phase 47
+preamble at `specs/007-counters-and-timers/tasks.md:6181` names the
+constitution table as `specs/007-counters-and-timers/citations.md:721-730`
+where it stands at `:765-819`. Both are dated text under the Immutability
+clause of Pull Request Quality, and this section is the record for both.
+
+## The line movement commit `1b89b06` caused
+
+Commit `1b89b06` moved the lines of this record and recorded no movement. The
+command that measures it is
+
+```
+git diff -U0 1a25e51 1b89b06 -- specs/007-counters-and-timers/citations.md
+```
+
+and it reports seven hunks, and `git diff --numstat 1a25e51 1b89b06` over
+this file reports 171 insertions and 13 deletions. Four of the seven are
+insertions, 18 lines after old line 42, 22
+after old line 465, and 43 after old line 1077, all of them above old line
+1111, and 75 after old line 1111, which was the last line of the file, so
+that hunk moves no line an anchor names. The remaining three are in-place
+replacements, the 2 lines at old line 311, the 3 at old line 315, and the 8
+at old line 727, and each replaces a line with a line of equal length, so
+each moves the lines around it by nothing. The four insertions add 158 lines
+and the three replacements add 13 and remove 13, so the file held 1111 lines
+at `1a25e51` and holds 1269 at `1b89b06`.
+
+Every record line from 43 through 465 therefore stands 18 higher, every line
+from 466 through 1077 stands 40 higher, and every line from 1078 through 1111
+stands 83 higher. Every line at or below 42 keeps its number. The shift is
+arithmetic in each band, so a later pass derives a landing from a named
+number with one addition and no search.
+
+Counted under the rule at `:32-41` with CPython 3.14.7 `re.finditer` over
+whole matches `m.group(0)`, 119 occurrences over 118 lines of the dated text
+in `specs/007-counters-and-timers/tasks.md` at `1b89b06` name a record line
+in a moved band. 71 occurrences over 71 lines lie in the 43 through 465 band
+that stands 18 higher, 48 occurrences over 47 lines lie in the 466 through
+1077 band that stands 40 higher, and none lies in the 1078 through 1111 band.
+The record's own 56 path-form self-anchor occurrences over 37 sites and its
+433 bare continuations make the rest of the population, and the section
+above gives each of those its landing. The dated task lines and the dated
+preambles keep their bytes under the Immutability clause of Pull Request
+Quality, and this section is their record.
+
+Every one of the 119 was correct against this record at `1a25e51`, and 8 of
+them name a range whose first line was blank there, so the second drift
+criterion at `:110` applied to those 8 at that head already and the movement
+did not cause it. The remaining 111 name a line that held text at `1a25e51`,
+and the shift restores each of them exactly.
+
+The drifted text reaches material a reader follows. The criterion block the
+Phase 47 preamble names as `:88-93` at
+`specs/007-counters-and-timers/tasks.md:6152` stands at `:106-111` now. The
+constitution table that preamble names as `:721-730` at `:6181` stands at
+`:765-819` now, its header at `:765` and its last row at `:819`. The
+re-anchor table the Phase 48 preamble names as `:296-317` at `:6433` stands
+at `:314-335` now. The 18-file distribution the Phase 48 preamble names as
+`:448-452` at `:6535` stands at `:466-470` now. The first of the four
+follows the band map. The second is a 10-line range naming the head of that
+table, so the header stands 4 higher than the range's arithmetic landing and
+the body stands 14 higher.
+
+The 118 lines follow, each with the head that wrote it, read at `git blame
+-l 1b89b06 -- specs/007-counters-and-timers/tasks.md`. Every line number is
+in `specs/007-counters-and-timers/tasks.md` and every one is dated text. The
+table gives 118 lines over 14 heads.
+
+| Head that wrote the line | Lines in `specs/007-counters-and-timers/tasks.md` | Lines |
+| --- | --- | --- |
+| `b945af8` | 5224, 5275, 5277, 5282, 5291, 5322-5327, 5333, 5364, 5419, 5434, 5441, 5467, 5479, 5499, 5520, 5530, 5535 | 22 |
+| `21fcb3a` | 4951, 4955, 4963, 4992, 5060, 5063, 5066, 5074, 5126, 5146, 5169, 5171, 5184, 5191, 5197 | 15 |
+| `ea6e48b` | 5579, 5626, 5642, 5653, 5679, 5681, 5684, 5760, 5763, 5775, 5789, 5846-5847, 5849 | 14 |
+| `1a25e51` | 6043, 6084, 6098, 6101, 6138, 6152, 6158, 6181, 6253, 6266, 6296, 6312, 6323 | 13 |
+| `9da43ac` | 3429, 3460, 3462, 3499, 3535, 3567, 3572, 3578, 3587, 3592 | 10 |
+| `a2e0f67` | 5923, 5938, 5947, 5971, 5982, 5991, 6002, 6014 | 8 |
+| `4fd1189` | 4005, 4034, 4053, 4147, 4170, 4196 | 6 |
+| `14b8e48` | 4712, 4720, 4724, 4726, 4764, 4792 | 6 |
+| `f1d3023` | 2708, 2713, 2715, 2717, 2719, 2722 | 6 |
+| `1b89b06` | 6351, 6405, 6433, 6435, 6504, 6535 | 6 |
+| `8a62b69` | 3667, 3748, 3781, 3794, 3835 | 5 |
+| `b82fb7e` | 3285, 3321, 3333 | 3 |
+| `9c5dfa5` | 2998, 3137 | 2 |
+| `9d83823` | 4357, 4471 | 2 |
+
+The 6 lines `1b89b06` itself wrote carry the Phase 48 preamble, which names
+this file at `:296-317` and `:448-452` and the table at `:725-779`, and the
+Phase 48 preamble is the text the shift moved twice, once by `1a25e51` and
+once by this commit. The 13 lines `1a25e51` wrote are the Phase 47 preamble,
+which names this file at `:88-93` and `:721-730`. A pass that reads those
+preambles against the working tree reads the numbers above, and a pass that
+reads them against `1a25e51` reads the numbers they carry, because the
+preambles name a head for every figure they state.
+
+The 13 in-place replacements are the residue the movement cannot express as a
+shift, and each one is a landing a reader has to find by search. The 2 lines
+at old line 311 are 2 rows of the re-anchor table's target column, the 3 at
+old line 315 are the 3 rows of that same table naming this file, and the 8 at
+old line 727 are the Site column of the constitution table. The target
+column now reads `:192-197` and `:227-233`, the 3 rows now name
+`citations.md:305-312`, `:296-303`, and `:319-320`, and the Site column
+carries
+`citations.md:174`, `citations.md:244`, `citations.md:477`,
+`citations.md:620`, `citations.md:705`, `citations.md:727`,
+`citations.md:905`, and `citations.md:973`, and each of the 8 names the line
+its own row's landing stands at, read against the lines they name. The prose
+that names those 8 rows carried the numbers the column held before the
+replacement, and the section above gives each of those its landing. No gate
+rule, threshold, vocabulary, or marker moved with this section.
