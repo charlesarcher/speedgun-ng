@@ -82,7 +82,12 @@ regime is measured and which is skipped.
   developer mode on
 - Correctness build: `Debug`, so `-g`, contracts `enforce`, developer
   mode on, which is the configuration the `dev` preset configures
-- Measured quantity: wall time of one `sample()` call
+- Measured quantity: wall time of one `sample()` call, and of a fold
+  measured two ways: bracketed by the library's `machine/monotonic`
+  counter and bracketed by `std::chrono::steady_clock`. The two fold
+  figures agree to 0.3 ns, which is the result that matters here: the
+  library's own counter reproduces the standard library's figure, so a
+  caller can time its own code without reaching outside
 - Warm-up: 64 actions per plan before measurement
 - Sample count: 257 timed actions per plan, sorted, then reported as
   min / median / max
@@ -162,7 +167,7 @@ recorded above:
 | clock only, one leaf per action (`machine/monotonic`) | 40 | 40 | 80 | `syscall` (vDSO) |
 | core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one read per leader per action | 70 | 70 | 90 | `fast_rdpmc` |
 | core PMU single leaf (`cpu/instructions`), one leaf per action | 49 | 50 | 60 | `fast_rdpmc` |
-| first-to-last fold over 64 recorded points, sampling outside the loop | | 33.2 | | none |
+| first-to-last fold over 64 recorded points, sampling outside the loop, library counter bracket | | 413.3 | | none |
 
 Correctness build (`-g`, contracts `enforce`), four runs at the same
 load:
@@ -172,7 +177,7 @@ load:
 | clock only, one leaf per action (`machine/monotonic`) | 70 | 70 | 130 | `syscall` (vDSO) |
 | core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one read per leader per action | 170 | 180 | 240 | `fast_rdpmc` |
 | core PMU single leaf (`cpu/instructions`), one leaf per action | 129 | 130 | 170 | `fast_rdpmc` |
-| first-to-last fold over 64 recorded points, sampling outside the loop | | 520.4 | | none |
+| first-to-last fold over 64 recorded points, sampling outside the loop, library counter bracket | | 413.6 | | none |
 
 A fold window from `i` to `j` costs two sampling actions plus the fold:
 `2 * sample_overhead_ns_median()`, so 80 ns for the clock plan and 140 ns

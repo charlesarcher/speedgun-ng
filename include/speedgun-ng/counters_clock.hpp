@@ -8,7 +8,6 @@
  * counter where the platform offers one (FR-033, FR-034).
  */
 
-#include <cstdint>
 #include <memory>
 
 #include "speedgun-ng/counters_provider.hpp"

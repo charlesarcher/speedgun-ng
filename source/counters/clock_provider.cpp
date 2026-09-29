@@ -142,12 +142,12 @@ auto process_cpu_ns() noexcept -> std::uint64_t
 #endif
 }
 
-// LCOV_EXCL_START : coverage exclusion (T066, P2 recorded in
-// specs/007-counters-and-timers/plan.md Complexity Tracking): the read's arm
-// for a build without the instruction. The entry now publishes wherever the
-// instruction exists (FR-001), so the sampled arm is covered on every host
-// this suite runs. The arm below is unreachable there, and no fixture can
-// remove an instruction from a running binary.
+// The read's arm for a build without the instruction is marked below. The
+// entry publishes wherever the instruction exists (FR-001), so the sampled
+// arm is covered on every host this suite runs and carries no marker, and no
+// fixture can remove an instruction from a running binary, so the absent arm
+// does (T066, P2 recorded in
+// specs/007-counters-and-timers/plan.md Complexity Tracking).
 auto tsc_ticks() noexcept -> std::uint64_t
 {
 #ifdef SG_COUNTERS_X86
@@ -164,7 +164,6 @@ auto tsc_ticks() noexcept -> std::uint64_t
 }
 
 }  // namespace
-// LCOV_EXCL_STOP
 
 struct detail::clock_window final : window_reader
 {

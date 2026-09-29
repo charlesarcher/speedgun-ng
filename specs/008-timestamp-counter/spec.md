@@ -118,26 +118,34 @@ the publication change.
 ### User Story 3 - Time the library's own sampling path from inside
 the library (Priority: P3)
 
-A contributor measures the cost of `sample()`. That measurement code
-lives in this repository and links against the library, yet it reaches
-for the standard library's clock because the library exposed no
-counter to reach. With the entry published, the overhead benchmark
-brackets its own sampling action with the library's counter.
+A contributor measures the cost of a fold. That measurement code lives
+in this repository and links against the library, yet it reaches for
+the standard library's clock because the library exposed no counter to
+reach. With the entry published, the overhead benchmark brackets its own
+fold loop with a library counter.
+
+The published time-stamp entry cannot serve that bracket, and the
+reason belongs in the record. It carries a count and no rate, so it
+yields no nanoseconds, and the library attaches no frequency that would
+let a caller convert one into the other. The `machine/monotonic` leaf
+is the one library counter carrying a duration, so it brackets. The
+sampling action already used the library's own accessors.
 
 **Why this priority**: It closes the artifact that exposed the defect,
 and it proves the counter composes in the library's own tooling.
 
 **Independent Test**: Replace the standard-library clock in the
-overhead benchmark with the published entry, rebuild, and confirm the
-published figures report elapsed time consistent with the previous run.
-Passes on its own once the entry is published.
+overhead benchmark with a library counter, rebuild, and confirm the
+figure the library counter produces matches the figure the standard
+library produces for the same loop. Passes on its own once the entry is
+published.
 
 **Acceptance Scenarios**:
 
-1. **Given** the overhead benchmark, **When** it brackets a sampling
-   action with the time-stamp entry, **Then** the reported per-sample
-   cost falls within the calibration tolerance of the previous
-   standard-library-bracketed figures.
+1. **Given** the overhead benchmark, **When** it brackets its fold loop
+   with the library's monotonic counter and again with the standard
+   library, **Then** the two reported per-fold costs agree to within
+   1 ns.
 2. **Given** a program holding an ambient lookup result and a recorded
    leaf, **When** the caller composes them in one expression, **Then**
    the plan compiles and folds with full disclosure, because both are
@@ -226,11 +234,15 @@ adds one accessor returning the counter type 007 already defines.
 - **SC-003**: The entry attaches no rate, and no new surface associates
   elapsed time with a count, so a caller reading the entry learns a
   count and nothing further.
-- **SC-004**: The read meets a documented budget measured in the
-  platform release preset and published in the counters overhead page.
-- **SC-005**: The existing overhead benchmark brackets its sampling
-  action with the library's own counter and reports figures consistent
-  with its previous run.
+- **SC-004**: In the platform release preset, a sampling action over a
+  plan holding only the time-stamp entry costs at most 30 ns at the
+  median, and the measured figure is published in the counters overhead
+  page beside the read's own tick distribution.
+- **SC-005**: The existing overhead benchmark brackets its fold loop
+  both ways, with the library's own counter and with the standard
+  library, and the two published figures agree to within 1 ns, so the
+  library's counter measures the same quantity the standard library
+  does.
 - **SC-006**: The header purity gate, the contract pairing gate, and
   the full test suite pass, and the Linux CI matrix stays green. No
   macOS or Windows job exists in the workflow, so this criterion names
