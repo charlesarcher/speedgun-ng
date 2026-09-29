@@ -1,10 +1,9 @@
 // The shipped system clock provider: monotonic wall time, thread and
-// process CPU time, and the calibrated time-stamp counter
-// (specs/007-counters-and-timers, FR-033, FR-034, R-007). Platform
-// terms stay confined to this translation unit.
+// process CPU time, and the raw time-stamp counter
+// (specs/007-counters-and-timers, FR-033; specs/008-timestamp-counter,
+// FR-001). Platform terms stay confined to this translation unit.
 
 #include <cstdint>
-#include <fstream>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -23,9 +22,6 @@
 #if (defined(__x86_64__) || defined(__i386__)) && !defined(_MSC_VER)
 #  define SG_COUNTERS_X86 1
 #  include <immintrin.h>
-#  if defined(__linux__)
-#    include <cpuid.h>
-#  endif
 #endif
 
 namespace sg::counters
@@ -41,6 +37,16 @@ constexpr std::string_view kAddresses[] = {"machine/monotonic",
                                            "machine/tsc"};
 
 constexpr int kTscIndex = 3;
+
+// The time-stamp entry publishes exactly where the instruction exists
+// (FR-001) and the reader opens exactly where the catalog enumerates
+// (FR-003). One condition, decided at build time: x86-64 mandates the
+// instruction, so a build without it is a build without the counter.
+#ifdef SG_COUNTERS_X86
+constexpr bool kTscAvailable = true;
+#else
+constexpr bool kTscAvailable = false;
+#endif
 
 auto parse(const std::string_view address) noexcept -> int
 {
@@ -137,12 +143,11 @@ auto process_cpu_ns() noexcept -> std::uint64_t
 }
 
 // LCOV_EXCL_START : coverage exclusion (T066, P2 recorded in
-// specs/007-counters-and-timers/plan.md Complexity Tracking): the whole
-// time-stamp leaf. FR-034 publishes the leaf only where sysfs carries a
-// calibration, and `/sys/devices/system/cpu/tsc_khz` is kernel data no test
-// can write: on a host without it `m_tsc.present` stays false, the leaf is
-// omitted from the catalog, and nothing samples it. The region ends with the
-// constructor.
+// specs/007-counters-and-timers/plan.md Complexity Tracking): the read's arm
+// for a build without the instruction. The entry now publishes wherever the
+// instruction exists (FR-001), so the sampled arm is covered on every host
+// this suite runs. The arm below is unreachable there, and no fixture can
+// remove an instruction from a running binary.
 auto tsc_ticks() noexcept -> std::uint64_t
 {
 #ifdef SG_COUNTERS_X86
@@ -154,11 +159,12 @@ auto tsc_ticks() noexcept -> std::uint64_t
   // privilege boundary (R-007).
   return static_cast<std::uint64_t>(__rdtsc());
 #else
-  return 0;
+  return 0;  // LCOV_EXCL_LINE
 #endif
 }
 
 }  // namespace
+// LCOV_EXCL_STOP
 
 struct detail::clock_window final : window_reader
 {
@@ -191,49 +197,15 @@ struct detail::clock_window final : window_reader
         case 2:
           sink.put(process_cpu_ns());
           break;
-          // LCOV_EXCL_BR_START : coverage exclusion (T066): the time-stamp
-          // arm, sampled only where the leaf is published. See the region
-          // marker on `tsc_ticks`.
-        default:  // LCOV_EXCL_BR_LINE
-          sink.put(tsc_ticks());  // LCOV_EXCL_LINE
-          break;  // LCOV_EXCL_LINE
-          // LCOV_EXCL_BR_STOP
+        default:
+          sink.put(tsc_ticks());
+          break;
       }
     }
   }
 };
 
-clock_provider::clock_provider()
-{
-#if defined(SG_COUNTERS_X86) && defined(__linux__)
-  // Calibration (FR-034, R-007): the sysfs TSC frequency is the
-  // source of truth, and the scaling flag is one comparison against
-  // a second source: `scaled` is set when that rate differs from the
-  // nominal core frequency CPUID leaf 0x16 EAX reports in MHz.
-  // Invariance lives in leaf 0x80000007 EDX bit 8; this flag claims a
-  // rate comparison, so a host reporting no nominal never sets it.
-  // The calibration runs here, at construction, because `enumerate`
-  // is const and runs at registration, and registration is refused
-  // after open: the catalog freezes at that boundary (FR-009), so a
-  // calibration deferred to open would publish an uncalibrated leaf.
-  // No tsc_khz means no usable calibration, so the leaf is omitted
-  // (catalog fact, zero API difference).
-  std::ifstream khz_file("/sys/devices/system/cpu/tsc_khz");
-  std::uint64_t khz = 0;
-  if (khz_file >> khz && khz != 0) {
-    m_tsc.present = true;
-    m_tsc.khz = khz;
-    unsigned int eax = 0;
-    unsigned int ebx = 0;
-    unsigned int ecx = 0;
-    unsigned int edx = 0;
-    if (__get_cpuid(0x16, &eax, &ebx, &ecx, &edx) && eax != 0) {
-      const auto nominal_khz = static_cast<std::uint64_t>(eax) * 1000ULL;
-      m_tsc.scaled = nominal_khz != khz;
-    }
-  }
-#endif
-}  // LCOV_EXCL_STOP
+clock_provider::clock_provider() = default;
 
 clock_provider::~clock_provider() = default;
 
@@ -262,30 +234,24 @@ void clock_provider::enumerate(object_sink& sink) const
           .mode = read_mode::syscall,
       },
   };
-  // LCOV_EXCL_START : coverage exclusion (T066): the time-stamp catalog
-  // entry, published only where FR-034's sysfs calibration exists. See the
-  // region marker on `tsc_ticks` above.
-  if (m_tsc.present) {  // LCOV_EXCL_BR_LINE
-    const auto mhz = m_tsc.khz / 1000ULL;
-    const std::string description =
-        "raw time-stamp counter ticks; calibrated at " + std::to_string(mhz)
-        + " MHz from sysfs tsc_khz, "
-        + (m_tsc.scaled
-               ? "CPUID leaf 0x16 reports a different nominal core "
-                 "frequency (platform-scaled)"
-               : "no CPUID leaf 0x16 nominal core frequency differs "
-                 "(constant rate)");
-    entries.push_back(catalog_seed {
-        .name = "tsc",
-        .description = description,
-        .unit = "none",
-        .avail = availability::countable,
-        .mode = read_mode::fast_tsc,
-        .frequency_hz = m_tsc.khz * 1000ULL,
-        .scaled = m_tsc.scaled,
-    });  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_LINE
-     // LCOV_EXCL_STOP
+#ifdef SG_COUNTERS_X86
+  // The raw time-stamp counter (FR-001, FR-002): the entry publishes
+  // wherever the build executes the instruction, and the count carries no
+  // rate, so the frequency and the scaled flag keep their zero defaults
+  // and the description asserts none. 007 gated this entry on a sysfs
+  // frequency and attached that rate to it; a count needs neither, and the
+  // gate withheld a working counter from every host publishing no
+  // frequency (specs/008-timestamp-counter, FR-011).
+  entries.push_back(catalog_seed {
+      .name = "tsc",
+      .description = "raw time-stamp counter ticks; a count asserting no rate",
+      .unit = "none",
+      .avail = availability::countable,
+      .mode = read_mode::fast_tsc,
+      .frequency_hz = 0,
+      .scaled = false,
+  });
+#endif
   sink.add_object(object_seed {
       .kind = "machine",
       .path = "machine",
@@ -306,7 +272,7 @@ std::unique_ptr<window_reader> clock_provider::open(const leaf_set& leaves,
     // every direct-open fixture leaves unreached because it opens one
     // address per call, so gcc reports it as an unexecuted block.
     if (index < 0  // LCOV_EXCL_BR_LINE
-        || (index == kTscIndex && !m_tsc.present)) {  // LCOV_EXCL_BR_LINE
+        || (index == kTscIndex && !kTscAvailable)) {  // LCOV_EXCL_BR_LINE
       return nullptr;
     }  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_STOP

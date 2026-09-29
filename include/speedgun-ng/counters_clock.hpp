@@ -36,8 +36,7 @@ class SPEEDGUN_NG_EXPORT clock_provider final : public provider_iface
 {
 public:
   /**
-   * @brief Constructs the provider, calibrating the time-stamp
-   * counter where the platform exposes one.
+   * @brief Constructs the provider.
    *
    * \pre none
    * \post none
@@ -73,16 +72,6 @@ public:
    */
   std::unique_ptr<window_reader> open(const leaf_set& leaves,
                                       const target& where) override;
-
-private:
-  struct tsc_calibration
-  {
-    bool present = false;
-    std::uint64_t khz = 0;
-    bool scaled = false;
-  };
-
-  tsc_calibration m_tsc {};
 };
 
 }  // namespace sg::counters
