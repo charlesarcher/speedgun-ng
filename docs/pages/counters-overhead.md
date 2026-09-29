@@ -331,6 +331,47 @@ when more events are open than there are counters.
   earlier claim that the kernel grants user counter reads at 1 or below
   was false, and the fast probe passes here at 2 as well.
 
+## Overhead over a bare read of the instruction
+
+`counters_overhead` measures the raw time-stamp read against a hand-written
+`rdtsc` pair, both sides bracketed the same way and divided by the number of
+sampling actions. The difference is the library's own cost. One timing method
+measures both sides. The release preset, 1000 actions per
+repeat over 64 repeats, TSC at 4.300 GHz:
+
+| per sampling action | min | median | max | median |
+| --- | --- | --- | --- | --- |
+| bare `rdtsc` pair | 28 t | 28 t | 34 t | 6.5 ns |
+| library sampling path | 29 t | 29 t | 29 t | 6.7 ns |
+
+The library adds **one tick** per sampling action, 6.5 ns to 6.7 ns. A tick
+is a count and not a duration, so the conversion needs the rate above; a
+tick is not a core cycle unless the two frequencies happen to match, which
+is the distinction `specs/008-timestamp-counter` FR-002 draws for the entry
+itself.
+
+The library figure is a property of the build. The instruction sets no
+figure at all. The
+same library against the same host costs 28 ticks optimized and 151 ticks
+unoptimized, because an optimized build inlines the read and its bookkeeping
+while an unoptimized one pays a call and a frame per action. Any comparison
+of the two numbers therefore needs the build named, and only the
+release-preset figure is a budget.
+
+These rows do not replace the 20 ns figure above. That one is the
+distribution of two samples measured by the plan's own instrumentation,
+which is a cold single measurement; this one amortizes a thousand actions
+per repeat, which is the steady-state cost. A lone pair measured cold costs
+about half again what the same pair costs inside a loop, and the bimodality
+noted above is that effect.
+
+The ratio between the two rows is deliberately not asserted in the test. It
+moves with the optimization level by more than the difference it would be
+asserting, so a threshold narrow enough to mean anything would fail on half
+the presets and one wide enough to pass on both would detect nothing. The
+test asserts that both measurements are live and ordered, which is what
+distinguishes a real figure from a broken one.
+
 ## Privilege context
 
 `/proc/sys/kernel/perf_event_paranoid` is 1 on this host, and the sudo
