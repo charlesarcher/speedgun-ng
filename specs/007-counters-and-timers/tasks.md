@@ -6797,7 +6797,7 @@ rather than a defect.
 
 ### MEDIUM: the record addresses itself by line number, and the owner decides whether that stops
 
-- [ ] T330 Decide and record the addressing convention for
+- [X] T330 Decide and record the addressing convention for
   `specs/007-counters-and-timers/citations.md`, because a record that cites
   its own line numbers has no fixed point while it is edited in place, and
   the three routes below differ in what they cost and what they break. This
