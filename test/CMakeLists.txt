@@ -142,6 +142,15 @@ add_test(
 
 # ---- Counters library tests (feature 007) ----
 
+# Raw time-stamp counter and its accessor (specs/008-timestamp-counter
+# FR-001..FR-008; US1, US2): publication wherever the build executes the
+# instruction, a count carrying no rate, and an accessor interchangeable
+# with the uniform lookup.
+add_executable(counters_tsc_test source/counters_tsc_test.cpp)
+target_link_libraries(counters_tsc_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_tsc_test PRIVATE cxx_std_23)
+add_test(NAME counters_tsc_test COMMAND counters_tsc_test)
+
 add_executable(counters_core_test source/counters_core_test.cpp)
 target_link_libraries(counters_core_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_core_test PRIVATE cxx_std_23)
