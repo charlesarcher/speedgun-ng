@@ -253,6 +253,27 @@ public:
                              std::initializer_list<filter> filters = {})
       -> std::expected<std::vector<const sg::counters::object*>, error>;
 
+  /**
+   * @brief Resolves the time-stamp counter as a shorter spelling of
+   * resolving the `tsc` entry under the `machine` object
+   * (specs/008-timestamp-counter FR-004).
+   *
+   * The returned counter is the same type the uniform lookup returns and
+   * names the same canonical entry, so the two are interchangeable at the
+   * call site and the result composes with every other counter. The call
+   * resolves an entry and reads nothing: no hardware read, no plan, and no
+   * recorder. It does not open the registration boundary, so a program
+   * may call it and then register a provider.
+   *
+   * No clock provider registered is a recoverable error naming the absent
+   * provider, and a build whose host does not execute the instruction is a
+   * recoverable error naming the absent counter. Neither returns a counter.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto tsc() const -> std::expected<counter<dim<0, 1>>, error>;
+
 private:
   system();
   ~system();

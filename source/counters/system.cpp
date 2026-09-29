@@ -382,6 +382,35 @@ auto system::object(std::string_view path)
   return handle_for(canonical);
 }
 
+// The time-stamp entry as a shorter spelling of the uniform lookup
+// (specs/008-timestamp-counter FR-004). A pure tree walk: it resolves an
+// entry and reads nothing, and it deliberately does not call
+// `ensure_open()`, so a program may call it and then still register a
+// provider (FR-006). The two failure branches are recoverable errors and
+// never contract violations, so neither carries a contract macro (FR-007,
+// FR-008).
+auto system::tsc() const -> std::expected<counter<dim<0, 1>>, error>
+{
+  const auto* node = m_impl->find("machine");
+  if (node == nullptr || node->leaves.empty()) {
+    return std::unexpected(
+        error {.message = "no clock provider is registered, so the tree "
+                          "holds no time-stamp entry to resolve "
+                          "(specs/008-timestamp-counter FR-007)",
+               .suggestions = {}});
+  }
+  for (const auto& leaf : node->leaves) {
+    if (leaf.core.name == "tsc") {
+      return counter<dim<0, 1>> {.leaf = leaf.core};
+    }
+  }
+  return std::unexpected(
+      error {.message = "this build publishes no time-stamp entry; the host "
+                        "does not execute the instruction that reads it "
+                        "(specs/008-timestamp-counter FR-008)",
+             .suggestions = {}});
+}
+
 auto system::handle_for(const std::string& canonical) -> sg::counters::object&
 {
   const auto existing = m_impl->handles.find(canonical);
