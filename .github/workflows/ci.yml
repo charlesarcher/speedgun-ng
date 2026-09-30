@@ -62,6 +62,15 @@ jobs:
     - name: Process coverage info
       run: cmake --build build/coverage -t coverage
 
+    - name: Retain the coverage trace
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-info
+        path: build/coverage/coverage.info
+        if-no-files-found: error
+        retention-days: 30
+
     - name: Submit to codecov.io
       uses: codecov/codecov-action@v4
       with:
