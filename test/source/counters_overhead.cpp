@@ -86,9 +86,8 @@ struct tick_cost
 auto summarize_ticks(std::vector<std::uint64_t> samples) -> tick_cost
 {
   std::sort(samples.begin(), samples.end());
-  return tick_cost {samples.front(),
-                    samples[samples.size() / 2],
-                    samples.back()};
+  return tick_cost {
+      samples.front(), samples[samples.size() / 2], samples.back()};
 }
 
 // Actions per timed loop and repeats of that loop. Enough actions that one
@@ -350,14 +349,13 @@ auto main() -> int
   const tick_cost bare = summarize_ticks(measure_bare_tsc());
   const tick_cost library = summarize_ticks(measure_library_tsc(*tick_plan));
   const double rate = tsc_rate_hz();
-  const auto as_ns = [rate](const std::uint64_t ticks) {
-    return static_cast<double>(ticks) / rate * 1e9;
-  };
-  std::printf("\nper sampling action, %llu actions x %zu repeats, "
-              "TSC %.3f GHz\n",
-              static_cast<unsigned long long>(kPerSampleActions),
-              kPerSampleRepeats,
-              rate / 1e9);
+  const auto as_ns = [rate](const std::uint64_t ticks)
+  { return static_cast<double>(ticks) / rate * 1e9; };
+  std::printf(
+      "\nper sampling action, %llu actions x %zu repeats, " "TSC %.3f GHz\n",
+      static_cast<unsigned long long>(kPerSampleActions),
+      kPerSampleRepeats,
+      rate / 1e9);
   std::printf(
       "%-24s min %4llu t   median %4llu t   max %4llu t   (median %6.1f ns)\n",
       "bare rdtsc pair",
@@ -389,9 +387,10 @@ auto main() -> int
   // one wide enough to pass on both would not detect a regression.
   check(bare.median > 0,
         "the bare read measured a positive cost, so the comparison is live");
-  check(library.median > 0,
-        "the library path measured a positive cost, so the comparison is "
-        "live");
+  check(
+      library.median > 0,
+      "the library path measured a positive cost, so the comparison is " "liv"
+                                                                         "e");
   check(bare.min <= bare.median && bare.median <= bare.max,
         "the bare distribution is ordered min <= median <= max");
   check(library.min <= library.median && library.median <= library.max,
