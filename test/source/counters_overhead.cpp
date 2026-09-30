@@ -387,10 +387,8 @@ auto main() -> int
   // one wide enough to pass on both would not detect a regression.
   check(bare.median > 0,
         "the bare read measured a positive cost, so the comparison is live");
-  check(
-      library.median > 0,
-      "the library path measured a positive cost, so the comparison is " "liv"
-                                                                         "e");
+  check(library.median > 0,
+        "the library path measured a positive cost, so the comparison is live");
   check(bare.min <= bare.median && bare.median <= bare.max,
         "the bare distribution is ordered min <= median <= max");
   check(library.min <= library.median && library.median <= library.max,
