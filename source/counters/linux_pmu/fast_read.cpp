@@ -224,14 +224,27 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   const auto [pid, cpu] = leader_pid(where);
   const long fd =
       ::syscall(SYS_perf_event_open, &attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
-  if (fd < 0) {
+  // LCOV_EXCL_BR_START : coverage exclusion (T140): the granted arm of the
+  // open. It needs a `perf_event_open` the kernel answers with a descriptor.
+  // A runner whose `perf_event_open` is refused takes the refusing arm below
+  // on every call, and the host that grants the syscall takes this one; the
+  // refusal itself is measured for both arms by
+  // `context_open_refusal_scenario` in
+  // `test/source/counters_linux_pmu_seam_test.cpp`.
+  if (fd < 0) {  // LCOV_EXCL_BR_LINE
     return refuse("perf_event_open was refused: "
                   + std::string(std::strerror(errno)));
-  }
+  }  // LCOV_EXCL_BR_LINE
+  // LCOV_EXCL_BR_STOP
+  // LCOV_EXCL_START : coverage exclusion (T140): the context the granted arm
+  // fills. The descriptor above exists only where the kernel granted the
+  // open, so a runner whose `perf_event_open` is refused fills no context
+  // here, and the host that grants it fills one on every granted call.
   auto context = std::make_unique<fast_context>();
   context->owner = std::this_thread::get_id();
   context->fd = static_cast<int>(fd);
   context->map_length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+  // LCOV_EXCL_STOP
   // The mapping is the kernel's own page type read at the offsets that
   // type declares, so no cast of a mirrored layout is involved and no P2
   // exception is claimed (Constitution I; plan Complexity Tracking).
@@ -249,10 +262,24 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
         + std::string(std::strerror(errno)));  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_LINE
   // LCOV_EXCL_STOP
+  // LCOV_EXCL_START : coverage exclusion (T140): the mapping hand-back and
+  // the epilogue behind it. The descriptor handed back is the granted one,
+  // so a runner whose `perf_event_open` is refused returns above, and the
+  // host that grants it returns a context on every granted call.
   context->map = mapping;
   return context;
 }
 
+// LCOV_EXCL_STOP
+
+// LCOV_EXCL_START : coverage exclusion (T140): the whole mapped-page read.
+// It needs a context over a mapping the kernel handed back, and the only
+// source of one is a granted `perf_event_open`. A runner whose
+// `perf_event_open` is refused opens no context, so this body never runs
+// there; the host that grants it runs the body on every sample. The gates
+// the body applies are covered for both arms by `fast_decode` and the
+// `fast_index_valid` and `fast_pair_stable` seams in
+// `test/source/counters_linux_pmu_seam_test.cpp`.
 auto fast_context_read(const fast_context& context,
                        std::uint64_t& value) -> fast_read_verdict
 {
@@ -284,8 +311,14 @@ auto fast_context_read(const fast_context& context,
   _mm_lfence();
   return fast_decode(
       sequence, page->lock, index, capability, raw, offset, width, value);
+  // LCOV_EXCL_STOP
 }
 
+// LCOV_EXCL_START : coverage exclusion (T140): the whole enabled/running pair
+// read. It reads the same granted mapping the counter read above needs, so a
+// runner whose `perf_event_open` is refused never runs it, and the host that
+// grants the syscall runs it on every sampling action. The stability gate
+// the body applies is covered for both arms by `fast_pair_stable`.
 auto fast_context_time_pair(const fast_context& context,
                             std::uint64_t& enabled,
                             std::uint64_t& running) -> bool
@@ -312,19 +345,32 @@ auto fast_context_time_pair(const fast_context& context,
   enabled = page_enabled;
   running = page_running;
   return true;
+  // LCOV_EXCL_STOP
 }
 
 void fast_context_close(fast_context& context)
 {
-  if (context.map != nullptr) {
+  // LCOV_EXCL_BR_START : coverage exclusion (T140): both release arms. Each
+  // one releases what a granted `perf_event_open` handed back, so a runner
+  // whose `perf_event_open` is refused reaches neither, and the host that
+  // grants it releases the mapping and the descriptor on every close of a
+  // granted context. The owning-nothing close runs on any host, through
+  // `context_open_refusal_scenario` in
+  // `test/source/counters_linux_pmu_seam_test.cpp`.
+  if (context.map != nullptr) {  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_START : coverage exclusion (T140): the unmap arm.
     ::munmap(context.map, context.map_length);
     context.map = nullptr;
     context.map_length = 0;
+    // LCOV_EXCL_STOP
   }
-  if (context.fd >= 0) {
+  if (context.fd >= 0) {  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_START : coverage exclusion (T140): the close arm.
     ::close(context.fd);
     context.fd = -1;
+    // LCOV_EXCL_STOP
   }
+  // LCOV_EXCL_BR_STOP
 }
 
 #endif  // SG_PMU_FAST_X86

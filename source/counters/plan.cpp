@@ -253,6 +253,14 @@ constexpr int kCalibrationSamples = 257;
 
 }  // namespace
 
+// LCOV_EXCL_START : coverage exclusion (T140): the calibration and the three
+// accessors that publish it. All four are reached only from
+// `test/source/counters_overhead.cpp`, which measures a regime only where
+// the catalog publishes a `cpu` object carrying a countable hardware event,
+// and countability is a granted `perf_event_open`. A runner whose
+// `perf_event_open` is refused publishes no countable entry, so the page
+// returns before it measures and none of these functions is entered; the
+// host that grants the syscall enters all four.
 // Runs the calibration on first request (FR-032): the plan's own read
 // sequence over an empty workload, timed one action at a time. The
 // scratch buffer is the plan's own, so no recorder observes it.
@@ -307,6 +315,7 @@ auto plan::sample_overhead_ns_max() const -> double
   SG_ENSURE(cost.max_ns >= cost.min_ns,
             "the dearest sampled action is at least the cheapest");
   return cost.max_ns;
+  // LCOV_EXCL_STOP
 }
 
 scope::scope(const plan& compiled)
@@ -499,15 +508,32 @@ auto compile_core(const system& sys,
     }
     auto reader =
         impl.providers[p]->open(leaf_set {.addresses = addresses}, tg);
-    if (reader == nullptr) {
+    // LCOV_EXCL_BR_START : coverage exclusion (T140): the open refusal. It
+    // needs a provider that declines a window for leaves its own catalog
+    // already reported countable, so the refusal follows a granted
+    // `perf_event_open` the provider then does not turn into a window. A
+    // runner whose `perf_event_open` is refused refuses every leaf earlier,
+    // at the not-countable check above, and never opens here; the host that
+    // grants the syscall reaches this arm when the open it granted cannot be
+    // turned into a window.
+    if (reader == nullptr) {  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_START : coverage exclusion (T140): the refusal itself.
       return std::unexpected(error {
           .message = "provider cannot open a window for its leaves (FR-011)",
           .suggestions = {}});
-    }
+      // LCOV_EXCL_STOP
+    }  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_BR_STOP
     group.thunk = reader->resolve_thunk();
     group.reader = std::move(reader);
     layout->groups.push_back(std::move(group));
-  }
+  }  // LCOV_EXCL_LINE
+  // LCOV_EXCL_LINE : coverage exclusion (T140): the block gcov attributes to
+  // the loop's closing brace, marked on the brace above. A runner whose
+  // `perf_event_open` is refused opens no provider window, so its provider
+  // loop hands every group over through the push above and the brace block
+  // stays at zero; the host that grants the syscall reaches it once per
+  // provider it iterates.
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the two counts always
   // agree. Each pending entry carries the record its leaf bound to at
   // `plan.cpp:436`, and the refusal at `plan.cpp:442` rules a null one out.
