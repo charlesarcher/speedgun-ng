@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>speedgun-ng/counters_measurement.hpp file | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">Pages</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="3">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>counters_measurement.hpp <span class="m-thin">file</span>
+        </h1>
+        <p>The measurement spine: typed counters and expressions under the dimension algebra, plan compile, folds with disclosure, and the scope sugar (FR-014..FR-030).</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li><a href="#cadence">The cadence idiom</a></li>
+            <li><a href="#exactness">Numeric exactness</a></li>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#namespaces">Namespaces</a></li>
+                <li><a href="#nested-classes">Classes</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+<p>Dimensions live in types and are erased before the point buffer (FR-016). The read path holds no expression tree and no name lookup; a window that installed no thunk pays one vtable lookup per sample (FR-022).</p><section id="cadence"><h2><a href="#cadence">The cadence idiom</a></h2><p>A tight loop pays for every <code>sample()</code>, so the caller chooses a cadence. For a loop of <code>N</code> known iterations sampling every <code>K</code> of them, mint <code>plan::recorder(N / K + 1)</code> and call <code>sample()</code> once per chunk; the extra row holds the endpoint that closes the last chunk. The first sample lands before the work, so the count is <code>N / K + 1</code> exactly.</p><p><code>expression::fold_pairs(recorder)</code> then yields one <code>metric_result</code> per adjacent interval, which is the per-chunk series. A first-to-last <code>fold()</code> answers the single total. A window from <code>i</code> to <code>j</code> costs the sampling actions at both endpoints, and <code>K = 1</code> spends one action per iteration, so an <code>N</code>-iteration window pays <code>N</code> of them. The per-action medians behind those figures are the ones <code><a href="counters-overhead_8md.html" class="m-doc">docs/<wbr />pages/<wbr />counters-overhead.md</a></code> publishes for its reference host. Its release build (<code>-O3 -DNDEBUG</code>, contracts <code>ignore</code>) measures 40 ns for the clock plan&#x27;s one clock read and 70 ns for a two-event-counter plan, one read per group leader per action, so sampling every iteration adds <code>N * 40 ns</code> and <code>N * 70 ns</code> across the window and the two endpoints of one window cost <code>2 * 40 = 80 ns</code> and <code>2 * 70 = 140 ns</code>. Its correctness build (<code>-g</code>, contracts <code>enforce</code>) measures 70 ns and 180 ns for those two plans, so the same arithmetic gives <code>N * 70 ns</code> and <code>N * 180 ns</code> across the window, with 140 ns and 360 ns at the endpoints. The page records the host, the load under it, and the commands, and the page owns the refresh. <code>plan::sample_overhead_ns_median()</code> reports the figure for the plan in hand (FR-032). A benchmark whose measured work is shorter than that reads its own instrumentation, so the cadence must be coarse enough for the work.</p></section><section id="exactness"><h2><a href="#exactness">Numeric exactness</a></h2><p>Points are <code>uint64</code> and deltas subtract modularly at <code>2^64</code>, so a counter wrap subtracts out and a long window stays exact (FR-013). Folds then convert to <code>double</code>, which carries 53 bits of mantissa: a delta above <code>2^53</code> loses its low bits. A count reaches <code>2^53</code> at roughly 9007199 events per nanosecond sustained for one second, so any counter-backed delta is exact on every host this feature targets. A scaled expression, such as a per-iteration rate, can reach the threshold through its scale factor alone; <code>metric_result::scaled</code> reports that the value carries a scale the caller applied.</p></section>
+        <section id="namespaces">
+          <h2><a href="#namespaces">Namespaces</a></h2>
+          <dl class="m-doc">
+            <dt>namespace <a href="namespacesg.html" class="m-doc">sg</a></dt>
+            <dd><span></span></dd>
+            <dt>namespace <a href="namespacesg_1_1counters.html" class="m-doc">sg::counters</a></dt>
+            <dd><span></span></dd>
+            <dt>namespace <a href="namespacesg_1_1counters_1_1detail.html" class="m-doc">sg::counters::detail</a></dt>
+            <dd><span></span></dd>
+          </dl>
+        </section>
+        <section id="nested-classes">
+          <h2><a href="#nested-classes">Classes</a></h2>
+          <dl class="m-doc">
+            <dt>
+              struct <a href="structsg_1_1counters_1_1detail_1_1leaf__core.html" class="m-doc">sg::counters::detail::leaf_core</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1detail_1_1expr__node.html" class="m-doc">sg::counters::detail::expr_node</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">sg::counters::detail::expr_core</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class T, template&lt;class...&gt; class Primary&gt;</div>
+              struct <a href="structsg_1_1counters_1_1detail_1_1is__specialization__of.html" class="m-doc">sg::counters::detail::is_specialization_of</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              <div class="m-doc-template">template&lt;template&lt;class...&gt; class Primary, class... Args&gt;</div>
+              struct <a href="structsg_1_1counters_1_1detail_1_1is__specialization__of_3_01Primary_3_01Args_8_8_8_01_4_00_01Primary_01_4.html" class="m-doc">sg::counters::detail::is_specialization_of&lt;Primary&lt;Args...&gt;, Primary&gt;</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class D&gt;</div>
+              class <a href="classsg_1_1counters_1_1counter.html" class="m-doc">sg::counters::counter</a>
+            </dt>
+            <dd>A resolved leaf handle: slot identity, catalog metadata, and the compile-time dimension tag (E-05).</dd>
+            <dt>
+              class <a href="classsg_1_1counters_1_1push__counter.html" class="m-doc">sg::counters::push_counter</a>
+            </dt>
+            <dd>Hot-path handle of a push counter: a plain, non-atomic <code>uint64</code> increment on the creating thread, sampled by plain load (FR-035, R-008).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">sg::counters::recorder_api</a>
+            </dt>
+            <dd>The recorded-window view a fold reads (FR-018): the compiled layout pointer, the point columns, and the bookkeeping a fold consults (extent, wrap, drops).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1points__view.html" class="m-doc">sg::counters::points_view</a>
+            </dt>
+            <dd>The raw per-leaf provenance view of a composite (FR-020, E-10): catalog facts, the raw point column, point identity, and the multiplex ratio.</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">sg::counters::hard_stop_t</a>
+            </dt>
+            <dd>Overflow policy tag: a sample past capacity is a violation (FR-025). The default policy.</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">sg::counters::ring_t</a>
+            </dt>
+            <dd>Overflow policy tag: writes mask into the ring, drop with accounting (FR-025, FR-028).</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class P&gt;</div>
+              class <a href="classsg_1_1counters_1_1recorder__handle.html" class="m-doc">sg::counters::recorder_handle</a>
+            </dt>
+            <dd>The recorder value handle (E-08, FR-029): a trivially copyable cursor over one plan-arena buffer of <code><a href="classsg_1_1counters_1_1recorder__handle.html#a6a7be82b1e8eae14f1b953b0856c16c3" class="m-doc">capacity</a></code> point columns, one per compiled leaf. <code>P</code> is the overflow policy tag: <code><a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a></code> or <code><a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_<wbr />t</a></code>, chosen by the plan factory (FR-025). The plan owns the buffer; the plan outlives its recorders.</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class D&gt;</div>
+              class <a href="classsg_1_1counters_1_1expression.html" class="m-doc">sg::counters::expression</a>
+            </dt>
+            <dd>A typed composition of resolved leaves (E-05).</dd>
+            <dt>
+              class <a href="classsg_1_1counters_1_1plan.html" class="m-doc">sg::counters::plan</a>
+            </dt>
+            <dd>The compiled read plan (E-07): flat leaf slots, per-provider read groups, arena geometry, and the per-thread binding.</dd>
+            <dt>
+              class <a href="classsg_1_1counters_1_1scope.html" class="m-doc">sg::counters::scope</a>
+            </dt>
+            <dd>Exactly a two-point recorder (FR-030): <code><a href="classsg_1_1counters_1_1scope.html#a0444ef7705562690a4ea3b2eb8f1650f" class="m-doc">start()</a></code> samples point zero, <code><a href="classsg_1_1counters_1_1scope.html#ade0cb683de26176697feeec6216429b8" class="m-doc">finish()</a></code> samples point one, and <code>metric(expr)</code> folds the window. One semantics, two spellings with the recorder.</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1fanout__result.html" class="m-doc">sg::counters::fanout_result</a>
+            </dt>
+            <dd>One object&#x27;s result of a fan-out fold (SC-007): the canonical path and the metric over that object&#x27;s instantiated leaves.</dd>
+            <dt>
+              class <a href="classsg_1_1counters_1_1fanout__plan.html" class="m-doc">sg::counters::fanout_plan</a>
+            </dt>
+            <dd>A fan-out plan (US3 scenario 5, SC-007): the exemplar expression instantiated per selected object; every instantiated leaf is read inside each shared sampling action (FR-047). Move-only; the plan owns the layout and the recorder arenas.</dd>
+          </dl>
+        </section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>

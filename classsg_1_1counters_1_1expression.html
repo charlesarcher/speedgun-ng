@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>sg::counters::expression class | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">Pages</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="3">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
+          <div class="m-doc-template">template&lt;class D&gt;</div>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>expression <span class="m-thin">class</span>
+        </h1>
+        <p>A typed composition of resolved leaves (E-05).</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#pub-types">Public types</a></li>
+                <li><a href="#typeless-methods">Constructors, destructors, conversion operators</a></li>
+                <li><a href="#pub-methods">Public functions</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
+                <li><a href="#friends">Friends</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+<p>Construction is compile-time algebra (FR-015): <code>+</code> and <code>-</code> require identical tags, <code>/</code> subtracts exponents, scalar multiplication is unrestricted. Construction performs zero hardware reads (FR-021). Accepted, documented limitation (A10): <code>events^1 + events^1</code> compiles; the system catches the time-versus-count class.</p>
+        <section id="pub-types">
+          <h2><a href="#pub-types">Public types</a></h2>
+          <dl class="m-doc">
+            <dt id="a7b4f97f4294ab6a55ddd21b0f20c1999">
+              using <a href="#a7b4f97f4294ab6a55ddd21b0f20c1999" class="m-doc-self">dimension_tag</a> = D
+            </dt>
+            <dd><span></span></dd>
+          </dl>
+        </section>
+        <section id="typeless-methods">
+          <h2><a href="#typeless-methods">Constructors, destructors, conversion operators</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper"><a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a>(</span><span class="m-doc-wrap">) <span class="m-label m-flat m-info">defaulted</span></span>
+            </dt>
+            <dd>An empty spine; compile rejects a zero-leaf expression.</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class C&gt;</div>
+              <span class="m-doc-wrap-bumper"><a href="#a1782e5a8cf210c079514603caac062b0" class="m-doc">expression</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;C&gt;&amp; leaf)</span>
+            </dt>
+            <dd>Builds an expression from one resolved leaf: the leaf&#x27;s delta, unscaled.</dd>
+          </dl>
+        </section>
+        <section id="pub-methods">
+          <h2><a href="#pub-methods">Public functions</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a85cd87e90b2febea22a1560163bf3233" class="m-doc">fold</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec,
+              std::size_t i,
+              std::size_t j) const -&gt; <a href="structsg_1_1counters_1_1metric__result.html" class="m-doc">metric_<wbr />result</a></span>
+            </dt>
+            <dd>Window fold over recorded points <code>i</code> and <code>j</code> (FR-018).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ab013f0a040490184061fedfceabd7960" class="m-doc">fold</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec) const -&gt; <a href="structsg_1_1counters_1_1metric__result.html" class="m-doc">metric_<wbr />result</a></span>
+            </dt>
+            <dd>First-to-last fold (FR-018).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac427312e07de7b78d3d1e2f85f2ec451" class="m-doc">fold_pairs</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec) const -&gt; auto</span>
+            </dt>
+            <dd>One metric per adjacent recorded interval (FR-018).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a04cec131e38452ba625b2c0b6020dcbd" class="m-doc">raw</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec,
+              std::string_view object_path,
+              std::string_view leaf) const -&gt; std::expected&lt;<a href="structsg_1_1counters_1_1points__view.html" class="m-doc">points_<wbr />view</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt;</span>
+            </dt>
+            <dd>Raw provenance view of one constituent leaf (FR-020).</dd>
+          </dl>
+        </section>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
+          <dl class="m-doc">
+            <dt id="acd234bd74ea65b0391c5dcd7168dfb4a">
+              <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">detail::<wbr />expr_core</a> <a href="#acd234bd74ea65b0391c5dcd7168dfb4a" class="m-doc-self">core</a>
+            </dt>
+            <dd><span></span></dd>
+          </dl>
+        </section>
+        <section id="friends">
+          <h2><a href="#friends">Friends</a></h2>
+          <dl class="m-doc">
+            <dt id="ab232c2be66352659ca18c391e1dcafdc">
+              <span class="m-doc-wrap-bumper">auto <a href="#ab232c2be66352659ca18c391e1dcafdc" class="m-doc-self">operator+</a>(</span><span class="m-doc-wrap">const <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a>&amp; a,
+              const <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a>&amp; b) -&gt; <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a></span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a221eb4dbd83ec3f26f28ce0514b82875">
+              <span class="m-doc-wrap-bumper">auto <a href="#a221eb4dbd83ec3f26f28ce0514b82875" class="m-doc-self">operator-</a>(</span><span class="m-doc-wrap">const <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a>&amp; a,
+              const <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a>&amp; b) -&gt; <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a></span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a63e00409d3b02dc452998352ead0b9a2">
+              <span class="m-doc-wrap-bumper">auto <a href="#a63e00409d3b02dc452998352ead0b9a2" class="m-doc-self">operator*</a>(</span><span class="m-doc-wrap">const double k,
+              const <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a>&amp; e) -&gt; <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a></span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a78c10f4f9d6bc6962631222bec0ada96">
+              <span class="m-doc-wrap-bumper">auto <a href="#a78c10f4f9d6bc6962631222bec0ada96" class="m-doc-self">operator*</a>(</span><span class="m-doc-wrap">const <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a>&amp; e,
+              const double k) -&gt; <a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc">expression</a></span>
+            </dt>
+            <dd><span></span></dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Function documentation</h2>
+          <section class="m-doc-details" id="a9763ada5553076d3e1d08bd544b9ba40"><div>
+            <h3>
+              <div class="m-doc-template">
+                template&lt;class D&gt;
+              </div>
+              <span class="m-doc-wrap-bumper"> sg::<wbr />counters::<wbr />expression&lt;D&gt;::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9763ada5553076d3e1d08bd544b9ba40" class="m-doc-self">expression</a>(</span><span class="m-doc-wrap">) <span class="m-label m-info">defaulted</span></span></span>
+            </h3>
+            <p>An empty spine; compile rejects a zero-leaf expression.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a1782e5a8cf210c079514603caac062b0"><div>
+            <h3>
+              <div class="m-doc-template">
+                template&lt;class D&gt;
+                template&lt;class C&gt;
+              </div>
+              <span class="m-doc-wrap-bumper"> sg::<wbr />counters::<wbr />expression&lt;D&gt;::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a1782e5a8cf210c079514603caac062b0" class="m-doc-self">expression</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;C&gt;&amp; leaf)</span></span>
+            </h3>
+            <p>Builds an expression from one resolved leaf: the leaf&#x27;s delta, unscaled.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a85cd87e90b2febea22a1560163bf3233"><div>
+            <h3>
+              <div class="m-doc-template">
+                template&lt;class D&gt;
+              </div>
+              <span class="m-doc-wrap-bumper"><a href="structsg_1_1counters_1_1metric__result.html" class="m-doc">metric_<wbr />result</a> sg::<wbr />counters::<wbr />expression&lt;D&gt;::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a85cd87e90b2febea22a1560163bf3233" class="m-doc-self">fold</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec,
+              std::size_t i,
+              std::size_t j) const</span></span>
+            </h3>
+            <p>Window fold over recorded points <code>i</code> and <code>j</code> (FR-018).</p>
+<p>Deltas subtract modularly at 2^64, so one hardware wrap subtracts out (FR-013). The fold never reads providers, is pure, and is repeatable (FR-021).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>i &lt; j</code> within the recorder&#x27;s recorded extent (tier-3).</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ab013f0a040490184061fedfceabd7960"><div>
+            <h3>
+              <div class="m-doc-template">
+                template&lt;class D&gt;
+              </div>
+              <span class="m-doc-wrap-bumper"><a href="structsg_1_1counters_1_1metric__result.html" class="m-doc">metric_<wbr />result</a> sg::<wbr />counters::<wbr />expression&lt;D&gt;::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ab013f0a040490184061fedfceabd7960" class="m-doc-self">fold</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec) const</span></span>
+            </h3>
+            <p>First-to-last fold (FR-018).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>at least two committed points (tier-3).</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac427312e07de7b78d3d1e2f85f2ec451"><div>
+            <h3>
+              <div class="m-doc-template">
+                template&lt;class D&gt;
+              </div>
+              <span class="m-doc-wrap-bumper">auto sg::<wbr />counters::<wbr />expression&lt;D&gt;::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac427312e07de7b78d3d1e2f85f2ec451" class="m-doc-self">fold_pairs</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec) const</span></span>
+            </h3>
+            <p>One metric per adjacent recorded interval (FR-018).</p>
+<p>One metric per adjacent pair, so a recorder with <code>n</code> committed points yields <code>n - 1</code> metrics. The core behind this wrapper checks the same bound; the check here pairs the precondition with the public entry point, so this signature keeps a deduced return type for the pairing gate to attribute.</p><aside class="m-note m-success"><h4>Precondition</h4><p>the recorder holds two or more committed points (tier-3).</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a04cec131e38452ba625b2c0b6020dcbd"><div>
+            <h3>
+              <div class="m-doc-template">
+                template&lt;class D&gt;
+              </div>
+              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="structsg_1_1counters_1_1points__view.html" class="m-doc">points_<wbr />view</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt; sg::<wbr />counters::<wbr />expression&lt;D&gt;::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a04cec131e38452ba625b2c0b6020dcbd" class="m-doc-self">raw</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec,
+              std::string_view object_path,
+              std::string_view leaf) const</span></span>
+            </h3>
+            <p>Raw provenance view of one constituent leaf (FR-020).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+        </section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>

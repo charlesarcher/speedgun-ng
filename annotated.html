@@ -54,6 +54,69 @@
             <a href="#" onclick="return toggle(this)">namespace</a> <a href="namespacesg.html" class="m-doc">sg</a> <span class="m-doc"><span></span></span>
             <ul class="m-doc">
               <li class="m-doc-collapsible collapsed">
+                <a href="#" onclick="return toggle(this)">namespace</a> <a href="namespacesg_1_1counters.html" class="m-doc">counters</a> <span class="m-doc"><span></span></span>
+                <ul class="m-doc">
+                  <li class="m-doc-collapsible collapsed">
+                    <a href="#" onclick="return toggle(this)">namespace</a> <a href="namespacesg_1_1counters_1_1detail.html" class="m-doc">detail</a> <span class="m-doc"><span></span></span>
+                    <ul class="m-doc">
+                      <li>struct <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_core</a> <span class="m-doc"><span></span></span></li>
+                      <li>struct <a href="structsg_1_1counters_1_1detail_1_1expr__node.html" class="m-doc">expr_node</a> <span class="m-doc"><span></span></span></li>
+                      <li>struct <a href="structsg_1_1counters_1_1detail_1_1is__specialization__of.html" class="m-doc">is_specialization_of</a> <span class="m-doc"><span></span></span></li>
+                      <li>struct <a href="structsg_1_1counters_1_1detail_1_1is__specialization__of_3_01Primary_3_01Args_8_8_8_01_4_00_01Primary_01_4.html" class="m-doc">is_specialization_of&lt;Primary&lt;Args...&gt;, Primary&gt;</a> <span class="m-doc"><span></span></span></li>
+                      <li>struct <a href="structsg_1_1counters_1_1detail_1_1leaf__core.html" class="m-doc">leaf_core</a> <span class="m-doc"><span></span></span></li>
+                    </ul>
+                  </li>
+                  <li>struct <a href="structsg_1_1counters_1_1catalog__entry.html" class="m-doc">catalog_entry</a> <span class="m-doc">One named counter on one object, as the catalog reports it (FR-005, E-03).</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1catalog__seed.html" class="m-doc">catalog_seed</a> <span class="m-doc">One catalog entry as a provider seeds it.</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1clock__provider.html" class="m-doc">clock_provider</a> <span class="m-label m-flat m-warning">final</span> <span class="m-doc">The shipped clock provider: always countable, zero privileges (FR-033, R-007).</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a> <span class="m-doc">A resolved leaf handle: slot identity, catalog metadata, and the compile-time dimension tag (E-05).</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1dim.html" class="m-doc">dim</a> <span class="m-doc">Compile-time dimension tag: time^T x events^C.</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1dimension.html" class="m-doc">dimension</a> <span class="m-doc">Runtime mirror of a <code><a href="structsg_1_1counters_1_1dim.html" class="m-doc">dim</a></code> tag: the exponent pair as data, used where a dimension travels as a value (catalog resolution, FR-017).</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a> <span class="m-doc">Tier-2 recoverable error: names the failing input and carries near-miss suggestions (FR-008).</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a> <span class="m-doc">A typed composition of resolved leaves (E-05).</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1fake__counter__data.html" class="m-doc">fake_counter_data</a> <span class="m-doc">One scripted counter: catalog metadata, script, and playback position.</span></li>
+                  <li class="m-doc-collapsible collapsed">
+                    <a href="#" onclick="return toggle(this)">class</a> <a href="classsg_1_1counters_1_1fake__provider.html" class="m-doc">fake_provider</a> <span class="m-label m-flat m-warning">final</span> <span class="m-doc">The scripted provider (FR-036).</span>
+                    <ul class="m-doc">
+                      <li>struct <a href="structsg_1_1counters_1_1fake__provider_1_1object__seed__data.html" class="m-doc">object_seed_data</a> <span class="m-doc"><span></span></span></li>
+                    </ul>
+                  </li>
+                  <li>struct <a href="structsg_1_1counters_1_1fake__script.html" class="m-doc">fake_script</a> <span class="m-doc">One scripted leaf: an explicit point sequence, optionally followed by a per-sample tail (FR-036, T014).</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1fanout__plan.html" class="m-doc">fanout_plan</a> <span class="m-doc">A fan-out plan (US3 scenario 5, SC-007): the exemplar expression instantiated per selected object; every instantiated leaf is read inside each shared sampling action (FR-047). Move-only; the plan owns the layout and the recorder arenas.</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1fanout__result.html" class="m-doc">fanout_result</a> <span class="m-doc">One object&#x27;s result of a fan-out fold (SC-007): the canonical path and the metric over that object&#x27;s instantiated leaves.</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_stop_t</a> <span class="m-doc">Overflow policy tag: a sample past capacity is a violation (FR-025). The default policy.</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1leaf__set.html" class="m-doc">leaf_set</a> <span class="m-doc">The leaves one provider is asked to manage.</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1metric__result.html" class="m-doc">metric_result</a> <span class="m-doc">The fold output: value, running-ratio disclosure, and the scaled flag. The fields are members of the returned struct, so omitting the disclosure is structurally impossible (FR-019).</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a> <span class="m-doc">One countable object in the system tree (E-02).</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1object__seed.html" class="m-doc">object_seed</a> <span class="m-doc">One countable object as a provider seeds it, with its entries.</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1object__sink.html" class="m-doc">object_sink</a> <span class="m-doc">Receiver for provider enumeration at registration time.</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1plan.html" class="m-doc">plan</a> <span class="m-doc">The compiled read plan (E-07): flat leaf slots, per-provider read groups, arena geometry, and the per-thread binding.</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1pmu__provider.html" class="m-doc">pmu_provider</a> <span class="m-label m-flat m-warning">final</span> <span class="m-doc">The hardware event provider: the rich catalog and its probed availability (FR-037..FR-041).</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1point__sink.html" class="m-doc">point_sink</a> <span class="m-doc">The per-action write cursor a provider fills.</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1points__view.html" class="m-doc">points_view</a> <span class="m-doc">The raw per-leaf provenance view of a composite (FR-020, E-10): catalog facts, the raw point column, point identity, and the multiplex ratio.</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1provider__iface.html" class="m-doc">provider_iface</a> <span class="m-doc">The registration base every provider derives from.</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1push__counter.html" class="m-doc">push_counter</a> <span class="m-doc">Hot-path handle of a push counter: a plain, non-atomic <code>uint64</code> increment on the creating thread, sampled by plain load (FR-035, R-008).</span></li>
+                  <li class="m-doc-collapsible collapsed">
+                    <a href="#" onclick="return toggle(this)">class</a> <a href="classsg_1_1counters_1_1push__provider.html" class="m-doc">push_provider</a> <span class="m-label m-flat m-warning">final</span> <span class="m-doc">The shipped push provider: declared counters are ordinary machine-object entries at push read mode (FR-035).</span>
+                    <ul class="m-doc">
+                      <li>struct <a href="structsg_1_1counters_1_1push__provider_1_1push__point.html" class="m-doc">push_point</a> <span class="m-doc"><span></span></span></li>
+                    </ul>
+                  </li>
+                  <li>struct <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_api</a> <span class="m-doc">The recorded-window view a fold reads (FR-018): the compiled layout pointer, the point columns, and the bookkeeping a fold consults (extent, wrap, drops).</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1recorder__handle.html" class="m-doc">recorder_handle</a> <span class="m-doc">The recorder value handle (E-08, FR-029): a trivially copyable cursor over one plan-arena buffer of <code><a href="classsg_1_1counters_1_1recorder__handle.html#a6a7be82b1e8eae14f1b953b0856c16c3" class="m-doc">capacity</a></code> point columns, one per compiled leaf. <code>P</code> is the overflow policy tag: <code><a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a></code> or <code><a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_<wbr />t</a></code>, chosen by the plan factory (FR-025). The plan owns the buffer; the plan outlives its recorders.</span></li>
+                  <li>struct <a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_t</a> <span class="m-doc">Overflow policy tag: writes mask into the ring, drop with accounting (FR-025, FR-028).</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1scope.html" class="m-doc">scope</a> <span class="m-doc">Exactly a two-point recorder (FR-030): <code><a href="classsg_1_1counters_1_1scope.html#a0444ef7705562690a4ea3b2eb8f1650f" class="m-doc">start()</a></code> samples point zero, <code><a href="classsg_1_1counters_1_1scope.html#ade0cb683de26176697feeec6216429b8" class="m-doc">finish()</a></code> samples point one, and <code>metric(expr)</code> folds the window. One semantics, two spellings with the recorder.</span></li>
+                  <li class="m-doc-collapsible collapsed">
+                    <a href="#" onclick="return toggle(this)">class</a> <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a> <span class="m-doc">The root handle to the local machine&#x27;s counting world (E-01).</span>
+                    <ul class="m-doc">
+                      <li>struct <a href="structsg_1_1counters_1_1system_1_1filter.html" class="m-doc">filter</a> <span class="m-doc">One equality predicate of an <code><a href="classsg_1_1counters_1_1system.html#abaee35e08e73879c05048199473c3413" class="m-doc">objects</a></code> selection (FR-003).</span></li>
+                    </ul>
+                  </li>
+                  <li>struct <a href="structsg_1_1counters_1_1target.html" class="m-doc">target</a> <span class="m-doc">Sampling target handed to a provider at open (FR-031).</span></li>
+                  <li>class <a href="classsg_1_1counters_1_1window__reader.html" class="m-doc">window_reader</a> <span class="m-doc">The sampling primitive a provider implements for one open window.</span></li>
+                </ul>
+              </li>
+              <li class="m-doc-collapsible collapsed">
                 <a href="#" onclick="return toggle(this)">namespace</a> <a href="namespacesg_1_1dbc.html" class="m-doc">dbc</a> <span class="m-doc"><span></span></span>
                 <ul class="m-doc">
                   <li class="m-doc-collapsible collapsed">
@@ -67,6 +130,7 @@
               </li>
             </ul>
           </li>
+          <li>namespace <a href="namespacestd.html" class="m-doc">std</a> <span class="m-doc"><span></span></span></li>
           <li>class <a href="classexported__class.html" class="m-doc">exported_class</a> <span class="m-doc">Reports the name of the library.</span></li>
         </ul>
         <script>

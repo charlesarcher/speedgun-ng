@@ -66,6 +66,24 @@
         <section id="files">
           <h2><a href="#files">Files</a></h2>
           <dl class="m-doc">
+            <dt>file <a href="counters_8hpp.html" class="m-doc">counters.hpp</a></dt>
+            <dd>The documented single include of the counters library: the standalone entry point for feature 007 (FR-049, R-001).</dd>
+            <dt>file <a href="counters__clock_8hpp.html" class="m-doc">counters_clock.hpp</a></dt>
+            <dd>The shipped system clock provider: monotonic wall time, thread CPU time, process CPU time, and the raw time-stamp counter wherever the build executes the instruction (FR-033; FR-001).</dd>
+            <dt>file <a href="counters__core_8hpp.html" class="m-doc">counters_core.hpp</a></dt>
+            <dd>Core vocabulary of the counters library: dimension tags, the closed unit mapping, catalog entry and result shapes, and the recoverable-error type.</dd>
+            <dt>file <a href="counters__fake_8hpp.html" class="m-doc">counters_fake.hpp</a></dt>
+            <dd>The shipped fake provider: hand-driven deterministic point sequences over arbitrary object trees, the exactness spine of the test suite (FR-036, R-009).</dd>
+            <dt>file <a href="counters__measurement_8hpp.html" class="m-doc">counters_measurement.hpp</a></dt>
+            <dd>The measurement spine: typed counters and expressions under the dimension algebra, plan compile, folds with disclosure, and the scope sugar (FR-014..FR-030).</dd>
+            <dt>file <a href="counters__pmu_8hpp.html" class="m-doc">counters_pmu.hpp</a></dt>
+            <dd>The shipped hardware event provider: the platform&#x27;s event sources as a catalog of described hardware events, vendored tables merged with kernel-discovered aliases (FR-037, FR-042).</dd>
+            <dt>file <a href="counters__provider_8hpp.html" class="m-doc">counters_provider.hpp</a></dt>
+            <dd>The provider seam: what every count source implements and what the system calls, once at setup and once per sampling action.</dd>
+            <dt>file <a href="counters__push_8hpp.html" class="m-doc">counters_push.hpp</a></dt>
+            <dd>The shipped push provider: user hot-path counters, confined to the creating thread, sampled by plain load (FR-035, R-008).</dd>
+            <dt>file <a href="counters__system_8hpp.html" class="m-doc">counters_system.hpp</a></dt>
+            <dd>The system handle: the tree of named countable objects, the merged catalog, provider registration with the open boundary, path and alias resolution, and near-miss diagnostics (FR-001..FR-009).</dd>
             <dt>file <a href="dbc_8hpp.html" class="m-doc">dbc.hpp</a></dt>
             <dd><span></span></dd>
             <dt>file <a href="speedgun-ng_8hpp.html" class="m-doc">speedgun-ng.hpp</a></dt>

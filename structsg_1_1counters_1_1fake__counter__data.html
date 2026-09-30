@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng</title>
+  <title>sg::counters::fake_counter_data struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -30,7 +30,7 @@
                 <li><a href="about.html">About</a></li>
               </ol>
             </li>
-            <li><a href="namespaces.html" id="m-navbar-current">Namespaces</a></li>
+            <li><a href="namespaces.html">Namespaces</a></li>
           </ol>
           <ol class="m-col-t-6 m-col-m-none" start="3">
             <li><a href="annotated.html">Classes</a></li>
@@ -48,43 +48,63 @@
   <div class="m-container m-container-inflatable">
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
-        <h1>Namespaces</h1>
-        <ul class="m-doc">
-          <li class="m-doc-collapsible">
-            <a href="#" onclick="return toggle(this)">namespace</a> <a href="namespacesg.html" class="m-doc">sg</a> <span class="m-doc"><span></span></span>
-            <ul class="m-doc">
-              <li class="m-doc-collapsible">
-                <a href="#" onclick="return toggle(this)">namespace</a> <a href="namespacesg_1_1counters.html" class="m-doc">counters</a> <span class="m-doc"><span></span></span>
-                <ul class="m-doc">
-                  <li>namespace <a href="namespacesg_1_1counters_1_1detail.html" class="m-doc">detail</a> <span class="m-doc"><span></span></span></li>
-                </ul>
-              </li>
-              <li class="m-doc-collapsible">
-                <a href="#" onclick="return toggle(this)">namespace</a> <a href="namespacesg_1_1dbc.html" class="m-doc">dbc</a> <span class="m-doc"><span></span></span>
-                <ul class="m-doc">
-                  <li>namespace <a href="namespacesg_1_1dbc_1_1detail.html" class="m-doc">detail</a> <span class="m-doc"><span></span></span></li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-          <li>namespace <a href="namespacestd.html" class="m-doc">std</a> <span class="m-doc"><span></span></span></li>
-        </ul>
-        <script>
-        function toggle(e) {
-            e.parentElement.className = e.parentElement.className == 'm-doc-collapsible' ?
-                'm-doc-expansible' : 'm-doc-collapsible';
-            return false;
-        }
-        /* Collapse all nodes marked as such. Doing it via JS instead of
-           directly in markup so disabling it doesn't harm usability. The list
-           is somehow regenerated on every iteration and shrinks as I change
-           the classes. It's not documented anywhere and I'm not sure if this
-           is the same across browsers, so I am going backwards in that list to
-           be sure. */
-        var collapsed = document.getElementsByClassName("collapsed");
-        for(var i = collapsed.length - 1; i >= 0; --i)
-            collapsed[i].className = 'm-doc-expansible';
-        </script>
+        <h1>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>fake_counter_data <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__fake_8hpp.html">&lt;speedgun-ng/counters_fake.hpp&gt;</a></div>
+        </h1>
+        <p>One scripted counter: catalog metadata, script, and playback position.</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#pub-attribs">Public variables</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
+          <dl class="m-doc">
+            <dt id="a62fee391ac51e7f3516cebe1cf81eb49">
+              std::string <a href="#a62fee391ac51e7f3516cebe1cf81eb49" class="m-doc-self">description</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="aacbe2e44cff99af4b6d76c9e5d17546d">
+              std::string <a href="#aacbe2e44cff99af4b6d76c9e5d17546d" class="m-doc-self">unit</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a5fe91a291c97df16ae44895e60a38b0a">
+              <a href="namespacesg_1_1counters.html#a5546738d604fd359a329e3833335b618" class="m-doc">availability</a> <a href="#a5fe91a291c97df16ae44895e60a38b0a" class="m-doc-self">avail</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ab960c1bc04fb9df3df7bcef90fbc570c">
+              <a href="namespacesg_1_1counters.html#afeebde13e398eedd49f888523fbd575a" class="m-doc">read_<wbr />mode</a> <a href="#ab960c1bc04fb9df3df7bcef90fbc570c" class="m-doc-self">mode</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a996b95dd930191bd8ce17d51457fb52f">
+              bool <a href="#a996b95dd930191bd8ce17d51457fb52f" class="m-doc-self">ratio_pair</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a6353f1c5295a9b2b527ac460ba531a22">
+              <a href="structsg_1_1counters_1_1fake__script.html" class="m-doc">fake_<wbr />script</a> <a href="#a6353f1c5295a9b2b527ac460ba531a22" class="m-doc-self">script</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a034930728ec71a06e4440d461d09cda9">
+              std::size_t <a href="#a034930728ec71a06e4440d461d09cda9" class="m-doc-self">position</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a6b92f37b00b3365fd96e51d1ca6277da">
+              std::uint64_t <a href="#a6b92f37b00b3365fd96e51d1ca6277da" class="m-doc-self">last</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a649205c11ead59a77f6522395b5db7db">
+              std::uint64_t <a href="#a649205c11ead59a77f6522395b5db7db" class="m-doc-self">delta_state</a>
+            </dt>
+            <dd><span></span></dd>
+          </dl>
+        </section>
       </div>
     </div>
   </div>
