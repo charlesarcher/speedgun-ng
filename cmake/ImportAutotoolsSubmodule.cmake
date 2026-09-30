@@ -432,11 +432,34 @@ execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy_directory
     # sourced from a static archive at link time (privacy A5, SC-004).
     # ELF-only: Apple ld64 has no such flag, and Windows never reaches
     # this branch.
-    if(NOT APPLE)
+    #
+    # The option is scoped to the shared-library link it exists for. The
+    # imported target is always a static archive, so its own type cannot
+    # decide this; what decides it is the type of the library that
+    # consumes it. An INTERFACE_LINK_OPTIONS entry reaches every consumer,
+    # and the merged members ride into the static library's own consumers
+    # (R-010), so a test executable inherits the flag too. The linker then
+    # localizes hwloc's symbols in that executable, and the amalgamated
+    # archives this tree links (simdjson, zlib, yaml-cpp, hwloc) resolve
+    # their cross-archive references against a localized symbol. Under the
+    # sanitizer builds the result is a bad-free in an unrelated
+    # translation unit: a `std::filesystem::path` or `std::ostringstream`
+    # destructor frees a pointer no allocator ever handed out. Every test
+    # linking this target failed under `ci-sanitize` for that reason, and
+    # the release and coverage builds never saw it, because they add no
+    # sanitizer.
+    set(_ias_privacy_option "")
+    if(NOT APPLE AND IAS_MERGE_INTO)
+        get_target_property(_ias_merge_type ${IAS_MERGE_INTO} TYPE)
+        if(_ias_merge_type STREQUAL "SHARED_LIBRARY")
+            set(_ias_privacy_option "-Wl,--exclude-libs,ALL")
+        endif()
+    endif()
+    if(_ias_privacy_option)
         set_target_properties(
             ${IAS_NAME}
             PROPERTIES
-            INTERFACE_LINK_OPTIONS "-Wl,--exclude-libs,ALL"
+            INTERFACE_LINK_OPTIONS "${_ias_privacy_option}"
         )
     endif()
 
