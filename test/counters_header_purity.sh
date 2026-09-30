@@ -10,12 +10,14 @@
 # acronym PMU, is scanned across the core vocabulary headers only, and
 # its scope is the second half of this record. The platform vocabulary
 # the headers do use is outside the first four terms, and saying so
-# here is part of the record: CLOCK_MONOTONIC (the POSIX clock
-# constant), CPUID (the tsc calibration and the fast tick read are
-# spelled CPUID), sysfs (the PMU catalog's own source path), and pmu
-# (the provider name and the counters_pmu.hpp header). `tsc` is not a
-# term either, because FR-023 mandates `fast_tsc` as a read-mode name,
-# so the term is required vocabulary, which the scan must not flag.
+# here is part of the record: sysfs (the PMU catalog's own source path)
+# and pmu (the provider name and the counters_pmu.hpp header). The
+# calibration that spelled CPUID in a header left with the raw
+# time-stamp counter (specs/008-timestamp-counter, FR-011), and no
+# header spells it now, and none spells CLOCK_MONOTONIC. `tsc` is not
+# a term either, because FR-023 mandates `fast_tsc` as a read-mode
+# name, so the term is required vocabulary, which the scan must not
+# flag.
 #
 # A term matches as a substring, so perf_event_open and rdtscp are
 # violations the whole-word form missed. The exception is rdpmc, which

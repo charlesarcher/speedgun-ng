@@ -4,8 +4,8 @@
 /**
  * @file counters_clock.hpp
  * @brief The shipped system clock provider: monotonic wall time,
- * thread CPU time, process CPU time, and the calibrated time-stamp
- * counter where the platform offers one (FR-033, FR-034).
+ * thread CPU time, process CPU time, and the raw time-stamp counter
+ * wherever the build executes the instruction (FR-033; FR-001).
  */
 
 #include <memory>
@@ -26,10 +26,12 @@ struct clock_window;
  *
  * Seeds the machine object with `monotonic`, `thread_cpu`, and
  * `process_cpu` leaves in nanoseconds at syscall read mode, plus a
- * `tsc` leaf at fast tick mode when calibration succeeds at
- * construction. Platforms without a usable calibration omit the
- * `tsc` leaf entirely: availability is a catalog fact with no API
- * difference (R-007).
+ * `tsc` leaf at fast tick mode wherever the build executes the
+ * time-stamp instruction (FR-001, FR-011). The count carries no rate:
+ * the entry's frequency field and its scaled flag keep their zero
+ * defaults (FR-002). A build without the instruction omits the `tsc`
+ * leaf entirely, which is a catalog fact with no API difference
+ * (R-007).
  */
 class SPEEDGUN_NG_EXPORT clock_provider final : public provider_iface
 {
