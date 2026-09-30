@@ -441,9 +441,9 @@ jobs:
     - name: Run counters_trap_checked under ignore
       run: |
         ulimit -c 0
-        cmake --build build/consumer-release-dev -j 2
+        cmake --build build/consumer-release-dev -j 2 \
           --target counters_trap_checked_test
-        ctest --test-dir build/consumer-release-dev -R counters_trap
+        ctest --test-dir build/consumer-release-dev -R counters_trap \
           --output-on-failure
 
     - name: Run dbc_test under ignore
