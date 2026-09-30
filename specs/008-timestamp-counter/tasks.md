@@ -194,3 +194,68 @@ are implemented and covered, and every gate in the plan's Test Plan passes.
 - [X] T028 Record the bare-read baseline measurement in the task list, per SC-004 (unrequested). `test/source/counters_overhead.cpp` now measures a hand-written `rdtsc` pair beside the library's sampling path, both bracketed identically and divided by the action count, and `docs/pages/counters-overhead.md` carries the resulting table. T017 and T018 cover bracketing a sampling action with the entry and publishing the read budget, and both predate this work. The release preset measures 28 ticks bare against 29 through the library. The ratio is reported and not asserted, because the same library costs 29 ticks optimized and 151 unoptimized, so no threshold survives both presets. Add a task recording what the baseline measures and why the ratio stays unasserted (SC-004, Principle VII)
 
 - [X] T029 Reconcile the two tick figures the overhead page gives for the same read, per SC-004 (partial). `docs/pages/counters-overhead.md:318` states a 1-tick minimum against a 42-tick median, and the table at `:344` gives 28 and 29 ticks for the same read. Both are correct: line 318 is an isolated pair measured cold, the table amortizes a thousand actions per repeat. The new subsection already reconciles the 20 ns row above it against the table and does not reconcile this one, and line 318 carries no pointer. Name the steady-state figure at line 318 or cross-reference the subsection, so a reader who meets the 42 first is not left holding two numbers (SC-004, Principle IV)
+
+## Phase 6: Convergence
+
+**Purpose**: the six gaps below were found by `/speckit.converge` on
+2026-09-29, after Phase 5 (T026..T029) landed. None is a functional gap.
+The 11 functional requirements, the 6 success criteria, the 3 stories, and
+the 4 edge cases are implemented, covered, and gated. All six are
+documentation, and five of the six are one defect in five places. 008
+deleted the calibration, and the prose describing the deleted calibration
+fell outside every task's scope, so it stayed. The sixth is the correction
+record the feature's own plan obliges it to write.
+
+- [X] T030 Rewrite the `clock_provider` doxygen in `include/speedgun-ng/counters_clock.hpp` to describe the raw entry, per FR-001, FR-002, and FR-011 (contradicts). The `@file` brief at `:7` still reads "the calibrated time-stamp counter where the platform offers one (FR-033, FR-034)", and the class brief at `:23-32` still reads "plus a `tsc` leaf at fast tick mode when calibration succeeds at construction. Platforms without a usable calibration omit the `tsc` leaf entirely". The shipped provider publishes the entry under `SG_COUNTERS_X86` with a zero frequency and a false scaled flag at `source/counters/clock_provider.cpp:236-253`, and `:45-49` holds the one build-time condition. The public header asserts the defect this feature removes, and it is the disclosure a caller reads. T006 reduced the constructor brief and T010 rewrote the source file's header comment; neither task reached these two briefs, so the deletion left both standing. State that the entry publishes wherever the build executes the instruction, that the count carries no rate, and that `frequency_hz` and `scaled` keep their zero defaults (FR-001, FR-002, FR-011, Principle IV)
+
+- [X] T031 Add the correction entry to `specs/007-counters-and-timers/citations-log.md`, per the feature's recorded correction obligation (missing). `spec.md:272` states the correction is recorded "here and in the successor log, which is the mechanism 007 established for exactly this case", `plan.md:55` and `plan.md:236` repeat it, and no task in T001..T029 covers it. The frozen record still asserts the removed behavior: `specs/007-counters-and-timers/citations.md:218` reads "the fast `tsc` leaf's frequency is calibrated at system-open from sysfs and CPUID". The record is frozen at commit `49f809d` and takes no edit, so the log is the one place the correction can land, and the log's `## Entry format` section already defines the fields an entry carries. Its single entry today is `T327`'s line-number re-anchor. Write the entry so the frozen record reads as historical rather than current: name the supersession, cite the section of the frozen record it corrects, and point at 008. The entry format's figure fields carry line-number drift, so a requirement correction needs a field or a sibling section that carries the supersession without forcing it into a figure (plan: correction-record decision, Principle X.1, Principle IX)
+
+- [X] T032 Rewrite the stale reason in `test/source/counters_clock_push_test.cpp`, per FR-001 and FR-011 (contradicts). The file header at `:12` still claims coverage of "a calibrated platform the tsc leaf reporting frequency provenance and the scaled flag as catalog fields (FR-034, R-007)", and the scenario comment at `:287-291` still reads "The time-stamp leaf exists only where sysfs publishes a calibration (FR-034). Where it is absent the leaf is omitted". T011 converted that scenario into the proof that publication follows the build guard, and every assertion in it is correct; the reason it records describes the behavior the provider edit removed. Correct both to name `SG_TEST_HAS_TSC` as the condition, which is what the code below them already tests (FR-001, FR-011, Principle IV)
+
+- [X] T033 Correct the fast-regime probe comment in `test/source/counters_overhead.cpp`, per SC-005 (partial). `test/source/counters_overhead.cpp:498` reads "A calibrated `tsc` clock leaf would still give the pair, one rdtsc read per action against the clock plan's one vDSO read". T028 made the entry publish on every build that executes the instruction with no rate attached, so the probe finds it wherever the build guard holds, and the host configuration the sentence names no longer withholds it. State the entry's real condition and keep the `quickstart 12` fallback for a build without the instruction (SC-005, Principle IV)
+
+- [X] T034 Correct the platform-vocabulary record in `test/counters_header_purity.sh`, per FR-010 (partial). `test/counters_header_purity.sh:14` lists `CPUID` and `sysfs` as platform vocabulary "the headers do use", and gives the reason: "CPUID (the tsc calibration and the fast tick read are spelled CPUID)". T010 removed the CPUID read and the calibration from `source/counters/clock_provider.cpp`, and no header under `include/speedgun-ng/` spells `CPUID` or `CLOCK_MONOTONIC` today; only `counters_pmu.hpp:43` spells `sysfs`. The record is the gate's own account of what it scans for, so a term it claims the headers use and they no longer hold is a false statement in a shipped gate. Correct the list to what the headers carry now, and keep the `tsc` and `fast_rdpmc` exemptions, which FR-010 and FR-023 of 007 still require (FR-010, Principle IV)
+
+- [X] T035 Correct the test-registration comment in `test/CMakeLists.txt`, per FR-011 (partial). `test/CMakeLists.txt:280` describes `counters_clock_push_test` as covering "catalog facts including tsc calibration provenance". The provenance is no longer catalog data for this entry, and `frequency_hz` is 0 and `scaled` is false by construction. Name the raw-entry facts the repaired scenario asserts (FR-011, Principle IV)
+
+## Phase 7: Convergence
+
+**Purpose**: the two gaps below were found by `/speckit.converge` on
+2026-09-29, after Phase 6 (T030..T035) landed. Both sit in the gate layer.
+No functional requirement is unmet: the 11 functional requirements, the 6
+success criteria, the 3 stories, and the 4 edge cases are implemented,
+covered, and gated, and every gate the plan's own Test Plan names passes.
+The first is a hard CI gate that would fail on the branch, and the second is
+the omission that let it reach this pass.
+
+- [X] T036 Format `test/source/counters_overhead.cpp` with the pinned formatter, per Constitution V and Constitution VIII (contradicts, CRITICAL). The file fails `format-check` under `clang-format==18.1.8`, the version `.github/workflows/ci.yml:24` installs, in three hunks at lines 86, 350, and 389. Each sits in the bare-read baseline T028 added: the `tick_cost` aggregate return in `summarize_ticks`, the `bare`, `library`, and `as_ns` block with its `printf`, and the two median assertions. `cmake/lint.cmake:51` raises `FATAL_ERROR` and `ci.yml:27` runs that script, so the `lint` job is red and Principle VIII lists `format-check` among the gates that are hard. This is the only dirty file in the tree under the pinned version, so the fix is one file. Run the pinned formatter over that file alone and land it as its own commit, since Principle V requires a formatting-only change to be committed separately from a content change. The development host carries `clang-format` 22.1.8, which reports nineteen dirty files across the tree, eighteen of them a version divergence in aggregate-initializer and trailing-return-type wrapping with no defect in the source; format nothing outside this file (Constitution V, Constitution VIII, SC-006)
+
+- [X] T037 Run the two gates the gate list omits and record the omission, per the plan's Test Plan gate sequence and Constitution VIII (missing). `plan.md:218-228` sets out seven gate steps and `tasks.md:89-99` sets out seven gate tasks, T019 through T025, covering ctest, the pairing gate, the prose gate, the release build, the sanitizers, the two scans, and the prose lint. Principle VIII names `format-check` and `spell-check` among the hard gates, and neither appears in either list, which is why T028 landed the unformatted code that T036 now corrects. Run both, record their verdicts, and add the pair to the gate sequence a later feature reads, so the next omission is a recorded decision rather than a silent one. Leave T019 through T025 as they stand; they record what was run at the time, and Principle I's deletion rule keeps a gate the record omits visible as omitted (Constitution VIII, SC-006, Principle X.3)
+
+### Verified state after Phase 7
+
+Both gates T037 names now run and both pass, against the formatter CI
+pins at `.github/workflows/ci.yml:24`.
+
+- `cmake -D FORMAT_COMMAND=<clang-format 18.1.8> -P cmake/lint.cmake`:
+  exit 0, no badly formatted file, and the check is idempotent on re-run
+- `cmake -P cmake/spell.cmake`: exit 0, `.codespellrc` as the config
+- `ctest --preset=dev`: 40 of 40 pass after the T036 reformat
+- `cmake --build build/dev -t dbc-gate`: 136 interfaces, 0 gaps
+- `test/counters_header_purity.sh` and `test/counters_push_atomic_scan.sh`:
+  both clean
+- `python3 tools/prose/prose_gate.py --check prose --mode tree --paths
+  specs/008-timestamp-counter`: 0 findings
+
+T036 reformatted one file. The reformat is three hunks, all in the
+bare-read baseline T028 added: the `tick_cost` aggregate return in
+`summarize_ticks`, the `bare`, `library`, and `as_ns` block with its
+`printf`, and the library median assertion. The formatter split that
+assertion's message into three adjacent literals to fit the column, so the
+source reads `"live"` as `"liv" "e"`; the gate is the arbiter and a
+hand-written alternative fails it.
+
+The gate list a later feature reads now names both. The omission stays
+visible in T019 through T025, which record the seven gates that ran at the
+time, and the fix is one formatter run and two gate invocations.
+
