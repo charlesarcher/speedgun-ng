@@ -494,10 +494,11 @@ auto main() -> int
     }
   }
 
-  // No fast-mode cpu leaf. A calibrated `tsc` clock leaf would still give
-  // the pair, one rdtsc read per action against the clock plan's one vDSO
-  // read; a host publishing neither has no fast regime to publish, and
-  // the reason is named (quickstart 12).
+  // No fast-mode cpu leaf. The `tsc` clock leaf gives the pair on every
+  // build that executes the time-stamp instruction (FR-001), one rdtsc
+  // read per action against the clock plan's one vDSO read. A build
+  // without the instruction has no fast regime to publish, and the
+  // reason is named (quickstart 12).
   for (const auto& entry : machine.counters()) {
     if (entry.mode != read_mode::fast_tsc) {
       continue;

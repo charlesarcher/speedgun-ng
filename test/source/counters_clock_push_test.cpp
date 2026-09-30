@@ -9,9 +9,10 @@
 // monotonic folding to the byte rate with standard disclosure
 // (FR-019); the machine catalog listing clock leaves and push
 // counters countable with descriptions and achieved read mode
-// (FR-009); and on a calibrated platform the tsc leaf reporting
-// frequency provenance and the scaled flag as catalog fields
-// (FR-034, R-007). Hand-computed expectations, frameworkless
+// (FR-009); and, wherever the build executes the time-stamp
+// instruction, the tsc leaf countable at fast tick mode with no rate
+// attached, its frequency field 0 and its scaled flag false (FR-001,
+// FR-002, FR-011). Hand-computed expectations, frameworkless
 // check()/fail() convention. Registration precedes the open
 // boundary.
 // ============================================================================
@@ -284,10 +285,10 @@ auto open_refusal_scenario() -> void
             == nullptr,
         "an address on another object opens no window");
 
-  // The time-stamp leaf exists only where sysfs publishes a calibration
-  // (FR-034). Where it is absent the leaf is omitted and the open is
-  // refused; where it is present the leaf opens. The fixture asks the
-  // catalog which, and holds the open to the same answer.
+  // The time-stamp leaf publishes exactly where the build executes the
+  // instruction (FR-001, FR-011). A build without it omits the leaf
+  // and refuses the open. The fixture asks the catalog which, and holds
+  // the open to the same answer (FR-003).
   const auto machine = *system::local().object("machine");
   bool catalog_has_tsc = false;
   for (const auto& entry : machine.counters()) {
