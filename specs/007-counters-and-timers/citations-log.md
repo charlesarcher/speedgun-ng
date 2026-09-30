@@ -93,6 +93,47 @@ The frozen record holds the full evidence for every figure an entry
 corrects, so an entry points at the record's section and repeats only
 what a reader needs to re-measure it.
 
+## Requirement corrections
+
+A correction to a merged requirement has no figure to correct. The entry
+format above carries line-number drift, where the figure as written names
+a number and the figure measured names the number it became. A supersession
+names a requirement, and no number moves, so it lands here as a sibling
+section and keeps the same discipline: the date, the task, the section of
+the frozen record, the claim as the record holds it, what governs it now,
+the command that measured it, the head it was measured at, and what the
+correction left alone.
+
+### FR-034 of 007, superseded for the time-stamp counter
+
+```yaml
+date: 2026-09-29
+task: T031
+section: Journal sentences a later requirement withdrew
+site: citations.md:218, the `:959` row, at the frozen position the entry
+  found, pinned to the record's freeze at 49f809d
+claim_as_written: the fast `tsc` leaf's frequency is calibrated at
+  system-open from sysfs and CPUID
+requirement_now_governing: FR-011 at
+  specs/008-timestamp-counter/spec.md:211, which records the withdrawal as
+  superseding the calibration and publication obligations of FR-034 of 007
+  for this counter
+code_now_governing: the catalog seed publishes the entry under the
+  `SG_COUNTERS_X86` build guard at source/counters/clock_provider.cpp:236-253,
+  one build-time condition decides it at :45-49, and the constructor is
+  `= default` at :207, reading no file and no instruction identifier
+command: grep -rn "tsc_khz" include/ source/ test/ (exit 1, no hit)
+head: 08e42fe
+must_not_move: the five other rows of that table, the closed task lines, and
+  the dated phase preambles
+```
+
+A reader who meets the `:959` row reads it as describing the tree at
+`49f809d`. FR-011 of 008 withdrew the calibration, and the sysfs read and
+the instruction-identifier read went with it. The shipped provider attaches
+no rate to the count, and the entry publishes wherever the build executes
+the instruction.
+
 ## The three routes T330 measured
 
 Route one drops the `citations.md:NNN` Site-column values across the
