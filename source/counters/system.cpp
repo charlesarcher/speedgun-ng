@@ -405,7 +405,7 @@ auto system::tsc() const -> std::expected<counter<dim<0, 1>>, error>
   }
   return std::unexpected(error {
       .message =
-          "the catalog publishes no time-stamp " "entry; " "a clock " "provider" " seeds " "it " "wh" "er" "e " "th" "e " "build " "executes" " the " "instructio" "n, and no " "registered" " provider " "did " "(sp" "ecs" "/00" "8-" "time" "est" "amp" "-co" "unt" "er " "FR-" "008" ")",
+          "the catalog publishes no time-stamp " "entry; " "a clock " "provider" " seeds " "it " "wh" "er" "e " "th" "e " "build " "executes" " the " "instructio" "n, and no " "registered" " provider " "did " "(sp" "ecs" "/00" "8-" "time" "st" "amp" "-co" "unt" "er " "FR-" "008" ")",
       .suggestions = {}});
 }
 
