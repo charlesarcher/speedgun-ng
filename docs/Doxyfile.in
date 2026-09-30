@@ -9,6 +9,15 @@ PROJECT_NUMBER = "@PROJECT_VERSION@"
 # Add sources
 INPUT = "@PROJECT_SOURCE_DIR@/README.md" "@PROJECT_SOURCE_DIR@/include" "@PROJECT_SOURCE_DIR@/docs/pages"
 EXTRACT_ALL = YES
+
+# m.css pinned at 4a1324c has no `concept` compound kind, and its
+# dispatch asserts on any kind it does not know, so a documented C++20
+# concept aborts the whole documentation build. Upstream m.css master
+# has no concept support either, so the pin cannot be bumped past it.
+# The concept is a one-line `std::derived_from` alias over
+# `provider_iface`, whose own documentation already states the shape a
+# provider implements, so nothing is lost from the rendered docs.
+EXCLUDE_SYMBOLS = provider
 RECURSIVE = YES
 OUTPUT_DIRECTORY = "@DOXYGEN_OUTPUT_DIRECTORY@"
 
