@@ -392,12 +392,18 @@ auto system::object(std::string_view path)
 auto system::tsc() const -> std::expected<counter<dim<0, 1>>, error>
 {
   const auto* node = m_impl->find("machine");
-  if (node == nullptr || node->leaves.empty()) {
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the short-circuit arc
+  // between the two operands. The `machine` node is seeded by the system
+  // itself at construction, so `find` answers it on every host, both
+  // with and without a `perf_event_open` the kernel grants; the emptiness
+  // operand below is the half every host reaches.
+  if (node == nullptr || node->leaves.empty()) {  // LCOV_EXCL_BR_LINE
     return std::unexpected(error {
         .message =
             "no clock provider is registered, so the " "tree " "holds " "no " "ti" "me" "-s" "ta" "mp" " " "entry to " "res" "olv" "e " "(specs/" "008-timestamp-" "counter FR-007)",
         .suggestions = {}});
   }
+  // LCOV_EXCL_BR_STOP
   for (const auto& leaf : node->leaves) {
     if (leaf.core.name == "tsc") {
       return counter<dim<0, 1>> {.leaf = leaf.core};

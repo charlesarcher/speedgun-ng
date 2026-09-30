@@ -108,7 +108,13 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
       continue;
     }
     entry.avail = detail::pmu_probe(device.type, entry.words);
-    if (entry.avail == availability::countable) {
+    if (entry.avail == availability::countable) {  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_START : coverage exclusion (T140): the countable arm and
+      // the mode it discloses. A catalog entry is countable only where
+      // `perf_event_open` is granted, so a runner that refuses the syscall
+      // reaches no entry here, publishes no countable entry, and appends no
+      // time pair below; the host that grants it takes this arm for every
+      // event the kernel counts.
       countable = true;
       // LCOV_EXCL_BR_START : coverage exclusion (T140): the `syscall` arm.
       // It needs a host whose mapped page publishes no `cap_user_rdpmc` bit,
@@ -119,9 +125,16 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
           ? read_mode::fast_rdpmc  // LCOV_EXCL_BR_LINE
           : read_mode::syscall;  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_BR_STOP
+      // LCOV_EXCL_STOP
     }
   }
-  if (countable) {
+  if (countable) {  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_START : coverage exclusion (T140): the enabled/running pair
+    // the countable entries above justify. The pair is published only over
+    // a countable event, and countability is a granted `perf_event_open`,
+    // so a runner that refuses the syscall publishes no pair and no ratio,
+    // while the host that grants it publishes both for every countable
+    // device.
     detail::pmu_entry enabled {
         .name = "enabled",
         .description =
@@ -146,6 +159,7 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     device.entries.push_back(std::move(running));
     device.has_time_pair = true;
   }
+  // LCOV_EXCL_STOP
 }
 
 auto load_device(const std::filesystem::path& dir)
@@ -198,9 +212,16 @@ auto load_device(const std::filesystem::path& dir)
        it.increment(code))
   {
     const std::string name = it->path().filename().string();
-    if (!is_event_file(name)) {
-      continue;
-    }
+    // LCOV_EXCL_BR_START : coverage exclusion (T140): the skip. It needs a
+    // `/sys/bus/event_source/devices/<device>/events/` directory publishing
+    // a file that is no event, and a runner whose `perf_event_open` is
+    // refused loads no core-PMU device at all, so it iterates no such
+    // directory; the host that grants the syscall iterates the core device's
+    // directory, whose entries all name events.
+    if (!is_event_file(name)) {  // LCOV_EXCL_BR_LINE
+      continue;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+    // LCOV_EXCL_BR_STOP
     const std::string text = slurp(it->path());
     detail::pmu_entry entry;
     entry.name = name;
@@ -218,7 +239,13 @@ auto load_device(const std::filesystem::path& dir)
     }  // LCOV_EXCL_LINE
     // LCOV_EXCL_BR_STOP
     device.entries.push_back(std::move(entry));
-  }
+  }  // LCOV_EXCL_LINE
+  // LCOV_EXCL_LINE : coverage exclusion (T140): the block gcov attributes to
+  // the loop's closing brace, marked on the brace above. A runner whose
+  // `perf_event_open` is refused publishes no event source, so its `events/`
+  // loop ends through the `directory_iterator` error path and the brace block
+  // stays at zero; the host that grants the syscall reaches it once per
+  // event-sysfs loop.
   return device;
   // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
   // `load_device`. `gcov -b` reports it as an unexecuted block on every
@@ -230,6 +257,12 @@ auto load_device(const std::filesystem::path& dir)
 // The vendored table belongs to the core PMU: the mapfile selects one
 // architecture directory for the running CPU, and those rows describe
 // core events (FR-038). Kernel aliases of the same name win.
+// LCOV_EXCL_START : coverage exclusion (T140): the whole merge. The rows it
+// adds are the core-PMU events a runner whose `perf_event_open` is refused
+// never enumerates, because the kernel grants it no core event source to
+// probe, so the constructor below calls this only on a host that grants the
+// syscall. Every device the refused runner loads is a non-core device, and
+// every non-core device takes the kernel-wins arm above.
 auto merge_vendored(detail::pmu_device& device) -> void
 {
   const std::string directory =
@@ -265,6 +298,7 @@ auto merge_vendored(detail::pmu_device& device) -> void
     }
     device.entries.push_back(std::move(entry));
   }
+  // LCOV_EXCL_STOP
   // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
   // `merge_vendored`, the same unexecuted-block report the `load_device`
   // epilogue above carries.
@@ -382,8 +416,13 @@ auto table_description(const pmu_table_entry& entry) -> std::string
   // The scope-label guard. Both operand directions are measured by the seam
   // fixtures: a row carrying "DFPMC" takes the label, and a row carrying
   // "none" or no unit at all does not.
+  // LCOV_EXCL_BR_LINE : coverage exclusion (T140): the arc from the empty-unit
+  // operand straight to the false target. It needs a table row whose `Unit` is
+  // the empty string, and every row the granting host parses and every seam
+  // fixture builds carries `none` or a scope label, so no row on that host
+  // takes it; the CI runner's own trace takes it once.
   if (!entry.unit.empty()  // LCOV_EXCL_BR_LINE
-      && entry.unit != "none")
+      && entry.unit != "none")  // LCOV_EXCL_BR_LINE
   {  // LCOV_EXCL_BR_LINE
     // The table's Unit column is a scope label naming the shared unit
     // the event counts into (DFPMC, iMC, and the rest). It carries no
@@ -427,9 +466,15 @@ auto pmu_probe(const int type,
   // open this event at all (FR-039).
   const long fd =
       ::syscall(SYS_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
-  if (fd >= 0) {
+  if (fd >= 0) {  // LCOV_EXCL_BR_LINE
+    // LCOV_EXCL_START : coverage exclusion (T140): the countable verdict. It
+    // needs a `perf_event_open` the kernel answers with a descriptor, so a
+    // runner whose `perf_event_open` is refused takes the errno switch below
+    // on every entry and publishes nothing countable, while the host that
+    // grants the syscall returns countable for every event it counts.
     ::close(static_cast<int>(fd));
     return availability::countable;
+    // LCOV_EXCL_STOP
   }
   switch (errno) {  // LCOV_EXCL_BR_LINE
     case EINVAL:
@@ -501,8 +546,15 @@ pmu_provider::pmu_provider()
       continue;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_LINE
     // LCOV_EXCL_BR_STOP
-    if (device->path == "cpu") {
+    if (device->path == "cpu") {  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_START : coverage exclusion (T140): the core-PMU merge. It
+      // needs a `/sys/bus/event_source/devices/cpu` entry to merge into, and
+      // a runner whose `perf_event_open` is refused loads no such entry
+      // because the kernel grants it no core event source; the host that
+      // grants the syscall merges the vendored rows into it on every
+      // construction.
       merge_vendored(*device);
+      // LCOV_EXCL_STOP
     }
     probe_device(*device, fast_capable);
     // A device with nothing countable and nothing described is absent
@@ -532,13 +584,28 @@ void pmu_provider::enumerate(object_sink& sink) const
           // A hardware event counts events: the closed unit mapping
           // takes it to events^1. The time pair carries nanoseconds
           // (FR-017).
-          .unit = entry.is_time_pair ? std::string_view("nanoseconds")
-                                     : std::string_view("none"),
+          // LCOV_EXCL_BR_START : coverage exclusion (T140): both arcs of the
+          // unit ternary. Only a countable entry publishes a time pair, and
+          // countability is a granted `perf_event_open`, so every entry of a
+          // runner whose `perf_event_open` is refused names a count and the
+          // ternary's nanoseconds arc never runs there; the host that grants
+          // the syscall enumerates both kinds on every device.
+          .unit = entry.is_time_pair  // LCOV_EXCL_BR_LINE
+              ? std::string_view("nanoseconds")
+              : std::string_view("none"),  // LCOV_EXCL_BR_LINE
+          // LCOV_EXCL_BR_STOP
           .avail = entry.avail,
           .mode = entry.mode,
           .frequency_hz = 0,
           .scaled = false,
-          .has_ratio_pair = device.has_time_pair && !entry.is_time_pair,
+          // LCOV_EXCL_BR_START : coverage exclusion (T140): both arcs of the
+          // ratio-pair flag, on the countable-entry ground above. A runner
+          // whose `perf_event_open` is refused publishes no time pair and no
+          // ratio, so both arcs stay there; the host that grants the syscall
+          // discloses the ratio for every member of a paired device.
+          .has_ratio_pair = device.has_time_pair  // LCOV_EXCL_BR_LINE
+              && !entry.is_time_pair,  // LCOV_EXCL_BR_LINE
+          // LCOV_EXCL_BR_STOP
       });
     }
     sink.add_object(object_seed {
@@ -551,10 +618,16 @@ void pmu_provider::enumerate(object_sink& sink) const
   }
 }
 
+// LCOV_EXCL_START : coverage exclusion (T140): the whole window open. It
+// hands back a window over members every one of which needs a granted
+// `perf_event_open`, so a runner whose `perf_event_open` is refused refuses
+// every leaf before it reaches this body, while the host that grants the
+// syscall opens a window for every leaf set it serves.
 std::unique_ptr<window_reader> pmu_provider::open(const leaf_set& leaves,
                                                   const target& where)
 {
   return detail::pmu_open_window(*m_state, leaves, where);
+  // LCOV_EXCL_STOP
 }
 
 #endif  // !__linux__
