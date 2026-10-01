@@ -152,6 +152,41 @@ version declaration from the submodule's own `project()` line and
 consults no git metadata. yaml-cpp is a native CMake library, so no
 autotools bootstrap tools are needed for it.
 
+## Re-pinning quill
+
+quill is a vendored git submodule at `external/quill`, pinned by commit.
+To update it:
+
+1. Check out the new tag: `git -C external/quill checkout <tag>`
+2. Commit the submodule pointer.
+3. Bump the version assertions in `source/quill/quill_gate.cpp`.
+
+The build fails until the assertions match. That is the point: the
+compile-time check keeps the pinned sources and the recorded version in
+lockstep. Unlike the simdjson, HdrHistogram_c, hwloc, and zlib
+assertions, which read a preprocessor macro, this tripwire reads compiled
+constants: quill publishes its version as `quill::VersionMajor`,
+`VersionMinor`, and `VersionPatch` in `quill/Backend.h` and publishes no
+macro for it. Its own parsed version variable does not reach a consuming
+scope either, so a configure-time read of that variable is unavailable too.
+
+quill is header-only, so two things differ from the other vendored
+dependencies and both are deliberate. No vendored archive is built, so
+there is nothing to merge into `libspeedgun-ng.a`, and the gate unit holds
+the version assertions and no symbol reference: taking the address of one
+quill function emits its whole inline call graph, which measured about
+150 times the size of the assertions alone. The dependency is proven at
+run time instead, by the `quill_dependency_check` test, which links the
+library and quill, drives a real counter, and asserts the counter's value
+reached the log. The gate unit's include path is also marked as a system
+include, so a diagnostic from a quill header never reaches this project's
+warning set.
+
+Every one of quill's own build options is pinned at its default inside the
+ingestion bracket, so a command-line flag cannot switch on upstream tests,
+examples, documentation, or sanitizers, and a future upstream option
+defaults to off with no change here.
+
 ## Re-pinning pmu-events
 
 The kernel x86 PMU event tables are vendored data under
