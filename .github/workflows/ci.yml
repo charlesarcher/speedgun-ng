@@ -147,6 +147,15 @@ jobs:
       run: test -z "$(find prefix/ -iname '*yaml*cpp*')"
     - name: Audit package files for yaml-cpp
       run: "! grep -riE 'yaml[-_]?cpp' prefix/lib/cmake/speedgun-ng/*.cmake"
+    # quill's pattern is the bare literal (specs/009 FR-020): upstream
+    # names its artifacts, include directory, namespace, and bundled
+    # formatter namespace by that one spelling, so a leak in any of them
+    # trips this check. The install tree and the package files are the
+    # only two surfaces quill could reach from here.
+    - name: Audit install tree for quill
+      run: test -z "$(find prefix/ -iname '*quill*')"
+    - name: Audit package files for quill
+      run: "! grep -riE 'quill' prefix/lib/cmake/speedgun-ng/*.cmake"
     # SC-001, FR-049. A shared build links libspeedgun-ng.so into the
     # example, so this audit runs in the static test job and the
     # shared-audit job keeps the vendored-dependency manifest checks.
@@ -238,6 +247,62 @@ jobs:
       run: "! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep '4YAML'"
     - name: Audit shared runtime deps for yaml-cpp
       run: "! ldd prefix-shared/lib/libspeedgun-ng.so | grep -iE 'yaml[-_]?cpp'"
+    # quill's singletons carry default symbol visibility on GCC and Clang
+    # regardless of this project's settings, so they cannot be hidden and
+    # an archive-level audit would have to whitelist them. Auditing the
+    # installed shared object instead keeps that exception honest: a
+    # singleton that escapes into .dynsym still fails here
+    # (specs/009 R-010, FR-017). The two mangled-namespace markers catch a
+    # namespace appearing in a symbol table without appearing in a path.
+    # The upstream tree marks two thread helpers QUILL_ATTRIBUTE_USED and
+    # QUILL_EXPORT, so they are emitted and default-visible in any shared
+    # build. specs/009 FR-018 permits exactly those two and nothing else,
+    # with the justification recorded in the non-exposure contract. The
+    # comparison is exact, so a third symbol or a type change fails it.
+    # The shared link interface, audit A3 (FR-017, specs/009 T015).
+    # cmake/install-rules.cmake installs the export set to
+    # lib/cmake/speedgun-ng, so the test -f below confirms the path exists
+    # and the grep cannot pass on a missing file. The test job audits the
+    # static prefix; this step reads the shared build, which is where a
+    # link-interface entry resolving to quill would show up.
+    - name: Audit shared link interface for quill
+      run: |
+        set -euo pipefail
+        targets=prefix-shared/lib/cmake/speedgun-ng/speedgun-ngTargets.cmake
+        test -f "$targets"
+        if grep -iE 'quill' "$targets"; then
+          echo "FAIL: the shared link interface names quill"
+          exit 1
+        fi
+        echo "PASS: the shared link interface names no quill"
+    - name: Audit shared symbols for quill against the declared allowlist
+      run: |
+        set -euo pipefail
+        so=prefix-shared/lib/libspeedgun-ng.so
+        allowlist=$'W _ZN5quill3v136detail13get_thread_idEv\nW _ZN5quill3v136detail15get_thread_nameB5cxx11Ev'
+        actual=$(nm -D --defined-only "$so" | awk '{print $2, $3}' \
+          | grep -E '5quill|8fmtquill' | sort -u || true)
+        leaked=0
+        while IFS= read -r sym; do
+          [ -n "$sym" ] || continue
+          if ! grep -qxF "$sym" <<<"$allowlist"; then
+            echo "FAIL: exported symbol outside the FR-018 allowlist: $sym"
+            leaked=1
+          fi
+        done <<<"$actual"
+        if [ "$leaked" -ne 0 ]; then
+          printf 'allowlist:\n%s\nactual:\n%s\n' "$allowlist" "$actual"
+          exit 1
+        fi
+        if [ -z "$actual" ]; then
+          echo "PASS: no quill symbol is exported at all"
+        else
+          printf 'PASS: every exported quill symbol is allowlisted\n%s\n' "$actual"
+        fi
+    - name: Audit shared symbols for the 8fmtquill namespace marker
+      run: "! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep '8fmtquill'"
+    - name: Audit shared runtime deps for quill
+      run: "! ldd prefix-shared/lib/libspeedgun-ng.so | grep -iE 'quill'"
 
   downstream-consumer:
     needs: [lint]
@@ -269,6 +334,21 @@ jobs:
         -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF
         && cmake --build sys-yaml -j 2
         && sudo cmake --install sys-yaml --prefix /usr/local
+    # The same premise for quill (specs/009 R-014). Upstream publishes no
+    # system development package on Ubuntu, so the copy is built from the
+    # pinned tree out-of-tree and put on the default search path. quill is
+    # header-only, so a configure plus install is enough for the machine
+    # to carry a system quill the consumer must resolve zero of. Both
+    # install switches stay off here: this step exists to satisfy the
+    # premise, not to reproduce what FR-011 forbids.
+    - name: Install a system quill for the consumer premise
+      run: >-
+        cmake -S external/quill -B sys-quill
+        -DQUILL_ENABLE_INSTALL=ON -DQUILL_BUILD_EXAMPLES=OFF
+        -DQUILL_BUILD_TESTS=OFF -DQUILL_BUILD_BENCHMARKS=OFF
+        -DCMAKE_BUILD_TYPE=Release
+        && cmake --build sys-quill -j 2
+        && sudo cmake --install sys-quill --prefix /usr/local
     - name: Install library
       run: cmake --preset=ci-linux-audit -B build -D CMAKE_BUILD_TYPE=Release
         && cmake --build build -j 2
@@ -293,6 +373,8 @@ jobs:
       run: test -z "$(grep -iE 'zlib|libz' consumer-configure.log consumer-build.log)"
     - name: Audit consumer logs for yaml-cpp
       run: test -z "$(grep -riE 'yaml[-_]?cpp' consumer-configure.log consumer-build.log)"
+    - name: Audit consumer logs for quill
+      run: test -z "$(grep -riE 'quill' consumer-configure.log consumer-build.log)"
 
   consumer-release:
     needs: [lint]
