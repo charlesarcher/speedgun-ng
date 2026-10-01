@@ -26,11 +26,24 @@ endif()
 
 # We use variables separate from what CTest uses, because those have
 # customization issues
+#
+# The mismatch error class is ignored: a vendored header's inline code is
+# emitted into
+# this project's own instrumented translation units, so the capture sees it.
+# Every vendored tree lands in the raw trace today (simdjson, hwloc,
+# HdrHistogram_c, zlib, and yaml-cpp all appear in it), and the extract step
+# below then removes every vendored path before the gate reads a number. The
+# gate's metrics are therefore unaffected by anything a vendored header
+# contributes. quill is the first vendored tree whose headers trip lcov's
+# exception-tag consistency check, which would otherwise abort the capture
+# and take the whole coverage target down with it. Narrowing this to the one
+# error class keeps every other lcov check, and gcov's own diagnostics, live.
 set(
     COVERAGE_TRACE_COMMAND
     "${LCOV_EXECUTABLE}" -c -q
     --branch-coverage
     --no-external
+    --ignore-errors mismatch
     --base-directory "${PROJECT_SOURCE_DIR}"
     --rc geninfo_unexecuted_blocks=1
     -o "${PROJECT_BINARY_DIR}/coverage.raw.info"
