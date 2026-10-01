@@ -590,6 +590,134 @@ target_link_libraries(
     speedgun-ng_speedgun-ng PRIVATE $<BUILD_INTERFACE:yaml-cpp::yaml-cpp>
 )
 
+# Vendored quill ingestion. quill is a private internal dependency with
+# a native CMake build, ingested through add_subdirectory below, after
+# the yaml-cpp bracket, so the install() override defined inside
+# import_hdrhistogram() stands guard over this bracket too.
+#
+# quill breaks the pattern the five compiled brackets follow in three
+# ways, each recorded with its measurement in specs/009 research.md:
+#
+#   R-001 quill's build defines an interface-only target and compiles
+#        nothing. EXCLUDE_FROM_ALL and the out-of-tree binary directory
+#        carry no weight here. There is no vendored archive to merge
+#        below.
+#   R-003 quill declares 22 options. Consumed as a subdirectory they
+#        would land in this project's cache, where a command-line flag
+#        could switch on upstream's tests, examples, documentation, or
+#        sanitizers: exactly the switches FR-011 and FR-012 require off.
+#        Every option is therefore defined at its upstream default in
+#        this bracket's own scope, and the policy pin below makes those
+#        declarations inert. The whole set is pinned, which means a
+#        future upstream option defaults to off with no change here.
+#   R-006 quill compiles no target, so the flag-clearing block the five
+#        compiled brackets use to exclude vendored diagnostics reaches
+#        no compilation at all (FR-010b). The single translation unit
+#        that includes quill's headers is compiled in this project's
+#        own scope under this project's strict flags. The system
+#        include promotion below is the mechanism that does reach them
+#        (FR-010a), and it is what the five compiled brackets already
+#        use as their second step.
+#
+# The interface target is linked PRIVATE and BUILD_INTERFACE only, so a
+# consumer of speedgun-ng::speedgun-ng resolves nothing named quill
+# (FR-008, FR-017, privacy A2). Re-pinning the submodule: follow the
+# re-pinning section of README.md (checkout the new tag, commit the
+# submodule pointer, bump the version assertions in
+# source/quill/quill_gate.cpp) (FR-007).
+function(import_quill)
+  # FR-004: abort configure with the init command, no fallback path.
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/quill/CMakeLists.txt")
+    message(
+        FATAL_ERROR
+        "external/quill is uninitialized; run: "
+        "git submodule update --init external/quill"
+    )
+  endif()
+  # R-003: every upstream option at its upstream default, defined before
+  # the subtree so upstream's option() declarations cannot change them.
+  # The list mirrors specs/009 contracts/build-integration.md section 3.
+  set(QUILL_NO_EXCEPTIONS OFF)
+  set(QUILL_NO_THREAD_NAME_SUPPORT OFF)
+  set(QUILL_USE_SEQUENTIAL_THREAD_ID OFF)
+  set(QUILL_DISABLE_NON_PREFIXED_MACROS OFF)
+  set(QUILL_DISABLE_FUNCTION_NAME OFF)
+  set(QUILL_DETAILED_FUNCTION_NAME OFF)
+  set(QUILL_DISABLE_FILE_INFO OFF)
+  set(QUILL_ENABLE_ASSERTIONS OFF)
+  # FR-011: both install gates off. They are independent switches
+  # guarding two separate install paths, and the main block does not
+  # check the examples switch even though the option's own documentation
+  # claims the examples are installed. EXCLUDE_FROM_ALL suppresses
+  # neither.
+  set(QUILL_BUILD_EXAMPLES OFF)
+  set(QUILL_ENABLE_INSTALL OFF)
+  set(QUILL_BUILD_MODULE OFF)
+  set(QUILL_BUILD_EXAMPLE_PROMETHEUS OFF)
+  set(QUILL_BUILD_TESTS OFF)
+  set(QUILL_ENABLE_EXTENSIVE_TESTS OFF)
+  set(QUILL_BUILD_BENCHMARKS OFF)
+  set(QUILL_BUILD_FUZZING OFF)
+  set(QUILL_SANITIZE_ADDRESS OFF)
+  set(QUILL_SANITIZE_THREAD OFF)
+  set(QUILL_CODE_COVERAGE OFF)
+  set(QUILL_USE_VALGRIND OFF)
+  set(QUILL_DOCS_GEN OFF)
+  set(QUILL_ENABLE_TIME_TRACE OFF)
+  # The vendored subtree declares cmake_minimum_required(VERSION
+  # 3.12...4.0), below CMP0077's 3.13 introduction: without the default,
+  # upstream's option() calls clear the values above and the pins
+  # silently evaporate, the same trap the yaml-cpp bracket documents.
+  set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+  # R-004: upstream force-writes the global CMAKE_BUILD_TYPE cache
+  # variable to Release when none is set. CMAKE_BUILD_TYPE is global
+  # rather than directory-scoped, so a configuration without one would
+  # silently become an optimized build. Every preset sets it, which
+  # makes the line inert today and inert-until-remembered otherwise.
+  # Capture it and fail loudly if it moves. Re-setting it here would
+  # hide the symptom and lose the report.
+  set(_quill_build_type_before "${CMAKE_BUILD_TYPE}")
+  add_subdirectory(
+      external/quill "${CMAKE_BINARY_DIR}/_quill" EXCLUDE_FROM_ALL
+  )
+  if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "${_quill_build_type_before}")
+    message(
+        FATAL_ERROR
+        "vendored quill changed CMAKE_BUILD_TYPE from "
+        "'${_quill_build_type_before}' to '${CMAKE_BUILD_TYPE}'; the "
+        "presets are the authority and must stay outside a "
+        "dependency's bracket (FR-012, specs/009 R-004)"
+    )
+  endif()
+  # FR-010a: the gate compiles quill's headers with -isystem, so header
+  # diagnostics stay out of the strict set while the gate's own lines
+  # stay gated. The property goes on the real target: quill::quill is an
+  # ALIAS and CMake rejects set_target_properties on one.
+  get_target_property(_quill_inc quill INTERFACE_INCLUDE_DIRECTORIES)
+  set_target_properties(
+      quill PROPERTIES
+      INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_quill_inc}"
+  )
+endfunction()
+
+import_quill()
+
+# The gate TU is the only TU that includes a quill header (FR-014). It
+# holds the compile-time version tripwire and nothing else: quill
+# defines every symbol it declares in the same unit that declares it,
+# so a symbol reference emits the whole inline call graph as weak
+# definitions and produces no undefined reference for an archive proof
+# to find. Measured, that reference costs roughly 600 KB at -O2 and
+# 2.7 MB at -O0 of never-called code in the shipped archive, against
+# roughly 4 KB for the version constants alone (FR-008, SC-009a, R-008,
+# R-009). The dependency is proven at run time instead, by the
+# quill_dependency_check test. No vendored archive is merged here
+# because quill compiles none (R-007).
+target_sources(speedgun-ng_speedgun-ng PRIVATE source/quill/quill_gate.cpp)
+target_link_libraries(
+    speedgun-ng_speedgun-ng PRIVATE $<BUILD_INTERFACE:quill::quill>
+)
+
 # Static builds merge the three vendored archives into
 # libspeedgun-ng.a beside the simdjson merge: the module steps
 # compose, each rebuilding the archive from the target's current

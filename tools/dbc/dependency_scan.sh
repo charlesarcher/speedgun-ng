@@ -122,6 +122,10 @@ for entry in "${candidates[@]}"; do
     class="vendored-private"
     note="specs/006 FR-004/FR-007: PRIVATE link of the merged vendored archive; the installed library ships zero external runtime deps (privacy contract A2/A3/A6)"
     vendored_private=$((vendored_private + 1))
+  elif echo "$text" | grep -q 'quill'; then
+    class="vendored-private"
+    note="specs/009 FR-008: PRIVATE BUILD_INTERFACE link of the header-only interface target; no vendored archive exists to merge, and the run-time proof is the quill_dependency_check test (privacy contract A2/A3/A6)"
+    vendored_private=$((vendored_private + 1))
   elif echo "$text" | grep -q 'speedgun-ng_speedgun-ng'; then
     class="library-runtime"
     note="external target_link_libraries on library target"
