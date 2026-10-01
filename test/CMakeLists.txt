@@ -99,6 +99,29 @@ add_test(NAME zlib_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/zl
 add_test(NAME yaml_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/yaml/yaml_purity_scan.sh ${CMAKE_SOURCE_DIR})
 add_test(NAME yaml_nm_proof COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/yaml/yaml_nm_proof.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 
+# quill proofs (feature 009-vendor-quill; FR-005/FR-008/FR-008a/FR-014,
+# SC-008/SC-009, privacy contract A6/A7/A8).
+#
+# The runnable check replaces the nm symbol-isolation proof the five
+# compiled dependencies carry, and it is deliberately not named
+# *_nm_proof. quill is header-only: it compiles no target, so no archive
+# is merged, and every symbol it declares is defined as a weak symbol in
+# the same translation unit that declares it, leaving zero undefined
+# symbols for an archive scan to find (specs/009 research R-007, R-008).
+# Naming a runnable check *_nm_proof would assert an archive scan that
+# cannot exist here. The check links the library and quill, drives a real
+# counter, emits its value, and asserts the value reached the log, which
+# is the only available proof for a header-only dependency.
+add_executable(quill_dependency_check ../tools/quill/quill_dependency_check.cpp)
+target_link_libraries(
+  quill_dependency_check PRIVATE speedgun-ng_speedgun-ng quill::quill
+)
+add_test(NAME quill_dependency_check COMMAND quill_dependency_check)
+
+# Purity scan uses the same pure-grep-script registration pattern as the
+# five existing pairs (specs/009 T013/T014).
+add_test(NAME quill_purity_scan COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/quill/quill_purity_scan.sh ${CMAKE_SOURCE_DIR})
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # The following two tests are registered for tasks T010/T012 (parallel);
   # the scripts are not present yet and these tests are not executed here.
