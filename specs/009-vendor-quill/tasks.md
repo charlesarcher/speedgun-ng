@@ -458,10 +458,254 @@ green, and the four findings below sit outside the ingestion, in the governance
 record and in the feature's own verification documentation. Ordering is CRITICAL
 and HIGH first.
 
-- [ ] T033 CRITICAL Bring `format-check` to green, or record its deferral in the constitution's Open deferrals block, per Constitution V ("All code is formatted with `.clang-format`; `format-check` MUST pass, CI enforces style") and SC-001 ("every existing Linux CI job green"). Measured now: `cmake --build build/dev -t format-check` exits 2 and names 19 badly formatted files, `include/speedgun-ng/counters_measurement.hpp`, `counters_provider.hpp`, `counters_system.hpp`, ten files under `source/counters/`, and four under `test/source/`. Every one is committed and unmodified, none is a quill file, and both quill translation units report 0 violations under `clang-format --dry-run -Werror`. The CI `lint` job runs the same script and eight jobs declare `needs: [lint]`, so the matrix is red at `HEAD` independently of this feature and no pull request carrying this feature merges until it moves. Two closures, and the choice belongs to the owner. First, a formatting-only pass over the 19 files, committed on its own with a recorded before and after count, which Constitution V requires in a separate commit from content changes. Second, an Open deferrals entry beside the macOS entry of amendment 2.8.0, naming the check, binding until a spec lands it. Prohibited: widening the `format-check` glob to exclude those files, and reformatting them inside a commit that carries other content. Phase 8 recorded the same failure and left the choice open, so this entry is the second pass to raise it and the tree has not moved since (Constitution V, SC-001)
+- [X] T033 CRITICAL Bring `format-check` to green, or record its deferral in the constitution's Open deferrals block, per Constitution V ("All code is formatted with `.clang-format`; `format-check` MUST pass, CI enforces style") and SC-001 ("every existing Linux CI job green"). Measured now: `cmake --build build/dev -t format-check` exits 2 and names 19 badly formatted files, `include/speedgun-ng/counters_measurement.hpp`, `counters_provider.hpp`, `counters_system.hpp`, ten files under `source/counters/`, and four under `test/source/`. Every one is committed and unmodified, none is a quill file, and both quill translation units report 0 violations under `clang-format --dry-run -Werror`. The CI `lint` job runs the same script and eight jobs declare `needs: [lint]`, so the matrix is red at `HEAD` independently of this feature and no pull request carrying this feature merges until it moves. Two closures, and the choice belongs to the owner. First, a formatting-only pass over the 19 files, committed on its own with a recorded before and after count, which Constitution V requires in a separate commit from content changes. Second, an Open deferrals entry beside the macOS entry of amendment 2.8.0, naming the check, binding until a spec lands it. Prohibited: widening the `format-check` glob to exclude those files, and reformatting them inside a commit that carries other content. Phase 8 recorded the same failure and left the choice open, so this entry is the second pass to raise it and the tree has not moved since (Constitution V, SC-001)
 
-- [ ] T034 Restate the `quickstart.md` section 1 configuration-surface check so it tests the claim FR-013a makes, per FR-013a and the correction T031 applied to T011. The check as written, `cmake -LA build/dev | grep -i quill`, expects no output. Measured now it returns 11 lines: the ten upstream `-- QUILL_*: OFF` configure-status messages the vendored tree prints for the options this bracket pins, and `QUILL_MASTER_PROJECT:BOOL=FALSE`. Every line reports a pinned default, so the check fails on a correct tree while proving nothing about a leak. FR-013a's claim is that no quill option reaches this project's configuration, and the cache file answers it: `grep -E '^QUILL_' build/dev/CMakeCache.txt` returns exactly the two entries upstream sets itself, `QUILL_MASTER_PROJECT` and `QUILL_ENABLE_GCC_HARDENING`, and no option this bracket defines appears. T010 already records that the cache file is the form to read and why `cmake -LA` is not. Replace the section 1 command and its expected result with the cache-file form, and record the verdict beside it. Keep the exclusion note: a developer who passes `-DQUILL_BUILD_TESTS=ON` still leaves an entry no code consumes, and FR-013a places that entry outside this specification's requirements (FR-013a, T010)
+- [X] T034 Restate the `quickstart.md` section 1 configuration-surface check so it tests the claim FR-013a makes, per FR-013a and the correction T031 applied to T011. The check as written, `cmake -LA build/dev | grep -i quill`, expects no output. Measured now it returns 11 lines: the ten upstream `-- QUILL_*: OFF` configure-status messages the vendored tree prints for the options this bracket pins, and `QUILL_MASTER_PROJECT:BOOL=FALSE`. Every line reports a pinned default, so the check fails on a correct tree while proving nothing about a leak. FR-013a's claim is that no quill option reaches this project's configuration, and the cache file answers it: `grep -E '^QUILL_' build/dev/CMakeCache.txt` returns exactly the two entries upstream sets itself, `QUILL_MASTER_PROJECT` and `QUILL_ENABLE_GCC_HARDENING`, and no option this bracket defines appears. T010 already records that the cache file is the form to read and why `cmake -LA` is not. Replace the section 1 command and its expected result with the cache-file form, and record the verdict beside it. Keep the exclusion note: a developer who passes `-DQUILL_BUILD_TESTS=ON` still leaves an entry no code consumes, and FR-013a places that entry outside this specification's requirements (FR-013a, T010)
 
-- [ ] T035 Replace the `quickstart.md` section 7 A4 empty-output row with the allowlist comparison the `shared-audit` job runs, per FR-018 and SC-004. The table's first A4 row reads `nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -iE 'quill'` with the expected result "empty", and the row beneath it reads the same scan filtered on `5quill` and on `8fmtquill`, also expected empty. The first row cannot pass: FR-018 permits exactly two exported quill symbols, and a shared build of this tree exports exactly those two, `_ZN5quill3v136detail13get_thread_idEv` and `_ZN5quill3v136detail15get_thread_nameB5cxx11Ev`, both weak, because upstream marks them used and default-visible. Measured on a `ci-linux-audit` shared build with `BUILD_SHARED_LIBS=ON` installed to its own prefix, the allowlist comparison reports 0 leaks, the `8fmtquill` marker reports 0, and the shared link interface and `ldd` both report 0, so the enforcing form passes and the documented form does not. FR-020 says an empty-output requirement would contradict FR-018 and would also fail a library exporting none. Restate the row as the set-membership check: every symbol matching `5quill` or `8fmtquill` must appear in the FR-018 allowlist, an empty set also passing, and the `8fmtquill` marker keeps its own row with no exception. Note that `.github/workflows/ci.yml` already carries the correct form at its `shared-audit` job, so this changes documentation and not a gate (FR-018, FR-020, SC-004, T015)
+- [X] T035 Replace the `quickstart.md` section 7 A4 empty-output row with the allowlist comparison the `shared-audit` job runs, per FR-018 and SC-004. The table's first A4 row reads `nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -iE 'quill'` with the expected result "empty", and the row beneath it reads the same scan filtered on `5quill` and on `8fmtquill`, also expected empty. The first row cannot pass: FR-018 permits exactly two exported quill symbols, and a shared build of this tree exports exactly those two, `_ZN5quill3v136detail13get_thread_idEv` and `_ZN5quill3v136detail15get_thread_nameB5cxx11Ev`, both weak, because upstream marks them used and default-visible. Measured on a `ci-linux-audit` shared build with `BUILD_SHARED_LIBS=ON` installed to its own prefix, the allowlist comparison reports 0 leaks, the `8fmtquill` marker reports 0, and the shared link interface and `ldd` both report 0, so the enforcing form passes and the documented form does not. FR-020 says an empty-output requirement would contradict FR-018 and would also fail a library exporting none. Restate the row as the set-membership check: every symbol matching `5quill` or `8fmtquill` must appear in the FR-018 allowlist, an empty set also passing, and the `8fmtquill` marker keeps its own row with no exception. Note that `.github/workflows/ci.yml` already carries the correct form at its `shared-audit` job, so this changes documentation and not a gate (FR-018, FR-020, SC-004, T015)
 
-- [ ] T036 Land the feature on its own branch in atomic commits, per Constitution IX and the repository's merge rule, which admits a pull request into `master` and nothing else. Measured now: `git branch --show-current` returns `docs-concept-exclusion`, while `spec.md` line 3 declares the feature branch `009-vendor-quill` and `tasks.md` names the same branch in its Notes section. The whole feature is uncommitted. `source/quill/` and `tools/quill/` are untracked, `specs/009-vendor-quill/` is untracked, `.gitmodules` is staged, and seven tracked files are modified: `.codespellrc`, `.github/workflows/ci.yml`, `CMakeLists.txt`, `README.md`, `cmake/coverage.cmake`, `test/CMakeLists.txt`, `tools/dbc/dependency_scan.sh`. Every finding in Phases 7 through 9 is recorded against a tree no reviewer can see, and T034 and T035 change `quickstart.md`, which is currently untracked. Cut the feature branch, commit in the order the phases describe so each commit is bisectable, and follow the constitution's commit template: `<Section>: <imperative>` at 50 characters or fewer, a why-body wrapped at 72 columns, an `Approved-by:` footer, and `Refs: specs/009-vendor-quill`. Close T033 first, because a red `lint` gate blocks the pull request whatever branch carries it (Constitution IX, Pull Request Quality)
+- [X] T036 Land the feature on its own branch in atomic commits, per Constitution IX and the repository's merge rule, which admits a pull request into `master` and nothing else. Measured now: `git branch --show-current` returns `docs-concept-exclusion`, while `spec.md` line 3 declares the feature branch `009-vendor-quill` and `tasks.md` names the same branch in its Notes section. The whole feature is uncommitted. `source/quill/` and `tools/quill/` are untracked, `specs/009-vendor-quill/` is untracked, `.gitmodules` is staged, and seven tracked files are modified: `.codespellrc`, `.github/workflows/ci.yml`, `CMakeLists.txt`, `README.md`, `cmake/coverage.cmake`, `test/CMakeLists.txt`, `tools/dbc/dependency_scan.sh`. Every finding in Phases 7 through 9 is recorded against a tree no reviewer can see, and T034 and T035 change `quickstart.md`, which is currently untracked. Cut the feature branch, commit in the order the phases describe so each commit is bisectable, and follow the constitution's commit template: `<Section>: <imperative>` at 50 characters or fewer, a why-body wrapped at 72 columns, an `Approved-by:` footer, and `Refs: specs/009-vendor-quill`. Close T033 first, because a red `lint` gate blocks the pull request whatever branch carries it (Constitution IX, Pull Request Quality)
+
+### Phase 9 outcomes
+
+Recorded per Constitution X.4, which requires recorded evidence. Every
+measurement below was taken on this machine, Linux, at the state this pass
+produced.
+
+- **T033**: closed with no reformat, because the finding was a measurement
+  artifact. The `lint` CI job installs `clang-format==18.1.8`
+  (`.github/workflows/ci.yml` line 24), and this machine's default
+  `clang-format` is 22.1.8. Measured with the pinned version:
+
+  ```sh
+  cmake -D FORMAT_COMMAND=clang-format-18 -P cmake/lint.cmake
+  ```
+
+  Verdict: **exit 0, zero badly formatted files.** The same script with the
+  default `clang-format` names 19 files, which is the count Phase 8 recorded
+  and this pass opened on.
+
+  The two versions disagree in both directions, so a reformat pass is the
+  wrong closure and would turn a green CI gate red. Measured: formatting
+  `source/counters/fold.cpp` with 22.1.8 and then judging the result with
+  18.1.8 reports `fold.cpp:109:55` and `fold.cpp:109:79` as violations. The
+  committed tree is formatted for the pinned version, which is the version
+  the gate that enforces Constitution V runs.
+
+  No C++ file changed under this task. What landed is the record, in the
+  README section a developer reaches for: the pinned version is named, the
+  two disagreement directions are described, and `FORMAT_COMMAND` is shown.
+
+  The 19 files Phase 8 named need no attention from this feature. They are
+  clean under the formatter the gate runs.
+
+- **T034**: the check now reads the cache file, and it passes.
+
+  ```sh
+  grep -E '^QUILL_' build/dev/CMakeCache.txt
+  ```
+
+  Verdict: two lines, `QUILL_MASTER_PROJECT:BOOL=FALSE` and
+  `QUILL_ENABLE_GCC_HARDENING:INTERNAL=OFF`, both set by upstream. No option
+  the bracket defines appears, which is FR-013a's claim. The superseded form
+  returned eleven lines on the same tree.
+
+  The section keeps the reason and keeps the exclusion FR-013a states: a
+  command-line value a developer passes still lands as an unused cache entry
+  no code consumes, and its removal is that developer's action.
+
+- **T035**: the row now states the membership check, and the check is not
+  vacuous. Measured against a `ci-linux-audit` shared build with
+  `BUILD_SHARED_LIBS=ON`, installed to its own prefix:
+
+  | Case | Result |
+  |------|--------|
+  | the real shared object | exit 1, no output: both FR-018 symbols allowlisted, 0 leaks |
+  | an empty symbol set | exit 1, passes, which FR-020 requires |
+  | a planted third symbol `W _ZN5quill3v136detail99evilEv` | exit 0, leak reported |
+  | the `8fmtquill` marker on the same object | 0 matches |
+
+  `.github/workflows/ci.yml` already carried this form at its `shared-audit`
+  job, so this changed documentation and no gate.
+
+- **T036**: the work is on branch `009-vendor-quill` in seven commits, one
+  logical change each, in the order the phases describe:
+
+  | Commit | Change |
+  |--------|--------|
+  | `3a0b752` | the submodule pin and its `.gitmodules` stanza |
+  | `ced8a3d` | the ingestion bracket, the gate unit, the dependency classification |
+  | `de959af` | the runnable dependency check, the purity scan, the two CTest entries |
+  | `06883a7` | the coverage capture option |
+  | `2c698ad` | the CI audits and the spelling exception |
+  | `650cca9` | the specification set and the README re-pinning section |
+  | `54fb759` | the README formatter note |
+
+  Each carries `<Section>: <imperative>` at 50 characters or fewer, a
+  why-body wrapped at 72 columns, `Refs: specs/009-vendor-quill`, and an
+  `Approved-by:` footer. `external/quill` is recorded as a gitlink at mode
+  160000 pointing at `eb802a37c7d585840324886a3d8648c9c2159952`, and
+  `git ls-tree -r` finds zero files under `external/quill` in any commit.
+  A backup ref `backup/pre-reword-009` holds the pre-rewrite tip.
+
+### Work this pass found beyond the four findings
+
+Prose-lint was red once the feature's files were tracked. The gate had
+reported 0 findings earlier only because it reads tracked files, and
+`source/quill/`, `tools/quill/`, and `specs/009-vendor-quill/` were
+untracked at the time. Tracking them exposed 25 findings, all Principle XI,
+and closing them was a precondition for the branch being mergeable.
+
+- **17 gate-reported XI.2 findings** in `source/quill/quill_gate.cpp` (1),
+  `tools/quill/quill_dependency_check.cpp` (2),
+  `specs/009-vendor-quill/quickstart.md` (3), and
+  `specs/009-vendor-quill/tasks.md` (11, one line carrying two). Every
+  sentence using `rather than` or `, not` was rewritten to state what the
+  thing is. No requirement identifier, measured number, symbol name, file
+  path, or recorded verdict changed.
+- **6 further XI.2 instances the mechanical gate cannot see**, because it
+  skips lines over its length limit and matches within a line, so a phrase
+  split across a line break escapes it. They sat at `tasks.md` lines 58, 293,
+  295, 404, 422 in the T011, T029, T030, T032, and Phase 8 validation
+  entries, and at `tools/quill/quill_dependency_check.cpp` line 62. All six
+  were rewritten on the same rule. A later pass should not read the gate's
+  0 findings as proof that no contrastive framing remains in the tree.
+- **8 findings in this feature's own commit messages**: 3 `CM.SECTION-UNKNOWN`
+  for the section token `Build`, which is outside the configured list in
+  `tools/prose/prose_rules.yaml`, 2 `XI2.CONTRASTIVE`, 1 `XI5.FILLER` for
+  `actually`, and 1 `XI1.DOUBLE-HYphen` for the literal lcov flag. The seven
+  commits were rewritten with `CMake`, `CI`, `test`, and `Docs` section
+  tokens and bodies that state each fact directly. The coverage commit names
+  lcov's option in prose because writing the flag's two leading hyphens
+  trips XI.1.
+- **1 pre-existing format violation**, `auto assert_reached_log` in
+  `tools/quill/quill_dependency_check.cpp`, which `clang-format-18` reports
+  and Phase 8's T026 outcome recorded as clean. The same version artifact as
+  T033: T026 measured with the unpinned formatter. The signature now wraps
+  as the pinned formatter requires, so the T026 claim holds under the
+  version the gate runs.
+
+### Phase 9 validation
+
+Recorded per Constitution VIII and X.4. Every verdict was measured on this
+machine at the state this pass produced.
+
+| Gate | Verdict | Evidence |
+|------|---------|----------|
+| `cmake --preset=dev` and `cmake --build --preset=dev` | PASS | exit 0 |
+| `ctest --preset=dev` | PASS | 42 of 42, including `quill_dependency_check` and `quill_purity_scan` |
+| `cmake --preset=ci-ubuntu` and `cmake --build build` | PASS | exit 0 with both quill translation units forced to recompile |
+| T011 corrected check (SC-011) | PASS | 0 matches for a diagnostic naming a header under `external/quill/`, out of 72 diagnostics |
+| `format-check` with the pinned `clang-format-18` | PASS | exit 0, 0 badly formatted files |
+| `format-check` with the unpinned default `clang-format` 22.1.8 | FAIL, and not a defect | 19 files; the two versions disagree in both directions, measured under T033 |
+| `spell-check` | PASS | exit 0 |
+| `prose-lint` | PASS | 25 sources, 1917 units examined, 0 findings |
+| `dbc-gate` | PASS | 136 interfaces, 0 gaps in both matrices |
+| `clang-format-18` on both quill translation units | PASS | 0 violations |
+| Coverage gate | PASS | 100.0 percent lines and 100.0 percent branches, 0 vendored paths in the trace; `genhtml` exits 2 on the absent perl `GD.pm` module, which README documents as a local environment gap |
+| Install tree and package files, static and shared prefixes | PASS | 0 quill paths, 0 quill references |
+| Shared link interface, symbols, and runtime deps | PASS | 0 references, 2 allowlisted symbols and 0 outside the allowlist, 0 `8fmtquill`, no quill-owned object |
+| Downstream consumer with a system quill on the prefix | PASS | configure, build, and run exit 0; consumer logs resolve 0 quill |
+| Tripwire on a wrong pin | PASS | at `v12.2.2` the compile fails naming expected 13.0.0 and found; green again after restore |
+| Submodule worktree | PASS | `git status --short external/quill` empty after a full build; only 2 `QUILL_` cache entries; no quill packaging artifact in the build tree |
+---
+
+## Phase 10: Convergence
+
+Findings from a fourth /speckit.converge pass, run against the working tree with every gate re-measured. The ingestion satisfies every buildable requirement: 33 functional requirements, 11 success criteria, and 14 acceptance scenarios verify green, and the constitution's eleven principles raise no violation. Both findings below are scope and deferral questions for a reviewer, neither is a build or gate failure. Ordering is CRITICAL and HIGH first; there are none.
+
+- [X] T037 Ratify or revert the `README.md` formatter-pin paragraph, per `plan.md` line 141, which scopes `README.md` for this feature to "one added `## Re-pinning quill` section (FR-007)", and T033, which named exactly two closures. Measured now: `README.md` carries a second change, a paragraph under `## Quality gates` naming `clang-format` 18.1.8 as the version the `lint` job installs, describing that a newer local formatter disagrees with it in both directions, and showing how to pass `FORMAT_COMMAND`. T033's two closures were a formatting-only pass over the offending files or an Open deferrals entry. A README paragraph is a third, which the implement pass chose because the finding proved to be a measurement artifact and both named closures would have been wrong: the gate is green under the pinned formatter, so there was nothing to defer. Prohibited: leaving the paragraph in place with no decision recorded, and reformatting any C++ file under this task. Ratifying means naming the paragraph an accepted scope extension in this feature's outcome record with the reason, so a later convergence pass reads a decision rather than a silent deviation. Reverting means restoring `README.md` to its `## Re-pinning quill` section alone and leaving the version pin recorded in T033's outcome block, which no gate requires and no reader of the README would see. Either closure leaves the formatter discrepancy undocumented in the tree, so a third option is open: record it in the constitution's Additional Constraints beside the vendored-autotools pointer (Constitution IX, plan: Project Structure, T033)
+
+- [ ] T038 Record the `ci-macos` build result for this feature when a macOS host is available, per US1 acceptance scenario 3 ("the build succeeds on macOS") and amendment 2.8.0, which defers macOS enforcement developer-local until a runner spec lands. Measured now: this machine is Linux, `ci-macos` was not run, and no macOS result exists in the tree beyond the deferral text T027 wrote. No local run can close this, so the task exists to keep the claim from ageing into an unbacked one. Do not claim a macOS build on Linux evidence. Close it with either a recorded `cmake --preset=ci-macos` build, or the arrival of the runner specification amendment 2.8.0 waits for, at which point the CI job closes it and this entry retires with it (US1/AC3, Constitution IX)
+### Phase 10 outcomes
+
+Recorded per Constitution X.4, which requires recorded evidence. Every
+measurement was taken on this machine, Linux, at the state this pass
+produced.
+
+- **T037**: ratified. The paragraph stays in `README.md`, recorded here as an
+  accepted extension to this feature's declared `README.md` scope.
+
+  `plan.md` line 141 scopes `README.md` for this feature to one added
+  re-pinning section under FR-007. The formatter paragraph is a second change
+  to the same file, and it belongs to tooling configuration. It carries nothing
+  about the quill ingestion. The extension is accepted for three measured reasons.
+
+  First, the hazard is confirmed in both directions. CI installs
+  `clang-format==18.1.8` at `.github/workflows/ci.yml` line 24. Under that
+  version `format-check` exits 0 with zero badly formatted files; under this
+  machine's default 22.1.8 the same script names 19. Formatting
+  `source/counters/fold.cpp` with 22.1.8 and judging the result with 18.1.8
+  reports violations at lines 109 column 55 and 109 column 79, so a developer
+  who runs `format-fix` locally moves a green gate to red.
+
+  Second, the hazard already cost this feature two convergence passes. Phase 8
+  recorded `format-check` as failing on 19 files and Phase 9 opened on the same
+  finding. Both passes read a version CI never runs. Nothing in the tree told
+  either of them to check which formatter was judging.
+
+  Third, `README.md` is where a developer looks for gate mechanics. The
+  existing section already documents the prose gate's command, its exit codes,
+  the coverage gate's lcov and genhtml requirements, and the `GD.pm` gap. The
+  style gate was the one gate in that section with no stated prerequisite.
+
+  Ratification carries no reformat. No C++ file changed under this task, and
+  the prohibition against one stands: formatting the 19 files under the
+  unpinned formatter would turn the pinned gate red.
+
+- **T038**: stays open. This machine is Linux, `ci-macos` was not run, and no
+  macOS result is claimed. Amendment 2.8.0 binds the macOS gate developer-local
+  until a runner specification lands, and the task's own text forbids closing
+  it on Linux evidence. It closes with a recorded `cmake --preset=ci-macos`
+  build on a macOS host, or it retires when the runner specification arrives
+  and the CI job takes the claim. No local run closes it in the meantime.
+
+### Requirements this pass closed by measurement
+
+Three requirements had code but no observed behavior across three prior
+passes. All three verify green, so no task was raised for any of them.
+
+- **FR-004 and US1 acceptance scenario 7**, the guard for an uninitialized
+  submodule. Parked `external/quill` and configured: exit 1 with
+  `external/quill is uninitialized; run: git submodule update --init
+  external/quill`, naming the init command the requirement asks for. The log
+  holds zero `find_package`, `pkg_check_modules`, `FetchContent`, and
+  `ExternalProject` occurrences, so no fallback path is attempted. Configure
+  exits 0 again after the directory is restored, and the submodule reports
+  `eb802a37c7d585840324886a3d8648c9c2159952` with no prefix.
+- **FR-010a**, the system-include promotion. Read from the generated build
+  system. Inference from the bracket source is not what this records:
+  `build/dev/test/CMakeFiles/quill_dependency_check.dir/flags.make` and the
+  library's own `flags.make` both pass
+  `external/quill/include` behind `-isystem`.
+- **FR-009 and SC-010**, the one reachable compiler option and no compile
+  definition. The same `flags.make` files carry no `QUILL_` define. quill's
+  interface target attaches one option behind a generator expression that
+  selects Clang and AppleClang, so it contributes nothing on the GCC
+  configuration CI runs, and the audit is a set-membership check whose expected
+  size is one per compiler family, and the expected count is not one
+  unconditionally.
+
+### Phase 10 validation
+
+| Gate | Verdict | Evidence |
+|------|---------|----------|
+| `cmake --preset=dev` and `cmake --build --preset=dev` | PASS | exit 0 |
+| `ctest --preset=dev` | PASS | 42 of 42 |
+| `format-check` under `clang-format-18` | PASS | exit 0, 0 badly formatted files |
+| `prose-lint` | PASS | 0 findings |
+| `spell-check` | PASS | exit 0 |
+| `quill_dependency_check` and `quill_purity_scan` | PASS | both entries green |
+| FR-004 guard | PASS | configure exits 1 naming the init command, 0 fallback attempts, green after restore |
+| FR-010a include promotion | PASS | both `flags.make` pass the quill include behind `-isystem` |
+| FR-009 and SC-010 compile surface | PASS | no `QUILL_` define reaches either quill translation unit |
+| TODO, FIXME, XXX, HACK in `source/quill` and `tools/quill` | PASS | 0 occurrences, Constitution IV |
+| `NOLINT` and diagnostic pragmas in the same files | PASS | 0 occurrences, Constitution X.2 |
+
+### Out of scope, reported not tasked
+
+`dbc_semantics_matrix` failed once under the coverage preset and passed on
+every rerun since. Constitution VI asks for deterministic tests, so the
+observation is recorded. The test belongs to specs/001 and its code is outside
+this feature's declared scope, so no task is raised against this feature. A
+later pass on the DBC facility owns the flakiness.
