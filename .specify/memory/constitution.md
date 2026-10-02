@@ -1,5 +1,65 @@
 <!--
-Sync Impact Report (2.10.0, MINOR): Principle VIII's static-analysis
+Sync Impact Report (2.11.0, MAJOR): Principle VIII's hard gate list and the
+Additional Constraints platform definition name Linux alone, and IX's
+per-feature release-build clause names the `ci-ubuntu` preset only. Linux is
+the platform the project builds, tests, and gates; macOS and Windows are
+unsupported and a future specification adds them.
+
+The obligation this removes is measured. At the 2.10.0 gate set every change
+had to build on developer and CI presets for Linux, macOS, and Windows. The
+matrix has never run a macOS or Windows runner: all eleven jobs run on
+`ubuntu-26.04`, one of them in a Rocky Linux container, and amendment 2.8.0
+already recorded the absent macOS runner as a deferral. The gate list
+therefore named two platforms no job has ever tested, which is a weaker claim
+than the project makes everywhere else.
+
+This report supersedes the effect of two earlier reports, and both stay in
+this file with their rows in the lineage table. Amendment 2.7.0 suspended the
+Windows MSVC preset-build gate for the vendored autotools lifetime, and
+amendment 2.8.0 recorded the macOS gate as developer-local until a runner
+specification lands. Both described a platform the project no longer claims.
+Their rows stay because the record that those gates were once suspended, and
+why, is worth keeping.
+
+Closing the Open deferrals entry for the macOS runner is what retires
+`specs/009-vendor-quill` T038, which asked for a macOS build result. T038
+closes by reference through this amendment and needs no edit to any merged
+file, so that feature's task file keeps it marked open and a reader there
+learns of the supersession from here.
+
+Five merged vendor specs stated, each as a Fixed decision, that Linux is the
+enforced gate, that macOS must keep building for developers, and that Windows
+stays possible by design: `specs/003-vendor-hwloc`,
+`specs/004-vendor-simdjson`, `specs/005-vendor-hdrhistogram`,
+`specs/006-vendor-yaml-cpp`, and `specs/009-vendor-quill`. Those statements
+were true when each spec shipped and stay true as records of what was decided
+then. This amendment supersedes them prospectively and none of the five is
+edited.
+
+The on-ramp for a future port, which is what makes this policy reversible by
+reading: re-add the platform preset, configure, build, and add a runner. The
+presets this amendment's scope removed from `CMakePresets.json` are
+`flags-appleclang`, `flags-msvc`, `ci-darwin`, `ci-win64`, `ci-macos`,
+`ci-windows`, and `ci-multi-config`, the last of which existed only to shorten
+Xcode and Visual Studio builds. Every per-platform block in the tree is
+untouched by this amendment and by the change that carries it: the `if(WIN32)`,
+`if(APPLE)`, `if(MSVC)`, and `if(UNIX)` branches in `CMakeLists.txt` and
+`cmake/`, every `_WIN32` preprocessor branch, and the Windows on-ramp abort in
+`cmake/ImportAutotoolsSubmodule.cmake` that names the upstream
+`contrib/windows-cmake/` wrapper. A port consumes those blocks as they stand.
+No sentence here claims a port is scheduled, funded, or planned.
+
+MAJOR because narrowing a NON-NEGOTIABLE principle's gate list withdraws an
+obligation, which Governance classifies as an incompatible principle removal
+and not as expanded guidance. No principle is added, removed, renamed, or
+renumbered. No gate, threshold, warning class, analyzer invocation, job, or
+dependency is added, removed, or weakened; the gate set's content is identical
+and only its platform enumeration narrows. Amendment history lives in the git
+log of this file.
+-->
+
+<!--
+Prior report (2.10.0, MINOR): Principle VIII's static-analysis
 clause states that the gate reports and names where a reader collects
 the report, and the report records the measurement behind that
 statement. Both analyzers already ran in the `test` job: the job
@@ -85,12 +145,6 @@ change per the Editing contract.
 Open deferrals, binding until a spec lands them:
 - Principle VII baseline infrastructure absent; VII mandates it, a
   future spec delivers it.
-- Principle VIII macOS enforcement: the CI matrix carries no macOS
-  runner; the macOS preset-build gate is enforced developer-local.
-  The `ci-macos` preset stays usable, every macOS claim needs
-  recorded developer evidence, and a future spec lands the runner to
-  end the deferral (specs/004 T019 and specs/005 T024 stay open
-  under it).
 - DCR and P2 exception label conventions: project policy, tracked in
   the issue tracker.
 -->
@@ -255,15 +309,15 @@ the canonical location given there.
 
 Every change passes all of the following; each is hard.
 
-- Builds succeed for developer and CI presets on Linux (GCC/Clang), macOS
-  (AppleClang), Windows (MSVC). Build tooling is decoupled from the OS
-  target; CI artifacts are re-creable interactively with the same presets.
-  Windows (MSVC) conformance is suspended from 2026-09-21 for the lifetime
-  of the vendored autotools ingestion (specs/003-vendor-hwloc): the
-  ingestion module aborts Windows configuration naming the upstream
-  `contrib/windows-cmake/` on-ramp, the port stays additive through the
-  module's per-platform blocks (R-014), and landing that port reinstates
-  this gate.
+- Builds succeed for developer and CI presets on Linux (GCC/Clang). Build
+  tooling is decoupled from the OS target; CI artifacts are re-creable
+  interactively with the same presets. Linux is the supported platform:
+  macOS and Windows are unsupported, and a future specification adds a
+  platform. An upstream port landing does not reinstate this gate. The
+  per-platform blocks that a port consumes are untouched, including the
+  ingestion module's Windows abort naming the upstream
+  `contrib/windows-cmake/` on-ramp (specs/003-vendor-hwloc R-014,
+  cmake/ImportAutotoolsSubmodule.cmake), so landing a port is additive.
 - All tests pass (`ctest`).
 - Sanitizer-clean: ASan/UBSan (`ci-sanitize`) report no errors.
 - Static-analysis-clean: clang-tidy and cppcheck (per `CMakePresets.json`)
@@ -312,10 +366,9 @@ workflow runs before code is written. It executes R-DCUT (III):
   tests in `test/`, registered with CTest; every task is verified (build plus
   `ctest --preset=dev`) before the next. That loop builds unoptimized, so it
   cannot report a finding an optimizer's analysis produces; each feature MUST
-  therefore also be built once in its own platform's release preset
-  (`cmake --preset=ci-ubuntu`, then `cmake --build build` on Linux;
-  `cmake --preset=ci-macos` on macOS; `cmake --preset=ci-windows` on Windows
-  where that gate is reinstated) before its tasks are called done. A task
+  therefore also be built once in its release preset
+  (`cmake --preset=ci-ubuntu`, then `cmake --build build`) before its tasks
+  are called done. A task
   closed only against the unoptimized build stays open.
 - A feature going through the workflow MUST produce all four artifacts; a
   missing artifact is a failed feature.
@@ -580,14 +633,12 @@ Weak requirement language stays banned in EARS statements per III: "should",
 
 ## Additional Constraints
 
-- **Language:** C++23 only (`CMAKE_CXX_EXTENSIONS=OFF`). The CI matrix (Linux
-  GCC/Clang, macOS AppleClang, Windows MSVC) defines supported platforms; new
-  code must not break any. Windows MSVC build conformance is suspended per
-  Principle VIII (amendment 2.7.0) while the vendored autotools dependency is
-  in the tree.
-- **Warnings and hardening:** the strict warning sets in `CMakePresets.json`
-  (`-Wall -Wextra -Wpedantic -Wconversion -Wshadow -Wold-style-cast` family;
-  `/W4 /permissive-` on MSVC) are preserved, as are the security-hardening
+- **Language:** C++23 only (`CMAKE_CXX_EXTENSIONS=OFF`). Linux on GCC and Clang
+  is the supported platform, and new code must not break it. macOS and Windows
+  are unsupported; a future specification adds one.
+- **Warnings and hardening:** the strict warning set in `CMakePresets.json`
+  (`-Wall -Wextra -Wpedantic -Wconversion -Wshadow -Wold-style-cast`) is
+  preserved, as are the security-hardening
   flags (stack protector, control-flow protection, fortified Release builds,
   hardened linker flags).
 - **Library-first:** functionality lives in the `speedgun-ng` library. Public
@@ -626,6 +677,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.11.0 | 2026-10-02 | supported platform narrowed to Linux; gate list, platform definition, and release-build clause name it alone; 2.7.0 Windows suspension and 2.8.0 macOS deferral superseded, both reports retained; macOS Open deferral closed, retiring specs/009 T038; five merged vendor specs superseded by name and left unedited |
 | 2.10.0 | 2026-09-28 | VIII static-analysis clause states the gate reports and names the step a reader collects the report from |
 | 2.9.1 | 2026-09-27 | IX per-feature release build names the preset per platform |
 | 2.9.0 | 2026-09-27 | IX per-task verification adds a release-configuration build once per feature; an unoptimized build cannot report an optimizer-backed finding |
@@ -642,4 +694,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.10.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-09-28
+**Version**: 2.11.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-02
