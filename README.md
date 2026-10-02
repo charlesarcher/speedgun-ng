@@ -14,6 +14,11 @@ army.
 
 ## Build
 
+speedgun-ng builds on Linux. Linux is the supported platform, on the
+distribution families the CI jobs cover: Ubuntu for the main jobs and Rocky
+Linux for the container job. macOS and Windows are unsupported, and no build
+is offered for either. A future specification may add a platform.
+
 ```sh
 cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
 cmake --build build
@@ -77,8 +82,6 @@ and patch:
 sudo apt-get install autoconf automake libtool patch
 # RPM-family
 sudo dnf install autoconf automake libtool patch
-# macOS: BSD patch ships with the OS
-brew install autoconf automake libtool
 ```
 
 ## Re-pinning simdjson

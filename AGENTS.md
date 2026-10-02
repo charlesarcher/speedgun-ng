@@ -40,16 +40,18 @@ configuration may not.
 ## Build, test, verify
 
 `cmake --preset=dev` then `cmake --build --preset=dev` then
-`ctest --preset=dev`. Once per feature, also build the platform's own
-release preset: `cmake --preset=ci-ubuntu` then `cmake --build build` on
-Linux, `cmake --preset=ci-macos` on macOS, and `cmake --preset=ci-windows`
-on Windows. The dev preset builds unoptimized, and an unoptimized build
+`ctest --preset=dev`. Once per feature, also build the release preset:
+`cmake --preset=ci-ubuntu` then `cmake --build build`. The dev preset builds unoptimized, and an unoptimized build
 cannot report a finding an optimizer's analysis produces.
 `CMakeUserPresets.json` is machine-local and never committed.
 
+Linux is the supported platform: `ci-ubuntu` on Ubuntu and `ci-rocky` on Rocky
+Linux are the release presets. macOS and Windows are unsupported. A future
+specification adds a platform, and a specification is what it adds.
+
 A finished change clears every hard gate in Principle VIII and keeps the CI
-matrix green: Linux (clang-tidy, cppcheck), macOS, Windows, sanitizers,
-coverage.
+matrix green: Linux on GCC and Clang (clang-tidy, cppcheck), plus sanitizers
+and coverage.
 
 ## Commits and merging
 
