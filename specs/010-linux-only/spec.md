@@ -114,7 +114,7 @@ The five merged vendor specs keep their original platform text, and a reader who
 
 Governance:
 
-- **FR-001**: The constitution's hard gate list shall name Linux as the platform set builds succeed on, and shall enumerate no other platform.
+- **FR-001**: The constitution's hard gate list shall name Linux as the platform set builds succeed on, and shall enumerate no other platform. Its Windows-suspension sentence, which reinstates the gate when an upstream port lands, shall be replaced: a future specification adds a platform, and landing an upstream port is not what restores one.
 - **FR-002**: The constitution's supported-platform definition shall name Linux alone.
 - **FR-003**: The constitution's per-feature release-build clause shall name the Linux release preset only, and shall not name a preset for an unsupported platform.
 - **FR-004**: The constitution's Open deferrals block shall carry no macOS-runner entry. Closing it is what retires `specs/009-vendor-quill` T038, which asks for a macOS build result.
@@ -126,21 +126,24 @@ Governance:
 Presets and scripts:
 
 - **FR-009**: `CMakePresets.json` shall carry no preset naming macOS, Windows, Xcode, Visual Studio, AppleClang, or MSVC. This covers `ci-macos`, `ci-windows`, `ci-darwin`, `ci-win64`, `flags-appleclang`, `flags-msvc`, and `ci-multi-config`.
-- **FR-010**: Removing those presets shall leave every remaining preset valid: no remaining preset shall inherit a removed preset, and every configure and build preset a Linux developer is told to run shall resolve.
+- **FR-010**: Removing those presets shall leave every remaining preset valid. No surviving preset shall name a removed preset in its `inherits` array or pull one in through an `include` array, and every surviving preset shall resolve. The check covers all fifteen surviving configure presets and the single build preset, and it covers the six presets the CI jobs use by name.
 - **FR-011**: No CI job shall be added, removed, or changed. The CI matrix is already Linux-only, and this feature must not disturb it. The job count is the observable.
 
 Documentation:
 
 - **FR-012**: `README.md` shall state that Linux is the supported platform, and shall tell a macOS or Windows reader that no build is offered.
 - **FR-013**: `README.md`'s vendored-autotools bootstrap section shall carry the Debian-family and RPM-family instructions and shall no longer instruct a reader to install the toolchain with a macOS package manager.
+- **FR-013a**: The vendored-autotools module's own diagnostics shall state Linux as the supported platform. Its unsupported-platform abort and its Windows-abort shall read "Linux" alone where they read "Linux and macOS", and each shall keep the sentence naming the upstream `contrib/windows-cmake/` on-ramp, because that sentence is the port's entry point. Its missing-host-tools abort shall carry the Debian-family and RPM-family lines and shall drop the macOS line. Its header comment listing the package sets it handles shall drop the macOS package manager.
 - **FR-014**: `AGENTS.md` shall name Linux presets only in its build, test, and verify instructions, and its CI matrix line shall name no unsupported platform.
-- **FR-015**: No document outside `specs/` and `external/` shall state that macOS or Windows is supported. The audit pattern is the case-insensitive pair `macos|windows|msvc|appleclang` over `README.md`, `AGENTS.md`, `.github/workflows/`, `cmake/`, `tools/`, and `CMakePresets.json`, each hit reported with its path and line for a human to judge, since some hits are the on-ramp records this feature is required to write.
+- **FR-015**: No file outside `specs/`, `external/`, and `build/` shall state that macOS or Windows is supported. The audit pattern is case-insensitive over `macos`, `osx`, `apple`, `darwin`, `xcode`, `windows`, `win32`, `msvc`, `appleclang`, `mingw`, `msys`, `homebrew`, and `brew install`, run over `README.md`, `AGENTS.md`, `CMakeLists.txt`, `CMakePresets.json`, `.codespellrc`, `.github/workflows/`, `cmake/`, `tools/`, `test/`, `example/`, `docs/`, `include/`, and `source/`. Every hit is reported with its path and line and classified into one of four buckets: a live claim that changes, a per-platform seam that is preserved, a merged historical record, or third-party tooling. The pattern is wide because the narrower set missed three runtime diagnostics; `darwin`, `win32`, `xcode`, `homebrew`, and `brew install` each appear at a site a narrower pattern would have passed.
 
 Preservation:
 
-- **FR-016**: No per-platform branch in `CMakeLists.txt` or `cmake/` shall change. The diff over `if(WIN32)`, `if(APPLE)`, `if(MSVC)`, and `if(UNIX)` blocks shall be empty, and no line of `cmake/ImportAutotoolsSubmodule.cmake` shall change.
+- **FR-016**: No per-platform branch shall change. Every `if(WIN32)`, `if(APPLE)`, `if(MSVC)`, and `if(UNIX)` block in `CMakeLists.txt`, `cmake/ImportAutotoolsSubmodule.cmake`, `cmake/variables.cmake`, `cmake/VendoredArchiveMerge.cmake`, `source/counters/clock_provider.cpp`, and the gate units stays byte-identical, and every `_WIN32` preprocessor branch stays. The diff over branch lines shall be empty. Within `cmake/ImportAutotoolsSubmodule.cmake` the change is confined to diagnostic strings and to the one header comment FR-013a names, and the two platform blocks' own comments, at lines 74, 137, 433, and the `if` lines themselves, are preserved because they document the port.
+- **FR-016a**: A comment that names a platform version, a platform vendor's product, or a string's origin stays when removing it would make the comment less accurate. The `.codespellrc` comment naming the macOS Big Sur codename is one: it explains why the token `sur` is exempt, and the token's origin is the fact. Removing the platform name from that comment would narrow no support claim, because the claim it explains is about a spelling exemption.
 - **FR-017**: No file under `specs/` shall change, apart from this specification's own files created after it. The merged record stays.
-- **FR-018**: No C++ source, header, or test shall change, and no public API, no data model, and no runtime behaviour shall change. The feature's entire content footprint is the constitution, `CMakePresets.json`, `README.md`, and `AGENTS.md`.
+- **FR-018**: No C++ source file, header, or test shall change in behaviour, and no public API, no data model, and no runtime behaviour shall change. Comment-only edits inside a preserved branch are permitted under FR-016a. The feature's tracked content footprint is five files: the constitution, `CMakePresets.json`, `README.md`, `AGENTS.md`, and the diagnostic strings of `cmake/ImportAutotoolsSubmodule.cmake`.
+- **FR-018a**: A developer's machine-local `CMakeUserPresets.json` may name a deleted preset, because that file is gitignored and outside the commit. The file's presets shall be brought into line with the committed set so `cmake --preset=dev` and `ctest --preset=dev` keep working locally. CMake validates every preset in the file before resolving any one of them, so a dangling `inherits` fails the whole directory and takes the Linux verification loop with it. This is a local action with zero tracked diff and is recorded so a developer who hits the failure knows the file to edit and knows the commit did not break it.
 - **FR-019**: No gate, threshold, warning class, analyzer invocation, or dependency shall be weakened, added, or removed. The gate set's content is unchanged; only the platform enumeration inside it narrows, and that change is the amendment itself.
 
 ### Key Entities
@@ -156,11 +159,11 @@ Preservation:
 ### Measurable Outcomes
 
 - **SC-001**: Following `README.md` and `AGENTS.md` end to end on Linux runs zero commands that fail to resolve. Every preset and script named by either document exists in the tree.
-- **SC-002**: A search of `README.md`, `AGENTS.md`, `.github/workflows/`, `cmake/`, `tools/`, and `CMakePresets.json` for `macos`, `windows`, `msvc`, or `appleclang`, case-insensitive, returns only hits a human can name as one of: the statement that the platform is unsupported, a per-platform seam this feature is required to preserve, the on-ramp record, or a comment explaining the removal. Every hit is listed with its path and line in the pull request.
+- **SC-002**: The FR-015 audit over the full token set and the full path list returns only hits classifiable into one of its four buckets. Every hit is listed in the pull request with its path, its line, and its bucket, and the list contains zero hits in the live-claim bucket after the change. The pre-change inventory measured on this feature's base commit is 8 live-claim lines and 45 preserved-seam lines, and the post-change count of live-claim lines is 0.
 - **SC-003**: The constitution's gate list, supported-platform definition, per-feature release-build clause, and Open deferrals block each name Linux alone, and the file reads 2.11.0 with an updated `Last Amended` date.
-- **SC-004**: `CMakePresets.json` configures and builds successfully on Linux through every preset a developer is told to run, and the two Linux CI jobs that configure from a preset still pass.
+- **SC-004**: `CMakePresets.json` configures and builds successfully on Linux through every preset a developer is told to run, and the seven CI jobs that configure from a preset still pass. The surviving presets those jobs use are `ci-coverage`, `ci-sanitize`, `ci-ubuntu`, `ci-rocky`, `ci-linux-audit`, and `ci-linux-ignore`, across nine invocations.
 - **SC-005**: The CI job count is unchanged from this feature's base commit and every job runs on a Linux runner.
-- **SC-006**: The diff against the base commit touches exactly four files: the constitution, `CMakePresets.json`, `README.md`, and `AGENTS.md`.
+- **SC-006**: The diff against the base commit touches exactly five tracked files: the constitution, `CMakePresets.json`, `README.md`, `AGENTS.md`, and `cmake/ImportAutotoolsSubmodule.cmake`. `CMakeUserPresets.json` is gitignored, so FR-018a's local fix contributes nothing to the diff.
 - **SC-007**: Every Linux gate passes on this feature's head, including the format, prose, spelling, coverage, and contract-pairing gates.
 - **SC-008**: A reader who finds "macOS must keep building for developers" in any of the five merged vendor specs learns from the constitution that the statement no longer holds, without the spec itself having been edited.
 
