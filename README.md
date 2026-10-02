@@ -222,6 +222,19 @@ through `ctest -R pmu_events_check`.
 
 ## Quality gates
 
+The style gate is judged by `clang-format` 18.1.8, the version the
+`lint` CI job installs. A newer local formatter disagrees with it in
+both directions: it reports findings on files the pinned one calls
+clean, and a tree it reformats is one the pinned formatter rejects.
+
+```sh
+cmake -D FORMAT_COMMAND=clang-format-18 -P cmake/lint.cmake
+cmake --build build/dev -t format-check
+```
+
+Pass `FORMAT_COMMAND` when the `clang-format` on your `PATH` is not
+18.1.8. `format-fix` rewrites the files in place.
+
 One command runs the prose and commit-message gate over the range from
 the merge base with `origin/master` to `HEAD`, the same verdict CI
 produces:
