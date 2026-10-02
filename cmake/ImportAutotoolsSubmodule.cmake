@@ -65,7 +65,7 @@
 # * Early, named toolchain failure: configure-time probes locate
 #   make, sh and (autogen.sh case) autoconf, automake,
 #   patch and the libtool alias set; a miss aborts listing the tools
-#   and the apt-get, dnf and brew package sets (FR-018, R-011).
+#   and the apt-get and dnf package sets (FR-018, R-011).
 # * Archive contents independent of host packages: the caller's
 #   disable list plus embedded mode keep feature detection out
 #   (FR-020).
@@ -138,7 +138,7 @@ function(import_autotools_submodule)
     message(
         FATAL_ERROR
         "import_autotools_submodule(${IAS_NAME}): this module supports "
-        "Linux and macOS only. The documented Windows on-ramp is the "
+        "Linux only. The documented Windows on-ramp is the "
         "upstream contrib/windows-cmake/ wrapper at the vendored tag."
     )
   elseif(UNIX OR APPLE)
@@ -200,9 +200,7 @@ function(import_autotools_submodule)
           "import_autotools_submodule(${IAS_NAME}): host tools "
           "missing: ${_ias_missing}. Install them. Debian-family: "
           "apt-get install autoconf automake libtool patch. "
-          "RPM-family: dnf install autoconf automake libtool patch. "
-          "macOS: brew install autoconf automake libtool (BSD patch "
-          "ships with macOS)."
+          "RPM-family: dnf install autoconf automake libtool patch."
       )
     endif()
 
@@ -564,8 +562,8 @@ file(REMOVE_RECURSE \"\${_ias_dir}\")
     message(
         FATAL_ERROR
         "import_autotools_submodule(${IAS_NAME}): unsupported "
-        "platform '${CMAKE_SYSTEM_NAME}'. Supported set: Linux and "
-        "macOS. The documented Windows on-ramp is the upstream "
+        "platform '${CMAKE_SYSTEM_NAME}'. Supported set: Linux. "
+        "The documented Windows on-ramp is the upstream "
         "contrib/windows-cmake/ wrapper at the vendored tag."
     )
   endif()
