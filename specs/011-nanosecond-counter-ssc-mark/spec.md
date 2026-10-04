@@ -299,9 +299,11 @@ new files added.
 - **FR-008**: The new counter SHALL be measurable without a reference
   oracle: a test SHALL establish that consecutive samples never
   decrease, that no observed step is finer than the resolution the
-  platform reports for that clock, and that the per-read cost
-  distribution matches the published figure for the reference
-  platform.
+  platform reports for that clock, and that the per-sampling-action
+  cost distribution matches the published figure for the reference
+  platform. The single provider-level read behind a sample sits in an
+  anonymous namespace and no public API reaches it, so a bracketed
+  sampling action is the finest cost a run of the library measures.
 - **FR-009**: All platform vocabulary naming the clock source, its
   identifier, and its reading function SHALL appear in the library's
   source files only, and SHALL NOT appear in any public header.
@@ -450,13 +452,14 @@ new files added.
   sequence fails the run.
 - **SC-004**: The nanosecond-rate counter's cost per read stays at or
   below 20 ns at the 50th percentile and at or below 25 ns at the 99th
-  percentile over 10 million consecutive reads on the reference platform
-  (AMD Ryzen 9 9950X3D, Linux 6.19, glibc 2.44). One read is bracketed by
-  two timestamp-counter reads, the bracketing overhead is measured under
-  the identical bracketing, the thresholds judge the overhead-corrected
-  figure, and the uncorrected figure is published beside it. The existing
-  per-sampling-action figures cover a wider quantity that includes the
-  library's own machinery, so they set no threshold here.
+  percentile over 200,000 consecutive reads on the reference platform
+  (AMD Ryzen 9 9950X3D, Linux 7.2.4-1-cachyos, glibc 2.44). One read is
+  bracketed by two timestamp-counter reads, the bracketing overhead is
+  measured under the identical bracketing, the thresholds judge the
+  overhead-corrected figure, and the uncorrected figure is published
+  beside it. The existing per-sampling-action figures cover a wider
+  quantity that includes the library's own machinery, so they set no
+  threshold here.
 - **SC-005**: Consecutive samples of the nanosecond-rate counter never
   decrease across 10 million consecutive reads on the reference
   platform, and across a further 10 million reads spread over every

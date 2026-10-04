@@ -33,7 +33,7 @@ appears exactly once, after planting a wrong sequence to prove the detector
 bites (R-011).
 
 Two lane shapes, one per story, and no shared foundation. The counter lane
-touches four files, the marker lane four, and two files sit outside both.
+touches five files, the marker lane seven, and two files sit outside both.
 Every task writes one file, or one file plus the registration that names it.
 The whole graph is nine tasks. Five dependency edges join the eight build
 tasks, and one closing task fans in from four of them, as listed in the Task
@@ -63,10 +63,10 @@ counter's test already uses, so a future port compiles and returns.
 **Project Type**: C++ library with a CMake build, adding public API.
 
 **Performance Goals**: at or below 20 ns per read at p50 and 25 ns at p99
-over ten million consecutive reads on the reference platform, measured under
-the convention research.md R-006 fixes. Measured on that platform: p50
-20.00 ns, p99 29.77 ns uncorrected, 7.36 ns of that being the bracketing
-harness.
+over 200,000 consecutive reads on the reference platform, measured under
+the convention research.md R-006 fixes. Measured on the AMD Ryzen 9
+9950X3D running Linux 7.2.4-1-cachyos: p50 20.00 ns, p99 29.77 ns
+uncorrected, 7.36 ns of that being the bracketing harness.
 
 **Constraints**: no new runtime dependency, build option, preset, or
 external tool (FR-032); no change to any preprocessor branch preserved for a
@@ -77,7 +77,7 @@ table, or counter base class (FR-034); every changed line traces to a
 requirement (FR-035); 100 percent line, branch, and contract coverage on the
 added code (FR-036).
 
-**Scale/Scope**: twelve files touched, five of them new. Two new public
+**Scale/Scope**: fourteen files touched, five of them new. Two new public
 declarations, one new catalog leaf, one new gate, one documentation row.
 
 ## Constitution Check
@@ -124,7 +124,7 @@ principle is recorded in Complexity Tracking.
 specs/011-nanosecond-counter-ssc-mark/
 ├── spec.md                              # /speckit.specify output
 ├── plan.md                              # This file (/speckit.plan output)
-├── research.md                          # Phase 0 output: R-001..R-013, SF-001..SF-004
+├── research.md                          # Phase 0 output: R-001..R-013, SF-001..SF-005
 ├── data-model.md                        # Phase 1 output: entities and the catalog placement
 ├── quickstart.md                        # Phase 1 output: validation commands and outcomes
 ├── contracts/
@@ -151,11 +151,13 @@ Files this feature edits:
 
 ```text
 source/counters/clock_provider.cpp       # address table, parse case, read case, seed, reader
-test/source/counters_overhead.cpp        # measure the new counter's per-read cost
+include/speedgun-ng/counters_clock.hpp   # fifth seeded leaf, two sample-ordering guarantees
+test/source/counters_overhead.cpp        # measure the new counter's sampling cost
 test/counters_header_purity.sh           # widen the scanned set to the new header
 test/CMakeLists.txt                      # two test targets and one gate registration
 CMakeLists.txt                           # one target_sources line for the marker unit
 docs/pages/counters-overhead.md          # one row per build table, one raw trial line
+test/consumer/main.cpp                   # simulation header, one marker call
 example/counters_standalone_example.cpp  # one call at a region boundary
 ```
 
@@ -227,6 +229,7 @@ because the compiler saves and restores a clobbered callee-saved register.
 | File | Change | Requirements |
 |------|--------|--------------|
 | `source/counters/clock_provider.cpp` | one address string in the address table, one case in the address parser, one case in the read switch, one reader function, one entry in the seed list | FR-001, FR-003, FR-004, FR-005, FR-034 |
+| `include/speedgun-ng/counters_clock.hpp` | the fifth seeded leaf named in the class documentation, the two sample-ordering guarantees | FR-001, FR-006, FR-007 |
 | `include/speedgun-ng/simulation.hpp` | exported free function, exported tag constant, doxygen with `\pre none` and `\post none`, the tag's value with the tracer option and byte order, the marker's three documented properties | FR-011, FR-013, FR-014, FR-019, FR-020, FR-029, FR-030 |
 | `source/simulation/marker.cpp` | architecture guard, one `static_assert` on the tag's width, one extended-assembly statement with the register clobber and the analyzer suppression's written reason, the reasoning for the absent memory clobber | FR-012, FR-015, FR-016, FR-017, FR-018, FR-021, FR-022 |
 | `CMakeLists.txt` | one `target_sources` line naming the marker unit | FR-028, FR-032 |
@@ -236,6 +239,7 @@ because the compiler saves and restores a clobbered callee-saved register.
 | `test/simulation_mark_shape.sh` | the compiler by contract-semantic matrix, the disassembly, the exactly-once assertion, the planted-wrong-sequence probe, the skip path | FR-023, FR-024, FR-025 |
 | `test/CMakeLists.txt` | two `add_executable` blocks and three `add_test` calls | FR-023, FR-029, FR-036 |
 | `test/counters_header_purity.sh` | the new header added to the scanned set, and a scan proving the widened set bites | FR-009, FR-029 |
+| `test/consumer/main.cpp` | the new public header compiled by the downstream consumer, the marker call | FR-028, SC-009 |
 | `docs/pages/counters-overhead.md` | one row per build table in the existing column format, one raw trial line | FR-010 |
 | `example/counters_standalone_example.cpp` | one call at the region boundary, outside the timed window | User Story 1 independent test |
 
@@ -254,7 +258,7 @@ reviewer carry that word so the gap stays visible.
 | FR-005 published on every supported build | `counters_clock_raw_test` resolves the leaf with no architecture guard |
 | FR-006 sample never decreases against the previous same-thread sample | `counters_clock_raw_test`, one thread |
 | FR-007 sample never decreases against an earlier sample on another thread | `counters_clock_raw_test`, threads joined before comparison, per research.md R-005 |
-| FR-008 measurable without an oracle | `counters_clock_raw_test`, monotonicity, resolution bound, and the cost distribution |
+| FR-008 measurable without an oracle | `counters_clock_raw_test`, monotonicity, resolution bound, and the cost distribution; the clause matching the distribution to the published figure is reviewer-checked against the page's published row, using the figures `counters_clock_raw_test` and `counters_overhead` print, because `docs/pages/counters-overhead.md` states that its numbers are no CI gate and Principle VII records per-platform baseline infrastructure as an open deferral |
 | FR-009 platform vocabulary out of public headers | `counters_header_purity`, widened set |
 | FR-010 overhead row and read-path cell | `counters_overhead` prints the figures; the page states it is not a CI gate, so the row is reviewer-checked against the printed run |
 | FR-011 signature: no arguments, no return, `noexcept` | the compiler, from `simulation_test`'s call site and the header |
@@ -291,7 +295,7 @@ reviewer carry that word so the gap stays visible.
 | unit | catalog resolution, unit token, read-mode label | FR-001, FR-002 | `ctest --preset=dev -R counters_clock_raw` |
 | unit | samples never decrease, one thread | FR-006 | same |
 | unit | samples never decrease across a join | FR-007 | same |
-| unit | smallest non-zero step within the platform resolution | FR-008 | same |
+| unit | no observed step is finer than the resolution the platform reports | FR-008 | same |
 | unit | cost distribution over ten million reads | FR-008 | same, and the printed distribution |
 | unit | register bit-identical with the upper 32 bits set | FR-026 | `ctest --preset=dev -R simulation` |
 | unit | repeated calls terminate | FR-027 | same |

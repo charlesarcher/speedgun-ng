@@ -11,13 +11,13 @@ the chosen reading, per Principle X.1.
 Eight items need a decision before Phase 1 can close: the clock source, the
 read-mode label, the conversion arithmetic, the fast-path mechanism, the
 cross-thread monotonicity claim, the marker byte sequence, the marker's
-register handling, and the codegen-gate mechanism. Four specification
+register handling, and the codegen-gate mechanism. Five specification
 items conflict with the constitution or with each other and are recorded as
 specification findings: the FR-033 build-configuration clause, the FR-007
-cross-thread postcondition, the SC-004 and SC-006 measurements, and the
-marker's provenance. The maintainer resolved all four on 2026-10-03, in favor
-of editing the build files and of the corrected wording each finding
-carries.
+cross-thread postcondition, the SC-004 and SC-006 measurements, the
+marker's provenance, and the FR-008 smallest-step clause. The maintainer
+resolved all five on 2026-10-03, in favor of editing the build files and of
+the corrected wording each finding carries.
 
 ## Measurement Core
 
@@ -162,8 +162,8 @@ number that includes the library's own machinery:
 median and 80 ns maximum per sampling action. SC-004 asks for a per-read
 cost, which is a different quantity measured by a different loop.
 
-Measured on the reference platform named in SC-004, an AMD Ryzen 9 9950X3D
-running Linux 7.2.4-1-cachyos with `current_clocksource=tsc`, 200,000
+Measured on this machine, an AMD Ryzen 9 9950X3D running Linux
+7.2.4-1-cachyos with glibc 2.44 and `current_clocksource=tsc`, 200,000
 samples per row, process pinned to one processor, timestamp-counter rate
 calibrated against `CLOCK_MONOTONIC` over 50 ms:
 

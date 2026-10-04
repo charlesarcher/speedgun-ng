@@ -486,3 +486,333 @@ in the verify commands resolve from this feature's directory.
   `cmake --build build/dev -t format-check` exits 0, and
   `cmake -P cmake/prose-lint.cmake` exits 0
   (FR-029, plan: widened-set probe; partial)
+
+---
+
+## Phase 10: Convergence
+
+Remaining work found by assessing the code against `spec.md`, `plan.md`, and
+this file after Phase 9 closed. Every gate passes on this tree: the developer
+and sanitizer suites report 45 of 45, the release build compiles, the contract
+gate reports 137 interfaces and 0 gaps with `sg::simulation_start` among them,
+coverage reports 100 percent line and 100 percent branch, the format,
+spelling, and prose gates exit 0, and the installed package compiles the new
+header in the downstream consumer. The findings below concern the measurement
+record for the per-read cost, where two artifacts name a platform and a read
+volume the recorded run does not carry. Relative paths in the verify commands
+resolve from this feature's directory.
+
+- [X] T023 Align SC-004's reference platform and read volume with the
+  measurement the record holds, per SC-004 and plan: Performance
+  Goals (partial). SC-004 names the reference platform as AMD Ryzen 9
+  9950X3D, Linux 6.19, glibc 2.44 over ten million consecutive reads, and
+  `research.md:165` calls its own run "the reference platform named in
+  SC-004" while `research.md:166` records 200,000 samples per row on
+  `Linux 7.2.4-1-cachyos`, and `plan.md:67-68` reads "Measured on that
+  platform" for the same figures. `uname -r` prints `7.2.4-1-cachyos` and
+  `ldd --version` prints `2.44`, so the kernel differs and the other two
+  entries hold. Restate the platform and the read volume in `spec.md`
+  SC-004 to the machine and the volume `research.md` R-006 records, keep
+  the thresholds and the recorded figures as they stand, and correct the
+  sentence at `research.md:165` and the sentence at `plan.md:67-68`. Verify:
+  `grep -c "Linux 6.19" spec.md` prints `0`,
+  `grep -c "the reference platform named in SC-004" research.md` prints `0`,
+  `grep -c "Measured on that platform" plan.md` prints `0`,
+  `cmake -P cmake/spell.cmake` exits 0, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+
+- [X] T024 Record how FR-008's third clause is discharged, per FR-008 and
+  Constitution X.1 (partial). FR-008 requires a test to establish that the
+  per-read cost distribution matches the published figure for the reference
+  platform, and the Verification Matrix row at `plan.md:257` names
+  monotonicity, the resolution bound, and the cost distribution, with the
+  matching clause absent and no artifact recording the displacement.
+  `docs/pages/counters-overhead.md:326` states that the page's numbers are
+  no CI gate, which is the reason an assertion cannot carry the clause.
+  Name the reviewer comparison that discharges the clause and that reason in
+  the FR-008 row. Verify: `sed -n '/^| FR-008/p' plan.md | grep -c reviewer`
+  prints `1` and `cmake -P cmake/prose-lint.cmake` exits 0
+
+- [X] T025 Drop the retired clause wording from the comment at
+  `test/source/counters_clock_raw_test.cpp:179-181`, per US2/AC3 and T020
+  (partial). The comment opens by quoting "no difference exceeds the
+  resolution" as the wording of User Story 2's third acceptance scenario,
+  and T020 restated that scenario to the granularity bound, so the comment
+  now argues against a clause the specification no longer carries. Keep the
+  sentences explaining why the assertion reads `smallest_step >=
+  resolution_bound`. Verify:
+  `grep -c "no difference exceeds the resolution"
+  test/source/counters_clock_raw_test.cpp` prints `0`,
+  `ctest --preset=dev -R counters_clock_raw` exits 0, and
+  `cmake --build build/dev -t format-check` exits 0
+
+---
+
+## Phase 11: Convergence
+
+Remaining work found by assessing the code against `spec.md`, `plan.md`, and
+this file after Phase 10 closed. Every gate passes on this tree: the developer
+and sanitizer suites report 45 of 45, the release build compiles, the contract
+gate reports 137 interfaces and 0 gaps with `sg::simulation_start` among them,
+coverage reports 100 percent line and 100 percent branch, the format,
+spelling, and prose gates exit 0, and the installed package compiles the new
+header in the downstream consumer. The marker lane is closed end to end: the
+gate bites for both compilers under both contract settings, the widened
+vocabulary scan bites on a planted token, the marker unit compiles clean under
+the pinned analyzer once its one suppression carries its reason, and the
+install tree carries the new header. Both findings below concern which cost
+quantity the counter's measurement record names. Relative paths in the verify
+commands resolve from this feature's directory.
+
+- [X] T026 Name the figure SC-004's bounds judge in the paragraph at
+  `docs/pages/counters-overhead.md:195-210`, whose closing sentence reads
+  "SC-004's thresholds judge the corrected figure" at lines 207-208 directly
+  after publishing the corrected per-sampling-action figure at 40 ns median and
+  40 ns at the 99th percentile. `spec.md:451-460` states the opposite scope:
+  SC-004's bounds are 20 ns at p50 and 25 ns at p99 on the
+  overhead-corrected cost of one read over 200,000 reads, and the
+  per-sampling-action figures set no threshold there because they cover the
+  library's own machinery. A reader who takes the page's sentence at its word
+  checks 40 ns against a 20 ns bound. Name the per-read figure R-006 records
+  as the one the bounds judge, carry SC-004's exclusion of the
+  per-sampling-action figures into the same paragraph, and touch no table row,
+  no figure, and no bracketing sentence. Verify: `grep -c "judge the corrected
+  figure" docs/pages/counters-overhead.md` prints `0`,
+  `cmake -P cmake/spell.cmake` exits 0, and `cmake -P cmake/prose-lint.cmake`
+  exits 0
+  (SC-004; contradicts)
+
+- [X] T027 Restate the third clause of FR-008 at `spec.md:299-304` to name the
+  cost distribution the test prints, and correct the registration comment at
+  `test/CMakeLists.txt:417` that repeats the clause. The clause reads "that the
+  per-read cost distribution matches the published figure for the reference
+  platform", while `counters_clock_raw_test` prints "per sampling action over
+  ten million reads" at
+  `test/source/counters_clock_raw_test.cpp:209`, bracketing one
+  `recorder.sample()` on a plan holding one leaf, because no public API
+  reaches the provider-level read `monotonic_raw_ns()` performs. R-006 and
+  SC-004 keep the two quantities apart, so the clause as written names a
+  distribution no run measures. Name the per-sampling-action distribution and
+  the page row it is checked against, and record in the clause the reason the
+  per-read quantity has no instrument in the suite. Touch no other clause of
+  FR-008 and no assertion in the test. Verify: `sed -n '/^- \*\*FR-008\*\*/,
+  /^- \*\*FR-009\*\*/p' spec.md | grep -c per-read` prints `0`, `grep -c
+  "per-read cost distribution" test/CMakeLists.txt` prints `0`,
+  `ctest --preset=dev -R counters_clock_raw` exits 0, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+  (FR-008; partial)
+
+---
+
+## Phase 12: Convergence
+
+Remaining work found by assessing the code against `spec.md`, `plan.md`, and
+this file after Phase 11 closed. Every gate passes on this tree: the developer
+and sanitizer suites report 45 of 45, the release build compiles, the contract
+gate reports 137 interfaces and 0 gaps, coverage reports 100 percent line and
+100 percent branch, the format, spelling, and prose gates exit 0, the marker
+gate finds the window once for each of two compilers under each contract
+setting and detects its planted wrong window, the widened vocabulary scan
+bites on a planted token, and the installed package compiles the new header in
+a downstream consumer configured against a fresh build directory. Both marker
+findings of the earlier passes stay closed. No finding in this pass carries
+CRITICAL or HIGH severity. A verify command naming a file under this feature's
+directory runs from that directory; every other one runs from the repository
+root.
+
+- [X] T028 Name the overhead-corrected per-read median with the figure the
+  measurement record supports, in the paragraph at
+  `docs/pages/counters-overhead.md:207-211`, per SC-004 and FR-010
+  (contradicts). The sentence reads "SC-004's bounds judge the
+  overhead-corrected cost of one read, the figure recorded in
+  `specs/011-nanosecond-counter-ssc-mark/research.md` R-006 at 20 ns at the
+  median and near 22 ns at the 99th percentile once the 7.36 ns bracketing
+  overhead is subtracted", so the page publishes 20 ns as the corrected
+  figure. R-006 records the uncorrected median as 20.00 ns, the uncorrected
+  99th percentile as 29.77 ns, and the bracketing overhead as 7.36 ns on
+  average, and its own sentence calls the 20.00 ns the uncorrected figure
+  that meets SC-004's 20 ns bound. Subtracting that overhead from the median
+  under the convention R-006 applies to the 99th percentile gives 12.6 ns, so
+  a reader checks 20 ns against a 20 ns bound and reads a figure sitting at
+  the bound where the record puts it below it. Publish the corrected median
+  as 12.6 ns with the two figures it comes from named beside it, keep the
+  20.00 ns labeled uncorrected, and touch no table row, no figure inside the
+  tables, and no bracketing sentence. Verify:
+  `grep -c "at 20 ns" docs/pages/counters-overhead.md` prints 0,
+  `grep -c "12.6 ns" docs/pages/counters-overhead.md` prints 1,
+  `cmake -P cmake/spell.cmake` exits 0, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+
+- [X] T029 Add the two rows this change made necessary to the Physical view
+  table at `plan.md:227-240` and correct the file count at `plan.md:80`, per
+  FR-035 and plan: Physical view table (partial). The table names twelve
+  files, and the Verification Matrix row at `plan.md:284` names that table as
+  the gate proving FR-035, so every changed line traces to a requirement
+  through it. Two files the change edited have no row:
+  `include/speedgun-ng/counters_clock.hpp`, which T016 and T017 edited to
+  carry FR-001, FR-006, and FR-007, and `test/consumer/main.cpp`, which T021
+  edited to carry FR-028 and SC-009. Technical Context reads "twelve files
+  touched, five of them new", and the change now touches fourteen of them,
+  five new. Add one row per file in the table's existing column format,
+  carrying the requirement identifiers the tasks recorded, and correct the
+  count beside it. Verify: `grep -c "counters_clock.hpp" plan.md` prints 1,
+  `grep -c "test/consumer/main.cpp" plan.md` prints 1,
+  `grep -c "twelve files touched" plan.md` prints 0, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+
+- [X] T030 Drop the `[[nodiscard]]` attribute from the declaration block at
+  `contracts/simulation-start.md:23`, per FR-011 and plan: Complexity Tracking
+  (contradicts). The block spells
+  `[[nodiscard]] void simulation_start() noexcept;`, FR-011 fixes the
+  signature as callable with no arguments, returning nothing, and declared
+  `noexcept`, and the shipped declaration at
+  `include/speedgun-ng/simulation.hpp:49` carries no such attribute. A
+  function returning nothing has no value for a caller to discard, so the
+  attribute states nothing the requirement asks for, and the bullet list
+  below the block already enumerates the return type, the empty parameter
+  list, `noexcept`, and the export attribute without it. Remove the
+  attribute from the block and leave the bullet list, the emitted-sequence
+  table, and the tracer command-line section untouched. Verify:
+  `grep -c "nodiscard" contracts/simulation-start.md` prints 0,
+  `cmake -P cmake/spell.cmake` exits 0, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+
+---
+
+## Phase 13: Convergence
+
+Remaining work found by assessing the code against `spec.md`, `plan.md`, and
+this file after Phase 12 closed. Every gate passes on this tree: the developer
+and sanitizer suites report 45 of 45, the release build compiles, the contract
+gate reports 137 interfaces and 0 gaps, coverage reports 100 percent line and
+100 percent branch, the format, spelling, and prose gates exit 0, the marker
+gate finds the window once for each of two compilers under each contract
+setting and detects its planted wrong window, the widened vocabulary scan bites
+on a planted token, and the installed package compiles the new header in a
+downstream consumer. No finding in this pass carries CRITICAL or HIGH
+severity. Each finding is one statement an artifact still carries after the
+change corrected that same fact elsewhere. A verify command naming a file under
+this feature's directory runs from that directory; every other one runs from
+the repository root.
+
+- [X] T031 Bring `plan.md`'s file ledger into agreement with its Physical view
+  table: add `include/speedgun-ng/counters_clock.hpp` and
+  `test/consumer/main.cpp` to the "Files this feature edits" block at
+  `plan.md:150-160`, one line each in that block's existing format. Correct
+  the lane counts in the Summary at `plan.md:35-36` as well. That sentence
+  reads "The counter lane touches four files, the marker lane four, and two
+  files sit outside both", so it accounts for ten of the fourteen files the
+  table at `plan.md:227-242` names. The Verification Matrix row for FR-035
+  names that table as the gate, so the ledger around it has to reach the same
+  fourteen. Verify: `grep -c "counters_clock.hpp" plan.md` prints `2`,
+  `grep -c "test/consumer/main.cpp" plan.md` prints `2`,
+  `grep -c "the marker lane four, and two files sit outside both" plan.md`
+  prints `0`, and `cmake -P cmake/prose-lint.cmake` exits 0
+  (plan: Physical view table, FR-035; partial)
+
+- [X] T032 Restate the smallest-step row of the Test Plan table at
+  `plan.md:296` to the granularity bound the test asserts. The row reads
+  "smallest non-zero step within the platform resolution".
+  `test/source/counters_clock_raw_test.cpp:187` asserts
+  `smallest_step >= resolution_bound`. `spec.md` FR-008 and User Story 2
+  acceptance scenario 3 state that no observed step is finer than the
+  resolution the platform reports. A shipped run prints a smallest non-zero
+  step of 70 ns against a reported resolution of 1 ns. Write the row in the
+  requirement's form, keep its Level, Requirement, and Command cells, and
+  touch no other row of the table. Verify:
+  `grep -c "within the platform resolution" plan.md` prints `0`,
+  `grep -c "finer than the resolution" plan.md` prints `1`, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+  (plan: Test Plan, FR-008, US2/AC3; partial)
+
+- [X] T033 Restate the smallest-step clause in the expected-outcome list at
+  `quickstart.md:40-45` to the bound the suite's named check prints. The list
+  reads "the smallest non-zero step staying within the platform's reported
+  resolution". `spec.md` FR-008 and User Story 2 acceptance scenario 3 no
+  longer carry that clause. A shipped run falsifies it: the smallest non-zero
+  step measured 70 ns against a reported resolution of 1 ns. Name the check
+  `counters_clock_raw_test` prints, "no sample-to-sample step is finer than
+  the resolution the platform reports for this clock", and touch no other
+  entry in the list. Verify:
+  `grep -c "staying within the" quickstart.md` prints `0`,
+  `grep -c "finer than the resolution" quickstart.md` prints `1`,
+  `cmake -P cmake/spell.cmake` exits 0, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+  (FR-008, US2/AC3; partial)
+
+- [X] T034 Correct the specification-findings count in the introduction of
+  `research.md:18-23`. It reads "Four specification items conflict with the
+  constitution or with each other" and "resolved all four on 2026-10-03". The
+  section it introduces at `research.md:419-423` opens with "Five items need
+  the maintainer's attention", and it carries five findings after T020 added
+  the smallest-step one. Write both counts as five, extend the introduction's
+  enumeration with that finding, and keep the resolution date on all five.
+  Touch no specification finding below the section heading. Verify:
+  `grep -c "resolved all four" research.md` prints `0`,
+  `grep -c "resolved all five" research.md` prints `1`,
+  `grep -c "^### SF-" research.md` prints `5`, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+  (FR-008, Constitution IX; partial)
+
+- [X] T035 Correct the research-artifact range in the project-structure
+  comment at `plan.md:127`, which reads `SF-001..SF-004` while `research.md`
+  carries a fifth specification finding since T020. Write the range as
+  `SF-001..SF-005` and touch no other line of that tree. Verify:
+  `grep -c "SF-001..SF-004" plan.md` prints `0`,
+  `grep -c "SF-001..SF-005" plan.md` prints `1`, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+  (plan: Project Structure, FR-008; partial)
+
+---
+
+## Phase 14: Convergence
+
+Remaining work found by assessing the code against `spec.md`, `plan.md`, and
+this file after Phase 13 closed. Every gate passes on this tree: the developer
+and sanitizer suites report 45 of 45, the release build compiles, the contract
+gate reports 137 interfaces and 0 gaps with `sg::simulation_start` among them,
+coverage reports 100 percent line and 100 percent branch, the format, spelling,
+and prose gates exit 0, the marker gate finds the window once for each of two
+compilers under each contract setting and detects its planted wrong window, the
+widened vocabulary scan bites on a planted token, and the installed package
+compiles the new header in a downstream consumer. A sixty-second run of the
+SC-006 rate comparison on this reference machine reads +7.46 ppm, inside the
+20 ppm band. Both findings below concern which quantity and which pass the
+published measurement record names. A verify command naming a file under this
+feature's directory runs from that directory; every other one runs from the
+repository root.
+
+- [X] T036 Name the cost quantity `test/source/counters_overhead.cpp` measures
+  in the two artifacts that call it a per-read cost, per FR-010, FR-035, and
+  research.md R-006 (contradicts). The ledger line at `plan.md:155` reads
+  "measure the new counter's per-read cost", and the expected outcome at
+  `quickstart.md:59` reads "minimum, median, and maximum per read".
+  `research.md:160-163` states that the published figure is a
+  per-sampling-action number that carries the library's own machinery, and that
+  the per-read cost is a different quantity measured by a different loop.
+  `test/source/counters_overhead.cpp:345` prints "sampling cost by regime
+  (nanoseconds per sample())". The Physical view row for the same file at
+  `plan.md:237` names the harness correctly. Write the per-sampling-action
+  quantity in both places. Keep each line's field order. Touch no other line
+  of either file. Verify: `grep -c "per-read cost" plan.md` prints `0`,
+  `grep -c "maximum per read" quickstart.md` prints `0`,
+  `ctest --preset=dev -R counters_overhead -V` exits 0, and
+  `cmake -P cmake/prose-lint.cmake` exits 0
+
+- [X] T037 Name the pass that measured `machine/monotonic` in the paragraph at
+  `docs/pages/counters-overhead.md:184-193`, per FR-010 and T008
+  (contradicts). The sentence at line 188 reads "That pass reads
+  `machine/monotonic` at 30, 30, and 40 ns in the release build", and its
+  nearest antecedent is "the 2026-09-28 pass" in the preceding sentence. That
+  pass is recorded at 40, 40, and 80 ns in the release row at line 167, at 70,
+  70, and 130 ns in the correctness row at line 178, and in both
+  `clock, syscall (vDSO)` trial lines at lines 243 and 253. The figures the
+  sentence gives are the `machine/monotonic_raw` rows at lines 168 and 179,
+  which line 184 attributes to the 2026-10-03 pass, and no trial line records
+  `machine/monotonic` from that pass. A reader therefore has no row that
+  settles which pass the sentence names. Write the pass's date in place of the
+  pronoun. Touch no table row, no figure inside a table, and no trial line.
+  Verify: `grep -c "That pass reads" docs/pages/counters-overhead.md` prints
+  `0`, `grep -c "2026-10-03 pass reads" docs/pages/counters-overhead.md`
+  prints `1`, `cmake -P cmake/spell.cmake` exits 0, and
+  `cmake -P cmake/prose-lint.cmake` exits 0

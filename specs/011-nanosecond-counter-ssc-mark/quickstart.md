@@ -40,9 +40,9 @@ ctest --preset=dev -R counters_clock_raw -V
 Expected: exit zero, with named checks for the address resolving on the
 machine root, the unit token reading `nanoseconds`, the read-mode label
 reading `syscall`, consecutive samples never decreasing on one thread, the
-cross-thread pass under a join, the smallest non-zero step staying within the
-platform's reported resolution, and a cost distribution printed over ten
-million reads.
+cross-thread pass under a join,
+no sample-to-sample step finer than the resolution the platform reports
+for this clock, and a cost distribution printed over ten million reads.
 
 Before the implementation lands, this entry fails with a named assertion
 naming the unresolved address. That red is the point of writing the test
@@ -56,9 +56,9 @@ ctest --preset=dev -R counters_overhead -V --repeat until-pass:3
 
 Expected: exit zero, and the printed run carries a line for the new counter
 in the same field order as the existing clock line, that is minimum, median,
-and maximum per read. Compare the printed figures against the row added to
-`docs/pages/counters-overhead.md`; that page states it is not a CI gate, so
-this comparison is the check.
+and maximum per sampling action. Compare the printed figures against the row
+added to `docs/pages/counters-overhead.md`; that page states it is not a CI
+gate, so this comparison is the check.
 
 ## Marker lane
 

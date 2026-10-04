@@ -176,13 +176,13 @@ auto test_monotonic_and_cost(const sg::counters::plan& compiled,
         "over ten million consecutive reads (FR-006)");
   check(smallest_step > 0,
         "at least one of ten million reads advanced the clock (FR-008)");
-  // US2 scenario 3 reads "no difference exceeds the resolution", which no
-  // back-to-back sampling loop can satisfy: consecutive samples sit tens of
-  // nanoseconds apart, so every difference is already larger than the
-  // resolution `clock_getres` reports. The claim with content is the
-  // opposite bound, and it is the one this checks: the clock never reports
-  // a step finer than the resolution it publishes, so a step below the
-  // reported figure would mean the counter reports a granularity it does
+  // A back-to-back sampling loop leaves consecutive samples tens of
+  // nanoseconds apart, so every step is already larger than the resolution
+  // `clock_getres` reports; a shipped run recorded a smallest non-zero step
+  // of 70 ns against a reported resolution of 1 ns (SF-005). The bound that
+  // carries content is the lower one, and this checks it: the clock never
+  // reports a step finer than the resolution it publishes, so a step below
+  // the reported figure would mean the counter reports a granularity it does
   // not have (specs/011 FR-008, R-006).
   check(smallest_step >= resolution_bound,
         "no sample-to-sample step is finer than the resolution the platform "
