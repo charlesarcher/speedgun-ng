@@ -30,13 +30,21 @@ namespace
 {
 
 // Leaf kinds in enumerate order: monotonic, thread_cpu, process_cpu,
-// tsc. Addresses are canonical machine-root spellings (C-PRO-2).
+// tsc, monotonic_raw. Addresses are canonical machine-root spellings
+// (C-PRO-2). The new leaf sits last so the three existing indices keep
+// their values on every target, including one that publishes no tsc.
 constexpr std::string_view kAddresses[] = {"machine/monotonic",
                                            "machine/thread_cpu",
                                            "machine/process_cpu",
-                                           "machine/tsc"};
+                                           "machine/tsc",
+                                           "machine/monotonic_raw"};
 
 constexpr int kTscIndex = 3;
+
+// The address table's length, so adding a leaf cannot leave the parser
+// reading fewer entries than the catalog publishes.
+constexpr int kLeafCount =
+    static_cast<int>(sizeof(kAddresses) / sizeof(kAddresses[0]));
 
 // The time-stamp entry publishes exactly where the instruction exists
 // (FR-001) and the reader opens exactly where the catalog enumerates
@@ -50,7 +58,7 @@ constexpr bool kTscAvailable = false;
 
 auto parse(const std::string_view address) noexcept -> int
 {
-  for (int index = 0; index < 4; ++index) {
+  for (int index = 0; index < kLeafCount; ++index) {
     if (address == kAddresses[index]) {
       return index;
     }
@@ -82,6 +90,24 @@ auto monotonic_ns() noexcept -> std::uint64_t
   return static_cast<std::uint64_t>(stamp.tv_sec) * 1000000000ULL
       + static_cast<std::uint64_t>(stamp.tv_nsec);
 #endif
+}
+
+// The nanosecond-rate clock (specs/011 FR-001, FR-004): the kernel serves
+// it from the hardware clocksource's own rate and never slews it, so a
+// long campaign of stored results holds no accumulated drift against the
+// hardware counter underneath. The conversion is the same integer
+// expression the three readers above use, with no floating-point step.
+auto monotonic_raw_ns() noexcept -> std::uint64_t
+{
+  timespec stamp {};
+  // LCOV_EXCL_BR_START : coverage exclusion (011 T007): `monotonic_raw_ns`
+  // does not fail on Linux. glibc routes it through the vDSO and the kernel
+  // clock is unconditional, so no test can make this arm run.
+  if (clock_gettime(CLOCK_MONOTONIC_RAW, &stamp) != 0) {  // LCOV_EXCL_BR_LINE
+    return 0;  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_BR_STOP
+  return static_cast<std::uint64_t>(stamp.tv_sec) * 1000000000ULL
+      + static_cast<std::uint64_t>(stamp.tv_nsec);
 }
 
 auto thread_cpu_ns() noexcept -> std::uint64_t
@@ -196,6 +222,9 @@ struct detail::clock_window final : window_reader
         case 2:
           sink.put(process_cpu_ns());
           break;
+        case 4:
+          sink.put(monotonic_raw_ns());
+          break;
         default:
           sink.put(tsc_ticks());
           break;
@@ -251,6 +280,19 @@ void clock_provider::enumerate(object_sink& sink) const
       .scaled = false,
   });
 #endif
+  // The nanosecond-rate leaf (specs/011 FR-001, FR-002, FR-005): it
+  // publishes on every supported build, because the platform serves this
+  // clock through its fast path on every supported target. The read mode
+  // is the label every clock counter here carries, and the published
+  // overhead table records the fast path beside it (FR-010).
+  entries.push_back(catalog_seed {
+      .name = "monotonic_raw",
+      .description =
+          "hardware-rate time, never adjusted by the operating " "system",
+      .unit = "nanoseconds",
+      .avail = availability::countable,
+      .mode = read_mode::syscall,
+  });
   sink.add_object(object_seed {
       .kind = "machine",
       .path = "machine",

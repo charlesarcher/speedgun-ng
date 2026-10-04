@@ -15,7 +15,7 @@ register handling, and the codegen-gate mechanism. Four specification
 items conflict with the constitution or with each other and are recorded as
 specification findings: the FR-033 build-configuration clause, the FR-007
 cross-thread postcondition, the SC-004 and SC-006 measurements, and the
-marker's provenance. The maintainer resolved all four on 2026-10-03, in favour
+marker's provenance. The maintainer resolved all four on 2026-10-03, in favor
 of editing the build files and of the corrected wording each finding
 carries.
 
@@ -214,7 +214,7 @@ runs on every job on every push. The specification already uses this split
 for User Story 1, where the marker assertion runs in the ordinary suite and
 the Intel SDE run stays a local confirmation.
 
-**Alternatives considered**: labelling the sixty-second entry with
+**Alternatives considered**: labeling the sixty-second entry with
 `SKIP_RETURN_CODE` would keep it in the suite while removing its verdict from
 the run, which is a gate that reports nothing.
 
@@ -259,7 +259,7 @@ Two sources add bytes that are not part of the marker. Intel's
 `intel-ipsec-mb` emits `db 0x64, 0x67, 0x90, 0x90, 0x90`, three no-operation
 bytes where the matcher reads one. The matcher's window is eight bytes, so
 the trailing bytes sit outside it. The codegen gate asserts the eight-byte
-window and ignores any neighbouring no-operation, which keeps a padding
+window and ignores any neighboring no-operation, which keeps a padding
 change from reading as a marker change and keeps a marker change from
 hiding behind padding.
 
@@ -330,7 +330,7 @@ needs a second assembly block to read RBX at all, which adds a second
 suppressed statement where FR-021 anticipates one, and it asserts a property
 the ABI already guarantees.
 
-### R-011 The codegen gate is a shell script modelled on the one already in the tree
+### R-011 The codegen gate is a shell script modeled on the one already in the tree
 
 **Decision**: the gate is `test/simulation_mark_shape.sh`, registered with
 CTest as one `add_test` block inside the existing Linux-only region of
@@ -382,7 +382,7 @@ and `add_test` block; the only glob in the build covers
 `source/counters/*.cpp`, which holds no marker. Under the strict reading of
 FR-033, FR-023 is unsatisfiable.
 
-The narrower reading is also the one the repository already practises.
+The narrower reading is also the one the repository already practices.
 `test/CMakeLists.txt` is the test registry by convention: it carries no
 option, no preset, no toolchain setting, and no gate configuration, and the
 project's own merged features extend it without amendment. The files FR-033
@@ -418,7 +418,7 @@ a free function with no relationship to the counter catalog.
 
 ## Specification Findings
 
-Three items need the maintainer's attention. Each is recorded with the
+Five items need the maintainer's attention. Each is recorded with the
 candidates, and this plan carries on with the chosen reading so that
 implementation is not blocked.
 
@@ -461,3 +461,17 @@ records the correct identifier, states that Intel publishes no byte encoding,
 and names the two sources the byte contract rests on. The specification's
 Input section keeps the user's request verbatim, which is correct as a
 quotation, and R-009 carries the provenance with its sources.
+
+### SF-005 The smallest-step clause in FR-008 states a bound the reference
+platform cannot satisfy
+
+**Resolved 2026-10-03**: a shipped run reports a resolution of `1` ns against
+a smallest observed non-zero step of `70` ns, so a step that stays within the
+reported resolution does not occur on the reference platform, where
+consecutive samples in a back-to-back sampling loop sit tens of nanoseconds
+apart. FR-008, User Story 2 acceptance scenario 3, and guarantee 3 of
+`contracts/monotonic-raw-counter.md` now state the granularity bound the test
+asserts: no observed step is finer than the resolution the platform reports
+for this clock, and a step below the reported figure would mean the counter
+reports a granularity it does not have. The assertion and the reasoning for
+it are carried at `test/source/counters_clock_raw_test.cpp:179-189`.
