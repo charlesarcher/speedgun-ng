@@ -414,8 +414,8 @@ endif()
 # existing unit token and read mode, ten million consecutive reads that
 # never decrease, the same claim across every logical processor under a
 # join, and no observed step finer than the resolution the platform
-# reports. It prints the per-read cost distribution beside the resolution
-# so the published row has a run to check against.
+# reports. It prints the per-sampling-action cost distribution beside the
+# resolution so the published row has a run to check against.
 add_executable(counters_clock_raw_test source/counters_clock_raw_test.cpp)
 target_link_libraries(counters_clock_raw_test
                       PRIVATE speedgun-ng::speedgun-ng)

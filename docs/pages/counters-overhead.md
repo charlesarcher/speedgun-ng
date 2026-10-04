@@ -185,12 +185,12 @@ The two `machine/monotonic_raw` rows were measured on 2026-10-03 at a
 load average of 0.63, on `Linux 7.2.4-1-cachyos x86_64` with an AMD
 Ryzen 9 9950X3D, with nothing else building. The other rows come from
 the 2026-09-28 pass recorded at the top of this file, so a row above and
-a row beside it are not comparable across the table. That pass reads
-`machine/monotonic` at 30, 30, and 40 ns in the release build and at 50,
-60, and 100 ns in the correctness build, which are the figures the
-`monotonic_raw` rows are read against. The two clocks cost the same on
-one host under one pass; the earlier pass read both about 10 ns higher,
-and that difference belongs to the pass.
+a row beside it are not comparable across the table.
+The 2026-10-03 pass reads `machine/monotonic` at 30, 30, and 40 ns in
+the release build and at 50, 60, and 100 ns in the correctness build,
+which are the figures the `monotonic_raw` rows are read against. The
+two clocks cost the same on one host under one pass; the earlier pass
+read both about 10 ns higher, and that difference belongs to the pass.
 
 The nanosecond-rate counter's bracketing convention sits beside its
 correctness-build row. `counters_clock_raw_test` brackets each
@@ -204,10 +204,16 @@ per-sampling-action figure read 50 ns at the median and 50 ns at the
 99th percentile uncorrected, and 40 ns at the median and 40 ns at the
 99th percentile with that overhead subtracted. The uncorrected median
 agrees with the 50, 60, and 100 ns row above, which carries the plan's
-own instrumentation over its own sample count. SC-004's thresholds
-judge the corrected figure, and the test prints both figures and
-asserts neither, because Principle VI requires the suite to run in
-every CI job.
+own instrumentation over its own sample count. SC-004's bounds judge
+the overhead-corrected cost of one read, the figure derived in
+`specs/011-nanosecond-counter-ssc-mark/research.md` R-006 at 12.6 ns
+at the median and near 22 ns at the 99th percentile once the 7.36 ns
+bracketing overhead is subtracted. The median is the 20.00 ns
+uncorrected median R-006 records less that same overhead, and no run
+measured the corrected median. The per-sampling-action figures above
+cover the library's own machinery and set no threshold there. The test
+prints the corrected and uncorrected figures and asserts neither,
+because Principle VI requires the suite to run in every CI job.
 
 A fold window from `i` to `j` costs two sampling actions plus the fold:
 `2 * sample_overhead_ns_median()`, so 80 ns for the clock plan and 140 ns

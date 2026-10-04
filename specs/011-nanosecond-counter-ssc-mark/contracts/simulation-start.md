@@ -20,7 +20,7 @@ namespace sg {
 inline constexpr std::uint32_t simulation_start_tag = 0xFACEU;
 
 /// Emits the marker sequence an attached tracer watches for.
-[[nodiscard]] void simulation_start() noexcept;
+void simulation_start() noexcept;
 
 }  // namespace sg
 ```
