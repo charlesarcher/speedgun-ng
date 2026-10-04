@@ -24,14 +24,22 @@ struct clock_window;
  * @brief The shipped clock provider: always countable, zero
  * privileges (FR-033, R-007).
  *
- * Seeds the machine object with `monotonic`, `thread_cpu`, and
- * `process_cpu` leaves in nanoseconds at syscall read mode, plus a
- * `tsc` leaf at fast tick mode wherever the build executes the
- * time-stamp instruction (FR-001, FR-011). The count carries no rate:
- * the entry's frequency field and its scaled flag keep their zero
- * defaults (FR-002). A build without the instruction omits the `tsc`
- * leaf entirely, which is a catalog fact with no API difference
- * (R-007).
+ * Seeds the machine object with `monotonic`, `monotonic_raw`,
+ * `thread_cpu`, and `process_cpu` leaves in nanoseconds at syscall
+ * read mode, plus a `tsc` leaf at fast tick mode wherever the build
+ * executes the time-stamp instruction (FR-001, FR-011). The count
+ * carries no rate: the entry's frequency field and its scaled flag
+ * keep their zero defaults (FR-002). A build without the instruction
+ * omits the `tsc` leaf entirely, which is a catalog fact with no API
+ * difference (R-007).
+ *
+ * Every leaf here reports a count that never decreases (FR-006,
+ * FR-007). A sample is greater than or equal to the immediately
+ * preceding sample of the same counter on the same thread. A sample
+ * is also greater than or equal to an earlier sample of the same
+ * counter whose completion happens-before the present sample's
+ * start. Two samples taken on two threads with no ordering relation
+ * between them carry no promised order.
  */
 class SPEEDGUN_NG_EXPORT clock_provider final : public provider_iface
 {

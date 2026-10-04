@@ -791,6 +791,10 @@ if(speedgun-ng_counters_sources)
   target_sources(speedgun-ng_speedgun-ng PRIVATE ${speedgun-ng_counters_sources})
 endif()
 
+# The trace-start marker unit sits outside source/counters/, so the glob
+# above cannot reach it (specs/011 FR-012, T003).
+target_sources(speedgun-ng_speedgun-ng PRIVATE source/simulation/marker.cpp)
+
 # The compile definition hands the vendored table root to the Linux
 # PMU provider, the same way the clock provider reaches sysfs by path
 # (T045).

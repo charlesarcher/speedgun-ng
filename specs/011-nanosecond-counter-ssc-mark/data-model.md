@@ -119,7 +119,7 @@ The eight bytes `BB imm32(LE) 64 67 90`, emitted as one assembly statement.
 Relationships:
 
 - **Recognized by** an attached tracer as an eight-byte window at an
-  instruction boundary. Bytes outside the window, including a neighbouring
+  instruction boundary. Bytes outside the window, including a neighboring
   no-operation, are not part of the marker.
 - **Produced by** the marker translation unit and by nothing else in the
   library. The gate's exactly-once assertion relies on the unit holding

@@ -5,10 +5,14 @@
 # names. Violations are printed as file:line and the script exits 1;
 # a clean scan exits 0.
 #
-# The scan covers four terms across every public counters header:
-# perf_event, clock_gettime, rdpmc, rdtsc. A fifth term, the platform
-# acronym PMU, is scanned across the core vocabulary headers only, and
-# its scope is the second half of this record. The platform vocabulary
+# The scan covers four terms across every public counters header and
+# across the public header declaring the trace-start marker:
+# perf_event, clock_gettime, rdpmc, rdtsc. The second of those two
+# include patterns is `simulation.hpp`, which the counters glob misses
+# because the header is named for what it declares (specs/011 R-013).
+# A fifth term, the platform acronym PMU, is scanned across the core
+# vocabulary headers only, and its scope is the second half of this
+# record. The platform vocabulary
 # the headers do use is outside the first four terms, and saying so
 # here is part of the record: sysfs (the PMU catalog's own source path)
 # and pmu (the provider name and the counters_pmu.hpp header). The
@@ -45,6 +49,15 @@
 # so renaming a core header leaves a named gap and exits 2 instead of
 # quietly scanning less.
 #
+# The two include patterns are the widened set. Dropping either one
+# leaves this scan inspecting fewer headers and still exiting 0, so a
+# probe copies the scanned headers into a scratch tree, requires this
+# scan to report nothing in that copy, plants one banned term in the
+# copy of simulation.hpp, and requires this scan to report it there. A
+# clean run on the repository's headers then carries the widened set.
+# The scratch tree lives in a temporary directory this script removes
+# on exit, and the repository's headers are never written.
+#
 # Usage: counters_header_purity.sh <repo-root>
 
 set -u
@@ -53,18 +66,69 @@ ROOT=${1:-.}
 HEADERS_DIR="$ROOT/include/speedgun-ng"
 CORE_HEADERS="counters_core.hpp counters_measurement.hpp counters_provider.hpp
 counters_system.hpp counters.hpp"
+TERMS="perf_event clock_gettime rdpmc rdtsc"
+PROBE_TERM=perf_event
 
 if [ ! -d "$HEADERS_DIR" ]; then
   echo "counters_header_purity: no header dir at $HEADERS_DIR"
   exit 2
 fi
 
+WORKDIR=$(mktemp -d)
+cleanup() { rm -rf "$WORKDIR"; }
+trap cleanup EXIT
+
+# Widened-set probe: a scratch copy of the scanned headers carrying one
+# planted banned term. This scan must report nothing in the copy before
+# the plant and the planted term after it, so a clean run on the real
+# headers cannot come from a scan that inspects nothing.
+widened_set_probe() {
+  local copy="$WORKDIR/probe/include/speedgun-ng"
+  local out status
+
+  mkdir -p "$copy" || return 1
+  cp "$HEADERS_DIR"/*.hpp "$copy"/ || return 1
+
+  out=$(SG_HEADER_PURITY_PROBE=1 bash "$0" "$WORKDIR/probe" 2>&1)
+  status=$?
+  if [ $status -ne 0 ]; then
+    echo "FAIL: the unplanted copy of the scanned headers reported $status," >&2
+    echo "      so a clean run cannot come from this copy" >&2
+    printf '%s\n' "$out" >&2
+    return 1
+  fi
+
+  printf '\n// planted by the widened-set probe\nconst char* probe = "%s";\n' \
+    "$PROBE_TERM" >>"$copy/simulation.hpp" || return 1
+
+  out=$(SG_HEADER_PURITY_PROBE=1 bash "$0" "$WORKDIR/probe" 2>&1)
+  status=$?
+  if [ $status -ne 1 ] || ! printf '%s\n' "$out" | grep -q "$PROBE_TERM"; then
+    echo "FAIL: the planted term '$PROBE_TERM' went unreported, scan status" >&2
+    echo "      $status, so a clean run on the real headers proves nothing" >&2
+    printf '%s\n' "$out" >&2
+    return 1
+  fi
+  echo "  planted '$PROBE_TERM' in the scratch copy, the scan reported it"
+  return 0
+}
+
 status=0
-for term in perf_event clock_gettime rdpmc rdtsc; do
+if [ "${SG_HEADER_PURITY_PROBE:-}" != 1 ]; then
+  echo "=== widened-set probe (scan liveness) ==="
+  if ! widened_set_probe; then
+    status=1
+  fi
+  echo
+fi
+
+for term in $TERMS; do
   if [ "$term" = rdpmc ]; then
-    hits=$(grep -rn --include='counters*.hpp' -w -e "$term" "$HEADERS_DIR" || true)
+    hits=$(grep -rn --include='counters*.hpp' --include='simulation.hpp' -w \
+             -e "$term" "$HEADERS_DIR" || true)
   else
-    hits=$(grep -rn --include='counters*.hpp' -e "$term" "$HEADERS_DIR" || true)
+    hits=$(grep -rn --include='counters*.hpp' --include='simulation.hpp' \
+             -e "$term" "$HEADERS_DIR" || true)
   fi
   if [ -n "$hits" ]; then
     echo "counters_header_purity: platform term '$term' in public headers:"

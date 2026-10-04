@@ -26,7 +26,7 @@ Its body is one extended-assembly statement emitting the eight-byte Intel
 SDE SSC marker, `BB imm32(LE) 64 67 90`, with RBX named in the clobber list
 and no memory clobber (R-008, R-010). The sequence's fidelity is invisible at
 run time, so a gate reads the compiled object instead: a shell script
-modelled on the one the TSC counter already ships compiles the marker
+modeled on the one the TSC counter already ships compiles the marker
 translation unit at `-O2` for each available compiler crossed with each
 contract-enforcement setting, disassembles it, and asserts the marker window
 appears exactly once, after planting a wrong sequence to prove the detector

@@ -51,7 +51,7 @@ Fixed properties of the sequence:
 
 1. **Eight bytes, one window.** A tracer matches eight contiguous bytes at
    an instruction boundary. Bytes outside the window are not part of the
-   marker, so a neighbouring no-operation neither satisfies nor breaks the
+   marker, so a neighboring no-operation neither satisfies nor breaks the
    match.
 2. **The immediate is 32 bits wide.** A tag outside the unsigned 32-bit range
    cannot be encoded, and a `static_assert` in the translation unit rejects

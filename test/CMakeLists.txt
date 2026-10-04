@@ -145,6 +145,20 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     NAME counters_tsc_read_shape
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/counters_tsc_read_shape.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
   )
+
+  # Codegen gate for the trace-start marker (011 T009; FR-012, FR-023,
+  # FR-024, FR-025): the marker has no run-time effect, so nothing in the
+  # ordinary suite can tell a correct marker from a broken one. The script
+  # compiles the translation unit at -O2 itself, for each compiler crossed
+  # with each contract semantic, and asserts the eight-byte window a tracer
+  # matches appears exactly once, after planting a wrong window to prove
+  # the detector bites. Same pure-script registration pattern; the script
+  # exits 0 clean, 1 naming the count, and 0 with a skip line where no
+  # compiler on PATH targets x86.
+  add_test(
+    NAME simulation_mark_shape
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/simulation_mark_shape.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
+  )
 endif()
 
 # Gate-effectiveness harness (001 T024 / SC-006). Self-contained: invokes
@@ -392,6 +406,34 @@ if(TARGET counters_standalone_example)
            COMMAND counters_standalone_example)
   add_test(NAME counters_giraffe_example COMMAND counters_giraffe_example)
 endif()
+
+# ---- Nanosecond-rate counter (feature 011) ----
+
+# The nanosecond-rate clock leaf (specs/011 FR-001..FR-008; US2):
+# publication at `machine/monotonic_raw` on every supported build, the
+# existing unit token and read mode, ten million consecutive reads that
+# never decrease, the same claim across every logical processor under a
+# join, and no observed step finer than the resolution the platform
+# reports. It prints the per-read cost distribution beside the resolution
+# so the published row has a run to check against.
+add_executable(counters_clock_raw_test source/counters_clock_raw_test.cpp)
+target_link_libraries(counters_clock_raw_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_clock_raw_test PRIVATE cxx_std_23)
+add_test(NAME counters_clock_raw_test COMMAND counters_clock_raw_test)
+
+# ---- Trace-start marker (feature 011) ----
+
+# The marker's runtime properties (specs/011 FR-013, FR-026, FR-027; US1):
+# the published tag carries the documented value, every general-purpose
+# register is bit-identical across a call with the register's upper 32
+# bits set, and repeated calls terminate with no tracer attached. No
+# tracer is required to run it, which is what keeps the marker covered on
+# a build machine with no tracer installed.
+add_executable(simulation_test source/simulation_test.cpp)
+target_link_libraries(simulation_test PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(simulation_test PRIVATE cxx_std_23)
+add_test(NAME simulation_test COMMAND simulation_test)
 
 # ---- End-of-file commands ----
 

@@ -63,8 +63,8 @@ and this counter adds none. The resolved handle is interchangeable with
    for the reader that observed it and says nothing about another processor.
    Cross-processor comparability on x86 rests on the synchronized timestamp
    counter, and a kernel that distrusts its counter switches clocksource.
-3. The smallest non-zero step between samples stays within the resolution the
-   platform reports for this clock, which `clock_getres` answers from the
+3. No observed step between samples is finer than the resolution the platform
+   reports for this clock, which `clock_getres` answers from the
    kernel-wide timer mode flag. That flag is `1` nanosecond once the kernel
    has switched to high-resolution timers. It is a kernel-wide value, and no
    clocksource property enters it.

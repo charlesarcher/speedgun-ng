@@ -26,7 +26,7 @@ Two additions to the library's measurement surface:
   a caller types to look it up? → A: `machine/monotonic_raw`
 - Q: Which numeric tag value does the trace-start marker carry, the
   number a caller passes to Intel SDE on the command line? → A: `0xFACE`
-- Q: Does the catalog keep labelling this counter's read mode as
+- Q: Does the catalog keep labeling this counter's read mode as
   `syscall`, when the read avoids the system call? → A: Reuse
   `syscall`, matching every existing clock counter, and keep the
   fast-path caveat in the overhead table
@@ -132,8 +132,8 @@ distribution on the reference platform.
    greater than or equal to the earlier one.
 3. **Given** a sampling loop reading the counter, **When** the smallest
    non-zero difference between consecutive samples is measured, **Then**
-   no difference exceeds the resolution the platform reports for that
-   clock.
+   no difference is finer than the resolution the platform reports for
+   that clock.
 4. **Given** sampling loops spread over several threads, **When** the
    threads are joined and their samples are compared in completion
    order, **Then** no sample is lower than one whose completion
@@ -298,9 +298,9 @@ new files added.
   relation between them, so the library claims none.
 - **FR-008**: The new counter SHALL be measurable without a reference
   oracle: a test SHALL establish that consecutive samples never
-  decrease, that the smallest observed non-zero step stays within the
-  resolution the platform reports for that clock, and that the per-read
-  cost distribution matches the published figure for the reference
+  decrease, that no observed step is finer than the resolution the
+  platform reports for that clock, and that the per-read cost
+  distribution matches the published figure for the reference
   platform.
 - **FR-009**: All platform vocabulary naming the clock source, its
   identifier, and its reading function SHALL appear in the library's

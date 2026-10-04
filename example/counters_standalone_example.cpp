@@ -17,6 +17,8 @@
 
 #include "speedgun-ng/counters.hpp"
 
+#include "speedgun-ng/simulation.hpp"
+
 namespace
 {
 
@@ -81,6 +83,13 @@ auto main() -> int
     std::fprintf(stderr, "standalone: plan compile failed\n");
     return 1;
   }
+
+  // The marker opens an instruction trace at the region boundary. It sits
+  // outside the timed window because it occupies two instructions and
+  // would perturb the measurement it sits inside (specs/011 FR-019). Run
+  // this binary under `sde64 -start_ssc_mark FACE:repeat -- <binary>` and
+  // collection begins at the loop below.
+  sg::simulation_start();
 
   // The window holds one point per iteration plus the initial point;
   // the capacity is computed from that known count (FR-050).

@@ -323,8 +323,33 @@ auto main() -> int
     fail("the clock-only plan compiles");
   }
   std::printf("clock plan reads machine/monotonic, one leaf per action\n");
+
+  // The nanosecond-rate leaf reads the same fast path and differs in rate
+  // only, so it is measured beside its sibling and under the identical
+  // protocol. Its read mode is the label every clock counter carries
+  // while the read itself avoids the system call, and the published page
+  // records the fast path in that row's read-mode cell (specs/011 FR-008,
+  // FR-010).
+  const auto monotonic_raw = machine.counter<time_dim>("monotonic_raw");
+  if (!monotonic_raw.has_value()) {
+    fail("the clock provider seeds the monotonic_raw leaf");
+  }
+  const sg::counters::expression<time_dim> raw_elapsed {*monotonic_raw};
+  auto raw_clock_plan = compile(system::local(), raw_elapsed);
+  if (!raw_clock_plan.has_value()) {
+    fail("a plan over the nanosecond-rate counter compiles");
+  }
+  std::printf(
+      "raw clock plan reads machine/monotonic_raw, one leaf per " "action\n");
+
   std::printf("\nsampling cost by regime (nanoseconds per sample()):\n");
   const regime syscall_regime = measure(*clock_plan, "clock, syscall (vDSO)");
+  const regime raw_syscall_regime =
+      measure(*raw_clock_plan, "clock raw, syscall (vDSO)");
+  std::printf("the raw-rate median is %.1f ns against %.1f ns for the "
+              "adjusted clock, and both reads name the same fast path\n",
+              raw_syscall_regime.median_ns,
+              syscall_regime.median_ns);
 
 #if SG_TEST_HAS_TSC
   // The library's own cost over a bare read of the same instruction. The
