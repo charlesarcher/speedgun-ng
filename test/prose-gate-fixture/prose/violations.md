@@ -13,3 +13,10 @@ XI3.VOUCHER: Frankly, the measurements drift under sustained thermal load.
 XI4.META-EDITORIALIZING: In this section we describe how the harness fires.
 XI5.FILLER: The wheel advances in order to fire the nearest bucket.
 XI5.MARKETING: The report calls the median estimator robust under tail load.
+XI5.FILLER: The gate reports the finding in addition to the summary line.
+XI5.FILLER: The parser keeps the token as well as its rule id.
+XI5.FILLER: The summary lists the families and so on.
+XI5.FILLER: Two fixtures share one harness file in the same way.
+XI5.FILLER: The loader stops due to the fact that a probe fails.
+XI5.FILLER: The gate exits early as a result of a bad token.
+XI5.FILLER: The harness checks two compilers similarly.

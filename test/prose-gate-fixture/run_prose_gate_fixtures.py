@@ -607,7 +607,7 @@ def run_prose_check(
 
     Scenario surfaces are throwaway staged repositories under --out; the
     fixture corpus itself is never mutated. The corpus's designed oracle:
-    violations.md lines 7 to 15 (one finding each, ids and tokens below),
+    violations.md lines 7 to 22 (one finding each, ids and tokens below),
     comments.c line 11, comments.sh line 4, comments.cmake line 3, and
     silent.md silent. The em dash token is written as an escape so this
     source carries no dash code point.
@@ -628,6 +628,13 @@ def run_prose_check(
         ("violations.md", 13, "XI4.META-EDITORIALIZING", "In this section we"),
         ("violations.md", 14, "XI5.FILLER", "in order to"),
         ("violations.md", 15, "XI5.MARKETING", "robust"),
+        ("violations.md", 16, "XI5.FILLER", "in addition to"),
+        ("violations.md", 17, "XI5.FILLER", "as well as"),
+        ("violations.md", 18, "XI5.FILLER", "and so on"),
+        ("violations.md", 19, "XI5.FILLER", "in the same way"),
+        ("violations.md", 20, "XI5.FILLER", "due to the fact that"),
+        ("violations.md", 21, "XI5.FILLER", "as a result of"),
+        ("violations.md", 22, "XI5.FILLER", "similarly"),
         ("comments.c", 11, "XI1.EMDASH", "\u2014"),
         ("comments.sh", 4, "XI1.EMDASH", "\u2014"),
         ("comments.cmake", 3, "XI1.EMDASH", "\u2014"),
