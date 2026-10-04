@@ -127,7 +127,9 @@ rules:
     tokens_source: constitution
     tokens: [it's worth noting, importantly, notably, essentially, basically,
              simply, just, very, actually, in fact, of course,
-             needless to say, in order to, smoke test]
+             needless to say, in order to, smoke test,
+             in addition to, as well as, and so on, in the same way,
+             due to the fact that, as a result of, similarly]
     scope: [markdown, c-comment, shell-comment, cmake-comment,
             commit-title, commit-body]
     message: drop the filler and keep the claim

@@ -1,4 +1,52 @@
 <!--
+Sync Impact Report (2.12.0, MINOR): XI gains XI.7, Simplified Technical
+English. Generated prose in this repository must reach about 80 percent
+compliance with ASD-STE100.
+
+The rule binds the channels XI already binds: interactive replies, code
+comments, commit messages, specs, plans, tasks, documentation, figure
+labels, and slide text. It adds an obligation and removes none.
+
+The two rule sets overlap and they conflict in places. ASD-STE100
+prefers `instead of` and a few other constructions that XI.2 and XI.5
+ban, and XI.5 bans weak requirement words where the standard prefers
+them. XI.1 through XI.6 therefore govern, and XI.7 applies where those
+subsections are silent. The amendment weakens no existing rule and
+creates no exception to one.
+
+Scope matches the grandfathering clause in XI.1. The rule binds prose
+written after this amendment. Earlier text keeps its violations, and a
+change brings the lines it touches into compliance. No earlier artifact
+needs a rewrite of substance.
+
+This amendment shifts every line below its insertion points, so a
+citation that names a line number in this file needs re-anchoring, on the
+terms the 2.9.0 and 2.10.0 reports set. The affected citations are the
+`runner` example token named in `tools/prose/prose_rules.yaml`,
+`specs/002-prose-commit-lint/contracts/rule-data.md`,
+`specs/002-prose-commit-lint/data-model.md`, and
+`specs/002-prose-commit-lint/research.md`, plus the ledger in
+`specs/007-counters-and-timers/citations.md`. The `:515` those four
+files name was already stale before this amendment, so the correct anchor
+is the token's present position. Search this file for the token; the
+number moves with every edit to the reports above it.
+
+Enforcement is by review, at lint parity, on the terms XI.6 sets for
+every other violation in this principle. Most XI.7 rules are a judgment
+about a sentence, so no mechanical check covers them. The wordy
+connectives that a matcher can bound are the exception: they sit in XI.5's
+filler list, `prose-lint` reports them from `tools/prose/prose_rules.yaml`
+over added and modified lines, and the fixtures in `specs/002` assert each
+one in both directions. This amendment adds no rule identifier, so the
+canonical-id coverage probe is unchanged.
+
+MINOR because guidance expanded materially inside an existing principle.
+No principle is added, removed, renamed, or renumbered. No gate,
+threshold, warning class, analyzer invocation, job, runner, or dependency
+is added, removed, or weakened, and the gate set is unchanged.
+Amendment history lives in the git log of this file.
+-->
+<!--
 Sync Impact Report (2.11.0, MAJOR): Principle VIII's hard gate list and the
 Additional Constraints platform definition name Linux alone, and IX's
 per-feature release-build clause names the `ci-ubuntu` preset only. Linux is
@@ -527,6 +575,10 @@ Filler and hedge drops: "it's worth noting", "importantly", "notably", <!-- pros
 "essentially", "basically", "simply", "just", "very", "actually", "in fact", <!-- prose-lint: allow reason="XI.5 self-quotation of the filler and hedge list" -->
 "of course", "needless to say", "in order to". <!-- prose-lint: allow reason="XI.5 self-quotation of the filler and hedge list" -->
 
+The wordy connectives XI.7 names join that list, because they add nothing: <!-- prose-lint: allow reason="XI.5 self-quotation of the connective list XI.7 names" -->
+"in addition to", "as well as", "and so on", "in the same way", <!-- prose-lint: allow reason="XI.5 self-quotation of the connective list XI.7 names" -->
+"due to the fact that", "as a result of", "similarly". <!-- prose-lint: allow reason="XI.5 self-quotation of the connective list XI.7 names" -->
+
 Marketing vocabulary is banned from technical claims: "seamlessly", <!-- prose-lint: allow reason="XI.5 self-quotation of the marketing vocabulary list" -->
 "cutting-edge", "leverages", "world-class", "best-in-class", <!-- prose-lint: allow reason="XI.5 self-quotation of the marketing vocabulary list" -->
 "industry-leading", "robust", "blazing-fast", "elegant", "powerful". A <!-- prose-lint: allow reason="XI.5 self-quotation of the marketing vocabulary list" -->
@@ -559,6 +611,59 @@ Weak requirement language stays banned in EARS statements per III: "should",
   the quotation as quoted.
 - XI binds generated output. It leaves a contributor's personal voice in prose
   they author by hand untouched, and never weakens IV or V.
+
+#### XI.7 Simplified Technical English
+
+Generated prose must reach about 80 percent compliance with ASD-STE100,
+Simplified Technical English. That standard is the reference. This
+subsection names the rules that carry the most weight here, and it
+settles how the two rule sets meet.
+
+- Keep a sentence short: 20 words for a step in a procedure, 25 words for
+  a description.
+- Put one topic in a sentence. Split a sentence that carries two actions.
+- Use the active voice. Name the actor that acts.
+- Use the present tense.
+- Use a verb in place of a noun form: `compile`, not `compilation`.
+- Order a sentence as subject, verb, object.
+- Use one term for one concept in every document. Do not rotate synonyms.
+- Use `shall` for an obligation. Use `should` for advice and `may` for
+  permission where the surrounding text allows those words; XI.5 bans them
+  inside a requirement statement.
+- Avoid the wordy connectives in XI.5's filler list. `prose-lint` reports
+  each one on an added or modified line.
+- Avoid `etc.`, `so that`, `otherwise`, and `and/or`. A reviewer reports
+  these four. The gate cannot match them, for two measured reasons. A
+  word boundary does not follow the period in `etc.`. And `and/or` has the
+  shape of a file path, so the path exemption in XI.6 removes the line
+  before any rule runs.
+- Avoid `if` at the start of a sentence. Put the condition first, then the
+  result.
+- Avoid `to be`, and avoid `be` used as a noun.
+- Use `if` for a condition. Keep `when` for a time.
+- Prefer one word where one word says it: `more than`, not `greater than`.
+- Use `usually`, `often`, `seldom`, and `never` in place of a vague
+  quantity.
+- Give a number its unit: `20 ns`, not `20`.
+- Define a term before the text uses it.
+- Keep every code span on one line, so a wrapped command cannot read as
+  prose.
+
+Precedence: XI.1 through XI.6 govern. XI.7 applies where they are
+silent. Where the standard prefers a construction that XI.2 or XI.5
+bans, the XI rule wins. Full compliance is not required, and the
+standard lets a writer depart from it on purpose for a stated audience.
+Record such a departure in the artifact when a reader would expect the
+rule to hold.
+
+Enforcement: a violation is a defect at lint parity and a reviewer
+rejects it before merge, on the terms XI.6 sets. The gate covers the
+connectives in XI.5's filler list and nothing else here, because most of
+these rules are a judgment about a sentence.
+
+Scope and grandfathering: the rule binds prose written after this
+amendment. Earlier text keeps its violations. A change brings the lines
+it touches into compliance, the same way XI.1 does.
 
 ## Refactoring and Evolution
 
@@ -677,6 +782,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.12.0 | 2026-10-03 | XI.7 Simplified Technical English: generated prose reaches about 80 percent ASD-STE100 compliance, reviewer-enforced, XI.1 to XI.6 govern on conflict, no rule identifier added |
 | 2.11.0 | 2026-10-02 | supported platform narrowed to Linux; gate list, platform definition, and release-build clause name it alone; 2.7.0 Windows suspension and 2.8.0 macOS deferral superseded, both reports retained; macOS Open deferral closed, retiring specs/009 T038; five merged vendor specs superseded by name and left unedited |
 | 2.10.0 | 2026-09-28 | VIII static-analysis clause states the gate reports and names the step a reader collects the report from |
 | 2.9.1 | 2026-09-27 | IX per-feature release build names the preset per platform |
@@ -694,4 +800,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.11.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-02
+**Version**: 2.12.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-03
