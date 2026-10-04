@@ -66,7 +66,7 @@
             </li>
           </ul>
         </nav>
-<p>Seeds the machine object with <code>monotonic</code>, <code>thread_cpu</code>, and <code>process_cpu</code> leaves in nanoseconds at syscall read mode, plus a <code>tsc</code> leaf at fast tick mode wherever the build executes the time-stamp instruction (FR-001, FR-011). The count carries no rate: the entry&#x27;s frequency field and its scaled flag keep their zero defaults (FR-002). A build without the instruction omits the <code>tsc</code> leaf entirely, which is a catalog fact with no API difference (R-007).</p>
+<p>Seeds the machine object with <code>monotonic</code>, <code>monotonic_raw</code>, <code>thread_cpu</code>, and <code>process_cpu</code> leaves in nanoseconds at syscall read mode, plus a <code>tsc</code> leaf at fast tick mode wherever the build executes the time-stamp instruction (FR-001, FR-011). The count carries no rate: the entry&#x27;s frequency field and its scaled flag keep their zero defaults (FR-002). A build without the instruction omits the <code>tsc</code> leaf entirely, which is a catalog fact with no API difference (R-007).</p><p>Every leaf here reports a count that never decreases (FR-006, FR-007). A sample is greater than or equal to the immediately preceding sample of the same counter on the same thread. A sample is also greater than or equal to an earlier sample of the same counter whose completion happens-before the present sample&#x27;s start. Two samples taken on two threads with no ordering relation between them carry no promised order.</p>
         <section id="base-classes">
           <h2><a href="#base-classes">Base classes</a></h2>
           <dl class="m-doc">
