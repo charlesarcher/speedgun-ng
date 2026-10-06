@@ -1279,7 +1279,17 @@ auto intel_encodable_rows_scenario() -> void
   {"EventName":"spell_port","EventCode":"0x06","PortMask":3,
    "BriefDescription":"the port-mask key maps onto the kernel spelling"},
   {"EventName":"spell_fc","EventCode":"0x07","FCMask":7,
-   "BriefDescription":"the function-call-mask key maps onto the kernel spelling"}
+   "BriefDescription":"the function-call-mask key maps onto the kernel spelling"},
+  {"EventName":"spell_rdwr","EventCode":"0x08","RdWrMask":3,
+   "BriefDescription":"the read-write mask maps onto the kernel spelling"},
+  {"EventName":"spell_cores","EventCode":"0x09","EnAllCores":1,
+   "BriefDescription":"the all-cores key maps onto the kernel spelling"},
+  {"EventName":"spell_slices","EventCode":"0x0a","EnAllSlices":1,
+   "BriefDescription":"the all-slices key maps onto the kernel spelling"},
+  {"EventName":"spell_slice","EventCode":"0x0b","SliceId":2,
+   "BriefDescription":"the slice identifier maps onto the kernel spelling"},
+  {"EventName":"spell_thread","EventCode":"0x0c","ThreadMask":5,
+   "BriefDescription":"the thread mask maps onto the kernel spelling"}
 ])");
   std::vector<pmu_table_entry> spelling_table;
   sg::counters::detail::pmu_parse_table_file(mapped, spelling_table);
@@ -1288,7 +1298,10 @@ auto intel_encodable_rows_scenario() -> void
       static_cast<void>(value);
       check(name == "event" || name == "cmask" || name == "inv"
                 || name == "edge" || name == "offcore_rsp" || name == "any"
-                || name == "ch_mask" || name == "fc_mask",
+                || name == "ch_mask" || name == "fc_mask"
+                || name == "rdwrmask" || name == "enallcores"
+                || name == "enallslices" || name == "sliceid"
+                || name == "threadmask",
             "an encoding field is recorded under the kernel spelling the "
             "device publishes (FR-011, FR-017)");
     }
@@ -1321,6 +1334,40 @@ auto intel_encodable_rows_scenario() -> void
             && spell_fc != nullptr && field_of(*spell_fc, "fc_mask") == 7,
         "AnyThread, PortMask, and FCMask reach any, ch_mask, and fc_mask "
         "(FR-011)");
+  const auto* spell_rdwr = spelling_row("spell_rdwr");
+  const auto* spell_cores = spelling_row("spell_cores");
+  const auto* spell_slices = spelling_row("spell_slices");
+  const auto* spell_slice = spelling_row("spell_slice");
+  const auto* spell_thread = spelling_row("spell_thread");
+  check(spell_rdwr != nullptr && field_of(*spell_rdwr, "rdwrmask") == 3
+            && spell_cores != nullptr
+            && field_of(*spell_cores, "enallcores") == 1
+            && spell_slices != nullptr
+            && field_of(*spell_slices, "enallslices") == 1
+            && spell_slice != nullptr && field_of(*spell_slice, "sliceid") == 2
+            && spell_thread != nullptr
+            && field_of(*spell_thread, "threadmask") == 5,
+        "RdWrMask, EnAllCores, EnAllSlices, SliceId, and ThreadMask reach "
+        "rdwrmask, enallcores, enallslices, sliceid, and threadmask "
+        "(FR-011)");
+  pmu_device spelled;
+  spelled.formats.emplace_back("event", device.formats.front().second);
+  for (const auto* format :
+       {"rdwrmask", "enallcores", "enallslices", "sliceid", "threadmask"})
+  {
+    spelled.formats.emplace_back(format, device.formats.front().second);
+  }
+  for (const auto* row :
+       {spell_rdwr, spell_cores, spell_slices, spell_slice, spell_thread})
+  {
+    if (row == nullptr) {
+      continue;
+    }
+    std::vector<std::pair<int, std::uint64_t>> words;
+    check(pmu_compose_config(row->fields, spelled.formats, words),
+          "a mapped key encodes where the device publishes that format "
+          "(FR-011)");
+  }
   for (const auto* row : {spell_any, spell_port, spell_fc}) {
     if (row == nullptr) {
       continue;
@@ -1449,7 +1496,9 @@ auto intel_encodable_rows_scenario() -> void
   // The index parser's remaining arms: an upper-case hex prefix, a decimal
   // index, a blank index, a hex prefix with no digits, an index that does
   // not parse, a value that does not parse, and an index that is not a
-  // string (FR-010, D-05).
+  // string. A non-zero value whose index is blank, does not parse, or is
+  // not a string publishes not_encodable. A parsed index encodes. A value
+  // that does not parse encodes the base event (FR-010, D-05).
   const std::string refused = write_fixture("register_refused.json", R"([
   {"EventName":"filt_upper","EventCode":"0x01","MSRValue":"0x11",
    "MSRIndex":"0X1a6","BriefDescription":"an upper-case hex index"},
@@ -1466,25 +1515,43 @@ auto intel_encodable_rows_scenario() -> void
   {"EventName":"filt_bad_value","EventCode":"0x01","MSRValue":"nope",
    "MSRIndex":"0x1a6","BriefDescription":"a value that does not parse"},
   {"EventName":"filt_number_index","EventCode":"0x01","MSRValue":"0x11",
-   "MSRIndex":42,"BriefDescription":"an index that is not a string"}
+   "MSRIndex":42,"BriefDescription":"an index that is not a string"},
+  {"EventName":"filt_zero_blank","EventCode":"0x01","MSRValue":"0x0",
+   "MSRIndex":"   ","BriefDescription":"a zero value with a blank index"}
 ])");
   std::vector<pmu_table_entry> refused_table;
   sg::counters::detail::pmu_parse_table_file(refused, refused_table);
   for (const auto& row : refused_table) {
     std::vector<std::pair<int, std::uint64_t>> words;
-    check(pmu_compose_config(row.fields, device.formats, words),
-          "a refused register filter still encodes its event (FR-010)");
-    const bool named = row.name == "filt_upper" || row.name == "filt_decimal";
+    const bool parsed = row.name == "filt_upper" || row.name == "filt_decimal";
+    const bool value_unparsed = row.name == "filt_bad_value";
+    const bool zero_blank = row.name == "filt_zero_blank";
+    const bool encodes = pmu_compose_config(row.fields, device.formats, words);
+    if (parsed) {
+      check(encodes, "a parsed index of 0x1a6 encodes its event (FR-010)");
+    } else if (value_unparsed) {
+      check(encodes,
+            "a register value that does not parse encodes the base event "
+            "(FR-010)");
+    } else if (zero_blank) {
+      check(encodes,
+            "a register value of zero with a blank index encodes the base "
+            "event (FR-010)");
+    } else {
+      check(!encodes,
+            "a non-zero register value whose index is blank, does not "
+            "parse, or is not a string publishes not_encodable (FR-010)");
+    }
     bool saw_config1 = false;
     for (const auto& [word, value] : words) {
       if (word == 1) {
         saw_config1 = true;
         check(
-            named && value == 0x11,
+            parsed && value == 0x11,
             "a parsed index of 0x1a6 encodes its value in config1 " "(FR-010)");
       }
     }
-    check(saw_config1 == named,
+    check(saw_config1 == parsed,
           "only an index the parser accepts encodes a register word "
           "(FR-010, D-05)");
   }
@@ -3297,6 +3364,89 @@ auto clock_disclosure_scenario() -> void
         "countability value (FR-007)");
 }
 
+// The fast verdict is the `cap_user_rdpmc` bit of the device's own page.
+// A type the kernel refuses, and a device with no config word, publish
+// no fast verdict. A granted open matches the page the open mapped
+// (FR-017).
+auto device_page_verdict_scenario() -> void
+{
+  using sg::counters::detail::device_page_fast_verdict;
+  using sg::counters::detail::fast_context_close;
+  using sg::counters::detail::fast_context_open;
+  using sg::counters::detail::page_grants_user_rdpmc;
+  using sg::counters::detail::pmu_device;
+  using sg::counters::detail::pmu_entry;
+
+  check(
+      page_grants_user_rdpmc(1),
+      "a page whose cap_user_rdpmc bit is set grants the fast read " "(FR-"
+                                                                     "017)");
+  check(!page_grants_user_rdpmc(0),
+        "a page whose cap_user_rdpmc bit is clear takes the syscall read "
+        "(FR-017)");
+
+  pmu_device empty;
+  empty.type = PERF_TYPE_HARDWARE;
+  check(!device_page_fast_verdict(empty),
+        "a device with no entry publishes no fast verdict (FR-017)");
+
+  pmu_device no_config;
+  no_config.type = PERF_TYPE_HARDWARE;
+  no_config.entries.push_back(pmu_entry {
+      .name = "no-config",
+      .description = "an entry with no config word",
+      .words = {{1, 1}},
+  });
+  check(!device_page_fast_verdict(no_config),
+        "an entry with no config word publishes no fast verdict (FR-017)");
+
+  pmu_device refused;
+  refused.type = -1;
+  refused.entries.push_back(pmu_entry {
+      .name = "refused",
+      .description = "a type the kernel refuses",
+      .words = {{0, PERF_COUNT_HW_INSTRUCTIONS}},
+  });
+  check(!device_page_fast_verdict(refused),
+        "a device whose open the kernel refuses publishes no fast verdict "
+        "(FR-017)");
+
+  const auto matches_page = [](const int type,
+                               const std::uint64_t config,
+                               const bool device_scoped) -> void
+  {
+    pmu_device device;
+    device.type = type;
+    device.device_scoped = device_scoped;
+    device.entries.push_back(pmu_entry {
+        .name = "opened",
+        .description = "an event the verdict opens",
+        .words = {{0, config}},
+    });
+    const sg::counters::target where =
+        device_scoped ? sg::counters::target {
+            .kind = sg::counters::target_kind::cpu,
+            .cpu = 0,
+        }
+                      : sg::counters::target {};
+    auto context = fast_context_open(type, config, where, nullptr);
+    if (!context) {
+      check(!device_page_fast_verdict(device),
+            "a refused device open publishes no fast verdict (FR-017)");
+      return;
+    }
+    const auto* page = static_cast<const perf_event_mmap_page*>(context->map);
+    const bool granted = page->cap_user_rdpmc != 0;
+    fast_context_close(*context);
+    check(device_page_fast_verdict(device) == granted,
+          "the device verdict is the cap_user_rdpmc bit of its own page "
+          "(FR-017)");
+  };
+  matches_page(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, false);
+  matches_page(PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK, false);
+  matches_page(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, true);
+}
+
 auto main() -> int
 {
   availability_gate_scenario();
@@ -3337,6 +3487,7 @@ auto main() -> int
   settled_target_mask_scenario();
   probe_kind_record_scenario();
   context_open_refusal_scenario();
+  device_page_verdict_scenario();
   std::printf("counters_linux_pmu_seam_test PASS: encoder and protocol\n");
   return 0;
 }
