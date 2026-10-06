@@ -397,13 +397,11 @@ auto scope_reaches(const std::string& device_path,
   const bool core_scoped = folded.empty() || folded == "core";
   const bool core_device = device_path == "cpu" || device_path == "cpu_core"
       || device_path == "cpu_atom";
-  // A unit reaches a device through the generator's unit map, which names
-  // the device class and ignores a numeric instance suffix. So the class is
-  // the device name with the `uncore_` prefix and the numeric suffix both
-  // removed, and a unit reaches a device when its folded spelling equals
-  // that class. At the audit point the rule compared the whole name, so
-  // `uncore_imc_0` matched nothing and no numbered instance ever received
-  // a row (FR-014, FR-015, D-08, D-09).
+  // A unit reaches a device through the generator's unit map. A class
+  // name ignores a numeric instance suffix on the device, so `iMC` reaches
+  // `uncore_imc_0` and `uncore_imc_1`. A unit that already carries the
+  // suffix names that one device, so `cbox_0` reaches `uncore_cbox_0`
+  // alone (FR-014, FR-015, D-08, D-09).
   const std::string_view name {device_path};
   // The kernel's generator unit map, as its own table generator spells it.
   // An Intel unit names its class and the kernel prefixes it and numbers
@@ -435,24 +433,31 @@ auto scope_reaches(const std::string& device_path,
   const std::string_view prefix {"uncore_"};
   const std::string_view class_of =
       bare.starts_with(prefix) ? bare.substr(prefix.size()) : bare;
-  // The instance suffix is the trailing run of digits and the underscore
-  // that introduces it, so `imc_0` reduces to `imc` and `arb_3` to `arb`.
-  const auto trimmed = [](std::string_view text) -> std::string_view
+  // A trailing underscore and a run of digits is an instance suffix.
+  // `imc_0` reduces to `imc`. A unit that already carries one keeps the
+  // device suffix, so the comparison names that instance alone (FR-014).
+  const auto suffix_at = [](const std::string_view text) -> std::size_t
   {
     const auto cut = text.find_last_of('_');
-    if (cut == std::string_view::npos) {
-      return text;
+    if (cut == std::string_view::npos || cut + 1 == text.size()) {
+      return std::string_view::npos;
     }
     for (auto digit = cut + 1; digit < text.size(); ++digit) {
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       if (text[digit] < '0' || text[digit] > '9') {
-        return text;
+        return std::string_view::npos;
       }
     }
-    return text.substr(0, cut);
+    return cut;
   };
+  const bool unit_names_instance = suffix_at(folded) != std::string_view::npos;
+  const auto device_cut = suffix_at(class_of);
+  const std::string_view device_body =
+      unit_names_instance || device_cut == std::string_view::npos
+      ? class_of
+      : class_of.substr(0, device_cut);
   std::string folded_class;
-  for (const char letter : trimmed(class_of)) {
+  for (const char letter : device_body) {
     folded_class.push_back(
         static_cast<char>(std::tolower(static_cast<unsigned char>(letter))));
   }

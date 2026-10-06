@@ -1242,9 +1242,16 @@ auto intel_encodable_rows_scenario() -> void
   sg::counters::detail::pmu_parse_table_file(path, table);
   for (const auto& row : table) {
     std::vector<std::pair<int, std::uint64_t>> words;
-    check(pmu_compose_config(row.fields, device.formats, words),
-          "a row whose only numeric keys carry no encoding obligation "
-          "encodes against the published formats (FR-016)");
+    const bool encodes = pmu_compose_config(row.fields, device.formats, words);
+    if (row.name == "ob_msr") {
+      check(!encodes,
+            "a non-zero register value whose index names no format "
+            "publishes not_encodable (FR-010)");
+    } else {
+      check(encodes,
+            "a row whose only numeric keys carry no encoding obligation "
+            "encodes against the published formats (FR-016)");
+    }
     for (const auto& [name, value] : row.fields) {
       static_cast<void>(value);
       check(name != "SampleAfterValue" && name != "MSRValue"
@@ -1412,30 +1419,31 @@ auto intel_encodable_rows_scenario() -> void
   check(config1_of("filt_zero").has_value() == false,
         "a register value of zero encodes no filter (FR-010, D-05)");
 
-  // An index the kernel's own map does not name publishes no filter of its
-  // own, so the row falls back to whatever else it carries. A row whose
-  // only other field is the event therefore encodes with no register word
-  // at all, because no published format reads the index (FR-010, D-05).
+  // A non-zero register value whose index names no format publishes
+  // `not_encodable`. An index outside the map, and a value with no index,
+  // both name no format. A zero value encodes no filter (FR-010, D-05).
   const std::string unknown = write_fixture("unknown_index.json", R"([
   {"EventName":"filt_unknown","EventCode":"0x01","MSRValue":"0x5",
-   "MSRIndex":"0x999","BriefDescription":"an index the kernel map does not name"}
+   "MSRIndex":"0x999","BriefDescription":"an index the kernel map does not name"},
+  {"EventName":"filt_no_index","EventCode":"0x01","MSRValue":"0x5",
+   "BriefDescription":"a non-zero value with no index"},
+  {"EventName":"filt_zero_no_index","EventCode":"0x01","MSRValue":"0x0",
+   "BriefDescription":"a zero value with no index encodes no filter"}
 ])");
   std::vector<pmu_table_entry> unknown_table;
   sg::counters::detail::pmu_parse_table_file(unknown, unknown_table);
   for (const auto& row : unknown_table) {
     std::vector<std::pair<int, std::uint64_t>> words;
-    check(pmu_compose_config(row.fields, device.formats, words),
-          "a row whose only other field is the event still encodes when its "
-          "index names no format (FR-010, D-05)");
-    check(words_by_row.at("filt_offcore").size() >= 2,
-          "the offcore row reached the config1 word, so the comparison "
-          "below is about the unknown index alone (FR-010, D-05)");
-    for (const auto& [word, value] : words) {
-      static_cast<void>(value);
-      check(word != 1,
-            "an index the kernel's map does not name encodes no register "
-            "word, because no published format reads it (FR-010, D-05)");
+    const bool encodes = pmu_compose_config(row.fields, device.formats, words);
+    if (row.name == "filt_zero_no_index") {
+      check(encodes,
+            "a register value of zero with no index encodes the base event "
+            "(FR-010)");
+      continue;
     }
+    check(!encodes,
+          "a non-zero register value whose index names no format publishes "
+          "not_encodable (FR-010)");
   }
 
   // The index parser's remaining arms: an upper-case hex prefix, a decimal
@@ -1656,6 +1664,29 @@ auto device_placement_scenario() -> void
             && !scope_reaches("cpu", "DFPMC"),
         "no uncore row of any class reaches a core device (FR-019, D-09)");
 
+  // A unit that already carries an instance suffix names that one device.
+  // The pinned tree spells these three. A class name still reaches every
+  // instance (FR-014).
+  check(scope_reaches("uncore_cbox_0", "cbox_0")
+            && scope_reaches("cbox_0", "cbox_0"),
+        "cbox_0 reaches the one device that suffix names (FR-014)");
+  check(!scope_reaches("uncore_cbox_1", "cbox_0")
+            && !scope_reaches("uncore_cbox_0", "cbox_1"),
+        "cbox_0 reaches no other instance of its class (FR-014)");
+  check(scope_reaches("uncore_cbox_0", "CBOX")
+            && scope_reaches("uncore_cbox_1", "CBOX"),
+        "a class name still reaches every numbered instance (FR-014)");
+  check(scope_reaches("uncore_imc_free_running_0", "imc_free_running_0")
+            && !scope_reaches("uncore_imc_free_running_1", "imc_free_running_0")
+            && !scope_reaches("uncore_imc_0", "imc_free_running_0"),
+        "imc_free_running_0 reaches that instance alone (FR-014)");
+  check(
+      scope_reaches("uncore_imc_free_running_1", "imc_free_running_1")
+          && !scope_reaches("uncore_imc_free_running_0", "imc_free_running_1"),
+      "imc_free_running_1 reaches that instance alone (FR-014)");
+  check(!scope_reaches("cpu", "cbox_0"),
+        "a suffixed uncore unit reaches no core device (FR-015)");
+
   // A row scoped to a class this host publishes nothing for reaches no
   // device, so it stays out of the catalog and runs no probe.
   check(!scope_reaches("cpu", "never_published")
@@ -1681,7 +1712,7 @@ auto encoding_refusal_scenario() -> void
    "CounterMask":7,"EdgeDetect":1,
    "BriefDescription":"a row whose fields the device publishes"},
   {"EventName":"sampling_only","EventCode":"0x05","SampleAfterValue":1000,
-   "MSRValue":"0x1","PerPkg":1,
+   "PerPkg":1,
    "BriefDescription":"a row carrying only keys with no obligation"}
 ])");
   std::vector<pmu_table_entry> table;

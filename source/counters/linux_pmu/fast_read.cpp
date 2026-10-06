@@ -372,6 +372,24 @@ auto fast_context_time_pair(const fast_context& context,
   _mm_lfence();
   const auto page_enabled = page->time_enabled;
   const auto page_running = page->time_running;
+  // The header reads the cycle counter, the scale, offset, and shift, the
+  // page index, and the short-counter fields inside the sequence snapshot,
+  // before the comparison that closes it (FR-007, FR-008). A field read
+  // after that comparison can come from a later update.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+  const bool cap_user_time = page->cap_user_time != 0;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+  const bool cap_user_time_short = page->cap_user_time_short != 0;
+  const auto page_index = page->index;
+  const auto time_shift = page->time_shift;
+  const auto time_mult = page->time_mult;
+  const auto time_offset = page->time_offset;
+  const auto time_cycles = page->time_cycles;
+  const auto time_mask = page->time_mask;
+  // The header samples the cycle counter only where the capability bit is
+  // set and the enabled count differs from the running count.
+  const auto cyc =
+      (cap_user_time && page_enabled != page_running) ? __rdtsc() : 0U;
   _mm_lfence();
   // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that reports no
   // pair. It needs the kernel to rewrite the page between the two reads of
@@ -381,32 +399,22 @@ auto fast_context_time_pair(const fast_context& context,
     return false;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_LINE
   // LCOV_EXCL_BR_STOP
-  // The kernel's own time recipe, applied to the fields this page
-  // publishes (FR-007, FR-008, FR-009). The recipe is gated on the
-  // capability bit and on an enabled count that differs from the running
-  // count, exactly as the header states at :615, so a page that names no
-  // time capability, or one whose counts already agree, keeps the raw pair
-  // and the arithmetic below never runs.
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-  const bool cap_user_time = page->cap_user_time != 0;
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-  const bool cap_user_time_short = page->cap_user_time_short != 0;
-  // The cycle counter is sampled with the instruction, inside the
-  // sequence loop and before the stability comparison, which is where
-  // the header places it (linux/perf_event.h:616).
-  const auto cyc =
-      (cap_user_time && page_enabled != page_running) ? __rdtsc() : 0U;
+  // The kernel's own time recipe, applied to the fields this snapshot
+  // holds (FR-007, FR-008, FR-009). The recipe is gated on the capability
+  // bit and on an enabled count that differs from the running count, so a
+  // page that names no time capability, or one whose counts already agree,
+  // keeps the raw pair and the arithmetic below never runs.
   const event_time_fields fields {
       .cap_user_time = cap_user_time,
       .cap_user_time_short = cap_user_time_short,
       .time_enabled = page_enabled,
       .time_running = page_running,
-      .index = page->index,
-      .time_shift = page->time_shift,
-      .time_mult = page->time_mult,
-      .time_offset = page->time_offset,
-      .time_cycles = page->time_cycles,
-      .time_mask = page->time_mask,
+      .index = page_index,
+      .time_shift = time_shift,
+      .time_mult = time_mult,
+      .time_offset = time_offset,
+      .time_cycles = time_cycles,
+      .time_mask = time_mask,
       .cyc = cyc,
   };
   const auto pair = fast_time_pair(fields);

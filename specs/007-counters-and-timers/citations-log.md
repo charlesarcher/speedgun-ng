@@ -521,3 +521,138 @@ command: grep -n cd5cbd1 specs/012-counters-defect-resolution/plan.md include/sp
 head: 0dea082
 must_not_move: the project VERSION line, which reads 0.4.0
 ```
+
+The seven entries below are requirement corrections. Each names the 007
+or 012 requirement the correction restores. The commands were run on the
+working tree at `c059b0f`. That commit is the base. The corrections
+themselves are uncommitted, because this pass does not commit.
+
+### I-01, a non-zero register value whose index names no format
+
+```yaml
+date: 2026-10-06
+task: T053
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: a non-zero register value whose index named no format
+  encoded as the base event, so the count appeared without its filter
+requirement_now_governing: 007 FR-037, through 012 FR-017
+code_now_governing: register_filter_of at
+  source/counters/linux_pmu/table_parse.cpp marks the row, and
+  composition refuses the field no device publishes
+command: grep -c kUnnamedRegister source/counters/linux_pmu/table_parse.cpp
+  (2)
+head: c059b0f, working tree
+must_not_move: the pinned encodable-row counts, and the closed task lines
+```
+
+### I-02, a suffixed unit reached no device
+
+```yaml
+date: 2026-10-06
+task: T054
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: scope_reaches stripped the device suffix and compared
+  it to the whole unit, so a unit that already carried an instance suffix
+  reached no device
+requirement_now_governing: 007 FR-024, through 012 FR-019
+code_now_governing: unit_names_instance in scope_reaches at
+  source/counters/linux_pmu/provider.cpp keeps the suffix when the unit
+  already carries one, so cbox_0, imc_free_running_0, and
+  imc_free_running_1 each reach that one device
+command: grep -c unit_names_instance source/counters/linux_pmu/provider.cpp
+  (2)
+head: c059b0f, working tree
+must_not_move: the class-wide rule for a unit that names no instance, and
+  the closed task lines
+```
+
+### I-03, device scope came from the device name
+
+```yaml
+date: 2026-10-06
+task: T049
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: every device other than the three core names was marked
+  device-scoped by spelling, and the per-task probe was skipped
+requirement_now_governing: 007 FR-024 and FR-031, through 012 FR-021 and
+  FR-022
+code_now_governing: load_device at source/counters/linux_pmu/provider.cpp
+  marks a device scoped when it publishes cpumask or cpus, and a device
+  that publishes neither takes the per-task probe
+command: grep -c device_scoped source/counters/linux_pmu/provider.cpp (6)
+head: c059b0f, working tree
+must_not_move: the msr thread-target path, and the closed task lines
+```
+
+### I-04(a), one host-wide fast verdict covered every device
+
+```yaml
+date: 2026-10-06
+task: T027
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: one core-event probe set the fast mode on every
+  countable entry, including a device whose own page refuses the read
+requirement_now_governing: 007 FR-013, through 012 FR-001
+code_now_governing: the fast verdict is the cap_user_rdpmc bit of the
+  device's own event page, read in source/counters/linux_pmu/provider.cpp
+command: grep -c cap_user_rdpmc source/counters/linux_pmu/provider.cpp (1)
+head: c059b0f, working tree
+must_not_move: the sampling-time refusal, which still discloses a gap and
+  issues no syscall read, and the closed task lines
+```
+
+### I-04(d), the fast window copied the raw time pair
+
+```yaml
+date: 2026-10-06
+task: T052
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: the enabled and running pair was copied from the page,
+  and the scale, offset, shift, index, and short-counter fields were read
+  after the sequence comparison
+requirement_now_governing: 007 FR-019, through 012 FR-005
+code_now_governing: fast_context_time_pair at
+  source/counters/linux_pmu/fast_read.cpp reads those fields inside the
+  sequence snapshot, before the stability comparison
+command: grep -c 'page->time_offset' source/counters/linux_pmu/fast_read.cpp
+  (1)
+head: c059b0f, working tree
+must_not_move: the short-counter correction in fast_time_pair, and the
+  closed task lines
+```
+
+### I-05, a fold computed a value from a gap mark
+
+```yaml
+date: 2026-10-06
+task: T010
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: a fold subtracted across a gap mark and reported the
+  zero that mark wrote as a count
+requirement_now_governing: 007 FR-011, through 012 FR-006
+code_now_governing: the delta paths in source/counters/fold.cpp read the
+  disclosure mark at both end points and report availability::gap with no
+  value when either end point carries it
+command: grep -c 'availability::gap' source/counters/fold.cpp (3)
+head: c059b0f, working tree
+must_not_move: point_sink::put's one-integer signature, and the closed
+  task lines
+```
+
+### I-07, the installed catalog count had no comparison
+
+```yaml
+date: 2026-10-06
+task: T031
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: the continuous-integration consumer step printed the
+  installed catalog count and compared it to nothing
+requirement_now_governing: 007 SC-008, through 012 FR-023 and 012 SC-008
+code_now_governing: the comparison step in .github/workflows/ci.yml runs
+  both figures on the same runner and exits non-zero on a difference
+command: grep -c 'installed and build-tree counts agree'
+  .github/workflows/ci.yml (1)
+head: c059b0f, working tree
+must_not_move: the embedding of the vendored tables, and the closed task
+  lines
+```

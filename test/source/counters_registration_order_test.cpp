@@ -159,10 +159,9 @@ auto mixed_provider_scenario() -> void
   rec.sample();
 
   // The gap sits at sampling action two, so the window ending there is a
-  // gap window. The clock window's own mark is countable, and the result
-  // names the gap rather than the clock's countability, because the
-  // disclosure beside the leaf the fold reads is the one its own group
-  // wrote (FR-002, FR-004).
+  // gap window. The clock window's own mark is countable. The result names
+  // the gap, because the disclosure beside the leaf the fold reads is the
+  // one its own group wrote (FR-002, FR-004).
   const auto gap = sg::counters::availability::gap;
   const auto over_gap = per_second.fold(rec.view(), 0, 1);
   check(over_gap.availability == gap,
