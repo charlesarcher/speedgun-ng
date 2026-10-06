@@ -33,7 +33,15 @@ auto group_read_short(const std::int64_t returned,
   // negative on this path, and the check asks for a common type here,
   // which is what the cast is.
   // NOLINTNEXTLINE(modernize-use-integer-sign-comparison)
-  return returned < static_cast<std::int64_t>(header_bytes);
+  const bool short_read = returned < static_cast<std::int64_t>(header_bytes);
+  // A count the syscall refused is negative, and a negative count falls
+  // below any header size, so a read that produced no count reads short
+  // as well (FR-006).
+  SG_ENSURE(returned < 0 ? short_read : true,
+            "the verdict is true exactly when the count is below the "
+            "header size, and a count the syscall refused reads short "
+            "(FR-006)");
+  return short_read;
 }
 
 auto fast_pair_disclosed(const bool stable,

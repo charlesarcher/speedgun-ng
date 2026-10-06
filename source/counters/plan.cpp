@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "detail/core.hpp"
+#include "detail/pmu.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_provider.hpp"
@@ -476,8 +477,11 @@ auto compile_core(const system& sys,
       // A leaf the catalog reports as not countable now is a
       // construction error naming the catalog state, refused in the
       // untimed region before any provider window opens and before any
-      // hardware read (FR-021, FR-024, FR-046).
-      if (record->core.avail != availability::countable) {
+      // hardware read (FR-021, FR-024, FR-046). The gate decision itself
+      // is the extracted seam function, which a registered test drives
+      // over every synthetic state, so the host's own catalog never has
+      // to publish a scope-refused entry for this arm to run (FR-046).
+      if (!availability_gate_passes(record->core.avail, tg.kind)) {
         std::string message = "counter '" + leaf.address
                               + "' is not countable on this host: the "
                                 "catalog reports ";
@@ -668,6 +672,33 @@ auto fanout_fold_core(const void* fanout,
   }
   return out;
 }  // LCOV_EXCL_LINE
+
+auto availability_gate_passes(const availability probed,
+                              const target_kind requested) noexcept -> bool
+{
+  // The state a caller cannot clear is the entry's own device scope
+  // refusing the per-task kind, so a request naming the cpu kind does not
+  // ask for the kind the scope refused and proceeds to the provider
+  // window, where the kernel's own verdict for the cpu-targeted event
+  // belongs. Every other non-countable state is the caller's to clear, so
+  // it is refused with the catalog's own name in the message (FR-021,
+  // FR-022, FR-024).
+  const bool cpu_over_scope_refusal =
+      probed == availability::scope_refused && requested == target_kind::cpu;
+  const bool passes =
+      probed == availability::countable || cpu_over_scope_refusal;
+  // The rule is spelled once and both the verdict and the postcondition
+  // read it, so the check cannot disagree with the decision it checks
+  // (FR-024).
+  SG_ENSURE(passes
+                == (probed == availability::countable
+                    || cpu_over_scope_refusal),
+            "a countable entry passes the availability gate for either "
+            "target kind, a scope-refused entry passes it for the cpu kind "
+            "alone, and every other state is refused for either kind (FR-021, "
+            "FR-024)");
+  return passes;
+}
 
 }  // namespace detail
 

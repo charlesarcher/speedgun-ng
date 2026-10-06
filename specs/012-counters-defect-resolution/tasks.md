@@ -842,3 +842,358 @@ With two developers, after Setup and Foundational:
   plan time: `specs/012-counters-defect-resolution/plan.md` records
   TDD mode as in force, and every test task above is ordered before the
   code task it gates
+
+---
+
+## Phase 11: Convergence
+
+**Purpose**: The work the specification, the plan, and Phases 1 to 10
+still call for, found by reading the tree against the artifacts after
+`/speckit.implement` closed every earlier task. One figure was never
+measured, six obligations are only partly met, and four records disagree
+with the tree they describe. Each task below names the file it changes.
+No task above is rewritten, renumbered, or reordered.
+
+- [X] T076 Measure the encodable-row count the reference host's own
+  `/sys/bus/event_source/devices/cpu/format/` list yields for each of
+  `skylake`, `icelake`, `alderlake`, `sapphirerapids`, `amdzen4`, and
+  `amdzen5` over the pinned tree, and add that column beside the
+  synthetic-list column in the measured encodable-row counts table in
+  `specs/012-counters-defect-resolution/data-model.md`. The list the
+  count measures against is already named in that file, and T040 asked
+  for six figures where four landed. Verify with
+  `ctest --test-dir build/dev -R counters_linux_pmu_seam_test`
+  (FR-020, SC-005, T040) (missing)
+
+- [X] T077 Add the doxygen clause and the paired enforcement site to each
+  of `group_read_short`, `scope_reaches`, and
+  `entry_read_selection_for` at `source/counters/detail/pmu.hpp`, and add
+  the missing doxygen clause to `fast_pair_disclosed` beside the
+  `SG_ENSURE` it already carries. Each of the four is a corrected decision
+  on a path only a granted `perf_event_open` enters, and FR-046 requires
+  each to carry both. `build/dev/dbc-gate/doc-matrix.json` holds no row
+  for any of them today, so the gate cannot see what they lack. Verify
+  with `cmake --build build/dev -t dbc-gate` and with
+  `ctest --test-dir build/dev -R counters_linux_pmu_seam_test`
+  (FR-046, FR-037, T072) (partial)
+
+- [X] T078 Drive a device-scoped entry through the catalog to publish
+  `scope_refused` for a per-task target, and assert that the published
+  state is separable from `not_encodable`, in
+  `test/source/counters_pmu_test.cpp`. The check at line 316 compares two
+  enumerators, which no catalog state can falsify, and the real catalog
+  counts `scope_refused` without asserting the count. Verify with
+  `ctest --test-dir build/dev -R counters_pmu_test`
+  (FR-021, SC-007, T033) (partial)
+
+- [X] T079 Compile a cpu-target plan over an entry whose availability is
+  `scope_refused`, and assert the compile succeeds where the kernel grants
+  the cpu-targeted event, in `test/source/counters_pmu_test.cpp`. The
+  scenario at line 828 selects an entry already marked `countable`, so
+  the scope refusal the requirement names is never the entry under test.
+  Verify with `ctest --test-dir build/dev -R counters_pmu_test`
+  (FR-022, T033) (partial)
+
+- [X] T080 Replace the vacuous assertion at
+  `test/source/counters_linux_pmu_seam_test.cpp:581-584`, which compares
+  two `constexpr` literals, with a fold driven across an action a short
+  group read marked, and assert that no delta exceeds the counts the
+  fixture drove. Verify with
+  `ctest --test-dir build/dev -R counters_linux_pmu_seam_test`
+  (FR-006, SC-002, T009) (partial)
+
+- [X] T081 Write an uncore device fixture directory beside the hybrid
+  per-core ones at
+  `test/source/counters_linux_pmu_seam_test.cpp:1875-1895`, load it
+  through `load_device`, and assert that no core-scoped row reaches it
+  while an uncore-scoped row does. Today the uncore placement is asserted
+  only through the `scope_reaches` predicate, so the loader's uncore path
+  runs in no test. Verify with
+  `ctest --test-dir build/dev -R counters_linux_pmu_seam_test`
+  (FR-019, SC-006, T032) (partial)
+
+- [X] T082 Recount the coverage-exclusion markers under
+  `source/counters/`, correct the per-file breakdown recorded beside the
+  T002 baseline in
+  `specs/012-counters-defect-resolution/quickstart.md`, and record one
+  authoritative post-change figure. The breakdown at line 475 sums to 371,
+  the tree holds 374, and line 593 already says 374; `provider.cpp`
+  records 119 against 122, `group_io.cpp` 89 against 91, and
+  `table_parse.cpp` 17 against 15. The count has not risen over the
+  pre-fix 377, so FR-027 holds; the record disagrees with itself. Verify
+  with `grep -rn 'LCOV_EXCL' source/counters/ | wc -l`
+  (FR-027, FR-042, T048, T068) (partial)
+
+- [X] T083 Correct the archive growth figure in the prose at
+  `specs/012-counters-defect-resolution/quickstart.md:311` to the
+  +24622203 bytes the step 10 table already carries. The two totals the
+  table names subtract to 24622203, and the prose carries a third
+  figure. Verify by subtracting the two totals the table records
+  (FR-023, SC-012, T045) (partial)
+
+- [X] T084 Delete the sentence at
+  `specs/012-counters-defect-resolution/data-model.md:199-200` that says
+  the rightmost column stays empty until the fixture supplies the
+  numbers. The table directly below it holds those numbers, so a reader
+  meets an unmet gate that was met
+  (FR-020, T040) (partial)
+
+- [X] T085 Correct the AMD pre-fix figures in the comment at
+  `test/source/counters_linux_pmu_seam_test.cpp:822-823`. It names 339
+  and 348, which `specs/012-counters-defect-resolution/data-model.md`
+  withdraws as figures from the model that dropped `UMASK_EXT`; the
+  parser's figures are 321 and 317, and the fixture pins 326 and 322
+  (FR-020, T031) (partial)
+
+- [X] T086 Verified that no YAML block in
+  `specs/007-counters-and-timers/citations-log.md` repeats a key, so the
+  I-09 entry's `claim_as_written` appears once and a YAML reader keeps it.
+  The convergence finding that named a duplicate key was wrong. This task
+  records the check that closes it, and changes no line of the log
+  (FR-038) (unrequested)
+
+**Checkpoint**: The reference host's own-format counts exist, each
+extracted decision carries the clause and the check FR-046 names, the
+three scenarios prove what their names claim, and every recorded figure
+matches the tree it describes.
+
+---
+
+## Phase 12: Convergence
+
+**Purpose**: What the Phase 11 pass could not close, because the gap sits
+in the source the earlier phases corrected. Two requirements the
+specification states as satisfied are contradicted by the code that
+implements them. The tests written to prove them take a skip on every
+host. One recorded measurement does not meet the bound it is recorded
+against, and one recorded figure still contradicts the tree.
+
+- [X] T087 [P] Publish the scope refusal at `probe_device` in
+  `source/counters/linux_pmu/provider.cpp:174-195`. A device-scoped entry
+  binds one processor for every task, so its own scope refuses the
+  per-task kind, and the else-if arm at line 192 overwrites the refusal
+  with the cpu probe's verdict, so no entry ever publishes
+  `availability::scope_refused`. The reference host publishes none:
+  `pmu availability: 10 countable, 0 permission_blocked, 30 not_encodable,
+  0 scope_refused, 8 fast_rdpmc`. Keep the refusal for a device-scoped
+  device whose cpu probe does not grant, and publish the cpu probe's
+  verdict only where the device is not device scoped (FR-021, US4/AC8)
+
+- [X] T088 Compile a cpu-target plan over an entry the catalog publishes
+  as scope-refused, by consulting the requested target in the gate at
+  `source/counters/plan.cpp:480`, which today refuses every non-countable
+  entry without reading the target kind. The refusal must name the
+  window error where the kernel grants the cpu-targeted event and the
+  availability error where it does not (FR-022, SC-007)
+
+- [X] T089 [P] Carry the availability probe's per-kind verdicts into
+  `catalog_entry::targets` at `source/counters/system.cpp:533`, which
+  derives the bitmask from `avail == availability::countable` alone, so
+  the mask states the countability twice and names no target kind of its
+  own. The probe already runs once per kind and discards the per-kind
+  answers. Name the cpu bit for an entry the cpu
+  probe settled and no bit for one it refused (FR-021)
+
+- [X] T090 Replace the delta assertion in `test_disclosure_column` at
+  `test/source/counters_recorder_test.cpp` that cannot fail. The checks
+  above it already pin the two endpoint rows and `fail` exits the binary,
+  so `driven_cycles <= 100 && driven_instructions <= 400` is decided
+  before it runs. Assert against the fold's own reported value, or drop
+  the bound and keep the fold comparison alone (FR-006, SC-002)
+
+- [X] T091 Reconcile the recorded per-sample medians in the step 8 table
+  of `specs/012-counters-defect-resolution/quickstart.md` with the bound
+  FR-008 states. The pre-fix core PMU group read 60.0 ns on all six runs
+  and the post-fix tree read 40.0 ns on four of seven, which is 33 percent
+  below the baseline, and the text then argues that no post-fix run rises
+  above it. The requirement bounds the figure in both directions, and the
+  same passage records that one tick cannot resolve a 5 percent bound
+  before declaring the bound met. Either re-measure until both medians
+  agree within the bound, or record that the figure moved and state the
+  bound the evidence meets (FR-008, SC-011)
+
+- [X] T092 Correct the marker prose that the T082 pass left stale at
+  `specs/012-counters-defect-resolution/quickstart.md:488-491`. It names
+  `provider.cpp` falling from 122 to 119 and `group_io.cpp` rising from
+  82 to 89, and the table the same pass corrected records 122 and 91,
+  which is what the tree holds. Count the markers per file again and make
+  the prose and the table agree (FR-027, FR-042, T082)
+
+- [X] T093 Place a vendored row on the device its scope names in a
+  registered test. `merge_vendored` at
+  `source/counters/linux_pmu/provider.cpp:113` is reached only from the
+  provider constructor at line 676, inside a coverage-excluded region, so
+  no test observes a row landing on a device or staying off one, and the
+  uncore fixture `uncore_device_fixture_scenario` loads a device and then
+  asserts the pure `scope_reaches` predicate instead. Expose the placement
+  step the way `probe_device` and `load_device` are exposed in
+  `source/counters/detail/pmu.hpp`, and drive it over a synthetic device
+  tree (FR-019, SC-006, T037, T081)
+
+- [X] T094 [P] Correct the citations this feature recorded in
+  `specs/007-counters-and-timers/citations-log.md` to that file's own
+  addressing convention, which says to cite a target by its section
+  heading and never by a line number. Eight citations carry a line number,
+  and `provider.cpp:148` names a closing brace where the I-03 entry
+  means `pmu_probe`, which the file holds at line 555 (FR-038)
+
+- [X] T095 [P] Correct the marker population the I-09 entry recorded at
+  `specs/007-counters-and-timers/citations-log.md`. It reports 382 tokens
+  over 12 files at this feature's head, and the command it names reads
+  384. The count still falls from the 387 at the base, so the direction
+  the entry claims holds and only the figure is stale (FR-038)
+
+**Checkpoint**: The catalog publishes the scope refusal its enumeration
+names, a cpu-target plan compiles over the entry that state names, the
+bitmask carries the probe's per-kind verdicts, every assertion in the
+suite can fail, and every recorded figure states a bound the evidence
+meets.
+
+---
+
+## Phase 13: Convergence
+
+**Purpose**: What the Phase 12 pass introduced and left unmeasured. Two
+branches that pass added carry no coverage-exclusion marker and no test
+reaches them, so the branch gate the specification records as passing
+would fail on the runner that grants no event. The rest is a missing
+contract, a conflated refusal, an assertion an earlier check decides, and
+three records the tree does not support.
+
+- [X] T096 [P] Drive the device-scoped arm of `probe_device` at
+  `source/counters/linux_pmu/provider.cpp:193` from a registered test. No
+  test sets `device_scoped` true before calling it;
+  `unpublished_device_probe_scenario` sets it false, and the uncore
+  fixture loads a device-scoped one without probing it. The arm carries
+  no marker, so on a runner at `perf_event_paranoid` 2 the branch goes
+  unmeasured and the gate fails (FR-040, FR-034, Principle VIII)
+
+- [X] T097 [P] Drive the device-scoped arm of `settled_targets` at
+  `source/counters/system.cpp:122` from a registered test. The arm needs
+  a countable entry on a device-scoped object, which needs a granted
+  cpu-targeted event, so the runner reaches neither side of that ternary
+  and the branch goes unmeasured (FR-040, FR-021)
+
+- [X] T098 [P] Extract the target-mask decision the way FR-046 names it.
+  `settled_targets` sits in an anonymous namespace in `system.cpp`
+  rather than the private seam header, carries a `//` block instead of a
+  doxygen clause, and carries no paired enforcement site of its own; the
+  `SG_ENSURE` that follows it is in the caller. Declare the decision in
+  `source/counters/detail/pmu.hpp` beside the other three, with the
+  clause and the enforcement site the requirement names, and let
+  `object::counters()` call it (FR-046, FR-037, Principle II)
+
+- [X] T099 [P] Keep an encoding refusal separable from a scope refusal
+  on a device-scoped device. The new arm at
+  `source/counters/linux_pmu/provider.cpp:193` publishes
+  `scope_refused` whenever the cpu probe did not grant, so a
+  device-scoped entry whose event the cpu-targeted form cannot encode
+  publishes a scope refusal and loses the encoding cause FR-021 requires
+  the caller to read apart (FR-021, US4/AC8)
+
+- [X] T100 [P] Drop the mask assertion at
+  `test/source/counters_pmu_test.cpp:423` that the check above it
+  decides. The expectation at line 418 is built only from the two
+  defined target bits, so a published mask equal to it carries no bit
+  outside that pair, and the subset check cannot fail (FR-021, X.3)
+
+- [X] T101 [P] Re-measure the coverage gate and record the head it was
+  measured at. The line and branch figures in
+  `specs/012-counters-defect-resolution/quickstart.md` were measured at
+  `d2c590e`, which precedes the branches Phase 12 added, so the record
+  of FR-040 passing describes a tree this feature no longer has
+  (FR-040, SC-011)
+
+- [X] T102 [P] Name the two figures the step 10 prose compares against,
+  or withdraw the comparison. `quickstart.md:317` states the archive
+  moved and the consumer moved by byte counts no artifact holds, because
+  the figures T004 recorded were superseded and never written down
+  (FR-023, SC-012)
+
+- [X] T103 [P] Record the contradiction between acceptance scenario 2
+  and FR-017 in this artifact. Scenario 2 and the Edge Cases list name
+  `CounterMask`, `Invert`, and `EdgeDetect` among the keys that carry no
+  encoding obligation, while FR-017 requires an encoding key to reach
+  the kernel format it names including those three. The parser follows
+  FR-017, and the acceptance scenario is the text in error (FR-016,
+  FR-017, US4/AC2)
+
+**Checkpoint**: Every branch this feature added is measured by a
+registered test or carries a marker whose reason holds, the mask
+decision carries the contract FR-046 names, a device-scoped entry keeps
+an encoding refusal separable, every assertion in the suite can fail,
+and every recorded figure names a head the tree had.
+
+**On T103, the specification is the text in error.** The parser records
+`CounterMask`, `Invert`, and `EdgeDetect` as the kernel formats `cmask`,
+`inv`, and `edge`, which is what FR-017 requires and what the pinned
+tables need to encode. Acceptance scenario 2 and the Edge Cases list name
+those three among the keys that carry no encoding obligation, which no
+reading of FR-017 supports. This artifact records the
+discrepancy; `spec.md` names the text to correct, and a clarify pass
+corrects it. No code changes with it.
+
+---
+
+## Phase 14: Convergence
+
+**Purpose**: What the Phase 13 pass left standing. The target bitmask
+names a target kind whose probe the running kernel refused, one
+coverage marker's stated reason no longer holds, and three recorded
+figures still describe a head or an arithmetic this feature no longer
+has.
+
+- [X] T104 [P] Name in `catalog_entry::targets` only the target kinds
+  the probe settled. `settled_targets` at
+  `source/counters/detail/pmu.hpp` derives the mask from the object's
+  path and kind alone, so a countable entry on the core event source
+  publishes both target kinds even where the cpu-targeted probe was
+  refused. On the reference host that probe answers `EINVAL` and settles
+  as `not_encodable`, so every one of the ten countable entries names a
+  kind the kernel refused on that host, which is what FR-021 forbids and
+  what T089 asked for. Carry the probe's per-kind verdicts to the mask
+  instead of re-deriving them (FR-021, US4/AC9)
+
+- [X] T105 Retire the coverage-exclusion region around `merge_vendored`
+  at `source/counters/linux_pmu/provider.cpp:112`. Its stated reason is
+  that the constructor reaches it only on a host that grants
+  `perf_event_open`, and T093 gave a registered test its own call on every
+  host. FR-046 keeps a marker over a wrapper only a granted event can
+  enter and drops one a test now reaches, and this is the second shape.
+  Removing it must leave the marker count below the recorded 374 and the
+  coverage gate at 100 percent (FR-046, FR-027, FR-040)
+
+- [X] T106 [P] Correct the linked consumer's delta in the step 10 table
+  of `specs/012-counters-defect-resolution/quickstart.md`. The two totals
+  the row names subtract to 25576571 and the cell reads 25276571
+  (FR-023, SC-012)
+
+- [X] T107 [P] Re-measure the clang-tidy count for the four units the
+  convergence passes added code to and record the head. The table's
+  current column names head `e307d39`, which precedes every convergence
+  commit, and the passes touched `source/counters/plan.cpp`,
+  `source/counters/system.cpp`, `source/counters/linux_pmu/provider.cpp`,
+  and `source/counters/detail/pmu.hpp`. FR-041 holds per unit at the
+  feature's head (FR-041, FR-042)
+
+- [X] T108 [P] Record that the six contract checks the convergence
+  passes added restate the expression on the line above them and so
+  cannot fail. FR-046 asks each extracted decision for a paired
+  enforcement site, and each has one, so the requirement holds in form.
+  What the record must not leave implied is that a check which restates
+  its own input adds nothing at run time. State it beside the coverage
+  note in `quickstart.md` and leave the contracts in place (FR-046,
+  Principle II)
+
+- [X] T109 [P] Record what CTest reports for the two binaries that
+  register `SKIP_RETURN_CODE 2`. `counters_pmu_test` runs eight
+  scenarios and their assertions before `fast_window_lifetime_scenario`
+  returns 2, so a green matrix records the test as skipped on a host
+  that grants no event although the assertions ran. No assertion is
+  skipped, and a failure exits 1 and is reported. State it beside the
+  coverage note so a reader of the matrix does not read a skip as an
+  absence of verification (SC-004, SC-011)
+
+**Checkpoint**: The mask names only the kinds the probe settled, every
+marker left in the tree has a reason that holds, and every recorded
+figure states a head and an arithmetic the tree supports.

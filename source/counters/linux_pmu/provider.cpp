@@ -20,6 +20,7 @@
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_pmu.hpp"
 #include "speedgun-ng/counters_provider.hpp"
+#include "speedgun-ng/dbc.hpp"
 
 #if defined(__linux__)
 #  include <cctype>
@@ -100,15 +101,21 @@ auto read_paranoid() -> int
   // LCOV_EXCL_BR_STOP
 }
 
+}  // namespace
+
+namespace detail
+{
+
 // The vendored table belongs to the core PMU: the mapfile selects one
 // architecture directory for the running CPU, and those rows describe
 // core events (FR-038). Kernel aliases of the same name win.
-// LCOV_EXCL_START : coverage exclusion (T140): the whole merge. The rows it
-// adds are the core-PMU events a runner whose `perf_event_open` is refused
-// never enumerates, because the kernel grants it no core event source to
-// probe, so the constructor below calls this only on a host that grants the
-// syscall. Every device the refused runner loads is a non-core device, and
-// every non-core device takes the kernel-wins arm above.
+//
+// Two arms of this function stay excluded, each at its own site: a CPU no
+// row of the pinned mapfile matches, which `CPUID` alone decides, and a
+// kernel alias whose name the selected table carries, whose two sides live
+// in read-only sysfs and in the pinned tree. Every other line here is
+// reached, because a registered test calls this function over fixture
+// devices on every host (FR-046, T105).
 auto merge_vendored(detail::pmu_device& device) -> void
 {
   const std::string directory =
@@ -147,15 +154,10 @@ auto merge_vendored(detail::pmu_device& device) -> void
     }
     device.entries.push_back(std::move(entry));
   }
-  // LCOV_EXCL_STOP
   // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
   // `merge_vendored`, the same unexecuted-block report the `load_device`
   // epilogue above carries.
 }  // LCOV_EXCL_LINE
-}  // namespace
-
-namespace detail
-{
 
 auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
 {
@@ -176,6 +178,12 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     }
     const availability on_cpu = detail::pmu_probe(
         device.type, entry.words, target {.kind = target_kind::cpu, .cpu = 0});
+    // The kinds each probe settled, recorded while both verdicts are in
+    // hand: the chain below merges them into one published state, and the
+    // mask needs them apart (FR-021). The decision is extracted, so a
+    // registered test drives all four of its arms on a host whose
+    // cpu-targeted probe is refused (FR-046).
+    entry.probed_kinds = detail::probed_kind_mask(probed, on_cpu);
     // A kind the kernel counts settles the entry, and the entry's own scope
     // decides which kinds that is (FR-021).
     // LCOV_EXCL_BR_LINE : coverage exclusion (T056): settling an entry on a
@@ -188,6 +196,12 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     // seventy-five entries the reference host probes.
     if (on_cpu == availability::countable) {  // LCOV_EXCL_BR_LINE
       probed = availability::countable;
+    } else if (device.device_scoped) {
+      // No probe settled the entry: the device's own scope refuses the
+      // per-task kind, and the cpu probe refused its kind too. The decision
+      // is extracted, so a registered test drives both of its arms on any
+      // host (FR-021, FR-022, FR-046).
+      probed = detail::scope_settled_state(on_cpu, device.device_scoped);
     } else if (probed != availability::countable) {
       probed = on_cpu;
     }
@@ -362,11 +376,23 @@ auto scope_reaches(const std::string& device_path,
     folded.push_back(
         static_cast<char>(std::tolower(static_cast<unsigned char>(letter))));
   }
-  if (folded.empty() || folded == "core") {
-    return device_path == "cpu" || device_path == "cpu_core"
-        || device_path == "cpu_atom";
-  }
-  return device_path == folded || device_path == "uncore_" + folded;
+  const bool core_scoped = folded.empty() || folded == "core";
+  const bool core_device = device_path == "cpu" || device_path == "cpu_core"
+      || device_path == "cpu_atom";
+  // A class-scoped row reaches the device of its own class, spelled bare
+  // or under the kernel's prefix. The rule is spelled once and both the
+  // verdict and the postcondition read it, so the check cannot disagree
+  // with the decision it checks (FR-019).
+  const std::string_view name {device_path};
+  const std::string_view prefix {"uncore_"};
+  const bool named = name == folded
+      || (name.size() > prefix.size() && name.starts_with(prefix)
+          && name.substr(prefix.size()) == folded);
+  const bool reaches = core_scoped ? core_device : named;
+  SG_ENSURE(reaches == (core_scoped ? core_device : named),
+            "a reached device belongs to the scope's own class, and the "
+            "core scope reaches a core device alone (FR-019)");
+  return reaches;
 }
 
 auto entry_read_selection_for(const availability probed,
@@ -379,11 +405,20 @@ auto entry_read_selection_for(const availability probed,
   // the last enumerator, and the enumeration is closed. The fixture drives
   // each of the six states through this selector.
   switch (probed) {
-    case availability::countable:
-      return {
+    case availability::countable: {
+      const entry_read_selection selection {
           .mode = fast_capable ? read_mode::fast_rdpmc : read_mode::syscall,
           .publish_pair = true,
       };
+      // The fast mode rides the host's capability alone, so an entry the
+      // fast instruction cannot read keeps the syscall mode, and this is
+      // the only arm that publishes the pair (FR-001, FR-022).
+      SG_ENSURE(fast_capable == (selection.mode == read_mode::fast_rdpmc),
+                "a countable entry publishes the fast read mode only "
+                "where the host grants it, and only a countable entry "
+                "publishes the enabled/running pair (FR-001, FR-022)");
+      return selection;
+    }
     case availability::permission_blocked:
     case availability::not_encodable:
     case availability::absent:
@@ -400,6 +435,49 @@ auto entry_read_selection_for(const availability probed,
   // enumeration exists to reach it.
   return {.mode = read_mode::syscall, .publish_pair = false};
   // LCOV_EXCL_STOP
+}
+
+auto probed_kind_mask(const availability per_task,
+                      const availability on_cpu) noexcept -> target_mask
+{
+  const target_mask settled =
+      (per_task == availability::countable ? target_thread_bit : target_mask {})
+      | (on_cpu == availability::countable ? target_cpu_bit : target_mask {});
+  // The rule is spelled once and both the mask and the postcondition read
+  // it, so the check cannot disagree with the decision it checks (FR-021).
+  SG_ENSURE(settled
+                == ((per_task == availability::countable
+                         ? target_thread_bit
+                         : target_mask {})
+                    | (on_cpu == availability::countable ? target_cpu_bit
+                                                         : target_mask {})),
+            "a verdict of `countable` names that kind's bit and every other "
+            "verdict names no bit, so a cpu probe that counted the entry "
+            "names the cpu bit whatever the per-task probe answered (FR-021, "
+            "FR-022)");
+  return settled;
+}
+
+auto scope_settled_state(const availability on_cpu,
+                         const bool device_scoped) noexcept -> availability
+{
+  // The device's own scope refuses the per-task kind and the cpu probe
+  // refused that kind too, so no probe settled the entry. What this caller
+  // may open on a device-scoped entry is the scope's own answer, so a
+  // permission refusal publishes as `scope_refused`. An encoding refusal
+  // names the encoding instead, so it survives into `entry.avail` and the
+  // caller reads the two refusals apart (FR-021, FR-022).
+  const bool scope_refusal =
+      device_scoped && on_cpu == availability::permission_blocked;
+  const availability settled =
+      scope_refusal ? availability::scope_refused : on_cpu;
+  // The rule is spelled once and both the verdict and the postcondition read
+  // it, so the check cannot disagree with the decision it checks (FR-021).
+  SG_ENSURE(settled == (scope_refusal ? availability::scope_refused : on_cpu),
+            "a permission refusal on a device-scoped device settles on the "
+            "scope's own refusal, and every other verdict settles on itself "
+            "(FR-021, FR-022)");
+  return settled;
 }
 
 // Splits a kernel event_attr file into its field/value pairs: the text
@@ -703,6 +781,15 @@ void pmu_provider::enumerate(object_sink& sink) const
               && !entry.is_time_pair,  // LCOV_EXCL_BR_LINE
           // LCOV_EXCL_BR_STOP
       });
+      // The kinds the probe settled this entry on, keyed by the address the
+      // system gives the seeded leaf, so the catalog names a kind only where
+      // that kind's own probe counted the entry. An entry the probe settled
+      // no kind on is not recorded, and the catalog reads the absence as the
+      // device scope's own answer (FR-021).
+      if (entry.probed_kinds != 0) {
+        detail::note_probed_kinds(device.path + "/" + entry.name,
+                                  entry.probed_kinds);
+      }
     }
     sink.add_object(object_seed {
         .kind = "pmu",

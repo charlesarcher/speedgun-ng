@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -44,6 +45,9 @@
 
 #include "../source/counters/detail/pmu.hpp"
 #include "../source/counters/linux_pmu/embedded_tables.hpp"
+#include "speedgun-ng/counters_clock.hpp"
+#include "speedgun-ng/counters_core.hpp"
+#include "speedgun-ng/counters_provider.hpp"
 #include "speedgun-ng/dbc.hpp"  // SG_CONTRACTS_SEMANTIC
 
 #ifndef SG_SEAM_TABLE_DIR
@@ -76,6 +80,7 @@ using sg::counters::detail::fast_read_verdict;
 using sg::counters::detail::format_range;
 using sg::counters::detail::kRnpmcCounterWidth;
 using sg::counters::detail::load_device;
+using sg::counters::detail::merge_vendored;
 using sg::counters::detail::parse_attr;
 using sg::counters::detail::parse_format_field;
 using sg::counters::detail::pmu_compose_config;
@@ -573,15 +578,6 @@ auto group_short_read_scenario() -> void
         "a leader answering fewer bytes than the group header is short");
   check(sg::counters::detail::group_read_short(-1, header),
         "a group read the syscall refuses is short");
-
-  // The member column such an action publishes: zero, never a count the
-  // read did not produce. The disclosure column beside it names the gap,
-  // which is what tells a caller that the zero is not a measured zero.
-  constexpr std::uint64_t driven = 4096;
-  constexpr std::uint64_t published = 0;
-  check(published == 0 && published != driven,
-        "a short group read publishes a zero count, so no count the read "
-        "never produced reaches a column beside the disclosure");
 }
 
 // A cpu-target fast-mode plan whose sampling thread migrated away. The
@@ -765,8 +761,8 @@ auto destroy_before_open_scenario() -> void
 }
 
 // The synthetic-table writer, defined below the scenarios that predate it.
-auto write_fixture(const char* name, const std::string_view body)
-    -> std::string;
+auto write_fixture(const char* name,
+                   const std::string_view body) -> std::string;
 
 // The named synthetic sysfs format list every encodable-row count in this
 // file is measured against, so one number gates every host on the matrix
@@ -778,8 +774,7 @@ auto synthetic_core_device() -> pmu_device
   pmu_device device;
   device.path = "synthetic";
   device.type = 4;
-  for (const auto& [name, spec] :
-       {
+  for (const auto& [name, spec] : {
            std::pair {"event", "config:0-7"},
            std::pair {"umask", "config:8-15"},
            std::pair {"cmask", "config:24-31"},
@@ -800,11 +795,37 @@ auto synthetic_core_device() -> pmu_device
   return device;
 }
 
+// The reference host's own core format list: a literal transcription of
+// what its `/sys/bus/event_source/devices/cpu/format/` directory
+// publishes, which is `cmask`, `edge`, `event`, `inv`, and `umask`. The
+// list is recorded rather than read from the running machine, so one
+// measured number gates every host on the matrix (FR-020, SC-005).
+auto reference_host_core_device() -> pmu_device
+{
+  pmu_device device;
+  device.path = "reference-host";
+  for (const auto& [name, spec] : {
+           std::pair {"event", "config:0-7"},
+           std::pair {"umask", "config:8-15"},
+           std::pair {"cmask", "config:24-31"},
+           std::pair {"edge", "config:18"},
+           std::pair {"inv", "config:23"},
+       })
+  {
+    std::vector<format_range> ranges;
+    if (!parse_format_field(spec, ranges)) {
+      fail("the reference-host format list spells a range the parser reads");
+    }
+    device.formats.emplace_back(name, std::move(ranges));
+  }
+  return device;
+}
+
 // The encodable rows one pinned directory yields against the synthetic
 // format list: a row encodes where every field it carries reached a
 // published format.
-auto encodable_rows(const std::string& directory, const pmu_device& device)
-    -> std::size_t
+auto encodable_rows(const std::string& directory,
+                    const pmu_device& device) -> std::size_t
 {
   const auto& table = sg::counters::detail::pmu_load_table(directory);
   std::size_t encodable = 0;
@@ -820,7 +841,7 @@ auto encodable_rows(const std::string& directory, const pmu_device& device)
 // The encodable-row count over the pinned tree for each Intel core
 // architecture directory, pinned to exact numbers so one number gates every
 // host (FR-020, SC-005). The AMD counts must not fall below their pre-fix
-// figures of 339 and 348 (FR-020). The ten keys carrying no encoding
+// figures of 321 and 317 (FR-020). The ten keys carrying no encoding
 // obligation never become encoding fields (FR-016, FR-017).
 auto intel_encodable_rows_scenario() -> void
 {
@@ -858,6 +879,29 @@ auto intel_encodable_rows_scenario() -> void
     check(counted == one.encodable,
           "the encodable-row count for this AMD directory holds, and does "
           "not fall below its pre-fix figure (FR-020)");
+  }
+
+  // The same six directories against the reference host's own published
+  // format list, the second list FR-020 and SC-005 name. The counts this
+  // implementation measures, recorded in data-model.md beside the
+  // synthetic-list column they are measured against.
+  const auto reference = reference_host_core_device();
+  constexpr expectation kReference[] = {{"arch/x86/skylake/", 576},
+                                        {"arch/x86/icelake/", 342},
+                                        {"arch/x86/alderlake/", 521},
+                                        {"arch/x86/sapphirerapids/", 1685},
+                                        {"arch/x86/amdzen4/", 326},
+                                        {"arch/x86/amdzen5/", 322}};
+  static_assert(kReference[0].encodable > 0,
+                "a count of one row does not satisfy FR-020");
+  for (const auto& one : kReference) {
+    const auto counted = encodable_rows(one.directory, reference);
+    std::printf("seam encodable rows, reference host list: %s %zu\n",
+                one.directory,
+                counted);
+    check(counted == one.encodable,
+          "the pinned encodable-row count for this directory holds against "
+          "the reference host's own format list (FR-020, SC-005)");
   }
 
   // The keys carrying no encoding obligation. A sampling key and a
@@ -958,6 +1002,17 @@ auto device_placement_scenario() -> void
         "no uncore row appears under the core device (FR-019)");
   check(!scope_reaches("uncore_arb", "iMC"),
         "a row scoped to one uncore class reaches no other (FR-019)");
+
+  // A kernel uncore device carries an instance suffix, `uncore_imc_0`
+  // among them. The class rule names the device by its exact spelling, so
+  // a suffixed device reaches no class-scoped row and the postcondition
+  // the decision carries stays true for it. Without this arm the pairing
+  // check and the decision could disagree on a suffixed device, where the
+  // device name ends with the class but is not the class (FR-019).
+  check(!scope_reaches("uncore_imc_0", "iMC")
+            && !scope_reaches("uncore_arb_3", "ARB"),
+        "a suffixed uncore device reaches no class-scoped row, so the "
+        "postcondition and the verdict agree on it (FR-019)");
 
   // A row scoped to a class this host publishes nothing for reaches no
   // device, so it stays out of the catalog and runs no probe.
@@ -1801,6 +1856,90 @@ auto fast_branch_scenario() -> void
         "opens no window");
 }
 
+// The verdicts' own journey: `probe_device` runs the per-kind probes, the
+// kinds they settled ride on the catalog entry, the provider records them
+// under the address the system gives a seeded leaf, and the mask the
+// catalog publishes is the record the probe left. Every check is read
+// against the verdicts this kernel gives the seam's own probes, so it holds
+// on a host that grants a cpu-targeted event and on one that grants none
+// (FR-021, FR-022, FR-046).
+auto probe_kind_record_scenario() -> void
+{
+  using sg::counters::target_cpu_bit;
+  using sg::counters::target_kind;
+  using sg::counters::target_mask;
+  using sg::counters::target_thread_bit;
+  using sg::counters::detail::note_probed_kinds;
+  using sg::counters::detail::pmu_probe;
+  using sg::counters::detail::probed_kinds_at;
+  using sg::counters::detail::settled_targets;
+
+  const std::vector<std::pair<int, std::uint64_t>> words {
+      {0, PERF_COUNT_HW_INSTRUCTIONS},
+  };
+  const target_mask counted = (pmu_probe(PERF_TYPE_HARDWARE, words, target {})
+                                       == availability::countable
+                                   ? target_thread_bit
+                                   : target_mask {})
+      | (pmu_probe(PERF_TYPE_HARDWARE,
+                   words,
+                   target {.kind = target_kind::cpu, .cpu = 0})
+                 == availability::countable
+             ? target_cpu_bit
+             : target_mask {});
+  const std::string description = "a hardware event the seam probes";
+
+  // The core event source counts a thread's own events, so its entries run
+  // both probes and their record carries both verdicts.
+  pmu_device core;
+  core.path = "cpu";
+  core.type = PERF_TYPE_HARDWARE;
+  core.device_scoped = false;
+  core.entries.push_back(pmu_entry {
+      .name = "record",
+      .description = description,
+      .words = words,
+  });
+  probe_device(core, /*fast_capable=*/false);
+  check(core.entries.front().probed_kinds == counted,
+        "the catalog entry carries exactly the kinds the two probes settled "
+        "for it (FR-021)");
+  check(settled_targets(core.entries.front().avail,
+                        core.entries.front().probed_kinds,
+                        "pmu",
+                        core.path)
+            == core.entries.front().probed_kinds,
+        "the published mask is the record the probe left, so a countable "
+        "entry the cpu probe refused names no cpu bit (FR-021)");
+
+  // The same event on a device that binds one processor for every task: its
+  // scope refuses the per-task kind, so no per-task probe runs and no
+  // per-task bit is named.
+  pmu_device scoped;
+  scoped.path = "unpublished_scoped";
+  scoped.type = PERF_TYPE_HARDWARE;
+  scoped.device_scoped = true;
+  scoped.entries.push_back(pmu_entry {
+      .name = "record",
+      .description = description,
+      .words = words,
+  });
+  probe_device(scoped, /*fast_capable=*/false);
+  check(scoped.entries.front().probed_kinds == (counted & target_cpu_bit),
+        "a device-scoped entry consults no per-task probe, so its record "
+        "names the cpu kind alone (FR-021, FR-022)");
+
+  // The carrier the catalog reads, keyed by the address the system gives a
+  // seeded leaf.
+  note_probed_kinds("record/core/record", target_cpu_bit);
+  check(probed_kinds_at("record/core/record") == target_cpu_bit,
+        "the kinds recorded for a leaf address read back where the catalog "
+        "looks for them (FR-021)");
+  check(probed_kinds_at("no/such/leaf") == target_mask {},
+        "an address no event source probed names no kind, which is the "
+        "answer for every leaf the availability probe never reached (FR-021)");
+}
+
 }  // namespace
 
 // Every availability the catalog can publish reaches the mode selector,
@@ -1895,6 +2034,239 @@ auto hybrid_device_scope_scenario() -> void
   }
 }
 
+// Whether the placement step left a row of `name` on `device` (FR-019).
+// The lookup reads the entries `merge_vendored` appended, so it answers
+// where a row ended up.
+auto carries(const pmu_device& device, const std::string& name) -> bool
+{
+  return std::ranges::any_of(device.entries,
+                             [&name](const pmu_entry& entry)
+                             { return entry.name == name; });
+}
+
+// The kernel's device name for one table Unit scope (FR-019): the empty
+// scope and `core` name the core PMU, and every other scope names its own
+// class, folded to lower case the way the placement rule folds it.
+auto kernel_device_name(const std::string& scope) -> std::string
+{
+  std::string folded;
+  folded.reserve(scope.size());
+  for (const char letter : scope) {
+    folded.push_back(
+        static_cast<char>(std::tolower(static_cast<unsigned char>(letter))));
+  }
+  return folded.empty() || folded == "core" ? "cpu" : folded;
+}
+
+// The vendored table of the architecture directory the running CPU
+// selects, empty where no mapping-file row matches this CPU (FR-038).
+// Every placement question is a question over this table, since a
+// vendored row is the only row the placement step ever adds (FR-019).
+auto selected_table() -> const std::vector<pmu_table_entry>&;
+
+// Writes one device directory named `name` and reads it back through the
+// seam, the way `hybrid_device_scope_scenario` writes a device the running
+// kernel publishes no device for. The type is one no kernel publishes,
+// because the placement step opens no event (FR-019). The device publishes
+// a config range for every field name the selected table's rows carry, one
+// range per config word, so a row composes on it and the placement step
+// measures both of its composition arms, the refused one and the composed
+// one (FR-037).
+auto fixture_device(const std::string& name) -> std::optional<pmu_device>
+{
+  const auto dir = std::filesystem::path(SG_SEAM_TABLE_DIR) / name;
+  std::error_code code;
+  std::filesystem::create_directories(dir, code);
+  std::ofstream file(dir / "type", std::ios::binary | std::ios::trunc);
+  file << "999999\n";
+  file.close();
+  if (!file) {
+    fail("a placement fixture device carries a readable type");
+  }
+  // The names come from the parsed table, so no host's field vocabulary is
+  // spelled here and every row composes wherever the table lands one.
+  std::vector<std::string> published;
+  for (const auto& row : selected_table()) {
+    for (const auto& field : row.fields) {
+      if (std::ranges::none_of(published,
+                               [&field](const std::string& one) -> bool
+                               { return one == field.first; }))
+      {
+        published.push_back(field.first);
+      }
+    }
+  }
+  const auto format_dir = dir / "format";
+  std::filesystem::create_directories(format_dir, code);
+  constexpr std::size_t bits_per_word = 64;
+  std::size_t word = 0;
+  for (const auto& field : published) {
+    const std::size_t low = word * bits_per_word;
+    std::ofstream format(format_dir / field,
+                         std::ios::binary | std::ios::trunc);
+    format << "config:" << low << "-" << (low + bits_per_word - 1) << "\n";
+    format.close();
+    if (!format) {
+      fail("a placement fixture device carries a readable format file");
+    }
+    ++word;
+  }
+  return load_device(dir);
+}
+
+// The vendored table of the architecture directory the running CPU
+// selects, empty where no mapping-file row matches this CPU (FR-038).
+// Every placement question is a question over this table, since a
+// vendored row is the only row the placement step ever adds (FR-019).
+auto selected_table() -> const std::vector<pmu_table_entry>&
+{
+  return sg::counters::detail::pmu_load_table(
+      pmu_select_directory(sg::counters::detail::pmu_ident_current()));
+}
+
+// An uncore device directory read through `load_device`, with the
+// placement step driven over it: the reference host publishes no uncore
+// device of this class that a catalog run can open, so the loader's own
+// uncore arm and the placement over it run against a directory the kernel
+// never lists. Every row of the selected table whose Unit scope names this
+// class lands on the device, and no core-scoped row does (FR-019, SC-006).
+auto uncore_device_fixture_scenario() -> void
+{
+  const std::filesystem::path dir =
+      std::filesystem::path(SG_SEAM_TABLE_DIR) / "uncore_imc";
+  std::error_code code;
+  std::filesystem::create_directories(dir, code);
+  std::ofstream file(dir / "type", std::ios::binary | std::ios::trunc);
+  file << "5\n";
+  file.close();
+  if (!file) {
+    fail("an uncore device fixture carries a readable type");
+  }
+  auto loaded = load_device(dir);
+  check(loaded.has_value(), "an uncore device directory loads");
+  if (!loaded.has_value()) {
+    return;
+  }
+  merge_vendored(*loaded);
+
+  const auto& table = selected_table();
+  std::size_t scoped_here = 0;
+  std::size_t expected = 0;
+  std::size_t misplaced = 0;
+  for (const auto& row : table) {
+    const bool here = carries(*loaded, row.name);
+    if (row.unit == "iMC") {
+      ++expected;
+      if (here) {
+        ++scoped_here;
+      }
+    } else if (here) {
+      ++misplaced;
+    }
+  }
+  std::printf("seam uncore fixture: %s carries %zu of %zu iMC-scoped rows "
+              "and %zu rows of another class\n",
+              loaded->path.c_str(), scoped_here, expected, misplaced);
+  check(scoped_here == expected,
+        "every iMC-scoped row of the selected table landed on the loaded "
+        "uncore device (FR-019, SC-006)");
+  check(misplaced == 0,
+        "no core-scoped row and no row of another class appears under a "
+        "loaded uncore device (FR-019)");
+}
+
+// The placement step itself, which no other scenario reaches:
+// `merge_vendored` is the only code that puts a vendored row on a device
+// and the provider assembly reaches it only from a constructor over
+// sysfs, so a row landing on the device its scope names, and a row
+// staying off every device, are facts this fixture alone measures. The
+// vendored table is the pinned one the running CPU selects, and the
+// devices are fixtures, so both arms run on a host that publishes no
+// device of these classes (FR-019, SC-006, T037, T081).
+auto vendored_row_placement_scenario() -> void
+{
+  const auto& table = selected_table();
+  if (table.empty()) {
+    std::printf("seam: no mapping-file row matches this CPU, so no vendored "
+                "table is available to place (FR-038)\n");
+    return;
+  }
+
+  // The distinct Unit scopes the selected table carries, in table order.
+  std::vector<std::string> scopes;
+  for (const auto& row : table) {
+    if (std::ranges::none_of(scopes,
+                             [&row](const std::string& seen)
+                             { return seen == row.unit; }))
+    {
+      scopes.push_back(row.unit);
+    }
+  }
+  std::printf("seam placement: %zu rows over %zu Unit scopes\n",
+              table.size(),
+              scopes.size());
+  check(scopes.size() >= 2,
+        "the selected table carries at least two Unit scopes, so a row's "
+        "own class and a class no device names are both in it (FR-019)");
+
+  // One fixture device per scope but the last: the last scope is the
+  // class no device here names, so its rows reach no device at all.
+  std::vector<pmu_device> devices;
+  for (auto scope = scopes.begin(); scope + 1 != scopes.end(); ++scope) {
+    auto device = fixture_device(kernel_device_name(*scope));
+    check(device.has_value(), "a placement fixture device directory loads");
+    if (!device.has_value()) {
+      continue;
+    }
+    merge_vendored(*device);
+    std::printf("seam placement: device '%s' holds %zu merged rows\n",
+                device->path.c_str(),
+                device->entries.size());
+    devices.push_back(std::move(*device));
+  }
+
+  std::size_t landed = 0;
+  std::size_t unreached = 0;
+  for (const auto& row : table) {
+    const std::string own = kernel_device_name(row.unit);
+    std::size_t on_own = 0;
+    std::size_t on_other = 0;
+    for (const auto& device : devices) {
+      if (!carries(device, row.name)) {
+        continue;
+      }
+      if (device.path == own) {
+        ++on_own;
+      } else {
+        ++on_other;
+      }
+    }
+    const bool published = std::ranges::any_of(
+        devices, [&own](const pmu_device& one) { return one.path == own; });
+    if (published) {
+      check(on_own == 1 && on_other == 0,
+            "a vendored row lands on the one device its Unit scope names and "
+            "on no other (FR-019)");
+      ++landed;
+      continue;
+    }
+    check(on_own == 0 && on_other == 0,
+          "a vendored row scoped to a class no device names reaches no "
+          "device and stays out of the catalog (FR-019)");
+    ++unreached;
+  }
+  std::printf("seam placement: %zu rows landed on the device their scope "
+              "names, %zu reached no device\n",
+              landed, unreached);
+  check(landed > 0,
+        "the placement step put at least one vendored row on the device its "
+        "Unit scope names (FR-019, SC-006)");
+  check(unreached > 0,
+        "the placement step left at least one vendored row on no device, so "
+        "a row scoped to an unpublished class stays out of the catalog "
+        "(FR-019, SC-006)");
+}
+
 // No device this host publishes takes the chain's false arm at the count
 // a cpu target settles an entry on: every entry the kernel lists here has
 // its cpu-targeted event granted, so the entry is countable on every
@@ -1920,8 +2292,295 @@ auto unpublished_device_probe_scenario() -> void
         "a device whose every probe is refused discloses no time pair");
 }
 
+// The scope-cause decision, driven over every arm of its two inputs and
+// then over the arm of `probe_device` no other scenario reaches: a
+// device-scoped device whose PMU type the running kernel publishes no
+// event source for, so both probes answer without a grant. Where the
+// kernel's two answers differ, the scoped device publishes the scope's own
+// and never the per-task one, which is the whole point of the flag
+// (FR-021, FR-022, FR-046).
+auto device_scope_probe_scenario() -> void
+{
+  using sg::counters::target_kind;
+  using sg::counters::detail::pmu_probe;
+  using sg::counters::detail::scope_settled_state;
+
+  for (const auto verdict : {
+           availability::countable,
+           availability::permission_blocked,
+           availability::not_encodable,
+           availability::absent,
+           availability::scope_refused,
+           availability::gap,
+       })
+  {
+    check(scope_settled_state(verdict, true)
+              == (verdict == availability::permission_blocked
+                      ? availability::scope_refused
+                      : verdict),
+          "a device-scoped device publishes the scope's own refusal for a "
+          "permission verdict and every other verdict unchanged (FR-021, "
+          "FR-022)");
+    check(scope_settled_state(verdict, false) == verdict,
+          "a device no scope owns publishes the cpu probe's own verdict "
+          "(FR-021)");
+  }
+
+  pmu_device scoped;
+  scoped.path = "unpublished_scoped";
+  scoped.type = 999999;
+  scoped.device_scoped = true;
+  scoped.entries.push_back(pmu_entry {
+      .name = "synthetic",
+      .description = "an event on a PMU type no kernel publishes",
+      .words = {{0, 0}},
+  });
+  const std::vector<std::pair<int, std::uint64_t>> words =
+      scoped.entries.front().words;
+  const availability per_task = pmu_probe(scoped.type, words, target {});
+  const availability on_cpu = pmu_probe(
+      scoped.type, words, target {.kind = target_kind::cpu, .cpu = 0});
+  probe_device(scoped, false);
+  check(scoped.entries.front().avail == scope_settled_state(on_cpu, true),
+        "a device-scoped entry settles on the state the extracted decision "
+        "publishes for the verdict the cpu probe gave (FR-021, FR-022)");
+
+  // The same device unscoped, where the per-task probe does run. Its
+  // published state names the per-task verdict, so the two states below
+  // are read against what this kernel answered for each probe.
+  pmu_device unscoped;
+  unscoped.path = scoped.path;
+  unscoped.type = scoped.type;
+  unscoped.entries.push_back(pmu_entry {
+      .name = scoped.entries.front().name,
+      .description = scoped.entries.front().description,
+      .words = words,
+  });
+  probe_device(unscoped, false);
+  check(unscoped.entries.front().avail
+            == (on_cpu == availability::countable ? availability::countable
+                                                  : per_task),
+        "an unscoped device publishes the per-task probe's own verdict, so "
+        "both of the kernel's answers are named here (FR-021, FR-022)");
+  if (on_cpu != availability::countable && per_task != on_cpu) {
+    check(scoped.entries.front().avail != unscoped.entries.front().avail,
+          "a device-scoped device consults no per-task probe: where the two "
+          "probes disagree it publishes the scope's answer and not the "
+          "per-task verdict (FR-021, FR-022)");
+  } else {
+    std::printf("seam scope probe: this kernel answers both probes alike, so "
+                "the flag has no verdict of its own to separate here; the "
+                "extracted decision above carries both arms (FR-021)\n");
+  }
+}
+
+// The two verdicts one entry's probes give, reduced to the target kinds
+// they settled, and the mask the catalog publishes from them. A kind's bit
+// is named where that kind's own probe counted the entry, so a countable
+// entry the cpu-targeted probe refused names no cpu bit; a leaf no probe
+// ran for takes the object's own scope, which is what the enabled and
+// running leaves and every leaf no event source probed do. Both decisions
+// are pure over values a caller already holds, so every arm runs on a host
+// that grants no event, which is what the reference host is (FR-021,
+// FR-022, FR-046).
+auto settled_target_mask_scenario() -> void
+{
+  using sg::counters::target_cpu_bit;
+  using sg::counters::target_mask;
+  using sg::counters::target_thread_bit;
+  using sg::counters::detail::probed_kind_mask;
+  using sg::counters::detail::settled_targets;
+
+  // Every pair of probe verdicts, so each kind's bit is driven on both of
+  // its arcs and against every state the other kind can answer with.
+  for (const auto per_task : {
+           availability::countable,
+           availability::permission_blocked,
+           availability::not_encodable,
+           availability::absent,
+           availability::scope_refused,
+           availability::gap,
+       })
+  {
+    for (const auto on_cpu : {
+             availability::countable,
+             availability::permission_blocked,
+             availability::not_encodable,
+             availability::absent,
+             availability::scope_refused,
+             availability::gap,
+         })
+    {
+      const target_mask expected =
+          (per_task == availability::countable ? target_thread_bit
+                                               : target_mask {})
+          | (on_cpu == availability::countable ? target_cpu_bit
+                                               : target_mask {});
+      check(probed_kind_mask(per_task, on_cpu) == expected,
+            "a kind's bit is named exactly where that kind's own probe "
+            "settled the entry, whatever the other probe answered (FR-021, "
+            "FR-022)");
+    }
+  }
+
+  for (const auto state : {
+           availability::permission_blocked,
+           availability::not_encodable,
+           availability::absent,
+           availability::scope_refused,
+           availability::gap,
+       })
+  {
+    check(settled_targets(state, target_mask {}, "pmu", "uncore_imc") == 0,
+          "a refused entry names no target kind on a device that binds one "
+          "processor for every task (FR-021)");
+    check(settled_targets(state, target_mask {}, "machine", "machine") == 0,
+          "a refused entry names no target kind on an object no event "
+          "provider seeded (FR-021)");
+  }
+
+  check(settled_targets(availability::countable,
+                        target_mask {},
+                        "machine",
+                        "machine")
+            == (target_thread_bit | target_cpu_bit),
+        "a countable entry on an object no event provider seeded names both "
+        "kinds (FR-021)");
+
+  for (const auto* path : {"cpu", "cpu_core", "cpu_atom"}) {
+    check(settled_targets(availability::countable, target_mask {}, "pmu", path)
+              == (target_thread_bit | target_cpu_bit),
+          "a countable leaf no probe settled names both kinds on a core "
+          "device path, a hybrid per-core instance counting a thread's own "
+          "events (FR-021, FR-022)");
+  }
+
+  check(settled_targets(availability::countable,
+                        target_mask {},
+                        "pmu",
+                        "uncore_imc")
+            == target_cpu_bit,
+        "a countable leaf no probe settled names the cpu kind alone on a "
+        "device that binds one processor for every task (FR-021, FR-022)");
+
+  // The per-kind verdicts, which is the answer on a host whose cpu-targeted
+  // probe is refused: the record names the kinds the probes settled and no
+  // others, so the object's scope adds nothing to it.
+  check(settled_targets(availability::countable,
+                        target_thread_bit,
+                        "pmu",
+                        "cpu")
+            == target_thread_bit,
+        "an entry the cpu-targeted probe refused names no cpu bit on a core "
+        "device, so the mask states the probe's own verdicts (FR-021)");
+  check(settled_targets(availability::countable, target_cpu_bit, "pmu", "cpu")
+            == target_cpu_bit,
+        "an entry the per-task probe refused names the cpu bit alone, the "
+        "core device scope notwithstanding (FR-021)");
+  check(settled_targets(availability::countable,
+                        target_thread_bit | target_cpu_bit,
+                        "pmu",
+                        "cpu")
+            == (target_thread_bit | target_cpu_bit),
+        "an entry both probes counted names both kinds (FR-021)");
+  check(settled_targets(availability::countable,
+                        target_cpu_bit,
+                        "pmu",
+                        "uncore_imc")
+            == target_cpu_bit,
+        "a device-scoped entry names the cpu kind its own probe settled and "
+        "nothing else (FR-021, FR-022)");
+}
+
+// The plan-side availability gate, over every arm the clause in the seam
+// header names: a countable entry passes for either target kind, a
+// scope-refused entry passes for the cpu kind alone, and every other
+// state is refused for either kind. The decisions are the catalog state
+// and the requested kind, so every arm runs on a host whose catalog
+// publishes no scope-refused entry, which is what the reference host
+// does: a cpu-targeted probe there answers EINVAL and the probe settles
+// that answer as not_encodable (FR-021, FR-022, FR-024, FR-046).
+auto availability_gate_scenario() -> void
+{
+  using sg::counters::target_kind;
+  using sg::counters::detail::availability_gate_passes;
+
+  for (const auto state : {
+           availability::permission_blocked,
+           availability::not_encodable,
+           availability::absent,
+           availability::scope_refused,
+           availability::gap,
+       })
+  {
+    check(!availability_gate_passes(state, target_kind::thread),
+          "a state no probe settled refuses a per-task request (FR-024)");
+    check(availability_gate_passes(state, target_kind::cpu)
+              == (state == availability::scope_refused),
+          "a scope-refused entry lets a cpu request past the gate and every "
+          "other state refuses it (FR-021, FR-022, FR-024)");
+  }
+
+  check(availability_gate_passes(availability::countable, target_kind::thread),
+        "a countable entry lets a per-task request past the gate (FR-024)");
+  check(availability_gate_passes(availability::countable, target_kind::cpu),
+        "a countable entry lets a cpu request past the gate (FR-024)");
+}
+
+// The clock window's disclosure decision, over both arms (FR-007). A leaf
+// set that names a disclosure column carries the clock leaf's own
+// countability value into the column no leaf resolves to, and a leaf set
+// that names none publishes no second point. The window is the clock
+// provider's own, opened over its own leaf, so both arms run here without
+// a granted event (FR-046).
+auto clock_disclosure_scenario() -> void
+{
+  using sg::counters::clock_provider;
+
+  // The sink indexes cells as `columns[index * stride + row]`, so a stride
+  // of one puts column `n` in cell `n`.
+  constexpr std::uint64_t unwritten = ~std::uint64_t {0};
+  constexpr std::size_t column_count = 2;
+  constexpr std::size_t row_stride = 1;
+
+  clock_provider provider {};
+
+  leaf_set disclosing;
+  disclosing.addresses = {"machine/monotonic"};
+  disclosing.disclosure_column = 1;
+  auto with_column = provider.open(disclosing, target {});
+  check(with_column != nullptr,
+        "the clock provider opens a window over one of its own leaves "
+        "(FR-007)");
+  std::array<std::uint64_t, column_count> disclosed {unwritten, unwritten};
+  point_sink disclosed_sink(disclosed.data(), column_count, row_stride, 0);
+  with_column->read_points(disclosed_sink);
+  check(disclosed[1] == static_cast<std::uint64_t>(availability::countable),
+        "the window that names a disclosure column discloses the clock "
+        "leaf's own countability value (FR-007)");
+
+  leaf_set quiet;
+  quiet.addresses = disclosing.addresses;
+  auto without_column = provider.open(quiet, target {});
+  check(without_column != nullptr,
+        "the same leaf opens a window whose leaf set names no disclosure "
+        "column (FR-007)");
+  std::array<std::uint64_t, column_count> quiet_columns {unwritten, unwritten};
+  point_sink quiet_sink(quiet_columns.data(), column_count, row_stride, 0);
+  without_column->read_points(quiet_sink);
+  check(quiet_columns[0] != unwritten,
+        "the window writes the clock point the platform clock returned "
+        "(FR-011, FR-033)");
+  check(quiet_columns[1] != disclosed[1],
+        "a leaf set naming no disclosure column publishes no second point, "
+        "where the window that names one carries the catalog's own "
+        "countability value (FR-007)");
+}
+
 auto main() -> int
 {
+  availability_gate_scenario();
+  clock_disclosure_scenario();
   fixture_scenario();
   format_scenario();
   compose_scenario();
@@ -1950,7 +2609,12 @@ auto main() -> int
   fast_branch_scenario();
   probe_verdict_scenario();
   hybrid_device_scope_scenario();
+  uncore_device_fixture_scenario();
+  vendored_row_placement_scenario();
   unpublished_device_probe_scenario();
+  device_scope_probe_scenario();
+  settled_target_mask_scenario();
+  probe_kind_record_scenario();
   context_open_refusal_scenario();
   std::printf("counters_linux_pmu_seam_test PASS: encoder and protocol\n");
   return 0;

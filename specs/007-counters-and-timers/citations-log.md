@@ -165,7 +165,7 @@ claim_as_written: the parser recorded every integer-valued key as an
   config word the device format directory never publishes
 requirement_now_governing: 007 FR-037, through 012 FR-016 and FR-018
 code_now_governing: kernel_spelling at
-  source/counters/linux_pmu/table_parse.cpp:172 records a key as an
+  source/counters/linux_pmu/table_parse.cpp records a key as an
   encoding field only where it names a kernel format, under the spelling
   the kernel publishes
 command: grep -c kernel_spelling source/counters/linux_pmu/table_parse.cpp
@@ -186,7 +186,7 @@ claim_as_written: merge_vendored appended every vendored row to one
   device, received no row of its own scope
 requirement_now_governing: 007 FR-024, through 012 FR-019
 code_now_governing: merge_vendored at
-  source/counters/linux_pmu/provider.cpp:266 routes each row by the
+  source/counters/linux_pmu/provider.cpp routes each row by the
   table scope its device publishes
 command: grep -c merge_vendored source/counters/linux_pmu/provider.cpp
   (3)
@@ -207,7 +207,7 @@ claim_as_written: the probe took no target, so a device-scoped entry
 requirement_now_governing: 007 FR-024 and FR-031, through 012 FR-021 and
   FR-022
 code_now_governing: detail::pmu_probe at
-  source/counters/linux_pmu/provider.cpp:148 takes the target kinds the
+  source/counters/linux_pmu/provider.cpp takes the target kinds the
   entry supports, and the catalog carries them in the fixed-size bitmask
   beside the countability state
 command: grep -c pmu_probe source/counters/linux_pmu/provider.cpp (4)
@@ -228,7 +228,7 @@ claim_as_written: fast_decode masked the sum to the published counter
 requirement_now_governing: 007 FR-013, FR-019, FR-040, and FR-041,
   through 012 FR-002 through FR-005
 code_now_governing: fast_decode at
-  source/counters/linux_pmu/fast_read.cpp:95 sign extends as the
+  source/counters/linux_pmu/fast_read.cpp sign extends as the
   kernel interface header documents, and the managed disclosure column
   carries the gap instead of an earlier value
 command: grep -c fast_decode source/counters/linux_pmu/fast_read.cpp (5)
@@ -248,7 +248,7 @@ claim_as_written: a group read returning fewer bytes than the group
   delta no read produced
 requirement_now_governing: 007 FR-011, through 012 FR-006
 code_now_governing: group_read_short at
-  source/counters/linux_pmu/group_io.cpp:28 marks the action, and the
+  source/counters/linux_pmu/group_io.cpp marks the action, and the
   managed disclosure column carries the mark
 command: grep -c group_read_short source/counters/linux_pmu/group_io.cpp
   (2)
@@ -267,7 +267,7 @@ claim_as_written: two threads resolving one canonical address both
   wrote the open flag on every call
 requirement_now_governing: 007 FR-009 and FR-031, through 012 FR-010
   through FR-012
-code_now_governing: system::handle_for at source/counters/system.cpp:418
+code_now_governing: system::handle_for at source/counters/system.cpp
   reads the map under the guard and writes once, and the thread
   sanitizer preset reports no race
 command: grep -c handle_for source/counters/system.cpp (5)
@@ -307,7 +307,7 @@ claim_as_written: fast_context held a descriptor and a mapping and
 requirement_now_governing: 007 FR-040 and FR-041, through 012 FR-013
   through FR-015
 code_now_governing: fast_context_close at
-  source/counters/linux_pmu/group_io.cpp:494 serves the destructor and
+  source/counters/linux_pmu/group_io.cpp serves the destructor and
   the partial-open arms
 command: grep -c fast_context_close
   source/counters/linux_pmu/group_io.cpp (1)
@@ -323,7 +323,7 @@ date: 2026-10-04
 task: T046
 section: The coverage-exclusion population at this head
 figure_as_written: 301 marker lines and 301 tokens over 11 files
-figure_measured: 382 marker lines and 382 tokens over 12 files at this
+figure_measured: 384 marker lines and 384 tokens over 12 files at this
   feature's head, and 387 tokens over 12 files at this feature's base
   6aafd2d
 command: rg -c 'LCOV_EXCL' source/counters
@@ -332,12 +332,12 @@ claim_as_written: the whole calibration region sat inside one exclusion
   pair, so no registered test could reach the code that subtracts the
   bracketing clock reads
 requirement_now_governing: 011 R-006, through 012 FR-025 and FR-026
-code_now_governing: calibrate at source/counters/plan.cpp:267 subtracts
+code_now_governing: calibrate at source/counters/plan.cpp subtracts
   its bracket with no exclusion around it, and a registered test
   exercises it
 head: c507754
 must_not_move: the exclusion population outside the lines this feature
-  changed, which falls from 387 to 382 tokens over the feature
+  changed, which falls from 387 to 384 tokens over the feature
 ```
 
 ### I-10, two leaves documented an order their clock does not provide

@@ -195,18 +195,17 @@ The vendored JSON compiled into static data inside the archive.
 
 SC-005 and FR-020 gate four Intel directories against exact numbers,
 measured over the pinned tree against a named synthetic sysfs format
-list. The counts below are the baseline this implementation measures and
-the fixture pins. The rightmost column stays empty until the fixture
-supplies the numbers, and the fixture fails while it is empty.
+list and against the reference host's own published list. The counts
+below are the baseline this implementation measures and the fixture pins.
 
-| Directory | Family | Rows in the tree | Encodable, synthetic list | Pre-fix, same list |
-| --- | --- | --- | --- | --- |
-| `skylake` | Intel | 587 | 576, pinned by fixture | 0 |
-| `icelake` | Intel | 346 | 342, pinned by fixture | 0 |
-| `alderlake` | Intel | 563 | 521, pinned by fixture | 0 |
-| `sapphirerapids` | Intel | 2693 | 1685, pinned by fixture | 0 |
-| `amdzen4` | AMD | 502 | 326, pinned by fixture | 321 |
-| `amdzen5` | AMD | 579 | 322, pinned by fixture | 317 |
+| Directory | Family | Rows in the tree | Encodable, synthetic list | Encodable, reference host list | Pre-fix, same list |
+| --- | --- | --- | --- | --- | --- |
+| `skylake` | Intel | 587 | 576, pinned by fixture | 576, pinned by fixture | 0 |
+| `icelake` | Intel | 346 | 342, pinned by fixture | 342, pinned by fixture | 0 |
+| `alderlake` | Intel | 563 | 521, pinned by fixture | 521, pinned by fixture | 0 |
+| `sapphirerapids` | Intel | 2693 | 1685, pinned by fixture | 1685, pinned by fixture | 0 |
+| `amdzen4` | AMD | 502 | 326, pinned by fixture | 326, pinned by fixture | 321 |
+| `amdzen5` | AMD | 579 | 322, pinned by fixture | 322, pinned by fixture | 317 |
 
 The two named format lists are the ones the fixture supplies:
 
