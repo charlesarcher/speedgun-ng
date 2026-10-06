@@ -2589,6 +2589,13 @@ auto fast_branch_scenario() -> void
             && (over_syscall != nullptr) == granted,
         "a fast-capable catalog opens over a fast member and over a "
         "syscall-mode member exactly when the probe grants the config");
+  pmu_state host_refused = state;
+  host_refused.fast_available = false;
+  const auto despite_host = sg::counters::detail::pmu_open_window(
+      host_refused, leaf_set_of({"cpu/fast"}), where);
+  check((despite_host != nullptr) == granted,
+        "a catalog that discloses the fast read keeps that read when the "
+        "host-wide instructions flag is clear (FR-017)");
   // The time pair is no group member, so it neither takes nor refuses the
   // mapped-page branch.
   check(sg::counters::detail::pmu_open_window(

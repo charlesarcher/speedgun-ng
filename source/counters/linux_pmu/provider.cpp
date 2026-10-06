@@ -777,12 +777,11 @@ pmu_provider::pmu_provider()
   // Deterministic seed order: the catalog is frozen at open (FR-009).
   std::ranges::sort(devices);
 
-  detail::pmu_probe_fast(*m_state);
-  const bool host_fast_capable = m_state->fast_available;
   // The permission level the availability probe ran at rides the device
   // description, so a reader of the catalog learns the level at which
   // the kernel answered each test-open, and which refusals are that
-  // level (FR-039).
+  // level (FR-039). The fast sentence is this device's own page verdict
+  // (FR-017). A host-wide instructions probe does not write it.
   const int paranoid = read_paranoid();
   const std::string level =
       paranoid < 0  // LCOV_EXCL_BR_LINE
@@ -791,18 +790,8 @@ pmu_provider::pmu_provider()
                     // excluded for.
       ? "an unreadable perf_event_paranoid"  // LCOV_EXCL_LINE
       : "perf_event_paranoid " + std::to_string(paranoid);  // LCOV_EXCL_BR_LINE
-  // The probe verdict rides the device description, so a reader of the
-  // catalog learns which mechanism the entries disclose and, when the
-  // fast one is refused, the reason it was refused (FR-023).
-  // LCOV_EXCL_BR_START : coverage exclusion (T140): the refusal wording, on
-  // the same kernel-gate ground as the mode ternary in `probe_device` above.
-  const std::string verdict = "; the availability probe ran at " + level
-      + (host_fast_capable  // LCOV_EXCL_BR_LINE
-             ? "; user counter reads are probe-available, entries "  // LCOV_EXCL_LINE
-               "disclose fast_rdpmc"  // LCOV_EXCL_LINE
-             : "; user counter reads stay in syscall mode: "  // LCOV_EXCL_LINE
-                 + m_state->fast_refusal);  // LCOV_EXCL_LINE
-  // LCOV_EXCL_BR_STOP
+  const std::string level_note =
+      "; the availability probe ran at " + level;
 
   for (const auto& dir : devices) {
     auto device = detail::load_device(dir);
@@ -825,6 +814,16 @@ pmu_provider::pmu_provider()
     // do not decide it (FR-017, D-10).
     const bool fast_capable = detail::device_page_fast_verdict(*device);
     detail::probe_device(*device, fast_capable);
+    // LCOV_EXCL_BR_START : coverage exclusion (T140): the refusal wording,
+    // on the same kernel-gate ground as the mode ternary in `probe_device`.
+    const std::string verdict =
+        level_note
+        + (fast_capable  // LCOV_EXCL_BR_LINE
+               ? "; this device's event page grants user counter reads; "  // LCOV_EXCL_LINE
+                     "entries disclose fast_rdpmc"  // LCOV_EXCL_LINE
+               : "; this device's event page keeps user counter reads in "  // LCOV_EXCL_LINE
+                     "syscall mode");  // LCOV_EXCL_LINE
+    // LCOV_EXCL_BR_STOP
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.
     // LCOV_EXCL_START : coverage exclusion (T066): dropping a device with no

@@ -833,3 +833,13 @@ US1, US2, and US7 read the mechanism they add.
   host-wide instructions probe or on the existence of a sysfs `rdpmc`
   file, and correct the I-04(a) citation that claims this read already
   happens, per FR-017 (partial)
+
+## Phase 15: Convergence
+
+- [X] T060 Stop gating `pmu_open_window` on the host-wide instructions
+  probe in `source/counters/linux_pmu/group_io.cpp`, so a device whose
+  own event page granted the fast read is not downgraded to the group
+  read by a probe of another event, per FR-017 (partial)
+- [X] T061 Stop appending the host-wide fast-probe sentence to every
+  device description in `source/counters/linux_pmu/provider.cpp`, and
+  name that device's own page verdict instead, per FR-017 (partial)

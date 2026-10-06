@@ -786,16 +786,17 @@ auto pmu_open_window(const pmu_state& state,
   append_disclosure(leaves, resolved);
   group_layout layout(state.devices.size());
   layout.assign(resolved);
-  if (state.fast_available && all_fast(resolved)) {
-    // The catalog discloses fast_rdpmc for the entries of a fast-capable
-    // host, so the read must be the mapped-page read; a fast window the
-    // kernel refuses is a recoverable open failure, never a silent
-    // downgrade to a read the catalog does not describe (FR-023).
+  if (all_fast(resolved)) {
+    // The catalog mode is that device's own page verdict. A host-wide
+    // instructions probe does not choose the read (FR-017). A fast window
+    // the kernel refuses is a recoverable open failure. The group path is
+    // the read the catalog describes for a plan that is not all fast
+    // (FR-023).
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the falling-through
-    // arm. It needs a fast-capable catalog whose leaf set the fast window
-    // then refuses, which `open_fast_window` answers only when a member
-    // event is refused (marked at its own site above). The accepting arm
-    // is reached on every host the probe passes.
+    // arm. It needs a fast catalog whose leaf set the fast window then
+    // refuses, which `open_fast_window` answers only when a member event
+    // is refused (marked at its own site above). The accepting arm is
+    // reached on every host that grants the mapped page.
     if (auto fast = open_fast_window(state, resolved, layout, where);
         fast) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the fast window this
