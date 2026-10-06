@@ -624,7 +624,7 @@ each leaf's documented guarantee and match a test to each one.
 **Purpose**: The obligations that span every story. None of them adds
 behavior; each one is a gate, a record, or a check.
 
-- [ ] T053 [P] Record one entry per correction in
+- [X] T053 [P] Record one entry per correction in
   `specs/007-counters-and-timers/citations-log.md`, ten entries in the
   file's recorded format, each naming the 007, 008, or 011 requirement
   it restores, its measuring command, and its head. Leave the frozen
@@ -639,7 +639,7 @@ behavior; each one is a gate, a record, or a check.
   `include/speedgun-ng/counters_provider.hpp`, and
   `include/speedgun-ng/counters_clock.hpp` (FR-037, Principle II)
 - [ ] T056 Run the coverage gate with
-  `cmake --preset=coverage-linux && cmake --build build/coverage -j 2 && ctest --test-dir build/coverage && cmake --build build/coverage -t coverage`,
+  `cmake --preset=ci-coverage && cmake --build build/coverage -j 2 && ctest --test-dir build/coverage && cmake --build build/coverage -t coverage`,
   and confirm 100 percent line, branch, and contract coverage on every
   changed line, `source/counters/linux_pmu/group_io.cpp` among them
   (FR-040)
@@ -658,7 +658,7 @@ behavior; each one is a gate, a record, or a check.
   `cmake --preset=ci-ubuntu && cmake --build build`, which no
   unoptimized build of `source/counters/plan.cpp` can substitute for
   (Principle IX)
-- [ ] T061 Run the address and undefined-behavior sanitizers with
+- [X] T061 Run the address and undefined-behavior sanitizers with
   `cmake --preset=ci-sanitize && cmake --build build/sanitize && ctest --test-dir build/sanitize`
   over every binary registered in `test/CMakeLists.txt`
   (Principle VIII)

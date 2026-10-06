@@ -239,6 +239,32 @@ auto test_accessor_reads_nothing() -> void
 // FR-004 at the point that matters: the counter the accessor returns
 // composes with a counted source through the existing algebra and folds
 // with full disclosure. A bespoke type could not do this.
+// A plan drawing one leaf from each of two providers opens a window per
+// provider, and only the group owning the plan's last leaf writes the
+// disclosure column. The push provider registers before the counted
+// source here, so the push group is not that last one and its window is
+// handed a leaf set carrying no column (FR-007).
+auto test_mixed_provider_plan() -> void
+{
+  const auto machine = *system::local().object("machine");
+  const auto records = *machine.counter<events>("records");
+  const auto core = *system::local().object("core-0");
+  const auto instructions = *core.counter<events>("instructions");
+  const auto per_record = instructions / records;
+  auto compiled = compile(system::local(), per_record);
+  check(compiled.has_value(),
+        "a plan over one leaf from each of two providers compiles");
+  if (!compiled.has_value()) {
+    return;
+  }
+  scope window {*compiled};
+  window.start();
+  window.finish();
+  const auto folded = window.metric(per_record);
+  check(folded.value > 0.0,
+        "the mixed-provider plan folds a positive measurement (FR-007)");
+}
+
 auto test_counter_composes() -> void
 {
   const auto core = *system::local().object("core-0");
@@ -280,6 +306,7 @@ auto main() -> int
   test_accessor_matches_lookup();
   test_accessor_reads_nothing();
   test_counter_composes();
+  test_mixed_provider_plan();
   std::printf("counters_tsc_test PASS: raw entry published, accessor "
               "interchangeable\n");
   return 0;

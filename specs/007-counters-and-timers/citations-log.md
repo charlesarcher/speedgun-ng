@@ -134,6 +134,232 @@ the instruction-identifier read went with it. The shipped provider attaches
 no rate to the count, and the entry publishes wherever the build executes
 the instruction.
 
+## Corrections the 012 feature made
+
+Ten defects carried stable identifiers `I-01` through `I-10` in
+`specs/012-counters-defect-resolution/research.md`, and each correction
+restores a requirement a merged feature already published. A
+requirement correction moves no line in the frozen record, so these ten
+entries keep the discipline of the requirement-correction format above:
+the claim as the tree held it, the requirement that governs it now, the
+site that carries it, the command that measured it, the head, and what
+the correction left alone.
+
+The frozen record holds no figure for nine of the ten. It cites
+`source/counters/` for anchor totals, prose verdicts, and the
+coverage-exclusion population, and it carries no claim about a numeric
+table key, a device-scoped row, a per-target probe, a fast read, a short
+group read, catalog resolution, a build-time table path, a fast window's
+descriptor lifetime, or a clock leaf's order. The tenth, `I-09`, moves
+the record's coverage-exclusion population, so that entry carries the
+figure pair the format asks for.
+
+### I-01, a numeric table key carried an encoding obligation
+
+```yaml
+date: 2026-10-04
+task: T035, T036
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: the parser recorded every integer-valued key as an
+  encoding field, so a sampling key such as SampleAfterValue became a
+  config word the device format directory never publishes
+requirement_now_governing: 007 FR-037, through 012 FR-016 and FR-018
+code_now_governing: kernel_spelling at
+  source/counters/linux_pmu/table_parse.cpp:172 records a key as an
+  encoding field only where it names a kernel format, under the spelling
+  the kernel publishes
+command: grep -c kernel_spelling source/counters/linux_pmu/table_parse.cpp
+  (2)
+head: c507754
+must_not_move: the four kernel spellings cmask, inv, edge, and
+  offcore_rsp, the AMD row counts, and the closed task lines
+```
+
+### I-02, a vendored row reached one device
+
+```yaml
+date: 2026-10-04
+task: T037
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: merge_vendored appended every vendored row to one
+  device, so a host publishing cpu_core and cpu_atom, or an uncore
+  device, received no row of its own scope
+requirement_now_governing: 007 FR-024, through 012 FR-019
+code_now_governing: merge_vendored at
+  source/counters/linux_pmu/provider.cpp:266 routes each row by the
+  table scope its device publishes
+command: grep -c merge_vendored source/counters/linux_pmu/provider.cpp
+  (3)
+head: c507754
+must_not_move: the core-scoped rows the amdzen4 tables publish, and the
+  closed task lines
+```
+
+### I-03, every availability probe asked as one target
+
+```yaml
+date: 2026-10-04
+task: T038, T075
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: the probe took no target, so a device-scoped entry
+  refused the per-task event and published permission_blocked while a
+  cpu-target plan over the same entry compiled
+requirement_now_governing: 007 FR-024 and FR-031, through 012 FR-021 and
+  FR-022
+code_now_governing: detail::pmu_probe at
+  source/counters/linux_pmu/provider.cpp:148 takes the target kinds the
+  entry supports, and the catalog carries them in the fixed-size bitmask
+  beside the countability state
+command: grep -c pmu_probe source/counters/linux_pmu/provider.cpp (4)
+head: c507754
+must_not_move: the per-action gap value, and the closed task lines
+```
+
+### I-04, the fast read published a masked value and a stale retry
+
+```yaml
+date: 2026-10-04
+task: T008, T013, T015
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: fast_decode masked the sum to the published counter
+  width, a read the page refused kept the value an earlier action wrote,
+  and a window the kernel refused to time reported the ratio of a window
+  that ran its whole length
+requirement_now_governing: 007 FR-013, FR-019, FR-040, and FR-041,
+  through 012 FR-002 through FR-005
+code_now_governing: fast_decode at
+  source/counters/linux_pmu/fast_read.cpp:95 sign extends as the
+  kernel interface header documents, and the managed disclosure column
+  carries the gap instead of an earlier value
+command: grep -c fast_decode source/counters/linux_pmu/fast_read.cpp (5)
+head: c507754
+must_not_move: the stated fallback that issues no syscall read, and the
+  closed task lines
+```
+
+### I-05, a short group read read as a zero count
+
+```yaml
+date: 2026-10-04
+task: T009, T016
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: a group read returning fewer bytes than the group
+  header filled zeros and continued, so a fold across the action read a
+  delta no read produced
+requirement_now_governing: 007 FR-011, through 012 FR-006
+code_now_governing: group_read_short at
+  source/counters/linux_pmu/group_io.cpp:28 marks the action, and the
+  managed disclosure column carries the mark
+command: grep -c group_read_short source/counters/linux_pmu/group_io.cpp
+  (2)
+head: c507754
+must_not_move: put's one-integer signature, and the closed task lines
+```
+
+### I-06, catalog resolution wrote shared state
+
+```yaml
+date: 2026-10-04
+task: T021
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: two threads resolving one canonical address both
+  reached the emplace that writes the handle back, and plan compilation
+  wrote the open flag on every call
+requirement_now_governing: 007 FR-009 and FR-031, through 012 FR-010
+  through FR-012
+code_now_governing: system::handle_for at source/counters/system.cpp:418
+  reads the map under the guard and writes once, and the thread
+  sanitizer preset reports no race
+command: grep -c handle_for source/counters/system.cpp (5)
+head: c507754
+must_not_move: the thread sanitizer preset's separation from the address
+  and undefined-behavior preset, and the closed task lines
+```
+
+### I-07, the tables resolved through a build-time path
+
+```yaml
+date: 2026-10-04
+task: T042, T043, T044
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: SG_PMU_EVENTS_DIR named a directory inside the source
+  tree, so an installed archive published no vendored row
+requirement_now_governing: 007 FR-050 and SC-008, through 012 FR-023
+code_now_governing: the vendored JSON travels as static bytes generated by
+  cmake/embed_pmu_blob.cmake, and the existing simdjson path decodes them
+  at run time
+command: grep -rn SG_PMU_EVENTS_DIR include/ source/ test/ (exit 1, no
+  hit)
+head: c507754
+must_not_move: the simdjson parse path, the added codec count at zero,
+  and the closed task lines
+```
+
+### I-08, a fast window released nothing
+
+```yaml
+date: 2026-10-04
+task: T029
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: fast_context held a descriptor and a mapping and
+  declared no destructor, so every destroyed fast-mode plan leaked one of
+  each per member leaf
+requirement_now_governing: 007 FR-040 and FR-041, through 012 FR-013
+  through FR-015
+code_now_governing: fast_context_close at
+  source/counters/linux_pmu/group_io.cpp:494 serves the destructor and
+  the partial-open arms
+command: grep -c fast_context_close
+  source/counters/linux_pmu/group_io.cpp (1)
+head: c507754
+must_not_move: the syscall window's existing destructor, and the closed
+  task lines
+```
+
+### I-09, the calibration sat inside a coverage exclusion
+
+```yaml
+date: 2026-10-04
+task: T046
+section: The coverage-exclusion population at this head
+figure_as_written: 301 marker lines and 301 tokens over 11 files
+figure_measured: 382 marker lines and 382 tokens over 12 files at this
+  feature's head, and 387 tokens over 12 files at this feature's base
+  6aafd2d
+command: rg -c 'LCOV_EXCL' source/counters
+  include/speedgun-ng/counters*.hpp
+claim_as_written: the whole calibration region sat inside one exclusion
+  pair, so no registered test could reach the code that subtracts the
+  bracketing clock reads
+requirement_now_governing: 011 R-006, through 012 FR-025 and FR-026
+code_now_governing: calibrate at source/counters/plan.cpp:267 subtracts
+  its bracket with no exclusion around it, and a registered test
+  exercises it
+head: c507754
+must_not_move: the exclusion population outside the lines this feature
+  changed, which falls from 387 to 382 tokens over the feature
+```
+
+### I-10, two leaves documented an order their clock does not provide
+
+```yaml
+date: 2026-10-04
+task: T049, T052
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: the clock class stated one order guarantee for every
+  leaf, so the per-thread CPU clock read as ordered across threads and
+  the timestamp counter read as ordered across processors
+requirement_now_governing: 011 FR-006 and FR-007, through 012 FR-028
+  through FR-031
+code_now_governing: include/speedgun-ng/counters_clock.hpp states each
+  leaf's own guarantee, and the timestamp counter's states the
+  precondition that one thread takes both endpoints
+command: grep -c order include/speedgun-ng/counters_clock.hpp (4)
+head: c507754
+must_not_move: the timestamp leaf's per-read cost, which rises by no
+  ordering fence, and the closed task lines
+```
+
 ## The three routes T330 measured
 
 Route one drops the `citations.md:NNN` Site-column values across the

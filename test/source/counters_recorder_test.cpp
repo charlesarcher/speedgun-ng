@@ -49,6 +49,7 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
+using sg::counters::clock_provider;
 using sg::counters::compile;
 using sg::counters::dim;
 using sg::counters::expression;
@@ -59,6 +60,7 @@ using sg::counters::recorder_handle;
 using sg::counters::system;
 
 using events = dim<0, 1>;
+using time_dim = dim<1, 0>;
 
 static_assert(
     std::is_trivially_copyable_v<recorder_handle<sg::counters::hard_stop_t>>,
@@ -445,6 +447,44 @@ auto register_everything() -> void
   if (!registered.has_value()) {
     fail("the scripted provider registers");
   }
+
+  // A second provider, and it registers second on purpose. A plan that
+  // draws one leaf from each of the two puts the scripted group short of
+  // the plan's last group, so that group's window is handed a leaf set
+  // carrying no disclosure column. The scripted provider alone can never
+  // reach that direction, because a lone provider is always the last
+  // group and always the one that discloses (FR-007).
+  auto clock = std::make_unique<clock_provider>();
+  const auto clocked = system::local().register_provider(std::move(clock));
+  if (!clocked.has_value()) {
+    fail("the clock provider registers after the scripted provider");
+  }
+}
+
+// A plan drawing one leaf from the scripted provider and one from the
+// clock provider spans two providers. The scripted group is not the
+// plan's last group, so its window opens on a leaf set with no disclosure
+// column, and the scripted provider reads without writing one. The
+// tracefile named this direction the one it never took (FR-007).
+auto test_mixed_provider_disclosure() -> void
+{
+  const auto core = *system::local().object("package-1/core-3");
+  const auto instructions = *core.counter<events>("ins3");
+  const auto machine = *system::local().object("machine");
+  const auto mono = *machine.counter<time_dim>("monotonic");
+  const auto rate = instructions / mono;
+  auto compiled = compile(system::local(), rate);
+  check(compiled.has_value(),
+        "a plan over a scripted leaf and a clock leaf compiles");
+  if (!compiled.has_value()) {
+    return;
+  }
+  auto rec = compiled->recorder(2);
+  rec.sample();
+  rec.sample();
+  const auto folded = rate.fold(rec.view(), 0, 1);
+  check(folded.running_ratio > 0.0,
+        "the mixed-provider plan folds a positive measurement (FR-007)");
 }
 
 // A plan assigned to itself. The assignment guards on identity, so the
@@ -480,6 +520,7 @@ auto main() -> int
   test_wrap_through_recorder();
   test_self_move_assignment();
   test_disclosure_column();
+  test_mixed_provider_disclosure();
   test_sampling_action_properties();
   std::printf("counters recorder tests passed\n");
   return 0;

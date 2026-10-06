@@ -366,6 +366,11 @@ auto entry_read_selection_for(const availability probed,
                               const bool fast_capable) noexcept
     -> entry_read_selection
 {
+  // LCOV_EXCL_BR_START : coverage exclusion (T056): the switch's default
+  // arm. The object's disassembly shows the dispatch as a compare and an
+  // unsigned jump above the range, so this arm answers only a value past
+  // the last enumerator, and the enumeration is closed. The fixture drives
+  // each of the six states through this selector.
   switch (probed) {
     case availability::countable:
       return {.mode = fast_capable ? read_mode::fast_rdpmc : read_mode::syscall,
@@ -377,9 +382,15 @@ auto entry_read_selection_for(const availability probed,
     case availability::gap:
       return {.mode = read_mode::syscall, .publish_pair = false};
   }
+  // LCOV_EXCL_BR_STOP
   // Unreachable behind the closed enumeration; a build with contract
   // checking compiled out still needs a value.
+  // LCOV_EXCL_START : coverage exclusion (T056): the fall-through past a
+  // switch that covers every enumerator. The fixture drives each of the
+  // six states through this selector, and no value outside the
+  // enumeration exists to reach it.
   return {.mode = read_mode::syscall, .publish_pair = false};
+  // LCOV_EXCL_STOP
 }
 
 // Splits a kernel event_attr file into its field/value pairs: the text
