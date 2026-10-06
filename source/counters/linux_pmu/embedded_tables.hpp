@@ -65,8 +65,8 @@ inline auto embedded_file_bytes(const embedded_dir& dir,
 {
   for (std::size_t i = 0; i < dir.file_count; ++i) {
     if (name == dir.files[i].name) {
-      return std::string_view{dir.data + dir.files[i].offset,
-                              dir.files[i].length};
+      return std::string_view {dir.data + dir.files[i].offset,
+                               dir.files[i].length};
     }
   }
   return {};

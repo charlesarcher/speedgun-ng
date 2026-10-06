@@ -26,8 +26,8 @@
 #  endif
 
 #  include <algorithm>
-#  include <cctype>
 #  include <array>
+#  include <cctype>
 #  include <charconv>
 #  include <cstdint>
 #  include <cstdio>
@@ -68,8 +68,7 @@ auto pmu_ident_current() -> pmu_ident
     // highest basic leaf number, which is at least 1 on any CPU that also
     // answers leaf 1.
     if (__get_cpuid(0, &eax, &ebx, &ecx, &edx)  // LCOV_EXCL_BR_LINE
-        && eax >= 1)
-    {  // LCOV_EXCL_BR_LINE
+        && eax >= 1) {  // LCOV_EXCL_BR_LINE
       // The vendor string lives in EBX:EDX:ECX of leaf 0. Leaf 1
       // overwrites those registers, so the string is captured before
       // the family and model are read.
@@ -152,14 +151,15 @@ auto parse_scalar(simdjson::dom::element value, std::uint64_t& out) -> bool
 // every Intel row into `not_encodable`.
 auto carries_no_obligation(const std::string_view key) noexcept -> bool
 {
-  constexpr std::array<std::string_view, 7> no_obligation{
+  constexpr std::array<std::string_view, 7> no_obligation {
       "SampleAfterValue",
       "MSRValue",
       "MSRIndex",
       "PEBS",
       "Data_LA",
       "PerPkg",
-      "Experimental",};
+      "Experimental",
+  };
   return std::ranges::find(no_obligation, key) != std::end(no_obligation);
 }
 
@@ -233,7 +233,8 @@ void add_entry(std::vector<pmu_table_entry>& table,
     }
   }
   // Description precedence; AMD tables ship only "BriefDescription".
-  for (const auto candidate : {
+  for (const auto candidate :
+       {
            "Description",
            "PublicDescription",
            "BriefDescription",
@@ -320,7 +321,7 @@ void parse_json_file(const std::filesystem::path& path,
 void parse_json_bytes(std::string_view bytes,
                       std::vector<pmu_table_entry>& table)
 {
-  parse_padded(simdjson::padded_string{bytes}, table);
+  parse_padded(simdjson::padded_string {bytes}, table);
 }
 
 }  // namespace
@@ -410,8 +411,8 @@ auto mapfile_key(const pmu_ident& id) -> std::string
   return id.vendor + '-' + std::to_string(id.family) + '-' + hex;
 }
 
-auto pmu_select_directory(std::istream& mapfile,
-                          const pmu_ident& id) -> std::string
+auto pmu_select_directory(std::istream& mapfile, const pmu_ident& id)
+    -> std::string
 {
   // Format finding (the vendored file is truth): the columns are
   // "Family-model,Version,Filename,EventType"; the first is a
@@ -479,8 +480,8 @@ auto pmu_select_directory(const pmu_ident& id) -> std::string
   // build outright when the pattern matches nothing, so the entry is
   // present in every archive this library links (FR-036).
   if (const embedded_dir* dir = embedded_find_dir("arch/x86")) {
-    std::istringstream mapfile{
-        std::string{embedded_file_bytes(*dir, "mapfile.csv")}};
+    std::istringstream mapfile {
+        std::string {embedded_file_bytes(*dir, "mapfile.csv")}};
     selected = pmu_select_directory(mapfile, id);
   }
   // LCOV_EXCL_BR_STOP
@@ -503,7 +504,7 @@ auto pmu_load_table(const std::string& directory)
   std::vector<pmu_table_entry> table;
   // A directory arrives with a trailing separator and the registry names
   // it without one (FR-036).
-  std::string_view key{directory};
+  std::string_view key {directory};
   if (key.ends_with('/')) {
     key.remove_suffix(1);
   }

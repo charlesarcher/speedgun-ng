@@ -226,9 +226,8 @@ auto operator delete[](void* p, std::size_t, std::align_val_t) noexcept -> void
   free_aligned(p);
 }
 
-auto operator delete(void* p,
-                     std::align_val_t,
-                     const std::nothrow_t&) noexcept -> void
+auto operator delete(void* p, std::align_val_t, const std::nothrow_t&) noexcept
+    -> void
 {
   free_aligned(p);
 }

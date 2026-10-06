@@ -26,8 +26,8 @@
 #include <string>
 #include <string_view>
 #include <system_error>
-#include <utility>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "speedgun-ng/counters.hpp"
@@ -214,8 +214,8 @@ auto sysfs_alias_names(const std::string& device) -> std::vector<std::string>
 }
 
 // The exact configuration text the kernel publishes for one alias.
-auto sysfs_alias_text(const std::string& device,
-                      const std::string& alias) -> std::string
+auto sysfs_alias_text(const std::string& device, const std::string& alias)
+    -> std::string
 {
   std::ifstream file(std::filesystem::path(kDevicesRoot) / device / "events"
                      / alias);
@@ -304,9 +304,9 @@ static_assert(static_cast<std::uint8_t>(availability::gap) == 5);
 static_assert(sizeof(sg::counters::target_mask) == sizeof(std::uint32_t));
 static_assert(sg::counters::target_thread_bit == 1U);
 static_assert(sg::counters::target_cpu_bit == 2U);
-static_assert(std::is_same_v<sg::counters::target_mask, std::uint32_t>,
-              "the mask is one fixed-size integer and no container "
-              "(FR-021)");
+static_assert(
+    std::is_same_v<sg::counters::target_mask, std::uint32_t>,
+    "the mask is one fixed-size integer and no container " "(FR-021)");
 
 auto availability_scenario(const std::vector<const object*>& pmu_objects)
     -> void

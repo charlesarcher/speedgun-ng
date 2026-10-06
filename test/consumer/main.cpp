@@ -36,8 +36,10 @@ auto main() -> int
   }
 
   auto provider = std::make_unique<sg::counters::pmu_provider>();
-  if (!sg::counters::system::local().register_provider(std::move(provider))
-           .has_value()) {
+  if (!sg::counters::system::local()
+           .register_provider(std::move(provider))
+           .has_value())
+  {
     std::puts("consumer: the pmu provider does not register");
     return 1;
   }

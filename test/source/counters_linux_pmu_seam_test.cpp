@@ -75,6 +75,7 @@ using sg::counters::detail::alias_description;
 using sg::counters::detail::fast_read_verdict;
 using sg::counters::detail::format_range;
 using sg::counters::detail::kRnpmcCounterWidth;
+using sg::counters::detail::load_device;
 using sg::counters::detail::parse_attr;
 using sg::counters::detail::parse_format_field;
 using sg::counters::detail::pmu_compose_config;
@@ -84,6 +85,7 @@ using sg::counters::detail::pmu_ident;
 using sg::counters::detail::pmu_select_directory;
 using sg::counters::detail::pmu_state;
 using sg::counters::detail::pmu_table_entry;
+using sg::counters::detail::probe_device;
 using sg::counters::detail::table_description;
 using sg::counters::detail::to_ecma;
 using sg::counters::detail::to_hex;
@@ -658,25 +660,47 @@ auto migrated_thread_scenario() -> void
 // length, and the descriptor and nothing else, so the value releases
 // exactly as a granted one does and the count is a real release (FR-013,
 // FR-014). It runs on any host, with no privileged event.
+// One acquire-and-release cycle, which is what the loops below repeat.
+// The two procfs counts measure the whole process, so a build whose
+// runtime claims memory while it warms up, the sanitizer run among them,
+// adds a fixed handful of mappings during the first pass and holds them
+// afterwards. A probe measured that shape directly: a bare
+// acquire-and-release loop over ten thousand cycles leaves twelve
+// mappings behind on its first pass under the thread sanitizer and none
+// on any pass after it. The warm-up loop below spends that one-time ramp
+// before either baseline is taken, so the comparison that follows
+// measures this library's release and leaves the runtime's own
+// allocation out of it.
+auto lifecycle_cycle() -> void
+{
+  const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+  check(fd >= 0, "the lifecycle test opens its own descriptor");
+  const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+  void* mapping =
+      ::mmap(nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  check(mapping != MAP_FAILED,
+        "the lifecycle test opens its own anonymous read-only mapping");
+  {
+    sg::counters::detail::fast_context context {
+        .fd = fd, .map = mapping, .map_length = length};
+    static_cast<void>(context);
+  }  // the value leaves scope here, and its destructor releases both
+}
+
 auto fast_context_lifetime_scenario() -> void
 {
-  const auto descriptors_before = open_descriptor_count();
-  const auto mappings_before = mapping_count();
   constexpr int cycles = 10000;
 
+  // The warm-up runs the same loop the measured pass runs, so the runtime
+  // finishes claiming whatever it claims on its first pass.
   for (int index = 0; index < cycles; ++index) {
-    const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
-    check(fd >= 0, "the lifecycle test opens its own descriptor");
-    const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-    void* mapping =
-        ::mmap(nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    check(mapping != MAP_FAILED,
-          "the lifecycle test opens its own anonymous read-only mapping");
-    {
-      sg::counters::detail::fast_context context {
-          .fd = fd, .map = mapping, .map_length = length};
-      static_cast<void>(context);
-    }  // the value leaves scope here, and its destructor releases both
+    lifecycle_cycle();
+  }
+  const auto descriptors_before = open_descriptor_count();
+  const auto mappings_before = mapping_count();
+
+  for (int index = 0; index < cycles; ++index) {
+    lifecycle_cycle();
   }
 
   check(open_descriptor_count() == descriptors_before,
@@ -741,8 +765,8 @@ auto destroy_before_open_scenario() -> void
 }
 
 // The synthetic-table writer, defined below the scenarios that predate it.
-auto write_fixture(const char* name,
-                   const std::string_view body) -> std::string;
+auto write_fixture(const char* name, const std::string_view body)
+    -> std::string;
 
 // The named synthetic sysfs format list every encodable-row count in this
 // file is measured against, so one number gates every host on the matrix
@@ -754,7 +778,8 @@ auto synthetic_core_device() -> pmu_device
   pmu_device device;
   device.path = "synthetic";
   device.type = 4;
-  for (const auto& [name, spec] : {
+  for (const auto& [name, spec] :
+       {
            std::pair {"event", "config:0-7"},
            std::pair {"umask", "config:8-15"},
            std::pair {"cmask", "config:24-31"},
@@ -778,8 +803,8 @@ auto synthetic_core_device() -> pmu_device
 // The encodable rows one pinned directory yields against the synthetic
 // format list: a row encodes where every field it carries reached a
 // published format.
-auto encodable_rows(const std::string& directory,
-                    const pmu_device& device) -> std::size_t
+auto encodable_rows(const std::string& directory, const pmu_device& device)
+    -> std::size_t
 {
   const auto& table = sg::counters::detail::pmu_load_table(directory);
   std::size_t encodable = 0;
@@ -923,9 +948,10 @@ auto device_placement_scenario() -> void
 
   // An uncore-scoped row reaches the device of its class, spelled bare
   // or under the kernel's prefix, and never the core device.
-  check(scope_reaches("uncore_imc", "iMC"),
-        "an uncore-scoped row reaches the uncore device of its class "
-        "(FR-019)");
+  check(
+      scope_reaches("uncore_imc", "iMC"),
+      "an uncore-scoped row reaches the uncore device of its class " "(FR-"
+                                                                     "019)");
   check(scope_reaches("imc", "iMC"),
         "the kernel's bare device spelling reaches the same class (FR-019)");
   check(!scope_reaches("cpu", "iMC"),
@@ -964,11 +990,11 @@ auto encoding_refusal_scenario() -> void
   std::vector<pmu_table_entry> table;
   sg::counters::detail::pmu_parse_table_file(path, table);
 
-  const auto encodes = [&device](const pmu_table_entry& row) {
+  const auto encodes = [&device](const pmu_table_entry& row)
+  {
     std::vector<std::pair<int, std::uint64_t>> words;
-    return sg::counters::detail::pmu_compose_config(row.fields,
-                                                    device.formats,
-                                                    words);
+    return sg::counters::detail::pmu_compose_config(
+        row.fields, device.formats, words);
   };
   const auto* absent = find_row(table, "needs_absent");
   check(absent != nullptr && !encodes(*absent),
@@ -1781,8 +1807,8 @@ auto fast_branch_scenario() -> void
 // which maps each one to the mode and pair it publishes (FR-022, FR-024).
 auto read_mode_selection_scenario() -> void
 {
-  using sg::counters::detail::entry_read_selection_for;
   using sg::counters::availability;
+  using sg::counters::detail::entry_read_selection_for;
 
   const auto fast_countable =
       entry_read_selection_for(availability::countable, true);
@@ -1804,7 +1830,8 @@ auto read_mode_selection_scenario() -> void
                            availability::not_encodable,
                            availability::absent,
                            availability::scope_refused,
-                           availability::gap}) {
+                           availability::gap})
+  {
     const auto selection = entry_read_selection_for(state, true);
     check(selection.mode == sg::counters::read_mode::syscall
               && !selection.publish_pair,
@@ -1837,6 +1864,62 @@ auto embedded_registry_scenario() -> void
         "(FR-036)");
 }
 
+// A hybrid processor publishes one device per core, and each carries the
+// scope of its own per-core instance. The reference host publishes
+// neither, so a fixture directory carries each name and the chain that
+// reads a device's scope off its directory takes both arms no published
+// device on this host reaches. The false arm at each comparison is the
+// one that names a hybrid scope, and the pair is what FR-021's per-kind
+// refusal rests on: a device the chain leaves unscoped is one whose
+// entries a cpu target can count.
+auto hybrid_device_scope_scenario() -> void
+{
+  const std::filesystem::path root(SG_SEAM_TABLE_DIR);
+  std::error_code code;
+  for (const auto* name : {"cpu_core", "cpu_atom"}) {
+    const auto dir = root / name;
+    std::filesystem::create_directories(dir, code);
+    std::ofstream file(dir / "type", std::ios::binary | std::ios::trunc);
+    file << "4\n";
+    file.close();
+    if (!file) {
+      fail("a hybrid device fixture carries a readable type");
+    }
+    const auto loaded = load_device(dir);
+    check(loaded.has_value(), "a hybrid per-core device directory loads");
+    if (!loaded.has_value()) {
+      continue;
+    }
+    check(loaded->device_scoped == false,
+          "a hybrid per-core device is not device scoped");
+  }
+}
+
+// No device this host publishes takes the chain's false arm at the count
+// a cpu target settles an entry on: every entry the kernel lists here has
+// its cpu-targeted event granted, so the entry is countable on every
+// device and the refusal direction never runs. A device whose PMU type
+// no kernel publishes refuses both probes, which is the direction the
+// chain's own else arm answers, and the entry settles on that refusal
+// with no time pair disclosed beside it (FR-021).
+auto unpublished_device_probe_scenario() -> void
+{
+  pmu_device device;
+  device.path = "unpublished";
+  device.type = 999999;
+  device.device_scoped = false;
+  device.entries.push_back(pmu_entry {
+      .name = "synthetic",
+      .description = "an event on a PMU type no kernel publishes",
+      .words = {{0, 0}},
+  });
+  probe_device(device, false);
+  check(device.entries.front().avail != availability::countable,
+        "an entry on an unpublished PMU type settles on its refusal");
+  check(!device.has_time_pair,
+        "a device whose every probe is refused discloses no time pair");
+}
+
 auto main() -> int
 {
   fixture_scenario();
@@ -1866,6 +1949,8 @@ auto main() -> int
   group_open_scenario();
   fast_branch_scenario();
   probe_verdict_scenario();
+  hybrid_device_scope_scenario();
+  unpublished_device_probe_scenario();
   context_open_refusal_scenario();
   std::printf("counters_linux_pmu_seam_test PASS: encoder and protocol\n");
   return 0;

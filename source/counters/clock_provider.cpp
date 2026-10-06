@@ -130,8 +130,8 @@ auto thread_cpu_ns() noexcept -> std::uint64_t
   // LCOV_EXCL_BR_START : coverage exclusion (T066): `thread_cpu_ns` does not
   // fail on Linux. glibc routes it through the vDSO and the kernel clock is
   // unconditional, so no test can make this arm run.
-  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &stamp) != 0)
-  {  // LCOV_EXCL_BR_LINE
+  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &stamp)
+      != 0) {  // LCOV_EXCL_BR_LINE
     return 0;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_STOP
   return static_cast<std::uint64_t>(stamp.tv_sec) * 1000000000ULL
@@ -159,8 +159,8 @@ auto process_cpu_ns() noexcept -> std::uint64_t
   // LCOV_EXCL_BR_START : coverage exclusion (T066): `process_cpu_ns` does not
   // fail on Linux. glibc routes it through the vDSO and the kernel clock is
   // unconditional, so no test can make this arm run.
-  if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stamp) != 0)
-  {  // LCOV_EXCL_BR_LINE
+  if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stamp)
+      != 0) {  // LCOV_EXCL_BR_LINE
     return 0;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_STOP
   return static_cast<std::uint64_t>(stamp.tv_sec) * 1000000000ULL
@@ -201,8 +201,8 @@ struct detail::clock_window final : window_reader
   // call. `final` fixes the target of the `read_points` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(window_reader& base, point_sink& sink) noexcept
+      -> void
   {
     static_cast<clock_window&>(base).read_points(sink);
   }
@@ -321,8 +321,7 @@ std::unique_ptr<window_reader> clock_provider::open(const leaf_set& leaves,
     // every direct-open fixture leaves unreached because it opens one
     // address per call, so gcc reports it as an unexecuted block.
     if (index < 0  // LCOV_EXCL_BR_LINE
-        || (index == kTscIndex && !kTscAvailable))
-    {  // LCOV_EXCL_BR_LINE
+        || (index == kTscIndex && !kTscAvailable)) {  // LCOV_EXCL_BR_LINE
       return nullptr;
     }  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_STOP

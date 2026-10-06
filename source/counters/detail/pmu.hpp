@@ -9,8 +9,10 @@
 // types.
 
 #include <cstdint>
+#include <filesystem>
 #include <iosfwd>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -378,8 +380,8 @@ inline fast_context::~fast_context()
 // thread runs on. A thread-bound plan pins nothing and answers true; a
 // cpu-pinned context answers true only on the processor it was opened on,
 // which is the pinning precondition the fast read carries (FR-045).
-[[nodiscard]] auto fast_pinning_ok(int pinned_cpu,
-                                   int current_cpu) noexcept -> bool;
+[[nodiscard]] auto fast_pinning_ok(int pinned_cpu, int current_cpu) noexcept
+    -> bool;
 
 // The corrected decisions that sit behind a syscall only a granted
 // `perf_event_open` can reach. Each is a small pure function over values
@@ -429,8 +431,9 @@ struct entry_read_selection
 
 // The selection over the availability probe's verdict and the host's
 // fast-read capability (FR-001, FR-022). Pure over the two values.
-[[nodiscard]] auto entry_read_selection_for(
-    availability probed, bool fast_capable) noexcept -> entry_read_selection;
+[[nodiscard]] auto entry_read_selection_for(availability probed,
+                                            bool fast_capable) noexcept
+    -> entry_read_selection;
 
 // The fast-mode window (group_io.cpp, FR-040): one context per member
 // leaf, the enabled/running pair taken from the leader's page. Null
@@ -440,5 +443,16 @@ struct entry_read_selection
                                         const leaf_set& leaves,
                                         const target& where)
     -> std::unique_ptr<window_reader>;
+
+// The two decisions the seam reaches so a fixture can drive them with a
+// device the reference host does not publish. `probe_device` takes a
+// device and settles each entry's countability per target kind, and
+// `load_device` takes a device directory and reads one. Both sit in this
+// namespace so a registered test can supply a device the running kernel
+// never lists, which is what reaches a hybrid per-core scope.
+void probe_device(pmu_device& device, bool fast_capable);
+
+[[nodiscard]] auto load_device(const std::filesystem::path& dir)
+    -> std::optional<pmu_device>;
 
 }  // namespace sg::counters::detail
