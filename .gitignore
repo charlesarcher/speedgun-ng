@@ -4,6 +4,8 @@
 .vscode/
 build/
 cmake-build-*/
+# Scratch build trees the installed-package consumer test configures
+build-consumer*/
 prefix/
 .clangd
 CMakeLists.txt.user
@@ -15,6 +17,8 @@ env.ps1
 __pycache__/
 # Agent scratch state (machine-local, never committed)
 .omo/
+q.md
+speedgun-ng-*-specify-prompt.md
 # Spec Kit: share the commands, ignore any other agent state
 .opencode/*
 !.opencode/commands/

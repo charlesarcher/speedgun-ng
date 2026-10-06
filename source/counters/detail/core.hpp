@@ -43,7 +43,6 @@ struct tree_node
   std::string path;  // canonical; unique per parent
   std::string alias;
   std::string description;
-  int provider_index = -1;  // index into the provider list, root is -1
   std::vector<leaf_record> leaves;
 };
 
@@ -52,8 +51,6 @@ struct tree_node
 struct buffer_state
 {
   std::uint64_t head = 0;  // samples committed so far
-  bool wrapped = false;
-  std::uint64_t dropped = 0;
 };
 
 // One provider window in the compiled read plan: the resolved thunk,
@@ -94,8 +91,8 @@ struct plan_impl
   // The managed column carrying the per-action disclosure: a measured
   // action writes the countability value the catalog publishes for the
   // entry, and an action that measured nothing writes
-  // `availability::gap`. It is the column just past the last managed
-  // leaf, the sampling action writes it last, and a caller reads it to
+  // `availability::gap`. It is the column past the last managed leaf,
+  // the sampling action writes it last, and a caller reads it to
   // tell a measured zero from a gap (FR-007).
   std::size_t disclosure_slot = 0;
   // Address to column slot, read by the fold layer. A composite's ops
@@ -126,7 +123,6 @@ struct plan_impl
   // Recorder arenas: one buffer per minted recorder, owned by the
   // plan; recorders are non-owning cursors (FR-029).
   std::vector<std::unique_ptr<std::uint64_t[]>> arenas;
-  target bound_target;
   std::thread::id bound_thread = std::this_thread::get_id();
   // Calibration state (FR-032): the first accessor call measures the
   // plan's own read sequence and the distribution is kept here.

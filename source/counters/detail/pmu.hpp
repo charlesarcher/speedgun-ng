@@ -177,9 +177,9 @@ struct pmu_entry
 // Records the target kinds the availability probe settled the seeded leaf
 // at `address` on, keyed by that canonical address. FR-021 states the
 // seeding surface (`catalog_seed`) gains no field and the availability state
-// stays one enumeration, so the per-kind verdicts ride beside the tree
-// rather than inside it: the provider records them where it enumerates and
-// the catalog reads them where it fills `catalog_entry::targets`. Only a
+// stays one enumeration, so the per-kind verdicts ride beside the tree.
+// The provider records them where it enumerates and the catalog reads them
+// where it fills `catalog_entry::targets`. Only a
 // leaf the probe settled some kind on is recorded, and an address this
 // table does not hold names no kind the probe settled (FR-021).
 void note_probed_kinds(const std::string& address, target_mask probed);
@@ -403,8 +403,8 @@ inline fast_context::~fast_context()
 // thread runs on. A thread-bound plan pins nothing and answers true; a
 // cpu-pinned context answers true only on the processor it was opened on,
 // which is the pinning precondition the fast read carries (FR-045).
-[[nodiscard]] auto fast_pinning_ok(int pinned_cpu, int current_cpu) noexcept
-    -> bool;
+[[nodiscard]] auto fast_pinning_ok(int pinned_cpu,
+                                   int current_cpu) noexcept -> bool;
 
 // The corrected decisions that sit behind a syscall only a granted
 // `perf_event_open` can reach. Each is a small pure function over values
@@ -486,9 +486,8 @@ struct entry_read_selection
 /// \post A countable entry publishes the fast read mode only where the
 ///       host grants it. Every other state publishes the syscall mode.
 ///       Only a countable entry publishes the enabled/running pair.
-[[nodiscard]] auto entry_read_selection_for(availability probed,
-                                            bool fast_capable) noexcept
-    -> entry_read_selection;
+[[nodiscard]] auto entry_read_selection_for(
+    availability probed, bool fast_capable) noexcept -> entry_read_selection;
 
 /// @brief The target kinds the two probes settled one entry on (FR-021).
 ///
@@ -551,8 +550,8 @@ struct entry_read_selection
 /// (FR-021).
 ///
 /// A device that binds one processor for every task refuses the per-task
-/// kind by its own scope, so what the catalog publishes for that kind is
-/// the scope's refusal rather than the cpu probe's verdict: a permission
+/// kind by its own scope, so the catalog publishes that refusal for the
+/// kind. The cpu probe's verdict belongs to the cpu kind. A permission
 /// refusal names the scope, and every other verdict names its own cause,
 /// which is what keeps an encoding refusal readable apart from a scope one
 /// (FR-021, FR-022, US4/AC8). An object no device scope owns has no such
@@ -576,8 +575,9 @@ struct entry_read_selection
 /// own scope and publishes `scope_refused` for it, so a request naming
 /// the cpu kind does not ask for the kind the scope refused. Such a
 /// request proceeds to the provider window, where the kernel's own
-/// verdict for the cpu-targeted event belongs, and a refusal there names
-/// the window rather than the catalog state (FR-022, FR-024, SC-007).
+/// verdict for the cpu-targeted event belongs; a refusal there names the
+/// window, and the catalog state stays the one it settled on (FR-022,
+/// FR-024, SC-007).
 /// Pure over the two values, so a registered test drives every arm on a
 /// host whose catalog publishes no scope-refused entry, which is what
 /// the reference host does: a cpu-targeted probe there answers `EINVAL`,

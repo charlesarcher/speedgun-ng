@@ -22,32 +22,35 @@ namespace
 {
 
 // The config word a field name selects: "config" is word 0, "config1"
-// is word 1, and so on. A name without a trailing index is word 0.
+// is word 1, and "configN" is word N. A name without a trailing index
+// is word 0.
 auto word_of(const std::string_view name) -> int
 {
   int word = 0;
   std::size_t index = 0;
   // Skip the alphabetic prefix: "config", "config1", "config2".
-  // LCOV_EXCL_BR_START : gcc reports one exit edge of this three-term
-  // `&&` as an unexecuted block on every build. The loop stops either at a
-  // non-lowercase byte (fixtures "config1", "Config", "inv") or at the end
-  // of the name, which is the enclosing `for`'s own exit.
+  // LCOV_EXCL_BR_START : gcc reports a short-circuit edge of each
+  // two-term condition below as an unexecuted block on every build. The
+  // `&&` chain stops at a non-lowercase byte (fixtures "config1",
+  // "Config", "inv") or at the end of the name. The `||` chain rejects a
+  // byte outside the digits, which the loop reaches only from a field name
+  // no vendored table row spells.
   while (index < name.size()  // LCOV_EXCL_BR_LINE
          && name[index] >= 'a'  // LCOV_EXCL_BR_LINE
-         && name[index] <= 'z') {  // LCOV_EXCL_BR_LINE
+         && name[index] <= 'z')
+  {  // LCOV_EXCL_BR_LINE
     ++index;
   }  // LCOV_EXCL_BR_LINE
   for (; index < name.size(); ++index) {
-    // LCOV_EXCL_BR_LINE : the second edge of this two-term `||`, which no
-    // byte sequence reaches.
     if (name[index] < '0'  // LCOV_EXCL_BR_LINE
-        || name[index] > '9') {  // LCOV_EXCL_BR_LINE
+        || name[index] > '9')
+    {  // LCOV_EXCL_BR_LINE
       return 0;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_LINE
     word = word * 10 + static_cast<int>(name[index] - '0');
   }  // LCOV_EXCL_BR_LINE
-  return word;  // LCOV_EXCL_LINE
   // LCOV_EXCL_BR_STOP
+  return word;  // LCOV_EXCL_LINE
 }
 
 }  // namespace
@@ -148,8 +151,9 @@ auto pmu_compose_config(
       return false;
     }
     // A field the kernel publishes as several bit ranges splits its
-    // value across them in order: the first range takes the low bits,
-    // the next the bits above, and so on. "event: config:0-7,32-35"
+    // value across them in order: the first range takes the low bits and
+    // each later range takes the bits above the one before it.
+    // "event: config:0-7,32-35"
     // therefore places event bits 0-7 in config bits 0-7 and event bits
     // 8-11 in config bits 32-35. A value wider than the ranges span
     // leaves the entry not_encodable (FR-037).

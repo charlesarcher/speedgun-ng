@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <expected>
 #include <map>
 #include <memory>
@@ -259,7 +258,7 @@ constexpr int near_miss_distance = 2;
 // The target kinds the availability probe settled each seeded leaf on,
 // keyed by the leaf's canonical address. FR-021 states the seeding surface
 // gains no field and the availability state stays one enumeration, so the
-// per-kind verdicts ride beside the tree rather than inside it: the
+// per-kind verdicts ride beside the tree: the
 // provider records them where it enumerates and the catalog reads them
 // where it fills `catalog_entry::targets` (FR-021). The table is filled
 // while a provider registers and read only after the catalog opens, so no
@@ -353,7 +352,6 @@ auto system::register_provider(std::unique_ptr<provider_iface> provider)
     node->path = path;
     node->alias = std::string(seed.alias);
     node->description = std::string(seed.description);
-    node->provider_index = provider_index;
 
     if (!seed.alias.empty()) {
       const std::string alias(seed.alias);
@@ -637,8 +635,8 @@ auto settled_targets(const availability probed,
   return settled;
 }
 
-auto resolve_leaf_core(const object& obj, std::string_view name)
-    -> std::expected<leaf_core, error>
+auto resolve_leaf_core(const object& obj,
+                       std::string_view name) -> std::expected<leaf_core, error>
 {
   const auto* node = static_cast<const tree_node*>(obj.m_node);
   for (const auto& leaf : node->leaves) {

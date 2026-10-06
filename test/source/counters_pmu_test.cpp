@@ -256,7 +256,7 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
       // pipeline reports one of the three states a test-open answers with,
       // and the fourth state a device-scoped device settles its entries on
       // when its cpu probe refuses too. `probe_device` publishes that state
-      // rather than the cpu verdict for a kind the device's own scope
+      // in place of the cpu verdict for a kind the device's own scope
       // already refused, so a caller can tell the two refusals apart; an
       // absent object is never seeded, and `gap` is a property of one
       // sampling action (FR-021, FR-039).
@@ -392,8 +392,8 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   // from the device's own scope, so a check that recomputed the mask from
   // the state would compare the derivation with itself and could not fail.
   // The device scope is spelled out here from the canonical path the
-  // provider seeded, which is data this scenario reads rather than data the
-  // catalog derived (FR-021).
+  // provider seeded, which is data this scenario reads. The catalog derived
+  // no part of it (FR-021).
   std::size_t entries_seen = 0;
   std::size_t gaps = 0;
   std::size_t cpu_only = 0;
@@ -427,8 +427,8 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   // The gap is the one state the catalog never publishes for an entry: a
   // gap is a property of one sampling action, and the value travels in
   // the plan's disclosure column beside the zero count the action
-  // produced. Counted over every published entry rather than compared
-  // against the enumerator, so the catalog can falsify it (FR-007).
+  // produced. The count runs over every published entry, and the
+  // enumerator takes no part in it, so the catalog can falsify it (FR-007).
   check(gaps == 0,
         "no catalog entry publishes availability::gap, so the per-action "
         "gap rides the plan's disclosure column and no entry (FR-007)");
@@ -485,15 +485,15 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   // where the entry's own scope refuses the per-task kind, and the core
   // PMU plus its per-core hybrid instances are the devices that count a
   // thread's own events; every other published device binds one processor
-  // for every task, so its entries carry that refusal instead of an
-  // encoding one. Each such entry is therefore read against the device
+  // for every task, so its entries carry that refusal and carry no encoding
+  // one. Each such entry is therefore read against the device
   // scope it was probed under, and the handle that resolves it carries
   // the same state, so a caller can branch on it before composing
   // (FR-021, SC-007).
   if (scope_refused == 0) {
     // A host whose cpu probe settles every entry publishes no scope
-    // refusal to assert over, so the state has no entry under test and
-    // the reason is named here rather than hard-coded (SC-007).
+    // refusal to assert over. The state has no entry under test, and this
+    // comment names the reason; no reason is hard-coded (SC-007).
     std::printf("SKIP scope refusal: the catalog publishes no "
                 "availability::scope_refused entry on this host (hardware "
                 "event probe %s at perf_event_paranoid %d), so a "
@@ -934,11 +934,11 @@ auto cpu_target_scenario() -> void
 // knows a cpu-target plan may still compile over the entry. `cpu_target_
 // scenario` compiles over an entry the catalog already published as
 // countable, which is the other direction; this compiles over the entry
-// the state actually names. The compile either binds, on a host whose
+// the state names. The compile either binds, on a host whose
 // kernel grants a cpu-targeted event for that device, and the window
 // folds; or it is refused in the untimed region before any window opens,
-// and the refusal names the scope refusal the catalog published rather
-// than an encoding one (FR-022, FR-024, SC-007).
+// and the refusal names the scope refusal the catalog published. An
+// encoding refusal is a different verdict (FR-022, FR-024, SC-007).
 auto scope_refused_cpu_target_scenario(
     const std::vector<const object*>& pmu_objects) -> void
 {
@@ -959,7 +959,7 @@ auto scope_refused_cpu_target_scenario(
   if (refused_on == nullptr) {
     // A host whose cpu probe settles every entry publishes no scope
     // refusal, so there is no entry to compile over. The reason is named
-    // and the scenario skips rather than fails (SC-007).
+    // and the scenario skips; no check fails (SC-007).
     std::printf("SKIP scope-refused cpu target: the catalog publishes no "
                 "availability::scope_refused entry on this host (hardware "
                 "event probe %s at perf_event_paranoid %d), so no entry "
@@ -970,7 +970,7 @@ auto scope_refused_cpu_target_scenario(
     return;
   }
   // The entry still resolves with the state riding the handle, so the
-  // caller reads the refusal instead of discovering it as a failed open
+  // caller reads the refusal, and no failed open stands in for it
   // (FR-007).
   const auto leaf = refused_on->counter<events>(refused_name);
   check(leaf.has_value(),
@@ -998,10 +998,10 @@ auto scope_refused_cpu_target_scenario(
   }
   const std::string& message = compiled.error().message;
   // The gate reads the requested target now, so a cpu request over a
-  // scope refusal reaches the provider window instead of stopping at the
-  // availability gate, and the refusal a kernel that grants no cpu-targeted
-  // event produces names the window rather than the catalog state. Both
-  // halves are asserted, because a gate that still refused would produce
+  // scope refusal reaches the provider window; the availability gate lets
+  // the request past. The refusal a kernel that grants no cpu-targeted
+  // event produces names the window; the catalog state names the scope.
+  // Both halves are asserted, because a gate that still refused would produce
   // the state message and a window that opened would produce no refusal at
   // all (FR-022, SC-007).
   check(message.find("cannot open a window") != std::string::npos,

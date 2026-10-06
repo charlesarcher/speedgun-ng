@@ -71,7 +71,9 @@ public:
   [[nodiscard]] auto description() const noexcept -> std::string_view;
 
   /**
-   * @brief The parent object, null only for the machine root (FR-001).
+   * @brief The parent object, or null for the machine root and for a
+   * non-root object whose immediate ancestor path names no catalog
+   * object (FR-001).
    *
    * \pre none
    * \post none
@@ -160,11 +162,10 @@ private:
   friend auto detail::resolve_leaf_core(const object& obj,
                                         std::string_view name)
       -> std::expected<detail::leaf_core, error>;
-  friend auto detail::compile_core(
-      const system& sys,
-      const target& tg,
-      const std::vector<const detail::expr_core*>& exprs)
-      -> std::expected<plan, error>;
+  friend auto detail::compile_core(const system& sys,
+                                   const target& tg,
+                                   const std::vector<const detail::expr_core*>&
+                                       exprs) -> std::expected<plan, error>;
 
   explicit object(void* node) noexcept
       : m_node(node)
@@ -285,11 +286,10 @@ private:
   [[nodiscard]] auto handle_for(const std::string& canonical)
       -> sg::counters::object&;
 
-  friend auto detail::compile_core(
-      const system& sys,
-      const target& tg,
-      const std::vector<const detail::expr_core*>& exprs)
-      -> std::expected<plan, error>;
+  friend auto detail::compile_core(const system& sys,
+                                   const target& tg,
+                                   const std::vector<const detail::expr_core*>&
+                                       exprs) -> std::expected<plan, error>;
   friend auto detail::resolve_leaf_core(const sg::counters::object& obj,
                                         std::string_view name)
       -> std::expected<detail::leaf_core, error>;
