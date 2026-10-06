@@ -52,13 +52,13 @@ As a maintainer and as a consumer of speedgun-ng, when the library is built for 
 
 1. **Given** the release configuration (contract semantic: ignore), **when** a contract site that would abort in a checked build is reached at runtime, **then** it executes normally and no diagnostic is produced.
 2. **Given** the release configuration, **when** the library is built, **then** the resulting artifact contains no contract-check code (verified by the fixture and by symbol/code inspection of the artifact).
-3. **Given** any optimization level and any state of the standard assertion-control macro, **when** the dedicated contract switch is set to ignore, **then** contract code is excluded regardless — the contract switch is fully independent of optimization and of the standard assertion macro, and vice versa.
+3. **Given** any optimization level and any state of the standard assertion-control macro, **when** the dedicated contract switch is set to ignore, **then** contract code is excluded regardless: the contract switch is fully independent of optimization and of the standard assertion macro, and vice versa.
 
 ---
 
 ### User Story 3 - Observe violations deterministically in tests (Priority: P2)
 
-As a test author, when I need to assert that a contract is actually enforced (not merely documented), I want to install a substitute violation observer and inspect the structured violation record without killing the test process, so that every contract is proven to fail loudly when it should fail — the fail side of 100% DBC coverage.
+As a test author, when I need to assert that a contract is enforced in the running process. Documentation alone leaves the fail side unproven, I want to install a substitute violation observer and inspect the structured violation record without killing the test process, so that every contract is proven to fail loudly when it should fail: the fail side of 100% DBC coverage.
 
 **Why this priority**: A contract that is documented but never proven to fire provides no protection and would silently hollow out the coverage gate. Observability is what makes "every contract has an intentional-violation test" (the pass-side AND fail-side requirement) deterministic and automatable. It depends on Story 1 (working contracts) and enables the test strategy the coverage gate assumes.
 
@@ -68,15 +68,15 @@ As a test author, when I need to assert that a contract is actually enforced (no
 
 1. **Given** a test with a substitute violation observer installed, **when** a contract is violated in an observing configuration, **then** the observer receives a structured record containing the contract kind, file, line, message, and predicate text.
 2. **Given** a test in a terminating configuration, **when** a contract is violated, **then** the process terminates via the default response (structured diagnostic plus termination) and the diagnostic names the kind, file, line, and message.
-3. **Given** the default response, **when** a violation occurs, **then** the response does not throw an exception and is not catchable by application code — termination is the outcome.
+3. **Given** the default response, **when** a violation occurs, **then** the response does not throw an exception and is not catchable by application code: termination is the outcome.
 
 ---
 
 ### User Story 4 - CI fails on undocumented or unenforced contracts (Priority: P2)
 
-As a maintainer, when CI evaluates any change, I want the build to fail if a public interface lacks documented contracts or lacks the runtime enforcement that matches its documentation, so that 100% DBC coverage (documented AND enforced, with no drift) is preserved from this feature forward instead of eroding silently.
+As a maintainer, when CI evaluates any change, I want the build to fail if a public interface lacks documented contracts or lacks the runtime enforcement that matches its documentation, so that 100% DBC coverage (documented AND enforced, with no drift) is preserved from this feature forward and the coverage stays in force.
 
-**Why this priority**: Without the gate, Principle II's hard coverage requirement is unenforceable and the facility rots into "documents say one thing, code enforces another". This is the Phase 0 gate: an honest, real CI failure mechanism now, with a stricter AST-level hard gate (feature 002) replacing its weakest half later. It depends on Stories 1–2 (a facility whose sites are mechanically detectable).
+**Why this priority**: Without the gate, Principle II's hard coverage requirement is unenforceable and the facility rots into "documents say one thing, code enforces another". This is the Phase 0 gate: a real CI failure mechanism now, with a stricter AST-level hard gate (feature 002) replacing its weakest half later. It depends on Stories 1–2 (a facility whose sites are mechanically detectable).
 
 **Independent Test**: Can be fully tested by seeding the tree with (a) a public function whose documentation is missing a precondition or postcondition section and (b) a documented contract with no corresponding enforcement in the definition, and observing CI fail on each with a diagnostic naming the offending interface. Delivers the enforceability guarantee.
 
@@ -84,7 +84,7 @@ As a maintainer, when CI evaluates any change, I want the build to fail if a pub
 
 1. **Given** a public function whose documentation block lacks a precondition section or a postcondition section, **when** the documentation gate runs in CI, **then** the build fails with a diagnostic naming the function and the missing section.
 2. **Given** a public function whose documentation declares a contract kind for which no corresponding enforcement exists in its definition, **when** the pairing check runs in CI, **then** the build fails with a diagnostic naming the function, the kind, and the drift (documented-not-enforced or enforced-not-documented).
-3. **Given** a fully documented and enforced public interface (including an explicit "none" marker for a genuinely empty contract set), **when** both gate halves run, **then** they pass.
+3. **Given** a fully documented and enforced public interface (including an explicit "none" marker for an empty contract set), **when** both gate halves run, **then** they pass.
 4. **Given** an exempted declaration (private/protected member, lambda or local function, defaulted or deleted function, friend declaration, or a constexpr-only interface constrained at compile time), **when** the gates run, **then** it is not required to carry documentation or enforcement.
 5. **Given** any gate run, **when** it completes, **then** a per-interface matrix (documented kinds vs enforced kinds) is produced as a CI artifact.
 
@@ -94,7 +94,7 @@ As a maintainer, when CI evaluates any change, I want the build to fail if a pub
 
 As a future maintainer, when native language contract support becomes available on all supported compiler families, I want this facility's contract vocabulary and build-mode semantics to map one-to-one onto the standard's constructs (precondition/postcondition/in-body assertion; ignore/observe/enforce/quick_enforce; replaceable violation hook), so that migration is a mechanical rename rather than a redesign, and loop and type invariants (absent from the language) keep working unchanged.
 
-**Why this priority**: Real value only when the compiler support arrives, but the cost of getting the naming and semantics right now is near zero, while retrofitting them later would touch every contract site in the codebase. Lowest priority because it constrains design choices rather than delivering current functionality.
+**Why this priority**: Real value only when the compiler support arrives, but the cost of getting the naming and semantics right now is near zero, while retrofitting them later would touch every contract site in the codebase. Lowest priority because it constrains design choices It constrains design choices. It delivers no current functionality.
 
 **Independent Test**: Can be tested by a conformance review: the facility's documented build modes, semantic behaviors, and hook contract are checked against the standard's four semantics and handler model (a documented mapping table), and the macro vocabulary is checked against the standard's construct names. Delivers the migration guarantee.
 
@@ -108,13 +108,13 @@ As a future maintainer, when native language contract support becomes available 
 
 ### Edge Cases
 
-- **Multiple return points**: a postcondition must be checked against the value actually returned at each return point; the named result capture is taken once per exit, and the predicate is evaluated exactly once per exit.
+- **Multiple return points**: a postcondition must be checked against the value returned at each return point; the named result capture is taken once per exit, and the predicate is evaluated exactly once per exit.
 - **Violation inside the response**: if the default diagnostic output fails or a substitute observer misbehaves, the program still terminates; the response path does not re-enter the handler recursively.
 - **noexcept context**: a violation inside a `noexcept` function terminates the program via the response; no exception escapes from a contract site.
 - **Templates**: a contract documented on the primary template declaration is enforced from the template body and therefore applies to every instantiation; an instantiation that violates a contract aborts identically.
 - **Virtual overrides**: each overriding implementation enforces the documented contract itself; derived classes do not inherit enforcement from a base implementation (subcontracting across inheritance is out of scope).
 - **Const member functions**: class-invariant checks run at entry of const public member functions (exit checks apply to non-const public member functions), since a const function is not permitted to leave the object in a new, possibly invalid state.
-- **Genuinely empty contract sets**: a public function with no meaningful precondition (or postcondition) documents "none" explicitly; the pairing gate must not demand enforcement for an explicitly empty contract, and must fail for an *implicitly* empty one.
+- **Empty contract sets**: a public function with no meaningful precondition (or postcondition) documents "none" explicitly; the pairing gate must not demand enforcement for an explicitly empty contract, and must fail for an *implicitly* empty one.
 - **Checked-build overhead on measured code**: contract checks in the default (enforce) build do execute inside measured regions during development; the added cost of the checked build must be quantified and documented (as a distribution) so that measured numbers are interpreted correctly, and the release (ignore) build must be provably zero-cost.
 - **Handler re-entrancy across threads**: two threads violating simultaneously must not corrupt the diagnostic or deadlock; diagnostic emission is best-effort and the outcome remains termination.
 - **Standard assertion macro interaction**: enabling/disabling the standard assertion macro (`NDEBUG`) must never change contract evaluation state, and the dedicated contract switch must never change standard assertion behavior.
@@ -167,19 +167,19 @@ As a future maintainer, when native language contract support becomes available 
 **Checker-friendly design**
 
 - **FR-025** (ubiquitous): Every contract macro shall expand to a call of exactly one registered enforcement function (one enforcement function per contract kind), so that contract sites are mechanically detectable without source-text heuristics.
-- **FR-026** (ubiquitous): The project shall ship a machine-readable registry (data file) mapping each contract macro to its enforcement function and contract kind; the documentation gate, the pairing check, and the future AST-level hard gate (feature 002) shall consume this registry instead of hard-coding macro lists.
+- **FR-026** (ubiquitous): The project shall ship a machine-readable registry (data file) mapping each contract macro to its enforcement function and contract kind; the documentation gate, the pairing check, and the future AST-level hard gate (feature 002) shall consume this registry The registry is the source of the macro list.
 
 **Phase 0 DBC coverage gate**
 
 - **FR-027** (event-driven): When the documentation gate runs in CI, it shall fail the build if any in-scope public function's documentation block lacks a precondition section or a postcondition section, or if a class that declares an invariant lacks an invariant section in its documentation, with a diagnostic naming the interface and the missing section.
 - **FR-028** (event-driven): When the pairing check runs in CI, it shall fail the build if a documented contract kind on an in-scope public function has no corresponding enforcement of that kind in its definition, or if an enforcement of a contract kind has no corresponding documentation (drift in either direction), with a diagnostic naming the interface and the kind.
 - **FR-029** (ubiquitous): The scope of the gates shall be all public functions and classes in the public headers; the closed exemption list shall be: private and protected members, lambdas and local functions, defaulted and deleted functions, friend declarations, and constexpr-only interfaces (FR-024); changes to this list require a spec change or, after the first tagged release, a design change request.
-- **FR-030** (optional): Where a public function has a genuinely empty contract set for a kind, its documentation shall state "none" explicitly for that kind, and the pairing check shall not require enforcement for an explicitly empty contract while it shall fail for an implicitly empty one.
+- **FR-030** (optional): Where a public function has an empty contract set for a kind, its documentation shall state "none" explicitly for that kind, and the pairing check shall not require enforcement for an explicitly empty contract while it shall fail for an implicitly empty one.
 - **FR-031** (ubiquitous): The gates shall produce a per-interface DBC matrix (documented kinds vs enforced kinds) as a CI artifact for every run.
 
 **Facility self-conformance**
 
-- **FR-032** (ubiquitous): The facility's own internal check machinery shall be excluded from line and branch coverage measurement so that the coverage gates measure application code, not the fuse box (constitution Principle VI).
+- **FR-032** (ubiquitous): The facility's own internal check machinery shall be excluded from line and branch coverage measurement so that the coverage gates measure application code. The fuse box stays outside that measurement (constitution Principle VI).
 - **FR-033** (ubiquitous): The facility shall introduce no new external runtime dependencies; the project shall remain at zero external runtime dependencies.
 - **FR-034** (ubiquitous): The facility shall compile without warnings under the project's strict warning settings, as C++20 without extensions, on every supported platform (Linux GCC/Clang, macOS AppleClang, Windows MSVC).
 - **FR-035** (optional): Where native language contract support becomes available on all supported compilers, the facility's vocabulary and build-mode semantics shall map one-to-one onto the standard's constructs and semantics (FR-011–FR-015 counterpart constructs; replaceable violation hook), and a documented migration mapping shall be maintained; loop and type invariants shall remain facility-based and be documented as such.
@@ -218,10 +218,10 @@ As a future maintainer, when native language contract support becomes available 
 
 ### Out of Scope
 
-- The AST-level hard coverage gate (custom static-analysis check with full fidelity) — feature 002, which supersedes the pairing check's coarser half.
-- Dynamic contract-execution coverage and vacuity (never-fired contract) reporting — a later phase, report-only.
-- Native C++26 compiler contract integration — deferred until all supported compiler families ship it (tracked by FR-035).
-- Function-contract subcontracting across inheritance (derived implementations enforcing base function contracts) — a future feature or DCR.
+- The AST-level hard coverage gate (custom static-analysis check with full fidelity): feature 002, which supersedes the pairing check's coarser half.
+- Dynamic contract-execution coverage and vacuity (never-fired contract) reporting: a later phase, report-only.
+- Native C++26 compiler contract integration: deferred until all supported compiler families ship it (tracked by FR-035).
+- Function-contract subcontracting across inheritance (derived implementations enforcing base function contracts): a future feature or DCR.
 - Static analysis or formal verification of contract satisfaction.
 - Changes to the constitution, the C++ standard pin, or the CI gate set.
 
@@ -229,7 +229,7 @@ As a future maintainer, when native language contract support becomes available 
 
 - C++20 without compiler extensions; supported platforms are Linux (GCC/Clang), macOS (AppleClang), Windows (MSVC).
 - Zero external runtime dependencies; no new hard runtime dependency without documented justification (this feature introduces none).
-- Contracts are fuses, not error handling: the default response terminates; violations are never caught, logged-and-continued, or softened.
+- Contracts are fuses. The default response terminates: the default response terminates; violations are never caught, logged-and-continued, or softened.
 - Zero contract code in release builds (`ignore` semantic).
 - Single source of truth: the header documents the contract and the implementation enforces the same contract; drift is forbidden and fails the gate.
 - 100% DBC coverage is a hard CI gate alongside the 100% line and branch coverage gates.
@@ -239,10 +239,10 @@ As a future maintainer, when native language contract support becomes available 
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% of in-scope public interfaces in the facility's own headers carry documented contracts and matching runtime enforcement — the DBC matrix reports zero gaps and zero drift on the facility itself.
+- **SC-001**: 100% of in-scope public interfaces in the facility's own headers carry documented contracts and matching runtime enforcement: the DBC matrix reports zero gaps and zero drift on the facility itself.
 - **SC-002**: The release artifact provably contains zero semantic-gated contract-check code, verified by a dedicated consumer-release CI job (Release configuration, developer mode off, `ignore` semantic) that builds the artifact exactly as a consumer would, symbol-inspects it for the absence of contract-machinery code, and runs a trap fixture in which a semantic-gated site must exit silently while an always-on site (FR-036) must still fire. Always-on sites are the deliberate, sparing exception to the zero-release-code guarantee.
 - **SC-003**: A contract violation in a contract-enabled build terminates the process with a diagnostic that names the kind, file, line, and message; the diagnostic identifies which predicate failed.
-- **SC-004**: Every contract site in the facility has at least one passing-path test (contract holds, execution proceeds) and at least one intentional-violation test (contract fails, violation is observed or termination is verified) — 100% pass-side and fail-side contract exercise in the test suite.
+- **SC-004**: Every contract site in the facility has at least one passing-path test (contract holds, execution proceeds) and at least one intentional-violation test (contract fails, violation is observed or termination is verified): 100% pass-side and fail-side contract exercise in the test suite.
 - **SC-005**: The complete test suite passes with contracts enabled in the default `enforce` semantic; no test requires disabling contracts to pass.
 - **SC-006**: The Phase 0 gate is proven effective: a seeded missing-documentation case and a seeded missing-enforcement case each cause the CI build to fail with a diagnostic naming the offending interface.
 - **SC-007**: The facility builds warning-free on all four supported compiler families under the project's strict warning settings, with no compiler extensions.
@@ -257,7 +257,7 @@ As a future maintainer, when native language contract support becomes available 
 - **Vocabulary is fixed by the constitution**: REQUIRE/ENSURE/INVARIANT are the project's contract primitives (Principle II); the build-mode names follow the standard's vocabulary (`ignore`/`observe`/`enforce`/`quick_enforce`) to keep the future migration mechanical.
 - **Fuse is the default, not the only, semantic**: the constitution's "violations abort loudly, never caught or softened" is the default (`enforce`) production behavior; the `observe` semantic exists strictly as a documented diagnostic/test mode and is never the project default (FR-015/FR-016).
 - **Phase 0 gate tooling is dependency-free**: the documentation gate builds on the project's existing Doxygen documentation target, and the pairing check is a CI script over documentation output and the macro registry; no new external runtime or build-time dependency is introduced. The gate's enforcement-side fidelity is deliberately coarser than feature 002's AST-level gate; it is an interim hard gate, not the final one. It runs in a dedicated `dbc-gate` CI job on every `pull_request` and `push` (ubuntu-only), separate from the master-only docs deploy job, so it enforces per-PR.
-- **"None" marker convention**: "none" (or equivalent explicitly-empty marker) is the accepted documentation form for a genuinely empty contract set of a kind (FR-030).
+- **"None" marker convention**: "none" (or equivalent explicitly-empty marker) is the accepted documentation form for an empty contract set of a kind (FR-030).
 - **Templates**: documentation attaches to the primary template declaration; enforcement in the template body covers all instantiations; explicit specializations that alter the contract require their own documentation and enforcement.
 - **No inheritance of enforcement**: each overriding implementation enforces the documented contract itself; function-contract subcontracting across inheritance is deferred (out of scope; a future feature or DCR).
 - **Exemption list is closed**: the FR-029 list is the complete exemption set for this feature; expanding it is a spec change (or post-stabilization DCR).

@@ -35,7 +35,13 @@ struct pmu_table_entry
 {
   std::string name;
   std::string description;
-  std::string unit = "none";
+  // The row's Unit scope, empty where the table carries no Unit key. The
+  // empty string is the core scope the placement rule reads, and a
+  // placeholder spelling like "none" made every core row name a class no
+  // device publishes, so a core row reached no device and the core
+  // catalog carried only the kernel's own aliases (FR-014, FR-015, FR-019,
+  // D-08).
+  std::string unit;
   // Semantic config fields: format-field name to value. The
   // convention-mapped names: "event" (EventCode), "umask" (UMask),
   // plus any other JSON key that names a format field.
@@ -132,6 +138,14 @@ struct format_range
 // kernel's format layouts: every referenced field must exist, else
 // nothing is half-composed and the entry is `not_encodable`
 // (FR-037). On success `words` holds the per-config-word values.
+//
+// A field naming a register filter resolves like any other field: the
+// parser records the register value under the format its index names, and
+// the bit range that value lands in belongs to the device this function is
+// handed. The table the row came from names no range. A device publishing
+// no format of that name refuses the row whole, so the row publishes
+// `not_encodable` and the count never appears without its filter (FR-010,
+// FR-012, FR-013, D-05, D-06).
 [[nodiscard]] auto pmu_compose_config(
     const std::vector<std::pair<std::string, std::uint64_t>>& fields,
     const std::vector<std::pair<std::string, std::vector<format_range>>>&
@@ -357,6 +371,118 @@ struct fast_context
   // LCOV_EXCL_BR_STOP
 }
 
+// The kernel's own self-monitor time recipe, over the fields the page
+// publishes and the cycle counter the caller sampled. The computation is
+// the kernel's: `linux/perf_event.h:669-688` documents the quotient, the
+// remainder, and the delta, `:608-630` documents the sequence that gathers
+// the fields, and `:717` documents the short-counter correction that sits
+// on top. The header states the condition as `cap_usr_time && enabled !=
+// running`, so an equal pair needs no delta and a page publishing no
+// capability bit has no recipe to run (FR-007, FR-008, FR-009, FR-024).
+struct event_time_fields
+{
+  // The two capability bits the recipe is gated on. `cap_user_time` says
+  // the shift, mult, and offset fields are used; `cap_user_time_short`
+  // says the cycle and mask fields are used.
+  bool cap_user_time = false;
+  bool cap_user_time_short = false;
+  std::uint64_t time_enabled = 0;
+  std::uint64_t time_running = 0;
+  // The page index, which is non-zero for every counter the instruction
+  // reads. The kernel adds the delta to the running pair only where the
+  // index is non-zero, because a page with no index has no running time
+  // of its own to correct.
+  std::uint32_t index = 0;
+  std::uint16_t time_shift = 0;
+  std::uint32_t time_mult = 0;
+  std::uint64_t time_offset = 0;
+  std::uint64_t time_cycles = 0;
+  std::uint64_t time_mask = 0;
+  // The cycle counter the caller sampled with the instruction. A library
+  // read takes it from `rdtsc`; a synthetic page hands it over.
+  std::uint64_t cyc = 0;
+};
+
+// The recipe's answer: the pair to publish, and whether a delta was
+// computed at all. A caller that sees `applied` false publishes the raw
+// pair, which is what the page states and the whole answer on a host whose
+// kernel grants no time capability.
+struct event_time_pair
+{
+  std::uint64_t enabled = 0;
+  std::uint64_t running = 0;
+  bool applied = false;
+};
+
+/**
+ * @brief Applies the kernel's time recipe to a page's own fields.
+ *
+ * The computation is the one `linux/perf_event.h` documents at lines
+ * 669-688: the quotient is the cycle counter shifted down by the page's
+ * shift, the remainder is what the shift keeps, and the delta is the
+ * offset plus the quotient times the multiplier plus the scaled
+ * remainder. The delta is added to the enabled pair always, and to the
+ * running pair only where the page index is non-zero, exactly as the
+ * header states.
+ *
+ * Where the page publishes the short-counter capability, the cycle
+ * counter is first narrowed by the header's own correction at line 717,
+ * `cyc = time_cycles + ((cyc - time_cycles) & time_mask)`, because the
+ * hardware clock is narrower than the counter there. That correction is
+ * applied before the recipe and not after it, which is what the header
+ * means by an explicit correction on top of the full form.
+ *
+ * A page publishing no time capability, or one whose enabled and running
+ * counts already agree, has no delta to compute. The pair is copied
+ * exactly as the page published it and `applied` reports false, so a
+ * caller can tell a corrected pair from a raw one.
+ *
+ * Pure over the fields it is handed, so a synthetic page reaches it in CI
+ * with no mapping and no instruction (T005, T014, T015, FR-007, FR-008,
+ * FR-009).
+ *
+ * @param fields The page's own fields and the sampled cycle counter.
+ * @return The pair to publish, with `applied` naming whether a delta was
+ *         computed.
+ */
+[[nodiscard]] inline auto fast_time_pair(
+    const event_time_fields& fields) noexcept -> event_time_pair
+{
+  event_time_pair pair {};
+  pair.enabled = fields.time_enabled;
+  pair.running = fields.time_running;
+  // The header's own condition. An equal pair means the event was never
+  // multiplexed, so the page's counts already measure the whole span.
+  if (!fields.cap_user_time || fields.time_enabled == fields.time_running) {
+    return pair;
+  }
+  auto cyc = fields.cyc;
+  if (fields.cap_user_time_short) {
+    cyc = fields.time_cycles + ((cyc - fields.time_cycles) & fields.time_mask);
+  }
+  const auto shift = static_cast<std::uint64_t>(fields.time_shift);
+  // A shift of the type width or more is not a field the kernel writes,
+  // and shifting by the type width is undefined, so the pair stands as
+  // the page published it.
+  constexpr auto time_shift_width = 64U;
+  if (shift >= time_shift_width) {
+    return pair;
+  }
+  const auto quot = cyc >> shift;
+  const auto rem = cyc & ((1ULL << shift) - 1);
+  const auto mult = static_cast<std::uint64_t>(fields.time_mult);
+  const auto delta =
+      fields.time_offset + (quot * mult) + ((rem * mult) >> shift);
+  pair.enabled = fields.time_enabled + delta;
+  // The running pair moves only where the page names an index, because a
+  // page with no index has no running time of its own.
+  if (fields.index != 0) {
+    pair.running = fields.time_running + delta;
+  }
+  pair.applied = true;
+  return pair;
+}
+
 // Opens the context for one event and maps the page the kernel returns.
 // The event is bound to `where` exactly as a group member is, so a plan
 // pinned to a cpu counts that cpu and a thread-bound plan counts the
@@ -403,8 +529,8 @@ inline fast_context::~fast_context()
 // thread runs on. A thread-bound plan pins nothing and answers true; a
 // cpu-pinned context answers true only on the processor it was opened on,
 // which is the pinning precondition the fast read carries (FR-045).
-[[nodiscard]] auto fast_pinning_ok(int pinned_cpu,
-                                   int current_cpu) noexcept -> bool;
+[[nodiscard]] auto fast_pinning_ok(int pinned_cpu, int current_cpu) noexcept
+    -> bool;
 
 // The corrected decisions that sit behind a syscall only a granted
 // `perf_event_open` can reach. Each is a small pure function over values
@@ -486,8 +612,9 @@ struct entry_read_selection
 /// \post A countable entry publishes the fast read mode only where the
 ///       host grants it. Every other state publishes the syscall mode.
 ///       Only a countable entry publishes the enabled/running pair.
-[[nodiscard]] auto entry_read_selection_for(
-    availability probed, bool fast_capable) noexcept -> entry_read_selection;
+[[nodiscard]] auto entry_read_selection_for(availability probed,
+                                            bool fast_capable) noexcept
+    -> entry_read_selection;
 
 /// @brief The target kinds the two probes settled one entry on (FR-021).
 ///
@@ -503,8 +630,9 @@ struct entry_read_selection
 /// \post A verdict of `countable` names that kind's bit, and every other
 ///       verdict names no bit. The answer names the cpu bit for a
 ///       `countable` cpu verdict whatever the per-task verdict is (FR-021).
-[[nodiscard]] auto probed_kind_mask(
-    availability per_task, availability on_cpu) noexcept -> target_mask;
+[[nodiscard]] auto probed_kind_mask(availability per_task,
+                                    availability on_cpu) noexcept
+    -> target_mask;
 
 /// @brief The target kinds one catalog entry can be counted on, read from
 /// the probe's per-kind verdicts (FR-021).
@@ -562,8 +690,9 @@ struct entry_read_selection
 /// \post A permission verdict on a device-scoped device settles on
 ///       `scope_refused`. Every other verdict, on a device-scoped device or
 ///       not, settles on itself.
-[[nodiscard]] auto scope_settled_state(
-    availability on_cpu, bool device_scoped) noexcept -> availability;
+[[nodiscard]] auto scope_settled_state(availability on_cpu,
+                                       bool device_scoped) noexcept
+    -> availability;
 
 /// @brief Whether a catalog entry's own state lets the request open a
 /// provider window (FR-021, FR-024).
@@ -588,8 +717,9 @@ struct entry_read_selection
 ///       `scope_refused` entry answers true for the cpu kind alone, and
 ///       answers false for the per-task kind. Every other state answers
 ///       false under either kind.
-[[nodiscard]] auto availability_gate_passes(
-    availability probed, target_kind requested) noexcept -> bool;
+[[nodiscard]] auto availability_gate_passes(availability probed,
+                                            target_kind requested) noexcept
+    -> bool;
 
 // The fast-mode window (group_io.cpp, FR-040): one context per member
 // leaf, the enabled/running pair taken from the leader's page. Null

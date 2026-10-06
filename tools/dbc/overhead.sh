@@ -4,7 +4,7 @@
 #
 # Compiles tools/dbc/overhead.cpp at -O2, runs the A/B hot loop, and
 # regenerates docs/pages/dbc-overhead.md with the min/max/n50/n99
-# distribution. This is a documented measurement, not a CI gate:
+# distribution. This is a documented measurement. A CI job does not run it:
 # nothing here is registered with CTest.
 #
 # Usage: bash tools/dbc/overhead.sh [include-dir]

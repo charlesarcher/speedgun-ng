@@ -191,10 +191,12 @@ public:
    */
   point_sink(std::uint64_t* columns,
              std::size_t leaf_count,
+             std::size_t column_count,
              std::size_t stride,
              std::size_t row) noexcept
       : m_columns(columns)
       , m_leaf_count(leaf_count)
+      , m_column_count(column_count)
       , m_stride(stride)
       , m_row(row)
   {
@@ -222,6 +224,35 @@ public:
   }
 
   /**
+   * @brief Writes one disclosure point into a named column.
+   *
+   * A plan with more than one read group gives each group its own
+   * disclosure column, and the columns follow the leaves rather than
+   * interleaving with them, so a provider's disclosure does not land in
+   * the sequential cursor's next cell. The cursor is unchanged: the
+   * disclosure is not a leaf and no leaf follows it, so `put` and
+   * `check_action` see exactly the leaf obligations (FR-002).
+   *
+   * \pre `column` is within the managed columns and this action has not
+   *      already written that column.
+   * \post the disclosure lands in `column` at the constructed row.
+   */
+  void put_disclosure(std::size_t column, std::uint64_t value) noexcept
+  {
+    SG_REQUIRE(column < m_column_count,
+               "disclosure column is within the managed columns");
+    // The column base is a pointer into one contiguous buffer and the
+    // index is the column the plan named, so the subscript is in range
+    // by the requirement above.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    m_columns[(column * m_stride) + m_row] = value;
+    m_disclosure_written = true;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    SG_ENSURE(m_columns[(column * m_stride) + m_row] == value,
+              "the disclosure lands in the column the plan named for it");
+  }
+
+  /**
    * @brief Checks that a finished action wrote one point per managed
    * column (FR-047).
    *
@@ -234,16 +265,26 @@ public:
    */
   void check_action() const noexcept
   {
+    // The obligation is one point per managed leaf. A plan with more than
+    // one read group has a disclosure column per group, and each is written
+    // through `put_disclosure`, which does not advance the cursor, so the
+    // cursor ends at the leaf count while the column count is larger by the
+    // number of groups (FR-002, FR-047).
     SG_INVARIANT(m_index == m_leaf_count,
-                 "one action writes one point per managed column (FR-047)");
+                 "one action writes one point per managed leaf (FR-047)");
   }
 
 private:
   std::uint64_t* m_columns = nullptr;
   std::size_t m_leaf_count = 0;
+  // Every managed column, leaves and disclosures alike. The cursor is
+  // bounded by the leaves; a disclosure names a column by index and is
+  // bounded by this (FR-002).
+  std::size_t m_column_count = 0;
   std::size_t m_stride = 0;
   std::size_t m_row = 0;
   std::size_t m_index = 0;
+  bool m_disclosure_written = false;
 };
 
 /**
@@ -337,8 +378,8 @@ protected:
   }
 
 private:
-  static auto default_thunk(window_reader& reader,
-                            point_sink& sink) noexcept -> void
+  static auto default_thunk(window_reader& reader, point_sink& sink) noexcept
+      -> void
   {
     reader.read_points(sink);
   }

@@ -36,7 +36,8 @@ auto sample_row(const plan_impl& layout,
                 const std::size_t stride,
                 const std::size_t row) -> void
 {
-  point_sink sink(buffer, layout.leaf_count(), stride, row);
+  point_sink sink(
+      buffer, layout.leaf_count(), layout.column_count(), stride, row);
   for (const auto& group : layout.groups) {
     group.thunk(*group.reader, sink);
   }
@@ -68,8 +69,8 @@ auto sample_point(const plan_impl& layout,
 // Fan-out instantiation: the exemplar spine re-homed under `path` by
 // re-addressing every leaf (US3 scenario 5); the fold layer resolves
 // the instances through the plan's address map.
-auto instantiate_core(const detail::expr_core& core,
-                      const std::string& path) -> detail::expr_core
+auto instantiate_core(const detail::expr_core& core, const std::string& path)
+    -> detail::expr_core
 {
   auto out = core;
   for (auto& leaf : out.leaves) {
@@ -225,7 +226,8 @@ auto plan::recorder(const std::size_t capacity) const
     -> recorder_handle<hard_stop_t>
 {
   auto& impl = *static_cast<plan_impl*>(m_impl);
-  auto arena = std::make_unique<std::uint64_t[]>(capacity * impl.leaf_count());
+  auto arena =
+      std::make_unique<std::uint64_t[]>(capacity * impl.column_count());
   auto* columns = arena.get();
   impl.arenas.push_back(std::move(arena));
   return recorder_handle<hard_stop_t> {
@@ -241,7 +243,8 @@ auto plan::recorder(const std::size_t capacity, const ring_t) const
         .suggestions = {}});
   }
   auto& impl = *static_cast<plan_impl*>(m_impl);
-  auto arena = std::make_unique<std::uint64_t[]>(capacity * impl.leaf_count());
+  auto arena =
+      std::make_unique<std::uint64_t[]>(capacity * impl.column_count());
   auto* columns = arena.get();
   impl.arenas.push_back(std::move(arena));
   return recorder_handle<ring_t> {
@@ -267,7 +270,7 @@ static auto calibrate(plan_impl& layout) -> const overhead_sample&
     return layout.overhead;
   }
   constexpr std::size_t rows = 2;
-  layout.calibration_buffer.assign(layout.leaf_count() * rows, 0);
+  layout.calibration_buffer.assign(layout.column_count() * rows, 0);
   auto* columns = layout.calibration_buffer.data();
   std::size_t head = 0;
   for (int warm = 0; warm < kCalibrationWarmup; ++warm) {
@@ -338,7 +341,7 @@ scope::scope(const plan& compiled)
 {
   auto* core = new scope_core();
   core->impl = static_cast<const plan_impl*>(compiled.m_impl);
-  core->buffer.assign(core->impl->leaf_count() * 2, 0);
+  core->buffer.assign(core->impl->column_count() * 2, 0);
   m_core = core;
   SG_ENSURE(!core->started && !core->finished,
             "a fresh scope awaits start() (FR-030)");
@@ -458,8 +461,8 @@ auto compile_core(const system& sys,
       // leaf address reaching `compile_core` came from a resolved handle or
       // from `instantiate_core`, and the object it names is in the frozen
       // tree, so the lookup never misses.
-      if (const auto* node = impl.find(object_path); node != nullptr)
-      {  // LCOV_EXCL_BR_LINE
+      if (const auto* node = impl.find(object_path);
+          node != nullptr) {  // LCOV_EXCL_BR_LINE
         for (const auto& candidate : node->leaves) {
           if (candidate.core.name == name) {
             record = &candidate;
@@ -526,6 +529,13 @@ auto compile_core(const system& sys,
     }
     group_of.at(provider_index) = layout->groups.size();
     read_group group;
+    // The leaves of one group, then that group's own disclosure, then the
+    // next group's leaves: the point sink is a sequential cursor, so this is
+    // the order the columns are written in (FR-002). The slot vector holds
+    // the same order, which is what keeps a slot index and a column index
+    // the same number: the fold layer resolves a leaf to a slot with
+    // `by_address` and then reads that slot as a column, so the two
+    // coordinate systems must not drift apart.
     group.offset = layout->slots.size();
     group.count = per_provider.at(provider_index).size();
     for (const auto& one : pending) {
@@ -539,9 +549,30 @@ auto compile_core(const system& sys,
     }
     layout->groups.push_back(std::move(group));
   }  // LCOV_EXCL_LINE
-  // The disclosure column sits past the last managed leaf, so the
-  // group that owns the plan's last leaf is the one that writes it.
-  layout->disclosure_slot = layout->slots.size();
+  // One disclosure column per read group, each past its own group's last
+  // managed leaf. One column for the whole plan served the group that owns
+  // the plan's last leaf and left every other group's window with no
+  // column at all, so a plan drawing leaves from two providers disclosed
+  // the first provider's gaps in nobody's column and read the second
+  // provider's column for the first (FR-001, FR-002, FR-004).
+  //
+  // The columns are laid out after every group's leaves are laid out, so
+  // one group's disclosure column can never land inside another group's
+  // slot range. A group's column is the first slot past its own range.
+  // One disclosure column per read group. The leaves stay contiguous in the
+  // slot vector and the columns follow them, because a fold resolves a leaf
+  // to a slot with `by_address` and then reads that slot as a column: the two
+  // must be the same number, so the columns cannot be interleaved into the
+  // vector (FR-002).
+  for (std::size_t index = 0; index < layout->groups.size(); ++index) {
+    layout->groups.at(index).disclosure_slot = layout->slots.size() + index;
+  }
+  // The plan keeps the first group's column as its own for the callers that
+  // read one column without naming a group, which is the group a
+  // single-group plan resolves to.
+  // A plan that reaches this point holds at least one leaf, and every
+  // leaf belongs to a provider, so the group list is not empty (FR-002).
+  layout->disclosure_slot = layout->groups.front().disclosure_slot;
   for (std::size_t provider_index = 0; provider_index < impl.providers.size();
        ++provider_index)
   {
@@ -549,14 +580,12 @@ auto compile_core(const system& sys,
       continue;
     }
     auto& group = layout->groups.at(group_of.at(provider_index));
-    const bool last = group.offset + group.count == layout->slots.size();
     auto reader =
         impl.providers.at(provider_index)
             ->open(
                 leaf_set {
                     .addresses = std::move(per_provider.at(provider_index)),
-                    .disclosure_column = last ? layout->disclosure_slot
-                                              : leaf_set::no_disclosure_column,
+                    .disclosure_column = group.disclosure_slot,
                 },
                 tg);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the open refusal. It

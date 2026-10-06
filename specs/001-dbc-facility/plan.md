@@ -53,7 +53,7 @@ research R-010/R-011, synthesis + empirical proof R-013).
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design — still passing.*
+*GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design: still passing.*
 
 | Principle | Status | Notes |
 |---|---|---|
@@ -64,10 +64,10 @@ research R-010/R-011, synthesis + empirical proof R-013).
 | V. Style and Formatting | ✅ PASS | `.clang-format` / `format-check` applied; no mixed reformat+content commits. |
 | VI. Test-Backed Code and Coverage | ✅ PASS | Tests ship with the change; 100% LOC / branch / DBC gates; the facility's own check machinery is gcov-excluded (FR-032) so the gates measure application code. |
 | VII. Performance Discipline | ✅ PASS | Zero release cost (SC-002); checked-build overhead measured as a distribution and documented (SC-008). |
-| VIII. CI Quality Gates | ✅ PASS (strengthened, not weakened) | All existing gates unchanged. Two new CI jobs **implement already-mandated gates** (see below) — no new gate category, no gate weakening, therefore no constitution amendment required. |
+| VIII. CI Quality Gates | ✅ PASS (strengthened) | All existing gates unchanged. Two new CI jobs **implement already-mandated gates** (see below): no new gate category, no gate weakening, therefore no constitution amendment required. |
 
 **Gate-set note (Principle VIII)**: The two added CI jobs do not create new gate
-categories — they *implement* existing constitutional mandates:
+categories: they *implement* existing constitutional mandates:
 - `dbc-gate` implements Principle II's "100% DBC coverage is a hard gate" /
   "missing or unenforced contracts fail CI".
 - `consumer-release` implements Principle II's "contract checks MUST NOT emit
@@ -79,7 +79,7 @@ exception is taken.
 
 **Resolved governance item (plan gate, 2026-09-06):** Principle II's
 "contract checks MUST NOT emit any code in release builds" now carries the
-always-on carve-out — applied directly to the constitution text at the
+always-on carve-out: applied directly to the constitution text at the
 user's direction (research R-011; the formal version-bump ceremony is
 deferred per the user). No open governance item blocks landing; the
 Principle I P0 carve-out for the cold-dispatch intrinsics is recorded in
@@ -114,7 +114,7 @@ source/
 ├── speedgun-ng.cpp         # MODIFIED: exported_class enforces its \pre/\post via SG_*
 └── dbc/
     └── dbc.cpp             # FALLBACK ONLY: out-of-line dispatch, if the noinline-shim
-                            #   shape fails the asm smoke test (see Logical View)
+                            #   shape fails the assembly check (see Logical View)
 
 tools/dbc/
 ├── macros.yaml             # NEW: macro -> (enforcement fn, kind) registry (FR-026)
@@ -144,7 +144,7 @@ the constitution. The gate tooling is developer/CI-only (under `tools/dbc/` and
 
 ---
 
-## Design — Logical View
+## Design: Logical View
 
 *What the feature is and how it behaves. Interfaces are designed with their
 contracts before implementation (Principle II/III).*
@@ -200,7 +200,7 @@ graph TD
 Key logical properties:
 - **One registered call per kind** (FR-025): every macro expands to a call of
   exactly one enforcement function, so sites are mechanically detectable.
-- **Build-time, not per-site**: the semantic is fixed by the build switch
+- **Build-time**: the semantic is fixed by the build switch
   (FR-011/FR-017); in `ignore` the macros expand to nothing (no code, no call).
 - **Compile-time first** (FR-022/023/024): any constraint evaluable at compile
   time is a `static_assert`/concept/constexpr validator, never a runtime check.
@@ -259,12 +259,12 @@ termination mechanism* (FR-009/FR-014) — `noexcept` would convert it to
 `std::terminate`. In `observe` it is neither (the default response reports and
 returns; the hook may throw). In `ignore` builds semantic-gated macros expand
 to nothing, so the emitted-on-use dispatch is **absent from any TU with no
-live call** — exactly what SC-002's symbol-absence proof requires; an
+live call**: exactly what SC-002's symbol-absence proof requires; an
 always-compiled `source/dbc/dbc.cpp` dispatch would *not* be absent, which is
-why the TU form is the documented **fallback**, not the default (FR-037 form b,
-engaged only if the primary shows EH artifacts in the assembly smoke test). An
+why the TU form is the documented **fallback**. The default is the other form (FR-037 form b,
+engaged only if the primary shows EH artifacts in the assembly check). An
 optional `__FILE_NAME__` / file-static string dedup (`SG_THIS_FILE`) is
-available where binary size matters — zero hot-path impact (R-013, rank 7).
+available where binary size matters: zero hot-path impact (R-013, rank 7).
 
 **Empirical verification (R-013; GCC 16.2.1 / Clang 22.1.8, `-std=c++20 -O2`,
 project warning set):** for
@@ -277,12 +277,12 @@ pad at the call site**; all EH machinery (personality reference, LSDA,
 `.gcc_except_table`) lives **entirely inside the dispatch**, for both the
 terminating and the `observe` variants. The header-inline `noinline` primary
 achieves this identical EH-clean caller frame (not inlined; own comdat body),
-so it is **expected to pass the assembly smoke test** (SC-008). **Governance**:
+so it is **expected to pass the assembly check** (SC-008). **Governance**:
 the guarded intrinsics are a P0 critical-path optimization (Principle I.1),
 designated critical-path by FR-037…FR-040; they compile clean under strict
 `-std=c++20` and are not a `CMAKE_CXX_EXTENSIONS=ON` requirement (R-013).
 
-### Call-site design (performance contract — FR-037…FR-040, research R-010)
+### Call-site design (performance contract: FR-037…FR-040, research R-010)
 
 The facility is extremely performance-sensitive and meant for pervasive use.
 The call site is a **statement-form macro**, deliberately *not* a function
@@ -338,7 +338,7 @@ exactly one of them, so the registry and the gates keep working. `check_*`
 forwards to one shared cold `detail::dispatch(kind, msg, file, line, pred)`;
 the kind stays part of the stable identity (FR-021).
 
-### Sequence — a precondition check across the four semantics
+### Sequence: a precondition check across the four semantics
 
 ```mermaid
 sequenceDiagram
@@ -368,7 +368,7 @@ sequenceDiagram
     end
 ```
 
-### State — violation handling
+### State: violation handling
 
 ```mermaid
 stateDiagram-v2
@@ -407,7 +407,7 @@ matching the spec's "fires in a release build exactly as in a checked build"
 
 ---
 
-## Design — Physical View
+## Design: Physical View
 
 *Where the feature lives: module / namespace / file layout, build targets and
 link relationships, and the public API surface it adds.*
@@ -417,7 +417,7 @@ link relationships, and the public API surface it adds.*
 | Namespace / module | Location | Contents |
 |---|---|---|
 | `sg::dbc` (public) | `include/speedgun-ng/dbc.hpp` | `SG_REQUIRE` / `SG_ENSURE` / `SG_INVARIANT` / `SG_ASSERT`; the always-on family `SG_*_ALWAYS` (FR-036); `violation_observer`; `set_observer`; `check_*` enforcement functions (inline + noinline, `[[noreturn]]` in terminating semantics); shared cold `detail::dispatch`; observer storage (function-local static) — **standalone: no project headers** (FR-037) |
-| `sg::dbc` (internal, fallback only) | `source/dbc/dbc.cpp` | out-of-line `check_*` + `detail::dispatch` behind a dedicated generated export header — only if the header-only noinline-shim design is rejected by the asm smoke test |
+| `sg::dbc` (internal, fallback only) | `source/dbc/dbc.cpp` | out-of-line `check_*` + `detail::dispatch` behind a dedicated generated export header — only if the header-only noinline-shim design is rejected by the assembly check |
 | (data) | `tools/dbc/macros.yaml` | macro → (enforcement fn, kind) registry |
 | (tooling) | `tools/dbc/dbc_doc_gate.py`, `dbc_pair_gate.py` | Phase 0 gate halves |
 | (build) | `cmake/dbc.cmake`, `cmake/dbc-gate.cmake` | semantic option + gate target |
@@ -450,14 +450,14 @@ graph LR
   default `enforce` in dev/CI, `ignore` in the consumer-release job) maps to a
   **single numeric compile definition** `SG_CONTRACTS_SEMANTIC`
   (`0`=ignore, `1`=observe, `2`=enforce, `3`=quick_enforce). One definition,
-  two consumers (R-013 rank 9 — mirrors the libc++ 4-semantics model): the
+  two consumers (R-013 rank 9: mirrors the libc++ 4-semantics model): the
   macro `#if` in `dbc.hpp` elides semantic-gated macros only when
   `SG_CONTRACTS_SEMANTIC == 0` (ignore), and the cold dispatch branches on the
   same value to select the violation response for **semantic-gated** sites:
   report+continue (observe), hook+terminate (enforce), or trap (quick_enforce).
   **Always-on sites are the exception: they force the default (checked-build)
-  response — the structured diagnostic followed by termination, invoking the
-  installed observer — regardless of the global semantic** (FR-036, "fires in
+  response: the structured diagnostic followed by termination, invoking the
+  installed observer: regardless of the global semantic** (FR-036, "fires in
   a release build exactly as in a checked build"; the FR-036 test: an always-on
   violation fires identically in `ignore` / `enforce` / `quick_enforce`).
   Concretely: under `ignore` only always-on sites can reach the dispatch
@@ -509,7 +509,7 @@ tests).
   the line/branch gates measure application code, not the fuse box.
 - Every contract site has a **pass-side** test (contract holds) and a
   **fail-side** test (contract fails, violation observed or termination
-  verified) — SC-004.
+  verified): SC-004.
 
 ### Test case mapping (user story / FR → test)
 
@@ -530,7 +530,7 @@ tests).
 | US2 / FR-015 | `dbc_test` — `observe` | violation reported, execution continues |
 | US3 / FR-008/009/010 | `dbc_test` — observer + default response | observer receives full record; default terminates and is uncatchable; single global hook |
 | US4 / FR-027 | `dbc_test` / gate fixture — missing `\pre`/`\post` | doc gate fails, naming the interface + missing section |
-| US4 / FR-028 | gate fixture — documented-not-enforced + enforced-not-documented | pairing check fails both directions, naming interface + kind |
+| US4 / FR-028 | gate fixture: documented-not-enforced + enforced-not-documented | pairing check fails both directions, naming interface + kind |
 | US4 / FR-029/030 | gate fixture — exemptions + `none` marker | exempted decls pass; explicit `none` passes; implicit empty fails |
 | US4 / FR-031 | gate run | DBC matrix artifact emitted per interface |
 | US5 / FR-035 | conformance review (no runtime test) | mapping table covers 100% of constructs (SC-010) |
@@ -541,10 +541,10 @@ tests).
 - All tests are deterministic (Principle VI); no timing-dependent asserts.
 - The checked-build overhead measurement (SC-008) is a separate, noise-free
   benchmark comparison (checked vs uncontracted path), reported as a
-  distribution (min/max/n50/n99) — not a per-PR assertion in 001, but a
-  documented measurement (Principle VII).
-- The asm smoke test (Linux) is a **evidence** step, not a hard cross-platform
-  gate: it guards the no-EH-at-call-site property (FR-039) on the reference
+  distribution (min/max/n50/n99). It is a documented measurement in 001
+  (Principle VII). It is not a per-PR assertion.
+- The assembly check (Linux) is an evidence step. The hard cross-platform
+  gate is a different check: it guards the no-EH-at-call-site property (FR-039) on the reference
   toolchains; the hard, cross-platform properties are the measured overhead
   (SC-008), the standalone-compile test (FR-037), and the always-on/ignore
   behavior tests (FR-036).
@@ -580,4 +580,4 @@ Both are exercised in the `dbc-gate` CI job so the guarantee is CI-gated.
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
-| *(none)* | — | — |
+| *(none)* |: |: |

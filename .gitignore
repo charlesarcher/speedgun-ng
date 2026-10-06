@@ -22,3 +22,5 @@ speedgun-ng-*-specify-prompt.md
 # Spec Kit: share the commands, ignore any other agent state
 .opencode/*
 !.opencode/commands/
+.agents/*
+!.agents/skills/

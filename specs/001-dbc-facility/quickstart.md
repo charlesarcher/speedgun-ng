@@ -52,7 +52,7 @@ cmake --build build/release-consumer -j
 - The **semantic-gated** trap site (a contract that aborts in a checked build)
   runs silently.
 - The **always-on** trap site (`SG_*_ALWAYS`) in the same fixture **still
-  fires** — it is the deliberate exception (FR-036).
+  fires**: it is the deliberate exception (FR-036).
 - Symbol inspection of the artifact shows no semantic-gated contract-machinery
   code (no `sg::dbc::check_*` code for gated sites; always-on dispatch present
   only because the fixture uses it).
@@ -72,7 +72,7 @@ cmake -P cmake/dbc-gate.cmake   # doxygen XML + pairing check
 ```
 
 **Expected**: the gate fails, naming the offending interface and the
-missing / drifted kind. A fully documented-and-enforced interface — including
+missing / drifted kind. A fully documented-and-enforced interface: including
 an explicit `none` marker for a genuinely empty contract set — passes.
 
 ## 6. Verify the facility is self-conformant (SC-001)

@@ -59,6 +59,7 @@ using sg::counters::expression;
 using sg::counters::fake_provider;
 using sg::counters::leaf_set;
 using sg::counters::metric_result;
+using sg::counters::point_sink;
 using sg::counters::points_view;
 using sg::counters::read_mode;
 using sg::counters::system;
@@ -1130,8 +1131,29 @@ auto test_multi_group_disclosure() -> void
         "the fan-out reports one metric per selected core");
 }
 
+// A window opened with the default disclosure column writes its leaves
+// and writes no disclosure (FR-007).
+auto test_open_without_disclosure() -> void
+{
+  fake_provider provider;
+  provider.add_counter("machine", "quiet", "ops", "opened with no disclosure");
+  provider.set_points("machine", "quiet", {4}, 0);
+  const target where {};
+  auto window = provider.open(leaf_set {.addresses = {"machine/quiet"}}, where);
+  if (window == nullptr) {
+    fail("the fake leaf opens with no disclosure column");
+  }
+  std::vector<std::uint64_t> columns(1, 0);
+  point_sink sink(columns.data(), 1, 1, 1, 0);
+  window->read_points(sink);
+  check(columns[0] == 4,
+        "a fake sample with no disclosure column writes the leaf alone "
+        "(FR-007)");
+}
+
 auto main() -> int
 {
+  test_open_without_disclosure();
   test_registration();
   test_tree_walk();
   test_resolution_diagnostics();

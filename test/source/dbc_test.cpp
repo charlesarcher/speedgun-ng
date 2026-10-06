@@ -130,7 +130,7 @@ auto gated_satisfied_site() -> void
 }
 
 // Runs `body` under a fresh recording observer; returns the captured record
-// and whether the observer actually threw (i.e. the violation was delivered).
+// and whether the observer threw (i.e. the violation was delivered).
 auto capture_violation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
 {
   sg::dbc::set_observer(record_into(rec));
@@ -434,7 +434,8 @@ auto main() -> int
 #endif
 
   // (c) observer-throw under enforce: unique exception, child dies by uncaught
-  // exception (dispatch NOT noexcept), not via the response abort path.
+  // exception (dispatch NOT noexcept), The response abort path is a separate
+  // arm.
 #if defined(__unix__)
   if (SG_CONTRACTS_SEMANTIC == 2) {
     struct unique_exc : std::exception

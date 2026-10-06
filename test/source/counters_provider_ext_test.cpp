@@ -81,8 +81,8 @@ public:
   }
 
 private:
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(window_reader& base, point_sink& sink) noexcept
+      -> void
   {
     auto& reader = static_cast<honk_window&>(base);
     reader.m_total += kHonksPerAction;
@@ -244,12 +244,12 @@ auto direct_call_scenario() -> void
   honk_window reader;
   const auto thunk = reader.resolve_thunk();
   std::uint64_t columns[1] = {0};
-  point_sink sink {columns, 1, 1, 0};
+  point_sink sink {columns, 1, 1, 1, 0};
   thunk(reader, sink);
   check(columns[0] == kHonksPerAction,
         "the installed direct-call slot delivers the provider's point");
   std::uint64_t via_virtual[1] = {0};
-  point_sink other {via_virtual, 1, 1, 0};
+  point_sink other {via_virtual, 1, 1, 1, 0};
   reader.read_points(other);
   check(via_virtual[0] == 2 * kHonksPerAction,
         "the virtual entry and the installed slot are the same function "

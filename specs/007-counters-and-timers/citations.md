@@ -23,7 +23,7 @@ the second family below. T259 places this rule in the Assumptions
 paragraph at `specs/007-counters-and-timers/spec.md:321`, in one
 sentence beside the existing sentence that names the journal the
 authoritative design record. T264 wrote that sentence into the bullet on
-that line, so the rule now stands in the spec itself as well as here.
+that line, so the rule now stands in the spec itself and here.
 T264 appended it to the bullet, which keeps every anchor into `spec.md`
 at or below line 321 unchanged.
 

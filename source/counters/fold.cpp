@@ -2,9 +2,12 @@
 // raw provenance, and the scope metric (specs/007-counters-and-timers,
 // FR-013, FR-018, FR-020, FR-030).
 
+#include <algorithm>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <expected>
 #include <optional>
 #include <string>
@@ -100,30 +103,38 @@ struct fold_context
   return left + right;
 }
 
+// The disclosure column that owns one leaf's slot. Each read group has its
+// own column, laid out past that group's own slot range, so a fold reads the
+// column beside the leaf it is folding. One column for the whole plan
+// described only the group owning the plan's last leaf (FR-001, FR-002,
+// FR-004).
+[[nodiscard]] auto disclosure_slot_for(const fold_context& ctx,
+                                       const std::size_t slot) -> std::size_t
+{
+  // Groups are laid out in offset order from zero, so a leaf slot is at
+  // or past every group the scan has already passed. The owning group is
+  // the first whose range end lies past the slot (FR-002).
+  for (const auto& group : ctx.layout.groups) {  // LCOV_EXCL_BR_LINE
+    if (slot < group.offset + group.count) {
+      return group.disclosure_slot;
+    }
+  }
+  // Every leaf slot belongs to a group, so the scan returns inside the
+  // loop. The plan's own column is the single-group answer a caller reads
+  // when it names no leaf.
+  return ctx.layout.disclosure_slot;  // LCOV_EXCL_LINE
+}
+
 // One leaf's measured fraction of the window it was enabled for. The
 // fold over a composite and the raw view of a single leaf disclose the
 // same pair, so both read it here and the two disclosures cannot drift
 // (FR-019, FR-020). No value means the leaf discloses no measured
 // fraction: it carries no enabled/running pair, or no enabled time
 // elapsed across the window.
-[[nodiscard]] auto leaf_ratio(const fold_context& ctx,
-                              const std::size_t slot) -> std::optional<double>
+[[nodiscard]] auto leaf_ratio(const fold_context& ctx, const std::size_t slot)
+    -> std::optional<double>
 {
   const auto& entry = ctx.layout.slots[slot];
-  // An action the disclosure marks as a gap measured no fraction, so the
-  // fold reports no measured fraction, because a ratio taken across zero
-  // counts is not one (FR-005).
-  const auto disclosure_index =
-      (ctx.layout.disclosure_slot * ctx.rec.stride) + ctx.j;
-  // The record's column base is a pointer into one contiguous buffer and
-  // the index is computed from the layout that buffer was built for, so
-  // the subscript is in range by construction.
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  if (ctx.rec.columns[disclosure_index]
-      == static_cast<std::uint64_t>(availability::gap))
-  {
-    return std::nullopt;
-  }
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the second operand can
   // never be the deciding one. `link_ratio_slots` (`plan.cpp:135-158`) writes
   // `ratio_enabled` and `ratio_running` together at `plan.cpp:150-156` or
@@ -153,15 +164,13 @@ struct ratio_result
   bool multiplexed = false;
 };
 
-}  // namespace
-
 // The multiplex ratio of one window: the product of the constituent
 // ratios, each raised to its algebraic exponent (FR-019). A source
 // without an enabled/running pair contributes 1.0 by construction. A
 // pair with no elapsed enabled time contributes 1.0; the fold has no
 // measured fraction to report and states full rate.
-[[nodiscard]] auto window_ratio(const fold_context& ctx,
-                                const expr_core& core) -> ratio_result
+[[nodiscard]] auto window_ratio(const fold_context& ctx, const expr_core& core)
+    -> ratio_result
 {
   ratio_result out;
   for (std::size_t index = 0; index < core.leaves.size(); ++index) {
@@ -192,6 +201,49 @@ struct ratio_result
   }
   return out;
 }
+
+// The state a window's disclosure column holds at one of its end points,
+// read as the enumeration the column encodes. The column is the plan's
+// managed disclosure column for this window, and the row is the sampling
+// action named by the caller's logical index (FR-001).
+[[nodiscard]] auto end_point_state(const fold_context& ctx,
+                                   const std::size_t row,
+                                   const std::size_t slot) -> availability
+{
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  const auto disclosure_index =
+      (disclosure_slot_for(ctx, slot) * ctx.rec.stride) + row;
+  // The record's column base is a pointer into one contiguous buffer and
+  // the index is computed from the layout that buffer was built for, so
+  // the subscript is in range by construction.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  return static_cast<availability>(ctx.rec.columns[disclosure_index]);
+}
+
+// Whether either end point of the window is an action that measured
+// nothing. A fold subtracts across its two end points, so a gap at either
+// one subtracts a count the read never produced, and the result is a number
+// no measurement supports. A gap strictly inside the window changes
+// nothing: the recorded counts are cumulative, so a window with two
+// measured end points has an exact delta between them (FR-001).
+[[nodiscard]] auto window_is_gap(const fold_context& ctx, const expr_core& core)
+    -> bool
+{
+  const auto gap = availability::gap;
+  // Every leaf's own group decides, so a plan drawing leaves from two
+  // providers reads each provider's own disclosure column (FR-001,
+  // FR-002).
+  return std::ranges::any_of(core.leaves,
+                             [&](const auto& leaf) -> bool
+                             {
+                               const std::size_t slot =
+                                   ctx.layout.by_address.at(leaf.address);
+                               return end_point_state(ctx, ctx.i, slot) == gap
+                                   || end_point_state(ctx, ctx.j, slot) == gap;
+                             });
+}
+
+}  // namespace
 
 auto fold_core(const expr_core& core,
                const recorder_api& rec,
@@ -230,10 +282,29 @@ auto fold_core(const expr_core& core,
       static_cast<void>(column);
     }
   }
+  // A window with a gap at either end point reports no measured value.
+  // The value stays at its default, so a caller that ignores the state
+  // reads zero and never reads a fabricated delta. The state says why
+  // (FR-001, FR-004).
+  if (window_is_gap(ctx, core)) {
+    return metric_result {
+        .value = 0.0,
+        .running_ratio = 1.0,
+        .availability = availability::gap,
+        .scaled = false,
+    };
+  }
   const ratio_result disclosure = window_ratio(ctx, core);
+  // Both end points were measured. The state is the one the column beside
+  // the spine's first leaf holds at the end-point row, which is the leaf a
+  // caller names when it reads a raw view of the same window (FR-004).
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+  const std::size_t root_slot =
+      ctx.layout.by_address.at(core.leaves[0].address);
   return metric_result {
       .value = eval(ctx, core, core.root()),
       .running_ratio = disclosure.ratio,
+      .availability = end_point_state(ctx, ctx.j, root_slot),
       // A window whose sources were multiplexed carries the kernel's
       // scaled estimate, and a fold the caller scaled carries one too;
       // a window that ran to completion at full rate carries neither
@@ -242,8 +313,8 @@ auto fold_core(const expr_core& core,
   };
 }
 
-auto fold_pairs_core(const expr_core& core,
-                     const recorder_api& rec) -> std::vector<metric_result>
+auto fold_pairs_core(const expr_core& core, const recorder_api& rec)
+    -> std::vector<metric_result>
 {
   SG_REQUIRE(rec.count >= 2,
              "pair folds need at least two committed points (FR-018)");
@@ -280,6 +351,11 @@ auto raw_core(const expr_core& core,
           .j = rec.wrapped ? (oldest + rec.stride - 1) % rec.stride
                            : (rec.count == 0 ? 0 : rec.count - 1),
       };
+      // The window's own end-point state, read from the disclosure column
+      // beside this leaf's own group. A caller reading raw points reads the
+      // state those points were taken under without naming a column index
+      // in its own source (FR-004, FR-005).
+      const auto state = end_point_state(ctx, ctx.j, slot);
       return points_view {
           .object_path = object_path,
           .name = leaf.name,
@@ -288,7 +364,13 @@ auto raw_core(const expr_core& core,
           .slot = slot,
           .points = rec.columns + slot * rec.stride,
           .count = rec.count,
-          .ratio = leaf_ratio(ctx, slot).value_or(1.0),
+          // The fraction this leaf ran for. The state decides the
+          // fallback, so the ratio a caller reads and the state beside it
+          // cannot disagree (FR-004, FR-005, FR-019, FR-020).
+          .ratio = (state == availability::gap)
+              ? 1.0
+              : leaf_ratio(ctx, slot).value_or(1.0),
+          .availability = state,
       };
     }
   }

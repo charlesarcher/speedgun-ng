@@ -130,7 +130,7 @@ for tu in *.cpp; do
   fi
 done
 
-# --- Positive TUs (must succeed) ---
+# Positive TUs (must succeed)
 if [ -d positive ]; then
   for tu in positive/*.cpp; do
     [ -f "$tu" ] || continue

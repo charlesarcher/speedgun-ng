@@ -43,7 +43,7 @@ export header). Primary design: standard headers only, with the dispatch as
 `inline` + noinline functions and observer state in a function-local static
 (shared across TUs by ODR). Documented fallback: out-of-line dispatch in
 `source/dbc/dbc.cpp` behind a dedicated generated export header, if the
-noinline-shim shape fails the assembly smoke test.
+noinline-shim shape fails the assembly check.
 
 ## Violation response API
 

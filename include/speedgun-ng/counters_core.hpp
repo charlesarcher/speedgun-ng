@@ -257,15 +257,37 @@ struct catalog_entry
 };
 
 /**
- * @brief The fold output: value, running-ratio disclosure, and the
- * scaled flag. The fields are members of the returned struct, so
- * omitting the disclosure is structurally impossible (FR-019).
+ * @brief The fold output: value, running-ratio disclosure, the
+ * availability the window discloses, and the scaled flag. The fields are
+ * members of the returned struct, so omitting the disclosure is
+ * structurally impossible (FR-019).
  *
+ * `availability` names the state the folded window carries. A fold whose
+ * start point or whose end point is an action that measured nothing
+ * reports `availability::gap` and a `value` that is not a measurement, so
+ * a caller reads the state before the number. A fold whose two end points
+ * are both measured reports the state those leaves disclosed, which is
+ * `availability::countable` for a leaf the host can count and one of the
+ * other enumerators otherwise. A gap anywhere strictly inside the window
+ * changes no fold, because the recorded counts are cumulative and a window
+ * with two measured end points has an exact delta between them
+ * (FR-001, FR-004, FR-005).
+ *
+ * `running_ratio` is the multiplex disclosure over the window. A window
+ * that carries a gap publishes `1.0` and discloses nothing, because no
+ * measured time covers an action that measured no count (FR-005).
  */
 struct metric_result
 {
   double value = 0.0;
   double running_ratio = 1.0;
+  // The field carries the contract's name. The type is qualified because a
+  // member named as a type already in this namespace changes that name's
+  // meaning for the rest of the class body, which is ill-formed, and the
+  // qualification is the smallest thing that keeps the public name the
+  // contract fixes (FR-004, FR-035).
+  ::sg::counters::availability availability =
+      ::sg::counters::availability::countable;
   bool scaled = false;
 };
 

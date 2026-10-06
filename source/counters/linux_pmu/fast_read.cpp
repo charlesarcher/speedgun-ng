@@ -72,8 +72,8 @@ auto fast_pair_stable(const std::uint32_t sequence_before,
   return sequence_before == sequence_after;
 }
 
-auto fast_pinning_ok(const int pinned_cpu,
-                     const int current_cpu) noexcept -> bool
+auto fast_pinning_ok(const int pinned_cpu, const int current_cpu) noexcept
+    -> bool
 {
   return pinned_cpu < 0 || pinned_cpu == current_cpu;
 }
@@ -172,9 +172,8 @@ auto fast_context_read(const fast_context&, std::uint64_t&) -> fast_read_verdict
   return fast_read_verdict::not_allowed;
 }
 
-auto fast_context_time_pair(const fast_context&,
-                            std::uint64_t&,
-                            std::uint64_t&) -> bool
+auto fast_context_time_pair(const fast_context&, std::uint64_t&, std::uint64_t&)
+    -> bool
 {
   return false;
 }
@@ -308,8 +307,8 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
 // the body applies are covered for both arms by `fast_decode` and the
 // `fast_index_valid` and `fast_pair_stable` seams in
 // `test/source/counters_linux_pmu_seam_test.cpp`.
-auto fast_context_read(const fast_context& context,
-                       std::uint64_t& value) -> fast_read_verdict
+auto fast_context_read(const fast_context& context, std::uint64_t& value)
+    -> fast_read_verdict
 {
   SG_REQUIRE(std::this_thread::get_id() == context.owner,
              "a mapped-page read runs on the thread that opened its "
@@ -382,8 +381,37 @@ auto fast_context_time_pair(const fast_context& context,
     return false;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_LINE
   // LCOV_EXCL_BR_STOP
-  enabled = page_enabled;
-  running = page_running;
+  // The kernel's own time recipe, applied to the fields this page
+  // publishes (FR-007, FR-008, FR-009). The recipe is gated on the
+  // capability bit and on an enabled count that differs from the running
+  // count, exactly as the header states at :615, so a page that names no
+  // time capability, or one whose counts already agree, keeps the raw pair
+  // and the arithmetic below never runs.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+  const bool cap_user_time = page->cap_user_time != 0;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+  const bool cap_user_time_short = page->cap_user_time_short != 0;
+  // The cycle counter is sampled with the instruction, inside the
+  // sequence loop and before the stability comparison, which is where
+  // the header places it (linux/perf_event.h:616).
+  const auto cyc =
+      (cap_user_time && page_enabled != page_running) ? __rdtsc() : 0U;
+  const event_time_fields fields {
+      .cap_user_time = cap_user_time,
+      .cap_user_time_short = cap_user_time_short,
+      .time_enabled = page_enabled,
+      .time_running = page_running,
+      .index = page->index,
+      .time_shift = page->time_shift,
+      .time_mult = page->time_mult,
+      .time_offset = page->time_offset,
+      .time_cycles = page->time_cycles,
+      .time_mask = page->time_mask,
+      .cyc = cyc,
+  };
+  const auto pair = fast_time_pair(fields);
+  enabled = pair.enabled;
+  running = pair.running;
   return true;
   // LCOV_EXCL_STOP
 }

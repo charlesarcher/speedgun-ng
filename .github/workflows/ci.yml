@@ -393,6 +393,27 @@ jobs:
       run: cmake --build build-consumer -v | tee consumer-build.log
     - name: Run consumer
       run: ./build-consumer/consumer
+    - name: Compare the installed count against the build tree's
+      run: |
+        set -euo pipefail
+        installed=$(./build-consumer/consumer \
+          | sed -n 's/^consumer: pmu catalog entries \([0-9]\+\)$/\1/p')
+        built=$(./build/test/counters_pmu_test \
+          | sed -n 's/^pmu catalog entries \([0-9]\+\)$/\1/p')
+        if [ -z "$installed" ] || [ -z "$built" ]; then
+          echo "::error::a catalog figure is missing" \
+            "(installed='$installed' build tree='$built')"
+          exit 1
+        fi
+        if [ "$installed" != "$built" ]; then
+          echo "::error::the installed catalog publishes $installed entries" \
+            "and the build tree publishes $built"
+          exit 1
+        fi
+        echo "installed and build-tree counts agree: $installed"
+      # The installed consumer and the build tree read the same catalog
+      # on this runner, so a difference between the two is a packaging
+      # fault the count alone would otherwise hide (FR-022, SC-012, D-12).
     - name: Audit consumer logs for hwloc
       run: test -z "$(grep -i hwloc consumer-configure.log consumer-build.log)"
     - name: Audit consumer logs for simdjson

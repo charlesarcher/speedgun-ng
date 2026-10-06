@@ -236,8 +236,8 @@ inline auto set_observer(violation_observer observer) -> void
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 
-// Enforcement entry points are the fuse box (FR-032), not application code.
-// LCOV_EXCL_START
+// Enforcement entry points are the fuse box (FR-032). Application code sits
+// outside them. LCOV_EXCL_START
 #if SG_CONTRACTS_SEMANTIC != 0
 /**
  * @brief Dispatch a precondition violation under the active semantic.

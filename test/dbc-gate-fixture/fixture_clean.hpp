@@ -7,7 +7,7 @@ namespace sg::test::dbc::gate_fixture
 {
 
 /**
- * @brief A public function with genuinely empty precondition.
+ * @brief A public function with empty precondition.
  *
  * \pre none
  * \post result >= 0
@@ -35,7 +35,7 @@ inline int clean_full(int x)
 }
 
 /**
- * @brief Public function with both contracts explicitly none (genuinely empty
+ * @brief Public function with both contracts explicitly none (empty
  * set).
  *
  * \pre none

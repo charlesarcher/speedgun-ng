@@ -312,6 +312,30 @@ target_link_libraries(counters_objects_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_objects_test PRIVATE cxx_std_23)
 add_test(NAME counters_objects_test COMMAND counters_objects_test)
 
+# Per-window disclosure column under both provider registration orders
+# (T012, T013; FR-002, FR-004, FR-005, SC-002, SC-003, D-03). Two binaries
+# over one source, because provider registration happens once per process
+# and the two orders cannot share one binary. Each order is a test that can
+# fail.
+foreach(order RANGE 1)
+  if(order EQUAL 0)
+    set(order_suffix "_clock_first")
+  else()
+    set(order_suffix "_pmu_first")
+  endif()
+  add_executable(counters_registration_order_test${order_suffix}
+                 source/counters_registration_order_test.cpp)
+  target_link_libraries(counters_registration_order_test${order_suffix}
+                        PRIVATE speedgun-ng::speedgun-ng)
+  target_compile_features(counters_registration_order_test${order_suffix}
+                          PRIVATE cxx_std_23)
+  target_compile_definitions(
+    counters_registration_order_test${order_suffix}
+    PRIVATE SG_REGISTRATION_ORDER=${order})
+  add_test(NAME counters_registration_order_test${order_suffix}
+           COMMAND counters_registration_order_test${order_suffix})
+endforeach()
+
 # Shipped clock and push providers (T034, T038; FR-033..FR-035): clock
 # windows, push hot-path adds, composites with standard disclosure, and
 # the raw time-stamp entry publishing under the build guard with no rate

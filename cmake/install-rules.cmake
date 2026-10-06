@@ -36,7 +36,7 @@ install(
 
 write_basic_package_version_file(
     "${package}ConfigVersion.cmake"
-    COMPATIBILITY SameMajorVersion
+    COMPATIBILITY SameMinorVersion
 )
 
 # Allow package maintainers to freely override the path for the configs

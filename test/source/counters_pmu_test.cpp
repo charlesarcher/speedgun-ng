@@ -214,8 +214,8 @@ auto sysfs_alias_names(const std::string& device) -> std::vector<std::string>
 }
 
 // The exact configuration text the kernel publishes for one alias.
-auto sysfs_alias_text(const std::string& device,
-                      const std::string& alias) -> std::string
+auto sysfs_alias_text(const std::string& device, const std::string& alias)
+    -> std::string
 {
   std::ifstream file(std::filesystem::path(kDevicesRoot) / device / "events"
                      / alias);
@@ -245,8 +245,10 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
 {
   check(!pmu_objects.empty(), "the provider seeded at least one pmu object");
   std::size_t table_only = 0;
+  std::size_t catalog_total = 0;
   for (const object* obj : pmu_objects) {
     const auto entries = obj->counters();
+    catalog_total += entries.size();
     check(!entries.empty(), "every pmu object carries catalog entries");
     const auto aliases = sysfs_alias_names(std::string(obj->path()));
     for (const auto& entry : entries) {
@@ -288,6 +290,10 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
   }
   std::printf("pmu catalog: %zu table-selected entries beyond kernel aliases\n",
               table_only);
+  // The installed consumer prints this same figure from the same catalog,
+  // so a downstream job compares the two and names a difference between
+  // what it linked and what this tree built (FR-022, SC-012, D-12).
+  std::printf("pmu catalog entries %zu\n", catalog_total);
 }
 
 // Scenario 4: the reported availability is consistent with the probe
@@ -446,7 +452,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   // nothing else. The level above is the level the availability probe's
   // test-opens answered at; it does not decide the fast mechanism, and a
   // claim that it did was measured false on this host, whose kernel grants
-  // the path at level 2 as well as at 1 (T131, T135). So the count of
+  // the path at level 2 and at 1 (T131, T135). So the count of
   // fast entries is reported beside the level and never asserted against
   // it; the obligation FR-023 states is that a disclosed mode is the mode
   // the plan reads, which `disclosed_mode_read_scenario` checks by

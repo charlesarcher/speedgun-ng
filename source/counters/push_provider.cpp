@@ -26,8 +26,8 @@ struct detail::push_window final : window_reader
   // call. `final` fixes the target of the `read_points` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(window_reader& base, point_sink& sink) noexcept
+      -> void
   {
     static_cast<push_window&>(base).read_points(sink);
   }
@@ -49,7 +49,8 @@ struct detail::push_window final : window_reader
     // the action always measures and the disclosure names the entry's own
     // countability value (FR-007).
     if (disclosure_column != leaf_set::no_disclosure_column) {
-      sink.put(static_cast<std::uint64_t>(availability::countable));
+      sink.put_disclosure(disclosure_column,
+                          static_cast<std::uint64_t>(availability::countable));
     }
   }
 };

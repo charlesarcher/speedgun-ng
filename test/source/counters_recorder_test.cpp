@@ -229,40 +229,61 @@ auto test_disclosure_column() -> void
     fail("the disclosure plan compiles");
   }
   auto rec = compiled->recorder(4);
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 4; ++i) {
     rec.sample();
   }
-  const auto view = rec.view();
   // The counts are read through the raw view, which resolves each leaf by
   // its canonical address, so the assertion does not depend on the order
-  // the compile laid the leaves out in. The disclosure is the managed
-  // column past the last leaf, which is the one the sampling action writes
-  // last (FR-007).
+  // the compile laid the leaves out in. The disclosure sits in its own
+  // managed column, which the sampling action writes last (FR-007).
   const auto cycles_view = ipc.raw(rec.view(), "package-1/core-3", "cyc3");
   const auto instructions_view =
       ipc.raw(rec.view(), "package-1/core-3", "ins3");
   if (!cycles_view.has_value() || !instructions_view.has_value()) {
     fail("the recorded row exposes both retained columns (FR-020)");
   }
-  const std::size_t disclosure_column = 2;
-  const auto disclosure = [&view](const std::size_t row) -> std::uint64_t
-  { return view.columns[disclosure_column * view.stride + row]; };
-  const auto gap = static_cast<std::uint64_t>(sg::counters::availability::gap);
-  const auto countable =
-      static_cast<std::uint64_t>(sg::counters::availability::countable);
+  // The state of a row is read through the public surface, never through a
+  // column index. A fold over a window whose end point is a row publishes
+  // the state that row discloses, so the three windows below establish the
+  // state of every row, and the raw view publishes the state of the last row
+  // it spans. The test names no column index, so it holds whatever layout the
+  // compile chose (FR-004, FR-005, SC-003).
+  const auto gap = sg::counters::availability::gap;
+  const auto countable = sg::counters::availability::countable;
 
-  check(disclosure(0) == countable && cycles_view->points[0] == 0
-            && instructions_view->points[0] == 0,
-        "a measured zero carries the entry's own countability value beside "
-        "it (FR-007)");
-  check(disclosure(1) == gap && cycles_view->points[1] == 0
-            && instructions_view->points[1] == 0,
-        "an action that measured nothing carries availability::gap beside a "
-        "zero count (FR-007)");
-  check(disclosure(2) == countable && cycles_view->points[2] == 100
-            && instructions_view->points[2] == 400,
-        "a measured action carries the countability value beside its counts "
+  check(cycles_view->points[0] == 100 && instructions_view->points[0] == 1000,
+        "a measured action carries its own count (FR-007)");
+  check(cycles_view->points[1] == 260 && instructions_view->points[1] == 2600,
+        "a second measured action carries its own count (FR-007)");
+  check(cycles_view->points[2] == 0 && instructions_view->points[2] == 0,
+        "an action that measured nothing carries a zero count (FR-007)");
+  check(cycles_view->points[3] == 700 && instructions_view->points[3] == 7000,
+        "the action after a gap carries the count the script resumed at "
         "(FR-007)");
+  check(cycles_view->availability == countable
+            && instructions_view->availability == countable,
+        "a raw view publishes the countability value beside its counts, read "
+        "from the field and naming no column index (FR-004, FR-005, SC-003)");
+
+  // The three gap windows FR-001 names, over the scripted counts above.
+  // A window whose end point is the gap, a window whose start point is the
+  // gap, and a window with the gap strictly inside. The recorded counts
+  // are cumulative, so the inside window's two end points are both
+  // measured and the delta between them is the real interval.
+  const auto end_point_gap = ipc.fold(rec.view(), 1, 2);
+  check(end_point_gap.availability == gap,
+        "a window whose end point is the gap discloses the gap (FR-001)");
+  const auto start_point_gap = ipc.fold(rec.view(), 2, 3);
+  check(start_point_gap.availability == gap,
+        "a window whose start point is the gap discloses the gap (FR-001)");
+  const auto inside_gap = ipc.fold(rec.view(), 0, 3);
+  check(
+      inside_gap.availability != gap,
+      "a window with the gap strictly inside is not a gap window " "(FR-001)");
+  check(same_double(inside_gap.value, 6000.0 / 600.0),
+        "a window with the gap strictly inside folds the delta between its "
+        "two measured end points, which the cumulative counts make exact "
+        "(FR-001)");
 
   // The ratio over the gap is reported as no measured fraction, because
   // the disclosure marks the action as one that measured nothing (FR-005).
@@ -270,31 +291,35 @@ auto test_disclosure_column() -> void
   check(same_double(over_gap.running_ratio, 1.0),
         "a fold across an action the disclosure marks as a gap discloses no "
         "measured multiplex ratio (FR-005)");
+  check(same_double(end_point_gap.running_ratio, 1.0),
+        "a fold whose end point is the gap discloses no measured multiplex "
+        "ratio, and the state beside it names the reason (FR-004, FR-005)");
 
   // FR-006: no fold over an action the disclosure marked as a gap reports
   // a delta from a count the read never produced. Two folds are compared
   // with each other, and no constant enters: one spans the measured action
-  // to the measured action across the gap, and one starts at the gap. The
-  // gap row carries zeros, so the two agree exactly, and any count the
-  // refused read fabricated would move one and not the other. The span's
-  // own value is then checked against the quotient of the two driven
-  // deltas, which is what the measured actions supplied (SC-002).
-  const auto over_gap_span = ipc.fold(rec.view(), 0, 2);
-  const auto from_gap = ipc.fold(rec.view(), 1, 2);
-  const auto driven_cycles = cycles_view->points[2] - cycles_view->points[0];
+  // to the measured action across the gap, so the gap sits strictly inside
+  // its window, and one starts at the gap, so the gap is one of its end
+  // points. The first reports only the delta the two measured actions
+  // drove; the second reports no value at all, because a window with a gap
+  // at an end point has no measured delta (FR-001, SC-002).
+  const auto over_gap_span = ipc.fold(rec.view(), 0, 3);
+  const auto from_gap = ipc.fold(rec.view(), 2, 3);
+  const auto driven_cycles = cycles_view->points[3] - cycles_view->points[0];
   const auto driven_instructions =
-      instructions_view->points[2] - instructions_view->points[0];
-  check(same_double(from_gap.value, over_gap_span.value)
-            && same_double(from_gap.running_ratio,
-                           over_gap_span.running_ratio),
-        "a fold starting at the gap reports the same value as one spanning "
-        "it, so the refused action contributed no count to either delta "
-        "(FR-006)");
+      instructions_view->points[3] - instructions_view->points[0];
+  check(from_gap.availability == sg::counters::availability::gap
+            && same_double(from_gap.value, 0.0),
+        "a fold starting at the gap reports no value, so the refused action "
+        "contributed no count to any delta (FR-006, FR-001)");
+  check(over_gap_span.availability != sg::counters::availability::gap,
+        "the fold spanning the gap has two measured end points, so it is not "
+        "a gap window (FR-001)");
   check(same_double(over_gap_span.value,
                     static_cast<double>(driven_instructions)
                         / static_cast<double>(driven_cycles)),
         "a fold spanning the gap row reports only the delta the measured "
-        "actions drove, 400 instructions over 100 cycles (FR-006)");
+        "actions drove, which the cumulative counts make exact (FR-006)");
 }
 
 // One sampling action is noexcept and writes no shared state. No recorded
@@ -443,14 +468,25 @@ auto register_everything() -> void
     provider->set_points(
         "package-1/core-3", instr_name, {1000, 3100, 5200, 7300, 9500}, 0);
   }
-  // The disclosure scenario: action one measures a zero, action two
-  // measures nothing at all, and action three measures a real count.
-  // A gap does not advance the script, so the sequence holds the measured
-  // zero first and the measured count after the gap.
-  provider->set_points("package-1/core-3", "cyc3", {0, 100}, 0);
-  provider->set_points("package-1/core-3", "ins3", {0, 400}, 0);
-  provider->set_gap_actions("package-1/core-3", "cyc3", {2});
-  provider->set_gap_actions("package-1/core-3", "ins3", {2});
+  // The disclosure scenario, scripted so every measured count stands above
+  // zero (FR-001, FR-007). A script that started at zero made the value a
+  // gap writes indistinguishable from a measured zero, because both read
+  // zero. Scripting the cumulative counts above zero lets a fold tell the
+  // two apart: a window whose end point is the gap has its own end-point
+  // value replaced by a zero, and a window whose start point is the gap has
+  // its start value replaced, while a window with the gap strictly inside
+  // keeps two measured end points.
+  //
+  // The script holds seven points, so a plan of three sampling actions sees
+  // the first four: action one measures the first count, action two
+  // measures the second, action three measures the gap, action four
+  // measures the fourth. The gap is action three.
+  provider->set_points("package-1/core-3", "cyc3", {100, 260, 700}, 0);
+  provider->set_points("package-1/core-3", "ins3", {1000, 2600, 7000}, 0);
+  // Action three is the gap. Neither leaf advances its script there, so the
+  // measured action after the gap reads the third scripted count.
+  provider->set_gap_actions("package-1/core-3", "cyc3", {3});
+  provider->set_gap_actions("package-1/core-3", "ins3", {3});
   // One dedicated leaf pair per thread for the concurrency test, which
   // runs first and must not consume the scripts above.
   for (int scenario = 0; scenario < 8; ++scenario) {

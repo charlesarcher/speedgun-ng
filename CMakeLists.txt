@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.3.0
+    VERSION 0.4.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -38,7 +38,13 @@ set_target_properties(
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES
     VERSION "${PROJECT_VERSION}"
-    SOVERSION "${PROJECT_VERSION_MAJOR}"
+    # The 0.x rule, stated once and in full: while the major version is 0
+    # the shared-object version carries the ABI number, which a consumer
+    # links against. Deriving it from the major position yields 0 for every
+    # 0.x release, so every release would claim the same ABI. The value is
+    # stated here and the package config's compatibility tracks the minor
+    # position (FR-020, FR-021, D-11).
+    SOVERSION 1
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng
 )
