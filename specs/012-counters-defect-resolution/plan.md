@@ -175,21 +175,10 @@ removed the provider concept. Both declarations remain absent from the
 public headers. The project version moves from 0.3.0 to 0.4.0 with
 this record (FR-020, FR-032).
 
-The release ships as **0.3.0**, and `SOVERSION` stays at 0 (FR-024).
-`CMakeLists.txt:7` carries the version; `CMakeLists.txt:41` sets
-`SOVERSION` from `PROJECT_VERSION_MAJOR`, which stays 0. The reason is
-additive public surface with no changed signature, which is the shape
-that took the minor bump in spec 008, where a change added a member to
-`system` and changed no signature. FR-021 has that shape: it adds a
-countability value that separates a scope refusal from an encoding
-refusal, beside a fixed-size bitmask of supported target kinds, and it
-changes no existing signature. Spec 011 called its purely additive
-change patch-level; that wording does not extend to a field added
-beside the availability on a public record, because a caller reading
-the record holds one more field to interpret. FR-007 widens no
-signature, because the disclosure travels in a managed column written
-through the existing `point_sink::put`. Embedding the vendored tables
-changes no public surface.
+The release is 0.4.0. `CMakeLists.txt` carries that version, and
+`SOVERSION` is 1. The shared-object version is stated, because the major
+position on the 0.x line is 0 and a consumer links against the
+shared-object version (FR-021, FR-032, SC-011).
 
 ### Deferred confirmation
 

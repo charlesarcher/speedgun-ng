@@ -783,3 +783,34 @@ US1, US2, and US7 read the mechanism they add.
   `specs/012-counters-defect-resolution/plan.md` and in the version
   note on `include/speedgun-ng/counters_measurement.hpp` per FR-032
   (partial)
+
+## Phase 13: Convergence
+
+- [X] T051 CRITICAL Rewrite the comment at
+  `test/source/counters_registration_order_test.cpp:163` so it does not
+  use `rather than`, and re-run
+  `python3 tools/prose/prose_gate.py --check prose --mode tree` until
+  it reports zero findings per Constitution VIII, FR-034, SC-013
+  (contradicts)
+- [X] T052 Read the cycle counter, the scale, offset, and shift fields,
+  the page index, and the short-counter fields inside the sequence
+  snapshot in `fast_context_time_pair` at
+  `source/counters/linux_pmu/fast_read.cpp`, before the stability
+  check, per FR-007, US3/AC1 (partial)
+- [X] T053 Publish a row whose register value is non-zero and whose
+  register index names no format as `not_encodable` in
+  `source/counters/linux_pmu/table_parse.cpp`, so the row does not
+  encode as countable without its filter, per FR-010 (partial)
+- [X] T054 Route a table unit that already carries an instance suffix
+  to that one device alone in `scope_reaches` at
+  `source/counters/linux_pmu/provider.cpp`, including the pinned units
+  `cbox_0`, `imc_free_running_0`, and `imc_free_running_1`, per FR-014
+  (partial)
+- [X] T055 Retire the sentence in the `Version lineage` section of
+  `specs/012-counters-defect-resolution/plan.md` that says the release
+  ships as 0.3.0 and `SOVERSION` stays at 0, so that section records
+  0.4.0 as the release, per FR-032, SC-011 (contradicts)
+- [X] T056 Add a requirement-correction entry to
+  `specs/007-counters-and-timers/citations-log.md` for each of I-01,
+  I-02, I-03, I-04(a), I-04(d), I-05, and I-07, naming the 007 or 012
+  requirement the correction restores, per FR-030 (partial)

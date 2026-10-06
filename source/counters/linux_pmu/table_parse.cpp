@@ -230,7 +230,15 @@ struct register_filter
   std::uint64_t value = 0;
   std::string_view format;
   bool present = false;
+  // A non-zero register value whose index names no format. The row must
+  // not encode as the base event with the filter dropped (FR-010).
+  bool unnamed = false;
 };
+
+// A field name no kernel format directory publishes. Composition refuses
+// a row that carries it, which is how the catalog publishes
+// `not_encodable` (FR-010).
+constexpr std::string_view kUnnamedRegister {"unnamed_register"};
 
 // The register number one index text names. The text may carry a
 // comma-separated pair, and the kernel's generator reads the first index of
@@ -294,6 +302,9 @@ auto register_filter_of(simdjson::dom::object attributes) -> register_filter
   simdjson::dom::element index_element;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
   if (attributes["MSRIndex"].get(index_element) != simdjson::SUCCESS) {
+    // A value with no index names no format. A zero value encodes no
+    // filter, so only a non-zero value refuses the row (FR-010).
+    out.unnamed = out.value != 0;
     return out;
   }
   std::string_view index_text;
@@ -305,6 +316,7 @@ auto register_filter_of(simdjson::dom::object attributes) -> register_filter
   }
   out.format = register_format(index);
   out.present = true;
+  out.unnamed = out.value != 0 && out.format.empty();
   return out;
 }
 
@@ -400,12 +412,13 @@ void add_entry(std::vector<pmu_table_entry>& table,
     }
   }
   // The register filter reaches the encoder as a field under the format
-  // its index names, so a non-zero register value is encoded rather than
-  // dropped. A value of zero encodes no filter, and an index the kernel's
-  // map does not name leaves the row with no field, which publishes
-  // `not_encodable` on any device publishing no format for it (FR-010,
+  // its index names. A value of zero encodes no filter. A non-zero value
+  // whose index names no format carries a field no device publishes, so
+  // composition refuses the row and it publishes `not_encodable` (FR-010,
   // FR-011, D-05).
-  if (filter.present && filter.value != 0 && !filter.format.empty()) {
+  if (filter.unnamed) {
+    entry.fields.emplace_back(std::string(kUnnamedRegister), filter.value);
+  } else if (filter.present && filter.value != 0 && !filter.format.empty()) {
     entry.fields.emplace_back(std::string(filter.format), filter.value);
   }
   // A register index and a register value never survive as fields of
