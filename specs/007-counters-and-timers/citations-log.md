@@ -588,15 +588,20 @@ must_not_move: the msr thread-target path, and the closed task lines
 
 ```yaml
 date: 2026-10-06
-task: T027
+task: T059
 section: none; the frozen record holds no claim on this requirement
 claim_as_written: one core-event probe set the fast mode on every
-  countable entry, including a device whose own page refuses the read
-requirement_now_governing: 007 FR-013, through 012 FR-001
-code_now_governing: the fast verdict is the cap_user_rdpmc bit of the
-  device's own event page, read in source/counters/linux_pmu/provider.cpp
-command: grep -c cap_user_rdpmc source/counters/linux_pmu/provider.cpp (1)
-head: c059b0f, working tree
+  countable entry, including a device whose own page refuses the read.
+  The T027 entry named a cap_user_rdpmc read in provider.cpp that the
+  file did not perform; the verdict was the host probe and a sysfs
+  rdpmc file
+requirement_now_governing: 007 FR-013, through 012 FR-001 and 013 FR-017
+code_now_governing: device_page_fast_verdict at
+  source/counters/linux_pmu/provider.cpp opens one event of that device
+  and reads cap_user_rdpmc from the page the kernel maps. The host-wide
+  instructions probe and the sysfs rdpmc file do not decide the verdict
+command: grep -c cap_user_rdpmc source/counters/linux_pmu/provider.cpp (6)
+head: 7ea0535, working tree
 must_not_move: the sampling-time refusal, which still discloses a gap and
   issues no syscall read, and the closed task lines
 ```

@@ -309,9 +309,13 @@ auto register_filter_of(simdjson::dom::object attributes) -> register_filter
   }
   std::string_view index_text;
   std::uint64_t index = 0;
+  // A blank index, an index that does not parse, and an index that is not
+  // a string name no format. A non-zero value then refuses the row, the
+  // same refusal a missing index takes (FR-010).
   if (index_element.get_string().get(index_text) != simdjson::SUCCESS
       || !first_index_of(index_text, index))
   {
+    out.unnamed = out.value != 0;
     return out;
   }
   out.format = register_format(index);
@@ -320,13 +324,10 @@ auto register_filter_of(simdjson::dom::object attributes) -> register_filter
   return out;
 }
 
-// The kernel format a table key names. The kernel publishes `cmask`,
-// `inv`, `edge`, `offcore_rsp`, `any`, `ch_mask`, and `fc_mask`. The
-// vendored tables spell those keys `CounterMask`, `Invert`, `EdgeDetect`,
-// `OffcoreRsp`, `AnyThread`, `PortMask`, and `FCMask`. The field is
-// recorded under the kernel spelling, so the encoder resolves the row's
-// key against a format the device publishes, and the recorded name is the
-// kernel spelling (FR-011, FR-017, D-06).
+// The kernel format a table key names. The kernel's generator maps each
+// of these keys at jevents.py:389-404. The field is recorded under the
+// kernel spelling, so the encoder resolves the row's key against a format
+// the device publishes (FR-011, D-06).
 auto kernel_spelling(const std::string_view key) noexcept -> std::string_view
 {
   if (key == "CounterMask") {
@@ -349,6 +350,21 @@ auto kernel_spelling(const std::string_view key) noexcept -> std::string_view
   }
   if (key == "FCMask") {
     return "fc_mask";
+  }
+  if (key == "RdWrMask") {
+    return "rdwrmask";
+  }
+  if (key == "EnAllCores") {
+    return "enallcores";
+  }
+  if (key == "EnAllSlices") {
+    return "enallslices";
+  }
+  if (key == "SliceId") {
+    return "sliceid";
+  }
+  if (key == "ThreadMask") {
+    return "threadmask";
   }
   return {};
 }

@@ -64,18 +64,6 @@ std::unique_ptr<window_reader> pmu_provider::open(const leaf_set& /*leaves*/,
 namespace
 {
 
-// Whether this device grants the user counter read. The kernel publishes an
-// `rdpmc` file on every device whose counters the read instruction can
-// reach, and writes nothing on a device it cannot, so the file's presence
-// is the verdict. The host-wide probe answers whether the instruction
-// works at all, and this answers whether this device is reachable by it
-// (FR-017, FR-018, FR-023, D-10).
-auto device_grants_fast_read(const std::filesystem::path& dir) noexcept -> bool
-{
-  std::error_code code;
-  return std::filesystem::exists(dir / "rdpmc", code);
-}
-
 constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
 
 // Sysfs publishes per-alias attributes beside an event file as
@@ -171,6 +159,42 @@ auto merge_vendored(detail::pmu_device& device) -> void
   // `merge_vendored`, the same unexecuted-block report the `load_device`
   // epilogue above carries.
 }  // LCOV_EXCL_LINE
+
+auto page_grants_user_rdpmc(const std::uint64_t cap_user_rdpmc) noexcept -> bool
+{
+  return cap_user_rdpmc != 0;
+}
+
+// Opens one event of `device` and reads `cap_user_rdpmc` from the page
+// the kernel maps for it. The host-wide instructions probe and the sysfs
+// `rdpmc` file take no part: a device whose own page publishes no bit
+// takes the syscall read (FR-017, D-10).
+auto device_page_fast_verdict(const detail::pmu_device& device) -> bool
+{
+  const target where = device.device_scoped
+      ? target {.kind = target_kind::cpu, .cpu = 0}
+      : target {};
+  for (const auto& entry : device.entries) {
+    const auto config = std::ranges::find_if(
+        entry.words,
+        [](const std::pair<int, std::uint64_t>& word) -> bool
+        { return word.first == 0; });
+    if (config == entry.words.end()) {
+      continue;
+    }
+    std::string refusal;
+    auto context =
+        fast_context_open(device.type, config->second, where, &refusal);
+    if (!context) {
+      continue;
+    }
+    const auto* page = static_cast<const perf_event_mmap_page*>(context->map);
+    const bool granted = page_grants_user_rdpmc(page->cap_user_rdpmc);
+    fast_context_close(*context);
+    return granted;
+  }
+  return false;
+}
 
 auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
 {
@@ -796,16 +820,10 @@ pmu_provider::pmu_provider()
     // device the scope covers (FR-019). A row scoped to a class this host
     // publishes no device for reaches none and stays out of the catalog.
     merge_vendored(*device);
-    // The fast verdict is this device's own: the kernel publishes an
-    // `rdpmc` file on every device that grants the user counter read, and
-    // this host carries that file on the core PMU alone. A host-wide
-    // verdict therefore named the fast mode on entries whose own device
-    // never granted it (FR-017, FR-018, FR-023, D-10).
-    // The host probe's false side is the runner whose kernel refuses the
-    // user counter read. This host grants it, and the same arm is excluded
-    // on the verdict above (FR-017).
-    const bool fast_capable =
-        host_fast_capable && device_grants_fast_read(dir);  // LCOV_EXCL_BR_LINE
+    // The fast verdict is the `cap_user_rdpmc` bit of this device's own
+    // event page. A host-wide instructions probe and a sysfs `rdpmc` file
+    // do not decide it (FR-017, D-10).
+    const bool fast_capable = detail::device_page_fast_verdict(*device);
     detail::probe_device(*device, fast_capable);
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.

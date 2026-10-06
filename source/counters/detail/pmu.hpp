@@ -739,6 +739,17 @@ struct entry_read_selection
 // never lists, which is what reaches a hybrid per-core scope.
 void probe_device(pmu_device& device, bool fast_capable);
 
+// The fast verdict over one event page. The header publishes the
+// capability as the `cap_user_rdpmc` bit, and that bit is the verdict
+// (FR-017).
+[[nodiscard]] auto page_grants_user_rdpmc(std::uint64_t cap_user_rdpmc) noexcept
+    -> bool;
+
+// The fast verdict of one device, read from an event page that device
+// opened. A device whose open the kernel refuses publishes no fast
+// verdict (FR-017).
+[[nodiscard]] auto device_page_fast_verdict(const pmu_device& device) -> bool;
+
 [[nodiscard]] auto load_device(const std::filesystem::path& dir)
     -> std::optional<pmu_device>;
 

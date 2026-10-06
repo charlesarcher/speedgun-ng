@@ -814,3 +814,22 @@ US1, US2, and US7 read the mechanism they add.
   `specs/007-counters-and-timers/citations-log.md` for each of I-01,
   I-02, I-03, I-04(a), I-04(d), I-05, and I-07, naming the 007 or 012
   requirement the correction restores, per FR-030 (partial)
+
+## Phase 14: Convergence
+
+- [X] T057 Publish a non-zero register value whose index is blank,
+  unparseable, or not a string as `not_encodable` in
+  `source/counters/linux_pmu/table_parse.cpp`, and stop
+  `test/source/counters_linux_pmu_seam_test.cpp` from asserting that
+  those rows encode without a filter, per FR-010 (contradicts)
+- [X] T058 Map `RdWrMask`, `EnAllCores`, `EnAllSlices`, `SliceId`, and
+  `ThreadMask` through `kernel_spelling` in
+  `source/counters/linux_pmu/table_parse.cpp` to `rdwrmask`,
+  `enallcores`, `enallslices`, `sliceid`, and `threadmask`, per FR-011
+  (partial)
+- [X] T059 Take each device's fast verdict from that device's own event
+  page `cap_user_rdpmc` bit in
+  `source/counters/linux_pmu/provider.cpp`, stop gating it on the
+  host-wide instructions probe or on the existence of a sysfs `rdpmc`
+  file, and correct the I-04(a) citation that claims this read already
+  happens, per FR-017 (partial)
