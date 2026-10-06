@@ -421,7 +421,7 @@ auto system::handle_for(const std::string& canonical) -> sg::counters::object&
   // One lock covers the lookup and the insert, so a concurrent miss on one
   // address constructs the handle once and hands the same entry to every
   // thread that named it (FR-010).
-  const std::lock_guard<std::mutex> guard {m_impl->handles_lock};
+  const std::scoped_lock guard {m_impl->handles_lock};
   const auto existing = m_impl->handles.find(canonical);
   if (existing != m_impl->handles.end()) {
     return *existing->second;

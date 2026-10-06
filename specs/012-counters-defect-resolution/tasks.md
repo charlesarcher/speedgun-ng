@@ -643,7 +643,7 @@ behavior; each one is a gate, a record, or a check.
   and confirm 100 percent line, branch, and contract coverage on every
   changed line, `source/counters/linux_pmu/group_io.cpp` among them
   (FR-040)
-- [ ] T057 Confirm the clang-tidy warning count of each translation
+- [X] T057 Confirm the clang-tidy warning count of each translation
   unit named in T003, `source/counters/linux_pmu/fast_read.cpp`
   among them, did not rise, and that the pre-existing backlog outside
   those units' touched lines is untouched (FR-041, FR-042)

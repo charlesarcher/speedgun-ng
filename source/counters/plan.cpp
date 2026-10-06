@@ -295,8 +295,8 @@ static auto calibrate(plan_impl& layout) -> const overhead_sample&
     brackets.push_back(
         std::chrono::duration<double, std::nano>(after - before).count());
   }
-  std::sort(brackets.begin(), brackets.end());
-  const double bracket = brackets[brackets.size() / 2];
+  std::ranges::sort(brackets);
+  const double bracket = brackets.at(brackets.size() / 2);
   // A host whose clock costs more than the action publishes a floor of
   // zero. The subtraction clamps there, and the published duration is
   // never negative (FR-025).
@@ -509,20 +509,20 @@ auto compile_core(const system& sys,
   std::vector<std::vector<std::string>> per_provider(impl.providers.size());
   std::vector<std::size_t> group_of(impl.providers.size(),
                                     static_cast<std::size_t>(-1));
-  for (std::size_t p = 0; p < impl.providers.size(); ++p) {
-    const auto provider = static_cast<int>(p);
+  for (std::size_t provider_index = 0; provider_index < impl.providers.size(); ++provider_index) {
+    const auto provider = static_cast<int>(provider_index);
     for (const auto& one : pending) {
       if (one.record->provider_index == provider) {
-        per_provider[p].push_back(one.address);
+        per_provider.at(provider_index).push_back(one.address);
       }
     }
-    if (per_provider[p].empty()) {
+    if (per_provider.at(provider_index).empty()) {
       continue;
     }
-    group_of[p] = layout->groups.size();
+    group_of.at(provider_index) = layout->groups.size();
     read_group group;
     group.offset = layout->slots.size();
-    group.count = per_provider[p].size();
+    group.count = per_provider.at(provider_index).size();
     for (const auto& one : pending) {
       if (one.record->provider_index != provider) {
         continue;
@@ -537,16 +537,17 @@ auto compile_core(const system& sys,
   // The disclosure column sits past the last managed leaf, so the
   // group that owns the plan's last leaf is the one that writes it.
   layout->disclosure_slot = layout->slots.size();
-  for (std::size_t p = 0; p < impl.providers.size(); ++p) {
-    if (per_provider[p].empty()) {
+  for (std::size_t provider_index = 0; provider_index < impl.providers.size(); ++provider_index) {
+    if (per_provider.at(provider_index).empty()) {
       continue;
     }
-    auto& group = layout->groups[group_of[p]];
+    auto& group = layout->groups.at(group_of.at(provider_index));
     const bool last = group.offset + group.count == layout->slots.size();
-    auto reader = impl.providers[p]->open(
-        leaf_set {.addresses = std::move(per_provider[p]),
+    auto reader = impl.providers.at(provider_index)->open(
+        leaf_set {.addresses = std::move(per_provider.at(provider_index)),
                   .disclosure_column = last ? layout->disclosure_slot
-                                            : leaf_set::no_disclosure_column},
+                                            : leaf_set::no_disclosure_column,
+                 },
         tg);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the open refusal. It
     // needs a provider that declines a window for leaves its own catalog

@@ -7,8 +7,8 @@
 # path lookup for them. The embedding is unconditional: no option turns it
 # off, because a package without its tables publishes no counters.
 
-# Resolved at include time, where CMAKE_CURRENT_LIST_DIR names this
-# module rather than the calling list file.
+# Resolved at include time, where CMAKE_CURRENT_LIST_DIR names the
+# directory holding this module.
 set(SPEEDGUN_EMBED_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/embed_pmu_blob.cmake")
 set(SPEEDGUN_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 

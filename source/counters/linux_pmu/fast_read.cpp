@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "../detail/pmu.hpp"
+#include "speedgun-ng/counters_provider.hpp"
 #include "speedgun-ng/dbc.hpp"
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__i386__))
@@ -110,9 +111,17 @@ auto fast_decode(const std::uint32_t sequence_before,
   // count past the published counter width stays a cumulative count: the
   // kernel holds the bits above the width in the offset, and masking the
   // sum drops them (FR-004).
-  const auto sign_extended =
-      static_cast<std::int64_t>(raw << (64U - width)) >> (64U - width);
+  // The right shift runs on a signed value on purpose: an arithmetic
+  // shift is the sign extension the recipe calls for, and no unsigned
+  // spelling of it extends anything (FR-004).
+  // NOLINTNEXTLINE(bugprone-signed-bitwise)
+  const auto sign_extended = static_cast<std::int64_t>(raw << (64U - width))
+      >> (64U - width);
+  // The offset is unsigned and the extension signed, and the sum is cast
+  // to the unsigned type the counter holds before anything compares it.
+  // NOLINTNEXTLINE(modernize-use-integer-sign-comparison)
   value = static_cast<std::uint64_t>(sign_extended + offset);
+  // NOLINTNEXTLINE(modernize-use-integer-sign-comparison)
   SG_ENSURE(value == static_cast<std::uint64_t>(sign_extended + offset),
             "an ok verdict leaves the offset plus the sign-extended "
             "instruction value (FR-004)");

@@ -27,6 +27,7 @@
 
 #  include <algorithm>
 #  include <cctype>
+#  include <array>
 #  include <charconv>
 #  include <cstdint>
 #  include <cstdio>
@@ -151,15 +152,15 @@ auto parse_scalar(simdjson::dom::element value, std::uint64_t& out) -> bool
 // every Intel row into `not_encodable`.
 auto carries_no_obligation(const std::string_view key) noexcept -> bool
 {
-  constexpr std::string_view kNoObligation[] = {"SampleAfterValue",
-                                                "MSRValue",
-                                                "MSRIndex",
-                                                "PEBS",
-                                                "Data_LA",
-                                                "PerPkg",
-                                                "Experimental"};
-  return std::ranges::find(kNoObligation, std::end(kNoObligation), key)
-      != std::end(kNoObligation);
+  constexpr std::array<std::string_view, 7> no_obligation{
+      "SampleAfterValue",
+      "MSRValue",
+      "MSRIndex",
+      "PEBS",
+      "Data_LA",
+      "PerPkg",
+      "Experimental",};
+  return std::ranges::find(no_obligation, key) != std::end(no_obligation);
 }
 
 // The kernel format a table key names. The kernel publishes `cmask`,
@@ -261,6 +262,11 @@ void add_entry(std::vector<pmu_table_entry>& table,
 // document that fails to parse contributes nothing and total failure
 // surfaces as an empty table (seam contract). No exceptions: every
 // simdjson error becomes a skip.
+// The check reports both that <simdjson.h> goes unused and that no header
+// provides simdjson::padded_string. That header is the one providing the
+// type, so the pair cannot both be satisfied, and the include stays because
+// FR-013 makes this the only unit under source/counters/ that may include it.
+// NOLINTNEXTLINE(misc-include-cleaner)
 void parse_padded(const simdjson::padded_string& loaded,
                   std::vector<pmu_table_entry>& table)
 {
@@ -301,7 +307,7 @@ void parse_padded(const simdjson::padded_string& loaded,
 void parse_json_file(const std::filesystem::path& path,
                      std::vector<pmu_table_entry>& table)
 {
-  auto loaded = simdjson::padded_string::load(path.string());
+  const auto loaded = simdjson::padded_string::load(path.string());
   if (loaded.error() != simdjson::SUCCESS) {
     return;
   }
@@ -499,6 +505,9 @@ auto pmu_load_table(const std::string& directory)
   // the seam contract: no files, empty table.
   if (const embedded_dir* dir = embedded_find_dir(key)) {
     for (std::size_t i = 0; i < dir->file_count; ++i) {
+      // The registry's index is a generated C array and its count is the
+      // bound on this loop, so the subscript is in range by construction.
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       parse_json_bytes(embedded_file_bytes(*dir, dir->files[i].name), table);
     }
   }
