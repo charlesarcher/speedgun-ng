@@ -23,6 +23,7 @@
 #include "speedgun-ng/dbc.hpp"
 
 #if defined(__linux__)
+#  include <array>
 #  include <cctype>
 #  include <cerrno>
 #  include <cstdlib>
@@ -62,6 +63,18 @@ std::unique_ptr<window_reader> pmu_provider::open(const leaf_set& /*leaves*/,
 
 namespace
 {
+
+// Whether this device grants the user counter read. The kernel publishes an
+// `rdpmc` file on every device whose counters the read instruction can
+// reach, and writes nothing on a device it cannot, so the file's presence
+// is the verdict. The host-wide probe answers whether the instruction
+// works at all, and this answers whether this device is reachable by it
+// (FR-017, FR-018, FR-023, D-10).
+auto device_grants_fast_read(const std::filesystem::path& dir) noexcept -> bool
+{
+  std::error_code code;
+  return std::filesystem::exists(dir / "rdpmc", code);
+}
 
 constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
 
@@ -284,11 +297,15 @@ auto load_device(const std::filesystem::path& dir)
   detail::pmu_device device;
   device.path = dir.filename().string();
   device.type = type;
-  // The core PMU and its hybrid per-core instances count a thread's own
-  // events; every other published device binds one processor for every
-  // task, so its entries refuse a per-task target by their own scope.
-  device.device_scoped = device.path != "cpu" && device.path != "cpu_core"
-      && device.path != "cpu_atom";
+  // A device that publishes `cpumask` or `cpus` binds a processor set.
+  // The kernel registers no per-task context for that device, so the
+  // catalog marks it device-scoped and its entries take `scope_refused`
+  // from the published file. A device that publishes neither file takes
+  // the per-task probe, which is how `msr` keeps the thread target bit
+  // (FR-016, D-08).
+  std::error_code scope_code;
+  device.device_scoped = std::filesystem::exists(dir / "cpumask", scope_code)
+      || std::filesystem::exists(dir / "cpus", scope_code);
   device.description = "perf event source '" + device.path + "', PMU type "
       + std::to_string(type);
 
@@ -304,8 +321,7 @@ auto load_device(const std::filesystem::path& dir)
     // file there that the parser rejects.
     if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
             slurp(it->path()),
-            ranges))
-    {  // LCOV_EXCL_BR_LINE
+            ranges)) {  // LCOV_EXCL_BR_LINE
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -363,7 +379,8 @@ auto load_device(const std::filesystem::path& dir)
 // kernel device name and the second a table's scope label, and swapping
 // them answers a different question. The fixture drives both orders, so
 // a swap cannot pass unnoticed.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters,
+// readability-function-cognitive-complexity)
 auto scope_reaches(const std::string& device_path,
                    const std::string& scope) noexcept -> bool
 {
@@ -380,15 +397,66 @@ auto scope_reaches(const std::string& device_path,
   const bool core_scoped = folded.empty() || folded == "core";
   const bool core_device = device_path == "cpu" || device_path == "cpu_core"
       || device_path == "cpu_atom";
-  // A class-scoped row reaches the device of its own class, spelled bare
-  // or under the kernel's prefix. The rule is spelled once and both the
-  // verdict and the postcondition read it, so the check cannot disagree
-  // with the decision it checks (FR-019).
+  // A unit reaches a device through the generator's unit map, which names
+  // the device class and ignores a numeric instance suffix. So the class is
+  // the device name with the `uncore_` prefix and the numeric suffix both
+  // removed, and a unit reaches a device when its folded spelling equals
+  // that class. At the audit point the rule compared the whole name, so
+  // `uncore_imc_0` matched nothing and no numbered instance ever received
+  // a row (FR-014, FR-015, D-08, D-09).
   const std::string_view name {device_path};
+  // The kernel's generator unit map, as its own table generator spells it.
+  // An Intel unit names its class and the kernel prefixes it and numbers
+  // the instances. An AMD unit carries a vendor name the unit does not
+  // spell, so the map carries that pair (FR-014, FR-015, D-08, D-09).
+  // NOLINTBEGIN(readability-trailing-comma)
+  constexpr std::array<std::pair<std::string_view, std::string_view>, 3>
+      vendor_units {{
+          {"dfpmc", "amd_df"},
+          {"l3pmc", "amd_l3"},
+          {"umcpmc", "amd_umc"},
+      }};
+  // NOLINTEND(readability-trailing-comma)
+  std::string unit_class;
+  for (const auto& [unit, device] : vendor_units) {
+    if (folded == unit) {
+      unit_class = std::string(device);
+      break;
+    }
+  }
+  // An Intel unit names its own class, so the unit is the class the device
+  // name must reduce to. A vendor unit names the vendor device instead, so
+  // the device name carries the instance suffix and the class is that name
+  // with the prefix and the suffix removed.
+  if (unit_class.empty()) {
+    unit_class = folded;
+  }
+  const std::string_view bare {name};
   const std::string_view prefix {"uncore_"};
-  const bool named = name == folded
-      || (name.size() > prefix.size() && name.starts_with(prefix)
-          && name.substr(prefix.size()) == folded);
+  const std::string_view class_of =
+      bare.starts_with(prefix) ? bare.substr(prefix.size()) : bare;
+  // The instance suffix is the trailing run of digits and the underscore
+  // that introduces it, so `imc_0` reduces to `imc` and `arb_3` to `arb`.
+  const auto trimmed = [](std::string_view text) -> std::string_view
+  {
+    const auto cut = text.find_last_of('_');
+    if (cut == std::string_view::npos) {
+      return text;
+    }
+    for (auto digit = cut + 1; digit < text.size(); ++digit) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+      if (text[digit] < '0' || text[digit] > '9') {
+        return text;
+      }
+    }
+    return text.substr(0, cut);
+  };
+  std::string folded_class;
+  for (const char letter : trimmed(class_of)) {
+    folded_class.push_back(
+        static_cast<char>(std::tolower(static_cast<unsigned char>(letter))));
+  }
+  const bool named = unit_class == folded_class;
   const bool reaches = core_scoped ? core_device : named;
   SG_ENSURE(reaches == (core_scoped ? core_device : named),
             "a reached device belongs to the scope's own class, and the "
@@ -559,8 +627,8 @@ auto to_hex(const std::uint64_t value) -> std::string
 // itself with the event_attr text the kernel publishes, verbatim, so a
 // reader can reproduce the encoding; a vendored entry uses the table's
 // own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name,
-                       const std::string& text) -> std::string
+auto alias_description(const std::string& name, const std::string& text)
+    -> std::string
 {
   if (!text.empty()) {
     return "kernel event configuration: " + text;
@@ -585,17 +653,10 @@ auto table_description(const pmu_table_entry& entry) -> std::string
       }
     }
   }
-  // The scope-label guard. Both operand directions are measured by the seam
-  // fixtures: a row carrying "DFPMC" takes the label, and a row carrying
-  // "none" or no unit at all does not.
-  // LCOV_EXCL_BR_LINE : coverage exclusion (T140): the arc from the empty-unit
-  // operand straight to the false target. It needs a table row whose `Unit` is
-  // the empty string, and every row the granting host parses and every seam
-  // fixture builds carries `none` or a scope label, so no row on that host
-  // takes it; the CI runner's own trace takes it once.
-  if (!entry.unit.empty()  // LCOV_EXCL_BR_LINE
-      && entry.unit != "none")  // LCOV_EXCL_BR_LINE
-  {  // LCOV_EXCL_BR_LINE
+  // The scope-label guard. A row carrying a scope label takes it, and a
+  // row carrying none does not. The empty scope is the core scope and names
+  // no shared unit, so it takes no label (FR-017).
+  if (!entry.unit.empty()) {
     // The table's Unit column is a scope label naming the shared unit
     // the event counts into (DFPMC, iMC, and the rest). It carries no
     // physical dimension: no vendored table in the pinned tree names a
@@ -688,7 +749,7 @@ pmu_provider::pmu_provider()
   std::ranges::sort(devices);
 
   detail::pmu_probe_fast(*m_state);
-  const bool fast_capable = m_state->fast_available;
+  const bool host_fast_capable = m_state->fast_available;
   // The permission level the availability probe ran at rides the device
   // description, so a reader of the catalog learns the level at which
   // the kernel answered each test-open, and which refusals are that
@@ -707,7 +768,7 @@ pmu_provider::pmu_provider()
   // LCOV_EXCL_BR_START : coverage exclusion (T140): the refusal wording, on
   // the same kernel-gate ground as the mode ternary in `probe_device` above.
   const std::string verdict = "; the availability probe ran at " + level
-      + (fast_capable  // LCOV_EXCL_BR_LINE
+      + (host_fast_capable  // LCOV_EXCL_BR_LINE
              ? "; user counter reads are probe-available, entries "  // LCOV_EXCL_LINE
                "disclose fast_rdpmc"  // LCOV_EXCL_LINE
              : "; user counter reads stay in syscall mode: "  // LCOV_EXCL_LINE
@@ -730,6 +791,16 @@ pmu_provider::pmu_provider()
     // device the scope covers (FR-019). A row scoped to a class this host
     // publishes no device for reaches none and stays out of the catalog.
     merge_vendored(*device);
+    // The fast verdict is this device's own: the kernel publishes an
+    // `rdpmc` file on every device that grants the user counter read, and
+    // this host carries that file on the core PMU alone. A host-wide
+    // verdict therefore named the fast mode on entries whose own device
+    // never granted it (FR-017, FR-018, FR-023, D-10).
+    // The host probe's false side is the runner whose kernel refuses the
+    // user counter read. This host grants it, and the same arm is excluded
+    // on the verdict above (FR-017).
+    const bool fast_capable =
+        host_fast_capable && device_grants_fast_read(dir);  // LCOV_EXCL_BR_LINE
     detail::probe_device(*device, fast_capable);
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.

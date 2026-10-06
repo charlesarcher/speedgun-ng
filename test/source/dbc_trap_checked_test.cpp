@@ -41,7 +41,8 @@ auto main(int argc, char** argv) -> int
   std::remove(out.c_str());
 
   std::string cmd = "\"" + fixture + "\" > \"" + out + "\" 2>&1";
-  // The fixture aborts; we inspect the redirected output, not the exit code.
+  // The fixture aborts; we inspect the redirected output. The exit code stays
+  // unread.
   int const status = std::system(cmd.c_str());
   static_cast<void>(status);
 

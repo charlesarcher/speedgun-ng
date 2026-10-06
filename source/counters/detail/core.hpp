@@ -61,6 +61,11 @@ struct read_group
   std::unique_ptr<window_reader> reader;
   std::size_t offset = 0;
   std::size_t count = 0;
+  // This group's own disclosure column, the managed slot its window writes
+  // the per-action state to. Each group has one, laid out past its own slot
+  // range, because a plan drawing leaves from two providers discloses each
+  // provider's gaps in its own column (FR-001, FR-002, FR-004).
+  std::size_t disclosure_slot = 0;
 };
 
 // The measured per-action cost of one `sample()` on one plan (FR-032).
@@ -91,9 +96,13 @@ struct plan_impl
   // The managed column carrying the per-action disclosure: a measured
   // action writes the countability value the catalog publishes for the
   // entry, and an action that measured nothing writes
-  // `availability::gap`. It is the column past the last managed leaf,
-  // the sampling action writes it last, and a caller reads it to
-  // tell a measured zero from a gap (FR-007).
+  // `availability::gap`. One column per read group sits past that group's
+  // own last managed leaf, so a plan drawing leaves from two providers
+  // discloses each provider's gaps in its own column, and a caller reads
+  // the column to tell a measured zero from a gap (FR-001, FR-002, FR-007).
+  // A fold resolves the column from the group that owns the leaf rather
+  // than from the plan, so this field names the first group's column for
+  // the callers that read one column without naming a group.
   std::size_t disclosure_slot = 0;
   // Address to column slot, read by the fold layer. A composite's ops
   // and algebraic exponents travel with its spine, and no per-composite
@@ -130,12 +139,23 @@ struct plan_impl
   mutable overhead_sample overhead;
   mutable std::vector<std::uint64_t> calibration_buffer;
 
+  // The managed leaves, and nothing else. One sampling action writes one
+  // point per leaf through the shared sink, so this is the cursor's bound
+  // and the obligation `check_action` enforces (FR-047).
   [[nodiscard]] auto leaf_count() const noexcept -> std::size_t
   {
-    // The disclosure column is managed too: one sampling action writes one
-    // point per managed column, and the disclosure is the last of them
-    // (FR-007).
-    return slots.size() + 1;
+    return slots.size();
+  }
+
+  // Every managed column: the leaves and one disclosure per read group. The
+  // disclosures follow the leaves because a fold resolves a leaf to a slot
+  // with `by_address` and then reads that slot as a column, so a slot index
+  // and a column index are the same number and the two orders cannot
+  // interleave. This is the count every buffer and arena is sized against
+  // (FR-002, FR-007).
+  [[nodiscard]] auto column_count() const noexcept -> std::size_t
+  {
+    return slots.size() + groups.size();
   }
 };
 

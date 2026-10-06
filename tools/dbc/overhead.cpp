@@ -2,8 +2,8 @@
 // SC-008 checked-build overhead harness (T018).
 //
 // Two near-identical hot loops timed with std::chrono::steady_clock:
-//   uncontracted — payload only
-//   contracted   — the same payload plus a satisfied SG_REQUIRE per iteration
+//   uncontracted: payload only
+//   contracted  : the same payload plus a satisfied SG_REQUIRE per iteration
 //
 // The predicate is a runtime value (loaded from volatile each iteration) so
 // the check cannot be constant-folded. This translation unit is a documented
@@ -25,7 +25,7 @@
 #  define SG_OH_NOINLINE
 #endif
 
-// Measurement harness, not a library TU: short names in the timed
+// Measurement harness. The file is outside the library: short names in the timed
 // loops and parseable standard I/O are the point of the file.
 // NOLINTBEGIN(readability-identifier-length,bugprone-easily-swappable-parameters,cppcoreguidelines-avoid-magic-numbers,cppcoreguidelines-pro-type-vararg,hicpp-vararg,cert-err33-c,google-runtime-int,cppcoreguidelines-pro-bounds-pointer-arithmetic,readability-use-std-min-max,readability-math-missing-parentheses,modernize-use-ranges,boost-use-ranges)
 

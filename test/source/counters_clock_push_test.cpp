@@ -67,6 +67,7 @@ using sg::counters::dim;
 using sg::counters::expression;
 using sg::counters::leaf_set;
 using sg::counters::object;
+using sg::counters::point_sink;
 using sg::counters::push_counter;
 using sg::counters::push_provider;
 using sg::counters::read_mode;
@@ -270,8 +271,8 @@ auto catalog_scenario() -> void
 
 // A push handle names the counter it was declared for, so a caller can
 // report which cell a number came from (FR-035).
-auto push_name_scenario(const push_counter& first,
-                        const push_counter& second) -> void
+auto push_name_scenario(const push_counter& first, const push_counter& second)
+    -> void
 {
   check(first.name() == "bytes",
         "a push handle names the counter it was declared for (FR-035)");
@@ -333,8 +334,44 @@ auto open_refusal_scenario() -> void
 
 }  // namespace
 
+// A window opened with the default disclosure column writes its leaves
+// and writes no disclosure. compile() always names a column. This arm
+// opens the provider directly (FR-007).
+auto sample_without_disclosure() -> void
+{
+  const target where {};
+  clock_provider clocks;
+  auto clock_window =
+      clocks.open(leaf_set {.addresses = {"machine/monotonic"}}, where);
+  if (clock_window == nullptr) {
+    fail("the monotonic leaf opens with no disclosure column");
+  }
+  std::vector<std::uint64_t> clock_columns(1, 0);
+  point_sink clock_sink(clock_columns.data(), 1, 1, 1, 0);
+  clock_window->read_points(clock_sink);
+  check(clock_columns[0] != 0,
+        "a clock sample with no disclosure column still writes the leaf "
+        "(FR-007)");
+
+  push_provider pushes;
+  auto handle = pushes.add_counter("quiet", "ops", "opened with no disclosure");
+  handle.add(3);
+  auto push_window =
+      pushes.open(leaf_set {.addresses = {"machine/quiet"}}, where);
+  if (push_window == nullptr) {
+    fail("the push leaf opens with no disclosure column");
+  }
+  std::vector<std::uint64_t> push_columns(1, 0);
+  point_sink push_sink(push_columns.data(), 1, 1, 1, 0);
+  push_window->read_points(push_sink);
+  check(push_columns[0] == 3,
+        "a push sample with no disclosure column writes the leaf alone "
+        "(FR-007)");
+}
+
 auto main() -> int
 {
+  sample_without_disclosure();
   auto clock = std::make_unique<clock_provider>();
   auto push = std::make_unique<push_provider>();
   auto bytes_handle =

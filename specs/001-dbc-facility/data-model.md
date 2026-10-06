@@ -2,7 +2,7 @@
 
 **Feature**: 001-dbc-facility | **Date**: 2026-09-06
 
-The facility is a compile-time / runtime enforcement layer, not a data store.
+The facility is a compile-time / runtime enforcement layer. It holds no stored records.
 Its "data model" is the set of value types and registries that the enforcement
 machinery and the coverage gate operate on. Entities map 1:1 to `spec.md` →
 Key Entities.
@@ -24,8 +24,8 @@ A declared obligation at a contract site.
 (FR-019); `message` must be a string literal (FR-020).
 
 ### Contract site
-The specific source location where a contract is declared and — for non-exempt,
-non-compile-time contracts — enforced. The unit of the DBC coverage metric.
+The specific source location where a contract is declared and: for non-exempt,
+non-compile-time contracts: enforced. The unit of the DBC coverage metric.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -52,7 +52,7 @@ The structured data delivered to the violation response when a predicate fails.
 | `message` | `char const*` | The contract's message (string literal) |
 | `predicate_text` | `char const*` | The predicate expression, for diagnostics |
 
-**Invariants**: carries the contract's stable identity — kind, file, line,
+**Invariants**: carries the contract's stable identity: kind, file, line,
 message (FR-021).
 
 ### Evaluation semantic

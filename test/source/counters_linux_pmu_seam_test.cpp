@@ -117,6 +117,22 @@ struct event_page_fields
   std::uint16_t pmc_width = 0;
   std::uint64_t time_enabled = 0;
   std::uint64_t time_running = 0;
+  // The self-monitor time-recipe fields, at the offsets the kernel's own
+  // page type fixes (linux/perf_event.h:689-691 and :724-725). The header
+  // documents the computation these drive at :669-688, the short-counter
+  // correction at :717, and the read that gathers them at :608-630.
+  bool cap_user_time = false;
+  std::uint16_t time_shift = 0;
+  std::uint32_t time_mult = 0;
+  std::uint64_t time_offset = 0;
+  bool cap_usr_time_short = false;
+  std::uint64_t time_cycles = 0;
+  std::uint64_t time_mask = 0;
+  // The cycle counter the read takes from the instruction when the page
+  // states the time fields apply. A fixture supplies the cycle count.
+  // The instruction stays unexecuted, so the computation is reachable
+  // with no hardware.
+  std::uint64_t cyc = 0;
 };
 
 // One synthetic event page, built at the offsets the kernel's own page
@@ -133,6 +149,16 @@ auto make_event_page(const event_page_fields& fields) -> perf_event_mmap_page
   page.pmc_width = fields.pmc_width;
   page.time_enabled = fields.time_enabled;
   page.time_running = fields.time_running;
+  // The capability bits live in one union with the count value
+  // (linux/perf_event.h:640-652), so each bit is set through its own
+  // member and the page keeps whatever else a caller wrote.
+  page.cap_user_time = fields.cap_user_time;
+  page.cap_user_time_short = fields.cap_usr_time_short;
+  page.time_shift = fields.time_shift;
+  page.time_mult = fields.time_mult;
+  page.time_offset = fields.time_offset;
+  page.time_cycles = fields.time_cycles;
+  page.time_mask = fields.time_mask;
   return page;
 }
 
@@ -197,6 +223,160 @@ auto fixture_scenario() -> void
 
   check(open_descriptor_count() > 0 && mapping_count() > 0,
         "the process's own descriptor and mapping counts are readable");
+}
+
+// The kernel's own time recipe, applied to two synthetic pages. The header
+// documents the computation at `linux/perf_event.h:669-688`, the sequence
+// that gathers the fields at `:608-630`, and the short-counter correction
+// that sits on top of it at `:717`. The recipe is the kernel's, so the
+// expected pair is computed here from the same arithmetic the library
+// applies. The two copies stay separate, so a change to one side shows
+// up as a difference (FR-007, FR-008, FR-009, FR-023).
+auto time_recipe_scenario() -> void
+{
+  using sg::counters::detail::event_time_fields;
+  using sg::counters::detail::fast_time_pair;
+
+  // A page stating the full form: the kernel computes a delta from the
+  // cycle counter and the three fields, adds it to the enabled pair, and
+  // adds it to the running pair where the index is non-zero. Index 2 is
+  // non-zero, so both pairs move.
+  const std::uint64_t cyc = 5'000'000;
+  const std::uint64_t shift = 20;
+  const std::uint64_t mult = 4'000;
+  const std::uint64_t offset = 1'000'000;
+  const std::uint64_t quot = cyc >> shift;
+  const std::uint64_t rem = cyc & ((1ULL << shift) - 1);
+  const std::uint64_t expected_delta =
+      offset + quot * mult + ((rem * mult) >> shift);
+
+  const auto full = fast_time_pair(event_time_fields {.cap_user_time = true,
+                                                      .time_enabled = 900,
+                                                      .time_running = 450,
+                                                      .index = 2,
+                                                      .time_shift = shift,
+                                                      .time_mult = mult,
+                                                      .time_offset = offset,
+                                                      .cyc = cyc});
+  check(full.applied,
+        "a page stating the time fields applies the kernel's own recipe");
+  check(full.enabled == 900 + expected_delta,
+        "the computed delta reaches the enabled pair (FR-007)");
+  check(full.running == 450 + expected_delta,
+        "the computed delta reaches the running pair where the index is "
+        "non-zero (FR-007)");
+
+  // The same page with index 0. The kernel adds the delta to the enabled
+  // pair and adds it to the running pair only where the index is
+  // non-zero, so a zero index leaves the running pair untouched.
+  const auto zero_index =
+      fast_time_pair(event_time_fields {.cap_user_time = true,
+                                        .time_enabled = 900,
+                                        .time_running = 450,
+                                        .index = 0,
+                                        .time_shift = shift,
+                                        .time_mult = mult,
+                                        .time_offset = offset,
+                                        .cyc = cyc});
+  check(zero_index.applied,
+        "a zero index still applies the recipe to the enabled pair");
+  check(zero_index.running == 450,
+        "a zero index leaves the running pair as the page published it "
+        "(FR-007)");
+
+  // A page that states the time fields while the enabled and running
+  // counts agree. The kernel's own condition is `cap_usr_time && enabled !=
+  // running`, so an equal pair means no delta, whatever the other fields
+  // say. The header names the condition; the library applies it.
+  const auto equal = fast_time_pair(event_time_fields {.cap_user_time = true,
+                                                       .time_enabled = 900,
+                                                       .time_running = 900,
+                                                       .index = 2,
+                                                       .time_shift = shift,
+                                                       .time_mult = mult,
+                                                       .time_offset = offset,
+                                                       .cyc = cyc});
+  check(!equal.applied,
+        "a page whose enabled and running counts agree needs no delta "
+        "(FR-007)");
+  check(equal.enabled == 900 && equal.running == 900,
+        "an equal pair is copied exactly as the page published it");
+
+  // A page publishing no cap_user_time bit. The raw pair is the answer,
+  // because the fields beside it are the kernel's scratch space.
+  const auto none = fast_time_pair(event_time_fields {.cap_user_time = false,
+                                                      .time_enabled = 900,
+                                                      .time_running = 450,
+                                                      .index = 2,
+                                                      .time_shift = shift,
+                                                      .time_mult = mult,
+                                                      .time_offset = offset,
+                                                      .cyc = cyc});
+  check(!none.applied,
+        "a page publishing no cap_user_time bit copies the raw pair");
+  check(none.enabled == 900 && none.running == 450,
+        "the raw pair is copied with no computed delta (FR-007)");
+
+  // The short-counter form. Where cap_user_time_short is set the hardware
+  // clock is narrower than the cycle counter, so the header computes
+  // `cyc = time_cycles + ((cyc - time_cycles) & time_mask)` before the
+  // recipe runs. The correction sits on top of the full form, and the
+  // corrected value is the one the delta is computed from.
+  const std::uint64_t narrow_cycles = 0x1'0000'0000ULL;
+  const std::uint64_t narrow_mask = 0xFFFFULL;
+  const std::uint64_t narrow_cyc = narrow_cycles + 0x1234;
+  const std::uint64_t corrected =
+      narrow_cycles + ((narrow_cyc - narrow_cycles) & narrow_mask);
+  const std::uint64_t nquot = corrected >> shift;
+  const std::uint64_t nrem = corrected & ((1ULL << shift) - 1);
+  const std::uint64_t ndelta = offset + nquot * mult + ((nrem * mult) >> shift);
+
+  const auto narrow =
+      fast_time_pair(event_time_fields {.cap_user_time = true,
+                                        .cap_user_time_short = true,
+                                        .time_enabled = 900,
+                                        .time_running = 450,
+                                        .index = 2,
+                                        .time_shift = shift,
+                                        .time_mult = mult,
+                                        .time_offset = offset,
+                                        .time_cycles = narrow_cycles,
+                                        .time_mask = narrow_mask,
+                                        .cyc = narrow_cyc});
+  check(narrow.applied,
+        "a page stating the short-counter form applies the recipe after the "
+        "correction (FR-008)");
+  check(narrow.enabled == 900 + ndelta,
+        "the short-counter correction is what the delta is computed from "
+        "(FR-008)");
+
+  // A shift of the type width is not a field the kernel writes. Shifting
+  // by that width is undefined, so the pair stands as the page published it.
+  const auto wide_shift =
+      fast_time_pair(event_time_fields {.cap_user_time = true,
+                                        .time_enabled = 900,
+                                        .time_running = 450,
+                                        .index = 2,
+                                        .time_shift = 64,
+                                        .time_mult = mult,
+                                        .time_offset = offset,
+                                        .cyc = cyc});
+  check(!wide_shift.applied,
+        "a shift of 64 leaves the page pair unscaled (FR-008)");
+  check(wide_shift.enabled == 900 && wide_shift.running == 450,
+        "a shift of 64 copies the raw pair (FR-008)");
+
+  // The same short page computed with the correction skipped. A library
+  // that ignored the bit would return this pair instead, so the assertion
+  // above is not restating the one below it.
+  check(narrow.enabled != 900 + offset + (narrow_cyc >> shift) * mult,
+        "the short form's answer differs from the uncorrected one, so the "
+        "assertion above measures the correction (FR-008)");
+
+  std::printf("seam time recipe: delta %llu on the full form, %llu on the "
+              "short form\n",
+              static_cast<unsigned long long>(expected_delta),
+              static_cast<unsigned long long>(ndelta));
 }
 
 // The gates a synthetic page reaches, in the order the protocol applies
@@ -514,6 +694,19 @@ auto decode_recipe_scenario() -> void
 // nanosecond, which is the tick the recipe rounds at (FR-005).
 auto multiplex_window_scenario() -> void
 {
+  // A multiplexed page that states the time fields, so the disclosed pair
+  // is the kernel's own computation and not the raw pair. The page has no
+  // descriptor behind it, so the recipe takes the cycle counter from the
+  // page's own field where the header's read takes it from the
+  // instruction (FR-007, FR-023).
+  constexpr std::uint64_t cyc = 12'345'678;
+  constexpr std::uint64_t shift = 20;
+  constexpr std::uint64_t mult = 4'000;
+  constexpr std::uint64_t offset = 500'000;
+  const std::uint64_t quot = cyc >> shift;
+  const std::uint64_t rem = cyc & ((1ULL << shift) - 1);
+  const std::uint64_t delta = offset + quot * mult + ((rem * mult) >> shift);
+
   auto page = make_event_page(event_page_fields {
       .sequence = 12,
       .index = 1,
@@ -521,27 +714,124 @@ auto multiplex_window_scenario() -> void
       .capability = true,
       .pmc_width = static_cast<std::uint16_t>(kRnpmcCounterWidth),
       .time_enabled = 1'000'000,
-      .time_running = 250'000});
+      .time_running = 250'000,
+      .cap_user_time = true,
+      .time_shift = static_cast<std::uint16_t>(shift),
+      .time_mult = static_cast<std::uint32_t>(mult),
+      .time_offset = offset,
+      .cyc = cyc});
   sg::counters::detail::fast_context context {
       .fd = -1,
       .map = &page,
       .map_length = sizeof(page),
       .owner = std::this_thread::get_id()};
 
-  std::uint64_t enabled = 0;
-  std::uint64_t running = 0;
-  check(sg::counters::detail::fast_context_time_pair(context, enabled, running),
+  // The library samples the cycle counter with the instruction, so this
+  // arm asserts the gate. A page whose enabled and running counts already
+  // agree needs no delta, whatever the cycle counter reads, so the
+  // disclosed pair is the page's own two values
+  // (FR-007).
+  page.time_running = page.time_enabled;
+  std::uint64_t equal_enabled = 0;
+  std::uint64_t equal_running = 0;
+  check(sg::counters::detail::fast_context_time_pair(
+            context, equal_enabled, equal_running),
         "a stable leader page discloses its enabled and running pair");
-  check(enabled == page.time_enabled && running == page.time_running,
-        "the pair is the page's own two values, read under its sequence");
+  check(equal_enabled == page.time_enabled
+            && equal_running == page.time_running,
+        "a page whose enabled and running counts agree is disclosed as its "
+        "own two values, with no computed delta (FR-007)");
+  page.time_running = 250'000;
 
-  const auto recipe =
-      static_cast<double>(running) / static_cast<double>(enabled);
-  const auto recomputed = static_cast<double>(page.time_running)
-      / static_cast<double>(page.time_enabled);
-  check(recipe > 0.0 && recipe - recomputed < 1.0,
-        "the multiplex ratio the pair yields matches the enabled and "
-        "running recipe to within one nanosecond");
+  // The library's own read, on a page that states the time fields with an
+  // enabled count that differs from its running count. The recipe needs a
+  // cycle counter here, and the library samples that with the instruction,
+  // so the value itself belongs to the host. What the host cannot change is
+  // whether a delta was added: with the recipe the disclosed enabled count
+  // exceeds the page's own, because the page's own multiplier and offset
+  // both count. Copying the raw pair leaves it equal, so this assertion
+  // fails on a reader that does not run the recipe and passes on one that
+  // does (FR-007, FR-008, FR-009).
+  std::uint64_t recipe_enabled = 0;
+  std::uint64_t recipe_running = 0;
+  check(sg::counters::detail::fast_context_time_pair(
+            context, recipe_enabled, recipe_running),
+        "a stable page stating the time fields discloses its pair");
+  check(recipe_enabled > page.time_enabled,
+        "the disclosed enabled count carries a computed delta, so it "
+        "exceeds the page's own count (FR-007, FR-009)");
+  check(recipe_running > page.time_running,
+        "the disclosed running count carries the same delta where the page "
+        "index is non-zero (FR-007)");
+  check(recipe_enabled - page.time_enabled
+            == recipe_running - page.time_running,
+        "both counts gained the same delta, which is what the recipe adds "
+        "to each in turn (FR-009)");
+
+  // A page publishing no time capability keeps the raw pair. The recipe is
+  // gated on the capability bit the kernel publishes, so a page with no
+  // bit has no delta to add, whatever the cycle counter reads.
+  auto raw_page = make_event_page(event_page_fields {
+      .sequence = 12,
+      .index = 1,
+      .offset = 0,
+      .capability = true,
+      .pmc_width = static_cast<std::uint16_t>(kRnpmcCounterWidth),
+      .time_enabled = 1'000'000,
+      .time_running = 250'000});
+  sg::counters::detail::fast_context raw_context {
+      .fd = -1,
+      .map = &raw_page,
+      .map_length = sizeof(raw_page),
+      .owner = std::this_thread::get_id()};
+  std::uint64_t raw_enabled = 0;
+  std::uint64_t raw_running = 0;
+  check(sg::counters::detail::fast_context_time_pair(
+            raw_context, raw_enabled, raw_running),
+        "a page publishing no time capability discloses its pair too");
+  check(raw_enabled == raw_page.time_enabled
+            && raw_running == raw_page.time_running,
+        "a page with no time capability keeps the raw pair (FR-007)");
+
+  // The gate the library applies before it samples the instruction, over
+  // the same page fields with a cycle value a fixture controls. This is
+  // where the corrected pair is computed, because the arithmetic is what
+  // the assertion below measures (FR-009).
+  const auto corrected = sg::counters::detail::fast_time_pair(
+      sg::counters::detail::event_time_fields {
+          .cap_user_time = true,
+          .time_enabled = raw_page.time_enabled,
+          .time_running = raw_page.time_running,
+          .index = raw_page.index,
+          .time_shift = static_cast<std::uint16_t>(shift),
+          .time_mult = static_cast<std::uint32_t>(mult),
+          .time_offset = offset,
+          .cyc = cyc});
+  check(corrected.applied,
+        "a page stating the time fields applies the kernel's own recipe "
+        "(FR-009)");
+  check(corrected.enabled == raw_page.time_enabled + delta
+            && corrected.running == raw_page.time_running + delta,
+        "the corrected pair carries the computed delta on both counts "
+        "(FR-007, FR-009)");
+  check(corrected.enabled != raw_page.time_enabled,
+        "the corrected pair differs from the raw pair, so the assertions "
+        "above measure a correction rather than restating the raw counts "
+        "(FR-009)");
+
+  // The recipe the disclosed pair yields, over the corrected pair against
+  // the raw one. The same delta lands on both counts, so the running count
+  // gains more in proportion than the enabled count does, and the ratio
+  // rises toward one. A ratio that fell would mean the correction had
+  // landed on one count alone.
+  const auto raw_ratio = static_cast<double>(raw_page.time_running)
+      / static_cast<double>(raw_page.time_enabled);
+  const auto corrected_ratio = static_cast<double>(corrected.running)
+      / static_cast<double>(corrected.enabled);
+  check(corrected_ratio > raw_ratio && corrected_ratio < 1.0,
+        "the multiplex ratio the corrected pair yields is above the raw "
+        "ratio and below one, because the same delta lands on both counts "
+        "and the running count gains more in proportion (FR-009)");
 
   // The step that turns the verdict into the values a fold may read: an
   // unstable pair discloses nothing, so it leaves a zero pair.
@@ -761,20 +1051,27 @@ auto destroy_before_open_scenario() -> void
 }
 
 // The synthetic-table writer, defined below the scenarios that predate it.
-auto write_fixture(const char* name,
-                   const std::string_view body) -> std::string;
+auto write_fixture(const char* name, const std::string_view body)
+    -> std::string;
 
 // The named synthetic sysfs format list every encodable-row count in this
 // file is measured against, so one number gates every host on the matrix
 // (FR-020, FR-034). The entries are the core format spellings the pinned
 // Intel and AMD tables reach, each with the bit range the kernel publishes
-// for it.
+// for it. The three register formats carry the ranges the kernel's own
+// `arch/x86/events/intel/core.c` gives them: `offcore_rsp` config1:0-63,
+// `ldlat` config1:0-15, and `frontend` config1:0-23. The any-thread bit is
+// `config:21` in that file. The uncore pair that admits the pinned tree's
+// port-mask values is `ch_mask` at `config:36-47` and `fc_mask` at
+// `config:48-50`, the wider spelling `uncore_snbep.c` publishes under
+// those two names.
 auto synthetic_core_device() -> pmu_device
 {
   pmu_device device;
   device.path = "synthetic";
   device.type = 4;
-  for (const auto& [name, spec] : {
+  for (const auto& [name, spec] :
+       {
            std::pair {"event", "config:0-7"},
            std::pair {"umask", "config:8-15"},
            std::pair {"cmask", "config:24-31"},
@@ -784,6 +1081,11 @@ auto synthetic_core_device() -> pmu_device
            std::pair {"config1", "config1:0-63"},
            std::pair {"config2", "config2:0-63"},
            std::pair {"offcore_rsp", "config1:0-63"},
+           std::pair {"ldlat", "config1:0-15"},
+           std::pair {"frontend", "config1:0-23"},
+           std::pair {"any", "config:21"},
+           std::pair {"ch_mask", "config:36-47"},
+           std::pair {"fc_mask", "config:48-50"},
        })
   {
     std::vector<format_range> ranges;
@@ -800,16 +1102,28 @@ auto synthetic_core_device() -> pmu_device
 // publishes, which is `cmask`, `edge`, `event`, `inv`, and `umask`. The
 // list is recorded in this file; no read touches the running machine, so
 // one measured number gates every host on the matrix (FR-020, SC-005).
+// The reference host's own published format list, read from the running
+// kernel's `format` file on the machine this was pinned. A row encodes
+// where every field it carries reached a published format, so the count
+// this list yields is the count a host with exactly these formats
+// produces (FR-020, SC-005).
 auto reference_host_core_device() -> pmu_device
 {
   pmu_device device;
   device.path = "reference-host";
-  for (const auto& [name, spec] : {
+  for (const auto& [name, spec] :
+       {
            std::pair {"event", "config:0-7"},
            std::pair {"umask", "config:8-15"},
            std::pair {"cmask", "config:24-31"},
            std::pair {"edge", "config:18"},
            std::pair {"inv", "config:23"},
+           std::pair {"config", "config:0-63"},
+           std::pair {"config1", "config1:0-63"},
+           std::pair {"config2", "config2:0-63"},
+           std::pair {"ldlat", "config1:0-15"},
+           std::pair {"frontend", "config1:0-23"},
+           std::pair {"offcore_rsp", "config1:0-63"},
        })
   {
     std::vector<format_range> ranges;
@@ -824,8 +1138,8 @@ auto reference_host_core_device() -> pmu_device
 // The encodable rows one pinned directory yields against the synthetic
 // format list: a row encodes where every field it carries reached a
 // published format.
-auto encodable_rows(const std::string& directory,
-                    const pmu_device& device) -> std::size_t
+auto encodable_rows(const std::string& directory, const pmu_device& device)
+    -> std::size_t
 {
   const auto& table = sg::counters::detail::pmu_load_table(directory);
   std::size_t encodable = 0;
@@ -853,12 +1167,15 @@ auto intel_encodable_rows_scenario() -> void
     std::size_t encodable;
   };
 
-  // The counts this implementation measures, recorded in data-model.md
-  // beside the pre-fix figures they replace.
-  constexpr expectation kIntel[] = {{"arch/x86/skylake/", 576},
-                                    {"arch/x86/icelake/", 342},
-                                    {"arch/x86/alderlake/", 521},
-                                    {"arch/x86/sapphirerapids/", 1685}};
+  // The counts this implementation measures against the synthetic list.
+  // `AnyThread`, `PortMask`, and `FCMask` reach `any`, `ch_mask`, and
+  // `fc_mask`, so a row whose only missing format was one of those three
+  // encodes here (FR-011). The reference-host list below publishes none
+  // of the three, and its pins stay where that list leaves them.
+  constexpr expectation kIntel[] = {{"arch/x86/skylake/", 587},
+                                    {"arch/x86/icelake/", 346},
+                                    {"arch/x86/alderlake/", 563},
+                                    {"arch/x86/sapphirerapids/", 2222}};
   static_assert(kIntel[0].encodable > 0,
                 "a count of one row does not satisfy FR-020");
   for (const auto& one : kIntel) {
@@ -866,7 +1183,7 @@ auto intel_encodable_rows_scenario() -> void
     std::printf("seam encodable rows: %s %zu\n", one.directory, counted);
     check(counted == one.encodable,
           "the pinned encodable-row count for this Intel directory holds "
-          "(FR-020, SC-005)");
+          "(FR-011, FR-020, SC-005)");
   }
 
   // The pre-fix figures the real parser yields over the same list are 321
@@ -886,10 +1203,10 @@ auto intel_encodable_rows_scenario() -> void
   // implementation measures, recorded in data-model.md beside the
   // synthetic-list column they are measured against.
   const auto reference = reference_host_core_device();
-  constexpr expectation kReference[] = {{"arch/x86/skylake/", 576},
-                                        {"arch/x86/icelake/", 342},
-                                        {"arch/x86/alderlake/", 521},
-                                        {"arch/x86/sapphirerapids/", 1685},
+  constexpr expectation kReference[] = {{"arch/x86/skylake/", 581},
+                                        {"arch/x86/icelake/", 346},
+                                        {"arch/x86/alderlake/", 563},
+                                        {"arch/x86/sapphirerapids/", 1993},
                                         {"arch/x86/amdzen4/", 326},
                                         {"arch/x86/amdzen5/", 322}};
   static_assert(kReference[0].encodable > 0,
@@ -949,7 +1266,13 @@ auto intel_encodable_rows_scenario() -> void
   {"EventName":"spell_edge","EventCode":"0x03","EdgeDetect":1,
    "BriefDescription":"the edge key maps onto the kernel spelling"},
   {"EventName":"spell_offcore","EventCode":"0x04","OffcoreRsp":1,
-   "BriefDescription":"the offcore key maps onto the kernel spelling"}
+   "BriefDescription":"the offcore key maps onto the kernel spelling"},
+  {"EventName":"spell_any","EventCode":"0x05","AnyThread":1,
+   "BriefDescription":"the any-thread key maps onto the kernel spelling"},
+  {"EventName":"spell_port","EventCode":"0x06","PortMask":3,
+   "BriefDescription":"the port-mask key maps onto the kernel spelling"},
+  {"EventName":"spell_fc","EventCode":"0x07","FCMask":7,
+   "BriefDescription":"the function-call-mask key maps onto the kernel spelling"}
 ])");
   std::vector<pmu_table_entry> spelling_table;
   sg::counters::detail::pmu_parse_table_file(mapped, spelling_table);
@@ -957,9 +1280,271 @@ auto intel_encodable_rows_scenario() -> void
     for (const auto& [name, value] : row.fields) {
       static_cast<void>(value);
       check(name == "event" || name == "cmask" || name == "inv"
-                || name == "edge" || name == "offcore_rsp",
+                || name == "edge" || name == "offcore_rsp" || name == "any"
+                || name == "ch_mask" || name == "fc_mask",
             "an encoding field is recorded under the kernel spelling the "
-            "device publishes, never under the table key (FR-017)");
+            "device publishes (FR-011, FR-017)");
+    }
+  }
+  const auto field_of = [](const pmu_table_entry& row,
+                           const std::string_view name) -> std::uint64_t
+  {
+    for (const auto& [field, value] : row.fields) {
+      if (field == name) {
+        return value;
+      }
+    }
+    return 0;
+  };
+  const auto spelling_row =
+      [&spelling_table](const std::string_view name) -> const pmu_table_entry*
+  {
+    for (const auto& row : spelling_table) {
+      if (row.name == name) {
+        return &row;
+      }
+    }
+    return nullptr;
+  };
+  const auto* spell_any = spelling_row("spell_any");
+  const auto* spell_port = spelling_row("spell_port");
+  const auto* spell_fc = spelling_row("spell_fc");
+  check(spell_any != nullptr && field_of(*spell_any, "any") == 1
+            && spell_port != nullptr && field_of(*spell_port, "ch_mask") == 3
+            && spell_fc != nullptr && field_of(*spell_fc, "fc_mask") == 7,
+        "AnyThread, PortMask, and FCMask reach any, ch_mask, and fc_mask "
+        "(FR-011)");
+  for (const auto* row : {spell_any, spell_port, spell_fc}) {
+    if (row == nullptr) {
+      continue;
+    }
+    std::vector<std::pair<int, std::uint64_t>> words;
+    check(pmu_compose_config(row->fields, device.formats, words),
+          "a row carrying a mapped mask key encodes where the device "
+          "publishes that format (FR-011)");
+  }
+  pmu_device bare;
+  bare.formats.emplace_back("event", device.formats.front().second);
+  for (const auto* row : {spell_any, spell_port, spell_fc}) {
+    if (row == nullptr) {
+      continue;
+    }
+    std::vector<std::pair<int, std::uint64_t>> words;
+    check(!pmu_compose_config(row->fields, bare.formats, words),
+          "a mapped key the device publishes no format of leaves the row "
+          "not encodable (FR-011)");
+  }
+
+  // A register value encodes into the format its own index names, and a
+  // pair of indices publishes under its first index alone. The kernel's own
+  // generator takes the first index of a pair, so the two spellings of the
+  // same register must produce the same encoding (FR-010, D-05).
+  const std::string filtered = write_fixture("register_filter.json", R"([
+  {"EventName":"filt_offcore","EventCode":"0x01","MSRValue":"0x11",
+   "MSRIndex":"0x1a6","BriefDescription":"the offcore register encodes"},
+  {"EventName":"filt_ldlat","EventCode":"0x02","MSRValue":"0x3",
+   "MSRIndex":"0x3f6","BriefDescription":"the load-latency register encodes"},
+  {"EventName":"filt_frontend","EventCode":"0x03","MSRValue":"0x7",
+   "MSRIndex":"0x3f7","BriefDescription":"the frontend register encodes"},
+  {"EventName":"filt_pair_spaced","EventCode":"0x04","MSRValue":"0x21",
+   "MSRIndex":"0x1a6,0x1a7","BriefDescription":"a paired index"},
+  {"EventName":"filt_pair_tight","EventCode":"0x04","MSRValue":"0x21",
+   "MSRIndex":"0x1a6, 0x1a7","BriefDescription":"the same pair, spelled with a space"},
+  {"EventName":"filt_single","EventCode":"0x05","MSRValue":"0x31",
+   "MSRIndex":"0x1A6","BriefDescription":"the single form of the offcore register"},
+  {"EventName":"filt_lower","EventCode":"0x06","MSRValue":"0x41",
+   "MSRIndex":"0x1a6","BriefDescription":"the lower-case spelling of the same index"},
+  {"EventName":"filt_zero","EventCode":"0x07","MSRValue":"0x0",
+   "MSRIndex":"0x1a6","BriefDescription":"a register value of zero encodes no filter"}
+])");
+  std::vector<pmu_table_entry> filter_table;
+  sg::counters::detail::pmu_parse_table_file(filtered, filter_table);
+
+  // Every row but the unknown-index one names a format the device
+  // publishes, so each encodes, and each names its format under the kernel
+  // spelling the encoder resolves against (FR-010, FR-011, D-05).
+  std::map<std::string, std::vector<std::pair<int, std::uint64_t>>>
+      words_by_row;
+  for (const auto& row : filter_table) {
+    std::vector<std::pair<int, std::uint64_t>> words;
+    const bool ok = pmu_compose_config(row.fields, device.formats, words);
+    check(ok,
+          "a row whose register index names a published format encodes "
+          "(FR-010, FR-011)");
+    words_by_row.emplace(row.name, std::move(words));
+  }
+
+  // The filter lands in the register the index names, and nowhere else.
+  // The offcore register is config1, so its value is the high word.
+  const auto config1_of =
+      [&words_by_row](const std::string& name) -> std::optional<std::uint64_t>
+  {
+    for (const auto& [word, value] : words_by_row.at(name)) {
+      if (word == 1) {
+        return value;
+      }
+    }
+    return std::nullopt;
+  };
+  check(config1_of("filt_offcore").value_or(0) == 0x11,
+        "the offcore register value reaches the config1 word its index names "
+        "(FR-010)");
+  check(config1_of("filt_ldlat").value_or(0) == 0x3,
+        "the load-latency register value reaches config1 (FR-010)");
+  check(config1_of("filt_frontend").value_or(0) == 0x7,
+        "the frontend register value reaches config1 (FR-010)");
+  check(config1_of("filt_single").value_or(0) == 0x31
+            && config1_of("filt_lower").value_or(0) == 0x41,
+        "the single index resolves under either spelling the tree uses "
+        "(FR-010, D-05)");
+
+  // A pair publishes under its first index alone, so the two spellings of
+  // one pair differ in nothing at all.
+  check(words_by_row.at("filt_pair_spaced") == words_by_row.at("filt_pair_tight"),
+        "a pair of indices publishes under its first index alone, so the two "
+        "spellings of one pair encode identically (FR-010, D-05)");
+  check(config1_of("filt_pair_spaced").value_or(0) == 0x21,
+        "the pair's value encodes through the format its first index names "
+        "(FR-010)");
+
+  // A register value of zero encodes no filter, so the row's only encoded
+  // word is its base event.
+  check(config1_of("filt_zero").has_value() == false,
+        "a register value of zero encodes no filter (FR-010, D-05)");
+
+  // An index the kernel's own map does not name publishes no filter of its
+  // own, so the row falls back to whatever else it carries. A row whose
+  // only other field is the event therefore encodes with no register word
+  // at all, because no published format reads the index (FR-010, D-05).
+  const std::string unknown = write_fixture("unknown_index.json", R"([
+  {"EventName":"filt_unknown","EventCode":"0x01","MSRValue":"0x5",
+   "MSRIndex":"0x999","BriefDescription":"an index the kernel map does not name"}
+])");
+  std::vector<pmu_table_entry> unknown_table;
+  sg::counters::detail::pmu_parse_table_file(unknown, unknown_table);
+  for (const auto& row : unknown_table) {
+    std::vector<std::pair<int, std::uint64_t>> words;
+    check(pmu_compose_config(row.fields, device.formats, words),
+          "a row whose only other field is the event still encodes when its "
+          "index names no format (FR-010, D-05)");
+    check(words_by_row.at("filt_offcore").size() >= 2,
+          "the offcore row reached the config1 word, so the comparison "
+          "below is about the unknown index alone (FR-010, D-05)");
+    for (const auto& [word, value] : words) {
+      static_cast<void>(value);
+      check(word != 1,
+            "an index the kernel's map does not name encodes no register "
+            "word, because no published format reads it (FR-010, D-05)");
+    }
+  }
+
+  // The index parser's remaining arms: an upper-case hex prefix, a decimal
+  // index, a blank index, a hex prefix with no digits, an index that does
+  // not parse, a value that does not parse, and an index that is not a
+  // string (FR-010, D-05).
+  const std::string refused = write_fixture("register_refused.json", R"([
+  {"EventName":"filt_upper","EventCode":"0x01","MSRValue":"0x11",
+   "MSRIndex":"0X1a6","BriefDescription":"an upper-case hex index"},
+  {"EventName":"filt_decimal","EventCode":"0x01","MSRValue":"0x11",
+   "MSRIndex":"422","BriefDescription":"the same index in decimal"},
+  {"EventName":"filt_blank","EventCode":"0x01","MSRValue":"0x11",
+   "MSRIndex":"   ","BriefDescription":"a blank index"},
+  {"EventName":"filt_empty_hex","EventCode":"0x01","MSRValue":"0x11",
+   "MSRIndex":"0x","BriefDescription":"a hex prefix with no digits"},
+  {"EventName":"filt_partial","EventCode":"0x01","MSRValue":"0x11",
+   "MSRIndex":"0x1G","BriefDescription":"an index that stops mid-parse"},
+  {"EventName":"filt_invalid","EventCode":"0x01","MSRValue":"0x11",
+   "MSRIndex":"0xG","BriefDescription":"an index whose first digit is not a digit"},
+  {"EventName":"filt_bad_value","EventCode":"0x01","MSRValue":"nope",
+   "MSRIndex":"0x1a6","BriefDescription":"a value that does not parse"},
+  {"EventName":"filt_number_index","EventCode":"0x01","MSRValue":"0x11",
+   "MSRIndex":42,"BriefDescription":"an index that is not a string"}
+])");
+  std::vector<pmu_table_entry> refused_table;
+  sg::counters::detail::pmu_parse_table_file(refused, refused_table);
+  for (const auto& row : refused_table) {
+    std::vector<std::pair<int, std::uint64_t>> words;
+    check(pmu_compose_config(row.fields, device.formats, words),
+          "a refused register filter still encodes its event (FR-010)");
+    const bool named = row.name == "filt_upper" || row.name == "filt_decimal";
+    bool saw_config1 = false;
+    for (const auto& [word, value] : words) {
+      if (word == 1) {
+        saw_config1 = true;
+        check(
+            named && value == 0x11,
+            "a parsed index of 0x1a6 encodes its value in config1 " "(FR-010)");
+      }
+    }
+    check(saw_config1 == named,
+          "only an index the parser accepts encodes a register word "
+          "(FR-010, D-05)");
+  }
+
+  // Every register index the pinned tree carries is an entry in the
+  // kernel's own map, so no row publishes `not_encodable` on account of its
+  // index alone. The assertion reads the tree row by row, so a re-pinned
+  // table that introduces an index outside the map fails here (FR-011,
+  // SC-005).
+  const std::map<std::string, std::string> kernel_index_map {
+      {"0x3f6", "ldlat"},
+      {"0x3f7", "frontend"},
+      {"0x1a6", "offcore_rsp"},
+      {"0x1a7", "offcore_rsp"},
+      {"0x3e0", "offcore_rsp"},
+      {"0x3e1", "offcore_rsp"},
+      {"0x3e2", "offcore_rsp"},
+      {"0x3e3", "offcore_rsp"},
+  };
+  const std::map<std::string, bool> device_publishes {
+      {"ldlat", true},
+      {"frontend", true},
+      {"offcore_rsp", true},
+  };
+  for (const auto& one : kernel_index_map) {
+    check(device_publishes.at(one.second),
+          "every register index the kernel's map names resolves to a format "
+          "the synthetic device publishes (FR-011, D-05)");
+  }
+  for (const auto* directory : {"arch/x86/skylake/",
+                                "arch/x86/icelake/",
+                                "arch/x86/alderlake/",
+                                "arch/x86/sapphirerapids/"})
+  {
+    for (const auto& row : sg::counters::detail::pmu_load_table(directory)) {
+      for (const auto& [name, value] : row.fields) {
+        static_cast<void>(value);
+        check(name != "MSRIndex" && name != "MSRValue",
+              "a register index and a register value never reach the encoder "
+              "as fields of their own (FR-010, D-05)");
+      }
+    }
+  }
+
+  // A counter-constraint key and a deprecation key carry no encoding
+  // obligation, so a row holding one beside its base event still encodes
+  // (FR-012, FR-013, D-06).
+  const std::string constraint = write_fixture("constraint_keys.json", R"([
+  {"EventName":"con_counter","EventCode":"0x01","Counter":"3",
+   "BriefDescription":"a counter-constraint key carries no obligation"},
+  {"EventName":"con_deprecated","EventCode":"0x02","Deprecated":"1",
+   "BriefDescription":"a deprecation key carries no obligation"},
+  {"EventName":"con_both","EventCode":"0x03","Counter":"2","Deprecated":"1",
+   "BriefDescription":"both keys beside one base event"}
+])");
+  std::vector<pmu_table_entry> constraint_table;
+  sg::counters::detail::pmu_parse_table_file(constraint, constraint_table);
+  for (const auto& row : constraint_table) {
+    std::vector<std::pair<int, std::uint64_t>> words;
+    check(pmu_compose_config(row.fields, device.formats, words),
+          "a counter-constraint key and a deprecation key carry no encoding "
+          "obligation, so the row beside them still encodes (FR-012, FR-013, "
+          "D-06)");
+    for (const auto& [name, value] : row.fields) {
+      static_cast<void>(value);
+      check(name != "Counter" && name != "Deprecated",
+            "a counter-constraint key and a deprecation key never become an "
+            "encoding field (FR-012, D-013, D-06)");
     }
   }
 }
@@ -1004,15 +1589,72 @@ auto device_placement_scenario() -> void
         "a row scoped to one uncore class reaches no other (FR-019)");
 
   // A kernel uncore device carries an instance suffix, `uncore_imc_0`
-  // among them. The class rule names the device by its exact spelling, so
-  // a suffixed device reaches no class-scoped row and the postcondition
-  // the decision carries stays true for it. Without this arm the pairing
-  // check and the decision could disagree on a suffixed device, where the
-  // device name ends with the class but is not the class (FR-019).
-  check(!scope_reaches("uncore_imc_0", "iMC")
-            && !scope_reaches("uncore_arb_3", "ARB"),
-        "a suffixed uncore device reaches no class-scoped row, so the "
-        "postcondition and the verdict agree on it (FR-019)");
+  // among them. The generator's unit map names the device class and
+  // ignores a numeric suffix, so a suffixed device is reached by the unit
+  // naming its class and by no other unit. At the audit point the rule
+  // compared the whole name, so a suffixed device reached nothing and no
+  // numbered instance ever received a row (FR-014, FR-015, D-08).
+  check(scope_reaches("uncore_imc_0", "iMC")
+            && scope_reaches("uncore_arb_3", "ARB"),
+        "a suffixed uncore device is reached by the unit naming its class "
+        "(FR-014, FR-015, D-08)");
+  check(scope_reaches("uncore_imc_0", "iMC")
+            && scope_reaches("uncore_imc_1", "iMC"),
+        "every numbered instance of one class is reached by the one unit "
+        "naming that class (FR-014, D-08)");
+  check(!scope_reaches("uncore_imc_0-1", "iMC"),
+        "a suffix that is not a run of digits is not an instance suffix "
+        "(FR-014)");
+  check(!scope_reaches("uncore_imc_0", "ARB")
+            && !scope_reaches("uncore_arb_3", "iMC"),
+        "a suffixed device is reached by the unit naming its own class alone, "
+        "so the postcondition and the verdict agree on it (FR-015, FR-024)");
+
+  // The fixtures the contract names, using the device names the running
+  // kernel publishes and the units the pinned AMD tables spell. The two
+  // spellings differ, so the reachability map carries the pair rather than
+  // comparing them as one text (FR-014, FR-015, SC-008, D-08, D-09).
+  const std::pair<const char*, const char*> kNumbered[] = {
+      {"uncore_cha_0", "CHA"},
+      {"uncore_cha_1", "CHA"},
+      {"uncore_imc_0", "iMC"},
+  };
+  for (const auto& [device, unit] : kNumbered) {
+    check(scope_reaches(device, unit),
+          "a numbered Intel uncore instance is reached by the unit naming its "
+          "class (FR-014, FR-015, D-08)");
+  }
+  const std::pair<const char*, const char*> kVendor[] = {
+      {"amd_df", "DFPMC"},
+      {"amd_l3", "L3PMC"},
+      {"amd_umc_0", "UMCPMC"},
+  };
+  for (const auto& [device, unit] : kVendor) {
+    check(scope_reaches(device, unit),
+          "an AMD vendor device is reached by the unit naming it (FR-014, "
+          "FR-015, D-09)");
+  }
+  check(scope_reaches("amd_umc_0", "UMCPMC")
+            && scope_reaches("amd_umc_1", "UMCPMC"),
+        "every numbered AMD memory instance is reached by the one unit naming "
+        "that class (FR-014, D-09)");
+  // Each instance of one class is reached, and an instance reaches no unit
+  // naming another class. A plan that read instance zero alone would
+  // understate the class, so every instance has to receive the rows (D-08).
+  check(scope_reaches("uncore_cha_0", "CHA")
+            && scope_reaches("uncore_cha_1", "CHA")
+            && !scope_reaches("uncore_cha_1", "iMC"),
+        "every instance of one class receives that class's rows and no other "
+        "class's (FR-015, D-08)");
+  check(!scope_reaches("uncore_cha_0", "DFPMC")
+            && !scope_reaches("amd_df", "iMC")
+            && !scope_reaches("amd_umc_0", "L3PMC"),
+        "a device is reached by the unit naming its own class alone, so an "
+        "Intel instance and an AMD device never exchange rows (FR-015, "
+        "D-09)");
+  check(!scope_reaches("cpu", "CHA") && !scope_reaches("cpu", "iMC")
+            && !scope_reaches("cpu", "DFPMC"),
+        "no uncore row of any class reaches a core device (FR-019, D-09)");
 
   // A row scoped to a class this host publishes nothing for reaches no
   // device, so it stays out of the catalog and runs no probe.
@@ -1034,7 +1676,7 @@ auto encoding_refusal_scenario() -> void
   {"EventName":"needs_absent","EventCode":"0x01","SliceId":3,
    "BriefDescription":"a row needing a format the device omits"},
   {"EventName":"needs_absent_two","EventCode":"0x02","CounterMask":7,
-   "FCMask":3,"BriefDescription":"a row needing a format nobody publishes"},
+   "NodeType":3,"BriefDescription":"a row needing a format nobody publishes"},
   {"EventName":"all_published","EventCode":"0x03","UMask":"0x04",
    "CounterMask":7,"EdgeDetect":1,
    "BriefDescription":"a row whose fields the device publishes"},
@@ -1322,7 +1964,7 @@ auto find_row(const std::vector<pmu_table_entry>& table,
 // initializer as an error, so the row is built here.
 auto table_row(std::string name,
                std::string description,
-               std::string unit = "none",
+               std::string unit = "",
                std::vector<std::pair<std::string, std::uint64_t>> fields = {})
     -> pmu_table_entry
 {
@@ -1394,18 +2036,18 @@ auto attr_text_scenario() -> void
             == "hardware event 'ev'; the vendored kernel table carries no "
                "description",
         "a row carrying no prose names itself and the missing description");
-  check(table_description(table_row("ev", "", "none", {{"event", 0xc0}}))
+  check(table_description(table_row("ev", "", "", {{"event", 0xc0}}))
             == "hardware event 'ev'; the vendored kernel table carries no "
                "description (event code 0xc0)",
         "a row carrying no prose names its event code");
-  check(table_description(table_row("ev", "", "none", {{"umask", 1}}))
+  check(table_description(table_row("ev", "", "", {{"umask", 1}}))
             == "hardware event 'ev'; the vendored kernel table carries no "
                "description",
         "a row whose only field is no event code names no event code");
   check(table_description(table_row("ev", "prose", "DFPMC"))
             == "prose [table scope: DFPMC]",
         "a table scope label rides along after the row's own prose");
-  check(table_description(table_row("ev", "prose", "none")) == "prose",
+  check(table_description(table_row("ev", "prose")) == "prose",
         "the default unit names no table scope");
 }
 
@@ -1509,16 +2151,18 @@ auto table_array_scenario() -> void
   check(brief != nullptr && brief->description == "public prose",
         "the description precedence falls through to PublicDescription");
   const auto* bare = find_row(table, "ev_no_prose");
-  check(bare != nullptr && bare->description.empty() && bare->unit == "none",
-        "a row with no description and no unit keeps the table defaults");
+  check(bare != nullptr && bare->description.empty() && bare->unit.empty(),
+        "a row carrying no unit scope reads as the core scope, which is what "
+        "reaches a core device, so the default is the empty scope and no row "
+        "is left naming a class no device publishes (FR-014, FR-019, D-08)");
   const auto* desc_number = find_row(table, "ev_desc_number");
   check(desc_number != nullptr && desc_number->description == "brief prose",
         "a non-string description candidate falls through to the next");
   const auto* unit_number = find_row(table, "ev_unit_number");
-  check(unit_number != nullptr && unit_number->unit == "none",
+  check(unit_number != nullptr && unit_number->unit.empty(),
         "a non-string unit leaves the default unit in place");
   const auto* unit_missing = find_row(table, "ev_unit_missing");
-  check(unit_missing != nullptr && unit_missing->unit == "none",
+  check(unit_missing != nullptr && unit_missing->unit.empty(),
         "a null unit leaves the default unit in place");
   const auto* brief_number = find_row(table, "ev_brief_number");
   check(brief_number != nullptr && brief_number->description.empty(),
@@ -1728,11 +2372,11 @@ auto group_open_scenario() -> void
     // commit stays untouched, and no counter ever decreases across the
     // two reads (FR-013, FR-026, FR-041, FR-047).
     std::uint64_t first[6] = {0, 0, 0, 0, 0, 0};
-    point_sink one {first, 3, 2, 0};
+    point_sink one {first, 3, 3, 2, 0};
     pair->read_points(one);
     one.check_action();
     std::uint64_t second[6] = {0, 0, 0, 0, 0, 0};
-    point_sink two {second, 3, 2, 0};
+    point_sink two {second, 3, 3, 2, 0};
     pair->read_points(two);
     two.check_action();
     check(first[1] == 0 && first[3] == 0 && first[5] == 0
@@ -1750,7 +2394,7 @@ auto group_open_scenario() -> void
     // the virtual entry reaches (FR-022, R-004).
     const auto thunk = pair->resolve_thunk();
     std::uint64_t third[6] = {0, 0, 0, 0, 0, 0};
-    point_sink via_slot {third, 3, 2, 0};
+    point_sink via_slot {third, 3, 3, 2, 0};
     thunk(*pair, via_slot);
     via_slot.check_action();
     check(third[0] >= second[0] && third[2] >= second[2],
@@ -1775,7 +2419,7 @@ auto group_open_scenario() -> void
     // Two columns, the two members: the read fills one row of a two-row
     // block, and the row this action did not commit stays untouched.
     std::uint64_t cells[4] = {0, 0, 0, 0};
-    point_sink sink {cells, 2, 2, 0};
+    point_sink sink {cells, 2, 2, 2, 0};
     duo->read_points(sink);
     sink.check_action();
     check(cells[1] == 0 && cells[3] == 0,
@@ -2024,14 +2668,42 @@ auto hybrid_device_scope_scenario() -> void
     if (!file) {
       fail("a hybrid device fixture carries a readable type");
     }
+    // A leftover processor-set file from an earlier run would mark the
+    // device scoped. This fixture publishes none, so both files go.
+    std::filesystem::remove(dir / "cpumask", code);
+    std::filesystem::remove(dir / "cpus", code);
     const auto loaded = load_device(dir);
     check(loaded.has_value(), "a hybrid per-core device directory loads");
     if (!loaded.has_value()) {
       continue;
     }
     check(loaded->device_scoped == false,
-          "a hybrid per-core device is not device scoped");
+          "a hybrid per-core device publishes no processor set, so it stays "
+          "per-task capable (FR-016)");
   }
+
+  // A device that publishes `cpumask` or `cpus` binds a processor set. The
+  // kernel registers no per-task context for it, and the catalog marks it
+  // device-scoped from that file (FR-016).
+  const auto write_scoped = [&root](const char* name, const char* file)
+  {
+    std::error_code scoped_code;
+    const auto dir = root / name;
+    std::filesystem::create_directories(dir, scoped_code);
+    std::ofstream type(dir / "type", std::ios::binary | std::ios::trunc);
+    type << "4\n";
+    type.close();
+    std::ofstream published(dir / file, std::ios::binary | std::ios::trunc);
+    published << "0\n";
+    published.close();
+    return load_device(dir);
+  };
+  const auto by_mask = write_scoped("scoped_cpumask", "cpumask");
+  check(by_mask.has_value() && by_mask->device_scoped,
+        "a device that publishes a cpumask is device scoped (FR-016)");
+  const auto by_cpus = write_scoped("scoped_cpus", "cpus");
+  check(by_cpus.has_value() && by_cpus->device_scoped,
+        "a device that publishes a cpus file is device scoped (FR-016)");
 }
 
 // Whether the placement step left a row of `name` on `device` (FR-019).
@@ -2054,6 +2726,18 @@ auto kernel_device_name(const std::string& scope) -> std::string
   for (const char letter : scope) {
     folded.push_back(
         static_cast<char>(std::tolower(static_cast<unsigned char>(letter))));
+  }
+  // The vendor unit map the reachability rule reads, spelled once here so
+  // the fixture device a scope names and the device that scope reaches are
+  // the same name. An AMD unit carries a vendor device name the unit does
+  // not spell (FR-014, D-09).
+  for (const auto& [unit, device] : {std::pair {"dfpmc", "amd_df"},
+                                     std::pair {"l3pmc", "amd_l3"},
+                                     std::pair {"umcpmc", "amd_umc"}})
+  {
+    if (folded == unit) {
+      return device;
+    }
   }
   return folded.empty() || folded == "core" ? "cpu" : folded;
 }
@@ -2305,7 +2989,8 @@ auto device_scope_probe_scenario() -> void
   using sg::counters::detail::pmu_probe;
   using sg::counters::detail::scope_settled_state;
 
-  for (const auto verdict : {
+  for (const auto verdict :
+       {
            availability::countable,
            availability::permission_blocked,
            availability::not_encodable,
@@ -2393,7 +3078,8 @@ auto settled_target_mask_scenario() -> void
 
   // Every pair of probe verdicts, so each kind's bit is driven on both of
   // its arcs and against every state the other kind can answer with.
-  for (const auto per_task : {
+  for (const auto per_task :
+       {
            availability::countable,
            availability::permission_blocked,
            availability::not_encodable,
@@ -2402,7 +3088,8 @@ auto settled_target_mask_scenario() -> void
            availability::gap,
        })
   {
-    for (const auto on_cpu : {
+    for (const auto on_cpu :
+         {
              availability::countable,
              availability::permission_blocked,
              availability::not_encodable,
@@ -2423,7 +3110,8 @@ auto settled_target_mask_scenario() -> void
     }
   }
 
-  for (const auto state : {
+  for (const auto state :
+       {
            availability::permission_blocked,
            availability::not_encodable,
            availability::absent,
@@ -2505,7 +3193,8 @@ auto availability_gate_scenario() -> void
   using sg::counters::target_kind;
   using sg::counters::detail::availability_gate_passes;
 
-  for (const auto state : {
+  for (const auto state :
+       {
            availability::permission_blocked,
            availability::not_encodable,
            availability::absent,
@@ -2553,7 +3242,7 @@ auto clock_disclosure_scenario() -> void
         "the clock provider opens a window over one of its own leaves "
         "(FR-007)");
   std::array<std::uint64_t, column_count> disclosed {unwritten, unwritten};
-  point_sink disclosed_sink(disclosed.data(), column_count, row_stride, 0);
+  point_sink disclosed_sink(disclosed.data(), 1, column_count, row_stride, 0);
   with_column->read_points(disclosed_sink);
   check(disclosed[1] == static_cast<std::uint64_t>(availability::countable),
         "the window that names a disclosure column discloses the clock "
@@ -2566,7 +3255,7 @@ auto clock_disclosure_scenario() -> void
         "the same leaf opens a window whose leaf set names no disclosure "
         "column (FR-007)");
   std::array<std::uint64_t, column_count> quiet_columns {unwritten, unwritten};
-  point_sink quiet_sink(quiet_columns.data(), column_count, row_stride, 0);
+  point_sink quiet_sink(quiet_columns.data(), 1, column_count, row_stride, 0);
   without_column->read_points(quiet_sink);
   check(quiet_columns[0] != unwritten,
         "the window writes the clock point the platform clock returned "
@@ -2588,6 +3277,7 @@ auto main() -> int
   decode_scenario();
   decode_recipe_scenario();
   multiplex_window_scenario();
+  time_recipe_scenario();
   group_short_read_scenario();
   migrated_thread_scenario();
   fast_context_lifetime_scenario();

@@ -4,7 +4,7 @@
 
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: MANDATORY for this feature — constitution Principle III records **TDD** as the
+**Tests**: MANDATORY for this feature: constitution Principle III records **TDD** as the
 execution mode (plan.md → Test Plan). Red tests are written and observed to fail before the
 enforcement machinery exists.
 
@@ -45,7 +45,7 @@ definition `SG_CONTRACTS_SEMANTIC` (`0`=ignore, `1`=observe, `2`=enforce, `3`=qu
 four per-kind `sg::dbc::check_*` public functions forwarding to one internal kind-tagged
 `detail::dispatch`; feature-detected cold/unreachability shims confined to the cold dispatch
 (hot path is pure C++20); out-of-line `source/dbc/dbc.cpp` dispatch is the documented
-**fallback only** (engaged only if the assembly smoke test rejects the primary).
+**fallback only** (engaged only if the assembly check rejects the primary).
 
 ---
 
@@ -61,7 +61,7 @@ from library and test translation units.
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites — TDD: red, then green)
+## Phase 2: Foundational (Blocking Prerequisites: TDD: red, then green)
 
 **Purpose**: The contract machinery itself. No user story can be implemented until this phase is
 complete.
@@ -82,14 +82,14 @@ complete.
 - [x] T009 Implement the eight macros in `include/speedgun-ng/dbc.hpp`: `SG_REQUIRE` / `SG_ENSURE` / `SG_INVARIANT` / `SG_ASSERT` in statement form `do { if (!(pred)) [[unlikely]] { check_*(msg, __FILE__, __LINE__, #pred); } } while (false)` (predicate first — FR-038/FR-040) with `#if SG_CONTRACTS_SEMANTIC == 0` elision to `((void)0)` (FR-012/FR-018/FR-037); plus the always-on family `SG_REQUIRE_ALWAYS` / `SG_ENSURE_ALWAYS` / `SG_INVARIANT_ALWAYS` / `SG_ASSERT_ALWAYS` with the identical body **outside** the `#if` (FR-036). **Verification**: `dbc_test` (d) passes (observe continues; `quick_enforce`/`enforce` terminate in forked children); the `ignore` build of `dbc_test` shows the exactly-once counter == 0 and compiles with the macros elided.
 - [x] T010 Implement the capture/placement mechanics in `include/speedgun-ng/dbc.hpp`: `SG_ENSURE` named result capture taken once at each return point, predicate evaluated against the capture (no implicit `old()`; pre-call references are explicit named captures taken at function entry — FR-003/FR-004, Edge Case: multiple return points); `SG_INVARIANT` placement for loops (each iteration entry, FR-005) and classes (ctor exit, dtor entry, public member entry, non-const exit; const members entry-only, FR-006, Edge Case: const member functions). **Verification**: ALL of T003/T004/T005 red tests now pass (`ctest` green for `dbc_test` and `dbc_trap_checked` under `enforce`).
 
-**Checkpoint**: Foundation ready — the four primitives enforce end to end (TDD green); the
+**Checkpoint**: Foundation ready: the four primitives enforce end to end (TDD green); the
 trap fixture traps under checked builds; user story implementation can now begin.
 
 ---
 
 ## Phase 3: User Story 1 - Express and enforce contracts on the public interface (Priority: P1) 🎯 MVP
 
-**Goal**: Intent documented once, enforced at runtime — including the compile-time-first layer
+**Goal**: Intent documented once, enforced at runtime: including the compile-time-first layer
 and conformance of the pre-existing `exported_class`, proving the facility on real code.
 
 **Independent Test**: A fixture interface with a documented precondition, postcondition, loop
@@ -97,14 +97,14 @@ invariant, and class invariant builds with contracts enabled; normal execution w
 hold; loud, well-identified termination when each is violated; compile-time-evaluable
 constraints are `static_assert`s with no runtime check (spec.md US1 acceptance 1–7).
 
-### Tests for User Story 1 (TDD — written first, observed to fail)
+### Tests for User Story 1 (TDD: written first, observed to fail)
 
 - [x] T011 [P] [US1] Create the negative-compile harness: `test/compile-fail/run.sh` (compiles each sibling TU in `test/compile-fail/` with the project warning set and asserts the expected compile **failure** with a diagnostic-match string per TU; TUs in a `positive/` subdirectory must compile **cleanly**) + a self-test TU (a known-ill-formed TU proving the harness itself catches failures) + an `add_test(NAME dbc_compile_fail COMMAND run.sh)` entry in `test/CMakeLists.txt`. **Verification**: harness self-test passes (it catches the known-ill-formed TU); the suite is trivially green until T012 adds TUs — the meaningful red is T012's.
 - [x] T012 [US1] Add the red compile-time-layer tests: negative TUs `test/compile-fail/negative_runtime_only_constraint.cpp` (a compile-time-evaluable constraint expressed only as a runtime `SG_*` check — must FAIL to compile, FR-023) and `test/compile-fail/negative_nonliteral_message.cpp` (a non-string-literal message expression — must FAIL to compile, FR-020); positive TUs `test/compile-fail/positive/static_assert_constraint.cpp` (a compile-time-evaluable constraint as `static_assert`/concept, active in every configuration at zero runtime cost, FR-022) and `test/compile-fail/positive/constexpr_only_interface.cpp` (a constexpr-only interface constrained at compile time and exempt from runtime enforcement, FR-024). **Observed failure**: the negative TUs compile when they must not (FR-023 rejection not yet implemented) — TDD red.
 - [x] T013 [US1] TDD green — implement the compile-time contract layer in `include/speedgun-ng/dbc.hpp`: the documented `static_assert`/concept/constexpr-validator idiom for constraints evaluable at compile time, and the FR-023 rejection mechanism (a runtime `SG_*` on a compile-time-evaluable constraint is a compile error with a clear diagnostic). **Verification**: T011's harness green (negatives fail with the expected diagnostics; positives compile clean).
 - [x] T014 [P] [US1] Conform the pre-existing interface (R-009/FR-029): add doxygen `\pre`/`\post` to `exported_class` in `include/speedgun-ng/speedgun-ng.hpp` exactly per `contracts/api-contracts.md` (ctor: `\pre` none, `\post` `name()` returns the project name; `name() const`: `\pre` object in a valid state (class invariant), `\post` returns a non-owning pointer to the stored string); enforce them in `source/speedgun-ng.cpp` via `SG_REQUIRE`/`SG_ENSURE` plus the class `SG_INVARIANT` (ctor exit, dtor entry, member entry/exit); add pass-side AND fail-side contract tests for `exported_class` in `test/source/speedgun-ng_test.cpp` (SC-004). **Verification**: `speedgun-ng_test` green; `exported_class` appears in the DBC matrix as fully paired (verified again by the gate in Phase 6).
 
-**Checkpoint**: MVP — User Story 1 fully functional and testable independently (Principle II
+**Checkpoint**: MVP: User Story 1 fully functional and testable independently (Principle II
 satisfied for the public interface, including the pre-existing class).
 
 ---
@@ -120,7 +120,7 @@ predicate + one predicted branch with no EH machinery at the call site.
 contract-machinery symbols while the always-on site still fires (SC-002; spec.md US2
 acceptance 1–3).
 
-### Tests and implementation for User Story 2 (all [P] — distinct files, depend only on Phase 2 green)
+### Tests and implementation for User Story 2 (all [P]: distinct files, depend only on Phase 2 green)
 
 - [x] T015 [P] [US2] Standalone-compile test: `test/source/dbc_standalone.cpp` — a TU that includes `<speedgun-ng/dbc.hpp>` with **no project include paths beyond the public `include/` directory** (in particular no generated-export-header include) that compiles, links, and runs a trivial always-on check (FR-037); register `dbc_standalone_test` in `test/CMakeLists.txt` with include dirs restricted to the public `include/` only. **Verification**: `dbc_standalone_test` green.
 - [x] T016 [P] [US2] Add the dedicated **consumer-release** CI job to `.github/workflows/ci.yml` (SC-002, research R-006). One job, four explicit assertions: (1) Release configuration, developer mode **off**, `speedgun-ng_CONTRACTS=ignore`, build the library exactly as a consumer would; (2) symbol-inspect the artifact (`nm`) for the **absence** of semantic-gated `sg::dbc::check_*` machinery; (3) run `dbc_trap_fixture` and assert the `gated-site-passed` marker on stdout **and** an abort (non-zero exit) with the always-on diagnostic on stderr — gated site elided, always-on site fires (FR-036 both directions); (4) run `dbc_test` under `ignore` asserting an always-on violation fires identically to checked builds while a semantic-gated violation is silent (FR-036/FR-012). **Verification**: the job is well-formed (YAML lint) and green on a feature branch.
@@ -128,7 +128,7 @@ acceptance 1–3).
 - [x] T018 [P] [US2] Implement the SC-008 overhead measurement: `tools/dbc/overhead.cpp` (a hot-loop TU with a satisfied `SG_REQUIRE` vs an identical uncontracted loop) + `tools/dbc/overhead.sh` (compile `-O2`, run both, report the distribution min/max/n50/n99 into a committed report file `docs/pages/dbc-overhead.md`); documented measurement, not a per-PR assertion (Principle VII). **Verification**: `overhead.sh` exits 0 and the report file is produced with the distribution.
 - [x] T019 [P] [US2] Implement the FR-017 independence matrix: `tools/dbc/semantics_matrix.sh` — build/run `dbc_test` across `NDEBUG` on/off × `-O0`/`-O2` and assert contract evaluation state is unchanged by `NDEBUG`/optimization and that the dedicated switch never changes standard `assert` behavior (Edge Case: standard assertion macro interaction). **Verification**: script exits 0 for all 4 combinations; register as `add_test(NAME dbc_semantics_matrix ...)` (Linux-only).
 
-**Checkpoint**: User Stories 1 AND 2 independently functional — the facility enforces in checked
+**Checkpoint**: User Stories 1 AND 2 independently functional: the facility enforces in checked
 builds and is provably absent in release.
 
 ---
@@ -141,7 +141,7 @@ the default response is uncatchable, and the single global hook is the only inte
 **Independent Test**: Install a test observer, trigger a known violation, and assert the observed
 record carries the correct kind, file, line, message, and predicate (spec.md US3 acceptance 1–3).
 
-### Tests for User Story 3 (TDD — written first, observed to fail)
+### Tests for User Story 3 (TDD: written first, observed to fail)
 
 - [x] T020 [US3] Add red observer/response tests to `test/source/dbc_test.cpp`: (a) default response — a forked child under `enforce` violating a contract terminates (abort) with a structured stderr diagnostic naming kind, file, line, message, and is **not catchable** (a `try`/`catch` around the site does not intercept, FR-008/FR-010); (b) single global hook — a second `set_observer` replaces the first (FR-010); (c) observer-throw propagation — under `enforce`, a test observer throwing a unique exception type terminates the process **via that exception** (not a generic `std::terminate` conversion), verifying the dispatch is not `noexcept` in `enforce` (FR-009/FR-014, R-013 C5); (d) a violation inside a `noexcept` function terminates via the response with no exception escaping (Edge Case: noexcept context); (e) re-entry guard — a violation triggered from within the default response (via the installed observer calling a contract-violating function) does not recurse (Edge Case: violation inside the response). **Observed failure**: group (e) — the re-entry guard (implemented in T021) — is the TDD red (L1 note: groups (a)–(d) may already pass against T007–T008's machinery; record (e)'s failure as the red and note the state of (a)–(d) at write time).
 
@@ -165,7 +165,7 @@ artifact.
 `\post` section and (b) a documented contract with no matching enforcement, and observe CI fail
 on each with a diagnostic naming the offending interface (spec.md US4 acceptance 1–5; SC-006).
 
-### Tests for User Story 4 (TDD — written first, observed to fail)
+### Tests for User Story 4 (TDD: written first, observed to fail)
 
 - [x] T022 [P] [US4] Create `tools/dbc/macros.yaml` (the **Macro registry**, FR-026): the machine-readable mapping of every macro → (enforcement function, kind) — `SG_REQUIRE`/`SG_ENSURE`/`SG_INVARIANT`/`SG_ASSERT` plus the four `SG_*_ALWAYS` variants (same enforcement function and kind, `always_on: true` flag; see data-model.md Macro registry) — the single source of truth consumed by both gate halves and feature 002's AST gate; no gate hard-codes a macro list. **Verification**: YAML parses; every macro in `dbc.hpp` has exactly one registry entry and vice versa (checked by the gate harness itself).
 - [x] T023 [P] [US4] Create the committed gate-fixture tree `test/dbc-gate-fixture/` (self-contained headers, **not** part of the library): `fixture_missing_docs.hpp` (a public function lacking a `\pre` or `\post` section), `fixture_drift.hpp` (a documented contract kind with no enforcement), `fixture_enforced_not_documented.hpp` (an enforcement with no documentation), `fixture_exempt.hpp` (exempted declarations — private/protected member, defaulted/deleted, friend, constexpr-only — plus an explicit `none` marker for a genuinely empty contract set, FR-029/FR-030), and `fixture_clean.hpp` (a fully documented-and-enforced interface, including `none` where genuinely empty). **Verification**: the tree compiles standalone (each fixture is syntactically valid C++).
@@ -206,7 +206,7 @@ semantics, the hook model, and every facility construct (spec.md US5 acceptance 
 - [x] T032 [P] Additional edge-case tests in `test/source/dbc_test.cpp`: templates — a contract documented on the primary template declaration is enforced from the template body and applies to every instantiation, and a violating instantiation aborts identically (Edge Case: templates); virtual overrides — each overriding implementation enforces the documented contract itself, derived classes do not inherit enforcement (Edge Case: virtual overrides). **Verification**: new tests green and the full `dbc_test` suite remains green.
 - [x] T033 Final validation: run the `quickstart.md` walkthrough end-to-end (sections 1–7); full `cmake --preset=dev` + `ctest --preset=dev` green (SC-005); verify the coverage run shows 100% line/branch with the FR-032 `LCOV_EXCL` exclusions in effect; confirm all CI jobs are green on a feature branch (build matrix, sanitizers, coverage, `dbc-gate`, `consumer-release`). **Verification** (acceptance): quickstart sections 1–7 pass verbatim; `ctest` 100% green; coverage report at 100% line/branch; feature-branch CI fully green.
 
-**Checkpoint**: Feature 001 complete — all quality gates green, quickstart validated.
+**Checkpoint**: Feature 001 complete: all quality gates green, quickstart validated.
 
 ---
 
@@ -214,8 +214,8 @@ semantics, the hook model, and every facility construct (spec.md US5 acceptance 
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies — can start immediately
-- **Foundational (Phase 2)**: Depends on Setup completion — **BLOCKS all user stories**
+- **Setup (Phase 1)**: No dependencies: can start immediately
+- **Foundational (Phase 2)**: Depends on Setup completion: **BLOCKS all user stories**
 - **User Stories (Phases 3–7)**: All depend on Foundational phase completion
   - US1 (P1) and US2 (P1) can proceed in parallel after Foundational
   - US3 (P2) depends only on Foundational (the observer API and dispatch land in T006–T009); may run in parallel with US1/US2
@@ -225,11 +225,11 @@ semantics, the hook model, and every facility construct (spec.md US5 acceptance 
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: Can start after Foundational (Phase 2) — no dependencies on other stories
-- **User Story 2 (P1)**: Can start after Foundational — the trap fixture (T004) and its checked-build verification (T005) are written in the foundational red phase; may integrate with US1 but is independently testable
+- **User Story 1 (P1)**: Can start after Foundational (Phase 2): no dependencies on other stories
+- **User Story 2 (P1)**: Can start after Foundational: the trap fixture (T004) and its checked-build verification (T005) are written in the foundational red phase; may integrate with US1 but is independently testable
 - **User Story 3 (P2)**: Can start after Foundational — the observer/hook machinery lands in T006–T009; response completion in T021; independently testable
-- **User Story 4 (P2)**: Can start after US1 (registry needs the enforcement-function names from T008; the gate must pass on the conformed tree from T014) — independently testable via the fixtures
-- **User Story 5 (P3)**: Can start after US1 (vocabulary is stable) — documentation only
+- **User Story 4 (P2)**: Can start after US1 (registry needs the enforcement-function names from T008; the gate must pass on the conformed tree from T014): independently testable via the fixtures
+- **User Story 5 (P3)**: Can start after US1 (vocabulary is stable): documentation only
 
 ### Within Each User Story
 
@@ -269,7 +269,7 @@ Task: "T028 dbc-gate CI job in .github/workflows/ci.yml"
 ### MVP First (User Story 1 Only)
 
 1. Complete Phase 1: Setup
-2. Complete Phase 2: Foundational (CRITICAL — blocks all stories)
+2. Complete Phase 2: Foundational (CRITICAL: blocks all stories)
 3. Complete Phase 3: User Story 1
 4. **STOP and VALIDATE**: test US1 independently (spec.md US1 acceptance 1–7)
 5. The facility is usable: contracts documented once, enforced at runtime
@@ -300,11 +300,11 @@ With multiple developers after Foundational:
 - [P] tasks = different files, no dependencies on incomplete tasks
 - [Story] label maps task to specific user story for traceability
 - Each user story is independently completable and testable
-- **Verify red tests fail before implementing** (TDD — constitution Principle III)
+- **Verify red tests fail before implementing** (TDD: constitution Principle III)
 - Every task carries an explicit **Verification** step (post `/speckit.analyze` granularity rule)
 - Commit after each task or logical group (atomic, bisectable; constitution Pull Request Quality)
 - Stop at any checkpoint to validate the story independently
 - Avoid: vague tasks, same-file conflicts, cross-story dependencies that break independence
 - The out-of-line `source/dbc/dbc.cpp` dispatch fallback (FR-037 form b) is **not** a
-  scheduled task — it is engaged only if T017's assembly smoke test rejects the header-inline
+  scheduled task: it is engaged only if T017's assembly check rejects the header-inline
   primary (research R-013 D2)

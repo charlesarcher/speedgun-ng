@@ -35,6 +35,7 @@
 #  include <fstream>
 #  include <map>
 #  include <mutex>
+#  include <ranges>
 #  include <regex>
 #  include <sstream>
 #  include <string>
@@ -68,8 +69,7 @@ auto pmu_ident_current() -> pmu_ident
     // highest basic leaf number, which is at least 1 on any CPU that also
     // answers leaf 1.
     if (__get_cpuid(0, &eax, &ebx, &ecx, &edx)  // LCOV_EXCL_BR_LINE
-        && eax >= 1)
-    {  // LCOV_EXCL_BR_LINE
+        && eax >= 1) {  // LCOV_EXCL_BR_LINE
       // The vendor string lives in EBX:EDX:ECX of leaf 0. Leaf 1
       // overwrites those registers, so the string is captured before
       // the family and model are read.
@@ -149,12 +149,14 @@ auto parse_scalar(simdjson::dom::element value, std::uint64_t& out) -> bool
 // kernel format, so none carries an encoding obligation (FR-016). They are
 // dropped here, before the row reaches the encoder, because recording them
 // as fields would demand a format the device does not publish and turn
-// every Intel row into `not_encodable`.
+// every Intel row into `not_encodable`. The register index sits beside them
+// and is read ahead of this loop instead: the index names the format its
+// register value encodes into, and the encoder sees that one field, never
+// the index itself (FR-010, D-05).
 auto carries_no_obligation(const std::string_view key) noexcept -> bool
 {
-  constexpr std::array<std::string_view, 7> no_obligation {
+  constexpr std::array<std::string_view, 6> no_obligation {
       "SampleAfterValue",
-      "MSRValue",
       "MSRIndex",
       "PEBS",
       "Data_LA",
@@ -164,12 +166,155 @@ auto carries_no_obligation(const std::string_view key) noexcept -> bool
   return std::ranges::find(no_obligation, key) != std::end(no_obligation);
 }
 
+// The constraint and deprecation keys. They name a condition on when a
+// counter is meaningful. Neither names a bit in an encoding register, so
+// they carry
+// no encoding obligation either. The kernel publishes no format for either
+// name, and a row reaching the encoder with either one resolves to nothing
+// and publishes `not_encodable` for a field no format reads (FR-012,
+// FR-013, D-06).
+auto carries_no_constraint(const std::string_view key) noexcept -> bool
+{
+  constexpr std::array<std::string_view, 2> no_constraint {
+      "Counter",
+      "Deprecated",
+  };
+  return std::ranges::find(no_constraint, key) != std::end(no_constraint);
+}
+
+// The register value key. The value is not a field of its own either: the
+// index names the format, and the pair is recorded under that one name so
+// the encoder sees a single field it can resolve (FR-010, D-05).
+auto is_register_value(const std::string_view key) noexcept -> bool
+{
+  return key == "MSRValue";
+}
+
+// The kernel's own register-index map, read from its table generator
+// `tools/perf/pmu-events/jevents.py` at kernel commit
+// eaab2eb09dc2f86f41e8fa55243c31a274978233, lines 248 to 257. The key is
+// the register number the table names and the value is the event field the
+// kernel encodes the value into. The kernel takes the first index of a
+// comma-separated pair, so a pair resolves through this map exactly as a
+// single index does (FR-010, D-05).
+// The case labels are the kernel's register numbers. Naming each one
+// would hide the map the kernel publishes.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
+auto register_format(const std::uint64_t index) noexcept -> std::string_view
+{
+  switch (index) {
+    case 0x3f6:
+      return "ldlat";
+    case 0x3f7:
+      return "frontend";
+    case 0x1a6:
+    case 0x1a7:
+    case 0x3e0:
+    case 0x3e1:
+    case 0x3e2:
+    case 0x3e3:
+      return "offcore_rsp";
+    default:
+      return {};
+  }
+}
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
+
+// The register value and index a row carries, if any. Both are string
+// values in every table the pinned tree ships, and the index may be a
+// comma-separated pair. The pair resolves through its first index, the
+// same rule the kernel's generator applies (FR-010, D-05).
+struct register_filter
+{
+  std::uint64_t value = 0;
+  std::string_view format;
+  bool present = false;
+};
+
+// The register number one index text names. The text may carry a
+// comma-separated pair, and the kernel's generator reads the first index of
+// that pair, so the first index is what this parses.
+auto first_index_of(const std::string_view text, std::uint64_t& out) noexcept
+    -> bool
+{
+  const auto comma = text.find(',');
+  const std::string_view first =
+      comma == std::string_view::npos ? text : text.substr(0, comma);
+  // The tree spells an index with surrounding spaces in a pair, and the
+  // scalar parse rejects a space, so the text is trimmed by hand.
+  // NOLINTNEXTLINE(llvm-qualified-auto, readability-qualified-auto)
+  const auto begin =
+      std::ranges::find_if(first,
+                           [](const char character) -> bool
+                           { return character != ' ' && character != '\t'; });
+  // NOLINTNEXTLINE(llvm-qualified-auto, readability-qualified-auto)
+  const auto end =
+      std::ranges::find_if(std::ranges::reverse_view(first),
+                           [](const char character) -> bool
+                           { return character != ' ' && character != '\t'; })
+          .base();
+  if (begin >= end) {
+    return false;
+  }
+  const std::string_view trimmed(begin, end);
+  const bool hex = trimmed.starts_with("0x") || trimmed.starts_with("0X");
+  std::string_view digits = trimmed;
+  if (hex) {
+    digits = trimmed.substr(2);
+  }
+  if (digits.empty()) {
+    return false;
+  }
+  std::uint64_t parsed = 0;
+  const int base = hex ? 16 : 10;
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  const auto [stop, error] = std::from_chars(
+      digits.data(), digits.data() + digits.size(), parsed, base);
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  if (error != std::errc {} || stop != digits.data() + digits.size()) {
+    return false;
+  }
+  out = parsed;
+  return true;
+}
+
+// NOLINTNEXTLINE(misc-include-cleaner)
+auto register_filter_of(simdjson::dom::object attributes) -> register_filter
+{
+  register_filter out;
+  simdjson::dom::element value_element;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+  if (attributes["MSRValue"].get(value_element) != simdjson::SUCCESS) {
+    return out;
+  }
+  if (!parse_scalar(value_element, out.value)) {
+    return out;
+  }
+  simdjson::dom::element index_element;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+  if (attributes["MSRIndex"].get(index_element) != simdjson::SUCCESS) {
+    return out;
+  }
+  std::string_view index_text;
+  std::uint64_t index = 0;
+  if (index_element.get_string().get(index_text) != simdjson::SUCCESS
+      || !first_index_of(index_text, index))
+  {
+    return out;
+  }
+  out.format = register_format(index);
+  out.present = true;
+  return out;
+}
+
 // The kernel format a table key names. The kernel publishes `cmask`,
-// `inv`, `edge`, and `offcore_rsp`; the vendored tables spell the same four
-// keys `CounterMask`, `Invert`, `EdgeDetect`, and `OffcoreRsp`. The field
-// is recorded under the kernel spelling, so the encoder resolves the row's
-// key against a format the device publishes, and the recorded name
-// is never the table key (FR-017).
+// `inv`, `edge`, `offcore_rsp`, `any`, `ch_mask`, and `fc_mask`. The
+// vendored tables spell those keys `CounterMask`, `Invert`, `EdgeDetect`,
+// `OffcoreRsp`, `AnyThread`, `PortMask`, and `FCMask`. The field is
+// recorded under the kernel spelling, so the encoder resolves the row's
+// key against a format the device publishes, and the recorded name is the
+// kernel spelling (FR-011, FR-017, D-06).
 auto kernel_spelling(const std::string_view key) noexcept -> std::string_view
 {
   if (key == "CounterMask") {
@@ -183,6 +328,15 @@ auto kernel_spelling(const std::string_view key) noexcept -> std::string_view
   }
   if (key == "OffcoreRsp") {
     return "offcore_rsp";
+  }
+  if (key == "AnyThread") {
+    return "any";
+  }
+  if (key == "PortMask") {
+    return "ch_mask";
+  }
+  if (key == "FCMask") {
+    return "fc_mask";
   }
   return {};
 }
@@ -200,6 +354,10 @@ void add_entry(std::vector<pmu_table_entry>& table,
   }
   pmu_table_entry entry;
   entry.name = std::string(name);
+  // The row's own register filter, resolved through the kernel's index map
+  // before the fields are read, because the value and the index are string
+  // keys and neither encodes as a field of its own (FR-010, D-05).
+  const auto filter = register_filter_of(attributes);
   for (auto [key, value] : attributes) {
     std::uint64_t number = 0;
     if (key == "EventCode") {
@@ -220,7 +378,15 @@ void add_entry(std::vector<pmu_table_entry>& table,
     {
       // Descriptive keys carry no config semantic.
     } else if (carries_no_obligation(key)) {
-      // Dropped above the encoder: it names no published format.
+      // Dropped above the encoder: it names no published format. The
+      // register value sits beside it and is read ahead of this loop, so
+      // the row never carries either one as a field (FR-010, D-05).
+    } else if (carries_no_constraint(key)) {
+      // A condition on when the counter is meaningful. Neither key names a
+      // bit in an encoding register (FR-012, FR-013, D-06).
+    } else if (is_register_value(key)) {
+      // Read ahead of this loop and recorded under the format its index
+      // names, never under its own name (FR-010, D-05).
     } else if (const auto kernel = kernel_spelling(key);
                !kernel.empty() && parse_scalar(value, number))
     {
@@ -233,8 +399,22 @@ void add_entry(std::vector<pmu_table_entry>& table,
       entry.fields.emplace_back(key, number);
     }
   }
+  // The register filter reaches the encoder as a field under the format
+  // its index names, so a non-zero register value is encoded rather than
+  // dropped. A value of zero encodes no filter, and an index the kernel's
+  // map does not name leaves the row with no field, which publishes
+  // `not_encodable` on any device publishing no format for it (FR-010,
+  // FR-011, D-05).
+  if (filter.present && filter.value != 0 && !filter.format.empty()) {
+    entry.fields.emplace_back(std::string(filter.format), filter.value);
+  }
+  // A register index and a register value never survive as fields of
+  // their own: the value is read ahead of the loop and recorded under the
+  // format its index names, and both keys are dropped before a field is
+  // built (FR-010, D-05). The seam fixture asserts the recorded names.
   // Description precedence; AMD tables ship only "BriefDescription".
-  for (const auto candidate : {
+  for (const auto candidate :
+       {
            "Description",
            "PublicDescription",
            "BriefDescription",
@@ -411,8 +591,8 @@ auto mapfile_key(const pmu_ident& id) -> std::string
   return id.vendor + '-' + std::to_string(id.family) + '-' + hex;
 }
 
-auto pmu_select_directory(std::istream& mapfile,
-                          const pmu_ident& id) -> std::string
+auto pmu_select_directory(std::istream& mapfile, const pmu_ident& id)
+    -> std::string
 {
   // Format finding (the vendored file is truth): the columns are
   // "Family-model,Version,Filename,EventType"; the first is a

@@ -396,3 +396,128 @@ The 201 self-anchors the record holds at `49f809d` fall under that
 exemption, and they are historical from this commit forward. A pass
 that reads the drift criteria and finds one of them reports no drift,
 and the finding is correct.
+
+## Corrections taken by specs/013-counters-defect-followup
+
+One correction here names the arithmetic. The figure stays as recorded.
+D-05, the register-filter decision, leaves the encodable-row count
+unmoved: `MSRValue` and `MSRIndex` were already dropped at parse
+time, so a row was already counted encodable whatever register formats
+the device published. Every count that moved in this feature moved
+under D-06, the counter-constraint and deprecation decision. A reader
+who attributes a moved count to the register filter would credit the
+wrong decision for it.
+
+Every entry below was measured at head `0dea082` on the machine the
+quickstart's step 1 records. The frozen record at
+`specs/007-counters-and-timers/citations.md` is unedited.
+
+```yaml
+date: 2026-10-06
+task: T017
+section: The encodable-row counts the seam test pins
+figure_as_written: skylake 576, icelake 342, alderlake 521, sapphirerapids 1685
+figure_measured: skylake 581, icelake 346, alderlake 563, sapphirerapids 1993
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: 0dea082
+must_not_move: the amdzen4 and amdzen5 figures, both unchanged
+```
+
+```yaml
+date: 2026-10-06
+task: T017
+section: The encodable-row counts the seam test pins
+figure_as_written: alderlake 564 after both decisions land
+figure_measured: alderlake 563
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: 0dea082
+must_not_move: the sapphirerapids figure on the same line
+```
+
+```yaml
+date: 2026-10-06
+task: T017
+section: The encodable-row counts the seam test pins
+figure_as_written: sapphirerapids 2141 after both decisions land
+figure_measured: sapphirerapids 1993
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: 0dea082
+must_not_move: the 566 of 579 rows the placement scenario measures
+```
+
+```yaml
+date: 2026-10-06
+task: T017
+section: The rows still unencodable after both decisions land
+figure_as_written: no key named, so every sapphirerapids row encodes
+figure_measured: 293 rows name a PortMask and 250 name an FCMask
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: 0dea082
+must_not_move: the four directories whose counts moved
+```
+
+```yaml
+date: 2026-10-06
+task: T027
+section: The core catalog the availability probe reports
+figure_as_written: 8 pmu catalog entries on the cpu device
+figure_measured: 385 pmu catalog entries, 353 on the cpu device
+command: ./build/dev/test/counters_pmu_test
+head: 0dea082
+must_not_move: the kernel-alias count, which stays 8
+```
+
+```yaml
+date: 2026-10-06
+task: T029
+section: The package config compatibility the install writes
+figure_as_written: MinorVersion
+figure_measured: SameMinorVersion, the only spelling CMake defines
+command: cmake --preset=ci-ubuntu
+head: 0dea082
+must_not_move: the generated PACKAGE_VERSION, which reads 0.4.0
+```
+
+```yaml
+date: 2026-10-06
+task: T029
+section: The shared-object version the 0.x line carries
+figure_as_written: the major position, which is 0 on this line
+figure_measured: 1, declared and dormant while BUILD_SHARED_LIBS is off
+command: grep SOVERSION CMakeLists.txt
+head: 0dea082
+must_not_move: the project VERSION line, which reads 0.4.0
+```
+
+```yaml
+date: 2026-10-06
+task: T048
+section: The encodable-row counts the seam test pins
+figure_as_written: skylake 581 and sapphirerapids 1993, with PortMask and FCMask unpublished
+figure_measured: skylake 587 and sapphirerapids 2222 against the synthetic list
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: 0dea082
+must_not_move: the reference-host pins, which stay at 581 and 1993
+```
+
+```yaml
+date: 2026-10-06
+task: T049
+section: Device scope from published per-task context
+figure_as_written: every device starts per-task capable, and a probe errno settles scope
+figure_measured: a device publishing cpumask or cpus is device-scoped before any probe
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: 0dea082
+must_not_move: the msr thread-target path, which still takes the per-task probe
+```
+
+```yaml
+date: 2026-10-06
+task: T050
+section: Version lineage for the 0.4.0 bump
+figure_as_written: the spec 012 plan records 0.3.0 and names neither cd5cbd1 removal
+figure_measured: the Version lineage names both removals and the move from 0.3.0 to 0.4.0
+command: grep -n cd5cbd1 specs/012-counters-defect-resolution/plan.md include/speedgun-ng/counters_measurement.hpp
+head: 0dea082
+must_not_move: the project VERSION line, which reads 0.4.0
+```

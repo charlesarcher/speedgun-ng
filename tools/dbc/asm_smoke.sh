@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tools/dbc/asm_smoke.sh
-# T017 / FR-039: Linux assembly smoke test for the DBC satisfied hot path.
+# T017 / FR-039: Linux assembly check for the DBC satisfied hot path.
 #
 # Usage: asm_smoke.sh [include-dir]
 #   include-dir defaults to include/ (repo-relative, or $1 from ctest).

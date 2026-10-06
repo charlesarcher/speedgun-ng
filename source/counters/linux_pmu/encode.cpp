@@ -37,14 +37,12 @@ auto word_of(const std::string_view name) -> int
   // no vendored table row spells.
   while (index < name.size()  // LCOV_EXCL_BR_LINE
          && name[index] >= 'a'  // LCOV_EXCL_BR_LINE
-         && name[index] <= 'z')
-  {  // LCOV_EXCL_BR_LINE
+         && name[index] <= 'z') {  // LCOV_EXCL_BR_LINE
     ++index;
   }  // LCOV_EXCL_BR_LINE
   for (; index < name.size(); ++index) {
     if (name[index] < '0'  // LCOV_EXCL_BR_LINE
-        || name[index] > '9')
-    {  // LCOV_EXCL_BR_LINE
+        || name[index] > '9') {  // LCOV_EXCL_BR_LINE
       return 0;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_LINE
     word = word * 10 + static_cast<int>(name[index] - '0');

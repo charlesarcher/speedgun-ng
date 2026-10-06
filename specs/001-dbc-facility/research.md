@@ -21,14 +21,14 @@ were rejected. Each finding is tagged for traceability into the plan.
   a true `#if` elision and keeps contract sites mechanically detectable for the
   coverage gate.
 - **Alternatives considered**:
-  - *Boost.Contract* — rejected: pulls ~15 Boost header components, a global
+  - *Boost.Contract*: rejected: pulls ~15 Boost header components, a global
     mutex in checked builds (perturbs benchmark measurements), ignores `NDEBUG`
     (release-strip trap), and carries an open sanitizer issue. Violates the
     zero-dependency mandate.
   - *Lib.Contract* — rejected: no `result`/`old` support, release-strip leaves
     RAII scaffolding compiled (optimizer-dependent, not `#if`-guaranteed),
     single maintainer.
-  - *C++26 native contracts* — deferred: as of 2026-09 only GCC 16 ships it and
+  - *C++26 native contracts*: deferred: as of 2026-09 only GCC 16 ships it and
     the standard has no loop or class invariant constructs. Chosen as the
     forward migration target (FR-035), not the current mechanism.
 
@@ -42,7 +42,7 @@ were rejected. Each finding is tagged for traceability into the plan.
   OpenImageIO, and TrenchBroom all use these names).
 - **Alternatives considered**: `NDEBUG`-based switching (rejected — couples the
   contract switch to the optimization flag, the canonical anti-pattern); a
-  per-site runtime toggle (rejected — FR-017 fixes a single build-time switch).
+  per-site runtime toggle (rejected: FR-017 fixes a single build-time switch).
 
 ### R-003: Zero release cost via a dedicated switch
 - **Decision**: Contract evaluation is controlled by a dedicated build switch,
@@ -59,10 +59,10 @@ were rejected. Each finding is tagged for traceability into the plan.
   check). The AST-level hard gate is deferred to feature 002.
 - **Rationale**: The constitution makes 100% DBC coverage a hard gate, but no
   off-the-shelf tool measures doc↔code pairing. A phased approach keeps CI
-  honest from the landing commit (Phase 0, coarse but real) while the
+  present from the landing commit (Phase 0, coarse but real) while the
   higher-fidelity AST gate (feature 002) is built.
-- **Alternatives considered**: AST-only gate from day one (rejected — blocks
-  001 on a multi-week tool build); no gate (rejected — an unenforceable hard
+- **Alternatives considered**: AST-only gate from day one (rejected: blocks
+  001 on a multi-week tool build); no gate (rejected: an unenforceable hard
   gate).
 
 ### R-005: Checker-friendly macro design
@@ -82,7 +82,7 @@ were rejected. Each finding is tagged for traceability into the plan.
   verified.
 - **Alternatives considered**: Flipping the existing 3-OS matrix to
   consumer-style (rejected — macOS/Windows release runs would stop exercising
-  contracts); no CI verification (rejected — the guarantee must be gated, not
+  contracts); no CI verification (rejected: the guarantee must be gated, not
   documented).
 
 ### R-007: The in-body assertion is named `assert` (SG_ASSERT)
@@ -98,8 +98,8 @@ were rejected. Each finding is tagged for traceability into the plan.
   deploy job.
 - **Rationale**: FR-027/FR-028/FR-031 + SC-006. The gate must enforce per-PR;
   the existing docs job only runs on master pushes.
-- **Alternatives considered**: Folding into the docs job (rejected —
-  master-only); folding into the 3-OS test matrix (rejected — Doxygen on three
+- **Alternatives considered**: Folding into the docs job (rejected : 
+  master-only); folding into the 3-OS test matrix (rejected: Doxygen on three
   OSes × shared/static for no added value, since the gate is
   platform-independent).
 
@@ -108,11 +108,11 @@ were rejected. Each finding is tagged for traceability into the plan.
   to 100% DBC conformance (documented `\pre`/`\post` + matching runtime
   enforcement) within 001, before the gate lands.
 - **Rationale**: FR-029 scopes the gate to all public headers from day one.
-  Un-conformed pre-existing code would make CI red on the very PR that ships the
+  Un-conformed pre-existing code would make CI red on the PR that ships the
   gate; an allowlist would be a forbidden gate-weakening.
-- **Alternatives considered**: An allowlist for pre-existing symbols (rejected —
+- **Alternatives considered**: An allowlist for pre-existing symbols (rejected : 
   the constitution forbids silent gate weakening); deferring conformance to a
-  follow-up (rejected — leaves the gate red at the landing commit).
+  follow-up (rejected: leaves the gate red at the landing commit).
 
 ### R-010: Call-site performance design (performance-sensitive, pervasive use)
 - **Decision**: The contract call site is designed as a **statement-form macro** (`do { if (!(pred)) [[unlikely]] { check_kind(msg, __FILE__, __LINE__, #pred); } } while (false)`), not a function call:
@@ -122,14 +122,14 @@ were rejected. Each finding is tagged for traceability into the plan.
   - *No EH at the call site*: the check dispatch is a separate cold function, declared `[[noreturn]]` in terminating semantics, and **not inlined** into the call site (header-only `inline` + a portable noinline shim — `__attribute__((noinline))` on GCC/Clang, `__declspec(noinline)` on MSVC — or a genuinely out-of-line library function). Any throw (a test observer) occurs **inside** the cold function, so the hot path carries no inlined landing pads or unwind continuation; the failure edge is terminal (`[[noreturn]]`), so the call site needs no landing pad (FR-039).
   - *Standalone header*: `dbc.hpp` does not depend on the library's export header or other project headers; in `ignore` mode semantic-gated macros expand to nothing (predicate not evaluated, zero code) (FR-037).
 - **Rationale**: the facility is intended for pervasive use, so the satisfied-check cost must stay a predicate evaluation plus a predicted branch. This is the current baseline of a **continuing call-site performance family** (per plan review, 2026-09-06); the design keeps further requirements in the family cheap to add.
-- **Verification**: SC-008 overhead distribution (checked vs uncontracted), an assembly smoke test (Linux) confirming the hot path of a satisfied check has no EH continuation machinery, and a standalone-compile test (dbc.hpp compiles in a TU with no project includes).
+- **Verification**: SC-008 overhead distribution (checked vs uncontracted), an assembly check (Linux) confirming the hot path of a satisfied check has no EH continuation machinery, and a standalone-compile test (dbc.hpp compiles in a TU with no project includes).
 - **Alternatives considered**: call-form macros with pre-evaluated args (rejected — violates FR-038); `assert`-style with no stringified predicate (rejected — loses the predicate text in the record, FR-021); inlined dispatch (rejected — EH spread at the call site, FR-039).
 
 ### R-011: Always-on DBC (deliberate exception to zero-release-cost)
 - **Decision**: A contract may be designated **always-on**: enforced in every configuration (including `ignore`/release), not stripped by the semantic switch, and compiler-eliminable-proof because the check has observable side effects on violation (diagnostic + termination). Always-on uses a distinct macro family (e.g. `SG_REQUIRE_ALWAYS` / `SG_ENSURE_ALWAYS` / `SG_INVARIANT_ALWAYS` / `SG_ASSERT_ALWAYS`) so the registry, the gates, and the consumer-release job can distinguish always-on sites from semantic-gated ones.
 - **Rationale**: some critical invariants must hold even in release binaries. The zero-release-code guarantee (FR-018/SC-002) applies to **semantic-gated** contracts; the consumer-release trap fixture distinguishes an always-on site (must still fire) from a semantic-gated site (must be silent).
 - **✅ Constitution tension (RESOLVED 2026-09-06, plan gate)**: constitution Principle II previously stated, without exception, that "contract checks MUST NOT emit any code in release builds". Always-on contracts (FR-036) were in direct tension with that sentence. Resolved at the plan gate by the user (maintainer): the always-on carve-out is applied **directly to the Principle II text** at the user's direction — the user explicitly declined the formal-amendment framing for now ("don't call it an amendment, we're not going there yet; just make the change"). The constitution text now carries the carve-out (applied wording below); the formal amendment ceremony (v2.2.1 → 2.3.0 MINOR version bump + Sync Impact Report) is **deferred** at the user's request and may be recorded later as a housekeeping follow-up. Rationale of record: this spec (FR-036/FR-018/SC-002) + research R-011/R-013.
-- **Applied change (constitution Principle II, 2026-09-06 — user-directed, no formal version bump).** The Principle II bullet "Contract checks MUST NOT emit any code in release builds: zero performance cost on critical paths." was replaced with:
+- **Applied change (constitution Principle II, 2026-09-06: user-directed, no formal version bump).** The Principle II bullet "Contract checks MUST NOT emit any code in release builds: zero performance cost on critical paths." was replaced with:
   > Contract checks MUST NOT emit any code in release builds: zero performance cost on critical paths. This applies to semantic-gated contract checks — those selected by the `ignore` / `observe` / `enforce` / `quick_enforce` evaluation switch. A contract MAY be explicitly designated always-on; always-on contracts are present and enforced in every build configuration, including release, and are the deliberate, sparing exception reserved for critical invariants that must hold even in release binaries. The macro registry and release-artifact verification MUST distinguish always-on sites from semantic-gated ones. (Rationale of record: spec 001-dbc-facility FR-036/FR-018/SC-002; research R-011/R-013.)
   The accompanying formal ceremony (version 2.2.1 → 2.3.0 MINOR bump + Sync
   Impact Report) is **deferred** at the user's request ("not going there
@@ -186,8 +186,8 @@ were rejected. Each finding is tagged for traceability into the plan.
   - **C5 — `noexcept`/`[[noreturn]]` placement (refines FR-039):** the dispatch is `[[noreturn]]` **and** `noexcept` **only in the terminating semantics** where the default response is `std::abort()` (which never returns and never throws). In `observe` — where a test observer **may throw** (FR-009) and that throw "propagates as the termination mechanism" (FR-014) — the dispatch must **not** be `noexcept`, or the observer's throw would be converted to `std::terminate` and would not propagate. The `[[noreturn]]` on the terminating path is a **layout hint** for the hot path (the check does not fall through); a test observer that throws is a test-only scenario and the throw occurs inside the cold frame, never at the call site (unchanged FR-039 property). This is a *refinement* of FR-039's "the dispatch is `[[noreturn]]` in terminating semantics," adding the `noexcept`-only-in-terminating qualifier; it is recorded for the plan and flagged at the plan gate (it does not change the approved spec's observable behavior).
 - **Divergence reconciliation (the two design forks the external research surfaced, both resolved for the approved spec):**
   - **D1 — per-kind `check_*` vs a single kind-tagged `dbc_dispatch`:** the plan keeps **four per-kind** `sg::dbc::check_precondition/postcondition/invariant/assertion` functions as the **single registered enforcement function per kind** (FR-025) — the macro expands to a call of **exactly one** of them, which is what makes sites mechanically detectable and keeps `tools/dbc/macros.yaml` (FR-026) and both gate halves (FR-027/028) working. The research's single kind-tagged `dbc_dispatch(kind, …)` is **not** a public divergence: it is realized as the **internal** `sg::dbc::detail::dispatch(Kind, msg, file, line, pred)` that the four `check_*` functions forward to. The kind remains part of the stable site identity (FR-021). So: per-kind public surface (spec), kind-tagged internal sink (research), no conflict.
-  - **D2 — header-inline `noinline` vs genuinely out-of-line TU dispatch:** **header-inline `noinline` remains primary** (FR-037 default form "at most standard headers," and SC-002's symbol-absence proof — an emitted-on-use inline dispatch is *absent* from a TU that has no live `check_*` call, which an always-compiled `source/dbc/dbc.cpp` dispatch would **not** be). The out-of-line TU dispatch (behind its own dedicated generated export header, FR-037 form b) is the **documented fallback**, engaged only if the header-inline shape shows EH artifacts in the Linux assembly smoke test (SC-008). The empirical proof above (header-inline caller frame is EH-clean) shows the primary is expected to pass the smoke test.
-- **Verification (plan / test-plan hooks):** satisfied-path shape and no-EH-at-call-site → the Linux assembly smoke test (FR-039/SC-008, `tools/dbc/asm_smoke.sh`) and the measured overhead distribution (SC-008); standalone-header + zero-`ignore`-code → the standalone-compile test and the consumer-release symbol-absence job (FR-037/SC-002); `SG_*_ALWAYS` presence in `ignore` → the trap fixture (FR-036/SC-002). All four are already in the plan's test-case mapping; R-013 adds the empirical evidence that the *primary* design is expected to satisfy them.
+  - **D2 — header-inline `noinline` vs genuinely out-of-line TU dispatch:** **header-inline `noinline` remains primary** (FR-037 default form "at most standard headers," and SC-002's symbol-absence proof — an emitted-on-use inline dispatch is *absent* from a TU that has no live `check_*` call, which an always-compiled `source/dbc/dbc.cpp` dispatch would **not** be). The out-of-line TU dispatch (behind its own dedicated generated export header, FR-037 form b) is the **documented fallback**, engaged only if the header-inline shape shows EH artifacts in the Linux assembly check (SC-008). The empirical proof above (header-inline caller frame is EH-clean) shows the primary is expected to pass the smoke test.
+- **Verification (plan / test-plan hooks):** satisfied-path shape and no-EH-at-call-site → the Linux assembly check (FR-039/SC-008, `tools/dbc/asm_smoke.sh`) and the measured overhead distribution (SC-008); standalone-header + zero-`ignore`-code → the standalone-compile test and the consumer-release symbol-absence job (FR-037/SC-002); `SG_*_ALWAYS` presence in `ignore` → the trap fixture (FR-036/SC-002). All four are already in the plan's test-case mapping; R-013 adds the empirical evidence that the *primary* design is expected to satisfy them.
 - **Alternatives considered**: (a) inverting primary/fallback to out-of-line TU dispatch (the external research's literal framing) — **rejected**: breaks SC-002's symbol-absence proof (an always-compiled dispatch TU emits `check_*` symbols even in `ignore`) and needs an export header in the default case (FR-037 form b); header-inline satisfies both spec and measured cleanliness. (b) the Qt `false && (pred)` `ignore` idiom (Rank 9/14) — **rejected**: parses/type-checks the predicate, violating FR-037 "predicate not evaluated"; the project's `-Wunused`-not-`-Werror` set makes spec-literal elision's only cost a non-fatal, rare warning. (c) adopting `__builtin_assume`/`[[assume]]` (Rank 12) — **rejected**: unportable, pessimizes, redundant with `[[noreturn]]`. (d) `__builtin_expect` on the hot path (Rank 4) — **rejected**: redundant with `[[unlikely]]` and non-portable.
 
 ## Resolved Clarifications (none open)

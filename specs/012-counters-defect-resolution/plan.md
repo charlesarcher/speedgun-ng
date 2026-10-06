@@ -169,6 +169,12 @@ artifact orders every test task before the code task it gates.
 
 ### Version lineage
 
+The 0.4.0 bump records two removals commit `cd5cbd1` made. It removed
+the non-member multiplication of an expression by a double, and it
+removed the provider concept. Both declarations remain absent from the
+public headers. The project version moves from 0.3.0 to 0.4.0 with
+this record (FR-020, FR-032).
+
 The release ships as **0.3.0**, and `SOVERSION` stays at 0 (FR-024).
 `CMakeLists.txt:7` carries the version; `CMakeLists.txt:41` sets
 `SOVERSION` from `PROJECT_VERSION_MAJOR`, which stays 0. The reason is

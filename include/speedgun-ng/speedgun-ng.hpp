@@ -10,7 +10,7 @@
  * exported classes, because there are too many ways to work around it and all
  * involve some kind of trade-off (increased code complexity requiring more
  * developer time, writing boilerplate code, longer compile times), but those
- * solutions are very situational and solve things in slightly different ways,
+ * solutions are situational and solve things in slightly different ways,
  * depending on the requirements of the project.
  * That is to say, there is no general solution.
  *

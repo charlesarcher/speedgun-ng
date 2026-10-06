@@ -19,10 +19,10 @@ public:
   // deleted (exempt)
   ~Exempt() = delete;
 
-  // public with explicit none marker for genuinely empty contract set (FR-030)
+  // public with explicit none marker for empty contract set (FR-030)
   // (no enforcement required; pairing gate must accept explicit "none")
   /**
-   * @brief Public entry with genuinely empty contracts.
+   * @brief Public entry with empty contracts.
    *
    * \pre none
    * \post none

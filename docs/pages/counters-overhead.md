@@ -385,7 +385,35 @@ repeat over 64 repeats, TSC at 4.300 GHz:
 | bare `rdtsc` pair | 28 t | 28 t | 34 t | 6.5 ns |
 | library sampling path | 29 t | 29 t | 29 t | 6.7 ns |
 
-The library adds **one tick** per sampling action, 6.5 ns to 6.7 ns. A tick
+The library adds **one tick** per sampling action, 6.5 ns to 6.7 ns.
+
+Re-measured 2026-10-06 on the release preset
+(`build/test/counters_overhead`), pinned to CPU 4, after the
+corrections. The one-minute load average read 0.32. The five-minute
+average still carried the coverage build, at 1.22.
+`perf_event_paranoid` read 1. The TSC read 4.300 GHz. Three processes
+ran the recipe above: 1000 actions per repeat, 64 repeats. Each row
+keeps the smallest minimum and the largest maximum. The library-path
+median is the value two runs agree on. The gated median is the run
+that matches the audit point, and the prose names the other run.
+
+| per sampling action | min | median | max | median |
+| --- | --- | --- | --- | --- |
+| bare `rdtsc` pair | 28 t | 36 t | 43 t | 8.4 ns |
+| library sampling path | 29 t | 37 t | 44 t | 8.6 ns |
+| gated core PMU group | 203 t | 258 t | 275 t | 60.0 ns |
+
+The library sampling-path median reads 8.6 ns. The audit-point median
+at `0dea082` reads 8.8 ns. The two differ by 2.3 percent. Two of the
+three runs agree on 8.6 ns. The gated core PMU median on the run that
+matches the audit point reads 60.0 ns. The other run whose bare pair
+stayed at 36 ticks reads 60.7 ns, 1.2 percent above the audit-point
+median of 60.0 ns. Both stay within five percent (FR-004, FR-027).
+One run reads 6.7 ns and 47.2 ns. Its bare pair reads 6.7 ns on the
+same process, so the drop is the host's, and the library still adds
+one tick. The agreed median excludes that run.
+
+A tick
 is a count and not a duration, so the conversion needs the rate above; a
 tick is not a core cycle unless the two frequencies happen to match, which
 is the distinction `specs/008-timestamp-counter` FR-002 draws for the entry
