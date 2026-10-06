@@ -130,7 +130,7 @@ becomes one CI enforces on every change.
 
 Principle VIII's final item states that changing the gate set itself
 requires a constitution amendment. That clause is unqualified. It
-governs an addition as well as a removal, so adding the gate triggers
+governs an addition, and it governs a removal, so adding the gate triggers
 it.
 
 The amendment is `.specify/memory/constitution.md` at version 2.13.0,

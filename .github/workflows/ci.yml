@@ -111,6 +111,36 @@ jobs:
           halt_on_error=1"
       run: ctest --output-on-failure --no-tests=error -j 2
 
+  tsan:
+    needs: [lint]
+
+    runs-on: ubuntu-26.04
+
+    env: { CXX: clang++ }
+
+    steps:
+    - uses: actions/checkout@v4
+      with: { submodules: true }
+
+    - name: Install clang, Doxygen, and python3-yaml
+      run: sudo apt-get update -q
+        && sudo apt-get install clang doxygen python3-yaml lcov autoconf automake libtool patch -q -y
+
+    - name: Configure
+      run: cmake --preset=ci-tsan
+
+    - name: Build
+      run: cmake --build build/tsan -j 2
+
+    # The thread sanitizer needs its own build tree: the compilers reject
+    # pairing it with the address sanitizer, so ci-sanitize keeps address
+    # and undefined behavior alone (D-05, FR-012, SC-003).
+    - name: Test
+      working-directory: build/tsan
+      env:
+        TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
+      run: ctest --output-on-failure --no-tests=error -j 2
+
   test:
     needs: [lint]
     runs-on: ubuntu-26.04

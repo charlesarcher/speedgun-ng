@@ -121,6 +121,10 @@ auto availability_name(const availability state) -> std::string_view
       return "not_encodable";
     case availability::absent:
       return "absent";
+    case availability::scope_refused:
+      return "scope_refused";
+    case availability::gap:
+      return "gap";
   }
   // LCOV_EXCL_LINE : coverage exclusion (T066): the defensive close of a
   // closed enumeration, reachable only by casting an out-of-range integer
@@ -253,14 +257,6 @@ constexpr int kCalibrationSamples = 257;
 
 }  // namespace
 
-// LCOV_EXCL_START : coverage exclusion (T140): the calibration and the three
-// accessors that publish it. All four are reached only from
-// `test/source/counters_overhead.cpp`, which measures a regime only where
-// the catalog publishes a `cpu` object carrying a countable hardware event,
-// and countability is a granted `perf_event_open`. A runner whose
-// `perf_event_open` is refused publishes no countable entry, so the page
-// returns before it measures and none of these functions is entered; the
-// host that grants the syscall enters all four.
 // Runs the calibration on first request (FR-032): the plan's own read
 // sequence over an empty workload, timed one action at a time. The
 // scratch buffer is the plan's own, so no recorder observes it.
@@ -286,6 +282,26 @@ static auto calibrate(plan_impl& layout) -> const overhead_sample&
     const auto after = std::chrono::steady_clock::now();
     costs.push_back(
         std::chrono::duration<double, std::nano>(after - before).count());
+  }
+  // The bracket's own cost, measured under the identical bracketing: two
+  // clock reads with no sampling action between them. The published floor
+  // excludes it, so a caller reads what one sampling action costs and not
+  // what timing that action costs (FR-025).
+  std::vector<double> brackets;
+  brackets.reserve(static_cast<std::size_t>(kCalibrationSamples));
+  for (int index = 0; index < kCalibrationSamples; ++index) {
+    const auto before = std::chrono::steady_clock::now();
+    const auto after = std::chrono::steady_clock::now();
+    brackets.push_back(
+        std::chrono::duration<double, std::nano>(after - before).count());
+  }
+  std::sort(brackets.begin(), brackets.end());
+  const double bracket = brackets[brackets.size() / 2];
+  // A host whose clock costs more than the action publishes a floor of
+  // zero. The subtraction clamps there, and the published duration is
+  // never negative (FR-025).
+  for (auto& cost : costs) {
+    cost = std::max(0.0, cost - bracket);
   }
   std::sort(costs.begin(), costs.end());
   layout.overhead.min_ns = costs.front();
@@ -315,7 +331,6 @@ auto plan::sample_overhead_ns_max() const -> double
   SG_ENSURE(cost.max_ns >= cost.min_ns,
             "the dearest sampled action is at least the cheapest");
   return cost.max_ns;
-  // LCOV_EXCL_STOP
 }
 
 scope::scope(const plan& compiled)
@@ -399,7 +414,11 @@ auto compile_core(const system& sys,
     -> std::expected<plan, error>
 {
   auto& impl = *sys.m_impl;
-  impl.ensure_open();
+  // The open flag is not written here: the open boundary sets it once,
+  // and a compile writing it would race every other compile on a flag no
+  // compile reads (FR-011).
+  SG_REQUIRE(impl.is_open(),
+             "a plan compiles only after the catalog is open (FR-011)");
   if (exprs.empty()) {
     return std::unexpected(
         error {.message = "compile requires at least one expression (FR-021)",
@@ -483,20 +502,27 @@ auto compile_core(const system& sys,
   // (`source/counters/linux_pmu/group_io.cpp:216-239`); a per-instance
   // split would multiply the setup cost and add one indirect call per
   // instance to every sample (T098).
+  // Two passes over the providers: the first lays out every slot, so the
+  // second knows which group's leaves end at the plan's last managed
+  // column and can name the disclosure column to the one window that
+  // writes it (FR-007).
+  std::vector<std::vector<std::string>> per_provider(impl.providers.size());
+  std::vector<std::size_t> group_of(impl.providers.size(),
+                                    static_cast<std::size_t>(-1));
   for (std::size_t p = 0; p < impl.providers.size(); ++p) {
     const auto provider = static_cast<int>(p);
-    std::vector<std::string> addresses;
     for (const auto& one : pending) {
       if (one.record->provider_index == provider) {
-        addresses.push_back(one.address);
+        per_provider[p].push_back(one.address);
       }
     }
-    if (addresses.empty()) {
+    if (per_provider[p].empty()) {
       continue;
     }
+    group_of[p] = layout->groups.size();
     read_group group;
     group.offset = layout->slots.size();
-    group.count = addresses.size();
+    group.count = per_provider[p].size();
     for (const auto& one : pending) {
       if (one.record->provider_index != provider) {
         continue;
@@ -506,8 +532,22 @@ auto compile_core(const system& sys,
           .core = candidate.core, .has_ratio_pair = candidate.has_ratio_pair});
       layout->by_address.emplace(one.address, layout->slots.size() - 1);
     }
-    auto reader =
-        impl.providers[p]->open(leaf_set {.addresses = addresses}, tg);
+    layout->groups.push_back(std::move(group));
+  }  // LCOV_EXCL_LINE
+  // The disclosure column sits past the last managed leaf, so the
+  // group that owns the plan's last leaf is the one that writes it.
+  layout->disclosure_slot = layout->slots.size();
+  for (std::size_t p = 0; p < impl.providers.size(); ++p) {
+    if (per_provider[p].empty()) {
+      continue;
+    }
+    auto& group = layout->groups[group_of[p]];
+    const bool last = group.offset + group.count == layout->slots.size();
+    auto reader = impl.providers[p]->open(
+        leaf_set {.addresses = std::move(per_provider[p]),
+                  .disclosure_column = last ? layout->disclosure_slot
+                                            : leaf_set::no_disclosure_column},
+        tg);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the open refusal. It
     // needs a provider that declines a window for leaves its own catalog
     // already reported countable, so the refusal follows a granted
@@ -526,8 +566,7 @@ auto compile_core(const system& sys,
     // LCOV_EXCL_BR_STOP
     group.thunk = reader->resolve_thunk();
     group.reader = std::move(reader);
-    layout->groups.push_back(std::move(group));
-  }  // LCOV_EXCL_LINE
+  }
   // LCOV_EXCL_LINE : coverage exclusion (T140): the block gcov attributes to
   // the loop's closing brace, marked on the brace above. A runner whose
   // `perf_event_open` is refused opens no provider window, so its provider

@@ -85,7 +85,9 @@ public:
    *      Registration admits no other, so a violation is a provider
    *      contract breach and reports. The leaf is never presented as
    *      `unit::none` (FR-017).
-   * \post none
+   * \post Every entry's `avail` and `targets` agree: an entry reported
+   *       `countable` names at least one target bit, and an entry in
+   *       every other state names none (FR-021).
    */
   [[nodiscard]] auto counters() const -> std::vector<catalog_entry>;
 

@@ -34,6 +34,7 @@ struct detail::push_window final : window_reader
 
   std::vector<const std::uint64_t*> cells;
   std::thread::id owner {};
+  std::size_t disclosure_column = leaf_set::no_disclosure_column;
 
   void read_points(point_sink& sink) noexcept override
   {
@@ -43,6 +44,12 @@ struct detail::push_window final : window_reader
                                                                 "(FR-035)");
     for (const auto* cell : cells) {
       sink.put(*cell);  // plain load, never an atomic RMW (R-008)
+    }
+    // A push counter is a plain load of a cell its own thread owns, so
+    // the action always measures and the disclosure names the entry's own
+    // countability value (FR-007).
+    if (disclosure_column != leaf_set::no_disclosure_column) {
+      sink.put(static_cast<std::uint64_t>(availability::countable));
     }
   }
 };
@@ -96,6 +103,7 @@ std::unique_ptr<window_reader> push_provider::open(const leaf_set& leaves,
                                                    const target& /*where*/)
 {
   auto window = std::make_unique<detail::push_window>();
+  window->disclosure_column = leaves.disclosure_column;
   window->cells.reserve(leaves.addresses.size());
   for (const auto& address : leaves.addresses) {
     const push_point* match = nullptr;

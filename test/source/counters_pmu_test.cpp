@@ -27,6 +27,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <type_traits>
 #include <vector>
 
 #include "speedgun-ng/counters.hpp"
@@ -89,6 +90,42 @@ auto find_entry(const std::vector<catalog_entry>& entries,
     }
   }
   return nullptr;
+}
+
+// The descriptor count the fast-window lifecycle compares around its loop.
+// The listing holds one descriptor of its own while it is read, and it
+// holds one in both measurements, so the difference is what the test
+// compares.
+auto open_descriptor_count() -> std::size_t
+{
+  std::error_code failure;
+  std::size_t count = 0;
+  for (const auto& entry :
+       std::filesystem::directory_iterator("/proc/self/fd", failure))
+  {
+    static_cast<void>(entry);
+    ++count;
+  }
+  if (failure) {
+    fail("the process's own descriptor listing is readable");
+  }
+  return count;
+}
+
+// The mapping count the same scenario compares: one line per mapping in
+// /proc/self/maps, which the kernel formats as a file rather than
+// listing as a directory.
+auto mapping_count() -> std::size_t
+{
+  std::ifstream maps("/proc/self/maps");
+  if (!maps) {
+    fail("the process's own mapping listing is readable");
+  }
+  std::size_t count = 0;
+  for (std::string line; std::getline(maps, line);) {
+    ++count;
+  }
+  return count;
 }
 
 auto read_paranoid() -> int
@@ -252,9 +289,36 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
 // countable; hardware entries report whatever the kernel's own test-open
 // says, at whatever level the host runs (never a hard-fail either way,
 // SC-002).
+// The availability enumeration's values, pinned. A new target kind takes
+// the next free bit, and this assertion is what shows that adding one
+// left every existing value where it stood (FR-021).
+static_assert(static_cast<std::uint8_t>(availability::countable) == 0);
+static_assert(static_cast<std::uint8_t>(availability::permission_blocked) == 1);
+static_assert(static_cast<std::uint8_t>(availability::not_encodable) == 2);
+static_assert(static_cast<std::uint8_t>(availability::absent) == 3);
+static_assert(static_cast<std::uint8_t>(availability::scope_refused) == 4);
+static_assert(static_cast<std::uint8_t>(availability::gap) == 5);
+
+// The target-kind mask is a fixed-size unsigned integer, so reading an
+// entry's targets allocates nothing and needs no container (FR-021).
+static_assert(sizeof(sg::counters::target_mask) == sizeof(std::uint32_t));
+static_assert(sg::counters::target_thread_bit == 1U);
+static_assert(sg::counters::target_cpu_bit == 2U);
+static_assert(std::is_same_v<sg::counters::target_mask, std::uint32_t>,
+              "the mask is one fixed-size integer and no container "
+              "(FR-021)");
+
 auto availability_scenario(const std::vector<const object*>& pmu_objects)
     -> void
 {
+  // A scope refusal is separable from an encoding refusal: the two name
+  // different causes and a caller reads them apart (FR-021).
+  check(availability::scope_refused != availability::not_encodable,
+        "a scope refusal is a state of its own beside an encoding refusal "
+        "(FR-021)");
+  check(availability::gap != availability::countable,
+        "the per-action gap is a state of its own beside a countable entry "
+        "(FR-021)");
   const int paranoid = read_paranoid();
   const probe_verdict verdict = hardware_event_probe();
   std::printf("perf_event_paranoid = %d; hardware event probe %s\n",
@@ -292,6 +356,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   std::size_t countable = 0;
   std::size_t blocked = 0;
   std::size_t unencodable = 0;
+  std::size_t scope_refused = 0;
   std::size_t fast = 0;
   for (const object* obj : pmu_objects) {
     for (const auto& entry : obj->counters()) {
@@ -305,8 +370,16 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
         case availability::not_encodable:
           ++unencodable;
           break;
+        case availability::scope_refused:
+          ++scope_refused;
+          break;
         case availability::absent:
           fail("absent is never seeded by the provider");
+          break;
+        case availability::gap:
+          fail("gap is a property of one sampling action, never of an "
+               "entry (FR-021)");
+          break;
       }
       if (entry.mode == read_mode::fast_rdpmc) {
         ++fast;
@@ -315,11 +388,33 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   }
   // The paranoid-2 hardware-entry state, recorded from the catalog this
   // host produced: the counts beside the probe that produced them.
+  // The state and the mask agree on every entry the catalog publishes: a
+  // countable entry names at least one target bit, and every other state
+  // names none, because the catalog never publishes the per-action gap
+  // (FR-021).
+  std::size_t mask_agreed = 0;
+  std::size_t entries_seen = 0;
+  for (const object* obj : pmu_objects) {
+    for (const auto& entry : obj->counters()) {
+      ++entries_seen;
+      const bool countable_entry = entry.avail == availability::countable;
+      const bool names_a_bit = entry.targets != sg::counters::target_mask {0};
+      if (countable_entry == names_a_bit) {
+        ++mask_agreed;
+      }
+    }
+  }
+  check(mask_agreed == entries_seen,
+        "every published entry's state and target mask agree: a countable "
+        "entry names a target bit and every other state names none "
+        "(FR-021)");
+
   std::printf("pmu availability: %zu countable, %zu permission_blocked, "
-              "%zu not_encodable, %zu fast_rdpmc\n",
+              "%zu not_encodable, %zu scope_refused, %zu fast_rdpmc\n",
               countable,
               blocked,
               unencodable,
+              scope_refused,
               fast);
 
   // The fast (mapped-page rdpmc) read is gated by the kernel's own
@@ -816,6 +911,76 @@ auto unavailable_leaf_scenario() -> void
   std::printf("scenario 7: %s\n", message.c_str());
 }
 
+// A real fast-mode plan, opened and destroyed 10,000 times, measured over
+// the descriptors and mappings the kernel itself hands back. The seam test
+// proves the same release over resources the test opened itself, which
+// runs on every host; this one proves it on the kernel's own resources,
+// where only a granted perf_event_open reaches the path. A host that
+// refuses the event prints the reason and returns 2, which CTest reports
+// as skipped (FR-013, SC-004).
+auto fast_window_lifetime_scenario() -> int
+{
+  const auto cpu_object = system::local().object("cpu");
+  if (!cpu_object.has_value()) {
+    std::printf("SKIP: no provider seeded a cpu object at this "
+                "perf_event_paranoid, so no hardware event is reachable "
+                "to exercise (FR-039, SC-004)\n");
+    return 2;
+  }
+  const auto& cpu = *cpu_object;
+  std::string countable;
+  for (const auto& entry : cpu.counters()) {
+    if (entry.avail == availability::countable) {
+      countable = std::string(entry.name);
+      break;
+    }
+  }
+  if (countable.empty()) {
+    std::printf("SKIP: no countable cpu-PMU event on this host (hardware "
+                "event probe %s at perf_event_paranoid %d); the kernel "
+                "refuses every event, so the release path is unreachable "
+                "(SC-004)\n",
+                name(hardware_event_probe()),
+                read_paranoid());
+    return 2;
+  }
+
+  const expression<events> counted {*cpu.counter<events>(countable)};
+  const auto descriptors_before = open_descriptor_count();
+  const auto mappings_before = mapping_count();
+  constexpr int cycles = 10000;
+  std::size_t opened = 0;
+  for (int index = 0; index < cycles; ++index) {
+    auto compiled = compile(system::local(), counted);
+    if (!compiled.has_value()) {
+      continue;
+    }
+    ++opened;
+    // The plan leaves scope here, releasing every window it opened.
+  }
+  if (opened == 0) {
+    std::printf("SKIP: the kernel refused every fast-mode open of '%s' "
+                "(hardware event probe %s at perf_event_paranoid %d), so "
+                "the release path is unreachable (SC-004)\n",
+                countable.c_str(),
+                name(hardware_event_probe()),
+                read_paranoid());
+    return 2;
+  }
+
+  check(open_descriptor_count() == descriptors_before,
+        "10,000 real fast-mode plan cycles return the descriptor count to "
+        "its starting value (FR-013)");
+  check(mapping_count() == mappings_before,
+        "10,000 real fast-mode plan cycles return the mapping count to its "
+        "starting value (FR-013)");
+  std::printf("fast-window lifetime: %zu of %d real opens released every "
+              "descriptor and mapping\n",
+              opened,
+              cycles);
+  return 0;
+}
+
 }  // namespace
 
 auto main() -> int
@@ -865,6 +1030,9 @@ auto main() -> int
   multiplex_scenario();
   cpu_target_scenario();
   unavailable_leaf_scenario();
+  if (const int skipped = fast_window_lifetime_scenario(); skipped != 0) {
+    return skipped;
+  }
 
   std::printf("counters_pmu_test PASS: merge, availability, disclosed modes, "
               "group read, multiplex ratio\n");

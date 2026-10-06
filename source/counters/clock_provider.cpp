@@ -208,6 +208,7 @@ struct detail::clock_window final : window_reader
   }
 
   std::vector<std::uint8_t> kinds;
+  std::size_t disclosure_column = leaf_set::no_disclosure_column;
 
   void read_points(point_sink& sink) noexcept override
   {
@@ -229,6 +230,12 @@ struct detail::clock_window final : window_reader
           sink.put(tsc_ticks());
           break;
       }
+    }
+    // A clock leaf is a read of a clock the platform always keeps running,
+    // so the action always measures and the disclosure names the entry's
+    // own countability value (FR-007).
+    if (disclosure_column != leaf_set::no_disclosure_column) {
+      sink.put(static_cast<std::uint64_t>(availability::countable));
     }
   }
 };
@@ -306,6 +313,7 @@ std::unique_ptr<window_reader> clock_provider::open(const leaf_set& leaves,
                                                     const target& /*where*/)
 {
   auto window = std::make_unique<detail::clock_window>();
+  window->disclosure_column = leaves.disclosure_column;
   window->kinds.reserve(leaves.addresses.size());
   for (const auto& address : leaves.addresses) {
     const int index = parse(address);

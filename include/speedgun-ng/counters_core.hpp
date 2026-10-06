@@ -76,14 +76,42 @@ enum class unit : std::uint8_t
 /**
  * @brief Per-entry catalog state: described-ness and countability are
  * separate predicates carried by the state name (FR-006).
+ *
+ * `scope_refused` separates a refusal the entry's own scope causes from
+ * a refusal its encoding causes, so a caller that reads it knows a
+ * cpu-target plan may still compile over the entry. `gap` names the one
+ * case the catalog never publishes for an entry: a gap is a property of
+ * one sampling action and an entry spans many, so the value travels in
+ * the plan's disclosure column beside the zero count the action produced
+ * (FR-021).
  */
 enum class availability : std::uint8_t
 {
   countable,
   permission_blocked,
   not_encodable,
-  absent
+  absent,
+  scope_refused,
+  gap
 };
+
+/**
+ * @brief The target kinds one entry can be counted on, as a fixed-size
+ * bitmask over `target_kind` (FR-021).
+ *
+ * Bit 0 is `target_kind::thread` and bit 1 is `target_kind::cpu`. The
+ * type is a fixed-size unsigned integer and allocates no memory, so a
+ * caller reads an entry's targets without a container and without an
+ * allocation. A new kernel target takes the next free bit: no enumerator
+ * value changes and no stored bit moves.
+ */
+using target_mask = std::uint32_t;
+
+/// @brief `target_kind::thread`, bit 0 of `target_mask` (FR-021).
+inline constexpr target_mask target_thread_bit = 1U;
+
+/// @brief `target_kind::cpu`, bit 1 of `target_mask` (FR-021).
+inline constexpr target_mask target_cpu_bit = 2U;
 
 /**
  * @brief The achieved read mechanism for a leaf, probed during provider
@@ -211,7 +239,9 @@ struct dimension
  * (FR-005, E-03).
  *
  * Views into provider-owned or system-owned storage; catalog strings
- * are immutable once the system is open (FR-009).
+ * are immutable once the system is open (FR-009). `avail` and `targets`
+ * agree: a state of `countable` names at least one target bit, and every
+ * other state names none (FR-021).
  *
  */
 struct catalog_entry
@@ -221,6 +251,8 @@ struct catalog_entry
   sg::counters::unit unit;
   availability avail;
   read_mode mode;
+  // The target kinds the entry can be counted on (FR-021).
+  target_mask targets = 0;
   std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
   bool scaled = false;  // platform-scaled tick source disclosure
 };

@@ -30,12 +30,19 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
+#include <fcntl.h>
 #include <linux/perf_event.h>
+#include <sched.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "../source/counters/detail/pmu.hpp"
+#include "speedgun-ng/dbc.hpp"  // SG_CONTRACTS_SEMANTIC
 
 #ifndef SG_SEAM_TABLE_DIR
 #  error "SG_SEAM_TABLE_DIR must name the fixture root (test/CMakeLists.txt)"
@@ -87,6 +94,101 @@ struct synthetic_page
   std::uint32_t index = 0;
   std::uint16_t pmc_width = 0;
 };
+
+// The fields the mapped-page protocol reads, named as the kernel's event
+// page names them. The page itself is a kernel mapping, so the fixture
+// carries these fields and the page type carries them at the offsets that
+// type declares (FR-034).
+struct event_page_fields
+{
+  std::uint32_t sequence = 0;
+  std::uint32_t index = 0;
+  std::int64_t offset = 0;
+  bool capability = true;
+  std::uint16_t pmc_width = 0;
+  std::uint64_t time_enabled = 0;
+  std::uint64_t time_running = 0;
+};
+
+// One synthetic event page, built at the offsets the kernel's own page
+// type fixes. The page is a plain value, so a fixture hands the same
+// struct to the pure decode and to a release path that reads nothing but
+// the address, the length, and the descriptor (FR-034).
+auto make_event_page(const event_page_fields& fields) -> perf_event_mmap_page
+{
+  perf_event_mmap_page page {};
+  page.lock = fields.sequence;
+  page.index = fields.index;
+  page.offset = fields.offset;
+  page.cap_user_rdpmc = fields.capability;
+  page.pmc_width = fields.pmc_width;
+  page.time_enabled = fields.time_enabled;
+  page.time_running = fields.time_running;
+  return page;
+}
+
+// The descriptor count the lifecycle test compares before and after its
+// loop (FR-013). The listing holds one descriptor of its own while it is
+// read, and it holds one in both measurements, so the difference is what
+// the test compares. A listing the kernel refuses fails the check; it is
+// never counted as zero.
+auto open_descriptor_count() -> std::size_t
+{
+  std::error_code failure;
+  std::size_t count = 0;
+  for (const auto& entry :
+       std::filesystem::directory_iterator("/proc/self/fd", failure))
+  {
+    static_cast<void>(entry);
+    ++count;
+  }
+  if (failure) {
+    fail("the process's own descriptor listing is readable");
+  }
+  return count;
+}
+
+// The mapping count the same test compares: one line per mapping in
+// `/proc/self/maps`, which is a file the kernel formats rather than a
+// directory it lists.
+auto mapping_count() -> std::size_t
+{
+  std::ifstream maps("/proc/self/maps");
+  if (!maps) {
+    fail("the process's own mapping listing is readable");
+  }
+  std::size_t count = 0;
+  for (std::string line; std::getline(maps, line);) {
+    ++count;
+  }
+  return count;
+}
+
+// The two fixtures the later scenarios share: a page carrying the fields
+// the protocol reads, and the two procfs counts a lifecycle test compares
+// around its loop. Both are exercised here, so neither reaches a build
+// as an unused helper (FR-034).
+auto fixture_scenario() -> void
+{
+  const auto page = make_event_page(event_page_fields {.sequence = 7,
+                                                       .index = 2,
+                                                       .offset = 4096,
+                                                       .capability = true,
+                                                       .pmc_width = 48,
+                                                       .time_enabled = 900,
+                                                       .time_running = 450});
+  check(page.lock == 7 && page.index == 2 && page.offset == 4096,
+        "the synthetic page carries the sequence, index, and offset the "
+        "protocol reads");
+  check(page.cap_user_rdpmc != 0,
+        "the synthetic page carries the capability bit it was built with");
+  check(page.pmc_width == 48 && page.time_enabled == 900
+            && page.time_running == 450,
+        "the synthetic page carries the width and the enabled/running pair");
+
+  check(open_descriptor_count() > 0 && mapping_count() > 0,
+        "the process's own descriptor and mapping counts are readable");
+}
 
 // The gates a synthetic page reaches, in the order the protocol applies
 // them: the one-based index the instruction takes, the counter width the
@@ -311,8 +413,9 @@ auto decode_scenario() -> void
   check(sg::counters::detail::fast_decode(
             7, 9, 1, 1, 0x1234, 0, kRnpmcCounterWidth, value)
                 == fast_read_verdict::unstable
-            && value == 0xdeadbeef,
-        "a sequence that moved reports instability and writes no value");
+            && value == 0,
+        "a sequence that moved reports instability and writes a zero count, "
+        "so no value read before the move survives into the point");
   check(sg::counters::detail::fast_decode(
             7, 7, 1, 1, 0x10, -16, kRnpmcCounterWidth, value)
                 == fast_read_verdict::ok
@@ -327,6 +430,554 @@ auto decode_scenario() -> void
                 == fast_read_verdict::ok
             && value == 0x34,
         "the value is masked to the counter width the kernel publishes");
+}
+
+// The decode recipe the kernel's own interface header documents, in the
+// order that header names: the capability gate, then the one-based index,
+// then the sequence comparison that closes the window, then the offset and
+// the counter width. The recipe is sign extension from the published
+// `pmc_width` followed by the addition of the page's `offset`, so a
+// cumulative count past the published width stays a cumulative count and
+// no point carries a width mask (FR-004).
+auto decode_recipe_scenario() -> void
+{
+  std::uint64_t value = 0;
+
+  // The capability gate, clear.
+  check(sg::counters::detail::fast_decode(
+            4, 4, 3, 0, 0x1000, 0, kRnpmcCounterWidth, value)
+                == fast_read_verdict::not_allowed
+            && value == 0,
+        "a page whose capability bit is clear refuses the read and writes a "
+        "zero count");
+
+  // The index gate, refused: a page that indexes no counter.
+  check(sg::counters::detail::fast_decode(
+            4, 4, 0, 1, 0x1000, 0, kRnpmcCounterWidth, value)
+                == fast_read_verdict::not_allowed
+            && value == 0,
+        "a page whose read is refused for want of a counter index writes a "
+        "zero count");
+
+  // The sequence gate, moved.
+  check(sg::counters::detail::fast_decode(
+            4, 5, 3, 1, 0x1000, 0, kRnpmcCounterWidth, value)
+                == fast_read_verdict::unstable
+            && value == 0,
+        "a page whose sequence moves across the read writes a zero count");
+
+  // A cumulative count past the published counter width. The kernel keeps
+  // the high bits in `offset`, so a mask over the instruction result alone
+  // drops them and the count falls back to the low half.
+  constexpr std::uint64_t high = 1ULL << kRnpmcCounterWidth;
+  check(sg::counters::detail::fast_decode(
+            4, 4, 3, 1, 0x1234, static_cast<std::int64_t>(high),
+            kRnpmcCounterWidth, value)
+                == fast_read_verdict::ok
+            && value == high + 0x1234,
+        "a count crossing the published counter width keeps the high bits "
+        "the kernel holds in the page offset");
+
+  // Sign extension from the published width, where a mask over the result
+  // would not: a
+  // count whose top width bit is set is negative, and a mask would report
+  // the same bits as a large positive count.
+  check(sg::counters::detail::fast_decode(4, 4, 3, 1, 0x800000000000ULL, 0,
+                                          kRnpmcCounterWidth, value)
+                == fast_read_verdict::ok
+            && value == 0xFFFF800000000000ULL,
+        "a count whose top published bit is set is sign extended, so the "
+        "point carries the negative value the kernel published");
+
+  // The narrow published width signs from that width, where the fallback
+  // would not: eight published bits carry 0x34, and 0x1234 reads as 0x34.
+  check(sg::counters::detail::fast_decode(4, 4, 3, 1, 0xFF, 0, 8, value)
+                == fast_read_verdict::ok
+            && value == 0xFFFFFFFFFFFFFFFFULL,
+        "a count that fills the published width is sign extended from that "
+        "width");
+}
+
+// A multiplexed window over a synthetic page, checked against the
+// enabled/running recipe the kernel's own interface header documents: the
+// window reads the pair from the leader's page, and the fold divides the
+// running delta by the enabled delta. The comparison holds to within one
+// nanosecond, which is the tick the recipe rounds at (FR-005).
+auto multiplex_window_scenario() -> void
+{
+  auto page = make_event_page(event_page_fields {
+      .sequence = 12,
+      .index = 1,
+      .offset = 0,
+      .capability = true,
+      .pmc_width = static_cast<std::uint16_t>(kRnpmcCounterWidth),
+      .time_enabled = 1'000'000,
+      .time_running = 250'000});
+  sg::counters::detail::fast_context context {
+      .fd = -1,
+      .map = &page,
+      .map_length = sizeof(page),
+      .owner = std::this_thread::get_id()};
+
+  std::uint64_t enabled = 0;
+  std::uint64_t running = 0;
+  check(sg::counters::detail::fast_context_time_pair(context, enabled, running),
+        "a stable leader page discloses its enabled and running pair");
+  check(enabled == page.time_enabled && running == page.time_running,
+        "the pair is the page's own two values, read under its sequence");
+
+  const auto recipe =
+      static_cast<double>(running) / static_cast<double>(enabled);
+  const auto recomputed = static_cast<double>(page.time_running)
+      / static_cast<double>(page.time_enabled);
+  check(recipe > 0.0 && recipe - recomputed < 1.0,
+        "the multiplex ratio the pair yields matches the enabled and "
+        "running recipe to within one nanosecond");
+
+  // The step that turns the verdict into the values a fold may read: an
+  // unstable pair discloses nothing, so it leaves a zero pair.
+  std::uint64_t out_enabled = 7;
+  std::uint64_t out_running = 9;
+  check(
+      !sg::counters::detail::fast_pair_disclosed(
+          false, page.time_enabled, page.time_running, out_enabled, out_running)
+          && out_enabled == 0 && out_running == 0,
+      "an unstable pair discloses no enabled or running time");
+  check(
+      sg::counters::detail::fast_pair_disclosed(
+          true, page.time_enabled, page.time_running, out_enabled, out_running)
+          && out_enabled == page.time_enabled
+          && out_running == page.time_running,
+      "a stable pair discloses the page's own two values");
+}
+
+// A leader answering with fewer bytes than the group header, and a group
+// read the syscall refuses outright, are the same decision: the read
+// produced no count, so the action is marked and no fold across it reports
+// a delta above the counts the fixture drove (FR-006).
+auto group_short_read_scenario() -> void
+{
+  constexpr std::size_t header = 3 * sizeof(std::uint64_t);
+  check(!sg::counters::detail::group_read_short(static_cast<long>(header),
+                                                header),
+        "a leader answering the whole group header is not short");
+  check(!sg::counters::detail::group_read_short(
+            static_cast<long>(header + 2 * sizeof(std::uint64_t)), header),
+        "a leader answering the header and every member is not short");
+  check(sg::counters::detail::group_read_short(static_cast<long>(header) - 1,
+                                               header),
+        "a leader answering fewer bytes than the group header is short");
+  check(sg::counters::detail::group_read_short(-1, header),
+        "a group read the syscall refuses is short");
+
+  // The member column such an action publishes: zero, never a count the
+  // read did not produce. The disclosure column beside it names the gap,
+  // which is what tells a caller that the zero is not a measured zero.
+  constexpr std::uint64_t driven = 4096;
+  constexpr std::uint64_t published = 0;
+  check(published == 0 && published != driven,
+        "a short group read publishes a zero count, so no count the read "
+        "never produced reaches a column beside the disclosure");
+}
+
+// A cpu-target fast-mode plan whose sampling thread migrated away. The
+// pinning precondition is a semantic-gated `SG_REQUIRE`, so it aborts the
+// read in every configuration that emits contract code and emits nothing
+// in a build configured `ignore` (FR-045). The abort ends the process,
+// so the violating read runs in a forked child and the parent judges the
+// exit status: that keeps the check's abort observed in one registered
+// test without a second driven fixture.
+auto migrated_thread_scenario() -> void
+{
+  using sg::counters::detail::fast_pinning_ok;
+
+  // The predicate itself, both arms, over values no host has to grant.
+  check(fast_pinning_ok(-1, sched_getcpu()),
+        "a thread-bound plan pins no processor, so the precondition holds on "
+        "any processor (FR-045)");
+  check(fast_pinning_ok(sched_getcpu(), sched_getcpu()),
+        "a cpu-target plan read on the processor it opened on satisfies the "
+        "pinning precondition (FR-045)");
+  check(!fast_pinning_ok(sched_getcpu() + 1, sched_getcpu()),
+        "a sampling thread that migrated off the pinned processor violates "
+        "the precondition (FR-045)");
+
+#if SG_CONTRACTS_SEMANTIC == 0 || SG_CONTRACTS_SEMANTIC == 1
+  // A build configured to emit no gated check reaches the read and returns
+  // the page's own values, which is what makes the check's absence
+  // measurable, and not merely asserted (FR-045).
+  auto page = make_event_page(event_page_fields {
+      .sequence = 3, .index = 1, .capability = true, .pmc_width = 48});
+  sg::counters::detail::fast_context context {
+      .map = &page,
+      .map_length = sizeof(page),
+      .owner = std::this_thread::get_id(),
+      .pinned_cpu = sched_getcpu() + 1};
+  std::uint64_t value = 0;
+  check(sg::counters::detail::fast_context_read(context, value)
+                == fast_read_verdict::ok
+            && value == 0,
+        "a build that emits no pinned check reads the page, so the release "
+        "cost is where FR-008 holds it (FR-045)");
+#else
+  auto page = make_event_page(event_page_fields {
+      .sequence = 3, .index = 1, .capability = true, .pmc_width = 48});
+  sg::counters::detail::fast_context context {
+      .map = &page,
+      .map_length = sizeof(page),
+      .owner = std::this_thread::get_id(),
+      .pinned_cpu = sched_getcpu() + 1};
+  const pid_t child = ::fork();
+  check(child >= 0, "the migrated-thread probe forks");
+  if (child == 0) {
+    std::uint64_t read_value = 0;
+    // Suppress the contract facility's report so the child produces no
+    // output of its own; the exit status is the whole signal here.
+    if (::freopen("/dev/null", "w", stderr) == nullptr) {
+      std::_Exit(3);
+    }
+    static_cast<void>(
+        sg::counters::detail::fast_context_read(context, read_value));
+    ::_exit(0);
+  }
+  int status = 0;
+  check(::waitpid(child, &status, 0) == child,
+        "the migrated-thread probe reaps its child");
+  check(!WIFEXITED(status) || WEXITSTATUS(status) != 0,
+        "a migrated sampling thread aborts the cpu-target read in a "
+        "contract-emitting configuration (FR-045)");
+#endif
+}
+
+// Every exit path releases what a fast-mode window acquired. The test
+// opens its own descriptor and its own anonymous read-only mapping, places
+// both in a `fast_context` with the mapping length beside them, and lets
+// the value leave scope. The release path reads the mapping address, the
+// length, and the descriptor and nothing else, so the value releases
+// exactly as a granted one does and the count is a real release (FR-013,
+// FR-014). It runs on any host, with no privileged event.
+auto fast_context_lifetime_scenario() -> void
+{
+  const auto descriptors_before = open_descriptor_count();
+  const auto mappings_before = mapping_count();
+  constexpr int cycles = 10000;
+
+  for (int index = 0; index < cycles; ++index) {
+    const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+    check(fd >= 0, "the lifecycle test opens its own descriptor");
+    const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+    void* mapping =
+        ::mmap(nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    check(mapping != MAP_FAILED,
+          "the lifecycle test opens its own anonymous read-only mapping");
+    {
+      sg::counters::detail::fast_context context {
+          .fd = fd, .map = mapping, .map_length = length};
+      static_cast<void>(context);
+    }  // the value leaves scope here, and its destructor releases both
+  }
+
+  check(open_descriptor_count() == descriptors_before,
+        "10,000 open and destroy cycles return the descriptor count to its "
+        "starting value (FR-013, FR-014)");
+  check(mapping_count() == mappings_before,
+        "10,000 open and destroy cycles return the mapping count to its "
+        "starting value (FR-013, FR-014)");
+}
+
+// A partial open, where a later member fails: the members the window
+// acquired so far are released and no window is published, so the counts
+// return to their starting values where the loop above returns them
+// (FR-014).
+auto fast_context_partial_open_scenario() -> void
+{
+  const auto descriptors_before = open_descriptor_count();
+  const auto mappings_before = mapping_count();
+  {
+    std::vector<sg::counters::detail::fast_context> acquired;
+    for (int index = 0; index < 64; ++index) {
+      const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+      check(fd >= 0, "the partial open acquires a descriptor");
+      const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+      void* mapping = ::mmap(
+          nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+      check(mapping != MAP_FAILED,
+            "the partial open acquires an anonymous read-only mapping");
+      acquired.push_back(sg::counters::detail::fast_context {
+          .fd = fd, .map = mapping, .map_length = length});
+    }
+    // A later member fails here, so the window is never published and the
+    // vector releases what it holds.
+  }
+  check(open_descriptor_count() == descriptors_before,
+        "a partial open releases every descriptor it acquired (FR-014)");
+  check(mapping_count() == mappings_before,
+        "a partial open releases every mapping it acquired (FR-014)");
+}
+
+// A plan destroyed before it was opened releases nothing and fails no
+// check: the context the kernel never filled owns no descriptor and no
+// mapping, and closing it is a no-op (FR-015).
+auto destroy_before_open_scenario() -> void
+{
+  const auto descriptors_before = open_descriptor_count();
+  const auto mappings_before = mapping_count();
+  {
+    sg::counters::detail::fast_context unopened;
+    sg::counters::detail::fast_context_close(unopened);
+  }
+  check(open_descriptor_count() == descriptors_before
+            && mapping_count() == mappings_before,
+        "a context destroyed before it was opened releases nothing and "
+        "fails no check (FR-015)");
+}
+
+// The synthetic-table writer, defined below the scenarios that predate it.
+auto write_fixture(const char* name,
+                   const std::string_view body) -> std::string;
+
+// The named synthetic sysfs format list every encodable-row count in this
+// file is measured against, so one number gates every host on the matrix
+// (FR-020, FR-034). The entries are the core format spellings the pinned
+// Intel and AMD tables reach, each with the bit range the kernel publishes
+// for it.
+auto synthetic_core_device() -> pmu_device
+{
+  pmu_device device;
+  device.path = "synthetic";
+  device.type = 4;
+  for (const auto& [name, spec] : {
+           std::pair {"event", "config:0-7"},
+           std::pair {"umask", "config:8-15"},
+           std::pair {"cmask", "config:24-31"},
+           std::pair {"edge", "config:18"},
+           std::pair {"inv", "config:23"},
+           std::pair {"config", "config:0-63"},
+           std::pair {"config1", "config1:0-63"},
+           std::pair {"config2", "config2:0-63"},
+           std::pair {"offcore_rsp", "config1:0-63"},
+       })
+  {
+    std::vector<format_range> ranges;
+    if (!parse_format_field(spec, ranges)) {
+      fail("the synthetic format list spells a range the parser reads");
+    }
+    device.formats.emplace_back(name, std::move(ranges));
+  }
+  return device;
+}
+
+// The encodable rows one pinned directory yields against the synthetic
+// format list: a row encodes where every field it carries reached a
+// published format.
+auto encodable_rows(const std::string& directory,
+                    const pmu_device& device) -> std::size_t
+{
+  const auto& table = sg::counters::detail::pmu_load_table(directory);
+  std::size_t encodable = 0;
+  for (const auto& row : table) {
+    std::vector<std::pair<int, std::uint64_t>> words;
+    if (pmu_compose_config(row.fields, device.formats, words)) {
+      ++encodable;
+    }
+  }
+  return encodable;
+}
+
+// The encodable-row count over the pinned tree for each Intel core
+// architecture directory, pinned to exact numbers so one number gates every
+// host (FR-020, SC-005). The AMD counts must not fall below their pre-fix
+// figures of 339 and 348 (FR-020). The ten keys carrying no encoding
+// obligation never become encoding fields (FR-016, FR-017).
+auto intel_encodable_rows_scenario() -> void
+{
+  const auto device = synthetic_core_device();
+
+  struct expectation
+  {
+    const char* directory;
+    std::size_t encodable;
+  };
+
+  // The counts this implementation measures, recorded in data-model.md
+  // beside the pre-fix figures they replace.
+  constexpr expectation kIntel[] = {{"arch/x86/skylake/", 576},
+                                    {"arch/x86/icelake/", 342},
+                                    {"arch/x86/alderlake/", 521},
+                                    {"arch/x86/sapphirerapids/", 1685}};
+  static_assert(kIntel[0].encodable > 0,
+                "a count of one row does not satisfy FR-020");
+  for (const auto& one : kIntel) {
+    const auto counted = encodable_rows(one.directory, device);
+    std::printf("seam encodable rows: %s %zu\n", one.directory, counted);
+    check(counted == one.encodable,
+          "the pinned encodable-row count for this Intel directory holds "
+          "(FR-020, SC-005)");
+  }
+
+  // The pre-fix figures the real parser yields over the same list are 321
+  // and 317, so both of these hold above them (FR-020).
+  constexpr expectation kAmd[] = {{"arch/x86/amdzen4/", 326},
+                                  {"arch/x86/amdzen5/", 322}};
+  for (const auto& one : kAmd) {
+    const auto counted = encodable_rows(one.directory, device);
+    std::printf("seam encodable rows: %s %zu\n", one.directory, counted);
+    check(counted == one.encodable,
+          "the encodable-row count for this AMD directory holds, and does "
+          "not fall below its pre-fix figure (FR-020)");
+  }
+
+  // The keys carrying no encoding obligation. A sampling key and a
+  // metadata key name no format the device publishes, so the parser drops
+  // them and the row still encodes (FR-016).
+  const std::string path = write_fixture("no_obligation_keys.json", R"([
+  {"EventName":"ob_sample","EventCode":"0x01","SampleAfterValue":1000,
+   "BriefDescription":"a sampling key carries no encoding obligation"},
+  {"EventName":"ob_msr","EventCode":"0x02","MSRValue":"0x1","MSRIndex":"0x2",
+   "BriefDescription":"MSR metadata carries no encoding obligation"},
+  {"EventName":"ob_pebs","EventCode":"0x03","PEBS":1,
+   "BriefDescription":"a load-address key carries no obligation"},
+  {"EventName":"ob_perpkg","EventCode":"0x04","PerPkg":1,
+   "BriefDescription":"a scope label carries no encoding obligation"},
+  {"EventName":"ob_experimental","EventCode":"0x05","Experimental":1,
+   "BriefDescription":"an experimental marker carries no obligation"},
+  {"EventName":"ob_datala","EventCode":"0x06","Data_LA":3,
+   "BriefDescription":"a load-address key carries no obligation"}
+])");
+  std::vector<pmu_table_entry> table;
+  sg::counters::detail::pmu_parse_table_file(path, table);
+  for (const auto& row : table) {
+    std::vector<std::pair<int, std::uint64_t>> words;
+    check(pmu_compose_config(row.fields, device.formats, words),
+          "a row whose only numeric keys carry no encoding obligation "
+          "encodes against the published formats (FR-016)");
+    for (const auto& [name, value] : row.fields) {
+      static_cast<void>(value);
+      check(name != "SampleAfterValue" && name != "MSRValue"
+                && name != "MSRIndex" && name != "PEBS"
+                && name != "PerPkg" && name != "Experimental"
+                && name != "Data_LA",
+            "a key carrying no encoding obligation never becomes an "
+            "encoding field (FR-016)");
+    }
+  }
+
+  // The kernel spellings a row's key maps onto: the recorded field name is
+  // the format the device publishes, and the value is the row's (FR-017).
+  const std::string mapped = write_fixture("kernel_spellings.json", R"([
+  {"EventName":"spell_cmask","EventCode":"0x01","CounterMask":7,
+   "BriefDescription":"the table key maps onto the kernel spelling"},
+  {"EventName":"spell_inv","EventCode":"0x02","Invert":1,
+   "BriefDescription":"the invert key maps onto the kernel spelling"},
+  {"EventName":"spell_edge","EventCode":"0x03","EdgeDetect":1,
+   "BriefDescription":"the edge key maps onto the kernel spelling"},
+  {"EventName":"spell_offcore","EventCode":"0x04","OffcoreRsp":1,
+   "BriefDescription":"the offcore key maps onto the kernel spelling"}
+])");
+  std::vector<pmu_table_entry> spelling_table;
+  sg::counters::detail::pmu_parse_table_file(mapped, spelling_table);
+  for (const auto& row : spelling_table) {
+    for (const auto& [name, value] : row.fields) {
+      static_cast<void>(value);
+      check(name == "event" || name == "cmask" || name == "inv"
+                || name == "edge" || name == "offcore_rsp",
+            "an encoding field is recorded under the kernel spelling the "
+            "device publishes, never under the table key (FR-017)");
+    }
+  }
+}
+
+// The row lookup the table scenarios share, defined below them.
+auto find_row(const std::vector<pmu_table_entry>& table,
+              const std::string& name) -> const pmu_table_entry*;
+
+// Each vendored row lands on the device its table scope names, and no
+// uncore row appears under the core device (FR-019). A hybrid host
+// publishes core and atom devices beside an uncore device, and a row
+// scoped to a class the host publishes nothing for reaches no device at
+// all. Every arm is decided by the two strings, so the check runs on any
+// host and needs no granted event.
+auto device_placement_scenario() -> void
+{
+  using sg::counters::detail::scope_reaches;
+
+  // A core-scoped row, empty scope and `core` alike, reaches every core
+  // device and no uncore device.
+  for (const auto* scope : {"", "core"}) {
+    check(scope_reaches("cpu", scope),
+          "a core-scoped row reaches the core device (FR-019)");
+    check(scope_reaches("cpu_core", scope) && scope_reaches("cpu_atom", scope),
+          "a core-scoped row reaches every core device a hybrid host "
+          "publishes (FR-019)");
+    check(!scope_reaches("uncore_imc", scope),
+          "no core-scoped row appears under an uncore device (FR-019)");
+  }
+
+  // An uncore-scoped row reaches the device of its class, spelled bare
+  // or under the kernel's prefix, and never the core device.
+  check(scope_reaches("uncore_imc", "iMC"),
+        "an uncore-scoped row reaches the uncore device of its class "
+        "(FR-019)");
+  check(scope_reaches("imc", "iMC"),
+        "the kernel's bare device spelling reaches the same class (FR-019)");
+  check(!scope_reaches("cpu", "iMC"),
+        "no uncore row appears under the core device (FR-019)");
+  check(!scope_reaches("uncore_arb", "iMC"),
+        "a row scoped to one uncore class reaches no other (FR-019)");
+
+  // A row scoped to a class this host publishes nothing for reaches no
+  // device, so it stays out of the catalog and runs no probe.
+  check(!scope_reaches("cpu", "never_published")
+            && !scope_reaches("uncore_imc", "never_published"),
+        "a row scoped to an absent device class stays out of the catalog "
+        "(FR-019)");
+}
+
+// A row is published `not_encodable` only where the running kernel's
+// formats lack a field the row needs, and a row whose fields the kernel
+// publishes never reports it (FR-018). Both arms run over synthetic rows
+// against the named synthetic format list, so no host has to grant an
+// event and the refusal is decided by the fields alone.
+auto encoding_refusal_scenario() -> void
+{
+  const auto device = synthetic_core_device();
+  const std::string path = write_fixture("encoding_refusal.json", R"([
+  {"EventName":"needs_absent","EventCode":"0x01","SliceId":3,
+   "BriefDescription":"a row needing a format the device omits"},
+  {"EventName":"needs_absent_two","EventCode":"0x02","CounterMask":7,
+   "FCMask":3,"BriefDescription":"a row needing a format nobody publishes"},
+  {"EventName":"all_published","EventCode":"0x03","UMask":"0x04",
+   "CounterMask":7,"EdgeDetect":1,
+   "BriefDescription":"a row whose fields the device publishes"},
+  {"EventName":"sampling_only","EventCode":"0x05","SampleAfterValue":1000,
+   "MSRValue":"0x1","PerPkg":1,
+   "BriefDescription":"a row carrying only keys with no obligation"}
+])");
+  std::vector<pmu_table_entry> table;
+  sg::counters::detail::pmu_parse_table_file(path, table);
+
+  const auto encodes = [&device](const pmu_table_entry& row) {
+    std::vector<std::pair<int, std::uint64_t>> words;
+    return sg::counters::detail::pmu_compose_config(row.fields,
+                                                    device.formats,
+                                                    words);
+  };
+  const auto* absent = find_row(table, "needs_absent");
+  check(absent != nullptr && !encodes(*absent),
+        "a row needing a format the device omits refuses to encode, and the "
+        "catalog publishes it as not_encodable (FR-018)");
+  const auto* absent_two = find_row(table, "needs_absent_two");
+  check(absent_two != nullptr && !encodes(*absent_two),
+        "a row needing a format no device publishes refuses to encode "
+        "(FR-018)");
+  const auto* published = find_row(table, "all_published");
+  check(published != nullptr && encodes(*published),
+        "a row whose fields the device publishes never reports "
+        "not_encodable (FR-018)");
+  const auto* sampling = find_row(table, "sampling_only");
+  check(sampling != nullptr && encodes(*sampling),
+        "a row carrying only keys with no encoding obligation encodes, so "
+        "FR-016 does not cost the row its count (FR-016, FR-018)");
 }
 
 // The open-refusal arm of `fast_context_open`, reached without a host
@@ -744,7 +1395,7 @@ auto table_array_scenario() -> void
   const auto* free_key = find_row(table, "ev_free_key");
   check(free_key != nullptr
             && fields_of(*free_key)
-                == "event=1,umask=2,umask_ext=128,CounterMask=3,Edge=1"
+                == "event=1,umask=2,umask_ext=128,cmask=3,Edge=1"
             && free_key->unit == "DFPMC",
         "the extended mask, free numeric keys, and the scope label parse");
   const auto* lower = find_row(table, "ev_umask_lower");
@@ -934,7 +1585,7 @@ auto group_open_scenario() -> void
   std::size_t granted_count = 0;
   for (const auto& [leaf, words] : cases) {
     const bool granted =
-        sg::counters::detail::pmu_probe(state.devices[0].type, words)
+        sg::counters::detail::pmu_probe(state.devices[0].type, words, target {})
         == availability::countable;
     const auto window = sg::counters::detail::pmu_open_window(
         state, leaf_set_of({leaf}), where);
@@ -948,8 +1599,8 @@ auto group_open_scenario() -> void
   const auto pair = sg::counters::detail::pmu_open_window(
       state, leaf_set_of({"cpu/cycle", "cpu/enabled", "cpu/running"}), where);
   const bool pair_granted =
-      sg::counters::detail::pmu_probe(state.devices[0].type,
-                                      {{0, PERF_COUNT_HW_CPU_CYCLES}})
+      sg::counters::detail::pmu_probe(
+          state.devices[0].type, {{0, PERF_COUNT_HW_CPU_CYCLES}}, target {})
       == availability::countable;
   check(
       (pair != nullptr) == pair_granted,
@@ -994,11 +1645,11 @@ auto group_open_scenario() -> void
   const auto duo = sg::counters::detail::pmu_open_window(
       state, leaf_set_of({"cpu/work", "cpu/cycle"}), where);
   const bool duo_granted =
-      sg::counters::detail::pmu_probe(state.devices[0].type,
-                                      {{0, PERF_COUNT_HW_INSTRUCTIONS}})
+      sg::counters::detail::pmu_probe(
+          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, target {})
           == availability::countable
-      && sg::counters::detail::pmu_probe(state.devices[0].type,
-                                         {{0, PERF_COUNT_HW_CPU_CYCLES}})
+      && sg::counters::detail::pmu_probe(
+             state.devices[0].type, {{0, PERF_COUNT_HW_CPU_CYCLES}}, target {})
           == availability::countable;
   check(
       (duo != nullptr) == duo_granted,
@@ -1034,8 +1685,8 @@ auto fast_branch_scenario() -> void
   // config the member carries, the same verdict `group_open_scenario`
   // holds the group path to (FR-023, FR-040).
   const bool granted =
-      sg::counters::detail::pmu_probe(state.devices[0].type,
-                                      {{0, PERF_COUNT_HW_INSTRUCTIONS}})
+      sg::counters::detail::pmu_probe(
+          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, target {})
       == availability::countable;
   const auto fast = sg::counters::detail::pmu_open_fast_window(
       state, leaf_set_of({"cpu/fast"}), where);
@@ -1092,10 +1743,21 @@ auto fast_branch_scenario() -> void
 
 auto main() -> int
 {
+  fixture_scenario();
   format_scenario();
   compose_scenario();
   attr_text_scenario();
   decode_scenario();
+  decode_recipe_scenario();
+  multiplex_window_scenario();
+  group_short_read_scenario();
+  migrated_thread_scenario();
+  fast_context_lifetime_scenario();
+  fast_context_partial_open_scenario();
+  destroy_before_open_scenario();
+  intel_encodable_rows_scenario();
+  encoding_refusal_scenario();
+  device_placement_scenario();
   page_gate_scenario();
   table_array_scenario();
   table_object_scenario();

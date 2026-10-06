@@ -186,6 +186,32 @@ auto measure(plan& compiled, const std::string& label) -> regime
   check(cost.min_ns >= 0.0 && cost.median_ns >= cost.min_ns
             && cost.max_ns >= cost.median_ns,
         "the published distribution is ordered min <= median <= max");
+
+  // The published floor excludes the clock reads that bracket it (FR-025).
+  // The test measures the same sampling action under the same bracketing
+  // and takes the median, so a floor that still carried the bracket would
+  // equal this figure and fail here. No recorded timing constant decides
+  // it, so the check reaches the same verdict on any host (Principle VI).
+  auto timed = compiled.recorder(64);
+  std::vector<double> bracketed;
+  bracketed.reserve(64);
+  for (int index = 0; index < 64; ++index) {
+    const auto before = std::chrono::steady_clock::now();
+    timed.sample();
+    const auto after = std::chrono::steady_clock::now();
+    bracketed.push_back(
+        std::chrono::duration<double, std::nano>(after - before).count());
+  }
+  std::sort(bracketed.begin(), bracketed.end());
+  const double bracketed_median = bracketed[bracketed.size() / 2];
+  std::printf("%s: published floor median %.1f ns against %.1f ns measured "
+              "under the identical bracketing\n",
+              cost.label.c_str(),
+              cost.median_ns,
+              bracketed_median);
+  check(cost.median_ns < bracketed_median,
+        "the published floor excludes the two clock reads that bracket each "
+        "sampling action (FR-025, FR-026)");
   return cost;
 }
 

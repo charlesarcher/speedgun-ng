@@ -136,17 +136,19 @@ struct format_range
         formats,
     std::vector<std::pair<int, std::uint64_t>>& words) -> bool;
 
-// Probe one config through a test-open against the PMU `type`
-// (provider.cpp, FR-039): the availability the kernel grants this
-// caller for this event. The probe answers `countable`,
+// Probe one config through a test-open against the PMU `type` for one
+// target kind (provider.cpp, FR-039): the availability the kernel grants
+// this caller for this event. The probe answers `countable`,
 // `not_encodable`, or `permission_blocked`, which is the closed set of
 // states a pmu catalog entry carries. `availability::absent` belongs to
 // a provider that declares a leaf absent from the object it seeds, and
 // a device the kernel does not publish is dropped at discovery, so no
-// entry carries it.
+// entry carries it. `where` names the target kind, so a probe runs once
+// per kind the entry's mask admits (FR-022).
 [[nodiscard]] auto pmu_probe(
     int type,
-    const std::vector<std::pair<int, std::uint64_t>>& words) -> availability;
+    const std::vector<std::pair<int, std::uint64_t>>& words,
+    const target& where) -> availability;
 
 // One catalog entry the provider built: the composed config words, the
 // description, and the probed availability (FR-037, FR-039).
@@ -178,6 +180,12 @@ struct pmu_device
   // ordinary leaves, which the fold layer reads for the multiplex
   // ratio (FR-019, FR-041, C-PRO-6).
   bool has_time_pair = false;
+  // True when the device binds one processor for every task, which is what
+  // an uncore device does. A device-scoped entry refuses a per-task target
+  // by its own scope, which is a different refusal from an encoding one,
+  // so the provider answers `scope_refused` for that kind and runs no
+  // syscall (FR-021, FR-022).
+  bool device_scoped = false;
 };
 
 // The released provider state (T047). Off Linux every device list is
@@ -282,6 +290,25 @@ struct fast_context
   void* map = nullptr;
   std::size_t map_length = 0;
   std::thread::id owner {};
+  // The processor a cpu-target plan bound this context to, or -1 for a
+  // thread-bound plan. A cpu-pinned context counts one processor for
+  // every task, so a sampling thread that migrated away reads another
+  // processor's event or none at all, and the read carries the
+  // pinning precondition (FR-045).
+  int pinned_cpu = -1;
+
+  /**
+   * @brief Releases the mapping and the descriptor the context holds.
+   *
+   * Every exit path releases: a value that leaves scope, a window the
+   * partial open refuses, and a window the plan destroys. Closing a
+   * context that owns nothing touches nothing, so the release runs on any
+   * host and needs no granted event (FR-013, FR-015).
+   *
+   * \pre none
+   * \post The context owns no mapping and no descriptor.
+   */
+  ~fast_context();
 };
 
 // The pid and cpu a `perf_event_open` for `where` binds to: a
@@ -337,6 +364,73 @@ struct fast_context
                                           std::uint64_t& running) -> bool;
 
 void fast_context_close(fast_context& context);
+
+// The destructor delegates to the release the library already had, so no
+// second release path exists and every owner reaches the same one
+// (FR-013). It is defined beside that release, where the platform branch
+// has already chosen its body.
+inline fast_context::~fast_context()
+{
+  fast_context_close(*this);
+}
+
+// Whether a cpu-target context may be read from the processor the calling
+// thread runs on. A thread-bound plan pins nothing and answers true; a
+// cpu-pinned context answers true only on the processor it was opened on,
+// which is the pinning precondition the fast read carries (FR-045).
+[[nodiscard]] auto fast_pinning_ok(int pinned_cpu,
+                                   int current_cpu) noexcept -> bool;
+
+// The corrected decisions that sit behind a syscall only a granted
+// `perf_event_open` can reach. Each is a small pure function over values
+// the caller already holds, so a registered test drives both arms of each
+// on any host, and the coverage gates measure the decision itself. The
+// marker over the kernel-facing wrapper stays (FR-046).
+
+// Whether a group read returned fewer bytes than the group header names.
+// A leader answering short, or a group read the syscall refuses outright,
+// publishes no count the read never produced, so the action is marked
+// instead (FR-006). Pure over the two byte counts.
+[[nodiscard]] auto group_read_short(long returned,
+                                    std::size_t header_bytes) noexcept -> bool;
+
+// The step that turns a pair read's verdict into the values a fold may
+// read. An unstable pair discloses nothing, so it leaves a zero pair and
+// marks the action; a stable pair publishes the page's own two values
+// (FR-005). Pure over the verdict and the two current values.
+[[nodiscard]] auto fast_pair_disclosed(bool stable,
+                                       std::uint64_t enabled,
+                                       std::uint64_t running,
+                                       std::uint64_t& out_enabled,
+                                       std::uint64_t& out_running) noexcept
+    -> bool;
+
+// Whether a device is the one a vendored row's table scope reaches
+// (FR-019). An empty scope and the `core` scope name the core PMU, which
+// a hybrid host publishes as `cpu` plus one device per core class. Any
+// other scope names one device class, spelled either bare or under the
+// kernel's `uncore_` prefix. A row scoped to a class the host publishes
+// no device for reaches no device, so it stays out of the catalog and
+// runs no probe. Pure over the two strings, so a registered test drives
+// every arm without a host that has to grant an event.
+[[nodiscard]] auto scope_reaches(const std::string& device_path,
+                                 const std::string& scope) noexcept -> bool;
+
+// What one catalog entry publishes: the read mechanism a plan reads for
+// it, and whether the enabled/running pair rides along. The catalog sets
+// the fast mode on an entry only where the fast read can succeed for that
+// entry, so the host-wide capability verdict never sets the mode on an
+// entry whose event the fast instruction cannot read (FR-001).
+struct entry_read_selection
+{
+  read_mode mode = read_mode::syscall;
+  bool publish_pair = false;
+};
+
+// The selection over the availability probe's verdict and the host's
+// fast-read capability (FR-001, FR-022). Pure over the two values.
+[[nodiscard]] auto entry_read_selection_for(
+    availability probed, bool fast_capable) noexcept -> entry_read_selection;
 
 // The fast-mode window (group_io.cpp, FR-040): one context per member
 // leaf, the enabled/running pair taken from the leader's page. Null

@@ -1,6 +1,7 @@
 #ifndef SPEEDGUN_NG_COUNTERS_FAKE_HPP
 #define SPEEDGUN_NG_COUNTERS_FAKE_HPP
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -68,6 +69,27 @@ struct fake_counter_data
   // The seeded tail's running state, held across sampling actions so
   // the sequence resumes where the previous one stopped.
   std::uint64_t delta_state = 0;
+  // The one-based sampling actions this leaf measures nothing on. The
+  // window reads them per leaf, so a leaf that gaps marks only the plans
+  // that sample it (FR-007).
+  std::vector<std::size_t> gaps;
+
+  /**
+   * @brief Whether this leaf measures nothing on the one-based
+   * sampling `action`.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto gaps_at(const std::uint64_t action) const -> bool
+  {
+    for (const auto scripted : gaps) {
+      if (scripted == action) {
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 /**
@@ -181,8 +203,27 @@ public:
    */
   [[nodiscard]] auto read_actions() const noexcept -> std::uint64_t
   {
-    return m_read_actions;
+    return m_read_actions.load(std::memory_order_relaxed);
   }
+
+  /**
+   * @brief Scripts the actions one leaf measures nothing on (FR-007).
+   *
+   * `actions` names the one-based sampling actions at which this leaf
+   * publishes a zero beside a disclosure of `availability::gap`, which is
+   * how a caller distinguishes a measured zero from an action that
+   * measured nothing. Every other action publishes the leaf's scripted
+   * point beside a disclosure of the entry's own countability value. The
+   * script is per leaf, so only a plan that samples this leaf sees its
+   * gaps.
+   *
+   * \pre the counter was declared.
+   * \post Sampling this leaf at a named action publishes a zero and marks
+   *       the action; the script does not advance there.
+   */
+  auto set_gap_actions(std::string_view object_path,
+                       std::string_view name,
+                       std::vector<std::size_t> actions) -> fake_provider&;
 
   void enumerate(object_sink& sink) const override;
 
@@ -201,7 +242,7 @@ private:
   };
 
   std::map<std::string, object_seed_data> m_objects;
-  std::uint64_t m_read_actions = 0;
+  std::atomic<std::uint64_t> m_read_actions {0};
 
   [[nodiscard]] auto counter(const std::string& object_path,
                              const std::string& name) -> fake_counter_data&;

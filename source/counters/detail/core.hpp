@@ -5,10 +5,12 @@
 // translation units and carries the tree, plan, and scope internals
 // behind the opaque handles the public headers expose.
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -89,6 +91,13 @@ struct plan_impl
   static constexpr std::size_t no_ratio_slot = static_cast<std::size_t>(-1);
 
   std::vector<slot> slots;
+  // The managed column carrying the per-action disclosure: a measured
+  // action writes the countability value the catalog publishes for the
+  // entry, and an action that measured nothing writes
+  // `availability::gap`. It is the column just past the last managed
+  // leaf, the sampling action writes it last, and a caller reads it to
+  // tell a measured zero from a gap (FR-007).
+  std::size_t disclosure_slot = 0;
   // Address to column slot, read by the fold layer. A composite's ops
   // and algebraic exponents travel with its spine, and no per-composite
   // program is stored here (T091): a fold accepts any expression over
@@ -127,7 +136,10 @@ struct plan_impl
 
   [[nodiscard]] auto leaf_count() const noexcept -> std::size_t
   {
-    return slots.size();
+    // The disclosure column is managed too: one sampling action writes one
+    // point per managed column, and the disclosure is the last of them
+    // (FR-007).
+    return slots.size() + 1;
   }
 };
 
@@ -167,10 +179,34 @@ struct system::impl
   std::vector<std::unique_ptr<provider_iface>> providers;
   std::map<std::string, std::unique_ptr<tree_node>> objects;  // canonical
   std::map<std::string, std::unique_ptr<sg::counters::object>> handles;
+  // The handle map's own lock. Resolution, listing, and the parent and
+  // children walk all reach the map through `handle_for`, and the map is
+  // written on a miss, so the lock covers the lookup and the insert as one
+  // step: two threads naming one address both receive the same entry
+  // (FR-010). No contract check guards it, because a lock does.
+  std::mutex handles_lock;
   std::map<std::string, std::string> aliases;  // alias to path
-  bool open = false;
+  // The catalog opens lazily, on the first resolution that needs it, so no
+  // separate open call exists to own the transition. The flag is atomic
+  // and the store runs through a compare-and-exchange, which makes the
+  // false-to-true transition happen exactly once no matter how many
+  // threads resolve at the same moment (FR-011).
+  std::atomic<bool> open {false};
 
-  auto ensure_open() noexcept -> void { open = true; }
+  // The open boundary. The first caller transitions the flag; every other
+  // caller finds it already set and writes nothing, so concurrent
+  // resolution performs one store in total (FR-011).
+  auto ensure_open() noexcept -> void
+  {
+    bool expected = false;
+    (void)open.compare_exchange_strong(
+        expected, true, std::memory_order_acq_rel);
+  }
+
+  [[nodiscard]] auto is_open() const noexcept -> bool
+  {
+    return open.load(std::memory_order_acquire);
+  }
 
   [[nodiscard]] auto canonicalize(std::string_view path) const -> std::string
   {

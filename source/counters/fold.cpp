@@ -110,6 +110,14 @@ struct fold_context
                               const std::size_t slot) -> std::optional<double>
 {
   const auto& entry = ctx.layout.slots[slot];
+  // An action the disclosure marks as a gap measured no fraction, so the
+  // fold reports no measured fraction, because a ratio taken across zero
+  // counts is not one (FR-005).
+  const auto* disclosure =
+      ctx.rec.columns + ctx.layout.disclosure_slot * ctx.rec.stride;
+  if (disclosure[ctx.j] == static_cast<std::uint64_t>(availability::gap)) {
+    return std::nullopt;
+  }
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the second operand can
   // never be the deciding one. `link_ratio_slots` (`plan.cpp:135-158`) writes
   // `ratio_enabled` and `ratio_running` together at `plan.cpp:150-156` or

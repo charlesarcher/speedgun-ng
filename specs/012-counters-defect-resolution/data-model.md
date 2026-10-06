@@ -199,14 +199,14 @@ list. The counts below are the baseline this implementation measures and
 the fixture pins. The rightmost column stays empty until the fixture
 supplies the numbers, and the fixture fails while it is empty.
 
-| Directory | Family | Rows in the tree | Encodable, synthetic list | Encodable, reference host formats |
+| Directory | Family | Rows in the tree | Encodable, synthetic list | Pre-fix, same list |
 | --- | --- | --- | --- | --- |
 | `skylake` | Intel | 587 | 576, pinned by fixture | 0 |
 | `icelake` | Intel | 346 | 342, pinned by fixture | 0 |
 | `alderlake` | Intel | 563 | 521, pinned by fixture | 0 |
-| `sapphirerapids` | Intel | 2693 | 1965, pinned by fixture | 0 |
-| `amdzen4` | AMD | 502 | 480, must not fall below 339 | 480 |
-| `amdzen5` | AMD | 579 | 557, must not fall below 348 | 557 |
+| `sapphirerapids` | Intel | 2693 | 1685, pinned by fixture | 0 |
+| `amdzen4` | AMD | 502 | 326, pinned by fixture | 321 |
+| `amdzen5` | AMD | 579 | 322, pinned by fixture | 317 |
 
 The two named format lists are the ones the fixture supplies:
 
@@ -222,11 +222,23 @@ the list publishes, under the kernel spelling the row's key maps to
 (FR-017), or carries no encoding obligation (FR-016). A row that needs a
 field the list does not publish is `not_encodable` (FR-018).
 
-The pre-fix figures, taken at `6aafd2d` against the same list, are 339
-for `amdzen4` and 348 for `amdzen5`, and 0 for every Intel directory.
-The Intel count of zero is defect I-01: the pre-fix parser records the
+Every figure in both encodable columns was measured by the real parser
+over the pinned tree, through the same fixture, by reverting the encoding
+rule and reading the counts and then restoring it. The pre-fix column is
+zero for all four Intel directories: the pre-fix parser records the
 sampling key `SampleAfterValue` as an encoding field under its own name,
-so no Intel row reaches a published format and none encodes.
+so no Intel row reaches a published format and none encodes. That is
+defect I-01. Both AMD counts rise, from 321 to 326 and from 317 to 322,
+which is what FR-020 requires of them.
+
+An earlier draft of this table carried figures from a Python model of the
+rule, and every one of them was wrong. The model predicted 1965 for
+`sapphirerapids` against the parser's 1685, and 339 and 348 for the AMD
+directories against the parser's 321 and 317. The model dropped
+`UMASK_EXT`. A device that publishes no such format must refuse a row
+needing it, because the kernel holds that constraint in a counter word the
+row would otherwise under-report. The model therefore counted rows the
+parser correctly rejects. The figures above are the parser's.
 
 The row counts in the second column count the rows the table parser
 yields, which excludes the metric-definition rows the parser drops. The
