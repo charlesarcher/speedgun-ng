@@ -1098,6 +1098,38 @@ auto scaled_spliced_operand_scenario() -> void
 
 }  // namespace
 
+// A fan-out over every core opens one window per core, so the plan holds
+// several groups. Only the group owning the plan's last leaf writes the
+// disclosure column, which leaves each earlier group with no column of
+// its own (FR-007). A provider reading such a group writes no disclosure
+// beside its points.
+auto test_multi_group_disclosure() -> void
+{
+  const auto all_cores = system::local().objects("core");
+  check(all_cores.has_value() && all_cores->size() > 1,
+        "the fixture publishes more than one core");
+  if (!all_cores.has_value() || all_cores->size() <= 1) {
+    return;
+  }
+  const auto core = *system::local().object("package-1/core-3");
+  const auto cycles = *core.counter<events>("cycles");
+  const auto instructions = *core.counter<events>("instructions");
+  const auto ipc = instructions / cycles;
+
+  auto fanout = compile(system::local(), ipc, *all_cores);
+  check(fanout.has_value(), "a fan-out over every core compiles");
+  if (!fanout.has_value()) {
+    return;
+  }
+  sg::counters::fanout_plan target = std::move(*fanout);
+  auto rec = target.recorder(2);
+  rec.sample();
+  rec.sample();
+  const auto folded = target.fold(ipc, rec.view());
+  check(folded.size() == all_cores->size(),
+        "the fan-out reports one metric per selected core");
+}
+
 auto main() -> int
 {
   test_registration();
@@ -1118,6 +1150,7 @@ auto main() -> int
   test_frozen_pair_ratio();
   test_full_rate_pair_ratio();
   test_seeded_tail();
+  test_multi_group_disclosure();
   open_refusal_scenario();
   scaled_composite_scenario();
   scaled_quotient_scenario();

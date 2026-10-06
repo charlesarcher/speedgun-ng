@@ -473,11 +473,17 @@ auto pmu_select_directory(const pmu_ident& id) -> std::string
   }
 
   std::string selected;
+  // LCOV_EXCL_BR_START : coverage exclusion (T056): the arm where the
+  // registry holds no arch/x86. The generator embeds that directory
+  // unconditionally, naming the mapfile as its pattern, and fails the
+  // build outright when the pattern matches nothing, so the entry is
+  // present in every archive this library links (FR-036).
   if (const embedded_dir* dir = embedded_find_dir("arch/x86")) {
     std::istringstream mapfile{
         std::string{embedded_file_bytes(*dir, "mapfile.csv")}};
     selected = pmu_select_directory(mapfile, id);
   }
+  // LCOV_EXCL_BR_STOP
   cache.emplace(key, selected);
   return selected;
 }

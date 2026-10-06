@@ -38,12 +38,18 @@ endif()
 # exception-tag consistency check, which would otherwise abort the capture
 # and take the whole coverage target down with it. Narrowing this to the one
 # error class keeps every other lcov check, and gcov's own diagnostics, live.
+#
+# `negative` is the second class, and this toolchain needs it. gcov 16 emits
+# counters that lcov 2.3 misreads, so a branch the test never took arrives
+# as a negative taken count and lcov aborts the capture. The class is
+# narrowed for the same reason as `mismatch`: it names one parsing complaint,
+# and every other lcov check stays live.
 set(
     COVERAGE_TRACE_COMMAND
     "${LCOV_EXECUTABLE}" -c -q
     --branch-coverage
     --no-external
-    --ignore-errors mismatch
+    --ignore-errors mismatch,negative
     --base-directory "${PROJECT_SOURCE_DIR}"
     --rc geninfo_unexecuted_blocks=1
     -o "${PROJECT_BINARY_DIR}/coverage.raw.info"

@@ -297,35 +297,170 @@ cmake -D FORMAT_COMMAND=clang-format-18 -P cmake/lint.cmake
 cmake --build build/dev -t format-check
 cmake -P cmake/prose-lint.cmake
 python3 tools/pmu_events/update_pmu_events.py --check
-cmake --preset=coverage-linux
+cmake --preset=ci-coverage
 cmake --build build/coverage -j 2
 ctest --test-dir build/coverage --output-on-failure
 cmake --build build/coverage -t coverage
 ```
 
-**Coverage note.** The coverage build and its 45 tests pass. The gate
-itself then stops inside lcov, which errors on its own instrumentation:
-`Unexpected negative taken count '-40202' for branch 1 while capturing
-from clock_provider.cpp.gcda`. That is a tool defect, and it means the
-gate reports no verdict here, so FR-040 is unmeasured on this host rather
-than met. The `coverage-linux` preset named in this feature's commands is
-also hidden, and CMake refuses it by name; `ci-coverage` inherits it and
-configures the same tree, so that is the preset a run must use.
+**Coverage note.** The coverage build and its 45 tests pass, and the
+gate now reports a verdict. FR-040 is **not met**: line coverage is 100
+percent (2011 of 2011) and branch coverage 99.6 percent (749 of 752).
 
-**Sanitizer note.** `ci-sanitize` builds clean and 44 of its 45 tests
-pass, but `counters_linux_pmu_seam_test` fails there and passes in the
-dev build, on the T025 partial-open scenario: "a partial open releases
-every mapping it acquired". A standalone probe against the sanitized
-archive reproduces it and names the figure: 64 contexts acquired and
-released leave `/proc/self/maps` at 131 lines against 91 before the
-loop, so roughly forty mappings survive. The same loop in the dev build
-returns to its starting count.
+lcov 2.3 reads gcov 16 counters as negative taken counts and treats that
+as fatal, which is what stopped the gate before it reported anything. The
+capture command already narrowed its ignore list to named error classes,
+and `negative` joins `mismatch` there, with the reason recorded in
+`cmake/coverage.cmake`. lcov then completes and the gate fails on the
+number above.
 
-The gap between the two builds is unexplained and T061 stays open. The
-candidates are a release the sanitizers change and a defect the
-optimized build hides. Nothing here records which, because nothing here
-has established it. The scenario is the one T025 added, so the finding
-belongs to this feature's own test and not to a pre-existing gate.
+Three branches remain, every one of them on a line this feature added, so
+none can be set aside as backlog. Intersecting the uncovered branches
+with the lines `git diff -U0 6aafd2d..HEAD` reports as added leaves all
+of them on added lines and nothing pre-existing.
+
+One of the seven is the disclosure direction, and this record has named
+the wrong provider twice while tracking it. `clock_provider.cpp`,
+`push_provider.cpp` and `fake_provider.cpp` each hold `if
+(disclosure_column != leaf_set::no_disclosure_column)`, and the direction
+for a plan that does not disclose is the one at risk, because only the
+group owning a plan's last leaf writes the column.
+
+A plan over one leaf from each of two providers is what leaves a group
+short of last, and the time-stamp suite registers the push provider
+before the counted source, so its plan closed the push provider's
+direction. `clock_provider.cpp` and `push_provider.cpp` now hold no
+uncovered branch on an added line.
+
+`fake_provider.cpp` line 88 is settled, and the cause sat in the fixture.
+A plan over one provider's leaves always puts that provider's group last,
+and the last group is the one that writes the column, so a lone scripted
+provider can never stop disclosing. The recorder suite now registers the
+clock provider second and compiles a plan drawing one leaf from each, so
+the scripted group falls short of last and its window opens on a leaf set
+carrying no column. That fixture closed the branch.
+
+Three fixtures closed the rest of what was open: a disclosure slot
+reached beside a countable member, a directory spelled without its
+trailing separator, and the fan-out above. Those moved line coverage
+from 99.4 to 100 percent and branch coverage from 98.2 to 98.9.
+
+The remaining five sit in `provider.cpp` (a scope test, the
+device-scoped condition chain, and the mode selector's switch),
+`group_io.cpp` (the release loop's null-context arm) and
+`table_parse.cpp` (the registry lookup's empty arm). Each needs a fixture
+or a written exclusion, and no exclusion has been written for any of
+them, because reaching them in a test has not been shown impossible and
+this record will not claim it was.
+
+Two of those need hardware this host does not have, and the reason is
+worth recording. The device-scoped condition chain in `provider.cpp`
+decides per device whether `path` is `cpu`, `cpu_core` or `cpu_atom`,
+and this machine publishes neither of the last two:
+`/sys/bus/event_source/devices` holds `cpu` and no hybrid device. A
+fixture that added those devices to a constructed `pmu_state` covered
+nothing new, because the decision is made while scanning sysfs and a
+constructed state never reaches it. Those two branches need a hybrid host
+or a fixture that stands in for the sysfs root, and this host is neither.
+Whether the seam exposes such a root is not established here.
+
+Two are reachable on hardware this host has, and no fixture reaches
+them yet. This host does grant `perf_event_open`: a direct call
+returns a descriptor at `perf_event_paranoid` 1.
+
+The tracefile corrects this record's earlier reading of the scope test at
+`provider.cpp` line 124. The countable arm is taken 74 times and the
+direction that is missing is the one where the kernel refuses the entry
+on a cpu target, so a fixture needs an event the cpu target refuses. That test sits in `probe_device`, which lives
+in an anonymous namespace and is named by no seam declaration, so
+reaching it from a fixture means exposing that function first.
+
+The mode selector's switch at `provider.cpp` line 369 is settled. The
+seam fixture drives all six availability states through it, and the one
+branch it left open was the dispatch's default arm, which answers only a
+value past the last enumerator. The object's disassembly shows the
+dispatch as a test for zero, a subtract, a compare against four and an
+unsigned jump above the range, so that arm carries an exclusion naming
+the disassembly.
+
+The three, with the branch each tracefile names: `provider.cpp` line 124
+branch 1, and `provider.cpp` lines 211 branch 1 and 212 branch 2. The release loop's null-context arm is gone: every push into that
+vector sits after the open's own null check, which returns first, so the
+arm cannot be reached and the loop carries an exclusion saying so. The
+scripted provider's disclosure direction is settled and needs no
+exclusion.
+
+All three that remain sit behind one wall. `probe_device` spans
+`provider.cpp:103-185` and `load_device` spans `:186-291`, and both hold
+their branches inside the anonymous namespace that closes at `:335`,
+while the decisions the seam already exposes live in `namespace detail`
+outside it. The seam builds its `pmu_device` directly, so it never
+enters either function. Reaching line 124 needs an entry the cpu target
+refuses, and reaching lines 211 and 212 needs a device published as
+`cpu_core` or `cpu_atom`, which is what the chain at `:210-212` tests.
+
+The three do not share one remedy, and an earlier reading of this record
+claimed they did. Line 124 is reachable by no fixture. `probed` is
+countable there only when a real per-task `perf_event_open` succeeds on
+the entry while the cpu-targeted call on the same type and the same words
+is refused, because `probe_device` reads the verdict from
+`detail::pmu_probe`, which issues the syscall. No fixture supplies that
+asymmetry; a synthetic device only moves the call. Seventy-four countable
+entries across this host's twenty-four devices never show it, and closing
+that branch needs a processor whose PMU grants the per-task event and
+refuses the cpu-targeted one.
+
+Lines 211 and 212 are a different matter. `load_device` takes its
+directory as an argument and sets `device.path` from `dir.filename()`, so
+a fixture directory named `cpu_core` or `cpu_atom` reaches both false arms
+of the chain at `:210-212` with no hybrid processor present. What stands
+in the way is that `load_device` sits inside the anonymous namespace and
+`kDevicesRoot` at `:65` is a `constexpr` holding the kernel's own path, so
+nothing reaches that function with a directory the test chooses. Two
+routes close the pair: lift `load_device` into `namespace detail` and
+declare it in `source/counters/detail/pmu.hpp`, then write a
+`cpu_core` and a `cpu_atom` fixture tree, or make the device root a
+parameter the seam supplies. The first touches a 722-line file and moves
+code across a namespace boundary, and the second adds a configured path
+to a published surface. Neither is taken here.
+
+The `coverage-linux` preset named in T056 is hidden and CMake refuses it
+by name. `ci-coverage` configures the same tree, so that is the preset a
+run must use, and T056's command line names it.
+
+**Sanitizer note.** `ci-sanitize` builds clean and all 45 of its tests
+pass. The T025 partial-open scenario failed there for a while. The
+fixture caused that failure, and the release path was sound throughout.
+
+The scenario counts this process's own mapping list around a loop that
+filled a `std::vector` of 64 contexts. A sanitizer keeps the pages of a
+freed heap block mapped while it holds that block in quarantine, so the
+vector's own allocation counted as a retained mapping. A probe measured
+the residue at **8** mappings against the 64 the loop acquired, which is
+one container and not 64 contexts: the contexts were releasing.
+
+The members now sit in a fixed-size `std::array`, so the measured scope
+holds no heap allocation of its own. Both builds report 45 of 45.
+
+Two earlier notes on this finding were wrong and are superseded. One read
+the raw delta of 40 surviving mappings as a leak. A second probe passed
+`reserve`, which removes the vector's reallocation and still failed,
+which ruled reallocation out and pointed at the container's single
+allocation. A third probe attempted to confirm by calling `munmap`
+directly on recorded addresses and reading the return, and that probe was
+confounded: a sanitizer reuses freed addresses, so a successful unmap on
+a stale address proves the address is mapped by something and says
+nothing about who mapped it.
+
+**Flake note.** One `ctest --test-dir build/dev` run out of four failed a
+single test while a build was running alongside it; three further runs
+passed clean with no build beside them. The suite measures clock and
+overhead floors, which are load-sensitive by construction, and the three
+tests that assert a floor are `counters_clock_push_test`,
+`counters_overhead` and `counters_clock_raw_test`. Which one failed was
+not captured, because the failure was not reproduced. A walk that runs
+the suite beside a build should expect it, and a walk that wants a clean
+verdict should run the suite on its own.
 
 **Spell-check note.** The `spell-check` target scans the working tree,
 and it fails on `speedgun-ng-012-specify-prompt.md`, an untracked

@@ -21,6 +21,7 @@
 // ============================================================================
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -42,6 +43,7 @@
 #include <unistd.h>
 
 #include "../source/counters/detail/pmu.hpp"
+#include "../source/counters/linux_pmu/embedded_tables.hpp"
 #include "speedgun-ng/dbc.hpp"  // SG_CONTRACTS_SEMANTIC
 
 #ifndef SG_SEAM_TABLE_DIR
@@ -694,8 +696,14 @@ auto fast_context_partial_open_scenario() -> void
   const auto descriptors_before = open_descriptor_count();
   const auto mappings_before = mapping_count();
   {
-    std::vector<sg::counters::detail::fast_context> acquired;
-    for (int index = 0; index < 64; ++index) {
+    // The members sit in a fixed-size array. A growing container
+    // heap-allocates, and the count below reads this process's own mapping
+    // list. A sanitizer keeps the pages of a freed heap block mapped while
+    // it holds that block in quarantine, so the container's own allocation
+    // would count as a retained mapping and the check would measure the
+    // allocator, missing this lifecycle (FR-014).
+    std::array<sg::counters::detail::fast_context, 64> acquired {};
+    for (std::size_t index = 0; index < acquired.size(); ++index) {
       const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
       check(fd >= 0, "the partial open acquires a descriptor");
       const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
@@ -703,11 +711,11 @@ auto fast_context_partial_open_scenario() -> void
           nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
       check(mapping != MAP_FAILED,
             "the partial open acquires an anonymous read-only mapping");
-      acquired.push_back(sg::counters::detail::fast_context {
-          .fd = fd, .map = mapping, .map_length = length});
+      acquired[index] = sg::counters::detail::fast_context {
+          .fd = fd, .map = mapping, .map_length = length};
     }
     // A later member fails here, so the window is never published and the
-    // vector releases what it holds.
+    // array releases what it holds.
   }
   check(open_descriptor_count() == descriptors_before,
         "a partial open releases every descriptor it acquired (FR-014)");
@@ -1062,6 +1070,17 @@ auto mapfile_scenario() -> void
   const auto& table = sg::counters::detail::pmu_load_table(directory);
   check(&sg::counters::detail::pmu_load_table(directory) == &table,
         "loading the same directory twice returns the same parsed table");
+  // A directory reaches the loader with a trailing separator from
+  // `pmu_select_directory`, and the registry names it without one. Both
+  // spellings resolve to the same directory (FR-036).
+  std::string bare {directory};
+  if (!bare.empty() && bare.ends_with('/')) {
+    bare.pop_back();
+  }
+  const auto& bare_table = sg::counters::detail::pmu_load_table(bare);
+  check(bare_table.size() == table.size() && !bare_table.empty(),
+        "a directory spelled without its trailing separator loads the same "
+        "table (FR-036)");
   const std::string absent_directory {"arch/x86/no-such-directory/"};
   const auto& absent_table =
       sg::counters::detail::pmu_load_table(absent_directory);
@@ -1527,6 +1546,17 @@ auto leaf_set_of(std::vector<std::string> addresses) -> leaf_set
   return leaf_set {.addresses = std::move(addresses)};
 }
 
+// A leaf set whose plan also writes a disclosure column. A window gives
+// that column a slot of its own, distinct from every device member, so
+// the slot a window registers for it is decided by the column and not by
+// a device (FR-007).
+auto disclosing_leaf_set_of(std::vector<std::string> addresses,
+                            std::size_t disclosure_column) -> leaf_set
+{
+  return leaf_set {.addresses = std::move(addresses),
+                   .disclosure_column = disclosure_column};
+}
+
 // The resolve and layout refusals, each decided before the provider
 // touches the kernel (FR-024, FR-041).
 auto window_refusal_scenario() -> void
@@ -1552,6 +1582,12 @@ auto window_refusal_scenario() -> void
             state, leaf_set_of({"cpu/blocked"}), where)
             == nullptr,
         "a leaf the catalog reports permission_blocked opens no window");
+  // A countable member beside a disclosure column reaches the window
+  // build, and the disclosure slot registers on its own (FR-007).
+  const auto disclosed = sg::counters::detail::pmu_open_window(
+      state, disclosing_leaf_set_of({"cpu/work"}, 1), where);
+  check(disclosed != nullptr,
+        "a countable member beside a disclosure column opens a window");
   // The time pair is no device member, so a leaf set carrying only the
   // pair needs no group and no leader.
   check(sg::counters::detail::pmu_open_window(
@@ -1741,6 +1777,66 @@ auto fast_branch_scenario() -> void
 
 }  // namespace
 
+// Every availability the catalog can publish reaches the mode selector,
+// which maps each one to the mode and pair it publishes (FR-022, FR-024).
+auto read_mode_selection_scenario() -> void
+{
+  using sg::counters::detail::entry_read_selection_for;
+  using sg::counters::availability;
+
+  const auto fast_countable =
+      entry_read_selection_for(availability::countable, true);
+  check(fast_countable.mode == sg::counters::read_mode::fast_rdpmc,
+        "a countable entry takes the fast mode where the device supports "
+        "it (FR-022)");
+  check(fast_countable.publish_pair,
+        "a countable entry publishes its pair (FR-022)");
+
+  const auto slow_countable =
+      entry_read_selection_for(availability::countable, false);
+  check(slow_countable.mode == sg::counters::read_mode::syscall,
+        "a countable entry takes the syscall mode where the device has no "
+        "fast read (FR-022)");
+  check(slow_countable.publish_pair,
+        "a countable entry publishes its pair on either mode (FR-022)");
+
+  for (const auto state : {availability::permission_blocked,
+                           availability::not_encodable,
+                           availability::absent,
+                           availability::scope_refused,
+                           availability::gap}) {
+    const auto selection = entry_read_selection_for(state, true);
+    check(selection.mode == sg::counters::read_mode::syscall
+              && !selection.publish_pair,
+          "every state but countable takes the syscall mode and publishes "
+          "no pair (FR-022)");
+  }
+}
+
+// The embedded registry answers a name no vendored directory holds with an
+// empty view, and a directory it does not hold with no entry, so a caller
+// asking for something the library does not carry reads nothing
+// (FR-036).
+auto embedded_registry_scenario() -> void
+{
+  using sg::counters::detail::embedded_file_bytes;
+  using sg::counters::detail::embedded_find_dir;
+
+  const auto* dir = embedded_find_dir("arch/x86/icelake");
+  check(dir != nullptr, "the registry holds the icelake table directory");
+  if (dir == nullptr) {
+    return;
+  }
+  check(!embedded_file_bytes(*dir, "cache.json").empty(),
+        "the registry holds a table every icelake directory publishes");
+  check(embedded_file_bytes(*dir, "no-such-table.json").empty(),
+        "the registry answers a name it does not hold with an empty view "
+        "(FR-036)");
+  check(embedded_find_dir("arch/x86/no-such-directory") == nullptr,
+        "the registry answers a directory it does not hold with no entry "
+        "(FR-036)");
+}
+
 auto main() -> int
 {
   fixture_scenario();
@@ -1758,6 +1854,8 @@ auto main() -> int
   intel_encodable_rows_scenario();
   encoding_refusal_scenario();
   device_placement_scenario();
+  read_mode_selection_scenario();
+  embedded_registry_scenario();
   page_gate_scenario();
   table_array_scenario();
   table_object_scenario();

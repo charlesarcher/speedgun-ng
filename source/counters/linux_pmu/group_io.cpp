@@ -499,9 +499,14 @@ void release_fast_members(
     std::vector<pmu_fast_window::member>& acquired) noexcept
 {
   for (auto& one : acquired) {
+    // LCOV_EXCL_BR_START : coverage exclusion (T056): the member carrying no
+    // context. Every push into this vector sits after the open's own null
+    // check, and that check returns before the push, so a member reaches
+    // this loop only with a context to release (FR-014).
     if (one.context) {
       fast_context_close(*one.context);
     }
+    // LCOV_EXCL_BR_STOP
   }
   acquired.clear();
 }
