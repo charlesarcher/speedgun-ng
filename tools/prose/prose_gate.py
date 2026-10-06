@@ -651,8 +651,12 @@ def extract_c_comment_units(lines: list[str]) -> list[tuple[int, str]]:
                 i = _skipped_string(line, i)
                 continue
             i += 1
-        text = re.sub(r"^\s*\*+\s*", "", "".join(collected)).strip()
-        if text:
+        # The leading space survives on purpose. XI2.CONTRASTIVE needs one
+        # in front of the pair, and a line comment hands the extractor its
+        # text with that space still attached. A block-comment marker line
+        # spends exactly one space on the asterisk, which `\*+ ?` keeps.
+        text = re.sub(r"^\s*\*+ ?", "", "".join(collected)).rstrip()
+        if text.strip():
             units.append((lineno, text))
     return units
 

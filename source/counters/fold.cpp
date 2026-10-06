@@ -106,8 +106,8 @@ struct fold_context
 // (FR-019, FR-020). No value means the leaf discloses no measured
 // fraction: it carries no enabled/running pair, or no enabled time
 // elapsed across the window.
-[[nodiscard]] auto leaf_ratio(const fold_context& ctx, const std::size_t slot)
-    -> std::optional<double>
+[[nodiscard]] auto leaf_ratio(const fold_context& ctx,
+                              const std::size_t slot) -> std::optional<double>
 {
   const auto& entry = ctx.layout.slots[slot];
   // An action the disclosure marks as a gap measured no fraction, so the
@@ -160,8 +160,8 @@ struct ratio_result
 // without an enabled/running pair contributes 1.0 by construction. A
 // pair with no elapsed enabled time contributes 1.0; the fold has no
 // measured fraction to report and states full rate.
-[[nodiscard]] auto window_ratio(const fold_context& ctx, const expr_core& core)
-    -> ratio_result
+[[nodiscard]] auto window_ratio(const fold_context& ctx,
+                                const expr_core& core) -> ratio_result
 {
   ratio_result out;
   for (std::size_t index = 0; index < core.leaves.size(); ++index) {
@@ -242,8 +242,8 @@ auto fold_core(const expr_core& core,
   };
 }
 
-auto fold_pairs_core(const expr_core& core, const recorder_api& rec)
-    -> std::vector<metric_result>
+auto fold_pairs_core(const expr_core& core,
+                     const recorder_api& rec) -> std::vector<metric_result>
 {
   SG_REQUIRE(rec.count >= 2,
              "pair folds need at least two committed points (FR-018)");

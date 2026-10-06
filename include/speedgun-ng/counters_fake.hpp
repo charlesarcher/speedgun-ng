@@ -178,7 +178,7 @@ public:
    * Once the sequence is exhausted the tail steps by `tail_delta`.
    * A `delta_seed` puts the tail on the seeded per-sample delta
    * sequence instead: the leaf adds `step(seed)`, then
-   * `step(step(seed))`, and so on, where one step is
+   * `step(step(seed))`, then `step(step(step(seed)))`, where one step is
    * `state = (state * 37 + 11) mod 2^16`. A single-digit multiplier
    * and a power-of-two modulus keep the whole tail reproducible by
    * hand, which the suite's exactness tests need (T014).

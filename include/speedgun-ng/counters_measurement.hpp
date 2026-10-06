@@ -1,7 +1,6 @@
 #ifndef SPEEDGUN_NG_COUNTERS_MEASUREMENT_HPP
 #define SPEEDGUN_NG_COUNTERS_MEASUREMENT_HPP
 
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -587,9 +586,8 @@ namespace detail
     const target& tg,
     const std::vector<const expr_core*>& exprs) -> std::expected<plan, error>;
 
-[[nodiscard]] SPEEDGUN_NG_EXPORT auto metric_core(const scope& scope_obj,
-                                                  const expr_core& core)
-    -> metric_result;
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto metric_core(
+    const scope& scope_obj, const expr_core& core) -> metric_result;
 
 }  // namespace detail
 
@@ -738,11 +736,6 @@ public:
     out.core = std::move(merged);
     return out;
   }
-
-  friend auto operator*(const expression& e, const double k) -> expression
-  {
-    return k * e;
-  }
 };
 
 /**
@@ -769,8 +762,8 @@ template<class D1, class D2>
 // The body is dimension-independent: same tags means same spine
 // algebra, and the static_assert names the violation.
 template<class D1, class D2>
-[[nodiscard]] auto operator+(const expression<D1>& a, const expression<D2>& b)
-    -> expression<D1>
+[[nodiscard]] auto operator+(const expression<D1>& a,
+                             const expression<D2>& b) -> expression<D1>
 {
   static_assert(dim_same<D1, D2>,
                 "expression addition requires identical dimension tags");
@@ -785,8 +778,8 @@ template<class D1, class D2>
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator-(const expression<D1>& a, const expression<D2>& b)
-    -> expression<D1>
+[[nodiscard]] auto operator-(const expression<D1>& a,
+                             const expression<D2>& b) -> expression<D1>
 {
   static_assert(dim_same<D1, D2>,
                 "expression subtraction requires identical dimension tags");
@@ -841,8 +834,8 @@ template<class D1, class D2>
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator+(const counter<D1>& a, const counter<D2>& b)
-    -> expression<D1>
+[[nodiscard]] auto operator+(const counter<D1>& a,
+                             const counter<D2>& b) -> expression<D1>
 {
   static_assert(dim_same<D1, D2>,
                 "counter addition requires identical dimension tags");
@@ -850,8 +843,8 @@ template<class D1, class D2>
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator-(const counter<D1>& a, const counter<D2>& b)
-    -> expression<D1>
+[[nodiscard]] auto operator-(const counter<D1>& a,
+                             const counter<D2>& b) -> expression<D1>
 {
   static_assert(dim_same<D1, D2>,
                 "counter subtraction requires identical dimension tags");
@@ -900,7 +893,9 @@ public:
   /**
    * @brief Mints a hard_stop recorder: `capacity` point columns are
    * allocated now from the plan arena; sampling allocates nothing
-   * later (FR-025, FR-029). The plan outlives its recorders.
+   * later (FR-025, FR-029). The plan outlives its recorders. A zero
+   * capacity mints a recorder whose first sampling action reports the
+   * sampling bound `hard_stop_sample_core` enforces (FR-025).
    *
    * \pre none
    * \post none
@@ -956,11 +951,10 @@ public:
   [[nodiscard]] auto sample_overhead_ns_max() const -> double;
 
 private:
-  friend auto detail::compile_core(
-      const system& sys,
-      const target& tg,
-      const std::vector<const detail::expr_core*>& exprs)
-      -> std::expected<plan, error>;
+  friend auto detail::compile_core(const system& sys,
+                                   const target& tg,
+                                   const std::vector<const detail::expr_core*>&
+                                       exprs) -> std::expected<plan, error>;
   friend class scope;
 
   explicit plan(void* impl) noexcept
@@ -977,7 +971,7 @@ private:
  * the window. One semantics, two spellings with the recorder.
  *
  * The two point columns live in the scope object; the plan behind the
- * scope must outlive it. A constructor cannot read a lifetime, so that
+ * scope must outlive it. A constructor cannot read a lifetime. That
  * obligation is the caller's and this note carries it.
  *
  * A composite reaches a scope through the plan it was compiled into,
@@ -1056,9 +1050,8 @@ public:
   [[nodiscard]] auto view() const noexcept -> recorder_api;
 
 private:
-  friend auto detail::metric_core(const scope& scope_obj,
-                                  const detail::expr_core& core)
-      -> metric_result;
+  friend auto detail::metric_core(
+      const scope& scope_obj, const detail::expr_core& core) -> metric_result;
 
   void* m_core = nullptr;  // the scope internals
 };
@@ -1075,11 +1068,11 @@ private:
  * \post none
  */
 template<class... E>
-  requires(
-      detail::is_specialization_of<std::remove_cvref_t<E>, expression>::value
-      && ...)
-[[nodiscard]] auto compile(const system& sys, const E&... exprs)
-    -> std::expected<plan, error>
+  requires(detail::is_specialization_of<std::remove_cvref_t<E>,
+                                        expression>::value
+           && ...)
+[[nodiscard]] auto compile(const system& sys,
+                           const E&... exprs) -> std::expected<plan, error>
 {
   const std::vector<const detail::expr_core*> cores {&exprs.core...};
   return detail::compile_core(sys, target {}, cores);
@@ -1092,9 +1085,9 @@ template<class... E>
  * \post none
  */
 template<class... E>
-  requires(
-      detail::is_specialization_of<std::remove_cvref_t<E>, expression>::value
-      && ...)
+  requires(detail::is_specialization_of<std::remove_cvref_t<E>,
+                                        expression>::value
+           && ...)
 [[nodiscard]] auto compile(const system& sys,
                            const target& tg,
                            const E&... exprs) -> std::expected<plan, error>

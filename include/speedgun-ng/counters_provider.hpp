@@ -1,7 +1,6 @@
 #ifndef SPEEDGUN_NG_COUNTERS_PROVIDER_HPP
 #define SPEEDGUN_NG_COUNTERS_PROVIDER_HPP
 
-#include <concepts>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -330,11 +329,16 @@ protected:
    *      reader.
    * \post `resolve_thunk` returns fn.
    */
-  void set_thunk(const read_thunk fn) noexcept { m_thunk = fn; }
+  void set_thunk(const read_thunk fn) noexcept
+  {
+    SG_REQUIRE(fn != nullptr, "window reader thunk is non-null");
+    m_thunk = fn;
+    SG_ENSURE(m_thunk == fn, "resolve_thunk returns the installed thunk");
+  }
 
 private:
-  static auto default_thunk(window_reader& reader, point_sink& sink) noexcept
-      -> void
+  static auto default_thunk(window_reader& reader,
+                            point_sink& sink) noexcept -> void
   {
     reader.read_points(sink);
   }
@@ -405,13 +409,6 @@ public:
   virtual std::unique_ptr<window_reader> open(const leaf_set& leaves,
                                               const target& where) = 0;
 };
-
-/**
- * @brief The shape an out-of-tree provider implements: registration
- * through `provider_iface` (FR-011, FR-012).
- */
-template<class T>
-concept provider = std::derived_from<T, provider_iface>;
 
 }  // namespace sg::counters
 

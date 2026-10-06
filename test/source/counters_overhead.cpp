@@ -151,6 +151,25 @@ auto tsc_rate_hz() -> double
       std::chrono::duration<double>(wall_end - wall_start).count();
   return static_cast<double>(tick_end - tick_start) / seconds;
 }
+
+// The two plans FR-008 gates, measured in ticks. The nanosecond figures
+// elsewhere in this file quantize to a 10 ns tick, and one tick is about a
+// fifth of a 50 ns median, so the nanosecond domain cannot resolve a five
+// percent bound in either direction. A tick is a finer count of the same
+// work. FR-008 asks for this as a recorded measurement and asks for no
+// test asserting it, so the figure prints and nothing branches on it.
+auto report_gated_ticks(const plan& compiled, const std::string& label) -> void
+{
+  const tick_cost cost = summarize_ticks(measure_library_tsc(compiled));
+  const double rate = tsc_rate_hz();
+  std::printf(
+      "%-24s min %4llu t   median %4llu t   max %4llu t   (median %6.1f ns)\n",
+      label.c_str(),
+      static_cast<unsigned long long>(cost.min),
+      static_cast<unsigned long long>(cost.median),
+      static_cast<unsigned long long>(cost.max),
+      static_cast<double>(cost.median) / rate * 1e9);
+}
 #endif
 
 // One published regime: what the plan reads, and the three numbers.
@@ -370,6 +389,9 @@ auto main() -> int
 
   std::printf("\nsampling cost by regime (nanoseconds per sample()):\n");
   const regime syscall_regime = measure(*clock_plan, "clock, syscall (vDSO)");
+#if SG_TEST_HAS_TSC
+  report_gated_ticks(*clock_plan, "gated clock, monotonic");
+#endif
   const regime raw_syscall_regime =
       measure(*raw_clock_plan, "clock raw, syscall (vDSO)");
   std::printf("the raw-rate median is %.1f ns against %.1f ns for the "
@@ -496,6 +518,9 @@ auto main() -> int
                   cycle.c_str());
       measure(*group_plan,
               fast ? "pmu group, fast_rdpmc" : "pmu group, syscall");
+#if SG_TEST_HAS_TSC
+      report_gated_ticks(*group_plan, "gated core PMU group");
+#endif
       measure_fold(*group_plan,
                    *clock_plan,
                    elapsed,

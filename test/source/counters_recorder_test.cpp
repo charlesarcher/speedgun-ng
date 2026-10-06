@@ -273,7 +273,7 @@ auto test_disclosure_column() -> void
 
   // FR-006: no fold over an action the disclosure marked as a gap reports
   // a delta from a count the read never produced. Two folds are compared
-  // rather than compared against a constant: one spans the measured action
+  // with each other, and no constant enters: one spans the measured action
   // to the measured action across the gap, and one starts at the gap. The
   // gap row carries zeros, so the two agree exactly, and any count the
   // refused read fabricated would move one and not the other. The span's

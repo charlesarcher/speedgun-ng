@@ -1,7 +1,6 @@
 #ifndef SPEEDGUN_NG_COUNTERS_CORE_HPP
 #define SPEEDGUN_NG_COUNTERS_CORE_HPP
 
-#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <string>

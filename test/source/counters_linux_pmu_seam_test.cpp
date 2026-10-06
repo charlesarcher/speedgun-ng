@@ -798,8 +798,8 @@ auto synthetic_core_device() -> pmu_device
 // The reference host's own core format list: a literal transcription of
 // what its `/sys/bus/event_source/devices/cpu/format/` directory
 // publishes, which is `cmask`, `edge`, `event`, `inv`, and `umask`. The
-// list is recorded rather than read from the running machine, so one
-// measured number gates every host on the matrix (FR-020, SC-005).
+// list is recorded in this file; no read touches the running machine, so
+// one measured number gates every host on the matrix (FR-020, SC-005).
 auto reference_host_core_device() -> pmu_device
 {
   pmu_device device;

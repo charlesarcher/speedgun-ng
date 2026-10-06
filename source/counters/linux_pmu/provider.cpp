@@ -304,7 +304,8 @@ auto load_device(const std::filesystem::path& dir)
     // file there that the parser rejects.
     if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
             slurp(it->path()),
-            ranges)) {  // LCOV_EXCL_BR_LINE
+            ranges))
+    {  // LCOV_EXCL_BR_LINE
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -415,8 +416,7 @@ auto entry_read_selection_for(const availability probed,
       // the only arm that publishes the pair (FR-001, FR-022).
       SG_ENSURE(fast_capable == (selection.mode == read_mode::fast_rdpmc),
                 "a countable entry publishes the fast read mode only "
-                "where the host grants it, and only a countable entry "
-                "publishes the enabled/running pair (FR-001, FR-022)");
+                "where the host grants it (FR-001)");
       return selection;
     }
     case availability::permission_blocked:
@@ -559,8 +559,8 @@ auto to_hex(const std::uint64_t value) -> std::string
 // itself with the event_attr text the kernel publishes, verbatim, so a
 // reader can reproduce the encoding; a vendored entry uses the table's
 // own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name, const std::string& text)
-    -> std::string
+auto alias_description(const std::string& name,
+                       const std::string& text) -> std::string
 {
   if (!text.empty()) {
     return "kernel event configuration: " + text;

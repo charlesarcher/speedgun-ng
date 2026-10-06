@@ -43,8 +43,8 @@ struct detail::fake_window final : window_reader
   // call. `final` fixes the target of the `read_points` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base, point_sink& sink) noexcept
-      -> void
+  static auto read_direct(window_reader& base,
+                          point_sink& sink) noexcept -> void
   {
     static_cast<fake_window&>(base).read_points(sink);
   }
@@ -239,9 +239,12 @@ auto fake_provider::set_gap_actions(const std::string_view object_path,
                                     std::vector<std::size_t> actions)
     -> fake_provider&
 {
-  SG_REQUIRE(!object_path.empty() && !name.empty(),
-             "set_gap_actions names an object and a leaf (FR-007)");
-  auto& gaps = counter(std::string(object_path), std::string(name)).gaps;
+  const std::string path(object_path);
+  const std::string leaf(name);
+  SG_REQUIRE(
+      m_objects.count(path) > 0 && m_objects.at(path).counters.count(leaf) > 0,
+      "set_gap_actions scripts a declared counter (FR-007)");
+  auto& gaps = counter(path, leaf).gaps;
   gaps = actions;
   SG_ENSURE(gaps == actions,
             "the leaf's scripted gap actions are the ones the caller named "

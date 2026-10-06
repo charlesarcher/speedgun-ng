@@ -83,10 +83,10 @@ public:
   void enumerate(object_sink& sink) const override;
 
   /**
-   * @brief Opens a reader loading the requested push leaves.
+   * @brief Opens a reader loading the requested push leaves; null when
+   * a leaf is not this provider's.
    *
-   * \pre Every address in `leaves` names a counter this provider
-   *      declared, and all of them were declared on one thread
+   * \pre Every address in `leaves` was declared on one thread
    *      (FR-035).
    * \post none
    */
