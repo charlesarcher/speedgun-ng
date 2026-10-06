@@ -1,4 +1,74 @@
 <!--
+Sync Impact Report (2.13.0, MINOR): Principle VIII's hard gate list
+gains a thread-sanitizer item, which FR-012 and SC-003 of
+`specs/012-counters-defect-resolution` require.
+
+The addition binds every change. It removes no existing obligation and
+weakens none.
+
+The gate list's last item governs this change.
+It forbids weakening a gate configuration silently. It states that
+"changing the gate set itself requires a constitution amendment".
+The clause is unqualified and governs an addition and a removal alike.
+This amendment is the route the clause names.
+
+The gate names a `ci-tsan` preset and a `tsan` CI job, and neither
+exists in the tree yet. They arrive with tasks T020 and T024 of
+`specs/012-counters-defect-resolution/tasks.md`. The amendment and those
+tasks land in the same change. A gate item naming a preset and a job
+that do not exist is a gate no change can pass.
+
+The 2.11.0 report states "all eleven jobs". That sentence records the
+count at that amendment and stands as that record. This amendment adds
+one job, and the 2.11.0 text stays unedited because an amendment report
+is a record of a measurement.
+
+Two closed specifications count CI jobs. `specs/010-linux-only/spec.md`
+and `specs/007-counters-and-timers/tasks.md` name a total that this
+amendment moves by one. Both stay unedited on the terms the 2.11.0
+report set for superseded merged artifacts. Each count was true when its
+spec shipped and stays a record of what was decided then.
+
+The Open deferrals block is left unaltered, and no entry in it changes.
+Its wording reads "binding until a spec lands them", and every entry
+records an obligation that no specification has delivered. The
+obligation this amendment adds is delivered by the specification in
+the first paragraph.
+
+The insertion shifts every line below line 1 and below the new gate
+item. A citation naming a line number in this file needs re-anchoring.
+The affected citations are the `runner` example token named in
+`specs/002-prose-commit-lint/contracts/rule-data.md`,
+`specs/002-prose-commit-lint/data-model.md`,
+`specs/002-prose-commit-lint/research.md`, and
+`tools/prose/prose_rules.yaml`. Two of them cite ranges:
+`specs/002-prose-commit-lint/contracts/rule-data.md` cites "constitution
+lines 395-397" for the XI.6 machine-string list, and
+`specs/002-prose-commit-lint/research.md` cites
+`constitution.md:387-476`. The `runner` token stands in the Pull Request
+Quality section. The `:515` those four files name was already stale
+before this amendment, so the correct anchor is the token's present
+position. Search this file for the token; the number moves with every
+edit to the reports above it.
+
+Enforcement is by review, at lint parity. The 2.10.0 report places a
+static-analysis finding there. The 2.12.0 report places a discourse
+violation there. A race the thread sanitizer reports is a defect at lint
+parity, and the author clears it before merge.
+
+No tool changes. `specs/002-prose-commit-lint` enumerates Principle XI
+prose rule identifiers, and a gate item in Principle VIII adds no
+rule identifier, no vocabulary, no threshold, and no path.
+`Constitution` is already an accepted commit-title section, so this
+amendment's commit title passes the commit-message gate unchanged.
+
+MINOR because one hard gate item was added inside an existing principle.
+No principle is added, removed, renamed, or renumbered. No gate,
+threshold, warning class, analyzer invocation, runner, or dependency is
+removed or weakened; the gate set grows by one item. Amendment history
+lives in the git log of this file.
+-->
+<!--
 Sync Impact Report (2.12.0, MINOR): XI gains XI.7, Simplified Technical
 English. Generated prose in this repository must reach about 80 percent
 compliance with ASD-STE100.
@@ -368,6 +438,9 @@ Every change passes all of the following; each is hard.
   cmake/ImportAutotoolsSubmodule.cmake), so landing a port is additive.
 - All tests pass (`ctest`).
 - Sanitizer-clean: ASan/UBSan (`ci-sanitize`) report no errors.
+- Thread-sanitizer-clean: a `ci-tsan` preset and a `tsan` CI job build and
+  run the suite under the thread sanitizer and report no race. The preset
+  stays apart from `ci-sanitize`, because the compilers reject the pairing.
 - Static-analysis-clean: clang-tidy and cppcheck (per `CMakePresets.json`)
   report no new findings, against the pinned Core Guidelines baseline (I)
   from the same configuration. Both launchers reach every compile the
@@ -782,6 +855,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.13.0 | 2026-10-04 | VIII hard gate list gains a thread-sanitizer item: a `ci-tsan` preset and a `tsan` job report no race, FR-012 and SC-003 of specs/012 require them, no gate removed or weakened |
 | 2.12.0 | 2026-10-03 | XI.7 Simplified Technical English: generated prose reaches about 80 percent ASD-STE100 compliance, reviewer-enforced, XI.1 to XI.6 govern on conflict, no rule identifier added |
 | 2.11.0 | 2026-10-02 | supported platform narrowed to Linux; gate list, platform definition, and release-build clause name it alone; 2.7.0 Windows suspension and 2.8.0 macOS deferral superseded, both reports retained; macOS Open deferral closed, retiring specs/009 T038; five merged vendor specs superseded by name and left unedited |
 | 2.10.0 | 2026-09-28 | VIII static-analysis clause states the gate reports and names the step a reader collects the report from |
@@ -800,4 +874,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.12.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-03
+**Version**: 2.13.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-04
