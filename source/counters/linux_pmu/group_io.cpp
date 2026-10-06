@@ -25,10 +25,15 @@
 namespace sg::counters::detail
 {
 
-auto group_read_short(const long returned,
+auto group_read_short(const std::int64_t returned,
                       const std::size_t header_bytes) noexcept -> bool
 {
-  return returned < static_cast<long>(header_bytes);
+  // Both operands are a read count and a header size, and the cast names
+  // the one signed type they are compared in. The read count is not
+  // negative on this path, and the check asks for a common type here,
+  // which is what the cast is.
+  // NOLINTNEXTLINE(modernize-use-integer-sign-comparison)
+  return returned < static_cast<std::int64_t>(header_bytes);
 }
 
 auto fast_pair_disclosed(const bool stable,
@@ -44,6 +49,9 @@ auto fast_pair_disclosed(const bool stable,
   }
   out_enabled = enabled;
   out_running = running;
+  // The postcondition states two facts, and DeMorgan's form of them
+  // states neither on its own. It is a contract, so it keeps its shape.
+  // NOLINTNEXTLINE(readability-simplify-boolean-expr)
   SG_ENSURE(out_enabled == enabled && out_running == running,
             "a stable pair publishes the page's own two values (FR-005)");
   return true;
@@ -58,7 +66,7 @@ enum class slot_source : std::uint8_t
   member,
   time_enabled,
   time_running,
-  disclosure
+  disclosure,
 };
 
 struct leaf_slot
@@ -430,7 +438,7 @@ struct pmu_fast_window final : window_reader
     // covered for both arms by `fast_pair_disclosed` in
     // `test/source/counters_linux_pmu_seam_test.cpp`.
     const bool pair_stable = fast_context_time_pair(
-        *members[leader].context, page_enabled, page_running);
+        *members.at(leader).context, page_enabled, page_running);
     if (!fast_pair_disclosed(
             pair_stable, page_enabled, page_running, enabled, running))
     {  // LCOV_EXCL_BR_LINE
@@ -689,8 +697,6 @@ auto open_fast_window(const pmu_state& state,
   // LCOV_EXCL_STOP
 }
 
-}  // namespace
-
 // Appends the plan's disclosure column to the resolved leaves, so the
 // window that owns it writes it last, after the counts and the ratio
 // pair's two columns. The column names no leaf address, so it resolves to
@@ -702,8 +708,13 @@ void append_disclosure(const leaf_set& leaves,
     return;
   }
   resolved.push_back(resolved_leaf {
-      .device = 0, .entry = nullptr, .source = slot_source::disclosure});
+      .device = 0,
+      .entry = nullptr,
+      .source = slot_source::disclosure,
+  });
 }
+
+}  // namespace
 
 pmu_fast_window::~pmu_fast_window()
 {

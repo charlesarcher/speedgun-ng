@@ -22,6 +22,7 @@
 #include "speedgun-ng/counters_provider.hpp"
 
 #if defined(__linux__)
+#  include <cctype>
 #  include <cerrno>
 #  include <cstdlib>
 #  include <filesystem>
@@ -336,6 +337,11 @@ auto merge_vendored(detail::pmu_device& device) -> void
 namespace detail
 {
 
+// The two parameters are both strings and both matter: the first is a
+// kernel device name and the second a table's scope label, and swapping
+// them answers a different question. The fixture drives both orders, so
+// a swap cannot pass unnoticed.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 auto scope_reaches(const std::string& device_path,
                    const std::string& scope) noexcept -> bool
 {
@@ -363,7 +369,7 @@ auto entry_read_selection_for(const availability probed,
   switch (probed) {
     case availability::countable:
       return {.mode = fast_capable ? read_mode::fast_rdpmc : read_mode::syscall,
-              .publish_pair = true};
+              .publish_pair = true,};
     case availability::permission_blocked:
     case availability::not_encodable:
     case availability::absent:
@@ -535,7 +541,11 @@ auto pmu_probe(const int type,
   // The binding follows the target kind, so one probe answers for one kind
   // and the provider runs a probe per kind the entry's mask admits (FR-022).
   const auto [pid, cpu] = detail::leader_pid(where);
+  // syscall is variadic in the C library, so the attribute pointer rides
+  // through it as a vararg in the kernel's own prototype order. Nothing
+  // on this line formats anything (FR-039).
   const long fd =
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
       ::syscall(SYS_perf_event_open, &attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
   if (fd >= 0) {  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_START : coverage exclusion (T140): the countable verdict. It

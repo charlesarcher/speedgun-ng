@@ -2,6 +2,10 @@
 # Enable ALL the things! Except not really
 # misc-non-private-member-variables-in-classes: the options don't do anything
 # modernize-use-nodiscard: too aggressive, attribute is situationally useful
+# llvm-prefer-static-over-anonymous-namespace: fights misc-use-anonymous-namespace,
+#   which the wildcard enables alongside it. A file-local function cannot satisfy
+#   both. This tree uses anonymous namespaces throughout, so that check is the one
+#   that disagrees with the convention here (269 findings against 1 the other way).
 Checks: "*,\
   -google-readability-todo,\
   -altera-*,\
@@ -11,7 +15,8 @@ Checks: "*,\
   -llvm-include-order,\
   -llvmlibc-*,\
   -modernize-use-nodiscard,\
-  -misc-non-private-member-variables-in-classes"
+  -misc-non-private-member-variables-in-classes,\
+  -llvm-prefer-static-over-anonymous-namespace"
 WarningsAsErrors: ''
 CheckOptions:
   - key: 'bugprone-argument-comment.StrictMode'

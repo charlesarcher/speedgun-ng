@@ -113,9 +113,14 @@ struct fold_context
   // An action the disclosure marks as a gap measured no fraction, so the
   // fold reports no measured fraction, because a ratio taken across zero
   // counts is not one (FR-005).
-  const auto* disclosure =
-      ctx.rec.columns + ctx.layout.disclosure_slot * ctx.rec.stride;
-  if (disclosure[ctx.j] == static_cast<std::uint64_t>(availability::gap)) {
+  const auto disclosure_index =
+      (ctx.layout.disclosure_slot * ctx.rec.stride) + ctx.j;
+  // The record's column base is a pointer into one contiguous buffer and
+  // the index is computed from the layout that buffer was built for, so
+  // the subscript is in range by construction.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  if (ctx.rec.columns[disclosure_index]
+      == static_cast<std::uint64_t>(availability::gap)) {
     return std::nullopt;
   }
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the second operand can
