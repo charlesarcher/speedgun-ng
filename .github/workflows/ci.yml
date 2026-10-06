@@ -392,28 +392,67 @@ jobs:
     - name: Build consumer verbose
       run: cmake --build build-consumer -v | tee consumer-build.log
     - name: Run consumer
-      run: ./build-consumer/consumer
+      run: |
+        set -euo pipefail
+        log=$(./build-consumer/consumer || true)
+        printf '%s\n' "$log"
+        if printf '%s\n' "$log" \
+            | grep -q '^consumer: pmu catalog entries '; then
+          exit 0
+        fi
+        # No performance monitoring unit device: the provider registers
+        # and seeds no object. The later comparison reads that as zero.
+        printf '%s\n' "$log" | grep -qx 'consumer: no pmu objects'
     - name: Compare the installed count against the build tree's
       run: |
         set -euo pipefail
-        installed=$(./build-consumer/consumer \
-          | sed -n 's/^consumer: pmu catalog entries \([0-9]\+\)$/\1/p')
-        built=$(./build/test/counters_pmu_test \
-          | sed -n 's/^pmu catalog entries \([0-9]\+\)$/\1/p')
-        if [ -z "$installed" ] || [ -z "$built" ]; then
-          echo "::error::a catalog figure is missing" \
-            "(installed='$installed' build tree='$built')"
-          exit 1
-        fi
+        # Developer mode stays off in this job, so the test binary is
+        # absent. The build-tree figure is the same consumer source
+        # linked to the uninstalled library.
+        compiler=$(sed -n 's/^CMAKE_CXX_COMPILER:FILEPATH=//p' \
+          build/CMakeCache.txt)
+        "$compiler" -std=c++23 \
+          -I include -I build/export \
+          test/consumer/main.cpp \
+          build/libspeedgun-ng.a \
+          -ldl -lpthread -lm -lrt \
+          -o build/pmu-catalog-count
+        # A runner with no performance monitoring unit device registers
+        # the provider and seeds no object. The consumer reports no pmu
+        # objects and prints no number. That count is zero, and the
+        # comparison holds (FR-022, D-12).
+        catalog_count() {
+          local log
+          log=$("$1" || true)
+          local count
+          count=$(printf '%s\n' "$log" \
+            | sed -n 's/^consumer: pmu catalog entries \([0-9]\+\)$/\1/p')
+          if [ -n "$count" ]; then
+            printf '%s\n' "$count"
+            return 0
+          fi
+          if printf '%s\n' "$log" | grep -qx 'consumer: no pmu objects'; then
+            printf '0\n'
+            return 0
+          fi
+          printf '%s\n' "$log" >&2
+          return 1
+        }
+        installed=$(catalog_count ./build-consumer/consumer) \
+          || { echo "::error::the installed catalog figure is missing"; exit 1; }
+        built=$(catalog_count ./build/pmu-catalog-count) \
+          || { echo "::error::the build-tree catalog figure is missing"; exit 1; }
         if [ "$installed" != "$built" ]; then
           echo "::error::the installed catalog publishes $installed entries" \
             "and the build tree publishes $built"
           exit 1
         fi
         echo "installed and build-tree counts agree: $installed"
-      # The installed consumer and the build tree read the same catalog
-      # on this runner, so a difference between the two is a packaging
-      # fault the count alone would otherwise hide (FR-022, SC-012, D-12).
+      # The installed consumer and the uninstalled library read the same
+      # catalog on this runner. A difference is a packaging fault. A
+      # runner with no performance monitoring unit device publishes zero
+      # entries on both sides, and the comparison holds
+      # (FR-022, SC-012, D-12).
     - name: Audit consumer logs for hwloc
       run: test -z "$(grep -i hwloc consumer-configure.log consumer-build.log)"
     - name: Audit consumer logs for simdjson

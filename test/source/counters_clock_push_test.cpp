@@ -271,8 +271,8 @@ auto catalog_scenario() -> void
 
 // A push handle names the counter it was declared for, so a caller can
 // report which cell a number came from (FR-035).
-auto push_name_scenario(const push_counter& first, const push_counter& second)
-    -> void
+auto push_name_scenario(const push_counter& first,
+                        const push_counter& second) -> void
 {
   check(first.name() == "bytes",
         "a push handle names the counter it was declared for (FR-035)");

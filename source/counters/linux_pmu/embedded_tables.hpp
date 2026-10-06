@@ -59,9 +59,8 @@ inline auto embedded_find_dir(std::string_view path) noexcept
 
 // The bytes of one file within an embedded directory, or an empty view
 // when the directory holds no such file.
-inline auto embedded_file_bytes(const embedded_dir& dir,
-                                std::string_view name) noexcept
-    -> std::string_view
+inline auto embedded_file_bytes(
+    const embedded_dir& dir, std::string_view name) noexcept -> std::string_view
 {
   for (std::size_t i = 0; i < dir.file_count; ++i) {
     if (name == dir.files[i].name) {
