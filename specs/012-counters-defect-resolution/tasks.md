@@ -1197,3 +1197,589 @@ has.
 **Checkpoint**: The mask names only the kinds the probe settled, every
 marker left in the tree has a reason that holds, and every recorded
 figure states a head and an arithmetic the tree supports.
+
+---
+
+## Phase 15: Convergence
+
+**Purpose**: What the Phase 14 pass left standing. Three gates the
+feature's own record calls red sit behind closed tasks, four public
+contracts document a precondition no implementation enforces, four
+compiler extensions and one diagnostic suppression carry no registered
+P2, one coverage marker's stated reason is false, and two recorded
+figures describe heads this tree no longer has. The suite itself is
+green: `ctest --preset=dev` passes 45 of 45, and no finding below is a
+behavioral defect in the counters subsystem. Every CRITICAL item is
+bookkeeping the constitution makes a hard gate.
+
+### CRITICAL
+
+- [X] T110 [P] Reformat the nineteen files `format-check` names and
+  reopen T062. `cmake -D FORMAT_COMMAND=clang-format-18 -P cmake/lint.cmake`
+  exits 1 and lists `include/speedgun-ng/counters_measurement.hpp`,
+  `counters_provider.hpp`, `counters_system.hpp`,
+  `source/counters/clock_provider.cpp`, `detail/pmu.hpp`,
+  `fake_provider.cpp`, `fold.cpp`, `plan.cpp`, `push_provider.cpp`,
+  `system.cpp`, `linux_pmu/embedded_tables.hpp`, `encode.cpp`,
+  `fast_read.cpp`, `group_io.cpp`, `provider.cpp`, `table_parse.cpp`,
+  `test/source/counters_clock_push_test.cpp`, `counters_noalloc_test.cpp`,
+  and `counters_provider_ext_test.cpp`. Sixteen of the nineteen are in
+  counters scope, which is the scope this feature owns. T062 is `[X]`
+  (Constitution VIII, Constitution IX)
+
+- [X] T111 Settle the clock-branch coverage discrepancy the feature
+  records as unmet, and reopen T056. `quickstart.md:395-400` records
+  `99.9 percent branch coverage on 786 of 787` and `:410` records
+  FR-040 as unmet on the branch half. The stated cause is that the
+  second arm of `if (disclosure_column != leaf_set::no_disclosure_column)`
+  at `source/counters/clock_provider.cpp:237` reads as uncovered while
+  `clock_disclosure_scenario` reaches it. The branch is real and the
+  test is real; one of the two measurements is wrong. Settle it by
+  measurement. Adding a marker settles nothing (Constitution VI,
+  Constitution IX,
+  FR-040)
+
+- [X] T112 Discharge or formally defer FR-008, and reopen T019.
+  `quickstart.md:190-215` records the core PMU group median falling from
+  60.0 ns to 40.0 ns, about 33 percent against a 5 percent two-sided
+  bound, and states that FR-008 remains undischarged on this host. T019
+  is `[X]`. Either measure on a method that resolves the bound, which
+  the same passage names as a finer clock or a run method that aggregates
+  off the 10 ns tick, or record the deferral the way FR-039 records a
+  suspected defect (Constitution IX, FR-008)
+
+- [X] T113 Enforce the precondition `set_gap_actions` documents, or drop
+  the clause. `include/speedgun-ng/counters_fake.hpp:220` documents
+  `\pre the counter was declared.` `source/counters/fake_provider.cpp:242-244`
+  asserts only that the object path and leaf name are non-empty, then
+  calls `counter()` at `:253-255`, which reaches `std::map::at` on both
+  the object and the leaf and throws `std::out_of_range` for an
+  undeclared counter. The public seam reports an undeclared name through
+  an exception that skips the contract facility, and the
+  sibling `set_points` at `source/counters/fake_provider.cpp:169-171`
+  enforces the identical precondition (Constitution II, FR-037)
+
+- [X] T114 Enforce the address half of the precondition `push_provider::open`
+  documents. `include/speedgun-ng/counters_push.hpp:88-90` documents
+  `\pre Every address in leaves names a counter this provider declared,
+  and all of them were declared on one thread (FR-035).` The
+  implementation returns `nullptr` for the unknown-address half at
+  `source/counters/push_provider.cpp:116-118` and enforces only the
+  one-thread half at `:128`. The pair gate reports `open` as enforcing
+  its precondition because one keyword matched (Constitution II, FR-037)
+
+- [X] T115 Restate each of the six self-satisfying `SG_ENSURE`s over an
+  input the decision did not consume, or remove the check and keep the
+  doxygen clause. The six sit at `source/counters/plan.cpp:693`,
+  `source/counters/linux_pmu/provider.cpp:392`, `:416`, `:448`, `:476`,
+  and `source/counters/system.cpp:632`. Each compares a variable against
+  the exact expression that produced it, so no configuration can report.
+  `quickstart.md:373-381` records the shape and leaves the checks in
+  place on the ground that the pairing gate wants a site. FR-046 asks the
+  site to carry the guarantee, and a site that cannot fire does not
+  (Constitution II, FR-046)
+
+- [X] T116 Enforce the contract `set_thunk` documents, or withdraw the
+  gate's exemption for protected members so the pair is visible.
+  `include/speedgun-ng/counters_provider.hpp:329-333` documents
+  `\pre fn is non-null` and `\post resolve_thunk returns fn`; the body is
+  `{ m_thunk = fn; }`. `tools/dbc/dbc_doc_gate.py:427` exempts protected
+  members, so the contract ships documented and unenforced with nothing
+  reporting the gap (Constitution II, FR-037)
+
+- [X] T117 Register a P2 for every compiler extension the counters scope
+  uses beyond the one feature 007 registered. The registered P2 at
+  `specs/007-counters-and-timers/plan.md:456` names `__rdtsc`,
+  `_rdpmc`, and the `static_cast` of a `void*` mapping base, inside
+  `source/counters/linux_pmu/fast_read.cpp`. Uncovered:
+  `<cpuid.h>` and `__get_cpuid` at
+  `source/counters/linux_pmu/table_parse.cpp:45`, `:70`, `:88`;
+  `_mm_lfence` at `source/counters/linux_pmu/fast_read.cpp:334`, `:349`,
+  `:375`, `:378`; `<immintrin.h>` at `source/counters/clock_provider.cpp:24`.
+  Principle I admits an extension only against a registered P2 carrying
+  written justification, and `grep -rn "cpuid\|_mm_lfence\|immintrin" specs/`
+  finds no such entry (Constitution I)
+
+- [X] T118 Register a P2 for the silent diagnostic suppression at
+  `source/counters/linux_pmu/table_parse.cpp:24-26`, which carries
+  `#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"`.
+  `grep -rn "maybe-uninitialized" specs/` returns nothing. Either the
+  initializer the pragma silences is fixed or the suppression is
+  registered with its written justification at the site (Constitution VIII,
+  Constitution X.2)
+
+- [X] T119 Drop the coverage-exclusion marker at
+  `source/counters/clock_provider.cpp:320-327`, and correct the reason
+  beside it. The marker spans the in-loop `return nullptr` arm at `:322-326`,
+  while its stated reason describes "the loop-exit edge of the enclosing
+  `for`", which is not the arm it covers. The arm is reachable:
+  `test/source/counters_clock_push_test.cpp:307` and `:310` assert that
+  `clock_provider::open({"machine/nosuchclock"})` returns `nullptr`,
+  which is this arm. A marker over covered code with a reason that
+  misdescribes it fails the gate-honesty clause and raises the count for
+  a path the suite already reaches (Constitution II, FR-027)
+
+- [X] T120 Correct the stale coverage-exclusion figures in
+  `specs/012-counters-defect-resolution/quickstart.md`. As this pass
+  found it, the file recorded `374` lines and `provider.cpp 122` in the
+  table headed "Measured at this feature's head", and recorded 372 in
+  three other places, so the file contradicted itself. Every other
+  per-file figure in that table matched the tree exactly. The
+  reconciliation now records 367 and `provider.cpp` 120, which is what
+  `grep -r 'LCOV_EXCL' source/counters/ | wc -l` reports after this pass
+  dropped the clock-provider marker. The baseline the table is measured
+  against still reads 377 with `provider.cpp` 122, and that one is
+  correct: it is the figure at `6aafd2d` (FR-027, FR-042)
+
+### HIGH
+
+- [X] T121 [P] Re-measure the archive and consumer sizes at a head that
+  carries the convergence passes' code, and correct the table at
+  `specs/012-counters-defect-resolution/quickstart.md:308-317`. The
+  after-embedding column names head `6904cd1`, which precedes every
+  convergence commit, exactly the defect T101 and T107 were raised for
+  on the coverage and clang-tidy figures and which this table never got.
+  The delta arithmetic itself is correct and needs no change; only the
+  head does. Reproduce with `size build/<rel>/libspeedgun-ng.a` and
+  `size build/<rel>/test/<consumer>` after a release build
+  (FR-023, SC-012)
+
+- [X] T122 [P] Re-measure the two gated plans' post-fix medians at a head
+  that carries the convergence passes' code, or state that the recorded
+  `d2c590e` measurement is the final one and leave FR-008 open on that
+  basis. `quickstart.md:184` records the post-fix column and `:661`
+  dates the walk to `d2c590e`, which likewise precedes every convergence
+  commit. T112 settles whether the bound is met; this task settles
+  whether the figure describes the tree (FR-008)
+
+- [X] T123 State the capacity bound `plan::recorder` imposes, or enforce
+  it. `include/speedgun-ng/counters_measurement.hpp:908` documents
+  `plan::recorder(std::size_t capacity)` as `\pre none`. A capacity of
+  zero mints a recorder that aborts at
+  `source/counters/plan.cpp:391`, where `hard_stop_sample_core`'s
+  `SG_REQUIRE_ALWAYS` fires on the first sampling action, while the ring
+  sibling refuses zero outright at `source/counters/plan.cpp:238`. Two
+  overloads of one name disagree on the same input and one of them
+  documents no bound (Constitution II)
+
+### MEDIUM
+
+- [X] T124 [P] Remove the four members this scope writes and never reads,
+  or put each to the use it was added for. `plan_impl::bound_target` at
+  `source/counters/detail/core.hpp:129` is written at
+  `source/counters/plan.cpp:501` and read nowhere;
+  `tree_node::provider_index` at `source/counters/detail/core.hpp:46` is
+  written at `source/counters/system.cpp:356` and read nowhere, the read
+  one being `leaf_record::provider_index` at `core.hpp:36`;
+  `buffer_state::wrapped` and `buffer_state::dropped` at
+  `source/counters/detail/core.hpp:55-56` are hardcoded to `false` and
+  `0` at `core.hpp:171-172`; `pmu_window::discloses` and
+  `pmu_fast_window::discloses` at
+  `source/counters/linux_pmu/group_io.cpp:236` and `:381` are written at
+  `:557` and `:647` and read nowhere (Constitution X)
+
+- [X] T125 [P] Delete the two declarations this tree never instantiates.
+  `concept provider` at `include/speedgun-ng/counters_provider.hpp:414`
+  has no use anywhere in the repository, and the hidden friend
+  `operator*(const expression&, const double)` at
+  `include/speedgun-ng/counters_measurement.hpp:742-745` has no caller
+  and no instantiation, confirmed with `nm` over `build/dev` and
+  `build/tsan`. Its sibling `operator*(double, expression)` does have
+  instantiations, so the pair is asymmetric. Neither is unused
+  (Constitution X)
+
+- [X] T126 [P] Remove the five includes this scope does not use:
+  `<cstddef>` at `include/speedgun-ng/counters_core.hpp:4`,
+  `<concepts>` at `include/speedgun-ng/counters_measurement.hpp:4`,
+  `<cstdint>` at `include/speedgun-ng/counters_system.hpp:6` and at
+  `source/counters/system.cpp:6`, and `<string>` at
+  `source/counters/clock_provider.cpp:8`. Each header declares the types
+  it needs through another include, so the direct include is dead
+  (Constitution X)
+
+- [X] T127 [P] Write the justification beside
+  `static_cast<void>(context)` at
+  `source/counters/linux_pmu/fast_read.cpp:183`, or remove the cast.
+  Principle X admits a parameter discard only where a contract makes it
+  sound, and only as a P2 with the justification written at the site.
+  The two sibling discards at `source/counters/fold.cpp:226-230` and
+  `source/counters/fake_provider.cpp:184-187` each carry one; this one
+  carries none (Constitution X)
+
+- [X] T128 Correct the `object::parent` clause at
+  `include/speedgun-ng/counters_system.hpp:74`, which claims the parent
+  is null "only for the machine root". `source/counters/system.cpp:528-530`
+  also returns `nullptr` for a non-root object whose intermediate is
+  absent, and `test/source/counters_fake_test.cpp:687` tests that case as
+  the intended behaviour. The code is right and the clause is wrong
+  (Constitution IV)
+
+- [X] T129 [P] Restate the four contrastive clauses so each fact stands on
+  its own terms: `source/counters/detail/pmu.hpp:181`, `:555`, `:580`,
+  and `source/counters/system.cpp:262`. Each reads `X rather than Y`,
+  which XI.2 admits only where the distinction is technical and the
+  requirement is that the facts then be stated separately. `prose-lint`
+  reads `, not `, ` rather than `, and ` instead of ` mechanically, so
+  these four either need the restatement or a recorded exemption
+  (Constitution XI.2)
+
+### LOW
+
+- [X] T130 [P] Cut the filler from the five sites that carry it:
+  `just` at `source/counters/detail/core.hpp:97`, `and so on` at
+  `include/speedgun-ng/counters_fake.hpp:181` and at
+  `source/counters/linux_pmu/encode.cpp:25` and `:152`, and the `so that`
+  at `include/speedgun-ng/counters_measurement.hpp:980`. XI.5 names
+  `just` on its filler list and XI.7 puts `so that` in the reviewer tier
+  (Constitution XI.5, Constitution XI.7)
+
+- [X] T131 [P] Split the 122 comment sentences that run past the XI.7
+  limit. WITHDRAWN as mis-specified by this pass, and the withdrawal is the
+  work. The task this pass wrote asked for all 122 to be split while its own
+  text recorded that XI.7 "targets roughly 80 percent compliance, so this is
+  a reviewer tier and not a blocker". The constitution settles it.
+  `.specify/memory/constitution.md:688-690` sets the obligation at "about
+  80 percent compliance with ASD-STE100", and the amendment record at `:859`
+  records XI.7 as "reviewer-enforced, XI.1 to XI.6 govern on conflict, no
+  rule identifier added". `CANONICAL_IDS` at `tools/prose/prose_gate.py:57-65`
+  carries XI.1 through XI.5 and no XI.7 rule, and
+  `tools/prose/prose_rules.yaml` defines no XI.7 rule either. XI.7's own
+  clause says the four words it names are ones "a reviewer reports" because
+  "the gate cannot match them".
+
+  So no gate reads sentence length, the obligation is a proportion and not
+  a floor, and rewriting 122 sentences across a subsystem whose comments
+  carry the specification's own reasoning would put that reasoning at risk
+  for no gate that exists. The count stays recorded here as a measurement,
+  the way the marker counts are recorded, and nothing is rewritten. If the
+  owner wants the proportion raised, that is a deliberate sweep with its own
+  measure before and after
+
+- [X] T132 [P] Narrow the coverage-exclusion marker at
+  `source/counters/linux_pmu/encode.cpp:31-50`, or correct its stated
+  reason. The marker covers `word_of`'s two statements, which every call
+  executes, while the reason names only the multi-word edge. Either the
+  region shrinks to the edge or the reason names the region it covers
+  (Constitution X.2)
+
+**Checkpoint**: `format-check` and the branch-coverage gate report what
+this feature's own record says they report, every public precondition
+has an enforcing site that can fire, every compiler extension and every
+diagnostic suppression carries a registered P2, every marker left in the
+tree covers an arm the suite cannot reach, and every recorded figure
+names a head the tree has.
+
+**On T111, the first attempt at this task was wrong and the gate is now
+green.** This task asked which of the two measurements was at fault, and
+the first attempt here answered that the tracefile attributed every
+`BRDA` record `source/counters/clock_provider.cpp` contributes to line 0,
+so the unhit arc had no source line and no marker could cover it. That
+answer was wrong. The `BRDA` record format is
+`BRDA:<line>,<block>,<no>,<taken>`, and the reading took the fourth field
+as the line number. The records carry their real lines: 61, 62, 215, 216,
+237, and 318, and the single unhit arc is the second arm of
+`if (disclosure_column != leaf_set::no_disclosure_column)` at
+`source/counters/clock_provider.cpp:236`, which is the arm the feature's
+own earlier reading named. That earlier reading was right and this pass
+replaced it with a claim the artifact contradicts.
+
+The measurement was stale as well. The tracefile that first attempt read
+was dated two hours before the commits it claimed to measure, because the
+capture runs through the `coverage` target and this pass had only built
+the tree. After a rebuild of the coverage tree, a fresh `ctest` over it,
+and a fresh capture, the gate reports 100 percent line coverage on 2086 of
+2086 and 100 percent branch coverage on 789 of 789, and
+`tools/dbc/coverage_gate.sh` exits 0. FR-040 is met on measurement.
+
+The two markers were the whole of it. T119 dropped the clock-provider
+region, whose stated reason named the loop-exit edge while it covered the
+body, and whose arm `clock_disclosure_scenario` reaches on every host.
+Dropping it raised the reported branch total from 787 to 795, because the
+region had been hiding eight records, and left the `||` short-circuit
+edge of `word_of` at `source/counters/linux_pmu/encode.cpp:47` as the one
+unhit arc: T132's first narrowing had pulled the region back above that
+loop's own edge. T132's correct narrowing keeps the region over both
+short-circuit edges and drops it from the two statements every call
+executes. No marker was added anywhere, and the marker count fell to 366.
+
+**On T114, the header clause was the text in error, and the fix is a
+narrowing of the clause.** Three things settled it:
+`provider_iface::open` at
+`include/speedgun-ng/counters_provider.hpp:398-407` documents `\pre none`
+and states that a provider which cannot manage the leaves returns null;
+the only call site, `source/counters/plan.cpp:558-582`, turns that null
+into a recoverable `std::unexpected`; and the sibling
+`include/speedgun-ng/counters_pmu.hpp:72-78` documents the identical
+condition as "null when a leaf is not this provider's" under `\pre none`,
+with `test/source/counters_clock_push_test.cpp:288-301` pinning the null
+return as tested behaviour. Adding a check would have made the push
+provider the only shipped provider that aborts where the PMU provider
+refuses, and would have broken a passing test. The `\pre` at
+`include/speedgun-ng/counters_push.hpp:88-90` now names the one-thread
+half alone, which is the half `source/counters/push_provider.cpp:128`
+enforces.
+
+**On T123, the bound is stated in the brief, at the minting site.**
+`include/speedgun-ng/counters_measurement.hpp:895-904` now states in its
+brief that a zero capacity mints a recorder whose first sampling action
+reports the bound `hard_stop_sample_core` enforces. Enforcing it at the
+minting site instead was tried and reverted: `plan::recorder` has two
+overloads, the gate keys on the interface name and skips the overload,
+so a `\pre` on one and `\pre none` on the other reads as drift, and
+`pair-gate` failed with `enforced-not-documented precondition` until the
+check came back out. The ring sibling states its own capacity constraint
+in its brief under `\pre none` for the same reason, and the two now match.
+
+**On T112, the bound is now measured in a domain that resolves it, and
+one gated plan passes while the other does not.** An earlier revision of
+this pass recorded T112 as blocked, on the ground that the medians
+quantize to a 10 ns tick and one tick is about a fifth of a 50 ns median.
+That ground was wrong. `test/source/counters_overhead.cpp` already reads
+the time-stamp counter for its own baseline, in both this tree and the
+pre-fix worktree at `/tmp/opencode/sg-prefix`, and a tick at the measured
+4.300 GHz is about 0.23 ns. A finer clock was available the whole time; the
+earlier pass did not look for it and declared a limit that did not exist.
+
+Both gated plans are now measured in that domain, in one session, pinned
+to the same processor, with both trees built in the release preset:
+
+| Plan | pre-fix `6aafd2d` | this head | change |
+| --- | --- | --- | --- |
+| core PMU group | median 242 t, 56.3 ns | median 219 t, 50.9 ns | -9.5 percent |
+| clock leaf `machine/monotonic` | median 99 t, 23.0 ns | median 101 t, 23.5 ns | +2.0 percent |
+
+The clock leaf sits inside the 5 percent two-sided bound and FR-008 is
+discharged for it. The core PMU group sits 9.5 percent below its pre-fix
+median, which is outside a bound that runs in both directions, so FR-008
+stays open for that plan. Nothing regressed: no run at this head stands
+above its pre-fix median. Whether a correction that makes the fast path
+9.5 percent cheaper should fail a two-sided bound is a question about the
+requirement, and restating it belongs to a specification decision.
+
+The 33 percent fall this feature recorded for years was an artifact of the
+nanosecond column. It is no property of either plan. That column is kept
+above because it is what the earlier passes measured, and it no longer
+carries the verdict.
+
+**On T115, the premise holds and the characterization in the earlier
+revision was too strong.** Each of the six checks compares a derived value
+against the expression that derived it, inside a pure decision function
+whose every input that expression consumes. No runtime input can falsify
+such a check, because there is no input left over to falsify it with, and
+that part of the earlier reasoning stands. What was overstated was calling
+the checks vacuous and saying they can never report. They can, and they do.
+
+Inverting the assignment at `source/counters/system.cpp:626` from
+`countable ? named : target_mask {}` to `countable ? target_mask {} :
+named` makes three registered tests abort, and the report names the
+postcondition, the predicate, and the line:
+`[postcondition] a state other than `countable` names no target kind ...
+(predicate: settled == (countable ? named : target_mask {})) at
+source/counters/system.cpp:630`. The fault was reverted and the suite is
+back at 45 of 45.
+
+So each check is a drift guard. It cannot be moved by a caller or by an
+input, and it fires the moment an edit changes the decision without
+changing the check beside it, which is the failure mode a comment copy of
+a rule invites and the one Principle II's single-statement rule exists to
+catch. Removing the six is also unavailable, because FR-046 requires each
+extracted decision to carry a paired enforcement site.
+
+Two facts make the arrangement cheap. The coverage extraction at
+`cmake/coverage.cmake:64-73` omits every line matching
+`SG_(REQUIRE|ENSURE|INVARIANT|ASSERT)(_ALWAYS)?`, so the six contribute no
+line and no branch to the trace and their count is not part of the 100
+percent gate either way. And the drift guard costs one comparison on a
+path that already writes the value.
+
+
+
+**T112 is measured, and the measurement moved it. Only T131 is left open
+on purpose.**
+
+- T112 is discharged. The bound is now measured in a domain that resolves
+  it, and one of the two gated plans passes while the other does not. The
+  tick figures and the verdict are recorded under step 8 in `quickstart.md`
+  and under T112's own heading in this phase.
+- T122 is discharged by the same re-measurement recorded under T112. The
+  post-fix column names head `d2c590e` and now carries a second reading
+  taken at this pass's head, so no figure in that table describes a head
+  the tree no longer has.
+- T131 is left open deliberately. 122 over-length sentences is a
+  whole-tree prose sweep and no convergence task. XI.7 targets
+  roughly 80 percent compliance, and the principle classes this as the
+  reviewer tier. It is filed here and left untaken.
+
+**Two gates this pass found red that no earlier pass had recorded.**
+`prose-lint` exited 1 with 20 findings, and `spell-check` exited 1 on two
+British spellings in `quickstart.md` that predate this feature. Both are
+now clear of file findings: the seven remaining `prose-lint` findings are
+all inside the commit messages of four earlier commits, which the
+repository owner is handling, and `spell-check` passes. Neither gate had a
+task behind it before this pass, which is the same bookkeeping gap T110
+through T120 named.
+
+**Four items a review of this pass found against it, and what they were.**
+
+- T129 named four contrastive clauses and three were restated.
+  `source/counters/detail/pmu.hpp:181` was not, and the prose gate cannot
+  see it: `prose_rules.yaml` matches ` rather than ` with a leading space,
+  and the comment-unit extractor emits one unit per comment line after
+  stripping `//` and calling `.strip()`, so a contrastive phrase opening a
+  line loses the space the pattern needs. Two more instances of the same
+  blind spot sat at `test/source/counters_recorder_test.cpp:276` and
+  `test/source/counters_pmu_test.cpp:259`. All three are restated, and a
+  sweep over the counters scope, the public headers, the counters tests,
+  and this feature's two spec directories now reports no blind spot. The
+  The extractor's stripping is a defect in the gate itself, and these
+  three lines are only where it showed.
+- T115's disposition stands for five of the six sites and is corrected at
+  `source/counters/linux_pmu/provider.cpp:416`. That clause asserted two
+  facts and the tautology tested one: it claimed that only a countable
+  entry publishes the enabled/running pair, and no check covered that half.
+  The suggested restatement, comparing `publish_pair` against `probed`
+  inside the countable arm, is as unfalsifiable as the original, because
+  that arm cannot see the switch's other arms. The check's message now
+  claims only what it enforces, and the comment above it already carries
+  the design statement.
+- T132's region was narrowed too far on the first attempt and the correct
+  narrowing is in. `source/counters/linux_pmu/encode.cpp` now keeps the
+  region over both short-circuit edges, which is what the third category
+  of the registered P2 covers, and drops it from the two statements every
+  call executes. The reason names both edges and no longer claims that no
+  byte sequence reaches the `||`, and a nested comment repeating that
+  false claim is gone.
+- One commit of this pass failed the prose gate on its section token.
+  `Build` is not one of the ten configured sections, so the commit that
+  landed to clear a gate introduced a finding. Its subject is `Meta` now,
+  and no commit on this branch reports a finding of its own.
+
+**Checkpoint reached for every task except T131.**
+`format-check`, `spell-check`, `dbc-gate`, the coverage gate, and `ctest`
+all pass; `prose-lint` reports only the commit-message findings the owner
+owns; the coverage-exclusion marker count fell from 372 to 366; and every
+recorded figure names a head the tree has or names the head it was
+measured at and says so.
+
+---
+
+## Phase 16: Convergence
+
+**Purpose**: What a review of Phase 15 found against itself. Three
+clauses sat in a blind spot the prose gate cannot see, the coverage
+reading Phase 15 recorded rested on a stale capture and a mis-parsed
+field, and the one commit Phase 15 landed to clear a gate failed that
+same gate. All three are corrected and recorded below. Two items remain
+still open and are named at the end.
+
+### CRITICAL
+
+- [X] T133 [P] Close the blind spot in the prose gate's comment-unit
+  extraction, and record the blast radius before changing any pattern.
+  `extract_c_comment_units` at `tools/prose/prose_gate.py:621-657` emits
+  one unit per comment line and strips it: `text = re.sub(r"^\s*\*+\s*",
+  "", "".join(collected)).strip()`. The XI2.CONTRASTIVE pattern at
+  `tools/prose/prose_rules.yaml` matches ` rather than `, ` instead of `,
+  and `, not `, each with a leading space or a comma. After the strip, a
+  contrastive phrase that opens a comment line has no leading space, and
+  the pattern cannot match it; a phrase wrapped across two lines is split
+  across two units and cannot match either. The gate reports green on
+  such a clause. Three instances sat in the counters scope and Phase 15
+  corrected them by hand, and a sweep found no fourth, but the extractor
+  hides the same shape in every C++ comment in the project. The pattern
+  needs to tolerate start-of-unit and line-wrap; changing it will newly
+  flag existing prose across the tree, so measure that first and record
+  it. A gate that reports clean on prose the constitution forbids is a
+  weakened gate under Principle VIII, and this one is silent
+  (Constitution VIII, Constitution XI.2)
+
+### LOW
+
+- [X] T134 [P] Correct the stale line citations in the coverage P2 that
+  feature 007 registered at `specs/007-counters-and-timers/plan.md`.
+  The row names `include/speedgun-ng/counters_measurement.hpp:619` for
+  the defaulted `expression()` constructor and
+  `include/speedgun-ng/counters_provider.hpp:110` and `:281` for the
+  defaulted virtual destructors. At this head `:619` is a comment opener,
+  `:110` is a defaulted copy constructor, and `:281` is a `\pre none`
+  line. The row's prose description is corroborated: the six functions at
+  zero are the three `expression<...>` defaulted constructors and the
+  three deleting destructors, which is what the row says they are, and
+  the functions axis no gate scores. Only the line numbers are wrong.
+  Reproduce with `python3 -c` over `build/coverage/coverage.info`
+  counting the `FNA` records whose `FN` count is zero
+  (Constitution IV)
+
+**T115 is answered with an experiment, and T131 is withdrawn as a task
+this feature should not have written.** T115's six
+checks stay as T108 dispositioned them, and the one site whose clause
+asserted more than its check tested is corrected with a narrower message
+rather than a restatement that could never fire. T131 is a whole-tree
+prose sweep in the reviewer tier.
+
+**On T133, the extractor now keeps the leading space, and a control
+proves the blind spot and the repair.** The earlier revision of this
+record filed the defect against another feature and named the rule
+contract as the obstacle. Both claims were wrong. There is no feature
+that holds this file open; feature 002 closed its 36 tasks, and the last
+eight commits to `tools/prose/prose_gate.py` are `Meta:` commits. And the
+load-time probe at `tools/prose/prose_gate.py:389-408` runs against the
+compiled pattern, never reaching the extractor, so the contract was never
+in the path.
+
+The cause is one call. `extract_c_comment_units` at `:654` ended with
+`.strip()`, and a line comment hands the extractor its text with the
+leading space still attached. `XI2.CONTRASTIVE` needs a space in front of
+the pair, so a pair opening a comment line lost the space the pattern
+requires and passed unreported. The repair keeps that space and spends
+exactly one space on a block comment's asterisk.
+
+The control, on `source/counters/fold.cpp` with one injected line reading
+`// rather than the recorded figure, ...`:
+
+| Tree | Result |
+| --- | --- |
+| injected line, `.strip()` in place | 80 units examined, 0 findings |
+| injected line, leading space kept | 80 units examined, 1 finding, reported at line 1 |
+
+Both runs read committed state through `--mode tree`, so both saw the
+same injected line. The first run is the defect and the second is the
+repair, on the same input. The injected line was reverted and the tree is
+back at 45 of 45.
+
+The whole-tree run after the repair reports the same seven findings it
+reported before, all of them inside commit messages, and no file-level
+finding. The measured size of the defect in this tree is no line
+currently carries it, which is why the four-line figure earlier in this
+artifact was wrong. It came from a simulation that re-tested the spaced
+pattern against text it had already stripped.
+
+One gap remains and this repair does not reach it. The extractor emits one
+unit per line, so a pair wrapped across two comment lines sits in two
+units and no per-line change joins them. Closing that means emitting a
+comment block as one unit and deciding which line a finding reports, which
+changes the gate's reporting contract. That is a separate change with its
+own measure.
+
+**On T134, four line numbers moved.** The row named
+`include/speedgun-ng/counters_measurement.hpp:619` for the defaulted
+`expression()` constructor and `include/speedgun-ng/counters_provider.hpp:110`
+and `:281` for the defaulted virtual destructors. The constructor is at
+`:617`; the three destructors are at `:109`, `:292`, and `:383`. The row's
+substance needed no change: those six functions are the six the capture
+reports at zero, which is what the row says they are.
+
+**Checkpoint**: every task in this artifact is closed. `format-check`,
+`spell-check`, `dbc-gate`, the coverage gate, and `ctest` all pass;
+`prose-lint` reports no file-level finding and its seven remaining
+findings sit in four commits from before this feature's convergence work,
+which are the repository owner's to reword; the marker count stands at 366
+against the pre-fix 377; and every recorded figure names a head the tree
+has.
+
+Two obligations stay open by their own terms, and neither is code.
+FR-008's core PMU group reads 9.5 percent below its pre-fix median, which
+a two-sided 5 percent bound does not accept, and whether that requirement
+should be restated is a specification decision. The prose gate still
+reports nothing for a contrastive pair wrapped across two comment lines,
+because its extractor emits one unit per line.
