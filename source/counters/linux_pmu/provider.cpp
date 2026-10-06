@@ -100,6 +100,63 @@ auto read_paranoid() -> int
   // LCOV_EXCL_BR_STOP
 }
 
+// The vendored table belongs to the core PMU: the mapfile selects one
+// architecture directory for the running CPU, and those rows describe
+// core events (FR-038). Kernel aliases of the same name win.
+// LCOV_EXCL_START : coverage exclusion (T140): the whole merge. The rows it
+// adds are the core-PMU events a runner whose `perf_event_open` is refused
+// never enumerates, because the kernel grants it no core event source to
+// probe, so the constructor below calls this only on a host that grants the
+// syscall. Every device the refused runner loads is a non-core device, and
+// every non-core device takes the kernel-wins arm above.
+auto merge_vendored(detail::pmu_device& device) -> void
+{
+  const std::string directory =
+      detail::pmu_select_directory(detail::pmu_ident_current());
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): the empty-selection arm.
+  // It needs a CPU no row of the pinned mapfile matches, and the CPU comes
+  // from `CPUID` at run time.
+  if (directory.empty()) {  // LCOV_EXCL_BR_LINE
+    return;  // LCOV_EXCL_LINE
+  }  // LCOV_EXCL_LINE
+  // LCOV_EXCL_BR_STOP
+  const auto& table = detail::pmu_load_table(directory);
+  for (const auto& row : table) {
+    if (!detail::scope_reaches(device.path, row.unit)) {
+      continue;
+    }
+    const bool taken = std::ranges::any_of(device.entries,
+                                           [&](const detail::pmu_entry& entry)
+                                           { return entry.name == row.name; });
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): the kernel-wins skip.
+    // It needs a kernel alias name that also appears in the vendored table
+    // of the selected architecture directory. Neither side is writable by a
+    // test: the alias names come from sysfs and the table from the pinned
+    // tree. FR-037's kernel-wins rule is exercised by
+    // `test/source/counters_pmu_test.cpp`, which asserts every sysfs alias
+    // keeps the kernel's own event_attr text.
+    if (taken) {  // LCOV_EXCL_BR_LINE
+      continue;  // LCOV_EXCL_LINE
+    }  // LCOV_EXCL_LINE
+    // LCOV_EXCL_BR_STOP
+    detail::pmu_entry entry;
+    entry.name = row.name;
+    entry.description = detail::table_description(row);
+    if (!detail::pmu_compose_config(row.fields, device.formats, entry.words)) {
+      entry.words.clear();
+    }
+    device.entries.push_back(std::move(entry));
+  }
+  // LCOV_EXCL_STOP
+  // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
+  // `merge_vendored`, the same unexecuted-block report the `load_device`
+  // epilogue above carries.
+}  // LCOV_EXCL_LINE
+}  // namespace
+
+namespace detail
+{
+
 auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
 {
   bool countable = false;
@@ -121,7 +178,15 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
         device.type, entry.words, target {.kind = target_kind::cpu, .cpu = 0});
     // A kind the kernel counts settles the entry, and the entry's own scope
     // decides which kinds that is (FR-021).
-    if (on_cpu == availability::countable) {
+    // LCOV_EXCL_BR_LINE : coverage exclusion (T056): settling an entry on a
+    // granted cpu target needs a host that grants one. Every test in this
+    // feature runs unprivileged at `perf_event_paranoid` 2 (FR-034), which
+    // is the level where the kernel refuses a cpu-targeted event while
+    // still granting a per-task one, so the matrix never runs this arm.
+    // The countable arm guarded at the line below carries the same ground
+    // under T140, and the tracefile shows this condition false for all
+    // seventy-five entries the reference host probes.
+    if (on_cpu == availability::countable) {  // LCOV_EXCL_BR_LINE
       probed = availability::countable;
     } else if (probed != availability::countable) {
       probed = on_cpu;
@@ -225,8 +290,7 @@ auto load_device(const std::filesystem::path& dir)
     // file there that the parser rejects.
     if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
             slurp(it->path()),
-            ranges))
-    {  // LCOV_EXCL_BR_LINE
+            ranges)) {  // LCOV_EXCL_BR_LINE
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -280,63 +344,6 @@ auto load_device(const std::filesystem::path& dir)
   // devices of the reference host take it.
 }  // LCOV_EXCL_LINE
 
-// The vendored table belongs to the core PMU: the mapfile selects one
-// architecture directory for the running CPU, and those rows describe
-// core events (FR-038). Kernel aliases of the same name win.
-// LCOV_EXCL_START : coverage exclusion (T140): the whole merge. The rows it
-// adds are the core-PMU events a runner whose `perf_event_open` is refused
-// never enumerates, because the kernel grants it no core event source to
-// probe, so the constructor below calls this only on a host that grants the
-// syscall. Every device the refused runner loads is a non-core device, and
-// every non-core device takes the kernel-wins arm above.
-auto merge_vendored(detail::pmu_device& device) -> void
-{
-  const std::string directory =
-      detail::pmu_select_directory(detail::pmu_ident_current());
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): the empty-selection arm.
-  // It needs a CPU no row of the pinned mapfile matches, and the CPU comes
-  // from `CPUID` at run time.
-  if (directory.empty()) {  // LCOV_EXCL_BR_LINE
-    return;  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_LINE
-  // LCOV_EXCL_BR_STOP
-  const auto& table = detail::pmu_load_table(directory);
-  for (const auto& row : table) {
-    if (!detail::scope_reaches(device.path, row.unit)) {
-      continue;
-    }
-    const bool taken = std::ranges::any_of(device.entries,
-                                           [&](const detail::pmu_entry& entry)
-                                           { return entry.name == row.name; });
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): the kernel-wins skip.
-    // It needs a kernel alias name that also appears in the vendored table
-    // of the selected architecture directory. Neither side is writable by a
-    // test: the alias names come from sysfs and the table from the pinned
-    // tree. FR-037's kernel-wins rule is exercised by
-    // `test/source/counters_pmu_test.cpp`, which asserts every sysfs alias
-    // keeps the kernel's own event_attr text.
-    if (taken) {  // LCOV_EXCL_BR_LINE
-      continue;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-    // LCOV_EXCL_BR_STOP
-    detail::pmu_entry entry;
-    entry.name = row.name;
-    entry.description = detail::table_description(row);
-    if (!detail::pmu_compose_config(row.fields, device.formats, entry.words)) {
-      entry.words.clear();
-    }
-    device.entries.push_back(std::move(entry));
-  }
-  // LCOV_EXCL_STOP
-  // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
-  // `merge_vendored`, the same unexecuted-block report the `load_device`
-  // epilogue above carries.
-}  // LCOV_EXCL_LINE
-}  // namespace
-
-namespace detail
-{
-
 // The two parameters are both strings and both matter: the first is a
 // kernel device name and the second a table's scope label, and swapping
 // them answers a different question. The fixture drives both orders, so
@@ -373,8 +380,10 @@ auto entry_read_selection_for(const availability probed,
   // each of the six states through this selector.
   switch (probed) {
     case availability::countable:
-      return {.mode = fast_capable ? read_mode::fast_rdpmc : read_mode::syscall,
-              .publish_pair = true,};
+      return {
+          .mode = fast_capable ? read_mode::fast_rdpmc : read_mode::syscall,
+          .publish_pair = true,
+      };
     case availability::permission_blocked:
     case availability::not_encodable:
     case availability::absent:
@@ -472,8 +481,8 @@ auto to_hex(const std::uint64_t value) -> std::string
 // itself with the event_attr text the kernel publishes, verbatim, so a
 // reader can reproduce the encoding; a vendored entry uses the table's
 // own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name,
-                       const std::string& text) -> std::string
+auto alias_description(const std::string& name, const std::string& text)
+    -> std::string
 {
   if (!text.empty()) {
     return "kernel event configuration: " + text;
@@ -628,7 +637,7 @@ pmu_provider::pmu_provider()
   // LCOV_EXCL_BR_STOP
 
   for (const auto& dir : devices) {
-    auto device = load_device(dir);
+    auto device = detail::load_device(dir);
     // LCOV_EXCL_BR_START : coverage exclusion (T066): the skip arm. It needs
     // a directory under `/sys/bus/event_source/devices/` with no usable
     // `type` file, which is the read-only sysfs case the two `load_device`
@@ -643,7 +652,7 @@ pmu_provider::pmu_provider()
     // device the scope covers (FR-019). A row scoped to a class this host
     // publishes no device for reaches none and stays out of the catalog.
     merge_vendored(*device);
-    probe_device(*device, fast_capable);
+    detail::probe_device(*device, fast_capable);
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.
     // LCOV_EXCL_START : coverage exclusion (T066): dropping a device with no

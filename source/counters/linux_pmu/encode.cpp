@@ -34,16 +34,14 @@ auto word_of(const std::string_view name) -> int
   // of the name, which is the enclosing `for`'s own exit.
   while (index < name.size()  // LCOV_EXCL_BR_LINE
          && name[index] >= 'a'  // LCOV_EXCL_BR_LINE
-         && name[index] <= 'z')
-  {  // LCOV_EXCL_BR_LINE
+         && name[index] <= 'z') {  // LCOV_EXCL_BR_LINE
     ++index;
   }  // LCOV_EXCL_BR_LINE
   for (; index < name.size(); ++index) {
     // LCOV_EXCL_BR_LINE : the second edge of this two-term `||`, which no
     // byte sequence reaches.
     if (name[index] < '0'  // LCOV_EXCL_BR_LINE
-        || name[index] > '9')
-    {  // LCOV_EXCL_BR_LINE
+        || name[index] > '9') {  // LCOV_EXCL_BR_LINE
       return 0;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_LINE
     word = word * 10 + static_cast<int>(name[index] - '0');

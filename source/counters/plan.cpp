@@ -67,8 +67,8 @@ auto sample_point(const plan_impl& layout,
 // Fan-out instantiation: the exemplar spine re-homed under `path` by
 // re-addressing every leaf (US3 scenario 5); the fold layer resolves
 // the instances through the plan's address map.
-auto instantiate_core(const detail::expr_core& core,
-                      const std::string& path) -> detail::expr_core
+auto instantiate_core(const detail::expr_core& core, const std::string& path)
+    -> detail::expr_core
 {
   auto out = core;
   for (auto& leaf : out.leaves) {
@@ -457,8 +457,8 @@ auto compile_core(const system& sys,
       // leaf address reaching `compile_core` came from a resolved handle or
       // from `instantiate_core`, and the object it names is in the frozen
       // tree, so the lookup never misses.
-      if (const auto* node = impl.find(object_path); node != nullptr)
-      {  // LCOV_EXCL_BR_LINE
+      if (const auto* node = impl.find(object_path);
+          node != nullptr) {  // LCOV_EXCL_BR_LINE
         for (const auto& candidate : node->leaves) {
           if (candidate.core.name == name) {
             record = &candidate;
@@ -509,7 +509,9 @@ auto compile_core(const system& sys,
   std::vector<std::vector<std::string>> per_provider(impl.providers.size());
   std::vector<std::size_t> group_of(impl.providers.size(),
                                     static_cast<std::size_t>(-1));
-  for (std::size_t provider_index = 0; provider_index < impl.providers.size(); ++provider_index) {
+  for (std::size_t provider_index = 0; provider_index < impl.providers.size();
+       ++provider_index)
+  {
     const auto provider = static_cast<int>(provider_index);
     for (const auto& one : pending) {
       if (one.record->provider_index == provider) {
@@ -537,18 +539,23 @@ auto compile_core(const system& sys,
   // The disclosure column sits past the last managed leaf, so the
   // group that owns the plan's last leaf is the one that writes it.
   layout->disclosure_slot = layout->slots.size();
-  for (std::size_t provider_index = 0; provider_index < impl.providers.size(); ++provider_index) {
+  for (std::size_t provider_index = 0; provider_index < impl.providers.size();
+       ++provider_index)
+  {
     if (per_provider.at(provider_index).empty()) {
       continue;
     }
     auto& group = layout->groups.at(group_of.at(provider_index));
     const bool last = group.offset + group.count == layout->slots.size();
-    auto reader = impl.providers.at(provider_index)->open(
-        leaf_set {.addresses = std::move(per_provider.at(provider_index)),
-                  .disclosure_column = last ? layout->disclosure_slot
-                                            : leaf_set::no_disclosure_column,
-                 },
-        tg);
+    auto reader =
+        impl.providers.at(provider_index)
+            ->open(
+                leaf_set {
+                    .addresses = std::move(per_provider.at(provider_index)),
+                    .disclosure_column = last ? layout->disclosure_slot
+                                              : leaf_set::no_disclosure_column,
+                },
+                tg);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the open refusal. It
     // needs a provider that declines a window for leaves its own catalog
     // already reported countable, so the refusal follows a granted

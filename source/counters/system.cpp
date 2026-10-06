@@ -579,8 +579,8 @@ auto object::children() const -> std::vector<const object*>
 namespace detail
 {
 
-auto resolve_leaf_core(const object& obj,
-                       std::string_view name) -> std::expected<leaf_core, error>
+auto resolve_leaf_core(const object& obj, std::string_view name)
+    -> std::expected<leaf_core, error>
 {
   const auto* node = static_cast<const tree_node*>(obj.m_node);
   for (const auto& leaf : node->leaves) {

@@ -638,7 +638,7 @@ behavior; each one is a gate, a record, or a check.
   pairing finding on `include/speedgun-ng/counters_core.hpp`,
   `include/speedgun-ng/counters_provider.hpp`, and
   `include/speedgun-ng/counters_clock.hpp` (FR-037, Principle II)
-- [ ] T056 Run the coverage gate with
+- [X] T056 Run the coverage gate with
   `cmake --preset=ci-coverage && cmake --build build/coverage -j 2 && ctest --test-dir build/coverage && cmake --build build/coverage -t coverage`,
   and confirm 100 percent line, branch, and contract coverage on every
   changed line, `source/counters/linux_pmu/group_io.cpp` among them
@@ -673,7 +673,7 @@ behavior; each one is a gate, a record, or a check.
   `python3 tools/pmu_events/update_pmu_events.py --check` over
   `external/pmu-events/RECORD` and confirm no drifted file
   (Principle VIII)
-- [ ] T065 Walk every step of
+- [X] T065 Walk every step of
   `specs/012-counters-defect-resolution/quickstart.md` end to end on
   the reference host, fill the two tables step 8 and step 10 name, and
   record the result (SC-001 through SC-012)
