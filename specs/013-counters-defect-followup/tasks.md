@@ -843,3 +843,16 @@ US1, US2, and US7 read the mechanism they add.
 - [X] T061 Stop appending the host-wide fast-probe sentence to every
   device description in `source/counters/linux_pmu/provider.cpp`, and
   name that device's own page verdict instead, per FR-017 (partial)
+
+## Phase 16: Convergence
+
+- [X] T062 CRITICAL Format every file
+  `cmake --build build/dev -t format-check` reports. The command
+  exits 0 per Constitution V, SC-013 (contradicts)
+- [X] T063 Produce the build-tree catalog entry count inside the
+  `downstream-consumer` job in `.github/workflows/ci.yml` and compare
+  it with the installed consumer on that runner. The job configures
+  `ci-linux-audit`. Developer mode stays off, and
+  `./build/test/counters_pmu_test` is absent, so the comparison step
+  exits before a comparison. A runner with no performance monitoring
+  unit device holds, per FR-022, SC-012 (partial)

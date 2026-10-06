@@ -345,7 +345,8 @@ auto load_device(const std::filesystem::path& dir)
     // file there that the parser rejects.
     if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
             slurp(it->path()),
-            ranges)) {  // LCOV_EXCL_BR_LINE
+            ranges))
+    {  // LCOV_EXCL_BR_LINE
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -656,8 +657,8 @@ auto to_hex(const std::uint64_t value) -> std::string
 // itself with the event_attr text the kernel publishes, verbatim, so a
 // reader can reproduce the encoding; a vendored entry uses the table's
 // own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name, const std::string& text)
-    -> std::string
+auto alias_description(const std::string& name,
+                       const std::string& text) -> std::string
 {
   if (!text.empty()) {
     return "kernel event configuration: " + text;
@@ -790,8 +791,7 @@ pmu_provider::pmu_provider()
                     // excluded for.
       ? "an unreadable perf_event_paranoid"  // LCOV_EXCL_LINE
       : "perf_event_paranoid " + std::to_string(paranoid);  // LCOV_EXCL_BR_LINE
-  const std::string level_note =
-      "; the availability probe ran at " + level;
+  const std::string level_note = "; the availability probe ran at " + level;
 
   for (const auto& dir : devices) {
     auto device = detail::load_device(dir);
@@ -816,13 +816,12 @@ pmu_provider::pmu_provider()
     detail::probe_device(*device, fast_capable);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the refusal wording,
     // on the same kernel-gate ground as the mode ternary in `probe_device`.
-    const std::string verdict =
-        level_note
+    const std::string verdict = level_note
         + (fast_capable  // LCOV_EXCL_BR_LINE
                ? "; this device's event page grants user counter reads; "  // LCOV_EXCL_LINE
-                     "entries disclose fast_rdpmc"  // LCOV_EXCL_LINE
+                 "entries disclose fast_rdpmc"  // LCOV_EXCL_LINE
                : "; this device's event page keeps user counter reads in "  // LCOV_EXCL_LINE
-                     "syscall mode");  // LCOV_EXCL_LINE
+                 "syscall mode");  // LCOV_EXCL_LINE
     // LCOV_EXCL_BR_STOP
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.

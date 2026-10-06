@@ -214,8 +214,8 @@ auto sysfs_alias_names(const std::string& device) -> std::vector<std::string>
 }
 
 // The exact configuration text the kernel publishes for one alias.
-auto sysfs_alias_text(const std::string& device, const std::string& alias)
-    -> std::string
+auto sysfs_alias_text(const std::string& device,
+                      const std::string& alias) -> std::string
 {
   std::ifstream file(std::filesystem::path(kDevicesRoot) / device / "events"
                      / alias);

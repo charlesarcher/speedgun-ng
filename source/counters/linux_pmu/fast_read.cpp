@@ -72,8 +72,8 @@ auto fast_pair_stable(const std::uint32_t sequence_before,
   return sequence_before == sequence_after;
 }
 
-auto fast_pinning_ok(const int pinned_cpu, const int current_cpu) noexcept
-    -> bool
+auto fast_pinning_ok(const int pinned_cpu,
+                     const int current_cpu) noexcept -> bool
 {
   return pinned_cpu < 0 || pinned_cpu == current_cpu;
 }
@@ -172,8 +172,9 @@ auto fast_context_read(const fast_context&, std::uint64_t&) -> fast_read_verdict
   return fast_read_verdict::not_allowed;
 }
 
-auto fast_context_time_pair(const fast_context&, std::uint64_t&, std::uint64_t&)
-    -> bool
+auto fast_context_time_pair(const fast_context&,
+                            std::uint64_t&,
+                            std::uint64_t&) -> bool
 {
   return false;
 }
@@ -307,8 +308,8 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
 // the body applies are covered for both arms by `fast_decode` and the
 // `fast_index_valid` and `fast_pair_stable` seams in
 // `test/source/counters_linux_pmu_seam_test.cpp`.
-auto fast_context_read(const fast_context& context, std::uint64_t& value)
-    -> fast_read_verdict
+auto fast_context_read(const fast_context& context,
+                       std::uint64_t& value) -> fast_read_verdict
 {
   SG_REQUIRE(std::this_thread::get_id() == context.owner,
              "a mapped-page read runs on the thread that opened its "
