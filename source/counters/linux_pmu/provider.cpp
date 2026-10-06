@@ -107,7 +107,25 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
       entry.avail = availability::not_encodable;
       continue;
     }
-    entry.avail = detail::pmu_probe(device.type, entry.words);
+    // The probe runs once per target kind the entry can be counted on. A
+    // device-scoped entry binds one processor for every task, so its own
+    // scope refuses the per-task kind. That refusal is `scope_refused`,
+    // which a caller can tell from an encoding refusal, and no syscall runs
+    // for the kind the scope already refuses (FR-021, FR-022).
+    availability probed = availability::scope_refused;
+    if (!device.device_scoped) {
+      probed = detail::pmu_probe(device.type, entry.words, target {});
+    }
+    const availability on_cpu = detail::pmu_probe(
+        device.type, entry.words, target {.kind = target_kind::cpu, .cpu = 0});
+    // A kind the kernel counts settles the entry, and the entry's own scope
+    // decides which kinds that is (FR-021).
+    if (on_cpu == availability::countable) {
+      probed = availability::countable;
+    } else if (probed != availability::countable) {
+      probed = on_cpu;
+    }
+    entry.avail = probed;
     if (entry.avail == availability::countable) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the countable arm and
       // the mode it discloses. A catalog entry is countable only where
@@ -121,9 +139,11 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
       // which is a property of the running kernel and not of this tree; the
       // probe's verdict over that bit is covered for both arms by
       // `fast_probe_allows` in `test/source/counters_linux_pmu_seam_test.cpp`.
-      entry.mode = fast_capable  // LCOV_EXCL_BR_LINE
-          ? read_mode::fast_rdpmc  // LCOV_EXCL_BR_LINE
-          : read_mode::syscall;  // LCOV_EXCL_BR_LINE
+      // The mode comes from the extracted selection, so a registered test
+      // drives both arms without a host that has to grant the event, and
+      // the coverage gate measures the decision (T075, FR-046).
+      entry.mode =
+          detail::entry_read_selection_for(entry.avail, fast_capable).mode;
       // LCOV_EXCL_BR_STOP
       // LCOV_EXCL_STOP
     }
@@ -184,6 +204,11 @@ auto load_device(const std::filesystem::path& dir)
   detail::pmu_device device;
   device.path = dir.filename().string();
   device.type = type;
+  // The core PMU and its hybrid per-core instances count a thread's own
+  // events; every other published device binds one processor for every
+  // task, so its entries refuse a per-task target by their own scope.
+  device.device_scoped = device.path != "cpu" && device.path != "cpu_core"
+      && device.path != "cpu_atom";
   device.description = "perf event source '" + device.path + "', PMU type "
       + std::to_string(type);
 
@@ -276,6 +301,9 @@ auto merge_vendored(detail::pmu_device& device) -> void
   // LCOV_EXCL_BR_STOP
   const auto& table = detail::pmu_load_table(directory);
   for (const auto& row : table) {
+    if (!detail::scope_reaches(device.path, row.unit)) {
+      continue;
+    }
     const bool taken = std::ranges::any_of(device.entries,
                                            [&](const detail::pmu_entry& entry)
                                            { return entry.name == row.name; });
@@ -307,6 +335,46 @@ auto merge_vendored(detail::pmu_device& device) -> void
 
 namespace detail
 {
+
+auto scope_reaches(const std::string& device_path,
+                   const std::string& scope) noexcept -> bool
+{
+  // The vendored tables spell a scope label the way the vendor documents
+  // it, `iMC` and `ARB` among them, while the kernel spells the device
+  // `uncore_imc` and `uncore_arb`. The comparison folds case, so the
+  // label reaches the device of its class (FR-019).
+  std::string folded;
+  folded.reserve(scope.size());
+  for (const char letter : scope) {
+    folded.push_back(
+        static_cast<char>(std::tolower(static_cast<unsigned char>(letter))));
+  }
+  if (folded.empty() || folded == "core") {
+    return device_path == "cpu" || device_path == "cpu_core"
+        || device_path == "cpu_atom";
+  }
+  return device_path == folded || device_path == "uncore_" + folded;
+}
+
+auto entry_read_selection_for(const availability probed,
+                              const bool fast_capable) noexcept
+    -> entry_read_selection
+{
+  switch (probed) {
+    case availability::countable:
+      return {.mode = fast_capable ? read_mode::fast_rdpmc : read_mode::syscall,
+              .publish_pair = true};
+    case availability::permission_blocked:
+    case availability::not_encodable:
+    case availability::absent:
+    case availability::scope_refused:
+    case availability::gap:
+      return {.mode = read_mode::syscall, .publish_pair = false};
+  }
+  // Unreachable behind the closed enumeration; a build with contract
+  // checking compiled out still needs a value.
+  return {.mode = read_mode::syscall, .publish_pair = false};
+}
 
 // Splits a kernel event_attr file into its field/value pairs: the text
 // is "field=value[,field=value...]", every value hexadecimal or
@@ -437,8 +505,8 @@ auto table_description(const pmu_table_entry& entry) -> std::string
 }  // LCOV_EXCL_LINE
 
 auto pmu_probe(const int type,
-               const std::vector<std::pair<int, std::uint64_t> >& words)
-    -> availability
+               const std::vector<std::pair<int, std::uint64_t> >& words,
+               const target& where) -> availability
 {
   perf_event_attr attr {};
   attr.type = static_cast<std::uint32_t>(type);
@@ -464,8 +532,11 @@ auto pmu_probe(const int type,
   attr.exclude_hv = 1;
   // The probe counts nothing: it asks the kernel whether this caller may
   // open this event at all (FR-039).
+  // The binding follows the target kind, so one probe answers for one kind
+  // and the provider runs a probe per kind the entry's mask admits (FR-022).
+  const auto [pid, cpu] = detail::leader_pid(where);
   const long fd =
-      ::syscall(SYS_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
+      ::syscall(SYS_perf_event_open, &attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
   if (fd >= 0) {  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_START : coverage exclusion (T140): the countable verdict. It
     // needs a `perf_event_open` the kernel answers with a descriptor, so a
@@ -546,16 +617,11 @@ pmu_provider::pmu_provider()
       continue;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_LINE
     // LCOV_EXCL_BR_STOP
-    if (device->path == "cpu") {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_START : coverage exclusion (T140): the core-PMU merge. It
-      // needs a `/sys/bus/event_source/devices/cpu` entry to merge into, and
-      // a runner whose `perf_event_open` is refused loads no such entry
-      // because the kernel grants it no core event source; the host that
-      // grants the syscall merges the vendored rows into it on every
-      // construction.
-      merge_vendored(*device);
-      // LCOV_EXCL_STOP
-    }
+    // Every device takes the vendored rows its own scope reaches, so an
+    // uncore row lands on the uncore device and a core row on each core
+    // device the scope covers (FR-019). A row scoped to a class this host
+    // publishes no device for reaches none and stays out of the catalog.
+    merge_vendored(*device);
     probe_device(*device, fast_capable);
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.

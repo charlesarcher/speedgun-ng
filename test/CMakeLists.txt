@@ -354,7 +354,11 @@ add_test(
 add_executable(counters_pmu_test source/counters_pmu_test.cpp)
 target_link_libraries(counters_pmu_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_pmu_test PRIVATE cxx_std_23)
+# The fast-window lifetime scenario needs a granted perf_event_open, which a
+# runner refuses and a developer host grants, so the scenario prints its
+# reason and exits 2 where the kernel refuses (SC-004).
 add_test(NAME counters_pmu_test COMMAND counters_pmu_test)
+set_tests_properties(counters_pmu_test PROPERTIES SKIP_RETURN_CODE 2)
 
 # Synthetic-fixture coverage for the Linux PMU provider's pure seam
 # functions (T066, plan.md Test Plan; FR-037, FR-040, R-010, R-011).

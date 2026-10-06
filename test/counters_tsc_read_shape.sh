@@ -140,7 +140,7 @@ count_in() { printf '%s\n' "$1" | grep -cE "$2" || true; }
 # Analyze one compiled object. Prints the arm and reports findings.
 analyze() {
   local obj=$1 label=$2
-  local ins arm n_rdtsc n_other n_call n_insn
+  local ins arm n_rdtsc n_other n_call n_fence n_insn
 
   ins=$(dump_function "$obj" 'read_points.*point_sink')
 
@@ -171,14 +171,26 @@ analyze() {
   fi
 
   n_call=$(count_in "$arm" '[[:space:]]call[q]?[[:space:]]')
+  n_fence=$(printf '%s\n' "$arm" \
+    | awk -F'\t' '$2 ~ /^(lfence|mfence|sfence)$/' | wc -l)
   n_insn=$(printf '%s\n' "$arm" | wc -l)
 
-  echo "  $label: read arm is $n_insn instructions, $n_call calls"
+  echo "  $label: read arm is $n_insn instructions, $n_call calls, $n_fence fences"
   printf '%s\n' "$arm" | sed 's/^/    /'
 
   if [ "$n_call" -ne 0 ]; then
     echo "FAIL $label: the read arm holds $n_call call instructions:" >&2
     printf '%s\n' "$arm" | grep -E '[[:space:]]call[q]?[[:space:]]' >&2
+    return 1
+  fi
+  # FR-031: the leaf's value is ordered only where one thread takes both
+  # window endpoints, and that precondition is on the caller. A fence in
+  # the read would cost every timestamp for no order the caller lacks, so
+  # the arm must hold none.
+  if [ "$n_fence" -ne 0 ]; then
+    echo "FAIL $label: the read arm holds $n_fence ordering fences, and" >&2
+    echo "      FR-031 gives the leaf a caller-side precondition instead" >&2
+    printf '%s\n' "$arm" | awk -F'\t' '$2 ~ /^(lfence|mfence|sfence)$/' >&2
     return 1
   fi
   return 0

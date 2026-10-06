@@ -7,6 +7,7 @@
 #include <expected>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -277,7 +278,7 @@ auto system::local() -> system&
 auto system::register_provider(std::unique_ptr<provider_iface> provider)
     -> std::expected<void, error>
 {
-  if (m_impl->open) {
+  if (m_impl->is_open()) {
     return std::unexpected(error {
         .message = "provider registration after the system opened (FR-009)",
         .suggestions = {}});
@@ -417,6 +418,10 @@ auto system::tsc() const -> std::expected<counter<dim<0, 1>>, error>
 
 auto system::handle_for(const std::string& canonical) -> sg::counters::object&
 {
+  // One lock covers the lookup and the insert, so a concurrent miss on one
+  // address constructs the handle once and hands the same entry to every
+  // thread that named it (FR-010).
+  const std::lock_guard<std::mutex> guard {m_impl->handles_lock};
   const auto existing = m_impl->handles.find(canonical);
   if (existing != m_impl->handles.end()) {
     return *existing->second;
@@ -520,6 +525,17 @@ auto object::counters() const -> std::vector<catalog_entry>
     const auto recognized = unit_from_token(leaf.core.unit);
     SG_REQUIRE(recognized.has_value(),
                "every stored catalog unit maps (FR-017)");
+    // The seed carries no target mask, so the mask follows the state: a
+    // countable entry counts on both target kinds the mask names, and a
+    // refused, absent, scope-refused, or unencodable entry counts on no
+    // target, because a gap between the state and the mask is a state the
+    // catalog does not publish (FR-021).
+    const target_mask targets = leaf.core.avail == availability::countable
+        ? target_thread_bit | target_cpu_bit
+        : target_mask {0};
+    SG_ENSURE((leaf.core.avail != availability::countable) == (targets == 0),
+              "a countable entry names at least one target kind and every "
+              "other state names none (FR-021)");
     entries.push_back(catalog_entry {
         .name = leaf.core.name,
         .description = leaf.core.description,
@@ -528,6 +544,7 @@ auto object::counters() const -> std::vector<catalog_entry>
         .unit = recognized.value_or(unit::none),
         .avail = leaf.core.avail,
         .mode = leaf.core.mode,
+        .targets = targets,
         .frequency_hz = leaf.core.frequency_hz,
         .scaled = leaf.core.scaled,
     });

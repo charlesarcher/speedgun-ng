@@ -51,11 +51,27 @@ struct detail::fake_window final : window_reader
 
   fake_provider* owner = nullptr;
   std::vector<fake_counter_data*> counters;
+  std::size_t disclosure_column = leaf_set::no_disclosure_column;
+  // This window's own sampling-action count, so a leaf's scripted gaps
+  // are counted from the first action of the plan that samples it and not
+  // from the provider's lifetime total (FR-007).
+  std::uint64_t actions = 0;
 
   void read_points(point_sink& sink) noexcept override
   {
-    ++owner->m_read_actions;
+    owner->m_read_actions.fetch_add(1, std::memory_order_relaxed);
+    ++actions;
+    bool gapped = false;
     for (auto* item : counters) {
+      if (item->gaps_at(actions)) {
+        // The scripted action measured nothing, so the column carries a
+        // zero and the disclosure beside it names the gap. The script does
+        // not advance, so the next measured action reads the next point
+        // (FR-007).
+        gapped = true;
+        sink.put(0);
+        continue;
+      }
       std::uint64_t value = 0;
       if (item->position < item->script.points.size()) {
         value = item->script.points[item->position];
@@ -68,6 +84,10 @@ struct detail::fake_window final : window_reader
       }
       item->last = value;
       sink.put(value);
+    }
+    if (disclosure_column != leaf_set::no_disclosure_column) {
+      sink.put(static_cast<std::uint64_t>(gapped ? availability::gap
+                                                 : availability::countable));
     }
   }
 };
@@ -198,6 +218,7 @@ std::unique_ptr<window_reader> fake_provider::open(const leaf_set& leaves,
 {
   auto window = std::make_unique<detail::fake_window>();
   window->owner = this;
+  window->disclosure_column = leaves.disclosure_column;
   for (const auto& address : leaves.addresses) {
     const auto [object_path, name] = split_leaf_address(address);
     const auto object = m_objects.find(std::string(object_path));
@@ -211,6 +232,21 @@ std::unique_ptr<window_reader> fake_provider::open(const leaf_set& leaves,
     window->counters.push_back(&item->second);
   }
   return window;
+}
+
+auto fake_provider::set_gap_actions(const std::string_view object_path,
+                                    const std::string_view name,
+                                    std::vector<std::size_t> actions)
+    -> fake_provider&
+{
+  SG_REQUIRE(!object_path.empty() && !name.empty(),
+             "set_gap_actions names an object and a leaf (FR-007)");
+  auto& gaps = counter(std::string(object_path), std::string(name)).gaps;
+  gaps = actions;
+  SG_ENSURE(gaps == actions,
+            "the leaf's scripted gap actions are the ones the caller named "
+            "(FR-007)");
+  return *this;
 }
 
 auto fake_provider::counter(const std::string& object_path,

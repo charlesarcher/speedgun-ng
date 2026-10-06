@@ -116,6 +116,17 @@
       }
     },
     {
+      "name": "ci-tsan",
+      "description": "ci-linux flags at the thread sanitizer, on the project and on every vendored tree. The flags ride the Release config, which a cache variable passes to each add_subdirectory, so the vendored sources are instrumented too. ci-sanitize keeps address and undefined behavior alone, because the compilers reject the pairing.",
+      "binaryDir": "${sourceDir}/build/tsan",
+      "inherits": ["ci-linux", "dev-mode"],
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -O2 -g -DNDEBUG -fsanitize=thread -fno-omit-frame-pointer -fno-common",
+        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-fsanitize=thread",
+        "CMAKE_SHARED_LINKER_FLAGS_RELEASE": "-fsanitize=thread"
+      }
+    },
+    {
       "name": "ci-build",
       "binaryDir": "${sourceDir}/build",
       "hidden": true
@@ -133,9 +144,23 @@
     {
       "name": "ci-sanitize",
       "configurePreset": "ci-sanitize"
+    },
+    {
+      "name": "ci-tsan",
+      "configurePreset": "ci-tsan"
     }
   ],
   "testPresets": [
+    {
+      "name": "ci-tsan",
+      "configurePreset": "ci-tsan",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
     {
       "name": "ci-sanitize",
       "configurePreset": "ci-sanitize",

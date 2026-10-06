@@ -304,7 +304,89 @@ auto test_monotonic_across_processors(const expression<time_dim>& elapsed)
       processors);
 }
 
+// A busy interval on the calling thread. The per-thread clock advances
+// only while the thread runs, so the order tests need real work between
+// two samples. A sleep would let the thread hand the processor away and
+// report no advance.
+auto burn_cpu() -> void
+{
+  volatile std::uint64_t sink = 0;
+  for (std::uint64_t step = 0; step < 20'000'000; ++step) {
+    sink += step;
+  }
+  static_cast<void>(sink);
+}
+
 }  // namespace
+
+// One leaf's last sample from a fresh plan, counted as the leaf's own
+// counter reads them.
+auto sample_leaf(const char* leaf, const std::size_t reads) -> std::uint64_t
+{
+  const auto machine = *system::local().object("machine");
+  const auto counter = machine.counter<time_dim>(leaf);
+  check(counter.has_value(), "the clock leaf resolves for the order test");
+  const expression<time_dim> counted {*counter};
+  auto compiled = compile(system::local(), counted);
+  check(compiled.has_value(), "a per-thread plan over the leaf compiles");
+  auto recorder = compiled->recorder(reads);
+  for (std::size_t read = 0; read < reads; ++read) {
+    recorder.sample();
+  }
+  return recorder.m_columns[reads - 1];
+}
+
+// Each leaf states its own order guarantee, and a test exercises each one
+// (FR-028, FR-029). A guarantee a leaf's clock does not keep is a defect,
+// so every clause in `counters_clock.hpp` has a test behind it here.
+auto test_per_leaf_order(const expression<time_dim>& elapsed) -> void
+{
+  // `machine/monotonic` and `machine/monotonic_raw`: a sample does not
+  // fall below an earlier sample taken on the same thread.
+  for (const char* leaf : {"monotonic", "monotonic_raw"}) {
+    const auto first = sample_leaf(leaf, 1);
+    burn_cpu();
+    const auto second = sample_leaf(leaf, 1);
+    check(second >= first,
+          "a sample of this leaf does not fall below an earlier sample taken "
+          "on the same thread (FR-029)");
+  }
+
+  // `machine/thread_cpu`: non-decreasing on the reading thread.
+  const auto thread_first = sample_leaf("thread_cpu", 1);
+  burn_cpu();
+  const auto thread_second = sample_leaf("thread_cpu", 1);
+  check(thread_second >= thread_first,
+        "a second sample of the per-thread clock on one thread does not fall "
+        "below the first (FR-029)");
+
+  // `machine/thread_cpu`: a new thread's first sample falls below an
+  // earlier sample taken on another thread, because the counter belongs to
+  // the thread. The documented guarantee permits exactly this (FR-030).
+  burn_cpu();
+  const auto main_thread_sample = sample_leaf("thread_cpu", 1);
+  std::uint64_t worker_first = 0;
+  std::thread worker {[&worker_first]
+                      { worker_first = sample_leaf("thread_cpu", 1); }};
+  worker.join();
+  check(worker_first < main_thread_sample,
+        "a new thread's first sample of the per-thread clock falls below an "
+        "earlier sample taken on another thread, which the documented "
+        "guarantee permits (FR-030)");
+
+  // `machine/process_cpu`: non-decreasing across the process's threads,
+  // because the counter belongs to the process.
+  const auto process_first = sample_leaf("process_cpu", 1);
+  std::uint64_t worker_process = 0;
+  std::thread process_worker {
+      [&worker_process] { worker_process = sample_leaf("process_cpu", 1); }};
+  burn_cpu();
+  process_worker.join();
+  check(worker_process >= process_first,
+        "a sample of the per-process clock on a second thread does not fall "
+        "below one taken on the first (FR-029)");
+  static_cast<void>(elapsed);
+}
 
 auto main() -> int
 {
@@ -345,6 +427,7 @@ auto main() -> int
   const std::uint64_t resolution_bound = platform_resolution_ns();
   test_monotonic_and_cost(*compiled, resolution_bound);
   test_monotonic_across_processors(elapsed);
+  test_per_leaf_order(elapsed);
 
   std::printf("counters_clock_raw_test PASS: leaf published, unit and read "
               "mode disclosed, samples monotonic\n");

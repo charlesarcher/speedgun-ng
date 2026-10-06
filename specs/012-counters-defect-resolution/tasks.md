@@ -124,7 +124,7 @@ Blocked: US1 and US4 need the availability surface from T006. US1, US3,
 and US4 need the synthetic fixtures from T007. US1, US3, and US4 need
 the extracted decisions from T072.
 
-- [ ] T006 [P] Add the `scope_refused` and `gap` enumerators to
+- [X] T006 [P] Add the `scope_refused` and `gap` enumerators to
   `enum class availability`, add the fixed-size target-kind bitmask
   typedef, and add the `targets` member to `catalog_entry` in
   `include/speedgun-ng/counters_core.hpp`, each with the doxygen clause
@@ -132,11 +132,11 @@ the extracted decisions from T072.
   `specs/012-counters-defect-resolution/contracts/availability.md`.
   The `gap` clause states that the value names one action and that the
   catalog never publishes it for an entry (FR-021, FR-024, FR-007)
-- [ ] T007 [P] Add the synthetic event-page builder and the
+- [X] T007 [P] Add the synthetic event-page builder and the
   `/proc/self/fd` and `/proc/self/maps` counting helpers to
   `test/source/counters_linux_pmu_seam_test.cpp`, following the
   existing `check()` and `fail()` convention in that file (FR-034)
-- [ ] T072 Add the four corrected decisions as small pure functions
+- [X] T072 Add the four corrected decisions as small pure functions
   declared in `source/counters/detail/pmu.hpp`, each with a doxygen
   clause and its paired enforcement site, so the coverage gates
   measure each decision directly and no coverage-exclusion marker is
@@ -175,7 +175,7 @@ with the two commands under the tests below.
 > **NOTE**: Write these tests FIRST and observe them FAIL at
 > `6aafd2d` before the correction lands.
 
-- [ ] T008 [P] [US1] Add the decode scenarios to
+- [X] T008 [P] [US1] Add the decode scenarios to
   `test/source/counters_linux_pmu_seam_test.cpp`: a page whose
   capability bit is clear, a page whose read is refused, a page whose
   sequence moves, a count crossing the published width, and a
@@ -186,18 +186,18 @@ with the two commands under the tests below.
   `ctest --test-dir build/dev -R counters_linux_pmu_seam_test`.
   Checking out the pre-fix head is wrong here, because that commit
   holds no copy of this test.
-- [ ] T009 [P] [US1] Add the short-group-read scenario to
+- [X] T009 [P] [US1] Add the short-group-read scenario to
   `test/source/counters_linux_pmu_seam_test.cpp`: a leader answering
   with fewer bytes than the header marks the action, and no fold across
   it reports a delta above the counts the fixture drove (FR-006, SC-002)
-- [ ] T010 [P] [US1] Add the disclosure-column read to
+- [X] T010 [P] [US1] Add the disclosure-column read to
   `test/source/counters_recorder_test.cpp`: a recorded row carries the
   countability value beside the count and the ratio pair, a failed
   action carries `availability::gap` beside a zero count, and a
   measured zero carries the entry's own countability value beside it
   (FR-007). Observe red with
   `ctest --test-dir build/dev -R counters_recorder_test`
-- [ ] T011 [P] [US1] Add the allocation and lock-freedom assertions to
+- [X] T011 [P] [US1] Add the allocation and lock-freedom assertions to
   `test/source/counters_recorder_test.cpp`: one sampling action is
   `noexcept`, allocates nothing, and takes no lock, checked with no
   recorded constant so the assertion decides the same on any host
@@ -206,7 +206,7 @@ with the two commands under the tests below.
   `specs/012-counters-defect-resolution/quickstart.md`, because a
   timing constant measured on the reference host cannot decide a test
   on a CI runner
-- [ ] T070 [P] [US1] Add the migrated-thread scenario to
+- [X] T070 [P] [US1] Add the migrated-thread scenario to
   `test/source/counters_linux_pmu_seam_test.cpp`: a fast-mode
   cpu-target plan whose sampling thread has migrated to another
   processor, checked against the cpu-target pinning precondition in a
@@ -214,7 +214,7 @@ with the two commands under the tests below.
   (FR-045). Observe red at the current head with the correction
   unapplied, using
   `ctest --test-dir build/dev -R counters_linux_pmu_seam_test`
-- [ ] T071 [US1] Confirm the `consumer-release` job covers the cpu-target
+- [X] T071 [US1] Confirm the `consumer-release` job covers the cpu-target
   pinning precondition: that job configures the `ci-linux-ignore` preset
   and reads `nm -C` over `libspeedgun-ng.a`, asserting that no
   `sg::dbc::check_` symbol survives, so a build configured `ignore`
@@ -227,48 +227,48 @@ with the two commands under the tests below.
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Replace the width mask in `fast_decode` at
+- [X] T013 [US1] Replace the width mask in `fast_decode` at
   `source/counters/linux_pmu/fast_read.cpp` with the sign extension and
   offset addition the kernel's own interface header documents: the
   `pmc_width` sign-extension pair, and the enabled and running time
   computation beside it. The requirement names each recipe by content,
   so no line number in any kernel header is part of it (D-01, FR-004)
-- [ ] T014 [US1] Inspect all three verdicts in `read_points` at
+- [X] T014 [US1] Inspect all three verdicts in `read_points` at
   `source/counters/linux_pmu/group_io.cpp`: a read that does not
   return `ok` writes a zero count, keeps no earlier value, and marks
   the action; the retry runs once and its failure takes the same arm
   (D-03, FR-002, FR-003)
-- [ ] T015 [US1] Resolve and write the disclosure column in
+- [X] T015 [US1] Resolve and write the disclosure column in
   `source/counters/plan.cpp` beside `link_ratio_slots`, and write it
   from every read path in `source/counters/linux_pmu/group_io.cpp`. A
   measured action writes the countability value the catalog publishes
   for the entry, and an action that measured nothing writes
   `availability::gap` (FR-007)
-- [ ] T016 [US1] Mark the short and the refused group read at
+- [X] T016 [US1] Mark the short and the refused group read at
   `source/counters/linux_pmu/group_io.cpp:238-248` and publish no count
   the read never produced (FR-006)
-- [ ] T017 [P] [US1] Mark a failed enabled and running pair read at
+- [X] T017 [P] [US1] Mark a failed enabled and running pair read at
   `source/counters/linux_pmu/group_io.cpp:361-367`, and make
   `leaf_ratio` at `source/counters/fold.cpp:126-130` report the
   measured ratio only for an action the disclosure marks as measured
   (D-02, FR-005)
-- [ ] T018 [P] [US1] Add the cpu-target pinning precondition as a
+- [X] T018 [P] [US1] Add the cpu-target pinning precondition as a
   semantic-gated `SG_REQUIRE` on the fast read path in
   `source/counters/linux_pmu/fast_read.cpp`, with the doxygen clause
   from `specs/012-counters-defect-resolution/contracts/fast-read-fold.md`,
   and add no branch to `recorder::sample()` (FR-045)
-- [ ] T019 [US1] Build the release preset, run
+- [X] T019 [US1] Build the release preset, run
   `./build/test/counters_overhead`, and record both post-fix medians
   beside the T001 figures in
   `specs/012-counters-defect-resolution/quickstart.md` (FR-008, SC-011)
-- [ ] T073 [US1] Replace the width mask and the verdict handling so
+- [X] T073 [US1] Replace the width mask and the verdict handling so
   each corrected decision calls the extracted function T072 declares:
   the width mask in `fast_decode` at
   `source/counters/linux_pmu/fast_read.cpp`, the short and refused
   group read at `source/counters/linux_pmu/group_io.cpp:238-248`, and
   the failed pair read at
   `source/counters/linux_pmu/group_io.cpp:361-367` (FR-004, FR-046)
-- [ ] T074 [US1] Wire the group-read and pair-read decisions in
+- [X] T074 [US1] Wire the group-read and pair-read decisions in
   `source/counters/linux_pmu/group_io.cpp` to the functions T072
   declares, and retire the coverage-exclusion markers on the release
   arms at `source/counters/linux_pmu/fast_read.cpp:353-372`, because
@@ -300,7 +300,7 @@ The thread sanitizer needs a build tree before any test can run there,
 so its preset lands first. Every later task in this phase assumes
 `build/tsan` resolves.
 
-- [ ] T020 [US2] Add the `ci-tsan` configure, build, and test presets
+- [X] T020 [US2] Add the `ci-tsan` configure, build, and test presets
   to `CMakePresets.json`: a configure preset inheriting `ci-linux` and
   `dev-mode` with `binaryDir` at `build/tsan` and
   `-fsanitize=thread` on the project and the vendored trees, plus the
@@ -315,7 +315,7 @@ so its preset lands first. Every later task in this phase assumes
 > `6aafd2d` before the correction lands. T020 precedes this task, so
 > the red observation below runs.
 
-- [ ] T021 [US2] Add the concurrent resolution scenarios to
+- [X] T021 [US2] Add the concurrent resolution scenarios to
   `test/source/counters_recorder_test.cpp`: several threads resolving
   the same and different canonical addresses at once, several threads
   compiling plans at once, and one thread walking a parent and its
@@ -326,13 +326,13 @@ so its preset lands first. Every later task in this phase assumes
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Guard `system::handle_for` and the handle map at
+- [X] T022 [US2] Guard `system::handle_for` and the handle map at
   `source/counters/system.cpp:418-426`, and guard the plan-compile path
   that writes shared state (D-06, FR-010, FR-011)
-- [ ] T023 [US2] Move the open flag out of the per-call compile path in
+- [X] T023 [US2] Move the open flag out of the per-call compile path in
   `source/counters/plan.cpp` and set it once at the open boundary
   (FR-011)
-- [ ] T024 [US2] Add the `tsan` job to
+- [X] T024 [US2] Add the `tsan` job to
   `.github/workflows/ci.yml`, configuring `ci-tsan`, building
   `build/tsan`, and running `ctest` there (FR-012, SC-003)
 
@@ -357,7 +357,7 @@ the same comparison.
 > **NOTE**: Write these tests FIRST and observe them FAIL at
 > `6aafd2d` before the correction lands.
 
-- [ ] T025 [P] [US3] Add the everywhere-runnable lifecycle test to
+- [X] T025 [P] [US3] Add the everywhere-runnable lifecycle test to
   `test/source/counters_linux_pmu_seam_test.cpp`: the test opens its
   own descriptor on `/dev/null` and its own anonymous read-only
   mapping, places both in a `fast_context` value with the mapping
@@ -368,21 +368,21 @@ the same comparison.
   release and not a counter. Observe red at the current head with the
   correction unapplied, using
   `ctest --test-dir build/dev -R counters_linux_pmu_seam_test`
-- [ ] T026 [P] [US3] Add the host-dependent lifecycle test to
+- [X] T026 [P] [US3] Add the host-dependent lifecycle test to
   `test/source/counters_pmu_test.cpp`: open and destroy a real
   fast-mode plan 10,000 times, compare the same two counts, print the
   reason and exit 2 where the kernel refuses the event, and register
   `SKIP_RETURN_CODE 2` for it (FR-013, SC-004)
-- [ ] T027 [US3] Add the destroy-before-open scenario to
+- [X] T027 [US3] Add the destroy-before-open scenario to
   `test/source/counters_linux_pmu_seam_test.cpp`: nothing is released
   and no check fails (FR-015, SC-004)
 
 ### Implementation for User Story 3
 
-- [ ] T028 [P] [US3] Add a destructor to `fast_context` at
+- [X] T028 [P] [US3] Add a destructor to `fast_context` at
   `source/counters/detail/pmu.hpp:279-285` that calls
   `fast_context_close` (D-07, FR-013)
-- [ ] T029 [US3] Extract one internal release function in
+- [X] T029 [US3] Extract one internal release function in
   `source/counters/linux_pmu/group_io.cpp`, call it from
   `~pmu_fast_window` at `:327` and from the two partial-open arms at
   `:552` and `:564`. T025 reaches the same release through the
@@ -417,7 +417,7 @@ extracted decisions.
 > **NOTE**: Write these tests FIRST and observe them FAIL at
 > `6aafd2d` before the correction lands.
 
-- [ ] T031 [P] [US4] Add the Intel encodable-row count fixture to
+- [X] T031 [P] [US4] Add the Intel encodable-row count fixture to
   `test/source/counters_linux_pmu_seam_test.cpp`: a named synthetic
   sysfs format list the fixture supplies, the count pinned for
   `skylake`, `icelake`, `alderlake`, and `sapphirerapids`, and the
@@ -426,12 +426,12 @@ extracted decisions.
   `SampleAfterValue`, `MSRValue`, `MSRIndex`, `CounterMask`, `Invert`,
   `EdgeDetect`, `PEBS`, `Data_LA`, `PerPkg`, and `Experimental`, never
   become encoding fields (FR-016, FR-017, FR-020)
-- [ ] T032 [P] [US4] Add the device-placement fixture to
+- [X] T032 [P] [US4] Add the device-placement fixture to
   `test/source/counters_linux_pmu_seam_test.cpp`: a hybrid host
   publishing core and atom devices, an uncore device, and a row scoped
   to an absent device, asserting each row lands on the device its scope
   names and no uncore row appears under the core device (FR-019, SC-006)
-- [ ] T033 [P] [US4] Add the availability scenarios to
+- [X] T033 [P] [US4] Add the availability scenarios to
   `test/source/counters_pmu_test.cpp`: a device-scoped entry publishes
   `scope_refused` for a per-task target and publishes a state separable
   from an encoding refusal, a cpu-target plan over it compiles where
@@ -441,7 +441,7 @@ extracted decisions.
   a target kind to the target-kind enumeration leaves every existing
   value unchanged (FR-001, FR-021, FR-022, SC-007). Observe red with
   `ctest --test-dir build/dev -R counters_pmu_test`
-- [ ] T069 [P] [US4] Add the encoding-refusal scenarios to
+- [X] T069 [P] [US4] Add the encoding-refusal scenarios to
   `test/source/counters_linux_pmu_seam_test.cpp`: a row needing a field
   the running kernel's formats do not publish reports `not_encodable`,
   and a row whose fields the kernel does publish never reports it
@@ -451,30 +451,30 @@ extracted decisions.
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] Record a numeric table key as an encoding field only
+- [X] T035 [US4] Record a numeric table key as an encoding field only
   where the key names a format the running device publishes, at
   `source/counters/linux_pmu/table_parse.cpp:176-180`, and map the
   kernel spellings `cmask`, `inv`, `edge`, and `offcore_rsp` onto
   `CounterMask`, `Invert`, `EdgeDetect`, and `OffcoreRsp` (D-08,
   FR-016, FR-017)
-- [ ] T036 [US4] Publish `not_encodable` only where the running
+- [X] T036 [US4] Publish `not_encodable` only where the running
   kernel's formats lack a field the row needs, at
   `source/counters/linux_pmu/provider.cpp:296` (FR-018)
-- [ ] T037 [US4] Route each vendored row to the device its table scope
+- [X] T037 [US4] Route each vendored row to the device its table scope
   names at `source/counters/linux_pmu/provider.cpp:266`, keeping a row
   scoped to an absent device out of the catalog (D-09, FR-019)
-- [ ] T038 [US4] Run the availability probe per target kind the T006
+- [X] T038 [US4] Run the availability probe per target kind the T006
   bitmask admits at `source/counters/linux_pmu/provider.cpp:102-111`,
   and publish the fast read mode on an entry only where the fast read
   can succeed for that entry (D-10, FR-001, FR-022)
-- [ ] T039 [US4] Bump `VERSION` to `0.3.0` at `CMakeLists.txt:7`,
+- [X] T039 [US4] Bump `VERSION` to `0.3.0` at `CMakeLists.txt:7`,
   leaving `SOVERSION` at `PROJECT_VERSION_MAJOR` (FR-024)
-- [ ] T040 [US4] Measure each of the four Intel counts over the pinned
+- [X] T040 [US4] Measure each of the four Intel counts over the pinned
   tree against the synthetic format list, measure the counts the
   reference host's own formats yield, and write all six figures into
   the measured encodable-row counts table in
   `specs/012-counters-defect-resolution/data-model.md` (FR-020, SC-005)
-- [ ] T075 [US4] Wire the per-entry probe decision at
+- [X] T075 [US4] Wire the per-entry probe decision at
   `source/counters/linux_pmu/provider.cpp:102-111` to the function T072
   declares. No marker over the kernel-facing wrapper is removed, for
   the reason T074 records (FR-046, FR-027)
@@ -502,7 +502,7 @@ Runs after US4: both tasks edit
 > **NOTE**: Write this test FIRST and observe it FAIL at `6aafd2d`
 > before the correction lands.
 
-- [ ] T041 [P] [US5] Add the vendored-row count to
+- [X] T041 [P] [US5] Add the vendored-row count to
   `test/consumer/main.cpp`, printing the count the linked package
   resolves, so the downstream consumer job compares it against the
   build tree's count (FR-023, SC-008). Observe red by installing the
@@ -510,19 +510,19 @@ Runs after US4: both tasks edit
 
 ### Implementation for User Story 5
 
-- [ ] T042 [US5] Add `cmake/EmbedPmuEvents.cmake`, which compiles the
+- [X] T042 [US5] Add `cmake/EmbedPmuEvents.cmake`, which compiles the
   vendored JSON under `external/pmu-events` into static data and
   exposes it to `source/counters/linux_pmu/table_parse.cpp`
   (D-11, FR-023)
-- [ ] T043 [US5] Decode the embedded bytes through the existing
+- [X] T043 [US5] Decode the embedded bytes through the existing
   simdjson path in `source/counters/linux_pmu/table_parse.cpp`,
   replacing the file reads, and remove every `SG_PMU_EVENTS_DIR`
   reference at `:391`, `:403`, and `:430` (FR-023)
-- [ ] T044 [US5] Add no build option around the embedding in
+- [X] T044 [US5] Add no build option around the embedding in
   `cmake/EmbedPmuEvents.cmake`, and confirm
   `python3 tools/pmu_events/update_pmu_events.py --check` still passes
   with the pin unchanged (FR-023)
-- [ ] T045 [US5] Install into a scratch prefix, run
+- [X] T045 [US5] Install into a scratch prefix, run
   `./build-consumer/consumer`, relocate the prefix, run it again, and
   record the archive and executable sizes beside the T004 figures in
   `specs/012-counters-defect-resolution/quickstart.md` (FR-023,
@@ -551,7 +551,7 @@ Runs after US2: both tasks edit `source/counters/plan.cpp`.
 > **NOTE**: Write this test FIRST and observe it FAIL at `6aafd2d`
 > before the correction lands.
 
-- [ ] T046 [P] [US6] Add the calibration test to
+- [X] T046 [P] [US6] Add the calibration test to
   `test/source/counters_overhead.cpp`: it drives the plan's own
   calibration, measures the bracketing pair under the identical
   bracketing, and fails when the published floor still carries the
@@ -560,10 +560,10 @@ Runs after US2: both tasks edit `source/counters/plan.cpp`.
 
 ### Implementation for User Story 6
 
-- [ ] T047 [US6] Measure the bracketing pair in `calibrate` at
+- [X] T047 [US6] Measure the bracketing pair in `calibrate` at
   `source/counters/plan.cpp:267-296` and subtract it from the
   sampling-action cost (D-12, FR-025)
-- [ ] T048 [US6] Remove the `LCOV_EXCL_START` and `LCOV_EXCL_STOP`
+- [X] T048 [US6] Remove the `LCOV_EXCL_START` and `LCOV_EXCL_STOP`
   region wrapping `source/counters/plan.cpp:256`, so no coverage
   exclusion hides the calibration from the registered test, and record
   the new marker count beside the T002 figure. Count the release-arm
@@ -590,7 +590,7 @@ each leaf's documented guarantee and match a test to each one.
 > **NOTE**: Write these tests FIRST and observe them FAIL at `6aafd2d`
 > before the correction lands.
 
-- [ ] T049 [P] [US7] Add the per-leaf order tests to
+- [X] T049 [P] [US7] Add the per-leaf order tests to
   `test/source/counters_clock_raw_test.cpp`: a new thread's
   `machine/thread_cpu` sample falls below an earlier sample taken on
   another thread, a second sample on one thread does not fall below the
@@ -599,17 +599,17 @@ each leaf's documented guarantee and match a test to each one.
   sample on the same thread, and `machine/monotonic_raw` does not
   either (FR-029, FR-030, SC-010). Observe red with
   `ctest --test-dir build/dev -R counters_clock_raw_test`
-- [ ] T050 [P] [US7] Extend `test/counters_tsc_read_shape.sh` to assert
+- [X] T050 [P] [US7] Extend `test/counters_tsc_read_shape.sh` to assert
   the timestamp-counter leaf reads with no ordering fence (FR-031)
 
 ### Implementation for User Story 7
 
-- [ ] T051 [US7] Add a per-leaf doxygen clause to each leaf in
+- [X] T051 [US7] Add a per-leaf doxygen clause to each leaf in
   `include/speedgun-ng/counters_clock.hpp`, on the terms in
   `specs/012-counters-defect-resolution/contracts/clock-order.md`, and
   reduce the class clause to state no order on any leaf's behalf
   (D-13, FR-028)
-- [ ] T052 [US7] State the per-thread CPU clock's guarantee in
+- [X] T052 [US7] State the per-thread CPU clock's guarantee in
   `include/speedgun-ng/counters_clock.hpp` so it permits a new thread's
   sample to fall below an earlier sample taken on another thread, and
   state the timestamp-counter leaf's guarantee there as a precondition
@@ -630,11 +630,11 @@ behavior; each one is a gate, a record, or a check.
   it restores, its measuring command, and its head. Leave the frozen
   record at `specs/007-counters-and-timers/citations.md` unedited
   (FR-038)
-- [ ] T054 [P] Confirm the Intel confirmation deferral is recorded in
+- [X] T054 [P] Confirm the Intel confirmation deferral is recorded in
   `specs/012-counters-defect-resolution/plan.md` and
   `specs/012-counters-defect-resolution/research.md`, naming the host
   class that would settle it (FR-039)
-- [ ] T055 Run `cmake --build build/dev -t dbc-gate` and clear every
+- [X] T055 Run `cmake --build build/dev -t dbc-gate` and clear every
   pairing finding on `include/speedgun-ng/counters_core.hpp`,
   `include/speedgun-ng/counters_provider.hpp`, and
   `include/speedgun-ng/counters_clock.hpp` (FR-037, Principle II)
@@ -647,14 +647,14 @@ behavior; each one is a gate, a record, or a check.
   unit named in T003, `source/counters/linux_pmu/fast_read.cpp`
   among them, did not rise, and that the pre-existing backlog outside
   those units' touched lines is untouched (FR-041, FR-042)
-- [ ] T058 Run `ctest --test-dir build/dev -R counters_header_purity`
+- [X] T058 Run `ctest --test-dir build/dev -R counters_header_purity`
   over `test/counters_header_purity.sh` and confirm no file in
   `include/speedgun-ng/` gained a platform term (FR-036)
-- [ ] T059 [P] Confirm `source/counters/plan.cpp` and
+- [X] T059 [P] Confirm `source/counters/plan.cpp` and
   `include/speedgun-ng/counters_core.hpp` stay embeddable in
   fixed-iteration, per-thread benchmark loops, and that no
   benchmarking-framework code entered `source/counters/` (FR-035)
-- [ ] T060 Build the release preset with
+- [X] T060 Build the release preset with
   `cmake --preset=ci-ubuntu && cmake --build build`, which no
   unoptimized build of `source/counters/plan.cpp` can substitute for
   (Principle IX)
@@ -662,14 +662,14 @@ behavior; each one is a gate, a record, or a check.
   `cmake --preset=ci-sanitize && cmake --build build/sanitize && ctest --test-dir build/sanitize`
   over every binary registered in `test/CMakeLists.txt`
   (Principle VIII)
-- [ ] T062 [P] Run `cmake -D FORMAT_COMMAND=clang-format-18 -P cmake/lint.cmake`
+- [X] T062 [P] Run `cmake -D FORMAT_COMMAND=clang-format-18 -P cmake/lint.cmake`
   and `cmake --build build/dev -t format-check` (Principle V)
-- [ ] T063 [P] Run `cmake --build build/dev -t spell-check` and
+- [X] T063 [P] Run `cmake --build build/dev -t spell-check` and
   `cmake -P cmake/prose-lint.cmake` over every Markdown file this
   feature adds, then review each XI.7 rule the gate cannot match by
   hand: sentence length, one topic per sentence, active voice, and one
   term per concept (FR-044, Principle XI)
-- [ ] T064 [P] Run
+- [X] T064 [P] Run
   `python3 tools/pmu_events/update_pmu_events.py --check` over
   `external/pmu-events/RECORD` and confirm no drifted file
   (Principle VIII)
@@ -677,19 +677,19 @@ behavior; each one is a gate, a record, or a check.
   `specs/012-counters-defect-resolution/quickstart.md` end to end on
   the reference host, fill the two tables step 8 and step 10 name, and
   record the result (SC-001 through SC-012)
-- [ ] T066 [P] Confirm no recorder entry point was added, changed, or
+- [X] T066 [P] Confirm no recorder entry point was added, changed, or
   removed: `grep` `include/speedgun-ng/counters_measurement.hpp` and
   `include/speedgun-ng/counters_core.hpp` for a reuse, reset, or arena
   member that `6aafd2d` does not hold, and confirm the shipped
   behaviour stands, one arena per `plan::recorder()` call and no reset
   (FR-009)
-- [ ] T067 [P] Confirm no event source, object kind, provider, or
+- [X] T067 [P] Confirm no event source, object kind, provider, or
   public header entered the library: compare the file list under
   `include/speedgun-ng/` and the provider list in
   `source/counters/` against `6aafd2d`, and confirm every added name
   traces to a requirement through the verification matrix in
   `specs/012-counters-defect-resolution/plan.md` (FR-043, FR-042)
-- [ ] T068 [P] Confirm the pre-existing coverage-exclusion backlog
+- [X] T068 [P] Confirm the pre-existing coverage-exclusion backlog
   outside the touched lines is untouched, by counting the markers per
   file under `source/counters/`, `source/counters/plan.cpp` among
   them, and comparing against `6aafd2d` (FR-042, X.3)

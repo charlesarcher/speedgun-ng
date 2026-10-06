@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.2.0
+    VERSION 0.3.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -795,13 +795,12 @@ endif()
 # above cannot reach it (specs/011 FR-012, T003).
 target_sources(speedgun-ng_speedgun-ng PRIVATE source/simulation/marker.cpp)
 
-# The compile definition hands the vendored table root to the Linux
-# PMU provider, the same way the clock provider reaches sysfs by path
-# (T045).
-target_compile_definitions(
-    speedgun-ng_speedgun-ng
-    PRIVATE SG_PMU_EVENTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/external/pmu-events"
-)
+# The vendored event tables are compiled into the library as static
+# data, so an installed package carries them and the provider reads no
+# path to find them (specs/012 US5, FR-036, T042).
+include(cmake/EmbedPmuEvents.cmake)
+speedgun_embed_pmu_events(speedgun-ng_speedgun-ng
+                          "${CMAKE_CURRENT_SOURCE_DIR}/external/pmu-events")
 
 # ---- Examples ----
 

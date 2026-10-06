@@ -29,6 +29,7 @@
 #  include <thread>
 
 #  include <linux/perf_event.h>
+#  include <sched.h>
 #  include <sys/mman.h>
 #  include <sys/syscall.h>
 #  include <unistd.h>
@@ -70,6 +71,12 @@ auto fast_pair_stable(const std::uint32_t sequence_before,
   return sequence_before == sequence_after;
 }
 
+auto fast_pinning_ok(const int pinned_cpu,
+                     const int current_cpu) noexcept -> bool
+{
+  return pinned_cpu < 0 || pinned_cpu == current_cpu;
+}
+
 auto fast_decode(const std::uint32_t sequence_before,
                  const std::uint32_t sequence_after,
                  const std::uint32_t index,
@@ -82,19 +89,33 @@ auto fast_decode(const std::uint32_t sequence_before,
   // Protocol order (FR-040, R-011), the order the header documents: the
   // capability gate, then the one-based index the instruction takes, then
   // the sequence comparison that closes the window, and the kernel offset
-  // and counter width applied last.
+  // and counter width applied last. Every arm that publishes no count
+  // writes a zero, so no value read before the sequence moved survives
+  // into the point the caller folds (FR-002, FR-003).
   if ((capability & 1U) == 0) {
+    value = 0;
     return fast_read_verdict::not_allowed;
   }
   if (!fast_index_valid(index)) {
+    value = 0;
     return fast_read_verdict::not_allowed;
   }
   if (!fast_pair_stable(sequence_before, sequence_after)) {
+    value = 0;
     return fast_read_verdict::unstable;
   }
-  const auto adjusted =
-      static_cast<std::uint64_t>(static_cast<std::int64_t>(raw) + offset);
-  value = adjusted & ((1ULL << width) - 1ULL);
+  // The recipe the kernel's own interface header documents: sign extend
+  // the instruction result from the published `pmc_width` bits, then add
+  // the page's offset. No mask follows the addition, so a cumulative
+  // count past the published counter width stays a cumulative count: the
+  // kernel holds the bits above the width in the offset, and masking the
+  // sum drops them (FR-004).
+  const auto sign_extended =
+      static_cast<std::int64_t>(raw << (64U - width)) >> (64U - width);
+  value = static_cast<std::uint64_t>(sign_extended + offset);
+  SG_ENSURE(value == static_cast<std::uint64_t>(sign_extended + offset),
+            "an ok verdict leaves the offset plus the sign-extended "
+            "instruction value (FR-004)");
   return fast_read_verdict::ok;
 }
 
@@ -242,6 +263,7 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   // here, and the host that grants it fills one on every granted call.
   auto context = std::make_unique<fast_context>();
   context->owner = std::this_thread::get_id();
+  context->pinned_cpu = where.kind == target_kind::cpu ? where.cpu : -1;
   context->fd = static_cast<int>(fd);
   context->map_length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
   // LCOV_EXCL_STOP
@@ -286,6 +308,14 @@ auto fast_context_read(const fast_context& context,
   SG_REQUIRE(std::this_thread::get_id() == context.owner,
              "a mapped-page read runs on the thread that opened its "
              "context (FR-031, FR-040)");
+  // The cpu-target pinning precondition, semantic-gated: a release build
+  // configured `ignore` emits no check, and the per-sample cost stays
+  // where FR-008 holds it. A thread-bound plan pins nothing and the
+  // second conjunct is a compile-time-known-true compare against -1.
+  SG_REQUIRE(fast_pinning_ok(context.pinned_cpu, ::sched_getcpu()),
+             "a cpu-target fast-mode plan requires its sampling thread to "
+             "run on the processor this plan opened its contexts on "
+             "(FR-045)");
   const auto* page = static_cast<const event_page*>(context.map);
   // The protocol the header publishes, in its order: snapshot the
   // sequence, take the payload and the instruction, compare the sequence
@@ -326,6 +356,10 @@ auto fast_context_time_pair(const fast_context& context,
   SG_REQUIRE(std::this_thread::get_id() == context.owner,
              "the enabled/running pair is read on the thread that opened "
              "its context (FR-031, FR-040)");
+  SG_REQUIRE(fast_pinning_ok(context.pinned_cpu, ::sched_getcpu()),
+             "a cpu-target fast-mode plan requires its sampling thread to "
+             "run on the processor this plan opened its contexts on "
+             "(FR-045)");
   const auto* page = static_cast<const event_page*>(context.map);
   // The pair is payload of the same user-page update the counter value
   // rides, so it is read under the same seqlock snapshot (FR-041, R-011).
@@ -350,27 +384,20 @@ auto fast_context_time_pair(const fast_context& context,
 
 void fast_context_close(fast_context& context)
 {
-  // LCOV_EXCL_BR_START : coverage exclusion (T140): both release arms. Each
-  // one releases what a granted `perf_event_open` handed back, so a runner
-  // whose `perf_event_open` is refused reaches neither, and the host that
-  // grants it releases the mapping and the descriptor on every close of a
-  // granted context. The owning-nothing close runs on any host, through
-  // `context_open_refusal_scenario` in
-  // `test/source/counters_linux_pmu_seam_test.cpp`.
-  if (context.map != nullptr) {  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_START : coverage exclusion (T140): the unmap arm.
+  // Both arms run on any host. `fast_context_lifetime_scenario` in
+  // `test/source/counters_linux_pmu_seam_test.cpp` reaches them through
+  // `~fast_context` with a descriptor and an anonymous mapping the test
+  // opened itself, so no marker over this release stands and the coverage
+  // gate measures it (T074, FR-027, FR-046).
+  if (context.map != nullptr) {
     ::munmap(context.map, context.map_length);
     context.map = nullptr;
     context.map_length = 0;
-    // LCOV_EXCL_STOP
   }
-  if (context.fd >= 0) {  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_START : coverage exclusion (T140): the close arm.
+  if (context.fd >= 0) {
     ::close(context.fd);
     context.fd = -1;
-    // LCOV_EXCL_STOP
   }
-  // LCOV_EXCL_BR_STOP
 }
 
 #endif  // SG_PMU_FAST_X86

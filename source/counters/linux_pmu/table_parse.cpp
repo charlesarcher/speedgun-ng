@@ -35,6 +35,7 @@
 #  include <map>
 #  include <mutex>
 #  include <regex>
+#  include <sstream>
 #  include <string>
 #  include <string_view>
 #  include <utility>
@@ -44,6 +45,7 @@
 #  include <simdjson.h>
 
 #  include "../detail/pmu.hpp"
+#  include "embedded_tables.hpp"
 
 namespace sg::counters::detail
 {
@@ -141,6 +143,48 @@ auto parse_scalar(simdjson::dom::element value, std::uint64_t& out) -> bool
   return true;
 }
 
+// The sampling and metadata keys. One names a sampling period, the others
+// name a scope label or an upstream annotation, and none of them names a
+// kernel format, so none carries an encoding obligation (FR-016). They are
+// dropped here, before the row reaches the encoder, because recording them
+// as fields would demand a format the device does not publish and turn
+// every Intel row into `not_encodable`.
+auto carries_no_obligation(const std::string_view key) noexcept -> bool
+{
+  constexpr std::string_view kNoObligation[] = {"SampleAfterValue",
+                                                "MSRValue",
+                                                "MSRIndex",
+                                                "PEBS",
+                                                "Data_LA",
+                                                "PerPkg",
+                                                "Experimental"};
+  return std::ranges::find(kNoObligation, std::end(kNoObligation), key)
+      != std::end(kNoObligation);
+}
+
+// The kernel format a table key names. The kernel publishes `cmask`,
+// `inv`, `edge`, and `offcore_rsp`; the vendored tables spell the same four
+// keys `CounterMask`, `Invert`, `EdgeDetect`, and `OffcoreRsp`. The field
+// is recorded under the kernel spelling, so the encoder resolves the row's
+// key against a format the device publishes, and the recorded name
+// is never the table key (FR-017).
+auto kernel_spelling(const std::string_view key) noexcept -> std::string_view
+{
+  if (key == "CounterMask") {
+    return "cmask";
+  }
+  if (key == "Invert") {
+    return "inv";
+  }
+  if (key == "EdgeDetect") {
+    return "edge";
+  }
+  if (key == "OffcoreRsp") {
+    return "offcore_rsp";
+  }
+  return {};
+}
+
 void add_entry(std::vector<pmu_table_entry>& table,
                std::string_view name,
                simdjson::dom::object attributes)
@@ -173,9 +217,17 @@ void add_entry(std::vector<pmu_table_entry>& table,
                || key == "Unit")
     {
       // Descriptive keys carry no config semantic.
+    } else if (carries_no_obligation(key)) {
+      // Dropped above the encoder: it names no published format.
+    } else if (const auto kernel = kernel_spelling(key);
+               !kernel.empty() && parse_scalar(value, number))
+    {
+      entry.fields.emplace_back(std::string(kernel), number);
     } else if (parse_scalar(value, number)) {
-      // Any other integer-valued key names a format field
-      // directly (e.g. "CounterMask", "Edge").
+      // Any other integer-valued key is recorded under its own name, and
+      // the encoder admits it only where the device publishes a format of
+      // that name. A row needing a field the device does not publish
+      // resolves to nothing and publishes `not_encodable` (FR-018).
       entry.fields.emplace_back(key, number);
     }
   }
@@ -205,20 +257,16 @@ void add_entry(std::vector<pmu_table_entry>& table,
   table.push_back(std::move(entry));
 }
 
-void parse_json_file(const std::filesystem::path& path,
-                     std::vector<pmu_table_entry>& table)
+// The walk both loaders share: padded JSON bytes in, entries out. A
+// document that fails to parse contributes nothing and total failure
+// surfaces as an empty table (seam contract). No exceptions: every
+// simdjson error becomes a skip.
+void parse_padded(const simdjson::padded_string& loaded,
+                  std::vector<pmu_table_entry>& table)
 {
-  // A file that fails to parse is skipped silently; total failure
-  // surfaces as an empty table (seam contract). No exceptions: every
-  // simdjson error becomes a skip, the padded read included.
-  auto loaded = simdjson::padded_string::load(path.string());
-  if (loaded.error() != simdjson::SUCCESS) {
-    return;
-  }
-
   simdjson::dom::parser dom;
   simdjson::dom::element root;
-  if (dom.parse(loaded.value_unsafe()).get(root) != simdjson::SUCCESS) {
+  if (dom.parse(loaded).get(root) != simdjson::SUCCESS) {
     return;
   }
   // Kernel tables appear in two shapes: an array of objects each
@@ -248,6 +296,25 @@ void parse_json_file(const std::filesystem::path& path,
       }
     }
   }
+}
+
+void parse_json_file(const std::filesystem::path& path,
+                     std::vector<pmu_table_entry>& table)
+{
+  auto loaded = simdjson::padded_string::load(path.string());
+  if (loaded.error() != simdjson::SUCCESS) {
+    return;
+  }
+  parse_padded(loaded.value_unsafe(), table);
+}
+
+// The vendored tables reach the parser as bytes the library already owns
+// (FR-036). The padded copy is what simdjson requires and what the file
+// loader gets from the file system, so the walk cannot tell them apart.
+void parse_json_bytes(std::string_view bytes,
+                      std::vector<pmu_table_entry>& table)
+{
+  parse_padded(simdjson::padded_string{bytes}, table);
 }
 
 }  // namespace
@@ -388,11 +455,10 @@ auto pmu_select_directory(std::istream& mapfile,
 
 auto pmu_select_directory(const pmu_ident& id) -> std::string
 {
-#  ifdef SG_PMU_EVENTS_DIR
   static std::mutex cache_mutex;
   static std::map<std::string, std::string> cache;
-  // The mapfile lives at arch/x86/mapfile.csv beside the vendored
-  // tables (FR-038).
+  // The mapfile is compiled into the library as arch/x86's single file,
+  // so selecting a directory reads no path (FR-036).
   const std::string key = mapfile_key(id);
 
   const std::scoped_lock lock(cache_mutex);
@@ -400,21 +466,19 @@ auto pmu_select_directory(const pmu_ident& id) -> std::string
     return cached->second;
   }
 
-  std::ifstream mapfile(std::string(SG_PMU_EVENTS_DIR)
-                        + "/arch/x86/mapfile.csv");
-  const std::string selected = pmu_select_directory(mapfile, id);
+  std::string selected;
+  if (const embedded_dir* dir = embedded_find_dir("arch/x86")) {
+    std::istringstream mapfile{
+        std::string{embedded_file_bytes(*dir, "mapfile.csv")}};
+    selected = pmu_select_directory(mapfile, id);
+  }
   cache.emplace(key, selected);
   return selected;
-#  else
-  static_cast<void>(id);
-  return {};
-#  endif
 }
 
 auto pmu_load_table(const std::string& directory)
     -> const std::vector<pmu_table_entry>&
 {
-#  ifdef SG_PMU_EVENTS_DIR
   // Once-per-directory lazy cache (FR-038).
   static std::mutex cache_mutex;
   static std::map<std::string, std::vector<pmu_table_entry>> cache;
@@ -425,41 +489,20 @@ auto pmu_load_table(const std::string& directory)
   }
 
   std::vector<pmu_table_entry> table;
-  std::vector<std::filesystem::path> files;
-  const std::filesystem::path dir =
-      std::string(SG_PMU_EVENTS_DIR) + '/' + directory;
-  // Missing or unreadable directory: no files, empty table (seam
-  // contract); the throwing iterator would be an exception.
-  std::error_code code;
-  const std::filesystem::directory_iterator end;
-  for (auto it = std::filesystem::directory_iterator(
-           dir,
-           std::filesystem::directory_options::skip_permission_denied,
-           code);
-       it != end;
-       it.increment(code))
-  {
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): the filter rejects a
-    // vendored directory entry that is not a regular `.json` file. The pinned
-    // tree at `external/pmu-events/RECORD` holds only regular `.json` files
-    // and the tree is byte-exact data, so no fixture can add one.
-    if (it->is_regular_file(code)  // LCOV_EXCL_BR_LINE
-        && it->path().extension() == ".json")
-    {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_BR_STOP
-      files.push_back(it->path());
+  // A directory arrives with a trailing separator and the registry names
+  // it without one (FR-036).
+  std::string_view key{directory};
+  if (key.ends_with('/')) {
+    key.remove_suffix(1);
+  }
+  // A directory the library holds no bytes for parses nothing, which is
+  // the seam contract: no files, empty table.
+  if (const embedded_dir* dir = embedded_find_dir(key)) {
+    for (std::size_t i = 0; i < dir->file_count; ++i) {
+      parse_json_bytes(embedded_file_bytes(*dir, dir->files[i].name), table);
     }
   }
-  std::ranges::sort(files);
-  for (const auto& file : files) {
-    parse_json_file(file, table);
-  }
   return cache.emplace(directory, std::move(table)).first->second;
-#  else
-  static const std::vector<pmu_table_entry> empty;
-  static_cast<void>(directory);
-  return empty;
-#  endif
 }
 
 void pmu_parse_table_file(const std::string_view path,

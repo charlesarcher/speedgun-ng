@@ -14,11 +14,14 @@
 // scripts.
 // ============================================================================
 
+#include <atomic>
 #include <bit>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <string>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -209,13 +212,199 @@ auto test_wrap_through_recorder() -> void
         "the post-wrap interval folds plainly (FR-013)");
 }
 
+// The disclosure column beside each count. A measured action carries the
+// entry's own countability value, an action that measured nothing carries
+// `availability::gap` beside a zero count, and a measured zero carries the
+// entry's value beside it, so a caller tells the two apart (FR-007).
+auto test_disclosure_column() -> void
+{
+  const auto core = core_object();
+  const auto cycles = *core.counter<events>("cyc3");
+  const auto instructions = *core.counter<events>("ins3");
+  const auto ipc = instructions / cycles;
+  auto compiled = compile(system::local(), ipc);
+  if (!compiled.has_value()) {
+    fail("the disclosure plan compiles");
+  }
+  auto rec = compiled->recorder(4);
+  for (int i = 0; i < 3; ++i) {
+    rec.sample();
+  }
+  const auto view = rec.view();
+  // The counts are read through the raw view, which resolves each leaf by
+  // its canonical address, so the assertion does not depend on the order
+  // the compile laid the leaves out in. The disclosure is the managed
+  // column past the last leaf, which is the one the sampling action writes
+  // last (FR-007).
+  const auto cycles_view = ipc.raw(rec.view(), "package-1/core-3", "cyc3");
+  const auto instructions_view =
+      ipc.raw(rec.view(), "package-1/core-3", "ins3");
+  if (!cycles_view.has_value() || !instructions_view.has_value()) {
+    fail("the recorded row exposes both retained columns (FR-020)");
+  }
+  const std::size_t disclosure_column = 2;
+  const auto disclosure = [&view](const std::size_t row) -> std::uint64_t
+  { return view.columns[disclosure_column * view.stride + row]; };
+  const auto gap = static_cast<std::uint64_t>(sg::counters::availability::gap);
+  const auto countable =
+      static_cast<std::uint64_t>(sg::counters::availability::countable);
+
+  check(disclosure(0) == countable && cycles_view->points[0] == 0
+            && instructions_view->points[0] == 0,
+        "a measured zero carries the entry's own countability value beside "
+        "it (FR-007)");
+  check(disclosure(1) == gap && cycles_view->points[1] == 0
+            && instructions_view->points[1] == 0,
+        "an action that measured nothing carries availability::gap beside a "
+        "zero count (FR-007)");
+  check(disclosure(2) == countable && cycles_view->points[2] == 100
+            && instructions_view->points[2] == 400,
+        "a measured action carries the countability value beside its counts "
+        "(FR-007)");
+
+  // The ratio over the gap is reported as no measured fraction, because
+  // the disclosure marks the action as one that measured nothing (FR-005).
+  const auto over_gap = ipc.fold(rec.view(), 0, 1);
+  check(same_double(over_gap.running_ratio, 1.0),
+        "a fold across an action the disclosure marks as a gap discloses no "
+        "measured multiplex ratio (FR-005)");
+}
+
+// One sampling action is noexcept and writes no shared state. No recorded
+// timing constant decides either, so the assertion reaches the same verdict
+// on a CI runner and on a developer's machine (FR-008, Constitution VI).
+// The allocation half of the same obligation is proven where the counting
+// operator new lives, in `counters_noalloc_test`, which owns that
+// translation unit; a second replacement here would pair a `delete` against
+// the replaced `new` and fail the release build's mismatched-allocation
+// check.
+auto test_sampling_action_properties() -> void
+{
+  const auto sc = ipc_scenario("cyc0", "ins0");
+  auto rec = sc.compiled.recorder(4);
+  static_assert(noexcept(rec.sample()),
+                "one sampling action is noexcept (FR-008)");
+  rec.sample();
+  rec.sample();
+
+  // The action reaches the compiled layout through a const plan, so it
+  // writes no state any other action or thread reads: a lock would need a
+  // mutable member to take, and the layout holds none.
+  const auto& readonly = sc.compiled;
+  auto second = readonly.recorder(2);
+  second.sample();
+  check(second.count() == 1,
+        "a sampling action writes only the recorder it was handed, so the "
+        "compiled plan carries no lock the action takes (FR-008)");
+}
+
+// Catalog resolution and plan compile are safe from any number of threads
+// at once once the catalog is open. Every thread here resolves, walks, and
+// compiles at the same time, and the thread sanitizer is what decides the
+// result: the assertions check the values a caller reads, and the run
+// reports no race (FR-010, FR-011).
+auto test_concurrent_resolution() -> void
+{
+  constexpr int thread_count = 8;
+  constexpr int rounds = 32;
+  std::atomic<int> failures {0};
+  std::atomic<int> compiles {0};
+
+  const auto resolve_and_compile = [&failures, &compiles](const int index)
+  {
+    for (int round = 0; round < rounds; ++round) {
+      // The same canonical address from every thread, and a second
+      // address beside it, so the handle map sees one key contended and
+      // one key per thread.
+      const auto core = system::local().object("package-1/core-3");
+      const auto machine = system::local().object("machine");
+      if (!core.has_value() || !machine.has_value()) {
+        ++failures;
+        return;
+      }
+      // Each thread samples its own scripted leaves. A leaf's script is
+      // per leaf, so two threads sharing one would race in the fixture
+      // and hide the library races this test exists to find.
+      const std::string cycles_name = "ccy" + std::to_string(index);
+      const std::string instr_name = "cci" + std::to_string(index);
+      const auto cycles = core->counter<events>(cycles_name);
+      const auto instructions = core->counter<events>(instr_name);
+      if (!cycles.has_value() || !instructions.has_value()) {
+        ++failures;
+        return;
+      }
+      const auto compiled = compile(system::local(), *instructions / *cycles);
+      if (!compiled.has_value()) {
+        ++failures;
+        return;
+      }
+      ++compiles;
+      auto rec = compiled->recorder(2);
+      rec.sample();
+      // A plan binds to the thread that compiled it, so the read below
+      // runs on this thread, which is where it belongs (FR-031).
+      if (rec.count() != 1) {
+        ++failures;
+      }
+      // Walking a parent and its children resolves further handles, so
+      // every thread writes the handle map beside the others.
+      const sg::counters::object* parent = core->parent();
+      if (parent == nullptr || parent->children().empty()) {
+        ++failures;
+      }
+    }
+  };
+
+  const auto walk_tree = [&failures]()
+  {
+    for (int round = 0; round < rounds; ++round) {
+      const auto leaf = system::local().object("package-1/core-3");
+      const auto package = system::local().object("package-1");
+      if (!leaf.has_value() || !package.has_value()) {
+        ++failures;
+        return;
+      }
+      // The leaf walks up to its package, and the package walks down to
+      // its children. Both directions resolve through the handle map, so
+      // the walk contends it beside the other threads' resolutions.
+      if (leaf->parent() == nullptr || package->children().empty()
+          || leaf->counters().empty())
+      {
+        ++failures;
+        return;
+      }
+    }
+  };
+
+  std::vector<std::thread> workers;
+  workers.reserve(thread_count + 1);
+  for (int index = 0; index < thread_count; ++index) {
+    workers.emplace_back(resolve_and_compile, index);
+  }
+  workers.emplace_back(walk_tree);
+  for (auto& worker : workers) {
+    worker.join();
+  }
+
+  check(failures.load() == 0,
+        "concurrent resolution and concurrent plan compile both succeed on "
+        "every thread (FR-010, FR-011)");
+  check(compiles.load() == thread_count * rounds,
+        "every thread compiled its own plan while the others compiled and "
+        "resolved beside it (FR-011)");
+}
+
 auto register_everything() -> void
 {
   auto provider = std::make_unique<fake_provider>();
+  // The package node exists so `package-1/core-3` has a parent to walk to,
+  // which is what puts the handle map behind a parent lookup and a direct
+  // resolution (FR-010).
+  provider->add_object("package-1", "pkg", "package", "first package");
   provider->add_object("package-1/core-3", "cpu3", "core", "third core");
   // One leaf pair per sampling scenario, and no pair beyond them: a
   // registered leaf nothing samples is dead fixture weight.
-  for (int scenario = 0; scenario < 3; ++scenario) {
+  for (int scenario = 0; scenario < 4; ++scenario) {
     const char cycles_name[] = {'c', 'y', 'c', char('0' + scenario), '\0'};
     const char instr_name[] = {'i', 'n', 's', char('0' + scenario), '\0'};
     provider->add_counter(
@@ -226,6 +415,26 @@ auto register_everything() -> void
         "package-1/core-3", cycles_name, {100, 300, 600, 1000, 1500}, 0);
     provider->set_points(
         "package-1/core-3", instr_name, {1000, 3100, 5200, 7300, 9500}, 0);
+  }
+  // The disclosure scenario: action one measures a zero, action two
+  // measures nothing at all, and action three measures a real count.
+  // A gap does not advance the script, so the sequence holds the measured
+  // zero first and the measured count after the gap.
+  provider->set_points("package-1/core-3", "cyc3", {0, 100}, 0);
+  provider->set_points("package-1/core-3", "ins3", {0, 400}, 0);
+  provider->set_gap_actions("package-1/core-3", "cyc3", {2});
+  provider->set_gap_actions("package-1/core-3", "ins3", {2});
+  // One dedicated leaf pair per thread for the concurrency test, which
+  // runs first and must not consume the scripts above.
+  for (int scenario = 0; scenario < 8; ++scenario) {
+    const char cycles_name[] = {'c', 'c', 'y', char('0' + scenario), '\0'};
+    const char instr_name[] = {'c', 'c', 'i', char('0' + scenario), '\0'};
+    provider->add_counter(
+        "package-1/core-3", cycles_name, "ops", "concurrent cycles");
+    provider->add_counter(
+        "package-1/core-3", instr_name, "ops", "concurrent instructions");
+    provider->set_points("package-1/core-3", cycles_name, {100, 300, 600}, 0);
+    provider->set_points("package-1/core-3", instr_name, {1000, 3100, 5200}, 0);
   }
   provider->add_counter("machine", "wrap", "ops", "counter that wraps");
   provider->set_points("machine", "wrap", {wrap_base, 5, 20, 40}, 0);
@@ -263,12 +472,15 @@ auto test_self_move_assignment() -> void
 auto main() -> int
 {
   register_everything();
+  test_concurrent_resolution();
   test_hard_stop_extent();
   test_ring_overflow();
   test_ring_capacity_guard();
   test_independent_cursors();
   test_wrap_through_recorder();
   test_self_move_assignment();
+  test_disclosure_column();
+  test_sampling_action_properties();
   std::printf("counters recorder tests passed\n");
   return 0;
 }

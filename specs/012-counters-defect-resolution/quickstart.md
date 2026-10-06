@@ -176,18 +176,60 @@ read per leader per action. The second is the clock-leaf plan over
 
 | Plan | Pre-fix median at `6aafd2d` | Post-fix median | Run method |
 | --- | --- | --- | --- |
-| core PMU group | 60.0 ns (min 50.0, max 60.0) | measured, recorded here | release preset, pinned processor, 64 x 1000 actions, median |
-| clock leaf `machine/monotonic` | 30.0 ns (min 30.0, max 40.0) | measured, recorded here | same |
+| core PMU group | 70.0 ns (min 70.0, max 80.0) | 80.0 ns (min 70.0, max 90.0) | release preset, pinned processor, 64 x 1000 actions, median, both trees measured in one session |
+| clock leaf `machine/monotonic` | 40.0 ns (min 40.0, max 50.0) | 40.0 ns (min 40.0, max 60.0) | same |
 
-The pre-fix figures were measured in a separate worktree at `6aafd2d`,
-built with `cmake --preset=ci-ubuntu` on an AMD Ryzen 9 9950X3D, and read
-from `./build/test/counters_overhead`, which prints the core PMU group
-line `pmu group, fast_rdpmc` and the clock line `clock, syscall
-(vDSO)`. T019 measures the post-fix figure in this working tree under the
-identical command, so the two are comparable.
+**The bound holds for one gated plan and fails for the other.** The
+clock leaf is unchanged at 40.0 ns, inside the 5 percent bound. The core
+PMU group rose from 70.0 ns to 80.0 ns, which is 14.3 percent and outside
+the bound. FR-008 is therefore **not** met for the core PMU group plan,
+and the finding is recorded as measured: the disclosure
+column FR-007 adds is one managed-column write per sampling action, and
+the group plan performs two member reads per action, so the added store
+lands on the plan that was already the more expensive of the two. T057
+re-measures this figure, and the regression needs its own correction
+before the feature merges.
+
+**Why both figures were measured in one session.** T001 first measured
+the pre-fix head in a separate worktree hours before T019, and recorded
+60.0 ns and 30.0 ns. Re-measuring the pre-fix head in the same session as
+the post-fix build gives 70.0 ns and 40.0 ns: the host runs about 10 ns
+per sampling action slower now than it did then, on *both* plans,
+including the clock-leaf plan, whose code path shares nothing with the
+PMU decode or the disclosure column. An hours-old baseline is therefore
+not comparable to a fresh one, and the drift-free pair above is the pair
+the bound is judged on. Both medians quantize to a 10 ns tick, so the
+14.3 percent figure carries one tick of resolution.
+
+The figures come from `./build/test/counters_overhead` in the release
+preset `cmake --preset=ci-ubuntu`, on an AMD Ryzen 9 9950X3D, reading the
+lines `pmu group, fast_rdpmc` and `clock, syscall (vDSO)`. The pre-fix
+tree is a separate worktree at `6aafd2d` built with the same preset.
 
 The measurement covers the disclosure column FR-007 adds, because the
 disclosure is written on every sampling action of both plans.
+
+### The cpu-target pinning precondition under `ignore`
+
+FR-045's precondition is a semantic-gated `SG_REQUIRE`, so a build
+configured `ignore` must emit no check for it, exactly as it emits none
+for any other gated site. The `consumer-release` job proves that over the
+release archive, and the same proof was run locally over an
+`ci-linux-ignore` tree:
+
+```sh
+cmake --preset=ci-linux-ignore -B build/v-rel-ign -D CMAKE_BUILD_TYPE=Release
+cmake --build build/v-rel-ign
+nm -C build/v-rel-ign/libspeedgun-ng.a > /tmp/ign-nm.txt
+grep -F 'sg::dbc::check_' /tmp/ign-nm.txt   # must print nothing
+```
+
+**Confirmed.** The archive carries no `sg::dbc::check_` symbol, so the
+gated precondition emitted no code, while `fast_pinning_ok` itself is
+present because the pure predicate is always compiled. The archive was
+checked to be newer than every library source it was built from, so the
+result describes the current tree and not a stale archive.
+`ctest --test-dir build/dev -R counters_trap_checked` passes alongside it.
 
 ## Step 9: overhead floor and clock order
 
@@ -230,13 +272,21 @@ consumer of the installed package carries.
 
 | Artifact | Before embedding | After embedding | Delta |
 | --- | --- | --- | --- |
-| `libspeedgun-ng.a` | text 1934386, data 9104, bss 4630, total 1948120 bytes | measured | measured |
-| linked consumer executable | text 4058, data 704, bss 65, total 4827 bytes | measured | measured |
+| `libspeedgun-ng.a` | text 1934386, data 9104, bss 4630, total 1948120 bytes | text 26542701, data 24024, bss 4630, total 26571355 bytes | +24623235 bytes |
+| linked consumer executable | text 4058, data 704, bss 65, total 4827 bytes | text 25280551, data 21880, bss 1137, total 25303568 bytes | +25298741 bytes |
 
 The before-embedding figures were measured in the separate worktree at
 `6aafd2d`, built with `cmake --preset=ci-ubuntu`, installed into a scratch
 prefix, and read with `size`. T045 measures the after-embedding figure on
 the same host under the identical commands.
+
+The after-embedding archive grows by 24623235 bytes, which is the
+vendored tree's 24588149 bytes of JSON plus the index that names each
+file. The cost is paid once in the archive and reaches every consumer
+that links it, and it buys a package that publishes its counters with no
+source tree beside it. The `bss` figure is unchanged at 4630 bytes: the
+tables are static data, not common symbols, so nothing moved out of
+`bss`.
 
 Proves SC-012.
 
@@ -253,6 +303,37 @@ cmake --build build/coverage -j 2
 ctest --test-dir build/coverage --output-on-failure
 cmake --build build/coverage -t coverage
 ```
+
+**Coverage note.** The coverage build and its 45 tests pass. The gate
+itself then stops inside lcov, which errors on its own instrumentation:
+`Unexpected negative taken count '-40202' for branch 1 while capturing
+from clock_provider.cpp.gcda`. That is a tool defect, and it means the
+gate reports no verdict here, so FR-040 is unmeasured on this host rather
+than met. The `coverage-linux` preset named in this feature's commands is
+also hidden, and CMake refuses it by name; `ci-coverage` inherits it and
+configures the same tree, so that is the preset a run must use.
+
+**Sanitizer note.** `ci-sanitize` builds clean and 44 of its 45 tests
+pass, but `counters_linux_pmu_seam_test` fails there and passes in the
+dev build, on the T025 partial-open scenario: "a partial open releases
+every mapping it acquired". A standalone probe against the sanitized
+archive reproduces it and names the figure: 64 contexts acquired and
+released leave `/proc/self/maps` at 131 lines against 91 before the
+loop, so roughly forty mappings survive. The same loop in the dev build
+returns to its starting count.
+
+The gap between the two builds is unexplained and T061 stays open. The
+candidates are a release the sanitizers change and a defect the
+optimized build hides. Nothing here records which, because nothing here
+has established it. The scenario is the one T025 added, so the finding
+belongs to this feature's own test and not to a pre-existing gate.
+
+**Spell-check note.** The `spell-check` target scans the working tree,
+and it fails on `speedgun-ng-012-specify-prompt.md`, an untracked
+scratch file that captures a `/speckit.specify` prompt and is not part of
+this feature. It reports `synchronised` and `recognise`. Run over the 37
+files this feature changed, codespell exits 0 with no finding.
+The file is left unedited, because it is not this feature's to change.
 
 **Expected**: every command exits 0. The coverage gate reports 100
 percent line, 100 percent branch, and 100 percent contract coverage. The
@@ -275,8 +356,24 @@ gate the figures the corrections produce.
 
 This feature removes the calibration region at `source/counters/plan.cpp`
 (T048) and the release-arm markers at `source/counters/linux_pmu/fast_read.cpp`
-(T074), and adds none. The figure beside the baseline therefore accounts
-for both removals.
+(T074), and adds none.
+
+**Measured after both removals: 371 lines.** Per file:
+`linux_pmu/group_io.cpp` 89, `linux_pmu/provider.cpp` 119, `plan.cpp` 39,
+`linux_pmu/fast_read.cpp` 31, `system.cpp` 23, `clock_provider.cpp` 22,
+`linux_pmu/encode.cpp` 17, `linux_pmu/table_parse.cpp` 17, `fold.cpp` 10,
+`detail/pmu.hpp` 4.
+
+`plan.cpp` fell from 41 to 39, which is the calibration region T048
+retires: a registered test now reaches the calibration on any host.
+`fast_read.cpp` fell from 39 to 31, which is the release-arm region T074
+retires: the lifecycle test reaches it with resources it opened itself.
+`provider.cpp` fell from 122 to 119, which is the per-target probe T038
+replaced: the extracted selection now decides the mode, and the markers
+over the old ternary went with it. `group_io.cpp` rose from 82 to 89
+because the disclosure column, the retry verdict, and the extracted pair
+decision each carry a marker over a path only a granted
+`perf_event_open` reaches.
 
 **clang-tidy warnings** per translation unit, from the `ci-ubuntu` build
 at `6aafd2d`, which runs clang-tidy over every unit:
@@ -291,7 +388,34 @@ at `6aafd2d`, which runs clang-tidy over every unit:
 | `source/counters/linux_pmu/fast_read.cpp` | 17 |
 | `source/counters/linux_pmu/group_io.cpp` | 59 |
 
-T057 confirms no unit's count rises.
+T057 **fails**, and the feature cannot merge until that is corrected. Every
+translation unit this feature touched reports more clang-tidy warnings
+than it did at `6aafd2d`:
+
+| Translation unit | Pre-fix | Now | Delta |
+| --- | --- | --- | --- |
+| `source/counters/plan.cpp` | 49 | 62 | +13 |
+| `source/counters/linux_pmu/table_parse.cpp` | 68 | 75 | +7 |
+| `source/counters/linux_pmu/group_io.cpp` | 59 | 64 | +5 |
+| `source/counters/fold.cpp` | 43 | 46 | +3 |
+| `source/counters/linux_pmu/fast_read.cpp` | 17 | 19 | +2 |
+| `source/counters/system.cpp` | 48 | 49 | +1 |
+| `source/counters/linux_pmu/provider.cpp` | 33 | 34 | +1 |
+
+Both columns come from a `ci-ubuntu` build, which runs clang-tidy over
+every unit, and each unit was fully re-checked on both sides, so the two
+columns are comparable. FR-041 requires that no unit's count rise, and
+every one rises, so the gate is not met.
+
+The counts by check, across the seven units, are 57
+`cppcoreguidelines-pro-bounds-avoid-unchecked-container-access`, 45
+`llvm-prefer-static-over-anonymous-namespace`, 38
+`readability-trailing-comma`, 35 `misc-include-cleaner`, 22
+`readability-identifier-length`, 17
+`cppcoreguidelines-pro-bounds-pointer-arithmetic`, and 13
+`readability-math-missing-parentheses`, with smaller counts for the
+remainder. The correction for each is a mechanical pass over the lines
+this feature added, and it is not done.
 
 ## Step 12: traceable record
 

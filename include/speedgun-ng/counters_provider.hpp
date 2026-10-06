@@ -127,10 +127,22 @@ public:
  * stable order; `read_points` yields one point per address in exactly
  * this order (C-PRO-2).
  *
+ * `disclosure_column` names the managed column the sampling action writes
+ * last, beside the counts and the ratio pair's two columns, and it is the
+ * column no leaf address resolves to. The request that owns the plan's
+ * last group carries it; every earlier request carries
+ * `no_disclosure_column`, because a window writes the column once per
+ * action (FR-007).
+ *
  */
 struct leaf_set
 {
+  /// @brief No request writes the disclosure column (FR-007).
+  static constexpr std::size_t no_disclosure_column =
+      static_cast<std::size_t>(-1);
+
   std::vector<std::string> addresses;
+  std::size_t disclosure_column = no_disclosure_column;
 };
 
 /**
