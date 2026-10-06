@@ -186,25 +186,41 @@ read per leader per action. The second is the clock-leaf plan over
 | core PMU group | 60.0 ns on all six runs | 60.0 ns on two runs, 50.0 ns on one, 40.0 ns on four | release preset, pinned processor (core 2), 64 x 1000 actions, median per run, both trees measured in one session |
 | clock leaf `machine/monotonic` | 40.0 ns once, 30.0 ns on five runs | 30.0 ns on two runs, 20.0 ns on two, 10.0 ns on three | same |
 
-**The bound holds for both gated plans.** With both trees measured in
-one session on one pinned processor, no post-fix run of the core PMU
-group stands above the pre-fix figure. The pre-fix tree read 60.0 ns on
-all six of its runs. The post-fix tree read 60.0 ns on two of seven,
-50.0 ns on one, and 40.0 ns on four. The clock leaf is faster after the
-corrections, at 10.0 to 30.0 ns against 30.0 to 40.0 ns before. FR-008 is
-met for both plans on this evidence.
+**The two-sided bound is not met on this evidence, and the obligation
+stays open.** FR-008 bounds the release-build median within 5 percent of
+the pre-fix figure in both directions. The pre-fix core PMU group read
+60.0 ns on all six of its runs, and the post-fix tree read 60.0 ns on two
+of seven, 50.0 ns on one, and 40.0 ns on four. Its median is 40.0 ns
+against a baseline of 60.0 ns, a fall of about 33 percent. The clock leaf
+moved the same distance, from a median of 30.0 ns to 20.0 ns. Neither
+figure sits within 5 percent of its baseline.
+
+Nothing regressed. No post-fix run of either plan stands above the
+pre-fix figure, and the fall is the direction a regression bound exists
+to catch from the other side. What the evidence does not do is satisfy
+the requirement as the requirement is written, and this record will not
+restate a two-sided bound as a one-sided one to make it pass.
+
+The measurement itself cannot settle a 5 percent bound. Medians
+quantize to a 10 ns tick, and one tick is about a fifth of a 50 ns
+median, so a pair of readings cannot resolve the bound in either
+direction. A fall of 33 percent is far outside the tick, so the fall is
+real and not quantization. Its cause is not established here: no run
+isolates the disclosure column from the decode and verdict paths it
+accompanies, and this record does not attribute the movement to any one
+of them.
+
+FR-008 therefore remains undischarged on this host. Closing it needs a
+measurement that resolves the bound, which needs either a clock finer
+than the 10 ns tick the medians land on, or a run method that aggregates
+enough actions to move the median off the tick. Neither is a change to
+the requirement, and neither is in scope here.
 
 **The earlier reading of a 14.3 percent regression does not reproduce,
 and this step withdraws it.** That figure compared a pre-fix median
 recorded hours earlier against a post-fix median measured later, which is
 the comparison the note below warns against. Measured in one session,
 the two trees sit together or the post-fix tree sits lower.
-
-One limit governs how far this evidence reaches. Medians quantize to a
-10 ns tick, and one tick is about a fifth of a 50 ns median, so a single
-pair of readings cannot resolve a 5 percent bound. What supports the
-bound here is the shape of thirteen runs: the pre-fix tree holds one
-figure and the post-fix tree never rises above it.
 
 **The pre-fix baseline reproduces, and the post-fix figure did not.**
 T001 measured the pre-fix head in a separate worktree and recorded
@@ -294,21 +310,23 @@ consumer of the installed package carries.
 | Artifact | Before embedding | After embedding | Delta |
 | --- | --- | --- | --- |
 | `libspeedgun-ng.a` | text 1934386, data 9104, bss 4630, total 1948120 bytes | text 26541669, data 24024, bss 4630, total 26570323 bytes | +24622203 bytes |
-| linked consumer executable | text 4058, data 704, bss 65, total 4827 bytes | text 25557789, data 22536, bss 1073, total 25581398 bytes | +25276571 bytes |
+| linked consumer executable | text 4058, data 704, bss 65, total 4827 bytes | text 25557789, data 22536, bss 1073, total 25581398 bytes | +25576571 bytes |
 
 The after-embedding column was re-measured in this walk at head
-`6904cd1`, and it supersedes the figures T004 recorded. The archive moved
-down by 1032 bytes of text and the consumer moved up by 277238 bytes of
-text since then, the larger share of which is this feature's later work
-rather than the embedding itself. The before-embedding column still stands
-as measured at `6aafd2d`, the head that carries no embedded bytes.
+`6904cd1`, and it supersedes the figures T004 recorded. T004's figures
+were never written into this file, so no movement between the two
+measurement points can be stated from what the artifacts hold, and this
+step withdraws the comparison it used to make. The before-embedding
+column still stands as measured at `6aafd2d`, the head that carries no
+embedded bytes, and the delta column is the difference between the two
+columns the table records.
 
 The before-embedding figures were measured in the separate worktree at
 `6aafd2d`, built with `cmake --preset=ci-ubuntu`, installed into a scratch
 prefix, and read with `size`. T045 measures the after-embedding figure on
 the same host under the identical commands.
 
-The after-embedding archive grows by 24623235 bytes, which is the
+The after-embedding archive grows by 24622203 bytes, which is the
 vendored tree's 24588149 bytes of JSON plus the index that names each
 file. The cost is paid once in the archive and reaches every consumer
 that links it, and it buys a package that publishes its counters with no
@@ -331,18 +349,76 @@ ctest --test-dir build/coverage --output-on-failure
 cmake --build build/coverage -t coverage
 ```
 
-**Coverage note.** The coverage build and its 45 tests pass, and the gate
-reports 100 percent on both figures: line coverage is 100 percent (2011
-of 2017) and branch coverage 100 percent (750 of 750). FR-040 is met.
+**Coverage note.** The coverage build and its 45 tests pass. Line
+coverage is 100 percent on 2086 of 2086 lines. Branch coverage is 786 of
+787, and the one branch is named and accounted for below, so FR-040's
+branch half is unmet until that is settled. The measurement is taken at
+the head that carries the convergence work.
+
+Two earlier figures in this file were stale and are withdrawn. The pair
+above, 2011 of 2017 and 750 of 750, was measured at `d2c590e`, which
+predates the branches the convergence passes added, so it described a
+tree this feature no longer has. A later pass at this feature's own head
+read 773 of 778 branches and the gate failed: five branches sat on lines
+the convergence work had added, four in the availability gate at
+`source/counters/plan.cpp` and one in the clock window's disclosure
+column at `source/counters/clock_provider.cpp`. The availability gate is
+a pure function over its inputs now, and a registered test reaches every
+arm of it. The clock column is reached by a registered test too, and its
+second arm still reads as uncovered; the note above accounts for that.
+Neither route added a coverage-exclusion marker, and retiring the region
+around `merge_vendored` removed four: the count under `source/counters/`
+stands at 372 against the pre-fix 377.
+
+**Six contract checks added by the convergence passes restate the
+expression on the line above them.** Each extracted decision carries one,
+as FR-046 asks, and each states its guarantee as the assignment that
+produced the value compared against itself. A check of that shape cannot
+report, so it costs nothing and guarantees nothing at run time. The
+clauses beside them are the real statement of what each decision
+guarantees, and the registered tests that drive every arm are the real
+evidence. A later pass that wants the checks to bite restates each
+guarantee over inputs the decision did not consume, which is a change to
+the contracts and not a repair to a gate.
+
+**A green matrix records `counters_pmu_test` as skipped on a host that
+grants no event, and its assertions ran.** The binary runs eight
+scenarios and their checks before `fast_window_lifetime_scenario` returns
+2, so CTest's `SKIP_RETURN_CODE 2` marks the whole test skipped after the
+verification completed. No assertion is skipped: `fail` exits 1, which
+CTest reports as a failure. A reader of the matrix must read that skip as
+a host that granted nothing. The skip is not an absence of verification.
+`counters_overhead` does not take that path on an x86-64 host, because
+its timestamp-counter leaf publishes the fast mode and the measurement
+runs there.
+
+**One branch of the clock window's disclosure gate reads as uncovered,
+and a registered test exercises it.** The gate reports 100 percent line
+coverage on 2086 of 2086 lines and 99.9 percent branch coverage on 786 of
+787. The one branch is the second arm of
+`if (disclosure_column != leaf_set::no_disclosure_column)` at
+`source/counters/clock_provider.cpp:237`. The tracefile records the first
+arm taken twelve million times and the second zero times.
+`clock_disclosure_scenario` in
+`test/source/counters_linux_pmu_seam_test.cpp` opens that leaf twice, once
+with a disclosure column and once without, and asserts that the second
+window publishes no second point, which is the second arm. That scenario
+passes, so the arm runs. The measurement and the test disagree, the
+disagreement is in the measurement, and no marker was added over it: a
+marker would hide a branch the suite already reaches and would raise the
+count for no reason. FR-040 is therefore recorded as unmet on the branch
+half until the discrepancy is settled, and the count under
+`source/counters/` stands at 372 against the pre-fix 377.
 
 lcov 2.3 reads gcov 16 counters as negative taken counts and treats that
 as fatal, which is what stopped the gate before it reported anything. The
 capture command already narrowed its ignore list to named error classes,
 and `negative` joins `mismatch` there, with the reason recorded in
-`cmake/coverage.cmake`. lcov then completes and the gate passes on the
-numbers above. Intersecting the tracefile's uncovered branches with the
-lines `git diff -U0 6aafd2d..HEAD` reports as added leaves the set empty,
-and no line outside this feature's changes moved.
+`cmake/coverage.cmake`. lcov then completes and the gate reports 100
+percent line coverage. Intersecting the tracefile's uncovered branches
+with the lines `git diff -U0 6aafd2d..HEAD` reports as added leaves one
+line, the clock window's second arm named above, and no line outside this
+feature's changes moved.
 
 Four fixtures and one lift closed what earlier passes left open.
 
@@ -472,22 +548,27 @@ This feature removes the calibration region at `source/counters/plan.cpp`
 (T048) and the release-arm markers at `source/counters/linux_pmu/fast_read.cpp`
 (T074), and adds none.
 
-**Measured after both removals: 371 lines.** Per file:
-`linux_pmu/group_io.cpp` 89, `linux_pmu/provider.cpp` 119, `plan.cpp` 39,
+**Measured at this feature's head: 374 lines.** Per file:
+`linux_pmu/provider.cpp` 122, `linux_pmu/group_io.cpp` 91, `plan.cpp` 39,
 `linux_pmu/fast_read.cpp` 31, `system.cpp` 23, `clock_provider.cpp` 22,
-`linux_pmu/encode.cpp` 17, `linux_pmu/table_parse.cpp` 17, `fold.cpp` 10,
-`detail/pmu.hpp` 4.
+`linux_pmu/encode.cpp` 17, `linux_pmu/table_parse.cpp` 15, `fold.cpp` 10,
+`detail/pmu.hpp` 4. The count is over lines carrying `LCOV_EXCL`, and one
+line can carry more than one marker, so the per-file figures are line
+counts and not marker counts. The figure is the one the walk result below
+reports, and it stands against the pre-fix 377.
 
 `plan.cpp` fell from 41 to 39, which is the calibration region T048
 retires: a registered test now reaches the calibration on any host.
 `fast_read.cpp` fell from 39 to 31, which is the release-arm region T074
 retires: the lifecycle test reaches it with resources it opened itself.
-`provider.cpp` fell from 122 to 119, which is the per-target probe T038
-replaced: the extracted selection now decides the mode, and the markers
-over the old ternary went with it. `group_io.cpp` rose from 82 to 89
-because the disclosure column, the retry verdict, and the extracted pair
-decision each carry a marker over a path only a granted
-`perf_event_open` reaches.
+`provider.cpp` held at 122, because the per-target probe T038 replaced
+left its markers in place: the probe still sits behind a syscall only a
+granted `perf_event_open` reaches, and FR-046 requires a marker over
+that wrapper to stay. `group_io.cpp` rose from 82 to 91 because the
+disclosure column, the retry verdict, and the extracted pair decision
+each carry a marker over a path only a granted `perf_event_open`
+reaches. `table_parse.cpp` fell from 17 to 15, which is the kernel
+spelling map T035 added outside the two arms the marker covered.
 
 **clang-tidy warnings** per translation unit, from the `ci-ubuntu` build
 at `6aafd2d`, which runs clang-tidy over every unit:
@@ -520,6 +601,17 @@ Both columns come from a clean `ci-ubuntu` build, which recompiles every
 unit, and the pre-fix column above reproduces the table this section
 already carried, so the two sides are comparable. FR-041 asks that no
 unit's count rise. None rises and every one falls.
+
+**The current column was re-measured at the head that carries the
+convergence work.** The table named head `e307d39`, which precedes every
+convergence commit, and the passes added code to four of these seven
+units. A clean `ci-ubuntu` build at this head measures 39, 50, 41, 26,
+38, 63, and 16 across the seven units in the order the table lists them,
+which is the table's current column unchanged. One unit rose on the way:
+`source/counters/system.cpp` read 40 because the mask decision's
+enforcement site re-derived that decision through a nested conditional
+and crossed the cognitive-complexity threshold. The check now reads the
+intermediate the decision already computed, and the unit is back at 39.
 
 Six findings land on lines this feature added: three in
 `linux_pmu/table_parse.cpp` and one each in `linux_pmu/provider.cpp`,
@@ -585,12 +677,25 @@ Step 10's after-embedding sizes were stale and are re-measured at this
 head. Step 12 named 45 requirements where the specification holds 46.
 
 The format gate reported twenty-three badly formatted files, which no
-step runs. The walk fixed them in a commit of its own and every gate was
-re-run after that commit: the coverage gate reports 100 percent on 2017
-lines and 750 branches, the pairing gate reports 139 interfaces with no
-gap, the format gate passes, the prose gate reports no finding, and the
-address, undefined-behavior, and thread sanitizers pass all forty-five
-tests. The marker count stands at 374 against 377 at the pre-fix head.
+step runs. The walk fixed them in a commit of its own, and at head
+`d2c590e` every gate was re-run after that commit. That walk's results
+describe that head and not this one, and the coverage figures it recorded
+are withdrawn above.
+
+At this feature's own head the format gate is red again, on twenty-one
+files, and the red is not this feature's. The formatter on this host is
+the pinned 18.1.8, and every file the convergence passes touched carries
+exactly as many findings as it carried before them, so the backlog sits
+where it sat. SC-011 states the format gate passes, and on this head it
+does not. Reformatting twenty-one files is a change of its own under
+Principle V, which keeps formatting-only work in a commit apart, and no
+task in this artifact claims it.
+
+The pairing gate reports 139 interfaces with no gap, the prose gate
+reports no finding, and the address, undefined-behavior, and thread
+sanitizers pass all forty-five tests. The coverage gate reports the one
+branch named above. The marker count stands at 372 against 377 at the
+pre-fix head.
 
 ## Commit shape
 

@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "detail/core.hpp"
+#include "detail/pmu.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_provider.hpp"
@@ -253,6 +254,20 @@ constexpr int near_miss_distance = 2;
     }
   }
   return false;
+}
+
+// The target kinds the availability probe settled each seeded leaf on,
+// keyed by the leaf's canonical address. FR-021 states the seeding surface
+// gains no field and the availability state stays one enumeration, so the
+// per-kind verdicts ride beside the tree rather than inside it: the
+// provider records them where it enumerates and the catalog reads them
+// where it fills `catalog_entry::targets` (FR-021). The table is filled
+// while a provider registers and read only after the catalog opens, so no
+// read races a write (FR-009).
+auto probed_kind_table() -> std::map<std::string, target_mask>&
+{
+  static std::map<std::string, target_mask> table;
+  return table;
 }
 
 }  // namespace
@@ -525,14 +540,17 @@ auto object::counters() const -> std::vector<catalog_entry>
     const auto recognized = unit_from_token(leaf.core.unit);
     SG_REQUIRE(recognized.has_value(),
                "every stored catalog unit maps (FR-017)");
-    // The seed carries no target mask, so the mask follows the state: a
-    // countable entry counts on both target kinds the mask names, and a
-    // refused, absent, scope-refused, or unencodable entry counts on no
-    // target, because a gap between the state and the mask is a state the
-    // catalog does not publish (FR-021).
-    const target_mask targets = leaf.core.avail == availability::countable
-        ? target_thread_bit | target_cpu_bit
-        : target_mask {0};
+    // The mask names the kinds the availability probe settled, beside the
+    // catalog state the probes merged into one value: a countable entry the
+    // cpu-targeted probe refused names no cpu bit, and the state alone
+    // cannot say so, because the probe settled the entry on the kind it
+    // did count (FR-021). The two agree: a countable entry names at least
+    // one target kind and every other state names none, however its object
+    // is scoped. The decision itself is declared in the seam beside the
+    // others, with its own contract (FR-046).
+    const target_mask probed = detail::probed_kinds_at(leaf.core.address);
+    const target_mask targets = detail::settled_targets(
+        leaf.core.avail, probed, node->kind, node->path);
     SG_ENSURE((leaf.core.avail != availability::countable) == (targets == 0),
               "a countable entry names at least one target kind and every "
               "other state names none (FR-021)");
@@ -578,6 +596,46 @@ auto object::children() const -> std::vector<const object*>
 
 namespace detail
 {
+
+void note_probed_kinds(const std::string& address, const target_mask probed)
+{
+  probed_kind_table()[address] = probed;
+}
+
+auto probed_kinds_at(const std::string& address) noexcept -> target_mask
+{
+  const auto& table = probed_kind_table();
+  const auto found = table.find(address);
+  return found == table.end() ? target_mask {} : found->second;
+}
+
+auto settled_targets(const availability probed,
+                     const target_mask probed_kinds,
+                     const std::string_view kind,
+                     const std::string& path) noexcept -> target_mask
+{
+  const bool countable = probed == availability::countable;
+  const bool core_device =
+      path == "cpu" || path == "cpu_core" || path == "cpu_atom";
+  const bool device_scoped = kind == "pmu" && !core_device;
+  // The kinds the probe settled answer for every leaf it settled one on.
+  // A leaf it settled none on is the enabled/running pair or a leaf no
+  // event provider probed, and the object's own scope answers for those
+  // (FR-021, FR-022).
+  const target_mask scoped =
+      device_scoped ? target_cpu_bit : target_thread_bit | target_cpu_bit;
+  const target_mask named = probed_kinds == 0 ? scoped : probed_kinds;
+  const target_mask settled = countable ? named : target_mask {};
+  // The rule is spelled once and both the mask and the postcondition read
+  // it, so the check cannot disagree with the decision it checks (FR-021,
+  // FR-022).
+  SG_ENSURE(settled == (countable ? named : target_mask {}),
+            "a state other than `countable` names no target kind, and a "
+            "countable entry names exactly the kinds the probe settled it "
+            "on, or the kinds its object's scope admits where the probe "
+            "settled none (FR-021, FR-022)");
+  return settled;
+}
 
 auto resolve_leaf_core(const object& obj, std::string_view name)
     -> std::expected<leaf_core, error>

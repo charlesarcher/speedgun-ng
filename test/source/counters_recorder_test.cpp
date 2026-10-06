@@ -270,6 +270,31 @@ auto test_disclosure_column() -> void
   check(same_double(over_gap.running_ratio, 1.0),
         "a fold across an action the disclosure marks as a gap discloses no "
         "measured multiplex ratio (FR-005)");
+
+  // FR-006: no fold over an action the disclosure marked as a gap reports
+  // a delta from a count the read never produced. Two folds are compared
+  // rather than compared against a constant: one spans the measured action
+  // to the measured action across the gap, and one starts at the gap. The
+  // gap row carries zeros, so the two agree exactly, and any count the
+  // refused read fabricated would move one and not the other. The span's
+  // own value is then checked against the quotient of the two driven
+  // deltas, which is what the measured actions supplied (SC-002).
+  const auto over_gap_span = ipc.fold(rec.view(), 0, 2);
+  const auto from_gap = ipc.fold(rec.view(), 1, 2);
+  const auto driven_cycles = cycles_view->points[2] - cycles_view->points[0];
+  const auto driven_instructions =
+      instructions_view->points[2] - instructions_view->points[0];
+  check(same_double(from_gap.value, over_gap_span.value)
+            && same_double(from_gap.running_ratio,
+                           over_gap_span.running_ratio),
+        "a fold starting at the gap reports the same value as one spanning "
+        "it, so the refused action contributed no count to either delta "
+        "(FR-006)");
+  check(same_double(over_gap_span.value,
+                    static_cast<double>(driven_instructions)
+                        / static_cast<double>(driven_cycles)),
+        "a fold spanning the gap row reports only the delta the measured "
+        "actions drove, 400 instructions over 100 cycles (FR-006)");
 }
 
 // One sampling action is noexcept and writes no shared state. No recorded

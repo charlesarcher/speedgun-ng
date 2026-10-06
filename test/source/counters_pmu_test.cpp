@@ -214,8 +214,8 @@ auto sysfs_alias_names(const std::string& device) -> std::vector<std::string>
 }
 
 // The exact configuration text the kernel publishes for one alias.
-auto sysfs_alias_text(const std::string& device, const std::string& alias)
-    -> std::string
+auto sysfs_alias_text(const std::string& device,
+                      const std::string& alias) -> std::string
 {
   std::ifstream file(std::filesystem::path(kDevicesRoot) / device / "events"
                      / alias);
@@ -253,11 +253,17 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
       check(!entry.description.empty(),
             "every pmu catalog entry is described (FR-037)");
       // Scenario 3's closed-state assertion travels here: the probe
-      // pipeline only ever reports one of these three states; absent
-      // objects are never seeded (FR-039).
+      // pipeline reports one of the three states a test-open answers with,
+      // and the fourth state a device-scoped device settles its entries on
+      // when its cpu probe refuses too. `probe_device` publishes that state
+      // rather than the cpu verdict for a kind the device's own scope
+      // already refused, so a caller can tell the two refusals apart; an
+      // absent object is never seeded, and `gap` is a property of one
+      // sampling action (FR-021, FR-039).
       check(entry.avail == availability::countable
                 || entry.avail == availability::permission_blocked
-                || entry.avail == availability::not_encodable,
+                || entry.avail == availability::not_encodable
+                || entry.avail == availability::scope_refused,
             "every pmu entry reports a probed availability state");
     }
     // Kernel-wins conflict check: a sysfs alias present in the
@@ -311,14 +317,6 @@ static_assert(
 auto availability_scenario(const std::vector<const object*>& pmu_objects)
     -> void
 {
-  // A scope refusal is separable from an encoding refusal: the two name
-  // different causes and a caller reads them apart (FR-021).
-  check(availability::scope_refused != availability::not_encodable,
-        "a scope refusal is a state of its own beside an encoding refusal "
-        "(FR-021)");
-  check(availability::gap != availability::countable,
-        "the per-action gap is a state of its own beside a countable entry "
-        "(FR-021)");
   const int paranoid = read_paranoid();
   const probe_verdict verdict = hardware_event_probe();
   std::printf("perf_event_paranoid = %d; hardware event probe %s\n",
@@ -388,26 +386,52 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   }
   // The paranoid-2 hardware-entry state, recorded from the catalog this
   // host produced: the counts beside the probe that produced them.
-  // The state and the mask agree on every entry the catalog publishes: a
-  // countable entry names at least one target bit, and every other state
-  // names none, because the catalog never publishes the per-action gap
-  // (FR-021).
-  std::size_t mask_agreed = 0;
+  //
+  // The mask is read against the object the entry was probed under, not
+  // against the state the entry carries alone: the catalog derives the mask
+  // from the device's own scope, so a check that recomputed the mask from
+  // the state would compare the derivation with itself and could not fail.
+  // The device scope is spelled out here from the canonical path the
+  // provider seeded, which is data this scenario reads rather than data the
+  // catalog derived (FR-021).
   std::size_t entries_seen = 0;
+  std::size_t gaps = 0;
+  std::size_t cpu_only = 0;
   for (const object* obj : pmu_objects) {
     for (const auto& entry : obj->counters()) {
       ++entries_seen;
-      const bool countable_entry = entry.avail == availability::countable;
-      const bool names_a_bit = entry.targets != sg::counters::target_mask {0};
-      if (countable_entry == names_a_bit) {
-        ++mask_agreed;
+      if (entry.avail == availability::gap) {
+        ++gaps;
       }
+      if (entry.targets == sg::counters::target_cpu_bit) {
+        ++cpu_only;
+      }
+      const bool settled = entry.avail == availability::countable;
+      const sg::counters::target_mask defined_bits =
+          sg::counters::target_thread_bit | sg::counters::target_cpu_bit;
+      check(settled == (entry.targets != sg::counters::target_mask {0}),
+            "a published entry names the target kinds the probe settled it "
+            "on: a countable entry names at least one, and every other state "
+            "names none (FR-021)");
+      check((entry.targets & ~defined_bits) == 0,
+            "a published mask names only the bits target_kind defines, so a "
+            "new kind takes the next free bit and no stored bit moves "
+            "(FR-021)");
     }
   }
-  check(mask_agreed == entries_seen,
-        "every published entry's state and target mask agree: a countable "
-        "entry names a target bit and every other state names none "
-        "(FR-021)");
+  std::printf(
+      "target masks: %zu of %zu entries cpu-only\n", cpu_only, entries_seen);
+  check(entries_seen > 0,
+        "the catalog published hardware entries whose target masks this "
+        "scenario reads (FR-021)");
+  // The gap is the one state the catalog never publishes for an entry: a
+  // gap is a property of one sampling action, and the value travels in
+  // the plan's disclosure column beside the zero count the action
+  // produced. Counted over every published entry rather than compared
+  // against the enumerator, so the catalog can falsify it (FR-007).
+  check(gaps == 0,
+        "no catalog entry publishes availability::gap, so the per-action "
+        "gap rides the plan's disclosure column and no entry (FR-007)");
 
   std::printf("pmu availability: %zu countable, %zu permission_blocked, "
               "%zu not_encodable, %zu scope_refused, %zu fast_rdpmc\n",
@@ -453,6 +477,51 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
       check(unencodable > 0,
             "an encoding refusal surfaces as not_encodable and "
             "leaves the permission state clear (FR-039)");
+    }
+  }
+
+  // A scope refusal is separable from an encoding refusal on real catalog
+  // data, not by naming two enumerators. `probe_device` publishes it
+  // where the entry's own scope refuses the per-task kind, and the core
+  // PMU plus its per-core hybrid instances are the devices that count a
+  // thread's own events; every other published device binds one processor
+  // for every task, so its entries carry that refusal instead of an
+  // encoding one. Each such entry is therefore read against the device
+  // scope it was probed under, and the handle that resolves it carries
+  // the same state, so a caller can branch on it before composing
+  // (FR-021, SC-007).
+  if (scope_refused == 0) {
+    // A host whose cpu probe settles every entry publishes no scope
+    // refusal to assert over, so the state has no entry under test and
+    // the reason is named here rather than hard-coded (SC-007).
+    std::printf("SKIP scope refusal: the catalog publishes no "
+                "availability::scope_refused entry on this host (hardware "
+                "event probe %s at perf_event_paranoid %d), so a "
+                "device-scoped entry's per-task refusal has no entry under "
+                "test (FR-021, SC-007)\n",
+                name(verdict),
+                paranoid);
+    return;
+  }
+  for (const object* obj : pmu_objects) {
+    const std::string_view path = obj->path();
+    const bool device_scoped =
+        path != "cpu" && path != "cpu_core" && path != "cpu_atom";
+    for (const auto& entry : obj->counters()) {
+      if (entry.avail != availability::scope_refused) {
+        continue;
+      }
+      check(device_scoped,
+            "a published scope refusal names a device that binds one "
+            "processor for every task, which no encoding refusal can "
+            "reproduce (FR-021)");
+      const auto leaf = obj->counter<events>(entry.name);
+      check(leaf.has_value() && leaf->avail() == availability::scope_refused,
+            "the resolved handle carries the scope refusal the catalog "
+            "published, so a caller can branch on it (FR-021)");
+      check(entry.targets == sg::counters::target_mask {0},
+            "a scope-refused entry names no target bit, the shape every "
+            "state but countable publishes (FR-021)");
     }
   }
 }
@@ -860,6 +929,95 @@ auto cpu_target_scenario() -> void
   std::printf("cpu target: %s\n", refused.error().message.c_str());
 }
 
+// FR-022: a scope refusal is a refusal the entry's own scope causes, and
+// it is separable from an encoding refusal, so a caller that reads it
+// knows a cpu-target plan may still compile over the entry. `cpu_target_
+// scenario` compiles over an entry the catalog already published as
+// countable, which is the other direction; this compiles over the entry
+// the state actually names. The compile either binds, on a host whose
+// kernel grants a cpu-targeted event for that device, and the window
+// folds; or it is refused in the untimed region before any window opens,
+// and the refusal names the scope refusal the catalog published rather
+// than an encoding one (FR-022, FR-024, SC-007).
+auto scope_refused_cpu_target_scenario(
+    const std::vector<const object*>& pmu_objects) -> void
+{
+  const object* refused_on = nullptr;
+  std::string refused_name;
+  for (const object* obj : pmu_objects) {
+    for (const auto& entry : obj->counters()) {
+      if (entry.avail == availability::scope_refused) {
+        refused_on = obj;
+        refused_name = std::string(entry.name);
+        break;
+      }
+    }
+    if (refused_on != nullptr) {
+      break;
+    }
+  }
+  if (refused_on == nullptr) {
+    // A host whose cpu probe settles every entry publishes no scope
+    // refusal, so there is no entry to compile over. The reason is named
+    // and the scenario skips rather than fails (SC-007).
+    std::printf("SKIP scope-refused cpu target: the catalog publishes no "
+                "availability::scope_refused entry on this host (hardware "
+                "event probe %s at perf_event_paranoid %d), so no entry "
+                "carries the refusal a cpu-target plan is meant to clear "
+                "(FR-022, SC-007)\n",
+                name(hardware_event_probe()),
+                read_paranoid());
+    return;
+  }
+  // The entry still resolves with the state riding the handle, so the
+  // caller reads the refusal instead of discovering it as a failed open
+  // (FR-007).
+  const auto leaf = refused_on->counter<events>(refused_name);
+  check(leaf.has_value(),
+        "a scope-refused entry still resolves; the state rides the handle "
+        "(FR-007)");
+  check(leaf->avail() == availability::scope_refused,
+        "the resolved handle carries the published scope refusal (FR-022)");
+  const expression<events> over {*leaf};
+  const sg::counters::target pinned {.kind = sg::counters::target_kind::cpu,
+                                     .cpu = 0};
+  const auto compiled = compile(system::local(), pinned, over);
+  if (compiled.has_value()) {
+    scope window {*compiled};
+    window.start();
+    burn_cpu_short();
+    window.finish();
+    check(window.metric(over).value >= 0.0,
+          "a cpu-target plan over a scope-refused entry binds and folds "
+          "(FR-022)");
+    std::printf(
+        "cpu target over scope-refused %s/%s: granted, plan " "folds\n",
+        std::string(refused_on->path()).c_str(),
+        refused_name.c_str());
+    return;
+  }
+  const std::string& message = compiled.error().message;
+  // The gate reads the requested target now, so a cpu request over a
+  // scope refusal reaches the provider window instead of stopping at the
+  // availability gate, and the refusal a kernel that grants no cpu-targeted
+  // event produces names the window rather than the catalog state. Both
+  // halves are asserted, because a gate that still refused would produce
+  // the state message and a window that opened would produce no refusal at
+  // all (FR-022, SC-007).
+  check(message.find("cannot open a window") != std::string::npos,
+        "a cpu-target request the kernel refuses is refused at the provider "
+        "window, past the availability gate the scope refusal cleared "
+        "(FR-022)");
+  check(message.find("is not countable on this host") == std::string::npos,
+        "the refusal names the window and not the catalog availability, so a "
+        "caller tells a scope refusal the scope, not the encoding, "
+        "produced (FR-022)");
+  std::printf("cpu target over scope-refused %s/%s: %s\n",
+              std::string(refused_on->path()).c_str(),
+              refused_name.c_str(),
+              message.c_str());
+}
+
 // Scenario 7: an expression over a leaf the catalog reports as not
 // countable is a recoverable construction error naming the leaf and its
 // catalog state, refused in the untimed region before any provider
@@ -1029,6 +1187,7 @@ auto main() -> int
 
   multiplex_scenario();
   cpu_target_scenario();
+  scope_refused_cpu_target_scenario(*pmu_objects);
   unavailable_leaf_scenario();
   if (const int skipped = fast_window_lifetime_scenario(); skipped != 0) {
     return skipped;

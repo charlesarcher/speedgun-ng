@@ -153,7 +153,8 @@ struct format_range
     const target& where) -> availability;
 
 // One catalog entry the provider built: the composed config words, the
-// description, and the probed availability (FR-037, FR-039).
+// description, the probed availability, and the target kinds that probe
+// settled (FR-037, FR-039, FR-021).
 struct pmu_entry
 {
   std::string name;
@@ -165,7 +166,29 @@ struct pmu_entry
   bool is_time_pair = false;
   availability avail = availability::not_encodable;
   read_mode mode = read_mode::syscall;
+  // The target kinds the availability probe settled this entry on, and no
+  // others, so the catalog names a kind only where that kind's own probe
+  // counted the entry (FR-021). Zero for the enabled and running leaves,
+  // which no probe runs for, and for every entry the probe refused,
+  // which names no kind in any case.
+  target_mask probed_kinds = 0;
 };
+
+// Records the target kinds the availability probe settled the seeded leaf
+// at `address` on, keyed by that canonical address. FR-021 states the
+// seeding surface (`catalog_seed`) gains no field and the availability state
+// stays one enumeration, so the per-kind verdicts ride beside the tree
+// rather than inside it: the provider records them where it enumerates and
+// the catalog reads them where it fills `catalog_entry::targets`. Only a
+// leaf the probe settled some kind on is recorded, and an address this
+// table does not hold names no kind the probe settled (FR-021).
+void note_probed_kinds(const std::string& address, target_mask probed);
+
+// The kinds the probe settled the leaf at `address` on, and zero where it
+// settled none there. The lookup allocates nothing, so the catalog reads a
+// leaf's kinds inside the `noexcept` mask decision (FR-021).
+[[nodiscard]] auto probed_kinds_at(const std::string& address) noexcept
+    -> target_mask;
 
 // One event-source device: its canonical path, its PMU type, the bit
 // layouts it publishes, and the merged catalog in seed order (kernel
@@ -389,17 +412,31 @@ inline fast_context::~fast_context()
 // on any host, and the coverage gates measure the decision itself. The
 // marker over the kernel-facing wrapper stays (FR-046).
 
-// Whether a group read returned fewer bytes than the group header names.
-// A leader answering short, or a group read the syscall refuses outright,
-// publishes no count the read never produced, so the action is marked
-// instead (FR-006). Pure over the two byte counts.
+/// @brief Whether a group read returned fewer bytes than the group header
+/// names (FR-006).
+///
+/// A leader answering short, or a group read the syscall refuses
+/// outright, publishes no count the read never produced, so the action
+/// is marked instead. Pure over the two byte counts.
+///
+/// \pre none
+/// \post The verdict is true exactly when the returned count falls below
+///       the header size. A negative returned count, which is a read the
+///       syscall refused and which produced no count, is reported short.
 [[nodiscard]] auto group_read_short(long returned,
                                     std::size_t header_bytes) noexcept -> bool;
 
-// The step that turns a pair read's verdict into the values a fold may
-// read. An unstable pair discloses nothing, so it leaves a zero pair and
-// marks the action; a stable pair publishes the page's own two values
-// (FR-005). Pure over the verdict and the two current values.
+/// @brief The step that turns a pair read's verdict into the values a
+/// fold may read (FR-005).
+///
+/// An unstable pair discloses nothing, so it leaves a zero pair and
+/// marks the action; a stable pair publishes the page's own two values.
+/// Pure over the verdict and the two current values.
+///
+/// \pre none
+/// \post A stable verdict publishes the page's own two values; an
+///       unstable verdict discloses nothing, leaves a zero pair, and
+///       reports the refusal.
 [[nodiscard]] auto fast_pair_disclosed(bool stable,
                                        std::uint64_t enabled,
                                        std::uint64_t running,
@@ -407,14 +444,22 @@ inline fast_context::~fast_context()
                                        std::uint64_t& out_running) noexcept
     -> bool;
 
-// Whether a device is the one a vendored row's table scope reaches
-// (FR-019). An empty scope and the `core` scope name the core PMU, which
-// a hybrid host publishes as `cpu` plus one device per core class. Any
-// other scope names one device class, spelled either bare or under the
-// kernel's `uncore_` prefix. A row scoped to a class the host publishes
-// no device for reaches no device, so it stays out of the catalog and
-// runs no probe. Pure over the two strings, so a registered test drives
-// every arm without a host that has to grant an event.
+/// @brief Whether a device is the one a vendored row's table scope
+/// reaches (FR-019).
+///
+/// The empty scope and the `core` scope name the core PMU, which a
+/// hybrid host publishes as `cpu` plus one device per core class. Any
+/// other scope names one device class, spelled either bare or under the
+/// kernel's `uncore_` prefix. A row scoped to a class the host publishes
+/// no device for reaches no device, so it stays out of the catalog and
+/// runs no probe. Pure over the two strings, so a registered test drives
+/// every arm without a host that has to grant an event.
+///
+/// \pre none
+/// \post The empty scope and the `core` scope answer true for a core
+///       device path alone. Any other scope answers true only for the
+///       device of its own class, spelled bare or under the `uncore_`
+///       prefix. A scope naming no published device class answers false.
 [[nodiscard]] auto scope_reaches(const std::string& device_path,
                                  const std::string& scope) noexcept -> bool;
 
@@ -429,11 +474,122 @@ struct entry_read_selection
   bool publish_pair = false;
 };
 
-// The selection over the availability probe's verdict and the host's
-// fast-read capability (FR-001, FR-022). Pure over the two values.
+/// @brief The selection over the availability probe's verdict and the
+/// host's fast-read capability (FR-001, FR-022).
+///
+/// The catalog sets the fast mode on an entry only where the fast read
+/// can succeed for that entry, so the host-wide capability verdict never
+/// sets the mode on an entry whose event the fast instruction cannot
+/// read. Pure over the two values.
+///
+/// \pre none
+/// \post A countable entry publishes the fast read mode only where the
+///       host grants it. Every other state publishes the syscall mode.
+///       Only a countable entry publishes the enabled/running pair.
 [[nodiscard]] auto entry_read_selection_for(availability probed,
                                             bool fast_capable) noexcept
     -> entry_read_selection;
+
+/// @brief The target kinds the two probes settled one entry on (FR-021).
+///
+/// The availability probe runs once per target kind, and a kind settles
+/// the entry exactly where the kernel counted that kind's event. A device
+/// that binds one processor for every task runs no per-task probe, so its
+/// `scope_refused` verdict settles no kind and the mask names the cpu kind
+/// alone. Pure over the two verdicts, so a registered test drives every arm
+/// on a host whose cpu-targeted probe is refused, which is what the
+/// reference host is (FR-021, FR-022, FR-046).
+///
+/// \pre none
+/// \post A verdict of `countable` names that kind's bit, and every other
+///       verdict names no bit. The answer names the cpu bit for a
+///       `countable` cpu verdict whatever the per-task verdict is (FR-021).
+[[nodiscard]] auto probed_kind_mask(
+    availability per_task, availability on_cpu) noexcept -> target_mask;
+
+/// @brief The target kinds one catalog entry can be counted on, read from
+/// the probe's per-kind verdicts (FR-021).
+///
+/// The mask names the kinds the probe settled and no others, so a countable
+/// entry the cpu-targeted probe refused names no cpu bit, whatever its
+/// object is scoped for. `probed_kinds` is the probe's own answer over both
+/// kinds, and zero is the answer for a leaf the probe settled no kind on:
+/// the enabled and running leaves, which no probe runs for, and every leaf
+/// no event provider probed. Those leaves take the object's own scope,
+/// which is what the core event source and its hybrid per-core instances
+/// decide by admitting both kinds, while a device that binds one processor
+/// for every task admits a cpu-target plan alone, and that is what keeps its
+/// entries' per-task refusal a scope refusal, apart from an encoding one
+/// (FR-021, FR-022). A state no probe settled names no kind, so a refused
+/// entry names none however its object is scoped.
+///
+/// The device-scope rule belongs to the event provider and is read here
+/// from the object kind and the canonical path the provider seeded, because
+/// FR-021 states the seeding surface gains no target-mask field and no
+/// record downstream of it carries one either; an object no event provider
+/// seeded publishes clocks and counters, and those count on either kind.
+/// The probe's own verdicts reach this function through the table
+/// `note_probed_kinds` fills, for the same reason. Pure over the four
+/// values, so a registered test reaches every arm without a host that
+/// grants an event.
+///
+/// \pre none
+/// \post A state other than `countable` names no target kind. A countable
+///       entry the probe settled on one or more kinds names exactly those.
+///       A countable entry the probe settled on no kind names the cpu kind
+///       alone where an event provider seeded its object and the canonical
+///       path is none of the core device paths, and names both kinds
+///       everywhere else, an object no event provider seeded among them
+///       (FR-021, FR-022).
+[[nodiscard]] auto settled_targets(availability probed,
+                                   target_mask probed_kinds,
+                                   std::string_view kind,
+                                   const std::string& path) noexcept
+    -> target_mask;
+
+/// @brief The state a catalog entry settles on when no probe granted it
+/// (FR-021).
+///
+/// A device that binds one processor for every task refuses the per-task
+/// kind by its own scope, so what the catalog publishes for that kind is
+/// the scope's refusal rather than the cpu probe's verdict: a permission
+/// refusal names the scope, and every other verdict names its own cause,
+/// which is what keeps an encoding refusal readable apart from a scope one
+/// (FR-021, FR-022, US4/AC8). An object no device scope owns has no such
+/// refusal to publish and settles on the verdict itself. Pure over the two
+/// values, so a registered test drives both arms on any host.
+///
+/// \pre none
+/// \post A permission verdict on a device-scoped device settles on
+///       `scope_refused`. Every other verdict, on a device-scoped device or
+///       not, settles on itself.
+[[nodiscard]] auto scope_settled_state(
+    availability on_cpu, bool device_scoped) noexcept -> availability;
+
+/// @brief Whether a catalog entry's own state lets the request open a
+/// provider window (FR-021, FR-024).
+///
+/// A leaf the catalog reports as not countable now is a construction
+/// error, refused before any provider window opens and before any
+/// hardware read. One state is not the caller's to clear: a device that
+/// binds one processor for every task refuses the per-task kind by its
+/// own scope and publishes `scope_refused` for it, so a request naming
+/// the cpu kind does not ask for the kind the scope refused. Such a
+/// request proceeds to the provider window, where the kernel's own
+/// verdict for the cpu-targeted event belongs, and a refusal there names
+/// the window rather than the catalog state (FR-022, FR-024, SC-007).
+/// Pure over the two values, so a registered test drives every arm on a
+/// host whose catalog publishes no scope-refused entry, which is what
+/// the reference host does: a cpu-targeted probe there answers `EINVAL`,
+/// and the probe settles that answer as `not_encodable`.
+///
+/// \pre none
+/// \post A countable entry answers true under either kind. A
+///       `scope_refused` entry answers true for the cpu kind alone, and
+///       answers false for the per-task kind. Every other state answers
+///       false under either kind.
+[[nodiscard]] auto availability_gate_passes(
+    availability probed, target_kind requested) noexcept -> bool;
 
 // The fast-mode window (group_io.cpp, FR-040): one context per member
 // leaf, the enabled/running pair taken from the leader's page. Null
@@ -444,15 +600,29 @@ struct entry_read_selection
                                         const target& where)
     -> std::unique_ptr<window_reader>;
 
-// The two decisions the seam reaches so a fixture can drive them with a
+// The decisions the seam reaches so a fixture can drive them with a
 // device the reference host does not publish. `probe_device` takes a
-// device and settles each entry's countability per target kind, and
-// `load_device` takes a device directory and reads one. Both sit in this
+// device and settles each entry's countability per target kind,
+// `load_device` takes a device directory and reads one, and
+// `merge_vendored` places the vendored rows. All three sit in this
 // namespace so a registered test can supply a device the running kernel
 // never lists, which is what reaches a hybrid per-core scope.
 void probe_device(pmu_device& device, bool fast_capable);
 
 [[nodiscard]] auto load_device(const std::filesystem::path& dir)
     -> std::optional<pmu_device>;
+
+/// @brief Places the vendored rows whose scope reaches `device` (FR-019).
+///
+/// The placement step, which adds every row of the selected architecture
+/// table whose Unit scope names `device`'s own class: a core-scoped row
+/// lands on each core device a hybrid host publishes, an uncore-scoped
+/// row on the device of its class, and a row scoped to a class this host
+/// publishes no device for reaches none. A kernel alias of the same name
+/// keeps the kernel's own entry. It is exposed here so a registered test
+/// can drive placement over a device the running kernel never publishes,
+/// which is the only way a placement arm runs off a host that owns the
+/// hardware.
+void merge_vendored(pmu_device& device);
 
 }  // namespace sg::counters::detail
