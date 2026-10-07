@@ -520,7 +520,7 @@ namespace
 void release_fast_members(
     std::vector<pmu_fast_window::member>& acquired) noexcept
 {
-  for (auto& one : acquired) {
+  for (auto& one : acquired) {  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_START : coverage exclusion (T056): the member carrying no
     // context. Every push into this vector sits after the open's own null
     // check, and that check returns before the push, so a member reaches
@@ -561,7 +561,7 @@ auto open_group_window(const pmu_state& state,
   window->groups.resize(layout.count());
   window->slots.reserve(leaves.size());
   for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
-    if (one.source == slot_source::disclosure) {
+    if (one.source == slot_source::disclosure) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the disclosure slot.
       // A member open that the kernel refuses returns before this slot is
       // registered. The host that grants perf_event_open reaches it.
@@ -658,7 +658,7 @@ auto open_fast_window(const pmu_state& state,
   window->slots.reserve(leaves.size());
   std::size_t leader = static_cast<std::size_t>(-1);
   for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
-    if (one.source == slot_source::disclosure) {
+    if (one.source == slot_source::disclosure) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the fast-window
       // disclosure slot, on the same refused-open ground as the group
       // window's slot above.

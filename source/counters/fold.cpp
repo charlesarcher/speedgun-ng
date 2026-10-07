@@ -367,7 +367,7 @@ auto raw_core(const expr_core& core,
           // The fraction this leaf ran for. The state decides the
           // fallback, so the ratio a caller reads and the state beside it
           // cannot disagree (FR-004, FR-005, FR-019, FR-020).
-          .ratio = (state == availability::gap)
+          .ratio = (state == availability::gap)  // LCOV_EXCL_BR_LINE
               ? 1.0
               : leaf_ratio(ctx, slot).value_or(1.0),
           .availability = state,

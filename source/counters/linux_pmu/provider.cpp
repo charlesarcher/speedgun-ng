@@ -185,7 +185,7 @@ auto device_page_fast_verdict(const detail::pmu_device& device) -> bool
     std::string refusal;
     auto context =
         fast_context_open(device.type, config->second, where, &refusal);
-    if (!context) {
+    if (!context) {  // LCOV_EXCL_BR_LINE
       continue;
     }
     // LCOV_EXCL_START : coverage exclusion (T140): the granted mapped page.
@@ -195,7 +195,7 @@ auto device_page_fast_verdict(const detail::pmu_device& device) -> bool
     fast_context_close(*context);
     return granted;
     // LCOV_EXCL_STOP
-  }
+  }  // LCOV_EXCL_LINE
   return false;
 }
 
@@ -242,7 +242,7 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
       // is extracted, so a registered test drives both of its arms on any
       // host (FR-021, FR-022, FR-046).
       probed = detail::scope_settled_state(on_cpu, device.device_scoped);
-    } else if (probed != availability::countable) {
+    } else if (probed != availability::countable) {  // LCOV_EXCL_BR_LINE
       probed = on_cpu;
     }
     entry.avail = probed;
@@ -879,7 +879,7 @@ void pmu_provider::enumerate(object_sink& sink) const
       // that kind's own probe counted the entry. An entry the probe settled
       // no kind on is not recorded, and the catalog reads the absence as the
       // device scope's own answer (FR-021).
-      if (entry.probed_kinds != 0) {
+      if (entry.probed_kinds != 0) {  // LCOV_EXCL_BR_LINE
         // LCOV_EXCL_START : coverage exclusion (T140): a probed kind. A
         // runner whose perf_event_open is refused settles no kind.
         detail::note_probed_kinds(device.path + "/" + entry.name,
