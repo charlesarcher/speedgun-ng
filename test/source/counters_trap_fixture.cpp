@@ -34,8 +34,8 @@ using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
-using sg::counters::push_provider;
 using sg::counters::PushCounter;
+using sg::counters::PushProvider;
 using sg::counters::system;
 
 using events = Dim<0, 1>;
@@ -83,7 +83,7 @@ auto main(int argc, char** argv) -> int
       argc >= 2 ? std::string_view {argv[1]} : std::string_view {};
 
   if (mode == "push-cross-thread" || mode == "push-decrement") {
-    auto push = std::make_unique<push_provider>();
+    auto push = std::make_unique<PushProvider>();
     auto handle = push->add_counter("bytes", "bytes", "hot-path bytes");
     const auto registered = system::local().register_provider(std::move(push));
     if (!registered.has_value()) {
@@ -123,7 +123,7 @@ auto main(int argc, char** argv) -> int
     // ends on an owner the sampling thread holds, which is the order
     // under which a plan holding a foreign counter passed the window's
     // one-owner guard (FR-035).
-    auto push = std::make_unique<push_provider>();
+    auto push = std::make_unique<PushProvider>();
     auto main_bytes = push->add_counter("main-bytes", "ops", "main bytes");
     auto worker_bytes = main_bytes;
     std::thread worker {[&push, &worker_bytes]
@@ -157,10 +157,10 @@ auto main(int argc, char** argv) -> int
   if (mode == "push-foreign-sample") {
     // One push counter, declared on a worker thread and sampled by the
     // thread that compiled the plan. The leaf set names a single owner,
-    // so the one-owner window guard at `push_provider.cpp:120` admits it
+    // so the one-owner window guard at `PushProvider.cpp:120` admits it
     // and the violation reaches the sampling-side guard at `:40`, which
     // is the only site that detects it (FR-035, FR-031).
-    auto push = std::make_unique<push_provider>();
+    auto push = std::make_unique<PushProvider>();
     std::thread worker {[&push]
                         {
                           auto worker_ops = push->add_counter(

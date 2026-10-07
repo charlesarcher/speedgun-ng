@@ -159,7 +159,7 @@ they include when a name in that header changes.
 - [X] T009 [US2] Rename owned identifiers in `include/speedgun-ng/counters_pmu.hpp`
   `include/speedgun-ng/counters_pmu.hpp` and the call sites in
   `source/counters/linux_pmu/provider.cpp` (D-02, FR-013).
-- [ ] T010 [US2] Rename owned identifiers in `include/speedgun-ng/counters_push.hpp`
+- [X] T010 [US2] Rename owned identifiers in `include/speedgun-ng/counters_push.hpp`
   `include/speedgun-ng/counters_push.hpp` and
   `source/counters/push_provider.cpp` in one commit (D-02).
 - [ ] T011 [US2] Rename owned identifiers in `include/speedgun-ng/counters_fake.hpp`

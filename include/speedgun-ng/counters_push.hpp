@@ -22,7 +22,7 @@ namespace sg::counters
 
 namespace detail
 {
-struct push_window;
+struct PushWindow;
 }
 
 /**
@@ -34,7 +34,7 @@ struct push_window;
  * increment); sampling reads a plain load, never an atomic RMW
  * (R-008).
  */
-class SPEEDGUN_NG_EXPORT push_provider final : public ProviderIface
+class SPEEDGUN_NG_EXPORT PushProvider final : public ProviderIface
 {
 public:
   /**
@@ -43,7 +43,7 @@ public:
    * \pre none
    * \post none
    */
-  push_provider();
+  PushProvider();
 
   /**
    * @brief The released provider state; handles to declared counters
@@ -52,12 +52,12 @@ public:
    * \pre none
    * \post none
    */
-  ~push_provider() override;
+  ~PushProvider() override;
 
-  push_provider(const push_provider&) = delete;
-  push_provider(push_provider&&) = delete;
-  auto operator=(const push_provider&) -> push_provider& = delete;
-  auto operator=(push_provider&&) -> push_provider& = delete;
+  PushProvider(const PushProvider&) = delete;
+  PushProvider(PushProvider&&) = delete;
+  auto operator=(const PushProvider&) -> PushProvider& = delete;
+  auto operator=(PushProvider&&) -> PushProvider& = delete;
 
   /**
    * @brief Declares one push counter on the machine object, bound to
@@ -94,9 +94,9 @@ public:
                                      const Target& where) override;
 
 private:
-  friend struct detail::push_window;
+  friend struct detail::PushWindow;
 
-  struct push_point
+  struct PushPoint
   {
     std::uint64_t value = 0;
     std::thread::id owner {};
@@ -105,7 +105,7 @@ private:
     std::string unit;
   };
 
-  std::deque<push_point> m_points;  // deque: handle addresses stay stable
+  std::deque<PushPoint> m_points;  // deque: handle addresses stay stable
 };
 
 }  // namespace sg::counters
