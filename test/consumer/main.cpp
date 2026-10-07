@@ -6,7 +6,7 @@
 //
 // It uses the public API exactly as the README instructs: the
 // exported class from <speedgun-ng/speedgun-ng.hpp> and the
-// simulation_start marker from the trace-marker header. Constructing
+// simulationStart marker from the trace-marker header. Constructing
 // the class and calling name() pulls a real symbol out of the
 // library, and the marker call resolves the trace-marker header from
 // the install tree, so the link and that header's reachability are
@@ -29,8 +29,8 @@
 
 auto main() -> int
 {
-  exported_class const library;
-  sg::simulation_start();
+  ExportedClass const library;
+  sg::simulationStart();
   if (library.name() == nullptr) {
     return 1;
   }

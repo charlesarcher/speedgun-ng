@@ -206,7 +206,7 @@ negative_probe() {
   cat >"$WORKDIR/probe/probe.cpp" <<'PROBE'
 #include <x86intrin.h>
 extern void opaque(void);
-__attribute__((noinline)) auto probe_arm(unsigned long long* out) -> unsigned long long
+__attribute__((noinline)) auto probeArm(unsigned long long* out) -> unsigned long long
 {
   unsigned long long total = 0;
   for (int i = 0; i < 4; ++i) {
@@ -223,7 +223,7 @@ PROBE
     return 1
   fi
 
-  ins=$(dump_function "$obj" 'probe_arm')
+  ins=$(dump_function "$obj" 'probeArm')
   arm=$(read_arm "$ins")
 
   if [ -z "$arm" ]; then

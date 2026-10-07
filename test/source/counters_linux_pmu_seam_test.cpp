@@ -888,15 +888,15 @@ auto migratedThreadScenario() -> void
   // A build configured to emit no gated check reaches the read and returns
   // the page's own values, which is what makes the check's absence
   // measurable, and not merely asserted (FR-045).
-  auto page = make_event_page(event_page_fields {
+  auto page = makeEventPage(EventPageFields {
       .sequence = 3, .index = 1, .capability = true, .pmc_width = 48});
   sg::counters::detail::FastContext context {
       .map = &page,
       .mapLength = sizeof(page),
       .owner = std::this_thread::get_id(),
-      .pinned_cpu = sched_getcpu() + 1};
+      .pinnedCpu = sched_getcpu() + 1};
   std::uint64_t value = 0;
-  check(sg::counters::detail::fast_context_read(context, value)
+  check(sg::counters::detail::fastContextRead(context, value)
                 == FastReadVerdict::OK
             && value == 0,
         "a build that emits no pinned check reads the page, so the release "

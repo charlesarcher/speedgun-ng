@@ -274,7 +274,7 @@ auto main() -> int
   predicateEvaluations = 0;
   gatedSatisfiedSite();
 #if SG_CONTRACTS_SEMANTIC == 0
-  check(predicate_evaluations == 0, "ignore: gated predicate not evaluated");
+  check(predicateEvaluations == 0, "ignore: gated predicate not evaluated");
 #else
   check(predicateEvaluations == 1, "checked: predicate evaluated exactly once");
 #endif
