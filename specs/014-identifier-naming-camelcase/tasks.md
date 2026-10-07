@@ -148,7 +148,7 @@ they include when a name in that header changes.
 - [X] T006 [US2] Rename owned identifiers in `include/speedgun-ng/counters_provider.hpp`
   `include/speedgun-ng/counters_provider.hpp` and the remaining call
   sites of names it declares (D-02, FR-013).
-- [ ] T007 [US2] Rename owned identifiers in `include/speedgun-ng/counters_measurement.hpp`
+- [X] T007 [US2] Rename owned identifiers in `include/speedgun-ng/counters_measurement.hpp`
   `include/speedgun-ng/counters_measurement.hpp` and the remaining
   call sites, including the qualification at
   `include/speedgun-ng/counters_measurement.hpp:427`. The member

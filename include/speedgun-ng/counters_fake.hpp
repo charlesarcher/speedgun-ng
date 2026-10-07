@@ -160,11 +160,11 @@ public:
    * `running` on the same object. A fold over such a leaf multiplies
    * their delta ratio into its disclosure (FR-019, FR-041).
    *
-   * \pre `object_path` is non-empty.
+   * \pre `objectPath` is non-empty.
    * \post Enumeration will report the entry with the given unit,
    *       availability, mode, and ratio-pair declaration.
    */
-  auto add_counter(std::string_view object_path,
+  auto add_counter(std::string_view objectPath,
                    std::string_view name,
                    std::string_view unit,
                    std::string_view description,
@@ -187,7 +187,7 @@ public:
    * \post Sampling yields the scripted points in order, one per
    *       sampling action.
    */
-  auto set_points(std::string_view object_path,
+  auto set_points(std::string_view objectPath,
                   std::string_view name,
                   std::vector<std::uint64_t> points,
                   std::uint64_t tail_delta = 0,
@@ -221,7 +221,7 @@ public:
    * \post Sampling this leaf at a named action publishes a zero and marks
    *       the action; the script does not advance there.
    */
-  auto set_gap_actions(std::string_view object_path,
+  auto set_gap_actions(std::string_view objectPath,
                        std::string_view name,
                        std::vector<std::size_t> actions) -> fake_provider&;
 
@@ -244,7 +244,7 @@ private:
   std::map<std::string, object_seed_data> m_objects;
   std::atomic<std::uint64_t> m_read_actions {0};
 
-  [[nodiscard]] auto counter(const std::string& object_path,
+  [[nodiscard]] auto counter(const std::string& objectPath,
                              const std::string& name) -> fake_counter_data&;
 };
 

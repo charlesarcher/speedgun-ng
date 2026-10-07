@@ -259,9 +259,9 @@ auto test_alias_resolution() -> void
       misses.raw(rec.view(), "package-1/core-4", "cache_misses");
   check(provenance.has_value(),
         "the raw view resolves the canonical leaf address (FR-020)");
-  check(provenance->object_path == "package-1/core-4",
+  check(provenance->objectPath == "package-1/core-4",
         "the provenance line reports the canonical path (US3 scenario 2)");
-  check(!contains(provenance->object_path, "cpu4"),
+  check(!contains(provenance->objectPath, "cpu4"),
         "the provenance line prints no platform alias (US3 scenario 2)");
   check(provenance->count == 2 && provenance->points[0] == 400
             && provenance->points[1] == 1000,
@@ -350,7 +350,7 @@ auto test_fanout_reconciliation() -> void
   const auto ipc = i3 / c3;
   auto fanout = compile(system::local(), ipc, *all);
   check(fanout.has_value(), "the fan-out ipc plan compiles (FR-047)");
-  const auto paths = fanout->object_paths();
+  const auto paths = fanout->objectPaths();
   check(paths.size() == 3 && paths[0] == "package-1/core-3"
             && paths[2] == "package-2/core-7",
         "fan-out keys objects by canonical path in selection order (FR-002)");
@@ -359,7 +359,7 @@ auto test_fanout_reconciliation() -> void
   rec.sample();
   const auto results = fanout->fold(ipc, rec.view());
   check(results.size() == 3, "one metric per selected object (SC-007)");
-  check(results[0].object_path == "package-1/core-3"
+  check(results[0].objectPath == "package-1/core-3"
             && same_double(results[0].metric.value, 10.5),
         "core-3 ipc folds 2100 / 200 (FR-047)");
   check(same_double(results[1].metric.value, 4.5),
@@ -381,8 +381,7 @@ auto test_fanout_reconciliation() -> void
         "a self-move-assigned fan-out keeps its selection (FR-022)");
   bool identical = true;
   for (std::size_t index = 0; index < after.size(); ++index) {
-    identical = identical
-        && after[index].object_path == before[index].object_path
+    identical = identical && after[index].objectPath == before[index].objectPath
         && same_double(after[index].metric.value, before[index].metric.value);
   }
   check(identical,

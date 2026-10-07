@@ -169,7 +169,7 @@ auto measure(quill::Logger* logger) -> std::expected<double, std::string>
     recorder.sample();
   }
 
-  auto const intervals = ipc.fold_pairs(recorder.view());
+  auto const intervals = ipc.foldPairs(recorder.view());
   if (intervals.empty()) {
     return std::unexpected(std::string {"the recorder folded no intervals"});
   }

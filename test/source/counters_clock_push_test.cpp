@@ -68,8 +68,8 @@ using sg::counters::expression;
 using sg::counters::LeafSet;
 using sg::counters::object;
 using sg::counters::PointSink;
-using sg::counters::push_counter;
 using sg::counters::push_provider;
+using sg::counters::PushCounter;
 using sg::counters::ReadMode;
 using sg::counters::scope;
 using sg::counters::system;
@@ -163,7 +163,7 @@ auto clock_windows_scenario() -> void
 
 // Scenario 2: add(1000) between two samples folds to exactly 1000
 // (FR-035).
-auto push_exact_scenario(push_counter& bytes_handle) -> void
+auto push_exact_scenario(PushCounter& bytes_handle) -> void
 {
   const auto machine = *system::local().object("machine");
   const expression<events> bytes {*machine.counter<events>("bytes")};
@@ -185,7 +185,7 @@ auto push_exact_scenario(push_counter& bytes_handle) -> void
 // Scenario 3: bytes / monotonic folds to the byte rate with standard
 // disclosure; rate x window reconstitutes the pushed total (FR-019,
 // FR-035).
-auto byte_rate_scenario(push_counter& bytes_handle) -> void
+auto byte_rate_scenario(PushCounter& bytes_handle) -> void
 {
   const auto machine = *system::local().object("machine");
   const expression<events> bytes {*machine.counter<events>("bytes")};
@@ -271,8 +271,8 @@ auto catalog_scenario() -> void
 
 // A push handle names the counter it was declared for, so a caller can
 // report which cell a number came from (FR-035).
-auto push_name_scenario(const push_counter& first,
-                        const push_counter& second) -> void
+auto push_name_scenario(const PushCounter& first,
+                        const PushCounter& second) -> void
 {
   check(first.name() == "bytes",
         "a push handle names the counter it was declared for (FR-035)");

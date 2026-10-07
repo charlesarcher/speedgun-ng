@@ -59,8 +59,8 @@ using sg::counters::fake_provider;
 using sg::counters::kDimSame;
 using sg::counters::LeafSet;
 using sg::counters::MetricResult;
-using sg::counters::points_view;
 using sg::counters::PointSink;
+using sg::counters::PointsView;
 using sg::counters::ReadMode;
 using sg::counters::system;
 using sg::counters::Target;
@@ -96,7 +96,7 @@ auto number(const T value) -> std::string
 //   <label> = <value> <- <leaf> <delta> / <leaf> <delta>, ratio <ratio>
 auto provenance_record(const std::string_view label,
                        const MetricResult& metric,
-                       const std::vector<points_view>& leaves) -> std::string
+                       const std::vector<PointsView>& leaves) -> std::string
 {
   std::string record =
       std::string(label) + " = " + number(metric.value) + " <- ";
@@ -350,7 +350,7 @@ auto test_resolution_diagnostics() -> void
 
   const auto cycles = core.counter<events>("cycles");
   check(cycles.has_value(), "events counter resolves (FR-005)");
-  check(cycles->name() == "cycles" && cycles->unit_token() == "ops",
+  check(cycles->name() == "cycles" && cycles->unitToken() == "ops",
         "resolved counter carries catalog metadata");
   check(cycles->description() == "core cycles elapsed",
         "the handle carries the catalog description (US1 scenario 1)");
@@ -396,9 +396,9 @@ auto test_compile_zero_reads() -> void
   const expression<events> instr_expr {instructions};
   const auto ipc = instructions / cycles;
   const auto sum = instructions + drift;
-  static_assert(kDimSame<typename decltype(ipc)::dimension_tag, Dim<0, 0>>,
+  static_assert(kDimSame<typename decltype(ipc)::DimensionTag, Dim<0, 0>>,
                 "instructions / cycles carries dim<0,0> in its type (FR-015)");
-  static_assert(kDimSame<typename decltype(sum)::dimension_tag, Dim<0, 1>>,
+  static_assert(kDimSame<typename decltype(sum)::DimensionTag, Dim<0, 1>>,
                 "counter addition keeps the events dimension (FR-015)");
 
   const auto empty = compile(system::local());
@@ -460,7 +460,7 @@ auto test_scope_exactness() -> void
   check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
         "disclosure defaults: unscaled, full ratio");
   const auto raw = ipc.raw(window.view(), "package-1/core-3", "instructions");
-  check(raw.has_value() && raw->object_path == "package-1/core-3"
+  check(raw.has_value() && raw->objectPath == "package-1/core-3"
             && raw->name == "instructions" && !raw->description.empty()
             && raw->unit == "ops" && raw->points[1] - raw->points[0] == 2100ULL
             && same_double(raw->ratio, 1.0),
@@ -524,7 +524,7 @@ auto test_additive_algebra() -> void
 
   const auto sum = addend_a + addend_b;
   const auto difference = addend_a - addend_b;
-  check(kDimSame<decltype(sum)::dimension_tag, events>,
+  check(kDimSame<decltype(sum)::DimensionTag, events>,
         "addition preserves the shared tag");
   const auto compiled = compile(system::local(), sum, difference);
   check(compiled.has_value(), "the additive plan compiles");
@@ -662,9 +662,9 @@ auto test_move_assignment() -> void
   check(fanout.has_value(), "the fan-out plan compiles");
   auto other = compile(system::local(), ipc, *cores);
   check(other.has_value(), "a second fan-out plan compiles");
-  sg::counters::fanout_plan fanout_target = std::move(*fanout);
+  sg::counters::FanoutPlan fanout_target = std::move(*fanout);
   fanout_target = std::move(*other);
-  check(fanout_target.object_paths().size() == 1,
+  check(fanout_target.objectPaths().size() == 1,
         "the move-assigned fan-out plan keeps the selection");
   auto rec = fanout_target.recorder(2);
   rec.sample();
@@ -901,7 +901,7 @@ auto test_seeded_tail() -> void
   // the window spans.
   check(same_double(walk_expr.fold(recorder.view()).value, 24370.0),
         "the first-to-last fold over the seeded tail sums every step (T014)");
-  const auto pairs = walk_expr.fold_pairs(recorder.view());
+  const auto pairs = walk_expr.foldPairs(recorder.view());
   check(pairs.size() == 3 && same_double(pairs[0].value, 1787.0)
             && same_double(pairs[1].value, 594.0)
             && same_double(pairs[2].value, 21989.0),
@@ -1120,7 +1120,7 @@ auto test_multi_group_disclosure() -> void
   if (!fanout.has_value()) {
     return;
   }
-  sg::counters::fanout_plan target = std::move(*fanout);
+  sg::counters::FanoutPlan target = std::move(*fanout);
   auto rec = target.recorder(2);
   rec.sample();
   rec.sample();

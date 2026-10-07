@@ -43,7 +43,7 @@
  * chunk. The first sample lands before the work, so the count is
  * `N / K + 1` exactly.
  *
- * `expression::fold_pairs(recorder)` then yields one `MetricResult`
+ * `expression::foldPairs(recorder)` then yields one `MetricResult`
  * per adjacent interval, which is the per-chunk series. A
  * first-to-last `fold()` answers the single total. A window
  * from `i` to `j` costs the sampling actions at both endpoints, and
@@ -61,7 +61,7 @@
  * across the window, with 140 ns and 360 ns at the endpoints. The
  * page records the host, the load under it, and the commands, and the
  * page owns the refresh.
- * `plan::sample_overhead_ns_median()` reports the figure for the plan
+ * `plan::sampleOverheadNsMedian()` reports the figure for the plan
  * in hand (FR-032). A benchmark whose measured work is shorter than
  * that reads its own instrumentation, so the cadence must be coarse
  * enough for the work.
@@ -92,7 +92,7 @@ namespace detail
 
 // A resolved catalog leaf carried by value between resolution, plan
 // compile, and fold. Internal spine data behind public interfaces.
-struct leaf_core
+struct LeafCore
 {
   std::string address;  // "<object path>/<name>", canonical spelling
   std::string name;
@@ -100,13 +100,13 @@ struct leaf_core
   std::string unit;  // canonical unit token
   Availability avail = Availability::COUNTABLE;
   ReadMode mode = ReadMode::SYSCALL;
-  std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
+  std::uint64_t frequencyHz = 0;  // fixed-rate calibration, 0 elsewhere
   bool scaled = false;  // platform-scaled tick source disclosure
 };
 
 // One node of the erased expression spine: nodes reference leaves and
 // each other by index; the dimension lives only in the wrapper type.
-struct expr_node
+struct ExprNode
 {
   // Kind codes: 0 leaf, 1 add, 2 subtract, 3 divide, 4 scale.
   std::uint8_t kind = 0;
@@ -116,14 +116,14 @@ struct expr_node
   double scale = 1.0;  // factor a kind 4 node applies to its operand
 };
 
-struct expr_core
+struct ExprCore
 {
-  std::vector<leaf_core> leaves;
-  std::vector<expr_node> nodes;
+  std::vector<LeafCore> leaves;
+  std::vector<ExprNode> nodes;
 
   [[nodiscard]] auto empty() const noexcept -> bool { return nodes.empty(); }
 
-  auto add_leaf(const leaf_core& leaf) -> int
+  auto addLeaf(const LeafCore& leaf) -> int
   {
     for (std::size_t i = 0; i < leaves.size(); ++i) {
       if (leaves[i].address == leaf.address) {
@@ -134,7 +134,7 @@ struct expr_core
     return static_cast<int>(leaves.size() - 1);
   }
 
-  auto add_node(const expr_node& node) -> int
+  auto addNode(const ExprNode& node) -> int
   {
     nodes.push_back(node);
     return static_cast<int>(nodes.size() - 1);
@@ -152,9 +152,9 @@ struct expr_core
   // operand at full weight. Scaling the leaves instead folds
   // `2.0 * (a / b)` to `a / b`, because the quotient divides the two
   // scaled operands back into each other.
-  auto scale_all(double k) -> void
+  auto scaleAll(double k) -> void
   {
-    add_node(expr_node {
+    addNode(ExprNode {
         .kind = 4, .left = root(), .right = -1, .leaf = -1, .scale = k});
   }
 };
@@ -162,46 +162,46 @@ struct expr_core
 // Splices a whole spine into `dst` with index remapping and returns
 // the spliced root index.
 //
-// Leaf indices are remapped through the slot `add_leaf` assigns,
-// because `add_leaf` deduplicates by address: two operands that share a
+// Leaf indices are remapped through the slot `addLeaf` assigns,
+// because `addLeaf` deduplicates by address: two operands that share a
 // leaf contribute one slot between them, so the pre-splice leaf count is
 // not the offset the second operand's nodes must use. An operand built
 // as `x / x` has both operands carrying the same leaf, and remapping by
 // the leaf count would point its second node past the end of the leaf
 // vector, so the fold read out of bounds.
-inline auto splice(detail::expr_core& dst, const detail::expr_core& src) -> int
+inline auto splice(detail::ExprCore& dst, const detail::ExprCore& src) -> int
 {
-  const int node_base = static_cast<int>(dst.nodes.size());
-  std::vector<int> leaf_remap;
-  leaf_remap.reserve(src.leaves.size());
+  const int nodeBase = static_cast<int>(dst.nodes.size());
+  std::vector<int> leafRemap;
+  leafRemap.reserve(src.leaves.size());
   for (const auto& leaf : src.leaves) {
-    leaf_remap.push_back(dst.add_leaf(leaf));
+    leafRemap.push_back(dst.addLeaf(leaf));
   }
   for (auto node : src.nodes) {
     if (node.left >= 0) {
-      node.left += node_base;
+      node.left += nodeBase;
     }
     if (node.right >= 0) {
-      node.right += node_base;
+      node.right += nodeBase;
     }
     if (node.leaf >= 0) {
-      node.leaf = leaf_remap[static_cast<std::size_t>(node.leaf)];
+      node.leaf = leafRemap[static_cast<std::size_t>(node.leaf)];
     }
-    dst.add_node(node);
+    dst.addNode(node);
   }
-  return node_base + src.root();
+  return nodeBase + src.root();
 }
 
-// Stand-in for std::is_specialization_of (C++23 reflection; absent
+// Stand-in for std::IsSpecializationOf (C++23 reflection; absent
 // from both supported standard libraries): true when `T` names
 // `Primary` specialized on its own argument list.
 template<class T, template<class...> class Primary>
-struct is_specialization_of : std::false_type
+struct IsSpecializationOf : std::false_type
 {
 };
 
 template<template<class...> class Primary, class... Args>
-struct is_specialization_of<Primary<Args...>, Primary> : std::true_type
+struct IsSpecializationOf<Primary<Args...>, Primary> : std::true_type
 {
 };
 
@@ -218,9 +218,9 @@ template<class D>
 class counter
 {
 public:
-  using dimension_tag = D;
+  using DimensionTag = D;
 
-  detail::leaf_core leaf;
+  detail::LeafCore leaf;
 
   /**
    * @brief The counter name within its owning object.
@@ -250,7 +250,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto unit_token() const noexcept -> std::string_view
+  [[nodiscard]] auto unitToken() const noexcept -> std::string_view
   {
     return leaf.unit;
   }
@@ -287,7 +287,7 @@ public:
  * `add` is a tier-3 violation, checked by default and elided under
  * `SG_CONTRACTS_IGNORE`.
  */
-class SPEEDGUN_NG_EXPORT push_counter
+class SPEEDGUN_NG_EXPORT PushCounter
 {
 public:
   /**
@@ -296,7 +296,7 @@ public:
    * \pre none
    * \post none
    */
-  push_counter(const push_counter&) = default;
+  PushCounter(const PushCounter&) = default;
 
   /**
    * @brief Moves of a handle name the same counter.
@@ -304,7 +304,7 @@ public:
    * \pre none
    * \post none
    */
-  push_counter(push_counter&&) noexcept = default;
+  PushCounter(PushCounter&&) noexcept = default;
 
   /**
    * @brief Assignment names the same counter.
@@ -312,7 +312,7 @@ public:
    * \pre none
    * \post none
    */
-  auto operator=(const push_counter&) -> push_counter& = default;
+  auto operator=(const PushCounter&) -> PushCounter& = default;
 
   /**
    * @brief Move assignment names the same counter.
@@ -320,7 +320,7 @@ public:
    * \pre none
    * \post none
    */
-  auto operator=(push_counter&&) noexcept -> push_counter& = default;
+  auto operator=(PushCounter&&) noexcept -> PushCounter& = default;
 
   /**
    * @brief The trivial destruction of a handle.
@@ -328,7 +328,7 @@ public:
    * \pre none
    * \post none
    */
-  ~push_counter() = default;
+  ~PushCounter() = default;
 
   /**
    * @brief Adds `n` to the counter's running total: a plain
@@ -358,9 +358,9 @@ public:
 private:
   friend class push_provider;
 
-  push_counter(std::uint64_t* const value,
-               const std::thread::id owner,
-               std::string_view name) noexcept
+  PushCounter(std::uint64_t* const value,
+              const std::thread::id owner,
+              std::string_view name) noexcept
       : m_value(value)
       , m_owner(owner)
       , m_name(name.data(), name.size())
@@ -381,7 +381,7 @@ private:
  * view borrows columns from its producer for as long as the producer
  * lives.
  */
-struct recorder_api
+struct RecorderApi
 {
   const void* impl = nullptr;  // compiled layout, owned by the plan
   const std::uint64_t* columns = nullptr;
@@ -400,7 +400,7 @@ struct recorder_api
  * only. An interior row can hold a zero from a gap while this field
  * stays `Availability::COUNTABLE`, because the end point of that window
  * measured a count. A caller that needs the state of each point uses
- * `fold` or `fold_pairs`, which disclose each window's own gap state
+ * `fold` or `foldPairs`, which disclose each window's own gap state
  * (FR-004, FR-005).
  *
  * `ratio` is the multiplex fraction over the window this view spans, and
@@ -410,9 +410,9 @@ struct recorder_api
  * measured no count. The state beside the ratio names that condition, so a
  * caller reads the ratio only after the state (FR-005, FR-019, FR-020).
  */
-struct points_view
+struct PointsView
 {
-  std::string_view object_path;
+  std::string_view objectPath;
   std::string_view name;
   std::string_view description;
   std::string_view unit;
@@ -435,7 +435,7 @@ struct points_view
  * \pre none
  * \post none
  */
-struct hard_stop_t
+struct HardStop
 {
 };
 
@@ -446,31 +446,29 @@ struct hard_stop_t
  * \pre none
  * \post none
  */
-struct ring_t
+struct Ring
 {
 };
 
-inline constexpr hard_stop_t hard_stop {};
-inline constexpr ring_t ring {};
+inline constexpr HardStop hardStop {};
+inline constexpr Ring ring {};
 
 namespace detail
 {
 
-// Sampling cores behind recorder_handle::sample: the bounds-checked
-// hard_stop path and the masked ring path (FR-026, FR-027, FR-028).
-SPEEDGUN_NG_EXPORT auto hard_stop_sample_core(const void* impl,
-                                              std::uint64_t* columns,
-                                              std::size_t capacity,
-                                              std::size_t& head) noexcept
-    -> void;
+// Sampling cores behind RecorderHandle::sample: the bounds-checked
+// hardStop path and the masked ring path (FR-026, FR-027, FR-028).
+SPEEDGUN_NG_EXPORT auto hardStopSampleCore(const void* impl,
+                                           std::uint64_t* columns,
+                                           std::size_t capacity,
+                                           std::size_t& head) noexcept -> void;
 
-SPEEDGUN_NG_EXPORT auto ring_sample_core(const void* impl,
-                                         std::uint64_t* columns,
-                                         std::size_t capacity,
-                                         std::size_t& head,
-                                         bool& wrapped,
-                                         std::uint64_t& dropped) noexcept
-    -> void;
+SPEEDGUN_NG_EXPORT auto ringSampleCore(const void* impl,
+                                       std::uint64_t* columns,
+                                       std::size_t capacity,
+                                       std::size_t& head,
+                                       bool& wrapped,
+                                       std::uint64_t& dropped) noexcept -> void;
 
 }  // namespace detail
 
@@ -478,11 +476,11 @@ SPEEDGUN_NG_EXPORT auto ring_sample_core(const void* impl,
  * @brief The recorder value handle (E-08, FR-029): a trivially
  * copyable cursor over one plan-arena buffer of `capacity` point
  * columns, one per compiled leaf. `P` is the overflow policy tag:
- * `hard_stop_t` or `ring_t`, chosen by the plan factory (FR-025).
+ * `HardStop` or `Ring`, chosen by the plan factory (FR-025).
  * The plan owns the buffer; the plan outlives its recorders.
  */
 template<class P>
-class recorder_handle
+class RecorderHandle
 {
 public:
   const void* m_impl = nullptr;
@@ -497,7 +495,7 @@ public:
    * per column (FR-026). Zero allocation, zero lock; the five shipped
    * windows reach `readPoints` with no virtual call, and a window
    * that installed no thunk pays one vtable lookup per sampling action
-   * on the seam's documented fallback (FR-022). hard_stop overrun is
+   * on the seam's documented fallback (FR-022). hardStop overrun is
    * an `SG_REQUIRE_ALWAYS` violation in every build configuration
    * (FR-027); ring masks into the buffer and records wrapped plus
    * dropped (FR-028).
@@ -507,10 +505,10 @@ public:
    */
   auto sample() noexcept -> void
   {
-    if constexpr (std::is_same_v<P, hard_stop_t>) {
-      detail::hard_stop_sample_core(m_impl, m_columns, m_capacity, m_head);
+    if constexpr (std::is_same_v<P, HardStop>) {
+      detail::hardStopSampleCore(m_impl, m_columns, m_capacity, m_head);
     } else {
-      detail::ring_sample_core(
+      detail::ringSampleCore(
           m_impl, m_columns, m_capacity, m_head, m_wrapped, m_dropped);
     }
   }
@@ -522,11 +520,11 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto view() const noexcept -> recorder_api
+  [[nodiscard]] auto view() const noexcept -> RecorderApi
   {
     const auto committed =
         m_head < m_capacity ? m_head : static_cast<std::size_t>(m_capacity);
-    return recorder_api {
+    return RecorderApi {
         .impl = m_impl,
         .columns = m_columns,
         .stride = m_capacity,
@@ -583,39 +581,37 @@ public:
 // A recorder is a plain cursor, so copying one copies the six members
 // and calls nothing; a non-trivial copy would reach the allocator on
 // the read path (FR-029).
-static_assert(std::is_trivially_copyable_v<recorder_handle<hard_stop_t>>);
-static_assert(std::is_trivially_copyable_v<recorder_handle<ring_t>>);
+static_assert(std::is_trivially_copyable_v<RecorderHandle<HardStop>>);
+static_assert(std::is_trivially_copyable_v<RecorderHandle<Ring>>);
 
 namespace detail
 {
 
 // Core operations behind the public template wrappers.
-[[nodiscard]] SPEEDGUN_NG_EXPORT auto fold_core(const expr_core& core,
-                                                const recorder_api& rec,
-                                                std::size_t i,
-                                                std::size_t j) -> MetricResult;
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto foldCore(const ExprCore& core,
+                                               const RecorderApi& rec,
+                                               std::size_t i,
+                                               std::size_t j) -> MetricResult;
 
-[[nodiscard]] SPEEDGUN_NG_EXPORT auto fold_pairs_core(const expr_core& core,
-                                                      const recorder_api& rec)
-    -> std::vector<MetricResult>;
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto foldPairsCore(
+    const ExprCore& core, const RecorderApi& rec) -> std::vector<MetricResult>;
 
-[[nodiscard]] SPEEDGUN_NG_EXPORT auto raw_core(const expr_core& core,
-                                               const recorder_api& rec,
-                                               std::string_view object_path,
-                                               std::string_view leaf_name)
-    -> std::expected<points_view, Error>;
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto rawCore(const ExprCore& core,
+                                              const RecorderApi& rec,
+                                              std::string_view objectPath,
+                                              std::string_view leafName)
+    -> std::expected<PointsView, Error>;
 
-[[nodiscard]] SPEEDGUN_NG_EXPORT auto resolve_leaf_core(const object& obj,
-                                                        std::string_view name)
-    -> std::expected<leaf_core, Error>;
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto resolveLeafCore(
+    const object& obj, std::string_view name) -> std::expected<LeafCore, Error>;
 
-[[nodiscard]] SPEEDGUN_NG_EXPORT auto compile_core(
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto compileCore(
     const system& sys,
     const Target& tg,
-    const std::vector<const expr_core*>& exprs) -> std::expected<plan, Error>;
+    const std::vector<const ExprCore*>& exprs) -> std::expected<plan, Error>;
 
-[[nodiscard]] SPEEDGUN_NG_EXPORT auto metric_core(
-    const scope& scope_obj, const expr_core& core) -> MetricResult;
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto metricCore(
+    const scope& scopeObj, const ExprCore& core) -> MetricResult;
 
 }  // namespace detail
 
@@ -632,9 +628,9 @@ template<class D>
 class expression
 {
 public:
-  using dimension_tag = D;
+  using DimensionTag = D;
 
-  detail::expr_core core;
+  detail::ExprCore core;
 
   /**
    * @brief An empty spine; compile rejects a zero-leaf expression.
@@ -660,9 +656,9 @@ public:
   // NOLINTNEXTLINE(google-explicit-constructor,hicpp-explicit-conversions)
   expression(const counter<C>& leaf)
   {
-    const int leaf_index = core.add_leaf(leaf.leaf);
-    core.add_node(detail::expr_node {
-        .kind = 0, .left = -1, .right = -1, .leaf = leaf_index, .scale = 1.0});
+    const int leafIndex = core.addLeaf(leaf.leaf);
+    core.addNode(detail::ExprNode {
+        .kind = 0, .left = -1, .right = -1, .leaf = leafIndex, .scale = 1.0});
   }
 
   /**
@@ -675,13 +671,13 @@ public:
    * \pre `i < j` within the recorder's recorded extent (tier-3).
    * \post none
    */
-  [[nodiscard]] auto fold(const recorder_api& rec,
+  [[nodiscard]] auto fold(const RecorderApi& rec,
                           std::size_t i,
                           std::size_t j) const -> MetricResult
   {
     SG_REQUIRE(i < j && j < rec.count,
                "fold window lies within the recorded extent (FR-018)");
-    return detail::fold_core(core, rec, i, j);
+    return detail::foldCore(core, rec, i, j);
   }
 
   /**
@@ -690,11 +686,11 @@ public:
    * \pre at least two committed points (tier-3).
    * \post none
    */
-  [[nodiscard]] auto fold(const recorder_api& rec) const -> MetricResult
+  [[nodiscard]] auto fold(const RecorderApi& rec) const -> MetricResult
   {
     SG_REQUIRE(rec.count >= 2,
                "first-to-last fold needs two committed points (FR-018)");
-    return detail::fold_core(core, rec, 0, rec.count - 1);
+    return detail::foldCore(core, rec, 0, rec.count - 1);
   }
 
   /**
@@ -709,11 +705,11 @@ public:
    * \pre the recorder holds two or more committed points (tier-3).
    * \post none
    */
-  [[nodiscard]] auto fold_pairs(const recorder_api& rec) const
+  [[nodiscard]] auto foldPairs(const RecorderApi& rec) const
   {
     SG_REQUIRE(rec.count >= 2,
                "pair folds need at least two committed points (FR-018)");
-    return detail::fold_pairs_core(core, rec);
+    return detail::foldPairsCore(core, rec);
   }
 
   /**
@@ -722,12 +718,12 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto raw(const recorder_api& rec,
-                         std::string_view object_path,
+  [[nodiscard]] auto raw(const RecorderApi& rec,
+                         std::string_view objectPath,
                          std::string_view leaf) const
-      -> std::expected<points_view, Error>
+      -> std::expected<PointsView, Error>
   {
-    return detail::raw_core(core, rec, object_path, leaf);
+    return detail::rawCore(core, rec, objectPath, leaf);
   }
 
   // Hidden friends: non-template, so counter arguments convert and
@@ -737,7 +733,7 @@ public:
     auto merged = a.core;
     const int left = merged.root();
     const int right = detail::splice(merged, b.core);
-    merged.add_node(detail::expr_node {
+    merged.addNode(detail::ExprNode {
         .kind = 1, .left = left, .right = right, .leaf = -1, .scale = 1.0});
     auto out = expression();
     out.core = std::move(merged);
@@ -749,7 +745,7 @@ public:
     auto merged = a.core;
     const int left = merged.root();
     const int right = detail::splice(merged, b.core);
-    merged.add_node(detail::expr_node {
+    merged.addNode(detail::ExprNode {
         .kind = 2, .left = left, .right = right, .leaf = -1, .scale = 1.0});
     auto out = expression();
     out.core = std::move(merged);
@@ -759,7 +755,7 @@ public:
   friend auto operator*(const double k, const expression& e) -> expression
   {
     auto merged = e.core;
-    merged.scale_all(k);
+    merged.scaleAll(k);
     auto out = expression();
     out.core = std::move(merged);
     return out;
@@ -776,10 +772,10 @@ template<class D1, class D2>
 [[nodiscard]] auto operator/(const expression<D1>& a, const expression<D2>& b)
     -> expression<DimQuotient<D1, D2>>
 {
-  detail::expr_core merged;
+  detail::ExprCore merged;
   const int left = detail::splice(merged, a.core);
   const int right = detail::splice(merged, b.core);
-  merged.add_node(detail::expr_node {
+  merged.addNode(detail::ExprNode {
       .kind = 3, .left = left, .right = right, .leaf = -1, .scale = 1.0});
   auto out = expression<DimQuotient<D1, D2>>();
   out.core = std::move(merged);
@@ -798,7 +794,7 @@ template<class D1, class D2>
   auto merged = a.core;
   const int left = merged.root();
   const int right = detail::splice(merged, b.core);
-  merged.add_node(detail::expr_node {
+  merged.addNode(detail::ExprNode {
       .kind = 1, .left = left, .right = right, .leaf = -1, .scale = 1.0});
   auto out = expression<D1>();
   out.core = std::move(merged);
@@ -814,7 +810,7 @@ template<class D1, class D2>
   auto merged = a.core;
   const int left = merged.root();
   const int right = detail::splice(merged, b.core);
-  merged.add_node(detail::expr_node {
+  merged.addNode(detail::ExprNode {
       .kind = 2, .left = left, .right = right, .leaf = -1, .scale = 1.0});
   auto out = expression<D1>();
   out.core = std::move(merged);
@@ -919,17 +915,17 @@ public:
   ~plan();
 
   /**
-   * @brief Mints a hard_stop recorder: `capacity` point columns are
+   * @brief Mints a hardStop recorder: `capacity` point columns are
    * allocated now from the plan arena; sampling allocates nothing
    * later (FR-025, FR-029). The plan outlives its recorders. A zero
    * capacity mints a recorder whose first sampling action reports the
-   * sampling bound `hard_stop_sample_core` enforces (FR-025).
+   * sampling bound `hardStopSampleCore` enforces (FR-025).
    *
    * \pre none
    * \post none
    */
   [[nodiscard]] auto recorder(std::size_t capacity) const
-      -> recorder_handle<hard_stop_t>;
+      -> RecorderHandle<HardStop>;
 
   /**
    * @brief Mints a ring recorder: `capacity` point columns are
@@ -939,8 +935,8 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto recorder(std::size_t capacity, ring_t) const
-      -> std::expected<recorder_handle<ring_t>, Error>;
+  [[nodiscard]] auto recorder(std::size_t capacity, Ring) const
+      -> std::expected<RecorderHandle<Ring>, Error>;
 
   /**
    * @brief The cheapest `sample()` in the recorded distribution, in
@@ -951,13 +947,13 @@ public:
    * distribution on the plan. Compile itself performs no hardware read
    * (FR-021), so the reads happen here, on the caller's request. Fold a
    * window from `i` to `j` and its two endpoints cost
-   * `2 * sample_overhead_ns_median()` of sampling on top of the work
+   * `2 * sampleOverheadNsMedian()` of sampling on top of the work
    * the window measured (FR-032, FR-048).
    *
    * \pre none
    * \post The returned nanosecond count is at least 0.
    */
-  [[nodiscard]] auto sample_overhead_ns_min() const -> double;
+  [[nodiscard]] auto sampleOverheadNsMin() const -> double;
 
   /**
    * @brief The median `sample()` in the recorded distribution, in
@@ -966,7 +962,7 @@ public:
    * \pre none
    * \post The returned nanosecond count is at least 0.
    */
-  [[nodiscard]] auto sample_overhead_ns_median() const -> double;
+  [[nodiscard]] auto sampleOverheadNsMedian() const -> double;
 
   /**
    * @brief The dearest `sample()` in the recorded distribution, in
@@ -976,13 +972,13 @@ public:
    * \pre none
    * \post The returned nanosecond count is at least `min()`.
    */
-  [[nodiscard]] auto sample_overhead_ns_max() const -> double;
+  [[nodiscard]] auto sampleOverheadNsMax() const -> double;
 
 private:
-  friend auto detail::compile_core(const system& sys,
-                                   const Target& tg,
-                                   const std::vector<const detail::expr_core*>&
-                                       exprs) -> std::expected<plan, Error>;
+  friend auto detail::compileCore(const system& sys,
+                                  const Target& tg,
+                                  const std::vector<const detail::ExprCore*>&
+                                      exprs) -> std::expected<plan, Error>;
   friend class scope;
 
   explicit plan(void* impl) noexcept
@@ -1063,7 +1059,7 @@ public:
   template<class D>
   [[nodiscard]] auto metric(const expression<D>& e) const -> MetricResult
   {
-    return detail::metric_core(*this, e.core);
+    return detail::metricCore(*this, e.core);
   }
 
   /**
@@ -1075,11 +1071,11 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto view() const noexcept -> recorder_api;
+  [[nodiscard]] auto view() const noexcept -> RecorderApi;
 
 private:
-  friend auto detail::metric_core(
-      const scope& scope_obj, const detail::expr_core& core) -> MetricResult;
+  friend auto detail::metricCore(const scope& scopeObj,
+                                 const detail::ExprCore& core) -> MetricResult;
 
   void* m_core = nullptr;  // the scope internals
 };
@@ -1096,14 +1092,13 @@ private:
  * \post none
  */
 template<class... E>
-  requires(detail::is_specialization_of<std::remove_cvref_t<E>,
-                                        expression>::value
+  requires(detail::IsSpecializationOf<std::remove_cvref_t<E>, expression>::value
            && ...)
 [[nodiscard]] auto compile(const system& sys,
                            const E&... exprs) -> std::expected<plan, Error>
 {
-  const std::vector<const detail::expr_core*> cores {&exprs.core...};
-  return detail::compile_core(sys, Target {}, cores);
+  const std::vector<const detail::ExprCore*> cores {&exprs.core...};
+  return detail::compileCore(sys, Target {}, cores);
 }
 
 /**
@@ -1113,44 +1108,43 @@ template<class... E>
  * \post none
  */
 template<class... E>
-  requires(detail::is_specialization_of<std::remove_cvref_t<E>,
-                                        expression>::value
+  requires(detail::IsSpecializationOf<std::remove_cvref_t<E>, expression>::value
            && ...)
 [[nodiscard]] auto compile(const system& sys,
                            const Target& tg,
                            const E&... exprs) -> std::expected<plan, Error>
 {
-  const std::vector<const detail::expr_core*> cores {&exprs.core...};
-  return detail::compile_core(sys, tg, cores);
+  const std::vector<const detail::ExprCore*> cores {&exprs.core...};
+  return detail::compileCore(sys, tg, cores);
 }
 
 /**
  * @brief One object's result of a fan-out fold (SC-007): the canonical
  * path and the metric over that object's instantiated leaves.
  */
-struct fanout_result
+struct FanoutResult
 {
-  std::string object_path;  // canonical spelling (FR-002)
+  std::string objectPath;  // canonical spelling (FR-002)
   MetricResult metric;
 };
 
 class object;
-class fanout_plan;
+class FanoutPlan;
 
 namespace detail
 {
 
-SPEEDGUN_NG_EXPORT auto compile_fanout_core(
+SPEEDGUN_NG_EXPORT auto compileFanoutCore(
     const system& sys,
     const Target& tg,
-    const expr_core& exemplar,
+    const ExprCore& exemplar,
     const std::vector<const object*>& selection)
-    -> std::expected<fanout_plan, Error>;
+    -> std::expected<FanoutPlan, Error>;
 
-SPEEDGUN_NG_EXPORT auto fanout_fold_core(const void* fanout,
-                                         const expr_core& core,
-                                         const recorder_api& rec)
-    -> std::vector<fanout_result>;
+SPEEDGUN_NG_EXPORT auto fanoutFoldCore(const void* fanout,
+                                       const ExprCore& core,
+                                       const RecorderApi& rec)
+    -> std::vector<FanoutResult>;
 
 }  // namespace detail
 
@@ -1160,11 +1154,11 @@ SPEEDGUN_NG_EXPORT auto fanout_fold_core(const void* fanout,
  * leaf is read inside each shared sampling action (FR-047).
  * Move-only; the plan owns the layout and the recorder arenas.
  */
-class SPEEDGUN_NG_EXPORT fanout_plan
+class SPEEDGUN_NG_EXPORT FanoutPlan
 {
 public:
-  fanout_plan(const fanout_plan&) = delete;
-  auto operator=(const fanout_plan&) -> fanout_plan& = delete;
+  FanoutPlan(const FanoutPlan&) = delete;
+  auto operator=(const FanoutPlan&) -> FanoutPlan& = delete;
 
   /**
    * @brief Moves the compiled fan-out layout.
@@ -1172,7 +1166,7 @@ public:
    * \pre none
    * \post `other` holds no layout.
    */
-  fanout_plan(fanout_plan&& other) noexcept;
+  FanoutPlan(FanoutPlan&& other) noexcept;
 
   /**
    * @brief Move assignment: `other` holds no layout.
@@ -1180,7 +1174,7 @@ public:
    * \pre none
    * \post none
    */
-  auto operator=(fanout_plan&& other) noexcept -> fanout_plan&;
+  auto operator=(FanoutPlan&& other) noexcept -> FanoutPlan&;
 
   /**
    * @brief Releases the fan-out layout and arenas; every recorder
@@ -1189,10 +1183,10 @@ public:
    * \pre none
    * \post none
    */
-  ~fanout_plan();
+  ~FanoutPlan();
 
   /**
-   * @brief Mints a hard_stop recorder over the shared window:
+   * @brief Mints a hardStop recorder over the shared window:
    * `capacity` point columns per instantiated leaf; one sampling
    * action reads every instance (FR-047, FR-029). The plan outlives
    * its recorders.
@@ -1201,7 +1195,7 @@ public:
    * \post none
    */
   [[nodiscard]] auto recorder(std::size_t capacity) const
-      -> recorder_handle<hard_stop_t>;
+      -> RecorderHandle<HardStop>;
 
   /**
    * @brief The selected objects' canonical paths, selection order.
@@ -1209,7 +1203,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto object_paths() const -> std::vector<std::string>;
+  [[nodiscard]] auto objectPaths() const -> std::vector<std::string>;
 
   /**
    * @brief First-to-last fold per selected object in selection order
@@ -1221,25 +1215,25 @@ public:
    * \post none
    */
   template<class D>
-  [[nodiscard]] auto fold(const expression<D>& e, const recorder_api& rec) const
-      -> std::vector<fanout_result>
+  [[nodiscard]] auto fold(const expression<D>& e, const RecorderApi& rec) const
+      -> std::vector<FanoutResult>
   {
-    return detail::fanout_fold_core(m_impl, e.core, rec);
+    return detail::fanoutFoldCore(m_impl, e.core, rec);
   }
 
 private:
-  friend auto detail::compile_fanout_core(
+  friend auto detail::compileFanoutCore(
       const system& sys,
       const Target& tg,
-      const detail::expr_core& exemplar,
+      const detail::ExprCore& exemplar,
       const std::vector<const object*>& selection)
-      -> std::expected<fanout_plan, Error>;
-  friend auto detail::fanout_fold_core(const void* fanout,
-                                       const detail::expr_core& core,
-                                       const recorder_api& rec)
-      -> std::vector<fanout_result>;
+      -> std::expected<FanoutPlan, Error>;
+  friend auto detail::fanoutFoldCore(const void* fanout,
+                                     const detail::ExprCore& core,
+                                     const RecorderApi& rec)
+      -> std::vector<FanoutResult>;
 
-  explicit fanout_plan(void* impl) noexcept
+  explicit FanoutPlan(void* impl) noexcept
       : m_impl(impl)
   {
   }
@@ -1261,9 +1255,9 @@ template<class D>
 [[nodiscard]] auto compile(const system& sys,
                            const expression<D>& expr,
                            const std::vector<const object*>& selection)
-    -> std::expected<fanout_plan, Error>
+    -> std::expected<FanoutPlan, Error>
 {
-  return detail::compile_fanout_core(sys, Target {}, expr.core, selection);
+  return detail::compileFanoutCore(sys, Target {}, expr.core, selection);
 }
 
 }  // namespace sg::counters

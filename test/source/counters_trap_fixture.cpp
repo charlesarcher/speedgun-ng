@@ -34,8 +34,8 @@ using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
-using sg::counters::push_counter;
 using sg::counters::push_provider;
+using sg::counters::PushCounter;
 using sg::counters::system;
 
 using events = Dim<0, 1>;

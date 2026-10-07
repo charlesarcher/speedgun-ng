@@ -55,7 +55,7 @@ using sg::counters::Dim;
 using sg::counters::plan;
 using sg::counters::pmu_provider;
 using sg::counters::ReadMode;
-using sg::counters::recorder_handle;
+using sg::counters::RecorderHandle;
 using sg::counters::system;
 
 using events = Dim<0, 1>;
@@ -198,9 +198,9 @@ auto measure(plan& compiled, const std::string& label) -> regime
   recorder.sample();
   recorder.sample();
   regime cost {.label = label,
-               .min_ns = compiled.sample_overhead_ns_min(),
-               .median_ns = compiled.sample_overhead_ns_median(),
-               .max_ns = compiled.sample_overhead_ns_max()};
+               .min_ns = compiled.sampleOverheadNsMin(),
+               .median_ns = compiled.sampleOverheadNsMedian(),
+               .max_ns = compiled.sampleOverheadNsMax()};
   report(cost);
   check(cost.min_ns >= 0.0 && cost.median_ns >= cost.min_ns
             && cost.max_ns >= cost.median_ns,

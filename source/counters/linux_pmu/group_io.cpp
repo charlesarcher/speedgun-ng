@@ -168,7 +168,7 @@ auto resolve(const pmu_state& state,
       return false;
     }
     const std::string device_name = address.substr(0, slash);
-    const std::string leaf_name = address.substr(slash + 1);
+    const std::string leafName = address.substr(slash + 1);
     const auto located = device_index.find(device_name);
     if (located == device_index.end()) {
       return false;
@@ -176,7 +176,7 @@ auto resolve(const pmu_state& state,
     const auto& device = state.devices[located->second];
     const pmu_entry* found = nullptr;
     for (const auto& entry : device.entries) {
-      if (entry.name == leaf_name) {
+      if (entry.name == leafName) {
         found = &entry;
         break;
       }
@@ -185,9 +185,9 @@ auto resolve(const pmu_state& state,
       return false;
     }
     slot_source source = slot_source::member;
-    if (leaf_name == "enabled") {
+    if (leafName == "enabled") {
       source = slot_source::time_enabled;
-    } else if (leaf_name == "running") {
+    } else if (leafName == "running") {
       source = slot_source::time_running;
     }
     out.push_back(resolved_leaf {

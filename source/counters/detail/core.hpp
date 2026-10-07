@@ -27,7 +27,7 @@ namespace sg::counters
 // One catalog leaf in the system tree.
 struct leaf_record
 {
-  detail::leaf_core core;
+  detail::LeafCore core;
   // True when the source discloses an enabled/running ratio pair as
   // ordinary leaves (FR-019); ratio pair slots land with US6.
   bool has_ratio_pair = false;
@@ -81,7 +81,7 @@ struct plan_impl
 {
   struct slot
   {
-    detail::leaf_core core;
+    detail::LeafCore core;
     bool has_ratio_pair = false;
     // Slot indices of this leaf's object-level enabled and running
     // leaves, or npos when the object discloses no time pair. The fold
@@ -115,7 +115,7 @@ struct plan_impl
   // The cost this decision accepts, recorded here because the decision
   // site is where a reader looks for it (Constitution X.1). A fold
   // resolves each of its leaves through this map with one lookup at
-  // `source/counters/fold.cpp:43`, and `fold_pairs_core` at `:237-238`
+  // `source/counters/fold.cpp:43`, and `foldPairsCore` at `:237-238`
   // calls the fold once per committed point pair, so a pair fold over
   // `N` committed points repeats every lookup `N - 1` times. The ceiling
   // that makes it acceptable is that the fold runs off the measurement
@@ -159,7 +159,7 @@ struct plan_impl
   }
 };
 
-// The compiled fan-out layout behind the fanout_plan handle
+// The compiled fan-out layout behind the FanoutPlan handle
 // (US3 scenario 5): the instantiated inner plan and the selected
 // canonical paths in selection order.
 struct fanout_impl
@@ -177,9 +177,9 @@ struct scope_core
   bool started = false;
   bool finished = false;
 
-  [[nodiscard]] auto view() const noexcept -> recorder_api
+  [[nodiscard]] auto view() const noexcept -> RecorderApi
   {
-    return recorder_api {
+    return RecorderApi {
         .impl = impl,
         .columns = buffer.data(),
         .stride = 2,

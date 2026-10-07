@@ -49,7 +49,7 @@ auto sample_row(const plan_impl& layout,
 // recorder all call this, which is what makes FR-030's one semantics an
 // implementation fact. The two overflow policies keep one core each,
 // because FR-027's always-enforced bounds check and FR-028's branchless
-// mask are mutually exclusive, and `recorder_handle<P>::sample()` picks
+// mask are mutually exclusive, and `RecorderHandle<P>::sample()` picks
 // between them at compile time (FR-026, FR-027, FR-028, FR-031). The
 // cached `bound_thread` names the one allowed thread; the current
 // thread's identity is read per call, because caching it would cache
@@ -69,8 +69,8 @@ auto sample_point(const plan_impl& layout,
 // Fan-out instantiation: the exemplar spine re-homed under `path` by
 // re-addressing every leaf (US3 scenario 5); the fold layer resolves
 // the instances through the plan's address map.
-auto instantiate_core(const detail::expr_core& core,
-                      const std::string& path) -> detail::expr_core
+auto instantiate_core(const detail::ExprCore& core,
+                      const std::string& path) -> detail::ExprCore
 {
   auto out = core;
   for (auto& leaf : out.leaves) {
@@ -81,11 +81,11 @@ auto instantiate_core(const detail::expr_core& core,
 
 // The one object path shared by every spine leaf; empty for an empty
 // spine or a spine spanning several objects.
-auto exemplar_prefix(const detail::expr_core& core) -> std::string
+auto exemplar_prefix(const detail::ExprCore& core) -> std::string
 {
   // LCOV_EXCL_BR_START : coverage exclusion (T066): both guards are
-  // unreachable. A zero-leaf expression is refused by `compile_core`
-  // (`plan.cpp:417`), and for a fan-out by `compile_fanout_core`
+  // unreachable. A zero-leaf expression is refused by `compileCore`
+  // (`plan.cpp:417`), and for a fan-out by `compileFanoutCore`
   // (`plan.cpp:536`). Every address reaching here was written by
   // `instantiate_core` as `path + "/" + name`: a separator is always present.
   if (core.leaves.empty()) {  // LCOV_EXCL_BR_LINE
@@ -188,7 +188,7 @@ plan::~plan()
   delete static_cast<plan_impl*>(m_impl);
 }
 
-fanout_plan::fanout_plan(fanout_plan&& other) noexcept
+FanoutPlan::FanoutPlan(FanoutPlan&& other) noexcept
     : m_impl(other.m_impl)
 {
   other.m_impl = nullptr;
@@ -196,7 +196,7 @@ fanout_plan::fanout_plan(fanout_plan&& other) noexcept
             "the moved-from fan-out plan holds no layout (FR-022)");
 }
 
-auto fanout_plan::operator=(fanout_plan&& other) noexcept -> fanout_plan&
+auto FanoutPlan::operator=(FanoutPlan&& other) noexcept -> FanoutPlan&
 {
   if (this != &other) {
     delete static_cast<fanout_impl*>(m_impl);
@@ -206,36 +206,36 @@ auto fanout_plan::operator=(fanout_plan&& other) noexcept -> fanout_plan&
   return *this;
 }
 
-fanout_plan::~fanout_plan()
+FanoutPlan::~FanoutPlan()
 {
   delete static_cast<fanout_impl*>(m_impl);
 }
 
-auto fanout_plan::recorder(const std::size_t capacity) const
-    -> recorder_handle<hard_stop_t>
+auto FanoutPlan::recorder(const std::size_t capacity) const
+    -> RecorderHandle<HardStop>
 {
   return static_cast<const fanout_impl*>(m_impl)->inner->recorder(capacity);
 }
 
-auto fanout_plan::object_paths() const -> std::vector<std::string>
+auto FanoutPlan::objectPaths() const -> std::vector<std::string>
 {
   return static_cast<const fanout_impl*>(m_impl)->paths;
 }
 
 auto plan::recorder(const std::size_t capacity) const
-    -> recorder_handle<hard_stop_t>
+    -> RecorderHandle<HardStop>
 {
   auto& impl = *static_cast<plan_impl*>(m_impl);
   auto arena =
       std::make_unique<std::uint64_t[]>(capacity * impl.column_count());
   auto* columns = arena.get();
   impl.arenas.push_back(std::move(arena));
-  return recorder_handle<hard_stop_t> {
+  return RecorderHandle<HardStop> {
       .m_impl = m_impl, .m_columns = columns, .m_capacity = capacity};
 }
 
-auto plan::recorder(const std::size_t capacity, const ring_t) const
-    -> std::expected<recorder_handle<ring_t>, Error>
+auto plan::recorder(const std::size_t capacity, const Ring) const
+    -> std::expected<RecorderHandle<Ring>, Error>
 {
   if (capacity == 0 || (capacity & (capacity - 1)) != 0) {
     return std::unexpected(Error {
@@ -247,7 +247,7 @@ auto plan::recorder(const std::size_t capacity, const ring_t) const
       std::make_unique<std::uint64_t[]>(capacity * impl.column_count());
   auto* columns = arena.get();
   impl.arenas.push_back(std::move(arena));
-  return recorder_handle<ring_t> {
+  return RecorderHandle<Ring> {
       .m_impl = m_impl, .m_columns = columns, .m_capacity = capacity};
 }
 
@@ -315,21 +315,21 @@ static auto calibrate(plan_impl& layout) -> const overhead_sample&
   return layout.overhead;
 }
 
-auto plan::sample_overhead_ns_min() const -> double
+auto plan::sampleOverheadNsMin() const -> double
 {
   const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
   SG_ENSURE(cost.min_ns >= 0.0, "the calibrated minimum is a real duration");
   return cost.min_ns;
 }
 
-auto plan::sample_overhead_ns_median() const -> double
+auto plan::sampleOverheadNsMedian() const -> double
 {
   const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
   SG_ENSURE(cost.median_ns >= 0.0, "the calibrated median is a real duration");
   return cost.median_ns;
 }
 
-auto plan::sample_overhead_ns_max() const -> double
+auto plan::sampleOverheadNsMax() const -> double
 {
   const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
   SG_ENSURE(cost.max_ns >= cost.min_ns,
@@ -359,7 +359,7 @@ void scope::start()
   // The window is a two-point hard-stop recorder, so its points are
   // sampled by the recorder's own core, capacity check included
   // (FR-027, FR-030).
-  detail::hard_stop_sample_core(
+  detail::hardStopSampleCore(
       core->impl, core->buffer.data(), 2, core->state.head);
   core->started = true;
   SG_ENSURE(core->state.head == 1 && core->started,
@@ -371,14 +371,14 @@ void scope::finish()
   auto* core = static_cast<scope_core*>(m_core);
   SG_REQUIRE(core->started && !core->finished,
              "scope finish runs on a started, open window (FR-046)");
-  detail::hard_stop_sample_core(
+  detail::hardStopSampleCore(
       core->impl, core->buffer.data(), 2, core->state.head);
   core->finished = true;
   SG_ENSURE(core->state.head == 2 && core->finished,
             "the window is closed with two recorded points (FR-011)");
 }
 
-auto scope::view() const noexcept -> recorder_api
+auto scope::view() const noexcept -> RecorderApi
 {
   return static_cast<const scope_core*>(m_core)->view();
 }
@@ -386,10 +386,10 @@ auto scope::view() const noexcept -> recorder_api
 namespace detail
 {
 
-auto hard_stop_sample_core(const void* impl,
-                           std::uint64_t* columns,
-                           const std::size_t capacity,
-                           std::size_t& head) noexcept -> void
+auto hardStopSampleCore(const void* impl,
+                        std::uint64_t* columns,
+                        const std::size_t capacity,
+                        std::size_t& head) noexcept -> void
 {
   SG_REQUIRE_ALWAYS(head < capacity,
                     "hard_stop recorder samples within capacity (FR-027)");
@@ -397,12 +397,12 @@ auto hard_stop_sample_core(const void* impl,
   sample_point(layout, columns, capacity, head, head);
 }
 
-auto ring_sample_core(const void* impl,
-                      std::uint64_t* columns,
-                      const std::size_t capacity,
-                      std::size_t& head,
-                      bool& wrapped,
-                      std::uint64_t& dropped) noexcept -> void
+auto ringSampleCore(const void* impl,
+                    std::uint64_t* columns,
+                    const std::size_t capacity,
+                    std::size_t& head,
+                    bool& wrapped,
+                    std::uint64_t& dropped) noexcept -> void
 {
   const auto& layout = *static_cast<const plan_impl*>(impl);
   sample_point(layout, columns, capacity, head & (capacity - 1), head);
@@ -412,9 +412,9 @@ auto ring_sample_core(const void* impl,
   }
 }
 
-auto compile_core(const system& sys,
-                  const Target& tg,
-                  const std::vector<const expr_core*>& exprs)
+auto compileCore(const system& sys,
+                 const Target& tg,
+                 const std::vector<const ExprCore*>& exprs)
     -> std::expected<plan, Error>
 {
   auto& impl = *sys.m_impl;
@@ -455,13 +455,13 @@ auto compile_core(const system& sys,
       if (seen.contains(leaf.address)) {
         continue;
       }
-      const auto [object_path, name] = split_leaf_address(leaf.address);
+      const auto [objectPath, name] = split_leaf_address(leaf.address);
       const leaf_record* record = nullptr;
       // LCOV_EXCL_BR_START : coverage exclusion (T066): the null side. Every
-      // leaf address reaching `compile_core` came from a resolved handle or
+      // leaf address reaching `compileCore` came from a resolved handle or
       // from `instantiate_core`, and the object it names is in the frozen
       // tree, so the lookup never misses.
-      if (const auto* node = impl.find(object_path); node != nullptr)
+      if (const auto* node = impl.find(objectPath); node != nullptr)
       {  // LCOV_EXCL_BR_LINE
         for (const auto& candidate : node->leaves) {
           if (candidate.core.name == name) {
@@ -629,13 +629,13 @@ auto compile_core(const system& sys,
   return plan(layout.release());
 }
 
-auto compile_fanout_core(const system& sys,
-                         const Target& tg,
-                         const expr_core& exemplar,
-                         const std::vector<const object*>& selection)
-    -> std::expected<fanout_plan, Error>
+auto compileFanoutCore(const system& sys,
+                       const Target& tg,
+                       const ExprCore& exemplar,
+                       const std::vector<const object*>& selection)
+    -> std::expected<FanoutPlan, Error>
 {
-  // The leaf vector, for the reason `compile_core` gives above: a
+  // The leaf vector, for the reason `compileCore` gives above: a
   // scalar multiple adds its scale node over an empty spine, so a
   // scaled zero-leaf exemplar holds one node over nothing.
   if (exemplar.leaves.empty()) {
@@ -653,8 +653,8 @@ auto compile_fanout_core(const system& sys,
         Error {.message = "fan-out exemplar spans several objects (FR-024)",
                .suggestions = {}});
   }
-  std::vector<const expr_core*> instantiated;
-  std::vector<expr_core> instances;
+  std::vector<const ExprCore*> instantiated;
+  std::vector<ExprCore> instances;
   std::vector<std::string> paths;
   for (const object* selected : selection) {
     if (selected == nullptr) {
@@ -674,28 +674,27 @@ auto compile_fanout_core(const system& sys,
   for (const auto& instance : instances) {
     instantiated.push_back(&instance);
   }
-  auto inner = compile_core(sys, tg, instantiated);
+  auto inner = compileCore(sys, tg, instantiated);
   if (!inner.has_value()) {
     return std::unexpected(inner.error());
   }
   auto impl = std::make_unique<fanout_impl>();
   impl->inner = std::make_unique<plan>(std::move(*inner));
   impl->paths = std::move(paths);
-  return fanout_plan(impl.release());
+  return FanoutPlan(impl.release());
 }
 
-auto fanout_fold_core(const void* fanout,
-                      const expr_core& core,
-                      const recorder_api& rec) -> std::vector<fanout_result>
+auto fanoutFoldCore(const void* fanout,
+                    const ExprCore& core,
+                    const RecorderApi& rec) -> std::vector<FanoutResult>
 {
   const auto& impl = *static_cast<const fanout_impl*>(fanout);
-  std::vector<fanout_result> out;
+  std::vector<FanoutResult> out;
   out.reserve(impl.paths.size());
   for (const auto& path : impl.paths) {
-    out.push_back(fanout_result {
-        .object_path = path,
-        .metric =
-            fold_core(instantiate_core(core, path), rec, 0, rec.count - 1),
+    out.push_back(FanoutResult {
+        .objectPath = path,
+        .metric = foldCore(instantiate_core(core, path), rec, 0, rec.count - 1),
     });
   }
   return out;
