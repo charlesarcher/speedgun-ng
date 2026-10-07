@@ -56,7 +56,7 @@ using sg::counters::CatalogEntry;
 using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::fake_provider;
+using sg::counters::FakeProvider;
 using sg::counters::PushProvider;
 using sg::counters::ReadMode;
 using sg::counters::scope;
@@ -150,7 +150,7 @@ auto register_fixture() -> void
 
   // A counted source to compose the time-stamp counter against, which is
   // what proves interchangeability, and rules out a private spelling.
-  auto fake = std::make_unique<fake_provider>();
+  auto fake = std::make_unique<FakeProvider>();
   fake->add_object("core-0", "core0", "core", "the core under test");
   fake->add_counter("core-0", "instructions", "ops", "instructions retired");
   fake->set_points("core-0", "instructions", {}, 1000);

@@ -35,7 +35,7 @@ using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::fake_provider;
+using sg::counters::FakeProvider;
 using sg::counters::system;
 
 using events = Dim<0, 1>;
@@ -78,9 +78,9 @@ auto register_clock() -> void
 // The scripted PMU provider. Its one core leaf is the window driven to a
 // gap on the second sampling action, and the counts above zero separate
 // the zero the gap writes from a first point (FR-001, D-13).
-auto register_scripted() -> std::unique_ptr<fake_provider>
+auto register_scripted() -> std::unique_ptr<FakeProvider>
 {
-  auto provider = std::make_unique<fake_provider>();
+  auto provider = std::make_unique<FakeProvider>();
   provider->add_counter(
       "package-1/core-3", "cycles", "ops", "core cycles elapsed");
   provider->add_counter(

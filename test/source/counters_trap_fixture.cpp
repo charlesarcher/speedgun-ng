@@ -33,7 +33,7 @@ namespace
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::fake_provider;
+using sg::counters::FakeProvider;
 using sg::counters::PushCounter;
 using sg::counters::PushProvider;
 using sg::counters::system;
@@ -42,7 +42,7 @@ using events = Dim<0, 1>;
 
 auto setup() -> sg::counters::plan
 {
-  auto provider = std::make_unique<fake_provider>();
+  auto provider = std::make_unique<FakeProvider>();
   provider->add_object("package-1/core-3", "cpu3", "core", "third core");
   provider->add_counter(
       "package-1/core-3", "cycles", "ops", "core cycles elapsed");

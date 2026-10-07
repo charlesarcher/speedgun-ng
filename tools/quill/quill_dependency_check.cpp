@@ -116,7 +116,7 @@ auto measure(quill::Logger* logger) -> std::expected<double, std::string>
     return std::unexpected(std::string {"the clock provider was refused"});
   }
 
-  auto fake = std::make_unique<counters::fake_provider>();
+  auto fake = std::make_unique<counters::FakeProvider>();
   fake->add_object("package-0/core-0", "core-0", "core", "first core");
   fake->add_counter(
       "package-0/core-0", "instructions", "ops", "instructions retired");

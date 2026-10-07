@@ -25,7 +25,7 @@ namespace
 using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::fake_provider;
+using sg::counters::FakeProvider;
 using sg::counters::MetricResult;
 using sg::counters::system;
 
@@ -46,7 +46,7 @@ auto main() -> int
 
   // Fake sources with per-action deltas: 1000 instructions and 400
   // cycles per sampling action, so every interval folds to IPC 2.5.
-  auto fake = std::make_unique<fake_provider>();
+  auto fake = std::make_unique<FakeProvider>();
   fake->add_object("package-0/core-0", "core-0", "core", "first core");
   fake->add_counter(
       "package-0/core-0", "instructions", "ops", "instructions retired");

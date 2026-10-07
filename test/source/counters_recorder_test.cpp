@@ -53,7 +53,7 @@ using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::fake_provider;
+using sg::counters::FakeProvider;
 using sg::counters::object;
 using sg::counters::plan;
 using sg::counters::RecorderHandle;
@@ -450,7 +450,7 @@ auto test_concurrent_resolution() -> void
 
 auto register_everything() -> void
 {
-  auto provider = std::make_unique<fake_provider>();
+  auto provider = std::make_unique<FakeProvider>();
   // The package node exists so `package-1/core-3` has a parent to walk to,
   // which is what puts the handle map behind a parent lookup and a direct
   // resolution (FR-010).
