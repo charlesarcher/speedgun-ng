@@ -99,7 +99,7 @@ exists yet.
 
 **Critical**: No rename commit opens before T001 and T002 are done.
 
-- [ ] T003 Record the D-01 command in `specs/014-identifier-naming-camelcase/quickstart.md`
+- [X] T003 Record the D-01 command in `specs/014-identifier-naming-camelcase/quickstart.md`
   `specs/014-identifier-naming-camelcase/quickstart.md`: clang-tidy
   23.1.1 with a temporary copy of the new naming options, export
   fixes, `clang-apply-replacements` 23.1.1, then `clang-format` on

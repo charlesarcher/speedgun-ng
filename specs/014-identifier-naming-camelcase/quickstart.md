@@ -141,3 +141,12 @@ gates. Build the release preset once:
 `cmake --build build`
 
 Expected: every gate exits 0.
+
+## Rename command
+
+Each rename commit runs clang-tidy 23.1.1 with a temporary copy of the
+new naming options, exports the fixes, and applies them with
+clang-apply-replacements 23.1.1. clang-format 18.1.8 then reformats
+only the files that commit touches. A name the fixer misses is edited
+by hand in that same commit. A string literal is not an identifier and
+stays unchanged.
