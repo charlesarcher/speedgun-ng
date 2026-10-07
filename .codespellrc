@@ -18,8 +18,8 @@ skip = */.git,*/build,*/prefix,*/node_modules,*/.omo,*/external
 # library's own name, spelled with the o, and the only alternative
 # codespell proposes ("studio") is a different word entirely
 # (tools/quill/quill_dependency_check.cpp).
-# "behaviour", "judgement", "licence", and "serialisation"
-# are correct British spellings, part of them in closed artifacts
-# (specs/007-counters-and-timers) and in the project's own prose.
-ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation
+# "behaviour", "judgement", "licence", "serialisation", and
+# "organisation" are correct British spellings, part of them in closed
+# artifacts (specs/007-counters-and-timers) and in the project's own prose.
+ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation
 quiet-level = 2
