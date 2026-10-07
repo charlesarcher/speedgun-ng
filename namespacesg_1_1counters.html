@@ -102,7 +102,7 @@
             <dt>
               struct <a href="structsg_1_1counters_1_1metric__result.html" class="m-doc">metric_result</a>
             </dt>
-            <dd>The fold output: value, running-ratio disclosure, and the scaled flag. The fields are members of the returned struct, so omitting the disclosure is structurally impossible (FR-019).</dd>
+            <dd>The fold output: value, running-ratio disclosure, the availability the window discloses, and the scaled flag. The fields are members of the returned struct, so omitting the disclosure is structurally impossible (FR-019).</dd>
             <dt>
               struct <a href="structsg_1_1counters_1_1fake__script.html" class="m-doc">fake_script</a>
             </dt>
@@ -231,7 +231,9 @@
               <span class="m-doc-wrap-bumper">enum class <a href="#a5546738d604fd359a329e3833335b618" class="m-doc">availability</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a5546738d604fd359a329e3833335b618a144e3430ea7f3a4c147ab8b5f5fc8b43" class="m-doc">countable</a>,
               <a href="#a5546738d604fd359a329e3833335b618a01a2386c207fa705fd0631dc9c8bfaba" class="m-doc">permission_blocked</a>,
               <a href="#a5546738d604fd359a329e3833335b618aba8d69341a9b0af1e8db58a76ed0744a" class="m-doc">not_encodable</a>,
-              <a href="#a5546738d604fd359a329e3833335b618ae5671794bf87ebab2a0d5e0ded530e68" class="m-doc">absent</a> }</span>
+              <a href="#a5546738d604fd359a329e3833335b618ae5671794bf87ebab2a0d5e0ded530e68" class="m-doc">absent</a>,
+              <a href="#a5546738d604fd359a329e3833335b618a85af19b6ab7556b3fa75032104bd8cbe" class="m-doc">scope_refused</a>,
+              <a href="#a5546738d604fd359a329e3833335b618adf9bcbd6578a1e49c06b7ec2874f9e23" class="m-doc">gap</a> }</span>
             </dt>
             <dd>Per-entry catalog state: described-ness and countability are separate predicates carried by the state name (FR-006).</dd>
             <dt>
@@ -256,6 +258,10 @@
               using <a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_quotient</a> = <a href="structsg_1_1counters_1_1dim.html" class="m-doc">dim</a>&lt;D1::time_exponent - D2::time_exponent, D1::events_exponent - D2::events_exponent&gt;
             </dt>
             <dd>The quotient tag: exponents subtract (FR-015).</dd>
+            <dt>
+              using <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_mask</a> = std::uint32_t
+            </dt>
+            <dd>The target kinds one entry can be counted on, as a fixed-size bitmask over <code><a href="#af74049bfa37f03b5345fbc78d75e177a" class="m-doc">target_<wbr />kind</a></code> (FR-021).</dd>
           </dl>
         </section>
         <section id="func-members">
@@ -352,6 +358,14 @@
             </dt>
             <dd>True when both tags name the same dimension.</dd>
             <dt>
+              <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a> <a href="#a344bcd59252022751293528ed96cd5b6" class="m-doc">target_thread_bit</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><code><a href="#af74049bfa37f03b5345fbc78d75e177aadc127f5d2483352fd20eaddb38feb6d2" class="m-doc">target_kind::<wbr />thread</a></code>, bit 0 of <code><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a></code> (FR-021).</dd>
+            <dt>
+              <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a> <a href="#abb277a8fbba76c22720c0d272c4e045c" class="m-doc">target_cpu_bit</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><code><a href="#af74049bfa37f03b5345fbc78d75e177aad9747e2da342bdb995f6389533ad1a3d" class="m-doc">target_kind::<wbr />cpu</a></code>, bit 1 of <code><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a></code> (FR-021).</dd>
+            <dt>
               <a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a> <a href="#a2201b57597a8f33b8fbe8e9777f6b166" class="m-doc">hard_stop</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd><span></span></dd>
@@ -376,6 +390,7 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
             <p>Per-entry catalog state: described-ness and countability are separate predicates carried by the state name (FR-006).</p>
+<p><code>scope_refused</code> separates a refusal the entry&#x27;s own scope causes from a refusal its encoding causes, so a caller that reads it knows a cpu-target plan may still compile over the entry. <code>gap</code> names the one case the catalog never publishes for an entry: a gap is a property of one sampling action and an entry spans many, so the value travels in the plan&#x27;s disclosure column beside the zero count the action produced (FR-021).</p>
           </div></section>
           <section class="m-doc-details" id="afeebde13e398eedd49f888523fbd575a"><div>
             <h3>
@@ -404,6 +419,14 @@
             </h3>
             <p>The quotient tag: exponents subtract (FR-015).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="acffa06536a63551d9ed6bb9a3294dac0"><div>
+            <h3>
+              using sg::<wbr />counters::<wbr /><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc-self">target_mask</a> = std::uint32_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
+            </h3>
+            <p>The target kinds one entry can be counted on, as a fixed-size bitmask over <code><a href="#af74049bfa37f03b5345fbc78d75e177a" class="m-doc">target_<wbr />kind</a></code> (FR-021).</p>
+<p>Bit 0 is <code><a href="#af74049bfa37f03b5345fbc78d75e177aadc127f5d2483352fd20eaddb38feb6d2" class="m-doc">target_kind::<wbr />thread</a></code> and bit 1 is <code><a href="#af74049bfa37f03b5345fbc78d75e177aad9747e2da342bdb995f6389533ad1a3d" class="m-doc">target_kind::<wbr />cpu</a></code>. The type is a fixed-size unsigned integer and allocates no memory, so a caller reads an entry&#x27;s targets without a container and without an allocation. A new kernel target takes the next free bit: no enumerator value changes and no stored bit moves.</p>
           </div></section>
         </section>
         <section>
@@ -575,6 +598,20 @@
             </h3>
             <p>True when both tags name the same dimension.</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a344bcd59252022751293528ed96cd5b6"><div>
+            <h3>
+              <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a> sg::<wbr />counters::<wbr /><a href="#a344bcd59252022751293528ed96cd5b6" class="m-doc-self">target_thread_bit</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
+            </h3>
+            <p><code><a href="#af74049bfa37f03b5345fbc78d75e177aadc127f5d2483352fd20eaddb38feb6d2" class="m-doc">target_kind::<wbr />thread</a></code>, bit 0 of <code><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a></code> (FR-021).</p>
+          </div></section>
+          <section class="m-doc-details" id="abb277a8fbba76c22720c0d272c4e045c"><div>
+            <h3>
+              <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a> sg::<wbr />counters::<wbr /><a href="#abb277a8fbba76c22720c0d272c4e045c" class="m-doc-self">target_cpu_bit</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
+            </h3>
+            <p><code><a href="#af74049bfa37f03b5345fbc78d75e177aad9747e2da342bdb995f6389533ad1a3d" class="m-doc">target_kind::<wbr />cpu</a></code>, bit 1 of <code><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a></code> (FR-021).</p>
           </div></section>
           <section class="m-doc-details" id="a2201b57597a8f33b8fbe8e9777f6b166"><div>
             <h3>

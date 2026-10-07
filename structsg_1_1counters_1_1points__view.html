@@ -64,6 +64,7 @@
             </li>
           </ul>
         </nav>
+<p><code><a href="#afb714c38097b8053b2476f76d93cc257" class="m-doc">availability</a></code> is the disclosure state of the window&#x27;s end point only. An interior row can hold a zero from a gap while this field stays <code><a href="namespacesg_1_1counters.html#a5546738d604fd359a329e3833335b618a144e3430ea7f3a4c147ab8b5f5fc8b43" class="m-doc">availability::<wbr />countable</a></code>, because the end point of that window measured a count. A caller that needs the state of each point uses <code>fold</code> or <code>fold_pairs</code>, which disclose each window&#x27;s own gap state (FR-004, FR-005).</p><p><code><a href="#ab86ed00c9f885fc9b9d207c9fb5fe1aa" class="m-doc">ratio</a></code> is the multiplex fraction over the window this view spans, and it is meaningful only when <code><a href="#afb714c38097b8053b2476f76d93cc257" class="m-doc">availability</a> != <a href="namespacesg_1_1counters.html#a5546738d604fd359a329e3833335b618adf9bcbd6578a1e49c06b7ec2874f9e23" class="m-doc">availability::<wbr />gap</a></code>. A view whose end point is an action that measured nothing publishes <code>1.0</code> and discloses no fraction, because no measured time covers an action that measured no count. The state beside the ratio names that condition, so a caller reads the ratio only after the state (FR-005, FR-019, FR-020).</p>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
@@ -97,6 +98,10 @@
             <dd><span></span></dd>
             <dt id="ab86ed00c9f885fc9b9d207c9fb5fe1aa">
               double <a href="#ab86ed00c9f885fc9b9d207c9fb5fe1aa" class="m-doc-self">ratio</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="afb714c38097b8053b2476f76d93cc257">
+              <a href="namespacesg_1_1counters.html#a5546738d604fd359a329e3833335b618" class="m-doc">::<wbr />sg::<wbr />counters::<wbr />availability</a> <a href="#afb714c38097b8053b2476f76d93cc257" class="m-doc-self">availability</a>
             </dt>
             <dd><span></span></dd>
           </dl>

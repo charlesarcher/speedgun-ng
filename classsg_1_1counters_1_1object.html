@@ -102,7 +102,7 @@
             <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a14fbdfcf86b6f2eb46c9fd4e1ddfd0ad" class="m-doc">parent</a>(</span><span class="m-doc-wrap">) const -&gt; const <a href="#a1b811ec52b10129da0f0ebbee3abce6a" class="m-doc">object</a>* <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
-            <dd>The parent object, null only for the machine root (FR-001).</dd>
+            <dd>The parent object, or null for the machine root and for a non-root object whose immediate ancestor path names no catalog object (FR-001).</dd>
             <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a41a3574ce40e3da48c02439809a9b3f6" class="m-doc">counters</a>(</span><span class="m-doc-wrap">) const -&gt; std::vector&lt;<a href="structsg_1_1counters_1_1catalog__entry.html" class="m-doc">catalog_<wbr />entry</a>&gt;</span>
             </dt>
@@ -168,7 +168,7 @@
             <h3>
               <span class="m-doc-wrap-bumper">const <a href="#a1b811ec52b10129da0f0ebbee3abce6a" class="m-doc">object</a>* sg::<wbr />counters::<wbr />object::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a14fbdfcf86b6f2eb46c9fd4e1ddfd0ad" class="m-doc-self">parent</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
             </h3>
-            <p>The parent object, null only for the machine root (FR-001).</p>
+            <p>The parent object, or null for the machine root and for a non-root object whose immediate ancestor path names no catalog object (FR-001).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
           <section class="m-doc-details" id="a41a3574ce40e3da48c02439809a9b3f6"><div>
@@ -176,7 +176,7 @@
               <span class="m-doc-wrap-bumper">std::vector&lt;<a href="structsg_1_1counters_1_1catalog__entry.html" class="m-doc">catalog_<wbr />entry</a>&gt; sg::<wbr />counters::<wbr />object::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a41a3574ce40e3da48c02439809a9b3f6" class="m-doc-self">counters</a>(</span><span class="m-doc-wrap">) const</span></span>
             </h3>
             <p>This object&#x27;s catalog entries (FR-001, FR-004).</p>
-<aside class="m-note m-success"><h4>Precondition</h4><p>Every stored leaf carries a unit token the closed switch maps. Registration admits no other, so a violation is a provider contract breach and reports. The leaf is never presented as <code><a href="namespacesg_1_1counters.html#ab0c129dec78e6f3044e9b12adac7fb61a334c4a4c42fdb79d7ebc3e73b517e6f8" class="m-doc">unit::<wbr />none</a></code> (FR-017).</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+<aside class="m-note m-success"><h4>Precondition</h4><p>Every stored leaf carries a unit token the closed switch maps. Registration admits no other, so a violation is a provider contract breach and reports. The leaf is never presented as <code><a href="namespacesg_1_1counters.html#ab0c129dec78e6f3044e9b12adac7fb61a334c4a4c42fdb79d7ebc3e73b517e6f8" class="m-doc">unit::<wbr />none</a></code> (FR-017).</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>Every entry&#x27;s <code>avail</code> and <code>targets</code> agree: an entry reported <code>countable</code> names at least one target bit, and an entry in every other state names none (FR-021).</p></aside>
           </div></section>
           <section class="m-doc-details" id="a1afb1f7340ba76f1e986201e05695afa"><div>
             <h3>

@@ -144,6 +144,12 @@
             </dt>
             <dd>The number of <code>read_points</code> actions performed by readers this provider opened (US1 scenario 5).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac6278f8079f8bf6ef3a61907cea33911" class="m-doc">set_gap_actions</a>(</span><span class="m-doc-wrap">std::string_view object_path,
+              std::string_view name,
+              std::vector&lt;std::size_t&gt; actions) -&gt; <a href="#af608696c41454ed72918c6d0eb8a57b9" class="m-doc">fake_<wbr />provider</a>&amp;</span>
+            </dt>
+            <dd>Scripts the actions one leaf measures nothing on (FR-007).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">void <a href="#ac22cb2f2ee850ca7e6029f93494f193b" class="m-doc">enumerate</a>(</span><span class="m-doc-wrap"><a href="classsg_1_1counters_1_1object__sink.html" class="m-doc">object_<wbr />sink</a>&amp; sink) const <span class="m-label m-flat m-warning">override</span></span>
             </dt>
             <dd>Reports every object this provider owns, with catalog entries.</dd>
@@ -211,7 +217,7 @@
               std::optional&lt;std::uint64_t&gt; delta_seed = std::nullopt)</span></span>
             </h3>
             <p>Scripts one leaf with an explicit cumulative sequence.</p>
-<p>Once the sequence is exhausted the tail steps by <code>tail_delta</code>. A <code>delta_seed</code> puts the tail on the seeded per-sample delta sequence instead: the leaf adds <code>step(seed)</code>, then <code>step(step(seed))</code>, and so on, where one step is <code>state = (state * 37 + 11) mod 2^16</code>. A single-digit multiplier and a power-of-two modulus keep the whole tail reproducible by hand, which the suite&#x27;s exactness tests need (T014).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the counter was declared.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>Sampling yields the scripted points in order, one per sampling action.</p></aside>
+<p>Once the sequence is exhausted the tail steps by <code>tail_delta</code>. A <code>delta_seed</code> puts the tail on the seeded per-sample delta sequence instead: the leaf adds <code>step(seed)</code>, then <code>step(step(seed))</code>, then <code>step(step(step(seed)))</code>, where one step is <code>state = (state * 37 + 11) mod 2^16</code>. A single-digit multiplier and a power-of-two modulus keep the whole tail reproducible by hand, which the suite&#x27;s exactness tests need (T014).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the counter was declared.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>Sampling yields the scripted points in order, one per sampling action.</p></aside>
           </div></section>
           <section class="m-doc-details" id="a9b7794224212d72dae20cc4520157853"><div>
             <h3>
@@ -219,6 +225,15 @@
             </h3>
             <p>The number of <code>read_points</code> actions performed by readers this provider opened (US1 scenario 5).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac6278f8079f8bf6ef3a61907cea33911"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#af608696c41454ed72918c6d0eb8a57b9" class="m-doc">fake_<wbr />provider</a>&amp; sg::<wbr />counters::<wbr />fake_provider::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac6278f8079f8bf6ef3a61907cea33911" class="m-doc-self">set_gap_actions</a>(</span><span class="m-doc-wrap">std::string_view object_path,
+              std::string_view name,
+              std::vector&lt;std::size_t&gt; actions)</span></span>
+            </h3>
+            <p>Scripts the actions one leaf measures nothing on (FR-007).</p>
+<p><code>actions</code> names the one-based sampling actions at which this leaf publishes a zero beside a disclosure of <code><a href="namespacesg_1_1counters.html#a5546738d604fd359a329e3833335b618adf9bcbd6578a1e49c06b7ec2874f9e23" class="m-doc">availability::<wbr />gap</a></code>, which is how a caller distinguishes a measured zero from an action that measured nothing. Every other action publishes the leaf&#x27;s scripted point beside a disclosure of the entry&#x27;s own countability value. The script is per leaf, so only a plan that samples this leaf sees its gaps.</p><aside class="m-note m-success"><h4>Precondition</h4><p>the counter was declared.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>Sampling this leaf at a named action publishes a zero and marks the action; the script does not advance there.</p></aside>
           </div></section>
           <section class="m-doc-details" id="ac22cb2f2ee850ca7e6029f93494f193b"><div>
             <h3>

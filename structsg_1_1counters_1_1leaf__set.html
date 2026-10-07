@@ -59,17 +59,31 @@
             <li>
               Reference
               <ul>
+                <li><a href="#pub-static-attribs">Public static variables</a></li>
                 <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-<p>Addresses are canonical leaf spellings, <code>&lt;<a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a> path&gt;/&lt;name&gt;</code>, in stable order; <code>read_points</code> yields one point per address in exactly this order (C-PRO-2).</p>
+<p>Addresses are canonical leaf spellings, <code>&lt;<a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a> path&gt;/&lt;name&gt;</code>, in stable order; <code>read_points</code> yields one point per address in exactly this order (C-PRO-2).</p><p><code><a href="#a054594c7bada5b81bc41d1d504e39a25" class="m-doc">disclosure_<wbr />column</a></code> names the managed column the sampling action writes last, beside the counts and the ratio pair&#x27;s two columns, and it is the column no leaf address resolves to. The request that owns the plan&#x27;s last group carries it; every earlier request carries <code><a href="#a3364eba2450241453324f056bca8d8ce" class="m-doc">no_<wbr />disclosure_<wbr />column</a></code>, because a window writes the column once per action (FR-007).</p>
+        <section id="pub-static-attribs">
+          <h2><a href="#pub-static-attribs">Public static variables</a></h2>
+          <dl class="m-doc">
+            <dt id="a3364eba2450241453324f056bca8d8ce">
+              static std::size_t <a href="#a3364eba2450241453324f056bca8d8ce" class="m-doc-self">no_disclosure_column</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd>No request writes the disclosure column (FR-007).</dd>
+          </dl>
+        </section>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
             <dt id="a77bc3032e2da1a681e38731d64241a84">
               std::vector&lt;std::string&gt; <a href="#a77bc3032e2da1a681e38731d64241a84" class="m-doc-self">addresses</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a054594c7bada5b81bc41d1d504e39a25">
+              std::size_t <a href="#a054594c7bada5b81bc41d1d504e39a25" class="m-doc-self">disclosure_column</a>
             </dt>
             <dd><span></span></dd>
           </dl>

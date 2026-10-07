@@ -52,7 +52,7 @@
           <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>metric_result <span class="m-thin">struct</span>
           <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
         </h1>
-        <p>The fold output: value, running-ratio disclosure, and the scaled flag. The fields are members of the returned struct, so omitting the disclosure is structurally impossible (FR-019).</p>
+        <p>The fold output: value, running-ratio disclosure, the availability the window discloses, and the scaled flag. The fields are members of the returned struct, so omitting the disclosure is structurally impossible (FR-019).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
@@ -64,6 +64,7 @@
             </li>
           </ul>
         </nav>
+<p><code><a href="#a39f7198c737465f87077bc11ccf6f325" class="m-doc">availability</a></code> names the state the folded window carries. A fold whose start point or whose end point is an action that measured nothing reports <code><a href="namespacesg_1_1counters.html#a5546738d604fd359a329e3833335b618adf9bcbd6578a1e49c06b7ec2874f9e23" class="m-doc">availability::<wbr />gap</a></code> and a <code><a href="#afe8d6e8ddb29022d966116ce26732f67" class="m-doc">value</a></code> that is not a measurement, so a caller reads the state before the number. A fold whose two end points are both measured reports the state those leaves disclosed, which is <code><a href="namespacesg_1_1counters.html#a5546738d604fd359a329e3833335b618a144e3430ea7f3a4c147ab8b5f5fc8b43" class="m-doc">availability::<wbr />countable</a></code> for a leaf the host can count and one of the other enumerators otherwise. A gap anywhere strictly inside the window changes no fold, because the recorded counts are cumulative and a window with two measured end points has an exact delta between them (FR-001, FR-004, FR-005).</p><p><code><a href="#ab80f6d29932c77d94d1673ac0392c968" class="m-doc">running_<wbr />ratio</a></code> is the multiplex disclosure over the window. A window that carries a gap publishes <code>1.0</code> and discloses nothing, because no measured time covers an action that measured no count (FR-005).</p>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
@@ -73,6 +74,10 @@
             <dd><span></span></dd>
             <dt id="ab80f6d29932c77d94d1673ac0392c968">
               double <a href="#ab80f6d29932c77d94d1673ac0392c968" class="m-doc-self">running_ratio</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a39f7198c737465f87077bc11ccf6f325">
+              <a href="namespacesg_1_1counters.html#a5546738d604fd359a329e3833335b618" class="m-doc">::<wbr />sg::<wbr />counters::<wbr />availability</a> <a href="#a39f7198c737465f87077bc11ccf6f325" class="m-doc-self">availability</a>
             </dt>
             <dd><span></span></dd>
             <dt id="ad87c6ce84a63f41cc6beb4f33c30d3e3">

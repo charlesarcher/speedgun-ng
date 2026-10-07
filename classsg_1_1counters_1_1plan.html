@@ -98,7 +98,7 @@
             <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#afd9a64e830e38f99b9cbc385214238a6" class="m-doc">recorder</a>(</span><span class="m-doc-wrap">std::size_t capacity) const -&gt; <a href="classsg_1_1counters_1_1recorder__handle.html" class="m-doc">recorder_<wbr />handle</a>&lt;<a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a>&gt;</span>
             </dt>
-            <dd>Mints a hard_stop recorder: <code>capacity</code> point columns are allocated now from the plan arena; sampling allocates nothing later (FR-025, FR-029). The plan outlives its recorders.</dd>
+            <dd>Mints a hard_stop recorder: <code>capacity</code> point columns are allocated now from the plan arena; sampling allocates nothing later (FR-025, FR-029). The plan outlives its recorders. A zero capacity mints a recorder whose first sampling action reports the sampling bound <code>hard_stop_sample_core</code> enforces (FR-025).</dd>
             <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a6a5e0653de4eb4050eba4bafe7f41076" class="m-doc">recorder</a>(</span><span class="m-doc-wrap">std::size_t capacity,
               <a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_<wbr />t</a>) const -&gt; std::expected&lt;<a href="classsg_1_1counters_1_1recorder__handle.html" class="m-doc">recorder_<wbr />handle</a>&lt;<a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_<wbr />t</a>&gt;, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt;</span>
@@ -156,7 +156,7 @@
             <h3>
               <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1recorder__handle.html" class="m-doc">recorder_<wbr />handle</a>&lt;<a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a>&gt; sg::<wbr />counters::<wbr />plan::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#afd9a64e830e38f99b9cbc385214238a6" class="m-doc-self">recorder</a>(</span><span class="m-doc-wrap">std::size_t capacity) const</span></span>
             </h3>
-            <p>Mints a hard_stop recorder: <code>capacity</code> point columns are allocated now from the plan arena; sampling allocates nothing later (FR-025, FR-029). The plan outlives its recorders.</p>
+            <p>Mints a hard_stop recorder: <code>capacity</code> point columns are allocated now from the plan arena; sampling allocates nothing later (FR-025, FR-029). The plan outlives its recorders. A zero capacity mints a recorder whose first sampling action reports the sampling bound <code>hard_stop_sample_core</code> enforces (FR-025).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
           <section class="m-doc-details" id="a6a5e0653de4eb4050eba4bafe7f41076"><div>
