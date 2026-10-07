@@ -188,10 +188,13 @@ auto device_page_fast_verdict(const detail::pmu_device& device) -> bool
     if (!context) {
       continue;
     }
+    // LCOV_EXCL_START : coverage exclusion (T140): the granted mapped page.
+    // A runner whose perf_event_open is refused never holds a context.
     const auto* page = static_cast<const perf_event_mmap_page*>(context->map);
     const bool granted = page_grants_user_rdpmc(page->cap_user_rdpmc);
     fast_context_close(*context);
     return granted;
+    // LCOV_EXCL_STOP
   }
   return false;
 }
@@ -877,8 +880,11 @@ void pmu_provider::enumerate(object_sink& sink) const
       // no kind on is not recorded, and the catalog reads the absence as the
       // device scope's own answer (FR-021).
       if (entry.probed_kinds != 0) {
+        // LCOV_EXCL_START : coverage exclusion (T140): a probed kind. A
+        // runner whose perf_event_open is refused settles no kind.
         detail::note_probed_kinds(device.path + "/" + entry.name,
                                   entry.probed_kinds);
+        // LCOV_EXCL_STOP
       }
     }
     sink.add_object(object_seed {

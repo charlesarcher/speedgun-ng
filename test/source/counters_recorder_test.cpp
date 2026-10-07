@@ -571,6 +571,22 @@ auto test_self_move_assignment() -> void
         "a self-move-assigned plan still folds its own window (FR-022)");
 }
 
+// The overhead accessors run the plan's calibration. The dedicated
+// overhead binary skips on a host with no cpu object, so this scenario
+// is what a runner without one still executes (FR-032).
+auto test_sample_overhead_calibration() -> void
+{
+  auto sc = ipc_scenario("cyc-cal", "ins-cal");
+  const double low = sc.compiled.sample_overhead_ns_min();
+  const double mid = sc.compiled.sample_overhead_ns_median();
+  const double high = sc.compiled.sample_overhead_ns_max();
+  check(low >= 0.0, "the calibrated minimum is non-negative");
+  check(mid >= 0.0, "the calibrated median is non-negative");
+  check(high >= low, "the calibrated maximum is at least the minimum");
+  const double again = sc.compiled.sample_overhead_ns_min();
+  check(again >= 0.0, "a second calibration read stays non-negative");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -586,6 +602,7 @@ auto main() -> int
   test_disclosure_column();
   test_mixed_provider_disclosure();
   test_sampling_action_properties();
+  test_sample_overhead_calibration();
   std::printf("counters recorder tests passed\n");
   return 0;
 }

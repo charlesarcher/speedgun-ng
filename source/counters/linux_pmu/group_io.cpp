@@ -525,8 +525,8 @@ void release_fast_members(
     // context. Every push into this vector sits after the open's own null
     // check, and that check returns before the push, so a member reaches
     // this loop only with a context to release (FR-014).
-    if (one.context) {
-      fast_context_close(*one.context);
+    if (one.context) {  // LCOV_EXCL_LINE
+      fast_context_close(*one.context);  // LCOV_EXCL_LINE
     }
     // LCOV_EXCL_BR_STOP
   }
@@ -562,6 +562,9 @@ auto open_group_window(const pmu_state& state,
   window->slots.reserve(leaves.size());
   for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
     if (one.source == slot_source::disclosure) {
+      // LCOV_EXCL_START : coverage exclusion (T140): the disclosure slot.
+      // A member open that the kernel refuses returns before this slot is
+      // registered. The host that grants perf_event_open reaches it.
       window->slots.push_back(leaf_slot {
           .group = 0,
           .index = 0,
@@ -569,6 +572,7 @@ auto open_group_window(const pmu_state& state,
           .disclosure = one.disclosure,
       });
       continue;
+      // LCOV_EXCL_STOP
     }
     const std::size_t group = layout.group_of(one.device);
     if (one.source != slot_source::member) {  // LCOV_EXCL_BR_LINE
@@ -655,11 +659,15 @@ auto open_fast_window(const pmu_state& state,
   std::size_t leader = static_cast<std::size_t>(-1);
   for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
     if (one.source == slot_source::disclosure) {
+      // LCOV_EXCL_START : coverage exclusion (T140): the fast-window
+      // disclosure slot, on the same refused-open ground as the group
+      // window's slot above.
       window->slots.push_back(leaf_slot {.group = 0,
                                          .index = 0,
                                          .source = one.source,
                                          .disclosure = one.disclosure});
       continue;
+      // LCOV_EXCL_STOP
     }
     if (one.source != slot_source::member) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the time-pair slot of

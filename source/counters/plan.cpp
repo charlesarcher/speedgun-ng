@@ -606,7 +606,7 @@ auto compile_core(const system& sys,
     // LCOV_EXCL_BR_STOP
     group.thunk = reader->resolve_thunk();
     group.reader = std::move(reader);
-  }
+  }  // LCOV_EXCL_LINE
   // LCOV_EXCL_LINE : coverage exclusion (T140): the block gcov attributes to
   // the loop's closing brace, marked on the brace above. A runner whose
   // `perf_event_open` is refused opens no provider window, so its provider
