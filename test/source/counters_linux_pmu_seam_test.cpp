@@ -2405,10 +2405,17 @@ auto window_refusal_scenario() -> void
         "a leaf the catalog reports permission_blocked opens no window");
   // A countable member beside a disclosure column reaches the window
   // build, and the disclosure slot registers on its own (FR-007).
+  // A runner whose perf_event_open is refused publishes no window. That
+  // is the same verdict the availability probe records.
+  const bool granted =
+      sg::counters::detail::pmu_probe(
+          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, where)
+      == availability::countable;
   const auto disclosed = sg::counters::detail::pmu_open_window(
       state, disclosing_leaf_set_of({"cpu/work"}, 1), where);
-  check(disclosed != nullptr,
-        "a countable member beside a disclosure column opens a window");
+  check((disclosed != nullptr) == granted,
+        "a countable member beside a disclosure column opens a window "
+        "exactly when the probe grants the config");
   // The time pair is no device member, so a leaf set carrying only the
   // pair needs no group and no leader.
   check(sg::counters::detail::pmu_open_window(
