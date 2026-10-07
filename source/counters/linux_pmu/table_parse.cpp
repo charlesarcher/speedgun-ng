@@ -391,7 +391,7 @@ void addEntry(std::vector<PmuTableEntry>& table,
     std::uint64_t number = 0;
     if (key == "EventCode") {
       // A pair such as "0xB7, 0xBB" names two event codes. The kernel's
-      // generator takes the first code, and `first_index_of` is that rule.
+      // generator takes the first code, and `firstIndexOf` is that rule.
       std::string_view text;
       if (value.get_string().get(text) == simdjson::SUCCESS) {
         if (firstIndexOf(text, number)) {

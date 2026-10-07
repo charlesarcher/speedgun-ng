@@ -418,7 +418,7 @@ auto availabilityScenario(const std::vector<const Object*>& pmuObjects) -> void
             "on: a countable entry names at least one, and every other state "
             "names none (FR-021)");
       check((entry.targets & ~definedBits) == 0,
-            "a published mask names only the bits target_kind defines, so a "
+            "a published mask names only the bits TargetKind defines, so a "
             "new kind takes the next free bit and no stored bit moves "
             "(FR-021)");
     }

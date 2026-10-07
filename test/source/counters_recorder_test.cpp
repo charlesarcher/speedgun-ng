@@ -263,7 +263,7 @@ auto testDisclosureColumn() -> void
         "a raw view publishes the countability value beside its counts, read "
         "from the field and naming no column index (FR-004, FR-005, SC-003)");
   check(cyclesView->points[2] == 0 && cyclesView->availability == countable,
-        "points_view.availability names the window end point. An interior "
+        "PointsView.availability names the window end point. An interior "
         "gap leaves a zero in points and leaves the field countable");
 
   // The three gap windows FR-001 names, over the scripted counts above.
