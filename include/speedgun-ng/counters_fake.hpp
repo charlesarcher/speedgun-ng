@@ -40,7 +40,7 @@ namespace sg::counters
  * documented beside `set_points` and supersedes `tail_delta`, so one
  * seed reproduces a whole workload.
  */
-struct fake_script
+struct FakeScript
 {
   std::vector<std::uint64_t> points;
   std::uint64_t tail_delta = 0;
@@ -49,21 +49,21 @@ struct fake_script
 
 namespace detail
 {
-struct fake_window;
+struct FakeWindow;
 }
 
 /**
  * @brief One scripted counter: catalog metadata, script, and playback
  * position.
  */
-struct fake_counter_data
+struct FakeCounterData
 {
   std::string description;
   std::string unit;
   Availability avail = Availability::COUNTABLE;
   ReadMode mode = ReadMode::SYSCALL;
   bool ratio_pair = false;
-  fake_script script;
+  FakeScript script;
   std::size_t position = 0;
   std::uint64_t last = 0;
   // The seeded tail's running state, held across sampling actions so
@@ -99,7 +99,7 @@ struct fake_counter_data
  * registration; the machine root object exists implicitly whenever a
  * counter is attached to it.
  */
-class SPEEDGUN_NG_EXPORT fake_provider final : public ProviderIface
+class SPEEDGUN_NG_EXPORT FakeProvider final : public ProviderIface
 {
 public:
   /**
@@ -108,12 +108,12 @@ public:
    * \pre none
    * \post none
    */
-  fake_provider();
+  FakeProvider();
 
-  fake_provider(const fake_provider&) = delete;
-  auto operator=(const fake_provider&) -> fake_provider& = delete;
-  fake_provider(fake_provider&&) = delete;
-  auto operator=(fake_provider&&) -> fake_provider& = delete;
+  FakeProvider(const FakeProvider&) = delete;
+  auto operator=(const FakeProvider&) -> FakeProvider& = delete;
+  FakeProvider(FakeProvider&&) = delete;
+  auto operator=(FakeProvider&&) -> FakeProvider& = delete;
 
   /**
    * @brief Releases the scripted objects.
@@ -121,7 +121,7 @@ public:
    * \pre none
    * \post none
    */
-  ~fake_provider() override;
+  ~FakeProvider() override;
 
   /**
    * @brief Declares an object with its kind and description.
@@ -133,7 +133,7 @@ public:
    */
   auto add_object(std::string_view path,
                   std::string_view kind,
-                  std::string_view description) -> fake_provider&;
+                  std::string_view description) -> FakeProvider&;
 
   /**
    * @brief Declares an object with a platform alias.
@@ -145,7 +145,7 @@ public:
   auto add_object(std::string_view path,
                   std::string_view alias,
                   std::string_view kind,
-                  std::string_view description) -> fake_provider&;
+                  std::string_view description) -> FakeProvider&;
 
   /**
    * @brief Declares one named counter on one object.
@@ -170,7 +170,7 @@ public:
                    std::string_view description,
                    Availability avail = Availability::COUNTABLE,
                    ReadMode mode = ReadMode::SYSCALL,
-                   bool ratio_pair = false) -> fake_provider&;
+                   bool ratio_pair = false) -> FakeProvider&;
 
   /**
    * @brief Scripts one leaf with an explicit cumulative sequence.
@@ -192,7 +192,7 @@ public:
                   std::vector<std::uint64_t> points,
                   std::uint64_t tail_delta = 0,
                   std::optional<std::uint64_t> delta_seed = std::nullopt)
-      -> fake_provider&;
+      -> FakeProvider&;
 
   /**
    * @brief The number of `readPoints` actions performed by readers
@@ -223,7 +223,7 @@ public:
    */
   auto set_gap_actions(std::string_view objectPath,
                        std::string_view name,
-                       std::vector<std::size_t> actions) -> fake_provider&;
+                       std::vector<std::size_t> actions) -> FakeProvider&;
 
   void enumerate(ObjectSink& sink) const override;
 
@@ -231,21 +231,21 @@ public:
                                      const Target& where) override;
 
 private:
-  friend struct detail::fake_window;
+  friend struct detail::FakeWindow;
 
-  struct object_seed_data
+  struct ObjectSeedData
   {
     std::string kind;
     std::string alias;
     std::string description;
-    std::map<std::string, fake_counter_data> counters;
+    std::map<std::string, FakeCounterData> counters;
   };
 
-  std::map<std::string, object_seed_data> m_objects;
+  std::map<std::string, ObjectSeedData> m_objects;
   std::atomic<std::uint64_t> m_read_actions {0};
 
   [[nodiscard]] auto counter(const std::string& objectPath,
-                             const std::string& name) -> fake_counter_data&;
+                             const std::string& name) -> FakeCounterData&;
 };
 
 }  // namespace sg::counters

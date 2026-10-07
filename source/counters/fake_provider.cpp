@@ -33,23 +33,23 @@ namespace
 
 }  // namespace
 
-struct detail::fake_window final : WindowReader
+struct detail::FakeWindow final : WindowReader
 {
-  fake_window() { setThunk(&read_direct); }
+  FakeWindow() { setThunk(&readDirect); }
 
   // The compiled plan hands the window over as the base reference
-  // `ReadThunk` declares, and `fake_provider::open` constructs it as
+  // `ReadThunk` declares, and `FakeProvider::open` constructs it as
   // this final type, so the reference names a fake window on every
   // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
+  static auto readDirect(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<fake_window&>(base).readPoints(sink);
+    static_cast<FakeWindow&>(base).readPoints(sink);
   }
 
-  fake_provider* owner = nullptr;
-  std::vector<fake_counter_data*> counters;
+  FakeProvider* owner = nullptr;
+  std::vector<FakeCounterData*> counters;
   std::size_t disclosure_column = LeafSet::kNoDisclosureColumn;
   // This window's own sampling-action count, so a leaf's scripted gaps
   // are counted from the first action of the plan that samples it and not
@@ -93,14 +93,14 @@ struct detail::fake_window final : WindowReader
   }
 };
 
-fake_provider::fake_provider() = default;
+FakeProvider::FakeProvider() = default;
 
-fake_provider::~fake_provider() = default;
+FakeProvider::~FakeProvider() = default;
 
-auto fake_provider::add_object(const std::string_view path,
-                               const std::string_view kind,
-                               const std::string_view description)
-    -> fake_provider&
+auto FakeProvider::add_object(const std::string_view path,
+                              const std::string_view kind,
+                              const std::string_view description)
+    -> FakeProvider&
 {
   SG_REQUIRE(!path.empty() && path != "machine",
              "add_object names a structured path that is not the machine "
@@ -113,11 +113,11 @@ auto fake_provider::add_object(const std::string_view path,
   return *this;
 }
 
-auto fake_provider::add_object(const std::string_view path,
-                               const std::string_view alias,
-                               const std::string_view kind,
-                               const std::string_view description)
-    -> fake_provider&
+auto FakeProvider::add_object(const std::string_view path,
+                              const std::string_view alias,
+                              const std::string_view kind,
+                              const std::string_view description)
+    -> FakeProvider&
 {
   SG_REQUIRE(
       !path.empty() && !alias.empty() && path != "machine",
@@ -132,13 +132,13 @@ auto fake_provider::add_object(const std::string_view path,
   return *this;
 }
 
-auto fake_provider::add_counter(const std::string_view objectPath,
-                                const std::string_view name,
-                                const std::string_view unit,
-                                const std::string_view description,
-                                const Availability avail,
-                                const ReadMode mode,
-                                const bool ratio_pair) -> fake_provider&
+auto FakeProvider::add_counter(const std::string_view objectPath,
+                               const std::string_view name,
+                               const std::string_view unit,
+                               const std::string_view description,
+                               const Availability avail,
+                               const ReadMode mode,
+                               const bool ratio_pair) -> FakeProvider&
 {
   const std::string path(objectPath);
   SG_REQUIRE(!path.empty(), "add_counter names an object path (FR-002)");
@@ -158,12 +158,12 @@ auto fake_provider::add_counter(const std::string_view objectPath,
   return *this;
 }
 
-auto fake_provider::set_points(const std::string_view objectPath,
-                               const std::string_view name,
-                               std::vector<std::uint64_t> points,
-                               const std::uint64_t tail_delta,
-                               const std::optional<std::uint64_t> delta_seed)
-    -> fake_provider&
+auto FakeProvider::set_points(const std::string_view objectPath,
+                              const std::string_view name,
+                              std::vector<std::uint64_t> points,
+                              const std::uint64_t tail_delta,
+                              const std::optional<std::uint64_t> delta_seed)
+    -> FakeProvider&
 {
   const std::string path(objectPath);
   const std::string leaf(name);
@@ -172,9 +172,9 @@ auto fake_provider::set_points(const std::string_view objectPath,
       "set_points scripts a declared counter (FR-036)");
   const auto scripted = points.size();
   auto& item = counter(path, leaf);
-  item.script = fake_script {.points = std::move(points),
-                             .tail_delta = tail_delta,
-                             .delta_seed = delta_seed};
+  item.script = FakeScript {.points = std::move(points),
+                            .tail_delta = tail_delta,
+                            .delta_seed = delta_seed};
   item.position = 0;
   item.last = 0;
   // The seeded tail starts from the seed itself, so the first delta a
@@ -189,7 +189,7 @@ auto fake_provider::set_points(const std::string_view objectPath,
   return *this;
 }
 
-void fake_provider::enumerate(ObjectSink& sink) const
+void FakeProvider::enumerate(ObjectSink& sink) const
 {
   for (const auto& [path, data] : m_objects) {
     std::vector<CatalogSeed> entries;
@@ -214,10 +214,10 @@ void fake_provider::enumerate(ObjectSink& sink) const
   }
 }
 
-std::unique_ptr<WindowReader> fake_provider::open(const LeafSet& leaves,
-                                                  const Target& /*where*/)
+std::unique_ptr<WindowReader> FakeProvider::open(const LeafSet& leaves,
+                                                 const Target& /*where*/)
 {
-  auto window = std::make_unique<detail::fake_window>();
+  auto window = std::make_unique<detail::FakeWindow>();
   window->owner = this;
   window->disclosure_column = leaves.disclosureColumn;
   for (const auto& address : leaves.addresses) {
@@ -235,10 +235,10 @@ std::unique_ptr<WindowReader> fake_provider::open(const LeafSet& leaves,
   return window;
 }
 
-auto fake_provider::set_gap_actions(const std::string_view objectPath,
-                                    const std::string_view name,
-                                    std::vector<std::size_t> actions)
-    -> fake_provider&
+auto FakeProvider::set_gap_actions(const std::string_view objectPath,
+                                   const std::string_view name,
+                                   std::vector<std::size_t> actions)
+    -> FakeProvider&
 {
   const std::string path(objectPath);
   const std::string leaf(name);
@@ -253,8 +253,8 @@ auto fake_provider::set_gap_actions(const std::string_view objectPath,
   return *this;
 }
 
-auto fake_provider::counter(const std::string& objectPath,
-                            const std::string& name) -> fake_counter_data&
+auto FakeProvider::counter(const std::string& objectPath,
+                           const std::string& name) -> FakeCounterData&
 {
   return m_objects.at(objectPath).counters.at(name);
 }

@@ -162,7 +162,7 @@ they include when a name in that header changes.
 - [X] T010 [US2] Rename owned identifiers in `include/speedgun-ng/counters_push.hpp`
   `include/speedgun-ng/counters_push.hpp` and
   `source/counters/push_provider.cpp` in one commit (D-02).
-- [ ] T011 [US2] Rename owned identifiers in `include/speedgun-ng/counters_fake.hpp`
+- [X] T011 [US2] Rename owned identifiers in `include/speedgun-ng/counters_fake.hpp`
   `include/speedgun-ng/counters_fake.hpp` and
   `source/counters/fake_provider.cpp` in one commit (D-02).
 - [ ] T012 [US2] Rename owned identifiers in `include/speedgun-ng/counters_system.hpp`

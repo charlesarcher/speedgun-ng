@@ -47,7 +47,7 @@ using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::dimensionOf;
 using sg::counters::DimQuotient;
-using sg::counters::fake_provider;
+using sg::counters::FakeProvider;
 using sg::counters::kDimSame;
 using sg::counters::ReadMode;
 using sg::counters::system;
@@ -118,7 +118,7 @@ auto test_unit_names_round_trip() -> void
 // (T007, FR-005, FR-008, FR-019).
 auto register_shape_fixture() -> void
 {
-  auto provider = std::make_unique<fake_provider>();
+  auto provider = std::make_unique<FakeProvider>();
   provider->add_object("core-0", "cpu0", "core", "the core under test");
   provider->add_counter("core-0", "cycles", "ops", "core cycles elapsed");
   provider->add_counter("core-0", "retired", "ops", "instructions retired");

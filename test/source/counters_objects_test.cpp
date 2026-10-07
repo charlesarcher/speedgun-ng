@@ -55,7 +55,7 @@ using sg::counters::CatalogEntry;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::fake_provider;
+using sg::counters::FakeProvider;
 using sg::counters::LeafSet;
 using sg::counters::object;
 using sg::counters::ObjectSeed;
@@ -68,7 +68,7 @@ using sg::counters::WindowReader;
 using events = Dim<0, 1>;
 using time_dim = Dim<1, 0>;
 
-fake_provider* probe = nullptr;
+FakeProvider* probe = nullptr;
 
 auto contains(std::string_view haystack, std::string_view needle) -> bool
 {
@@ -87,7 +87,7 @@ auto joined(const std::vector<const object*>& objs) -> std::string
 
 auto test_duplicate_registration() -> void
 {
-  auto colliding = std::make_unique<fake_provider>();
+  auto colliding = std::make_unique<FakeProvider>();
   colliding->add_object("package-1", "package", "colliding package");
   const auto rejected_path =
       system::local().register_provider(std::move(colliding));
@@ -95,7 +95,7 @@ auto test_duplicate_registration() -> void
   check(contains(rejected_path.error().message, "duplicate"),
         "the path rejection names the duplicate (FR-008)");
 
-  auto doubled = std::make_unique<fake_provider>();
+  auto doubled = std::make_unique<FakeProvider>();
   doubled->add_counter(
       "machine", "monotonic", "nanoseconds", "redeclared clock");
   const auto rejected_name =
@@ -108,7 +108,7 @@ auto test_duplicate_registration() -> void
   // Two objects of one registration claiming the same alias. The batch
   // search refuses the second, so the first keeps the alias (FR-002,
   // FR-008).
-  auto batch_clash = std::make_unique<fake_provider>();
+  auto batch_clash = std::make_unique<FakeProvider>();
   batch_clash->add_object("package-8/core-1", "cpu8", "core", "eighth core");
   batch_clash->add_object("package-8/core-2", "cpu8", "core", "other core");
   const auto rejected_batch =
@@ -122,7 +122,7 @@ auto test_duplicate_registration() -> void
   // A second object claiming an alias another object already holds: the
   // alias resolves to the first registrant, so the collision is refused
   // and the tree stands unchanged (FR-002, FR-008).
-  auto alias_clash = std::make_unique<fake_provider>();
+  auto alias_clash = std::make_unique<FakeProvider>();
   alias_clash->add_object("package-9/core-1", "cpu3", "core", "ninth core");
   const auto rejected_alias =
       system::local().register_provider(std::move(alias_clash));
@@ -133,7 +133,7 @@ auto test_duplicate_registration() -> void
         "the alias rejection names the colliding alias (FR-002)");
 
   // One seed batch declaring a canonical path twice, which
-  // `fake_provider` cannot express because it keys its objects by path.
+  // `FakeProvider` cannot express because it keys its objects by path.
   // The batch is refused whole, so no object lands and neither alias
   // survives (US3 scenario 6, FR-008).
   class twice final : public ProviderIface
@@ -414,7 +414,7 @@ auto test_fanout_reconciliation() -> void
 
 auto register_everything() -> void
 {
-  auto provider = std::make_unique<fake_provider>();
+  auto provider = std::make_unique<FakeProvider>();
   provider->add_object("package-1", "package", "first package");
   provider->add_object("package-2", "package", "second package");
   provider->add_object("package-1/core-3", "cpu3", "core", "third core");

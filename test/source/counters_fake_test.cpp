@@ -55,7 +55,7 @@ using sg::counters::Availability;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::fake_provider;
+using sg::counters::FakeProvider;
 using sg::counters::kDimSame;
 using sg::counters::LeafSet;
 using sg::counters::MetricResult;
@@ -69,7 +69,7 @@ using sg::counters::TargetKind;
 using events = Dim<0, 1>;
 using time_dim = Dim<1, 0>;
 
-fake_provider* probe = nullptr;
+FakeProvider* probe = nullptr;
 
 auto contains(std::string_view haystack, std::string_view needle) -> bool
 {
@@ -114,7 +114,7 @@ auto provenance_record(const std::string_view label,
 
 auto test_registration() -> void
 {
-  auto provider = std::make_unique<fake_provider>();
+  auto provider = std::make_unique<FakeProvider>();
   provider->add_object("package-1", "package", "first processor package");
   provider->add_object("package-2", "package", "second processor package");
   provider->add_object("package-1/core-3", "cpu3", "core", "third core");
@@ -285,7 +285,7 @@ auto test_registration() -> void
       system::local().register_provider(std::move(provider));
   check(registered.has_value(), "fake provider registers before open (FR-009)");
 
-  auto dupe = std::make_unique<fake_provider>();
+  auto dupe = std::make_unique<FakeProvider>();
   dupe->add_object("package-1", "package", "colliding package");
   const auto clash = system::local().register_provider(std::move(dupe));
   check(!clash.has_value() && contains(clash.error().message, "duplicate"),
@@ -296,7 +296,7 @@ auto test_registration() -> void
   // enforces at `source/counters/system.cpp:417`: every stored catalog
   // unit maps. Deferring the refusal to resolution would leave that
   // accessor a fuse on a tree the library had accepted.
-  auto bad_unit = std::make_unique<fake_provider>();
+  auto bad_unit = std::make_unique<FakeProvider>();
   bad_unit->add_counter("package-3", "watts", "watts", "power draw");
   const auto rejected = system::local().register_provider(std::move(bad_unit));
   check(!rejected.has_value() && contains(rejected.error().message, "watts"),
@@ -340,7 +340,7 @@ auto test_tree_walk() -> void
         "near-miss path suggestion offered (FR-008)");
 
   const auto after_open =
-      system::local().register_provider(std::make_unique<fake_provider>());
+      system::local().register_provider(std::make_unique<FakeProvider>());
   check(!after_open.has_value(), "registration after open rejected (FR-009)");
 }
 
@@ -967,7 +967,7 @@ auto test_full_rate_pair_ratio() -> void
 // (FR-011, FR-036, T066).
 auto open_refusal_scenario() -> void
 {
-  fake_provider provider;
+  FakeProvider provider;
   provider.add_object("package-1/core-3", "core", "a scripted core");
   static_cast<void>(provider.add_counter(
       "package-1/core-3", "cycles", "ops", "cycles elapsed"));
@@ -1133,7 +1133,7 @@ auto test_multi_group_disclosure() -> void
 // and writes no disclosure (FR-007).
 auto test_open_without_disclosure() -> void
 {
-  fake_provider provider;
+  FakeProvider provider;
   provider.add_counter("machine", "quiet", "ops", "opened with no disclosure");
   provider.set_points("machine", "quiet", {4}, 0);
   const Target where {};
