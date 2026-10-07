@@ -164,7 +164,7 @@ struct format_range
 [[nodiscard]] auto pmu_probe(
     int type,
     const std::vector<std::pair<int, std::uint64_t>>& words,
-    const target& where) -> Availability;
+    const Target& where) -> Availability;
 
 // One catalog entry the provider built: the composed config words, the
 // description, the probed availability, and the target kinds that probe
@@ -190,7 +190,7 @@ struct pmu_entry
 
 // Records the target kinds the availability probe settled the seeded leaf
 // at `address` on, keyed by that canonical address. FR-021 states the
-// seeding surface (`catalog_seed`) gains no field and the availability state
+// seeding surface (`CatalogSeed`) gains no field and the availability state
 // stays one enumeration, so the per-kind verdicts ride beside the tree.
 // The provider records them where it enumerates and the catalog reads them
 // where it fills `CatalogEntry::targets`. Only a
@@ -238,9 +238,9 @@ struct pmu_state
 // one group per device, one read per group leader per sampling action.
 // Null when a leaf names no device or no countable entry.
 [[nodiscard]] auto pmu_open_window(const pmu_state& state,
-                                   const leaf_set& leaves,
-                                   const target& where)
-    -> std::unique_ptr<window_reader>;
+                                   const LeafSet& leaves,
+                                   const Target& where)
+    -> std::unique_ptr<WindowReader>;
 
 // The outcome of one mapped-page read attempt (FR-040). A read from a
 // thread other than the one that opened the context falls outside these
@@ -346,7 +346,7 @@ struct fast_context
 // cpu-pinned plan counts that cpu for every task (FR-024, FR-031). Both
 // read modes bind the same way, so a plan reads what its target names
 // whichever mechanism the catalog discloses.
-[[nodiscard]] inline auto leader_pid(const target& where) noexcept
+[[nodiscard]] inline auto leader_pid(const Target& where) noexcept
     -> std::pair<pid_t, int>
 {
   // LCOV_EXCL_BR_START : coverage exclusion (T140): both arcs. A cpu-pinned
@@ -355,7 +355,7 @@ struct fast_context
   // `perf_event_open` is refused reports no countable leaf, so
   // `counters_pmu_test.cpp`'s cpu-target scenario skips and this arm runs
   // there; the host that grants the syscall runs it on every pinned plan.
-  if (where.kind == target_kind::cpu) {  // LCOV_EXCL_BR_LINE
+  if (where.kind == TargetKind::CPU) {  // LCOV_EXCL_BR_LINE
     return {-1, where.cpu};  // LCOV_EXCL_LINE
   }
   return {0, -1};
@@ -482,7 +482,7 @@ struct event_time_pair
 // discloses (FR-023).
 [[nodiscard]] auto fast_context_open(int type,
                                      std::uint64_t config,
-                                     const target& where,
+                                     const Target& where,
                                      std::string* refusal = nullptr)
     -> std::unique_ptr<fast_context>;
 
@@ -706,16 +706,16 @@ struct entry_read_selection
 ///       answers false for the per-task kind. Every other state answers
 ///       false under either kind.
 [[nodiscard]] auto availability_gate_passes(
-    Availability probed, target_kind requested) noexcept -> bool;
+    Availability probed, TargetKind requested) noexcept -> bool;
 
 // The fast-mode window (group_io.cpp, FR-040): one context per member
 // leaf, the enabled/running pair taken from the leader's page. Null
 // when a leaf names no device, no countable entry, or a context the
 // kernel refuses.
 [[nodiscard]] auto pmu_open_fast_window(const pmu_state& state,
-                                        const leaf_set& leaves,
-                                        const target& where)
-    -> std::unique_ptr<window_reader>;
+                                        const LeafSet& leaves,
+                                        const Target& where)
+    -> std::unique_ptr<WindowReader>;
 
 // The decisions the seam reaches so a fixture can drive them with a
 // device the reference host does not publish. `probe_device` takes a

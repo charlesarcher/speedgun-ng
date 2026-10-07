@@ -57,14 +57,14 @@ using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
 using sg::counters::kDimSame;
-using sg::counters::leaf_set;
+using sg::counters::LeafSet;
 using sg::counters::MetricResult;
-using sg::counters::point_sink;
 using sg::counters::points_view;
+using sg::counters::PointSink;
 using sg::counters::ReadMode;
 using sg::counters::system;
-using sg::counters::target;
-using sg::counters::target_kind;
+using sg::counters::Target;
+using sg::counters::TargetKind;
 
 using events = Dim<0, 1>;
 using time_dim = Dim<1, 0>;
@@ -435,7 +435,7 @@ auto test_compile_zero_reads() -> void
         "the moved plan discloses the same ratio and scale (FR-019)");
 
   const auto pinned = compile(
-      system::local(), target {.kind = target_kind::cpu, .cpu = 0}, instr_expr);
+      system::local(), Target {.kind = TargetKind::CPU, .cpu = 0}, instr_expr);
   check(pinned.has_value(), "plan compiles for a pinned cpu target (FR-031)");
 }
 
@@ -971,21 +971,19 @@ auto open_refusal_scenario() -> void
   provider.add_object("package-1/core-3", "core", "a scripted core");
   static_cast<void>(provider.add_counter(
       "package-1/core-3", "cycles", "ops", "cycles elapsed"));
-  const target where {};
-  check(
-      provider.open(leaf_set {.addresses = {"package-1/core-3/cycles"}}, where)
-          != nullptr,
-      "a scripted address opens a window");
-  check(provider.open(leaf_set {.addresses = {"nosuchobject/cycles"}}, where)
+  const Target where {};
+  check(provider.open(LeafSet {.addresses = {"package-1/core-3/cycles"}}, where)
+            != nullptr,
+        "a scripted address opens a window");
+  check(provider.open(LeafSet {.addresses = {"nosuchobject/cycles"}}, where)
             == nullptr,
         "an address naming an undeclared object opens no window");
-  check(provider.open(leaf_set {.addresses = {"package-1/core-3/nosuchleaf"}},
+  check(provider.open(LeafSet {.addresses = {"package-1/core-3/nosuchleaf"}},
                       where)
             == nullptr,
         "an address naming an undeclared leaf opens no window");
-  check(
-      provider.open(leaf_set {.addresses = {"nodelimiter"}}, where) == nullptr,
-      "an address carrying no separator names no object at all");
+  check(provider.open(LeafSet {.addresses = {"nodelimiter"}}, where) == nullptr,
+        "an address carrying no separator names no object at all");
 }
 
 // A scalar multiple of a composite: the scale is one node over the
@@ -1138,14 +1136,14 @@ auto test_open_without_disclosure() -> void
   fake_provider provider;
   provider.add_counter("machine", "quiet", "ops", "opened with no disclosure");
   provider.set_points("machine", "quiet", {4}, 0);
-  const target where {};
-  auto window = provider.open(leaf_set {.addresses = {"machine/quiet"}}, where);
+  const Target where {};
+  auto window = provider.open(LeafSet {.addresses = {"machine/quiet"}}, where);
   if (window == nullptr) {
     fail("the fake leaf opens with no disclosure column");
   }
   std::vector<std::uint64_t> columns(1, 0);
-  point_sink sink(columns.data(), 1, 1, 1, 0);
-  window->read_points(sink);
+  PointSink sink(columns.data(), 1, 1, 1, 0);
+  window->readPoints(sink);
   check(columns[0] == 4,
         "a fake sample with no disclosure column writes the leaf alone "
         "(FR-007)");

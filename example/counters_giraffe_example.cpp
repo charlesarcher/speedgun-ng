@@ -18,20 +18,20 @@ namespace
 {
 
 using sg::counters::Availability;
-using sg::counters::catalog_seed;
+using sg::counters::CatalogSeed;
 using sg::counters::clock_provider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::leaf_set;
-using sg::counters::object_seed;
-using sg::counters::object_sink;
-using sg::counters::point_sink;
-using sg::counters::provider_iface;
+using sg::counters::LeafSet;
+using sg::counters::ObjectSeed;
+using sg::counters::ObjectSink;
+using sg::counters::PointSink;
+using sg::counters::ProviderIface;
 using sg::counters::scope;
 using sg::counters::system;
-using sg::counters::target;
-using sg::counters::window_reader;
+using sg::counters::Target;
+using sg::counters::WindowReader;
 
 using events = Dim<0, 1>;
 using time_dim = Dim<1, 0>;
@@ -43,10 +43,10 @@ constexpr std::uint64_t kHonksPerAction = 3;
 
 // The giraffe's counting window: yields the cumulative honks within
 // each sampling action, exactly once per action (FR-011).
-class honk_window final : public window_reader
+class honk_window final : public WindowReader
 {
 public:
-  void read_points(point_sink& sink) noexcept override
+  void readPoints(PointSink& sink) noexcept override
   {
     m_total += kHonksPerAction;
     sink.put(m_total);
@@ -58,17 +58,17 @@ private:
 
 // The giraffe provider: one object it owns, described and countable
 // (C-PRO-1). The system never saw this provider before registration.
-class giraffe_provider final : public provider_iface
+class giraffe_provider final : public ProviderIface
 {
 public:
-  void enumerate(object_sink& sink) const override
+  void enumerate(ObjectSink& sink) const override
   {
-    sink.add_object(object_seed {
+    sink.addObject(ObjectSeed {
         .kind = "animal",
         .path = "menagerie/giraffe-2",
         .alias = {},
         .description = "the famous giraffe",
-        .entries = {catalog_seed {
+        .entries = {CatalogSeed {
             .name = "honks",
             .description = "honks emitted",
             .unit = "ops",
@@ -79,8 +79,8 @@ public:
 
   // The system asks this provider only about leaves it enumerated;
   // anything else is not ours to sample.
-  std::unique_ptr<window_reader> open(const leaf_set& leaves,
-                                      const target& /*where*/) override
+  std::unique_ptr<WindowReader> open(const LeafSet& leaves,
+                                     const Target& /*where*/) override
   {
     for (const auto& address : leaves.addresses) {
       if (address != "menagerie/giraffe-2/honks") {

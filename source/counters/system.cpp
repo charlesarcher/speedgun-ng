@@ -119,7 +119,7 @@ constexpr int near_miss_distance = 2;
 // and a counter name the object already carries (FR-008, FR-017).
 // `root_leaves` holds the machine root's committed leaves plus the batch
 // this call has staged, so a machine seed is checked against both.
-[[nodiscard]] auto build_leaves(const object_seed& seed,
+[[nodiscard]] auto build_leaves(const ObjectSeed& seed,
                                 const std::string& path,
                                 const bool on_root,
                                 const std::vector<leaf_record>& root_leaves,
@@ -160,10 +160,10 @@ constexpr int near_miss_distance = 2;
                 .unit = std::string(entry.unit),
                 .avail = entry.avail,
                 .mode = entry.mode,
-                .frequency_hz = entry.frequency_hz,
+                .frequency_hz = entry.frequencyHz,
                 .scaled = entry.scaled,
             },
-        .has_ratio_pair = entry.has_ratio_pair,
+        .has_ratio_pair = entry.hasRatioPair,
         .provider_index = provider_index,
     });  // LCOV_EXCL_BR_LINE
   }  // LCOV_EXCL_BR_LINE
@@ -289,7 +289,7 @@ auto system::local() -> system&
   return instance;
 }
 
-auto system::register_provider(std::unique_ptr<provider_iface> provider)
+auto system::register_provider(std::unique_ptr<ProviderIface> provider)
     -> std::expected<void, Error>
 {
   if (m_impl->is_open()) {
@@ -300,11 +300,11 @@ auto system::register_provider(std::unique_ptr<provider_iface> provider)
 
   // Staging sink: the tree stays unchanged unless the whole provider
   // validates (FR-008).
-  struct staging_sink final : object_sink
+  struct staging_sink final : ObjectSink
   {
-    std::vector<object_seed> seeds;
+    std::vector<ObjectSeed> seeds;
 
-    void add_object(const object_seed& seed) override { seeds.push_back(seed); }
+    void addObject(const ObjectSeed& seed) override { seeds.push_back(seed); }
   } sink;
 
   provider->enumerate(sink);

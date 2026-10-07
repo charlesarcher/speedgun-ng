@@ -71,10 +71,10 @@ auto check(const bool cond, const char* what) -> void
 }
 
 using sg::counters::Availability;
-using sg::counters::leaf_set;
-using sg::counters::point_sink;
+using sg::counters::LeafSet;
+using sg::counters::PointSink;
 using sg::counters::ReadMode;
-using sg::counters::target;
+using sg::counters::Target;
 using sg::counters::detail::alias_description;
 using sg::counters::detail::fast_read_verdict;
 using sg::counters::detail::format_range;
@@ -1816,7 +1816,7 @@ auto encoding_refusal_scenario() -> void
 auto context_open_refusal_scenario() -> void
 {
   std::string refusal;
-  const target where {};
+  const Target where {};
   auto context =
       sg::counters::detail::fast_context_open(999999, 0, where, &refusal);
   check(!context, "an event type no kernel publishes opens no context");
@@ -2362,9 +2362,9 @@ auto synthetic_state() -> pmu_state
   return state;
 }
 
-auto leaf_set_of(std::vector<std::string> addresses) -> leaf_set
+auto leaf_set_of(std::vector<std::string> addresses) -> LeafSet
 {
-  return leaf_set {.addresses = std::move(addresses)};
+  return LeafSet {.addresses = std::move(addresses)};
 }
 
 // A leaf set whose plan also writes a disclosure column. A window gives
@@ -2372,10 +2372,10 @@ auto leaf_set_of(std::vector<std::string> addresses) -> leaf_set
 // the slot a window registers for it is decided by the column and not by
 // a device (FR-007).
 auto disclosing_leaf_set_of(std::vector<std::string> addresses,
-                            std::size_t disclosure_column) -> leaf_set
+                            std::size_t disclosure_column) -> LeafSet
 {
-  return leaf_set {.addresses = std::move(addresses),
-                   .disclosure_column = disclosure_column};
+  return LeafSet {.addresses = std::move(addresses),
+                  .disclosureColumn = disclosure_column};
 }
 
 // The resolve and layout refusals, each decided before the provider
@@ -2383,7 +2383,7 @@ auto disclosing_leaf_set_of(std::vector<std::string> addresses,
 auto window_refusal_scenario() -> void
 {
   const pmu_state state = synthetic_state();
-  const target where {};
+  const Target where {};
   check(sg::counters::detail::pmu_open_window(state, leaf_set_of({}), where)
             == nullptr,
         "an empty leaf set opens no window");
@@ -2439,7 +2439,7 @@ auto window_refusal_scenario() -> void
 auto group_open_scenario() -> void
 {
   const pmu_state state = synthetic_state();
-  const target where {};
+  const Target where {};
   const std::vector<
       std::pair<std::string, std::vector<std::pair<int, std::uint64_t>>>>
       cases {{"cpu/work", {{0, PERF_COUNT_HW_INSTRUCTIONS}}},
@@ -2449,7 +2449,7 @@ auto group_open_scenario() -> void
   std::size_t granted_count = 0;
   for (const auto& [leaf, words] : cases) {
     const bool granted =
-        sg::counters::detail::pmu_probe(state.devices[0].type, words, target {})
+        sg::counters::detail::pmu_probe(state.devices[0].type, words, Target {})
         == Availability::COUNTABLE;
     const auto window = sg::counters::detail::pmu_open_window(
         state, leaf_set_of({leaf}), where);
@@ -2464,7 +2464,7 @@ auto group_open_scenario() -> void
       state, leaf_set_of({"cpu/cycle", "cpu/enabled", "cpu/running"}), where);
   const bool pair_granted =
       sg::counters::detail::pmu_probe(
-          state.devices[0].type, {{0, PERF_COUNT_HW_CPU_CYCLES}}, target {})
+          state.devices[0].type, {{0, PERF_COUNT_HW_CPU_CYCLES}}, Target {})
       == Availability::COUNTABLE;
   check(
       (pair != nullptr) == pair_granted,
@@ -2475,13 +2475,13 @@ auto group_open_scenario() -> void
     // commit stays untouched, and no counter ever decreases across the
     // two reads (FR-013, FR-026, FR-041, FR-047).
     std::uint64_t first[6] = {0, 0, 0, 0, 0, 0};
-    point_sink one {first, 3, 3, 2, 0};
-    pair->read_points(one);
-    one.check_action();
+    PointSink one {first, 3, 3, 2, 0};
+    pair->readPoints(one);
+    one.checkAction();
     std::uint64_t second[6] = {0, 0, 0, 0, 0, 0};
-    point_sink two {second, 3, 3, 2, 0};
-    pair->read_points(two);
-    two.check_action();
+    PointSink two {second, 3, 3, 2, 0};
+    pair->readPoints(two);
+    two.checkAction();
     check(first[1] == 0 && first[3] == 0 && first[5] == 0
               && second[1] == 0 && second[3] == 0 && second[5] == 0,
           "one group read fills the managed columns of the committed row "
@@ -2495,11 +2495,11 @@ auto group_open_scenario() -> void
     // The window constructor installed its own read in the direct-call
     // slot, so the slot the compiled plan holds reaches the same read
     // the virtual entry reaches (FR-022, R-004).
-    const auto thunk = pair->resolve_thunk();
+    const auto thunk = pair->resolveThunk();
     std::uint64_t third[6] = {0, 0, 0, 0, 0, 0};
-    point_sink via_slot {third, 3, 3, 2, 0};
+    PointSink via_slot {third, 3, 3, 2, 0};
     thunk(*pair, via_slot);
-    via_slot.check_action();
+    via_slot.checkAction();
     check(third[0] >= second[0] && third[2] >= second[2],
           "the installed direct-call slot reads the same group the virtual "
           "entry reads (FR-022)");
@@ -2510,10 +2510,10 @@ auto group_open_scenario() -> void
       state, leaf_set_of({"cpu/work", "cpu/cycle"}), where);
   const bool duo_granted =
       sg::counters::detail::pmu_probe(
-          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, target {})
+          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, Target {})
           == Availability::COUNTABLE
       && sg::counters::detail::pmu_probe(
-             state.devices[0].type, {{0, PERF_COUNT_HW_CPU_CYCLES}}, target {})
+             state.devices[0].type, {{0, PERF_COUNT_HW_CPU_CYCLES}}, Target {})
           == Availability::COUNTABLE;
   check(
       (duo != nullptr) == duo_granted,
@@ -2522,9 +2522,9 @@ auto group_open_scenario() -> void
     // Two columns, the two members: the read fills one row of a two-row
     // block, and the row this action did not commit stays untouched.
     std::uint64_t cells[4] = {0, 0, 0, 0};
-    point_sink sink {cells, 2, 2, 2, 0};
-    duo->read_points(sink);
-    sink.check_action();
+    PointSink sink {cells, 2, 2, 2, 0};
+    duo->readPoints(sink);
+    sink.checkAction();
     check(cells[1] == 0 && cells[3] == 0,
           "a two-member group read fills the committed row only (FR-047)");
   }
@@ -2542,13 +2542,13 @@ auto group_open_scenario() -> void
 auto fast_branch_scenario() -> void
 {
   pmu_state state = synthetic_state();
-  const target where {};
+  const Target where {};
   // The fast window opens exactly when the availability probe grants the
   // config the member carries, the same verdict `group_open_scenario`
   // holds the group path to (FR-023, FR-040).
   const bool granted =
       sg::counters::detail::pmu_probe(
-          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, target {})
+          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, Target {})
       == Availability::COUNTABLE;
   const auto fast = sg::counters::detail::pmu_open_fast_window(
       state, leaf_set_of({"cpu/fast"}), where);
@@ -2617,7 +2617,7 @@ auto probe_kind_record_scenario() -> void
 {
   using sg::counters::kTargetCpuBit;
   using sg::counters::kTargetThreadBit;
-  using sg::counters::target_kind;
+  using sg::counters::TargetKind;
   using sg::counters::TargetMask;
   using sg::counters::detail::note_probed_kinds;
   using sg::counters::detail::pmu_probe;
@@ -2627,13 +2627,13 @@ auto probe_kind_record_scenario() -> void
   const std::vector<std::pair<int, std::uint64_t>> words {
       {0, PERF_COUNT_HW_INSTRUCTIONS},
   };
-  const TargetMask counted = (pmu_probe(PERF_TYPE_HARDWARE, words, target {})
+  const TargetMask counted = (pmu_probe(PERF_TYPE_HARDWARE, words, Target {})
                                       == Availability::COUNTABLE
                                   ? kTargetThreadBit
                                   : TargetMask {})
       | (pmu_probe(PERF_TYPE_HARDWARE,
                    words,
-                   target {.kind = target_kind::cpu, .cpu = 0})
+                   Target {.kind = TargetKind::CPU, .cpu = 0})
                  == Availability::COUNTABLE
              ? kTargetCpuBit
              : TargetMask {});
@@ -2858,7 +2858,7 @@ auto per_device_fast_plan_scenario() -> void
   check(state.devices.back().entries.front().avail != Availability::GAP,
         "the refused device records no gap");
 
-  const target where {};
+  const Target where {};
   check(sg::counters::detail::pmu_open_fast_window(
             state, leaf_set_of({"cpu/fast", "uncore/uncore_count"}), where)
             == nullptr,
@@ -3212,7 +3212,7 @@ auto unpublished_device_probe_scenario() -> void
 // (FR-021, FR-022, FR-046).
 auto device_scope_probe_scenario() -> void
 {
-  using sg::counters::target_kind;
+  using sg::counters::TargetKind;
   using sg::counters::detail::pmu_probe;
   using sg::counters::detail::scope_settled_state;
 
@@ -3248,9 +3248,9 @@ auto device_scope_probe_scenario() -> void
   });
   const std::vector<std::pair<int, std::uint64_t>> words =
       scoped.entries.front().words;
-  const Availability per_task = pmu_probe(scoped.type, words, target {});
-  const Availability on_cpu = pmu_probe(
-      scoped.type, words, target {.kind = target_kind::cpu, .cpu = 0});
+  const Availability per_task = pmu_probe(scoped.type, words, Target {});
+  const Availability on_cpu =
+      pmu_probe(scoped.type, words, Target {.kind = TargetKind::CPU, .cpu = 0});
   probe_device(scoped, false);
   check(scoped.entries.front().avail == scope_settled_state(on_cpu, true),
         "a device-scoped entry settles on the state the extracted decision "
@@ -3412,7 +3412,7 @@ auto settled_target_mask_scenario() -> void
 // that answer as not_encodable (FR-021, FR-022, FR-024, FR-046).
 auto availability_gate_scenario() -> void
 {
-  using sg::counters::target_kind;
+  using sg::counters::TargetKind;
   using sg::counters::detail::availability_gate_passes;
 
   for (const auto state : {
@@ -3423,17 +3423,17 @@ auto availability_gate_scenario() -> void
            Availability::GAP,
        })
   {
-    check(!availability_gate_passes(state, target_kind::thread),
+    check(!availability_gate_passes(state, TargetKind::THREAD),
           "a state no probe settled refuses a per-task request (FR-024)");
-    check(availability_gate_passes(state, target_kind::cpu)
+    check(availability_gate_passes(state, TargetKind::CPU)
               == (state == Availability::SCOPE_REFUSED),
           "a scope-refused entry lets a cpu request past the gate and every "
           "other state refuses it (FR-021, FR-022, FR-024)");
   }
 
-  check(availability_gate_passes(Availability::COUNTABLE, target_kind::thread),
+  check(availability_gate_passes(Availability::COUNTABLE, TargetKind::THREAD),
         "a countable entry lets a per-task request past the gate (FR-024)");
-  check(availability_gate_passes(Availability::COUNTABLE, target_kind::cpu),
+  check(availability_gate_passes(Availability::COUNTABLE, TargetKind::CPU),
         "a countable entry lets a cpu request past the gate (FR-024)");
 }
 
@@ -3455,29 +3455,29 @@ auto clock_disclosure_scenario() -> void
 
   clock_provider provider {};
 
-  leaf_set disclosing;
+  LeafSet disclosing;
   disclosing.addresses = {"machine/monotonic"};
-  disclosing.disclosure_column = 1;
-  auto with_column = provider.open(disclosing, target {});
+  disclosing.disclosureColumn = 1;
+  auto with_column = provider.open(disclosing, Target {});
   check(with_column != nullptr,
         "the clock provider opens a window over one of its own leaves "
         "(FR-007)");
   std::array<std::uint64_t, column_count> disclosed {unwritten, unwritten};
-  point_sink disclosed_sink(disclosed.data(), 1, column_count, row_stride, 0);
-  with_column->read_points(disclosed_sink);
+  PointSink disclosed_sink(disclosed.data(), 1, column_count, row_stride, 0);
+  with_column->readPoints(disclosed_sink);
   check(disclosed[1] == static_cast<std::uint64_t>(Availability::COUNTABLE),
         "the window that names a disclosure column discloses the clock "
         "leaf's own countability value (FR-007)");
 
-  leaf_set quiet;
+  LeafSet quiet;
   quiet.addresses = disclosing.addresses;
-  auto without_column = provider.open(quiet, target {});
+  auto without_column = provider.open(quiet, Target {});
   check(without_column != nullptr,
         "the same leaf opens a window whose leaf set names no disclosure "
         "column (FR-007)");
   std::array<std::uint64_t, column_count> quiet_columns {unwritten, unwritten};
-  point_sink quiet_sink(quiet_columns.data(), 1, column_count, row_stride, 0);
-  without_column->read_points(quiet_sink);
+  PointSink quiet_sink(quiet_columns.data(), 1, column_count, row_stride, 0);
+  without_column->readPoints(quiet_sink);
   check(quiet_columns[0] != unwritten,
         "the window writes the clock point the platform clock returned "
         "(FR-011, FR-033)");
@@ -3546,12 +3546,12 @@ auto device_page_verdict_scenario() -> void
         .description = "an event the verdict opens",
         .words = {{0, config}},
     });
-    const sg::counters::target where =
-        device_scoped ? sg::counters::target {
-            .kind = sg::counters::target_kind::cpu,
+    const sg::counters::Target where =
+        device_scoped ? sg::counters::Target {
+            .kind = sg::counters::TargetKind::CPU,
             .cpu = 0,
         }
-                      : sg::counters::target {};
+                      : sg::counters::Target {};
     auto context = fast_context_open(type, config, where, nullptr);
     if (!context) {
       check(!device_page_fast_verdict(device),

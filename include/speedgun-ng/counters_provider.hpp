@@ -18,9 +18,9 @@
  *
  * A provider registers objects with named catalog entries
  * (`enumerate`), and yields cumulative points for the leaves the system
- * asks it to manage (`open`, then `read_points` per action). Virtual
+ * asks it to manage (`open`, then `readPoints` per action). Virtual
  * calls belong to setup; the compiled read path reaches a provider
- * through the `window_reader::read_thunk` slot its window fills in the
+ * through the `WindowReader::ReadThunk` slot its window fills in the
  * window constructor, one static function naming that window's own read
  * (R-004, FR-022).
  */
@@ -35,19 +35,19 @@ namespace sg::counters
  * closed switch at registration (FR-017).
  *
  */
-struct catalog_seed
+struct CatalogSeed
 {
   std::string_view name;
   std::string_view description;
   std::string_view unit;
   Availability avail = Availability::COUNTABLE;
   ReadMode mode = ReadMode::SYSCALL;
-  std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
+  std::uint64_t frequencyHz = 0;  // fixed-rate calibration, 0 elsewhere
   bool scaled = false;  // platform-scaled tick source disclosure
   // True when the source discloses a time pair (`enabled` and
   // `running` leaves on the same object) so folds can compute a
   // multiplex ratio (FR-019, FR-041).
-  bool has_ratio_pair = false;
+  bool hasRatioPair = false;
 };
 
 /**
@@ -59,13 +59,13 @@ struct catalog_seed
  * call; the system copies what it keeps.
  *
  */
-struct object_seed
+struct ObjectSeed
 {
   std::string_view kind;
   std::string_view path;
   std::string_view alias;
   std::string_view description;
-  std::vector<catalog_seed> entries;
+  std::vector<CatalogSeed> entries;
 };
 
 /**
@@ -78,7 +78,7 @@ struct object_seed
  * tree left unchanged (FR-008).
  *
  */
-class SPEEDGUN_NG_EXPORT object_sink
+class SPEEDGUN_NG_EXPORT ObjectSink
 {
 public:
   /**
@@ -93,12 +93,12 @@ public:
   // execution can ever advance. Verified with `gcov -b`: this line reports
   // an unexecuted block on every build while the copy constructor on the
   // next line reports a count.
-  object_sink() = default;  // LCOV_EXCL_LINE
+  ObjectSink() = default;  // LCOV_EXCL_LINE
 
-  object_sink(const object_sink&) = default;
-  object_sink(object_sink&&) = delete;
-  auto operator=(const object_sink&) -> object_sink& = default;
-  auto operator=(object_sink&&) -> object_sink& = delete;
+  ObjectSink(const ObjectSink&) = default;
+  ObjectSink(ObjectSink&&) = delete;
+  auto operator=(const ObjectSink&) -> ObjectSink& = default;
+  auto operator=(ObjectSink&&) -> ObjectSink& = delete;
 
   /**
    * @brief Destruction through the base pointer.
@@ -106,7 +106,7 @@ public:
    * \pre none
    * \post none
    */
-  virtual ~object_sink() = default;
+  virtual ~ObjectSink() = default;
 
   /**
    * @brief Accepts one object with its catalog entries.
@@ -116,53 +116,53 @@ public:
    * \pre none
    * \post none
    */
-  virtual void add_object(const object_seed& seed) = 0;
+  virtual void addObject(const ObjectSeed& seed) = 0;
 };
 
 /**
  * @brief The leaves one provider is asked to manage.
  *
  * Addresses are canonical leaf spellings, `<object path>/<name>`, in
- * stable order; `read_points` yields one point per address in exactly
+ * stable order; `readPoints` yields one point per address in exactly
  * this order (C-PRO-2).
  *
- * `disclosure_column` names the managed column the sampling action writes
+ * `disclosureColumn` names the managed column the sampling action writes
  * last, beside the counts and the ratio pair's two columns, and it is the
  * column no leaf address resolves to. The request that owns the plan's
  * last group carries it; every earlier request carries
- * `no_disclosure_column`, because a window writes the column once per
+ * `kNoDisclosureColumn`, because a window writes the column once per
  * action (FR-007).
  *
  */
-struct leaf_set
+struct LeafSet
 {
   /// @brief No request writes the disclosure column (FR-007).
-  static constexpr std::size_t no_disclosure_column =
+  static constexpr std::size_t kNoDisclosureColumn =
       static_cast<std::size_t>(-1);
 
   std::vector<std::string> addresses;
-  std::size_t disclosure_column = no_disclosure_column;
+  std::size_t disclosureColumn = kNoDisclosureColumn;
 };
 
 /**
  * @brief What a plan samples on: the current thread, or a pinned cpu.
  */
-enum class target_kind : std::uint8_t
+enum class TargetKind : std::uint8_t
 {
-  thread,
-  cpu
+  THREAD,
+  CPU
 };
 
 /**
  * @brief Sampling target handed to a provider at open (FR-031).
  *
- * `cpu` is meaningful only for `target_kind::cpu`; a `thread` target
+ * `CPU` is meaningful only for `TargetKind::CPU`; a `THREAD` target
  * ignores it.
  *
  */
-struct target
+struct Target
 {
-  target_kind kind = target_kind::thread;
+  TargetKind kind = TargetKind::THREAD;
   int cpu = -1;
 };
 
@@ -178,25 +178,25 @@ struct target
  *            column, which is the one-sampling-action obligation
  *            FR-047 binds the reader to.
  */
-class point_sink
+class PointSink
 {
 public:
   /**
-   * @brief Positions the cursor over `columns`, `leaf_count` columns of
+   * @brief Positions the cursor over `columns`, `leafCount` columns of
    * `stride` rows, at row `row`.
    *
-   * \pre columns is non-null and holds `leaf_count` columns of `stride`
+   * \pre columns is non-null and holds `leafCount` columns of `stride`
    *      `uint64` cells; `row` is within `stride`.
    * \post none
    */
-  point_sink(std::uint64_t* columns,
-             std::size_t leaf_count,
-             std::size_t column_count,
-             std::size_t stride,
-             std::size_t row) noexcept
+  PointSink(std::uint64_t* columns,
+            std::size_t leafCount,
+            std::size_t columnCount,
+            std::size_t stride,
+            std::size_t row) noexcept
       : m_columns(columns)
-      , m_leaf_count(leaf_count)
-      , m_column_count(column_count)
+      , m_leafCount(leafCount)
+      , m_columnCount(columnCount)
       , m_stride(stride)
       , m_row(row)
   {
@@ -207,14 +207,14 @@ public:
   /**
    * @brief Appends one cumulative point to the next managed column.
    *
-   * \pre Fewer than `leaf_count` points have been put this action.
+   * \pre Fewer than `leafCount` points have been put this action.
    * \post The point lands in the column matching the call index, at the
    *       constructed row; the call index advances by one.
    */
   void put(const std::uint64_t value) noexcept
   {
     const std::size_t index = m_index;
-    SG_REQUIRE(index < m_leaf_count,
+    SG_REQUIRE(index < m_leafCount,
                "point sink filled beyond the managed leaf count");
     m_columns[index * m_stride + m_row] = value;
     ++m_index;
@@ -231,22 +231,22 @@ public:
    * interleaving with them, so a provider's disclosure does not land in
    * the sequential cursor's next cell. The cursor is unchanged: the
    * disclosure is not a leaf and no leaf follows it, so `put` and
-   * `check_action` see exactly the leaf obligations (FR-002).
+   * `checkAction` see exactly the leaf obligations (FR-002).
    *
    * \pre `column` is within the managed columns and this action has not
    *      already written that column.
    * \post the disclosure lands in `column` at the constructed row.
    */
-  void put_disclosure(std::size_t column, std::uint64_t value) noexcept
+  void putDisclosure(std::size_t column, std::uint64_t value) noexcept
   {
-    SG_REQUIRE(column < m_column_count,
+    SG_REQUIRE(column < m_columnCount,
                "disclosure column is within the managed columns");
     // The column base is a pointer into one contiguous buffer and the
     // index is the column the plan named, so the subscript is in range
     // by the requirement above.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     m_columns[(column * m_stride) + m_row] = value;
-    m_disclosure_written = true;
+    m_disclosureWritten = true;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     SG_ENSURE(m_columns[(column * m_stride) + m_row] == value,
               "the disclosure lands in the column the plan named for it");
@@ -263,46 +263,46 @@ public:
    * \pre none
    * \post none
    */
-  void check_action() const noexcept
+  void checkAction() const noexcept
   {
     // The obligation is one point per managed leaf. A plan with more than
     // one read group has a disclosure column per group, and each is written
-    // through `put_disclosure`, which does not advance the cursor, so the
+    // through `putDisclosure`, which does not advance the cursor, so the
     // cursor ends at the leaf count while the column count is larger by the
     // number of groups (FR-002, FR-047).
-    SG_INVARIANT(m_index == m_leaf_count,
+    SG_INVARIANT(m_index == m_leafCount,
                  "one action writes one point per managed leaf (FR-047)");
   }
 
 private:
   std::uint64_t* m_columns = nullptr;
-  std::size_t m_leaf_count = 0;
+  std::size_t m_leafCount = 0;
   // Every managed column, leaves and disclosures alike. The cursor is
   // bounded by the leaves; a disclosure names a column by index and is
   // bounded by this (FR-002).
-  std::size_t m_column_count = 0;
+  std::size_t m_columnCount = 0;
   std::size_t m_stride = 0;
   std::size_t m_row = 0;
   std::size_t m_index = 0;
-  bool m_disclosure_written = false;
+  bool m_disclosureWritten = false;
 };
 
 /**
  * @brief The sampling primitive a provider implements for one open
  * window.
  *
- * `read_points` fills exactly one cumulative point per managed leaf, in
- * `leaf_set` order, within one sampling action (C-PRO-2). Every window
- * constructor calls `set_thunk` with a static function that reads that
+ * `readPoints` fills exactly one cumulative point per managed leaf, in
+ * `LeafSet` order, within one sampling action (C-PRO-2). Every window
+ * constructor calls `setThunk` with a static function that reads that
  * window's own points, so the compiled plan reaches the read with no
  * vtable lookup (FR-022, R-004). A window that supplies no thunk keeps
- * `default_thunk`, which routes to `read_points`; that fallback costs
+ * `defaultThunk`, which routes to `readPoints`; that fallback costs
  * one vtable lookup per sampling action and serves a provider written
  * against this interface alone.
  *
  * \invariant `thunk` is non-null.
  */
-class SPEEDGUN_NG_EXPORT window_reader
+class SPEEDGUN_NG_EXPORT WindowReader
 {
 public:
   /**
@@ -311,18 +311,18 @@ public:
    * \pre none
    * \post none
    */
-  window_reader() = default;
+  WindowReader() = default;
 
   /**
    * @brief Direct-call signature the compiled plan stores; equal in
-   * effect to `read_points`.
+   * effect to `readPoints`.
    */
-  using read_thunk = void (*)(window_reader&, point_sink&) noexcept;
+  using ReadThunk = void (*)(WindowReader&, PointSink&) noexcept;
 
-  window_reader(const window_reader&) = default;
-  window_reader(window_reader&&) = delete;
-  auto operator=(const window_reader&) -> window_reader& = default;
-  auto operator=(window_reader&&) -> window_reader& = delete;
+  WindowReader(const WindowReader&) = default;
+  WindowReader(WindowReader&&) = delete;
+  auto operator=(const WindowReader&) -> WindowReader& = default;
+  auto operator=(WindowReader&&) -> WindowReader& = delete;
 
   /**
    * @brief Destruction through the base pointer.
@@ -330,11 +330,11 @@ public:
    * \pre none
    * \post none
    */
-  virtual ~window_reader() = default;
+  virtual ~WindowReader() = default;
 
   /**
    * @brief Yields one cumulative `uint64` point per managed leaf, in
-   * `leaf_set` order, for one sampling action.
+   * `LeafSet` order, for one sampling action.
    *
    * The sink receives exactly one point per managed leaf, read within
    * this action (FR-011, FR-047); the obligation binds the
@@ -343,22 +343,22 @@ public:
    * \pre none
    * \post none
    */
-  virtual void read_points(point_sink& sink) noexcept = 0;
+  virtual void readPoints(PointSink& sink) noexcept = 0;
 
   /**
    * @brief Resolves the direct-call slot for the compiled read path.
    *
    * Called once per reader at plan finalization (setup region). The
    * slot holds the static function the window constructor installed
-   * through `set_thunk`, and `default_thunk` when the window installed
+   * through `setThunk`, and `defaultThunk` when the window installed
    * none.
    *
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto resolve_thunk() noexcept -> read_thunk
+  [[nodiscard]] auto resolveThunk() noexcept -> ReadThunk
   {
-    check_thunk();
+    checkThunk();
     return m_thunk;
   }
 
@@ -366,11 +366,11 @@ protected:
   /**
    * @brief Replaces the direct-call slot; for provider constructors.
    *
-   * \pre fn is non-null and equivalent to `read_points` for this
+   * \pre fn is non-null and equivalent to `readPoints` for this
    *      reader.
-   * \post `resolve_thunk` returns fn.
+   * \post `resolveThunk` returns fn.
    */
-  void set_thunk(const read_thunk fn) noexcept
+  void setThunk(const ReadThunk fn) noexcept
   {
     SG_REQUIRE(fn != nullptr, "window reader thunk is non-null");
     m_thunk = fn;
@@ -378,18 +378,18 @@ protected:
   }
 
 private:
-  static auto default_thunk(window_reader& reader,
-                            point_sink& sink) noexcept -> void
+  static auto defaultThunk(WindowReader& reader,
+                           PointSink& sink) noexcept -> void
   {
-    reader.read_points(sink);
+    reader.readPoints(sink);
   }
 
-  auto check_thunk() const noexcept -> void
+  auto checkThunk() const noexcept -> void
   {
     SG_INVARIANT(m_thunk != nullptr, "window reader thunk is set");
   }
 
-  read_thunk m_thunk = &default_thunk;
+  ReadThunk m_thunk = &defaultThunk;
 };
 
 /**
@@ -399,7 +399,7 @@ private:
  * only during registration, system open, and plan compile (R-004).
  *
  */
-class SPEEDGUN_NG_EXPORT provider_iface
+class SPEEDGUN_NG_EXPORT ProviderIface
 {
 public:
   /**
@@ -408,12 +408,12 @@ public:
    * \pre none
    * \post none
    */
-  provider_iface() = default;
+  ProviderIface() = default;
 
-  provider_iface(const provider_iface&) = default;
-  provider_iface(provider_iface&&) = delete;
-  auto operator=(const provider_iface&) -> provider_iface& = default;
-  auto operator=(provider_iface&&) -> provider_iface& = delete;
+  ProviderIface(const ProviderIface&) = default;
+  ProviderIface(ProviderIface&&) = delete;
+  auto operator=(const ProviderIface&) -> ProviderIface& = default;
+  auto operator=(ProviderIface&&) -> ProviderIface& = delete;
 
   /**
    * @brief Destruction through the base pointer.
@@ -421,7 +421,7 @@ public:
    * \pre none
    * \post none
    */
-  virtual ~provider_iface() = default;
+  virtual ~ProviderIface() = default;
 
   /**
    * @brief Reports every object this provider owns, with catalog
@@ -434,7 +434,7 @@ public:
    * \pre none
    * \post none
    */
-  virtual void enumerate(object_sink& sink) const = 0;
+  virtual void enumerate(ObjectSink& sink) const = 0;
 
   /**
    * @brief Opens the sampling window for the given leaves and target.
@@ -447,8 +447,8 @@ public:
    * \pre none
    * \post none
    */
-  virtual std::unique_ptr<window_reader> open(const leaf_set& leaves,
-                                              const target& where) = 0;
+  virtual std::unique_ptr<WindowReader> open(const LeafSet& leaves,
+                                             const Target& where) = 0;
 };
 
 }  // namespace sg::counters

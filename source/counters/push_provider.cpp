@@ -16,27 +16,26 @@
 namespace sg::counters
 {
 
-struct detail::push_window final : window_reader
+struct detail::push_window final : WindowReader
 {
-  push_window() { set_thunk(&read_direct); }
+  push_window() { setThunk(&read_direct); }
 
   // The compiled plan hands the window over as the base reference
-  // `read_thunk` declares, and `push_provider::open` constructs it as
+  // `ReadThunk` declares, and `push_provider::open` constructs it as
   // this final type, so the reference names a push window on every
-  // call. `final` fixes the target of the `read_points` call, so the
+  // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<push_window&>(base).read_points(sink);
+    static_cast<push_window&>(base).readPoints(sink);
   }
 
   std::vector<const std::uint64_t*> cells;
   std::thread::id owner {};
-  std::size_t disclosure_column = leaf_set::no_disclosure_column;
+  std::size_t disclosure_column = LeafSet::kNoDisclosureColumn;
 
-  void read_points(point_sink& sink) noexcept override
+  void readPoints(PointSink& sink) noexcept override
   {
     SG_REQUIRE(
         std::this_thread::get_id() == owner,
@@ -48,9 +47,9 @@ struct detail::push_window final : window_reader
     // A push counter is a plain load of a cell its own thread owns, so
     // the action always measures and the disclosure names the entry's own
     // countability value (FR-007).
-    if (disclosure_column != leaf_set::no_disclosure_column) {
-      sink.put_disclosure(disclosure_column,
-                          static_cast<std::uint64_t>(Availability::COUNTABLE));
+    if (disclosure_column != LeafSet::kNoDisclosureColumn) {
+      sink.putDisclosure(disclosure_column,
+                         static_cast<std::uint64_t>(Availability::COUNTABLE));
     }
   }
 };
@@ -78,12 +77,12 @@ auto push_provider::add_counter(const std::string_view name,
   return push_counter(&point.value, point.owner, point.name);
 }
 
-void push_provider::enumerate(object_sink& sink) const
+void push_provider::enumerate(ObjectSink& sink) const
 {
-  std::vector<catalog_seed> entries;
+  std::vector<CatalogSeed> entries;
   entries.reserve(m_points.size());
   for (const auto& point : m_points) {
-    entries.push_back(catalog_seed {
+    entries.push_back(CatalogSeed {
         .name = point.name,
         .description = point.description,
         .unit = point.unit,
@@ -91,7 +90,7 @@ void push_provider::enumerate(object_sink& sink) const
         .mode = ReadMode::PUSH_LOAD,
     });
   }
-  sink.add_object(object_seed {
+  sink.addObject(ObjectSeed {
       .kind = "machine",
       .path = "machine",
       .alias = {},
@@ -100,11 +99,11 @@ void push_provider::enumerate(object_sink& sink) const
   });
 }
 
-std::unique_ptr<window_reader> push_provider::open(const leaf_set& leaves,
-                                                   const target& /*where*/)
+std::unique_ptr<WindowReader> push_provider::open(const LeafSet& leaves,
+                                                  const Target& /*where*/)
 {
   auto window = std::make_unique<detail::push_window>();
-  window->disclosure_column = leaves.disclosure_column;
+  window->disclosure_column = leaves.disclosureColumn;
   window->cells.reserve(leaves.addresses.size());
   for (const auto& address : leaves.addresses) {
     const push_point* match = nullptr;
@@ -118,7 +117,7 @@ std::unique_ptr<window_reader> push_provider::open(const leaf_set& leaves,
       return nullptr;
     }
     // Every cell in one window shares the thread that created it, so
-    // one owner per window decides the `read_points` guard for all of
+    // one owner per window decides the `readPoints` guard for all of
     // them, and a per-cell owner array would add a load and a compare
     // per cell to the sampling path `plan.md` designates critical for
     // nothing. A leaf set carrying two owners has no safe sampling

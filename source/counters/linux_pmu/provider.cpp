@@ -51,10 +51,10 @@ pmu_provider::pmu_provider()
 
 pmu_provider::~pmu_provider() = default;
 
-void pmu_provider::enumerate(object_sink& /*sink*/) const {}
+void pmu_provider::enumerate(ObjectSink& /*sink*/) const {}
 
-std::unique_ptr<window_reader> pmu_provider::open(const leaf_set& /*leaves*/,
-                                                  const target& /*where*/)
+std::unique_ptr<WindowReader> pmu_provider::open(const LeafSet& /*leaves*/,
+                                                 const Target& /*where*/)
 {
   return nullptr;
 }
@@ -171,9 +171,9 @@ auto page_grants_user_rdpmc(const std::uint64_t cap_user_rdpmc) noexcept -> bool
 // takes the syscall read (FR-017, D-10).
 auto device_page_fast_verdict(const detail::pmu_device& device) -> bool
 {
-  const target where = device.device_scoped
-      ? target {.kind = target_kind::cpu, .cpu = 0}
-      : target {};
+  const Target where = device.device_scoped
+      ? Target {.kind = TargetKind::CPU, .cpu = 0}
+      : Target {};
   for (const auto& entry : device.entries) {
     const auto config = std::ranges::find_if(
         entry.words,
@@ -214,10 +214,10 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     // for the kind the scope already refuses (FR-021, FR-022).
     Availability probed = Availability::SCOPE_REFUSED;
     if (!device.device_scoped) {
-      probed = detail::pmu_probe(device.type, entry.words, target {});
+      probed = detail::pmu_probe(device.type, entry.words, Target {});
     }
     const Availability on_cpu = detail::pmu_probe(
-        device.type, entry.words, target {.kind = target_kind::cpu, .cpu = 0});
+        device.type, entry.words, Target {.kind = TargetKind::CPU, .cpu = 0});
     // The kinds each probe settled, recorded while both verdicts are in
     // hand: the chain below merges them into one published state, and the
     // mask needs them apart (FR-021). The decision is extracted, so a
@@ -702,7 +702,7 @@ auto table_description(const pmu_table_entry& entry) -> std::string
 
 auto pmu_probe(const int type,
                const std::vector<std::pair<int, std::uint64_t> >& words,
-               const target& where) -> Availability
+               const Target& where) -> Availability
 {
   perf_event_attr attr {};
   attr.type = static_cast<std::uint32_t>(type);
@@ -839,13 +839,13 @@ pmu_provider::pmu_provider()
 
 pmu_provider::~pmu_provider() = default;
 
-void pmu_provider::enumerate(object_sink& sink) const
+void pmu_provider::enumerate(ObjectSink& sink) const
 {
   for (const auto& device : m_state->devices) {
-    std::vector<catalog_seed> entries;
+    std::vector<CatalogSeed> entries;
     entries.reserve(device.entries.size());
     for (const auto& entry : device.entries) {
-      entries.push_back(catalog_seed {
+      entries.push_back(CatalogSeed {
           .name = entry.name,
           .description = entry.description,
           // A hardware event counts events: the closed unit mapping
@@ -863,14 +863,14 @@ void pmu_provider::enumerate(object_sink& sink) const
           // LCOV_EXCL_BR_STOP
           .avail = entry.avail,
           .mode = entry.mode,
-          .frequency_hz = 0,
+          .frequencyHz = 0,
           .scaled = false,
           // LCOV_EXCL_BR_START : coverage exclusion (T140): both arcs of the
           // ratio-pair flag, on the countable-entry ground above. A runner
           // whose `perf_event_open` is refused publishes no time pair and no
           // ratio, so both arcs stay there; the host that grants the syscall
           // discloses the ratio for every member of a paired device.
-          .has_ratio_pair = device.has_time_pair  // LCOV_EXCL_BR_LINE
+          .hasRatioPair = device.has_time_pair  // LCOV_EXCL_BR_LINE
               && !entry.is_time_pair,  // LCOV_EXCL_BR_LINE
           // LCOV_EXCL_BR_STOP
       });
@@ -887,7 +887,7 @@ void pmu_provider::enumerate(object_sink& sink) const
         // LCOV_EXCL_STOP
       }
     }
-    sink.add_object(object_seed {
+    sink.addObject(ObjectSeed {
         .kind = "pmu",
         .path = device.path,
         .alias = {},
@@ -902,8 +902,8 @@ void pmu_provider::enumerate(object_sink& sink) const
 // `perf_event_open`, so a runner whose `perf_event_open` is refused refuses
 // every leaf before it reaches this body, while the host that grants the
 // syscall opens a window for every leaf set it serves.
-std::unique_ptr<window_reader> pmu_provider::open(const leaf_set& leaves,
-                                                  const target& where)
+std::unique_ptr<WindowReader> pmu_provider::open(const LeafSet& leaves,
+                                                 const Target& where)
 {
   return detail::pmu_open_window(*m_state, leaves, where);
   // LCOV_EXCL_STOP

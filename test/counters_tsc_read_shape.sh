@@ -142,10 +142,10 @@ analyze() {
   local obj=$1 label=$2
   local ins arm n_rdtsc n_other n_call n_fence n_insn
 
-  ins=$(dump_function "$obj" 'read_points.*point_sink')
+  ins=$(dump_function "$obj" 'readPoints.*PointSink')
 
   if [ -z "$ins" ]; then
-    echo "FAIL $label: could not locate read_points in the object" >&2
+    echo "FAIL $label: could not locate readPoints in the object" >&2
     return 1
   fi
 

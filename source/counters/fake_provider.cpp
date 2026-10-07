@@ -33,31 +33,30 @@ namespace
 
 }  // namespace
 
-struct detail::fake_window final : window_reader
+struct detail::fake_window final : WindowReader
 {
-  fake_window() { set_thunk(&read_direct); }
+  fake_window() { setThunk(&read_direct); }
 
   // The compiled plan hands the window over as the base reference
-  // `read_thunk` declares, and `fake_provider::open` constructs it as
+  // `ReadThunk` declares, and `fake_provider::open` constructs it as
   // this final type, so the reference names a fake window on every
-  // call. `final` fixes the target of the `read_points` call, so the
+  // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<fake_window&>(base).read_points(sink);
+    static_cast<fake_window&>(base).readPoints(sink);
   }
 
   fake_provider* owner = nullptr;
   std::vector<fake_counter_data*> counters;
-  std::size_t disclosure_column = leaf_set::no_disclosure_column;
+  std::size_t disclosure_column = LeafSet::kNoDisclosureColumn;
   // This window's own sampling-action count, so a leaf's scripted gaps
   // are counted from the first action of the plan that samples it and not
   // from the provider's lifetime total (FR-007).
   std::uint64_t actions = 0;
 
-  void read_points(point_sink& sink) noexcept override
+  void readPoints(PointSink& sink) noexcept override
   {
     owner->m_read_actions.fetch_add(1, std::memory_order_relaxed);
     ++actions;
@@ -85,8 +84,8 @@ struct detail::fake_window final : window_reader
       item->last = value;
       sink.put(value);
     }
-    if (disclosure_column != leaf_set::no_disclosure_column) {
-      sink.put_disclosure(
+    if (disclosure_column != LeafSet::kNoDisclosureColumn) {
+      sink.putDisclosure(
           disclosure_column,
           static_cast<std::uint64_t>(gapped ? Availability::GAP
                                             : Availability::COUNTABLE));
@@ -190,22 +189,22 @@ auto fake_provider::set_points(const std::string_view object_path,
   return *this;
 }
 
-void fake_provider::enumerate(object_sink& sink) const
+void fake_provider::enumerate(ObjectSink& sink) const
 {
   for (const auto& [path, data] : m_objects) {
-    std::vector<catalog_seed> entries;
+    std::vector<CatalogSeed> entries;
     entries.reserve(data.counters.size());
     for (const auto& [name, item] : data.counters) {
-      entries.push_back(catalog_seed {
+      entries.push_back(CatalogSeed {
           .name = name,
           .description = item.description,
           .unit = item.unit,
           .avail = item.avail,
           .mode = item.mode,
-          .has_ratio_pair = item.ratio_pair,
+          .hasRatioPair = item.ratio_pair,
       });
     }
-    sink.add_object(object_seed {
+    sink.addObject(ObjectSeed {
         .kind = data.kind,
         .path = path,
         .alias = data.alias,
@@ -215,12 +214,12 @@ void fake_provider::enumerate(object_sink& sink) const
   }
 }
 
-std::unique_ptr<window_reader> fake_provider::open(const leaf_set& leaves,
-                                                   const target& /*where*/)
+std::unique_ptr<WindowReader> fake_provider::open(const LeafSet& leaves,
+                                                  const Target& /*where*/)
 {
   auto window = std::make_unique<detail::fake_window>();
   window->owner = this;
-  window->disclosure_column = leaves.disclosure_column;
+  window->disclosure_column = leaves.disclosureColumn;
   for (const auto& address : leaves.addresses) {
     const auto [object_path, name] = split_leaf_address(address);
     const auto object = m_objects.find(std::string(object_path));

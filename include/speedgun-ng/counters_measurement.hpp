@@ -495,7 +495,7 @@ public:
   /**
    * @brief THE critical path: one sampling action appends one point
    * per column (FR-026). Zero allocation, zero lock; the five shipped
-   * windows reach `read_points` with no virtual call, and a window
+   * windows reach `readPoints` with no virtual call, and a window
    * that installed no thunk pays one vtable lookup per sampling action
    * on the seam's documented fallback (FR-022). hard_stop overrun is
    * an `SG_REQUIRE_ALWAYS` violation in every build configuration
@@ -611,7 +611,7 @@ namespace detail
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto compile_core(
     const system& sys,
-    const target& tg,
+    const Target& tg,
     const std::vector<const expr_core*>& exprs) -> std::expected<plan, Error>;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto metric_core(
@@ -980,7 +980,7 @@ public:
 
 private:
   friend auto detail::compile_core(const system& sys,
-                                   const target& tg,
+                                   const Target& tg,
                                    const std::vector<const detail::expr_core*>&
                                        exprs) -> std::expected<plan, Error>;
   friend class scope;
@@ -1103,7 +1103,7 @@ template<class... E>
                            const E&... exprs) -> std::expected<plan, Error>
 {
   const std::vector<const detail::expr_core*> cores {&exprs.core...};
-  return detail::compile_core(sys, target {}, cores);
+  return detail::compile_core(sys, Target {}, cores);
 }
 
 /**
@@ -1117,7 +1117,7 @@ template<class... E>
                                         expression>::value
            && ...)
 [[nodiscard]] auto compile(const system& sys,
-                           const target& tg,
+                           const Target& tg,
                            const E&... exprs) -> std::expected<plan, Error>
 {
   const std::vector<const detail::expr_core*> cores {&exprs.core...};
@@ -1142,7 +1142,7 @@ namespace detail
 
 SPEEDGUN_NG_EXPORT auto compile_fanout_core(
     const system& sys,
-    const target& tg,
+    const Target& tg,
     const expr_core& exemplar,
     const std::vector<const object*>& selection)
     -> std::expected<fanout_plan, Error>;
@@ -1230,7 +1230,7 @@ public:
 private:
   friend auto detail::compile_fanout_core(
       const system& sys,
-      const target& tg,
+      const Target& tg,
       const detail::expr_core& exemplar,
       const std::vector<const object*>& selection)
       -> std::expected<fanout_plan, Error>;
@@ -1263,7 +1263,7 @@ template<class D>
                            const std::vector<const object*>& selection)
     -> std::expected<fanout_plan, Error>
 {
-  return detail::compile_fanout_core(sys, target {}, expr.core, selection);
+  return detail::compile_fanout_core(sys, Target {}, expr.core, selection);
 }
 
 }  // namespace sg::counters

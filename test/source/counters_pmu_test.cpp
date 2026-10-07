@@ -915,7 +915,7 @@ auto cpu_target_scenario() -> void
   const auto leaf = cpu.counter<events>(work);
   check(leaf.has_value(), "the instruction counter resolves");
   const sg::counters::expression<events> over {*leaf};
-  const sg::counters::target pinned {.kind = sg::counters::target_kind::cpu,
+  const sg::counters::Target pinned {.kind = sg::counters::TargetKind::CPU,
                                      .cpu = 0};
   const auto refused = compile(system::local(), pinned, over);
   if (refused.has_value()) {
@@ -985,7 +985,7 @@ auto scope_refused_cpu_target_scenario(
   check(leaf->avail() == Availability::SCOPE_REFUSED,
         "the resolved handle carries the published scope refusal (FR-022)");
   const expression<events> over {*leaf};
-  const sg::counters::target pinned {.kind = sg::counters::target_kind::cpu,
+  const sg::counters::Target pinned {.kind = sg::counters::TargetKind::CPU,
                                      .cpu = 0};
   const auto compiled = compile(system::local(), pinned, over);
   if (compiled.has_value()) {
