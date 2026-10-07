@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.4.1
+    VERSION 0.5.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -44,7 +44,7 @@ set_target_properties(
     # 0.x release, so every release would claim the same ABI. The value is
     # stated here and the package config's compatibility tracks the minor
     # position (FR-020, FR-021, D-11).
-    SOVERSION 1
+    SOVERSION 2
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng
 )

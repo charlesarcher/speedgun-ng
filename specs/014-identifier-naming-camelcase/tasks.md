@@ -208,7 +208,7 @@ T017, T018, and T019 land in the closing commit with the User Story 3
 and User Story 4 tasks. D-08 requires the amendment and the
 enforcement flip in that same commit.
 
-- [ ] T017 [US1] Copy rules N-1 through N-11, the `kPascalCase` constant `specs/014-identifier-naming-camelcase/spec.md`
+- [X] T017 [US1] Copy rules N-1 through N-11, the `kPascalCase` constant `specs/014-identifier-naming-camelcase/spec.md`
   spelling, and the exception list from
   `specs/014-identifier-naming-camelcase/spec.md` into
   `.specify/memory/constitution.md`. The data-model Id rule is
@@ -220,19 +220,19 @@ enforcement flip in that same commit.
   (D-08, FR-009, FR-010, FR-011, FR-012). The amendment states that
   a later spec, plan, or suppression cannot create a deviation, and
   that a suppression names its exception entry.
-- [ ] T018 [US1] Set `.clang-tidy` naming keys to the constitution
+- [X] T018 [US1] Set `.clang-tidy` naming keys to the constitution
   rules, using option names from `clang-tidy 23.1.1 --dump-config`
   (`CamelCase` for PascalCase, `camelBack` for lowerCamelCase).
   Set `HeaderFilterRegex`. Set `WarningsAsErrors` to
   `readability-identifier-naming` alone. List each tag object in
   `ConstexprVariableIgnoredRegexp` and cite N-11 on that entry
   (D-05, FR-004, FR-011).
-- [ ] T019 [US1] Make every naming sentence in `docs/pages/`,
+- [X] T019 [US1] Make every naming sentence in `docs/pages/`,
   `README.md`, `AGENTS.md`, and any Spec Kit template that states
   a naming convention match the constitution text. A rule that exists
   only in `.clang-tidy`, a document, or this feature's specification
   fails FR-009 (FR-011).
-- [ ] T020 [US1] Plant one misnamed identifier in `include/speedgun-ng/dbc.hpp`
+- [X] T020 [US1] Plant one misnamed identifier in `include/speedgun-ng/dbc.hpp`
   `include/speedgun-ng/dbc.hpp`, run the name-check step, confirm
   the step fails, and remove the plant in the same working tree
   before the closing commit is finished (SC-011, FR-004).
@@ -255,7 +255,7 @@ and the exception list.
 
 These tasks join the closing commit named under User Story 1.
 
-- [ ] T021 [US3] Move the project version from 0.4.1 to 0.5.0 at `CMakeLists.txt:7`
+- [X] T021 [US3] Move the project version from 0.4.1 to 0.5.0 at `CMakeLists.txt:7`
   `CMakeLists.txt:7` and the shared-object version from 1 to 2 at
   `CMakeLists.txt:47`. Update the version notes at
   `include/speedgun-ng/counters_measurement.hpp:25` and
@@ -264,7 +264,7 @@ These tasks join the closing commit named under User Story 1.
   `SameMinorVersion` at `cmake/install-rules.cmake:39` stays.
   `CMakeLists.txt:137`, `:232`, `:384`, and `:558` stay
   (FR-008, D-02).
-- [ ] T022 [US3] Publish the rename map at `specs/014-identifier-naming-camelcase/rename-map.md`
+- [X] T022 [US3] Publish the rename map at `specs/014-identifier-naming-camelcase/rename-map.md`
   `specs/014-identifier-naming-camelcase/rename-map.md` and a copy
   with the same entries at `docs/pages/identifier-rename-map.md`.
   Each entry has four fields, quoted from
@@ -273,13 +273,13 @@ These tasks join the closing commit named under User Story 1.
   variable, member, constant, macro, or tag)." A fifth mark records
   a detail-namespace name. A detail name counts. A test-only name
   stays out of the map (FR-015).
-- [ ] T023 [US3] Add a successor-log entry in `specs/007-counters-and-timers/citations-log.md`
+- [X] T023 [US3] Add a successor-log entry in `specs/007-counters-and-timers/citations-log.md`
   `specs/007-counters-and-timers/citations-log.md` that points at
   `specs/014-identifier-naming-camelcase/rename-map.md` (FR-015).
-- [ ] T024 [US3] Confirm a package request for 0.4 rejects a 0.5 package in `cmake/install-rules.cmake`
+- [X] T024 [US3] Confirm a package request for 0.4 rejects a 0.5 package in `cmake/install-rules.cmake`
   package because `SameMinorVersion` stays in
   `cmake/install-rules.cmake:39` (FR-008).
-- [ ] T025 [US3] Search `include/`, `source/`, `test/`,
+- [X] T025 [US3] Search `include/`, `source/`, `test/`,
   `example/`, `tools/`, `docs/`, `.github/workflows/`, `README.md`,
   and `AGENTS.md`. The search matches identifier tokens. It skips a
   string literal and the texts FR-016 keeps. An old shipped-header
@@ -308,15 +308,15 @@ rule. The successor log has an entry for the edit.
 These edits join the closing commit. Other closed spec directories
 stay unedited (FR-020).
 
-- [ ] T026 [P] [US4] Remove the `pmu_probe_fast` name from line 299 of `docs/pages/counters-overhead.md`
+- [X] T026 [P] [US4] Remove the `pmu_probe_fast` name from line 299 of `docs/pages/counters-overhead.md`
   `docs/pages/counters-overhead.md` (FR-020).
-- [ ] T027 [P] [US4] Edit `specs/013-counters-defect-followup/spec.md:891`
+- [X] T027 [P] [US4] Edit `specs/013-counters-defect-followup/spec.md:891`
   `specs/013-counters-defect-followup/spec.md:891` so the answer
   calls the shared-object version a hand-kept number (FR-020).
-- [ ] T028 [P] [US4] Edit `specs/013-counters-defect-followup/checklists/requirements.md:44`
+- [X] T028 [P] [US4] Edit `specs/013-counters-defect-followup/checklists/requirements.md:44`
   `specs/013-counters-defect-followup/checklists/requirements.md:44`
   so that sentence matches the spec answer (FR-020).
-- [ ] T029 [US4] Record the closed-directory correction in `specs/007-counters-and-timers/citations-log.md`
+- [X] T029 [US4] Record the closed-directory correction in `specs/007-counters-and-timers/citations-log.md`
   `specs/007-counters-and-timers/citations-log.md`, beside the
   section "Corrections after the 013 merge". Add that correction to
   the entry T023 created. Keep the entry pointing at

@@ -888,7 +888,8 @@ written below, and the requirements they settle name no question.
    camelCase rename lands next and renames the whole surface, so a
    restoration now would be renamed away. A recorded removal is breaking,
    so the release takes the minor position and the shared-object version
-   takes the major position on the 0.x line. FR-020, FR-021, and SC-011
+   is a hand-kept ABI number, not the major position. FR-020, FR-021, and
+   SC-011
    carry the answer.
 3. **I-01, does a row with a register filter encode through the format
    its register index names, or publish as not encodable? Answer: it

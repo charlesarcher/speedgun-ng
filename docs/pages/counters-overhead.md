@@ -164,10 +164,10 @@ recorded above:
 
 | plan | min ns | median ns | max ns | read mode |
 | --- | --- | --- | --- | --- |
-| clock only, one leaf per action (`machine/monotonic`) | 40 | 40 | 80 | `syscall` (vDSO) |
-| clock only, one leaf per action (`machine/monotonic_raw`), rate the operating system never adjusts | 30 | 30 | 40 | `syscall` label, read served by the platform fast path with no system call |
-| core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one read per leader per action | 70 | 70 | 90 | `fast_rdpmc` |
-| core PMU single leaf (`cpu/instructions`), one leaf per action | 49 | 50 | 60 | `fast_rdpmc` |
+| clock only, one leaf per action (`machine/monotonic`) | 40 | 40 | 80 | `SYSCALL` (vDSO) |
+| clock only, one leaf per action (`machine/monotonic_raw`), rate the operating system never adjusts | 30 | 30 | 40 | `SYSCALL` label, read served by the platform fast path with no system call |
+| core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one read per leader per action | 70 | 70 | 90 | `FAST_RDPMC` |
+| core PMU single leaf (`cpu/instructions`), one leaf per action | 49 | 50 | 60 | `FAST_RDPMC` |
 | first-to-last fold over 64 recorded points, sampling outside the loop, library counter bracket | | 413.3 | | none |
 
 Correctness build (`-g`, contracts `enforce`), four runs at the same
@@ -175,10 +175,10 @@ load:
 
 | plan | min ns | median ns | max ns | read mode |
 | --- | --- | --- | --- | --- |
-| clock only, one leaf per action (`machine/monotonic`) | 70 | 70 | 130 | `syscall` (vDSO) |
-| clock only, one leaf per action (`machine/monotonic_raw`), rate the operating system never adjusts | 50 | 60 | 100 | `syscall` label, read served by the platform fast path with no system call |
-| core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one read per leader per action | 170 | 180 | 240 | `fast_rdpmc` |
-| core PMU single leaf (`cpu/instructions`), one leaf per action | 129 | 130 | 170 | `fast_rdpmc` |
+| clock only, one leaf per action (`machine/monotonic`) | 70 | 70 | 130 | `SYSCALL` (vDSO) |
+| clock only, one leaf per action (`machine/monotonic_raw`), rate the operating system never adjusts | 50 | 60 | 100 | `SYSCALL` label, read served by the platform fast path with no system call |
+| core PMU group (`cpu/instructions`, `cpu/cpu-cycles`), one read per leader per action | 170 | 180 | 240 | `FAST_RDPMC` |
+| core PMU single leaf (`cpu/instructions`), one leaf per action | 129 | 130 | 170 | `FAST_RDPMC` |
 | first-to-last fold over 64 recorded points, sampling outside the loop, library counter bracket | | 413.6 | | none |
 
 The two `machine/monotonic_raw` rows were measured on 2026-10-03 at a
@@ -296,18 +296,18 @@ above. An earlier pass, taken while a 32-way build was in flight, read
 The fast regime is measured on this host, and the mapped-page read does
 not beat the clock read the benchmark compares it against.
 
-The probe passes, and the catalog says so. `pmu_probe_fast` opens one
+The probe passes, and the catalog says so. The probe opens one
 real event through `perf_event_open`, maps the one page the returned
 descriptor maps, and reads the kernel's own account from that page. On
 this host the page reports `capabilities=0x1e` with `cap_user_rdpmc=1`
 and `cap_user_time=1`, `pmc_width=48`, `index=1`, and
 `offset=140737488355327`, and 356 of the 589 core-PMU entries disclose
-`fast_rdpmc`. Each figure on this page names the set it counts: 589 is
+`FAST_RDPMC`. Each figure on this page names the set it counts: 589 is
 the core-PMU object's catalog entry count at this pass, 356 counts the
 countable entries the provider stamped with that mode across the PMU
 provider's objects, and the table below reports the availability states
-the provider assigned to the entries it enumerates, 358 `countable`
-beside 261 `not_encodable`, 619 in all. A third set is the catalog's
+the provider assigned to the entries it enumerates, 358 `COUNTABLE`
+beside 261 `NOT_ENCODABLE`, 619 in all. A third set is the catalog's
 own size: `counters_pmu_test` prints 581, the table-selected entries
 beyond the kernel aliases.
 
@@ -326,7 +326,7 @@ it.
 The comparison the spec's pass check names, the fast-mode median below
 the syscall-mode median, is therefore not satisfiable on this host with
 the counterpart the catalog can offer. Every countable hardware entry
-here discloses `fast_rdpmc`, so no syscall-mode hardware plan exists to
+here discloses `FAST_RDPMC`, so no syscall-mode hardware plan exists to
 compare against, and the one syscall-mode plan available is the clock.
 `counters_overhead` publishes the order result and does not assert it:
 this file is not a CI gate on its numbers, and Principle VII's baseline
@@ -343,7 +343,7 @@ when more events are open than there are counters.
 ## Fast-regime probe facts on this host
 
 - The time-stamp entry publishes on this host, and it carries a count with
-  no rate: `frequency_hz` is 0, `scaled` is false, and the description
+  no rate: `frequencyHz` is 0, `scaled` is false, and the description
   states it (`specs/008-timestamp-counter` FR-001, FR-002). The entry
   follows the instruction, which x86-64 mandates, so publication is
   decided at build time and no host configuration removes it.
@@ -450,25 +450,25 @@ reachable. The rows above were measured at 1.
 The level was re-verified at 2 after the fast-read fix, and the result
 contradicts a claim this page used to make. At 2 this kernel still grants
 a caller its own per-process user-mode events, so hardware entries probe
-`countable` and the fast probe passes:
+`COUNTABLE` and the fast probe passes:
 
 | setting | hardware entries | not encodable | fast mechanism |
 | --- | --- | --- | --- |
-| 2 (the standard CI level) | 358 `countable`, 0 `permission_blocked` | 261 | probe passes; 356 entries disclose `fast_rdpmc` |
-| 1 (this host, after the grant) | 358 `countable`, 0 `permission_blocked` | 261 | probe passes; 356 entries disclose `fast_rdpmc` |
+| 2 (the standard CI level) | 358 `COUNTABLE`, 0 `PERMISSION_BLOCKED` | 261 | probe passes; 356 entries disclose `FAST_RDPMC` |
+| 1 (this host, after the grant) | 358 `COUNTABLE`, 0 `PERMISSION_BLOCKED` | 261 | probe passes; 356 entries disclose `FAST_RDPMC` |
 
 So the catalog does not differ between the two settings on this host, and
-the earlier claim that level 2 reports `permission_blocked` for hardware
+the earlier claim that level 2 reports `PERMISSION_BLOCKED` for hardware
 entries was never measured: the artifact it was attributed to,
 `sc-002-pmu.log`, records a passing `ctest` and no counts. The
 re-verification is `sc-002-paranoid-2-pmu.log` beside it, and it carries
 the counts this table states. US6 scenario 4 expects
-`permission_blocked` at level 2; on this kernel the expectation does not
+`PERMISSION_BLOCKED` at level 2; on this kernel the expectation does not
 reproduce, and the recorded fact is the count above.
 
 A level at which the kernel does refuse is 3 or above, where the
 availability probe's test-opens are answered with a permission error. CI
-runs unprivileged at 2, so on CI hardware entries probe `countable` and
+runs unprivileged at 2, so on CI hardware entries probe `COUNTABLE` and
 the suite stays green either way.
 
 Multiplexing needs more events open at once than the PMU has hardware

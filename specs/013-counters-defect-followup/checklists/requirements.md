@@ -41,8 +41,8 @@ three open decisions were answered and written into the specification:
   already carries, so a fold names the reason for a gap. FR-004, FR-005,
   and SC-003 carry it.
 - The version lineage records both removals commit `cd5cbd1` made, the
-  release is 0.4.0, and the shared-object version takes the major position
-  on the 0.x line. FR-020, FR-021, and SC-011 carry it.
+  release is 0.4.0, and the shared-object version is a hand-kept ABI
+  number, not the major position. FR-020, FR-021, and SC-011 carry it.
 - A row with a register filter encodes through the format its register
   index names, and a paired index publishes under the first index of the
   pair, subject to the plan verifying that rule against the kernel's own
