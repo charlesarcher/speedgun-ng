@@ -439,10 +439,10 @@ void add_entry(std::vector<pmu_table_entry>& table,
   // whose index names no format carries a field no device publishes, so
   // composition refuses the row and it publishes `not_encodable` (FR-010,
   // FR-011, D-05).
-  if (filter.unnamed) {
-    entry.fields.emplace_back(std::string(kUnnamedRegister), filter.value);
-  } else if (filter.present && filter.value != 0 && !filter.format.empty()) {
-    entry.fields.emplace_back(std::string(filter.format), filter.value);
+  if (filter.value != 0) {
+    const std::string_view field_name =
+        filter.format.empty() ? kUnnamedRegister : filter.format;
+    entry.fields.emplace_back(std::string(field_name), filter.value);
   }
   // A register index and a register value never survive as fields of
   // their own: the value is read ahead of the loop and recorded under the

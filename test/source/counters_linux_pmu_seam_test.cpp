@@ -1663,6 +1663,11 @@ auto device_placement_scenario() -> void
             && scope_reaches("uncore_arb_3", "ARB"),
         "a suffixed uncore device is reached by the unit naming its class "
         "(FR-014, FR-015, D-08)");
+  check(scope_reaches("uncore_imc_a", "imc_a"),
+        "a trailing letter is part of the class name, so the device "
+        "reaches that unit");
+  check(scope_reaches("uncore_imc_", "imc_"),
+        "a trailing underscore is part of the class name");
   check(scope_reaches("uncore_imc_0", "iMC")
             && scope_reaches("uncore_imc_1", "iMC"),
         "every numbered instance of one class is reached by the one unit "
@@ -2800,6 +2805,17 @@ auto offcore_event_code_scenario() -> void
         "a synthetic pair row encodes");
   check((config_word(pair_words, 0) & 0xffU) == 0xB7U,
         "a synthetic event-code pair encodes its first code in bits 0-7");
+
+  const std::filesystem::path empty_hex(std::filesystem::path(SG_SEAM_TABLE_DIR)
+                                        / "empty-hex.json");
+  std::ofstream empty_file(empty_hex, std::ios::binary | std::ios::trunc);
+  empty_file
+      << R"([{"EventName":"empty_hex","UMask":"0X","EventCode":"0X","MSRValue":"0","MSRIndex":"0x1a6","BriefDescription":"an empty hex prefix and a zero register value"}])";
+  empty_file.close();
+  std::vector<pmu_table_entry> empty_rows;
+  sg::counters::detail::pmu_parse_table_file(empty_hex.string(), empty_rows);
+  check(empty_rows.size() == 1 && empty_rows.front().fields.empty(),
+        "an empty hex prefix adds no field");
 }
 
 // One device publishes the fast mode and one publishes the syscall mode.
