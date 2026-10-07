@@ -96,9 +96,9 @@ enum class Availability : std::uint8_t
 
 /**
  * @brief The target kinds one entry can be counted on, as a fixed-size
- * bitmask over `target_kind` (FR-021).
+ * bitmask over `TargetKind` (FR-021).
  *
- * Bit 0 is `target_kind::thread` and bit 1 is `target_kind::cpu`. The
+ * Bit 0 is `TargetKind::THREAD` and bit 1 is `TargetKind::CPU`. The
  * type is a fixed-size unsigned integer and allocates no memory, so a
  * caller reads an entry's targets without a container and without an
  * allocation. A new kernel target takes the next free bit: no enumerator
@@ -106,10 +106,10 @@ enum class Availability : std::uint8_t
  */
 using TargetMask = std::uint32_t;
 
-/// @brief `target_kind::thread`, bit 0 of `TargetMask` (FR-021).
+/// @brief `TargetKind::THREAD`, bit 0 of `TargetMask` (FR-021).
 inline constexpr TargetMask kTargetThreadBit = 1U;
 
-/// @brief `target_kind::cpu`, bit 1 of `TargetMask` (FR-021).
+/// @brief `TargetKind::CPU`, bit 1 of `TargetMask` (FR-021).
 inline constexpr TargetMask kTargetCpuBit = 2U;
 
 /**

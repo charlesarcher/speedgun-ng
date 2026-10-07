@@ -34,7 +34,7 @@ struct push_window;
  * increment); sampling reads a plain load, never an atomic RMW
  * (R-008).
  */
-class SPEEDGUN_NG_EXPORT push_provider final : public provider_iface
+class SPEEDGUN_NG_EXPORT push_provider final : public ProviderIface
 {
 public:
   /**
@@ -80,7 +80,7 @@ public:
    * \pre none
    * \post none
    */
-  void enumerate(object_sink& sink) const override;
+  void enumerate(ObjectSink& sink) const override;
 
   /**
    * @brief Opens a reader loading the requested push leaves; null when
@@ -90,8 +90,8 @@ public:
    *      (FR-035).
    * \post none
    */
-  std::unique_ptr<window_reader> open(const leaf_set& leaves,
-                                      const target& where) override;
+  std::unique_ptr<WindowReader> open(const LeafSet& leaves,
+                                     const Target& where) override;
 
 private:
   friend struct detail::push_window;

@@ -151,7 +151,7 @@ auto fast_probe_allows(const bool capability_granted,
 
 std::unique_ptr<fast_context> fast_context_open(const int,
                                                 const std::uint64_t,
-                                                const target&,
+                                                const Target&,
                                                 std::string* refusal)
 {
   if (refusal != nullptr) {
@@ -189,7 +189,7 @@ using event_page = perf_event_mmap_page;
 
 std::unique_ptr<fast_context> fast_context_open(const int type,
                                                 const std::uint64_t config,
-                                                const target& where,
+                                                const Target& where,
                                                 std::string* refusal)
 {
   const auto refuse =
@@ -228,7 +228,7 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   // here, and the host that grants it fills one on every granted call.
   auto context = std::make_unique<fast_context>();
   context->owner = std::this_thread::get_id();
-  context->pinned_cpu = where.kind == target_kind::cpu ? where.cpu : -1;
+  context->pinned_cpu = where.kind == TargetKind::CPU ? where.cpu : -1;
   context->fd = static_cast<int>(fd);
   context->map_length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
   // LCOV_EXCL_STOP

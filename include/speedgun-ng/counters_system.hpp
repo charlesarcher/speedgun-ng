@@ -163,7 +163,7 @@ private:
                                         std::string_view name)
       -> std::expected<detail::leaf_core, Error>;
   friend auto detail::compile_core(const system& sys,
-                                   const target& tg,
+                                   const Target& tg,
                                    const std::vector<const detail::expr_core*>&
                                        exprs) -> std::expected<plan, Error>;
 
@@ -211,7 +211,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto register_provider(std::unique_ptr<provider_iface> provider)
+  [[nodiscard]] auto register_provider(std::unique_ptr<ProviderIface> provider)
       -> std::expected<void, Error>;
 
   /**
@@ -287,7 +287,7 @@ private:
       -> sg::counters::object&;
 
   friend auto detail::compile_core(const system& sys,
-                                   const target& tg,
+                                   const Target& tg,
                                    const std::vector<const detail::expr_core*>&
                                        exprs) -> std::expected<plan, Error>;
   friend auto detail::resolve_leaf_core(const sg::counters::object& obj,

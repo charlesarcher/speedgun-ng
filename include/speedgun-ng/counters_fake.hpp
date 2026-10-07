@@ -99,7 +99,7 @@ struct fake_counter_data
  * registration; the machine root object exists implicitly whenever a
  * counter is attached to it.
  */
-class SPEEDGUN_NG_EXPORT fake_provider final : public provider_iface
+class SPEEDGUN_NG_EXPORT fake_provider final : public ProviderIface
 {
 public:
   /**
@@ -195,7 +195,7 @@ public:
       -> fake_provider&;
 
   /**
-   * @brief The number of `read_points` actions performed by readers
+   * @brief The number of `readPoints` actions performed by readers
    * this provider opened (US1 scenario 5).
    *
    * \pre none
@@ -225,10 +225,10 @@ public:
                        std::string_view name,
                        std::vector<std::size_t> actions) -> fake_provider&;
 
-  void enumerate(object_sink& sink) const override;
+  void enumerate(ObjectSink& sink) const override;
 
-  std::unique_ptr<window_reader> open(const leaf_set& leaves,
-                                      const target& where) override;
+  std::unique_ptr<WindowReader> open(const LeafSet& leaves,
+                                     const Target& where) override;
 
 private:
   friend struct detail::fake_window;

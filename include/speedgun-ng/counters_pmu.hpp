@@ -35,7 +35,7 @@ struct pmu_state;
  * identical interface and seeds no objects: the reduced catalog is the
  * whole difference (FR-042).
  */
-class SPEEDGUN_NG_EXPORT pmu_provider final : public provider_iface
+class SPEEDGUN_NG_EXPORT pmu_provider final : public ProviderIface
 {
 public:
   /**
@@ -68,7 +68,7 @@ public:
    * \pre none
    * \post none
    */
-  void enumerate(object_sink& sink) const override;
+  void enumerate(ObjectSink& sink) const override;
 
   /**
    * @brief Opens the syscall-mode window managing the requested
@@ -77,8 +77,8 @@ public:
    * \pre none
    * \post none
    */
-  std::unique_ptr<window_reader> open(const leaf_set& leaves,
-                                      const target& where) override;
+  std::unique_ptr<WindowReader> open(const LeafSet& leaves,
+                                     const Target& where) override;
 
 private:
   std::unique_ptr<detail::pmu_state> m_state;

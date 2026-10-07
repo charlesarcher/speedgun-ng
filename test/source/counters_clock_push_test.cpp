@@ -65,15 +65,15 @@ using sg::counters::clock_provider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::leaf_set;
+using sg::counters::LeafSet;
 using sg::counters::object;
-using sg::counters::point_sink;
+using sg::counters::PointSink;
 using sg::counters::push_counter;
 using sg::counters::push_provider;
 using sg::counters::ReadMode;
 using sg::counters::scope;
 using sg::counters::system;
-using sg::counters::target;
+using sg::counters::Target;
 using sg::counters::Unit;
 
 using events = Dim<0, 1>;
@@ -288,29 +288,28 @@ auto push_name_scenario(const push_counter& first,
 // (FR-011, T066).
 auto open_refusal_scenario() -> void
 {
-  const target where {};
+  const Target where {};
   push_provider pushes;
   static_cast<void>(
       pushes.add_counter("bytes", "bytes", "hot-path bytes written"));
-  check(
-      pushes.open(leaf_set {.addresses = {"machine/bytes"}}, where) != nullptr,
-      "a declared push counter opens a window");
-  check(pushes.open(leaf_set {.addresses = {"machine/nosuchcounter"}}, where)
+  check(pushes.open(LeafSet {.addresses = {"machine/bytes"}}, where) != nullptr,
+        "a declared push counter opens a window");
+  check(pushes.open(LeafSet {.addresses = {"machine/nosuchcounter"}}, where)
             == nullptr,
         "an address naming an undeclared push counter opens no window");
-  check(pushes.open(leaf_set {.addresses = {"other/bytes"}}, where) == nullptr,
+  check(pushes.open(LeafSet {.addresses = {"other/bytes"}}, where) == nullptr,
         "an address on another object opens no window");
 
   clock_provider clocks;
-  check(clocks.open(leaf_set {.addresses = {"machine/monotonic"}}, where)
+  check(clocks.open(LeafSet {.addresses = {"machine/monotonic"}}, where)
             != nullptr,
         "a published clock leaf opens a window");
-  check(clocks.open(leaf_set {.addresses = {"machine/nosuchclock"}}, where)
+  check(clocks.open(LeafSet {.addresses = {"machine/nosuchclock"}}, where)
             == nullptr,
         "an address naming no published clock leaf opens no window");
-  check(clocks.open(leaf_set {.addresses = {"other/monotonic"}}, where)
-            == nullptr,
-        "an address on another object opens no window");
+  check(
+      clocks.open(LeafSet {.addresses = {"other/monotonic"}}, where) == nullptr,
+      "an address on another object opens no window");
 
   // The time-stamp leaf publishes exactly where the build executes the
   // instruction (FR-001, FR-011). A build without it omits the leaf
@@ -324,7 +323,7 @@ auto open_refusal_scenario() -> void
     }
   }
   const auto tsc_window =
-      clocks.open(leaf_set {.addresses = {"machine/tsc"}}, where);
+      clocks.open(LeafSet {.addresses = {"machine/tsc"}}, where);
   check((tsc_window != nullptr) == catalog_has_tsc,
         "the time-stamp entry opens exactly where the catalog publishes it "
         "(specs/008-timestamp-counter FR-003)");
@@ -339,16 +338,16 @@ auto open_refusal_scenario() -> void
 // opens the provider directly (FR-007).
 auto sample_without_disclosure() -> void
 {
-  const target where {};
+  const Target where {};
   clock_provider clocks;
   auto clock_window =
-      clocks.open(leaf_set {.addresses = {"machine/monotonic"}}, where);
+      clocks.open(LeafSet {.addresses = {"machine/monotonic"}}, where);
   if (clock_window == nullptr) {
     fail("the monotonic leaf opens with no disclosure column");
   }
   std::vector<std::uint64_t> clock_columns(1, 0);
-  point_sink clock_sink(clock_columns.data(), 1, 1, 1, 0);
-  clock_window->read_points(clock_sink);
+  PointSink clock_sink(clock_columns.data(), 1, 1, 1, 0);
+  clock_window->readPoints(clock_sink);
   check(clock_columns[0] != 0,
         "a clock sample with no disclosure column still writes the leaf "
         "(FR-007)");
@@ -357,13 +356,13 @@ auto sample_without_disclosure() -> void
   auto handle = pushes.add_counter("quiet", "ops", "opened with no disclosure");
   handle.add(3);
   auto push_window =
-      pushes.open(leaf_set {.addresses = {"machine/quiet"}}, where);
+      pushes.open(LeafSet {.addresses = {"machine/quiet"}}, where);
   if (push_window == nullptr) {
     fail("the push leaf opens with no disclosure column");
   }
   std::vector<std::uint64_t> push_columns(1, 0);
-  point_sink push_sink(push_columns.data(), 1, 1, 1, 0);
-  push_window->read_points(push_sink);
+  PointSink push_sink(push_columns.data(), 1, 1, 1, 0);
+  push_window->readPoints(push_sink);
   check(push_columns[0] == 3,
         "a push sample with no disclosure column writes the leaf alone "
         "(FR-007)");

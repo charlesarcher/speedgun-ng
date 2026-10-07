@@ -57,8 +57,8 @@ struct buffer_state
 // the live reader, and the contiguous slot range it fills.
 struct read_group
 {
-  window_reader::read_thunk thunk = nullptr;
-  std::unique_ptr<window_reader> reader;
+  WindowReader::ReadThunk thunk = nullptr;
+  std::unique_ptr<WindowReader> reader;
   std::size_t offset = 0;
   std::size_t count = 0;
   // This group's own disclosure column, the managed slot its window writes
@@ -141,7 +141,7 @@ struct plan_impl
 
   // The managed leaves, and nothing else. One sampling action writes one
   // point per leaf through the shared sink, so this is the cursor's bound
-  // and the obligation `check_action` enforces (FR-047).
+  // and the obligation `checkAction` enforces (FR-047).
   [[nodiscard]] auto leaf_count() const noexcept -> std::size_t
   {
     return slots.size();
@@ -192,7 +192,7 @@ struct scope_core
 
 struct system::impl
 {
-  std::vector<std::unique_ptr<provider_iface>> providers;
+  std::vector<std::unique_ptr<ProviderIface>> providers;
   std::map<std::string, std::unique_ptr<tree_node>> objects;  // canonical
   std::map<std::string, std::unique_ptr<sg::counters::object>> handles;
   // The handle map's own lock. Resolution, listing, and the parent and

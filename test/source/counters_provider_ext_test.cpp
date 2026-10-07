@@ -45,22 +45,22 @@ auto same_double(const double lhs, const double rhs) -> bool
 }
 
 using sg::counters::Availability;
-using sg::counters::catalog_seed;
 using sg::counters::CatalogEntry;
+using sg::counters::CatalogSeed;
 using sg::counters::clock_provider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::leaf_set;
+using sg::counters::LeafSet;
 using sg::counters::object;
-using sg::counters::object_seed;
-using sg::counters::object_sink;
-using sg::counters::point_sink;
-using sg::counters::provider_iface;
+using sg::counters::ObjectSeed;
+using sg::counters::ObjectSink;
+using sg::counters::PointSink;
+using sg::counters::ProviderIface;
 using sg::counters::scope;
 using sg::counters::system;
-using sg::counters::target;
-using sg::counters::window_reader;
+using sg::counters::Target;
+using sg::counters::WindowReader;
 
 using events = Dim<0, 1>;
 using time_dim = Dim<1, 0>;
@@ -70,19 +70,18 @@ constexpr std::uint64_t kHonksPerAction = 7;
 // The out-of-tree reader: honks accumulate between sampling actions. It
 // installs a direct-call slot in its constructor, so the compiled plan
 // reads through the slot, with no vtable dispatch (FR-022, R-004).
-class honk_window final : public window_reader
+class honk_window final : public WindowReader
 {
 public:
-  honk_window() { set_thunk(&honk_window::read_direct); }
+  honk_window() { setThunk(&honk_window::read_direct); }
 
-  void read_points(point_sink& sink) noexcept override
+  void readPoints(PointSink& sink) noexcept override
   {
     read_direct(*this, sink);
   }
 
 private:
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
   {
     auto& reader = static_cast<honk_window&>(base);
     reader.m_total += kHonksPerAction;
@@ -94,24 +93,24 @@ private:
 
 // The out-of-tree provider: one object, one countable counter, one
 // described-but-unavailable entry.
-class giraffe_provider final : public provider_iface
+class giraffe_provider final : public ProviderIface
 {
 public:
-  void enumerate(object_sink& sink) const override
+  void enumerate(ObjectSink& sink) const override
   {
-    sink.add_object(object_seed {
+    sink.addObject(ObjectSeed {
         .kind = "animal",
         .path = "menagerie/giraffe-2",
         .alias = {},
         .description = "the famous giraffe",
         .entries =
             {
-                catalog_seed {
+                CatalogSeed {
                     .name = "honks",
                     .description = "honks emitted",
                     .unit = "ops",
                 },
-                catalog_seed {
+                CatalogSeed {
                     .name = "sleeps",
                     .description = "sleeps counted (giraffes barely sleep)",
                     .unit = "ops",
@@ -121,8 +120,8 @@ public:
     });
   }
 
-  std::unique_ptr<window_reader> open(const leaf_set& leaves,
-                                      const target& /*where*/) override
+  std::unique_ptr<WindowReader> open(const LeafSet& leaves,
+                                     const Target& /*where*/) override
   {
     for (const auto& address : leaves.addresses) {
       if (address != "menagerie/giraffe-2/honks") {
@@ -236,21 +235,21 @@ auto availability_branch_scenario() -> void
 }
 
 // The direct-call slot a provider installs in its reader's constructor:
-// `resolve_thunk` hands the compiled plan the installed function, so the
+// `resolveThunk` hands the compiled plan the installed function, so the
 // read path reaches the provider without a virtual call (FR-022, R-004,
 // T066).
 auto direct_call_scenario() -> void
 {
   honk_window reader;
-  const auto thunk = reader.resolve_thunk();
+  const auto thunk = reader.resolveThunk();
   std::uint64_t columns[1] = {0};
-  point_sink sink {columns, 1, 1, 1, 0};
+  PointSink sink {columns, 1, 1, 1, 0};
   thunk(reader, sink);
   check(columns[0] == kHonksPerAction,
         "the installed direct-call slot delivers the provider's point");
   std::uint64_t via_virtual[1] = {0};
-  point_sink other {via_virtual, 1, 1, 1, 0};
-  reader.read_points(other);
+  PointSink other {via_virtual, 1, 1, 1, 0};
+  reader.readPoints(other);
   check(via_virtual[0] == 2 * kHonksPerAction,
         "the virtual entry and the installed slot are the same function "
         "(FR-022)");
@@ -297,24 +296,24 @@ auto refused_resolution_scenario() -> void
 // where the reader can act on it (FR-008, T096).
 auto duplicate_name_scenario() -> void
 {
-  class doubled final : public provider_iface
+  class doubled final : public ProviderIface
   {
   public:
-    void enumerate(object_sink& sink) const override
+    void enumerate(ObjectSink& sink) const override
     {
-      sink.add_object(object_seed {
+      sink.addObject(ObjectSeed {
           .kind = "animal",
           .path = "menagerie/okapi-1",
           .alias = {},
           .description = "an okapi",
           .entries =
               {
-                  catalog_seed {
+                  CatalogSeed {
                       .name = "steps",
                       .description = "steps taken",
                       .unit = "ops",
                   },
-                  catalog_seed {
+                  CatalogSeed {
                       .name = "steps",
                       .description = "steps taken, again",
                       .unit = "ops",
@@ -323,8 +322,8 @@ auto duplicate_name_scenario() -> void
       });
     }
 
-    std::unique_ptr<window_reader> open(const leaf_set& /*leaves*/,
-                                        const target& /*where*/) override
+    std::unique_ptr<WindowReader> open(const LeafSet& /*leaves*/,
+                                       const Target& /*where*/) override
     {
       return nullptr;
     }

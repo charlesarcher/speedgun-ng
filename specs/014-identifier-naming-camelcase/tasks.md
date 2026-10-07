@@ -145,7 +145,7 @@ they include when a name in that header changes.
   `include/speedgun-ng/counters_core.hpp:289`. The type spelling
   becomes `Availability`. The member spelling `availability` stays
   (FR-018, D-02).
-- [ ] T006 [US2] Rename owned identifiers in `include/speedgun-ng/counters_provider.hpp`
+- [X] T006 [US2] Rename owned identifiers in `include/speedgun-ng/counters_provider.hpp`
   `include/speedgun-ng/counters_provider.hpp` and the remaining call
   sites of names it declares (D-02, FR-013).
 - [ ] T007 [US2] Rename owned identifiers in `include/speedgun-ng/counters_measurement.hpp`

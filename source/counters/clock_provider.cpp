@@ -190,26 +190,25 @@ auto tsc_ticks() noexcept -> std::uint64_t
 
 }  // namespace
 
-struct detail::clock_window final : window_reader
+struct detail::clock_window final : WindowReader
 {
-  clock_window() { set_thunk(&read_direct); }
+  clock_window() { setThunk(&read_direct); }
 
   // The compiled plan hands the window over as the base reference
-  // `read_thunk` declares, and `clock_provider::open` constructs it as
+  // `ReadThunk` declares, and `clock_provider::open` constructs it as
   // this final type, so the reference names a clock window on every
-  // call. `final` fixes the target of the `read_points` call, so the
+  // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<clock_window&>(base).read_points(sink);
+    static_cast<clock_window&>(base).readPoints(sink);
   }
 
   std::vector<std::uint8_t> kinds;
-  std::size_t disclosure_column = leaf_set::no_disclosure_column;
+  std::size_t disclosure_column = LeafSet::kNoDisclosureColumn;
 
-  void read_points(point_sink& sink) noexcept override
+  void readPoints(PointSink& sink) noexcept override
   {
     for (const std::uint8_t kind : kinds) {
       switch (kind) {
@@ -233,9 +232,9 @@ struct detail::clock_window final : window_reader
     // A clock leaf is a read of a clock the platform always keeps running,
     // so the action always measures and the disclosure names the entry's
     // own countability value (FR-007).
-    if (disclosure_column != leaf_set::no_disclosure_column) {
-      sink.put_disclosure(disclosure_column,
-                          static_cast<std::uint64_t>(Availability::COUNTABLE));
+    if (disclosure_column != LeafSet::kNoDisclosureColumn) {
+      sink.putDisclosure(disclosure_column,
+                         static_cast<std::uint64_t>(Availability::COUNTABLE));
     }
   }
 };
@@ -244,24 +243,24 @@ clock_provider::clock_provider() = default;
 
 clock_provider::~clock_provider() = default;
 
-void clock_provider::enumerate(object_sink& sink) const
+void clock_provider::enumerate(ObjectSink& sink) const
 {
-  std::vector<catalog_seed> entries {
-      catalog_seed {
+  std::vector<CatalogSeed> entries {
+      CatalogSeed {
           .name = "monotonic",
           .description = "wall-clock time, monotonic across the window",
           .unit = "nanoseconds",
           .avail = Availability::COUNTABLE,
           .mode = ReadMode::SYSCALL,
       },
-      catalog_seed {
+      CatalogSeed {
           .name = "thread_cpu",
           .description = "CPU time consumed by the sampling thread",
           .unit = "nanoseconds",
           .avail = Availability::COUNTABLE,
           .mode = ReadMode::SYSCALL,
       },
-      catalog_seed {
+      CatalogSeed {
           .name = "process_cpu",
           .description = "CPU time consumed by this process",
           .unit = "nanoseconds",
@@ -277,13 +276,13 @@ void clock_provider::enumerate(object_sink& sink) const
   // frequency and attached that rate to it; a count needs neither, and the
   // gate withheld a working counter from every host publishing no
   // frequency (specs/008-timestamp-counter, FR-011).
-  entries.push_back(catalog_seed {
+  entries.push_back(CatalogSeed {
       .name = "tsc",
       .description = "raw time-stamp counter ticks; a count asserting no rate",
       .unit = "none",
       .avail = Availability::COUNTABLE,
       .mode = ReadMode::FAST_TSC,
-      .frequency_hz = 0,
+      .frequencyHz = 0,
       .scaled = false,
   });
 #endif
@@ -292,7 +291,7 @@ void clock_provider::enumerate(object_sink& sink) const
   // clock through its fast path on every supported target. The read mode
   // is the label every clock counter here carries, and the published
   // overhead table records the fast path beside it (FR-010).
-  entries.push_back(catalog_seed {
+  entries.push_back(CatalogSeed {
       .name = "monotonic_raw",
       .description =
           "hardware-rate time, never adjusted by the operating " "system",
@@ -300,7 +299,7 @@ void clock_provider::enumerate(object_sink& sink) const
       .avail = Availability::COUNTABLE,
       .mode = ReadMode::SYSCALL,
   });
-  sink.add_object(object_seed {
+  sink.addObject(ObjectSeed {
       .kind = "machine",
       .path = "machine",
       .alias = {},
@@ -309,11 +308,11 @@ void clock_provider::enumerate(object_sink& sink) const
   });
 }
 
-std::unique_ptr<window_reader> clock_provider::open(const leaf_set& leaves,
-                                                    const target& /*where*/)
+std::unique_ptr<WindowReader> clock_provider::open(const LeafSet& leaves,
+                                                   const Target& /*where*/)
 {
   auto window = std::make_unique<detail::clock_window>();
-  window->disclosure_column = leaves.disclosure_column;
+  window->disclosure_column = leaves.disclosureColumn;
   window->kinds.reserve(leaves.addresses.size());
   for (const auto& address : leaves.addresses) {
     const int index = parse(address);

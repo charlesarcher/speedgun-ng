@@ -56,14 +56,14 @@ using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
-using sg::counters::leaf_set;
+using sg::counters::LeafSet;
 using sg::counters::object;
-using sg::counters::object_seed;
-using sg::counters::object_sink;
-using sg::counters::provider_iface;
+using sg::counters::ObjectSeed;
+using sg::counters::ObjectSink;
+using sg::counters::ProviderIface;
 using sg::counters::system;
-using sg::counters::target;
-using sg::counters::window_reader;
+using sg::counters::Target;
+using sg::counters::WindowReader;
 
 using events = Dim<0, 1>;
 using time_dim = Dim<1, 0>;
@@ -136,19 +136,19 @@ auto test_duplicate_registration() -> void
   // `fake_provider` cannot express because it keys its objects by path.
   // The batch is refused whole, so no object lands and neither alias
   // survives (US3 scenario 6, FR-008).
-  class twice final : public provider_iface
+  class twice final : public ProviderIface
   {
   public:
-    void enumerate(object_sink& sink) const override
+    void enumerate(ObjectSink& sink) const override
     {
-      sink.add_object(object_seed {
+      sink.addObject(ObjectSeed {
           .kind = "core",
           .path = "package-3/core-11",
           .alias = "cpu11",
           .description = "eleventh core, first declaration",
           .entries = {},
       });
-      sink.add_object(object_seed {
+      sink.addObject(ObjectSeed {
           .kind = "core",
           .path = "package-3/core-11",
           .alias = "cpu12",
@@ -157,8 +157,8 @@ auto test_duplicate_registration() -> void
       });
     }
 
-    std::unique_ptr<window_reader> open(const leaf_set& /*leaves*/,
-                                        const target& /*where*/) override
+    std::unique_ptr<WindowReader> open(const LeafSet& /*leaves*/,
+                                       const Target& /*where*/) override
     {
       return nullptr;
     }

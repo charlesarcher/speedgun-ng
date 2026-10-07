@@ -59,7 +59,7 @@ struct clock_window;
  *   the harness takes both endpoints on one thread (FR-031, Principle
  *   VII).
  */
-class SPEEDGUN_NG_EXPORT clock_provider final : public provider_iface
+class SPEEDGUN_NG_EXPORT clock_provider final : public ProviderIface
 {
 public:
   /**
@@ -89,7 +89,7 @@ public:
    * \pre none
    * \post none
    */
-  void enumerate(object_sink& sink) const override;
+  void enumerate(ObjectSink& sink) const override;
 
   /**
    * @brief Opens a reader managing the requested clock leaves.
@@ -97,8 +97,8 @@ public:
    * \pre none
    * \post none
    */
-  std::unique_ptr<window_reader> open(const leaf_set& leaves,
-                                      const target& where) override;
+  std::unique_ptr<WindowReader> open(const LeafSet& leaves,
+                                     const Target& where) override;
 };
 
 }  // namespace sg::counters

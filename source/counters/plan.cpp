@@ -36,12 +36,12 @@ auto sample_row(const plan_impl& layout,
                 const std::size_t stride,
                 const std::size_t row) -> void
 {
-  point_sink sink(
+  PointSink sink(
       buffer, layout.leaf_count(), layout.column_count(), stride, row);
   for (const auto& group : layout.groups) {
     group.thunk(*group.reader, sink);
   }
-  sink.check_action();
+  sink.checkAction();
 }
 
 // One sampling action: the thread a plan bound to, the read sequence,
@@ -413,7 +413,7 @@ auto ring_sample_core(const void* impl,
 }
 
 auto compile_core(const system& sys,
-                  const target& tg,
+                  const Target& tg,
                   const std::vector<const expr_core*>& exprs)
     -> std::expected<plan, Error>
 {
@@ -583,9 +583,9 @@ auto compile_core(const system& sys,
     auto reader =
         impl.providers.at(provider_index)
             ->open(
-                leaf_set {
+                LeafSet {
                     .addresses = std::move(per_provider.at(provider_index)),
-                    .disclosure_column = group.disclosure_slot,
+                    .disclosureColumn = group.disclosure_slot,
                 },
                 tg);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the open refusal. It
@@ -604,7 +604,7 @@ auto compile_core(const system& sys,
       // LCOV_EXCL_STOP
     }  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_STOP
-    group.thunk = reader->resolve_thunk();
+    group.thunk = reader->resolveThunk();
     group.reader = std::move(reader);
   }  // LCOV_EXCL_LINE
   // LCOV_EXCL_LINE : coverage exclusion (T140): the block gcov attributes to
@@ -630,7 +630,7 @@ auto compile_core(const system& sys,
 }
 
 auto compile_fanout_core(const system& sys,
-                         const target& tg,
+                         const Target& tg,
                          const expr_core& exemplar,
                          const std::vector<const object*>& selection)
     -> std::expected<fanout_plan, Error>
@@ -702,7 +702,7 @@ auto fanout_fold_core(const void* fanout,
 }  // LCOV_EXCL_LINE
 
 auto availability_gate_passes(const Availability probed,
-                              const target_kind requested) noexcept -> bool
+                              const TargetKind requested) noexcept -> bool
 {
   // The state a caller cannot clear is the entry's own device scope
   // refusing the per-task kind, so a request naming the cpu kind does not
@@ -712,7 +712,7 @@ auto availability_gate_passes(const Availability probed,
   // it is refused with the catalog's own name in the message (FR-021,
   // FR-022, FR-024).
   const bool cpu_over_scope_refusal =
-      probed == Availability::SCOPE_REFUSED && requested == target_kind::cpu;
+      probed == Availability::SCOPE_REFUSED && requested == TargetKind::CPU;
   const bool passes =
       probed == Availability::COUNTABLE || cpu_over_scope_refusal;
   // The rule is spelled once and both the verdict and the postcondition

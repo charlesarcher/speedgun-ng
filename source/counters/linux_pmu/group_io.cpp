@@ -84,11 +84,11 @@ struct leaf_slot
   std::size_t index = 0;  // member position, unused for the time pair
   slot_source source = slot_source::member;
   // The plan's disclosure column for the window that owns this slot, or
-  // `leaf_set::no_disclosure_column`. A disclosure is written into the
+  // `LeafSet::kNoDisclosureColumn`. A disclosure is written into the
   // column the plan named. A plan with more than one read group gives
   // each group its own column, and those columns follow the leaves
   // (FR-002).
-  std::size_t disclosure = leaf_set::no_disclosure_column;
+  std::size_t disclosure = LeafSet::kNoDisclosureColumn;
 };
 
 // One requested leaf resolved against the merged catalog.
@@ -103,7 +103,7 @@ struct resolved_leaf
   // through the sink's sequential cursor, because a plan with more than one
   // read group gives each group its own column and those columns follow the
   // leaves (FR-002).
-  std::size_t disclosure = leaf_set::no_disclosure_column;
+  std::size_t disclosure = LeafSet::kNoDisclosureColumn;
 };
 
 // Device to group index, assigned in first-appearance order so the
@@ -150,7 +150,7 @@ private:
 // asked, so the sink order equals the column order (C-PRO-2). Null on
 // any address this provider cannot serve.
 auto resolve(const pmu_state& state,
-             const leaf_set& leaves,
+             const LeafSet& leaves,
              std::vector<resolved_leaf>& out) -> bool
 {
   if (leaves.addresses.empty()) {
@@ -238,7 +238,7 @@ struct group_state
 
 }  // namespace
 
-struct pmu_window final : window_reader
+struct pmu_window final : WindowReader
 {
   std::vector<leaf_slot> slots;
   std::vector<group_state> groups;
@@ -252,7 +252,7 @@ struct pmu_window final : window_reader
   // per member of the widest group, and the sampling path never grows it.
   explicit pmu_window(const std::size_t leaf_count)
   {
-    set_thunk(&read_direct);
+    setThunk(&read_direct);
     scratch.resize(kHeaderWords + leaf_count);
   }
 
@@ -281,7 +281,7 @@ struct pmu_window final : window_reader
   // `perf_event_open`. A runner whose `perf_event_open` is refused opens no
   // group and never enters this body; the host that grants the syscall reads
   // every group it opened here, once per sampling action.
-  void read_points(point_sink& sink) noexcept override
+  void readPoints(PointSink& sink) noexcept override
   {
     gapped = false;
     for (auto& group : groups) {
@@ -341,7 +341,7 @@ struct pmu_window final : window_reader
           sink.put(group.running);
           break;
         case slot_source::disclosure:
-          sink.put_disclosure(
+          sink.putDisclosure(
               slot.disclosure,
               static_cast<std::uint64_t>(gapped ? Availability::GAP
                                                 : Availability::COUNTABLE));
@@ -351,14 +351,13 @@ struct pmu_window final : window_reader
   }  // LCOV_EXCL_BR_LINE
 
   // The compiled plan hands the window over as the base reference
-  // `read_thunk` declares, and `pmu_open_window` constructs it as this
+  // `ReadThunk` declares, and `pmu_open_window` constructs it as this
   // final type, so the reference names a group window on every call.
-  // `final` fixes the target of the `read_points` call, so the sampling
+  // `final` fixes the target of the `readPoints` call, so the sampling
   // path takes one indirect call and no vtable lookup (FR-022, T146).
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<pmu_window&>(base).read_points(sink);
+    static_cast<pmu_window&>(base).readPoints(sink);
   }
 
   // LCOV_EXCL_STOP
@@ -370,7 +369,7 @@ struct pmu_window final : window_reader
 // lets open a per-process user event, so the reads below carry no blanket
 // coverage exclusion; the two arms no host reaches are marked at their own
 // sites.
-struct pmu_fast_window final : window_reader
+struct pmu_fast_window final : WindowReader
 {
   struct member
   {
@@ -390,7 +389,7 @@ struct pmu_fast_window final : window_reader
   // (FR-002, FR-003, FR-005).
   bool gapped = false;
 
-  pmu_fast_window() { set_thunk(&read_direct); }
+  pmu_fast_window() { setThunk(&read_direct); }
 
   pmu_fast_window(const pmu_fast_window&) = delete;
   auto operator=(const pmu_fast_window&) -> pmu_fast_window& = delete;
@@ -404,7 +403,7 @@ struct pmu_fast_window final : window_reader
   // granted, so a runner whose `perf_event_open` is refused opens no member
   // and never enters this body; the host that grants the syscall reads every
   // member page here, once per sampling action.
-  void read_points(point_sink& sink) noexcept override
+  void readPoints(PointSink& sink) noexcept override
   {
     gapped = false;
     for (auto& one : members) {
@@ -484,7 +483,7 @@ struct pmu_fast_window final : window_reader
           sink.put(running);
           break;
         case slot_source::disclosure:
-          sink.put_disclosure(
+          sink.putDisclosure(
               slot.disclosure,
               static_cast<std::uint64_t>(gapped ? Availability::GAP
                                                 : Availability::COUNTABLE));
@@ -494,15 +493,14 @@ struct pmu_fast_window final : window_reader
   }
 
   // The compiled plan hands the window over as the base reference
-  // `read_thunk` declares, and `pmu_open_fast_window` constructs it as
+  // `ReadThunk` declares, and `pmu_open_fast_window` constructs it as
   // this final type, so the reference names a fast window on every
-  // call. `final` fixes the target of the `read_points` call, so the
+  // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base,
-                          point_sink& sink) noexcept -> void
+  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<pmu_fast_window&>(base).read_points(sink);
+    static_cast<pmu_fast_window&>(base).readPoints(sink);
   }
 
   // LCOV_EXCL_STOP
@@ -551,7 +549,7 @@ auto all_fast(const std::vector<resolved_leaf>& leaves) -> bool
 auto open_group_window(const pmu_state& state,
                        const std::vector<resolved_leaf>& leaves,
                        const group_layout& layout,
-                       const target& where) -> std::unique_ptr<window_reader>
+                       const Target& where) -> std::unique_ptr<WindowReader>
 {
   if (layout.count() == 0) {
     return nullptr;
@@ -647,7 +645,7 @@ auto open_group_window(const pmu_state& state,
 auto open_fast_window(const pmu_state& state,
                       const std::vector<resolved_leaf>& leaves,
                       const group_layout& layout,
-                      const target& where) -> std::unique_ptr<window_reader>
+                      const Target& where) -> std::unique_ptr<WindowReader>
 {
   if (layout.count() != 1) {
     // The mapped-page protocol reads the counters of one event source;
@@ -744,17 +742,17 @@ auto open_fast_window(const pmu_state& state,
 // window that owns it writes it last, after the counts and the ratio
 // pair's two columns. The column names no leaf address, so it resolves to
 // no entry and to no device (FR-007).
-void append_disclosure(const leaf_set& leaves,
+void append_disclosure(const LeafSet& leaves,
                        std::vector<resolved_leaf>& resolved)
 {
-  if (leaves.disclosure_column == leaf_set::no_disclosure_column) {
+  if (leaves.disclosureColumn == LeafSet::kNoDisclosureColumn) {
     return;
   }
   resolved.push_back(resolved_leaf {
       .device = 0,
       .entry = nullptr,
       .source = slot_source::disclosure,
-      .disclosure = leaves.disclosure_column,
+      .disclosure = leaves.disclosureColumn,
   });
 }
 
@@ -766,8 +764,8 @@ pmu_fast_window::~pmu_fast_window()
 }
 
 auto pmu_open_fast_window(const pmu_state& state,
-                          const leaf_set& leaves,
-                          const target& where) -> std::unique_ptr<window_reader>
+                          const LeafSet& leaves,
+                          const Target& where) -> std::unique_ptr<WindowReader>
 {
   std::vector<resolved_leaf> resolved;
   if (!resolve(state, leaves, resolved)) {
@@ -780,8 +778,8 @@ auto pmu_open_fast_window(const pmu_state& state,
 }
 
 auto pmu_open_window(const pmu_state& state,
-                     const leaf_set& leaves,
-                     const target& where) -> std::unique_ptr<window_reader>
+                     const LeafSet& leaves,
+                     const Target& where) -> std::unique_ptr<WindowReader>
 {
   std::vector<resolved_leaf> resolved;
   if (!resolve(state, leaves, resolved)) {
