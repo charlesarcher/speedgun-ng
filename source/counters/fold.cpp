@@ -367,9 +367,12 @@ auto raw_core(const expr_core& core,
           // The fraction this leaf ran for. The state decides the
           // fallback, so the ratio a caller reads and the state beside it
           // cannot disagree (FR-004, FR-005, FR-019, FR-020).
-          .ratio = (state == availability::gap)  // LCOV_EXCL_BR_LINE
+          // LCOV_EXCL_BR_START : coverage exclusion (T140): the gap
+          // fallback. A runner that never records a gap takes only one arm.
+          .ratio = (state == availability::gap)
               ? 1.0
               : leaf_ratio(ctx, slot).value_or(1.0),
+          // LCOV_EXCL_BR_STOP
           .availability = state,
       };
     }

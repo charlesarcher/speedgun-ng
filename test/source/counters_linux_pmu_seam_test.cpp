@@ -3061,7 +3061,13 @@ auto uncore_device_fixture_scenario() -> void
   std::size_t misplaced = 0;
   for (const auto& row : table) {
     const bool here = carries(*loaded, row.name);
-    if (row.unit == "iMC") {
+    // The placement step uses scope_reaches, not the literal unit
+    // "iMC". A selected table whose memory rows spell another unit
+    // still belongs on this device, and only a row that rule rejects
+    // is misplaced (FR-019).
+    const bool belongs =
+        sg::counters::detail::scope_reaches(loaded->path, row.unit);
+    if (belongs) {
       ++expected;
       if (here) {
         ++scoped_here;
@@ -3074,11 +3080,11 @@ auto uncore_device_fixture_scenario() -> void
               "and %zu rows of another class\n",
               loaded->path.c_str(), scoped_here, expected, misplaced);
   check(scoped_here == expected,
-        "every iMC-scoped row of the selected table landed on the loaded "
-        "uncore device (FR-019, SC-006)");
+        "every row whose scope reaches the loaded uncore device landed "
+        "on it (FR-019, SC-006)");
   check(misplaced == 0,
-        "no core-scoped row and no row of another class appears under a "
-        "loaded uncore device (FR-019)");
+        "no row whose scope rejects the loaded uncore device appears "
+        "under it (FR-019)");
 }
 
 // The placement step itself, which no other scenario reaches:
