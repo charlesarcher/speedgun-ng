@@ -74,7 +74,7 @@ int predicate_evaluations = 0;
 
 // A recording observer that stores the record into `out` and then throws it
 // back to the caller.
-auto record_into(sg::dbc::ViolationRecord& out) -> sg::dbc::violation_observer
+auto record_into(sg::dbc::ViolationRecord& out) -> sg::dbc::ViolationObserver
 {
   return [&out](sg::dbc::ViolationRecord const& rec)
   {
@@ -133,7 +133,7 @@ auto gated_satisfied_site() -> void
 // and whether the observer threw (i.e. the violation was delivered).
 auto capture_violation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
 {
-  sg::dbc::set_observer(record_into(rec));
+  sg::dbc::setObserver(record_into(rec));
   bool caught = false;
   try {
     body();
@@ -230,7 +230,7 @@ auto main() -> int
   rec = sg::dbc::ViolationRecord {};
   check(capture_violation(rec, [] { violate_precondition(); }),
         "pre: violation delivered to the observer");
-  check(rec.kind == Kind::precondition, "pre: kind == precondition");
+  check(rec.kind == Kind::PRECONDITION, "pre: kind == precondition");
   check(std::string(rec.message) == "pre: x > 0", "pre: message text");
   check(std::string(rec.predicateText) == "false", "pre: predicate text");
   check(rec.file != nullptr && rec.file[0] != '\0', "pre: file present");
@@ -240,7 +240,7 @@ auto main() -> int
   rec = sg::dbc::ViolationRecord {};
   check(capture_violation(rec, [] { (void)violate_postcondition(); }),
         "post: violation delivered to the observer");
-  check(rec.kind == Kind::postcondition, "post: kind == postcondition");
+  check(rec.kind == Kind::POSTCONDITION, "post: kind == postcondition");
   check(std::string(rec.message) == "post: result == 42", "post: message text");
   check(std::string(rec.predicateText) == "result == 42",
         "post: predicate text");
@@ -249,14 +249,14 @@ auto main() -> int
   rec = sg::dbc::ViolationRecord {};
   check(capture_violation(rec, [] { violate_loop_invariant(); }),
         "loop-inv: violation delivered to the observer");
-  check(rec.kind == Kind::invariant, "loop-inv: kind == invariant");
+  check(rec.kind == Kind::INVARIANT, "loop-inv: kind == invariant");
   check(std::string(rec.predicateText) == "i >= 0", "loop-inv: predicate text");
 
   // (a)/(b) class invariant at constructor exit (FR-006/FR-021)
   rec = sg::dbc::ViolationRecord {};
   check(capture_violation(rec, [] { (void)bad_invariant_object {}; }),
         "class-inv: violation delivered at ctor exit");
-  check(rec.kind == Kind::invariant, "class-inv: kind == invariant");
+  check(rec.kind == Kind::INVARIANT, "class-inv: kind == invariant");
   check(std::string(rec.predicateText) == "value >= 0",
         "class-inv: predicate text");
 
@@ -264,7 +264,7 @@ auto main() -> int
   rec = sg::dbc::ViolationRecord {};
   check(capture_violation(rec, [] { violate_assertion(); }),
         "assert: violation delivered to the observer");
-  check(rec.kind == Kind::assertion, "assert: kind == assertion");
+  check(rec.kind == Kind::ASSERTION, "assert: kind == assertion");
   check(std::string(rec.predicateText) == "1 == 2", "assert: predicate text");
 #endif  // SG_CONTRACTS_SEMANTIC != 3
 
@@ -288,8 +288,8 @@ auto main() -> int
 #if SG_CONTRACTS_SEMANTIC == 1
   {
     sg::dbc::ViolationRecord orec {};
-    sg::dbc::set_observer([&orec](sg::dbc::ViolationRecord const& r)
-                          { orec = r; });
+    sg::dbc::setObserver([&orec](sg::dbc::ViolationRecord const& r)
+                         { orec = r; });
     auto probe = []
     {
       int result = 0;
@@ -299,7 +299,7 @@ auto main() -> int
     int returned = probe();
     check(returned == 7,
           "observe: execution continued past the failed predicate");
-    check(orec.kind == Kind::postcondition, "observe: record captured");
+    check(orec.kind == Kind::POSTCONDITION, "observe: record captured");
   }
 #endif
 
@@ -310,7 +310,7 @@ auto main() -> int
   // red (re-entry guard absent until T021); (f) is QE-specific.
   // ==========================================================================
 
-  sg::dbc::set_observer({});
+  sg::dbc::setObserver({});
 
 #if defined(__unix__)
   struct child_result
@@ -408,12 +408,12 @@ auto main() -> int
 #endif
 
 #if SG_CONTRACTS_SEMANTIC == 2
-  // (b) second set_observer replaces first
+  // (b) second setObserver replaces first
   {
     sg::dbc::ViolationRecord r1 {};
     sg::dbc::ViolationRecord r2 {};
-    sg::dbc::set_observer(record_into(r1));
-    sg::dbc::set_observer(
+    sg::dbc::setObserver(record_into(r1));
+    sg::dbc::setObserver(
         [&r2](sg::dbc::ViolationRecord const& recb)
         {
           r2 = recb;
@@ -449,8 +449,8 @@ auto main() -> int
     auto res = run_in_child(
         []
         {
-          sg::dbc::set_observer([](sg::dbc::ViolationRecord const&)
-                                { throw unique_exc {}; });
+          sg::dbc::setObserver([](sg::dbc::ViolationRecord const&)
+                               { throw unique_exc {}; });
           SG_REQUIRE(false, "observer-throw");
           _exit(77);
         },
@@ -507,7 +507,7 @@ auto main() -> int
     auto res = run_in_child(
         []
         {
-          sg::dbc::set_observer(
+          sg::dbc::setObserver(
               [](sg::dbc::ViolationRecord const& record)
               {
                 if (std::string(record.message ? record.message : "")
@@ -563,7 +563,7 @@ auto main() -> int
 #endif  // SG_CONTRACTS_SEMANTIC == 3
 
 #if SG_CONTRACTS_SEMANTIC == 2
-  sg::dbc::set_observer({});
+  sg::dbc::setObserver({});
 
   {
     int const held_i = require_positive(1);
@@ -598,7 +598,7 @@ auto main() -> int
                                                  });
     check(!derived_fired,
           "virtual: derived override without restated contract does not fire");
-    sg::dbc::set_observer({});
+    sg::dbc::setObserver({});
 #  if defined(__unix__)
     auto res = run_in_child(
         []

@@ -40,13 +40,12 @@ namespace sg::dbc
 /**
  * @brief Discriminates the four contract kinds.
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 enum class Kind : std::uint8_t
 {
-  precondition,
-  postcondition,
-  invariant,
-  assertion
+  PRECONDITION,
+  POSTCONDITION,
+  INVARIANT,
+  ASSERTION
 };
 
 /**
@@ -56,66 +55,65 @@ enum class Kind : std::uint8_t
  * response. All pointers are non-owning and valid for the duration of
  * the response.
  */
-// NOLINTNEXTLINE(readability-identifier-naming)
 struct ViolationRecord
 {
   Kind kind {};
   char const* file {};
   unsigned line {};
   char const* message {};
-  char const* predicateText {};  // NOLINT(readability-identifier-naming)
+  char const* predicateText {};
 };
 
 /**
- * @brief Observer hook type installed via set_observer.
+ * @brief Observer hook type installed via setObserver.
  */
-using violation_observer = std::function<void(ViolationRecord const&)>;
+using ViolationObserver = std::function<void(ViolationRecord const&)>;
 
 namespace detail
 {
 
-inline auto observer_slot() -> violation_observer&
+inline auto observerSlot() -> ViolationObserver&
 {
-  static violation_observer slot {};
+  static ViolationObserver slot {};
   return slot;
 }
 
-inline auto in_response_flag() -> bool&
+inline auto inResponseFlag() -> bool&
 {
-  thread_local bool in_response = false;
-  return in_response;
+  thread_local bool inResponse = false;
+  return inResponse;
 }
 
-class response_guard
+class ResponseGuard
 {
   bool& m_flag;
 
 public:
-  explicit response_guard(bool& flag)
+  explicit ResponseGuard(bool& flag)
       : m_flag(flag)
   {
     m_flag = true;
   }
 
-  ~response_guard() { m_flag = false; }
+  ~ResponseGuard() { m_flag = false; }
 
-  response_guard(response_guard const&) = delete;
-  response_guard(response_guard&&) = delete;
-  auto operator=(response_guard const&) -> response_guard& = delete;
-  auto operator=(response_guard&&) -> response_guard& = delete;
+  ResponseGuard(ResponseGuard const&) = delete;
+  ResponseGuard(ResponseGuard&&) = delete;
+  auto operator=(ResponseGuard const&) -> ResponseGuard& = delete;
+  auto operator=(ResponseGuard&&) -> ResponseGuard& = delete;
 };
 
 // LCOV_EXCL_START
-inline auto kind_name(Kind const kind) -> char const*
+inline auto kindName(Kind const kind) -> char const*
 {
   switch (kind) {
-    case Kind::precondition:
+    case Kind::PRECONDITION:
       return "precondition";
-    case Kind::postcondition:
+    case Kind::POSTCONDITION:
       return "postcondition";
-    case Kind::invariant:
+    case Kind::INVARIANT:
       return "invariant";
-    case Kind::assertion:
+    case Kind::ASSERTION:
       return "assertion";
     default:
       SG_UNREACHABLE;
@@ -123,13 +121,13 @@ inline auto kind_name(Kind const kind) -> char const*
   }
 }
 
-inline auto default_response(ViolationRecord const& record) -> void
+inline auto defaultResponse(ViolationRecord const& record) -> void
 {
   static_cast<void>(
       std::fprintf(  // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
           stderr,
           "[%s] %s (predicate: %s) at %s:%u\n",
-          kind_name(record.kind),
+          kindName(record.kind),
           record.message != nullptr ? record.message : "",
           record.predicateText != nullptr ? record.predicateText : "",
           record.file != nullptr ? record.file : "",
@@ -137,20 +135,20 @@ inline auto default_response(ViolationRecord const& record) -> void
   static_cast<void>(std::fflush(stderr));
 }
 
-inline auto report_violation(ViolationRecord const& record) -> void
+inline auto reportViolation(ViolationRecord const& record) -> void
 {
   // cppcheck-suppress knownConditionTrueFalse
-  if (in_response_flag()) {
+  if (inResponseFlag()) {
     return;
   }
-  response_guard const guard {in_response_flag()};
+  ResponseGuard const guard {inResponseFlag()};
 
-  auto const& observer = observer_slot();
+  auto const& observer = observerSlot();
   if (observer) {
     observer(record);
     return;
   }
-  default_response(record);
+  defaultResponse(record);
 }
 
 [[noreturn]] inline SG_NOINLINE SG_COLD auto enforce(
@@ -158,14 +156,14 @@ inline auto report_violation(ViolationRecord const& record) -> void
     char const* const file,
     unsigned const line,
     char const* const message,
-    char const* const predicate_text) -> void
+    char const* const predicateText) -> void
 {
-  report_violation(ViolationRecord {
+  reportViolation(ViolationRecord {
       .kind = kind,
       .file = file,
       .line = line,
       .message = message,
-      .predicateText = predicate_text,
+      .predicateText = predicateText,
   });
   std::abort();
 }
@@ -175,15 +173,15 @@ inline SG_NOINLINE SG_COLD auto dispatch(Kind const kind,
                                          char const* const file,
                                          unsigned const line,
                                          char const* const message,
-                                         char const* const predicate_text)
+                                         char const* const predicateText)
     -> void
 {
-  report_violation(ViolationRecord {
+  reportViolation(ViolationRecord {
       .kind = kind,
       .file = file,
       .line = line,
       .message = message,
-      .predicateText = predicate_text,
+      .predicateText = predicateText,
   });
 }
 #elif SG_CONTRACTS_SEMANTIC == 3
@@ -203,14 +201,14 @@ inline SG_NOINLINE SG_COLD auto dispatch(Kind const kind,
     char const* const file,
     unsigned const line,
     char const* const message,
-    char const* const predicate_text) -> void
+    char const* const predicateText) -> void
 {
-  report_violation(ViolationRecord {
+  reportViolation(ViolationRecord {
       .kind = kind,
       .file = file,
       .line = line,
       .message = message,
-      .predicateText = predicate_text,
+      .predicateText = predicateText,
   });
   std::abort();
 }
@@ -229,9 +227,9 @@ inline SG_NOINLINE SG_COLD auto dispatch(Kind const kind,
  * \pre none
  * \post none
  */
-inline auto set_observer(violation_observer observer) -> void
+inline auto setObserver(ViolationObserver observer) -> void
 {
-  detail::observer_slot() = std::move(observer);
+  detail::observerSlot() = std::move(observer);
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
@@ -249,13 +247,13 @@ inline auto set_observer(violation_observer observer) -> void
  * \pre none
  * \post none
  */
-inline auto check_precondition(char const (&message)[],
-                               char const* const file,
-                               unsigned const line,
-                               char const* const pred) -> void
+inline auto checkPrecondition(char const (&message)[],
+                              char const* const file,
+                              unsigned const line,
+                              char const* const pred) -> void
 {
   detail::dispatch(
-      Kind::precondition, file, line, static_cast<char const*>(message), pred);
+      Kind::PRECONDITION, file, line, static_cast<char const*>(message), pred);
 }
 
 /**
@@ -268,13 +266,13 @@ inline auto check_precondition(char const (&message)[],
  * \pre none
  * \post none
  */
-inline auto check_postcondition(char const (&message)[],
-                                char const* const file,
-                                unsigned const line,
-                                char const* const pred) -> void
+inline auto checkPostcondition(char const (&message)[],
+                               char const* const file,
+                               unsigned const line,
+                               char const* const pred) -> void
 {
   detail::dispatch(
-      Kind::postcondition, file, line, static_cast<char const*>(message), pred);
+      Kind::POSTCONDITION, file, line, static_cast<char const*>(message), pred);
 }
 
 /**
@@ -287,13 +285,13 @@ inline auto check_postcondition(char const (&message)[],
  * \pre none
  * \post none
  */
-inline auto check_invariant(char const (&message)[],
-                            char const* const file,
-                            unsigned const line,
-                            char const* const pred) -> void
+inline auto checkInvariant(char const (&message)[],
+                           char const* const file,
+                           unsigned const line,
+                           char const* const pred) -> void
 {
   detail::dispatch(
-      Kind::invariant, file, line, static_cast<char const*>(message), pred);
+      Kind::INVARIANT, file, line, static_cast<char const*>(message), pred);
 }
 
 /**
@@ -306,13 +304,13 @@ inline auto check_invariant(char const (&message)[],
  * \pre none
  * \post none
  */
-inline auto check_assertion(char const (&message)[],
-                            char const* const file,
-                            unsigned const line,
-                            char const* const pred) -> void
+inline auto checkAssertion(char const (&message)[],
+                           char const* const file,
+                           unsigned const line,
+                           char const* const pred) -> void
 {
   detail::dispatch(
-      Kind::assertion, file, line, static_cast<char const*>(message), pred);
+      Kind::ASSERTION, file, line, static_cast<char const*>(message), pred);
 }
 #endif
 
@@ -326,14 +324,13 @@ inline auto check_assertion(char const (&message)[],
  * \pre none
  * \post none
  */
-[[noreturn]] inline auto check_precondition_always(char const (&message)[],
-                                                   char const* const file,
-                                                   unsigned const line,
-                                                   char const* const pred)
-    -> void
+[[noreturn]] inline auto checkPreconditionAlways(char const (&message)[],
+                                                 char const* const file,
+                                                 unsigned const line,
+                                                 char const* const pred) -> void
 {
   detail::enforce(
-      Kind::precondition, file, line, static_cast<char const*>(message), pred);
+      Kind::PRECONDITION, file, line, static_cast<char const*>(message), pred);
 }
 
 /**
@@ -346,14 +343,14 @@ inline auto check_assertion(char const (&message)[],
  * \pre none
  * \post none
  */
-[[noreturn]] inline auto check_postcondition_always(char const (&message)[],
-                                                    char const* const file,
-                                                    unsigned const line,
-                                                    char const* const pred)
+[[noreturn]] inline auto checkPostconditionAlways(char const (&message)[],
+                                                  char const* const file,
+                                                  unsigned const line,
+                                                  char const* const pred)
     -> void
 {
   detail::enforce(
-      Kind::postcondition, file, line, static_cast<char const*>(message), pred);
+      Kind::POSTCONDITION, file, line, static_cast<char const*>(message), pred);
 }
 
 /**
@@ -366,13 +363,13 @@ inline auto check_assertion(char const (&message)[],
  * \pre none
  * \post none
  */
-[[noreturn]] inline auto check_invariant_always(char const (&message)[],
-                                                char const* const file,
-                                                unsigned const line,
-                                                char const* const pred) -> void
+[[noreturn]] inline auto checkInvariantAlways(char const (&message)[],
+                                              char const* const file,
+                                              unsigned const line,
+                                              char const* const pred) -> void
 {
   detail::enforce(
-      Kind::invariant, file, line, static_cast<char const*>(message), pred);
+      Kind::INVARIANT, file, line, static_cast<char const*>(message), pred);
 }
 
 /**
@@ -385,13 +382,13 @@ inline auto check_assertion(char const (&message)[],
  * \pre none
  * \post none
  */
-[[noreturn]] inline auto check_assertion_always(char const (&message)[],
-                                                char const* const file,
-                                                unsigned const line,
-                                                char const* const pred) -> void
+[[noreturn]] inline auto checkAssertionAlways(char const (&message)[],
+                                              char const* const file,
+                                              unsigned const line,
+                                              char const* const pred) -> void
 {
   detail::enforce(
-      Kind::assertion, file, line, static_cast<char const*>(message), pred);
+      Kind::ASSERTION, file, line, static_cast<char const*>(message), pred);
 }
 
 // LCOV_EXCL_STOP
@@ -424,7 +421,7 @@ inline auto check_assertion(char const (&message)[],
                   "compile-time-evaluable constraint must use static_assert, " \
                   "not a runtime SG_* check"); \
     if (!(pred)) [[unlikely]] { \
-      ::sg::dbc::check_precondition_always(msg, __FILE__, __LINE__, #pred); \
+      ::sg::dbc::checkPreconditionAlways(msg, __FILE__, __LINE__, #pred); \
     } \
   } while (false)
 
@@ -435,7 +432,7 @@ inline auto check_assertion(char const (&message)[],
                   "compile-time-evaluable constraint must use static_assert, " \
                   "not a runtime SG_* check"); \
     if (!(pred)) [[unlikely]] { \
-      ::sg::dbc::check_postcondition_always(msg, __FILE__, __LINE__, #pred); \
+      ::sg::dbc::checkPostconditionAlways(msg, __FILE__, __LINE__, #pred); \
     } \
   } while (false)
 
@@ -446,7 +443,7 @@ inline auto check_assertion(char const (&message)[],
                   "compile-time-evaluable constraint must use static_assert, " \
                   "not a runtime SG_* check"); \
     if (!(pred)) [[unlikely]] { \
-      ::sg::dbc::check_invariant_always(msg, __FILE__, __LINE__, #pred); \
+      ::sg::dbc::checkInvariantAlways(msg, __FILE__, __LINE__, #pred); \
     } \
   } while (false)
 
@@ -457,7 +454,7 @@ inline auto check_assertion(char const (&message)[],
                   "compile-time-evaluable constraint must use static_assert, " \
                   "not a runtime SG_* check"); \
     if (!(pred)) [[unlikely]] { \
-      ::sg::dbc::check_assertion_always(msg, __FILE__, __LINE__, #pred); \
+      ::sg::dbc::checkAssertionAlways(msg, __FILE__, __LINE__, #pred); \
     } \
   } while (false)
 
@@ -474,7 +471,7 @@ inline auto check_assertion(char const (&message)[],
                     "compile-time-evaluable constraint must use " \
                     "static_assert, " "not a runtime SG_* check"); \
       if (!(pred)) [[unlikely]] { \
-        ::sg::dbc::check_precondition(msg, __FILE__, __LINE__, #pred); \
+        ::sg::dbc::checkPrecondition(msg, __FILE__, __LINE__, #pred); \
       } \
     } while (false)
 
@@ -485,7 +482,7 @@ inline auto check_assertion(char const (&message)[],
                     "compile-time-evaluable constraint must use " \
                     "static_assert, " "not a runtime SG_* check"); \
       if (!(pred)) [[unlikely]] { \
-        ::sg::dbc::check_postcondition(msg, __FILE__, __LINE__, #pred); \
+        ::sg::dbc::checkPostcondition(msg, __FILE__, __LINE__, #pred); \
       } \
     } while (false)
 
@@ -496,7 +493,7 @@ inline auto check_assertion(char const (&message)[],
                     "compile-time-evaluable constraint must use " \
                     "static_assert, " "not a runtime SG_* check"); \
       if (!(pred)) [[unlikely]] { \
-        ::sg::dbc::check_invariant(msg, __FILE__, __LINE__, #pred); \
+        ::sg::dbc::checkInvariant(msg, __FILE__, __LINE__, #pred); \
       } \
     } while (false)
 
@@ -507,7 +504,7 @@ inline auto check_assertion(char const (&message)[],
                     "compile-time-evaluable constraint must use " \
                     "static_assert, " "not a runtime SG_* check"); \
       if (!(pred)) [[unlikely]] { \
-        ::sg::dbc::check_assertion(msg, __FILE__, __LINE__, #pred); \
+        ::sg::dbc::checkAssertion(msg, __FILE__, __LINE__, #pred); \
       } \
     } while (false)
 #endif

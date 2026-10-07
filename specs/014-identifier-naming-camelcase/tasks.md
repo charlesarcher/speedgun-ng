@@ -131,7 +131,7 @@ FR-013). Umbrella headers `include/speedgun-ng/counters.hpp` and
 `include/speedgun-ng/speedgun-ng.hpp` ride the commit of a header
 they include when a name in that header changes.
 
-- [ ] T004 [US2] Rename owned identifiers in `include/speedgun-ng/dbc.hpp`,
+- [X] T004 [US2] Rename owned identifiers in `include/speedgun-ng/dbc.hpp`,
   `tools/dbc/macros.yaml`, and the compile-fail tests under
   `test/compile-fail/` that name dbc identifiers. Add
   `test/source/dbc_literal_fixture.cpp`, register it in
