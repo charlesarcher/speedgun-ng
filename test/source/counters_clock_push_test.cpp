@@ -61,7 +61,7 @@ auto same_double(const double lhs, const double rhs) -> bool
 
 using sg::counters::Availability;
 using sg::counters::CatalogEntry;
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
@@ -300,7 +300,7 @@ auto open_refusal_scenario() -> void
   check(pushes.open(LeafSet {.addresses = {"other/bytes"}}, where) == nullptr,
         "an address on another object opens no window");
 
-  clock_provider clocks;
+  ClockProvider clocks;
   check(clocks.open(LeafSet {.addresses = {"machine/monotonic"}}, where)
             != nullptr,
         "a published clock leaf opens a window");
@@ -339,15 +339,15 @@ auto open_refusal_scenario() -> void
 auto sample_without_disclosure() -> void
 {
   const Target where {};
-  clock_provider clocks;
-  auto clock_window =
+  ClockProvider clocks;
+  auto ClockWindow =
       clocks.open(LeafSet {.addresses = {"machine/monotonic"}}, where);
-  if (clock_window == nullptr) {
+  if (ClockWindow == nullptr) {
     fail("the monotonic leaf opens with no disclosure column");
   }
   std::vector<std::uint64_t> clock_columns(1, 0);
   PointSink clock_sink(clock_columns.data(), 1, 1, 1, 0);
-  clock_window->readPoints(clock_sink);
+  ClockWindow->readPoints(clock_sink);
   check(clock_columns[0] != 0,
         "a clock sample with no disclosure column still writes the leaf "
         "(FR-007)");
@@ -371,7 +371,7 @@ auto sample_without_disclosure() -> void
 auto main() -> int
 {
   sample_without_disclosure();
-  auto clock = std::make_unique<clock_provider>();
+  auto clock = std::make_unique<ClockProvider>();
   auto push = std::make_unique<push_provider>();
   auto bytes_handle =
       push->add_counter("bytes", "bytes", "hot-path bytes written");

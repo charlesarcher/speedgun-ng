@@ -49,7 +49,7 @@ auto check(const bool cond, const char* what) -> void
 
 using sg::counters::Availability;
 using sg::counters::CatalogEntry;
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::plan;
@@ -320,7 +320,7 @@ auto describe_modes(const std::string& path) -> void
 
 auto main() -> int
 {
-  auto clock = std::make_unique<clock_provider>();
+  auto clock = std::make_unique<ClockProvider>();
   if (!system::local().register_provider(std::move(clock)).has_value()) {
     fail("clock provider registers");
   }

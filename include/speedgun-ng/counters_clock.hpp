@@ -17,7 +17,7 @@ namespace sg::counters
 
 namespace detail
 {
-struct clock_window;
+struct ClockWindow;
 }
 
 /**
@@ -59,7 +59,7 @@ struct clock_window;
  *   the harness takes both endpoints on one thread (FR-031, Principle
  *   VII).
  */
-class SPEEDGUN_NG_EXPORT clock_provider final : public ProviderIface
+class SPEEDGUN_NG_EXPORT ClockProvider final : public ProviderIface
 {
 public:
   /**
@@ -68,7 +68,7 @@ public:
    * \pre none
    * \post none
    */
-  clock_provider();
+  ClockProvider();
 
   /**
    * @brief The released provider state.
@@ -76,12 +76,12 @@ public:
    * \pre none
    * \post none
    */
-  ~clock_provider() override;
+  ~ClockProvider() override;
 
-  clock_provider(const clock_provider&) = delete;
-  clock_provider(clock_provider&&) = delete;
-  auto operator=(const clock_provider&) -> clock_provider& = delete;
-  auto operator=(clock_provider&&) -> clock_provider& = delete;
+  ClockProvider(const ClockProvider&) = delete;
+  ClockProvider(ClockProvider&&) = delete;
+  auto operator=(const ClockProvider&) -> ClockProvider& = delete;
+  auto operator=(ClockProvider&&) -> ClockProvider& = delete;
 
   /**
    * @brief Seeds the machine object with the clock leaves.

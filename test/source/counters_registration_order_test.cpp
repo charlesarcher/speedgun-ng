@@ -31,7 +31,7 @@
 #  error "SG_REGISTRATION_ORDER must name the registration order under test"
 #endif
 
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
@@ -68,7 +68,7 @@ auto same_double(const double left, const double right) -> bool
 auto register_clock() -> void
 {
   if (!system::local()
-           .register_provider(std::make_unique<clock_provider>())
+           .register_provider(std::make_unique<ClockProvider>())
            .has_value())
   {
     fail("the clock provider registers");
