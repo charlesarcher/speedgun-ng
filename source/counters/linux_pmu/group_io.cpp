@@ -181,7 +181,7 @@ auto resolve(const pmu_state& state,
         break;
       }
     }
-    if (found == nullptr || found->avail != availability::countable) {
+    if (found == nullptr || found->avail != Availability::COUNTABLE) {
       return false;
     }
     slot_source source = slot_source::member;
@@ -343,8 +343,8 @@ struct pmu_window final : window_reader
         case slot_source::disclosure:
           sink.put_disclosure(
               slot.disclosure,
-              static_cast<std::uint64_t>(gapped ? availability::gap
-                                                : availability::countable));
+              static_cast<std::uint64_t>(gapped ? Availability::GAP
+                                                : Availability::COUNTABLE));
           break;
       }  // LCOV_EXCL_BR_LINE
     }  // LCOV_EXCL_BR_LINE
@@ -486,8 +486,8 @@ struct pmu_fast_window final : window_reader
         case slot_source::disclosure:
           sink.put_disclosure(
               slot.disclosure,
-              static_cast<std::uint64_t>(gapped ? availability::gap
-                                                : availability::countable));
+              static_cast<std::uint64_t>(gapped ? Availability::GAP
+                                                : Availability::COUNTABLE));
           break;
       }  // LCOV_EXCL_BR_LINE
     }
@@ -540,7 +540,7 @@ auto all_fast(const std::vector<resolved_leaf>& leaves) -> bool
 {
   for (const auto& leaf : leaves) {
     if (leaf.source == slot_source::member
-        && leaf.entry->mode != read_mode::fast_rdpmc)
+        && leaf.entry->mode != ReadMode::FAST_RDPMC)
     {
       return false;
     }

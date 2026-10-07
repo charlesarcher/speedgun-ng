@@ -55,15 +55,15 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-using sg::counters::catalog_entry;
+using sg::counters::CatalogEntry;
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
-using sg::counters::read_mode;
+using sg::counters::ReadMode;
 using sg::counters::system;
 
-using time_dim = dim<1, 0>;
+using time_dim = Dim<1, 0>;
 
 // Consecutive reads the same-thread monotonicity check and the cost
 // distribution share (SC-005).
@@ -74,8 +74,8 @@ constexpr std::size_t kReads = 10'000'000;
 // so the aggregate reaches ten million reads on any host.
 constexpr std::size_t kCrossProcessorReads = 10'000'000;
 
-auto find_entry(const std::vector<catalog_entry>& entries,
-                const std::string_view name) -> const catalog_entry*
+auto find_entry(const std::vector<CatalogEntry>& entries,
+                const std::string_view name) -> const CatalogEntry*
 {
   for (const auto& entry : entries) {
     if (entry.name == name) {
@@ -415,7 +415,7 @@ auto main() -> int
   const auto entries = machine->counters();
   const auto* entry = find_entry(entries, "monotonic_raw");
   check(entry != nullptr, "the catalog lists the leaf (FR-002)");
-  check(entry->mode == read_mode::syscall,
+  check(entry->mode == ReadMode::SYSCALL,
         "the leaf reports the read mode every existing clock counter "
         "carries (FR-002)");
 

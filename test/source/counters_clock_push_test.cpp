@@ -59,28 +59,28 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-using sg::counters::availability;
-using sg::counters::catalog_entry;
+using sg::counters::Availability;
+using sg::counters::CatalogEntry;
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::leaf_set;
 using sg::counters::object;
 using sg::counters::point_sink;
 using sg::counters::push_counter;
 using sg::counters::push_provider;
-using sg::counters::read_mode;
+using sg::counters::ReadMode;
 using sg::counters::scope;
 using sg::counters::system;
 using sg::counters::target;
-using sg::counters::unit;
+using sg::counters::Unit;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
-auto find_entry(const std::vector<catalog_entry>& entries,
-                const std::string_view name) -> const catalog_entry*
+auto find_entry(const std::vector<CatalogEntry>& entries,
+                const std::string_view name) -> const CatalogEntry*
 {
   for (const auto& entry : entries) {
     if (entry.name == name) {
@@ -178,7 +178,7 @@ auto push_exact_scenario(push_counter& bytes_handle) -> void
   const auto folded = bytes.fold(rec.view());
   check(same_double(folded.value, 1000.0),
         "add(1000) between samples folds to exactly 1000");
-  check(same_double(folded.running_ratio, 1.0),
+  check(same_double(folded.runningRatio, 1.0),
         "push fold carries the standard disclosure");
 }
 
@@ -204,7 +204,7 @@ auto byte_rate_scenario(push_counter& bytes_handle) -> void
   check(rate_result.value > 0.0, "the byte rate is positive");
   check(std::fabs(rate_result.value * mono_ns - 3000.0) <= 3.0e-6,
         "rate x window reconstitutes the pushed total");
-  check(same_double(rate_result.running_ratio, 1.0),
+  check(same_double(rate_result.runningRatio, 1.0),
         "the composite carries the standard disclosure");
 }
 
@@ -213,20 +213,20 @@ auto byte_rate_scenario(push_counter& bytes_handle) -> void
 // (specs/008-timestamp-counter FR-001, FR-002). The checks read the
 // entry's own fields, so they hold on a host that publishes a frequency
 // and on this one, which publishes none.
-auto tsc_scenario(const catalog_entry* tsc) -> void
+auto tsc_scenario(const CatalogEntry* tsc) -> void
 {
   if (tsc == nullptr) {
     std::printf("SKIP scenario 5: this build does not execute the "
                 "time-stamp instruction, so no entry is published\n");
     return;
   }
-  check(tsc->mode == read_mode::fast_tsc,
+  check(tsc->mode == ReadMode::FAST_TSC,
         "tsc reports the fast single-instruction read mode (FR-001)");
-  check(tsc->avail == availability::countable,
+  check(tsc->avail == Availability::COUNTABLE,
         "the raw tsc entry is countable (FR-002)");
-  check(tsc->unit == unit::none,
+  check(tsc->unit == Unit::NONE,
         "the raw tsc entry carries a count, not a duration (FR-002)");
-  check(tsc->frequency_hz == 0,
+  check(tsc->frequencyHz == 0,
         "the raw tsc entry attaches no frequency (FR-002)");
   check(!tsc->scaled, "the raw tsc entry attaches no scaled flag (FR-002)");
   check(contains(tsc->description, "raw"),
@@ -245,15 +245,15 @@ auto catalog_scenario() -> void
   for (std::string_view name : {"monotonic", "thread_cpu", "process_cpu"}) {
     const auto* entry = find_entry(entries, name);
     check(entry != nullptr, "machine lists the clock leaf");
-    check(entry->avail == availability::countable, "clock leaf is countable");
-    check(entry->mode == read_mode::syscall,
+    check(entry->avail == Availability::COUNTABLE, "clock leaf is countable");
+    check(entry->mode == ReadMode::SYSCALL,
           "clock leaf reports the syscall read mode");
     check(!entry->description.empty(), "clock leaf is described");
   }
   const auto* bytes = find_entry(entries, "bytes");
   check(bytes != nullptr, "machine lists the push counter");
-  check(bytes->avail == availability::countable, "push counter is countable");
-  check(bytes->mode == read_mode::push_load,
+  check(bytes->avail == Availability::COUNTABLE, "push counter is countable");
+  check(bytes->mode == ReadMode::PUSH_LOAD,
         "push counter reports the push-load read mode");
   check(!bytes->description.empty(), "push counter is described");
 

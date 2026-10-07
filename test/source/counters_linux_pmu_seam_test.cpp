@@ -70,10 +70,10 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-using sg::counters::availability;
+using sg::counters::Availability;
 using sg::counters::leaf_set;
 using sg::counters::point_sink;
-using sg::counters::read_mode;
+using sg::counters::ReadMode;
 using sg::counters::target;
 using sg::counters::detail::alias_description;
 using sg::counters::detail::fast_read_verdict;
@@ -2326,36 +2326,36 @@ auto synthetic_state() -> pmu_state
   device.has_time_pair = true;
   const auto entry = [](const std::string& name,
                         const std::vector<std::pair<int, std::uint64_t>>& words,
-                        const availability state_value)
+                        const Availability state_value)
   {
     pmu_entry one;
     one.name = name;
     one.description = "synthetic " + name;
     one.words = words;
     one.avail = state_value;
-    one.mode = read_mode::syscall;
+    one.mode = ReadMode::SYSCALL;
     return one;
   };
   device.entries.push_back(entry(
-      "work", {{0, PERF_COUNT_HW_INSTRUCTIONS}}, availability::countable));
+      "work", {{0, PERF_COUNT_HW_INSTRUCTIONS}}, Availability::COUNTABLE));
   device.entries.push_back(
-      entry("cycle", {{0, PERF_COUNT_HW_CPU_CYCLES}}, availability::countable));
+      entry("cycle", {{0, PERF_COUNT_HW_CPU_CYCLES}}, Availability::COUNTABLE));
   // Config words 1 and 2 reach the fill_attr switch arms a core-PMU type
   // never carries.
-  device.entries.push_back(entry("word1", {{1, 1}}, availability::countable));
-  device.entries.push_back(entry("word2", {{2, 1}}, availability::countable));
+  device.entries.push_back(entry("word1", {{1, 1}}, Availability::COUNTABLE));
+  device.entries.push_back(entry("word2", {{2, 1}}, Availability::COUNTABLE));
   device.entries.push_back(entry(
-      "fast", {{0, PERF_COUNT_HW_INSTRUCTIONS}}, availability::countable));
-  device.entries.back().mode = read_mode::fast_rdpmc;
+      "fast", {{0, PERF_COUNT_HW_INSTRUCTIONS}}, Availability::COUNTABLE));
+  device.entries.back().mode = ReadMode::FAST_RDPMC;
   device.entries.push_back(
-      entry("blocked", {{0, 1}}, availability::permission_blocked));
+      entry("blocked", {{0, 1}}, Availability::PERMISSION_BLOCKED));
   for (const char* pair : {"enabled", "running"}) {
     pmu_entry one;
     one.name = pair;
     one.description = "synthetic time pair";
     one.is_time_pair = true;
-    one.avail = availability::countable;
-    one.mode = read_mode::syscall;
+    one.avail = Availability::COUNTABLE;
+    one.mode = ReadMode::SYSCALL;
     device.entries.push_back(std::move(one));
   }
   state.devices.push_back(std::move(device));
@@ -2410,7 +2410,7 @@ auto window_refusal_scenario() -> void
   const bool granted =
       sg::counters::detail::pmu_probe(
           state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, where)
-      == availability::countable;
+      == Availability::COUNTABLE;
   const auto disclosed = sg::counters::detail::pmu_open_window(
       state, disclosing_leaf_set_of({"cpu/work"}, 1), where);
   check((disclosed != nullptr) == granted,
@@ -2450,7 +2450,7 @@ auto group_open_scenario() -> void
   for (const auto& [leaf, words] : cases) {
     const bool granted =
         sg::counters::detail::pmu_probe(state.devices[0].type, words, target {})
-        == availability::countable;
+        == Availability::COUNTABLE;
     const auto window = sg::counters::detail::pmu_open_window(
         state, leaf_set_of({leaf}), where);
     check((window != nullptr) == granted,
@@ -2465,7 +2465,7 @@ auto group_open_scenario() -> void
   const bool pair_granted =
       sg::counters::detail::pmu_probe(
           state.devices[0].type, {{0, PERF_COUNT_HW_CPU_CYCLES}}, target {})
-      == availability::countable;
+      == Availability::COUNTABLE;
   check(
       (pair != nullptr) == pair_granted,
       "a member beside the enabled leaf agrees with the availability " "probe");
@@ -2511,10 +2511,10 @@ auto group_open_scenario() -> void
   const bool duo_granted =
       sg::counters::detail::pmu_probe(
           state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, target {})
-          == availability::countable
+          == Availability::COUNTABLE
       && sg::counters::detail::pmu_probe(
              state.devices[0].type, {{0, PERF_COUNT_HW_CPU_CYCLES}}, target {})
-          == availability::countable;
+          == Availability::COUNTABLE;
   check(
       (duo != nullptr) == duo_granted,
       "a two-member group opens exactly when the probe grants both " "configs");
@@ -2549,7 +2549,7 @@ auto fast_branch_scenario() -> void
   const bool granted =
       sg::counters::detail::pmu_probe(
           state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, target {})
-      == availability::countable;
+      == Availability::COUNTABLE;
   const auto fast = sg::counters::detail::pmu_open_fast_window(
       state, leaf_set_of({"cpu/fast"}), where);
   std::printf("seam: the synthetic fast-capable open returned %s\n",
@@ -2615,10 +2615,10 @@ auto fast_branch_scenario() -> void
 // (FR-021, FR-022, FR-046).
 auto probe_kind_record_scenario() -> void
 {
-  using sg::counters::target_cpu_bit;
+  using sg::counters::kTargetCpuBit;
+  using sg::counters::kTargetThreadBit;
   using sg::counters::target_kind;
-  using sg::counters::target_mask;
-  using sg::counters::target_thread_bit;
+  using sg::counters::TargetMask;
   using sg::counters::detail::note_probed_kinds;
   using sg::counters::detail::pmu_probe;
   using sg::counters::detail::probed_kinds_at;
@@ -2627,16 +2627,16 @@ auto probe_kind_record_scenario() -> void
   const std::vector<std::pair<int, std::uint64_t>> words {
       {0, PERF_COUNT_HW_INSTRUCTIONS},
   };
-  const target_mask counted = (pmu_probe(PERF_TYPE_HARDWARE, words, target {})
-                                       == availability::countable
-                                   ? target_thread_bit
-                                   : target_mask {})
+  const TargetMask counted = (pmu_probe(PERF_TYPE_HARDWARE, words, target {})
+                                      == Availability::COUNTABLE
+                                  ? kTargetThreadBit
+                                  : TargetMask {})
       | (pmu_probe(PERF_TYPE_HARDWARE,
                    words,
                    target {.kind = target_kind::cpu, .cpu = 0})
-                 == availability::countable
-             ? target_cpu_bit
-             : target_mask {});
+                 == Availability::COUNTABLE
+             ? kTargetCpuBit
+             : TargetMask {});
   const std::string description = "a hardware event the seam probes";
 
   // The core event source counts a thread's own events, so its entries run
@@ -2675,17 +2675,17 @@ auto probe_kind_record_scenario() -> void
       .words = words,
   });
   probe_device(scoped, /*fast_capable=*/false);
-  check(scoped.entries.front().probed_kinds == (counted & target_cpu_bit),
+  check(scoped.entries.front().probed_kinds == (counted & kTargetCpuBit),
         "a device-scoped entry consults no per-task probe, so its record "
         "names the cpu kind alone (FR-021, FR-022)");
 
   // The carrier the catalog reads, keyed by the address the system gives a
   // seeded leaf.
-  note_probed_kinds("record/core/record", target_cpu_bit);
-  check(probed_kinds_at("record/core/record") == target_cpu_bit,
+  note_probed_kinds("record/core/record", kTargetCpuBit);
+  check(probed_kinds_at("record/core/record") == kTargetCpuBit,
         "the kinds recorded for a leaf address read back where the catalog "
         "looks for them (FR-021)");
-  check(probed_kinds_at("no/such/leaf") == target_mask {},
+  check(probed_kinds_at("no/such/leaf") == TargetMask {},
         "an address no event source probed names no kind, which is the "
         "answer for every leaf the availability probe never reached (FR-021)");
 }
@@ -2696,33 +2696,33 @@ auto probe_kind_record_scenario() -> void
 // which maps each one to the mode and pair it publishes (FR-022, FR-024).
 auto read_mode_selection_scenario() -> void
 {
-  using sg::counters::availability;
+  using sg::counters::Availability;
   using sg::counters::detail::entry_read_selection_for;
 
   const auto fast_countable =
-      entry_read_selection_for(availability::countable, true);
-  check(fast_countable.mode == sg::counters::read_mode::fast_rdpmc,
+      entry_read_selection_for(Availability::COUNTABLE, true);
+  check(fast_countable.mode == sg::counters::ReadMode::FAST_RDPMC,
         "a countable entry takes the fast mode where the device supports "
         "it (FR-022)");
   check(fast_countable.publish_pair,
         "a countable entry publishes its pair (FR-022)");
 
   const auto slow_countable =
-      entry_read_selection_for(availability::countable, false);
-  check(slow_countable.mode == sg::counters::read_mode::syscall,
+      entry_read_selection_for(Availability::COUNTABLE, false);
+  check(slow_countable.mode == sg::counters::ReadMode::SYSCALL,
         "a countable entry takes the syscall mode where the device has no "
         "fast read (FR-022)");
   check(slow_countable.publish_pair,
         "a countable entry publishes its pair on either mode (FR-022)");
 
-  for (const auto state : {availability::permission_blocked,
-                           availability::not_encodable,
-                           availability::absent,
-                           availability::scope_refused,
-                           availability::gap})
+  for (const auto state : {Availability::PERMISSION_BLOCKED,
+                           Availability::NOT_ENCODABLE,
+                           Availability::ABSENT,
+                           Availability::SCOPE_REFUSED,
+                           Availability::GAP})
   {
     const auto selection = entry_read_selection_for(state, true);
-    check(selection.mode == sg::counters::read_mode::syscall
+    check(selection.mode == sg::counters::ReadMode::SYSCALL
               && !selection.publish_pair,
           "every state but countable takes the syscall mode and publishes "
           "no pair (FR-022)");
@@ -2842,8 +2842,8 @@ auto per_device_fast_plan_scenario() -> void
   blocked.name = "uncore_count";
   blocked.description = "synthetic refused page";
   blocked.words.emplace_back(0, PERF_COUNT_HW_INSTRUCTIONS);
-  blocked.avail = availability::countable;
-  blocked.mode = read_mode::syscall;
+  blocked.avail = Availability::COUNTABLE;
+  blocked.mode = ReadMode::SYSCALL;
   refused.entries.push_back(std::move(blocked));
   state.devices.push_back(std::move(refused));
 
@@ -2851,11 +2851,11 @@ auto per_device_fast_plan_scenario() -> void
   const auto fast = std::ranges::find_if(granted.entries,
                                          [](const pmu_entry& entry)
                                          { return entry.name == "fast"; });
-  check(fast != granted.entries.end() && fast->mode == read_mode::fast_rdpmc,
+  check(fast != granted.entries.end() && fast->mode == ReadMode::FAST_RDPMC,
         "the granting device publishes fast_rdpmc on its fast entry");
-  check(state.devices.back().entries.front().mode == read_mode::syscall,
+  check(state.devices.back().entries.front().mode == ReadMode::SYSCALL,
         "the refused device publishes the syscall mode");
-  check(state.devices.back().entries.front().avail != availability::gap,
+  check(state.devices.back().entries.front().avail != Availability::GAP,
         "the refused device records no gap");
 
   const target where {};
@@ -2863,7 +2863,7 @@ auto per_device_fast_plan_scenario() -> void
             state, leaf_set_of({"cpu/fast", "uncore/uncore_count"}), where)
             == nullptr,
         "a plan over a refused device opens no fast window");
-  check(state.devices.back().entries.front().avail == availability::countable,
+  check(state.devices.back().entries.front().avail == Availability::COUNTABLE,
         "the refused device stays countable. The open records no gap");
 }
 
@@ -2900,7 +2900,7 @@ auto hybrid_device_scope_scenario() -> void
     cycles.words.emplace_back(0, 0);
     probed.entries.push_back(std::move(cycles));
     probe_device(probed, false);
-    check(probed.entries.front().avail != availability::scope_refused,
+    check(probed.entries.front().avail != Availability::SCOPE_REFUSED,
           "a hybrid entry takes the per-task probe, so a refused cpu probe "
           "does not publish scope_refused (FR-016)");
   }
@@ -3197,7 +3197,7 @@ auto unpublished_device_probe_scenario() -> void
       .words = {{0, 0}},
   });
   probe_device(device, false);
-  check(device.entries.front().avail != availability::countable,
+  check(device.entries.front().avail != Availability::COUNTABLE,
         "an entry on an unpublished PMU type settles on its refusal");
   check(!device.has_time_pair,
         "a device whose every probe is refused discloses no time pair");
@@ -3217,17 +3217,17 @@ auto device_scope_probe_scenario() -> void
   using sg::counters::detail::scope_settled_state;
 
   for (const auto verdict : {
-           availability::countable,
-           availability::permission_blocked,
-           availability::not_encodable,
-           availability::absent,
-           availability::scope_refused,
-           availability::gap,
+           Availability::COUNTABLE,
+           Availability::PERMISSION_BLOCKED,
+           Availability::NOT_ENCODABLE,
+           Availability::ABSENT,
+           Availability::SCOPE_REFUSED,
+           Availability::GAP,
        })
   {
     check(scope_settled_state(verdict, true)
-              == (verdict == availability::permission_blocked
-                      ? availability::scope_refused
+              == (verdict == Availability::PERMISSION_BLOCKED
+                      ? Availability::SCOPE_REFUSED
                       : verdict),
           "a device-scoped device publishes the scope's own refusal for a "
           "permission verdict and every other verdict unchanged (FR-021, "
@@ -3248,8 +3248,8 @@ auto device_scope_probe_scenario() -> void
   });
   const std::vector<std::pair<int, std::uint64_t>> words =
       scoped.entries.front().words;
-  const availability per_task = pmu_probe(scoped.type, words, target {});
-  const availability on_cpu = pmu_probe(
+  const Availability per_task = pmu_probe(scoped.type, words, target {});
+  const Availability on_cpu = pmu_probe(
       scoped.type, words, target {.kind = target_kind::cpu, .cpu = 0});
   probe_device(scoped, false);
   check(scoped.entries.front().avail == scope_settled_state(on_cpu, true),
@@ -3269,11 +3269,11 @@ auto device_scope_probe_scenario() -> void
   });
   probe_device(unscoped, false);
   check(unscoped.entries.front().avail
-            == (on_cpu == availability::countable ? availability::countable
+            == (on_cpu == Availability::COUNTABLE ? Availability::COUNTABLE
                                                   : per_task),
         "an unscoped device publishes the per-task probe's own verdict, so "
         "both of the kernel's answers are named here (FR-021, FR-022)");
-  if (on_cpu != availability::countable && per_task != on_cpu) {
+  if (on_cpu != Availability::COUNTABLE && per_task != on_cpu) {
     check(scoped.entries.front().avail != unscoped.entries.front().avail,
           "a device-scoped device consults no per-task probe: where the two "
           "probes disagree it publishes the scope's answer and not the "
@@ -3296,37 +3296,36 @@ auto device_scope_probe_scenario() -> void
 // FR-022, FR-046).
 auto settled_target_mask_scenario() -> void
 {
-  using sg::counters::target_cpu_bit;
-  using sg::counters::target_mask;
-  using sg::counters::target_thread_bit;
+  using sg::counters::kTargetCpuBit;
+  using sg::counters::kTargetThreadBit;
+  using sg::counters::TargetMask;
   using sg::counters::detail::probed_kind_mask;
   using sg::counters::detail::settled_targets;
 
   // Every pair of probe verdicts, so each kind's bit is driven on both of
   // its arcs and against every state the other kind can answer with.
   for (const auto per_task : {
-           availability::countable,
-           availability::permission_blocked,
-           availability::not_encodable,
-           availability::absent,
-           availability::scope_refused,
-           availability::gap,
+           Availability::COUNTABLE,
+           Availability::PERMISSION_BLOCKED,
+           Availability::NOT_ENCODABLE,
+           Availability::ABSENT,
+           Availability::SCOPE_REFUSED,
+           Availability::GAP,
        })
   {
     for (const auto on_cpu : {
-             availability::countable,
-             availability::permission_blocked,
-             availability::not_encodable,
-             availability::absent,
-             availability::scope_refused,
-             availability::gap,
+             Availability::COUNTABLE,
+             Availability::PERMISSION_BLOCKED,
+             Availability::NOT_ENCODABLE,
+             Availability::ABSENT,
+             Availability::SCOPE_REFUSED,
+             Availability::GAP,
          })
     {
-      const target_mask expected =
-          (per_task == availability::countable ? target_thread_bit
-                                               : target_mask {})
-          | (on_cpu == availability::countable ? target_cpu_bit
-                                               : target_mask {});
+      const TargetMask expected =
+          (per_task == Availability::COUNTABLE ? kTargetThreadBit
+                                               : TargetMask {})
+          | (on_cpu == Availability::COUNTABLE ? kTargetCpuBit : TargetMask {});
       check(probed_kind_mask(per_task, on_cpu) == expected,
             "a kind's bit is named exactly where that kind's own probe "
             "settled the entry, whatever the other probe answered (FR-021, "
@@ -3335,70 +3334,70 @@ auto settled_target_mask_scenario() -> void
   }
 
   for (const auto state : {
-           availability::permission_blocked,
-           availability::not_encodable,
-           availability::absent,
-           availability::scope_refused,
-           availability::gap,
+           Availability::PERMISSION_BLOCKED,
+           Availability::NOT_ENCODABLE,
+           Availability::ABSENT,
+           Availability::SCOPE_REFUSED,
+           Availability::GAP,
        })
   {
-    check(settled_targets(state, target_mask {}, "pmu", "uncore_imc") == 0,
+    check(settled_targets(state, TargetMask {}, "pmu", "uncore_imc") == 0,
           "a refused entry names no target kind on a device that binds one "
           "processor for every task (FR-021)");
-    check(settled_targets(state, target_mask {}, "machine", "machine") == 0,
+    check(settled_targets(state, TargetMask {}, "machine", "machine") == 0,
           "a refused entry names no target kind on an object no event "
           "provider seeded (FR-021)");
   }
 
-  check(settled_targets(availability::countable,
-                        target_mask {},
+  check(settled_targets(Availability::COUNTABLE,
+                        TargetMask {},
                         "machine",
                         "machine")
-            == (target_thread_bit | target_cpu_bit),
+            == (kTargetThreadBit | kTargetCpuBit),
         "a countable entry on an object no event provider seeded names both "
         "kinds (FR-021)");
 
   for (const auto* path : {"cpu", "cpu_core", "cpu_atom"}) {
-    check(settled_targets(availability::countable, target_mask {}, "pmu", path)
-              == (target_thread_bit | target_cpu_bit),
+    check(settled_targets(Availability::COUNTABLE, TargetMask {}, "pmu", path)
+              == (kTargetThreadBit | kTargetCpuBit),
           "a countable leaf no probe settled names both kinds on a core "
           "device path, a hybrid per-core instance counting a thread's own "
           "events (FR-021, FR-022)");
   }
 
-  check(settled_targets(availability::countable,
-                        target_mask {},
+  check(settled_targets(Availability::COUNTABLE,
+                        TargetMask {},
                         "pmu",
                         "uncore_imc")
-            == target_cpu_bit,
+            == kTargetCpuBit,
         "a countable leaf no probe settled names the cpu kind alone on a "
         "device that binds one processor for every task (FR-021, FR-022)");
 
   // The per-kind verdicts, which is the answer on a host whose cpu-targeted
   // probe is refused: the record names the kinds the probes settled and no
   // others, so the object's scope adds nothing to it.
-  check(settled_targets(availability::countable,
-                        target_thread_bit,
+  check(settled_targets(Availability::COUNTABLE,
+                        kTargetThreadBit,
                         "pmu",
                         "cpu")
-            == target_thread_bit,
+            == kTargetThreadBit,
         "an entry the cpu-targeted probe refused names no cpu bit on a core "
         "device, so the mask states the probe's own verdicts (FR-021)");
-  check(settled_targets(availability::countable, target_cpu_bit, "pmu", "cpu")
-            == target_cpu_bit,
+  check(settled_targets(Availability::COUNTABLE, kTargetCpuBit, "pmu", "cpu")
+            == kTargetCpuBit,
         "an entry the per-task probe refused names the cpu bit alone, the "
         "core device scope notwithstanding (FR-021)");
-  check(settled_targets(availability::countable,
-                        target_thread_bit | target_cpu_bit,
+  check(settled_targets(Availability::COUNTABLE,
+                        kTargetThreadBit | kTargetCpuBit,
                         "pmu",
                         "cpu")
-            == (target_thread_bit | target_cpu_bit),
+            == (kTargetThreadBit | kTargetCpuBit),
         "an entry both probes counted names both kinds (FR-021)");
-  check(settled_targets(availability::countable,
-                        target_cpu_bit,
+  check(settled_targets(Availability::COUNTABLE,
+                        kTargetCpuBit,
                         "pmu",
                         "uncore_imc")
-            == target_cpu_bit,
+            == kTargetCpuBit,
         "a device-scoped entry names the cpu kind its own probe settled and "
         "nothing else (FR-021, FR-022)");
 }
@@ -3417,24 +3416,24 @@ auto availability_gate_scenario() -> void
   using sg::counters::detail::availability_gate_passes;
 
   for (const auto state : {
-           availability::permission_blocked,
-           availability::not_encodable,
-           availability::absent,
-           availability::scope_refused,
-           availability::gap,
+           Availability::PERMISSION_BLOCKED,
+           Availability::NOT_ENCODABLE,
+           Availability::ABSENT,
+           Availability::SCOPE_REFUSED,
+           Availability::GAP,
        })
   {
     check(!availability_gate_passes(state, target_kind::thread),
           "a state no probe settled refuses a per-task request (FR-024)");
     check(availability_gate_passes(state, target_kind::cpu)
-              == (state == availability::scope_refused),
+              == (state == Availability::SCOPE_REFUSED),
           "a scope-refused entry lets a cpu request past the gate and every "
           "other state refuses it (FR-021, FR-022, FR-024)");
   }
 
-  check(availability_gate_passes(availability::countable, target_kind::thread),
+  check(availability_gate_passes(Availability::COUNTABLE, target_kind::thread),
         "a countable entry lets a per-task request past the gate (FR-024)");
-  check(availability_gate_passes(availability::countable, target_kind::cpu),
+  check(availability_gate_passes(Availability::COUNTABLE, target_kind::cpu),
         "a countable entry lets a cpu request past the gate (FR-024)");
 }
 
@@ -3466,7 +3465,7 @@ auto clock_disclosure_scenario() -> void
   std::array<std::uint64_t, column_count> disclosed {unwritten, unwritten};
   point_sink disclosed_sink(disclosed.data(), 1, column_count, row_stride, 0);
   with_column->read_points(disclosed_sink);
-  check(disclosed[1] == static_cast<std::uint64_t>(availability::countable),
+  check(disclosed[1] == static_cast<std::uint64_t>(Availability::COUNTABLE),
         "the window that names a disclosure column discloses the clock "
         "leaf's own countability value (FR-007)");
 

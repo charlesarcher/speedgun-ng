@@ -59,21 +59,21 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-using sg::counters::availability;
-using sg::counters::catalog_entry;
+using sg::counters::Availability;
+using sg::counters::CatalogEntry;
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::object;
 using sg::counters::pmu_provider;
 using sg::counters::push_provider;
-using sg::counters::read_mode;
+using sg::counters::ReadMode;
 using sg::counters::scope;
 using sg::counters::system;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
 
@@ -81,8 +81,8 @@ constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
 // in scenario 4 has a hand-computed count to compare (SC-002).
 constexpr std::size_t kDeclaredPushLeaves = 2;
 
-auto find_entry(const std::vector<catalog_entry>& entries,
-                const std::string_view name) -> const catalog_entry*
+auto find_entry(const std::vector<CatalogEntry>& entries,
+                const std::string_view name) -> const CatalogEntry*
 {
   for (const auto& entry : entries) {
     if (entry.name == name) {
@@ -262,10 +262,10 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
       // already refused, so a caller can tell the two refusals apart; an
       // absent object is never seeded, and `gap` is a property of one
       // sampling action (FR-021, FR-039).
-      check(entry.avail == availability::countable
-                || entry.avail == availability::permission_blocked
-                || entry.avail == availability::not_encodable
-                || entry.avail == availability::scope_refused,
+      check(entry.avail == Availability::COUNTABLE
+                || entry.avail == Availability::PERMISSION_BLOCKED
+                || entry.avail == Availability::NOT_ENCODABLE
+                || entry.avail == Availability::SCOPE_REFUSED,
             "every pmu entry reports a probed availability state");
     }
     // Kernel-wins conflict check: a sysfs alias present in the
@@ -304,20 +304,20 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
 // The availability enumeration's values, pinned. A new target kind takes
 // the next free bit, and this assertion is what shows that adding one
 // left every existing value where it stood (FR-021).
-static_assert(static_cast<std::uint8_t>(availability::countable) == 0);
-static_assert(static_cast<std::uint8_t>(availability::permission_blocked) == 1);
-static_assert(static_cast<std::uint8_t>(availability::not_encodable) == 2);
-static_assert(static_cast<std::uint8_t>(availability::absent) == 3);
-static_assert(static_cast<std::uint8_t>(availability::scope_refused) == 4);
-static_assert(static_cast<std::uint8_t>(availability::gap) == 5);
+static_assert(static_cast<std::uint8_t>(Availability::COUNTABLE) == 0);
+static_assert(static_cast<std::uint8_t>(Availability::PERMISSION_BLOCKED) == 1);
+static_assert(static_cast<std::uint8_t>(Availability::NOT_ENCODABLE) == 2);
+static_assert(static_cast<std::uint8_t>(Availability::ABSENT) == 3);
+static_assert(static_cast<std::uint8_t>(Availability::SCOPE_REFUSED) == 4);
+static_assert(static_cast<std::uint8_t>(Availability::GAP) == 5);
 
 // The target-kind mask is a fixed-size unsigned integer, so reading an
 // entry's targets allocates nothing and needs no container (FR-021).
-static_assert(sizeof(sg::counters::target_mask) == sizeof(std::uint32_t));
-static_assert(sg::counters::target_thread_bit == 1U);
-static_assert(sg::counters::target_cpu_bit == 2U);
+static_assert(sizeof(sg::counters::TargetMask) == sizeof(std::uint32_t));
+static_assert(sg::counters::kTargetThreadBit == 1U);
+static_assert(sg::counters::kTargetCpuBit == 2U);
 static_assert(
-    std::is_same_v<sg::counters::target_mask, std::uint32_t>,
+    std::is_same_v<sg::counters::TargetMask, std::uint32_t>,
     "the mask is one fixed-size integer and no container " "(FR-021)");
 
 auto availability_scenario(const std::vector<const object*>& pmu_objects)
@@ -332,7 +332,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   const auto machine = *system::local().object("machine");
   const auto machine_entries = machine.counters();
   const auto* mono = find_entry(machine_entries, "monotonic");
-  check(mono != nullptr && mono->avail == availability::countable,
+  check(mono != nullptr && mono->avail == Availability::COUNTABLE,
         "clock leaf stays countable beside the PMU provider (SC-002)");
 
   // Scenario 4 names the push counters beside the clocks: with the pmu
@@ -341,11 +341,11 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   std::size_t push_leaves = 0;
   std::size_t countable_push = 0;
   for (const auto& entry : machine_entries) {
-    if (entry.mode != read_mode::push_load) {
+    if (entry.mode != ReadMode::PUSH_LOAD) {
       continue;
     }
     ++push_leaves;
-    if (entry.avail == availability::countable) {
+    if (entry.avail == Availability::COUNTABLE) {
       ++countable_push;
     }
   }
@@ -365,27 +365,27 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   for (const object* obj : pmu_objects) {
     for (const auto& entry : obj->counters()) {
       switch (entry.avail) {
-        case availability::countable:
+        case Availability::COUNTABLE:
           ++countable;
           break;
-        case availability::permission_blocked:
+        case Availability::PERMISSION_BLOCKED:
           ++blocked;
           break;
-        case availability::not_encodable:
+        case Availability::NOT_ENCODABLE:
           ++unencodable;
           break;
-        case availability::scope_refused:
+        case Availability::SCOPE_REFUSED:
           ++scope_refused;
           break;
-        case availability::absent:
+        case Availability::ABSENT:
           fail("absent is never seeded by the provider");
           break;
-        case availability::gap:
+        case Availability::GAP:
           fail("gap is a property of one sampling action, never of an "
                "entry (FR-021)");
           break;
       }
-      if (entry.mode == read_mode::fast_rdpmc) {
+      if (entry.mode == ReadMode::FAST_RDPMC) {
         ++fast;
       }
     }
@@ -406,16 +406,16 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   for (const object* obj : pmu_objects) {
     for (const auto& entry : obj->counters()) {
       ++entries_seen;
-      if (entry.avail == availability::gap) {
+      if (entry.avail == Availability::GAP) {
         ++gaps;
       }
-      if (entry.targets == sg::counters::target_cpu_bit) {
+      if (entry.targets == sg::counters::kTargetCpuBit) {
         ++cpu_only;
       }
-      const bool settled = entry.avail == availability::countable;
-      const sg::counters::target_mask defined_bits =
-          sg::counters::target_thread_bit | sg::counters::target_cpu_bit;
-      check(settled == (entry.targets != sg::counters::target_mask {0}),
+      const bool settled = entry.avail == Availability::COUNTABLE;
+      const sg::counters::TargetMask defined_bits =
+          sg::counters::kTargetThreadBit | sg::counters::kTargetCpuBit;
+      check(settled == (entry.targets != sg::counters::TargetMask {0}),
             "a published entry names the target kinds the probe settled it "
             "on: a countable entry names at least one, and every other state "
             "names none (FR-021)");
@@ -439,7 +439,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
         "no catalog entry publishes availability::gap, so the per-action "
         "gap rides the plan's disclosure column and no entry (FR-007)");
 
-  std::printf("pmu availability: %zu countable, %zu permission_blocked, "
+  std::printf("pmu Availability: %zu countable, %zu permission_blocked, "
               "%zu not_encodable, %zu scope_refused, %zu fast_rdpmc\n",
               countable,
               blocked,
@@ -514,7 +514,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
     const bool device_scoped =
         path != "cpu" && path != "cpu_core" && path != "cpu_atom";
     for (const auto& entry : obj->counters()) {
-      if (entry.avail != availability::scope_refused) {
+      if (entry.avail != Availability::SCOPE_REFUSED) {
         continue;
       }
       check(device_scoped,
@@ -522,10 +522,10 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
             "processor for every task, which no encoding refusal can "
             "reproduce (FR-021)");
       const auto leaf = obj->counter<events>(entry.name);
-      check(leaf.has_value() && leaf->avail() == availability::scope_refused,
+      check(leaf.has_value() && leaf->avail() == Availability::SCOPE_REFUSED,
             "the resolved handle carries the scope refusal the catalog "
             "published, so a caller can branch on it (FR-021)");
-      check(entry.targets == sg::counters::target_mask {0},
+      check(entry.targets == sg::counters::TargetMask {0},
             "a scope-refused entry names no target bit, the shape every "
             "state but countable publishes (FR-021)");
     }
@@ -548,9 +548,9 @@ auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
   for (const object* obj : pmu_objects) {
     const auto entries = obj->counters();
     for (const auto& entry : entries) {
-      if (entry.avail != availability::countable
-          || (entry.mode != read_mode::fast_rdpmc
-              && entry.mode != read_mode::syscall))
+      if (entry.avail != Availability::COUNTABLE
+          || (entry.mode != ReadMode::FAST_RDPMC
+              && entry.mode != ReadMode::SYSCALL))
       {
         continue;
       }
@@ -643,7 +643,7 @@ auto group_read_scenario() -> void
   {
     for (std::size_t index = 0; index < count; ++index) {
       const auto* entry = find_entry(entries, names[index]);
-      if (entry != nullptr && entry->avail == availability::countable) {
+      if (entry != nullptr && entry->avail == Availability::COUNTABLE) {
         return std::string(names[index]);
       }
     }
@@ -654,7 +654,7 @@ auto group_read_scenario() -> void
   if (!name_a.empty() && name_b.empty()) {
     // A cycle counter outside the list, distinct from the work counter.
     for (const auto& entry : entries) {
-      if (entry.avail == availability::countable && entry.name != name_a) {
+      if (entry.avail == Availability::COUNTABLE && entry.name != name_a) {
         name_b = std::string(entry.name);
         break;
       }
@@ -722,7 +722,7 @@ auto group_read_scenario() -> void
   {
     for (const auto& entry : entries) {
       if (entry.name == name_a) {
-        return entry.mode == read_mode::fast_rdpmc;
+        return entry.mode == ReadMode::FAST_RDPMC;
       }
     }
     return false;
@@ -744,8 +744,8 @@ auto group_read_scenario() -> void
               / static_cast<double>(delta_enabled));
   // Privileged multiplex evidence (ratio below 1 under contention)
   // is scenario 6 below.
-  std::printf("fold disclosure: running_ratio %f, scaled %d\n",
-              metric.running_ratio,
+  std::printf("fold disclosure: runningRatio %f, scaled %d\n",
+              metric.runningRatio,
               metric.scaled ? 1 : 0);
 }
 
@@ -797,7 +797,7 @@ auto multiplex_scenario() -> void
     if (members.size() == kOversubscribe) {
       break;
     }
-    if (entry.avail != availability::countable) {
+    if (entry.avail != Availability::COUNTABLE) {
       continue;
     }
     const auto leaf = cpu.counter<events>(entry.name);
@@ -831,7 +831,7 @@ auto multiplex_scenario() -> void
   burn_cpu_short();
   window.finish();
   const auto metric = window.metric(composite);
-  const double observed = metric.running_ratio;
+  const double observed = metric.runningRatio;
 
   // The pair is the ground truth, and the obligation FR-041 states is that
   // running time never exceeds enabled time and that the fold derives its
@@ -858,7 +858,7 @@ auto multiplex_scenario() -> void
       : static_cast<double>(on_cpu) / static_cast<double>(elapsed);
   std::printf("scenario 6: %zu events opened against this PMU; enabled "
               "advanced %llu ns, running advanced %llu ns, so the kernel ran "
-              "them %f of the time; the composite discloses running_ratio "
+              "them %f of the time; the composite discloses runningRatio "
               "%f with scaled %d\n",
               members.size(),
               static_cast<unsigned long long>(elapsed),
@@ -901,7 +901,7 @@ auto cpu_target_scenario() -> void
   const auto entries = cpu.counters();
   std::string work;
   for (const auto& entry : entries) {
-    if (entry.avail == availability::countable
+    if (entry.avail == Availability::COUNTABLE
         && (entry.name == "instructions" || entry.name == "ex_ret_instr"))
     {
       work = std::string(entry.name);
@@ -952,7 +952,7 @@ auto scope_refused_cpu_target_scenario(
   std::string refused_name;
   for (const object* obj : pmu_objects) {
     for (const auto& entry : obj->counters()) {
-      if (entry.avail == availability::scope_refused) {
+      if (entry.avail == Availability::SCOPE_REFUSED) {
         refused_on = obj;
         refused_name = std::string(entry.name);
         break;
@@ -982,7 +982,7 @@ auto scope_refused_cpu_target_scenario(
   check(leaf.has_value(),
         "a scope-refused entry still resolves; the state rides the handle "
         "(FR-007)");
-  check(leaf->avail() == availability::scope_refused,
+  check(leaf->avail() == Availability::SCOPE_REFUSED,
         "the resolved handle carries the published scope refusal (FR-022)");
   const expression<events> over {*leaf};
   const sg::counters::target pinned {.kind = sg::counters::target_kind::cpu,
@@ -1046,7 +1046,7 @@ auto unavailable_leaf_scenario() -> void
   const auto entries = cpu.counters();
   std::string blocked;
   for (const auto& entry : entries) {
-    if (entry.avail == availability::not_encodable) {
+    if (entry.avail == Availability::NOT_ENCODABLE) {
       blocked = std::string(entry.name);
       break;
     }
@@ -1060,7 +1060,7 @@ auto unavailable_leaf_scenario() -> void
   check(leaf.has_value(),
         "an unavailable leaf still resolves; the state rides the handle "
         "(FR-007)");
-  check(leaf->avail() == availability::not_encodable,
+  check(leaf->avail() == Availability::NOT_ENCODABLE,
         "the resolved handle carries the probed catalog state");
   const expression<events> over {*leaf};
   const auto refused = compile(system::local(), over);
@@ -1094,7 +1094,7 @@ auto fast_window_lifetime_scenario() -> int
   const auto& cpu = *cpu_object;
   std::string countable;
   for (const auto& entry : cpu.counters()) {
-    if (entry.avail == availability::countable) {
+    if (entry.avail == Availability::COUNTABLE) {
       countable = std::string(entry.name);
       break;
     }

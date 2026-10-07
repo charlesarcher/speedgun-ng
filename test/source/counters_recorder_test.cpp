@@ -51,7 +51,7 @@ auto same_double(const double lhs, const double rhs) -> bool
 
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
 using sg::counters::object;
@@ -59,8 +59,8 @@ using sg::counters::plan;
 using sg::counters::recorder_handle;
 using sg::counters::system;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 static_assert(
     std::is_trivially_copyable_v<recorder_handle<sg::counters::hard_stop_t>>,
@@ -80,7 +80,7 @@ auto core_object() -> object
 struct scenario
 {
   plan compiled;
-  expression<dim<0, 0>> ipc;
+  expression<Dim<0, 0>> ipc;
 };
 
 auto ipc_scenario(const char* cycles_name, const char* instr_name) -> scenario
@@ -216,7 +216,7 @@ auto test_wrap_through_recorder() -> void
 
 // The disclosure column beside each count. A measured action carries the
 // entry's own countability value, an action that measured nothing carries
-// `availability::gap` beside a zero count, and a measured zero carries the
+// `Availability::GAP` beside a zero count, and a measured zero carries the
 // entry's value beside it, so a caller tells the two apart (FR-007).
 auto test_disclosure_column() -> void
 {
@@ -248,8 +248,8 @@ auto test_disclosure_column() -> void
   // state of every row, and the raw view publishes the state of the last row
   // it spans. The test names no column index, so it holds whatever layout the
   // compile chose (FR-004, FR-005, SC-003).
-  const auto gap = sg::counters::availability::gap;
-  const auto countable = sg::counters::availability::countable;
+  const auto gap = sg::counters::Availability::GAP;
+  const auto countable = sg::counters::Availability::COUNTABLE;
 
   check(cycles_view->points[0] == 100 && instructions_view->points[0] == 1000,
         "a measured action carries its own count (FR-007)");
@@ -291,10 +291,10 @@ auto test_disclosure_column() -> void
   // The ratio over the gap is reported as no measured fraction, because
   // the disclosure marks the action as one that measured nothing (FR-005).
   const auto over_gap = ipc.fold(rec.view(), 0, 1);
-  check(same_double(over_gap.running_ratio, 1.0),
+  check(same_double(over_gap.runningRatio, 1.0),
         "a fold across an action the disclosure marks as a gap discloses no "
         "measured multiplex ratio (FR-005)");
-  check(same_double(end_point_gap.running_ratio, 1.0),
+  check(same_double(end_point_gap.runningRatio, 1.0),
         "a fold whose end point is the gap discloses no measured multiplex "
         "ratio, and the state beside it names the reason (FR-004, FR-005)");
 
@@ -311,11 +311,11 @@ auto test_disclosure_column() -> void
   const auto driven_cycles = cycles_view->points[3] - cycles_view->points[0];
   const auto driven_instructions =
       instructions_view->points[3] - instructions_view->points[0];
-  check(from_gap.availability == sg::counters::availability::gap
+  check(from_gap.availability == sg::counters::Availability::GAP
             && same_double(from_gap.value, 0.0),
         "a fold starting at the gap reports no value, so the refused action "
         "contributed no count to any delta (FR-006, FR-001)");
-  check(over_gap_span.availability != sg::counters::availability::gap,
+  check(over_gap_span.availability != sg::counters::Availability::GAP,
         "the fold spanning the gap has two measured end points, so it is not "
         "a gap window (FR-001)");
   check(same_double(over_gap_span.value,
@@ -547,7 +547,7 @@ auto test_mixed_provider_disclosure() -> void
   rec.sample();
   rec.sample();
   const auto folded = rate.fold(rec.view(), 0, 1);
-  check(folded.running_ratio > 0.0,
+  check(folded.runningRatio > 0.0,
         "the mixed-provider plan folds a positive measurement (FR-007)");
 }
 

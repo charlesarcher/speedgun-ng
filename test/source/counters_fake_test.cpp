@@ -51,23 +51,23 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-using sg::counters::availability;
+using sg::counters::Availability;
 using sg::counters::compile;
-using sg::counters::dim;
-using sg::counters::dim_same;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
+using sg::counters::kDimSame;
 using sg::counters::leaf_set;
-using sg::counters::metric_result;
+using sg::counters::MetricResult;
 using sg::counters::point_sink;
 using sg::counters::points_view;
-using sg::counters::read_mode;
+using sg::counters::ReadMode;
 using sg::counters::system;
 using sg::counters::target;
 using sg::counters::target_kind;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 fake_provider* probe = nullptr;
 
@@ -95,7 +95,7 @@ auto number(const T value) -> std::string
 //
 //   <label> = <value> <- <leaf> <delta> / <leaf> <delta>, ratio <ratio>
 auto provenance_record(const std::string_view label,
-                       const metric_result& metric,
+                       const MetricResult& metric,
                        const std::vector<points_view>& leaves) -> std::string
 {
   std::string record =
@@ -108,7 +108,7 @@ auto provenance_record(const std::string_view label,
     record += std::string(leaf.name) + " ";
     record += number(leaf.points[leaf.count - 1] - leaf.points[0]);
   }
-  record += ", ratio " + number(metric.running_ratio);
+  record += ", ratio " + number(metric.runningRatio);
   return record;
 }
 
@@ -130,7 +130,7 @@ auto test_registration() -> void
                         "stalled",
                         "none",
                         "stalled cycles",
-                        availability::permission_blocked);
+                        Availability::PERMISSION_BLOCKED);
   provider->set_points("package-1/core-3", "cycles", {100, 300}, 100);
   provider->set_points("package-1/core-3", "instructions", {1000, 3100}, 2100);
   provider->set_points("machine", "drift", {5});
@@ -193,8 +193,8 @@ auto test_registration() -> void
                         "enabled",
                         "nanoseconds",
                         "nanoseconds the event counter was enabled",
-                        availability::countable,
-                        read_mode::syscall,
+                        Availability::COUNTABLE,
+                        ReadMode::SYSCALL,
                         true);
   provider->add_counter("package-1/ratio-a",
                         "running",
@@ -211,8 +211,8 @@ auto test_registration() -> void
                         "running",
                         "nanoseconds",
                         "nanoseconds the event counter was scheduled",
-                        availability::countable,
-                        read_mode::syscall,
+                        Availability::COUNTABLE,
+                        ReadMode::SYSCALL,
                         true);
   provider->set_points("package-1/ratio-b", "enabled", {0, 100});
   provider->set_points("package-1/ratio-b", "running", {0, 50});
@@ -225,8 +225,8 @@ auto test_registration() -> void
                         "enabled",
                         "nanoseconds",
                         "nanoseconds the event counter was enabled",
-                        availability::countable,
-                        read_mode::syscall,
+                        Availability::COUNTABLE,
+                        ReadMode::SYSCALL,
                         true);
   provider->add_counter("package-1/ratio-frozen",
                         "running",
@@ -243,8 +243,8 @@ auto test_registration() -> void
                         "enabled",
                         "nanoseconds",
                         "nanoseconds the event counter was enabled",
-                        availability::countable,
-                        read_mode::syscall,
+                        Availability::COUNTABLE,
+                        ReadMode::SYSCALL,
                         true);
   provider->add_counter("package-1/ratio-full",
                         "running",
@@ -262,8 +262,8 @@ auto test_registration() -> void
                         "enabled",
                         "nanoseconds",
                         "nanoseconds the event counter was enabled",
-                        availability::countable,
-                        read_mode::syscall,
+                        Availability::COUNTABLE,
+                        ReadMode::SYSCALL,
                         true);
   provider->add_counter("package-1/ratio-shared",
                         "running",
@@ -325,10 +325,10 @@ auto test_tree_walk() -> void
   check(core->counters().size() == 3, "core catalog lists three counters");
   const bool stalled_blocked = std::ranges::any_of(
       core->counters(),
-      [](const sg::counters::catalog_entry& entry)
+      [](const sg::counters::CatalogEntry& entry)
       {
         return entry.name == "stalled"
-            && entry.avail == availability::permission_blocked;
+            && entry.avail == Availability::PERMISSION_BLOCKED;
       });
   check(stalled_blocked,
         "unavailable state reported distinctly, never guessed (FR-006)");
@@ -370,7 +370,7 @@ auto test_resolution_diagnostics() -> void
 
   const auto blocked = core.counter<events>("stalled");
   check(blocked.has_value()
-            && blocked->avail() == availability::permission_blocked,
+            && blocked->avail() == Availability::PERMISSION_BLOCKED,
         "availability travels with the handle (FR-006)");
 
   // A query carrying an empty word (a doubled separator) splits into
@@ -396,9 +396,9 @@ auto test_compile_zero_reads() -> void
   const expression<events> instr_expr {instructions};
   const auto ipc = instructions / cycles;
   const auto sum = instructions + drift;
-  static_assert(dim_same<typename decltype(ipc)::dimension_tag, dim<0, 0>>,
+  static_assert(kDimSame<typename decltype(ipc)::dimension_tag, Dim<0, 0>>,
                 "instructions / cycles carries dim<0,0> in its type (FR-015)");
-  static_assert(dim_same<typename decltype(sum)::dimension_tag, dim<0, 1>>,
+  static_assert(kDimSame<typename decltype(sum)::dimension_tag, Dim<0, 1>>,
                 "counter addition keeps the events dimension (FR-015)");
 
   const auto empty = compile(system::local());
@@ -431,7 +431,7 @@ auto test_compile_zero_reads() -> void
   const auto over_move = window_over_move.metric(move_ipc);
   check(same_double(over_move.value, 10.5),
         "a plan moves and folds the window it sampled (FR-031)");
-  check(same_double(over_move.running_ratio, 1.0) && !over_move.scaled,
+  check(same_double(over_move.runningRatio, 1.0) && !over_move.scaled,
         "the moved plan discloses the same ratio and scale (FR-019)");
 
   const auto pinned = compile(
@@ -457,7 +457,7 @@ auto test_scope_exactness() -> void
   const auto metric = window.metric(ipc);
   check(same_double(metric.value, 10.5),
         "scope window folds exactly: 2100 / 200 (FR-030)");
-  check(same_double(metric.running_ratio, 1.0) && !metric.scaled,
+  check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
         "disclosure defaults: unscaled, full ratio");
   const auto raw = ipc.raw(window.view(), "package-1/core-3", "instructions");
   check(raw.has_value() && raw->object_path == "package-1/core-3"
@@ -487,7 +487,7 @@ auto test_scope_exactness() -> void
   for (int repeat = 0; repeat < 10; ++repeat) {
     const auto again = window.metric(ipc);
     check(same_double(again.value, 10.5)
-              && same_double(again.running_ratio, 1.0) && !again.scaled,
+              && same_double(again.runningRatio, 1.0) && !again.scaled,
           "a repeated metric re-folds the stored points exactly "
           "(US1 scenario 5, FR-021)");
   }
@@ -524,7 +524,7 @@ auto test_additive_algebra() -> void
 
   const auto sum = addend_a + addend_b;
   const auto difference = addend_a - addend_b;
-  check(dim_same<decltype(sum)::dimension_tag, events>,
+  check(kDimSame<decltype(sum)::dimension_tag, events>,
         "addition preserves the shared tag");
   const auto compiled = compile(system::local(), sum, difference);
   check(compiled.has_value(), "the additive plan compiles");
@@ -773,7 +773,7 @@ auto test_permission_blocked_leaf() -> void
   const auto core = *system::local().object("package-1/core-3");
   const auto blocked = core.counter<events>("stalled");
   check(blocked.has_value()
-            && blocked->avail() == availability::permission_blocked,
+            && blocked->avail() == Availability::PERMISSION_BLOCKED,
         "a blocked leaf resolves and carries the probed state (FR-007)");
   const expression<events> over {*blocked};
   const auto refused = compile(system::local(), over);
@@ -826,8 +826,8 @@ auto test_ratio_product() -> void
   // 50 / 200 = 0.25 at exponent +1, and 50 / 100 = 0.5 at exponent -1,
   // so the product is 0.25 * (1 / 0.5) = 0.5, strictly between the two
   // bounds a single-source product would report.
-  check(same_double(metric.running_ratio, 0.5) && metric.running_ratio < 1.0
-            && metric.running_ratio > 0.0 && metric.scaled,
+  check(same_double(metric.runningRatio, 0.5) && metric.runningRatio < 1.0
+            && metric.runningRatio > 0.0 && metric.scaled,
         "the folded ratio is the product of the constituent ratios raised "
         "to their exponents (FR-019)");
 }
@@ -861,13 +861,13 @@ auto test_shared_leaf_exponent() -> void
   // The two occurrences carry exponents +1 and -1, whose sum is 0, so
   // the enabled leaf's 100 / 300 is raised to the zeroth power and the
   // composite discloses 1.0.
-  check(same_double(metric.running_ratio, 1.0),
+  check(same_double(metric.runningRatio, 1.0),
         "a leaf on both sides of the fold has exponent zero, so the "
         "composite ratio is 1.0 (FR-019)");
   // A scalar multiple multiplies the folded value and leaves every
   // exponent alone, so the disclosure is the 1.0 above.
   const auto scaled = window.metric(doubled);
-  check(same_double(scaled.value, 1.0) && same_double(scaled.running_ratio, 1.0),
+  check(same_double(scaled.value, 1.0) && same_double(scaled.runningRatio, 1.0),
         "a scalar multiple of the composite scales the value and leaves the "
         "exponents alone (FR-015, FR-019)");
 }
@@ -929,7 +929,7 @@ auto test_frozen_pair_ratio() -> void
   // quotient folds to zero while the disclosure states full rate.
   check(same_double(metric.value, 0.0),
         "the frozen-pair composite folds its own arithmetic exactly");
-  check(same_double(metric.running_ratio, 1.0) && !metric.scaled,
+  check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
         "a pair with no elapsed enabled time discloses full rate, scaled "
         "false (FR-019)");
 }
@@ -954,7 +954,7 @@ auto test_full_rate_pair_ratio() -> void
   // 900 + 900 and the pair discloses 900 / 900 = 1.
   check(same_double(metric.value, 1800.0),
         "the full-rate pair folds its own scripted arithmetic exactly");
-  check(same_double(metric.running_ratio, 1.0) && !metric.scaled,
+  check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
         "a source that ran at full rate discloses full rate, scaled false "
         "(FR-019)");
 }

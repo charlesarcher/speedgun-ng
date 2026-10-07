@@ -31,10 +31,10 @@ namespace sg::counters
  *
  */
 template<int T, int C>
-struct dim
+struct Dim
 {
-  static constexpr int time_exponent = T;
-  static constexpr int events_exponent = C;
+  static constexpr int kTimeExponent = T;
+  static constexpr int kEventsExponent = C;
 };
 
 /**
@@ -44,8 +44,8 @@ struct dim
  * \post none
  */
 template<class D1, class D2>
-inline constexpr bool dim_same = (D1::time_exponent == D2::time_exponent)
-    && (D1::events_exponent == D2::events_exponent);
+inline constexpr bool kDimSame = (D1::kTimeExponent == D2::kTimeExponent)
+    && (D1::kEventsExponent == D2::kEventsExponent);
 
 /**
  * @brief The quotient tag: exponents subtract (FR-015).
@@ -54,8 +54,8 @@ inline constexpr bool dim_same = (D1::time_exponent == D2::time_exponent)
  * \post none
  */
 template<class D1, class D2>
-using dim_quotient = dim<D1::time_exponent - D2::time_exponent,
-                         D1::events_exponent - D2::events_exponent>;
+using DimQuotient = Dim<D1::kTimeExponent - D2::kTimeExponent,
+                        D1::kEventsExponent - D2::kEventsExponent>;
 
 /**
  * @brief The recognized catalog units. The mapping from unit tokens to
@@ -63,35 +63,35 @@ using dim_quotient = dim<D1::time_exponent - D2::time_exponent,
  * an unrecognized token is a resolution error naming the token and is
  * never guessed (FR-017).
  */
-enum class unit : std::uint8_t
+enum class Unit : std::uint8_t
 {
-  seconds,
-  nanoseconds,
-  bytes,
-  ops,
-  none
+  SECONDS,
+  NANOSECONDS,
+  BYTES,
+  OPS,
+  NONE
 };
 
 /**
  * @brief Per-entry catalog state: described-ness and countability are
  * separate predicates carried by the state name (FR-006).
  *
- * `scope_refused` separates a refusal the entry's own scope causes from
+ * `SCOPE_REFUSED` separates a refusal the entry's own scope causes from
  * a refusal its encoding causes, so a caller that reads it knows a
- * cpu-target plan may still compile over the entry. `gap` names the one
+ * cpu-target plan may still compile over the entry. `GAP` names the one
  * case the catalog never publishes for an entry: a gap is a property of
  * one sampling action and an entry spans many, so the value travels in
  * the plan's disclosure column beside the zero count the action produced
  * (FR-021).
  */
-enum class availability : std::uint8_t
+enum class Availability : std::uint8_t
 {
-  countable,
-  permission_blocked,
-  not_encodable,
-  absent,
-  scope_refused,
-  gap
+  COUNTABLE,
+  PERMISSION_BLOCKED,
+  NOT_ENCODABLE,
+  ABSENT,
+  SCOPE_REFUSED,
+  GAP
 };
 
 /**
@@ -104,25 +104,25 @@ enum class availability : std::uint8_t
  * allocation. A new kernel target takes the next free bit: no enumerator
  * value changes and no stored bit moves.
  */
-using target_mask = std::uint32_t;
+using TargetMask = std::uint32_t;
 
-/// @brief `target_kind::thread`, bit 0 of `target_mask` (FR-021).
-inline constexpr target_mask target_thread_bit = 1U;
+/// @brief `target_kind::thread`, bit 0 of `TargetMask` (FR-021).
+inline constexpr TargetMask kTargetThreadBit = 1U;
 
-/// @brief `target_kind::cpu`, bit 1 of `target_mask` (FR-021).
-inline constexpr target_mask target_cpu_bit = 2U;
+/// @brief `target_kind::cpu`, bit 1 of `TargetMask` (FR-021).
+inline constexpr TargetMask kTargetCpuBit = 2U;
 
 /**
  * @brief The achieved read mechanism for a leaf, probed during provider
  * enumeration before the catalog freezes at the open boundary, and
  * disclosed per catalog entry (FR-023).
  */
-enum class read_mode : std::uint8_t
+enum class ReadMode : std::uint8_t
 {
-  fast_tsc,
-  fast_rdpmc,
-  syscall,
-  push_load
+  FAST_TSC,
+  FAST_RDPMC,
+  SYSCALL,
+  PUSH_LOAD
 };
 
 /**
@@ -130,18 +130,18 @@ enum class read_mode : std::uint8_t
  * near-miss suggestions (FR-008).
  *
  */
-struct error
+struct Error
 {
   std::string message;
   std::vector<std::string> suggestions;
 };
 
 /**
- * @brief Runtime mirror of a `dim` tag: the exponent pair as data, used
+ * @brief Runtime mirror of a `Dim` tag: the exponent pair as data, used
  * where a dimension travels as a value (catalog resolution, FR-017).
  *
  */
-struct dimension
+struct Dimension
 {
   int time = 0;
   int events = 0;
@@ -159,26 +159,26 @@ struct dimension
  * \pre none
  * \post none
  */
-[[nodiscard]] inline auto unit_from_token(const std::string_view token)
-    -> std::expected<unit, error>
+[[nodiscard]] inline auto unitFromToken(const std::string_view token)
+    -> std::expected<Unit, Error>
 {
   if (token == "seconds") {
-    return unit::seconds;
+    return Unit::SECONDS;
   }
   if (token == "nanoseconds") {
-    return unit::nanoseconds;
+    return Unit::NANOSECONDS;
   }
   if (token == "bytes") {
-    return unit::bytes;
+    return Unit::BYTES;
   }
   if (token == "ops") {
-    return unit::ops;
+    return Unit::OPS;
   }
   if (token == "none") {
-    return unit::none;
+    return Unit::NONE;
   }
   return std::unexpected(
-      error {.message = "unrecognized unit '" + std::string(token)
+      Error {.message = "unrecognized unit '" + std::string(token)
                  + "'; the unit-to-dimension mapping is closed (FR-017)",
              .suggestions = {}});
 }
@@ -193,20 +193,20 @@ struct dimension
  * \pre none
  * \post none
  */
-[[nodiscard]] inline auto dimension_of(const unit value)
-    -> std::expected<dimension, error>
+[[nodiscard]] inline auto dimensionOf(const Unit value)
+    -> std::expected<Dimension, Error>
 {
   switch (value) {
-    case unit::seconds:
-    case unit::nanoseconds:
-      return dimension {.time = 1, .events = 0};
-    case unit::bytes:
-    case unit::ops:
-    case unit::none:
-      return dimension {.time = 0, .events = 1};
+    case Unit::SECONDS:
+    case Unit::NANOSECONDS:
+      return Dimension {.time = 1, .events = 0};
+    case Unit::BYTES:
+    case Unit::OPS:
+    case Unit::NONE:
+      return Dimension {.time = 0, .events = 1};
   }
   return std::unexpected(
-      error {.message = "unit value outside the closed enumeration",
+      Error {.message = "unit value outside the closed enumeration",
              .suggestions = {}});
 }
 
@@ -216,18 +216,18 @@ struct dimension
  * \pre none
  * \post none
  */
-[[nodiscard]] inline auto unit_name(const unit value) -> std::string_view
+[[nodiscard]] inline auto unitName(const Unit value) -> std::string_view
 {
   switch (value) {
-    case unit::seconds:
+    case Unit::SECONDS:
       return "seconds";
-    case unit::nanoseconds:
+    case Unit::NANOSECONDS:
       return "nanoseconds";
-    case unit::bytes:
+    case Unit::BYTES:
       return "bytes";
-    case unit::ops:
+    case Unit::OPS:
       return "ops";
-    case unit::none:
+    case Unit::NONE:
       return "none";
   }
   return "unknown";
@@ -243,16 +243,16 @@ struct dimension
  * other state names none (FR-021).
  *
  */
-struct catalog_entry
+struct CatalogEntry
 {
   std::string_view name;
   std::string_view description;
-  sg::counters::unit unit;
-  availability avail;
-  read_mode mode;
+  sg::counters::Unit unit;
+  Availability avail;
+  ReadMode mode;
   // The target kinds the entry can be counted on (FR-021).
-  target_mask targets = 0;
-  std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
+  TargetMask targets = 0;
+  std::uint64_t frequencyHz = 0;  // fixed-rate calibration, 0 elsewhere
   bool scaled = false;  // platform-scaled tick source disclosure
 };
 
@@ -264,30 +264,25 @@ struct catalog_entry
  *
  * `availability` names the state the folded window carries. A fold whose
  * start point or whose end point is an action that measured nothing
- * reports `availability::gap` and a `value` that is not a measurement, so
+ * reports `Availability::GAP` and a `value` that is not a measurement, so
  * a caller reads the state before the number. A fold whose two end points
  * are both measured reports the state those leaves disclosed, which is
- * `availability::countable` for a leaf the host can count and one of the
+ * `Availability::COUNTABLE` for a leaf the host can count and one of the
  * other enumerators otherwise. A gap anywhere strictly inside the window
  * changes no fold, because the recorded counts are cumulative and a window
  * with two measured end points has an exact delta between them
  * (FR-001, FR-004, FR-005).
  *
- * `running_ratio` is the multiplex disclosure over the window. A window
+ * `runningRatio` is the multiplex disclosure over the window. A window
  * that carries a gap publishes `1.0` and discloses nothing, because no
  * measured time covers an action that measured no count (FR-005).
  */
-struct metric_result
+struct MetricResult
 {
   double value = 0.0;
-  double running_ratio = 1.0;
-  // The field carries the contract's name. The type is qualified because a
-  // member named as a type already in this namespace changes that name's
-  // meaning for the rest of the class body, which is ill-formed, and the
-  // qualification is the smallest thing that keeps the public name the
-  // contract fixes (FR-004, FR-035).
-  ::sg::counters::availability availability =
-      ::sg::counters::availability::countable;
+  double runningRatio = 1.0;
+  // The field name is the contract name. The type spelling is Availability.
+  Availability availability = Availability::COUNTABLE;
   bool scaled = false;
 };
 

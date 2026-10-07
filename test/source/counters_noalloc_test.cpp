@@ -37,11 +37,11 @@ auto check(const bool cond, const char* what) -> void
 }
 
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::fake_provider;
 using sg::counters::system;
 
-using events = dim<0, 1>;
+using events = Dim<0, 1>;
 
 auto note_allocation() -> void
 {

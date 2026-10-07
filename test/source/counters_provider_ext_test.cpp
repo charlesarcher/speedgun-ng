@@ -44,12 +44,12 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-using sg::counters::availability;
-using sg::counters::catalog_entry;
+using sg::counters::Availability;
 using sg::counters::catalog_seed;
+using sg::counters::CatalogEntry;
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::leaf_set;
 using sg::counters::object;
@@ -62,8 +62,8 @@ using sg::counters::system;
 using sg::counters::target;
 using sg::counters::window_reader;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 constexpr std::uint64_t kHonksPerAction = 7;
 
@@ -115,7 +115,7 @@ public:
                     .name = "sleeps",
                     .description = "sleeps counted (giraffes barely sleep)",
                     .unit = "ops",
-                    .avail = availability::absent,
+                    .avail = Availability::ABSENT,
                 },
             },
     });
@@ -151,8 +151,8 @@ auto enumeration_scenario() -> void
   check(!animal.description().empty(), "provider description is reported");
 
   const auto entries = animal.counters();
-  const catalog_entry* honks = nullptr;
-  const catalog_entry* sleeps = nullptr;
+  const CatalogEntry* honks = nullptr;
+  const CatalogEntry* sleeps = nullptr;
   for (const auto& entry : entries) {
     if (entry.name == "honks") {
       honks = &entry;
@@ -161,10 +161,10 @@ auto enumeration_scenario() -> void
       sleeps = &entry;
     }
   }
-  check(honks != nullptr && honks->avail == availability::countable
+  check(honks != nullptr && honks->avail == Availability::COUNTABLE
             && !honks->description.empty(),
         "honks is countable with a description (scenario 1)");
-  check(sleeps != nullptr && sleeps->avail == availability::absent
+  check(sleeps != nullptr && sleeps->avail == Availability::ABSENT
             && !sleeps->description.empty(),
         "sleeps is described but not countable (scenario 1)");
 }
@@ -212,7 +212,7 @@ auto rate_scenario() -> void
   check(
       std::fabs(honks_per_ns.value * mono_ns.value - kHonksPerAction) <= 7.0e-6,
       "rate x window reconstitutes the honks (scenario 3)");
-  check(same_double(honks_per_ns.running_ratio, 1.0),
+  check(same_double(honks_per_ns.runningRatio, 1.0),
         "cross-provider composite carries standard disclosure");
 }
 
@@ -223,7 +223,7 @@ auto availability_branch_scenario() -> void
   std::size_t countable = 0;
   std::size_t skipped = 0;
   for (const auto& entry : giraffe().counters()) {
-    if (entry.avail == availability::countable) {
+    if (entry.avail == Availability::COUNTABLE) {
       check(giraffe().counter<events>(entry.name).has_value(),
             "countable entry resolves");
       ++countable;
@@ -264,7 +264,7 @@ auto refused_resolution_scenario() -> void
 {
   const auto animal = giraffe();
   const auto sleeps = animal.counter<events>("sleeps");
-  check(sleeps.has_value() && sleeps->avail() == availability::absent,
+  check(sleeps.has_value() && sleeps->avail() == Availability::ABSENT,
         "an absent entry still resolves; the state rides the handle");
   const expression<events> over_absent {*sleeps};
   const auto refused = compile(system::local(), over_absent);
@@ -285,7 +285,7 @@ auto refused_resolution_scenario() -> void
   // asking for time^1 x events^1 matches the time exponent and fails on
   // the event exponent (FR-015, FR-017).
   const auto machine = *system::local().object("machine");
-  const auto both = machine.counter<sg::counters::dim<1, 1>>("monotonic");
+  const auto both = machine.counter<sg::counters::Dim<1, 1>>("monotonic");
   check(!both.has_value(),
         "a request matching only the time exponent resolves to nothing");
   check(both.error().message.find("events^0") != std::string::npos,

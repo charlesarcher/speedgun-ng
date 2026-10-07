@@ -50,7 +50,7 @@ struct detail::push_window final : window_reader
     // countability value (FR-007).
     if (disclosure_column != leaf_set::no_disclosure_column) {
       sink.put_disclosure(disclosure_column,
-                          static_cast<std::uint64_t>(availability::countable));
+                          static_cast<std::uint64_t>(Availability::COUNTABLE));
     }
   }
 };
@@ -87,8 +87,8 @@ void push_provider::enumerate(object_sink& sink) const
         .name = point.name,
         .description = point.description,
         .unit = point.unit,
-        .avail = availability::countable,
-        .mode = read_mode::push_load,
+        .avail = Availability::COUNTABLE,
+        .mode = ReadMode::PUSH_LOAD,
     });
   }
   sink.add_object(object_seed {

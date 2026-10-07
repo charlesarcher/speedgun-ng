@@ -17,11 +17,11 @@
 namespace
 {
 
-using sg::counters::availability;
+using sg::counters::Availability;
 using sg::counters::catalog_seed;
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::leaf_set;
 using sg::counters::object_seed;
@@ -33,8 +33,8 @@ using sg::counters::system;
 using sg::counters::target;
 using sg::counters::window_reader;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 // Each sampling action adds this many honks to the giraffe's running
 // total; the provider reports cumulative points like every other leaf
@@ -72,7 +72,7 @@ public:
             .name = "honks",
             .description = "honks emitted",
             .unit = "ops",
-            .avail = availability::countable,
+            .avail = Availability::COUNTABLE,
         }},
     });
   }
@@ -142,7 +142,7 @@ auto main() -> int
   std::printf(
       "giraffe-2 honk rate: %.3e honks/ns (running ratio %.6f," " scaled %s)\n",
       result.value,
-      result.running_ratio,
+      result.runningRatio,
       result.scaled ? "yes" : "no");
   return 0;
 }

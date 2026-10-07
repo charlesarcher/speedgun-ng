@@ -47,19 +47,19 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-using sg::counters::availability;
-using sg::counters::catalog_entry;
+using sg::counters::Availability;
+using sg::counters::CatalogEntry;
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::plan;
 using sg::counters::pmu_provider;
-using sg::counters::read_mode;
+using sg::counters::ReadMode;
 using sg::counters::recorder_handle;
 using sg::counters::system;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 // The bare baseline for the raw time-stamp read needs the instruction, so
 // the measurement is guarded on the same condition the provider publishes
@@ -294,11 +294,10 @@ auto describe_modes(const std::string& path) -> void
   std::size_t fast = 0;
   std::size_t syscall_mode = 0;
   for (const auto& entry : entries) {
-    if (entry.mode == read_mode::fast_tsc
-        || entry.mode == read_mode::fast_rdpmc)
+    if (entry.mode == ReadMode::FAST_TSC || entry.mode == ReadMode::FAST_RDPMC)
     {
       ++fast;
-    } else if (entry.mode == read_mode::syscall) {
+    } else if (entry.mode == ReadMode::SYSCALL) {
       ++syscall_mode;
     }
   }
@@ -308,8 +307,7 @@ auto describe_modes(const std::string& path) -> void
               syscall_mode,
               entries.size());
   for (const auto& entry : entries) {
-    if (entry.mode == read_mode::fast_tsc
-        || entry.mode == read_mode::fast_rdpmc)
+    if (entry.mode == ReadMode::FAST_TSC || entry.mode == ReadMode::FAST_RDPMC)
     {
       std::printf("  fast leaf '%s': %s\n",
                   std::string(entry.name).c_str(),
@@ -472,19 +470,19 @@ auto main() -> int
   // catalog decides which mechanism the plan reads, so the row carries
   // the mode the catalog disclosed (FR-023, C-PRO-4).
   const auto entries = cpu.counters();
-  const auto disclosed_mode = [&entries](const std::string& name) -> read_mode
+  const auto disclosed_mode = [&entries](const std::string& name) -> ReadMode
   {
     for (const auto& entry : entries) {
       if (entry.name == name) {
         return entry.mode;
       }
     }
-    return read_mode::syscall;
+    return ReadMode::SYSCALL;
   };
   std::string work;
   std::string cycle;
   for (const auto& entry : entries) {
-    if (entry.avail != availability::countable) {
+    if (entry.avail != Availability::COUNTABLE) {
       continue;
     }
     const std::string name(entry.name);
@@ -511,7 +509,7 @@ auto main() -> int
       if (!group_plan.has_value()) {
         fail("the pmu group plan compiles");
       }
-      const bool fast = disclosed_mode(work) == read_mode::fast_rdpmc;
+      const bool fast = disclosed_mode(work) == ReadMode::FAST_RDPMC;
       std::printf("group plan reads cpu/%s and cpu/%s, one read per leader "
                   "per action\n",
                   work.c_str(),
@@ -574,7 +572,7 @@ auto main() -> int
   // without the instruction has no fast regime to publish, and the
   // reason is named (quickstart 12).
   for (const auto& entry : machine.counters()) {
-    if (entry.mode != read_mode::fast_tsc) {
+    if (entry.mode != ReadMode::FAST_TSC) {
       continue;
     }
     const auto fast_counter = machine.counter<time_dim>(entry.name);

@@ -235,7 +235,7 @@ struct detail::clock_window final : window_reader
     // own countability value (FR-007).
     if (disclosure_column != leaf_set::no_disclosure_column) {
       sink.put_disclosure(disclosure_column,
-                          static_cast<std::uint64_t>(availability::countable));
+                          static_cast<std::uint64_t>(Availability::COUNTABLE));
     }
   }
 };
@@ -251,22 +251,22 @@ void clock_provider::enumerate(object_sink& sink) const
           .name = "monotonic",
           .description = "wall-clock time, monotonic across the window",
           .unit = "nanoseconds",
-          .avail = availability::countable,
-          .mode = read_mode::syscall,
+          .avail = Availability::COUNTABLE,
+          .mode = ReadMode::SYSCALL,
       },
       catalog_seed {
           .name = "thread_cpu",
           .description = "CPU time consumed by the sampling thread",
           .unit = "nanoseconds",
-          .avail = availability::countable,
-          .mode = read_mode::syscall,
+          .avail = Availability::COUNTABLE,
+          .mode = ReadMode::SYSCALL,
       },
       catalog_seed {
           .name = "process_cpu",
           .description = "CPU time consumed by this process",
           .unit = "nanoseconds",
-          .avail = availability::countable,
-          .mode = read_mode::syscall,
+          .avail = Availability::COUNTABLE,
+          .mode = ReadMode::SYSCALL,
       },
   };
 #ifdef SG_COUNTERS_X86
@@ -281,8 +281,8 @@ void clock_provider::enumerate(object_sink& sink) const
       .name = "tsc",
       .description = "raw time-stamp counter ticks; a count asserting no rate",
       .unit = "none",
-      .avail = availability::countable,
-      .mode = read_mode::fast_tsc,
+      .avail = Availability::COUNTABLE,
+      .mode = ReadMode::FAST_TSC,
       .frequency_hz = 0,
       .scaled = false,
   });
@@ -297,8 +297,8 @@ void clock_provider::enumerate(object_sink& sink) const
       .description =
           "hardware-rate time, never adjusted by the operating " "system",
       .unit = "nanoseconds",
-      .avail = availability::countable,
-      .mode = read_mode::syscall,
+      .avail = Availability::COUNTABLE,
+      .mode = ReadMode::SYSCALL,
   });
   sink.add_object(object_seed {
       .kind = "machine",

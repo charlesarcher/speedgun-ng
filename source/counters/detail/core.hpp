@@ -96,7 +96,7 @@ struct plan_impl
   // The managed column carrying the per-action disclosure: a measured
   // action writes the countability value the catalog publishes for the
   // entry, and an action that measured nothing writes
-  // `availability::gap`. One column per read group sits past that group's
+  // `Availability::GAP`. One column per read group sits past that group's
   // own last managed leaf, so a plan drawing leaves from two providers
   // discloses each provider's gaps in its own column, and a caller reads
   // the column to tell a measured zero from a gap (FR-001, FR-002, FR-007).

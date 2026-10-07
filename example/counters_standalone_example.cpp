@@ -24,13 +24,13 @@ namespace
 
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::fake_provider;
-using sg::counters::metric_result;
+using sg::counters::MetricResult;
 using sg::counters::system;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 constexpr std::size_t kIterations = 60;
 
@@ -106,21 +106,21 @@ auto main() -> int
 
   // Fold results feed the per-iteration lines: each interval folds
   // independently from the shared columns, value plus disclosure.
-  const std::vector<metric_result> intervals = ipc.fold_pairs(recorder.view());
-  const std::vector<metric_result> rates = rate.fold_pairs(recorder.view());
+  const std::vector<MetricResult> intervals = ipc.fold_pairs(recorder.view());
+  const std::vector<MetricResult> rates = rate.fold_pairs(recorder.view());
   for (std::size_t iteration = 0; iteration < intervals.size(); ++iteration) {
     const auto& folded = intervals[iteration];
     const auto& folded_rate = rates[iteration];
     std::printf("iteration %2zu: ipc %.6f (running ratio %.6f, scaled %s)\n",
                 iteration + 1,
                 folded.value,
-                folded.running_ratio,
+                folded.runningRatio,
                 folded.scaled ? "yes" : "no");
     std::printf("iteration %2zu: instructions per ns %.6f "
                 "(running ratio %.6f, scaled %s)\n",
                 iteration + 1,
                 folded_rate.value,
-                folded_rate.running_ratio,
+                folded_rate.runningRatio,
                 folded_rate.scaled ? "yes" : "no");
   }
   return 0;

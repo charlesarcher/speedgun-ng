@@ -156,7 +156,7 @@ struct format_range
 // target kind (provider.cpp, FR-039): the availability the kernel grants
 // this caller for this event. The probe answers `countable`,
 // `not_encodable`, or `permission_blocked`, which is the closed set of
-// states a pmu catalog entry carries. `availability::absent` belongs to
+// states a pmu catalog entry carries. `Availability::ABSENT` belongs to
 // a provider that declares a leaf absent from the object it seeds, and
 // a device the kernel does not publish is dropped at discovery, so no
 // entry carries it. `where` names the target kind, so a probe runs once
@@ -164,7 +164,7 @@ struct format_range
 [[nodiscard]] auto pmu_probe(
     int type,
     const std::vector<std::pair<int, std::uint64_t>>& words,
-    const target& where) -> availability;
+    const target& where) -> Availability;
 
 // One catalog entry the provider built: the composed config words, the
 // description, the probed availability, and the target kinds that probe
@@ -178,14 +178,14 @@ struct pmu_entry
   // tells the two apart.
   std::vector<std::pair<int, std::uint64_t>> words;
   bool is_time_pair = false;
-  availability avail = availability::not_encodable;
-  read_mode mode = read_mode::syscall;
+  Availability avail = Availability::NOT_ENCODABLE;
+  ReadMode mode = ReadMode::SYSCALL;
   // The target kinds the availability probe settled this entry on, and no
   // others, so the catalog names a kind only where that kind's own probe
   // counted the entry (FR-021). Zero for the enabled and running leaves,
   // which no probe runs for, and for every entry the probe refused,
   // which names no kind in any case.
-  target_mask probed_kinds = 0;
+  TargetMask probed_kinds = 0;
 };
 
 // Records the target kinds the availability probe settled the seeded leaf
@@ -193,16 +193,16 @@ struct pmu_entry
 // seeding surface (`catalog_seed`) gains no field and the availability state
 // stays one enumeration, so the per-kind verdicts ride beside the tree.
 // The provider records them where it enumerates and the catalog reads them
-// where it fills `catalog_entry::targets`. Only a
+// where it fills `CatalogEntry::targets`. Only a
 // leaf the probe settled some kind on is recorded, and an address this
 // table does not hold names no kind the probe settled (FR-021).
-void note_probed_kinds(const std::string& address, target_mask probed);
+void note_probed_kinds(const std::string& address, TargetMask probed);
 
 // The kinds the probe settled the leaf at `address` on, and zero where it
 // settled none there. The lookup allocates nothing, so the catalog reads a
 // leaf's kinds inside the `noexcept` mask decision (FR-021).
 [[nodiscard]] auto probed_kinds_at(const std::string& address) noexcept
-    -> target_mask;
+    -> TargetMask;
 
 // One event-source device: its canonical path, its PMU type, the bit
 // layouts it publishes, and the merged catalog in seed order (kernel
@@ -587,7 +587,7 @@ inline fast_context::~fast_context()
 // entry whose event the fast instruction cannot read (FR-001).
 struct entry_read_selection
 {
-  read_mode mode = read_mode::syscall;
+  ReadMode mode = ReadMode::SYSCALL;
   bool publish_pair = false;
 };
 
@@ -604,7 +604,7 @@ struct entry_read_selection
 ///       host grants it. Every other state publishes the syscall mode.
 ///       Only a countable entry publishes the enabled/running pair.
 [[nodiscard]] auto entry_read_selection_for(
-    availability probed, bool fast_capable) noexcept -> entry_read_selection;
+    Availability probed, bool fast_capable) noexcept -> entry_read_selection;
 
 /// @brief The target kinds the two probes settled one entry on (FR-021).
 ///
@@ -620,8 +620,8 @@ struct entry_read_selection
 /// \post A verdict of `countable` names that kind's bit, and every other
 ///       verdict names no bit. The answer names the cpu bit for a
 ///       `countable` cpu verdict whatever the per-task verdict is (FR-021).
-[[nodiscard]] auto probed_kind_mask(
-    availability per_task, availability on_cpu) noexcept -> target_mask;
+[[nodiscard]] auto probed_kind_mask(Availability per_task,
+                                    Availability on_cpu) noexcept -> TargetMask;
 
 /// @brief The target kinds one catalog entry can be counted on, read from
 /// the probe's per-kind verdicts (FR-021).
@@ -657,11 +657,11 @@ struct entry_read_selection
 ///       path is none of the core device paths, and names both kinds
 ///       everywhere else, an object no event provider seeded among them
 ///       (FR-021, FR-022).
-[[nodiscard]] auto settled_targets(availability probed,
-                                   target_mask probed_kinds,
+[[nodiscard]] auto settled_targets(Availability probed,
+                                   TargetMask probed_kinds,
                                    std::string_view kind,
                                    const std::string& path) noexcept
-    -> target_mask;
+    -> TargetMask;
 
 /// @brief The state a catalog entry settles on when no probe granted it
 /// (FR-021).
@@ -680,7 +680,7 @@ struct entry_read_selection
 ///       `scope_refused`. Every other verdict, on a device-scoped device or
 ///       not, settles on itself.
 [[nodiscard]] auto scope_settled_state(
-    availability on_cpu, bool device_scoped) noexcept -> availability;
+    Availability on_cpu, bool device_scoped) noexcept -> Availability;
 
 /// @brief Whether a catalog entry's own state lets the request open a
 /// provider window (FR-021, FR-024).
@@ -706,7 +706,7 @@ struct entry_read_selection
 ///       answers false for the per-task kind. Every other state answers
 ///       false under either kind.
 [[nodiscard]] auto availability_gate_passes(
-    availability probed, target_kind requested) noexcept -> bool;
+    Availability probed, target_kind requested) noexcept -> bool;
 
 // The fast-mode window (group_io.cpp, FR-040): one context per member
 // leaf, the enabled/running pair taken from the leader's page. Null
