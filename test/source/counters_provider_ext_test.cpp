@@ -81,8 +81,8 @@ public:
   }
 
 private:
-  static auto read_direct(window_reader& base, point_sink& sink) noexcept
-      -> void
+  static auto read_direct(window_reader& base,
+                          point_sink& sink) noexcept -> void
   {
     auto& reader = static_cast<honk_window&>(base);
     reader.m_total += kHonksPerAction;

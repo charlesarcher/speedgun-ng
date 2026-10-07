@@ -1051,8 +1051,8 @@ auto destroy_before_open_scenario() -> void
 }
 
 // The synthetic-table writer, defined below the scenarios that predate it.
-auto write_fixture(const char* name, const std::string_view body)
-    -> std::string;
+auto write_fixture(const char* name,
+                   const std::string_view body) -> std::string;
 
 // The named synthetic sysfs format list every encodable-row count in this
 // file is measured against, so one number gates every host on the matrix
@@ -1070,8 +1070,7 @@ auto synthetic_core_device() -> pmu_device
   pmu_device device;
   device.path = "synthetic";
   device.type = 4;
-  for (const auto& [name, spec] :
-       {
+  for (const auto& [name, spec] : {
            std::pair {"event", "config:0-7"},
            std::pair {"umask", "config:8-15"},
            std::pair {"cmask", "config:24-31"},
@@ -1107,8 +1106,7 @@ auto reference_host_core_device() -> pmu_device
 {
   pmu_device device;
   device.path = "reference-host";
-  for (const auto& [name, spec] :
-       {
+  for (const auto& [name, spec] : {
            std::pair {"event", "config:0-7,32-35"},
            std::pair {"umask", "config:8-15"},
            std::pair {"edge", "config:18"},
@@ -1128,8 +1126,8 @@ auto reference_host_core_device() -> pmu_device
 // The encodable rows one pinned directory yields against the synthetic
 // format list: a row encodes where every field it carries reached a
 // published format.
-auto encodable_rows(const std::string& directory, const pmu_device& device)
-    -> std::size_t
+auto encodable_rows(const std::string& directory,
+                    const pmu_device& device) -> std::size_t
 {
   const auto& table = sg::counters::detail::pmu_load_table(directory);
   std::size_t encodable = 0;
@@ -2770,10 +2768,10 @@ auto offcore_event_code_scenario() -> void
   const auto device = synthetic_core_device();
   const std::string directory = "arch/x86/skylake/";
   const auto& table = sg::counters::detail::pmu_load_table(directory);
-  const auto row = std::ranges::find_if(
-      table,
-      [](const pmu_table_entry& entry)
-      { return entry.name == "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE"; });
+  const auto row = std::ranges::find_if(table,
+                                        [](const pmu_table_entry& entry) {
+                                          return entry.name == "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE";
+                                        });
   check(row != table.end(), "the pinned skylake table holds the named OCR row");
   if (row == table.end()) {
     return;
@@ -3201,8 +3199,7 @@ auto device_scope_probe_scenario() -> void
   using sg::counters::detail::pmu_probe;
   using sg::counters::detail::scope_settled_state;
 
-  for (const auto verdict :
-       {
+  for (const auto verdict : {
            availability::countable,
            availability::permission_blocked,
            availability::not_encodable,
@@ -3290,8 +3287,7 @@ auto settled_target_mask_scenario() -> void
 
   // Every pair of probe verdicts, so each kind's bit is driven on both of
   // its arcs and against every state the other kind can answer with.
-  for (const auto per_task :
-       {
+  for (const auto per_task : {
            availability::countable,
            availability::permission_blocked,
            availability::not_encodable,
@@ -3300,8 +3296,7 @@ auto settled_target_mask_scenario() -> void
            availability::gap,
        })
   {
-    for (const auto on_cpu :
-         {
+    for (const auto on_cpu : {
              availability::countable,
              availability::permission_blocked,
              availability::not_encodable,
@@ -3322,8 +3317,7 @@ auto settled_target_mask_scenario() -> void
     }
   }
 
-  for (const auto state :
-       {
+  for (const auto state : {
            availability::permission_blocked,
            availability::not_encodable,
            availability::absent,
@@ -3405,8 +3399,7 @@ auto availability_gate_scenario() -> void
   using sg::counters::target_kind;
   using sg::counters::detail::availability_gate_passes;
 
-  for (const auto state :
-       {
+  for (const auto state : {
            availability::permission_blocked,
            availability::not_encodable,
            availability::absent,
