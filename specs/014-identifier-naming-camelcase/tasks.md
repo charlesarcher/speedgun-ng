@@ -165,19 +165,19 @@ they include when a name in that header changes.
 - [X] T011 [US2] Rename owned identifiers in `include/speedgun-ng/counters_fake.hpp`
   `include/speedgun-ng/counters_fake.hpp` and
   `source/counters/fake_provider.cpp` in one commit (D-02).
-- [ ] T012 [US2] Rename owned identifiers in `include/speedgun-ng/counters_system.hpp`
+- [X] T012 [US2] Rename owned identifiers in `include/speedgun-ng/counters_system.hpp`
   `include/speedgun-ng/counters_system.hpp` and
   `source/counters/system.cpp` in one commit (D-02).
-- [ ] T013 [US2] Rename owned identifiers in `include/speedgun-ng/simulation.hpp`
+- [X] T013 [US2] Rename owned identifiers in `include/speedgun-ng/simulation.hpp`
   `include/speedgun-ng/simulation.hpp` and
   `source/simulation/marker.cpp` in one commit (D-02).
-- [ ] T014 [US2] Rename file-local helpers that no header declares in `source/counters/linux_pmu/`
+- [X] T014 [US2] Rename file-local helpers that no header declares in `source/counters/linux_pmu/`
   `source/counters/linux_pmu/` (`encode.cpp`, `fast_read.cpp`,
   `group_io.cpp`, `table_parse.cpp`, `embedded_tables.hpp`)
   (D-02, FR-013).
-- [ ] T015 [US2] Rename file-local helpers in `source/counters/fold.cpp`
+- [X] T015 [US2] Rename file-local helpers in `source/counters/fold.cpp`
   and `source/counters/plan.cpp` (D-02, FR-013).
-- [ ] T016 [US2] Sweep `tools/`, `test/`, `example/`, and
+- [X] T016 [US2] Sweep `tools/`, `test/`, `example/`, and
   `.github/workflows/ci.yml` for an FR-017 match an earlier commit
   left unchanged. The output strings `consumer: pmu catalog entries`
   and `embedded:` stay. The namespace token in

@@ -7,7 +7,7 @@ auto main(int argc, char** argv) -> int
 {
   const std::string directory =
       argc > 1 ? argv[1] : std::string("arch/x86/skylake/");
-  const auto& table = sg::counters::detail::pmu_load_table(directory);
+  const auto& table = sg::counters::detail::pmuLoadTable(directory);
   std::printf("embedded: %s %zu\n", directory.c_str(), table.size());
   return 0;
 }
