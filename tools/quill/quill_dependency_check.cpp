@@ -74,8 +74,8 @@ constexpr double ipc_tolerance = 1e-9;
 constexpr std::size_t sample_count = 4;
 constexpr int synthetic_iterations = 1000;
 
-using events = counters::dim<0, 1>;
-using time_dim = counters::dim<1, 0>;
+using events = counters::Dim<0, 1>;
+using time_dim = counters::Dim<1, 0>;
 
 namespace
 {
@@ -184,7 +184,7 @@ auto measure(quill::Logger* logger) -> std::expected<double, std::string>
   LOG_INFO(logger,
            "quill_dependency_check: scaled={} running_ratio {:.6f}",
            folded.scaled ? "yes" : "no",
-           folded.running_ratio);
+           folded.runningRatio);
 
   return folded.value;
 }

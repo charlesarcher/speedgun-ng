@@ -204,7 +204,7 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
   bool countable = false;
   for (auto& entry : device.entries) {
     if (entry.words.empty()) {
-      entry.avail = availability::not_encodable;
+      entry.avail = Availability::NOT_ENCODABLE;
       continue;
     }
     // The probe runs once per target kind the entry can be counted on. A
@@ -212,11 +212,11 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     // scope refuses the per-task kind. That refusal is `scope_refused`,
     // which a caller can tell from an encoding refusal, and no syscall runs
     // for the kind the scope already refuses (FR-021, FR-022).
-    availability probed = availability::scope_refused;
+    Availability probed = Availability::SCOPE_REFUSED;
     if (!device.device_scoped) {
       probed = detail::pmu_probe(device.type, entry.words, target {});
     }
-    const availability on_cpu = detail::pmu_probe(
+    const Availability on_cpu = detail::pmu_probe(
         device.type, entry.words, target {.kind = target_kind::cpu, .cpu = 0});
     // The kinds each probe settled, recorded while both verdicts are in
     // hand: the chain below merges them into one published state, and the
@@ -234,19 +234,19 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     // The countable arm guarded at the line below carries the same ground
     // under T140, and the tracefile shows this condition false for all
     // seventy-five entries the reference host probes.
-    if (on_cpu == availability::countable) {  // LCOV_EXCL_BR_LINE
-      probed = availability::countable;
+    if (on_cpu == Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
+      probed = Availability::COUNTABLE;
     } else if (device.device_scoped) {
       // No probe settled the entry: the device's own scope refuses the
       // per-task kind, and the cpu probe refused its kind too. The decision
       // is extracted, so a registered test drives both of its arms on any
       // host (FR-021, FR-022, FR-046).
       probed = detail::scope_settled_state(on_cpu, device.device_scoped);
-    } else if (probed != availability::countable) {  // LCOV_EXCL_BR_LINE
+    } else if (probed != Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
       probed = on_cpu;
     }
     entry.avail = probed;
-    if (entry.avail == availability::countable) {  // LCOV_EXCL_BR_LINE
+    if (entry.avail == Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the countable arm and
       // the mode it discloses. A catalog entry is countable only where
       // `perf_event_open` is granted, so a runner that refuses the syscall
@@ -282,8 +282,8 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
             "the multiplex ratio denominator (FR-041)",
         .words = {},
         .is_time_pair = true,
-        .avail = availability::countable,
-        .mode = read_mode::syscall,
+        .avail = Availability::COUNTABLE,
+        .mode = ReadMode::SYSCALL,
     };
     detail::pmu_entry running {
         .name = "running",
@@ -292,8 +292,8 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
             "the ratio against 'enabled' discloses multiplexing (FR-041)",
         .words = {},
         .is_time_pair = true,
-        .avail = availability::countable,
-        .mode = read_mode::syscall,
+        .avail = Availability::COUNTABLE,
+        .mode = ReadMode::SYSCALL,
     };
     device.entries.push_back(std::move(enabled));
     device.entries.push_back(std::move(running));
@@ -495,7 +495,7 @@ auto scope_reaches(const std::string& device_path,
   return reaches;
 }
 
-auto entry_read_selection_for(const availability probed,
+auto entry_read_selection_for(const Availability probed,
                               const bool fast_capable) noexcept
     -> entry_read_selection
 {
@@ -505,25 +505,25 @@ auto entry_read_selection_for(const availability probed,
   // the last enumerator, and the enumeration is closed. The fixture drives
   // each of the six states through this selector.
   switch (probed) {
-    case availability::countable: {
+    case Availability::COUNTABLE: {
       const entry_read_selection selection {
-          .mode = fast_capable ? read_mode::fast_rdpmc : read_mode::syscall,
+          .mode = fast_capable ? ReadMode::FAST_RDPMC : ReadMode::SYSCALL,
           .publish_pair = true,
       };
       // The fast mode rides the host's capability alone, so an entry the
       // fast instruction cannot read keeps the syscall mode, and this is
       // the only arm that publishes the pair (FR-001, FR-022).
-      SG_ENSURE(fast_capable == (selection.mode == read_mode::fast_rdpmc),
+      SG_ENSURE(fast_capable == (selection.mode == ReadMode::FAST_RDPMC),
                 "a countable entry publishes the fast read mode only "
                 "where the host grants it (FR-001)");
       return selection;
     }
-    case availability::permission_blocked:
-    case availability::not_encodable:
-    case availability::absent:
-    case availability::scope_refused:
-    case availability::gap:
-      return {.mode = read_mode::syscall, .publish_pair = false};
+    case Availability::PERMISSION_BLOCKED:
+    case Availability::NOT_ENCODABLE:
+    case Availability::ABSENT:
+    case Availability::SCOPE_REFUSED:
+    case Availability::GAP:
+      return {.mode = ReadMode::SYSCALL, .publish_pair = false};
   }
   // LCOV_EXCL_BR_STOP
   // Unreachable behind the closed enumeration; a build with contract
@@ -532,24 +532,24 @@ auto entry_read_selection_for(const availability probed,
   // switch that covers every enumerator. The fixture drives each of the
   // six states through this selector, and no value outside the
   // enumeration exists to reach it.
-  return {.mode = read_mode::syscall, .publish_pair = false};
+  return {.mode = ReadMode::SYSCALL, .publish_pair = false};
   // LCOV_EXCL_STOP
 }
 
-auto probed_kind_mask(const availability per_task,
-                      const availability on_cpu) noexcept -> target_mask
+auto probed_kind_mask(const Availability per_task,
+                      const Availability on_cpu) noexcept -> TargetMask
 {
-  const target_mask settled =
-      (per_task == availability::countable ? target_thread_bit : target_mask {})
-      | (on_cpu == availability::countable ? target_cpu_bit : target_mask {});
+  const TargetMask settled =
+      (per_task == Availability::COUNTABLE ? kTargetThreadBit : TargetMask {})
+      | (on_cpu == Availability::COUNTABLE ? kTargetCpuBit : TargetMask {});
   // The rule is spelled once and both the mask and the postcondition read
   // it, so the check cannot disagree with the decision it checks (FR-021).
   SG_ENSURE(settled
-                == ((per_task == availability::countable
-                         ? target_thread_bit
-                         : target_mask {})
-                    | (on_cpu == availability::countable ? target_cpu_bit
-                                                         : target_mask {})),
+                == ((per_task == Availability::COUNTABLE
+                         ? kTargetThreadBit
+                         : TargetMask {})
+                    | (on_cpu == Availability::COUNTABLE ? kTargetCpuBit
+                                                         : TargetMask {})),
             "a verdict of `countable` names that kind's bit and every other "
             "verdict names no bit, so a cpu probe that counted the entry "
             "names the cpu bit whatever the per-task probe answered (FR-021, "
@@ -557,8 +557,8 @@ auto probed_kind_mask(const availability per_task,
   return settled;
 }
 
-auto scope_settled_state(const availability on_cpu,
-                         const bool device_scoped) noexcept -> availability
+auto scope_settled_state(const Availability on_cpu,
+                         const bool device_scoped) noexcept -> Availability
 {
   // The device's own scope refuses the per-task kind and the cpu probe
   // refused that kind too, so no probe settled the entry. What this caller
@@ -567,12 +567,12 @@ auto scope_settled_state(const availability on_cpu,
   // names the encoding instead, so it survives into `entry.avail` and the
   // caller reads the two refusals apart (FR-021, FR-022).
   const bool scope_refusal =
-      device_scoped && on_cpu == availability::permission_blocked;
-  const availability settled =
-      scope_refusal ? availability::scope_refused : on_cpu;
+      device_scoped && on_cpu == Availability::PERMISSION_BLOCKED;
+  const Availability settled =
+      scope_refusal ? Availability::SCOPE_REFUSED : on_cpu;
   // The rule is spelled once and both the verdict and the postcondition read
   // it, so the check cannot disagree with the decision it checks (FR-021).
-  SG_ENSURE(settled == (scope_refusal ? availability::scope_refused : on_cpu),
+  SG_ENSURE(settled == (scope_refusal ? Availability::SCOPE_REFUSED : on_cpu),
             "a permission refusal on a device-scoped device settles on the "
             "scope's own refusal, and every other verdict settles on itself "
             "(FR-021, FR-022)");
@@ -702,7 +702,7 @@ auto table_description(const pmu_table_entry& entry) -> std::string
 
 auto pmu_probe(const int type,
                const std::vector<std::pair<int, std::uint64_t> >& words,
-               const target& where) -> availability
+               const target& where) -> Availability
 {
   perf_event_attr attr {};
   attr.type = static_cast<std::uint32_t>(type);
@@ -744,21 +744,21 @@ auto pmu_probe(const int type,
     // on every entry and publishes nothing countable, while the host that
     // grants the syscall returns countable for every event it counts.
     ::close(static_cast<int>(fd));
-    return availability::countable;
+    return Availability::COUNTABLE;
     // LCOV_EXCL_STOP
   }
   switch (errno) {  // LCOV_EXCL_BR_LINE
     case EINVAL:
     case EOPNOTSUPP:
     case ENOENT:
-      return availability::not_encodable;
+      return Availability::NOT_ENCODABLE;
     default:  // LCOV_EXCL_LINE
       // LCOV_EXCL_LINE : coverage exclusion (T066): the permission arm needs
       // a host whose kernel answers `perf_event_open` with `EACCES`. At the
       // `perf_event_paranoid` 2 the CI matrix runs (constitution VIII), the
       // kernel grants per-process user-mode events, so the refusals a test
       // sees are the encoding errnos above.
-      return availability::permission_blocked;  // LCOV_EXCL_LINE
+      return Availability::PERMISSION_BLOCKED;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_LINE
 }
 

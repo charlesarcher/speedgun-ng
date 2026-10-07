@@ -88,8 +88,8 @@ struct detail::fake_window final : window_reader
     if (disclosure_column != leaf_set::no_disclosure_column) {
       sink.put_disclosure(
           disclosure_column,
-          static_cast<std::uint64_t>(gapped ? availability::gap
-                                            : availability::countable));
+          static_cast<std::uint64_t>(gapped ? Availability::GAP
+                                            : Availability::COUNTABLE));
     }
   }
 };
@@ -137,8 +137,8 @@ auto fake_provider::add_counter(const std::string_view object_path,
                                 const std::string_view name,
                                 const std::string_view unit,
                                 const std::string_view description,
-                                const availability avail,
-                                const read_mode mode,
+                                const Availability avail,
+                                const ReadMode mode,
                                 const bool ratio_pair) -> fake_provider&
 {
   const std::string path(object_path);

@@ -139,7 +139,7 @@ they include when a name in that header changes.
   text after `clang-apply-replacements`. Remove the five naming
   suppressions FR-019 lists. List any suppression that remains, with
   its exception entry, in `spec.md` (D-01, D-02, FR-016, FR-019).
-- [ ] T005 [US2] Rename owned identifiers in `include/speedgun-ng/counters_core.hpp`
+- [X] T005 [US2] Rename owned identifiers in `include/speedgun-ng/counters_core.hpp`
   `include/speedgun-ng/counters_core.hpp` and every call site of a
   name it declares, including the qualification at
   `include/speedgun-ng/counters_core.hpp:289`. The type spelling

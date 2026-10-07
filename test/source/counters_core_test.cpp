@@ -41,54 +41,54 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-using sg::counters::availability;
-using sg::counters::catalog_entry;
+using sg::counters::Availability;
+using sg::counters::CatalogEntry;
 using sg::counters::compile;
-using sg::counters::dim;
-using sg::counters::dim_quotient;
-using sg::counters::dim_same;
-using sg::counters::dimension_of;
+using sg::counters::Dim;
+using sg::counters::dimensionOf;
+using sg::counters::DimQuotient;
 using sg::counters::fake_provider;
-using sg::counters::read_mode;
+using sg::counters::kDimSame;
+using sg::counters::ReadMode;
 using sg::counters::system;
-using sg::counters::unit;
-using sg::counters::unit_from_token;
-using sg::counters::unit_name;
+using sg::counters::Unit;
+using sg::counters::unitFromToken;
+using sg::counters::unitName;
 
-using events = dim<0, 1>;
+using events = Dim<0, 1>;
 
 // Compile-time dimension algebra (T005, FR-015).
-static_assert(dim_same<dim<0, 1>, dim<0, 1>>, "identical tags are the same");
-static_assert(!dim_same<dim<0, 1>, dim<1, 0>>, "events^1 differs from time^1");
-static_assert(dim_same<dim_quotient<dim<0, 1>, dim<0, 1>>, dim<0, 0>>,
+static_assert(kDimSame<Dim<0, 1>, Dim<0, 1>>, "identical tags are the same");
+static_assert(!kDimSame<Dim<0, 1>, Dim<1, 0>>, "events^1 differs from time^1");
+static_assert(kDimSame<DimQuotient<Dim<0, 1>, Dim<0, 1>>, Dim<0, 0>>,
               "instructions / cycles is dim<0,0>");
-static_assert(dim_same<dim_quotient<dim<0, 1>, dim<1, 0>>, dim<-1, 1>>,
+static_assert(kDimSame<DimQuotient<Dim<0, 1>, Dim<1, 0>>, Dim<-1, 1>>,
               "bytes / monotonic is dim<-1,1>");
-static_assert(dim_same<dim_quotient<dim<1, 0>, dim<1, 0>>, dim<0, 0>>,
+static_assert(kDimSame<DimQuotient<Dim<1, 0>, Dim<1, 0>>, Dim<0, 0>>,
               "monotonic / monotonic is dim<0,0>");
 
 auto test_unit_switch() -> void
 {
-  const unit seconds = *unit_from_token("seconds");
-  check(seconds == unit::seconds, "seconds token maps to unit::seconds");
+  const Unit seconds = *unitFromToken("seconds");
+  check(seconds == Unit::SECONDS, "seconds token maps to unit::seconds");
 
-  const auto dims = dimension_of(*unit_from_token("nanoseconds"));
+  const auto dims = dimensionOf(*unitFromToken("nanoseconds"));
   check(dims.has_value(), "nanoseconds resolves");
   check(dims->time == 1 && dims->events == 0, "nanoseconds is time^1");
 
-  const auto bytes = dimension_of(*unit_from_token("bytes"));
+  const auto bytes = dimensionOf(*unitFromToken("bytes"));
   check(bytes.has_value() && bytes->time == 0 && bytes->events == 1,
         "bytes is events^1");
 
-  const auto ops = dimension_of(*unit_from_token("ops"));
+  const auto ops = dimensionOf(*unitFromToken("ops"));
   check(ops.has_value() && ops->time == 0 && ops->events == 1,
         "ops is events^1");
 
-  const auto none = dimension_of(*unit_from_token("none"));
+  const auto none = dimensionOf(*unitFromToken("none"));
   check(none.has_value() && none->time == 0 && none->events == 1,
         "none is events^1");
 
-  const auto seconds_dim = dimension_of(unit::seconds);
+  const auto seconds_dim = dimensionOf(Unit::SECONDS);
   check(seconds_dim.has_value() && seconds_dim->time == 1
             && seconds_dim->events == 0,
         "seconds is time^1");
@@ -96,7 +96,7 @@ auto test_unit_switch() -> void
 
 auto test_unknown_unit_names_the_unit() -> void
 {
-  const auto bad = unit_from_token("furlongs");
+  const auto bad = unitFromToken("furlongs");
   check(!bad.has_value(), "unrecognized unit is rejected");
   check(bad.error().message.find("furlongs") != std::string::npos,
         "error message names the rejected unit");
@@ -106,11 +106,11 @@ auto test_unknown_unit_names_the_unit() -> void
 
 auto test_unit_names_round_trip() -> void
 {
-  check(unit_name(unit::seconds) == "seconds", "seconds spelling");
-  check(unit_name(unit::nanoseconds) == "nanoseconds", "nanoseconds spelling");
-  check(unit_name(unit::bytes) == "bytes", "bytes spelling");
-  check(unit_name(unit::ops) == "ops", "ops spelling");
-  check(unit_name(unit::none) == "none", "none spelling");
+  check(unitName(Unit::SECONDS) == "seconds", "seconds spelling");
+  check(unitName(Unit::NANOSECONDS) == "nanoseconds", "nanoseconds spelling");
+  check(unitName(Unit::BYTES) == "bytes", "bytes spelling");
+  check(unitName(Unit::OPS) == "ops", "ops spelling");
+  check(unitName(Unit::NONE) == "none", "none spelling");
 }
 
 // One provider registered before the open boundary, so the three shape
@@ -150,7 +150,7 @@ auto test_metric_result_fields() -> void
   const auto metric = window.metric(per_cycle);
   check(same_double(metric.value, 31.5),
         "the fold value is the hand-computed quotient 6300 / 200 (FR-030)");
-  check(same_double(metric.running_ratio, 1.0) && !metric.scaled,
+  check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
         "a window with no multiplexed source discloses ratio 1.0 and "
         "unscaled ticks (FR-019)");
 }
@@ -187,37 +187,37 @@ auto test_catalog_entry_shape() -> void
   check(entries.size() == 2,
         "the object reports its two registered counters (FR-001)");
   const auto found = std::ranges::find_if(entries,
-                                          [](const catalog_entry& entry)
+                                          [](const CatalogEntry& entry)
                                           { return entry.name == "retired"; });
   check(found != entries.end(), "the registered counter is in the catalog");
   check(found->description == "instructions retired"
-            && found->unit == unit::ops
-            && found->avail == availability::countable
-            && found->mode == read_mode::syscall,
+            && found->unit == Unit::OPS
+            && found->avail == Availability::COUNTABLE
+            && found->mode == ReadMode::SYSCALL,
         "the entry carries the declared description, unit, state, and read "
         "mode (FR-005, FR-006)");
-  check(found->frequency_hz == 0 && !found->scaled,
+  check(found->frequencyHz == 0 && !found->scaled,
         "a counter declaring neither calibration nor a scaled tick source "
         "discloses frequency 0 and unscaled (FR-019)");
 }
 
 // The defensive close of the closed unit enumeration, which the header
-// documents as the failure branch of `dimension_of` and as the fallback
-// `unit_name` returns. A value outside the enumeration is reachable only
-// through a cast. `dimension_of` then refuses with an error and
-// `unit_name` then answers "unknown"; neither reads past the switch
+// documents as the failure branch of `dimensionOf` and as the fallback
+// `unitName` returns. A value outside the enumeration is reachable only
+// through a cast. `dimensionOf` then refuses with an error and
+// `unitName` then answers "unknown"; neither reads past the switch
 // (T066).
 auto test_closed_enumeration_defensive_close() -> void
 {
-  const auto outside = static_cast<unit>(99);
-  const auto mapped = dimension_of(outside);
+  const auto outside = static_cast<Unit>(99);
+  const auto mapped = dimensionOf(outside);
   check(!mapped.has_value(),
         "a unit value outside the enumeration maps to " "nothing");
   check(mapped.error().message == "unit value outside the closed enumeration",
         "the defensive close names the closed enumeration");
   check(mapped.error().suggestions.empty(),
         "the defensive close carries no suggestion");
-  check(unit_name(outside) == "unknown",
+  check(unitName(outside) == "unknown",
         "a unit value outside the enumeration has no canonical name");
 }
 

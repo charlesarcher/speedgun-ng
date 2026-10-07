@@ -60,8 +60,8 @@ struct fake_counter_data
 {
   std::string description;
   std::string unit;
-  availability avail = availability::countable;
-  read_mode mode = read_mode::syscall;
+  Availability avail = Availability::COUNTABLE;
+  ReadMode mode = ReadMode::SYSCALL;
   bool ratio_pair = false;
   fake_script script;
   std::size_t position = 0;
@@ -168,8 +168,8 @@ public:
                    std::string_view name,
                    std::string_view unit,
                    std::string_view description,
-                   availability avail = availability::countable,
-                   read_mode mode = read_mode::syscall,
+                   Availability avail = Availability::COUNTABLE,
+                   ReadMode mode = ReadMode::SYSCALL,
                    bool ratio_pair = false) -> fake_provider&;
 
   /**
@@ -210,7 +210,7 @@ public:
    * @brief Scripts the actions one leaf measures nothing on (FR-007).
    *
    * `actions` names the one-based sampling actions at which this leaf
-   * publishes a zero beside a disclosure of `availability::gap`, which is
+   * publishes a zero beside a disclosure of `Availability::GAP`, which is
    * how a caller distinguishes a measured zero from an action that
    * measured nothing. Every other action publishes the leaf's scripted
    * point beside a disclosure of the entry's own countability value. The

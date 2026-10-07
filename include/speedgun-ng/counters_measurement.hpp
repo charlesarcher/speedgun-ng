@@ -43,7 +43,7 @@
  * chunk. The first sample lands before the work, so the count is
  * `N / K + 1` exactly.
  *
- * `expression::fold_pairs(recorder)` then yields one `metric_result`
+ * `expression::fold_pairs(recorder)` then yields one `MetricResult`
  * per adjacent interval, which is the per-chunk series. A
  * first-to-last `fold()` answers the single total. A window
  * from `i` to `j` costs the sampling actions at both endpoints, and
@@ -75,7 +75,7 @@
  * roughly 9007199 events per nanosecond sustained for one second, so any
  * counter-backed delta is exact on every host this feature targets. A
  * scaled expression, such as a per-iteration rate, can reach the
- * threshold through its scale factor alone; `metric_result::scaled`
+ * threshold through its scale factor alone; `MetricResult::scaled`
  * reports that the value carries a scale the caller applied.
  */
 
@@ -98,8 +98,8 @@ struct leaf_core
   std::string name;
   std::string description;
   std::string unit;  // canonical unit token
-  availability avail = availability::countable;
-  read_mode mode = read_mode::syscall;
+  Availability avail = Availability::COUNTABLE;
+  ReadMode mode = ReadMode::SYSCALL;
   std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
   bool scaled = false;  // platform-scaled tick source disclosure
 };
@@ -261,7 +261,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto avail() const noexcept -> availability
+  [[nodiscard]] auto avail() const noexcept -> Availability
   {
     return leaf.avail;
   }
@@ -398,13 +398,13 @@ struct recorder_api
  *
  * `availability` is the disclosure state of the window's end point
  * only. An interior row can hold a zero from a gap while this field
- * stays `availability::countable`, because the end point of that window
+ * stays `Availability::COUNTABLE`, because the end point of that window
  * measured a count. A caller that needs the state of each point uses
  * `fold` or `fold_pairs`, which disclose each window's own gap state
  * (FR-004, FR-005).
  *
  * `ratio` is the multiplex fraction over the window this view spans, and
- * it is meaningful only when `availability != availability::gap`. A view
+ * it is meaningful only when `availability != Availability::GAP`. A view
  * whose end point is an action that measured nothing publishes `1.0` and
  * discloses no fraction, because no measured time covers an action that
  * measured no count. The state beside the ratio names that condition, so a
@@ -421,11 +421,11 @@ struct points_view
   std::size_t count = 0;
   double ratio = 1.0;  // the multiplex fraction; 1.0 discloses no fraction
   // The field carries the contract's name, and the type is qualified for
-  // the same reason as the one on `metric_result`: a member named as a
+  // the same reason as the one on `MetricResult`: a member named as a
   // type already in this namespace changes that name's meaning for the
   // rest of the class body, which is ill-formed (FR-004, FR-035).
-  ::sg::counters::availability availability =
-      ::sg::counters::availability::countable;
+  ::sg::counters::Availability availability =
+      ::sg::counters::Availability::COUNTABLE;
 };
 
 /**
@@ -593,29 +593,29 @@ namespace detail
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto fold_core(const expr_core& core,
                                                 const recorder_api& rec,
                                                 std::size_t i,
-                                                std::size_t j) -> metric_result;
+                                                std::size_t j) -> MetricResult;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto fold_pairs_core(const expr_core& core,
                                                       const recorder_api& rec)
-    -> std::vector<metric_result>;
+    -> std::vector<MetricResult>;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto raw_core(const expr_core& core,
                                                const recorder_api& rec,
                                                std::string_view object_path,
                                                std::string_view leaf_name)
-    -> std::expected<points_view, error>;
+    -> std::expected<points_view, Error>;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto resolve_leaf_core(const object& obj,
                                                         std::string_view name)
-    -> std::expected<leaf_core, error>;
+    -> std::expected<leaf_core, Error>;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto compile_core(
     const system& sys,
     const target& tg,
-    const std::vector<const expr_core*>& exprs) -> std::expected<plan, error>;
+    const std::vector<const expr_core*>& exprs) -> std::expected<plan, Error>;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto metric_core(
-    const scope& scope_obj, const expr_core& core) -> metric_result;
+    const scope& scope_obj, const expr_core& core) -> MetricResult;
 
 }  // namespace detail
 
@@ -652,7 +652,7 @@ public:
    * \post none
    */
   template<class C>
-    requires dim_same<D, C>
+    requires kDimSame<D, C>
   // The suppressed check asks for `explicit` on this single-argument
   // constructor. Converting a resolved counter into its expression is
   // the public composition spelling, and `explicit` would force every
@@ -677,7 +677,7 @@ public:
    */
   [[nodiscard]] auto fold(const recorder_api& rec,
                           std::size_t i,
-                          std::size_t j) const -> metric_result
+                          std::size_t j) const -> MetricResult
   {
     SG_REQUIRE(i < j && j < rec.count,
                "fold window lies within the recorded extent (FR-018)");
@@ -690,7 +690,7 @@ public:
    * \pre at least two committed points (tier-3).
    * \post none
    */
-  [[nodiscard]] auto fold(const recorder_api& rec) const -> metric_result
+  [[nodiscard]] auto fold(const recorder_api& rec) const -> MetricResult
   {
     SG_REQUIRE(rec.count >= 2,
                "first-to-last fold needs two committed points (FR-018)");
@@ -725,7 +725,7 @@ public:
   [[nodiscard]] auto raw(const recorder_api& rec,
                          std::string_view object_path,
                          std::string_view leaf) const
-      -> std::expected<points_view, error>
+      -> std::expected<points_view, Error>
   {
     return detail::raw_core(core, rec, object_path, leaf);
   }
@@ -774,14 +774,14 @@ public:
  */
 template<class D1, class D2>
 [[nodiscard]] auto operator/(const expression<D1>& a, const expression<D2>& b)
-    -> expression<dim_quotient<D1, D2>>
+    -> expression<DimQuotient<D1, D2>>
 {
   detail::expr_core merged;
   const int left = detail::splice(merged, a.core);
   const int right = detail::splice(merged, b.core);
   merged.add_node(detail::expr_node {
       .kind = 3, .left = left, .right = right, .leaf = -1, .scale = 1.0});
-  auto out = expression<dim_quotient<D1, D2>>();
+  auto out = expression<DimQuotient<D1, D2>>();
   out.core = std::move(merged);
   return out;
 }
@@ -793,7 +793,7 @@ template<class D1, class D2>
 [[nodiscard]] auto operator+(const expression<D1>& a,
                              const expression<D2>& b) -> expression<D1>
 {
-  static_assert(dim_same<D1, D2>,
+  static_assert(kDimSame<D1, D2>,
                 "expression addition requires identical dimension tags");
   auto merged = a.core;
   const int left = merged.root();
@@ -809,7 +809,7 @@ template<class D1, class D2>
 [[nodiscard]] auto operator-(const expression<D1>& a,
                              const expression<D2>& b) -> expression<D1>
 {
-  static_assert(dim_same<D1, D2>,
+  static_assert(kDimSame<D1, D2>,
                 "expression subtraction requires identical dimension tags");
   auto merged = a.core;
   const int left = merged.root();
@@ -830,7 +830,7 @@ template<class D1, class D2>
  */
 template<class D1, class D2>
 [[nodiscard]] auto operator/(const counter<D1>& a, const counter<D2>& b)
-    -> expression<dim_quotient<D1, D2>>
+    -> expression<DimQuotient<D1, D2>>
 {
   return expression<D1>(a) / expression<D2>(b);
 }
@@ -843,7 +843,7 @@ template<class D1, class D2>
  */
 template<class D1, class D2>
 [[nodiscard]] auto operator/(const expression<D1>& a, const counter<D2>& b)
-    -> expression<dim_quotient<D1, D2>>
+    -> expression<DimQuotient<D1, D2>>
 {
   return a / expression<D2>(b);
 }
@@ -856,7 +856,7 @@ template<class D1, class D2>
  */
 template<class D1, class D2>
 [[nodiscard]] auto operator/(const counter<D1>& a, const expression<D2>& b)
-    -> expression<dim_quotient<D1, D2>>
+    -> expression<DimQuotient<D1, D2>>
 {
   return expression<D1>(a) / b;
 }
@@ -865,7 +865,7 @@ template<class D1, class D2>
 [[nodiscard]] auto operator+(const counter<D1>& a,
                              const counter<D2>& b) -> expression<D1>
 {
-  static_assert(dim_same<D1, D2>,
+  static_assert(kDimSame<D1, D2>,
                 "counter addition requires identical dimension tags");
   return expression<D1>(a) + expression<D1>(b);
 }
@@ -874,7 +874,7 @@ template<class D1, class D2>
 [[nodiscard]] auto operator-(const counter<D1>& a,
                              const counter<D2>& b) -> expression<D1>
 {
-  static_assert(dim_same<D1, D2>,
+  static_assert(kDimSame<D1, D2>,
                 "counter subtraction requires identical dimension tags");
   return expression<D1>(a) - expression<D1>(b);
 }
@@ -940,7 +940,7 @@ public:
    * \post none
    */
   [[nodiscard]] auto recorder(std::size_t capacity, ring_t) const
-      -> std::expected<recorder_handle<ring_t>, error>;
+      -> std::expected<recorder_handle<ring_t>, Error>;
 
   /**
    * @brief The cheapest `sample()` in the recorded distribution, in
@@ -982,7 +982,7 @@ private:
   friend auto detail::compile_core(const system& sys,
                                    const target& tg,
                                    const std::vector<const detail::expr_core*>&
-                                       exprs) -> std::expected<plan, error>;
+                                       exprs) -> std::expected<plan, Error>;
   friend class scope;
 
   explicit plan(void* impl) noexcept
@@ -1061,7 +1061,7 @@ public:
    * \post none
    */
   template<class D>
-  [[nodiscard]] auto metric(const expression<D>& e) const -> metric_result
+  [[nodiscard]] auto metric(const expression<D>& e) const -> MetricResult
   {
     return detail::metric_core(*this, e.core);
   }
@@ -1079,7 +1079,7 @@ public:
 
 private:
   friend auto detail::metric_core(
-      const scope& scope_obj, const detail::expr_core& core) -> metric_result;
+      const scope& scope_obj, const detail::expr_core& core) -> MetricResult;
 
   void* m_core = nullptr;  // the scope internals
 };
@@ -1100,7 +1100,7 @@ template<class... E>
                                         expression>::value
            && ...)
 [[nodiscard]] auto compile(const system& sys,
-                           const E&... exprs) -> std::expected<plan, error>
+                           const E&... exprs) -> std::expected<plan, Error>
 {
   const std::vector<const detail::expr_core*> cores {&exprs.core...};
   return detail::compile_core(sys, target {}, cores);
@@ -1118,7 +1118,7 @@ template<class... E>
            && ...)
 [[nodiscard]] auto compile(const system& sys,
                            const target& tg,
-                           const E&... exprs) -> std::expected<plan, error>
+                           const E&... exprs) -> std::expected<plan, Error>
 {
   const std::vector<const detail::expr_core*> cores {&exprs.core...};
   return detail::compile_core(sys, tg, cores);
@@ -1131,7 +1131,7 @@ template<class... E>
 struct fanout_result
 {
   std::string object_path;  // canonical spelling (FR-002)
-  metric_result metric;
+  MetricResult metric;
 };
 
 class object;
@@ -1145,7 +1145,7 @@ SPEEDGUN_NG_EXPORT auto compile_fanout_core(
     const target& tg,
     const expr_core& exemplar,
     const std::vector<const object*>& selection)
-    -> std::expected<fanout_plan, error>;
+    -> std::expected<fanout_plan, Error>;
 
 SPEEDGUN_NG_EXPORT auto fanout_fold_core(const void* fanout,
                                          const expr_core& core,
@@ -1233,7 +1233,7 @@ private:
       const target& tg,
       const detail::expr_core& exemplar,
       const std::vector<const object*>& selection)
-      -> std::expected<fanout_plan, error>;
+      -> std::expected<fanout_plan, Error>;
   friend auto detail::fanout_fold_core(const void* fanout,
                                        const detail::expr_core& core,
                                        const recorder_api& rec)
@@ -1261,7 +1261,7 @@ template<class D>
 [[nodiscard]] auto compile(const system& sys,
                            const expression<D>& expr,
                            const std::vector<const object*>& selection)
-    -> std::expected<fanout_plan, error>
+    -> std::expected<fanout_plan, Error>
 {
   return detail::compile_fanout_core(sys, target {}, expr.core, selection);
 }

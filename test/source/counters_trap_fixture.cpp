@@ -31,14 +31,14 @@ namespace
 {
 
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
 using sg::counters::push_counter;
 using sg::counters::push_provider;
 using sg::counters::system;
 
-using events = dim<0, 1>;
+using events = Dim<0, 1>;
 
 auto setup() -> sg::counters::plan
 {

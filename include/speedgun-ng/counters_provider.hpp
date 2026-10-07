@@ -40,8 +40,8 @@ struct catalog_seed
   std::string_view name;
   std::string_view description;
   std::string_view unit;
-  availability avail = availability::countable;
-  read_mode mode = read_mode::syscall;
+  Availability avail = Availability::COUNTABLE;
+  ReadMode mode = ReadMode::SYSCALL;
   std::uint64_t frequency_hz = 0;  // fixed-rate calibration, 0 elsewhere
   bool scaled = false;  // platform-scaled tick source disclosure
   // True when the source discloses a time pair (`enabled` and

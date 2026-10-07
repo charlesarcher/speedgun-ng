@@ -33,13 +33,13 @@
 
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
 using sg::counters::system;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 namespace
 {
@@ -122,7 +122,7 @@ auto gap_scenario() -> void
   rec.sample();
   rec.sample();
 
-  const auto gap = sg::counters::availability::gap;
+  const auto gap = sg::counters::Availability::GAP;
   const auto over_gap = ipc.fold(rec.view(), 0, 1);
   check(over_gap.availability == gap,
         "a window whose end point is a scripted gap discloses the gap "
@@ -162,7 +162,7 @@ auto mixed_provider_scenario() -> void
   // gap window. The clock window's own mark is countable. The result names
   // the gap, because the disclosure beside the leaf the fold reads is the
   // one its own group wrote (FR-002, FR-004).
-  const auto gap = sg::counters::availability::gap;
+  const auto gap = sg::counters::Availability::GAP;
   const auto over_gap = per_second.fold(rec.view(), 0, 1);
   check(over_gap.availability == gap,
         "a mixed plan reaching the fold result discloses the scripted gap in "

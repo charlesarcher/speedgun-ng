@@ -51,23 +51,23 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-using sg::counters::availability;
-using sg::counters::catalog_entry;
+using sg::counters::Availability;
+using sg::counters::CatalogEntry;
 using sg::counters::clock_provider;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::fake_provider;
 using sg::counters::push_provider;
-using sg::counters::read_mode;
+using sg::counters::ReadMode;
 using sg::counters::scope;
 using sg::counters::system;
-using sg::counters::unit;
-using sg::counters::unit_name;
+using sg::counters::Unit;
+using sg::counters::unitName;
 
 // The raw entry's unit is the closed token 007 already assigns it, which
-// maps to dim<0,1> (counters_core.hpp:178), so it is a counted source and
-// a quotient against another counted source folds to dim<0,0>.
-using events = dim<0, 1>;
+// maps to Dim<0,1> (counters_core.hpp:178), so it is a counted source and
+// a quotient against another counted source folds to Dim<0,0>.
+using events = Dim<0, 1>;
 
 // Exact double comparison through the bit pattern: these are exactness
 // checks, and a tolerance band has no place in them (the build enables
@@ -77,8 +77,8 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-auto find_entry(const std::vector<catalog_entry>& entries,
-                const std::string_view name) -> const catalog_entry*
+auto find_entry(const std::vector<CatalogEntry>& entries,
+                const std::string_view name) -> const CatalogEntry*
 {
   for (const auto& entry : entries) {
     if (entry.name == name) {
@@ -88,7 +88,7 @@ auto find_entry(const std::vector<catalog_entry>& entries,
   return nullptr;
 }
 
-auto machine_entries() -> std::vector<catalog_entry>
+auto machine_entries() -> std::vector<CatalogEntry>
 {
   const auto machine = *system::local().object("machine");
   return machine.counters();
@@ -176,15 +176,15 @@ auto test_raw_entry() -> void
   if (raw == nullptr) {
     return;
   }
-  check(raw->mode == read_mode::fast_tsc,
+  check(raw->mode == ReadMode::FAST_TSC,
         "the entry reports the fast single-instruction read mode (FR-001)");
-  check(raw->avail == availability::countable,
+  check(raw->avail == Availability::COUNTABLE,
         "the raw entry is countable (FR-002)");
-  check(raw->unit == unit::none,
+  check(raw->unit == Unit::NONE,
         "the raw entry carries a count, not a duration (FR-002)");
-  check(unit_name(raw->unit) == "none",
+  check(unitName(raw->unit) == "none",
         "the unit is the closed token 007 already assigned (FR-002)");
-  check(raw->frequency_hz == 0, "the raw entry attaches no frequency (FR-002)");
+  check(raw->frequencyHz == 0, "the raw entry attaches no frequency (FR-002)");
   check(!raw->scaled, "the raw entry attaches no scaled flag (FR-002)");
   check(raw->description.find("raw") != std::string::npos,
         "the description states that the count is raw (FR-002)");
@@ -286,12 +286,12 @@ auto test_counter_composes() -> void
         "the quotient folds to a positive instructions-per-tick ratio "
         "(FR-004)");
   check(
-      same_double(folded.running_ratio, 1.0),
+      same_double(folded.runningRatio, 1.0),
       "the fold discloses ratio 1.0 for an unscaled counted source " "(FR-"
                                                                      "002)");
   std::printf("instructions per tick: %.6f, running ratio %.6f, scaled %s\n",
               folded.value,
-              folded.running_ratio,
+              folded.runningRatio,
               folded.scaled ? "yes" : "no");
 }
 

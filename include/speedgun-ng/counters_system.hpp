@@ -86,12 +86,12 @@ public:
    * \pre Every stored leaf carries a unit token the closed switch maps.
    *      Registration admits no other, so a violation is a provider
    *      contract breach and reports. The leaf is never presented as
-   *      `unit::none` (FR-017).
+   *      `Unit::NONE` (FR-017).
    * \post Every entry's `avail` and `targets` agree: an entry reported
    *       `countable` names at least one target bit, and an entry in
    *       every other state names none (FR-021).
    */
-  [[nodiscard]] auto counters() const -> std::vector<catalog_entry>;
+  [[nodiscard]] auto counters() const -> std::vector<CatalogEntry>;
 
   /**
    * @brief The child objects in tree order (US3 scenario 1).
@@ -118,7 +118,7 @@ public:
    */
   template<class D>
   [[nodiscard]] auto counter(std::string_view name) const
-      -> std::expected<sg::counters::counter<D>, error>
+      -> std::expected<sg::counters::counter<D>, Error>
   {
     auto leaf = detail::resolve_leaf_core(*this, name);
     if (!leaf.has_value()) {
@@ -126,7 +126,7 @@ public:
     }
     // Recognition first: dereferencing the token before testing it
     // reads the error branch of the inner `expected` (FR-017).
-    const auto recognized = unit_from_token(leaf->unit);
+    const auto recognized = unitFromToken(leaf->unit);
     // LCOV_EXCL_BR_START : coverage exclusion (T066): a stored catalog unit
     // is a recognized token by construction. `register_provider` refuses an
     // unrecognized token, so the tree never holds one, and the recognized
@@ -134,24 +134,24 @@ public:
     if (!recognized.has_value()) {  // LCOV_EXCL_BR_LINE
       return std::unexpected(recognized.error());  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_STOP
-    const auto mapped = dimension_of(*recognized);
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): `dimension_of` maps
+    const auto mapped = dimensionOf(*recognized);
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): `dimensionOf` maps
     // every enumerator of the closed `unit` enumeration and the recognized
     // token set feeds it nothing else, so the inner `expected` has no failing
     // value to return.
     if (!mapped.has_value()) {  // LCOV_EXCL_BR_LINE
       return std::unexpected(mapped.error());  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_STOP
-    if (mapped->time != D::time_exponent
-        || mapped->events != D::events_exponent)
+    if (mapped->time != D::kTimeExponent
+        || mapped->events != D::kEventsExponent)
     {
-      return std::unexpected(error {
+      return std::unexpected(Error {
           .message = "counter '" + std::string(name) + "' has unit '"
               + leaf->unit + "' (dimension time^" + std::to_string(mapped->time)
               + " x events^" + std::to_string(mapped->events)
               + "); requested dimension time^"
-              + std::to_string(D::time_exponent) + " x events^"
-              + std::to_string(D::events_exponent),
+              + std::to_string(D::kTimeExponent) + " x events^"
+              + std::to_string(D::kEventsExponent),
           .suggestions = {}});
     }
     return sg::counters::counter<D> {std::move(*leaf)};
@@ -161,11 +161,11 @@ private:
   friend class system;
   friend auto detail::resolve_leaf_core(const object& obj,
                                         std::string_view name)
-      -> std::expected<detail::leaf_core, error>;
+      -> std::expected<detail::leaf_core, Error>;
   friend auto detail::compile_core(const system& sys,
                                    const target& tg,
                                    const std::vector<const detail::expr_core*>&
-                                       exprs) -> std::expected<plan, error>;
+                                       exprs) -> std::expected<plan, Error>;
 
   explicit object(void* node) noexcept
       : m_node(node)
@@ -212,7 +212,7 @@ public:
    * \post none
    */
   [[nodiscard]] auto register_provider(std::unique_ptr<provider_iface> provider)
-      -> std::expected<void, error>;
+      -> std::expected<void, Error>;
 
   /**
    * @brief Resolves a canonical structured path or a platform alias
@@ -225,7 +225,7 @@ public:
    * \post none
    */
   [[nodiscard]] auto object(std::string_view path)
-      -> std::expected<sg::counters::object, error>;
+      -> std::expected<sg::counters::object, Error>;
 
   /**
    * @brief One equality predicate of an `objects` selection (FR-003).
@@ -254,7 +254,7 @@ public:
    */
   [[nodiscard]] auto objects(std::string_view kind,
                              std::initializer_list<filter> filters = {})
-      -> std::expected<std::vector<const sg::counters::object*>, error>;
+      -> std::expected<std::vector<const sg::counters::object*>, Error>;
 
   /**
    * @brief Resolves the time-stamp counter as a shorter spelling of
@@ -275,7 +275,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto tsc() const -> std::expected<counter<dim<0, 1>>, error>;
+  [[nodiscard]] auto tsc() const -> std::expected<counter<Dim<0, 1>>, Error>;
 
 private:
   system();
@@ -289,10 +289,10 @@ private:
   friend auto detail::compile_core(const system& sys,
                                    const target& tg,
                                    const std::vector<const detail::expr_core*>&
-                                       exprs) -> std::expected<plan, error>;
+                                       exprs) -> std::expected<plan, Error>;
   friend auto detail::resolve_leaf_core(const sg::counters::object& obj,
                                         std::string_view name)
-      -> std::expected<detail::leaf_core, error>;
+      -> std::expected<detail::leaf_core, Error>;
 
   struct impl;  // the tree behind the handle
   std::unique_ptr<impl> m_impl;

@@ -208,7 +208,7 @@ struct ratio_result
 // action named by the caller's logical index (FR-001).
 [[nodiscard]] auto end_point_state(const fold_context& ctx,
                                    const std::size_t row,
-                                   const std::size_t slot) -> availability
+                                   const std::size_t slot) -> Availability
 {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto disclosure_index =
@@ -217,7 +217,7 @@ struct ratio_result
   // the index is computed from the layout that buffer was built for, so
   // the subscript is in range by construction.
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  return static_cast<availability>(ctx.rec.columns[disclosure_index]);
+  return static_cast<Availability>(ctx.rec.columns[disclosure_index]);
 }
 
 // Whether either end point of the window is an action that measured
@@ -229,7 +229,7 @@ struct ratio_result
 [[nodiscard]] auto window_is_gap(const fold_context& ctx,
                                  const expr_core& core) -> bool
 {
-  const auto gap = availability::gap;
+  const auto gap = Availability::GAP;
   // Every leaf's own group decides, so a plan drawing leaves from two
   // providers reads each provider's own disclosure column (FR-001,
   // FR-002).
@@ -248,12 +248,12 @@ struct ratio_result
 auto fold_core(const expr_core& core,
                const recorder_api& rec,
                const std::size_t i,
-               const std::size_t j) -> metric_result
+               const std::size_t j) -> MetricResult
 {
   SG_REQUIRE(i < j && j < rec.count,
              "fold window lies within the recorded extent (FR-018)");
   if (core.empty()) {
-    return metric_result {};
+    return MetricResult {};
   }
   // A wrapped ring stores the retained window from the oldest point
   // at physical slot `dropped % stride`; folds address it logically
@@ -270,7 +270,7 @@ auto fold_core(const expr_core& core,
   // that decreased between the two folded points is user misuse,
   // tier-3 (FR-035).
   for (const auto& leaf : core.leaves) {
-    if (leaf.mode == read_mode::push_load) {
+    if (leaf.mode == ReadMode::PUSH_LOAD) {
       const std::size_t slot = ctx.layout.by_address.at(leaf.address);
       const auto* column = ctx.rec.columns + slot * ctx.rec.stride;
       SG_REQUIRE(column[ctx.j] >= column[ctx.i],
@@ -287,10 +287,10 @@ auto fold_core(const expr_core& core,
   // reads zero and never reads a fabricated delta. The state says why
   // (FR-001, FR-004).
   if (window_is_gap(ctx, core)) {
-    return metric_result {
+    return MetricResult {
         .value = 0.0,
-        .running_ratio = 1.0,
-        .availability = availability::gap,
+        .runningRatio = 1.0,
+        .availability = Availability::GAP,
         .scaled = false,
     };
   }
@@ -301,9 +301,9 @@ auto fold_core(const expr_core& core,
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
   const std::size_t root_slot =
       ctx.layout.by_address.at(core.leaves[0].address);
-  return metric_result {
+  return MetricResult {
       .value = eval(ctx, core, core.root()),
-      .running_ratio = disclosure.ratio,
+      .runningRatio = disclosure.ratio,
       .availability = end_point_state(ctx, ctx.j, root_slot),
       // A window whose sources were multiplexed carries the kernel's
       // scaled estimate, and a fold the caller scaled carries one too;
@@ -314,11 +314,11 @@ auto fold_core(const expr_core& core,
 }
 
 auto fold_pairs_core(const expr_core& core,
-                     const recorder_api& rec) -> std::vector<metric_result>
+                     const recorder_api& rec) -> std::vector<MetricResult>
 {
   SG_REQUIRE(rec.count >= 2,
              "pair folds need at least two committed points (FR-018)");
-  std::vector<metric_result> out;
+  std::vector<MetricResult> out;
   for (std::size_t k = 0; k + 1 < rec.count; ++k) {
     out.push_back(fold_core(core, rec, k, k + 1));
   }
@@ -329,7 +329,7 @@ auto raw_core(const expr_core& core,
               const recorder_api& rec,
               const std::string_view object_path,
               const std::string_view leaf_name)
-    -> std::expected<points_view, error>
+    -> std::expected<points_view, Error>
 {
   const std::string address =
       std::string(object_path) + "/" + std::string(leaf_name);
@@ -369,7 +369,7 @@ auto raw_core(const expr_core& core,
           // cannot disagree (FR-004, FR-005, FR-019, FR-020).
           // LCOV_EXCL_BR_START : coverage exclusion (T140): the gap
           // fallback. A runner that never records a gap takes only one arm.
-          .ratio = (state == availability::gap)
+          .ratio = (state == Availability::GAP)
               ? 1.0
               : leaf_ratio(ctx, slot).value_or(1.0),
           // LCOV_EXCL_BR_STOP
@@ -378,11 +378,11 @@ auto raw_core(const expr_core& core,
     }
   }
   return std::unexpected(
-      error {.message = "expression does not contain leaf '" + address + "'",
+      Error {.message = "expression does not contain leaf '" + address + "'",
              .suggestions = {}});
 }
 
-auto metric_core(const scope& scope_obj, const expr_core& core) -> metric_result
+auto metric_core(const scope& scope_obj, const expr_core& core) -> MetricResult
 {
   const auto* core_obj = static_cast<const scope_core*>(scope_obj.m_core);
   SG_REQUIRE(core_obj->started && core_obj->finished,

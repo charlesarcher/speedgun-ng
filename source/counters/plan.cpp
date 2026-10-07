@@ -108,24 +108,24 @@ auto exemplar_prefix(const detail::expr_core& core) -> std::string
   return prefix;
 }
 
-auto availability_name(const availability state) -> std::string_view
+auto availability_name(const Availability state) -> std::string_view
 {
   // LCOV_EXCL_START : coverage exclusion (T066): the `countable` arm.
   // `availability_name` runs only on the construction-failure path at
   // `plan.cpp:456`, and a leaf the catalog reports as `countable` never
   // takes it.
   switch (state) {
-    case availability::countable:  // LCOV_EXCL_LINE
+    case Availability::COUNTABLE:  // LCOV_EXCL_LINE
       return "countable";  // LCOV_EXCL_LINE
-    case availability::permission_blocked:
+    case Availability::PERMISSION_BLOCKED:
       return "permission_blocked";
-    case availability::not_encodable:
+    case Availability::NOT_ENCODABLE:
       return "not_encodable";
-    case availability::absent:
+    case Availability::ABSENT:
       return "absent";
-    case availability::scope_refused:
+    case Availability::SCOPE_REFUSED:
       return "scope_refused";
-    case availability::gap:
+    case Availability::GAP:
       return "gap";
   }
   // LCOV_EXCL_LINE : coverage exclusion (T066): the defensive close of a
@@ -235,10 +235,10 @@ auto plan::recorder(const std::size_t capacity) const
 }
 
 auto plan::recorder(const std::size_t capacity, const ring_t) const
-    -> std::expected<recorder_handle<ring_t>, error>
+    -> std::expected<recorder_handle<ring_t>, Error>
 {
   if (capacity == 0 || (capacity & (capacity - 1)) != 0) {
-    return std::unexpected(error {
+    return std::unexpected(Error {
         .message = "ring capacity must be a non-zero power of two (FR-025)",
         .suggestions = {}});
   }
@@ -415,7 +415,7 @@ auto ring_sample_core(const void* impl,
 auto compile_core(const system& sys,
                   const target& tg,
                   const std::vector<const expr_core*>& exprs)
-    -> std::expected<plan, error>
+    -> std::expected<plan, Error>
 {
   auto& impl = *sys.m_impl;
   // The open flag is not written here: the open boundary sets it once,
@@ -425,7 +425,7 @@ auto compile_core(const system& sys,
              "a plan compiles only after the catalog is open (FR-011)");
   if (exprs.empty()) {
     return std::unexpected(
-        error {.message = "compile requires at least one expression (FR-021)",
+        Error {.message = "compile requires at least one expression (FR-021)",
                .suggestions = {}});
   }
 
@@ -448,7 +448,7 @@ auto compile_core(const system& sys,
     // construction error (specs/007-counters-and-timers, FR-046).
     if (core->leaves.empty()) {
       return std::unexpected(
-          error {.message = "expression carries no resolved leaves (FR-046)",
+          Error {.message = "expression carries no resolved leaves (FR-046)",
                  .suggestions = {}});
     }
     for (const auto& leaf : core->leaves) {
@@ -473,7 +473,7 @@ auto compile_core(const system& sys,
       // LCOV_EXCL_BR_STOP
       if (record == nullptr) {
         return std::unexpected(
-            error {.message = "leaf '" + leaf.address
+            Error {.message = "leaf '" + leaf.address
                        + "' is not in the system tree (FR-017)",
                    .suggestions = {}});
       }
@@ -492,7 +492,7 @@ auto compile_core(const system& sys,
         message += "; pick a countable counter or branch on the catalog "
                    "state before composing (FR-024)";
         return std::unexpected(
-            error {.message = std::move(message), .suggestions = {}});
+            Error {.message = std::move(message), .suggestions = {}});
       }
       seen.emplace(leaf.address, pending.size());
       pending.push_back(
@@ -598,7 +598,7 @@ auto compile_core(const system& sys,
     // turned into a window.
     if (reader == nullptr) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the refusal itself.
-      return std::unexpected(error {
+      return std::unexpected(Error {
           .message = "provider cannot open a window for its leaves (FR-011)",
           .suggestions = {}});
       // LCOV_EXCL_STOP
@@ -620,7 +620,7 @@ auto compile_core(const system& sys,
   // exactly one group, so the push at `plan.cpp:496` lands once per entry.
   if (layout->slots.size() != pending.size()) {  // LCOV_EXCL_BR_LINE
     return std::unexpected(  // LCOV_EXCL_LINE
-        error {// LCOV_EXCL_LINE
+        Error {// LCOV_EXCL_LINE
                .message =
                    "leaf has no owning provider (FR-011)",  // LCOV_EXCL_LINE
                .suggestions = {}});  // LCOV_EXCL_LINE
@@ -633,24 +633,24 @@ auto compile_fanout_core(const system& sys,
                          const target& tg,
                          const expr_core& exemplar,
                          const std::vector<const object*>& selection)
-    -> std::expected<fanout_plan, error>
+    -> std::expected<fanout_plan, Error>
 {
   // The leaf vector, for the reason `compile_core` gives above: a
   // scalar multiple adds its scale node over an empty spine, so a
   // scaled zero-leaf exemplar holds one node over nothing.
   if (exemplar.leaves.empty()) {
     return std::unexpected(
-        error {.message = "fan-out exemplar carries no leaves (FR-024)",
+        Error {.message = "fan-out exemplar carries no leaves (FR-024)",
                .suggestions = {}});
   }
   if (selection.empty()) {
     return std::unexpected(
-        error {.message = "fan-out needs a non-empty selection (FR-024)",
+        Error {.message = "fan-out needs a non-empty selection (FR-024)",
                .suggestions = {}});
   }
   if (exemplar_prefix(exemplar).empty()) {
     return std::unexpected(
-        error {.message = "fan-out exemplar spans several objects (FR-024)",
+        Error {.message = "fan-out exemplar spans several objects (FR-024)",
                .suggestions = {}});
   }
   std::vector<const expr_core*> instantiated;
@@ -659,12 +659,12 @@ auto compile_fanout_core(const system& sys,
   for (const object* selected : selection) {
     if (selected == nullptr) {
       return std::unexpected(
-          error {.message = "fan-out selection holds a null object (FR-024)",
+          Error {.message = "fan-out selection holds a null object (FR-024)",
                  .suggestions = {}});
     }
     const std::string path(selected->path());
     if (std::find(paths.begin(), paths.end(), path) != paths.end()) {
-      return std::unexpected(error {
+      return std::unexpected(Error {
           .message = "fan-out selection duplicates '" + path + "' (FR-024)",
           .suggestions = {}});
     }
@@ -701,7 +701,7 @@ auto fanout_fold_core(const void* fanout,
   return out;
 }  // LCOV_EXCL_LINE
 
-auto availability_gate_passes(const availability probed,
+auto availability_gate_passes(const Availability probed,
                               const target_kind requested) noexcept -> bool
 {
   // The state a caller cannot clear is the entry's own device scope
@@ -712,14 +712,14 @@ auto availability_gate_passes(const availability probed,
   // it is refused with the catalog's own name in the message (FR-021,
   // FR-022, FR-024).
   const bool cpu_over_scope_refusal =
-      probed == availability::scope_refused && requested == target_kind::cpu;
+      probed == Availability::SCOPE_REFUSED && requested == target_kind::cpu;
   const bool passes =
-      probed == availability::countable || cpu_over_scope_refusal;
+      probed == Availability::COUNTABLE || cpu_over_scope_refusal;
   // The rule is spelled once and both the verdict and the postcondition
   // read it, so the check cannot disagree with the decision it checks
   // (FR-024).
   SG_ENSURE(passes
-                == (probed == availability::countable
+                == (probed == Availability::COUNTABLE
                     || cpu_over_scope_refusal),
             "a countable entry passes the availability gate for either "
             "target kind, a scope-refused entry passes it for the cpu kind "

@@ -50,10 +50,10 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-using sg::counters::availability;
-using sg::counters::catalog_entry;
+using sg::counters::Availability;
+using sg::counters::CatalogEntry;
 using sg::counters::compile;
-using sg::counters::dim;
+using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::fake_provider;
 using sg::counters::leaf_set;
@@ -65,8 +65,8 @@ using sg::counters::system;
 using sg::counters::target;
 using sg::counters::window_reader;
 
-using events = dim<0, 1>;
-using time_dim = dim<1, 0>;
+using events = Dim<0, 1>;
+using time_dim = Dim<1, 0>;
 
 fake_provider* probe = nullptr;
 
@@ -212,9 +212,9 @@ auto test_enumeration() -> void
   const auto entries = core3.counters();
   check(entries.size() == 2, "the catalog lists both counters (FR-005)");
   const auto cycles = std::ranges::find_if(
-      entries, [](const catalog_entry& e) { return e.name == "cycles"; });
+      entries, [](const CatalogEntry& e) { return e.name == "cycles"; });
   check(cycles != entries.end() && !cycles->description.empty()
-            && cycles->avail == availability::countable,
+            && cycles->avail == Availability::COUNTABLE,
         "the cycles entry carries description and state (FR-005, FR-006)");
 }
 

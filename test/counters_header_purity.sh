@@ -19,22 +19,22 @@
 # calibration that spelled CPUID in a header left with the raw
 # time-stamp counter (specs/008-timestamp-counter, FR-011), and no
 # header spells it now, and none spells CLOCK_MONOTONIC. `tsc` is not
-# a term either, because FR-023 mandates `fast_tsc` as a read-mode
+# a term either, because FR-023 mandates `FAST_TSC` as a read-mode
 # name, so the term is required vocabulary, which the scan must not
 # flag.
 #
 # A term matches as a substring, so perf_event_open and rdtscp are
 # violations the whole-word form missed. The exception is rdpmc, which
 # keeps the word boundary: FR-023 mandates the read-mode name
-# fast_rdpmc, and scanning the bare term would flag that required name,
-# exactly as scanning tsc would flag fast_tsc.
+# FAST_RDPMC, and scanning the bare term would flag that required name,
+# exactly as scanning tsc would flag FAST_TSC.
 #
 # The PMU term matches a standalone uppercase acronym in a core
 # vocabulary header, which is the shape a prose violation takes:
 # "a core-PMU group" names the concept, and that is what FR-010 puts
 # outside the core vocabulary. Case sensitivity and the word boundary
 # are what keep the required vocabulary legal. The mandated enumerator
-# is spelled `read_mode::fast_rdpmc` in lowercase and lives in a
+# is spelled `ReadMode::FAST_RDPMC` and lives in a
 # scanned header. The shipped provider header is `counters_pmu.hpp` in
 # lowercase, and its include guard is
 # `SPEEDGUN_NG_COUNTERS_PMU_HPP`, where `PMU` sits between word
