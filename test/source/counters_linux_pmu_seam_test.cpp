@@ -3061,10 +3061,9 @@ auto uncore_device_fixture_scenario() -> void
   std::size_t misplaced = 0;
   for (const auto& row : table) {
     const bool here = carries(*loaded, row.name);
-    // The placement step uses scope_reaches, not the literal unit
-    // "iMC". A selected table whose memory rows spell another unit
-    // still belongs on this device, and only a row that rule rejects
-    // is misplaced (FR-019).
+    // The placement step uses scope_reaches. A selected table whose
+    // memory rows spell another unit still belongs on this device.
+    // A row that rule rejects is misplaced (FR-019).
     const bool belongs =
         sg::counters::detail::scope_reaches(loaded->path, row.unit);
     if (belongs) {
