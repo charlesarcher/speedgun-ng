@@ -244,10 +244,14 @@ add_test(NAME counters_recorder_test COMMAND counters_recorder_test)
 
 # Allocation-free sampling proof (T027; FR-026): counting global
 # operator new/delete in this TU, sampling under the counter.
-add_executable(counters_noalloc_test source/counters_noalloc_test.cpp)
-target_link_libraries(counters_noalloc_test PRIVATE speedgun-ng::speedgun-ng)
-target_compile_features(counters_noalloc_test PRIVATE cxx_std_23)
-add_test(NAME counters_noalloc_test COMMAND counters_noalloc_test)
+# The thread sanitizer runtime defines those operators too. The two
+# definitions cannot link, so this proof stays out of that preset.
+if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "fsanitize=thread")
+  add_executable(counters_noalloc_test source/counters_noalloc_test.cpp)
+  target_link_libraries(counters_noalloc_test PRIVATE speedgun-ng::speedgun-ng)
+  target_compile_features(counters_noalloc_test PRIVATE cxx_std_23)
+  add_test(NAME counters_noalloc_test COMMAND counters_noalloc_test)
+endif()
 
 # The recorder trap fixture is NOT a test (it aborts); it is a driven
 # executable used by counters_trap_checked_test and the consumer-release
