@@ -61,7 +61,7 @@ push_provider::~push_provider() = default;
 auto push_provider::add_counter(const std::string_view name,
                                 const std::string_view unit,
                                 const std::string_view description)
-    -> push_counter
+    -> PushCounter
 {
   SG_REQUIRE(!name.empty(), "add_counter names a counter (FR-035)");
   m_points.emplace_back(push_point {
@@ -74,7 +74,7 @@ auto push_provider::add_counter(const std::string_view name,
   auto& point = m_points.back();
   SG_ENSURE(m_points.back().name == name,
             "the declared counter is enumerable (FR-035)");
-  return push_counter(&point.value, point.owner, point.name);
+  return PushCounter(&point.value, point.owner, point.name);
 }
 
 void push_provider::enumerate(ObjectSink& sink) const

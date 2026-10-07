@@ -3,9 +3,9 @@
 // T025, T026; US2 scenarios).
 //
 // Covers the plan-owned arena with non-owning trivially-copyable
-// cursors (FR-029), hard_stop capacity semantics (FR-027), ring
+// cursors (FR-029), hardStop capacity semantics (FR-027), ring
 // masking with drop accounting and the wrapped fold window (FR-025,
-// FR-028), per-interval fold_pairs and first-to-last folds over
+// FR-028), per-interval foldPairs and first-to-last folds over
 // recorder windows (FR-018), independent cursors on one plan, and the
 // 2^64 wrap through a recorder-sampled ratio (FR-013). Hand-computed
 // expectations, frameworkless check()/fail() convention. Each scenario
@@ -56,18 +56,17 @@ using sg::counters::expression;
 using sg::counters::fake_provider;
 using sg::counters::object;
 using sg::counters::plan;
-using sg::counters::recorder_handle;
+using sg::counters::RecorderHandle;
 using sg::counters::system;
 
 using events = Dim<0, 1>;
 using time_dim = Dim<1, 0>;
 
 static_assert(
-    std::is_trivially_copyable_v<recorder_handle<sg::counters::hard_stop_t>>,
+    std::is_trivially_copyable_v<RecorderHandle<sg::counters::HardStop>>,
     "the hard_stop recorder handle is a copyable cursor (FR-029)");
-static_assert(
-    std::is_trivially_copyable_v<recorder_handle<sg::counters::ring_t>>,
-    "the ring recorder handle is a copyable cursor (FR-029)");
+static_assert(std::is_trivially_copyable_v<RecorderHandle<sg::counters::Ring>>,
+              "the ring recorder handle is a copyable cursor (FR-029)");
 
 constexpr std::uint64_t wrap_base = UINT64_MAX - 9;
 
@@ -128,7 +127,7 @@ auto test_hard_stop_extent() -> void
             && instructions->points[2] == 5200
             && instructions->points[3] == 7300,
         "the second member's column is retained whole (FR-027)");
-  const auto pairs = sc.ipc.fold_pairs(rec.view());
+  const auto pairs = sc.ipc.foldPairs(rec.view());
   check(pairs.size() == 3, "four points fold into three intervals (FR-018)");
   check(same_double(pairs[0].value, 10.5) && same_double(pairs[1].value, 7.0)
             && same_double(pairs[2].value, 5.25),
@@ -150,7 +149,7 @@ auto test_ring_overflow() -> void
   const auto whole = sc.ipc.fold(rec.view());
   check(same_double(whole.value, 5.25),
         "the wrapped fold reads the retained window: 2100/400 (FR-028)");
-  const auto pairs = sc.ipc.fold_pairs(rec.view());
+  const auto pairs = sc.ipc.foldPairs(rec.view());
   check(pairs.size() == 1 && same_double(pairs[0].value, 5.25),
         "a retained window of two folds into one interval (FR-018)");
   // The raw view of a wrapped recorder spans the oldest to the newest
@@ -577,13 +576,13 @@ auto test_self_move_assignment() -> void
 auto test_sample_overhead_calibration() -> void
 {
   auto sc = ipc_scenario("cyc0", "ins0");
-  const double low = sc.compiled.sample_overhead_ns_min();
-  const double mid = sc.compiled.sample_overhead_ns_median();
-  const double high = sc.compiled.sample_overhead_ns_max();
+  const double low = sc.compiled.sampleOverheadNsMin();
+  const double mid = sc.compiled.sampleOverheadNsMedian();
+  const double high = sc.compiled.sampleOverheadNsMax();
   check(low >= 0.0, "the calibrated minimum is non-negative");
   check(mid >= 0.0, "the calibrated median is non-negative");
   check(high >= low, "the calibrated maximum is at least the minimum");
-  const double again = sc.compiled.sample_overhead_ns_min();
+  const double again = sc.compiled.sampleOverheadNsMin();
   check(again >= 0.0, "a second calibration read stays non-negative");
 }
 

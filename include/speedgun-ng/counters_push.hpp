@@ -72,7 +72,7 @@ public:
    */
   [[nodiscard]] auto add_counter(std::string_view name,
                                  std::string_view unit,
-                                 std::string_view description) -> push_counter;
+                                 std::string_view description) -> PushCounter;
 
   /**
    * @brief Seeds the machine object with the declared counters.

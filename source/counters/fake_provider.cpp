@@ -132,7 +132,7 @@ auto fake_provider::add_object(const std::string_view path,
   return *this;
 }
 
-auto fake_provider::add_counter(const std::string_view object_path,
+auto fake_provider::add_counter(const std::string_view objectPath,
                                 const std::string_view name,
                                 const std::string_view unit,
                                 const std::string_view description,
@@ -140,7 +140,7 @@ auto fake_provider::add_counter(const std::string_view object_path,
                                 const ReadMode mode,
                                 const bool ratio_pair) -> fake_provider&
 {
-  const std::string path(object_path);
+  const std::string path(objectPath);
   SG_REQUIRE(!path.empty(), "add_counter names an object path (FR-002)");
   auto& object = m_objects[path];
   if (object.kind.empty()) {
@@ -158,14 +158,14 @@ auto fake_provider::add_counter(const std::string_view object_path,
   return *this;
 }
 
-auto fake_provider::set_points(const std::string_view object_path,
+auto fake_provider::set_points(const std::string_view objectPath,
                                const std::string_view name,
                                std::vector<std::uint64_t> points,
                                const std::uint64_t tail_delta,
                                const std::optional<std::uint64_t> delta_seed)
     -> fake_provider&
 {
-  const std::string path(object_path);
+  const std::string path(objectPath);
   const std::string leaf(name);
   SG_REQUIRE(
       m_objects.count(path) > 0 && m_objects.at(path).counters.count(leaf) > 0,
@@ -221,8 +221,8 @@ std::unique_ptr<WindowReader> fake_provider::open(const LeafSet& leaves,
   window->owner = this;
   window->disclosure_column = leaves.disclosureColumn;
   for (const auto& address : leaves.addresses) {
-    const auto [object_path, name] = split_leaf_address(address);
-    const auto object = m_objects.find(std::string(object_path));
+    const auto [objectPath, name] = split_leaf_address(address);
+    const auto object = m_objects.find(std::string(objectPath));
     if (object == m_objects.end()) {
       return nullptr;
     }
@@ -235,12 +235,12 @@ std::unique_ptr<WindowReader> fake_provider::open(const LeafSet& leaves,
   return window;
 }
 
-auto fake_provider::set_gap_actions(const std::string_view object_path,
+auto fake_provider::set_gap_actions(const std::string_view objectPath,
                                     const std::string_view name,
                                     std::vector<std::size_t> actions)
     -> fake_provider&
 {
-  const std::string path(object_path);
+  const std::string path(objectPath);
   const std::string leaf(name);
   SG_REQUIRE(
       m_objects.count(path) > 0 && m_objects.at(path).counters.count(leaf) > 0,
@@ -253,10 +253,10 @@ auto fake_provider::set_gap_actions(const std::string_view object_path,
   return *this;
 }
 
-auto fake_provider::counter(const std::string& object_path,
+auto fake_provider::counter(const std::string& objectPath,
                             const std::string& name) -> fake_counter_data&
 {
-  return m_objects.at(object_path).counters.at(name);
+  return m_objects.at(objectPath).counters.at(name);
 }
 
 }  // namespace sg::counters

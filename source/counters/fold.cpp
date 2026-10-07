@@ -27,7 +27,7 @@ namespace
 struct fold_context
 {
   const plan_impl& layout;
-  const recorder_api& rec;
+  const RecorderApi& rec;
   std::size_t i;
   std::size_t j;
 };
@@ -36,7 +36,7 @@ struct fold_context
 // subtract modularly at 2^64, so one hardware wrap subtracts out of
 // every fold (FR-013).
 [[nodiscard]] auto eval(const fold_context& ctx,
-                        const expr_core& core,
+                        const ExprCore& core,
                         const int index) -> double
 {
   const auto& node = core.nodes[static_cast<std::size_t>(index)];
@@ -67,7 +67,7 @@ struct fold_context
 // Whether a scale the caller applied multiplied a value in this
 // window. A scale node multiplies the value its operand folds to, so
 // every node carrying a factor other than 1.0 reaches a value (FR-019).
-[[nodiscard]] auto carries_scale(const expr_core& core) -> bool
+[[nodiscard]] auto carries_scale(const ExprCore& core) -> bool
 {
   for (const auto& node : core.nodes) {
     if (!same_double(node.scale, 1.0)) {
@@ -85,7 +85,7 @@ struct fold_context
 // cycles" weighs the instructions ratio with +1 and the cycles ratio
 // with -1, which is what the composite ratio product needs (FR-019,
 // measurement-contract clarification 2). Zero for any other leaf.
-[[nodiscard]] auto leaf_sign(const expr_core& core,
+[[nodiscard]] auto leaf_sign(const ExprCore& core,
                              const int node_index,
                              const int target_leaf,
                              const int sign) -> int
@@ -170,7 +170,7 @@ struct ratio_result
 // pair with no elapsed enabled time contributes 1.0; the fold has no
 // measured fraction to report and states full rate.
 [[nodiscard]] auto window_ratio(const fold_context& ctx,
-                                const expr_core& core) -> ratio_result
+                                const ExprCore& core) -> ratio_result
 {
   ratio_result out;
   for (std::size_t index = 0; index < core.leaves.size(); ++index) {
@@ -227,7 +227,7 @@ struct ratio_result
 // nothing: the recorded counts are cumulative, so a window with two
 // measured end points has an exact delta between them (FR-001).
 [[nodiscard]] auto window_is_gap(const fold_context& ctx,
-                                 const expr_core& core) -> bool
+                                 const ExprCore& core) -> bool
 {
   const auto gap = Availability::GAP;
   // Every leaf's own group decides, so a plan drawing leaves from two
@@ -245,10 +245,10 @@ struct ratio_result
 
 }  // namespace
 
-auto fold_core(const expr_core& core,
-               const recorder_api& rec,
-               const std::size_t i,
-               const std::size_t j) -> MetricResult
+auto foldCore(const ExprCore& core,
+              const RecorderApi& rec,
+              const std::size_t i,
+              const std::size_t j) -> MetricResult
 {
   SG_REQUIRE(i < j && j < rec.count,
              "fold window lies within the recorded extent (FR-018)");
@@ -313,26 +313,26 @@ auto fold_core(const expr_core& core,
   };
 }
 
-auto fold_pairs_core(const expr_core& core,
-                     const recorder_api& rec) -> std::vector<MetricResult>
+auto foldPairsCore(const ExprCore& core,
+                   const RecorderApi& rec) -> std::vector<MetricResult>
 {
   SG_REQUIRE(rec.count >= 2,
              "pair folds need at least two committed points (FR-018)");
   std::vector<MetricResult> out;
   for (std::size_t k = 0; k + 1 < rec.count; ++k) {
-    out.push_back(fold_core(core, rec, k, k + 1));
+    out.push_back(foldCore(core, rec, k, k + 1));
   }
   return out;
 }  // LCOV_EXCL_LINE
 
-auto raw_core(const expr_core& core,
-              const recorder_api& rec,
-              const std::string_view object_path,
-              const std::string_view leaf_name)
-    -> std::expected<points_view, Error>
+auto rawCore(const ExprCore& core,
+             const RecorderApi& rec,
+             const std::string_view objectPath,
+             const std::string_view leafName)
+    -> std::expected<PointsView, Error>
 {
   const std::string address =
-      std::string(object_path) + "/" + std::string(leaf_name);
+      std::string(objectPath) + "/" + std::string(leafName);
   for (const auto& leaf : core.leaves) {
     if (leaf.address == address) {
       const auto* layout = static_cast<const plan_impl*>(rec.impl);
@@ -356,8 +356,8 @@ auto raw_core(const expr_core& core,
       // state those points were taken under without naming a column index
       // in its own source (FR-004, FR-005).
       const auto state = end_point_state(ctx, ctx.j, slot);
-      return points_view {
-          .object_path = object_path,
+      return PointsView {
+          .objectPath = objectPath,
           .name = leaf.name,
           .description = leaf.description,
           .unit = leaf.unit,
@@ -382,12 +382,12 @@ auto raw_core(const expr_core& core,
              .suggestions = {}});
 }
 
-auto metric_core(const scope& scope_obj, const expr_core& core) -> MetricResult
+auto metricCore(const scope& scopeObj, const ExprCore& core) -> MetricResult
 {
-  const auto* core_obj = static_cast<const scope_core*>(scope_obj.m_core);
+  const auto* core_obj = static_cast<const scope_core*>(scopeObj.m_core);
   SG_REQUIRE(core_obj->started && core_obj->finished,
              "scope metric folds a closed window (FR-046)");
-  return fold_core(core, core_obj->view(), 0, 1);
+  return foldCore(core, core_obj->view(), 0, 1);
 }
 
 }  // namespace sg::counters::detail

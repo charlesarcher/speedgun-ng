@@ -153,14 +153,14 @@ constexpr int near_miss_distance = 2;
     leaves.push_back(leaf_record {
         // LCOV_EXCL_BR_LINE
         .core =
-            detail::leaf_core {
+            detail::LeafCore {
                 .address = path + "/" + name,
                 .name = name,
                 .description = std::string(entry.description),
                 .unit = std::string(entry.unit),
                 .avail = entry.avail,
                 .mode = entry.mode,
-                .frequency_hz = entry.frequencyHz,
+                .frequencyHz = entry.frequencyHz,
                 .scaled = entry.scaled,
             },
         .has_ratio_pair = entry.hasRatioPair,
@@ -386,8 +386,8 @@ auto system::object(std::string_view path)
   const auto located = m_impl->objects.find(canonical);
   if (located == m_impl->objects.end()) {
     std::vector<std::pair<std::string, std::string>> candidates;
-    for (const auto& [object_path, node] : m_impl->objects) {
-      candidates.emplace_back(object_path, node->description);
+    for (const auto& [objectPath, node] : m_impl->objects) {
+      candidates.emplace_back(objectPath, node->description);
     }
     return std::unexpected(
         Error {.message = "no object at path '" + std::string(path) + "'",
@@ -561,7 +561,7 @@ auto object::counters() const -> std::vector<CatalogEntry>
         .avail = leaf.core.avail,
         .mode = leaf.core.mode,
         .targets = targets,
-        .frequencyHz = leaf.core.frequency_hz,
+        .frequencyHz = leaf.core.frequencyHz,
         .scaled = leaf.core.scaled,
     });
   }
@@ -575,16 +575,14 @@ auto object::children() const -> std::vector<const object*>
   const auto* node = static_cast<const tree_node*>(m_node);
   auto& system_ref = system::local();
   std::vector<const object*> direct;
-  for (const auto& [object_path, child] : system_ref.m_impl->objects) {
+  for (const auto& [objectPath, child] : system_ref.m_impl->objects) {
     const bool is_direct = node->path == "machine"
-        ? (object_path.find('/') == std::string::npos
-           && object_path != "machine")
-        : (object_path.size() > node->path.size() + 1
-           && object_path.starts_with(node->path + "/")
-           && object_path.find('/', node->path.size() + 1)
-               == std::string::npos);
+        ? (objectPath.find('/') == std::string::npos && objectPath != "machine")
+        : (objectPath.size() > node->path.size() + 1
+           && objectPath.starts_with(node->path + "/")
+           && objectPath.find('/', node->path.size() + 1) == std::string::npos);
     if (is_direct) {
-      direct.push_back(&system_ref.handle_for(object_path));
+      direct.push_back(&system_ref.handle_for(objectPath));
     }
   }
   // LCOV_EXCL_LINE : coverage exclusion (T066): the NRVO epilogue block of
@@ -635,8 +633,8 @@ auto settled_targets(const Availability probed,
   return settled;
 }
 
-auto resolve_leaf_core(const object& obj,
-                       std::string_view name) -> std::expected<leaf_core, Error>
+auto resolveLeafCore(const object& obj,
+                     std::string_view name) -> std::expected<LeafCore, Error>
 {
   const auto* node = static_cast<const tree_node*>(obj.m_node);
   for (const auto& leaf : node->leaves) {

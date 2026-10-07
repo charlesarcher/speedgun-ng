@@ -120,7 +120,7 @@ public:
   [[nodiscard]] auto counter(std::string_view name) const
       -> std::expected<sg::counters::counter<D>, Error>
   {
-    auto leaf = detail::resolve_leaf_core(*this, name);
+    auto leaf = detail::resolveLeafCore(*this, name);
     if (!leaf.has_value()) {
       return std::unexpected(leaf.error());
     }
@@ -159,13 +159,12 @@ public:
 
 private:
   friend class system;
-  friend auto detail::resolve_leaf_core(const object& obj,
-                                        std::string_view name)
-      -> std::expected<detail::leaf_core, Error>;
-  friend auto detail::compile_core(const system& sys,
-                                   const Target& tg,
-                                   const std::vector<const detail::expr_core*>&
-                                       exprs) -> std::expected<plan, Error>;
+  friend auto detail::resolveLeafCore(const object& obj, std::string_view name)
+      -> std::expected<detail::LeafCore, Error>;
+  friend auto detail::compileCore(const system& sys,
+                                  const Target& tg,
+                                  const std::vector<const detail::ExprCore*>&
+                                      exprs) -> std::expected<plan, Error>;
 
   explicit object(void* node) noexcept
       : m_node(node)
@@ -286,13 +285,13 @@ private:
   [[nodiscard]] auto handle_for(const std::string& canonical)
       -> sg::counters::object&;
 
-  friend auto detail::compile_core(const system& sys,
-                                   const Target& tg,
-                                   const std::vector<const detail::expr_core*>&
-                                       exprs) -> std::expected<plan, Error>;
-  friend auto detail::resolve_leaf_core(const sg::counters::object& obj,
-                                        std::string_view name)
-      -> std::expected<detail::leaf_core, Error>;
+  friend auto detail::compileCore(const system& sys,
+                                  const Target& tg,
+                                  const std::vector<const detail::ExprCore*>&
+                                      exprs) -> std::expected<plan, Error>;
+  friend auto detail::resolveLeafCore(const sg::counters::object& obj,
+                                      std::string_view name)
+      -> std::expected<detail::LeafCore, Error>;
 
   struct impl;  // the tree behind the handle
   std::unique_ptr<impl> m_impl;

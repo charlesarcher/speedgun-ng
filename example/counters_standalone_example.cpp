@@ -106,8 +106,8 @@ auto main() -> int
 
   // Fold results feed the per-iteration lines: each interval folds
   // independently from the shared columns, value plus disclosure.
-  const std::vector<MetricResult> intervals = ipc.fold_pairs(recorder.view());
-  const std::vector<MetricResult> rates = rate.fold_pairs(recorder.view());
+  const std::vector<MetricResult> intervals = ipc.foldPairs(recorder.view());
+  const std::vector<MetricResult> rates = rate.foldPairs(recorder.view());
   for (std::size_t iteration = 0; iteration < intervals.size(); ++iteration) {
     const auto& folded = intervals[iteration];
     const auto& folded_rate = rates[iteration];

@@ -410,7 +410,7 @@ auto main() -> int
 
   // FR-002: the existing unit token and the read mode every clock counter
   // carries, with no new enumerator in either closed vocabulary.
-  check(raw->unit_token() == "nanoseconds",
+  check(raw->unitToken() == "nanoseconds",
         "the leaf reports the unit token nanoseconds (FR-002)");
   const auto entries = machine->counters();
   const auto* entry = find_entry(entries, "monotonic_raw");
