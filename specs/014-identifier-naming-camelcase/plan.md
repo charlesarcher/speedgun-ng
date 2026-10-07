@@ -292,6 +292,15 @@ The closing commit is `a12de1b`. The records below are its.
   measured path changed; the move is the host's. The audit-point run
   stays the gated figure, and the record flags the move.
 - T036: every quickstart scenario carries its result beside it.
+- T039 (convergence): the 2026-10-07 quiet-host pass confirms the
+  published medians within five percent: three runs at one-minute
+  load 0.72, 0.68 and 0.73 read the library path at 38 t / 8.8 ns
+  (2.7 percent from the published 37 t / 8.6 ns) and the gated core
+  PMU group at 261 t / 60.7 ns (1.2 percent from 258 t / 60.0 ns).
+  The fast-mode runs recorded under T035 coincided with a one-minute
+  load average of 2.05 on this host. The maintainer chose to
+  republish the page with the pass and the host-state history; the
+  gated medians stay, and the page carries the new pass.
 - Version list: `CMakeLists.txt:7` is `0.5.0`, `CMakeLists.txt:47` is
   `SOVERSION 2`, `cmake/install-rules.cmake:39` stays
   `SameMinorVersion`. A consumer requesting 0.4 against the installed
