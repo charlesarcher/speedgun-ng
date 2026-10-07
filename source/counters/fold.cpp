@@ -24,9 +24,9 @@ namespace sg::counters::detail
 namespace
 {
 
-struct fold_context
+struct FoldContext
 {
-  const plan_impl& layout;
+  const PlanImpl& layout;
   const RecorderApi& rec;
   std::size_t i;
   std::size_t j;
@@ -35,7 +35,7 @@ struct fold_context
 // Evaluate one spine node over the window [i, j]. Leaf deltas
 // subtract modularly at 2^64, so one hardware wrap subtracts out of
 // every fold (FR-013).
-[[nodiscard]] auto eval(const fold_context& ctx,
+[[nodiscard]] auto eval(const FoldContext& ctx,
                         const ExprCore& core,
                         const int index) -> double
 {
@@ -43,7 +43,7 @@ struct fold_context
   switch (node.kind) {
     case 0: {
       const auto& leaf = core.leaves[static_cast<std::size_t>(node.leaf)];
-      const std::size_t slot = ctx.layout.by_address.at(leaf.address);
+      const std::size_t slot = ctx.layout.byAddress.at(leaf.address);
       const auto* column = ctx.rec.columns + slot * ctx.rec.stride;
       const auto delta = column[ctx.j] - column[ctx.i];
       return static_cast<double>(delta);
@@ -59,7 +59,7 @@ struct fold_context
   }
 }
 
-[[nodiscard]] auto same_double(const double a, const double b) -> bool
+[[nodiscard]] auto sameDouble(const double a, const double b) -> bool
 {
   return std::bit_cast<std::uint64_t>(a) == std::bit_cast<std::uint64_t>(b);
 }
@@ -67,10 +67,10 @@ struct fold_context
 // Whether a scale the caller applied multiplied a value in this
 // window. A scale node multiplies the value its operand folds to, so
 // every node carrying a factor other than 1.0 reaches a value (FR-019).
-[[nodiscard]] auto carries_scale(const ExprCore& core) -> bool
+[[nodiscard]] auto carriesScale(const ExprCore& core) -> bool
 {
   for (const auto& node : core.nodes) {
-    if (!same_double(node.scale, 1.0)) {
+    if (!sameDouble(node.scale, 1.0)) {
       return true;
     }
   }
@@ -85,21 +85,21 @@ struct fold_context
 // cycles" weighs the instructions ratio with +1 and the cycles ratio
 // with -1, which is what the composite ratio product needs (FR-019,
 // measurement-contract clarification 2). Zero for any other leaf.
-[[nodiscard]] auto leaf_sign(const ExprCore& core,
-                             const int node_index,
-                             const int target_leaf,
-                             const int sign) -> int
+[[nodiscard]] auto leafSign(const ExprCore& core,
+                            const int nodeIndex,
+                            const int targetLeaf,
+                            const int sign) -> int
 {
-  const auto& node = core.nodes[static_cast<std::size_t>(node_index)];
+  const auto& node = core.nodes[static_cast<std::size_t>(nodeIndex)];
   if (node.kind == 0) {
-    return node.leaf == target_leaf ? sign : 0;
+    return node.leaf == targetLeaf ? sign : 0;
   }
   if (node.kind == 4) {
-    return leaf_sign(core, node.left, target_leaf, sign);
+    return leafSign(core, node.left, targetLeaf, sign);
   }
-  const int left = leaf_sign(core, node.left, target_leaf, sign);
+  const int left = leafSign(core, node.left, targetLeaf, sign);
   const int right =
-      leaf_sign(core, node.right, target_leaf, node.kind == 3 ? -sign : sign);
+      leafSign(core, node.right, targetLeaf, node.kind == 3 ? -sign : sign);
   return left + right;
 }
 
@@ -108,21 +108,21 @@ struct fold_context
 // column beside the leaf it is folding. One column for the whole plan
 // described only the group owning the plan's last leaf (FR-001, FR-002,
 // FR-004).
-[[nodiscard]] auto disclosure_slot_for(const fold_context& ctx,
-                                       const std::size_t slot) -> std::size_t
+[[nodiscard]] auto disclosureSlotFor(const FoldContext& ctx,
+                                     const std::size_t slot) -> std::size_t
 {
   // Groups are laid out in offset order from zero, so a leaf slot is at
   // or past every group the scan has already passed. The owning group is
   // the first whose range end lies past the slot (FR-002).
   for (const auto& group : ctx.layout.groups) {  // LCOV_EXCL_BR_LINE
     if (slot < group.offset + group.count) {
-      return group.disclosure_slot;
+      return group.disclosureSlot;
     }
   }
   // Every leaf slot belongs to a group, so the scan returns inside the
   // loop. The plan's own column is the single-group answer a caller reads
   // when it names no leaf.
-  return ctx.layout.disclosure_slot;  // LCOV_EXCL_LINE
+  return ctx.layout.disclosureSlot;  // LCOV_EXCL_LINE
 }
 
 // One leaf's measured fraction of the window it was enabled for. The
@@ -131,8 +131,8 @@ struct fold_context
 // (FR-019, FR-020). No value means the leaf discloses no measured
 // fraction: it carries no enabled/running pair, or no enabled time
 // elapsed across the window.
-[[nodiscard]] auto leaf_ratio(const fold_context& ctx,
-                              const std::size_t slot) -> std::optional<double>
+[[nodiscard]] auto leafRatio(const FoldContext& ctx,
+                             const std::size_t slot) -> std::optional<double>
 {
   const auto& entry = ctx.layout.slots[slot];
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the second operand can
@@ -140,14 +140,14 @@ struct fold_context
   // `ratio_enabled` and `ratio_running` together at `plan.cpp:150-156` or
   // leaves both at `no_ratio_slot`, so a slot that passes the first test
   // always passes the second.
-  if (entry.ratio_enabled == plan_impl::no_ratio_slot
-      || entry.ratio_running == plan_impl::no_ratio_slot)  // LCOV_EXCL_BR_LINE
+  if (entry.ratioEnabled == PlanImpl::kNoRatioSlot
+      || entry.ratioRunning == PlanImpl::kNoRatioSlot)  // LCOV_EXCL_BR_LINE
   {
     return std::nullopt;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_LINE
   // LCOV_EXCL_BR_STOP
-  const auto* enabled = ctx.rec.columns + entry.ratio_enabled * ctx.rec.stride;
-  const auto* running = ctx.rec.columns + entry.ratio_running * ctx.rec.stride;
+  const auto* enabled = ctx.rec.columns + entry.ratioEnabled * ctx.rec.stride;
+  const auto* running = ctx.rec.columns + entry.ratioRunning * ctx.rec.stride;
   const auto elapsed = enabled[ctx.j] - enabled[ctx.i];
   if (elapsed == 0) {
     return std::nullopt;
@@ -158,7 +158,7 @@ struct fold_context
 
 // A disclosed fraction, and whether the window ran any source below
 // full rate.
-struct ratio_result
+struct RatioResult
 {
   double ratio = 1.0;
   bool multiplexed = false;
@@ -169,27 +169,27 @@ struct ratio_result
 // without an enabled/running pair contributes 1.0 by construction. A
 // pair with no elapsed enabled time contributes 1.0; the fold has no
 // measured fraction to report and states full rate.
-[[nodiscard]] auto window_ratio(const fold_context& ctx,
-                                const ExprCore& core) -> ratio_result
+[[nodiscard]] auto windowRatio(const FoldContext& ctx,
+                               const ExprCore& core) -> RatioResult
 {
-  ratio_result out;
+  RatioResult out;
   for (std::size_t index = 0; index < core.leaves.size(); ++index) {
     const auto& leaf = core.leaves[index];
-    const auto located = ctx.layout.by_address.find(leaf.address);
+    const auto located = ctx.layout.byAddress.find(leaf.address);
     // LCOV_EXCL_BR_START : coverage exclusion (T066): a fan-out
     // instantiates the exemplar for every selected path and compiles those
     // instances (`plan.cpp:551-572`), so every address a fan-out fold looks
     // up is in the layout address table by construction. A plain plan
     // compiles the caller own expression, so its leaves are in the table
     // as well.
-    if (located == ctx.layout.by_address.end()) {  // LCOV_EXCL_BR_LINE
+    if (located == ctx.layout.byAddress.end()) {  // LCOV_EXCL_BR_LINE
       continue;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_STOP
-    const auto one = leaf_ratio(ctx, located->second);
+    const auto one = leafRatio(ctx, located->second);
     if (!one.has_value()) {
       continue;
     }
-    const int sign = leaf_sign(core, core.root(), static_cast<int>(index), 1);
+    const int sign = leafSign(core, core.root(), static_cast<int>(index), 1);
     // A leaf quoted on both sides of a subtraction has exponent 0 and
     // contributes ratio^0 = 1.0 to the product (FR-019).
     if (sign != 0) {
@@ -206,18 +206,18 @@ struct ratio_result
 // read as the enumeration the column encodes. The column is the plan's
 // managed disclosure column for this window, and the row is the sampling
 // action named by the caller's logical index (FR-001).
-[[nodiscard]] auto end_point_state(const fold_context& ctx,
-                                   const std::size_t row,
-                                   const std::size_t slot) -> Availability
+[[nodiscard]] auto endPointState(const FoldContext& ctx,
+                                 const std::size_t row,
+                                 const std::size_t slot) -> Availability
 {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const auto disclosure_index =
-      (disclosure_slot_for(ctx, slot) * ctx.rec.stride) + row;
+  const auto disclosureIndex =
+      (disclosureSlotFor(ctx, slot) * ctx.rec.stride) + row;
   // The record's column base is a pointer into one contiguous buffer and
   // the index is computed from the layout that buffer was built for, so
   // the subscript is in range by construction.
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  return static_cast<Availability>(ctx.rec.columns[disclosure_index]);
+  return static_cast<Availability>(ctx.rec.columns[disclosureIndex]);
 }
 
 // Whether either end point of the window is an action that measured
@@ -226,8 +226,8 @@ struct ratio_result
 // no measurement supports. A gap strictly inside the window changes
 // nothing: the recorded counts are cumulative, so a window with two
 // measured end points has an exact delta between them (FR-001).
-[[nodiscard]] auto window_is_gap(const fold_context& ctx,
-                                 const ExprCore& core) -> bool
+[[nodiscard]] auto windowIsGap(const FoldContext& ctx,
+                               const ExprCore& core) -> bool
 {
   const auto gap = Availability::GAP;
   // Every leaf's own group decides, so a plan drawing leaves from two
@@ -237,9 +237,9 @@ struct ratio_result
                              [&](const auto& leaf) -> bool
                              {
                                const std::size_t slot =
-                                   ctx.layout.by_address.at(leaf.address);
-                               return end_point_state(ctx, ctx.i, slot) == gap
-                                   || end_point_state(ctx, ctx.j, slot) == gap;
+                                   ctx.layout.byAddress.at(leaf.address);
+                               return endPointState(ctx, ctx.i, slot) == gap
+                                   || endPointState(ctx, ctx.j, slot) == gap;
                              });
 }
 
@@ -260,8 +260,8 @@ auto foldCore(const ExprCore& core,
   // and consult the drops (FR-028).
   const std::size_t offset =
       rec.wrapped ? static_cast<std::size_t>(rec.dropped % rec.stride) : 0;
-  const fold_context ctx {
-      .layout = *static_cast<const plan_impl*>(rec.impl),
+  const FoldContext ctx {
+      .layout = *static_cast<const PlanImpl*>(rec.impl),
       .rec = rec,
       .i = rec.wrapped ? (offset + i) % rec.stride : i,
       .j = rec.wrapped ? (offset + j) % rec.stride : j,
@@ -271,7 +271,7 @@ auto foldCore(const ExprCore& core,
   // tier-3 (FR-035).
   for (const auto& leaf : core.leaves) {
     if (leaf.mode == ReadMode::PUSH_LOAD) {
-      const std::size_t slot = ctx.layout.by_address.at(leaf.address);
+      const std::size_t slot = ctx.layout.byAddress.at(leaf.address);
       const auto* column = ctx.rec.columns + slot * ctx.rec.stride;
       SG_REQUIRE(column[ctx.j] >= column[ctx.i],
                  "push counters never decrease between folded points (FR-035)");
@@ -286,7 +286,7 @@ auto foldCore(const ExprCore& core,
   // The value stays at its default, so a caller that ignores the state
   // reads zero and never reads a fabricated delta. The state says why
   // (FR-001, FR-004).
-  if (window_is_gap(ctx, core)) {
+  if (windowIsGap(ctx, core)) {
     return MetricResult {
         .value = 0.0,
         .runningRatio = 1.0,
@@ -294,22 +294,21 @@ auto foldCore(const ExprCore& core,
         .scaled = false,
     };
   }
-  const ratio_result disclosure = window_ratio(ctx, core);
+  const RatioResult disclosure = windowRatio(ctx, core);
   // Both end points were measured. The state is the one the column beside
   // the spine's first leaf holds at the end-point row, which is the leaf a
   // caller names when it reads a raw view of the same window (FR-004).
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-  const std::size_t root_slot =
-      ctx.layout.by_address.at(core.leaves[0].address);
+  const std::size_t rootSlot = ctx.layout.byAddress.at(core.leaves[0].address);
   return MetricResult {
       .value = eval(ctx, core, core.root()),
       .runningRatio = disclosure.ratio,
-      .availability = end_point_state(ctx, ctx.j, root_slot),
+      .availability = endPointState(ctx, ctx.j, rootSlot),
       // A window whose sources were multiplexed carries the kernel's
       // scaled estimate, and a fold the caller scaled carries one too;
       // a window that ran to completion at full rate carries neither
       // (FR-019).
-      .scaled = disclosure.multiplexed || carries_scale(core),
+      .scaled = disclosure.multiplexed || carriesScale(core),
   };
 }
 
@@ -335,8 +334,8 @@ auto rawCore(const ExprCore& core,
       std::string(objectPath) + "/" + std::string(leafName);
   for (const auto& leaf : core.leaves) {
     if (leaf.address == address) {
-      const auto* layout = static_cast<const plan_impl*>(rec.impl);
-      const std::size_t slot = layout->by_address.at(address);
+      const auto* layout = static_cast<const PlanImpl*>(rec.impl);
+      const std::size_t slot = layout->byAddress.at(address);
       // The ratio covers the window this view spans: the first to the
       // last recorded point, and, for a wrapped ring, the oldest to the
       // newest retained row (FR-020, FR-028). A view with no recorded
@@ -344,7 +343,7 @@ auto rawCore(const ExprCore& core,
       // time discloses a fraction.
       const std::size_t oldest =
           rec.wrapped ? static_cast<std::size_t>(rec.dropped % rec.stride) : 0;
-      const fold_context ctx {
+      const FoldContext ctx {
           .layout = *layout,
           .rec = rec,
           .i = oldest,
@@ -355,7 +354,7 @@ auto rawCore(const ExprCore& core,
       // beside this leaf's own group. A caller reading raw points reads the
       // state those points were taken under without naming a column index
       // in its own source (FR-004, FR-005).
-      const auto state = end_point_state(ctx, ctx.j, slot);
+      const auto state = endPointState(ctx, ctx.j, slot);
       return PointsView {
           .objectPath = objectPath,
           .name = leaf.name,
@@ -371,7 +370,7 @@ auto rawCore(const ExprCore& core,
           // fallback. A runner that never records a gap takes only one arm.
           .ratio = (state == Availability::GAP)
               ? 1.0
-              : leaf_ratio(ctx, slot).value_or(1.0),
+              : leafRatio(ctx, slot).value_or(1.0),
           // LCOV_EXCL_BR_STOP
           .availability = state,
       };
@@ -382,12 +381,12 @@ auto rawCore(const ExprCore& core,
              .suggestions = {}});
 }
 
-auto metricCore(const scope& scopeObj, const ExprCore& core) -> MetricResult
+auto metricCore(const Scope& scopeObj, const ExprCore& core) -> MetricResult
 {
-  const auto* core_obj = static_cast<const scope_core*>(scopeObj.m_core);
-  SG_REQUIRE(core_obj->started && core_obj->finished,
+  const auto* coreObj = static_cast<const ScopeCore*>(scopeObj.m_core);
+  SG_REQUIRE(coreObj->started && coreObj->finished,
              "scope metric folds a closed window (FR-046)");
-  return foldCore(core, core_obj->view(), 0, 1);
+  return foldCore(core, coreObj->view(), 0, 1);
 }
 
 }  // namespace sg::counters::detail

@@ -39,11 +39,11 @@ auto check(const bool cond, const char* what) -> void
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::FakeProvider;
-using sg::counters::system;
+using sg::counters::System;
 
-using events = Dim<0, 1>;
+using Events = Dim<0, 1>;
 
-auto note_allocation() -> void
+auto noteAllocation() -> void
 {
   if (counting.load(std::memory_order_relaxed)) {
     ++allocations;
@@ -61,13 +61,13 @@ auto block(const std::size_t size) -> void*
 
 auto alloc(const std::size_t size) -> void*
 {
-  note_allocation();
+  noteAllocation();
   return block(size);
 }
 
-auto alloc_nothrow(const std::size_t size) noexcept -> void*
+auto allocNothrow(const std::size_t size) noexcept -> void*
 {
-  note_allocation();
+  noteAllocation();
   return std::malloc(size == 0 ? 1 : size);
 }
 
@@ -78,9 +78,9 @@ auto alloc_nothrow(const std::size_t size) noexcept -> void*
 // that word as far as base + align - 1 + sizeof(void*), which runs past
 // the end of a malloc of size + align whenever the request is smaller
 // than sizeof(void*).
-auto alloc_aligned(const std::size_t size, const std::size_t align) -> void*
+auto allocAligned(const std::size_t size, const std::size_t align) -> void*
 {
-  note_allocation();
+  noteAllocation();
   const auto request = size == 0 ? 1 : size;
   const auto rounded = (request + align - 1) & ~(align - 1);
   void* out = std::aligned_alloc(align, rounded);
@@ -90,17 +90,17 @@ auto alloc_aligned(const std::size_t size, const std::size_t align) -> void*
   return out;
 }
 
-auto alloc_aligned_nothrow(const std::size_t size,
-                           const std::size_t align) noexcept -> void*
+auto allocAlignedNothrow(const std::size_t size,
+                         const std::size_t align) noexcept -> void*
 {
   try {
-    return alloc_aligned(size, align);
+    return allocAligned(size, align);
   } catch (...) {
     return nullptr;
   }
 }
 
-auto free_aligned(void* p) noexcept -> void
+auto freeAligned(void* p) noexcept -> void
 {
   std::free(p);
 }
@@ -110,7 +110,7 @@ auto free_aligned(void* p) noexcept -> void
 // `new (std::align_val_t{64}) int` and freeing through a plain `delete`
 // pairs an aligned allocation with an unaligned deallocation, which is
 // undefined behaviour and which AddressSanitizer reports as a bad free.
-struct alignas(64) aligned_cell
+struct alignas(64) AlignedCell
 {
   int value = 0;
 };
@@ -129,36 +129,36 @@ auto operator new[](std::size_t size) -> void*
 
 auto operator new(std::size_t size, const std::nothrow_t&) noexcept -> void*
 {
-  return alloc_nothrow(size);
+  return allocNothrow(size);
 }
 
 auto operator new[](std::size_t size, const std::nothrow_t&) noexcept -> void*
 {
-  return alloc_nothrow(size);
+  return allocNothrow(size);
 }
 
 auto operator new(std::size_t size, std::align_val_t align) -> void*
 {
-  return alloc_aligned(size, static_cast<std::size_t>(align));
+  return allocAligned(size, static_cast<std::size_t>(align));
 }
 
 auto operator new[](std::size_t size, std::align_val_t align) -> void*
 {
-  return alloc_aligned(size, static_cast<std::size_t>(align));
+  return allocAligned(size, static_cast<std::size_t>(align));
 }
 
 auto operator new(std::size_t size,
                   std::align_val_t align,
                   const std::nothrow_t&) noexcept -> void*
 {
-  return alloc_aligned_nothrow(size, static_cast<std::size_t>(align));
+  return allocAlignedNothrow(size, static_cast<std::size_t>(align));
 }
 
 auto operator new[](std::size_t size,
                     std::align_val_t align,
                     const std::nothrow_t&) noexcept -> void*
 {
-  return alloc_aligned_nothrow(size, static_cast<std::size_t>(align));
+  return allocAlignedNothrow(size, static_cast<std::size_t>(align));
 }
 
 // Both delete forms are required: GCC 16 reports
@@ -208,57 +208,56 @@ auto operator delete[](void* p, const std::nothrow_t&) noexcept -> void
 
 auto operator delete(void* p, std::align_val_t) noexcept -> void
 {
-  free_aligned(p);
+  freeAligned(p);
 }
 
 auto operator delete[](void* p, std::align_val_t) noexcept -> void
 {
-  free_aligned(p);
+  freeAligned(p);
 }
 
 auto operator delete(void* p, std::size_t, std::align_val_t) noexcept -> void
 {
-  free_aligned(p);
+  freeAligned(p);
 }
 
 auto operator delete[](void* p, std::size_t, std::align_val_t) noexcept -> void
 {
-  free_aligned(p);
+  freeAligned(p);
 }
 
 auto operator delete(void* p,
                      std::align_val_t,
                      const std::nothrow_t&) noexcept -> void
 {
-  free_aligned(p);
+  freeAligned(p);
 }
 
 auto operator delete[](void* p,
                        std::align_val_t,
                        const std::nothrow_t&) noexcept -> void
 {
-  free_aligned(p);
+  freeAligned(p);
 }
 
 auto main() -> int
 {
   auto provider = std::make_unique<FakeProvider>();
-  provider->add_object("package-1/core-3", "cpu3", "core", "third core");
-  provider->add_counter(
+  provider->addObject("package-1/core-3", "cpu3", "core", "third core");
+  provider->addCounter(
       "package-1/core-3", "cycles", "ops", "core cycles elapsed");
-  provider->add_counter(
+  provider->addCounter(
       "package-1/core-3", "instructions", "ops", "instructions retired");
-  provider->set_points("package-1/core-3", "cycles", {100, 300}, 200);
-  provider->set_points("package-1/core-3", "instructions", {1000, 3100}, 2100);
-  const auto registered =
-      system::local().register_provider(std::move(provider));
+  provider->setPoints("package-1/core-3", "cycles", {100, 300}, 200);
+  provider->setPoints("package-1/core-3", "instructions", {1000, 3100}, 2100);
+  const auto registered = System::local().registerProvider(std::move(provider));
   check(registered.has_value(), "the scripted provider registers");
 
-  const auto core = *system::local().object("package-1/core-3");
-  const auto cycles = *core.counter<events>("cycles");
-  const auto instructions = *core.counter<events>("instructions");
+  const auto core = *System::local().object("package-1/core-3");
+  const auto cycles = *core.counter<Events>("cycles");
+  const auto instructions = *core.counter<Events>("instructions");
   const auto ipc = instructions / cycles;
-  auto compiled = compile(system::local(), ipc);
+  auto compiled = compile(System::local(), ipc);
   check(compiled.has_value(), "ipc plan compiles");
 
   auto rec = compiled->recorder(16, sg::counters::ring);
@@ -285,7 +284,7 @@ auto main() -> int
   const auto array = new int[4];
   array[0] = 7;
   const auto nothrow = new (std::nothrow) int {11};
-  const auto aligned = new aligned_cell;
+  const auto aligned = new AlignedCell;
   aligned->value = 13;
   counting.store(false);
   check(allocations.load() == 3,

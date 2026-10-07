@@ -22,27 +22,27 @@ auto check(bool cond, char const* what) -> void
   }
 }
 
-struct violation_caught
+struct ViolationCaught
 {
   sg::dbc::ViolationRecord record {};
 };
 
-auto record_into(sg::dbc::ViolationRecord& out) -> sg::dbc::ViolationObserver
+auto recordInto(sg::dbc::ViolationRecord& out) -> sg::dbc::ViolationObserver
 {
   return [&out](sg::dbc::ViolationRecord const& rec)
   {
     out = rec;
-    throw violation_caught {rec};
+    throw ViolationCaught {rec};
   };
 }
 
-auto capture_violation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
+auto captureViolation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
 {
-  sg::dbc::setObserver(record_into(rec));
+  sg::dbc::setObserver(recordInto(rec));
   bool caught = false;
   try {
     body();
-  } catch (violation_caught const&) {
+  } catch (ViolationCaught const&) {
     caught = true;
   }
   sg::dbc::setObserver({});
@@ -52,13 +52,13 @@ auto capture_violation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
 // Test-only helpers that violate the same contract kinds exported_class
 // enforces (class invariant / named-result postcondition). The production
 // members cannot be driven into violation without a public seam.
-auto violate_class_invariant() -> void
+auto violateClassInvariant() -> void
 {
   std::string stored {};
   SG_INVARIANT(!stored.empty(), "inv: stored name is non-empty");
 }
 
-auto violate_name_postcondition() -> char const*
+auto violateNamePostcondition() -> char const*
 {
   char const* const result = "";
   SG_ENSURE(std::string(result) == "speedgun-ng",
@@ -72,7 +72,7 @@ auto run() -> int
 
   // PASS-side: contracts hold; construct and name() return the project name.
   {
-    auto const exported = exported_class {};
+    auto const exported = ExportedClass {};
     check(std::string("speedgun-ng") == exported.name(),
           "pass: name() returns the project name");
     auto copied = exported;
@@ -81,7 +81,7 @@ auto run() -> int
     copied = exported;
     check(std::string("speedgun-ng") == copied.name(),
           "pass: copy-assign name() returns the project name");
-    exported_class& same = copied;
+    ExportedClass& same = copied;
     copied = same;
     check(std::string("speedgun-ng") == copied.name(),
           "pass: self-assign name() returns the project name");
@@ -89,7 +89,7 @@ auto run() -> int
 
   // FAIL-side: observer-capture of an intentional invariant violation.
   sg::dbc::ViolationRecord rec {};
-  check(capture_violation(rec, [] { violate_class_invariant(); }),
+  check(captureViolation(rec, [] { violateClassInvariant(); }),
         "fail: invariant violation delivered to the observer");
   check(rec.kind == Kind::INVARIANT, "fail: kind == invariant");
   check(std::string(rec.message) == "inv: stored name is non-empty",
@@ -102,7 +102,7 @@ auto run() -> int
   // FAIL-side: observer-capture of an intentional postcondition violation
   // over a named result capture (the name() ENSURE shape).
   rec = sg::dbc::ViolationRecord {};
-  check(capture_violation(rec, violate_name_postcondition),
+  check(captureViolation(rec, violateNamePostcondition),
         "fail: postcondition violation delivered to the observer");
   check(rec.kind == Kind::POSTCONDITION, "fail: kind == postcondition");
   check(std::string(rec.message) == "post: name() returns the project name",

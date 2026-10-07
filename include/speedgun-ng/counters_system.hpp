@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_COUNTERS_SYSTEM_HPP
-#define SPEEDGUN_NG_COUNTERS_SYSTEM_HPP
+#ifndef SG_COUNTERS_SYSTEM_HPP
+#define SG_COUNTERS_SYSTEM_HPP
 
 #include <expected>
 #include <initializer_list>
@@ -31,11 +31,11 @@ namespace sg::counters
  * spells the canonical path; alias strings never appear in output
  * (FR-002).
  */
-class SPEEDGUN_NG_EXPORT object
+class SPEEDGUN_NG_EXPORT Object
 {
 public:
-  object(const object&) = default;
-  auto operator=(const object&) -> object& = default;
+  Object(const Object&) = default;
+  auto operator=(const Object&) -> Object& = default;
 
   /**
    * @brief The canonical structured path, such as `package-1/core-3`.
@@ -78,7 +78,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto parent() const noexcept -> const object*;
+  [[nodiscard]] auto parent() const noexcept -> const Object*;
 
   /**
    * @brief This object's catalog entries (FR-001, FR-004).
@@ -99,7 +99,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto children() const -> std::vector<const object*>;
+  [[nodiscard]] auto children() const -> std::vector<const Object*>;
 
   /**
    * @brief Resolves one named counter under the requested dimension
@@ -118,7 +118,7 @@ public:
    */
   template<class D>
   [[nodiscard]] auto counter(std::string_view name) const
-      -> std::expected<sg::counters::counter<D>, Error>
+      -> std::expected<sg::counters::Counter<D>, Error>
   {
     auto leaf = detail::resolveLeafCore(*this, name);
     if (!leaf.has_value()) {
@@ -154,19 +154,19 @@ public:
               + std::to_string(D::kEventsExponent),
           .suggestions = {}});
     }
-    return sg::counters::counter<D> {std::move(*leaf)};
+    return sg::counters::Counter<D> {std::move(*leaf)};
   }
 
 private:
-  friend class system;
-  friend auto detail::resolveLeafCore(const object& obj, std::string_view name)
+  friend class System;
+  friend auto detail::resolveLeafCore(const Object& obj, std::string_view name)
       -> std::expected<detail::LeafCore, Error>;
-  friend auto detail::compileCore(const system& sys,
+  friend auto detail::compileCore(const System& sys,
                                   const Target& tg,
                                   const std::vector<const detail::ExprCore*>&
-                                      exprs) -> std::expected<plan, Error>;
+                                      exprs) -> std::expected<Plan, Error>;
 
-  explicit object(void* node) noexcept
+  explicit Object(void* node) noexcept
       : m_node(node)
   {
   }
@@ -182,11 +182,11 @@ private:
  * the boundary, closes registration, and freezes the catalog, which
  * makes concurrent catalog reads safe by construction (FR-009).
  */
-class SPEEDGUN_NG_EXPORT system
+class SPEEDGUN_NG_EXPORT System
 {
 public:
-  system(const system&) = delete;
-  auto operator=(const system&) -> system& = delete;
+  System(const System&) = delete;
+  auto operator=(const System&) -> System& = delete;
 
   /**
    * @brief The process-local root handle.
@@ -194,7 +194,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] static auto local() -> system&;
+  [[nodiscard]] static auto local() -> System&;
 
   /**
    * @brief Registers a provider and merges its objects (FR-009).
@@ -210,7 +210,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto register_provider(std::unique_ptr<ProviderIface> provider)
+  [[nodiscard]] auto registerProvider(std::unique_ptr<ProviderIface> provider)
       -> std::expected<void, Error>;
 
   /**
@@ -224,12 +224,12 @@ public:
    * \post none
    */
   [[nodiscard]] auto object(std::string_view path)
-      -> std::expected<sg::counters::object, Error>;
+      -> std::expected<sg::counters::Object, Error>;
 
   /**
    * @brief One equality predicate of an `objects` selection (FR-003).
    */
-  struct filter
+  struct Filter
   {
     std::string_view key;
     std::string_view value;
@@ -252,8 +252,8 @@ public:
    * \post none
    */
   [[nodiscard]] auto objects(std::string_view kind,
-                             std::initializer_list<filter> filters = {})
-      -> std::expected<std::vector<const sg::counters::object*>, Error>;
+                             std::initializer_list<Filter> filters = {})
+      -> std::expected<std::vector<const sg::counters::Object*>, Error>;
 
   /**
    * @brief Resolves the time-stamp counter as a shorter spelling of
@@ -274,27 +274,27 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto tsc() const -> std::expected<counter<Dim<0, 1>>, Error>;
+  [[nodiscard]] auto tsc() const -> std::expected<Counter<Dim<0, 1>>, Error>;
 
 private:
-  system();
-  ~system();
+  System();
+  ~System();
 
-  friend class object;
+  friend class Object;
 
-  [[nodiscard]] auto handle_for(const std::string& canonical)
-      -> sg::counters::object&;
+  [[nodiscard]] auto handleFor(const std::string& canonical)
+      -> sg::counters::Object&;
 
-  friend auto detail::compileCore(const system& sys,
+  friend auto detail::compileCore(const System& sys,
                                   const Target& tg,
                                   const std::vector<const detail::ExprCore*>&
-                                      exprs) -> std::expected<plan, Error>;
-  friend auto detail::resolveLeafCore(const sg::counters::object& obj,
+                                      exprs) -> std::expected<Plan, Error>;
+  friend auto detail::resolveLeafCore(const sg::counters::Object& obj,
                                       std::string_view name)
       -> std::expected<detail::LeafCore, Error>;
 
-  struct impl;  // the tree behind the handle
-  std::unique_ptr<impl> m_impl;
+  struct Impl;  // the tree behind the handle
+  std::unique_ptr<Impl> m_impl;
 };
 
 }  // namespace sg::counters

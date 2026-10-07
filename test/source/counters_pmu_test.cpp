@@ -54,7 +54,7 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-auto same_double(const double lhs, const double rhs) -> bool
+auto sameDouble(const double lhs, const double rhs) -> bool
 {
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
@@ -64,16 +64,16 @@ using sg::counters::CatalogEntry;
 using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::expression;
-using sg::counters::object;
+using sg::counters::Expression;
+using sg::counters::Object;
 using sg::counters::PmuProvider;
 using sg::counters::PushProvider;
 using sg::counters::ReadMode;
-using sg::counters::scope;
-using sg::counters::system;
+using sg::counters::Scope;
+using sg::counters::System;
 
-using events = Dim<0, 1>;
-using time_dim = Dim<1, 0>;
+using Events = Dim<0, 1>;
+using TimeDim = Dim<1, 0>;
 
 constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
 
@@ -81,8 +81,8 @@ constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
 // in scenario 4 has a hand-computed count to compare (SC-002).
 constexpr std::size_t kDeclaredPushLeaves = 2;
 
-auto find_entry(const std::vector<CatalogEntry>& entries,
-                const std::string_view name) -> const CatalogEntry*
+auto findEntry(const std::vector<CatalogEntry>& entries,
+               const std::string_view name) -> const CatalogEntry*
 {
   for (const auto& entry : entries) {
     if (entry.name == name) {
@@ -96,7 +96,7 @@ auto find_entry(const std::vector<CatalogEntry>& entries,
 // The listing holds one descriptor of its own while it is read, and it
 // holds one in both measurements, so the difference is what the test
 // compares.
-auto open_descriptor_count() -> std::size_t
+auto openDescriptorCount() -> std::size_t
 {
   std::error_code failure;
   std::size_t count = 0;
@@ -115,7 +115,7 @@ auto open_descriptor_count() -> std::size_t
 // The mapping count the same scenario compares: one line per mapping in
 // /proc/self/maps, which the kernel formats as a file rather than
 // listing as a directory.
-auto mapping_count() -> std::size_t
+auto mappingCount() -> std::size_t
 {
   std::ifstream maps("/proc/self/maps");
   if (!maps) {
@@ -128,7 +128,7 @@ auto mapping_count() -> std::size_t
   return count;
 }
 
-auto read_paranoid() -> int
+auto readParanoid() -> int
 {
   std::ifstream file("/proc/sys/kernel/perf_event_paranoid");
   int value = -999;
@@ -143,27 +143,27 @@ auto read_paranoid() -> int
 // does: this thread, user mode only, no group. The answer is the ground
 // truth the catalog is held to, so the assertion below never has to
 // name this host's outcome in advance.
-enum class probe_verdict
+enum class ProbeVerdict
 {
-  granted,
-  refused_permission,
-  refused_encoding
+  GRANTED,
+  REFUSED_PERMISSION,
+  REFUSED_ENCODING
 };
 
-auto name(const probe_verdict verdict) -> const char*
+auto name(const ProbeVerdict verdict) -> const char*
 {
   switch (verdict) {
-    case probe_verdict::granted:
+    case ProbeVerdict::GRANTED:
       return "granted";
-    case probe_verdict::refused_permission:
+    case ProbeVerdict::REFUSED_PERMISSION:
       return "refused for permission";
-    case probe_verdict::refused_encoding:
+    case ProbeVerdict::REFUSED_ENCODING:
       return "refused for encoding";
   }
   return "unclassified";
 }
 
-auto hardware_event_probe() -> probe_verdict
+auto hardwareEventProbe() -> ProbeVerdict
 {
   perf_event_attr attr {};
   attr.type = PERF_TYPE_HARDWARE;
@@ -176,7 +176,7 @@ auto hardware_event_probe() -> probe_verdict
       ::syscall(SYS_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
   if (fd >= 0) {
     ::close(static_cast<int>(fd));
-    return probe_verdict::granted;
+    return ProbeVerdict::GRANTED;
   }
   // The provider's probe separates the same two refusal classes, and
   // this test reproduces that split. It does not import the seam.
@@ -184,9 +184,9 @@ auto hardware_event_probe() -> probe_verdict
     case EINVAL:
     case EOPNOTSUPP:
     case ENOENT:
-      return probe_verdict::refused_encoding;
+      return ProbeVerdict::REFUSED_ENCODING;
     default:
-      return probe_verdict::refused_permission;
+      return ProbeVerdict::REFUSED_PERMISSION;
   }
 }
 
@@ -194,7 +194,7 @@ auto hardware_event_probe() -> probe_verdict
 // directory sysfs publishes). Sysfs spells a per-alias attribute
 // "<alias>.<attribute>"; a file name carrying a dot describes an
 // attribute of a named event, never an event of its own.
-auto sysfs_alias_names(const std::string& device) -> std::vector<std::string>
+auto sysfsAliasNames(const std::string& device) -> std::vector<std::string>
 {
   std::vector<std::string> names;
   std::error_code ec;
@@ -214,8 +214,8 @@ auto sysfs_alias_names(const std::string& device) -> std::vector<std::string>
 }
 
 // The exact configuration text the kernel publishes for one alias.
-auto sysfs_alias_text(const std::string& device,
-                      const std::string& alias) -> std::string
+auto sysfsAliasText(const std::string& device,
+                    const std::string& alias) -> std::string
 {
   std::ifstream file(std::filesystem::path(kDevicesRoot) / device / "events"
                      / alias);
@@ -225,7 +225,7 @@ auto sysfs_alias_text(const std::string& device,
 }
 
 // CPU-bound spin so the sampling window has real work.
-auto burn_cpu_short() -> void
+auto burnCpuShort() -> void
 {
   volatile double acc = 0.0;
   for (int i = 0; i < 5'000'000; ++i) {
@@ -240,17 +240,17 @@ auto burn_cpu_short() -> void
 // pmu_ident_current + pmu_select_directory) is not exported; the
 // presence of table entries the running kernel does not publish as
 // aliases proves a directory matched and was parsed.
-auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
+auto mergeAndCatalogScenario(const std::vector<const Object*>& pmuObjects)
     -> void
 {
-  check(!pmu_objects.empty(), "the provider seeded at least one pmu object");
-  std::size_t table_only = 0;
-  std::size_t catalog_total = 0;
-  for (const object* obj : pmu_objects) {
+  check(!pmuObjects.empty(), "the provider seeded at least one pmu object");
+  std::size_t tableOnly = 0;
+  std::size_t catalogTotal = 0;
+  for (const Object* obj : pmuObjects) {
     const auto entries = obj->counters();
-    catalog_total += entries.size();
+    catalogTotal += entries.size();
     check(!entries.empty(), "every pmu object carries catalog entries");
-    const auto aliases = sysfs_alias_names(std::string(obj->path()));
+    const auto aliases = sysfsAliasNames(std::string(obj->path()));
     for (const auto& entry : entries) {
       check(!entry.description.empty(),
             "every pmu catalog entry is described (FR-037)");
@@ -273,27 +273,26 @@ auto merge_and_catalog_scenario(const std::vector<const object*>& pmu_objects)
     // built from the kernel event_attr, verbatim, never a vendored
     // description.
     for (const auto& alias : aliases) {
-      const auto* entry = find_entry(entries, alias);
+      const auto* entry = findEntry(entries, alias);
       check(entry != nullptr, "kernel alias appears in the merged catalog");
-      const std::string text =
-          sysfs_alias_text(std::string(obj->path()), alias);
+      const std::string text = sysfsAliasText(std::string(obj->path()), alias);
       check(entry->description.find(text) != std::string_view::npos,
             "the alias entry keeps the kernel event_attr text (wins)");
     }
     if (obj->path() == "cpu") {
-      const std::size_t alias_count = aliases.size();
-      check(entries.size() > alias_count,
+      const std::size_t aliasCount = aliases.size();
+      check(entries.size() > aliasCount,
             "the CPUID-selected vendored table entered the cpu catalog "
             "(FR-038 selection proven indirectly)");
-      table_only = entries.size() - alias_count;
+      tableOnly = entries.size() - aliasCount;
     }
   }
   std::printf("pmu catalog: %zu table-selected entries beyond kernel aliases\n",
-              table_only);
+              tableOnly);
   // The installed consumer prints this same figure from the same catalog,
   // so a downstream job compares the two and names a difference between
   // what it linked and what this tree built (FR-022, SC-012, D-12).
-  std::printf("pmu catalog entries %zu\n", catalog_total);
+  std::printf("pmu catalog entries %zu\n", catalogTotal);
 }
 
 // Scenario 4: the reported availability is consistent with the probe
@@ -320,49 +319,48 @@ static_assert(
     std::is_same_v<sg::counters::TargetMask, std::uint32_t>,
     "the mask is one fixed-size integer and no container " "(FR-021)");
 
-auto availability_scenario(const std::vector<const object*>& pmu_objects)
-    -> void
+auto availabilityScenario(const std::vector<const Object*>& pmuObjects) -> void
 {
-  const int paranoid = read_paranoid();
-  const probe_verdict verdict = hardware_event_probe();
+  const int paranoid = readParanoid();
+  const ProbeVerdict verdict = hardwareEventProbe();
   std::printf("perf_event_paranoid = %d; hardware event probe %s\n",
               paranoid,
               name(verdict));
 
-  const auto machine = *system::local().object("machine");
-  const auto machine_entries = machine.counters();
-  const auto* mono = find_entry(machine_entries, "monotonic");
+  const auto machine = *System::local().object("machine");
+  const auto machineEntries = machine.counters();
+  const auto* mono = findEntry(machineEntries, "monotonic");
   check(mono != nullptr && mono->avail == Availability::COUNTABLE,
         "clock leaf stays countable beside the PMU provider (SC-002)");
 
   // Scenario 4 names the push counters beside the clocks: with the pmu
   // provider registered, every push leaf the catalog offers is countable,
   // and the catalog offers exactly the declared ones.
-  std::size_t push_leaves = 0;
-  std::size_t countable_push = 0;
-  for (const auto& entry : machine_entries) {
+  std::size_t pushLeaves = 0;
+  std::size_t countablePush = 0;
+  for (const auto& entry : machineEntries) {
     if (entry.mode != ReadMode::PUSH_LOAD) {
       continue;
     }
-    ++push_leaves;
+    ++pushLeaves;
     if (entry.avail == Availability::COUNTABLE) {
-      ++countable_push;
+      ++countablePush;
     }
   }
   std::printf("push availability: %zu of %zu declared leaves countable\n",
-              countable_push,
-              push_leaves);
-  check(push_leaves == kDeclaredPushLeaves,
+              countablePush,
+              pushLeaves);
+  check(pushLeaves == kDeclaredPushLeaves,
         "the catalog offers every declared push leaf (SC-002)");
-  check(countable_push == push_leaves,
+  check(countablePush == pushLeaves,
         "every push leaf stays countable beside the pmu provider (SC-002)");
 
   std::size_t countable = 0;
   std::size_t blocked = 0;
   std::size_t unencodable = 0;
-  std::size_t scope_refused = 0;
+  std::size_t scopeRefused = 0;
   std::size_t fast = 0;
-  for (const object* obj : pmu_objects) {
+  for (const Object* obj : pmuObjects) {
     for (const auto& entry : obj->counters()) {
       switch (entry.avail) {
         case Availability::COUNTABLE:
@@ -375,7 +373,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
           ++unencodable;
           break;
         case Availability::SCOPE_REFUSED:
-          ++scope_refused;
+          ++scopeRefused;
           break;
         case Availability::ABSENT:
           fail("absent is never seeded by the provider");
@@ -400,34 +398,34 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   // The device scope is spelled out here from the canonical path the
   // provider seeded, which is data this scenario reads. The catalog derived
   // no part of it (FR-021).
-  std::size_t entries_seen = 0;
+  std::size_t entriesSeen = 0;
   std::size_t gaps = 0;
-  std::size_t cpu_only = 0;
-  for (const object* obj : pmu_objects) {
+  std::size_t cpuOnly = 0;
+  for (const Object* obj : pmuObjects) {
     for (const auto& entry : obj->counters()) {
-      ++entries_seen;
+      ++entriesSeen;
       if (entry.avail == Availability::GAP) {
         ++gaps;
       }
       if (entry.targets == sg::counters::kTargetCpuBit) {
-        ++cpu_only;
+        ++cpuOnly;
       }
       const bool settled = entry.avail == Availability::COUNTABLE;
-      const sg::counters::TargetMask defined_bits =
+      const sg::counters::TargetMask definedBits =
           sg::counters::kTargetThreadBit | sg::counters::kTargetCpuBit;
       check(settled == (entry.targets != sg::counters::TargetMask {0}),
             "a published entry names the target kinds the probe settled it "
             "on: a countable entry names at least one, and every other state "
             "names none (FR-021)");
-      check((entry.targets & ~defined_bits) == 0,
+      check((entry.targets & ~definedBits) == 0,
             "a published mask names only the bits target_kind defines, so a "
             "new kind takes the next free bit and no stored bit moves "
             "(FR-021)");
     }
   }
   std::printf(
-      "target masks: %zu of %zu entries cpu-only\n", cpu_only, entries_seen);
-  check(entries_seen > 0,
+      "target masks: %zu of %zu entries cpu-only\n", cpuOnly, entriesSeen);
+  check(entriesSeen > 0,
         "the catalog published hardware entries whose target masks this "
         "scenario reads (FR-021)");
   // The gap is the one state the catalog never publishes for an entry: a
@@ -444,7 +442,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
               countable,
               blocked,
               unencodable,
-              scope_refused,
+              scopeRefused,
               fast);
 
   // The fast (mapped-page rdpmc) read is gated by the kernel's own
@@ -467,7 +465,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   // that reported only refusals at level 2 would be a false refusal, and
   // one that reported a grant where the kernel refuses would be a false
   // permission. Both directions can fail, so neither is hard-coded.
-  if (verdict == probe_verdict::granted) {
+  if (verdict == ProbeVerdict::GRANTED) {
     check(countable > 0,
           "a granted hardware probe leaves a countable catalog entry "
           "(US6 scenario 4)");
@@ -475,7 +473,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
     check(countable == 0,
           "a refused hardware probe leaves no countable catalog entry "
           "(US6 scenario 4)");
-    if (verdict == probe_verdict::refused_permission) {
+    if (verdict == ProbeVerdict::REFUSED_PERMISSION) {
       check(blocked > 0,
             "a permission refusal surfaces as permission_blocked and "
             "leaves the encoding state clear (FR-039)");
@@ -496,7 +494,7 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
   // scope it was probed under, and the handle that resolves it carries
   // the same state, so a caller can branch on it before composing
   // (FR-021, SC-007).
-  if (scope_refused == 0) {
+  if (scopeRefused == 0) {
     // A host whose cpu probe settles every entry publishes no scope
     // refusal to assert over. The state has no entry under test, and this
     // comment names the reason; no reason is hard-coded (SC-007).
@@ -509,19 +507,19 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
                 paranoid);
     return;
   }
-  for (const object* obj : pmu_objects) {
+  for (const Object* obj : pmuObjects) {
     const std::string_view path = obj->path();
-    const bool device_scoped =
+    const bool deviceScoped =
         path != "cpu" && path != "cpu_core" && path != "cpu_atom";
     for (const auto& entry : obj->counters()) {
       if (entry.avail != Availability::SCOPE_REFUSED) {
         continue;
       }
-      check(device_scoped,
+      check(deviceScoped,
             "a published scope refusal names a device that binds one "
             "processor for every task, which no encoding refusal can "
             "reproduce (FR-021)");
-      const auto leaf = obj->counter<events>(entry.name);
+      const auto leaf = obj->counter<Events>(entry.name);
       check(leaf.has_value() && leaf->avail() == Availability::SCOPE_REFUSED,
             "the resolved handle carries the scope refusal the catalog "
             "published, so a caller can branch on it (FR-021)");
@@ -540,12 +538,12 @@ auto availability_scenario(const std::vector<const object*>& pmu_objects)
 // which is what rules out a downgrade: a downgraded read would come from a
 // different mechanism and the positive deltas below would not distinguish
 // it, so the check is on the pair travelling with the members.
-auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
+auto disclosedModeReadScenario(const std::vector<const Object*>& pmuObjects)
     -> void
 {
   std::size_t sampled = 0;
   std::size_t countable = 0;
-  for (const object* obj : pmu_objects) {
+  for (const Object* obj : pmuObjects) {
     const auto entries = obj->counters();
     for (const auto& entry : entries) {
       if (entry.avail != Availability::COUNTABLE
@@ -555,12 +553,12 @@ auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
         continue;
       }
       ++countable;
-      const auto leaf = obj->counter<events>(entry.name);
+      const auto leaf = obj->counter<Events>(entry.name);
       if (!leaf.has_value()) {
         continue;
       }
-      const expression<events> over {*leaf};
-      auto compiled = compile(system::local(), over);
+      const Expression<Events> over {*leaf};
+      auto compiled = compile(System::local(), over);
       if (!compiled.has_value()) {
         // A refused open is the recoverable failure FR-023 allows, and the
         // message names the open. No count ever arrives to be mistaken for
@@ -571,9 +569,9 @@ auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
               "untimed region (FR-024)");
         continue;
       }
-      scope window {*compiled};
+      Scope window {*compiled};
       window.start();
-      burn_cpu_short();
+      burnCpuShort();
       window.finish();
       const auto metric = window.metric(over);
       check(metric.value > 0.0,
@@ -613,23 +611,23 @@ auto disclosed_mode_read_scenario(const std::vector<const object*>& pmu_objects)
 // syscall mode through a real scope; the folded quotient equals the
 // raw-column quotient exactly (quickstart 10). Skips with the reason
 // printed when the host refuses (SC-002).
-auto group_read_scenario() -> void
+auto groupReadScenario() -> void
 {
   // A provider that seeds no cpu object leaves the hardware scenarios
   // with no subject. A host whose perf_event_paranoid hides every event
   // publishes none, and 007 recorded that as the expected CI shape
   // (FR-039): the reason is named and the scenario skips.
-  const auto cpu_object = system::local().object("cpu");
-  if (!cpu_object.has_value()) {
+  const auto cpuObject = System::local().object("cpu");
+  if (!cpuObject.has_value()) {
     std::printf("SKIP: no provider seeded a cpu object at this "
                 "perf_event_paranoid, so no hardware event is "
                 "reachable to exercise (FR-039)\n");
     return;
   }
-  const auto& cpu = *cpu_object;
+  const auto& cpu = *cpuObject;
   const auto entries = cpu.counters();
-  std::string name_a;
-  std::string name_b;
+  std::string nameA;
+  std::string nameB;
   // Two different work counters, so the quotient means something and
   // the group has a free counter for each: a work counter over a cycle
   // counter. The spelling differs per vendor, so each side lists the
@@ -638,77 +636,76 @@ auto group_read_scenario() -> void
       "instructions", "inst_retired", "ex_ret_instr", "cpu/instructions/"};
   constexpr std::string_view kCycleNames[] = {
       "cpu-cycles", "cycles", "cpu/cycles/", "ex_ret_ops", "ref-cycles"};
-  auto first_countable = [&](const std::string_view* names,
-                             const std::size_t count) -> std::string
+  auto firstCountable = [&](const std::string_view* names,
+                            const std::size_t count) -> std::string
   {
     for (std::size_t index = 0; index < count; ++index) {
-      const auto* entry = find_entry(entries, names[index]);
+      const auto* entry = findEntry(entries, names[index]);
       if (entry != nullptr && entry->avail == Availability::COUNTABLE) {
         return std::string(names[index]);
       }
     }
     return {};
   };
-  name_a = first_countable(kWorkNames, std::size(kWorkNames));
-  name_b = first_countable(kCycleNames, std::size(kCycleNames));
-  if (!name_a.empty() && name_b.empty()) {
+  nameA = firstCountable(kWorkNames, std::size(kWorkNames));
+  nameB = firstCountable(kCycleNames, std::size(kCycleNames));
+  if (!nameA.empty() && nameB.empty()) {
     // A cycle counter outside the list, distinct from the work counter.
     for (const auto& entry : entries) {
-      if (entry.avail == Availability::COUNTABLE && entry.name != name_a) {
-        name_b = std::string(entry.name);
+      if (entry.avail == Availability::COUNTABLE && entry.name != nameA) {
+        nameB = std::string(entry.name);
         break;
       }
     }
   }
-  if (name_a.empty() || name_b.empty()) {
+  if (nameA.empty() || nameB.empty()) {
     std::printf("SKIP scenario 5: no two countable cpu-PMU events on this "
                 "host (hardware event probe %s at perf_event_paranoid %d); "
                 "privileged evidence recorded in the PR per tasks.md\n",
-                name(hardware_event_probe()),
-                read_paranoid());
+                name(hardwareEventProbe()),
+                readParanoid());
     return;
   }
-  std::printf("group scenario: %s / %s (syscall mode)\n",
-              name_a.c_str(),
-              name_b.c_str());
+  std::printf(
+      "group scenario: %s / %s (syscall mode)\n", nameA.c_str(), nameB.c_str());
 
-  const expression<events> a {*cpu.counter<events>(name_a)};
-  const expression<events> b {*cpu.counter<events>(name_b)};
-  const expression<time_dim> enabled {*cpu.counter<time_dim>("enabled")};
-  const expression<time_dim> running {*cpu.counter<time_dim>("running")};
+  const Expression<Events> a {*cpu.counter<Events>(nameA)};
+  const Expression<Events> b {*cpu.counter<Events>(nameB)};
+  const Expression<TimeDim> enabled {*cpu.counter<TimeDim>("enabled")};
+  const Expression<TimeDim> running {*cpu.counter<TimeDim>("running")};
   const auto quotient = a / b;
-  auto compiled = compile(system::local(), quotient, a, b, enabled, running);
+  auto compiled = compile(System::local(), quotient, a, b, enabled, running);
   if (!compiled.has_value()) {
     fail("the pmu group plan compiles");
   }
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
-  burn_cpu_short();
+  burnCpuShort();
   window.finish();
 
   const auto metric = window.metric(quotient);
-  const auto raw_a = a.raw(window.view(), "cpu", name_a);
-  const auto raw_b = b.raw(window.view(), "cpu", name_b);
-  const auto raw_enabled = enabled.raw(window.view(), "cpu", "enabled");
-  const auto raw_running = running.raw(window.view(), "cpu", "running");
-  check(raw_a.has_value() && raw_b.has_value(), "raw views resolve");
-  check(raw_enabled.has_value() && raw_running.has_value(),
+  const auto rawA = a.raw(window.view(), "cpu", nameA);
+  const auto rawB = b.raw(window.view(), "cpu", nameB);
+  const auto rawEnabled = enabled.raw(window.view(), "cpu", "enabled");
+  const auto rawRunning = running.raw(window.view(), "cpu", "running");
+  check(rawA.has_value() && rawB.has_value(), "raw views resolve");
+  check(rawEnabled.has_value() && rawRunning.has_value(),
         "the enabled/running ratio leaves carry points (FR-041)");
 
-  const auto delta_a = raw_a->points[1] - raw_a->points[0];
-  const auto delta_b = raw_b->points[1] - raw_b->points[0];
+  const auto deltaA = rawA->points[1] - rawA->points[0];
+  const auto deltaB = rawB->points[1] - rawB->points[0];
   // A zero denominator folds to NaN, and a NaN compares equal to itself
   // bit for bit, so the quotient equality below would pass on a dead
   // read. The deltas must be positive before it means anything.
-  check(delta_a > 0 && delta_b > 0,
+  check(deltaA > 0 && deltaB > 0,
         "the group read delivers positive member counts over CPU-bound work");
   const double expected =
-      static_cast<double>(delta_a) / static_cast<double>(delta_b);
-  check(same_double(metric.value, expected),
+      static_cast<double>(deltaA) / static_cast<double>(deltaB);
+  check(sameDouble(metric.value, expected),
         "the folded quotient equals the raw-column quotient exactly");
 
-  const auto delta_enabled = raw_enabled->points[1] - raw_enabled->points[0];
-  const auto delta_running = raw_running->points[1] - raw_running->points[0];
+  const auto deltaEnabled = rawEnabled->points[1] - rawEnabled->points[0];
+  const auto deltaRunning = rawRunning->points[1] - rawRunning->points[0];
   // The pair advances only where the read mode refreshes it. A group
   // `read()` returns the counters' own totals, so the syscall mode sees a
   // fresh pair every action. A mapped-page read takes the pair from the
@@ -718,30 +715,29 @@ auto group_read_scenario() -> void
   // staleness is the disclosed behaviour FR-041 and T055 record, so the
   // advance is asserted for the mode that guarantees it and the soundness
   // invariant is asserted in both.
-  const bool mapped_page = [&entries, &name_a]
+  const bool mappedPage = [&entries, &nameA]
   {
     for (const auto& entry : entries) {
-      if (entry.name == name_a) {
+      if (entry.name == nameA) {
         return entry.mode == ReadMode::FAST_RDPMC;
       }
     }
     return false;
   }();
-  if (!mapped_page) {
-    check(delta_enabled > 0, "time_enabled advances across the window");
+  if (!mappedPage) {
+    check(deltaEnabled > 0, "time_enabled advances across the window");
   } else {
     std::printf("mapped-page mode: the page-published pair advanced %llu ns "
                 "of enabled time, which the kernel quantizes (FR-041)\n",
-                static_cast<unsigned long long>(delta_enabled));
+                static_cast<unsigned long long>(deltaEnabled));
   }
-  check((delta_enabled == 0 || delta_running > 0)
-            && delta_running <= delta_enabled,
+  check((deltaEnabled == 0 || deltaRunning > 0) && deltaRunning <= deltaEnabled,
         "time_running stays inside time_enabled (ratio pair sound)");
   std::printf(
       "group read delivered members and the enabled/running pair; ratio %f\n",
-      delta_enabled == 0 ? 1.0
-                         : static_cast<double>(delta_running)
-              / static_cast<double>(delta_enabled));
+      deltaEnabled == 0 ? 1.0
+                        : static_cast<double>(deltaRunning)
+              / static_cast<double>(deltaEnabled));
   // Privileged multiplex evidence (ratio below 1 under contention)
   // is scenario 6 below.
   std::printf("fold disclosure: runningRatio %f, scaled %d\n",
@@ -756,7 +752,7 @@ auto group_read_scenario() -> void
 // sampling action (FR-041, US7 scenario 4). The outcome is recorded either
 // way: a host whose counter count fits every opened event reports ratio 1
 // and says so.
-auto multiplex_scenario() -> void
+auto multiplexScenario() -> void
 {
   // Far above any core PMU's hardware counter count, and low enough that the
   // open stays quick. The test reports how many events it opened, so a
@@ -768,30 +764,30 @@ auto multiplex_scenario() -> void
   // with no subject. A host whose perf_event_paranoid hides every event
   // publishes none, and 007 recorded that as the expected CI shape
   // (FR-039): the reason is named and the scenario skips.
-  const auto cpu_object = system::local().object("cpu");
-  if (!cpu_object.has_value()) {
+  const auto cpuObject = System::local().object("cpu");
+  if (!cpuObject.has_value()) {
     std::printf("SKIP: no provider seeded a cpu object at this "
                 "perf_event_paranoid, so no hardware event is "
                 "reachable to exercise (FR-039)\n");
     return;
   }
-  const auto& cpu = *cpu_object;
-  const auto enabled = cpu.counter<time_dim>("enabled");
-  const auto running = cpu.counter<time_dim>("running");
+  const auto& cpu = *cpuObject;
+  const auto enabled = cpu.counter<TimeDim>("enabled");
+  const auto running = cpu.counter<TimeDim>("running");
   if (!enabled.has_value() || !running.has_value()) {
     std::printf("SKIP scenario 6: the cpu object carries no enabled/running "
                 "pair, so no multiplex ratio can be folded\n");
     return;
   }
-  const expression<time_dim> enabled_expr {*enabled};
-  const expression<time_dim> running_expr {*running};
+  const Expression<TimeDim> enabledExpr {*enabled};
+  const Expression<TimeDim> runningExpr {*running};
 
   // `compile` takes a variadic pack of expressions, so the whole
   // oversubscribed set reaches one plan as a single composite whose leaves
   // are the members. The composite's own value is a sum of counts and
   // carries no meaning; the ratio it discloses describes every leaf the
   // plan read, which is what this scenario is about (FR-026, FR-047).
-  std::vector<expression<events>> members;
+  std::vector<Expression<Events>> members;
   members.reserve(kOversubscribe);
   for (const auto& entry : cpu.counters()) {
     if (members.size() == kOversubscribe) {
@@ -800,7 +796,7 @@ auto multiplex_scenario() -> void
     if (entry.avail != Availability::COUNTABLE) {
       continue;
     }
-    const auto leaf = cpu.counter<events>(entry.name);
+    const auto leaf = cpu.counter<Events>(entry.name);
     if (leaf.has_value()) {
       members.emplace_back(*leaf);
     }
@@ -811,13 +807,12 @@ auto multiplex_scenario() -> void
                 members.size());
     return;
   }
-  expression<events> composite = members.front();
+  Expression<Events> composite = members.front();
   for (std::size_t index = 1; index < members.size(); ++index) {
     composite = composite + members[index];
   }
 
-  auto compiled =
-      compile(system::local(), composite, enabled_expr, running_expr);
+  auto compiled = compile(System::local(), composite, enabledExpr, runningExpr);
   if (!compiled.has_value()) {
     std::printf("SKIP scenario 6: the oversubscribed plan did not open: %s\n",
                 compiled.error().message.c_str());
@@ -826,9 +821,9 @@ auto multiplex_scenario() -> void
   std::printf("scenario 6: %zu member leaves plus the enabled/running pair "
               "opened in one plan\n",
               members.size());
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
-  burn_cpu_short();
+  burnCpuShort();
   window.finish();
   const auto metric = window.metric(composite);
   const double observed = metric.runningRatio;
@@ -837,13 +832,13 @@ auto multiplex_scenario() -> void
   // running time never exceeds enabled time and that the fold derives its
   // disclosure from these two columns. The fold carries no constant ratio
   // (FR-019). The raw columns are read for that comparison (FR-047).
-  const auto raw_enabled = enabled_expr.raw(window.view(), "cpu", "enabled");
-  const auto raw_running = running_expr.raw(window.view(), "cpu", "running");
-  check(raw_enabled.has_value() && raw_running.has_value(),
+  const auto rawEnabled = enabledExpr.raw(window.view(), "cpu", "enabled");
+  const auto rawRunning = runningExpr.raw(window.view(), "cpu", "running");
+  check(rawEnabled.has_value() && rawRunning.has_value(),
         "the oversubscribed plan carries the enabled/running pair (FR-041)");
-  const auto elapsed = raw_enabled->points[1] - raw_enabled->points[0];
-  const auto on_cpu = raw_running->points[1] - raw_running->points[0];
-  check(on_cpu <= elapsed,
+  const auto elapsed = rawEnabled->points[1] - rawEnabled->points[0];
+  const auto onCpu = rawRunning->points[1] - rawRunning->points[0];
+  check(onCpu <= elapsed,
         "running time never exceeds enabled time over the oversubscribed "
         "window (ratio pair sound)");
 
@@ -855,14 +850,14 @@ auto multiplex_scenario() -> void
   // reader of this host's PMU wants.
   const double granted = elapsed == 0
       ? 1.0
-      : static_cast<double>(on_cpu) / static_cast<double>(elapsed);
+      : static_cast<double>(onCpu) / static_cast<double>(elapsed);
   std::printf("scenario 6: %zu events opened against this PMU; enabled "
               "advanced %llu ns, running advanced %llu ns, so the kernel ran "
               "them %f of the time; the composite discloses runningRatio "
               "%f with scaled %d\n",
               members.size(),
               static_cast<unsigned long long>(elapsed),
-              static_cast<unsigned long long>(on_cpu),
+              static_cast<unsigned long long>(onCpu),
               granted,
               observed,
               metric.scaled ? 1 : 0);
@@ -884,20 +879,20 @@ auto multiplex_scenario() -> void
 // the kernel grants it only at a paranoia level this host does not
 // offer. The refusal surfaces as a recoverable construction error in the
 // untimed region, never as a read-time surprise (FR-024, FR-031).
-auto cpu_target_scenario() -> void
+auto cpuTargetScenario() -> void
 {
   // A provider that seeds no cpu object leaves the hardware scenarios
   // with no subject. A host whose perf_event_paranoid hides every event
   // publishes none, and 007 recorded that as the expected CI shape
   // (FR-039): the reason is named and the scenario skips.
-  const auto cpu_object = system::local().object("cpu");
-  if (!cpu_object.has_value()) {
+  const auto cpuObject = System::local().object("cpu");
+  if (!cpuObject.has_value()) {
     std::printf("SKIP: no provider seeded a cpu object at this "
                 "perf_event_paranoid, so no hardware event is "
                 "reachable to exercise (FR-039)\n");
     return;
   }
-  const auto& cpu = *cpu_object;
+  const auto& cpu = *cpuObject;
   const auto entries = cpu.counters();
   std::string work;
   for (const auto& entry : entries) {
@@ -912,15 +907,15 @@ auto cpu_target_scenario() -> void
     std::printf("SKIP cpu-target: no countable instruction counter here\n");
     return;
   }
-  const auto leaf = cpu.counter<events>(work);
+  const auto leaf = cpu.counter<Events>(work);
   check(leaf.has_value(), "the instruction counter resolves");
-  const sg::counters::expression<events> over {*leaf};
+  const sg::counters::Expression<Events> over {*leaf};
   const sg::counters::Target pinned {.kind = sg::counters::TargetKind::CPU,
                                      .cpu = 0};
-  const auto refused = compile(system::local(), pinned, over);
+  const auto refused = compile(System::local(), pinned, over);
   if (refused.has_value()) {
     // A host that grants per-cpu events binds the plan and folds it.
-    sg::counters::scope window {*refused};
+    sg::counters::Scope window {*refused};
     window.start();
     window.finish();
     check(window.metric(over).value >= 0.0,
@@ -945,24 +940,24 @@ auto cpu_target_scenario() -> void
 // folds; or it is refused in the untimed region before any window opens,
 // and the refusal names the scope refusal the catalog published. An
 // encoding refusal is a different verdict (FR-022, FR-024, SC-007).
-auto scope_refused_cpu_target_scenario(
-    const std::vector<const object*>& pmu_objects) -> void
+auto scopeRefusedCpuTargetScenario(const std::vector<const Object*>& pmuObjects)
+    -> void
 {
-  const object* refused_on = nullptr;
-  std::string refused_name;
-  for (const object* obj : pmu_objects) {
+  const Object* refusedOn = nullptr;
+  std::string refusedName;
+  for (const Object* obj : pmuObjects) {
     for (const auto& entry : obj->counters()) {
       if (entry.avail == Availability::SCOPE_REFUSED) {
-        refused_on = obj;
-        refused_name = std::string(entry.name);
+        refusedOn = obj;
+        refusedName = std::string(entry.name);
         break;
       }
     }
-    if (refused_on != nullptr) {
+    if (refusedOn != nullptr) {
       break;
     }
   }
-  if (refused_on == nullptr) {
+  if (refusedOn == nullptr) {
     // A host whose cpu probe settles every entry publishes no scope
     // refusal, so there is no entry to compile over. The reason is named
     // and the scenario skips; no check fails (SC-007).
@@ -971,35 +966,35 @@ auto scope_refused_cpu_target_scenario(
                 "event probe %s at perf_event_paranoid %d), so no entry "
                 "carries the refusal a cpu-target plan is meant to clear "
                 "(FR-022, SC-007)\n",
-                name(hardware_event_probe()),
-                read_paranoid());
+                name(hardwareEventProbe()),
+                readParanoid());
     return;
   }
   // The entry still resolves with the state riding the handle, so the
   // caller reads the refusal, and no failed open stands in for it
   // (FR-007).
-  const auto leaf = refused_on->counter<events>(refused_name);
+  const auto leaf = refusedOn->counter<Events>(refusedName);
   check(leaf.has_value(),
         "a scope-refused entry still resolves; the state rides the handle "
         "(FR-007)");
   check(leaf->avail() == Availability::SCOPE_REFUSED,
         "the resolved handle carries the published scope refusal (FR-022)");
-  const expression<events> over {*leaf};
+  const Expression<Events> over {*leaf};
   const sg::counters::Target pinned {.kind = sg::counters::TargetKind::CPU,
                                      .cpu = 0};
-  const auto compiled = compile(system::local(), pinned, over);
+  const auto compiled = compile(System::local(), pinned, over);
   if (compiled.has_value()) {
-    scope window {*compiled};
+    Scope window {*compiled};
     window.start();
-    burn_cpu_short();
+    burnCpuShort();
     window.finish();
     check(window.metric(over).value >= 0.0,
           "a cpu-target plan over a scope-refused entry binds and folds "
           "(FR-022)");
     std::printf(
         "cpu target over scope-refused %s/%s: granted, plan " "folds\n",
-        std::string(refused_on->path()).c_str(),
-        refused_name.c_str());
+        std::string(refusedOn->path()).c_str(),
+        refusedName.c_str());
     return;
   }
   const std::string& message = compiled.error().message;
@@ -1019,8 +1014,8 @@ auto scope_refused_cpu_target_scenario(
         "caller tells a scope refusal the scope, not the encoding, "
         "produced (FR-022)");
   std::printf("cpu target over scope-refused %s/%s: %s\n",
-              std::string(refused_on->path()).c_str(),
-              refused_name.c_str(),
+              std::string(refusedOn->path()).c_str(),
+              refusedName.c_str(),
               message.c_str());
 }
 
@@ -1029,20 +1024,20 @@ auto scope_refused_cpu_target_scenario(
 // catalog state, refused in the untimed region before any provider
 // window opens (FR-024). The leaf itself still resolves, so user code
 // can branch on the catalog state (FR-007).
-auto unavailable_leaf_scenario() -> void
+auto unavailableLeafScenario() -> void
 {
   // A provider that seeds no cpu object leaves the hardware scenarios
   // with no subject. A host whose perf_event_paranoid hides every event
   // publishes none, and 007 recorded that as the expected CI shape
   // (FR-039): the reason is named and the scenario skips.
-  const auto cpu_object = system::local().object("cpu");
-  if (!cpu_object.has_value()) {
+  const auto cpuObject = System::local().object("cpu");
+  if (!cpuObject.has_value()) {
     std::printf("SKIP: no provider seeded a cpu object at this "
                 "perf_event_paranoid, so no hardware event is "
                 "reachable to exercise (FR-039)\n");
     return;
   }
-  const auto& cpu = *cpu_object;
+  const auto& cpu = *cpuObject;
   const auto entries = cpu.counters();
   std::string blocked;
   for (const auto& entry : entries) {
@@ -1056,14 +1051,14 @@ auto unavailable_leaf_scenario() -> void
                 "host, so no unavailable leaf exists to compose over\n");
     return;
   }
-  const auto leaf = cpu.counter<events>(blocked);
+  const auto leaf = cpu.counter<Events>(blocked);
   check(leaf.has_value(),
         "an unavailable leaf still resolves; the state rides the handle "
         "(FR-007)");
   check(leaf->avail() == Availability::NOT_ENCODABLE,
         "the resolved handle carries the probed catalog state");
-  const expression<events> over {*leaf};
-  const auto refused = compile(system::local(), over);
+  const Expression<Events> over {*leaf};
+  const auto refused = compile(System::local(), over);
   check(!refused.has_value(),
         "compiling over a non-countable leaf is a recoverable construction "
         "error (FR-024)");
@@ -1082,16 +1077,16 @@ auto unavailable_leaf_scenario() -> void
 // where only a granted perf_event_open reaches the path. A host that
 // refuses the event prints the reason and returns 2, which CTest reports
 // as skipped (FR-013, SC-004).
-auto fast_window_lifetime_scenario() -> int
+auto fastWindowLifetimeScenario() -> int
 {
-  const auto cpu_object = system::local().object("cpu");
-  if (!cpu_object.has_value()) {
+  const auto cpuObject = System::local().object("cpu");
+  if (!cpuObject.has_value()) {
     std::printf("SKIP: no provider seeded a cpu object at this "
                 "perf_event_paranoid, so no hardware event is reachable "
                 "to exercise (FR-039, SC-004)\n");
     return 2;
   }
-  const auto& cpu = *cpu_object;
+  const auto& cpu = *cpuObject;
   std::string countable;
   for (const auto& entry : cpu.counters()) {
     if (entry.avail == Availability::COUNTABLE) {
@@ -1104,18 +1099,18 @@ auto fast_window_lifetime_scenario() -> int
                 "event probe %s at perf_event_paranoid %d); the kernel "
                 "refuses every event, so the release path is unreachable "
                 "(SC-004)\n",
-                name(hardware_event_probe()),
-                read_paranoid());
+                name(hardwareEventProbe()),
+                readParanoid());
     return 2;
   }
 
-  const expression<events> counted {*cpu.counter<events>(countable)};
-  const auto descriptors_before = open_descriptor_count();
-  const auto mappings_before = mapping_count();
-  constexpr int cycles = 10000;
+  const Expression<Events> counted {*cpu.counter<Events>(countable)};
+  const auto descriptorsBefore = openDescriptorCount();
+  const auto mappingsBefore = mappingCount();
+  constexpr int kCycles = 10000;
   std::size_t opened = 0;
-  for (int index = 0; index < cycles; ++index) {
-    auto compiled = compile(system::local(), counted);
+  for (int index = 0; index < kCycles; ++index) {
+    auto compiled = compile(System::local(), counted);
     if (!compiled.has_value()) {
       continue;
     }
@@ -1127,21 +1122,21 @@ auto fast_window_lifetime_scenario() -> int
                 "(hardware event probe %s at perf_event_paranoid %d), so "
                 "the release path is unreachable (SC-004)\n",
                 countable.c_str(),
-                name(hardware_event_probe()),
-                read_paranoid());
+                name(hardwareEventProbe()),
+                readParanoid());
     return 2;
   }
 
-  check(open_descriptor_count() == descriptors_before,
+  check(openDescriptorCount() == descriptorsBefore,
         "10,000 real fast-mode plan cycles return the descriptor count to "
         "its starting value (FR-013)");
-  check(mapping_count() == mappings_before,
+  check(mappingCount() == mappingsBefore,
         "10,000 real fast-mode plan cycles return the mapping count to its "
         "starting value (FR-013)");
   std::printf("fast-window lifetime: %zu of %d real opens released every "
               "descriptor and mapping\n",
               opened,
-              cycles);
+              kCycles);
   return 0;
 }
 
@@ -1153,9 +1148,9 @@ auto main() -> int
   // FR-042: off Linux the provider keeps the identical interface and
   // seeds nothing; the reduced catalog is the whole difference.
   auto pmu = std::make_unique<PmuProvider>();
-  auto reg = system::local().register_provider(std::move(pmu));
+  auto reg = System::local().register_provider(std::move(pmu));
   check(reg.has_value(), "the pmu provider registers off Linux");
-  const auto objects = system::local().objects("pmu");
+  const auto objects = System::local().objects("pmu");
   check(!objects.has_value() || objects->empty(),
         "the pmu section is empty off Linux (FR-042)");
   std::printf("counters_pmu_test PASS: reduced catalog off Linux\n");
@@ -1170,32 +1165,32 @@ auto main() -> int
   // reads the catalog only.
   auto push = std::make_unique<PushProvider>();
   static_cast<void>(
-      push->add_counter("bytes", "bytes", "hot-path bytes written"));
-  static_cast<void>(push->add_counter("records", "ops", "records appended"));
-  if (!system::local().register_provider(std::move(clock)).has_value()) {
+      push->addCounter("bytes", "bytes", "hot-path bytes written"));
+  static_cast<void>(push->addCounter("records", "ops", "records appended"));
+  if (!System::local().registerProvider(std::move(clock)).has_value()) {
     fail("clock provider registers");
   }
-  if (!system::local().register_provider(std::move(pmu)).has_value()) {
+  if (!System::local().registerProvider(std::move(pmu)).has_value()) {
     fail("pmu provider registers");
   }
-  if (!system::local().register_provider(std::move(push)).has_value()) {
+  if (!System::local().registerProvider(std::move(push)).has_value()) {
     fail("push provider registers");
   }
-  const auto pmu_objects = system::local().objects("pmu");
-  if (!pmu_objects.has_value()) {
+  const auto pmuObjects = System::local().objects("pmu");
+  if (!pmuObjects.has_value()) {
     fail("pmu objects selectable by kind");
   }
 
-  merge_and_catalog_scenario(*pmu_objects);
-  availability_scenario(*pmu_objects);
-  disclosed_mode_read_scenario(*pmu_objects);
-  group_read_scenario();
+  mergeAndCatalogScenario(*pmuObjects);
+  availabilityScenario(*pmuObjects);
+  disclosedModeReadScenario(*pmuObjects);
+  groupReadScenario();
 
-  multiplex_scenario();
-  cpu_target_scenario();
-  scope_refused_cpu_target_scenario(*pmu_objects);
-  unavailable_leaf_scenario();
-  if (const int skipped = fast_window_lifetime_scenario(); skipped != 0) {
+  multiplexScenario();
+  cpuTargetScenario();
+  scopeRefusedCpuTargetScenario(*pmuObjects);
+  unavailableLeafScenario();
+  if (const int skipped = fastWindowLifetimeScenario(); skipped != 0) {
     return skipped;
   }
 

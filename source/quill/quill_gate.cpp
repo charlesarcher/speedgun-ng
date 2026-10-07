@@ -30,18 +30,18 @@
 // a comparison against a stated intent, and so the project's analyzer gate
 // reports no magic number here (Constitution VIII).
 // Re-pinning means editing exactly these four.
-constexpr int expected_major = 13;
-constexpr int expected_minor = 0;
-constexpr int expected_patch = 0;
-constexpr int expected_packed = 130000;
+constexpr int kExpectedMajor = 13;
+constexpr int kExpectedMinor = 0;
+constexpr int kExpectedPatch = 0;
+constexpr int kExpectedPacked = 130000;
 
-static_assert(quill::VersionMajor == expected_major,
+static_assert(quill::VersionMajor == kExpectedMajor,
               "vendored quill major version changed");
-static_assert(quill::VersionMinor == expected_minor,
+static_assert(quill::VersionMinor == kExpectedMinor,
               "vendored quill minor version changed");
-static_assert(quill::VersionPatch == expected_patch,
+static_assert(quill::VersionPatch == kExpectedPatch,
               "vendored quill patch version changed");
-static_assert(quill::Version == expected_packed,
+static_assert(quill::Version == kExpectedPacked,
               "vendored quill packed version changed");
 
 // The second, independent signal: quill wraps its API in an inline
@@ -50,8 +50,8 @@ static_assert(quill::Version == expected_packed,
 // the two checks above or this one (R-002).
 namespace quill_version_namespace_probe
 {
-constexpr bool major_namespace_is_v13 =
+constexpr bool kMajorNamespaceIsV13 =
     requires { sizeof(quill::v13::VersionMajor); };
-static_assert(major_namespace_is_v13,
+static_assert(kMajorNamespaceIsV13,
               "vendored quill major namespace is not v13");
 }  // namespace quill_version_namespace_probe

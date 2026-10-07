@@ -22,6 +22,6 @@ namespace
 #if defined(__GNUC__)
 [[gnu::used]]
 #endif
-[[maybe_unused]] constinit YAML::Node (*const link_proof)(const std::string&) =
+[[maybe_unused]] constinit YAML::Node (*const kLinkProof)(const std::string&) =
     &YAML::Load;
 }  // namespace

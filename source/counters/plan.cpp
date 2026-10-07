@@ -31,13 +31,12 @@ namespace
 // contiguous slot ranges through one shared sink, so call order equals
 // column order (C-PRO-2). The closing check is the semantic-gated
 // kind, so a release build pays nothing for it.
-auto sample_row(const plan_impl& layout,
-                std::uint64_t* buffer,
-                const std::size_t stride,
-                const std::size_t row) -> void
+auto sampleRow(const PlanImpl& layout,
+               std::uint64_t* buffer,
+               const std::size_t stride,
+               const std::size_t row) -> void
 {
-  PointSink sink(
-      buffer, layout.leaf_count(), layout.column_count(), stride, row);
+  PointSink sink(buffer, layout.leafCount(), layout.columnCount(), stride, row);
   for (const auto& group : layout.groups) {
     group.thunk(*group.reader, sink);
   }
@@ -54,23 +53,23 @@ auto sample_row(const plan_impl& layout,
 // cached `bound_thread` names the one allowed thread; the current
 // thread's identity is read per call, because caching it would cache
 // the answer for the thread that cached it.
-auto sample_point(const plan_impl& layout,
-                  std::uint64_t* columns,
-                  const std::size_t stride,
-                  const std::size_t row,
-                  std::size_t& head) noexcept -> void
+auto samplePoint(const PlanImpl& layout,
+                 std::uint64_t* columns,
+                 const std::size_t stride,
+                 const std::size_t row,
+                 std::size_t& head) noexcept -> void
 {
-  SG_REQUIRE(std::this_thread::get_id() == layout.bound_thread,
+  SG_REQUIRE(std::this_thread::get_id() == layout.boundThread,
              "a sample_point runs on the thread its plan bound to (FR-031)");
-  sample_row(layout, columns, stride, row);
+  sampleRow(layout, columns, stride, row);
   ++head;
 }
 
 // Fan-out instantiation: the exemplar spine re-homed under `path` by
 // re-addressing every leaf (US3 scenario 5); the fold layer resolves
 // the instances through the plan's address map.
-auto instantiate_core(const detail::ExprCore& core,
-                      const std::string& path) -> detail::ExprCore
+auto instantiateCore(const detail::ExprCore& core,
+                     const std::string& path) -> detail::ExprCore
 {
   auto out = core;
   for (auto& leaf : out.leaves) {
@@ -81,7 +80,7 @@ auto instantiate_core(const detail::ExprCore& core,
 
 // The one object path shared by every spine leaf; empty for an empty
 // spine or a spine spanning several objects.
-auto exemplar_prefix(const detail::ExprCore& core) -> std::string
+auto exemplarPrefix(const detail::ExprCore& core) -> std::string
 {
   // LCOV_EXCL_BR_START : coverage exclusion (T066): both guards are
   // unreachable. A zero-leaf expression is refused by `compileCore`
@@ -108,7 +107,7 @@ auto exemplar_prefix(const detail::ExprCore& core) -> std::string
   return prefix;
 }
 
-auto availability_name(const Availability state) -> std::string_view
+auto availabilityName(const Availability state) -> std::string_view
 {
   // LCOV_EXCL_START : coverage exclusion (T066): the `countable` arm.
   // `availability_name` runs only on the construction-failure path at
@@ -138,11 +137,11 @@ auto availability_name(const Availability state) -> std::string_view
 // Resolves each slot's enabled/running partners once every slot exists,
 // so a fold reads the multiplex pair by index and never by name lookup
 // (FR-019, FR-020, FR-022).
-void link_ratio_slots(plan_impl& layout)
+void linkRatioSlots(PlanImpl& layout)
 {
   for (std::size_t index = 0; index < layout.slots.size(); ++index) {
     auto& slot = layout.slots[index];
-    if (!slot.has_ratio_pair) {
+    if (!slot.hasRatioPair) {
       continue;
     }
     // LCOV_EXCL_BR_START : coverage exclusion (T066): a slot address is
@@ -153,11 +152,11 @@ void link_ratio_slots(plan_impl& layout)
       continue;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_STOP
     const std::string home = slot.core.address.substr(0, slash);
-    for (const auto& [name, slot_index] : layout.by_address) {
+    for (const auto& [name, slotIndex] : layout.byAddress) {
       if (name == home + "/enabled") {
-        slot.ratio_enabled = slot_index;
+        slot.ratioEnabled = slotIndex;
       } else if (name == home + "/running") {
-        slot.ratio_running = slot_index;
+        slot.ratioRunning = slotIndex;
       }
     }
   }
@@ -165,7 +164,7 @@ void link_ratio_slots(plan_impl& layout)
 
 }  // namespace
 
-plan::plan(plan&& other) noexcept
+Plan::Plan(Plan&& other) noexcept
     : m_impl(other.m_impl)
 {
   other.m_impl = nullptr;
@@ -173,19 +172,19 @@ plan::plan(plan&& other) noexcept
             "the moved-from plan holds no layout (FR-022)");
 }
 
-auto plan::operator=(plan&& other) noexcept -> plan&
+auto Plan::operator=(Plan&& other) noexcept -> Plan&
 {
   if (this != &other) {
-    delete static_cast<plan_impl*>(m_impl);
+    delete static_cast<PlanImpl*>(m_impl);
     m_impl = other.m_impl;
     other.m_impl = nullptr;
   }
   return *this;
 }
 
-plan::~plan()
+Plan::~Plan()
 {
-  delete static_cast<plan_impl*>(m_impl);
+  delete static_cast<PlanImpl*>(m_impl);
 }
 
 FanoutPlan::FanoutPlan(FanoutPlan&& other) noexcept
@@ -199,7 +198,7 @@ FanoutPlan::FanoutPlan(FanoutPlan&& other) noexcept
 auto FanoutPlan::operator=(FanoutPlan&& other) noexcept -> FanoutPlan&
 {
   if (this != &other) {
-    delete static_cast<fanout_impl*>(m_impl);
+    delete static_cast<FanoutImpl*>(m_impl);
     m_impl = other.m_impl;
     other.m_impl = nullptr;
   }
@@ -208,33 +207,32 @@ auto FanoutPlan::operator=(FanoutPlan&& other) noexcept -> FanoutPlan&
 
 FanoutPlan::~FanoutPlan()
 {
-  delete static_cast<fanout_impl*>(m_impl);
+  delete static_cast<FanoutImpl*>(m_impl);
 }
 
 auto FanoutPlan::recorder(const std::size_t capacity) const
     -> RecorderHandle<HardStop>
 {
-  return static_cast<const fanout_impl*>(m_impl)->inner->recorder(capacity);
+  return static_cast<const FanoutImpl*>(m_impl)->inner->recorder(capacity);
 }
 
 auto FanoutPlan::objectPaths() const -> std::vector<std::string>
 {
-  return static_cast<const fanout_impl*>(m_impl)->paths;
+  return static_cast<const FanoutImpl*>(m_impl)->paths;
 }
 
-auto plan::recorder(const std::size_t capacity) const
+auto Plan::recorder(const std::size_t capacity) const
     -> RecorderHandle<HardStop>
 {
-  auto& impl = *static_cast<plan_impl*>(m_impl);
-  auto arena =
-      std::make_unique<std::uint64_t[]>(capacity * impl.column_count());
+  auto& impl = *static_cast<PlanImpl*>(m_impl);
+  auto arena = std::make_unique<std::uint64_t[]>(capacity * impl.columnCount());
   auto* columns = arena.get();
   impl.arenas.push_back(std::move(arena));
   return RecorderHandle<HardStop> {
-      .m_impl = m_impl, .m_columns = columns, .m_capacity = capacity};
+      .mImpl = m_impl, .mColumns = columns, .mCapacity = capacity};
 }
 
-auto plan::recorder(const std::size_t capacity, const Ring) const
+auto Plan::recorder(const std::size_t capacity, const Ring) const
     -> std::expected<RecorderHandle<Ring>, Error>
 {
   if (capacity == 0 || (capacity & (capacity - 1)) != 0) {
@@ -242,13 +240,12 @@ auto plan::recorder(const std::size_t capacity, const Ring) const
         .message = "ring capacity must be a non-zero power of two (FR-025)",
         .suggestions = {}});
   }
-  auto& impl = *static_cast<plan_impl*>(m_impl);
-  auto arena =
-      std::make_unique<std::uint64_t[]>(capacity * impl.column_count());
+  auto& impl = *static_cast<PlanImpl*>(m_impl);
+  auto arena = std::make_unique<std::uint64_t[]>(capacity * impl.columnCount());
   auto* columns = arena.get();
   impl.arenas.push_back(std::move(arena));
   return RecorderHandle<Ring> {
-      .m_impl = m_impl, .m_columns = columns, .m_capacity = capacity};
+      .mImpl = m_impl, .mColumns = columns, .mCapacity = capacity};
 }
 
 namespace
@@ -264,24 +261,24 @@ constexpr int kCalibrationSamples = 257;
 // Runs the calibration on first request (FR-032): the plan's own read
 // sequence over an empty workload, timed one action at a time. The
 // scratch buffer is the plan's own, so no recorder observes it.
-static auto calibrate(plan_impl& layout) -> const overhead_sample&
+static auto calibrate(PlanImpl& layout) -> const OverheadSample&
 {
   if (layout.calibrated) {
     return layout.overhead;
   }
-  constexpr std::size_t rows = 2;
-  layout.calibration_buffer.assign(layout.column_count() * rows, 0);
-  auto* columns = layout.calibration_buffer.data();
+  constexpr std::size_t kRows = 2;
+  layout.calibrationBuffer.assign(layout.columnCount() * kRows, 0);
+  auto* columns = layout.calibrationBuffer.data();
   std::size_t head = 0;
   for (int warm = 0; warm < kCalibrationWarmup; ++warm) {
-    sample_row(layout, columns, rows, head & (rows - 1));
+    sampleRow(layout, columns, kRows, head & (kRows - 1));
     ++head;
   }
   std::vector<double> costs;
   costs.reserve(static_cast<std::size_t>(kCalibrationSamples));
   for (int index = 0; index < kCalibrationSamples; ++index) {
     const auto before = std::chrono::steady_clock::now();
-    sample_row(layout, columns, rows, head & (rows - 1));
+    sampleRow(layout, columns, kRows, head & (kRows - 1));
     ++head;
     const auto after = std::chrono::steady_clock::now();
     costs.push_back(
@@ -308,53 +305,53 @@ static auto calibrate(plan_impl& layout) -> const overhead_sample&
     cost = std::max(0.0, cost - bracket);
   }
   std::sort(costs.begin(), costs.end());
-  layout.overhead.min_ns = costs.front();
-  layout.overhead.median_ns = costs[costs.size() / 2];
-  layout.overhead.max_ns = costs.back();
+  layout.overhead.minNs = costs.front();
+  layout.overhead.medianNs = costs[costs.size() / 2];
+  layout.overhead.maxNs = costs.back();
   layout.calibrated = true;
   return layout.overhead;
 }
 
-auto plan::sampleOverheadNsMin() const -> double
+auto Plan::sampleOverheadNsMin() const -> double
 {
-  const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
-  SG_ENSURE(cost.min_ns >= 0.0, "the calibrated minimum is a real duration");
-  return cost.min_ns;
+  const OverheadSample& cost = calibrate(*static_cast<PlanImpl*>(m_impl));
+  SG_ENSURE(cost.minNs >= 0.0, "the calibrated minimum is a real duration");
+  return cost.minNs;
 }
 
-auto plan::sampleOverheadNsMedian() const -> double
+auto Plan::sampleOverheadNsMedian() const -> double
 {
-  const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
-  SG_ENSURE(cost.median_ns >= 0.0, "the calibrated median is a real duration");
-  return cost.median_ns;
+  const OverheadSample& cost = calibrate(*static_cast<PlanImpl*>(m_impl));
+  SG_ENSURE(cost.medianNs >= 0.0, "the calibrated median is a real duration");
+  return cost.medianNs;
 }
 
-auto plan::sampleOverheadNsMax() const -> double
+auto Plan::sampleOverheadNsMax() const -> double
 {
-  const overhead_sample& cost = calibrate(*static_cast<plan_impl*>(m_impl));
-  SG_ENSURE(cost.max_ns >= cost.min_ns,
+  const OverheadSample& cost = calibrate(*static_cast<PlanImpl*>(m_impl));
+  SG_ENSURE(cost.maxNs >= cost.minNs,
             "the dearest sampled action is at least the cheapest");
-  return cost.max_ns;
+  return cost.maxNs;
 }
 
-scope::scope(const plan& compiled)
+Scope::Scope(const Plan& compiled)
 {
-  auto* core = new scope_core();
-  core->impl = static_cast<const plan_impl*>(compiled.m_impl);
-  core->buffer.assign(core->impl->column_count() * 2, 0);
+  auto* core = new ScopeCore();
+  core->impl = static_cast<const PlanImpl*>(compiled.m_impl);
+  core->buffer.assign(core->impl->columnCount() * 2, 0);
   m_core = core;
   SG_ENSURE(!core->started && !core->finished,
             "a fresh scope awaits start() (FR-030)");
 }
 
-scope::~scope()
+Scope::~Scope()
 {
-  delete static_cast<scope_core*>(m_core);
+  delete static_cast<ScopeCore*>(m_core);
 }
 
-void scope::start()
+void Scope::start()
 {
-  auto* core = static_cast<scope_core*>(m_core);
+  auto* core = static_cast<ScopeCore*>(m_core);
   SG_REQUIRE(!core->started, "scope start runs once per scope (FR-046)");
   // The window is a two-point hard-stop recorder, so its points are
   // sampled by the recorder's own core, capacity check included
@@ -366,9 +363,9 @@ void scope::start()
             "the first point of the window is recorded (FR-011)");
 }
 
-void scope::finish()
+void Scope::finish()
 {
-  auto* core = static_cast<scope_core*>(m_core);
+  auto* core = static_cast<ScopeCore*>(m_core);
   SG_REQUIRE(core->started && !core->finished,
              "scope finish runs on a started, open window (FR-046)");
   detail::hardStopSampleCore(
@@ -378,9 +375,9 @@ void scope::finish()
             "the window is closed with two recorded points (FR-011)");
 }
 
-auto scope::view() const noexcept -> RecorderApi
+auto Scope::view() const noexcept -> RecorderApi
 {
-  return static_cast<const scope_core*>(m_core)->view();
+  return static_cast<const ScopeCore*>(m_core)->view();
 }
 
 namespace detail
@@ -393,8 +390,8 @@ auto hardStopSampleCore(const void* impl,
 {
   SG_REQUIRE_ALWAYS(head < capacity,
                     "hard_stop recorder samples within capacity (FR-027)");
-  const auto& layout = *static_cast<const plan_impl*>(impl);
-  sample_point(layout, columns, capacity, head, head);
+  const auto& layout = *static_cast<const PlanImpl*>(impl);
+  samplePoint(layout, columns, capacity, head, head);
 }
 
 auto ringSampleCore(const void* impl,
@@ -404,24 +401,24 @@ auto ringSampleCore(const void* impl,
                     bool& wrapped,
                     std::uint64_t& dropped) noexcept -> void
 {
-  const auto& layout = *static_cast<const plan_impl*>(impl);
-  sample_point(layout, columns, capacity, head & (capacity - 1), head);
+  const auto& layout = *static_cast<const PlanImpl*>(impl);
+  samplePoint(layout, columns, capacity, head & (capacity - 1), head);
   if (head > capacity) {
     wrapped = true;
     ++dropped;
   }
 }
 
-auto compileCore(const system& sys,
+auto compileCore(const System& sys,
                  const Target& tg,
                  const std::vector<const ExprCore*>& exprs)
-    -> std::expected<plan, Error>
+    -> std::expected<Plan, Error>
 {
   auto& impl = *sys.m_impl;
   // The open flag is not written here: the open boundary sets it once,
   // and a compile writing it would race every other compile on a flag no
   // compile reads (FR-011).
-  SG_REQUIRE(impl.is_open(),
+  SG_REQUIRE(impl.isOpen(),
              "a plan compiles only after the catalog is open (FR-011)");
   if (exprs.empty()) {
     return std::unexpected(
@@ -429,17 +426,17 @@ auto compileCore(const system& sys,
                .suggestions = {}});
   }
 
-  struct pending_leaf
+  struct PendingLeaf
   {
     std::string address;
     // The record the loop above matched, carried into the provider
     // grouping so no second tree lookup runs there. The catalog is
     // frozen once opened and nothing between the loops reseats a
     // node's leaf vector, so the pointer holds across the boundary.
-    const leaf_record* record = nullptr;
+    const LeafRecord* record = nullptr;
   };
 
-  std::vector<pending_leaf> pending;
+  std::vector<PendingLeaf> pending;
   std::map<std::string, std::size_t> seen;
   for (const auto* core : exprs) {
     // The leaf vector, because a scalar multiple adds its scale node
@@ -455,8 +452,8 @@ auto compileCore(const system& sys,
       if (seen.contains(leaf.address)) {
         continue;
       }
-      const auto [objectPath, name] = split_leaf_address(leaf.address);
-      const leaf_record* record = nullptr;
+      const auto [objectPath, name] = splitLeafAddress(leaf.address);
+      const LeafRecord* record = nullptr;
       // LCOV_EXCL_BR_START : coverage exclusion (T066): the null side. Every
       // leaf address reaching `compileCore` came from a resolved handle or
       // from `instantiate_core`, and the object it names is in the frozen
@@ -484,11 +481,11 @@ auto compileCore(const system& sys,
       // is the extracted seam function, which a registered test drives
       // over every synthetic state, so the host's own catalog never has
       // to publish a scope-refused entry for this arm to run (FR-046).
-      if (!availability_gate_passes(record->core.avail, tg.kind)) {
+      if (!availabilityGatePasses(record->core.avail, tg.kind)) {
         std::string message = "counter '" + leaf.address
                               + "' is not countable on this host: the "
                                 "catalog reports ";
-        message += availability_name(record->core.avail);
+        message += availabilityName(record->core.avail);
         message += "; pick a countable counter or branch on the catalog "
                    "state before composing (FR-024)";
         return std::unexpected(
@@ -496,11 +493,11 @@ auto compileCore(const system& sys,
       }
       seen.emplace(leaf.address, pending.size());
       pending.push_back(
-          pending_leaf {.address = leaf.address, .record = record});
+          PendingLeaf {.address = leaf.address, .record = record});
     }
   }
 
-  auto layout = std::make_unique<plan_impl>();
+  auto layout = std::make_unique<PlanImpl>();
   // One read group per provider, carrying every leaf that provider
   // owns, so a fan-out over many objects is one `open` and one sampling
   // action (FR-047). The instance is provider-internal, the PMU window
@@ -512,23 +509,23 @@ auto compileCore(const system& sys,
   // second knows which group's leaves end at the plan's last managed
   // column and can name the disclosure column to the one window that
   // writes it (FR-007).
-  std::vector<std::vector<std::string>> per_provider(impl.providers.size());
-  std::vector<std::size_t> group_of(impl.providers.size(),
-                                    static_cast<std::size_t>(-1));
-  for (std::size_t provider_index = 0; provider_index < impl.providers.size();
-       ++provider_index)
+  std::vector<std::vector<std::string>> perProvider(impl.providers.size());
+  std::vector<std::size_t> groupOf(impl.providers.size(),
+                                   static_cast<std::size_t>(-1));
+  for (std::size_t providerIndex = 0; providerIndex < impl.providers.size();
+       ++providerIndex)
   {
-    const auto provider = static_cast<int>(provider_index);
+    const auto provider = static_cast<int>(providerIndex);
     for (const auto& one : pending) {
-      if (one.record->provider_index == provider) {
-        per_provider.at(provider_index).push_back(one.address);
+      if (one.record->providerIndex == provider) {
+        perProvider.at(providerIndex).push_back(one.address);
       }
     }
-    if (per_provider.at(provider_index).empty()) {
+    if (perProvider.at(providerIndex).empty()) {
       continue;
     }
-    group_of.at(provider_index) = layout->groups.size();
-    read_group group;
+    groupOf.at(providerIndex) = layout->groups.size();
+    ReadGroup group;
     // The leaves of one group, then that group's own disclosure, then the
     // next group's leaves: the point sink is a sequential cursor, so this is
     // the order the columns are written in (FR-002). The slot vector holds
@@ -537,15 +534,15 @@ auto compileCore(const system& sys,
     // `by_address` and then reads that slot as a column, so the two
     // coordinate systems must not drift apart.
     group.offset = layout->slots.size();
-    group.count = per_provider.at(provider_index).size();
+    group.count = perProvider.at(providerIndex).size();
     for (const auto& one : pending) {
-      if (one.record->provider_index != provider) {
+      if (one.record->providerIndex != provider) {
         continue;
       }
       const auto& candidate = *one.record;
-      layout->slots.push_back(plan_impl::slot {
-          .core = candidate.core, .has_ratio_pair = candidate.has_ratio_pair});
-      layout->by_address.emplace(one.address, layout->slots.size() - 1);
+      layout->slots.push_back(PlanImpl::Slot {
+          .core = candidate.core, .hasRatioPair = candidate.hasRatioPair});
+      layout->byAddress.emplace(one.address, layout->slots.size() - 1);
     }
     layout->groups.push_back(std::move(group));
   }  // LCOV_EXCL_LINE
@@ -565,27 +562,27 @@ auto compileCore(const system& sys,
   // must be the same number, so the columns cannot be interleaved into the
   // vector (FR-002).
   for (std::size_t index = 0; index < layout->groups.size(); ++index) {
-    layout->groups.at(index).disclosure_slot = layout->slots.size() + index;
+    layout->groups.at(index).disclosureSlot = layout->slots.size() + index;
   }
   // The plan keeps the first group's column as its own for the callers that
   // read one column without naming a group, which is the group a
   // single-group plan resolves to.
   // A plan that reaches this point holds at least one leaf, and every
   // leaf belongs to a provider, so the group list is not empty (FR-002).
-  layout->disclosure_slot = layout->groups.front().disclosure_slot;
-  for (std::size_t provider_index = 0; provider_index < impl.providers.size();
-       ++provider_index)
+  layout->disclosureSlot = layout->groups.front().disclosureSlot;
+  for (std::size_t providerIndex = 0; providerIndex < impl.providers.size();
+       ++providerIndex)
   {
-    if (per_provider.at(provider_index).empty()) {
+    if (perProvider.at(providerIndex).empty()) {
       continue;
     }
-    auto& group = layout->groups.at(group_of.at(provider_index));
+    auto& group = layout->groups.at(groupOf.at(providerIndex));
     auto reader =
-        impl.providers.at(provider_index)
+        impl.providers.at(providerIndex)
             ->open(
                 LeafSet {
-                    .addresses = std::move(per_provider.at(provider_index)),
-                    .disclosureColumn = group.disclosure_slot,
+                    .addresses = std::move(perProvider.at(providerIndex)),
+                    .disclosureColumn = group.disclosureSlot,
                 },
                 tg);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the open refusal. It
@@ -625,14 +622,14 @@ auto compileCore(const system& sys,
                    "leaf has no owning provider (FR-011)",  // LCOV_EXCL_LINE
                .suggestions = {}});  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_STOP
-  link_ratio_slots(*layout);
-  return plan(layout.release());
+  linkRatioSlots(*layout);
+  return Plan(layout.release());
 }
 
-auto compileFanoutCore(const system& sys,
+auto compileFanoutCore(const System& sys,
                        const Target& tg,
                        const ExprCore& exemplar,
-                       const std::vector<const object*>& selection)
+                       const std::vector<const Object*>& selection)
     -> std::expected<FanoutPlan, Error>
 {
   // The leaf vector, for the reason `compileCore` gives above: a
@@ -648,7 +645,7 @@ auto compileFanoutCore(const system& sys,
         Error {.message = "fan-out needs a non-empty selection (FR-024)",
                .suggestions = {}});
   }
-  if (exemplar_prefix(exemplar).empty()) {
+  if (exemplarPrefix(exemplar).empty()) {
     return std::unexpected(
         Error {.message = "fan-out exemplar spans several objects (FR-024)",
                .suggestions = {}});
@@ -656,7 +653,7 @@ auto compileFanoutCore(const system& sys,
   std::vector<const ExprCore*> instantiated;
   std::vector<ExprCore> instances;
   std::vector<std::string> paths;
-  for (const object* selected : selection) {
+  for (const Object* selected : selection) {
     if (selected == nullptr) {
       return std::unexpected(
           Error {.message = "fan-out selection holds a null object (FR-024)",
@@ -669,7 +666,7 @@ auto compileFanoutCore(const system& sys,
           .suggestions = {}});
     }
     paths.push_back(path);
-    instances.push_back(instantiate_core(exemplar, path));
+    instances.push_back(instantiateCore(exemplar, path));
   }
   for (const auto& instance : instances) {
     instantiated.push_back(&instance);
@@ -678,8 +675,8 @@ auto compileFanoutCore(const system& sys,
   if (!inner.has_value()) {
     return std::unexpected(inner.error());
   }
-  auto impl = std::make_unique<fanout_impl>();
-  impl->inner = std::make_unique<plan>(std::move(*inner));
+  auto impl = std::make_unique<FanoutImpl>();
+  impl->inner = std::make_unique<Plan>(std::move(*inner));
   impl->paths = std::move(paths);
   return FanoutPlan(impl.release());
 }
@@ -688,20 +685,20 @@ auto fanoutFoldCore(const void* fanout,
                     const ExprCore& core,
                     const RecorderApi& rec) -> std::vector<FanoutResult>
 {
-  const auto& impl = *static_cast<const fanout_impl*>(fanout);
+  const auto& impl = *static_cast<const FanoutImpl*>(fanout);
   std::vector<FanoutResult> out;
   out.reserve(impl.paths.size());
   for (const auto& path : impl.paths) {
     out.push_back(FanoutResult {
         .objectPath = path,
-        .metric = foldCore(instantiate_core(core, path), rec, 0, rec.count - 1),
+        .metric = foldCore(instantiateCore(core, path), rec, 0, rec.count - 1),
     });
   }
   return out;
 }  // LCOV_EXCL_LINE
 
-auto availability_gate_passes(const Availability probed,
-                              const TargetKind requested) noexcept -> bool
+auto availabilityGatePasses(const Availability probed,
+                            const TargetKind requested) noexcept -> bool
 {
   // The state a caller cannot clear is the entry's own device scope
   // refusing the per-task kind, so a request naming the cpu kind does not
@@ -710,16 +707,15 @@ auto availability_gate_passes(const Availability probed,
   // belongs. Every other non-countable state is the caller's to clear, so
   // it is refused with the catalog's own name in the message (FR-021,
   // FR-022, FR-024).
-  const bool cpu_over_scope_refusal =
+  const bool cpuOverScopeRefusal =
       probed == Availability::SCOPE_REFUSED && requested == TargetKind::CPU;
-  const bool passes =
-      probed == Availability::COUNTABLE || cpu_over_scope_refusal;
+  const bool passes = probed == Availability::COUNTABLE || cpuOverScopeRefusal;
   // The rule is spelled once and both the verdict and the postcondition
   // read it, so the check cannot disagree with the decision it checks
   // (FR-024).
   SG_ENSURE(passes
                 == (probed == Availability::COUNTABLE
-                    || cpu_over_scope_refusal),
+                    || cpuOverScopeRefusal),
             "a countable entry passes the availability gate for either "
             "target kind, a scope-refused entry passes it for the cpu kind "
             "alone, and every other state is refused for either kind (FR-021, "

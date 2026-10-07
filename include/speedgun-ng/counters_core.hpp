@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_COUNTERS_CORE_HPP
-#define SPEEDGUN_NG_COUNTERS_CORE_HPP
+#ifndef SG_COUNTERS_CORE_HPP
+#define SG_COUNTERS_CORE_HPP
 
 #include <cstdint>
 #include <expected>

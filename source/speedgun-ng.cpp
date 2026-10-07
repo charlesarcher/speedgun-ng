@@ -4,19 +4,19 @@
 
 #include "speedgun-ng/dbc.hpp"
 
-exported_class::exported_class()
+ExportedClass::ExportedClass()
     : m_name {"speedgun-ng"}
 {
   SG_INVARIANT(!m_name.empty(), "stored name is non-empty");
   SG_ENSURE(m_name == "speedgun-ng", "name() returns the project name");
 }
 
-exported_class::~exported_class()
+ExportedClass::~ExportedClass()
 {
   SG_INVARIANT(!m_name.empty(), "stored name is non-empty");
 }
 
-auto exported_class::name() const -> char const*
+auto ExportedClass::name() const -> char const*
 {
   SG_REQUIRE(!m_name.empty(),
              "the object is in a valid state (class invariant)");

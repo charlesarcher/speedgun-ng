@@ -32,34 +32,33 @@ namespace
 
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::expression;
+using sg::counters::Expression;
 using sg::counters::FakeProvider;
 using sg::counters::PushCounter;
 using sg::counters::PushProvider;
-using sg::counters::system;
+using sg::counters::System;
 
-using events = Dim<0, 1>;
+using Events = Dim<0, 1>;
 
-auto setup() -> sg::counters::plan
+auto setup() -> sg::counters::Plan
 {
   auto provider = std::make_unique<FakeProvider>();
-  provider->add_object("package-1/core-3", "cpu3", "core", "third core");
-  provider->add_counter(
+  provider->addObject("package-1/core-3", "cpu3", "core", "third core");
+  provider->addCounter(
       "package-1/core-3", "cycles", "ops", "core cycles elapsed");
-  provider->add_counter(
+  provider->addCounter(
       "package-1/core-3", "instructions", "ops", "instructions retired");
-  provider->set_points("package-1/core-3", "cycles", {100, 300}, 200);
-  provider->set_points("package-1/core-3", "instructions", {1000, 3100}, 2100);
-  const auto registered =
-      system::local().register_provider(std::move(provider));
+  provider->setPoints("package-1/core-3", "cycles", {100, 300}, 200);
+  provider->setPoints("package-1/core-3", "instructions", {1000, 3100}, 2100);
+  const auto registered = System::local().registerProvider(std::move(provider));
   if (!registered.has_value()) {
     std::fprintf(stderr, "fixture: provider registration failed\n");
     std::exit(2);
   }
-  const auto core = *system::local().object("package-1/core-3");
-  const auto cycles = *core.counter<events>("cycles");
-  const auto instructions = *core.counter<events>("instructions");
-  auto compiled = compile(system::local(), instructions / cycles);
+  const auto core = *System::local().object("package-1/core-3");
+  const auto cycles = *core.counter<Events>("cycles");
+  const auto instructions = *core.counter<Events>("instructions");
+  auto compiled = compile(System::local(), instructions / cycles);
   if (!compiled.has_value()) {
     std::fprintf(stderr, "fixture: plan compile failed\n");
     std::exit(2);
@@ -84,8 +83,8 @@ auto main(int argc, char** argv) -> int
 
   if (mode == "push-cross-thread" || mode == "push-decrement") {
     auto push = std::make_unique<PushProvider>();
-    auto handle = push->add_counter("bytes", "bytes", "hot-path bytes");
-    const auto registered = system::local().register_provider(std::move(push));
+    auto handle = push->addCounter("bytes", "bytes", "hot-path bytes");
+    const auto registered = System::local().registerProvider(std::move(push));
     if (!registered.has_value()) {
       std::fprintf(stderr, "fixture: push provider registration failed\n");
       std::exit(2);
@@ -96,10 +95,10 @@ auto main(int argc, char** argv) -> int
       survived(mode);
       return 0;
     }
-    const auto machine = *system::local().object("machine");
-    const auto bytes = *machine.counter<events>("bytes");
-    const expression<events> counted {bytes};
-    const auto plan = compile(system::local(), counted);
+    const auto machine = *System::local().object("machine");
+    const auto bytes = *machine.counter<Events>("bytes");
+    const Expression<Events> counted {bytes};
+    const auto plan = compile(System::local(), counted);
     if (!plan.has_value()) {
       std::fprintf(stderr, "fixture: push plan compile failed\n");
       std::exit(2);
@@ -124,25 +123,25 @@ auto main(int argc, char** argv) -> int
     // under which a plan holding a foreign counter passed the window's
     // one-owner guard (FR-035).
     auto push = std::make_unique<PushProvider>();
-    auto main_bytes = push->add_counter("main-bytes", "ops", "main bytes");
-    auto worker_bytes = main_bytes;
-    std::thread worker {[&push, &worker_bytes]
+    auto mainBytes = push->addCounter("main-bytes", "ops", "main bytes");
+    auto workerBytes = mainBytes;
+    std::thread worker {[&push, &workerBytes]
                         {
-                          worker_bytes = push->add_counter(
+                          workerBytes = push->addCounter(
                               "worker-bytes", "ops", "worker bytes");
-                          worker_bytes.add(10);
+                          workerBytes.add(10);
                         }};
     worker.join();
-    const auto registered = system::local().register_provider(std::move(push));
+    const auto registered = System::local().registerProvider(std::move(push));
     if (!registered.has_value()) {
       std::fprintf(stderr, "fixture: push provider registration failed\n");
       std::exit(2);
     }
-    const auto machine = *system::local().object("machine");
-    const auto on_main = *machine.counter<events>("main-bytes");
-    const auto on_worker = *machine.counter<events>("worker-bytes");
-    const expression<events> mixed {on_worker + on_main};
-    const auto plan = compile(system::local(), mixed);
+    const auto machine = *System::local().object("machine");
+    const auto onMain = *machine.counter<Events>("main-bytes");
+    const auto onWorker = *machine.counter<Events>("worker-bytes");
+    const Expression<Events> mixed {onWorker + onMain};
+    const auto plan = compile(System::local(), mixed);
     if (!plan.has_value()) {
       std::fprintf(stderr, "fixture: push plan compile failed\n");
       std::exit(2);
@@ -163,20 +162,20 @@ auto main(int argc, char** argv) -> int
     auto push = std::make_unique<PushProvider>();
     std::thread worker {[&push]
                         {
-                          auto worker_ops = push->add_counter(
+                          auto workerOps = push->addCounter(
                               "worker-ops", "ops", "worker ops");
-                          worker_ops.add(10);
+                          workerOps.add(10);
                         }};
     worker.join();
-    const auto registered = system::local().register_provider(std::move(push));
+    const auto registered = System::local().registerProvider(std::move(push));
     if (!registered.has_value()) {
       std::fprintf(stderr, "fixture: push provider registration failed\n");
       std::exit(2);
     }
-    const auto machine = *system::local().object("machine");
-    const auto on_worker = *machine.counter<events>("worker-ops");
-    const expression<events> counted {on_worker};
-    const auto plan = compile(system::local(), counted);
+    const auto machine = *System::local().object("machine");
+    const auto onWorker = *machine.counter<Events>("worker-ops");
+    const Expression<Events> counted {onWorker};
+    const auto plan = compile(System::local(), counted);
     if (!plan.has_value()) {
       std::fprintf(stderr, "fixture: push plan compile failed\n");
       std::exit(2);
@@ -191,11 +190,11 @@ auto main(int argc, char** argv) -> int
   auto compiled = setup();
 
   if (mode == "metric-before-finish") {
-    const auto core = *system::local().object("package-1/core-3");
-    const auto cycles = *core.counter<events>("cycles");
-    const auto instructions = *core.counter<events>("instructions");
+    const auto core = *System::local().object("package-1/core-3");
+    const auto cycles = *core.counter<Events>("cycles");
+    const auto instructions = *core.counter<Events>("instructions");
     const auto ipc = instructions / cycles;
-    sg::counters::scope window {compiled};
+    sg::counters::Scope window {compiled};
     const auto result = window.metric(ipc);
     static_cast<void>(result);
     survived(mode);
@@ -203,11 +202,11 @@ auto main(int argc, char** argv) -> int
   }
 
   if (mode == "fold-range") {
-    const auto core = *system::local().object("package-1/core-3");
-    const auto cycles = *core.counter<events>("cycles");
-    const auto instructions = *core.counter<events>("instructions");
+    const auto core = *System::local().object("package-1/core-3");
+    const auto cycles = *core.counter<Events>("cycles");
+    const auto instructions = *core.counter<Events>("instructions");
     const auto ipc = instructions / cycles;
-    sg::counters::scope window {compiled};
+    sg::counters::Scope window {compiled};
     window.start();
     window.finish();
     const auto result = ipc.fold(window.view(), 1, 0);
@@ -217,11 +216,11 @@ auto main(int argc, char** argv) -> int
   }
 
   if (mode == "fold-out-of-extent") {
-    const auto core = *system::local().object("package-1/core-3");
-    const auto cycles = *core.counter<events>("cycles");
-    const auto instructions = *core.counter<events>("instructions");
+    const auto core = *System::local().object("package-1/core-3");
+    const auto cycles = *core.counter<Events>("cycles");
+    const auto instructions = *core.counter<Events>("instructions");
     const auto ipc = instructions / cycles;
-    sg::counters::scope window {compiled};
+    sg::counters::Scope window {compiled};
     window.start();
     window.finish();
     // The second conjunct of the extent guard at
@@ -244,11 +243,11 @@ auto main(int argc, char** argv) -> int
   }
 
   if (mode == "scope-cross-thread") {
-    const auto core = *system::local().object("package-1/core-3");
-    const auto cycles = *core.counter<events>("cycles");
-    const auto instructions = *core.counter<events>("instructions");
+    const auto core = *System::local().object("package-1/core-3");
+    const auto cycles = *core.counter<Events>("cycles");
+    const auto instructions = *core.counter<Events>("instructions");
     const auto ipc = instructions / cycles;
-    sg::counters::scope window {compiled};
+    sg::counters::Scope window {compiled};
     window.start();
     std::thread foreign {[&window] { window.finish(); }};
     foreign.join();

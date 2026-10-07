@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_COUNTERS_MEASUREMENT_HPP
-#define SPEEDGUN_NG_COUNTERS_MEASUREMENT_HPP
+#ifndef SG_COUNTERS_MEASUREMENT_HPP
+#define SG_COUNTERS_MEASUREMENT_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -82,10 +82,10 @@
 namespace sg::counters
 {
 
-class system;
-class object;
-class plan;
-class scope;
+class System;
+class Object;
+class Plan;
+class Scope;
 
 namespace detail
 {
@@ -215,7 +215,7 @@ struct IsSpecializationOf<Primary<Args...>, Primary> : std::true_type
  * immutable after open, so the handle stays valid (FR-009).
  */
 template<class D>
-class counter
+class Counter
 {
 public:
   using DimensionTag = D;
@@ -483,12 +483,12 @@ template<class P>
 class RecorderHandle
 {
 public:
-  const void* m_impl = nullptr;
-  std::uint64_t* m_columns = nullptr;
-  std::size_t m_capacity = 0;
-  std::size_t m_head = 0;
-  bool m_wrapped = false;
-  std::uint64_t m_dropped = 0;
+  const void* mImpl = nullptr;
+  std::uint64_t* mColumns = nullptr;
+  std::size_t mCapacity = 0;
+  std::size_t mHead = 0;
+  bool mWrapped = false;
+  std::uint64_t mDropped = 0;
 
   /**
    * @brief THE critical path: one sampling action appends one point
@@ -506,10 +506,10 @@ public:
   auto sample() noexcept -> void
   {
     if constexpr (std::is_same_v<P, HardStop>) {
-      detail::hardStopSampleCore(m_impl, m_columns, m_capacity, m_head);
+      detail::hardStopSampleCore(mImpl, mColumns, mCapacity, mHead);
     } else {
       detail::ringSampleCore(
-          m_impl, m_columns, m_capacity, m_head, m_wrapped, m_dropped);
+          mImpl, mColumns, mCapacity, mHead, mWrapped, mDropped);
     }
   }
 
@@ -523,14 +523,14 @@ public:
   [[nodiscard]] auto view() const noexcept -> RecorderApi
   {
     const auto committed =
-        m_head < m_capacity ? m_head : static_cast<std::size_t>(m_capacity);
+        mHead < mCapacity ? mHead : static_cast<std::size_t>(mCapacity);
     return RecorderApi {
-        .impl = m_impl,
-        .columns = m_columns,
-        .stride = m_capacity,
+        .impl = mImpl,
+        .columns = mColumns,
+        .stride = mCapacity,
         .count = committed,
-        .wrapped = m_wrapped,
-        .dropped = m_dropped,
+        .wrapped = mWrapped,
+        .dropped = mDropped,
     };
   }
 
@@ -542,7 +542,7 @@ public:
    */
   [[nodiscard]] auto capacity() const noexcept -> std::size_t
   {
-    return m_capacity;
+    return mCapacity;
   }
 
   /**
@@ -564,7 +564,7 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto wrapped() const noexcept -> bool { return m_wrapped; }
+  [[nodiscard]] auto wrapped() const noexcept -> bool { return mWrapped; }
 
   /**
    * @brief The count of overwritten points (FR-028).
@@ -574,7 +574,7 @@ public:
    */
   [[nodiscard]] auto dropped() const noexcept -> std::uint64_t
   {
-    return m_dropped;
+    return mDropped;
   }
 };
 
@@ -603,15 +603,15 @@ namespace detail
     -> std::expected<PointsView, Error>;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto resolveLeafCore(
-    const object& obj, std::string_view name) -> std::expected<LeafCore, Error>;
+    const Object& obj, std::string_view name) -> std::expected<LeafCore, Error>;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto compileCore(
-    const system& sys,
+    const System& sys,
     const Target& tg,
-    const std::vector<const ExprCore*>& exprs) -> std::expected<plan, Error>;
+    const std::vector<const ExprCore*>& exprs) -> std::expected<Plan, Error>;
 
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto metricCore(
-    const scope& scopeObj, const ExprCore& core) -> MetricResult;
+    const Scope& scopeObj, const ExprCore& core) -> MetricResult;
 
 }  // namespace detail
 
@@ -625,7 +625,7 @@ namespace detail
  * compiles; the system catches the time-versus-count class.
  */
 template<class D>
-class expression
+class Expression
 {
 public:
   using DimensionTag = D;
@@ -638,7 +638,7 @@ public:
    * \pre none
    * \post none
    */
-  expression() = default;
+  Expression() = default;
 
   /**
    * @brief Builds an expression from one resolved leaf: the leaf's
@@ -654,7 +654,7 @@ public:
   // the public composition spelling, and `explicit` would force every
   // operand form to name `expression<D>(leaf)` by hand.
   // NOLINTNEXTLINE(google-explicit-constructor,hicpp-explicit-conversions)
-  expression(const counter<C>& leaf)
+  Expression(const Counter<C>& leaf)
   {
     const int leafIndex = core.addLeaf(leaf.leaf);
     core.addNode(detail::ExprNode {
@@ -728,35 +728,35 @@ public:
 
   // Hidden friends: non-template, so counter arguments convert and
   // same-typed operands match exactly.
-  friend auto operator+(const expression& a, const expression& b) -> expression
+  friend auto operator+(const Expression& a, const Expression& b) -> Expression
   {
     auto merged = a.core;
     const int left = merged.root();
     const int right = detail::splice(merged, b.core);
     merged.addNode(detail::ExprNode {
         .kind = 1, .left = left, .right = right, .leaf = -1, .scale = 1.0});
-    auto out = expression();
+    auto out = Expression();
     out.core = std::move(merged);
     return out;
   }
 
-  friend auto operator-(const expression& a, const expression& b) -> expression
+  friend auto operator-(const Expression& a, const Expression& b) -> Expression
   {
     auto merged = a.core;
     const int left = merged.root();
     const int right = detail::splice(merged, b.core);
     merged.addNode(detail::ExprNode {
         .kind = 2, .left = left, .right = right, .leaf = -1, .scale = 1.0});
-    auto out = expression();
+    auto out = Expression();
     out.core = std::move(merged);
     return out;
   }
 
-  friend auto operator*(const double k, const expression& e) -> expression
+  friend auto operator*(const double k, const Expression& e) -> Expression
   {
     auto merged = e.core;
     merged.scaleAll(k);
-    auto out = expression();
+    auto out = Expression();
     out.core = std::move(merged);
     return out;
   }
@@ -769,15 +769,15 @@ public:
  * \post none
  */
 template<class D1, class D2>
-[[nodiscard]] auto operator/(const expression<D1>& a, const expression<D2>& b)
-    -> expression<DimQuotient<D1, D2>>
+[[nodiscard]] auto operator/(const Expression<D1>& a, const Expression<D2>& b)
+    -> Expression<DimQuotient<D1, D2>>
 {
   detail::ExprCore merged;
   const int left = detail::splice(merged, a.core);
   const int right = detail::splice(merged, b.core);
   merged.addNode(detail::ExprNode {
       .kind = 3, .left = left, .right = right, .leaf = -1, .scale = 1.0});
-  auto out = expression<DimQuotient<D1, D2>>();
+  auto out = Expression<DimQuotient<D1, D2>>();
   out.core = std::move(merged);
   return out;
 }
@@ -786,8 +786,8 @@ template<class D1, class D2>
 // The body is dimension-independent: same tags means same spine
 // algebra, and the static_assert names the violation.
 template<class D1, class D2>
-[[nodiscard]] auto operator+(const expression<D1>& a,
-                             const expression<D2>& b) -> expression<D1>
+[[nodiscard]] auto operator+(const Expression<D1>& a,
+                             const Expression<D2>& b) -> Expression<D1>
 {
   static_assert(kDimSame<D1, D2>,
                 "expression addition requires identical dimension tags");
@@ -796,14 +796,14 @@ template<class D1, class D2>
   const int right = detail::splice(merged, b.core);
   merged.addNode(detail::ExprNode {
       .kind = 1, .left = left, .right = right, .leaf = -1, .scale = 1.0});
-  auto out = expression<D1>();
+  auto out = Expression<D1>();
   out.core = std::move(merged);
   return out;
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator-(const expression<D1>& a,
-                             const expression<D2>& b) -> expression<D1>
+[[nodiscard]] auto operator-(const Expression<D1>& a,
+                             const Expression<D2>& b) -> Expression<D1>
 {
   static_assert(kDimSame<D1, D2>,
                 "expression subtraction requires identical dimension tags");
@@ -812,7 +812,7 @@ template<class D1, class D2>
   const int right = detail::splice(merged, b.core);
   merged.addNode(detail::ExprNode {
       .kind = 2, .left = left, .right = right, .leaf = -1, .scale = 1.0});
-  auto out = expression<D1>();
+  auto out = Expression<D1>();
   out.core = std::move(merged);
   return out;
 }
@@ -825,10 +825,10 @@ template<class D1, class D2>
  * \post none
  */
 template<class D1, class D2>
-[[nodiscard]] auto operator/(const counter<D1>& a, const counter<D2>& b)
-    -> expression<DimQuotient<D1, D2>>
+[[nodiscard]] auto operator/(const Counter<D1>& a, const Counter<D2>& b)
+    -> Expression<DimQuotient<D1, D2>>
 {
-  return expression<D1>(a) / expression<D2>(b);
+  return Expression<D1>(a) / Expression<D2>(b);
 }
 
 /**
@@ -838,10 +838,10 @@ template<class D1, class D2>
  * \post none
  */
 template<class D1, class D2>
-[[nodiscard]] auto operator/(const expression<D1>& a, const counter<D2>& b)
-    -> expression<DimQuotient<D1, D2>>
+[[nodiscard]] auto operator/(const Expression<D1>& a, const Counter<D2>& b)
+    -> Expression<DimQuotient<D1, D2>>
 {
-  return a / expression<D2>(b);
+  return a / Expression<D2>(b);
 }
 
 /**
@@ -851,28 +851,28 @@ template<class D1, class D2>
  * \post none
  */
 template<class D1, class D2>
-[[nodiscard]] auto operator/(const counter<D1>& a, const expression<D2>& b)
-    -> expression<DimQuotient<D1, D2>>
+[[nodiscard]] auto operator/(const Counter<D1>& a, const Expression<D2>& b)
+    -> Expression<DimQuotient<D1, D2>>
 {
-  return expression<D1>(a) / b;
+  return Expression<D1>(a) / b;
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator+(const counter<D1>& a,
-                             const counter<D2>& b) -> expression<D1>
+[[nodiscard]] auto operator+(const Counter<D1>& a,
+                             const Counter<D2>& b) -> Expression<D1>
 {
   static_assert(kDimSame<D1, D2>,
                 "counter addition requires identical dimension tags");
-  return expression<D1>(a) + expression<D1>(b);
+  return Expression<D1>(a) + Expression<D1>(b);
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator-(const counter<D1>& a,
-                             const counter<D2>& b) -> expression<D1>
+[[nodiscard]] auto operator-(const Counter<D1>& a,
+                             const Counter<D2>& b) -> Expression<D1>
 {
   static_assert(kDimSame<D1, D2>,
                 "counter subtraction requires identical dimension tags");
-  return expression<D1>(a) - expression<D1>(b);
+  return Expression<D1>(a) - Expression<D1>(b);
 }
 
 /**
@@ -883,11 +883,11 @@ template<class D1, class D2>
  * are per-thread objects (FR-031); multiple plans over one system are
  * first-class.
  */
-class SPEEDGUN_NG_EXPORT plan
+class SPEEDGUN_NG_EXPORT Plan
 {
 public:
-  plan(const plan&) = delete;
-  auto operator=(const plan&) -> plan& = delete;
+  Plan(const Plan&) = delete;
+  auto operator=(const Plan&) -> Plan& = delete;
 
   /**
    * @brief Moves the compiled layout.
@@ -895,7 +895,7 @@ public:
    * \pre none
    * \post `other` holds no layout.
    */
-  plan(plan&& other) noexcept;
+  Plan(Plan&& other) noexcept;
 
   /**
    * @brief Move assignment: `other` holds no layout.
@@ -903,7 +903,7 @@ public:
    * \pre none
    * \post none
    */
-  auto operator=(plan&& other) noexcept -> plan&;
+  auto operator=(Plan&& other) noexcept -> Plan&;
 
   /**
    * @brief Releases the compiled layout and provider windows; every
@@ -912,7 +912,7 @@ public:
    * \pre none
    * \post none
    */
-  ~plan();
+  ~Plan();
 
   /**
    * @brief Mints a hardStop recorder: `capacity` point columns are
@@ -975,13 +975,13 @@ public:
   [[nodiscard]] auto sampleOverheadNsMax() const -> double;
 
 private:
-  friend auto detail::compileCore(const system& sys,
+  friend auto detail::compileCore(const System& sys,
                                   const Target& tg,
                                   const std::vector<const detail::ExprCore*>&
-                                      exprs) -> std::expected<plan, Error>;
-  friend class scope;
+                                      exprs) -> std::expected<Plan, Error>;
+  friend class Scope;
 
-  explicit plan(void* impl) noexcept
+  explicit Plan(void* impl) noexcept
       : m_impl(impl)
   {
   }
@@ -1007,7 +1007,7 @@ private:
  * and a second `start`, each a contract violation (FR-046, the
  * scope-misuse edge case), and a finished scope is a settled window.
  */
-class SPEEDGUN_NG_EXPORT scope
+class SPEEDGUN_NG_EXPORT Scope
 {
 public:
   /**
@@ -1016,12 +1016,12 @@ public:
    * \pre none
    * \post The scope awaits `start()`.
    */
-  explicit scope(const plan& compiled);
+  explicit Scope(const Plan& compiled);
 
-  scope(const scope&) = delete;
-  auto operator=(const scope&) -> scope& = delete;
-  scope(scope&&) = delete;
-  auto operator=(scope&&) -> scope& = delete;
+  Scope(const Scope&) = delete;
+  auto operator=(const Scope&) -> Scope& = delete;
+  Scope(Scope&&) = delete;
+  auto operator=(Scope&&) -> Scope& = delete;
 
   /**
    * @brief Releases the two point columns.
@@ -1029,7 +1029,7 @@ public:
    * \pre none
    * \post none
    */
-  ~scope();
+  ~Scope();
 
   /**
    * @brief Samples the window's first point (FR-030).
@@ -1057,7 +1057,7 @@ public:
    * \post none
    */
   template<class D>
-  [[nodiscard]] auto metric(const expression<D>& e) const -> MetricResult
+  [[nodiscard]] auto metric(const Expression<D>& e) const -> MetricResult
   {
     return detail::metricCore(*this, e.core);
   }
@@ -1074,7 +1074,7 @@ public:
   [[nodiscard]] auto view() const noexcept -> RecorderApi;
 
 private:
-  friend auto detail::metricCore(const scope& scopeObj,
+  friend auto detail::metricCore(const Scope& scopeObj,
                                  const detail::ExprCore& core) -> MetricResult;
 
   void* m_core = nullptr;  // the scope internals
@@ -1092,10 +1092,10 @@ private:
  * \post none
  */
 template<class... E>
-  requires(detail::IsSpecializationOf<std::remove_cvref_t<E>, expression>::value
+  requires(detail::IsSpecializationOf<std::remove_cvref_t<E>, Expression>::value
            && ...)
-[[nodiscard]] auto compile(const system& sys,
-                           const E&... exprs) -> std::expected<plan, Error>
+[[nodiscard]] auto compile(const System& sys,
+                           const E&... exprs) -> std::expected<Plan, Error>
 {
   const std::vector<const detail::ExprCore*> cores {&exprs.core...};
   return detail::compileCore(sys, Target {}, cores);
@@ -1108,11 +1108,11 @@ template<class... E>
  * \post none
  */
 template<class... E>
-  requires(detail::IsSpecializationOf<std::remove_cvref_t<E>, expression>::value
+  requires(detail::IsSpecializationOf<std::remove_cvref_t<E>, Expression>::value
            && ...)
-[[nodiscard]] auto compile(const system& sys,
+[[nodiscard]] auto compile(const System& sys,
                            const Target& tg,
-                           const E&... exprs) -> std::expected<plan, Error>
+                           const E&... exprs) -> std::expected<Plan, Error>
 {
   const std::vector<const detail::ExprCore*> cores {&exprs.core...};
   return detail::compileCore(sys, tg, cores);
@@ -1128,17 +1128,17 @@ struct FanoutResult
   MetricResult metric;
 };
 
-class object;
+class Object;
 class FanoutPlan;
 
 namespace detail
 {
 
 SPEEDGUN_NG_EXPORT auto compileFanoutCore(
-    const system& sys,
+    const System& sys,
     const Target& tg,
     const ExprCore& exemplar,
-    const std::vector<const object*>& selection)
+    const std::vector<const Object*>& selection)
     -> std::expected<FanoutPlan, Error>;
 
 SPEEDGUN_NG_EXPORT auto fanoutFoldCore(const void* fanout,
@@ -1215,7 +1215,7 @@ public:
    * \post none
    */
   template<class D>
-  [[nodiscard]] auto fold(const expression<D>& e, const RecorderApi& rec) const
+  [[nodiscard]] auto fold(const Expression<D>& e, const RecorderApi& rec) const
       -> std::vector<FanoutResult>
   {
     return detail::fanoutFoldCore(m_impl, e.core, rec);
@@ -1223,10 +1223,10 @@ public:
 
 private:
   friend auto detail::compileFanoutCore(
-      const system& sys,
+      const System& sys,
       const Target& tg,
       const detail::ExprCore& exemplar,
-      const std::vector<const object*>& selection)
+      const std::vector<const Object*>& selection)
       -> std::expected<FanoutPlan, Error>;
   friend auto detail::fanoutFoldCore(const void* fanout,
                                      const detail::ExprCore& core,
@@ -1252,9 +1252,9 @@ private:
  * \post none
  */
 template<class D>
-[[nodiscard]] auto compile(const system& sys,
-                           const expression<D>& expr,
-                           const std::vector<const object*>& selection)
+[[nodiscard]] auto compile(const System& sys,
+                           const Expression<D>& expr,
+                           const std::vector<const Object*>& selection)
     -> std::expected<FanoutPlan, Error>
 {
   return detail::compileFanoutCore(sys, Target {}, expr.core, selection);

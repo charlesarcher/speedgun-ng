@@ -53,8 +53,8 @@ auto main(int argc, char** argv) -> int
   }
   std::string content = body.str();
 
-  bool has_marker = content.find("gated-site-passed") != std::string::npos;
-  if (has_marker) {
+  bool hasMarker = content.find("gated-site-passed") != std::string::npos;
+  if (hasMarker) {
     std::fprintf(stderr,
                  "DBC TRAP-CHECKED FAIL: gated site did NOT abort in a checked "
                  "build " "(marker present):\n%s\n",

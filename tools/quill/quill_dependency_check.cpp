@@ -67,15 +67,15 @@ namespace counters = sg::counters;
 // 1000 instructions against 400 cycles per sampling action, so every interval
 // folds to an IPC of exactly 2.5. That value is the assertion: it is computed
 // from the counter interface and then looked for in the log.
-constexpr std::uint64_t instructions_per_sample = 1000;
-constexpr std::uint64_t cycles_per_sample = 400;
-constexpr double expected_ipc = 2.5;
-constexpr double ipc_tolerance = 1e-9;
-constexpr std::size_t sample_count = 4;
-constexpr int synthetic_iterations = 1000;
+constexpr std::uint64_t kInstructionsPerSample = 1000;
+constexpr std::uint64_t kCyclesPerSample = 400;
+constexpr double kExpectedIpc = 2.5;
+constexpr double kIpcTolerance = 1e-9;
+constexpr std::size_t kSampleCount = 4;
+constexpr int kSyntheticIterations = 1000;
 
-using events = counters::Dim<0, 1>;
-using time_dim = counters::Dim<1, 0>;
+using Events = counters::Dim<0, 1>;
+using TimeDim = counters::Dim<1, 0>;
 
 namespace
 {
@@ -94,7 +94,7 @@ auto fail(char const* stage, std::string const& detail) -> int
   return 1;
 }
 
-auto read_file(std::filesystem::path const& path) -> std::string
+auto readFile(std::filesystem::path const& path) -> std::string
 {
   auto const input = std::ifstream(path, std::ios::binary);
   std::ostringstream buffer;
@@ -109,42 +109,42 @@ auto measure(quill::Logger* logger) -> std::expected<double, std::string>
   // Registers before the fake source: it supplies the machine object, and
   // reversing the two silently breaks machine resolution below.
   auto clock = std::make_unique<counters::ClockProvider>();
-  if (!counters::system::local()
-           .register_provider(std::move(clock))
+  if (!counters::System::local()
+           .registerProvider(std::move(clock))
            .has_value())
   {
     return std::unexpected(std::string {"the clock provider was refused"});
   }
 
   auto fake = std::make_unique<counters::FakeProvider>();
-  fake->add_object("package-0/core-0", "core-0", "core", "first core");
-  fake->add_counter(
+  fake->addObject("package-0/core-0", "core-0", "core", "first core");
+  fake->addCounter(
       "package-0/core-0", "instructions", "ops", "instructions retired");
-  fake->add_counter("package-0/core-0", "cycles", "ops", "core cycles");
-  fake->set_points(
-      "package-0/core-0", "instructions", {}, instructions_per_sample);
-  fake->set_points("package-0/core-0", "cycles", {}, cycles_per_sample);
-  if (!counters::system::local().register_provider(std::move(fake)).has_value())
+  fake->addCounter("package-0/core-0", "cycles", "ops", "core cycles");
+  fake->setPoints(
+      "package-0/core-0", "instructions", {}, kInstructionsPerSample);
+  fake->setPoints("package-0/core-0", "cycles", {}, kCyclesPerSample);
+  if (!counters::System::local().registerProvider(std::move(fake)).has_value())
   {
     return std::unexpected(std::string {"the fake provider was refused"});
   }
 
-  auto const core = counters::system::local().object("package-0/core-0");
+  auto const core = counters::System::local().object("package-0/core-0");
   if (!core.has_value()) {
     return std::unexpected(std::string {"package-0/core-0 did not resolve"});
   }
-  auto const instructions = core->counter<events>("instructions");
-  auto const cycles = core->counter<events>("cycles");
+  auto const instructions = core->counter<Events>("instructions");
+  auto const cycles = core->counter<Events>("cycles");
   if (!instructions.has_value() || !cycles.has_value()) {
     return std::unexpected(
         std::string {"instructions or cycles did not resolve"});
   }
 
-  auto const machine = counters::system::local().object("machine");
+  auto const machine = counters::System::local().object("machine");
   if (!machine.has_value()) {
     return std::unexpected(std::string {"the machine object did not resolve"});
   }
-  auto const monotonic = machine->counter<time_dim>("monotonic");
+  auto const monotonic = machine->counter<TimeDim>("monotonic");
   if (!monotonic.has_value()) {
     return std::unexpected(std::string {"machine monotonic did not resolve"});
   }
@@ -152,17 +152,17 @@ auto measure(quill::Logger* logger) -> std::expected<double, std::string>
   auto const ipc = (*instructions) / (*cycles);
   auto const rate = (*instructions) / (*monotonic);
 
-  auto const compiled = counters::compile(counters::system::local(), ipc, rate);
+  auto const compiled = counters::compile(counters::System::local(), ipc, rate);
   if (!compiled.has_value()) {
     return std::unexpected(std::string {"the plan did not compile"});
   }
 
   // Capacity is samples plus the initial point, per FR-050.
-  auto recorder = compiled->recorder(sample_count + 1);
+  auto recorder = compiled->recorder(kSampleCount + 1);
   recorder.sample();
-  for (std::size_t sample = 0; sample < sample_count; ++sample) {
+  for (std::size_t sample = 0; sample < kSampleCount; ++sample) {
     volatile double work = 0.0;
-    for (int iteration = 0; iteration < synthetic_iterations; ++iteration) {
+    for (int iteration = 0; iteration < kSyntheticIterations; ++iteration) {
       work += 1.0;
     }
     static_cast<void>(work);
@@ -179,8 +179,8 @@ auto measure(quill::Logger* logger) -> std::expected<double, std::string>
       logger,
       "quill_dependency_check: ipc {:.6f} from {} instructions over {} cycles",
       folded.value,
-      instructions_per_sample,
-      cycles_per_sample);
+      kInstructionsPerSample,
+      kCyclesPerSample);
   LOG_INFO(logger,
            "quill_dependency_check: scaled={} running_ratio {:.6f}",
            folded.scaled ? "yes" : "no",
@@ -191,10 +191,10 @@ auto measure(quill::Logger* logger) -> std::expected<double, std::string>
 
 // Asserts that the value reached the log, and that the counter library
 // produced it independently of the log.
-auto assert_reached_log(std::filesystem::path const& log_path,
+auto assertReachedLog(std::filesystem::path const& logPath,
                         double value) -> int
 {
-  auto const contents = read_file(log_path);
+  auto const contents = readFile(logPath);
   if (contents.empty()) {
     return fail("log read", "quill produced no log output at all");
   }
@@ -211,14 +211,14 @@ auto assert_reached_log(std::filesystem::path const& log_path,
     return 1;
   }
 
-  if (value < expected_ipc - ipc_tolerance
-      || value > expected_ipc + ipc_tolerance)
+  if (value < kExpectedIpc - kIpcTolerance
+      || value > kExpectedIpc + kIpcTolerance)
   {
     std::println(stderr,
                  "quill_dependency_check: assertion failed: folded ipc {:.6f} "
                  "is outside " "the {:.6f} the fake source describes",
                  value,
-                 expected_ipc);
+                 kExpectedIpc);
     return 1;
   }
 
@@ -229,17 +229,17 @@ auto assert_reached_log(std::filesystem::path const& log_path,
 
 auto run() -> int
 {
-  auto const log_path = std::filesystem::temp_directory_path()
+  auto const logPath = std::filesystem::temp_directory_path()
       / "speedgun-ng-quill-dependency-check.log";
   std::error_code ignored;
-  std::filesystem::remove(log_path, ignored);
+  std::filesystem::remove(logPath, ignored);
 
   // quill's backend must run before a record can be drained: without it the
   // frontend queues fill and nothing is written.
   quill::Backend::start();
 
   auto sink = quill::Frontend::create_or_get_sink<quill::FileSink>(
-      log_path.string(),
+      logPath.string(),
       []() -> quill::FileSinkConfig
       {
         quill::FileSinkConfig config;
@@ -262,9 +262,9 @@ auto run() -> int
 
   quill::Backend::stop();
 
-  auto const verdict = assert_reached_log(log_path, *measured);
+  auto const verdict = assertReachedLog(logPath, *measured);
   if (verdict == 0) {
-    std::filesystem::remove(log_path, ignored);
+    std::filesystem::remove(logPath, ignored);
   }
   return verdict;
 }

@@ -39,7 +39,7 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-auto same_double(const double lhs, const double rhs) -> bool
+auto sameDouble(const double lhs, const double rhs) -> bool
 {
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
@@ -50,30 +50,30 @@ using sg::counters::CatalogSeed;
 using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::expression;
+using sg::counters::Expression;
 using sg::counters::LeafSet;
-using sg::counters::object;
+using sg::counters::Object;
 using sg::counters::ObjectSeed;
 using sg::counters::ObjectSink;
 using sg::counters::PointSink;
 using sg::counters::ProviderIface;
-using sg::counters::scope;
-using sg::counters::system;
+using sg::counters::Scope;
+using sg::counters::System;
 using sg::counters::Target;
 using sg::counters::WindowReader;
 
-using events = Dim<0, 1>;
-using time_dim = Dim<1, 0>;
+using Events = Dim<0, 1>;
+using TimeDim = Dim<1, 0>;
 
 constexpr std::uint64_t kHonksPerAction = 7;
 
 // The out-of-tree reader: honks accumulate between sampling actions. It
 // installs a direct-call slot in its constructor, so the compiled plan
 // reads through the slot, with no vtable dispatch (FR-022, R-004).
-class honk_window final : public WindowReader
+class HonkWindow final : public WindowReader
 {
 public:
-  honk_window() { setThunk(&honk_window::readDirect); }
+  HonkWindow() { setThunk(&HonkWindow::readDirect); }
 
   void readPoints(PointSink& sink) noexcept override
   {
@@ -83,7 +83,7 @@ public:
 private:
   static auto readDirect(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    auto& reader = static_cast<honk_window&>(base);
+    auto& reader = static_cast<HonkWindow&>(base);
     reader.m_total += kHonksPerAction;
     sink.put(reader.m_total);
   }
@@ -93,7 +93,7 @@ private:
 
 // The out-of-tree provider: one object, one countable counter, one
 // described-but-unavailable entry.
-class giraffe_provider final : public ProviderIface
+class GiraffeProvider final : public ProviderIface
 {
 public:
   void enumerate(ObjectSink& sink) const override
@@ -128,13 +128,13 @@ public:
         return nullptr;
       }
     }
-    return std::make_unique<honk_window>();
+    return std::make_unique<HonkWindow>();
   }
 };
 
-auto giraffe() -> object
+auto giraffe() -> Object
 {
-  const auto found = system::local().object("menagerie/giraffe-2");
+  const auto found = System::local().object("menagerie/giraffe-2");
   if (!found.has_value()) {
     fail("giraffe object resolves after registration");
   }
@@ -143,7 +143,7 @@ auto giraffe() -> object
 
 // Scenario 1: the provider appears in enumeration with its kind,
 // descriptions, and availability states (FR-012).
-auto enumeration_scenario() -> void
+auto enumerationScenario() -> void
 {
   const auto& animal = giraffe();
   check(animal.kind() == "animal", "provider kind is reported");
@@ -171,14 +171,14 @@ auto enumeration_scenario() -> void
 // Scenario 2: the counter measures through a scope: start and finish
 // are two actions, so the window holds exactly one action's worth of
 // honks.
-auto scope_scenario() -> void
+auto scopeScenario() -> void
 {
-  const expression<events> honks {*giraffe().counter<events>("honks")};
-  const expression<time_dim> mono {
-      *system::local().object("machine")->counter<time_dim>("monotonic")};
-  const auto compiled = compile(system::local(), honks, mono);
+  const Expression<Events> honks {*giraffe().counter<Events>("honks")};
+  const Expression<TimeDim> mono {
+      *System::local().object("machine")->counter<TimeDim>("monotonic")};
+  const auto compiled = compile(System::local(), honks, mono);
   check(compiled.has_value(), "cross-provider plan compiles");
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
   volatile double spin = 0.0;
   for (int i = 0; i < 2'000'000; ++i) {
@@ -187,43 +187,42 @@ auto scope_scenario() -> void
   static_cast<void>(spin);
   window.finish();
   const auto honked = window.metric(honks);
-  check(same_double(honked.value, static_cast<double>(kHonksPerAction)),
+  check(sameDouble(honked.value, static_cast<double>(kHonksPerAction)),
         "one window, one action gap: seven honks (scenario 2)");
 }
 
 // Scenario 3: honks / monotonic folds to a honk rate; the clock leaf
 // and the honk leaf are read within the same sampling actions
 // (FR-047).
-auto rate_scenario() -> void
+auto rateScenario() -> void
 {
-  const expression<events> honks {*giraffe().counter<events>("honks")};
-  const expression<time_dim> mono {
-      *system::local().object("machine")->counter<time_dim>("monotonic")};
+  const Expression<Events> honks {*giraffe().counter<Events>("honks")};
+  const Expression<TimeDim> mono {
+      *System::local().object("machine")->counter<TimeDim>("monotonic")};
   const auto rate = honks / mono;
-  const auto compiled = compile(system::local(), rate, mono);
+  const auto compiled = compile(System::local(), rate, mono);
   check(compiled.has_value(), "rate plan compiles");
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
   window.finish();
-  const auto honks_per_ns = window.metric(rate);
-  const auto mono_ns = window.metric(mono);
-  check(honks_per_ns.value > 0.0, "honk rate is positive (scenario 3)");
-  check(
-      std::fabs(honks_per_ns.value * mono_ns.value - kHonksPerAction) <= 7.0e-6,
-      "rate x window reconstitutes the honks (scenario 3)");
-  check(same_double(honks_per_ns.runningRatio, 1.0),
+  const auto honksPerNs = window.metric(rate);
+  const auto monoNs = window.metric(mono);
+  check(honksPerNs.value > 0.0, "honk rate is positive (scenario 3)");
+  check(std::fabs(honksPerNs.value * monoNs.value - kHonksPerAction) <= 7.0e-6,
+        "rate x window reconstitutes the honks (scenario 3)");
+  check(sameDouble(honksPerNs.runningRatio, 1.0),
         "cross-provider composite carries standard disclosure");
 }
 
 // Scenario 4: an unavailable entry is branched on catalog state
 // alone: no resolution is attempted for it.
-auto availability_branch_scenario() -> void
+auto availabilityBranchScenario() -> void
 {
   std::size_t countable = 0;
   std::size_t skipped = 0;
   for (const auto& entry : giraffe().counters()) {
     if (entry.avail == Availability::COUNTABLE) {
-      check(giraffe().counter<events>(entry.name).has_value(),
+      check(giraffe().counter<Events>(entry.name).has_value(),
             "countable entry resolves");
       ++countable;
     } else {
@@ -238,19 +237,19 @@ auto availability_branch_scenario() -> void
 // `resolveThunk` hands the compiled plan the installed function, so the
 // read path reaches the provider without a virtual call (FR-022, R-004,
 // T066).
-auto direct_call_scenario() -> void
+auto directCallScenario() -> void
 {
-  honk_window reader;
+  HonkWindow reader;
   const auto thunk = reader.resolveThunk();
   std::uint64_t columns[1] = {0};
   PointSink sink {columns, 1, 1, 1, 0};
   thunk(reader, sink);
   check(columns[0] == kHonksPerAction,
         "the installed direct-call slot delivers the provider's point");
-  std::uint64_t via_virtual[1] = {0};
-  PointSink other {via_virtual, 1, 1, 1, 0};
+  std::uint64_t viaVirtual[1] = {0};
+  PointSink other {viaVirtual, 1, 1, 1, 0};
   reader.readPoints(other);
-  check(via_virtual[0] == 2 * kHonksPerAction,
+  check(viaVirtual[0] == 2 * kHonksPerAction,
         "the virtual entry and the installed slot are the same function "
         "(FR-022)");
 }
@@ -259,21 +258,21 @@ auto direct_call_scenario() -> void
 // unit carries a different dimension than the request names. Both are
 // recoverable diagnostics carrying the catalog fact, never a guess
 // (FR-007, FR-017, FR-024).
-auto refused_resolution_scenario() -> void
+auto refusedResolutionScenario() -> void
 {
   const auto animal = giraffe();
-  const auto sleeps = animal.counter<events>("sleeps");
+  const auto sleeps = animal.counter<Events>("sleeps");
   check(sleeps.has_value() && sleeps->avail() == Availability::ABSENT,
         "an absent entry still resolves; the state rides the handle");
-  const expression<events> over_absent {*sleeps};
-  const auto refused = compile(system::local(), over_absent);
+  const Expression<Events> overAbsent {*sleeps};
+  const auto refused = compile(System::local(), overAbsent);
   check(!refused.has_value(),
         "compiling over an absent leaf is a recoverable construction error "
         "(FR-024)");
   check(refused.error().message.find("absent") != std::string::npos,
         "the construction error names the absent catalog state");
 
-  const auto honks = animal.counter<time_dim>("honks");
+  const auto honks = animal.counter<TimeDim>("honks");
   check(!honks.has_value(),
         "a request for the wrong dimension resolves to nothing (FR-015)");
   check(honks.error().message.find("honks") != std::string::npos
@@ -283,7 +282,7 @@ auto refused_resolution_scenario() -> void
   // The mismatch can sit in either exponent. `monotonic` is time^1, so
   // asking for time^1 x events^1 matches the time exponent and fails on
   // the event exponent (FR-015, FR-017).
-  const auto machine = *system::local().object("machine");
+  const auto machine = *System::local().object("machine");
   const auto both = machine.counter<sg::counters::Dim<1, 1>>("monotonic");
   check(!both.has_value(),
         "a request matching only the time exponent resolves to nothing");
@@ -294,9 +293,9 @@ auto refused_resolution_scenario() -> void
 // A seed whose single object declares one counter name twice. The system
 // refuses it and leaves the tree unchanged, so the collision is reported
 // where the reader can act on it (FR-008, T096).
-auto duplicate_name_scenario() -> void
+auto duplicateNameScenario() -> void
 {
-  class doubled final : public ProviderIface
+  class Doubled final : public ProviderIface
   {
   public:
     void enumerate(ObjectSink& sink) const override
@@ -330,13 +329,13 @@ auto duplicate_name_scenario() -> void
   };
 
   const auto rejected =
-      system::local().register_provider(std::make_unique<doubled>());
+      System::local().registerProvider(std::make_unique<Doubled>());
   check(!rejected.has_value(),
         "a counter name declared twice in one object is rejected (FR-008)");
   check(rejected.error().message.find("steps") != std::string::npos
             && rejected.error().message.find("duplicate") != std::string::npos,
         "the rejection names the duplicated counter (FR-008)");
-  check(!system::local().object("menagerie/okapi-1").has_value(),
+  check(!System::local().object("menagerie/okapi-1").has_value(),
         "the rejected seed left no object behind (FR-008)");
 }
 
@@ -344,12 +343,12 @@ auto duplicate_name_scenario() -> void
 
 auto main() -> int
 {
-  auto giraffe = std::make_unique<giraffe_provider>();
-  if (!system::local().register_provider(std::move(giraffe)).has_value()) {
+  auto giraffe = std::make_unique<GiraffeProvider>();
+  if (!System::local().registerProvider(std::move(giraffe)).has_value()) {
     fail("out-of-tree provider registers");
   }
-  if (!system::local()
-           .register_provider(std::make_unique<ClockProvider>())
+  if (!System::local()
+           .registerProvider(std::make_unique<ClockProvider>())
            .has_value())
   {
     fail("clock provider registers");
@@ -357,13 +356,13 @@ auto main() -> int
 
   // Registration closes at the first open, so the refused seed runs
   // before any scenario opens the system (FR-009).
-  duplicate_name_scenario();
-  enumeration_scenario();
-  scope_scenario();
-  rate_scenario();
-  availability_branch_scenario();
-  direct_call_scenario();
-  refused_resolution_scenario();
+  duplicateNameScenario();
+  enumerationScenario();
+  scopeScenario();
+  rateScenario();
+  availabilityBranchScenario();
+  directCallScenario();
+  refusedResolutionScenario();
 
   std::printf(
       "counters_provider_ext_test PASS: giraffe counts from out of tree\n");

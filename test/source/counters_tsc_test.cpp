@@ -59,26 +59,26 @@ using sg::counters::Dim;
 using sg::counters::FakeProvider;
 using sg::counters::PushProvider;
 using sg::counters::ReadMode;
-using sg::counters::scope;
-using sg::counters::system;
+using sg::counters::Scope;
+using sg::counters::System;
 using sg::counters::Unit;
 using sg::counters::unitName;
 
 // The raw entry's unit is the closed token 007 already assigns it, which
 // maps to Dim<0,1> (counters_core.hpp:178), so it is a counted source and
 // a quotient against another counted source folds to Dim<0,0>.
-using events = Dim<0, 1>;
+using Events = Dim<0, 1>;
 
 // Exact double comparison through the bit pattern: these are exactness
 // checks, and a tolerance band has no place in them (the build enables
 // -Werror=float-equal, so `==` is not available here).
-auto same_double(const double lhs, const double rhs) -> bool
+auto sameDouble(const double lhs, const double rhs) -> bool
 {
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-auto find_entry(const std::vector<CatalogEntry>& entries,
-                const std::string_view name) -> const CatalogEntry*
+auto findEntry(const std::vector<CatalogEntry>& entries,
+               const std::string_view name) -> const CatalogEntry*
 {
   for (const auto& entry : entries) {
     if (entry.name == name) {
@@ -88,14 +88,14 @@ auto find_entry(const std::vector<CatalogEntry>& entries,
   return nullptr;
 }
 
-auto machine_entries() -> std::vector<CatalogEntry>
+auto machineEntries() -> std::vector<CatalogEntry>
 {
-  const auto machine = *system::local().object("machine");
+  const auto machine = *System::local().object("machine");
   return machine.counters();
 }
 
 // CPU-bound work, so a sampling window over it retires a positive count.
-auto burn_cpu() -> void
+auto burnCpu() -> void
 {
   volatile double work = 0.0;
   for (int i = 0; i < 200000; ++i) {
@@ -107,9 +107,9 @@ auto burn_cpu() -> void
 // FR-007: with no clock provider registered the tree holds no entry, and the
 // accessor names the absent provider and guesses at nothing. This runs first
 // because the singleton cannot be rewound.
-auto test_absent_provider() -> void
+auto testAbsentProvider() -> void
 {
-  const auto absent = system::local().tsc();
+  const auto absent = System::local().tsc();
   check(!absent.has_value(),
         "the accessor refuses before any provider is registered (FR-007)");
   check(absent.error().message.find("no clock provider is registered")
@@ -124,13 +124,13 @@ auto test_absent_provider() -> void
 // no boundary, so the clock provider still registers after these two calls. A
 // push counter is that provider: it seeds the same machine object and no
 // time-stamp entry.
-auto test_entry_absent_but_provider_present() -> void
+auto testEntryAbsentButProviderPresent() -> void
 {
   auto push = std::make_unique<PushProvider>();
-  static_cast<void>(push->add_counter("records", "ops", "records pushed"));
-  check(system::local().register_provider(std::move(push)).has_value(),
+  static_cast<void>(push->addCounter("records", "ops", "records pushed"));
+  check(System::local().registerProvider(std::move(push)).has_value(),
         "a provider seeding no time-stamp entry registers (FR-006)");
-  const auto absent = system::local().tsc();
+  const auto absent = System::local().tsc();
   check(!absent.has_value(),
         "the accessor reports the absent entry once a provider seeded the "
         "machine without one (FR-008)");
@@ -142,29 +142,29 @@ auto test_entry_absent_but_provider_present() -> void
 
 // FR-006: the accessor resolves an entry and opens no boundary, so the
 // registration that follows it in this same process still succeeds.
-auto register_fixture() -> void
+auto registerFixture() -> void
 {
   auto clock = std::make_unique<ClockProvider>();
-  check(system::local().register_provider(std::move(clock)).has_value(),
+  check(System::local().registerProvider(std::move(clock)).has_value(),
         "the clock provider registers after an accessor call (FR-006)");
 
   // A counted source to compose the time-stamp counter against, which is
   // what proves interchangeability, and rules out a private spelling.
   auto fake = std::make_unique<FakeProvider>();
-  fake->add_object("core-0", "core0", "core", "the core under test");
-  fake->add_counter("core-0", "instructions", "ops", "instructions retired");
-  fake->set_points("core-0", "instructions", {}, 1000);
-  check(system::local().register_provider(std::move(fake)).has_value(),
+  fake->addObject("core-0", "core0", "core", "the core under test");
+  fake->addCounter("core-0", "instructions", "ops", "instructions retired");
+  fake->setPoints("core-0", "instructions", {}, 1000);
+  check(System::local().registerProvider(std::move(fake)).has_value(),
         "the counted source registers (FR-004)");
 }
 
 // FR-001, FR-002: the entry publishes on this host, which executes the
 // instruction and publishes no counter frequency, and it carries a count
 // with no rate attached.
-auto test_raw_entry() -> void
+auto testRawEntry() -> void
 {
-  const auto entries = machine_entries();
-  const auto* raw = find_entry(entries, "tsc");
+  const auto entries = machineEntries();
+  const auto* raw = findEntry(entries, "tsc");
 #if SG_TEST_HAS_TSC
   check(raw != nullptr,
         "the entry publishes wherever the build executes the instruction, "
@@ -195,13 +195,13 @@ auto test_raw_entry() -> void
 
 // FR-004: the accessor and the uniform lookup name the same canonical
 // entry, which is what makes the shorter spelling interchangeable.
-auto test_accessor_matches_lookup() -> void
+auto testAccessorMatchesLookup() -> void
 {
-  const auto direct = system::local().tsc();
+  const auto direct = System::local().tsc();
   check(direct.has_value(),
         "the accessor resolves once a provider is " "registered (FR-004)");
-  const auto machine = *system::local().object("machine");
-  const auto named = machine.counter<events>("tsc");  // the uniform spelling
+  const auto machine = *System::local().object("machine");
+  const auto named = machine.counter<Events>("tsc");  // the uniform spelling
   check(named.has_value(),
         "the uniform lookup resolves the same entry (FR-004)");
   check(direct->name() == named->name(),
@@ -215,14 +215,14 @@ auto test_accessor_matches_lookup() -> void
 
 // FR-005: the accessor resolves an entry and reads nothing, so a thousand
 // calls leave the catalog byte-identical.
-auto test_accessor_reads_nothing() -> void
+auto testAccessorReadsNothing() -> void
 {
-  const auto before = machine_entries();
+  const auto before = machineEntries();
   for (int i = 0; i < 1000; ++i) {
-    const auto read = system::local().tsc();
+    const auto read = System::local().tsc();
     check(read.has_value(), "the accessor keeps resolving (FR-005)");
   }
-  const auto after = machine_entries();
+  const auto after = machineEntries();
   check(after.size() == before.size(),
         "a thousand accessor calls add no catalog entry (FR-005)");
   bool identical = after.size() == before.size();
@@ -244,49 +244,49 @@ auto test_accessor_reads_nothing() -> void
 // disclosure column. The push provider registers before the counted
 // source here, so the push group is not that last one and its window is
 // handed a leaf set carrying no column (FR-007).
-auto test_mixed_provider_plan() -> void
+auto testMixedProviderPlan() -> void
 {
-  const auto machine = *system::local().object("machine");
-  const auto records = *machine.counter<events>("records");
-  const auto core = *system::local().object("core-0");
-  const auto instructions = *core.counter<events>("instructions");
-  const auto per_record = instructions / records;
-  auto compiled = compile(system::local(), per_record);
+  const auto machine = *System::local().object("machine");
+  const auto records = *machine.counter<Events>("records");
+  const auto core = *System::local().object("core-0");
+  const auto instructions = *core.counter<Events>("instructions");
+  const auto perRecord = instructions / records;
+  auto compiled = compile(System::local(), perRecord);
   check(compiled.has_value(),
         "a plan over one leaf from each of two providers compiles");
   if (!compiled.has_value()) {
     return;
   }
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
   window.finish();
-  const auto folded = window.metric(per_record);
+  const auto folded = window.metric(perRecord);
   check(folded.value > 0.0,
         "the mixed-provider plan folds a positive measurement (FR-007)");
 }
 
-auto test_counter_composes() -> void
+auto testCounterComposes() -> void
 {
-  const auto core = *system::local().object("core-0");
-  const auto instructions = *core.counter<events>("instructions");
-  const auto raw = *system::local().tsc();
-  const auto per_tick = instructions / raw;
-  const auto compiled = compile(system::local(), per_tick);
+  const auto core = *System::local().object("core-0");
+  const auto instructions = *core.counter<Events>("instructions");
+  const auto raw = *System::local().tsc();
+  const auto perTick = instructions / raw;
+  const auto compiled = compile(System::local(), perTick);
   check(
       compiled.has_value(),
       "a counted source divided by the time-stamp counter compiles " "(FR-"
                                                                      "004)");
 
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
-  burn_cpu();
+  burnCpu();
   window.finish();
-  const auto folded = window.metric(per_tick);
+  const auto folded = window.metric(perTick);
   check(folded.value > 0.0,
         "the quotient folds to a positive instructions-per-tick ratio "
         "(FR-004)");
   check(
-      same_double(folded.runningRatio, 1.0),
+      sameDouble(folded.runningRatio, 1.0),
       "the fold discloses ratio 1.0 for an unscaled counted source " "(FR-"
                                                                      "002)");
   std::printf("instructions per tick: %.6f, running ratio %.6f, scaled %s\n",
@@ -299,14 +299,14 @@ auto test_counter_composes() -> void
 
 auto main() -> int
 {
-  test_absent_provider();
-  test_entry_absent_but_provider_present();
-  register_fixture();
-  test_raw_entry();
-  test_accessor_matches_lookup();
-  test_accessor_reads_nothing();
-  test_counter_composes();
-  test_mixed_provider_plan();
+  testAbsentProvider();
+  testEntryAbsentButProviderPresent();
+  registerFixture();
+  testRawEntry();
+  testAccessorMatchesLookup();
+  testAccessorReadsNothing();
+  testCounterComposes();
+  testMixedProviderPlan();
   std::printf("counters_tsc_test PASS: raw entry published, accessor "
               "interchangeable\n");
   return 0;

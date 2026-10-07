@@ -14,12 +14,12 @@ namespace sg
 // unsigned 32-bit range cannot be encoded. The assertion sits outside
 // the architecture guard, so a target with no marker instruction still
 // rejects an out-of-range tag (FR-016).
-constexpr std::uint32_t k_tag_immediate_max = 0xFFFFFFFFU;
+constexpr std::uint32_t kTagImmediateMax = 0xFFFFFFFFU;
 
-static_assert(simulation_start_tag <= k_tag_immediate_max,
+static_assert(kSimulationStartTag <= kTagImmediateMax,
               "the trace-start tag must fit the marker's 32-bit immediate");
 
-auto simulation_start() noexcept -> void
+auto simulationStart() noexcept -> void
 {
 #if defined(__x86_64__) || defined(__i386__)
   // EBX is named in the clobber list and nothing else, so the compiler

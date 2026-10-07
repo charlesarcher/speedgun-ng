@@ -22,19 +22,19 @@ using sg::counters::CatalogSeed;
 using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::expression;
+using sg::counters::Expression;
 using sg::counters::LeafSet;
 using sg::counters::ObjectSeed;
 using sg::counters::ObjectSink;
 using sg::counters::PointSink;
 using sg::counters::ProviderIface;
-using sg::counters::scope;
-using sg::counters::system;
+using sg::counters::Scope;
+using sg::counters::System;
 using sg::counters::Target;
 using sg::counters::WindowReader;
 
-using events = Dim<0, 1>;
-using time_dim = Dim<1, 0>;
+using Events = Dim<0, 1>;
+using TimeDim = Dim<1, 0>;
 
 // Each sampling action adds this many honks to the giraffe's running
 // total; the provider reports cumulative points like every other leaf
@@ -43,7 +43,7 @@ constexpr std::uint64_t kHonksPerAction = 3;
 
 // The giraffe's counting window: yields the cumulative honks within
 // each sampling action, exactly once per action (FR-011).
-class honk_window final : public WindowReader
+class HonkWindow final : public WindowReader
 {
 public:
   void readPoints(PointSink& sink) noexcept override
@@ -58,7 +58,7 @@ private:
 
 // The giraffe provider: one object it owns, described and countable
 // (C-PRO-1). The system never saw this provider before registration.
-class giraffe_provider final : public ProviderIface
+class GiraffeProvider final : public ProviderIface
 {
 public:
   void enumerate(ObjectSink& sink) const override
@@ -87,7 +87,7 @@ public:
         return nullptr;
       }
     }
-    return std::make_unique<honk_window>();
+    return std::make_unique<HonkWindow>();
   }
 };
 
@@ -96,13 +96,13 @@ public:
 auto main() -> int
 {
   // Attach the provider, then the clock for the time base.
-  auto giraffe = std::make_unique<giraffe_provider>();
-  if (!system::local().register_provider(std::move(giraffe)).has_value()) {
+  auto giraffe = std::make_unique<GiraffeProvider>();
+  if (!System::local().registerProvider(std::move(giraffe)).has_value()) {
     std::fprintf(stderr, "giraffe: provider registration failed\n");
     return 1;
   }
-  if (!system::local()
-           .register_provider(std::make_unique<ClockProvider>())
+  if (!System::local()
+           .registerProvider(std::make_unique<ClockProvider>())
            .has_value())
   {
     std::fprintf(stderr, "giraffe: clock registration failed\n");
@@ -111,17 +111,17 @@ auto main() -> int
 
   // Compose the honk rate: honks per nanosecond of monotonic time,
   // both resolved from the catalog through their public handles.
-  const auto menagerie = system::local().object("menagerie/giraffe-2");
-  const auto animal = system::local().object("machine");
+  const auto menagerie = System::local().object("menagerie/giraffe-2");
+  const auto animal = System::local().object("machine");
   if (!menagerie.has_value() || !animal.has_value()) {
     std::fprintf(stderr, "giraffe: object resolution failed\n");
     return 1;
   }
-  const expression<events> honks {menagerie->counter<events>("honks").value()};
-  const expression<time_dim> mono {
-      animal->counter<time_dim>("monotonic").value()};
+  const Expression<Events> honks {menagerie->counter<Events>("honks").value()};
+  const Expression<TimeDim> mono {
+      animal->counter<TimeDim>("monotonic").value()};
   const auto rate = honks / mono;
-  const auto compiled = compile(system::local(), rate);
+  const auto compiled = compile(System::local(), rate);
   if (!compiled.has_value()) {
     std::fprintf(stderr, "giraffe: plan compile failed\n");
     return 1;
@@ -129,7 +129,7 @@ auto main() -> int
 
   // One shared sampling action per window endpoint measures the whole
   // composite (FR-047); the fold reports value plus disclosure.
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
   volatile double spin = 0.0;
   for (int i = 0; i < 10'000'000; ++i) {

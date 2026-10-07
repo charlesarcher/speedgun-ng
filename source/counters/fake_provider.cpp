@@ -25,7 +25,7 @@ namespace
 // congruential step, `state = (state * 37 + 11) mod 2^16`. A stronger
 // mixer would cost the test suite hand-reproducible tails, and this
 // one already gives a spread sequence from any seed (T014).
-[[nodiscard]] auto next_delta(const std::uint64_t state) noexcept
+[[nodiscard]] auto nextDelta(const std::uint64_t state) noexcept
     -> std::uint64_t
 {
   return (state * 37U + 11U) & 0xFFFFU;
@@ -50,7 +50,7 @@ struct detail::FakeWindow final : WindowReader
 
   FakeProvider* owner = nullptr;
   std::vector<FakeCounterData*> counters;
-  std::size_t disclosure_column = LeafSet::kNoDisclosureColumn;
+  std::size_t disclosureColumn = LeafSet::kNoDisclosureColumn;
   // This window's own sampling-action count, so a leaf's scripted gaps
   // are counted from the first action of the plan that samples it and not
   // from the provider's lifetime total (FR-007).
@@ -58,11 +58,11 @@ struct detail::FakeWindow final : WindowReader
 
   void readPoints(PointSink& sink) noexcept override
   {
-    owner->m_read_actions.fetch_add(1, std::memory_order_relaxed);
+    owner->m_readActions.fetch_add(1, std::memory_order_relaxed);
     ++actions;
     bool gapped = false;
     for (auto* item : counters) {
-      if (item->gaps_at(actions)) {
+      if (item->gapsAt(actions)) {
         // The scripted action measured nothing, so the column carries a
         // zero and the disclosure beside it names the gap. The script does
         // not advance, so the next measured action reads the next point
@@ -75,18 +75,18 @@ struct detail::FakeWindow final : WindowReader
       if (item->position < item->script.points.size()) {
         value = item->script.points[item->position];
         ++item->position;
-      } else if (item->script.delta_seed.has_value()) {
-        item->delta_state = next_delta(item->delta_state);
-        value = item->last + item->delta_state;
+      } else if (item->script.deltaSeed.has_value()) {
+        item->deltaState = nextDelta(item->deltaState);
+        value = item->last + item->deltaState;
       } else {
-        value = item->last + item->script.tail_delta;
+        value = item->last + item->script.tailDelta;
       }
       item->last = value;
       sink.put(value);
     }
-    if (disclosure_column != LeafSet::kNoDisclosureColumn) {
+    if (disclosureColumn != LeafSet::kNoDisclosureColumn) {
       sink.putDisclosure(
-          disclosure_column,
+          disclosureColumn,
           static_cast<std::uint64_t>(gapped ? Availability::GAP
                                             : Availability::COUNTABLE));
     }
@@ -97,9 +97,9 @@ FakeProvider::FakeProvider() = default;
 
 FakeProvider::~FakeProvider() = default;
 
-auto FakeProvider::add_object(const std::string_view path,
-                              const std::string_view kind,
-                              const std::string_view description)
+auto FakeProvider::addObject(const std::string_view path,
+                             const std::string_view kind,
+                             const std::string_view description)
     -> FakeProvider&
 {
   SG_REQUIRE(!path.empty() && path != "machine",
@@ -113,10 +113,10 @@ auto FakeProvider::add_object(const std::string_view path,
   return *this;
 }
 
-auto FakeProvider::add_object(const std::string_view path,
-                              const std::string_view alias,
-                              const std::string_view kind,
-                              const std::string_view description)
+auto FakeProvider::addObject(const std::string_view path,
+                             const std::string_view alias,
+                             const std::string_view kind,
+                             const std::string_view description)
     -> FakeProvider&
 {
   SG_REQUIRE(
@@ -132,13 +132,13 @@ auto FakeProvider::add_object(const std::string_view path,
   return *this;
 }
 
-auto FakeProvider::add_counter(const std::string_view objectPath,
-                               const std::string_view name,
-                               const std::string_view unit,
-                               const std::string_view description,
-                               const Availability avail,
-                               const ReadMode mode,
-                               const bool ratio_pair) -> FakeProvider&
+auto FakeProvider::addCounter(const std::string_view objectPath,
+                              const std::string_view name,
+                              const std::string_view unit,
+                              const std::string_view description,
+                              const Availability avail,
+                              const ReadMode mode,
+                              const bool ratioPair) -> FakeProvider&
 {
   const std::string path(objectPath);
   SG_REQUIRE(!path.empty(), "add_counter names an object path (FR-002)");
@@ -152,17 +152,17 @@ auto FakeProvider::add_counter(const std::string_view objectPath,
   item.unit = std::string(unit);
   item.avail = avail;
   item.mode = mode;
-  item.ratio_pair = ratio_pair;
+  item.ratioPair = ratioPair;
   SG_ENSURE(object.counters.count(std::string(name)) > 0,
             "the declared counter is enumerable (FR-002)");
   return *this;
 }
 
-auto FakeProvider::set_points(const std::string_view objectPath,
-                              const std::string_view name,
-                              std::vector<std::uint64_t> points,
-                              const std::uint64_t tail_delta,
-                              const std::optional<std::uint64_t> delta_seed)
+auto FakeProvider::setPoints(const std::string_view objectPath,
+                             const std::string_view name,
+                             std::vector<std::uint64_t> points,
+                             const std::uint64_t tailDelta,
+                             const std::optional<std::uint64_t> deltaSeed)
     -> FakeProvider&
 {
   const std::string path(objectPath);
@@ -173,13 +173,13 @@ auto FakeProvider::set_points(const std::string_view objectPath,
   const auto scripted = points.size();
   auto& item = counter(path, leaf);
   item.script = FakeScript {.points = std::move(points),
-                            .tail_delta = tail_delta,
-                            .delta_seed = delta_seed};
+                            .tailDelta = tailDelta,
+                            .deltaSeed = deltaSeed};
   item.position = 0;
   item.last = 0;
   // The seeded tail starts from the seed itself, so the first delta a
   // reader sees is `next_delta(seed)` (T014).
-  item.delta_state = delta_seed.value_or(0);
+  item.deltaState = deltaSeed.value_or(0);
   SG_ENSURE(counter(path, leaf).script.points.size() == scripted,
             "the scripted sequence is held in order (FR-036)");
   // The postcondition is semantic-gated, so an ignoring build emits no
@@ -201,7 +201,7 @@ void FakeProvider::enumerate(ObjectSink& sink) const
           .unit = item.unit,
           .avail = item.avail,
           .mode = item.mode,
-          .hasRatioPair = item.ratio_pair,
+          .hasRatioPair = item.ratioPair,
       });
     }
     sink.addObject(ObjectSeed {
@@ -219,9 +219,9 @@ std::unique_ptr<WindowReader> FakeProvider::open(const LeafSet& leaves,
 {
   auto window = std::make_unique<detail::FakeWindow>();
   window->owner = this;
-  window->disclosure_column = leaves.disclosureColumn;
+  window->disclosureColumn = leaves.disclosureColumn;
   for (const auto& address : leaves.addresses) {
-    const auto [objectPath, name] = split_leaf_address(address);
+    const auto [objectPath, name] = splitLeafAddress(address);
     const auto object = m_objects.find(std::string(objectPath));
     if (object == m_objects.end()) {
       return nullptr;
@@ -235,9 +235,9 @@ std::unique_ptr<WindowReader> FakeProvider::open(const LeafSet& leaves,
   return window;
 }
 
-auto FakeProvider::set_gap_actions(const std::string_view objectPath,
-                                   const std::string_view name,
-                                   std::vector<std::size_t> actions)
+auto FakeProvider::setGapActions(const std::string_view objectPath,
+                                 const std::string_view name,
+                                 std::vector<std::size_t> actions)
     -> FakeProvider&
 {
   const std::string path(objectPath);

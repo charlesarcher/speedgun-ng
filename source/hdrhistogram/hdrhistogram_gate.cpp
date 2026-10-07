@@ -31,5 +31,5 @@ namespace
 #if defined(__GNUC__)
 [[gnu::used]]
 #endif
-[[maybe_unused]] constinit auto const link_proof = &hdr_alloc;
+[[maybe_unused]] constinit auto const kLinkProof = &hdr_alloc;
 }  // namespace

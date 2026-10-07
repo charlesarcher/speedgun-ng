@@ -47,15 +47,15 @@ auto check(const bool cond, const char* what) -> void
 
 // FR-013: the tag the header publishes is the value a caller passes to the
 // tracer, so the constant and the documentation cannot drift apart.
-constexpr std::uint32_t k_documented_tag = 0xFACEU;
+constexpr std::uint32_t kDocumentedTag = 0xFACEU;
 
-auto test_tag_value() -> void
+auto testTagValue() -> void
 {
-  check(sg::simulation_start_tag == k_documented_tag,
+  check(sg::kSimulationStartTag == kDocumentedTag,
         "the published tag carries the documented value 0xFACE (FR-013)");
   std::printf("simulation_start_tag: 0x%04X, written FACE on a tracer's "
               "command line\n",
-              sg::simulation_start_tag);
+              sg::kSimulationStartTag);
 }
 
 // FR-026: a known value whose upper 32 bits are set goes into the
@@ -63,10 +63,10 @@ auto test_tag_value() -> void
 // bit-identical afterwards. The marker moves a 32-bit immediate into the
 // 32-bit view, so a preserved low half and a clobbered high half are the
 // two failures this catches.
-auto test_register_preserved() -> void
+auto testRegisterPreserved() -> void
 {
 #if SG_TEST_HAS_MARKER
-  constexpr std::uint64_t known = 0xDEADBEEF12345678ULL;
+  constexpr std::uint64_t kNown = 0xDEADBEEF12345678ULL;
 
   std::uint64_t observed = 0;
   __asm__ __volatile__(  // NOLINT(hicpp-no-assembler) the probe must put a
@@ -76,11 +76,11 @@ auto test_register_preserved() -> void
       "callq *%2\n\t"
       "mov %%rbx, %0"
       : "=r"(observed)
-      : "r"(known), "r"(&sg::simulation_start)
+      : "r"(kNown), "r"(&sg::simulationStart)
       : "rbx", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "memory",
         "cc");
 
-  check(observed == known,
+  check(observed == kNown,
         "every general-purpose register is bit-identical across the call, "
         "upper 32 bits included (FR-026)");
   std::printf("rbx across the call: 0x%016llX\n",
@@ -95,11 +95,11 @@ auto test_register_preserved() -> void
 // with no tracer attached execution continues and terminates normally. The
 // loop returning and main reaching its own return is the assertion; there
 // is nothing to compare afterwards.
-auto test_repeated_calls() -> void
+auto testRepeatedCalls() -> void
 {
   constexpr int kCalls = 10000;
   for (int i = 0; i < kCalls; ++i) {
-    sg::simulation_start();
+    sg::simulationStart();
   }
   std::printf("%d calls completed with no tracer attached (FR-027)\n", kCalls);
 }
@@ -108,9 +108,9 @@ auto test_repeated_calls() -> void
 
 auto main() -> int
 {
-  test_tag_value();
-  test_register_preserved();
-  test_repeated_calls();
+  testTagValue();
+  testRegisterPreserved();
+  testRepeatedCalls();
   std::printf("simulation_test PASS: tag published, registers preserved, "
               "repeated calls terminate\n");
   return 0;

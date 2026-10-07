@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_SIMULATION_HPP
-#define SPEEDGUN_NG_SIMULATION_HPP
+#ifndef SG_SIMULATION_HPP
+#define SG_SIMULATION_HPP
 
 /**
  * @file simulation.hpp
@@ -24,7 +24,7 @@ namespace sg
  * it to the tracer, which is why it is published here rather than
  * derived inside the call (FR-013, FR-014).
  */
-inline constexpr std::uint32_t simulation_start_tag = 0xFACEU;
+inline constexpr std::uint32_t kSimulationStartTag = 0xFACEU;
 
 /**
  * @brief Emits the marker sequence an attached tracer watches for, so
@@ -46,7 +46,7 @@ inline constexpr std::uint32_t simulation_start_tag = 0xFACEU;
  * \pre none
  * \post none
  */
-SPEEDGUN_NG_EXPORT void simulation_start() noexcept;
+SPEEDGUN_NG_EXPORT void simulationStart() noexcept;
 
 }  // namespace sg
 

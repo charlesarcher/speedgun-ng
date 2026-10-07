@@ -36,7 +36,7 @@ auto check(const bool cond, const char* what) -> void
 
 // Exact double comparison through the bit pattern: these are exactness
 // tests, and the tolerance band has no place in them.
-auto same_double(const double lhs, const double rhs) -> bool
+auto sameDouble(const double lhs, const double rhs) -> bool
 {
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
@@ -50,12 +50,12 @@ using sg::counters::DimQuotient;
 using sg::counters::FakeProvider;
 using sg::counters::kDimSame;
 using sg::counters::ReadMode;
-using sg::counters::system;
+using sg::counters::System;
 using sg::counters::Unit;
 using sg::counters::unitFromToken;
 using sg::counters::unitName;
 
-using events = Dim<0, 1>;
+using Events = Dim<0, 1>;
 
 // Compile-time dimension algebra (T005, FR-015).
 static_assert(kDimSame<Dim<0, 1>, Dim<0, 1>>, "identical tags are the same");
@@ -67,7 +67,7 @@ static_assert(kDimSame<DimQuotient<Dim<0, 1>, Dim<1, 0>>, Dim<-1, 1>>,
 static_assert(kDimSame<DimQuotient<Dim<1, 0>, Dim<1, 0>>, Dim<0, 0>>,
               "monotonic / monotonic is dim<0,0>");
 
-auto test_unit_switch() -> void
+auto testUnitSwitch() -> void
 {
   const Unit seconds = *unitFromToken("seconds");
   check(seconds == Unit::SECONDS, "seconds token maps to unit::seconds");
@@ -88,13 +88,13 @@ auto test_unit_switch() -> void
   check(none.has_value() && none->time == 0 && none->events == 1,
         "none is events^1");
 
-  const auto seconds_dim = dimensionOf(Unit::SECONDS);
-  check(seconds_dim.has_value() && seconds_dim->time == 1
-            && seconds_dim->events == 0,
+  const auto secondsDim = dimensionOf(Unit::SECONDS);
+  check(secondsDim.has_value() && secondsDim->time == 1
+            && secondsDim->events == 0,
         "seconds is time^1");
 }
 
-auto test_unknown_unit_names_the_unit() -> void
+auto testUnknownUnitNamesTheUnit() -> void
 {
   const auto bad = unitFromToken("furlongs");
   check(!bad.has_value(), "unrecognized unit is rejected");
@@ -104,7 +104,7 @@ auto test_unknown_unit_names_the_unit() -> void
         "unit errors carry no catalog suggestions");
 }
 
-auto test_unit_names_round_trip() -> void
+auto testUnitNamesRoundTrip() -> void
 {
   check(unitName(Unit::SECONDS) == "seconds", "seconds spelling");
   check(unitName(Unit::NANOSECONDS) == "nanoseconds", "nanoseconds spelling");
@@ -116,16 +116,15 @@ auto test_unit_names_round_trip() -> void
 // One provider registered before the open boundary, so the three shape
 // tests below read the entries, errors, and results the library built
 // (T007, FR-005, FR-008, FR-019).
-auto register_shape_fixture() -> void
+auto registerShapeFixture() -> void
 {
   auto provider = std::make_unique<FakeProvider>();
-  provider->add_object("core-0", "cpu0", "core", "the core under test");
-  provider->add_counter("core-0", "cycles", "ops", "core cycles elapsed");
-  provider->add_counter("core-0", "retired", "ops", "instructions retired");
-  provider->set_points("core-0", "cycles", {0, 200}, 200);
-  provider->set_points("core-0", "retired", {0, 6300}, 6300);
-  const auto registered =
-      system::local().register_provider(std::move(provider));
+  provider->addObject("core-0", "cpu0", "core", "the core under test");
+  provider->addCounter("core-0", "cycles", "ops", "core cycles elapsed");
+  provider->addCounter("core-0", "retired", "ops", "instructions retired");
+  provider->setPoints("core-0", "cycles", {0, 200}, 200);
+  provider->setPoints("core-0", "retired", {0, 6300}, 6300);
+  const auto registered = System::local().registerProvider(std::move(provider));
   check(registered.has_value(),
         "the shape fixture registers before open (FR-009)");
 }
@@ -133,24 +132,24 @@ auto register_shape_fixture() -> void
 // The fold output: the value is the hand-computed quotient of the two
 // scripted window deltas, and the two disclosure fields carry the
 // window's multiplex state (FR-019, FR-030).
-auto test_metric_result_fields() -> void
+auto testMetricResultFields() -> void
 {
-  const auto core = *system::local().object("core-0");
-  const auto cycles = *core.counter<events>("cycles");
-  const auto retired = *core.counter<events>("retired");
-  const auto per_cycle = retired / cycles;
-  const auto compiled = compile(system::local(), per_cycle);
+  const auto core = *System::local().object("core-0");
+  const auto cycles = *core.counter<Events>("cycles");
+  const auto retired = *core.counter<Events>("retired");
+  const auto perCycle = retired / cycles;
+  const auto compiled = compile(System::local(), perCycle);
   check(compiled.has_value(), "the quotient plan compiles (FR-021)");
 
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
   // 6300 retired over 200 cycles, the two scripted steps committed
   // beside the fixture above.
-  const auto metric = window.metric(per_cycle);
-  check(same_double(metric.value, 31.5),
+  const auto metric = window.metric(perCycle);
+  check(sameDouble(metric.value, 31.5),
         "the fold value is the hand-computed quotient 6300 / 200 (FR-030)");
-  check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
+  check(sameDouble(metric.runningRatio, 1.0) && !metric.scaled,
         "a window with no multiplexed source discloses ratio 1.0 and "
         "unscaled ticks (FR-019)");
 }
@@ -158,10 +157,10 @@ auto test_metric_result_fields() -> void
 // The recoverable error the resolution path builds: it names the object
 // and the rejected name, and the suggestion list is the near-miss scan
 // the library ranked (FR-008).
-auto test_error_shape() -> void
+auto testErrorShape() -> void
 {
-  const auto core = *system::local().object("core-0");
-  const auto mistyped = core.counter<events>("cycle");
+  const auto core = *System::local().object("core-0");
+  const auto mistyped = core.counter<Events>("cycle");
   check(!mistyped.has_value(), "an undeclared counter name is refused");
   const auto& reported = mistyped.error();
   check(reported.message.find("core-0") != std::string::npos
@@ -171,18 +170,18 @@ auto test_error_shape() -> void
             && reported.suggestions[0] == "cycles",
         "the ranked list offers the one name within the edit distance "
         "(FR-008)");
-  const auto by_word = core.counter<events>("elapsed");
-  check(!by_word.has_value() && by_word.error().suggestions.size() == 1
-            && by_word.error().suggestions[0] == "cycles",
+  const auto byWord = core.counter<Events>("elapsed");
+  check(!byWord.has_value() && byWord.error().suggestions.size() == 1
+            && byWord.error().suggestions[0] == "cycles",
         "a distant query falls back to the description word overlap (FR-008)");
 }
 
 // The catalog entry the system builds from one provider counter: the
 // declared fields travel, and the two disclosure defaults a provider
 // leaves unset travel as the header declares them (FR-005, FR-017).
-auto test_catalog_entry_shape() -> void
+auto testCatalogEntryShape() -> void
 {
-  const auto core = *system::local().object("core-0");
+  const auto core = *System::local().object("core-0");
   const auto entries = core.counters();
   check(entries.size() == 2,
         "the object reports its two registered counters (FR-001)");
@@ -207,7 +206,7 @@ auto test_catalog_entry_shape() -> void
 // through a cast. `dimensionOf` then refuses with an error and
 // `unitName` then answers "unknown"; neither reads past the switch
 // (T066).
-auto test_closed_enumeration_defensive_close() -> void
+auto testClosedEnumerationDefensiveClose() -> void
 {
   const auto outside = static_cast<Unit>(99);
   const auto mapped = dimensionOf(outside);
@@ -225,14 +224,14 @@ auto test_closed_enumeration_defensive_close() -> void
 
 auto main() -> int
 {
-  register_shape_fixture();
-  test_unit_switch();
-  test_unknown_unit_names_the_unit();
-  test_unit_names_round_trip();
-  test_metric_result_fields();
-  test_error_shape();
-  test_catalog_entry_shape();
-  test_closed_enumeration_defensive_close();
+  registerShapeFixture();
+  testUnitSwitch();
+  testUnknownUnitNamesTheUnit();
+  testUnitNamesRoundTrip();
+  testMetricResultFields();
+  testErrorShape();
+  testCatalogEntryShape();
+  testClosedEnumerationDefensiveClose();
   std::printf("counters_core_test PASS\n");
   return 0;
 }

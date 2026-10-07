@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_DBC_HPP
-#define SPEEDGUN_NG_DBC_HPP
+#ifndef SG_DBC_HPP
+#define SG_DBC_HPP
 
 #include <cstdint>
 #include <cstdio>

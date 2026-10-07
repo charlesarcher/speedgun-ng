@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_COUNTERS_CLOCK_HPP
-#define SPEEDGUN_NG_COUNTERS_CLOCK_HPP
+#ifndef SG_COUNTERS_CLOCK_HPP
+#define SG_COUNTERS_CLOCK_HPP
 
 /**
  * @file counters_clock.hpp

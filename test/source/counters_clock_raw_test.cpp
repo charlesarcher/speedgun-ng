@@ -59,11 +59,11 @@ using sg::counters::CatalogEntry;
 using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::expression;
+using sg::counters::Expression;
 using sg::counters::ReadMode;
-using sg::counters::system;
+using sg::counters::System;
 
-using time_dim = Dim<1, 0>;
+using TimeDim = Dim<1, 0>;
 
 // Consecutive reads the same-thread monotonicity check and the cost
 // distribution share (SC-005).
@@ -74,8 +74,8 @@ constexpr std::size_t kReads = 10'000'000;
 // so the aggregate reaches ten million reads on any host.
 constexpr std::size_t kCrossProcessorReads = 10'000'000;
 
-auto find_entry(const std::vector<CatalogEntry>& entries,
-                const std::string_view name) -> const CatalogEntry*
+auto findEntry(const std::vector<CatalogEntry>& entries,
+               const std::string_view name) -> const CatalogEntry*
 {
   for (const auto& entry : entries) {
     if (entry.name == name) {
@@ -88,7 +88,7 @@ auto find_entry(const std::vector<CatalogEntry>& entries,
 // FR-008: the platform's own reported resolution bounds the smallest step
 // a sample may show. `clock_getres` answers it, and the same call reads
 // one sample so the value under test is exercised on the way past.
-auto platform_resolution_ns() -> std::uint64_t
+auto platformResolutionNs() -> std::uint64_t
 {
   timespec resolution {};
   timespec probe {};
@@ -108,20 +108,20 @@ auto platform_resolution_ns() -> std::uint64_t
 // The host's timestamp-counter rate, so a tick figure converts into the
 // nanoseconds this file publishes. Measured across a busy interval: a
 // sleep would hand the CPU to the scheduler mid-measurement.
-auto tsc_rate_hz() -> double
+auto tscRateHz() -> double
 {
-  const auto wall_start = std::chrono::steady_clock::now();
-  const auto tick_start = __rdtsc();
-  while (std::chrono::steady_clock::now() - wall_start
+  const auto wallStart = std::chrono::steady_clock::now();
+  const auto tickStart = __rdtsc();
+  while (std::chrono::steady_clock::now() - wallStart
          < std::chrono::milliseconds(50))
   {
     // Busy, so the interval measures this thread and not a descheduled one.
   }
-  const auto tick_end = __rdtsc();
-  const auto wall_end = std::chrono::steady_clock::now();
+  const auto tickEnd = __rdtsc();
+  const auto wallEnd = std::chrono::steady_clock::now();
   const double seconds =
-      std::chrono::duration<double>(wall_end - wall_start).count();
-  return static_cast<double>(tick_end - tick_start) / seconds;
+      std::chrono::duration<double>(wallEnd - wallStart).count();
+  return static_cast<double>(tickEnd - tickStart) / seconds;
 }
 #endif
 
@@ -129,8 +129,8 @@ auto tsc_rate_hz() -> double
 // them lower than the one before it, the smallest non-zero step inside the
 // resolution the platform reports, and the per-sampling-action cost
 // distribution bracketed by timestamp-counter reads (R-006).
-auto test_monotonic_and_cost(const sg::counters::plan& compiled,
-                             const std::uint64_t resolution_bound) -> void
+auto testMonotonicAndCost(const sg::counters::Plan& compiled,
+                          const std::uint64_t resolutionBound) -> void
 {
   auto recorder = compiled.recorder(kReads);
   std::vector<std::uint64_t> costs;
@@ -139,7 +139,7 @@ auto test_monotonic_and_cost(const sg::counters::plan& compiled,
   brackets.reserve(kReads);
 
   std::uint64_t previous = 0;
-  std::uint64_t smallest_step = 0;
+  std::uint64_t smallestStep = 0;
   std::size_t decreases = 0;
 
   for (std::size_t read = 0; read < kReads; ++read) {
@@ -151,20 +151,20 @@ auto test_monotonic_and_cost(const sg::counters::plan& compiled,
     // The same pair around an interval holding nothing, so the figure the
     // corrected cost subtracts is measured on this host, in this loop, at
     // this optimization level (SC-004).
-    const auto bracket_started = __rdtsc();
-    const auto bracket_finished = __rdtsc();
-    brackets.push_back(bracket_finished - bracket_started);
+    const auto bracketStarted = __rdtsc();
+    const auto bracketFinished = __rdtsc();
+    brackets.push_back(bracketFinished - bracketStarted);
 #else
     recorder.sample();
 #endif
-    const std::uint64_t value = recorder.m_columns[read];
+    const std::uint64_t value = recorder.mColumns[read];
     if (read > 0) {
       if (value < previous) {
         ++decreases;
       } else if (value > previous) {
         const std::uint64_t step = value - previous;
-        if (smallest_step == 0 || step < smallest_step) {
-          smallest_step = step;
+        if (smallestStep == 0 || step < smallestStep) {
+          smallestStep = step;
         }
       }
     }
@@ -174,7 +174,7 @@ auto test_monotonic_and_cost(const sg::counters::plan& compiled,
   check(decreases == 0,
         "no sample is lower than the sample before it on the same thread, "
         "over ten million consecutive reads (FR-006)");
-  check(smallest_step > 0,
+  check(smallestStep > 0,
         "at least one of ten million reads advanced the clock (FR-008)");
   // A back-to-back sampling loop leaves consecutive samples tens of
   // nanoseconds apart, so every step is already larger than the resolution
@@ -184,13 +184,13 @@ auto test_monotonic_and_cost(const sg::counters::plan& compiled,
   // reports a step finer than the resolution it publishes, so a step below
   // the reported figure would mean the counter reports a granularity it does
   // not have (specs/011 FR-008, R-006).
-  check(smallest_step >= resolution_bound,
+  check(smallestStep >= resolutionBound,
         "no sample-to-sample step is finer than the resolution the platform "
         "reports for this clock (FR-008)");
   std::printf("ten million consecutive reads: 0 decreases, smallest non-zero "
               "step %llu ns against a reported resolution of %llu ns\n",
-              static_cast<unsigned long long>(smallest_step),
-              static_cast<unsigned long long>(resolution_bound));
+              static_cast<unsigned long long>(smallestStep),
+              static_cast<unsigned long long>(resolutionBound));
 
   if (costs.empty()) {
     std::printf("no timestamp-counter instruction on this target, so the "
@@ -200,30 +200,30 @@ auto test_monotonic_and_cost(const sg::counters::plan& compiled,
 
   std::sort(costs.begin(), costs.end());
   std::sort(brackets.begin(), brackets.end());
-  const double rate = tsc_rate_hz();
-  const auto as_ns = [rate](const std::uint64_t ticks)
+  const double rate = tscRateHz();
+  const auto asNs = [rate](const std::uint64_t ticks)
   { return static_cast<double>(ticks) / rate * 1.0e9; };
   const auto p99 = [](const std::vector<std::uint64_t>& sorted)
   { return sorted[sorted.size() * 99 / 100]; };
-  const auto overhead_ns = as_ns(brackets[brackets.size() / 2]);
+  const auto overheadNs = asNs(brackets[brackets.size() / 2]);
   std::printf("per sampling action over ten million reads: min %.1f ns, "
               "median %.1f ns, p99 %.1f ns, max %.1f ns, bracketed at "
               "%.3f GHz\n",
-              as_ns(costs.front()),
-              as_ns(costs[costs.size() / 2]),
-              as_ns(p99(costs)),
-              as_ns(costs.back()),
+              asNs(costs.front()),
+              asNs(costs[costs.size() / 2]),
+              asNs(p99(costs)),
+              asNs(costs.back()),
               rate / 1.0e9);
   std::printf("bracketing overhead of an empty interval under the identical "
               "bracketing: median %.1f ns, p99 %.1f ns\n",
-              overhead_ns,
-              as_ns(p99(brackets)));
+              overheadNs,
+              asNs(p99(brackets)));
   std::printf("per sampling action, overhead-corrected: median %.1f ns, p99 "
               "%.1f ns; uncorrected: median %.1f ns, p99 %.1f ns\n",
-              as_ns(costs[costs.size() / 2]) - overhead_ns,
-              as_ns(p99(costs)) - overhead_ns,
-              as_ns(costs[costs.size() / 2]),
-              as_ns(p99(costs)));
+              asNs(costs[costs.size() / 2]) - overheadNs,
+              asNs(p99(costs)) - overheadNs,
+              asNs(costs[costs.size() / 2]),
+              asNs(p99(costs)));
 }
 
 // FR-007: no sample is lower than an earlier sample whose completion
@@ -234,29 +234,28 @@ auto test_monotonic_and_cost(const sg::counters::plan& compiled,
 //
 // A plan binds to the thread that constructed it (FR-031), so every worker
 // compiles its own plan over the same resolved handle.
-auto test_monotonic_across_processors(const expression<time_dim>& elapsed)
-    -> void
+auto testMonotonicAcrossProcessors(const Expression<TimeDim>& elapsed) -> void
 {
-  const auto sample_once = [&elapsed](const std::size_t reads)
+  const auto sampleOnce = [&elapsed](const std::size_t reads)
   {
-    auto compiled = compile(system::local(), elapsed);
+    auto compiled = compile(System::local(), elapsed);
     check(compiled.has_value(),
           "a per-thread plan over the nanosecond-rate counter compiles");
     auto recorder = compiled->recorder(reads);
     for (std::size_t read = 0; read < reads; ++read) {
       recorder.sample();
     }
-    return recorder.m_columns[reads - 1];
+    return recorder.mColumns[reads - 1];
   };
 
   const unsigned processors = std::thread::hardware_concurrency();
   check(processors > 0, "the host publishes at least one logical processor");
   // Rounded up, so the aggregate over the workers reaches the total on
   // a host whose processor count does not divide it.
-  const std::size_t reads_per_processor =
+  const std::size_t readsPerProcessor =
       (kCrossProcessorReads + processors - 1) / processors;
 
-  const std::uint64_t before = sample_once(reads_per_processor);
+  const std::uint64_t before = sampleOnce(readsPerProcessor);
 
   std::vector<std::uint64_t> firsts(processors, 0);
   std::vector<std::uint64_t> lasts(processors, 0);
@@ -264,19 +263,19 @@ auto test_monotonic_across_processors(const expression<time_dim>& elapsed)
   workers.reserve(processors);
   for (unsigned processor = 0; processor < processors; ++processor) {
     workers.emplace_back(
-        [elapsed, &firsts, &lasts, reads_per_processor, processor]()
+        [elapsed, &firsts, &lasts, readsPerProcessor, processor]()
         {
-          auto compiled = compile(system::local(), elapsed);
+          auto compiled = compile(System::local(), elapsed);
           if (!compiled.has_value()) {
             return;
           }
-          auto recorder = compiled->recorder(reads_per_processor);
+          auto recorder = compiled->recorder(readsPerProcessor);
           recorder.sample();
-          firsts[processor] = recorder.m_columns[0];
-          for (std::size_t read = 1; read < reads_per_processor; ++read) {
+          firsts[processor] = recorder.mColumns[0];
+          for (std::size_t read = 1; read < readsPerProcessor; ++read) {
             recorder.sample();
           }
-          lasts[processor] = recorder.m_columns[reads_per_processor - 1];
+          lasts[processor] = recorder.mColumns[readsPerProcessor - 1];
         });
   }
   for (auto& worker : workers) {
@@ -308,7 +307,7 @@ auto test_monotonic_across_processors(const expression<time_dim>& elapsed)
 // only while the thread runs, so the order tests need real work between
 // two samples. A sleep would let the thread hand the processor away and
 // report no advance.
-auto burn_cpu() -> void
+auto burnCpu() -> void
 {
   volatile std::uint64_t sink = 0;
   for (std::uint64_t step = 0; step < 20'000'000; ++step) {
@@ -321,68 +320,68 @@ auto burn_cpu() -> void
 
 // One leaf's last sample from a fresh plan, counted as the leaf's own
 // counter reads them.
-auto sample_leaf(const char* leaf, const std::size_t reads) -> std::uint64_t
+auto sampleLeaf(const char* leaf, const std::size_t reads) -> std::uint64_t
 {
-  const auto machine = *system::local().object("machine");
-  const auto counter = machine.counter<time_dim>(leaf);
+  const auto machine = *System::local().object("machine");
+  const auto counter = machine.counter<TimeDim>(leaf);
   check(counter.has_value(), "the clock leaf resolves for the order test");
-  const expression<time_dim> counted {*counter};
-  auto compiled = compile(system::local(), counted);
+  const Expression<TimeDim> counted {*counter};
+  auto compiled = compile(System::local(), counted);
   check(compiled.has_value(), "a per-thread plan over the leaf compiles");
   auto recorder = compiled->recorder(reads);
   for (std::size_t read = 0; read < reads; ++read) {
     recorder.sample();
   }
-  return recorder.m_columns[reads - 1];
+  return recorder.mColumns[reads - 1];
 }
 
 // Each leaf states its own order guarantee, and a test exercises each one
 // (FR-028, FR-029). A guarantee a leaf's clock does not keep is a defect,
 // so every clause in `counters_clock.hpp` has a test behind it here.
-auto test_per_leaf_order(const expression<time_dim>& elapsed) -> void
+auto testPerLeafOrder(const Expression<TimeDim>& elapsed) -> void
 {
   // `machine/monotonic` and `machine/monotonic_raw`: a sample does not
   // fall below an earlier sample taken on the same thread.
   for (const char* leaf : {"monotonic", "monotonic_raw"}) {
-    const auto first = sample_leaf(leaf, 1);
-    burn_cpu();
-    const auto second = sample_leaf(leaf, 1);
+    const auto first = sampleLeaf(leaf, 1);
+    burnCpu();
+    const auto second = sampleLeaf(leaf, 1);
     check(second >= first,
           "a sample of this leaf does not fall below an earlier sample taken "
           "on the same thread (FR-029)");
   }
 
   // `machine/thread_cpu`: non-decreasing on the reading thread.
-  const auto thread_first = sample_leaf("thread_cpu", 1);
-  burn_cpu();
-  const auto thread_second = sample_leaf("thread_cpu", 1);
-  check(thread_second >= thread_first,
+  const auto threadFirst = sampleLeaf("thread_cpu", 1);
+  burnCpu();
+  const auto threadSecond = sampleLeaf("thread_cpu", 1);
+  check(threadSecond >= threadFirst,
         "a second sample of the per-thread clock on one thread does not fall "
         "below the first (FR-029)");
 
   // `machine/thread_cpu`: a new thread's first sample falls below an
   // earlier sample taken on another thread, because the counter belongs to
   // the thread. The documented guarantee permits exactly this (FR-030).
-  burn_cpu();
-  const auto main_thread_sample = sample_leaf("thread_cpu", 1);
-  std::uint64_t worker_first = 0;
-  std::thread worker {[&worker_first]
-                      { worker_first = sample_leaf("thread_cpu", 1); }};
+  burnCpu();
+  const auto mainThreadSample = sampleLeaf("thread_cpu", 1);
+  std::uint64_t workerFirst = 0;
+  std::thread worker {[&workerFirst]
+                      { workerFirst = sampleLeaf("thread_cpu", 1); }};
   worker.join();
-  check(worker_first < main_thread_sample,
+  check(workerFirst < mainThreadSample,
         "a new thread's first sample of the per-thread clock falls below an "
         "earlier sample taken on another thread, which the documented "
         "guarantee permits (FR-030)");
 
   // `machine/process_cpu`: non-decreasing across the process's threads,
   // because the counter belongs to the process.
-  const auto process_first = sample_leaf("process_cpu", 1);
-  std::uint64_t worker_process = 0;
-  std::thread process_worker {
-      [&worker_process] { worker_process = sample_leaf("process_cpu", 1); }};
-  burn_cpu();
-  process_worker.join();
-  check(worker_process >= process_first,
+  const auto processFirst = sampleLeaf("process_cpu", 1);
+  std::uint64_t workerProcess = 0;
+  std::thread processWorker {[&workerProcess]
+                             { workerProcess = sampleLeaf("process_cpu", 1); }};
+  burnCpu();
+  processWorker.join();
+  check(workerProcess >= processFirst,
         "a sample of the per-process clock on a second thread does not fall "
         "below one taken on the first (FR-029)");
   static_cast<void>(elapsed);
@@ -391,16 +390,16 @@ auto test_per_leaf_order(const expression<time_dim>& elapsed) -> void
 auto main() -> int
 {
   auto clock = std::make_unique<ClockProvider>();
-  check(system::local().register_provider(std::move(clock)).has_value(),
+  check(System::local().registerProvider(std::move(clock)).has_value(),
         "the clock provider registers");
 
-  const auto machine = system::local().object("machine");
+  const auto machine = System::local().object("machine");
   check(machine.has_value(), "the clock provider seeds the machine object");
 
   // FR-001, FR-005: the leaf resolves by its canonical address with no
   // architecture guard, because the platform serves this clock on every
   // supported target.
-  const auto raw = machine->counter<time_dim>("monotonic_raw");
+  const auto raw = machine->counter<TimeDim>("monotonic_raw");
   check(raw.has_value(),
         "machine/monotonic_raw resolves on every supported build (FR-001, "
         "FR-005)");
@@ -413,21 +412,21 @@ auto main() -> int
   check(raw->unitToken() == "nanoseconds",
         "the leaf reports the unit token nanoseconds (FR-002)");
   const auto entries = machine->counters();
-  const auto* entry = find_entry(entries, "monotonic_raw");
+  const auto* entry = findEntry(entries, "monotonic_raw");
   check(entry != nullptr, "the catalog lists the leaf (FR-002)");
   check(entry->mode == ReadMode::SYSCALL,
         "the leaf reports the read mode every existing clock counter "
         "carries (FR-002)");
 
-  const expression<time_dim> elapsed {*raw};
-  auto compiled = compile(system::local(), elapsed);
+  const Expression<TimeDim> elapsed {*raw};
+  auto compiled = compile(System::local(), elapsed);
   check(compiled.has_value(),
         "a plan over the nanosecond-rate counter compiles (FR-001)");
 
-  const std::uint64_t resolution_bound = platform_resolution_ns();
-  test_monotonic_and_cost(*compiled, resolution_bound);
-  test_monotonic_across_processors(elapsed);
-  test_per_leaf_order(elapsed);
+  const std::uint64_t resolutionBound = platformResolutionNs();
+  testMonotonicAndCost(*compiled, resolutionBound);
+  testMonotonicAcrossProcessors(elapsed);
+  testPerLeafOrder(elapsed);
 
   std::printf("counters_clock_raw_test PASS: leaf published, unit and read "
               "mode disclosed, samples monotonic\n");

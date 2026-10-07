@@ -15,11 +15,28 @@ function(embed_escape out_hex in_hex)
   set(${out_hex} "${escaped}" PARENT_SCOPE)
 endfunction()
 
+# Camel-cases an underscore-separated symbol. CMake has no case escape in
+# a regex replacement, so each part is uppercased through its first
+# character instead. The symbol carries an architecture directory name
+# into a C++ identifier, which the naming rule spells in CamelCase.
+function(camel_symbol out in)
+  string(REPLACE "_" ";" parts "${in}")
+  set(acc "")
+  foreach(part IN LISTS parts)
+    string(SUBSTRING "${part}" 0 1 head)
+    string(SUBSTRING "${part}" 1 -1 tail)
+    string(TOUPPER "${head}" head)
+    string(APPEND acc "${head}${tail}")
+  endforeach()
+  set(${out} "${acc}" PARENT_SCOPE)
+endfunction()
+
 # Turns the files of one vendored directory into a translation unit. The
 # files concatenate into one literal and an index over them records where
 # each begins, so the bytes stay contiguous and a file is reachable
 # without walking the file system. The pattern selects the files, which
-# is how the mapfile embeds as arch/x86's single file.
+# is how the mapfile embeds as arch/x86's single file. The symbol is the
+# file stem; its CamelCase spelling names the emitted identifiers.
 function(embed_directory dir_path rel_path symbol pattern)
   file(GLOB files "${dir_path}/${pattern}")
   list(SORT files)
@@ -45,29 +62,30 @@ function(embed_directory dir_path rel_path symbol pattern)
     message(FATAL_ERROR "no ${pattern} under ${dir_path}")
   endif()
 
+  camel_symbol(camel "${symbol}")
   file(WRITE "${EMBED_OUT}/${symbol}.cpp"
 "#include \"counters/linux_pmu/embedded_tables.hpp\"\n\n"
 "// Generated from ${rel_path}. Do not edit.\n"
 "namespace sg::counters::detail\n{\n"
-"extern const char sg_emb_data_${symbol}[] =\n\"${hex_all}\";\n"
-"extern const std::size_t sg_emb_size_${symbol} =\n  sizeof sg_emb_data_${symbol};\n"
-"extern const embedded_file sg_emb_files_${symbol}[] = {\n${index}};\n"
-"extern const std::size_t sg_emb_file_count_${symbol} =\n"
-"  sizeof sg_emb_files_${symbol} / sizeof sg_emb_files_${symbol}[0];\n"
+"extern const char kEmbData${camel}[] =\n\"${hex_all}\";\n"
+"extern const std::size_t kEmbSize${camel} =\n  sizeof kEmbData${camel};\n"
+"extern const EmbeddedFile kEmbFiles${camel}[] = {\n${index}};\n"
+"extern const std::size_t kEmbFileCount${camel} =\n"
+"  sizeof kEmbFiles${camel} / sizeof kEmbFiles${camel}[0];\n"
 "}  // namespace sg::counters::detail\n")
 
   # One argument each: set() joins several with a semicolon, and the
   # semicolon would land inside the emitted source.
   string(CONCAT entry
-    "  {\"${rel_path}\", sg_emb_data_${symbol},"
-    " sg_emb_size_${symbol},"
-    " sg_emb_files_${symbol},"
-    " sg_emb_file_count_${symbol}},\n")
+    "  {\"${rel_path}\", kEmbData${camel},"
+    " kEmbSize${camel},"
+    " kEmbFiles${camel},"
+    " kEmbFileCount${camel}},\n")
   string(CONCAT decl
-    "extern const char sg_emb_data_${symbol}[];\n"
-    "extern const std::size_t sg_emb_size_${symbol};\n"
-    "extern const embedded_file sg_emb_files_${symbol}[];\n"
-    "extern const std::size_t sg_emb_file_count_${symbol};\n")
+    "extern const char kEmbData${camel}[];\n"
+    "extern const std::size_t kEmbSize${camel};\n"
+    "extern const EmbeddedFile kEmbFiles${camel}[];\n"
+    "extern const std::size_t kEmbFileCount${camel};\n")
   set(entry "${entry}" PARENT_SCOPE)
   set(decl "${decl}" PARENT_SCOPE)
 endfunction()
@@ -104,9 +122,9 @@ file(WRITE "${EMBED_OUT}/registry.cpp"
 "// Generated from the vendored tree. Do not edit.\n"
 "namespace sg::counters::detail\n{\n"
 "${decls}"
-"extern const embedded_dir sg_embedded_dirs[] = {\n${registry}};\n"
-"extern const std::size_t sg_embedded_dir_count =\n"
-"  sizeof sg_embedded_dirs / sizeof sg_embedded_dirs[0];\n"
+"extern const EmbeddedDir kEmbeddedDirs[] = {\n${registry}};\n"
+"extern const std::size_t kEmbeddedDirCount =\n"
+"  sizeof kEmbeddedDirs / sizeof kEmbeddedDirs[0];\n"
 "}  // namespace sg::counters::detail\n")
 
 message(STATUS "embedded ${arch_name} directories: ${symbols}")

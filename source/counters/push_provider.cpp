@@ -18,7 +18,7 @@ namespace sg::counters
 
 struct detail::PushWindow final : WindowReader
 {
-  PushWindow() { setThunk(&read_direct); }
+  PushWindow() { setThunk(&readDirect); }
 
   // The compiled plan hands the window over as the base reference
   // `ReadThunk` declares, and `PushProvider::open` constructs it as
@@ -26,14 +26,14 @@ struct detail::PushWindow final : WindowReader
   // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
+  static auto readDirect(WindowReader& base, PointSink& sink) noexcept -> void
   {
     static_cast<PushWindow&>(base).readPoints(sink);
   }
 
   std::vector<const std::uint64_t*> cells;
   std::thread::id owner {};
-  std::size_t disclosure_column = LeafSet::kNoDisclosureColumn;
+  std::size_t disclosureColumn = LeafSet::kNoDisclosureColumn;
 
   void readPoints(PointSink& sink) noexcept override
   {
@@ -47,8 +47,8 @@ struct detail::PushWindow final : WindowReader
     // A push counter is a plain load of a cell its own thread owns, so
     // the action always measures and the disclosure names the entry's own
     // countability value (FR-007).
-    if (disclosure_column != LeafSet::kNoDisclosureColumn) {
-      sink.putDisclosure(disclosure_column,
+    if (disclosureColumn != LeafSet::kNoDisclosureColumn) {
+      sink.putDisclosure(disclosureColumn,
                          static_cast<std::uint64_t>(Availability::COUNTABLE));
     }
   }
@@ -58,10 +58,9 @@ PushProvider::PushProvider() = default;
 
 PushProvider::~PushProvider() = default;
 
-auto PushProvider::add_counter(const std::string_view name,
-                               const std::string_view unit,
-                               const std::string_view description)
-    -> PushCounter
+auto PushProvider::addCounter(const std::string_view name,
+                              const std::string_view unit,
+                              const std::string_view description) -> PushCounter
 {
   SG_REQUIRE(!name.empty(), "add_counter names a counter (FR-035)");
   m_points.emplace_back(PushPoint {
@@ -103,7 +102,7 @@ std::unique_ptr<WindowReader> PushProvider::open(const LeafSet& leaves,
                                                  const Target& /*where*/)
 {
   auto window = std::make_unique<detail::PushWindow>();
-  window->disclosure_column = leaves.disclosureColumn;
+  window->disclosureColumn = leaves.disclosureColumn;
   window->cells.reserve(leaves.addresses.size());
   for (const auto& address : leaves.addresses) {
     const PushPoint* match = nullptr;
