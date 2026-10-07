@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_COUNTERS_FAKE_HPP
-#define SPEEDGUN_NG_COUNTERS_FAKE_HPP
+#ifndef SG_COUNTERS_FAKE_HPP
+#define SG_COUNTERS_FAKE_HPP
 
 #include <atomic>
 #include <cstddef>
@@ -43,8 +43,8 @@ namespace sg::counters
 struct FakeScript
 {
   std::vector<std::uint64_t> points;
-  std::uint64_t tail_delta = 0;
-  std::optional<std::uint64_t> delta_seed;
+  std::uint64_t tailDelta = 0;
+  std::optional<std::uint64_t> deltaSeed;
 };
 
 namespace detail
@@ -62,13 +62,13 @@ struct FakeCounterData
   std::string unit;
   Availability avail = Availability::COUNTABLE;
   ReadMode mode = ReadMode::SYSCALL;
-  bool ratio_pair = false;
+  bool ratioPair = false;
   FakeScript script;
   std::size_t position = 0;
   std::uint64_t last = 0;
   // The seeded tail's running state, held across sampling actions so
   // the sequence resumes where the previous one stopped.
-  std::uint64_t delta_state = 0;
+  std::uint64_t deltaState = 0;
   // The one-based sampling actions this leaf measures nothing on. The
   // window reads them per leaf, so a leaf that gaps marks only the plans
   // that sample it (FR-007).
@@ -81,7 +81,7 @@ struct FakeCounterData
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto gaps_at(const std::uint64_t action) const -> bool
+  [[nodiscard]] auto gapsAt(const std::uint64_t action) const -> bool
   {
     for (const auto scripted : gaps) {
       if (scripted == action) {
@@ -131,9 +131,9 @@ public:
    * \post Enumeration will report the object with the given kind and
    *       description.
    */
-  auto add_object(std::string_view path,
-                  std::string_view kind,
-                  std::string_view description) -> FakeProvider&;
+  auto addObject(std::string_view path,
+                 std::string_view kind,
+                 std::string_view description) -> FakeProvider&;
 
   /**
    * @brief Declares an object with a platform alias.
@@ -142,10 +142,10 @@ public:
    * \post Enumeration will report the alias, and both spellings
    *       resolve to the same object.
    */
-  auto add_object(std::string_view path,
-                  std::string_view alias,
-                  std::string_view kind,
-                  std::string_view description) -> FakeProvider&;
+  auto addObject(std::string_view path,
+                 std::string_view alias,
+                 std::string_view kind,
+                 std::string_view description) -> FakeProvider&;
 
   /**
    * @brief Declares one named counter on one object.
@@ -164,13 +164,13 @@ public:
    * \post Enumeration will report the entry with the given unit,
    *       availability, mode, and ratio-pair declaration.
    */
-  auto add_counter(std::string_view objectPath,
-                   std::string_view name,
-                   std::string_view unit,
-                   std::string_view description,
-                   Availability avail = Availability::COUNTABLE,
-                   ReadMode mode = ReadMode::SYSCALL,
-                   bool ratio_pair = false) -> FakeProvider&;
+  auto addCounter(std::string_view objectPath,
+                  std::string_view name,
+                  std::string_view unit,
+                  std::string_view description,
+                  Availability avail = Availability::COUNTABLE,
+                  ReadMode mode = ReadMode::SYSCALL,
+                  bool ratioPair = false) -> FakeProvider&;
 
   /**
    * @brief Scripts one leaf with an explicit cumulative sequence.
@@ -187,11 +187,11 @@ public:
    * \post Sampling yields the scripted points in order, one per
    *       sampling action.
    */
-  auto set_points(std::string_view objectPath,
-                  std::string_view name,
-                  std::vector<std::uint64_t> points,
-                  std::uint64_t tail_delta = 0,
-                  std::optional<std::uint64_t> delta_seed = std::nullopt)
+  auto setPoints(std::string_view objectPath,
+                 std::string_view name,
+                 std::vector<std::uint64_t> points,
+                 std::uint64_t tailDelta = 0,
+                 std::optional<std::uint64_t> deltaSeed = std::nullopt)
       -> FakeProvider&;
 
   /**
@@ -201,9 +201,9 @@ public:
    * \pre none
    * \post none
    */
-  [[nodiscard]] auto read_actions() const noexcept -> std::uint64_t
+  [[nodiscard]] auto readActions() const noexcept -> std::uint64_t
   {
-    return m_read_actions.load(std::memory_order_relaxed);
+    return m_readActions.load(std::memory_order_relaxed);
   }
 
   /**
@@ -221,9 +221,9 @@ public:
    * \post Sampling this leaf at a named action publishes a zero and marks
    *       the action; the script does not advance there.
    */
-  auto set_gap_actions(std::string_view objectPath,
-                       std::string_view name,
-                       std::vector<std::size_t> actions) -> FakeProvider&;
+  auto setGapActions(std::string_view objectPath,
+                     std::string_view name,
+                     std::vector<std::size_t> actions) -> FakeProvider&;
 
   void enumerate(ObjectSink& sink) const override;
 
@@ -242,7 +242,7 @@ private:
   };
 
   std::map<std::string, ObjectSeedData> m_objects;
-  std::atomic<std::uint64_t> m_read_actions {0};
+  std::atomic<std::uint64_t> m_readActions {0};
 
   [[nodiscard]] auto counter(const std::string& objectPath,
                              const std::string& name) -> FakeCounterData&;

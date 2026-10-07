@@ -36,8 +36,8 @@ auto main() -> int
   }
 
   auto provider = std::make_unique<sg::counters::PmuProvider>();
-  if (!sg::counters::system::local()
-           .register_provider(std::move(provider))
+  if (!sg::counters::System::local()
+           .registerProvider(std::move(provider))
            .has_value())
   {
     std::puts("consumer: the pmu provider does not register");
@@ -46,7 +46,7 @@ auto main() -> int
 
   // The event tables reach a catalog entry, so the row count the linked
   // package resolves is the count the pmu objects publish.
-  const auto pmu_objects = sg::counters::system::local().objects("pmu");
+  const auto pmu_objects = sg::counters::System::local().objects("pmu");
   if (!pmu_objects.has_value()) {
     std::puts("consumer: no pmu objects");
     return 1;

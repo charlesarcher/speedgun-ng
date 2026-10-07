@@ -31,7 +31,7 @@ namespace sg::counters::detail
 // encoder composes them with the running kernel's bit layouts
 // (FR-037). Metric-definition rows are not entries: they ship as
 // catalog data for a future release; they are no countables (US6).
-struct pmu_table_entry
+struct PmuTableEntry
 {
   std::string name;
   std::string description;
@@ -50,7 +50,7 @@ struct pmu_table_entry
 
 // CPU identification read once at open (FR-038): vendor string, family
 // decimal, model hex, matching the upstream mapping file's spelling.
-struct pmu_ident
+struct PmuIdent
 {
   std::string vendor;
   int family = -1;
@@ -58,12 +58,12 @@ struct pmu_ident
 };
 
 // The host's CPU identification (table_parse.cpp; CPUID-based, cached).
-[[nodiscard]] auto pmu_ident_current() -> pmu_ident;
+[[nodiscard]] auto pmuIdentCurrent() -> PmuIdent;
 
 // The architecture directory the mapping file selects for `id`: the
 // first row whose regex matches, parsed once lazily (FR-038). Empty
 // when no row matches; parse failures surface as an empty table.
-[[nodiscard]] auto pmu_select_directory(const pmu_ident& id) -> std::string;
+[[nodiscard]] auto pmuSelectDirectory(const PmuIdent& id) -> std::string;
 
 // The same selection over an already-open mapping file, so a fixture
 // supplies the rows (T066). The header line is skipped, a row without
@@ -73,57 +73,55 @@ struct pmu_ident
 // (`tools/pmu_events/update_pmu_events.py`), so a row that fails to
 // compile is corrupt data and a corrupt table is worse than a loud
 // failure.
-[[nodiscard]] auto pmu_select_directory(std::istream& mapfile,
-                                        const pmu_ident& id) -> std::string;
+[[nodiscard]] auto pmuSelectDirectory(std::istream& mapfile,
+                                      const PmuIdent& id) -> std::string;
 
 // The parsed event table for `directory`, lazily and once per
 // directory (FR-038). Entries carry semantic fields only.
-[[nodiscard]] auto pmu_load_table(const std::string& directory)
-    -> const std::vector<pmu_table_entry>&;
+[[nodiscard]] auto pmuLoadTable(const std::string& directory)
+    -> const std::vector<PmuTableEntry>&;
 
 // One event-table file parsed into `out` (table_parse.cpp). The seam
 // entry for a synthetic fixture: the pinned tree at
 // `external/pmu-events/` carries hex-string values and array-shaped
 // files, so a fixture is the only way CI reaches the numeric and
 // object-shaped parses (T066).
-void pmu_parse_table_file(std::string_view path,
-                          std::vector<pmu_table_entry>& out);
+void pmuParseTableFile(std::string_view path, std::vector<PmuTableEntry>& out);
 
 // The field/value pairs a kernel event_attr text carries (FR-037): the
 // text is "field=value[,field=value...]" and every value is
 // hexadecimal or decimal. A piece with no `=`, an empty value, a
 // non-hexadecimal character, and a value decoding to zero carry no
 // field, so the accepting pairs are the whole result.
-[[nodiscard]] auto parse_attr(const std::string& text)
+[[nodiscard]] auto parseAttr(const std::string& text)
     -> std::vector<std::pair<std::string, std::uint64_t>>;
 
 // The event code as the catalog spells it: hexadecimal with a `0x`
 // prefix and no leading zero nibble, so zero reads as "0x0".
-[[nodiscard]] auto to_hex(std::uint64_t value) -> std::string;
+[[nodiscard]] auto toHex(std::uint64_t value) -> std::string;
 
 // The catalog description of one kernel event alias: the event_attr
 // text the kernel publishes, verbatim (FR-037). Empty when the kernel
 // publishes no text for the alias.
-[[nodiscard]] auto alias_description(const std::string& name,
-                                     const std::string& text) -> std::string;
+[[nodiscard]] auto aliasDescription(const std::string& name,
+                                    const std::string& text) -> std::string;
 
 // The catalog description of one vendored table row: the table's own
 // prose, its event code when the row carries no prose, and the Unit
 // scope label when the table names one (FR-017, FR-038).
-[[nodiscard]] auto table_description(const pmu_table_entry& entry)
-    -> std::string;
+[[nodiscard]] auto tableDescription(const PmuTableEntry& entry) -> std::string;
 
 // A mapping-file pattern with every POSIX character class translated
 // to its ECMAScript spelling (FR-038). std::regex is ECMAScript, and
 // libstdc++ happens to accept `[[:name:]]` there; the other standard
 // libraries do not.
-[[nodiscard]] auto to_ecma(std::string_view pattern) -> std::string;
+[[nodiscard]] auto toEcma(std::string_view pattern) -> std::string;
 
 // One bit range of a sysfs format field: which config word, inclusive
 // low and high bit.
-struct format_range
+struct FormatRange
 {
-  int config_word = 0;
+  int configWord = 0;
   int low = 0;
   int high = 0;
 };
@@ -131,8 +129,8 @@ struct format_range
 // The bit layout of one named format field (encode.cpp): parses
 // "config:0-7,32-35" and friends. False when the file does not
 // describe a config-bit field.
-[[nodiscard]] auto parse_format_field(std::string_view spec,
-                                      std::vector<format_range>& out) -> bool;
+[[nodiscard]] auto parseFormatField(std::string_view spec,
+                                    std::vector<FormatRange>& out) -> bool;
 
 // Compose one entry's config words from semantic fields and the
 // kernel's format layouts: every referenced field must exist, else
@@ -146,9 +144,9 @@ struct format_range
 // no format of that name refuses the row whole, so the row publishes
 // `not_encodable` and the count never appears without its filter (FR-010,
 // FR-012, FR-013, D-05, D-06).
-[[nodiscard]] auto pmu_compose_config(
+[[nodiscard]] auto pmuComposeConfig(
     const std::vector<std::pair<std::string, std::uint64_t>>& fields,
-    const std::vector<std::pair<std::string, std::vector<format_range>>>&
+    const std::vector<std::pair<std::string, std::vector<FormatRange>>>&
         formats,
     std::vector<std::pair<int, std::uint64_t>>& words) -> bool;
 
@@ -161,7 +159,7 @@ struct format_range
 // a device the kernel does not publish is dropped at discovery, so no
 // entry carries it. `where` names the target kind, so a probe runs once
 // per kind the entry's mask admits (FR-022).
-[[nodiscard]] auto pmu_probe(
+[[nodiscard]] auto pmuProbe(
     int type,
     const std::vector<std::pair<int, std::uint64_t>>& words,
     const Target& where) -> Availability;
@@ -169,7 +167,7 @@ struct format_range
 // One catalog entry the provider built: the composed config words, the
 // description, the probed availability, and the target kinds that probe
 // settled (FR-037, FR-039, FR-021).
-struct pmu_entry
+struct PmuEntry
 {
   std::string name;
   std::string description;
@@ -177,7 +175,7 @@ struct pmu_entry
   // leaves and for an entry the encoder refused, so `is_time_pair`
   // tells the two apart.
   std::vector<std::pair<int, std::uint64_t>> words;
-  bool is_time_pair = false;
+  bool isTimePair = false;
   Availability avail = Availability::NOT_ENCODABLE;
   ReadMode mode = ReadMode::SYSCALL;
   // The target kinds the availability probe settled this entry on, and no
@@ -185,7 +183,7 @@ struct pmu_entry
   // counted the entry (FR-021). Zero for the enabled and running leaves,
   // which no probe runs for, and for every entry the probe refused,
   // which names no kind in any case.
-  TargetMask probed_kinds = 0;
+  TargetMask probedKinds = 0;
 };
 
 // Records the target kinds the availability probe settled the seeded leaf
@@ -196,62 +194,62 @@ struct pmu_entry
 // where it fills `CatalogEntry::targets`. Only a
 // leaf the probe settled some kind on is recorded, and an address this
 // table does not hold names no kind the probe settled (FR-021).
-void note_probed_kinds(const std::string& address, TargetMask probed);
+void noteProbedKinds(const std::string& address, TargetMask probed);
 
 // The kinds the probe settled the leaf at `address` on, and zero where it
 // settled none there. The lookup allocates nothing, so the catalog reads a
 // leaf's kinds inside the `noexcept` mask decision (FR-021).
-[[nodiscard]] auto probed_kinds_at(const std::string& address) noexcept
+[[nodiscard]] auto probedKindsAt(const std::string& address) noexcept
     -> TargetMask;
 
 // One event-source device: its canonical path, its PMU type, the bit
 // layouts it publishes, and the merged catalog in seed order (kernel
 // aliases first, then the vendored table; a kernel alias wins a name
 // conflict, FR-037).
-struct pmu_device
+struct PmuDevice
 {
   std::string path;  // canonical spelling, the sysfs device name
   std::string description;
   int type = -1;
-  std::vector<std::pair<std::string, std::vector<format_range>>> formats;
-  std::vector<pmu_entry> entries;
+  std::vector<std::pair<std::string, std::vector<FormatRange>>> formats;
+  std::vector<PmuEntry> entries;
   // True when the device discloses the enabled/running time pair as
   // ordinary leaves, which the fold layer reads for the multiplex
   // ratio (FR-019, FR-041, C-PRO-6).
-  bool has_time_pair = false;
+  bool hasTimePair = false;
   // True when the device binds one processor for every task, which is what
   // an uncore device does. A device-scoped entry refuses a per-task target
   // by its own scope, which is a different refusal from an encoding one,
   // so the provider answers `scope_refused` for that kind and runs no
   // syscall (FR-021, FR-022).
-  bool device_scoped = false;
+  bool deviceScoped = false;
 };
 
 // The released provider state (T047). Off Linux every device list is
 // empty and the catalog is the whole reduced difference (FR-042).
-struct pmu_state
+struct PmuState
 {
-  std::vector<pmu_device> devices;
+  std::vector<PmuDevice> devices;
 };
 
 // Opens the syscall-mode window for `leaves` (group_io.cpp, FR-041):
 // one group per device, one read per group leader per sampling action.
 // Null when a leaf names no device or no countable entry.
-[[nodiscard]] auto pmu_open_window(const pmu_state& state,
-                                   const LeafSet& leaves,
-                                   const Target& where)
+[[nodiscard]] auto pmuOpenWindow(const PmuState& state,
+                                 const LeafSet& leaves,
+                                 const Target& where)
     -> std::unique_ptr<WindowReader>;
 
 // The outcome of one mapped-page read attempt (FR-040). A read from a
 // thread other than the one that opened the context falls outside these
 // verdicts: the two context reads below compare the calling thread
-// against `fast_context::owner` and report a contract violation
+// against `FastContext::owner` and report a contract violation
 // (FR-031, FR-040).
-enum class fast_read_verdict : std::uint8_t
+enum class FastReadVerdict : std::uint8_t
 {
-  ok,
-  not_allowed,  // no capability bit, or no valid counter index
-  unstable  // the page sequence moved; the caller retries
+  OK,
+  NOT_ALLOWED,  // no capability bit, or no valid counter index
+  UNSTABLE  // the page sequence moved; the caller retries
 };
 
 // The width the kernel publishes counters at for a page that publishes
@@ -275,14 +273,13 @@ constexpr std::uint32_t kRnpmcMaxIndex = 1024;
 //   - the counter width, defaulting to kRnpmcCounterWidth when the page
 //     publishes none;
 //   - the seqlock comparison, over the sequence before and after.
-[[nodiscard]] auto fast_index_valid(std::uint32_t index) noexcept -> bool;
+[[nodiscard]] auto fastIndexValid(std::uint32_t index) noexcept -> bool;
 
-[[nodiscard]] auto fast_counter_width(std::uint16_t published) noexcept
+[[nodiscard]] auto fastCounterWidth(std::uint16_t published) noexcept
     -> std::uint32_t;
 
-[[nodiscard]] auto fast_pair_stable(std::uint32_t sequence_before,
-                                    std::uint32_t sequence_after) noexcept
-    -> bool;
+[[nodiscard]] auto fastPairStable(std::uint32_t sequenceBefore,
+                                  std::uint32_t sequenceAfter) noexcept -> bool;
 
 // The decode half of the protocol, over values the caller already
 // sampled: the page sequence before and after, the one-based index, the
@@ -290,22 +287,22 @@ constexpr std::uint32_t kRnpmcMaxIndex = 1024;
 // counter width. The caller reads the instruction only for a nonzero
 // index, so the gate here costs a page load and never an instruction
 // (FR-040, R-011).
-[[nodiscard]] auto fast_decode(std::uint32_t sequence_before,
-                               std::uint32_t sequence_after,
-                               std::uint32_t index,
-                               std::uint64_t capability,
-                               std::uint64_t raw,
-                               std::int64_t offset,
-                               std::uint32_t width,
-                               std::uint64_t& value) -> fast_read_verdict;
+[[nodiscard]] auto fastDecode(std::uint32_t sequenceBefore,
+                              std::uint32_t sequenceAfter,
+                              std::uint32_t index,
+                              std::uint64_t capability,
+                              std::uint64_t raw,
+                              std::int64_t offset,
+                              std::uint32_t width,
+                              std::uint64_t& value) -> FastReadVerdict;
 
 // The probe's verdict over the three fields the mapped event page
 // publishes: the capability, the index, and the width (FR-023, R-011).
 // Writes the refusal the catalog discloses and answers whether the
 // mapped-page read is usable on this host.
-[[nodiscard]] auto fast_probe_allows(bool capability_granted,
-                                     std::uint32_t index,
-                                     std::string& refusal) -> bool;
+[[nodiscard]] auto fastProbeAllows(bool capabilityGranted,
+                                   std::uint32_t index,
+                                   std::string& refusal) -> bool;
 
 // One per-thread fast-read context: the event file descriptor and the
 // one page the kernel maps for it. `owner` names the thread that opened
@@ -314,18 +311,18 @@ constexpr std::uint32_t kRnpmcMaxIndex = 1024;
 // thread, so a foreign read hands back another task's count as a valid
 // point (FR-031, FR-040). The plan checks the same binding, and that
 // check is semantic-gated, so it is absent from a release build.
-struct fast_context
+struct FastContext
 {
   int fd = -1;
   void* map = nullptr;
-  std::size_t map_length = 0;
+  std::size_t mapLength = 0;
   std::thread::id owner {};
   // The processor a cpu-target plan bound this context to, or -1 for a
   // thread-bound plan. A cpu-pinned context counts one processor for
   // every task, so a sampling thread that migrated away reads another
   // processor's event or none at all, and the read carries the
   // pinning precondition (FR-045).
-  int pinned_cpu = -1;
+  int pinnedCpu = -1;
 
   /**
    * @brief Releases the mapping and the descriptor the context holds.
@@ -338,7 +335,7 @@ struct fast_context
    * \pre none
    * \post The context owns no mapping and no descriptor.
    */
-  ~fast_context();
+  ~FastContext();
 };
 
 // The pid and cpu a `perf_event_open` for `where` binds to: a
@@ -346,7 +343,7 @@ struct fast_context
 // cpu-pinned plan counts that cpu for every task (FR-024, FR-031). Both
 // read modes bind the same way, so a plan reads what its target names
 // whichever mechanism the catalog discloses.
-[[nodiscard]] inline auto leader_pid(const Target& where) noexcept
+[[nodiscard]] inline auto leaderPid(const Target& where) noexcept
     -> std::pair<pid_t, int>
 {
   // LCOV_EXCL_BR_START : coverage exclusion (T140): both arcs. A cpu-pinned
@@ -370,7 +367,7 @@ struct fast_context
 // on top. The header states the condition as `cap_usr_time && enabled !=
 // running`, so an equal pair needs no delta and a page publishing no
 // capability bit has no recipe to run (FR-007, FR-008, FR-009, FR-024).
-struct event_time_fields
+struct EventTimeFields
 {
   // The two capability bits the recipe is gated on. `cap_user_time` says
   // the shift, mult, and offset fields are used; `cap_user_time_short`
@@ -398,7 +395,7 @@ struct event_time_fields
 // computed at all. A caller that sees `applied` false publishes the raw
 // pair, which is what the page states and the whole answer on a host whose
 // kernel grants no time capability.
-struct event_time_pair
+struct EventTimePair
 {
   std::uint64_t enabled = 0;
   std::uint64_t running = 0;
@@ -436,10 +433,10 @@ struct event_time_pair
  * @return The pair to publish, with `applied` naming whether a delta was
  *         computed.
  */
-[[nodiscard]] inline auto fast_time_pair(
-    const event_time_fields& fields) noexcept -> event_time_pair
+[[nodiscard]] inline auto fastTimePair(const EventTimeFields& fields) noexcept
+    -> EventTimePair
 {
-  event_time_pair pair {};
+  EventTimePair pair {};
   pair.enabled = fields.time_enabled;
   pair.running = fields.time_running;
   // The header's own condition. An equal pair means the event was never
@@ -455,8 +452,8 @@ struct event_time_pair
   // A shift of the type width or more is not a field the kernel writes,
   // and shifting by the type width is undefined, so the pair stands as
   // the page published it.
-  constexpr auto time_shift_width = 64U;
-  if (shift >= time_shift_width) {
+  constexpr auto kTimeShiftWidth = 64U;
+  if (shift >= kTimeShiftWidth) {
     return pair;
   }
   const auto quot = cyc >> shift;
@@ -480,18 +477,18 @@ struct event_time_pair
 // calling thread (FR-024, FR-031). `refusal`, when given, receives the
 // reason the kernel gave for refusing, which is the sentence the catalog
 // discloses (FR-023).
-[[nodiscard]] auto fast_context_open(int type,
-                                     std::uint64_t config,
-                                     const Target& where,
-                                     std::string* refusal = nullptr)
-    -> std::unique_ptr<fast_context>;
+[[nodiscard]] auto fastContextOpen(int type,
+                                   std::uint64_t config,
+                                   const Target& where,
+                                   std::string* refusal = nullptr)
+    -> std::unique_ptr<FastContext>;
 
 // The context's page, read under the mapped-page protocol and returning
 // the verdict the gates above produce. The calling thread is the thread
 // that opened `context`; any other thread is a contract violation
 // (FR-031, FR-040).
-[[nodiscard]] auto fast_context_read(const fast_context& context,
-                                     std::uint64_t& value) -> fast_read_verdict;
+[[nodiscard]] auto fastContextRead(const FastContext& context,
+                                   std::uint64_t& value) -> FastReadVerdict;
 
 // The context's event page enabled/running pair in nanoseconds, read
 // inside the page's own sequence lock. The pair gives a mapped-page
@@ -501,27 +498,27 @@ struct event_time_pair
 // reports a zero pair. The calling thread is the thread that opened
 // `context`, on the same contract as `fast_context_read` (FR-031,
 // FR-040).
-[[nodiscard]] auto fast_context_time_pair(const fast_context& context,
-                                          std::uint64_t& enabled,
-                                          std::uint64_t& running) -> bool;
+[[nodiscard]] auto fastContextTimePair(const FastContext& context,
+                                       std::uint64_t& enabled,
+                                       std::uint64_t& running) -> bool;
 
-void fast_context_close(fast_context& context);
+void fastContextClose(FastContext& context);
 
 // The destructor delegates to the release the library already had, so no
 // second release path exists and every owner reaches the same one
 // (FR-013). It is defined beside that release, where the platform branch
 // has already chosen its body.
-inline fast_context::~fast_context()
+inline FastContext::~FastContext()
 {
-  fast_context_close(*this);
+  fastContextClose(*this);
 }
 
 // Whether a cpu-target context may be read from the processor the calling
 // thread runs on. A thread-bound plan pins nothing and answers true; a
 // cpu-pinned context answers true only on the processor it was opened on,
 // which is the pinning precondition the fast read carries (FR-045).
-[[nodiscard]] auto fast_pinning_ok(int pinned_cpu,
-                                   int current_cpu) noexcept -> bool;
+[[nodiscard]] auto fastPinningOk(int pinnedCpu,
+                                 int currentCpu) noexcept -> bool;
 
 // The corrected decisions that sit behind a syscall only a granted
 // `perf_event_open` can reach. Each is a small pure function over values
@@ -540,8 +537,8 @@ inline fast_context::~fast_context()
 /// \post The verdict is true exactly when the returned count falls below
 ///       the header size. A negative returned count, which is a read the
 ///       syscall refused and which produced no count, is reported short.
-[[nodiscard]] auto group_read_short(long returned,
-                                    std::size_t header_bytes) noexcept -> bool;
+[[nodiscard]] auto groupReadShort(long returned,
+                                  std::size_t headerBytes) noexcept -> bool;
 
 /// @brief The step that turns a pair read's verdict into the values a
 /// fold may read (FR-005).
@@ -554,11 +551,11 @@ inline fast_context::~fast_context()
 /// \post A stable verdict publishes the page's own two values; an
 ///       unstable verdict discloses nothing, leaves a zero pair, and
 ///       reports the refusal.
-[[nodiscard]] auto fast_pair_disclosed(bool stable,
-                                       std::uint64_t enabled,
-                                       std::uint64_t running,
-                                       std::uint64_t& out_enabled,
-                                       std::uint64_t& out_running) noexcept
+[[nodiscard]] auto fastPairDisclosed(bool stable,
+                                     std::uint64_t enabled,
+                                     std::uint64_t running,
+                                     std::uint64_t& outEnabled,
+                                     std::uint64_t& outRunning) noexcept
     -> bool;
 
 /// @brief Whether a device is the one a vendored row's table scope
@@ -577,18 +574,18 @@ inline fast_context::~fast_context()
 ///       device path alone. Any other scope answers true only for the
 ///       device of its own class, spelled bare or under the `uncore_`
 ///       prefix. A scope naming no published device class answers false.
-[[nodiscard]] auto scope_reaches(const std::string& device_path,
-                                 const std::string& scope) noexcept -> bool;
+[[nodiscard]] auto scopeReaches(const std::string& devicePath,
+                                const std::string& scope) noexcept -> bool;
 
 // What one catalog entry publishes: the read mechanism a plan reads for
 // it, and whether the enabled/running pair rides along. The catalog sets
 // the fast mode on an entry only where the fast read can succeed for that
 // entry, so the host-wide capability verdict never sets the mode on an
 // entry whose event the fast instruction cannot read (FR-001).
-struct entry_read_selection
+struct EntryReadSelection
 {
   ReadMode mode = ReadMode::SYSCALL;
-  bool publish_pair = false;
+  bool publishPair = false;
 };
 
 /// @brief The selection over the availability probe's verdict and the
@@ -603,8 +600,8 @@ struct entry_read_selection
 /// \post A countable entry publishes the fast read mode only where the
 ///       host grants it. Every other state publishes the syscall mode.
 ///       Only a countable entry publishes the enabled/running pair.
-[[nodiscard]] auto entry_read_selection_for(
-    Availability probed, bool fast_capable) noexcept -> entry_read_selection;
+[[nodiscard]] auto entryReadSelectionFor(
+    Availability probed, bool fastCapable) noexcept -> EntryReadSelection;
 
 /// @brief The target kinds the two probes settled one entry on (FR-021).
 ///
@@ -620,8 +617,8 @@ struct entry_read_selection
 /// \post A verdict of `countable` names that kind's bit, and every other
 ///       verdict names no bit. The answer names the cpu bit for a
 ///       `countable` cpu verdict whatever the per-task verdict is (FR-021).
-[[nodiscard]] auto probed_kind_mask(Availability per_task,
-                                    Availability on_cpu) noexcept -> TargetMask;
+[[nodiscard]] auto probedKindMask(Availability perTask,
+                                  Availability onCpu) noexcept -> TargetMask;
 
 /// @brief The target kinds one catalog entry can be counted on, read from
 /// the probe's per-kind verdicts (FR-021).
@@ -657,10 +654,10 @@ struct entry_read_selection
 ///       path is none of the core device paths, and names both kinds
 ///       everywhere else, an object no event provider seeded among them
 ///       (FR-021, FR-022).
-[[nodiscard]] auto settled_targets(Availability probed,
-                                   TargetMask probed_kinds,
-                                   std::string_view kind,
-                                   const std::string& path) noexcept
+[[nodiscard]] auto settledTargets(Availability probed,
+                                  TargetMask probedKinds,
+                                  std::string_view kind,
+                                  const std::string& path) noexcept
     -> TargetMask;
 
 /// @brief The state a catalog entry settles on when no probe granted it
@@ -679,8 +676,8 @@ struct entry_read_selection
 /// \post A permission verdict on a device-scoped device settles on
 ///       `scope_refused`. Every other verdict, on a device-scoped device or
 ///       not, settles on itself.
-[[nodiscard]] auto scope_settled_state(
-    Availability on_cpu, bool device_scoped) noexcept -> Availability;
+[[nodiscard]] auto scopeSettledState(
+    Availability onCpu, bool deviceScoped) noexcept -> Availability;
 
 /// @brief Whether a catalog entry's own state lets the request open a
 /// provider window (FR-021, FR-024).
@@ -705,16 +702,16 @@ struct entry_read_selection
 ///       `scope_refused` entry answers true for the cpu kind alone, and
 ///       answers false for the per-task kind. Every other state answers
 ///       false under either kind.
-[[nodiscard]] auto availability_gate_passes(
+[[nodiscard]] auto availabilityGatePasses(
     Availability probed, TargetKind requested) noexcept -> bool;
 
 // The fast-mode window (group_io.cpp, FR-040): one context per member
 // leaf, the enabled/running pair taken from the leader's page. Null
 // when a leaf names no device, no countable entry, or a context the
 // kernel refuses.
-[[nodiscard]] auto pmu_open_fast_window(const pmu_state& state,
-                                        const LeafSet& leaves,
-                                        const Target& where)
+[[nodiscard]] auto pmuOpenFastWindow(const PmuState& state,
+                                     const LeafSet& leaves,
+                                     const Target& where)
     -> std::unique_ptr<WindowReader>;
 
 // The decisions the seam reaches so a fixture can drive them with a
@@ -724,21 +721,21 @@ struct entry_read_selection
 // `merge_vendored` places the vendored rows. All three sit in this
 // namespace so a registered test can supply a device the running kernel
 // never lists, which is what reaches a hybrid per-core scope.
-void probe_device(pmu_device& device, bool fast_capable);
+void probeDevice(PmuDevice& device, bool fastCapable);
 
 // The fast verdict over one event page. The header publishes the
 // capability as the `cap_user_rdpmc` bit, and that bit is the verdict
 // (FR-017).
-[[nodiscard]] auto page_grants_user_rdpmc(std::uint64_t cap_user_rdpmc) noexcept
+[[nodiscard]] auto pageGrantsUserRdpmc(std::uint64_t cap_user_rdpmc) noexcept
     -> bool;
 
 // The fast verdict of one device, read from an event page that device
 // opened. A device whose open the kernel refuses publishes no fast
 // verdict (FR-017).
-[[nodiscard]] auto device_page_fast_verdict(const pmu_device& device) -> bool;
+[[nodiscard]] auto devicePageFastVerdict(const PmuDevice& device) -> bool;
 
-[[nodiscard]] auto load_device(const std::filesystem::path& dir)
-    -> std::optional<pmu_device>;
+[[nodiscard]] auto loadDevice(const std::filesystem::path& dir)
+    -> std::optional<PmuDevice>;
 
 /// @brief Places the vendored rows whose scope reaches `device` (FR-019).
 ///
@@ -751,6 +748,6 @@ void probe_device(pmu_device& device, bool fast_capable);
 /// can drive placement over a device the running kernel never publishes,
 /// which is the only way a placement arm runs off a host that owns the
 /// hardware.
-void merge_vendored(pmu_device& device);
+void mergeVendored(PmuDevice& device);
 
 }  // namespace sg::counters::detail

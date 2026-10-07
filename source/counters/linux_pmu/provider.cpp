@@ -69,7 +69,7 @@ constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
 // Sysfs publishes per-alias attributes beside an event file as
 // "<alias>.<attribute>". A file name carrying a dot describes an
 // attribute of a named event, never an event of its own.
-auto is_event_file(const std::string_view name) noexcept -> bool
+auto isEventFile(const std::string_view name) noexcept -> bool
 {
   return name.find('.') == std::string_view::npos;
 }
@@ -85,7 +85,7 @@ auto slurp(const std::filesystem::path& path) -> std::string
 // The kernel's permission level for performance events, the level the
 // per-entry test-opens answered at. -1 when the sysctl is unreadable,
 // and the catalog then says so (FR-039).
-auto read_paranoid() -> int
+auto readParanoid() -> int
 {
   std::ifstream file("/proc/sys/kernel/perf_event_paranoid");
   int value = -1;
@@ -117,10 +117,10 @@ namespace detail
 // in read-only sysfs and in the pinned tree. Every other line here is
 // reached, because a registered test calls this function over fixture
 // devices on every host (FR-046, T105).
-auto merge_vendored(detail::pmu_device& device) -> void
+auto mergeVendored(detail::PmuDevice& device) -> void
 {
   const std::string directory =
-      detail::pmu_select_directory(detail::pmu_ident_current());
+      detail::pmuSelectDirectory(detail::pmuIdentCurrent());
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the empty-selection arm.
   // It needs a CPU no row of the pinned mapfile matches, and the CPU comes
   // from `CPUID` at run time.
@@ -128,13 +128,13 @@ auto merge_vendored(detail::pmu_device& device) -> void
     return;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_LINE
   // LCOV_EXCL_BR_STOP
-  const auto& table = detail::pmu_load_table(directory);
+  const auto& table = detail::pmuLoadTable(directory);
   for (const auto& row : table) {
-    if (!detail::scope_reaches(device.path, row.unit)) {
+    if (!detail::scopeReaches(device.path, row.unit)) {
       continue;
     }
     const bool taken = std::ranges::any_of(device.entries,
-                                           [&](const detail::pmu_entry& entry)
+                                           [&](const detail::PmuEntry& entry)
                                            { return entry.name == row.name; });
     // LCOV_EXCL_BR_START : coverage exclusion (T066): the kernel-wins skip.
     // It needs a kernel alias name that also appears in the vendored table
@@ -147,10 +147,10 @@ auto merge_vendored(detail::pmu_device& device) -> void
       continue;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_LINE
     // LCOV_EXCL_BR_STOP
-    detail::pmu_entry entry;
+    detail::PmuEntry entry;
     entry.name = row.name;
-    entry.description = detail::table_description(row);
-    if (!detail::pmu_compose_config(row.fields, device.formats, entry.words)) {
+    entry.description = detail::tableDescription(row);
+    if (!detail::pmuComposeConfig(row.fields, device.formats, entry.words)) {
       entry.words.clear();
     }
     device.entries.push_back(std::move(entry));
@@ -160,7 +160,7 @@ auto merge_vendored(detail::pmu_device& device) -> void
   // epilogue above carries.
 }  // LCOV_EXCL_LINE
 
-auto page_grants_user_rdpmc(const std::uint64_t cap_user_rdpmc) noexcept -> bool
+auto pageGrantsUserRdpmc(const std::uint64_t cap_user_rdpmc) noexcept -> bool
 {
   return cap_user_rdpmc != 0;
 }
@@ -169,9 +169,9 @@ auto page_grants_user_rdpmc(const std::uint64_t cap_user_rdpmc) noexcept -> bool
 // the kernel maps for it. The host-wide instructions probe and the sysfs
 // `rdpmc` file take no part: a device whose own page publishes no bit
 // takes the syscall read (FR-017, D-10).
-auto device_page_fast_verdict(const detail::pmu_device& device) -> bool
+auto devicePageFastVerdict(const detail::PmuDevice& device) -> bool
 {
-  const Target where = device.device_scoped
+  const Target where = device.deviceScoped
       ? Target {.kind = TargetKind::CPU, .cpu = 0}
       : Target {};
   for (const auto& entry : device.entries) {
@@ -184,22 +184,22 @@ auto device_page_fast_verdict(const detail::pmu_device& device) -> bool
     }
     std::string refusal;
     auto context =
-        fast_context_open(device.type, config->second, where, &refusal);
+        fastContextOpen(device.type, config->second, where, &refusal);
     if (!context) {  // LCOV_EXCL_BR_LINE
       continue;
     }
     // LCOV_EXCL_START : coverage exclusion (T140): the granted mapped page.
     // A runner whose perf_event_open is refused never holds a context.
     const auto* page = static_cast<const perf_event_mmap_page*>(context->map);
-    const bool granted = page_grants_user_rdpmc(page->cap_user_rdpmc);
-    fast_context_close(*context);
+    const bool granted = pageGrantsUserRdpmc(page->cap_user_rdpmc);
+    fastContextClose(*context);
     return granted;
     // LCOV_EXCL_STOP
   }  // LCOV_EXCL_LINE
   return false;
 }
 
-auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
+auto probeDevice(detail::PmuDevice& device, const bool fastCapable) -> void
 {
   bool countable = false;
   for (auto& entry : device.entries) {
@@ -213,17 +213,17 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     // which a caller can tell from an encoding refusal, and no syscall runs
     // for the kind the scope already refuses (FR-021, FR-022).
     Availability probed = Availability::SCOPE_REFUSED;
-    if (!device.device_scoped) {
-      probed = detail::pmu_probe(device.type, entry.words, Target {});
+    if (!device.deviceScoped) {
+      probed = detail::pmuProbe(device.type, entry.words, Target {});
     }
-    const Availability on_cpu = detail::pmu_probe(
+    const Availability onCpu = detail::pmuProbe(
         device.type, entry.words, Target {.kind = TargetKind::CPU, .cpu = 0});
     // The kinds each probe settled, recorded while both verdicts are in
     // hand: the chain below merges them into one published state, and the
     // mask needs them apart (FR-021). The decision is extracted, so a
     // registered test drives all four of its arms on a host whose
     // cpu-targeted probe is refused (FR-046).
-    entry.probed_kinds = detail::probed_kind_mask(probed, on_cpu);
+    entry.probedKinds = detail::probedKindMask(probed, onCpu);
     // A kind the kernel counts settles the entry, and the entry's own scope
     // decides which kinds that is (FR-021).
     // LCOV_EXCL_BR_LINE : coverage exclusion (T056): settling an entry on a
@@ -234,16 +234,16 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     // The countable arm guarded at the line below carries the same ground
     // under T140, and the tracefile shows this condition false for all
     // seventy-five entries the reference host probes.
-    if (on_cpu == Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
+    if (onCpu == Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
       probed = Availability::COUNTABLE;
-    } else if (device.device_scoped) {
+    } else if (device.deviceScoped) {
       // No probe settled the entry: the device's own scope refuses the
       // per-task kind, and the cpu probe refused its kind too. The decision
       // is extracted, so a registered test drives both of its arms on any
       // host (FR-021, FR-022, FR-046).
-      probed = detail::scope_settled_state(on_cpu, device.device_scoped);
+      probed = detail::scopeSettledState(onCpu, device.deviceScoped);
     } else if (probed != Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
-      probed = on_cpu;
+      probed = onCpu;
     }
     entry.avail = probed;
     if (entry.avail == Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
@@ -262,8 +262,7 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
       // The mode comes from the extracted selection, so a registered test
       // drives both arms without a host that has to grant the event, and
       // the coverage gate measures the decision (T075, FR-046).
-      entry.mode =
-          detail::entry_read_selection_for(entry.avail, fast_capable).mode;
+      entry.mode = detail::entryReadSelectionFor(entry.avail, fastCapable).mode;
       // LCOV_EXCL_BR_STOP
       // LCOV_EXCL_STOP
     }
@@ -275,53 +274,53 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
     // so a runner that refuses the syscall publishes no pair and no ratio,
     // while the host that grants it publishes both for every countable
     // device.
-    detail::pmu_entry enabled {
+    detail::PmuEntry enabled {
         .name = "enabled",
         .description =
             "wall-clock nanoseconds this event group has been enabled; "
             "the multiplex ratio denominator (FR-041)",
         .words = {},
-        .is_time_pair = true,
+        .isTimePair = true,
         .avail = Availability::COUNTABLE,
         .mode = ReadMode::SYSCALL,
     };
-    detail::pmu_entry running {
+    detail::PmuEntry running {
         .name = "running",
         .description =
             "wall-clock nanoseconds this event group has run; "
             "the ratio against 'enabled' discloses multiplexing (FR-041)",
         .words = {},
-        .is_time_pair = true,
+        .isTimePair = true,
         .avail = Availability::COUNTABLE,
         .mode = ReadMode::SYSCALL,
     };
     device.entries.push_back(std::move(enabled));
     device.entries.push_back(std::move(running));
-    device.has_time_pair = true;
+    device.hasTimePair = true;
   }
   // LCOV_EXCL_STOP
 }
 
-auto load_device(const std::filesystem::path& dir)
-    -> std::optional<detail::pmu_device>
+auto loadDevice(const std::filesystem::path& dir)
+    -> std::optional<detail::PmuDevice>
 {
   std::error_code code;
-  const std::string type_text = slurp(dir / "type");
+  const std::string typeText = slurp(dir / "type");
   // LCOV_EXCL_START : coverage exclusion (T066): both device guards. Every
   // directory the kernel publishes under
   // `/sys/bus/event_source/devices/` carries a non-empty numeric `type`
   // file, and the directory is a read-only sysfs entry, so a test cannot
   // supply one that is empty or unparsable. The 24 devices of the
   // reference host all load.
-  if (type_text.empty()) {  // LCOV_EXCL_BR_LINE
+  if (typeText.empty()) {  // LCOV_EXCL_BR_LINE
     return std::nullopt;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_LINE
-  const int type = std::atoi(type_text.c_str());
+  const int type = std::atoi(typeText.c_str());
   if (type < 0) {  // LCOV_EXCL_BR_LINE
     return std::nullopt;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_LINE
   // LCOV_EXCL_STOP
-  detail::pmu_device device;
+  detail::PmuDevice device;
   device.path = dir.filename().string();
   device.type = type;
   // A `cpumask` file marks an uncore device. A core PMU publishes a
@@ -329,22 +328,22 @@ auto load_device(const std::filesystem::path& dir)
   // `cpu`, `cpu_core`, and `cpu_atom` stay per-task capable. A device
   // that publishes neither file takes the per-task probe, which is how
   // `msr` keeps the thread target bit (FR-016, D-08).
-  std::error_code scope_code;
-  device.device_scoped = std::filesystem::exists(dir / "cpumask", scope_code);
+  std::error_code scopeCode;
+  device.deviceScoped = std::filesystem::exists(dir / "cpumask", scopeCode);
   device.description = "perf event source '" + device.path + "', PMU type "
       + std::to_string(type);
 
-  const auto format_dir = dir / "format";
-  for (auto it = std::filesystem::directory_iterator(format_dir, code);
+  const auto formatDir = dir / "format";
+  for (auto it = std::filesystem::directory_iterator(formatDir, code);
        it != std::filesystem::directory_iterator();
        it.increment(code))
   {
-    std::vector<detail::format_range> ranges;
+    std::vector<detail::FormatRange> ranges;
     // LCOV_EXCL_BR_LINE : coverage exclusion (T066): the refusing side. Every
     // file the kernel publishes under a PMU `format/` directory describes a
     // config-bit field, and sysfs is read-only, so no fixture can place a
     // file there that the parser rejects.
-    if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
+    if (detail::parseFormatField(  // LCOV_EXCL_BR_LINE
             slurp(it->path()),
             ranges))
     {  // LCOV_EXCL_BR_LINE
@@ -353,8 +352,8 @@ auto load_device(const std::filesystem::path& dir)
     }
   }
 
-  const auto events_dir = dir / "events";
-  for (auto it = std::filesystem::directory_iterator(events_dir, code);
+  const auto eventsDir = dir / "events";
+  for (auto it = std::filesystem::directory_iterator(eventsDir, code);
        it != std::filesystem::directory_iterator();
        it.increment(code))
   {
@@ -365,20 +364,20 @@ auto load_device(const std::filesystem::path& dir)
     // refused loads no core-PMU device at all, so it iterates no such
     // directory; the host that grants the syscall iterates the core device's
     // directory, whose entries all name events.
-    if (!is_event_file(name)) {  // LCOV_EXCL_BR_LINE
+    if (!isEventFile(name)) {  // LCOV_EXCL_BR_LINE
       continue;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_LINE
     // LCOV_EXCL_BR_STOP
     const std::string text = slurp(it->path());
-    detail::pmu_entry entry;
+    detail::PmuEntry entry;
     entry.name = name;
-    entry.description = detail::alias_description(name, text);
+    entry.description = detail::aliasDescription(name, text);
     // LCOV_EXCL_BR_START : coverage exclusion (T066): the refusing side. It
     // needs a kernel alias naming a field the device `format/` directory does
     // not publish, or a value wider than the published ranges. Both facts
     // live in read-only sysfs.
-    if (!detail::pmu_compose_config(  // LCOV_EXCL_BR_LINE
-            detail::parse_attr(text),
+    if (!detail::pmuComposeConfig(  // LCOV_EXCL_BR_LINE
+            detail::parseAttr(text),
             device.formats,
             entry.words))  // LCOV_EXCL_BR_LINE
     {
@@ -407,8 +406,8 @@ auto load_device(const std::filesystem::path& dir)
 // a swap cannot pass unnoticed.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters,
 // readability-function-cognitive-complexity)
-auto scope_reaches(const std::string& device_path,
-                   const std::string& scope) noexcept -> bool
+auto scopeReaches(const std::string& devicePath,
+                  const std::string& scope) noexcept -> bool
 {
   // The vendored tables spell a scope label the way the vendor documents
   // it, `iMC` and `ARB` among them, while the kernel spells the device
@@ -420,31 +419,31 @@ auto scope_reaches(const std::string& device_path,
     folded.push_back(
         static_cast<char>(std::tolower(static_cast<unsigned char>(letter))));
   }
-  const bool core_scoped = folded.empty() || folded == "core";
-  const bool core_device = device_path == "cpu" || device_path == "cpu_core"
-      || device_path == "cpu_atom";
+  const bool coreScoped = folded.empty() || folded == "core";
+  const bool coreDevice = devicePath == "cpu" || devicePath == "cpu_core"
+      || devicePath == "cpu_atom";
   // A unit reaches a device through the generator's unit map. A class
   // name ignores a numeric instance suffix on the device, so `iMC` reaches
   // `uncore_imc_0` and `uncore_imc_1`. A unit that already carries the
   // suffix names that one device, so `cbox_0` reaches `uncore_cbox_0`
   // alone (FR-014, FR-015, D-08, D-09).
-  const std::string_view name {device_path};
+  const std::string_view name {devicePath};
   // The kernel's generator unit map, as its own table generator spells it.
   // An Intel unit names its class and the kernel prefixes it and numbers
   // the instances. An AMD unit carries a vendor name the unit does not
   // spell, so the map carries that pair (FR-014, FR-015, D-08, D-09).
   // NOLINTBEGIN(readability-trailing-comma)
   constexpr std::array<std::pair<std::string_view, std::string_view>, 3>
-      vendor_units {{
+      kVendorUnits {{
           {"dfpmc", "amd_df"},
           {"l3pmc", "amd_l3"},
           {"umcpmc", "amd_umc"},
       }};
   // NOLINTEND(readability-trailing-comma)
-  std::string unit_class;
-  for (const auto& [unit, device] : vendor_units) {
+  std::string unitClass;
+  for (const auto& [unit, device] : kVendorUnits) {
     if (folded == unit) {
-      unit_class = std::string(device);
+      unitClass = std::string(device);
       break;
     }
   }
@@ -452,17 +451,17 @@ auto scope_reaches(const std::string& device_path,
   // name must reduce to. A vendor unit names the vendor device instead, so
   // the device name carries the instance suffix and the class is that name
   // with the prefix and the suffix removed.
-  if (unit_class.empty()) {
-    unit_class = folded;
+  if (unitClass.empty()) {
+    unitClass = folded;
   }
   const std::string_view bare {name};
   const std::string_view prefix {"uncore_"};
-  const std::string_view class_of =
+  const std::string_view classOf =
       bare.starts_with(prefix) ? bare.substr(prefix.size()) : bare;
   // A trailing underscore and a run of digits is an instance suffix.
   // `imc_0` reduces to `imc`. A unit that already carries one keeps the
   // device suffix, so the comparison names that instance alone (FR-014).
-  const auto suffix_at = [](const std::string_view text) -> std::size_t
+  const auto suffixAt = [](const std::string_view text) -> std::size_t
   {
     const auto cut = text.find_last_of('_');
     if (cut == std::string_view::npos || cut + 1 == text.size()) {
@@ -476,28 +475,28 @@ auto scope_reaches(const std::string& device_path,
     }
     return cut;
   };
-  const bool unit_names_instance = suffix_at(folded) != std::string_view::npos;
-  const auto device_cut = suffix_at(class_of);
-  const std::string_view device_body =
-      unit_names_instance || device_cut == std::string_view::npos
-      ? class_of
-      : class_of.substr(0, device_cut);
-  std::string folded_class;
-  for (const char letter : device_body) {
-    folded_class.push_back(
+  const bool unitNamesInstance = suffixAt(folded) != std::string_view::npos;
+  const auto deviceCut = suffixAt(classOf);
+  const std::string_view deviceBody =
+      unitNamesInstance || deviceCut == std::string_view::npos
+      ? classOf
+      : classOf.substr(0, deviceCut);
+  std::string foldedClass;
+  for (const char letter : deviceBody) {
+    foldedClass.push_back(
         static_cast<char>(std::tolower(static_cast<unsigned char>(letter))));
   }
-  const bool named = unit_class == folded_class;
-  const bool reaches = core_scoped ? core_device : named;
-  SG_ENSURE(reaches == (core_scoped ? core_device : named),
+  const bool named = unitClass == foldedClass;
+  const bool reaches = coreScoped ? coreDevice : named;
+  SG_ENSURE(reaches == (coreScoped ? coreDevice : named),
             "a reached device belongs to the scope's own class, and the "
             "core scope reaches a core device alone (FR-019)");
   return reaches;
 }
 
-auto entry_read_selection_for(const Availability probed,
-                              const bool fast_capable) noexcept
-    -> entry_read_selection
+auto entryReadSelectionFor(const Availability probed,
+                           const bool fastCapable) noexcept
+    -> EntryReadSelection
 {
   // LCOV_EXCL_BR_START : coverage exclusion (T056): the switch's default
   // arm. The object's disassembly shows the dispatch as a compare and an
@@ -506,14 +505,14 @@ auto entry_read_selection_for(const Availability probed,
   // each of the six states through this selector.
   switch (probed) {
     case Availability::COUNTABLE: {
-      const entry_read_selection selection {
-          .mode = fast_capable ? ReadMode::FAST_RDPMC : ReadMode::SYSCALL,
-          .publish_pair = true,
+      const EntryReadSelection selection {
+          .mode = fastCapable ? ReadMode::FAST_RDPMC : ReadMode::SYSCALL,
+          .publishPair = true,
       };
       // The fast mode rides the host's capability alone, so an entry the
       // fast instruction cannot read keeps the syscall mode, and this is
       // the only arm that publishes the pair (FR-001, FR-022).
-      SG_ENSURE(fast_capable == (selection.mode == ReadMode::FAST_RDPMC),
+      SG_ENSURE(fastCapable == (selection.mode == ReadMode::FAST_RDPMC),
                 "a countable entry publishes the fast read mode only "
                 "where the host grants it (FR-001)");
       return selection;
@@ -523,7 +522,7 @@ auto entry_read_selection_for(const Availability probed,
     case Availability::ABSENT:
     case Availability::SCOPE_REFUSED:
     case Availability::GAP:
-      return {.mode = ReadMode::SYSCALL, .publish_pair = false};
+      return {.mode = ReadMode::SYSCALL, .publishPair = false};
   }
   // LCOV_EXCL_BR_STOP
   // Unreachable behind the closed enumeration; a build with contract
@@ -532,23 +531,23 @@ auto entry_read_selection_for(const Availability probed,
   // switch that covers every enumerator. The fixture drives each of the
   // six states through this selector, and no value outside the
   // enumeration exists to reach it.
-  return {.mode = ReadMode::SYSCALL, .publish_pair = false};
+  return {.mode = ReadMode::SYSCALL, .publishPair = false};
   // LCOV_EXCL_STOP
 }
 
-auto probed_kind_mask(const Availability per_task,
-                      const Availability on_cpu) noexcept -> TargetMask
+auto probedKindMask(const Availability perTask,
+                    const Availability onCpu) noexcept -> TargetMask
 {
   const TargetMask settled =
-      (per_task == Availability::COUNTABLE ? kTargetThreadBit : TargetMask {})
-      | (on_cpu == Availability::COUNTABLE ? kTargetCpuBit : TargetMask {});
+      (perTask == Availability::COUNTABLE ? kTargetThreadBit : TargetMask {})
+      | (onCpu == Availability::COUNTABLE ? kTargetCpuBit : TargetMask {});
   // The rule is spelled once and both the mask and the postcondition read
   // it, so the check cannot disagree with the decision it checks (FR-021).
   SG_ENSURE(settled
-                == ((per_task == Availability::COUNTABLE
+                == ((perTask == Availability::COUNTABLE
                          ? kTargetThreadBit
                          : TargetMask {})
-                    | (on_cpu == Availability::COUNTABLE ? kTargetCpuBit
+                    | (onCpu == Availability::COUNTABLE ? kTargetCpuBit
                                                          : TargetMask {})),
             "a verdict of `countable` names that kind's bit and every other "
             "verdict names no bit, so a cpu probe that counted the entry "
@@ -557,8 +556,8 @@ auto probed_kind_mask(const Availability per_task,
   return settled;
 }
 
-auto scope_settled_state(const Availability on_cpu,
-                         const bool device_scoped) noexcept -> Availability
+auto scopeSettledState(const Availability onCpu,
+                       const bool deviceScoped) noexcept -> Availability
 {
   // The device's own scope refuses the per-task kind and the cpu probe
   // refused that kind too, so no probe settled the entry. What this caller
@@ -566,13 +565,13 @@ auto scope_settled_state(const Availability on_cpu,
   // permission refusal publishes as `scope_refused`. An encoding refusal
   // names the encoding instead, so it survives into `entry.avail` and the
   // caller reads the two refusals apart (FR-021, FR-022).
-  const bool scope_refusal =
-      device_scoped && on_cpu == Availability::PERMISSION_BLOCKED;
+  const bool scopeRefusal =
+      deviceScoped && onCpu == Availability::PERMISSION_BLOCKED;
   const Availability settled =
-      scope_refusal ? Availability::SCOPE_REFUSED : on_cpu;
+      scopeRefusal ? Availability::SCOPE_REFUSED : onCpu;
   // The rule is spelled once and both the verdict and the postcondition read
   // it, so the check cannot disagree with the decision it checks (FR-021).
-  SG_ENSURE(settled == (scope_refusal ? Availability::SCOPE_REFUSED : on_cpu),
+  SG_ENSURE(settled == (scopeRefusal ? Availability::SCOPE_REFUSED : onCpu),
             "a permission refusal on a device-scoped device settles on the "
             "scope's own refusal, and every other verdict settles on itself "
             "(FR-021, FR-022)");
@@ -582,7 +581,7 @@ auto scope_settled_state(const Availability on_cpu,
 // Splits a kernel event_attr file into its field/value pairs: the text
 // is "field=value[,field=value...]", every value hexadecimal or
 // decimal.
-auto parse_attr(const std::string& text)
+auto parseAttr(const std::string& text)
     -> std::vector<std::pair<std::string, std::uint64_t> >
 {
   std::vector<std::pair<std::string, std::uint64_t> > fields;
@@ -636,9 +635,9 @@ auto parse_attr(const std::string& text)
   // by-value return; the `return` above carries the call count.
 }  // LCOV_EXCL_LINE
 
-auto to_hex(const std::uint64_t value) -> std::string
+auto toHex(const std::uint64_t value) -> std::string
 {
-  constexpr char digits[] = "0123456789abcdef";
+  constexpr char kDigits[] = "0123456789abcdef";
   std::string out = "0x";
   bool leading = true;
   for (int shift = 60; shift >= 0; shift -= 4) {
@@ -647,7 +646,7 @@ auto to_hex(const std::uint64_t value) -> std::string
       continue;
     }
     leading = false;
-    out.push_back(digits[nibble]);
+    out.push_back(kDigits[nibble]);
   }
   return out;
   // LCOV_EXCL_LINE : the epilogue block of a by-value return; the `return`
@@ -658,8 +657,8 @@ auto to_hex(const std::uint64_t value) -> std::string
 // itself with the event_attr text the kernel publishes, verbatim, so a
 // reader can reproduce the encoding; a vendored entry uses the table's
 // own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name,
-                       const std::string& text) -> std::string
+auto aliasDescription(const std::string& name,
+                      const std::string& text) -> std::string
 {
   if (!text.empty()) {
     return "kernel event configuration: " + text;
@@ -668,7 +667,7 @@ auto alias_description(const std::string& name,
          "configuration text for this alias";
 }
 
-auto table_description(const pmu_table_entry& entry) -> std::string
+auto tableDescription(const PmuTableEntry& entry) -> std::string
 {
   std::string out = entry.description;
   if (out.empty()) {
@@ -680,7 +679,7 @@ auto table_description(const pmu_table_entry& entry) -> std::string
       // a row carrying an "event" field names its code, and a row carrying
       // only "umask" names none.
       if (field == "event") {  // LCOV_EXCL_BR_LINE
-        out += " (event code " + to_hex(value) + ")";
+        out += " (event code " + toHex(value) + ")";
       }
     }
   }
@@ -700,9 +699,9 @@ auto table_description(const pmu_table_entry& entry) -> std::string
   // above carries the call count.
 }  // LCOV_EXCL_LINE
 
-auto pmu_probe(const int type,
-               const std::vector<std::pair<int, std::uint64_t> >& words,
-               const Target& where) -> Availability
+auto pmuProbe(const int type,
+              const std::vector<std::pair<int, std::uint64_t> >& words,
+              const Target& where) -> Availability
 {
   perf_event_attr attr {};
   attr.type = static_cast<std::uint32_t>(type);
@@ -730,7 +729,7 @@ auto pmu_probe(const int type,
   // open this event at all (FR-039).
   // The binding follows the target kind, so one probe answers for one kind
   // and the provider runs a probe per kind the entry's mask admits (FR-022).
-  const auto [pid, cpu] = detail::leader_pid(where);
+  const auto [pid, cpu] = detail::leaderPid(where);
   // syscall is variadic in the C library, so the attribute pointer rides
   // through it as a vararg in the kernel's own prototype order. Nothing
   // on this line formats anything (FR-039).
@@ -765,7 +764,7 @@ auto pmu_probe(const int type,
 }  // namespace detail
 
 PmuProvider::PmuProvider()
-    : m_state(std::make_unique<detail::pmu_state>())
+    : m_state(std::make_unique<detail::PmuState>())
 {
   std::error_code code;
   std::vector<std::filesystem::path> devices;
@@ -784,7 +783,7 @@ PmuProvider::PmuProvider()
   // the kernel answered each test-open, and which refusals are that
   // level (FR-039). The fast sentence is this device's own page verdict
   // (FR-017). A host-wide instructions probe does not write it.
-  const int paranoid = read_paranoid();
+  const int paranoid = readParanoid();
   const std::string level =
       paranoid < 0  // LCOV_EXCL_BR_LINE
                     // LCOV_EXCL_LINE : coverage exclusion (T066): the same
@@ -792,10 +791,10 @@ PmuProvider::PmuProvider()
                     // excluded for.
       ? "an unreadable perf_event_paranoid"  // LCOV_EXCL_LINE
       : "perf_event_paranoid " + std::to_string(paranoid);  // LCOV_EXCL_BR_LINE
-  const std::string level_note = "; the availability probe ran at " + level;
+  const std::string levelNote = "; the availability probe ran at " + level;
 
   for (const auto& dir : devices) {
-    auto device = detail::load_device(dir);
+    auto device = detail::loadDevice(dir);
     // LCOV_EXCL_BR_START : coverage exclusion (T066): the skip arm. It needs
     // a directory under `/sys/bus/event_source/devices/` with no usable
     // `type` file, which is the read-only sysfs case the two `load_device`
@@ -809,16 +808,16 @@ PmuProvider::PmuProvider()
     // uncore row lands on the uncore device and a core row on each core
     // device the scope covers (FR-019). A row scoped to a class this host
     // publishes no device for reaches none and stays out of the catalog.
-    merge_vendored(*device);
+    mergeVendored(*device);
     // The fast verdict is the `cap_user_rdpmc` bit of this device's own
     // event page. A host-wide instructions probe and a sysfs `rdpmc` file
     // do not decide it (FR-017, D-10).
-    const bool fast_capable = detail::device_page_fast_verdict(*device);
-    detail::probe_device(*device, fast_capable);
+    const bool fastCapable = detail::devicePageFastVerdict(*device);
+    detail::probeDevice(*device, fastCapable);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the refusal wording,
     // on the same kernel-gate ground as the mode ternary in `probe_device`.
-    const std::string verdict = level_note
-        + (fast_capable  // LCOV_EXCL_BR_LINE
+    const std::string verdict = levelNote
+        + (fastCapable  // LCOV_EXCL_BR_LINE
                ? "; this device's event page grants user counter reads; "  // LCOV_EXCL_LINE
                  "entries disclose fast_rdpmc"  // LCOV_EXCL_LINE
                : "; this device's event page keeps user counter reads in "  // LCOV_EXCL_LINE
@@ -857,7 +856,7 @@ void PmuProvider::enumerate(ObjectSink& sink) const
           // runner whose `perf_event_open` is refused names a count and the
           // ternary's nanoseconds arc never runs there; the host that grants
           // the syscall enumerates both kinds on every device.
-          .unit = entry.is_time_pair  // LCOV_EXCL_BR_LINE
+          .unit = entry.isTimePair  // LCOV_EXCL_BR_LINE
               ? std::string_view("nanoseconds")
               : std::string_view("none"),  // LCOV_EXCL_BR_LINE
           // LCOV_EXCL_BR_STOP
@@ -870,8 +869,8 @@ void PmuProvider::enumerate(ObjectSink& sink) const
           // whose `perf_event_open` is refused publishes no time pair and no
           // ratio, so both arcs stay there; the host that grants the syscall
           // discloses the ratio for every member of a paired device.
-          .hasRatioPair = device.has_time_pair  // LCOV_EXCL_BR_LINE
-              && !entry.is_time_pair,  // LCOV_EXCL_BR_LINE
+          .hasRatioPair = device.hasTimePair  // LCOV_EXCL_BR_LINE
+              && !entry.isTimePair,  // LCOV_EXCL_BR_LINE
           // LCOV_EXCL_BR_STOP
       });
       // The kinds the probe settled this entry on, keyed by the address the
@@ -879,11 +878,11 @@ void PmuProvider::enumerate(ObjectSink& sink) const
       // that kind's own probe counted the entry. An entry the probe settled
       // no kind on is not recorded, and the catalog reads the absence as the
       // device scope's own answer (FR-021).
-      if (entry.probed_kinds != 0) {  // LCOV_EXCL_BR_LINE
+      if (entry.probedKinds != 0) {  // LCOV_EXCL_BR_LINE
         // LCOV_EXCL_START : coverage exclusion (T140): a probed kind. A
         // runner whose perf_event_open is refused settles no kind.
-        detail::note_probed_kinds(device.path + "/" + entry.name,
-                                  entry.probed_kinds);
+        detail::noteProbedKinds(device.path + "/" + entry.name,
+                                entry.probedKinds);
         // LCOV_EXCL_STOP
       }
     }
@@ -905,7 +904,7 @@ void PmuProvider::enumerate(ObjectSink& sink) const
 std::unique_ptr<WindowReader> PmuProvider::open(const LeafSet& leaves,
                                                 const Target& where)
 {
-  return detail::pmu_open_window(*m_state, leaves, where);
+  return detail::pmuOpenWindow(*m_state, leaves, where);
   // LCOV_EXCL_STOP
 }
 

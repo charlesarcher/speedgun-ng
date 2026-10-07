@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_COUNTERS_PMU_HPP
-#define SPEEDGUN_NG_COUNTERS_PMU_HPP
+#ifndef SG_COUNTERS_PMU_HPP
+#define SG_COUNTERS_PMU_HPP
 
 /**
  * @file counters_pmu.hpp
@@ -17,7 +17,7 @@ namespace sg::counters
 
 namespace detail
 {
-struct pmu_state;
+struct PmuState;
 }
 
 /**
@@ -81,7 +81,7 @@ public:
                                      const Target& where) override;
 
 private:
-  std::unique_ptr<detail::pmu_state> m_state;
+  std::unique_ptr<detail::PmuState> m_state;
 };
 
 }  // namespace sg::counters

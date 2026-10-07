@@ -24,7 +24,7 @@ namespace
 // The config word a field name selects: "config" is word 0, "config1"
 // is word 1, and "configN" is word N. A name without a trailing index
 // is word 0.
-auto word_of(const std::string_view name) -> int
+auto wordOf(const std::string_view name) -> int
 {
   int word = 0;
   std::size_t index = 0;
@@ -55,8 +55,8 @@ auto word_of(const std::string_view name) -> int
 
 }  // namespace
 
-auto parse_format_field(const std::string_view spec,
-                        std::vector<format_range>& out) -> bool
+auto parseFormatField(const std::string_view spec,
+                      std::vector<FormatRange>& out) -> bool
 {
   // Sysfs spells a format file "<field>:<low>-<high>,<low>-<high>".
   // Anything without that separator describes no config bits.
@@ -65,12 +65,12 @@ auto parse_format_field(const std::string_view spec,
     out.clear();
     return false;
   }
-  const int word = word_of(spec.substr(0, colon));
+  const int word = wordOf(spec.substr(0, colon));
   // Parsed into a local and moved out on success, so the caller's vector
   // ends up holding exactly this file's ranges: a second parse into the
   // same vector replaces the first result, and a failed parse leaves
   // nothing behind.
-  std::vector<format_range> parsed;
+  std::vector<FormatRange> parsed;
   std::size_t cursor = colon + 1;
   std::size_t found = 0;
   // LCOV_EXCL_BR_START : the condition can never be false. `cursor` is
@@ -104,16 +104,16 @@ auto parse_format_field(const std::string_view spec,
       }
       return true;
     };
-    const bool low_ok = read(piece.substr(0, dash), low);
-    const bool high_ok = dash == std::string_view::npos
+    const bool lowOk = read(piece.substr(0, dash), low);
+    const bool highOk = dash == std::string_view::npos
         ? (high = low, true)
         : read(piece.substr(dash + 1), high);
-    if (!low_ok || !high_ok || high < low) {
+    if (!lowOk || !highOk || high < low) {
       out.clear();
       return false;
     }
     parsed.push_back(
-        format_range {.config_word = word, .low = low, .high = high});
+        FormatRange {.configWord = word, .low = low, .high = high});
     ++found;
     if (comma == std::string_view::npos) {
       break;
@@ -129,9 +129,9 @@ auto parse_format_field(const std::string_view spec,
   return true;
 }
 
-auto pmu_compose_config(
+auto pmuComposeConfig(
     const std::vector<std::pair<std::string, std::uint64_t>>& fields,
-    const std::vector<std::pair<std::string, std::vector<format_range>>>&
+    const std::vector<std::pair<std::string, std::vector<FormatRange>>>&
         formats,
     std::vector<std::pair<int, std::uint64_t>>& words) -> bool
 {
@@ -140,9 +140,9 @@ auto pmu_compose_config(
   // is refused whole, never half-attempted (FR-037).
   std::vector<std::pair<int, std::uint64_t>> composed;
   for (const auto& [name, value] : fields) {
-    const std::vector<format_range>* ranges = nullptr;
-    for (const auto& [format_name, layout] : formats) {
-      if (format_name == name) {
+    const std::vector<FormatRange>* ranges = nullptr;
+    for (const auto& [formatName, layout] : formats) {
+      if (formatName == name) {
         ranges = &layout;
         break;
       }
@@ -170,14 +170,14 @@ auto pmu_compose_config(
       const auto placed = chunk << static_cast<unsigned>(range.low);
       bool merged = false;
       for (auto& word : composed) {
-        if (word.first == range.config_word) {
+        if (word.first == range.configWord) {
           word.second |= placed;
           merged = true;
           break;
         }
       }
       if (!merged) {
-        composed.emplace_back(range.config_word, placed);
+        composed.emplace_back(range.configWord, placed);
       }
       shift += static_cast<unsigned>(width);
     }

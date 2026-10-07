@@ -53,7 +53,7 @@
  *
  * \invariant The object holds a valid project-name string.
  */
-class SPEEDGUN_NG_EXPORT exported_class
+class SPEEDGUN_NG_EXPORT ExportedClass
 {
 public:
   /**
@@ -62,12 +62,12 @@ public:
    * \pre none
    * \post name() returns the project name
    */
-  exported_class();
+  ExportedClass();
 
-  exported_class(exported_class const&) = default;
-  exported_class(exported_class&&) = delete;
-  auto operator=(exported_class const&) -> exported_class& = default;
-  auto operator=(exported_class&&) -> exported_class& = delete;
+  ExportedClass(ExportedClass const&) = default;
+  ExportedClass(ExportedClass&&) = delete;
+  auto operator=(ExportedClass const&) -> ExportedClass& = default;
+  auto operator=(ExportedClass&&) -> ExportedClass& = delete;
 
   /**
    * @brief Destroys the object
@@ -75,7 +75,7 @@ public:
    * \pre none
    * \post none
    */
-  ~exported_class();
+  ~ExportedClass();
 
   /**
    * @brief Returns a non-owning pointer to the string stored in this class

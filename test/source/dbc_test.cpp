@@ -51,7 +51,7 @@ auto check(bool cond, char const* what) -> void
 // propagates to the test caller (FR-009/FR-014); in a real program the uncaught
 // throw would reach std::terminate. This is the test-only mechanism FR-009
 // sanctions ("record the violation and throw an observable exception").
-struct violation_caught
+struct ViolationCaught
 {
   sg::dbc::ViolationRecord record {};
 };
@@ -62,42 +62,42 @@ struct violation_caught
 // contract predicates; a test probe stands outside it. The probe stays a
 // named function because the count is the measurement and a contract may
 // evaluate its predicate twice (T174).
-int predicate_evaluations = 0;
+int predicateEvaluations = 0;
 
 // Named from a semantic-gated check alone, so an ignoring build elides the
 // only reference and the warning set would see none (T174).
-[[maybe_unused]] auto counting_predicate() -> bool
+[[maybe_unused]] auto countingPredicate() -> bool
 {
-  ++predicate_evaluations;
+  ++predicateEvaluations;
   return true;
 }
 
 // A recording observer that stores the record into `out` and then throws it
 // back to the caller.
-auto record_into(sg::dbc::ViolationRecord& out) -> sg::dbc::ViolationObserver
+auto recordInto(sg::dbc::ViolationRecord& out) -> sg::dbc::ViolationObserver
 {
   return [&out](sg::dbc::ViolationRecord const& rec)
   {
     out = rec;
-    throw violation_caught {rec};
+    throw ViolationCaught {rec};
   };
 }
 
 // ---- (a)/(b) per-primitive violation sites -------------------------------
 
-auto violate_precondition() -> void
+auto violatePrecondition() -> void
 {
   SG_REQUIRE(false, "pre: x > 0");
 }
 
-auto violate_postcondition() -> int
+auto violatePostcondition() -> int
 {
   int result = 41;
   SG_ENSURE(result == 42, "post: result == 42");
   return result;
 }
 
-auto violate_loop_invariant() -> void
+auto violateLoopInvariant() -> void
 {
   int i = -1;
   for (; i < 3; ++i) {
@@ -108,14 +108,14 @@ auto violate_loop_invariant() -> void
 
 // A class whose constructor leaves the invariant violated (checked at ctor
 // exit, FR-006).
-struct bad_invariant_object
+struct BadInvariantObject
 {
   int value = -1;
 
-  bad_invariant_object() { SG_INVARIANT(value >= 0, "inv: value >= 0"); }
+  BadInvariantObject() { SG_INVARIANT(value >= 0, "inv: value >= 0"); }
 };
 
-auto violate_assertion() -> void
+auto violateAssertion() -> void
 {
   SG_ASSERT(1 == 2, "assert: 1 == 2");
 }
@@ -124,20 +124,20 @@ auto violate_assertion() -> void
 // counts its own evaluations and stays true across repeated calls, so a
 // second evaluation shows in the caller's count. A named probe function is
 // named from the gated check alone, which an ignoring build elides (T174).
-auto gated_satisfied_site() -> void
+auto gatedSatisfiedSite() -> void
 {
-  SG_REQUIRE(counting_predicate(), "positive");
+  SG_REQUIRE(countingPredicate(), "positive");
 }
 
 // Runs `body` under a fresh recording observer; returns the captured record
 // and whether the observer threw (i.e. the violation was delivered).
-auto capture_violation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
+auto captureViolation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
 {
-  sg::dbc::setObserver(record_into(rec));
+  sg::dbc::setObserver(recordInto(rec));
   bool caught = false;
   try {
     body();
-  } catch (violation_caught const&) {
+  } catch (ViolationCaught const&) {
     caught = true;
   }
   return caught;
@@ -145,44 +145,44 @@ auto capture_violation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
 
 #if SG_CONTRACTS_SEMANTIC == 2
 template<typename T>
-auto require_positive(T arg) -> T
+auto requirePositive(T arg) -> T
 {
   SG_REQUIRE(arg > T {}, "template: arg > T{}");
   return arg;
 }
 
-struct contract_base
+struct ContractBase
 {
-  contract_base() = default;
-  contract_base(contract_base const&) = default;
-  contract_base(contract_base&&) = default;
-  auto operator=(contract_base const&) -> contract_base& = default;
-  auto operator=(contract_base&&) -> contract_base& = default;
-  virtual ~contract_base() = default;
+  ContractBase() = default;
+  ContractBase(ContractBase const&) = default;
+  ContractBase(ContractBase&&) = default;
+  auto operator=(ContractBase const&) -> ContractBase& = default;
+  auto operator=(ContractBase&&) -> ContractBase& = default;
+  virtual ~ContractBase() = default;
 
   virtual auto gated(int arg) -> void { SG_REQUIRE(arg > 0, "base: arg > 0"); }
 };
 
-struct contract_derived : contract_base
+struct ContractDerived : ContractBase
 {
   // enforcement is per-body
   auto gated(int arg) -> void override { static_cast<void>(arg); }
 };
 
-struct placement_host
+struct PlacementHost
 {
-  placement_host()
+  PlacementHost()
   {
     // ctor exit (may exist)
     SG_INVARIANT(m_value > 0, "ctor-exit: value > 0");
   }
 
-  placement_host(placement_host const&) = default;
-  placement_host(placement_host&&) = default;
-  auto operator=(placement_host const&) -> placement_host& = default;
-  auto operator=(placement_host&&) -> placement_host& = default;
+  PlacementHost(PlacementHost const&) = default;
+  PlacementHost(PlacementHost&&) = default;
+  auto operator=(PlacementHost const&) -> PlacementHost& = default;
+  auto operator=(PlacementHost&&) -> PlacementHost& = default;
 
-  ~placement_host()
+  ~PlacementHost()
   {
     // dtor entry
     SG_INVARIANT(m_value > 0, "dtor-entry: value > 0");
@@ -196,7 +196,7 @@ struct placement_host
     SG_INVARIANT(m_value > 0, "non-const-exit: value > 0");
   }
 
-  auto break_at_exit() -> void
+  auto breakAtExit() -> void
   {
     SG_INVARIANT(m_value > 0, "non-const-entry: value > 0");
     m_value = 0;
@@ -228,7 +228,7 @@ auto main() -> int
 #if SG_CONTRACTS_SEMANTIC != 3
   // (a)/(b) precondition (FR-002/FR-021)
   rec = sg::dbc::ViolationRecord {};
-  check(capture_violation(rec, [] { violate_precondition(); }),
+  check(captureViolation(rec, [] { violatePrecondition(); }),
         "pre: violation delivered to the observer");
   check(rec.kind == Kind::PRECONDITION, "pre: kind == precondition");
   check(std::string(rec.message) == "pre: x > 0", "pre: message text");
@@ -238,7 +238,7 @@ auto main() -> int
 
   // (a)/(b) postcondition over named result capture (FR-003/FR-004/FR-021)
   rec = sg::dbc::ViolationRecord {};
-  check(capture_violation(rec, [] { (void)violate_postcondition(); }),
+  check(captureViolation(rec, [] { (void)violatePostcondition(); }),
         "post: violation delivered to the observer");
   check(rec.kind == Kind::POSTCONDITION, "post: kind == postcondition");
   check(std::string(rec.message) == "post: result == 42", "post: message text");
@@ -247,14 +247,14 @@ auto main() -> int
 
   // (a)/(b) loop invariant at iteration entry (FR-005/FR-021)
   rec = sg::dbc::ViolationRecord {};
-  check(capture_violation(rec, [] { violate_loop_invariant(); }),
+  check(captureViolation(rec, [] { violateLoopInvariant(); }),
         "loop-inv: violation delivered to the observer");
   check(rec.kind == Kind::INVARIANT, "loop-inv: kind == invariant");
   check(std::string(rec.predicateText) == "i >= 0", "loop-inv: predicate text");
 
   // (a)/(b) class invariant at constructor exit (FR-006/FR-021)
   rec = sg::dbc::ViolationRecord {};
-  check(capture_violation(rec, [] { (void)bad_invariant_object {}; }),
+  check(captureViolation(rec, [] { (void)BadInvariantObject {}; }),
         "class-inv: violation delivered at ctor exit");
   check(rec.kind == Kind::INVARIANT, "class-inv: kind == invariant");
   check(std::string(rec.predicateText) == "value >= 0",
@@ -262,7 +262,7 @@ auto main() -> int
 
   // (a)/(b) in-body assertion (FR-007/FR-021)
   rec = sg::dbc::ViolationRecord {};
-  check(capture_violation(rec, [] { violate_assertion(); }),
+  check(captureViolation(rec, [] { violateAssertion(); }),
         "assert: violation delivered to the observer");
   check(rec.kind == Kind::ASSERTION, "assert: kind == assertion");
   check(std::string(rec.predicateText) == "1 == 2", "assert: predicate text");
@@ -271,13 +271,12 @@ auto main() -> int
   // (c) exactly-once predicate evaluation (FR-019). The probe site is
   // semantic-gated and satisfied, so the predicate is evaluated exactly once
   // in a checked build and not at all in ignore.
-  predicate_evaluations = 0;
-  gated_satisfied_site();
+  predicateEvaluations = 0;
+  gatedSatisfiedSite();
 #if SG_CONTRACTS_SEMANTIC == 0
   check(predicate_evaluations == 0, "ignore: gated predicate not evaluated");
 #else
-  check(predicate_evaluations == 1,
-        "checked: predicate evaluated exactly once");
+  check(predicateEvaluations == 1, "checked: predicate evaluated exactly once");
 #endif
 
   // (d) semantic behavior (FR-013..015). The suite asserts the branch matching
@@ -313,18 +312,18 @@ auto main() -> int
   sg::dbc::setObserver({});
 
 #if defined(__unix__)
-  struct child_result
+  struct ChildResult
   {
-    int exit_status = -1;
-    int term_sig = 0;
+    int exitStatus = -1;
+    int termSig = 0;
     std::string output;
-    bool timed_out = false;
+    bool timedOut = false;
   };
 
-  auto run_in_child = [](auto&& child_body, int timeout_sec = 5) -> child_result
+  auto runInChild = [](auto&& childBody, int timeoutSec = 5) -> ChildResult
   {
-    child_result r {};
-    auto old_alrm = signal(SIGALRM, [](int) {});
+    ChildResult r {};
+    auto oldAlrm = signal(SIGALRM, [](int) {});
     int pipefd[2];
     if (pipe(pipefd) != 0) {
       fail("pipe failed");
@@ -338,32 +337,32 @@ auto main() -> int
       dup2(pipefd[1], STDOUT_FILENO);
       dup2(pipefd[1], STDERR_FILENO);
       close(pipefd[1]);
-      if (timeout_sec > 0) {
-        alarm(static_cast<unsigned>(timeout_sec));
+      if (timeoutSec > 0) {
+        alarm(static_cast<unsigned>(timeoutSec));
       }
-      child_body();
+      childBody();
       _exit(0);
     }
     close(pipefd[1]);
-    if (timeout_sec > 0) {
-      alarm(static_cast<unsigned>(timeout_sec));
+    if (timeoutSec > 0) {
+      alarm(static_cast<unsigned>(timeoutSec));
     }
     int status = 0;
     pid_t w = waitpid(pid, &status, 0);
     alarm(0);
-    signal(SIGALRM, old_alrm);
+    signal(SIGALRM, oldAlrm);
     if (w < 0
-        || (timeout_sec > 0 && WIFSIGNALED(status)
+        || (timeoutSec > 0 && WIFSIGNALED(status)
             && WTERMSIG(status) == SIGALRM))
     {
       kill(pid, SIGKILL);
       waitpid(pid, &status, 0);
-      r.timed_out = true;
+      r.timedOut = true;
     }
     if (WIFSIGNALED(status)) {
-      r.term_sig = WTERMSIG(status);
+      r.termSig = WTERMSIG(status);
     } else if (WIFEXITED(status)) {
-      r.exit_status = WEXITSTATUS(status);
+      r.exitStatus = WEXITSTATUS(status);
     }
     char buf[8192];
     ssize_t n = read(pipefd[0], buf, sizeof(buf) - 1);
@@ -380,7 +379,7 @@ auto main() -> int
   // structured stderr, not catchable by try/catch in child.
 #if defined(__unix__)
   if (SG_CONTRACTS_SEMANTIC == 2) {
-    auto res = run_in_child(
+    auto res = runInChild(
         []
         {
           try {
@@ -392,16 +391,16 @@ auto main() -> int
           _exit(99);
         },
         5);
-    bool is_sigabrt = (res.term_sig == SIGABRT);
-    bool has_structured = res.output.find("[precondition]") != std::string::npos
+    bool isSigabrt = (res.termSig == SIGABRT);
+    bool hasStructured = res.output.find("[precondition]") != std::string::npos
         && res.output.find("default: must abort not catch") != std::string::npos
         && res.output.find("(predicate:") != std::string::npos
         && res.output.find(" at ") != std::string::npos;
-    bool no_catch_marker =
+    bool noCatchMarker =
         res.output.find("CAUGHT-IN-CHILD") == std::string::npos;
-    check(is_sigabrt, "(a) default response must SIGABRT");
-    check(has_structured, "(a) default diagnostic on stderr");
-    check(no_catch_marker, "(a) not catchable");
+    check(isSigabrt, "(a) default response must SIGABRT");
+    check(hasStructured, "(a) default diagnostic on stderr");
+    check(noCatchMarker, "(a) not catchable");
   }
 #else
   std::printf("(a) default-response fork test: SKIPPED (non-unix)\n");
@@ -412,17 +411,17 @@ auto main() -> int
   {
     sg::dbc::ViolationRecord r1 {};
     sg::dbc::ViolationRecord r2 {};
-    sg::dbc::setObserver(record_into(r1));
+    sg::dbc::setObserver(recordInto(r1));
     sg::dbc::setObserver(
         [&r2](sg::dbc::ViolationRecord const& recb)
         {
           r2 = recb;
-          throw violation_caught {recb};
+          throw ViolationCaught {recb};
         });
     bool caught = false;
     try {
       SG_REQUIRE(false, "second-observer");
-    } catch (violation_caught const&) {
+    } catch (ViolationCaught const&) {
       caught = true;
     }
     check(caught, "(b) second observer threw");
@@ -438,7 +437,7 @@ auto main() -> int
   // arm.
 #if defined(__unix__)
   if (SG_CONTRACTS_SEMANTIC == 2) {
-    struct unique_exc : std::exception
+    struct UniqueExc : std::exception
     {
       const char* what() const noexcept override
       {
@@ -446,24 +445,24 @@ auto main() -> int
       }
     };
 
-    auto res = run_in_child(
+    auto res = runInChild(
         []
         {
           sg::dbc::setObserver([](sg::dbc::ViolationRecord const&)
-                               { throw unique_exc {}; });
+                               { throw UniqueExc {}; });
           SG_REQUIRE(false, "observer-throw");
           _exit(77);
         },
         5);
     // observer path: no default diagnostic emitted (report returns before
     // abort)
-    bool no_default_diag =
+    bool noDefaultDiag =
         res.output.find("contract violation") == std::string::npos;
-    bool died = (res.term_sig != 0 || res.exit_status != 0);
+    bool died = (res.termSig != 0 || res.exitStatus != 0);
     // On uncaught, std::terminate typically aborts (SIGABRT or SIGSEGV), but
     // absence of the default diag proves we took the throw path not abort path.
     check(died, "(c) child died on observer throw");
-    check(no_default_diag, "(c) died via exception (no default response diag)");
+    check(noDefaultDiag, "(c) died via exception (no default response diag)");
   }
 #else
   std::printf("(c) observer-throw fork test: SKIPPED (non-unix)\n");
@@ -473,18 +472,18 @@ auto main() -> int
   // (d) violation inside noexcept function terminates via response; no
   // exception escapes the noexcept site.
   {
-    auto noexcept_violator = []() noexcept
+    auto noexceptViolator = []() noexcept
     { SG_REQUIRE(false, "noexcept-violation"); };
 #  if defined(__unix__)
     if (SG_CONTRACTS_SEMANTIC == 2) {
-      auto res = run_in_child(
+      auto res = runInChild(
           [&]
           {
-            noexcept_violator();
+            noexceptViolator();
             _exit(0);
           },
           5);
-      bool died = (res.term_sig == SIGABRT || res.exit_status != 0);
+      bool died = (res.termSig == SIGABRT || res.exitStatus != 0);
       check(died, "(d) noexcept site still terminates via response");
     }
 #  else
@@ -504,7 +503,7 @@ auto main() -> int
 #if defined(__unix__)
   if (SG_CONTRACTS_SEMANTIC == 2) {
     std::printf("--- (e) re-entry recursive violation probe (TDD RED) ---\n");
-    auto res = run_in_child(
+    auto res = runInChild(
         []
         {
           sg::dbc::setObserver(
@@ -524,12 +523,12 @@ auto main() -> int
     std::fprintf(
         stderr,
         "(e) re-entry result: sig=%d exit=%d timeout=%d out[:200]=%.200s\n",
-        res.term_sig,
-        res.exit_status,
-        static_cast<int>(res.timed_out),
+        res.termSig,
+        res.exitStatus,
+        static_cast<int>(res.timedOut),
         res.output.c_str());
-    check(!res.timed_out, "(e) nested violation did not recurse unboundedly");
-    check(res.term_sig == SIGABRT, "(e) still terminates via response");
+    check(!res.timedOut, "(e) nested violation did not recurse unboundedly");
+    check(res.termSig == SIGABRT, "(e) still terminates via response");
   }
 #else
   std::printf("(e) re-entry red probe: SKIPPED (non-unix)\n");
@@ -566,20 +565,20 @@ auto main() -> int
   sg::dbc::setObserver({});
 
   {
-    int const held_i = require_positive(1);
-    check(held_i == 1, "templates: holding int instantiation does not abort");
-    unsigned const held_u = require_positive(1U);
-    check(held_u == 1U,
+    int const heldI = requirePositive(1);
+    check(heldI == 1, "templates: holding int instantiation does not abort");
+    unsigned const heldU = requirePositive(1U);
+    check(heldU == 1U,
           "templates: holding unsigned instantiation does not abort");
 #  if defined(__unix__)
-    auto res = run_in_child(
+    auto res = runInChild(
         []
         {
-          (void)require_positive(0);
+          (void)requirePositive(0);
           _exit(0);
         },
         5);
-    check(res.term_sig == SIGABRT, "templates: violating instantiation aborts");
+    check(res.termSig == SIGABRT, "templates: violating instantiation aborts");
 #  else
     std::printf("templates: violating instantiation: SKIPPED (non-unix)\n");
 #  endif
@@ -587,75 +586,73 @@ auto main() -> int
 
   {
     sg::dbc::ViolationRecord vrec {};
-    bool const derived_fired = capture_violation(vrec,
-                                                 []
-                                                 {
-                                                   contract_derived derived;
-                                                   derived.gated(-1);
-                                                   contract_base& as_base =
-                                                       derived;
-                                                   as_base.gated(-1);
-                                                 });
-    check(!derived_fired,
+    bool const derivedFired = captureViolation(vrec,
+                                               []
+                                               {
+                                                 ContractDerived derived;
+                                                 derived.gated(-1);
+                                                 ContractBase& asBase = derived;
+                                                 asBase.gated(-1);
+                                               });
+    check(!derivedFired,
           "virtual: derived override without restated contract does not fire");
     sg::dbc::setObserver({});
 #  if defined(__unix__)
-    auto res = run_in_child(
+    auto res = runInChild(
         []
         {
-          contract_base base;
+          ContractBase base;
           base.gated(-1);
           _exit(0);
         },
         5);
-    check(res.term_sig == SIGABRT, "virtual: base body still aborts");
+    check(res.termSig == SIGABRT, "virtual: base body still aborts");
 #  else
     std::printf("virtual: base abort: SKIPPED (non-unix)\n");
 #  endif
   }
 
   {
-    placement_host host;
+    PlacementHost host;
     check(host.peek() == 1, "placement: ctor exit holding; const entry holds");
     host.mutate();
     check(host.peek() == 2, "placement: non-const exit holding");
 #  if defined(__unix__)
-    auto dtor_res = run_in_child(
+    auto dtorRes = runInChild(
         []
         {
-          placement_host poisoned;
+          PlacementHost poisoned;
           poisoned.poison();
         },
         5);
-    check(dtor_res.term_sig == SIGABRT, "placement: dtor entry aborts");
-    check(dtor_res.output.find("dtor-entry: value > 0") != std::string::npos,
+    check(dtorRes.termSig == SIGABRT, "placement: dtor entry aborts");
+    check(dtorRes.output.find("dtor-entry: value > 0") != std::string::npos,
           "placement: dtor entry diagnostic");
 
-    auto exit_res = run_in_child(
+    auto exitRes = runInChild(
         []
         {
-          placement_host broken;
-          broken.break_at_exit();
+          PlacementHost broken;
+          broken.breakAtExit();
           _exit(0);
         },
         5);
-    check(exit_res.term_sig == SIGABRT, "placement: non-const exit aborts");
-    check(
-        exit_res.output.find("non-const-exit: value > 0") != std::string::npos,
-        "placement: non-const exit diagnostic");
+    check(exitRes.termSig == SIGABRT, "placement: non-const exit aborts");
+    check(exitRes.output.find("non-const-exit: value > 0") != std::string::npos,
+          "placement: non-const exit diagnostic");
 
-    auto const_res = run_in_child(
+    auto constRes = runInChild(
         []
         {
-          placement_host poisoned;
+          PlacementHost poisoned;
           poisoned.poison();
           (void)poisoned.peek();
           _exit(0);
         },
         5);
-    check(const_res.term_sig == SIGABRT,
+    check(constRes.termSig == SIGABRT,
           "placement: const entry-only aborts at entry");
-    check(const_res.output.find("const-entry-only: value > 0")
+    check(constRes.output.find("const-entry-only: value > 0")
               != std::string::npos,
           "placement: const entry-only diagnostic");
 #  else

@@ -26,42 +26,42 @@
 namespace sg::counters::detail
 {
 
-auto group_read_short(const std::int64_t returned,
-                      const std::size_t header_bytes) noexcept -> bool
+auto groupReadShort(const std::int64_t returned,
+                    const std::size_t headerBytes) noexcept -> bool
 {
   // Both operands are a read count and a header size, and the cast names
   // the one signed type they are compared in. The read count is not
   // negative on this path, and the check asks for a common type here,
   // which is what the cast is.
   // NOLINTNEXTLINE(modernize-use-integer-sign-comparison)
-  const bool short_read = returned < static_cast<std::int64_t>(header_bytes);
+  const bool shortRead = returned < static_cast<std::int64_t>(headerBytes);
   // A count the syscall refused is negative, and a negative count falls
   // below any header size, so a read that produced no count reads short
   // as well (FR-006).
-  SG_ENSURE(returned < 0 ? short_read : true,
+  SG_ENSURE(returned < 0 ? shortRead : true,
             "the verdict is true exactly when the count is below the "
             "header size, and a count the syscall refused reads short "
             "(FR-006)");
-  return short_read;
+  return shortRead;
 }
 
-auto fast_pair_disclosed(const bool stable,
-                         const std::uint64_t enabled,
-                         const std::uint64_t running,
-                         std::uint64_t& out_enabled,
-                         std::uint64_t& out_running) noexcept -> bool
+auto fastPairDisclosed(const bool stable,
+                       const std::uint64_t enabled,
+                       const std::uint64_t running,
+                       std::uint64_t& outEnabled,
+                       std::uint64_t& outRunning) noexcept -> bool
 {
   if (!stable) {
-    out_enabled = 0;
-    out_running = 0;
+    outEnabled = 0;
+    outRunning = 0;
     return false;
   }
-  out_enabled = enabled;
-  out_running = running;
+  outEnabled = enabled;
+  outRunning = running;
   // The postcondition states two facts, and DeMorgan's form of them
   // states neither on its own. It is a contract, so it keeps its shape.
   // NOLINTNEXTLINE(readability-simplify-boolean-expr)
-  SG_ENSURE(out_enabled == enabled && out_running == running,
+  SG_ENSURE(outEnabled == enabled && outRunning == running,
             "a stable pair publishes the page's own two values (FR-005)");
   return true;
 }
@@ -70,19 +70,19 @@ namespace
 {
 
 // Where one managed leaf's point comes from inside its device group.
-enum class slot_source : std::uint8_t
+enum class SlotSource : std::uint8_t
 {
-  member,
-  time_enabled,
-  time_running,
-  disclosure,
+  MEMBER,
+  TIME_ENABLED,
+  TIME_RUNNING,
+  DISCLOSURE,
 };
 
-struct leaf_slot
+struct LeafSlot
 {
   std::size_t group = 0;
   std::size_t index = 0;  // member position, unused for the time pair
-  slot_source source = slot_source::member;
+  SlotSource source = SlotSource::MEMBER;
   // The plan's disclosure column for the window that owns this slot, or
   // `LeafSet::kNoDisclosureColumn`. A disclosure is written into the
   // column the plan named. A plan with more than one read group gives
@@ -92,11 +92,11 @@ struct leaf_slot
 };
 
 // One requested leaf resolved against the merged catalog.
-struct resolved_leaf
+struct ResolvedLeaf
 {
   std::size_t device = 0;
-  const pmu_entry* entry = nullptr;
-  slot_source source = slot_source::member;
+  const PmuEntry* entry = nullptr;
+  SlotSource source = SlotSource::MEMBER;
   // The plan's disclosure column, carried on the resolved list because the
   // window builders read the list and not the leaf set the list came from.
   // A disclosure is written into the column the plan named rather than
@@ -108,57 +108,57 @@ struct resolved_leaf
 
 // Device to group index, assigned in first-appearance order so the
 // group layout is deterministic (FR-024).
-class group_layout
+class GroupLayout
 {
 public:
-  explicit group_layout(const std::size_t devices)
-      : m_group_of_device(devices, static_cast<std::size_t>(-1))
+  explicit GroupLayout(const std::size_t devices)
+      : m_groupOfDevice(devices, static_cast<std::size_t>(-1))
   {
   }
 
-  void assign(const std::vector<resolved_leaf>& leaves) noexcept
+  void assign(const std::vector<ResolvedLeaf>& leaves) noexcept
   {
     for (const auto& leaf : leaves) {
-      if (leaf.source != slot_source::member) {
+      if (leaf.source != SlotSource::MEMBER) {
         continue;
       }
-      if (m_group_of_device[leaf.device] != static_cast<std::size_t>(-1)) {
+      if (m_groupOfDevice[leaf.device] != static_cast<std::size_t>(-1)) {
         continue;
       }
-      m_group_of_device[leaf.device] = m_group_count;
-      ++m_group_count;
+      m_groupOfDevice[leaf.device] = m_groupCount;
+      ++m_groupCount;
     }
   }
 
-  [[nodiscard]] auto group_of(const std::size_t device) const noexcept
+  [[nodiscard]] auto groupOf(const std::size_t device) const noexcept
       -> std::size_t
   {
-    return m_group_of_device[device];
+    return m_groupOfDevice[device];
   }
 
   [[nodiscard]] auto count() const noexcept -> std::size_t
   {
-    return m_group_count;
+    return m_groupCount;
   }
 
 private:
-  std::vector<std::size_t> m_group_of_device;
-  std::size_t m_group_count = 0;
+  std::vector<std::size_t> m_groupOfDevice;
+  std::size_t m_groupCount = 0;
 };
 
 // Resolves every requested address against the catalog in the order
 // asked, so the sink order equals the column order (C-PRO-2). Null on
 // any address this provider cannot serve.
-auto resolve(const pmu_state& state,
+auto resolve(const PmuState& state,
              const LeafSet& leaves,
-             std::vector<resolved_leaf>& out) -> bool
+             std::vector<ResolvedLeaf>& out) -> bool
 {
   if (leaves.addresses.empty()) {
     return false;
   }
-  std::map<std::string, std::size_t> device_index;
+  std::map<std::string, std::size_t> deviceIndex;
   for (std::size_t index = 0; index < state.devices.size(); ++index) {
-    device_index.emplace(state.devices[index].path, index);
+    deviceIndex.emplace(state.devices[index].path, index);
   }
   out.clear();
   out.reserve(leaves.addresses.size());
@@ -167,14 +167,14 @@ auto resolve(const pmu_state& state,
     if (slash == std::string::npos) {
       return false;
     }
-    const std::string device_name = address.substr(0, slash);
+    const std::string deviceName = address.substr(0, slash);
     const std::string leafName = address.substr(slash + 1);
-    const auto located = device_index.find(device_name);
-    if (located == device_index.end()) {
+    const auto located = deviceIndex.find(deviceName);
+    if (located == deviceIndex.end()) {
       return false;
     }
     const auto& device = state.devices[located->second];
-    const pmu_entry* found = nullptr;
+    const PmuEntry* found = nullptr;
     for (const auto& entry : device.entries) {
       if (entry.name == leafName) {
         found = &entry;
@@ -184,21 +184,21 @@ auto resolve(const pmu_state& state,
     if (found == nullptr || found->avail != Availability::COUNTABLE) {
       return false;
     }
-    slot_source source = slot_source::member;
+    SlotSource source = SlotSource::MEMBER;
     if (leafName == "enabled") {
-      source = slot_source::time_enabled;
+      source = SlotSource::TIME_ENABLED;
     } else if (leafName == "running") {
-      source = slot_source::time_running;
+      source = SlotSource::TIME_RUNNING;
     }
-    out.push_back(resolved_leaf {
+    out.push_back(ResolvedLeaf {
         .device = located->second, .entry = found, .source = source});
   }
   return true;
 }
 
-auto fill_attr(perf_event_attr& attr,
-               const pmu_device& device,
-               const pmu_entry& entry) -> void
+auto fillAttr(perf_event_attr& attr,
+              const PmuDevice& device,
+              const PmuEntry& entry) -> void
 {
   attr = perf_event_attr {};
   attr.type = static_cast<std::uint32_t>(device.type);
@@ -227,7 +227,7 @@ auto fill_attr(perf_event_attr& attr,
 // running nanoseconds, then one value per member.
 constexpr std::size_t kHeaderWords = 3;
 
-struct group_state
+struct GroupState
 {
   int leader = -1;
   std::vector<int> members;
@@ -238,10 +238,10 @@ struct group_state
 
 }  // namespace
 
-struct pmu_window final : WindowReader
+struct PmuWindow final : WindowReader
 {
-  std::vector<leaf_slot> slots;
-  std::vector<group_state> groups;
+  std::vector<LeafSlot> slots;
+  std::vector<GroupState> groups;
   std::vector<std::uint64_t> scratch;
   // True when a group read this action produced no count, so the
   // disclosure column names a gap beside the zeros (FR-006).
@@ -250,18 +250,18 @@ struct pmu_window final : WindowReader
   // Every leaf opens into exactly one group, so the leaf count bounds the
   // member count of every group; the scratch covers the header and one word
   // per member of the widest group, and the sampling path never grows it.
-  explicit pmu_window(const std::size_t leaf_count)
+  explicit PmuWindow(const std::size_t leafCount)
   {
-    setThunk(&read_direct);
-    scratch.resize(kHeaderWords + leaf_count);
+    setThunk(&readDirect);
+    scratch.resize(kHeaderWords + leafCount);
   }
 
-  pmu_window(const pmu_window&) = delete;
-  auto operator=(const pmu_window&) -> pmu_window& = delete;
-  pmu_window(pmu_window&&) = delete;
-  auto operator=(pmu_window&&) -> pmu_window& = delete;
+  PmuWindow(const PmuWindow&) = delete;
+  auto operator=(const PmuWindow&) -> PmuWindow& = delete;
+  PmuWindow(PmuWindow&&) = delete;
+  auto operator=(PmuWindow&&) -> PmuWindow& = delete;
 
-  ~pmu_window() override
+  ~PmuWindow() override
   {
     for (auto& group : groups) {
       // LCOV_EXCL_START : coverage exclusion (T140): the member release. A
@@ -297,7 +297,7 @@ struct pmu_window final : WindowReader
       // header and one word per member of any group: the read below never
       // grows it, and the sampling path allocates nothing (FR-026).
       const auto got = ::read(group.leader, scratch.data(), want);
-      if (group_read_short(got, kHeaderWords * sizeof(std::uint64_t)))
+      if (groupReadShort(got, kHeaderWords * sizeof(std::uint64_t)))
       {  // A group the kernel could not
          // read this action reports no
         // point; the action is marked in the disclosure column beside the
@@ -331,16 +331,16 @@ struct pmu_window final : WindowReader
       // member count, which a group read never does while every member is
       // enabled, and the switch has no fourth enumerator to fall through to.
       switch (slot.source) {  // LCOV_EXCL_BR_LINE
-        case slot_source::member:
+        case SlotSource::MEMBER:
           sink.put(group.values[slot.index]);
           break;
-        case slot_source::time_enabled:
+        case SlotSource::TIME_ENABLED:
           sink.put(group.enabled);
           break;
-        case slot_source::time_running:
+        case SlotSource::TIME_RUNNING:
           sink.put(group.running);
           break;
-        case slot_source::disclosure:
+        case SlotSource::DISCLOSURE:
           sink.putDisclosure(
               slot.disclosure,
               static_cast<std::uint64_t>(gapped ? Availability::GAP
@@ -355,9 +355,9 @@ struct pmu_window final : WindowReader
   // final type, so the reference names a group window on every call.
   // `final` fixes the target of the `readPoints` call, so the sampling
   // path takes one indirect call and no vtable lookup (FR-022, T146).
-  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
+  static auto readDirect(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<pmu_window&>(base).readPoints(sink);
+    static_cast<PmuWindow&>(base).readPoints(sink);
   }
 
   // LCOV_EXCL_STOP
@@ -369,16 +369,16 @@ struct pmu_window final : WindowReader
 // lets open a per-process user event, so the reads below carry no blanket
 // coverage exclusion; the two arms no host reaches are marked at their own
 // sites.
-struct pmu_fast_window final : WindowReader
+struct PmuFastWindow final : WindowReader
 {
-  struct member
+  struct Member
   {
-    std::unique_ptr<fast_context> context;
+    std::unique_ptr<FastContext> context;
     std::uint64_t value = 0;
   };
 
-  std::vector<leaf_slot> slots;
-  std::vector<member> members;
+  std::vector<LeafSlot> slots;
+  std::vector<Member> members;
   // The member whose page carries the group's enabled/running pair, the
   // pair a syscall-mode window reads from the leader (FR-041).
   std::size_t leader = 0;
@@ -389,14 +389,14 @@ struct pmu_fast_window final : WindowReader
   // (FR-002, FR-003, FR-005).
   bool gapped = false;
 
-  pmu_fast_window() { setThunk(&read_direct); }
+  PmuFastWindow() { setThunk(&readDirect); }
 
-  pmu_fast_window(const pmu_fast_window&) = delete;
-  auto operator=(const pmu_fast_window&) -> pmu_fast_window& = delete;
-  pmu_fast_window(pmu_fast_window&&) = delete;
-  auto operator=(pmu_fast_window&&) -> pmu_fast_window& = delete;
+  PmuFastWindow(const PmuFastWindow&) = delete;
+  auto operator=(const PmuFastWindow&) -> PmuFastWindow& = delete;
+  PmuFastWindow(PmuFastWindow&&) = delete;
+  auto operator=(PmuFastWindow&&) -> PmuFastWindow& = delete;
 
-  ~pmu_fast_window() override;
+  ~PmuFastWindow() override;
 
   // LCOV_EXCL_START : coverage exclusion (T140): the mapped-page read and the
   // thunk that drives it. Both need member contexts over mappings the kernel
@@ -410,16 +410,16 @@ struct pmu_fast_window final : WindowReader
       // LCOV_EXCL_BR_START : coverage exclusion (T140): the retry arm. The
       // sequence moves only when the kernel rewrites the page between the
       // two reads of it, which a test cannot force deterministically. The
-      // same verdict is covered for both arms by `fast_pair_stable` inside
-      // `fast_decode` in `test/source/counters_linux_pmu_seam_test.cpp`.
-      auto verdict = fast_context_read(*one.context, one.value);
+      // same verdict is covered for both arms by `fastPairStable` inside
+      // `fastDecode` in `test/source/counters_linux_pmu_seam_test.cpp`.
+      auto verdict = fastContextRead(*one.context, one.value);
       if (verdict  // LCOV_EXCL_BR_LINE
-          == fast_read_verdict::unstable)  // LCOV_EXCL_BR_LINE
+          == FastReadVerdict::UNSTABLE)  // LCOV_EXCL_BR_LINE
       {
         // The page sequence moved under the read; the protocol's
         // stated fallback is one more attempt (FR-040). The retry's own
         // verdict is the one that decides the point.
-        verdict = fast_context_read(*one.context, one.value);  // LCOV_EXCL_LINE
+        verdict = fastContextRead(*one.context, one.value);  // LCOV_EXCL_LINE
       }  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_BR_STOP
       // Every verdict is judged, the retry's trigger among them: a read the
@@ -430,9 +430,9 @@ struct pmu_fast_window final : WindowReader
       // still-unstable arms on a granted mapping. They need the kernel to
       // clear the capability bit, or to move the page sequence across both
       // reads, which a test cannot force; every verdict is covered for both
-      // arms by `fast_decode` over synthetic pages in
+      // arms by `fastDecode` over synthetic pages in
       // `test/source/counters_linux_pmu_seam_test.cpp`.
-      if (verdict != fast_read_verdict::ok) {  // LCOV_EXCL_BR_LINE
+      if (verdict != FastReadVerdict::OK) {  // LCOV_EXCL_BR_LINE
         one.value = 0;  // LCOV_EXCL_LINE
         gapped = true;  // LCOV_EXCL_LINE
       }  // LCOV_EXCL_BR_LINE
@@ -445,21 +445,21 @@ struct pmu_fast_window final : WindowReader
     // no pair. It needs the kernel to rewrite the leader's page between the
     // two reads of its sequence, which a test cannot force
     // deterministically; the comparison itself is covered for both arms by
-    // `fast_pair_stable`.
+    // `fastPairStable`.
     // The pair's disclosure is the extracted decision, so a registered
     // test drives both of its arms over synthetic pages and the coverage
     // gates measure the decision itself (FR-005, FR-046).
-    std::uint64_t page_enabled = 0;
-    std::uint64_t page_running = 0;
+    std::uint64_t pageEnabled = 0;
+    std::uint64_t pageRunning = 0;
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the branch the
     // kernel alone can take here. It needs the kernel to rewrite the
     // leader's page between the two reads of its sequence; the decision is
-    // covered for both arms by `fast_pair_disclosed` in
+    // covered for both arms by `fastPairDisclosed` in
     // `test/source/counters_linux_pmu_seam_test.cpp`.
-    const bool pair_stable = fast_context_time_pair(
-        *members.at(leader).context, page_enabled, page_running);
-    if (!fast_pair_disclosed(
-            pair_stable, page_enabled, page_running, enabled, running))
+    const bool pairStable = fastContextTimePair(
+        *members.at(leader).context, pageEnabled, pageRunning);
+    if (!fastPairDisclosed(
+            pairStable, pageEnabled, pageRunning, enabled, running))
     {  // LCOV_EXCL_BR_LINE
       // A leader whose page disclosed no stable pair this action reports
       // none; the pair discloses ratio 0 and the action is marked beside
@@ -473,16 +473,16 @@ struct pmu_fast_window final : WindowReader
       // so the arc is the block the compiler emits for a value the
       // enumeration cannot hold.
       switch (slot.source) {  // LCOV_EXCL_BR_LINE
-        case slot_source::member:
+        case SlotSource::MEMBER:
           sink.put(members[slot.index].value);
           break;
-        case slot_source::time_enabled:
+        case SlotSource::TIME_ENABLED:
           sink.put(enabled);
           break;
-        case slot_source::time_running:
+        case SlotSource::TIME_RUNNING:
           sink.put(running);
           break;
-        case slot_source::disclosure:
+        case SlotSource::DISCLOSURE:
           sink.putDisclosure(
               slot.disclosure,
               static_cast<std::uint64_t>(gapped ? Availability::GAP
@@ -498,9 +498,9 @@ struct pmu_fast_window final : WindowReader
   // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
+  static auto readDirect(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<pmu_fast_window&>(base).readPoints(sink);
+    static_cast<PmuFastWindow&>(base).readPoints(sink);
   }
 
   // LCOV_EXCL_STOP
@@ -515,8 +515,7 @@ namespace
 // and the destructor calls it for the whole window. Closing a context
 // that already released touches nothing, so the three call sites reach one
 // release and none of them can release twice.
-void release_fast_members(
-    std::vector<pmu_fast_window::member>& acquired) noexcept
+void releaseFastMembers(std::vector<PmuFastWindow::Member>& acquired) noexcept
 {
   for (auto& one : acquired) {  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_START : coverage exclusion (T056): the member carrying no
@@ -524,7 +523,7 @@ void release_fast_members(
     // check, and that check returns before the push, so a member reaches
     // this loop only with a context to release (FR-014).
     if (one.context) {  // LCOV_EXCL_LINE
-      fast_context_close(*one.context);  // LCOV_EXCL_LINE
+      fastContextClose(*one.context);  // LCOV_EXCL_LINE
     }
     // LCOV_EXCL_BR_STOP
   }
@@ -534,10 +533,10 @@ void release_fast_members(
 // Every requested leaf must have the catalog's fast mode recorded, so
 // the read the plan performs is the read the catalog disclosed
 // (FR-023, C-PRO-4).
-auto all_fast(const std::vector<resolved_leaf>& leaves) -> bool
+auto allFast(const std::vector<ResolvedLeaf>& leaves) -> bool
 {
   for (const auto& leaf : leaves) {
-    if (leaf.source == slot_source::member
+    if (leaf.source == SlotSource::MEMBER
         && leaf.entry->mode != ReadMode::FAST_RDPMC)
     {
       return false;
@@ -546,24 +545,24 @@ auto all_fast(const std::vector<resolved_leaf>& leaves) -> bool
   return true;
 }
 
-auto open_group_window(const pmu_state& state,
-                       const std::vector<resolved_leaf>& leaves,
-                       const group_layout& layout,
-                       const Target& where) -> std::unique_ptr<WindowReader>
+auto openGroupWindow(const PmuState& state,
+                     const std::vector<ResolvedLeaf>& leaves,
+                     const GroupLayout& layout,
+                     const Target& where) -> std::unique_ptr<WindowReader>
 {
   if (layout.count() == 0) {
     return nullptr;
   }
-  const auto [pid, cpu] = leader_pid(where);
-  auto window = std::make_unique<pmu_window>(leaves.size());
+  const auto [pid, cpu] = leaderPid(where);
+  auto window = std::make_unique<PmuWindow>(leaves.size());
   window->groups.resize(layout.count());
   window->slots.reserve(leaves.size());
   for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
-    if (one.source == slot_source::disclosure) {  // LCOV_EXCL_BR_LINE
+    if (one.source == SlotSource::DISCLOSURE) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the disclosure slot.
       // A member open that the kernel refuses returns before this slot is
       // registered. The host that grants perf_event_open reaches it.
-      window->slots.push_back(leaf_slot {
+      window->slots.push_back(LeafSlot {
           .group = 0,
           .index = 0,
           .source = one.source,
@@ -572,8 +571,8 @@ auto open_group_window(const pmu_state& state,
       continue;
       // LCOV_EXCL_STOP
     }
-    const std::size_t group = layout.group_of(one.device);
-    if (one.source != slot_source::member) {  // LCOV_EXCL_BR_LINE
+    const std::size_t group = layout.groupOf(one.device);
+    if (one.source != SlotSource::MEMBER) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the time-pair slot. A
       // plan carries an `enabled` or `running` leaf only where the catalog
       // reports an event countable, and countability is a granted
@@ -581,14 +580,14 @@ auto open_group_window(const pmu_state& state,
       // publishes none, so it registers no time-pair slot; the host that
       // grants the syscall registers one per pair leaf.
       window->slots.push_back(
-          leaf_slot {.group = group, .index = 0, .source = one.source});
+          LeafSlot {.group = group, .index = 0, .source = one.source});
       continue;
       // LCOV_EXCL_STOP
     }
     perf_event_attr attr {};
-    fill_attr(attr, state.devices[one.device], *one.entry);
-    const bool is_leader = window->groups[group].leader < 0;
-    attr.disabled = is_leader ? 1U : 0U;  // LCOV_EXCL_BR_LINE
+    fillAttr(attr, state.devices[one.device], *one.entry);
+    const bool isLeader = window->groups[group].leader < 0;
+    attr.disabled = isLeader ? 1U : 0U;  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_START : coverage exclusion (T140): the granted open. A
     // runner whose `perf_event_open` is refused answers every member with
     // `fd < 0` and returns above, so it reaches neither the granted half
@@ -599,20 +598,20 @@ auto open_group_window(const pmu_state& state,
                               &attr,
                               pid,
                               cpu,
-                              is_leader ? -1 : window->groups[group].leader,
+                              isLeader ? -1 : window->groups[group].leader,
                               PERF_FLAG_FD_CLOEXEC);
     if (fd < 0) {  // LCOV_EXCL_BR_LINE
       return nullptr;
     }
     const int handle = static_cast<int>(fd);
-    if (is_leader) {
+    if (isLeader) {
       window->groups[group].leader = handle;
     }
     window->groups[group].members.push_back(handle);
     window->slots.push_back(
-        leaf_slot {.group = group,
-                   .index = window->groups[group].members.size() - 1,
-                   .source = slot_source::member});
+        LeafSlot {.group = group,
+                  .index = window->groups[group].members.size() - 1,
+                  .source = SlotSource::MEMBER});
     // LCOV_EXCL_STOP
   }
   // LCOV_EXCL_START : coverage exclusion (T066): both arms need a
@@ -642,38 +641,38 @@ auto open_group_window(const pmu_state& state,
 // own sites: the multi-source refusal and the empty-member refusal carry
 // fixtures in `test/source/counters_linux_pmu_seam_test.cpp`, and the
 // context-open refusal is the same refusal that fixture drives directly.
-auto open_fast_window(const pmu_state& state,
-                      const std::vector<resolved_leaf>& leaves,
-                      const group_layout& layout,
-                      const Target& where) -> std::unique_ptr<WindowReader>
+auto openFastWindow(const PmuState& state,
+                    const std::vector<ResolvedLeaf>& leaves,
+                    const GroupLayout& layout,
+                    const Target& where) -> std::unique_ptr<WindowReader>
 {
   if (layout.count() != 1) {
     // The mapped-page protocol reads the counters of one event source;
     // a plan spanning several sources takes the group path.
     return nullptr;
   }
-  auto window = std::make_unique<pmu_fast_window>();
+  auto window = std::make_unique<PmuFastWindow>();
   window->slots.reserve(leaves.size());
   std::size_t leader = static_cast<std::size_t>(-1);
   for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
-    if (one.source == slot_source::disclosure) {  // LCOV_EXCL_BR_LINE
+    if (one.source == SlotSource::DISCLOSURE) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the fast-window
       // disclosure slot, on the same refused-open ground as the group
       // window's slot above.
-      window->slots.push_back(leaf_slot {.group = 0,
-                                         .index = 0,
-                                         .source = one.source,
-                                         .disclosure = one.disclosure});
+      window->slots.push_back(LeafSlot {.group = 0,
+                                        .index = 0,
+                                        .source = one.source,
+                                        .disclosure = one.disclosure});
       continue;
       // LCOV_EXCL_STOP
     }
-    if (one.source != slot_source::member) {  // LCOV_EXCL_BR_LINE
+    if (one.source != SlotSource::MEMBER) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the time-pair slot of
       // the fast window, on the same countable-entry ground as the group
       // window's slot above. A runner whose `perf_event_open` is refused
       // publishes no countable entry and registers no such slot; the host
       // that grants the syscall registers one per pair leaf.
-      window->slots.push_back(leaf_slot {
+      window->slots.push_back(LeafSlot {
           .group = 0,
           .index = 0,
           .source = one.source,
@@ -688,12 +687,12 @@ auto open_fast_window(const pmu_state& state,
     // dropped, so the window refuses it and the caller's group path
     // encodes the whole entry (FR-037, FR-040).
     std::uint64_t config = 0;
-    bool single_word = true;
+    bool singleWord = true;
     for (const auto& [word, value] : one.entry->words) {
       if (word == 0) {
         config = value;
       } else {
-        single_word = false;
+        singleWord = false;
       }
     }
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that refuses a
@@ -701,13 +700,13 @@ auto open_fast_window(const pmu_state& state,
     // word above the first, which no core PMU event does; the refusal is
     // asserted for a synthetic such entry in
     // `test/source/counters_linux_pmu_seam_test.cpp`.
-    if (!single_word) {  // LCOV_EXCL_BR_LINE
-      release_fast_members(window->members);  // LCOV_EXCL_LINE
+    if (!singleWord) {  // LCOV_EXCL_BR_LINE
+      releaseFastMembers(window->members);  // LCOV_EXCL_LINE
       return nullptr;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_STOP
     auto context =
-        fast_context_open(state.devices[one.device].type, config, where);
+        fastContextOpen(state.devices[one.device].type, config, where);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that refuses
     // the whole window because one member's event was refused. It needs a
     // catalog entry the kernel counts, whose event `perf_event_open` then
@@ -715,7 +714,7 @@ auto open_fast_window(const pmu_state& state,
     // `context_open_refusal_scenario` in
     // `test/source/counters_linux_pmu_seam_test.cpp`.
     if (!context) {  // LCOV_EXCL_BR_LINE
-      release_fast_members(window->members);  // LCOV_EXCL_LINE
+      releaseFastMembers(window->members);  // LCOV_EXCL_LINE
       return nullptr;  // LCOV_EXCL_LINE
     }  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_STOP
@@ -728,10 +727,10 @@ auto open_fast_window(const pmu_state& state,
       leader = window->members.size();
     }
     window->members.push_back(
-        pmu_fast_window::member {.context = std::move(context), .value = 0});
-    window->slots.push_back(leaf_slot {.group = 0,
-                                       .index = window->members.size() - 1,
-                                       .source = slot_source::member});
+        PmuFastWindow::Member {.context = std::move(context), .value = 0});
+    window->slots.push_back(LeafSlot {.group = 0,
+                                      .index = window->members.size() - 1,
+                                      .source = SlotSource::MEMBER});
   }
   window->leader = leader;
   return window;
@@ -742,53 +741,53 @@ auto open_fast_window(const pmu_state& state,
 // window that owns it writes it last, after the counts and the ratio
 // pair's two columns. The column names no leaf address, so it resolves to
 // no entry and to no device (FR-007).
-void append_disclosure(const LeafSet& leaves,
-                       std::vector<resolved_leaf>& resolved)
+void appendDisclosure(const LeafSet& leaves,
+                      std::vector<ResolvedLeaf>& resolved)
 {
   if (leaves.disclosureColumn == LeafSet::kNoDisclosureColumn) {
     return;
   }
-  resolved.push_back(resolved_leaf {
+  resolved.push_back(ResolvedLeaf {
       .device = 0,
       .entry = nullptr,
-      .source = slot_source::disclosure,
+      .source = SlotSource::DISCLOSURE,
       .disclosure = leaves.disclosureColumn,
   });
 }
 
 }  // namespace
 
-pmu_fast_window::~pmu_fast_window()
+PmuFastWindow::~PmuFastWindow()
 {
-  release_fast_members(members);
+  releaseFastMembers(members);
 }
 
-auto pmu_open_fast_window(const pmu_state& state,
-                          const LeafSet& leaves,
-                          const Target& where) -> std::unique_ptr<WindowReader>
+auto pmuOpenFastWindow(const PmuState& state,
+                       const LeafSet& leaves,
+                       const Target& where) -> std::unique_ptr<WindowReader>
 {
-  std::vector<resolved_leaf> resolved;
+  std::vector<ResolvedLeaf> resolved;
   if (!resolve(state, leaves, resolved)) {
     return nullptr;
   }
-  append_disclosure(leaves, resolved);
-  group_layout layout(state.devices.size());
+  appendDisclosure(leaves, resolved);
+  GroupLayout layout(state.devices.size());
   layout.assign(resolved);
-  return open_fast_window(state, resolved, layout, where);
+  return openFastWindow(state, resolved, layout, where);
 }
 
-auto pmu_open_window(const pmu_state& state,
-                     const LeafSet& leaves,
-                     const Target& where) -> std::unique_ptr<WindowReader>
+auto pmuOpenWindow(const PmuState& state,
+                   const LeafSet& leaves,
+                   const Target& where) -> std::unique_ptr<WindowReader>
 {
-  std::vector<resolved_leaf> resolved;
+  std::vector<ResolvedLeaf> resolved;
   if (!resolve(state, leaves, resolved)) {
     return nullptr;
   }
-  append_disclosure(leaves, resolved);
-  group_layout layout(state.devices.size());
+  appendDisclosure(leaves, resolved);
+  GroupLayout layout(state.devices.size());
   layout.assign(resolved);
-  if (all_fast(resolved)) {
+  if (allFast(resolved)) {
     // The catalog mode is that device's own page verdict. A host-wide
     // instructions probe does not choose the read (FR-017). A fast window
     // the kernel refuses is a recoverable open failure. The group path is
@@ -799,7 +798,7 @@ auto pmu_open_window(const pmu_state& state,
     // refuses, which `open_fast_window` answers only when a member event
     // is refused (marked at its own site above). The accepting arm is
     // reached on every host that grants the mapped page.
-    if (auto fast = open_fast_window(state, resolved, layout, where); fast)
+    if (auto fast = openFastWindow(state, resolved, layout, where); fast)
     {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the fast window this
       // provider hands over. It needs the granted mapped-page opens
@@ -812,7 +811,7 @@ auto pmu_open_window(const pmu_state& state,
     // LCOV_EXCL_STOP
     // LCOV_EXCL_BR_STOP
   }
-  return open_group_window(state, resolved, layout, where);
+  return openGroupWindow(state, resolved, layout, where);
 }
 
 }  // namespace sg::counters::detail

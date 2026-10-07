@@ -55,26 +55,26 @@ constexpr bool kGatedChecksFire = true;
 // report cannot carry the check there and run_mode's refusal test does.
 constexpr bool kViolationIsReported = SG_CONTRACTS_SEMANTIC != 3;
 
-struct mode_case
+struct ModeCase
 {
   const char* name;
-  bool always_on;  // SG_REQUIRE_ALWAYS: fires in every semantic
+  bool alwaysOn;  // SG_REQUIRE_ALWAYS: fires in every semantic
 };
 
-constexpr mode_case kModes[] = {{"metric-before-finish", false},
-                                {"fold-range", false},
-                                {"fold-out-of-extent", false},
-                                {"overrun", true},
-                                {"push-cross-thread", false},
-                                {"push-decrement", false},
-                                {"push-foreign-sample", false},
-                                {"push-mixed-owner", false},
-                                {"recorder-cross-thread", false},
-                                {"scope-cross-thread", false}};
+constexpr ModeCase kModes[] = {{"metric-before-finish", false},
+                               {"fold-range", false},
+                               {"fold-out-of-extent", false},
+                               {"overrun", true},
+                               {"push-cross-thread", false},
+                               {"push-decrement", false},
+                               {"push-foreign-sample", false},
+                               {"push-mixed-owner", false},
+                               {"recorder-cross-thread", false},
+                               {"scope-cross-thread", false}};
 
-auto run_mode(const std::string& fixture,
-              const mode_case& mode,
-              const bool expect_abort) -> int
+auto runMode(const std::string& fixture,
+             const ModeCase& mode,
+             const bool expectAbort) -> int
 {
   const std::string name {mode.name};
   std::string out = "/tmp/counters_trap_checked_out.txt";
@@ -90,8 +90,8 @@ auto run_mode(const std::string& fixture,
   }
   const std::string content = body.str();
   const std::string marker = "counters-trap-survived-" + name;
-  const bool printed_marker = content.find(marker) != std::string::npos;
-  const bool reported_violation =
+  const bool printedMarker = content.find(marker) != std::string::npos;
+  const bool reportedViolation =
       content.find("(predicate: ") != std::string::npos;
   // A mode the fixture has no body for lands on the refusal path, which
   // exits non-zero with the marker absent and prints no report in any
@@ -101,7 +101,7 @@ auto run_mode(const std::string& fixture,
   const bool refused =
       content.find("fixture: unknown mode") != std::string::npos;
 
-  if (expect_abort) {
+  if (expectAbort) {
     if (status == 0) {
       std::fprintf(stderr,
                    "COUNTERS TRAP-CHECKED FAIL: mode '%s' exited 0, the "
@@ -110,7 +110,7 @@ auto run_mode(const std::string& fixture,
                    content.c_str());
       return 1;
     }
-    if (kViolationIsReported && !reported_violation) {
+    if (kViolationIsReported && !reportedViolation) {
       std::fprintf(stderr,
                    "COUNTERS TRAP-CHECKED FAIL: mode '%s' exited %d without "
                    "the contract facility's violation report, so no guard of "
@@ -120,7 +120,7 @@ auto run_mode(const std::string& fixture,
                    content.c_str());
       return 1;
     }
-    if (printed_marker) {
+    if (printedMarker) {
       std::fprintf(stderr,
                    "COUNTERS TRAP-CHECKED FAIL: mode '%s' printed its "
                    "survival marker despite aborting:\n%s\n",
@@ -152,7 +152,7 @@ auto run_mode(const std::string& fixture,
                  content.c_str());
     return 1;
   }
-  if (!printed_marker) {
+  if (!printedMarker) {
     std::fprintf(stderr,
                  "COUNTERS TRAP-CHECKED FAIL: mode '%s' exited 0 without its "
                  "survival marker:\n%s\n",
@@ -185,7 +185,7 @@ auto main(int argc, char** argv) -> int
     }
   }
   for (const auto& mode : kModes) {
-    if (run_mode(fixture, mode, mode.always_on || kGatedChecksFire) != 0) {
+    if (runMode(fixture, mode, mode.alwaysOn || kGatedChecksFire) != 0) {
       return 1;
     }
   }

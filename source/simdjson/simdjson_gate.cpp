@@ -26,6 +26,6 @@ namespace
 #if defined(__GNUC__)
 [[gnu::used]]
 #endif
-[[maybe_unused]] constinit auto const link_proof =
+[[maybe_unused]] constinit auto const kLinkProof =
     &simdjson::get_active_implementation;
 }  // namespace

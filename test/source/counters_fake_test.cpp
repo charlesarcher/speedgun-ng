@@ -46,7 +46,7 @@ auto check(const bool cond, const char* what) -> void
 
 // Exact double comparison through the bit pattern: these are exactness
 // tests, and the tolerance band has no place in them.
-auto same_double(const double lhs, const double rhs) -> bool
+auto sameDouble(const double lhs, const double rhs) -> bool
 {
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
@@ -54,7 +54,7 @@ auto same_double(const double lhs, const double rhs) -> bool
 using sg::counters::Availability;
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::expression;
+using sg::counters::Expression;
 using sg::counters::FakeProvider;
 using sg::counters::kDimSame;
 using sg::counters::LeafSet;
@@ -62,12 +62,12 @@ using sg::counters::MetricResult;
 using sg::counters::PointSink;
 using sg::counters::PointsView;
 using sg::counters::ReadMode;
-using sg::counters::system;
+using sg::counters::System;
 using sg::counters::Target;
 using sg::counters::TargetKind;
 
-using events = Dim<0, 1>;
-using time_dim = Dim<1, 0>;
+using Events = Dim<0, 1>;
+using TimeDim = Dim<1, 0>;
 
 FakeProvider* probe = nullptr;
 
@@ -94,9 +94,9 @@ auto number(const T value) -> std::string
 // `IPC = 1.31 <- instructions 12.3e9 / cycles 9.4e9, ratio 0.98`:
 //
 //   <label> = <value> <- <leaf> <delta> / <leaf> <delta>, ratio <ratio>
-auto provenance_record(const std::string_view label,
-                       const MetricResult& metric,
-                       const std::vector<PointsView>& leaves) -> std::string
+auto provenanceRecord(const std::string_view label,
+                      const MetricResult& metric,
+                      const std::vector<PointsView>& leaves) -> std::string
 {
   std::string record =
       std::string(label) + " = " + number(metric.value) + " <- ";
@@ -112,182 +112,178 @@ auto provenance_record(const std::string_view label,
   return record;
 }
 
-auto test_registration() -> void
+auto testRegistration() -> void
 {
   auto provider = std::make_unique<FakeProvider>();
-  provider->add_object("package-1", "package", "first processor package");
-  provider->add_object("package-2", "package", "second processor package");
-  provider->add_object("package-1/core-3", "cpu3", "core", "third core");
-  provider->add_counter(
+  provider->addObject("package-1", "package", "first processor package");
+  provider->addObject("package-2", "package", "second processor package");
+  provider->addObject("package-1/core-3", "cpu3", "core", "third core");
+  provider->addCounter(
       "machine", "monotonic", "nanoseconds", "monotonic wall clock");
-  provider->add_counter("machine", "drift", "ops", "idle drift counter");
-  provider->add_counter("machine", "wrap", "ops", "counter that wraps");
-  provider->add_counter(
+  provider->addCounter("machine", "drift", "ops", "idle drift counter");
+  provider->addCounter("machine", "wrap", "ops", "counter that wraps");
+  provider->addCounter(
       "package-1/core-3", "cycles", "ops", "core cycles elapsed");
-  provider->add_counter(
+  provider->addCounter(
       "package-1/core-3", "instructions", "ops", "instructions retired");
-  provider->add_counter("package-1/core-3",
-                        "stalled",
-                        "none",
-                        "stalled cycles",
-                        Availability::PERMISSION_BLOCKED);
-  provider->set_points("package-1/core-3", "cycles", {100, 300}, 100);
-  provider->set_points("package-1/core-3", "instructions", {1000, 3100}, 2100);
-  provider->set_points("machine", "drift", {5});
-  provider->set_points("machine", "wrap", {UINT64_MAX - 3, 7});
-  provider->set_points("machine", "monotonic", {0, 1000000000});
+  provider->addCounter("package-1/core-3",
+                       "stalled",
+                       "none",
+                       "stalled cycles",
+                       Availability::PERMISSION_BLOCKED);
+  provider->setPoints("package-1/core-3", "cycles", {100, 300}, 100);
+  provider->setPoints("package-1/core-3", "instructions", {1000, 3100}, 2100);
+  provider->setPoints("machine", "drift", {5});
+  provider->setPoints("machine", "wrap", {UINT64_MAX - 3, 7});
+  provider->setPoints("machine", "monotonic", {0, 1000000000});
 
   // Each scenario below reads its own counters, so the scripted position
   // starts at zero however many actions the earlier scenarios spent
   // (FR-036).
-  provider->add_object(
+  provider->addObject(
       "package-1/algebra", "scratch", "additive algebra object");
-  provider->add_counter("package-1/algebra", "addend_a", "ops", "first addend");
-  provider->add_counter(
-      "package-1/algebra", "addend_b", "ops", "second addend");
-  provider->set_points("package-1/algebra", "addend_a", {0, 2100}, 2100);
-  provider->set_points("package-1/algebra", "addend_b", {0, 200}, 200);
+  provider->addCounter("package-1/algebra", "addend_a", "ops", "first addend");
+  provider->addCounter("package-1/algebra", "addend_b", "ops", "second addend");
+  provider->setPoints("package-1/algebra", "addend_a", {0, 2100}, 2100);
+  provider->setPoints("package-1/algebra", "addend_b", {0, 200}, 200);
 
-  provider->add_object("package-1/splice", "scratch", "splice object");
-  provider->add_counter(
-      "package-1/splice", "only", "ops", "leaf spliced first");
-  provider->add_counter(
+  provider->addObject("package-1/splice", "scratch", "splice object");
+  provider->addCounter("package-1/splice", "only", "ops", "leaf spliced first");
+  provider->addCounter(
       "package-1/splice", "numerator", "ops", "quotient numerator");
-  provider->add_counter(
+  provider->addCounter(
       "package-1/splice", "denominator", "ops", "quotient denominator");
   // A fourth leaf whose delta no other leaf of this object carries, so
   // the scale node of the spliced-operand scenario reads a value of its
   // own (T176).
-  provider->add_counter("package-1/splice",
-                        "scaled_operand",
-                        "ops",
-                        "leaf the spliced scale multiplies");
-  provider->set_points("package-1/splice", "only", {0, 200}, 200);
-  provider->set_points("package-1/splice", "numerator", {0, 2100}, 2100);
-  provider->set_points("package-1/splice", "denominator", {0, 200}, 200);
-  provider->set_points("package-1/splice", "scaled_operand", {0, 400}, 400);
+  provider->addCounter("package-1/splice",
+                       "scaled_operand",
+                       "ops",
+                       "leaf the spliced scale multiplies");
+  provider->setPoints("package-1/splice", "only", {0, 200}, 200);
+  provider->setPoints("package-1/splice", "numerator", {0, 2100}, 2100);
+  provider->setPoints("package-1/splice", "denominator", {0, 200}, 200);
+  provider->setPoints("package-1/splice", "scaled_operand", {0, 400}, 400);
 
-  provider->add_object("package-1/edge", "scratch", "fold edge object");
-  provider->add_counter("package-1/edge", "single", "ops", "the only leaf");
-  provider->set_points("package-1/edge", "single", {0, 700}, 700);
+  provider->addObject("package-1/edge", "scratch", "fold edge object");
+  provider->addCounter("package-1/edge", "single", "ops", "the only leaf");
+  provider->setPoints("package-1/edge", "single", {0, 700}, 700);
 
-  provider->add_object(
+  provider->addObject(
       "package-1/move/core-1", "core", "core for move assignment");
-  provider->add_counter(
+  provider->addCounter(
       "package-1/move/core-1", "cycles", "ops", "core cycles elapsed");
-  provider->add_counter(
+  provider->addCounter(
       "package-1/move/core-1", "instructions", "ops", "instructions retired");
-  provider->add_counter(
+  provider->addCounter(
       "package-1/move/core-1", "deep_only", "ops", "counter on one core only");
-  provider->set_points("package-1/move/core-1", "cycles", {0, 200}, 200);
-  provider->set_points("package-1/move/core-1", "deep_only", {0, 700}, 700);
-  provider->set_points(
-      "package-1/move/core-1", "instructions", {0, 2100}, 2100);
+  provider->setPoints("package-1/move/core-1", "cycles", {0, 200}, 200);
+  provider->setPoints("package-1/move/core-1", "deep_only", {0, 700}, 700);
+  provider->setPoints("package-1/move/core-1", "instructions", {0, 2100}, 2100);
 
   // Two objects each disclosing an enabled/running time pair, so a
   // composite over both discloses a multiplex ratio. The pair-carrying
   // leaf sits on opposite sides of the quotient, which is what puts a
   // negative exponent on one constituent ratio (FR-019).
-  provider->add_object("package-1/ratio-a", "scratch", "multiplexed source a");
-  provider->add_counter("package-1/ratio-a",
-                        "enabled",
-                        "nanoseconds",
-                        "nanoseconds the event counter was enabled",
-                        Availability::COUNTABLE,
-                        ReadMode::SYSCALL,
-                        true);
-  provider->add_counter("package-1/ratio-a",
-                        "running",
-                        "nanoseconds",
-                        "nanoseconds the event counter was scheduled");
-  provider->set_points("package-1/ratio-a", "enabled", {0, 200});
-  provider->set_points("package-1/ratio-a", "running", {0, 50});
-  provider->add_object("package-1/ratio-b", "scratch", "multiplexed source b");
-  provider->add_counter("package-1/ratio-b",
-                        "enabled",
-                        "nanoseconds",
-                        "nanoseconds the event counter was enabled");
-  provider->add_counter("package-1/ratio-b",
-                        "running",
-                        "nanoseconds",
-                        "nanoseconds the event counter was scheduled",
-                        Availability::COUNTABLE,
-                        ReadMode::SYSCALL,
-                        true);
-  provider->set_points("package-1/ratio-b", "enabled", {0, 100});
-  provider->set_points("package-1/ratio-b", "running", {0, 50});
+  provider->addObject("package-1/ratio-a", "scratch", "multiplexed source a");
+  provider->addCounter("package-1/ratio-a",
+                       "enabled",
+                       "nanoseconds",
+                       "nanoseconds the event counter was enabled",
+                       Availability::COUNTABLE,
+                       ReadMode::SYSCALL,
+                       true);
+  provider->addCounter("package-1/ratio-a",
+                       "running",
+                       "nanoseconds",
+                       "nanoseconds the event counter was scheduled");
+  provider->setPoints("package-1/ratio-a", "enabled", {0, 200});
+  provider->setPoints("package-1/ratio-a", "running", {0, 50});
+  provider->addObject("package-1/ratio-b", "scratch", "multiplexed source b");
+  provider->addCounter("package-1/ratio-b",
+                       "enabled",
+                       "nanoseconds",
+                       "nanoseconds the event counter was enabled");
+  provider->addCounter("package-1/ratio-b",
+                       "running",
+                       "nanoseconds",
+                       "nanoseconds the event counter was scheduled",
+                       Availability::COUNTABLE,
+                       ReadMode::SYSCALL,
+                       true);
+  provider->setPoints("package-1/ratio-b", "enabled", {0, 100});
+  provider->setPoints("package-1/ratio-b", "running", {0, 50});
 
   // A pair-carrying leaf whose enabled leaf never advances: the pair
   // carries no measured fraction over the window, so the fold states
   // full rate (FR-019, T066).
-  provider->add_object("package-1/ratio-frozen", "scratch", "frozen pair");
-  provider->add_counter("package-1/ratio-frozen",
-                        "enabled",
-                        "nanoseconds",
-                        "nanoseconds the event counter was enabled",
-                        Availability::COUNTABLE,
-                        ReadMode::SYSCALL,
-                        true);
-  provider->add_counter("package-1/ratio-frozen",
-                        "running",
-                        "nanoseconds",
-                        "nanoseconds the event counter was scheduled");
-  provider->set_points("package-1/ratio-frozen", "enabled", {7, 7});
-  provider->set_points("package-1/ratio-frozen", "running", {0, 50});
+  provider->addObject("package-1/ratio-frozen", "scratch", "frozen pair");
+  provider->addCounter("package-1/ratio-frozen",
+                       "enabled",
+                       "nanoseconds",
+                       "nanoseconds the event counter was enabled",
+                       Availability::COUNTABLE,
+                       ReadMode::SYSCALL,
+                       true);
+  provider->addCounter("package-1/ratio-frozen",
+                       "running",
+                       "nanoseconds",
+                       "nanoseconds the event counter was scheduled");
+  provider->setPoints("package-1/ratio-frozen", "enabled", {7, 7});
+  provider->setPoints("package-1/ratio-frozen", "running", {0, 50});
 
   // A pair-carrying leaf whose enabled and running halves advance by the
   // same amount, the ordinary un-multiplexed source: the fold discloses
   // full rate and no scale (FR-019).
-  provider->add_object("package-1/ratio-full", "scratch", "full-rate pair");
-  provider->add_counter("package-1/ratio-full",
-                        "enabled",
-                        "nanoseconds",
-                        "nanoseconds the event counter was enabled",
-                        Availability::COUNTABLE,
-                        ReadMode::SYSCALL,
-                        true);
-  provider->add_counter("package-1/ratio-full",
-                        "running",
-                        "nanoseconds",
-                        "nanoseconds the event counter was scheduled");
-  provider->set_points("package-1/ratio-full", "enabled", {0, 900});
-  provider->set_points("package-1/ratio-full", "running", {0, 900});
+  provider->addObject("package-1/ratio-full", "scratch", "full-rate pair");
+  provider->addCounter("package-1/ratio-full",
+                       "enabled",
+                       "nanoseconds",
+                       "nanoseconds the event counter was enabled",
+                       Availability::COUNTABLE,
+                       ReadMode::SYSCALL,
+                       true);
+  provider->addCounter("package-1/ratio-full",
+                       "running",
+                       "nanoseconds",
+                       "nanoseconds the event counter was scheduled");
+  provider->setPoints("package-1/ratio-full", "enabled", {0, 900});
+  provider->setPoints("package-1/ratio-full", "running", {0, 900});
 
   // A pair-carrying leaf quoted on both sides of one fold, so its two
   // occurrences carry opposite exponents and the exponent of the leaf
   // sums to zero (FR-019).
-  provider->add_object(
+  provider->addObject(
       "package-1/ratio-shared", "scratch", "leaf on both sides of a fold");
-  provider->add_counter("package-1/ratio-shared",
-                        "enabled",
-                        "nanoseconds",
-                        "nanoseconds the event counter was enabled",
-                        Availability::COUNTABLE,
-                        ReadMode::SYSCALL,
-                        true);
-  provider->add_counter("package-1/ratio-shared",
-                        "running",
-                        "nanoseconds",
-                        "nanoseconds the event counter was scheduled");
-  provider->set_points("package-1/ratio-shared", "enabled", {0, 300});
-  provider->set_points("package-1/ratio-shared", "running", {0, 100});
+  provider->addCounter("package-1/ratio-shared",
+                       "enabled",
+                       "nanoseconds",
+                       "nanoseconds the event counter was enabled",
+                       Availability::COUNTABLE,
+                       ReadMode::SYSCALL,
+                       true);
+  provider->addCounter("package-1/ratio-shared",
+                       "running",
+                       "nanoseconds",
+                       "nanoseconds the event counter was scheduled");
+  provider->setPoints("package-1/ratio-shared", "enabled", {0, 300});
+  provider->setPoints("package-1/ratio-shared", "running", {0, 100});
 
   // A leaf with no explicit sequence at all, whose whole trace comes
   // from the seeded per-sample delta generator (T014).
-  provider->add_object(
+  provider->addObject(
       "package-1/seeded", "scratch", "seeded delta generator object");
-  provider->add_counter(
+  provider->addCounter(
       "package-1/seeded", "walk", "ops", "seeded per-sample delta walk");
-  provider->set_points("package-1/seeded", "walk", {}, 0, 1);
+  provider->setPoints("package-1/seeded", "walk", {}, 0, 1);
 
   probe = provider.get();
-  const auto registered =
-      system::local().register_provider(std::move(provider));
+  const auto registered = System::local().registerProvider(std::move(provider));
   check(registered.has_value(), "fake provider registers before open (FR-009)");
 
   auto dupe = std::make_unique<FakeProvider>();
-  dupe->add_object("package-1", "package", "colliding package");
-  const auto clash = system::local().register_provider(std::move(dupe));
+  dupe->addObject("package-1", "package", "colliding package");
+  const auto clash = System::local().registerProvider(std::move(dupe));
   check(!clash.has_value() && contains(clash.error().message, "duplicate"),
         "duplicate object path rejected, tree unchanged (FR-008)");
 
@@ -296,26 +292,26 @@ auto test_registration() -> void
   // enforces at `source/counters/system.cpp:417`: every stored catalog
   // unit maps. Deferring the refusal to resolution would leave that
   // accessor a fuse on a tree the library had accepted.
-  auto bad_unit = std::make_unique<FakeProvider>();
-  bad_unit->add_counter("package-3", "watts", "watts", "power draw");
-  const auto rejected = system::local().register_provider(std::move(bad_unit));
+  auto badUnit = std::make_unique<FakeProvider>();
+  badUnit->addCounter("package-3", "watts", "watts", "power draw");
+  const auto rejected = System::local().registerProvider(std::move(badUnit));
   check(!rejected.has_value() && contains(rejected.error().message, "watts"),
         "unrecognized unit token rejected, named (FR-017)");
 }
 
-auto test_tree_walk() -> void
+auto testTreeWalk() -> void
 {
-  const auto core = system::local().object("package-1/core-3");
+  const auto core = System::local().object("package-1/core-3");
   check(core.has_value(), "core resolves by canonical path (FR-002)");
   check(core->path() == "package-1/core-3", "canonical path spelling");
   check(core->kind() == "core", "object kind (FR-001)");
   check(core->alias() == "cpu3", "platform alias reported (FR-002)");
 
-  const auto by_alias = system::local().object("cpu3");
-  check(by_alias.has_value() && by_alias->path() == "package-1/core-3",
+  const auto byAlias = System::local().object("cpu3");
+  check(byAlias.has_value() && byAlias->path() == "package-1/core-3",
         "alias resolves to the same object, canonical in output (FR-002)");
 
-  const auto machine = system::local().object("machine");
+  const auto machine = System::local().object("machine");
   check(machine.has_value(), "machine root resolves");
   check(machine->parent() == nullptr, "machine root has no parent (FR-001)");
   check(core->parent() != nullptr && core->parent()->path() == "package-1",
@@ -323,32 +319,32 @@ auto test_tree_walk() -> void
   check(machine->children().size() == 2, "machine has both packages");
 
   check(core->counters().size() == 3, "core catalog lists three counters");
-  const bool stalled_blocked = std::ranges::any_of(
+  const bool stalledBlocked = std::ranges::any_of(
       core->counters(),
       [](const sg::counters::CatalogEntry& entry)
       {
         return entry.name == "stalled"
             && entry.avail == Availability::PERMISSION_BLOCKED;
       });
-  check(stalled_blocked,
+  check(stalledBlocked,
         "unavailable state reported distinctly, never guessed (FR-006)");
 
-  const auto missing = system::local().object("package-9");
+  const auto missing = System::local().object("package-9");
   check(!missing.has_value(), "unknown path rejected (FR-008)");
   check(std::ranges::find(missing.error().suggestions, "package-1")
             != missing.error().suggestions.end(),
         "near-miss path suggestion offered (FR-008)");
 
-  const auto after_open =
-      system::local().register_provider(std::make_unique<FakeProvider>());
-  check(!after_open.has_value(), "registration after open rejected (FR-009)");
+  const auto afterOpen =
+      System::local().registerProvider(std::make_unique<FakeProvider>());
+  check(!afterOpen.has_value(), "registration after open rejected (FR-009)");
 }
 
-auto test_resolution_diagnostics() -> void
+auto testResolutionDiagnostics() -> void
 {
-  const auto core = *system::local().object("package-1/core-3");
+  const auto core = *System::local().object("package-1/core-3");
 
-  const auto cycles = core.counter<events>("cycles");
+  const auto cycles = core.counter<Events>("cycles");
   check(cycles.has_value(), "events counter resolves (FR-005)");
   check(cycles->name() == "cycles" && cycles->unitToken() == "ops",
         "resolved counter carries catalog metadata");
@@ -357,18 +353,18 @@ auto test_resolution_diagnostics() -> void
   check(cycles->address() == "package-1/core-3/cycles",
         "canonical leaf address (E-05)");
 
-  const auto wrong_dim = core.counter<time_dim>("cycles");
-  check(!wrong_dim.has_value() && contains(wrong_dim.error().message, "cycles")
-            && contains(wrong_dim.error().message, "ops"),
+  const auto wrongDim = core.counter<TimeDim>("cycles");
+  check(!wrongDim.has_value() && contains(wrongDim.error().message, "cycles")
+            && contains(wrongDim.error().message, "ops"),
         "dimension mismatch is recoverable and names both (FR-017)");
 
-  const auto mistyped = core.counter<events>("cycels");
+  const auto mistyped = core.counter<Events>("cycels");
   check(!mistyped.has_value(), "wrong counter name rejected (FR-008)");
   check(std::ranges::find(mistyped.error().suggestions, "cycles")
             != mistyped.error().suggestions.end(),
         "near-miss counter suggestion offered (FR-008)");
 
-  const auto blocked = core.counter<events>("stalled");
+  const auto blocked = core.counter<Events>("stalled");
   check(blocked.has_value()
             && blocked->avail() == Availability::PERMISSION_BLOCKED,
         "availability travels with the handle (FR-006)");
@@ -376,7 +372,7 @@ auto test_resolution_diagnostics() -> void
   // A query carrying an empty word (a doubled separator) splits into
   // words with an empty one between them; the near-miss scan drops the
   // empty word and still offers the real name (FR-008).
-  const auto doubled = core.counter<events>("cyc__les");
+  const auto doubled = core.counter<Events>("cyc__les");
   check(!doubled.has_value(),
         "a query with a doubled separator resolves to nothing (FR-008)");
   check(
@@ -385,15 +381,15 @@ auto test_resolution_diagnostics() -> void
       "a query with a doubled separator still finds its near miss " "(FR-008)");
 }
 
-auto test_compile_zero_reads() -> void
+auto testCompileZeroReads() -> void
 {
-  const auto core = *system::local().object("package-1/core-3");
-  const auto cycles = *core.counter<events>("cycles");
-  const auto instructions = *core.counter<events>("instructions");
+  const auto core = *System::local().object("package-1/core-3");
+  const auto cycles = *core.counter<Events>("cycles");
+  const auto instructions = *core.counter<Events>("instructions");
   const auto drift =
-      *system::local().object("machine")->counter<events>("drift");
+      *System::local().object("machine")->counter<Events>("drift");
 
-  const expression<events> instr_expr {instructions};
+  const Expression<Events> instrExpr {instructions};
   const auto ipc = instructions / cycles;
   const auto sum = instructions + drift;
   static_assert(kDimSame<typename decltype(ipc)::DimensionTag, Dim<0, 0>>,
@@ -401,69 +397,68 @@ auto test_compile_zero_reads() -> void
   static_assert(kDimSame<typename decltype(sum)::DimensionTag, Dim<0, 1>>,
                 "counter addition keeps the events dimension (FR-015)");
 
-  const auto empty = compile(system::local());
+  const auto empty = compile(System::local());
   check(!empty.has_value(), "compile with no expression rejected (FR-021)");
 
-  auto compiled = compile(system::local(), ipc, sum);
+  auto compiled = compile(System::local(), ipc, sum);
   check(compiled.has_value(), "plan compiles (FR-021)");
-  check(probe->read_actions() == 0,
-        "plan compile performs zero reads (FR-021)");
+  check(probe->readActions() == 0, "plan compile performs zero reads (FR-021)");
 
   // The moved plan is compiled over the object the suite reserves for its
   // own move case, whose scripted steps repeat at every cursor position,
   // so the window below costs the later move test nothing (FR-036).
-  const auto move_core = *system::local().object("package-1/move/core-1");
-  const auto move_ipc = *move_core.counter<events>("instructions")
-      / *move_core.counter<events>("cycles");
-  auto move_compiled = compile(system::local(), move_ipc);
-  check(move_compiled.has_value(), "the move-case plan compiles (FR-031)");
+  const auto moveCore = *System::local().object("package-1/move/core-1");
+  const auto moveIpc = *moveCore.counter<Events>("instructions")
+      / *moveCore.counter<Events>("cycles");
+  auto moveCompiled = compile(System::local(), moveIpc);
+  check(moveCompiled.has_value(), "the move-case plan compiles (FR-031)");
 
-  auto moved_plan = std::move(*move_compiled);
-  static_assert(!std::is_copy_constructible_v<sg::counters::plan>,
+  auto movedPlan = std::move(*moveCompiled);
+  static_assert(!std::is_copy_constructible_v<sg::counters::Plan>,
                 "the plan is move-only");
-  sg::counters::scope window_over_move {moved_plan};
-  window_over_move.start();
-  window_over_move.finish();
+  sg::counters::Scope windowOverMove {movedPlan};
+  windowOverMove.start();
+  windowOverMove.finish();
   // 2100 instructions over 200 cycles, the two steps scripted beside
   // `package-1/move/core-1` in the fixture: the moved plan sampled the
   // window, so folding it proves the move carried the measurement across
   // (FR-030, FR-031).
-  const auto over_move = window_over_move.metric(move_ipc);
-  check(same_double(over_move.value, 10.5),
+  const auto overMove = windowOverMove.metric(moveIpc);
+  check(sameDouble(overMove.value, 10.5),
         "a plan moves and folds the window it sampled (FR-031)");
-  check(same_double(over_move.runningRatio, 1.0) && !over_move.scaled,
+  check(sameDouble(overMove.runningRatio, 1.0) && !overMove.scaled,
         "the moved plan discloses the same ratio and scale (FR-019)");
 
   const auto pinned = compile(
-      system::local(), Target {.kind = TargetKind::CPU, .cpu = 0}, instr_expr);
+      System::local(), Target {.kind = TargetKind::CPU, .cpu = 0}, instrExpr);
   check(pinned.has_value(), "plan compiles for a pinned cpu target (FR-031)");
 }
 
-auto test_scope_exactness() -> void
+auto testScopeExactness() -> void
 {
-  const auto core = *system::local().object("package-1/core-3");
-  const auto cycles = *core.counter<events>("cycles");
-  const auto instructions = *core.counter<events>("instructions");
+  const auto core = *System::local().object("package-1/core-3");
+  const auto cycles = *core.counter<Events>("cycles");
+  const auto instructions = *core.counter<Events>("instructions");
 
   const auto ipc = instructions / cycles;
-  const auto compiled = compile(system::local(), ipc);
+  const auto compiled = compile(System::local(), ipc);
   check(compiled.has_value(), "ipc plan compiles");
 
-  const auto reads_at_entry = probe->read_actions();
-  sg::counters::scope window {*compiled};
+  const auto readsAtEntry = probe->readActions();
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
 
   const auto metric = window.metric(ipc);
-  check(same_double(metric.value, 10.5),
+  check(sameDouble(metric.value, 10.5),
         "scope window folds exactly: 2100 / 200 (FR-030)");
-  check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
+  check(sameDouble(metric.runningRatio, 1.0) && !metric.scaled,
         "disclosure defaults: unscaled, full ratio");
   const auto raw = ipc.raw(window.view(), "package-1/core-3", "instructions");
   check(raw.has_value() && raw->objectPath == "package-1/core-3"
             && raw->name == "instructions" && !raw->description.empty()
             && raw->unit == "ops" && raw->points[1] - raw->points[0] == 2100ULL
-            && same_double(raw->ratio, 1.0),
+            && sameDouble(raw->ratio, 1.0),
         "raw view exposes provenance and the raw point column (FR-020)");
   // The quotient spine lists instructions first, so it takes slot 0 of
   // the plan's two point columns; the scope window holds exactly the
@@ -471,71 +466,71 @@ auto test_scope_exactness() -> void
   check(raw.has_value() && raw->slot == 0 && raw->count == 2,
         "the raw view names the point column and extent it read "
         "(US1 scenario 7)");
-  check(probe->read_actions() - reads_at_entry == 2,
+  check(probe->readActions() - readsAtEntry == 2,
         "start and finish are one sampling action each (FR-011)");
 
-  const auto cycles_raw = ipc.raw(window.view(), "package-1/core-3", "cycles");
-  check(cycles_raw.has_value(), "the quotient discloses its second leaf");
+  const auto cyclesRaw = ipc.raw(window.view(), "package-1/core-3", "cycles");
+  check(cyclesRaw.has_value(), "the quotient discloses its second leaf");
   // SC-008: 2100 / 200 folds to 10.5, both leaves carry no enabled/
   // running pair so the disclosure is ratio 1.
-  check(provenance_record("IPC", metric, {*raw, *cycles_raw})
+  check(provenanceRecord("IPC", metric, {*raw, *cyclesRaw})
             == "IPC = 10.5 <- instructions 2100 / cycles 200, ratio 1",
         "the assembled provenance record carries value, leaves, and ratio "
         "(SC-008)");
 
-  const auto reads_after_first_fold = probe->read_actions();
+  const auto readsAfterFirstFold = probe->readActions();
   for (int repeat = 0; repeat < 10; ++repeat) {
     const auto again = window.metric(ipc);
-    check(same_double(again.value, 10.5)
-              && same_double(again.runningRatio, 1.0) && !again.scaled,
+    check(sameDouble(again.value, 10.5)
+              && sameDouble(again.runningRatio, 1.0) && !again.scaled,
           "a repeated metric re-folds the stored points exactly "
           "(US1 scenario 5, FR-021)");
   }
-  check(probe->read_actions() == reads_after_first_fold,
+  check(probe->readActions() == readsAfterFirstFold,
         "ten further metrics perform zero provider reads (US1 scenario 5)");
 
-  const auto second = compile(system::local(), ipc);
+  const auto second = compile(System::local(), ipc);
   check(second.has_value(), "multiple plans over one system (FR-031)");
-  sg::counters::scope window2 {*second};
+  sg::counters::Scope window2 {*second};
   window2.start();
   window2.finish();
-  check(same_double(window2.metric(ipc).value, 21.0),
+  check(sameDouble(window2.metric(ipc).value, 21.0),
         "second window over the advanced script: 2100 / 100 (FR-030)");
 
-  const auto doubled = 2.0 * expression<events> {instructions};
-  const auto scaled_plan = compile(system::local(), doubled);
-  check(scaled_plan.has_value(), "scaled expression plan compiles");
-  sg::counters::scope window3 {*scaled_plan};
+  const auto doubled = 2.0 * Expression<Events> {instructions};
+  const auto scaledPlan = compile(System::local(), doubled);
+  check(scaledPlan.has_value(), "scaled expression plan compiles");
+  sg::counters::Scope window3 {*scaledPlan};
   window3.start();
   window3.finish();
-  const auto scaled_metric = window3.metric(doubled);
-  check(same_double(scaled_metric.value, 4200.0) && scaled_metric.scaled,
+  const auto scaledMetric = window3.metric(doubled);
+  check(sameDouble(scaledMetric.value, 4200.0) && scaledMetric.scaled,
         "scalar multiplication scales the fold and flags scaled (FR-015)");
 }
 
 // The additive and subtractive halves of the algebra, which the
 // quotient-only tests elsewhere never reach: both operands must share a
 // tag, and the fold evaluates the binary node (FR-015, FR-018).
-auto test_additive_algebra() -> void
+auto testAdditiveAlgebra() -> void
 {
-  const auto scratch = *system::local().object("package-1/algebra");
-  const auto addend_a = *scratch.counter<events>("addend_a");
-  const auto addend_b = *scratch.counter<events>("addend_b");
+  const auto scratch = *System::local().object("package-1/algebra");
+  const auto addendA = *scratch.counter<Events>("addend_a");
+  const auto addendB = *scratch.counter<Events>("addend_b");
 
-  const auto sum = addend_a + addend_b;
-  const auto difference = addend_a - addend_b;
-  check(kDimSame<decltype(sum)::DimensionTag, events>,
+  const auto sum = addendA + addendB;
+  const auto difference = addendA - addendB;
+  check(kDimSame<decltype(sum)::DimensionTag, Events>,
         "addition preserves the shared tag");
-  const auto compiled = compile(system::local(), sum, difference);
+  const auto compiled = compile(System::local(), sum, difference);
   check(compiled.has_value(), "the additive plan compiles");
 
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
   // addend_a steps 2100 and addend_b steps 200 across the window.
-  check(same_double(window.metric(sum).value, 2300.0),
+  check(sameDouble(window.metric(sum).value, 2300.0),
         "addition folds the sum of both deltas exactly");
-  check(same_double(window.metric(difference).value, 1900.0),
+  check(sameDouble(window.metric(difference).value, 1900.0),
         "subtraction folds the difference of both deltas exactly");
 }
 
@@ -543,13 +538,13 @@ auto test_additive_algebra() -> void
 // two corner cases the folds guard: a default-constructed spine and a
 // raw view for a leaf the expression does not contain (FR-018, FR-020,
 // FR-024, FR-046).
-auto test_construction_and_fold_edges() -> void
+auto testConstructionAndFoldEdges() -> void
 {
-  const auto edge = *system::local().object("package-1/edge");
-  const auto single = *edge.counter<events>("single");
+  const auto edge = *System::local().object("package-1/edge");
+  const auto single = *edge.counter<Events>("single");
   const auto ipc = single / single;
 
-  const auto empty = compile(system::local(), expression<events> {});
+  const auto empty = compile(System::local(), Expression<Events> {});
   check(!empty.has_value(),
         "an expression carrying no resolved leaves is refused (FR-046)");
 
@@ -557,10 +552,10 @@ auto test_construction_and_fold_edges() -> void
   // holds, so scaling a zero-leaf spine leaves one node over no operand.
   // A spine needs a leaf to measure, so the refusal reads the leaf vector
   // and the spine never reaches a window (FR-046).
-  const auto scaled_empty =
-      compile(system::local(), 2.0 * expression<events> {});
-  check(!scaled_empty.has_value()
-            && contains(scaled_empty.error().message, "no resolved leaves"),
+  const auto scaledEmpty =
+      compile(System::local(), 2.0 * Expression<Events> {});
+  check(!scaledEmpty.has_value()
+            && contains(scaledEmpty.error().message, "no resolved leaves"),
         "a scalar multiple of a zero-leaf expression is refused at "
         "construction (FR-046)");
 
@@ -569,28 +564,28 @@ auto test_construction_and_fold_edges() -> void
   // refusal reaches the span check, whose message names an exemplar
   // spanning several objects for a spine holding no leaf. The leaf count
   // is the vector the refusal reads (FR-046, FR-024, T166).
-  const auto cores = system::local().objects("core");
-  const auto scaled_empty_fanout =
-      compile(system::local(), 2.0 * expression<events> {}, *cores);
-  check(!scaled_empty_fanout.has_value()
-            && contains(scaled_empty_fanout.error().message,
+  const auto cores = System::local().objects("core");
+  const auto scaledEmptyFanout =
+      compile(System::local(), 2.0 * Expression<Events> {}, *cores);
+  check(!scaledEmptyFanout.has_value()
+            && contains(scaledEmptyFanout.error().message,
                         "carries no leaves")
-            && !contains(scaled_empty_fanout.error().message,
+            && !contains(scaledEmptyFanout.error().message,
                          "several objects"),
         "a scalar multiple of a zero-leaf exemplar is refused as leafless "
         "(FR-046, FR-024)");
 
-  const auto compiled = compile(system::local(), ipc);
+  const auto compiled = compile(System::local(), ipc);
   check(compiled.has_value(), "the quotient plan compiles");
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
-  check(same_double(expression<events> {}.fold(window.view(), 0, 1).value, 0.0),
+  check(sameDouble(Expression<Events> {}.fold(window.view(), 0, 1).value, 0.0),
         "an empty spine folds to the zeroed result shape (FR-018)");
   // Both operands of this quotient carry the same leaf, so the spine
   // holds one leaf slot for the pair. Folding it must read that slot
   // twice and stay inside the leaf vector.
-  check(same_double(window.metric(ipc).value, 1.0),
+  check(sameDouble(window.metric(ipc).value, 1.0),
         "a quotient of one counter by itself folds inside the leaf vector "
         "(FR-015, FR-018)");
 
@@ -603,74 +598,74 @@ auto test_construction_and_fold_edges() -> void
 // Compiling several expressions into one plan splices each spine into
 // the shared one, remapping node indices and reusing a leaf that two
 // expressions share (FR-021, FR-022).
-auto test_multi_expression_splice() -> void
+auto testMultiExpressionSplice() -> void
 {
-  const auto scratch = *system::local().object("package-1/splice");
-  const auto only = *scratch.counter<events>("only");
-  const auto numerator = *scratch.counter<events>("numerator");
-  const auto denominator = *scratch.counter<events>("denominator");
+  const auto scratch = *System::local().object("package-1/splice");
+  const auto only = *scratch.counter<Events>("only");
+  const auto numerator = *scratch.counter<Events>("numerator");
+  const auto denominator = *scratch.counter<Events>("denominator");
   const auto ipc = numerator / denominator;
   // The binary expression lands in the second position, so its node
   // indices need remapping into the shared spine.
-  const expression<events> leaf_expr {only};
+  const Expression<Events> leafExpr {only};
   // Two ratios share a tag, so their sum splices the second quotient's
   // binary node into the first one's spine, re-addressing that node's
   // operands there.
-  const auto numerator_ratio = numerator / numerator;
-  const auto denominator_ratio = denominator / denominator;
-  const auto ratio_sum = numerator_ratio + denominator_ratio;
-  const auto compiled = compile(system::local(), leaf_expr, ipc, ratio_sum);
+  const auto numeratorRatio = numerator / numerator;
+  const auto denominatorRatio = denominator / denominator;
+  const auto ratioSum = numeratorRatio + denominatorRatio;
+  const auto compiled = compile(System::local(), leafExpr, ipc, ratioSum);
   check(compiled.has_value(), "leaf, quotient, and their sum share a plan");
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
-  check(same_double(window.metric(ipc).value, 10.5),
+  check(sameDouble(window.metric(ipc).value, 10.5),
         "the spliced quotient still folds exactly");
-  check(same_double(window.metric(leaf_expr).value, 200.0),
+  check(sameDouble(window.metric(leafExpr).value, 200.0),
         "the leaf spliced ahead of the quotient still folds exactly");
   // (2100 / 2100) + (200 / 200) over the same window.
-  check(same_double(window.metric(ratio_sum).value, 2.0),
+  check(sameDouble(window.metric(ratioSum).value, 2.0),
         "the sum of two spliced ratios folds exactly");
 }
 
 // A plan and a fan-out plan are move-only values: move assignment
 // releases the target's layout and takes the source's (FR-022, FR-031).
-auto test_move_assignment() -> void
+auto testMoveAssignment() -> void
 {
-  const auto core = *system::local().object("package-1/move/core-1");
-  const auto cycles = *core.counter<events>("cycles");
-  const auto instructions = *core.counter<events>("instructions");
+  const auto core = *System::local().object("package-1/move/core-1");
+  const auto cycles = *core.counter<Events>("cycles");
+  const auto instructions = *core.counter<Events>("instructions");
   const auto ipc = instructions / cycles;
 
-  auto first = compile(system::local(), ipc);
-  auto second = compile(system::local(), ipc);
+  auto first = compile(System::local(), ipc);
+  auto second = compile(System::local(), ipc);
   check(first.has_value() && second.has_value(), "both plans compile");
   // A plan is move-only and its constructor is private to compile, so
   // the target is reached through the public move constructor.
-  sg::counters::plan target = std::move(*first);
+  sg::counters::Plan target = std::move(*first);
   target = std::move(*second);
-  sg::counters::scope window {target};
+  sg::counters::Scope window {target};
   window.start();
   window.finish();
-  check(same_double(window.metric(ipc).value, 10.5),
+  check(sameDouble(window.metric(ipc).value, 10.5),
         "the move-assigned plan folds exactly");
 
-  const auto cores = system::local().objects("core", {{"core", "1"}});
+  const auto cores = System::local().objects("core", {{"core", "1"}});
   check(cores.has_value() && cores->size() == 1,
         "the dedicated core is selected on its own");
-  auto fanout = compile(system::local(), ipc, *cores);
+  auto fanout = compile(System::local(), ipc, *cores);
   check(fanout.has_value(), "the fan-out plan compiles");
-  auto other = compile(system::local(), ipc, *cores);
+  auto other = compile(System::local(), ipc, *cores);
   check(other.has_value(), "a second fan-out plan compiles");
-  sg::counters::FanoutPlan fanout_target = std::move(*fanout);
-  fanout_target = std::move(*other);
-  check(fanout_target.objectPaths().size() == 1,
+  sg::counters::FanoutPlan fanoutTarget = std::move(*fanout);
+  fanoutTarget = std::move(*other);
+  check(fanoutTarget.objectPaths().size() == 1,
         "the move-assigned fan-out plan keeps the selection");
-  auto rec = fanout_target.recorder(2);
+  auto rec = fanoutTarget.recorder(2);
   rec.sample();
   rec.sample();
-  const auto folded = fanout_target.fold(ipc, rec.view());
-  check(folded.size() == 1 && same_double(folded.front().metric.value, 10.5),
+  const auto folded = fanoutTarget.fold(ipc, rec.view());
+  check(folded.size() == 1 && sameDouble(folded.front().metric.value, 10.5),
         "the move-assigned fan-out plan folds exactly");
 }
 
@@ -678,9 +673,9 @@ auto test_move_assignment() -> void
 // near-miss query reports the two diagnostic families the catalog
 // distinguishes: names within the edit distance, then description word
 // overlaps (FR-001, FR-008).
-auto test_nested_parent_and_suggestions() -> void
+auto testNestedParentAndSuggestions() -> void
 {
-  const auto deep = *system::local().object("package-1/move/core-1");
+  const auto deep = *System::local().object("package-1/move/core-1");
   check(deep.kind() == "core", "the nested object reports its kind");
   // The path names an intermediate object the catalog never declared, so
   // the parent link has nothing to resolve to and reports none
@@ -689,13 +684,13 @@ auto test_nested_parent_and_suggestions() -> void
         "a path whose intermediate object is absent reports no parent "
         "(FR-001)");
 
-  const auto scratch = *system::local().object("package-1/algebra");
+  const auto scratch = *System::local().object("package-1/algebra");
   check(scratch.counters().size() == 2,
         "the scratch object carries exactly its two declared counters");
 
   // "addend_x" sits within the edit distance of both addends, so the
   // suggestions come from the name family.
-  const auto near = scratch.counter<events>("addend_x");
+  const auto near = scratch.counter<Events>("addend_x");
   check(!near.has_value() && near.error().suggestions.size() == 2
             && near.error().suggestions[0] == "addend_a"
             && near.error().suggestions[1] == "addend_b",
@@ -703,64 +698,63 @@ auto test_nested_parent_and_suggestions() -> void
 
   // "elapsed" is far from every counter name and shares a word with one
   // description, so the suggestions come from the description family.
-  const auto core = *system::local().object("package-1/core-3");
-  const auto by_word = core.counter<events>("elapsed");
-  check(!by_word.has_value() && by_word.error().suggestions.size() == 1
-            && by_word.error().suggestions[0] == "cycles",
+  const auto core = *System::local().object("package-1/core-3");
+  const auto byWord = core.counter<Events>("elapsed");
+  check(!byWord.has_value() && byWord.error().suggestions.size() == 1
+            && byWord.error().suggestions[0] == "cycles",
         "a distant query falls back to description word overlap (FR-008)");
 }
 
 // The recoverable construction errors a fan-out owes its caller, each one
 // refused in the untimed region before any window opens (FR-024).
-auto test_fanout_construction_errors() -> void
+auto testFanoutConstructionErrors() -> void
 {
-  const auto core = *system::local().object("package-1/core-3");
-  const auto cycles = *core.counter<events>("cycles");
+  const auto core = *System::local().object("package-1/core-3");
+  const auto cycles = *core.counter<Events>("cycles");
   const auto ipc = cycles / cycles;
-  const auto cores = system::local().objects("core");
+  const auto cores = System::local().objects("core");
 
-  const auto no_leaves =
-      compile(system::local(), expression<events> {}, *cores);
-  check(!no_leaves.has_value()
-            && contains(no_leaves.error().message, "carries no leaves"),
+  const auto noLeaves = compile(System::local(), Expression<Events> {}, *cores);
+  check(!noLeaves.has_value()
+            && contains(noLeaves.error().message, "carries no leaves"),
         "an empty exemplar spine is refused (FR-024)");
 
-  const std::vector<const sg::counters::object*> nothing;
-  const auto no_selection = compile(system::local(), ipc, nothing);
-  check(!no_selection.has_value()
-            && contains(no_selection.error().message, "non-empty selection"),
+  const std::vector<const sg::counters::Object*> nothing;
+  const auto noSelection = compile(System::local(), ipc, nothing);
+  check(!noSelection.has_value()
+            && contains(noSelection.error().message, "non-empty selection"),
         "an empty selection is refused (FR-024)");
 
-  const auto scratch = *system::local().object("package-1/splice");
-  const auto numerator = *scratch.counter<events>("numerator");
+  const auto scratch = *System::local().object("package-1/splice");
+  const auto numerator = *scratch.counter<Events>("numerator");
   // The exemplar draws one leaf from each of two objects, so no single
   // prefix can instantiate it across the selection.
   const auto spanning = numerator / cycles;
-  const auto not_same_object = compile(system::local(), spanning, *cores);
-  check(!not_same_object.has_value()
-            && contains(not_same_object.error().message, "several objects"),
+  const auto notSameObject = compile(System::local(), spanning, *cores);
+  check(!notSameObject.has_value()
+            && contains(notSameObject.error().message, "several objects"),
         "an exemplar spanning two objects is refused (FR-024)");
 
-  const std::vector<const sg::counters::object*> with_null {nullptr};
-  const auto null_member = compile(system::local(), ipc, with_null);
-  check(!null_member.has_value()
-            && contains(null_member.error().message, "null object"),
+  const std::vector<const sg::counters::Object*> withNull {nullptr};
+  const auto nullMember = compile(System::local(), ipc, withNull);
+  check(!nullMember.has_value()
+            && contains(nullMember.error().message, "null object"),
         "a selection holding a null object is refused (FR-024)");
 
-  const std::vector<const sg::counters::object*> twice {&core, &core};
-  const auto duplicated = compile(system::local(), ipc, twice);
+  const std::vector<const sg::counters::Object*> twice {&core, &core};
+  const auto duplicated = compile(System::local(), ipc, twice);
   check(!duplicated.has_value()
             && contains(duplicated.error().message, "duplicates"),
         "a selection repeating an object is refused (FR-024)");
 
   // An exemplar whose leaves the selected objects do not carry resolves
   // against the tree and is refused by name (FR-024, FR-017).
-  const auto deep = *system::local().object("package-1/move/core-1");
-  const auto deep_only = *deep.counter<events>("deep_only");
-  const auto moved = deep_only / deep_only;
-  const auto wrong_object = compile(system::local(), moved, *cores);
-  check(!wrong_object.has_value()
-            && contains(wrong_object.error().message, "not in the system tree"),
+  const auto deep = *System::local().object("package-1/move/core-1");
+  const auto deepOnly = *deep.counter<Events>("deep_only");
+  const auto moved = deepOnly / deepOnly;
+  const auto wrongObject = compile(System::local(), moved, *cores);
+  check(!wrongObject.has_value()
+            && contains(wrongObject.error().message, "not in the system tree"),
         "an exemplar missing from a selected object is refused by name "
         "(FR-024)");
 }
@@ -768,30 +762,30 @@ auto test_fanout_construction_errors() -> void
 // A leaf the catalog reports as permission-blocked resolves and carries
 // its state, and compiling over it names that state. Nothing is guessed
 // (FR-006, FR-007, FR-024).
-auto test_permission_blocked_leaf() -> void
+auto testPermissionBlockedLeaf() -> void
 {
-  const auto core = *system::local().object("package-1/core-3");
-  const auto blocked = core.counter<events>("stalled");
+  const auto core = *System::local().object("package-1/core-3");
+  const auto blocked = core.counter<Events>("stalled");
   check(blocked.has_value()
             && blocked->avail() == Availability::PERMISSION_BLOCKED,
         "a blocked leaf resolves and carries the probed state (FR-007)");
-  const expression<events> over {*blocked};
-  const auto refused = compile(system::local(), over);
+  const Expression<Events> over {*blocked};
+  const auto refused = compile(System::local(), over);
   check(!refused.has_value()
             && contains(refused.error().message, "permission_blocked"),
         "compiling over a blocked leaf names its catalog state (FR-024)");
 }
 
-auto test_wrap() -> void
+auto testWrap() -> void
 {
-  const auto wrap = *system::local().object("machine")->counter<events>("wrap");
-  const expression<events> wrap_expr {wrap};
-  const auto compiled = compile(system::local(), wrap_expr);
+  const auto wrap = *System::local().object("machine")->counter<Events>("wrap");
+  const Expression<Events> wrapExpr {wrap};
+  const auto compiled = compile(System::local(), wrapExpr);
   check(compiled.has_value(), "wrap plan compiles");
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
-  check(same_double(window.metric(wrap_expr).value, 11.0),
+  check(sameDouble(window.metric(wrapExpr).value, 11.0),
         "one hardware wrap subtracts out mod 2^64 (FR-013, SC-006)");
 }
 
@@ -800,33 +794,33 @@ auto test_wrap() -> void
 // enabled/running delta ratio raised to its algebraic exponent, and the
 // pair-carrying leaves sit on opposite sides of the quotient so one
 // exponent is negative (FR-019).
-auto test_ratio_product() -> void
+auto testRatioProduct() -> void
 {
-  const auto source_a = *system::local().object("package-1/ratio-a");
-  const auto source_b = *system::local().object("package-1/ratio-b");
-  const auto a_enabled = *source_a.counter<time_dim>("enabled");
-  const auto a_running = *source_a.counter<time_dim>("running");
-  const auto b_running = *source_b.counter<time_dim>("running");
-  const auto b_enabled = *source_b.counter<time_dim>("enabled");
+  const auto sourceA = *System::local().object("package-1/ratio-a");
+  const auto sourceB = *System::local().object("package-1/ratio-b");
+  const auto aEnabled = *sourceA.counter<TimeDim>("enabled");
+  const auto aRunning = *sourceA.counter<TimeDim>("running");
+  const auto bRunning = *sourceB.counter<TimeDim>("running");
+  const auto bEnabled = *sourceB.counter<TimeDim>("enabled");
 
   // The pair leaves are quoted by the same object, so every ratio in
   // the product has both halves in the spine. Scripted deltas:
   // a/enabled 200, a/running 50, b/running 50, b/enabled 100.
-  const auto composite = a_enabled / (b_running - a_running + b_enabled);
-  const auto compiled = compile(system::local(), composite);
+  const auto composite = aEnabled / (bRunning - aRunning + bEnabled);
+  const auto compiled = compile(System::local(), composite);
   check(compiled.has_value(), "the ratio plan compiles");
 
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
   const auto metric = window.metric(composite);
   // 200 / (50 - 50 + 100) = 2.
-  check(same_double(metric.value, 2.0),
+  check(sameDouble(metric.value, 2.0),
         "the composite folds its own arithmetic exactly (FR-019)");
   // 50 / 200 = 0.25 at exponent +1, and 50 / 100 = 0.5 at exponent -1,
   // so the product is 0.25 * (1 / 0.5) = 0.5, strictly between the two
   // bounds a single-source product would report.
-  check(same_double(metric.runningRatio, 0.5) && metric.runningRatio < 1.0
+  check(sameDouble(metric.runningRatio, 0.5) && metric.runningRatio < 1.0
             && metric.runningRatio > 0.0 && metric.scaled,
         "the folded ratio is the product of the constituent ratios raised "
         "to their exponents (FR-019)");
@@ -838,36 +832,36 @@ auto test_ratio_product() -> void
 // -1, so the exponent is 0 and the product is ratio^0 = 1.0. A sign
 // product reports the leaf at +1 or -1 there and moves the composite
 // ratio off 1.0 (FR-019).
-auto test_shared_leaf_exponent() -> void
+auto testSharedLeafExponent() -> void
 {
-  const auto source = *system::local().object("package-1/ratio-shared");
-  const auto enabled = *source.counter<time_dim>("enabled");
-  const auto running = *source.counter<time_dim>("running");
+  const auto source = *System::local().object("package-1/ratio-shared");
+  const auto enabled = *source.counter<TimeDim>("enabled");
+  const auto running = *source.counter<TimeDim>("running");
   // Scripted deltas: enabled 300, running 100. The enabled slot carries
   // the pair, so it discloses 100 / 300 on its own.
   const auto composite = (enabled - running) / (enabled + running);
   const auto doubled = 2.0 * composite;
-  const auto compiled = compile(system::local(), composite, doubled);
+  const auto compiled = compile(System::local(), composite, doubled);
   check(compiled.has_value(), "the shared-leaf ratio plan compiles");
 
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
   const auto metric = window.metric(composite);
   // (300 - 100) / (300 + 100) = 200 / 400.
-  check(same_double(metric.value, 0.5),
+  check(sameDouble(metric.value, 0.5),
         "a leaf on both sides of the fold folds its own arithmetic exactly "
         "(FR-019)");
   // The two occurrences carry exponents +1 and -1, whose sum is 0, so
   // the enabled leaf's 100 / 300 is raised to the zeroth power and the
   // composite discloses 1.0.
-  check(same_double(metric.runningRatio, 1.0),
+  check(sameDouble(metric.runningRatio, 1.0),
         "a leaf on both sides of the fold has exponent zero, so the "
         "composite ratio is 1.0 (FR-019)");
   // A scalar multiple multiplies the folded value and leaves every
   // exponent alone, so the disclosure is the 1.0 above.
   const auto scaled = window.metric(doubled);
-  check(same_double(scaled.value, 1.0) && same_double(scaled.runningRatio, 1.0),
+  check(sameDouble(scaled.value, 1.0) && sameDouble(scaled.runningRatio, 1.0),
         "a scalar multiple of the composite scales the value and leaves the "
         "exponents alone (FR-015, FR-019)");
 }
@@ -875,12 +869,12 @@ auto test_shared_leaf_exponent() -> void
 // The seeded per-sample delta generator, exercised over a whole
 // recorder trace: one seed reproduces the sequence a reader can redo
 // on paper (T014, FR-036).
-auto test_seeded_tail() -> void
+auto testSeededTail() -> void
 {
   const auto walk =
-      *system::local().object("package-1/seeded")->counter<events>("walk");
-  const expression<events> walk_expr {walk};
-  const auto compiled = compile(system::local(), walk_expr);
+      *System::local().object("package-1/seeded")->counter<Events>("walk");
+  const Expression<Events> walkExpr {walk};
+  const auto compiled = compile(System::local(), walkExpr);
   check(compiled.has_value(), "the seeded plan compiles");
 
   auto recorder = compiled->recorder(4);
@@ -891,35 +885,34 @@ auto test_seeded_tail() -> void
   // One step is (state * 37 + 11) mod 2^16. From seed 1: 48, 1787,
   // 66130 reduced to 594, then 21989. Cumulative points: 48, 1835,
   // 2429, 24418.
-  const auto column =
-      walk_expr.raw(recorder.view(), "package-1/seeded", "walk");
+  const auto column = walkExpr.raw(recorder.view(), "package-1/seeded", "walk");
   check(column.has_value() && column->points[0] == 48
             && column->points[1] == 1835 && column->points[2] == 2429
             && column->points[3] == 24418,
         "the seeded tail walks its whole trace from one seed (T014)");
   // 24418 - 48 = 48 + 1787 + 594 + 21989, the sum of every seeded step
   // the window spans.
-  check(same_double(walk_expr.fold(recorder.view()).value, 24370.0),
+  check(sameDouble(walkExpr.fold(recorder.view()).value, 24370.0),
         "the first-to-last fold over the seeded tail sums every step (T014)");
-  const auto pairs = walk_expr.foldPairs(recorder.view());
-  check(pairs.size() == 3 && same_double(pairs[0].value, 1787.0)
-            && same_double(pairs[1].value, 594.0)
-            && same_double(pairs[2].value, 21989.0),
+  const auto pairs = walkExpr.foldPairs(recorder.view());
+  check(pairs.size() == 3 && sameDouble(pairs[0].value, 1787.0)
+            && sameDouble(pairs[1].value, 594.0)
+            && sameDouble(pairs[2].value, 21989.0),
         "each pair fold yields its own seeded step (T014, FR-018)");
 }
 
 // A pair-carrying leaf whose enabled time never advances across the
 // window. The fold has no measured fraction to report and states full
 // rate, scaled false (FR-019).
-auto test_frozen_pair_ratio() -> void
+auto testFrozenPairRatio() -> void
 {
-  const auto source = *system::local().object("package-1/ratio-frozen");
-  const auto enabled = *source.counter<time_dim>("enabled");
-  const auto running = *source.counter<time_dim>("running");
+  const auto source = *System::local().object("package-1/ratio-frozen");
+  const auto enabled = *source.counter<TimeDim>("enabled");
+  const auto running = *source.counter<TimeDim>("running");
   const auto ratio = enabled / running;
-  const auto compiled = compile(system::local(), ratio);
+  const auto compiled = compile(System::local(), ratio);
   check(compiled.has_value(), "the frozen-pair plan compiles");
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
   const auto metric = window.metric(ratio);
@@ -927,9 +920,9 @@ auto test_frozen_pair_ratio() -> void
   // discloses no measured fraction and the fold states full rate.
   // (7 - 7) / (50 - 0) = 0: the enabled delta is zero, so the
   // quotient folds to zero while the disclosure states full rate.
-  check(same_double(metric.value, 0.0),
+  check(sameDouble(metric.value, 0.0),
         "the frozen-pair composite folds its own arithmetic exactly");
-  check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
+  check(sameDouble(metric.runningRatio, 1.0) && !metric.scaled,
         "a pair with no elapsed enabled time discloses full rate, scaled "
         "false (FR-019)");
 }
@@ -938,23 +931,23 @@ auto test_frozen_pair_ratio() -> void
 // ordinary un-multiplexed source. The fold compiles both halves, so the
 // pair discloses a full fraction: the rate test takes its full-rate edge
 // and the disclosure carries no scale (FR-019).
-auto test_full_rate_pair_ratio() -> void
+auto testFullRatePairRatio() -> void
 {
-  const auto source = *system::local().object("package-1/ratio-full");
-  const auto enabled = *source.counter<time_dim>("enabled");
-  const auto running = *source.counter<time_dim>("running");
+  const auto source = *System::local().object("package-1/ratio-full");
+  const auto enabled = *source.counter<TimeDim>("enabled");
+  const auto running = *source.counter<TimeDim>("running");
   const auto sum = enabled + running;
-  const auto compiled = compile(system::local(), sum);
+  const auto compiled = compile(System::local(), sum);
   check(compiled.has_value(), "the full-rate plan compiles");
-  sg::counters::scope window {*compiled};
+  sg::counters::Scope window {*compiled};
   window.start();
   window.finish();
   const auto metric = window.metric(sum);
   // Both scripted halves step by 900 across the window, so the sum folds
   // 900 + 900 and the pair discloses 900 / 900 = 1.
-  check(same_double(metric.value, 1800.0),
+  check(sameDouble(metric.value, 1800.0),
         "the full-rate pair folds its own scripted arithmetic exactly");
-  check(same_double(metric.runningRatio, 1.0) && !metric.scaled,
+  check(sameDouble(metric.runningRatio, 1.0) && !metric.scaled,
         "a source that ran at full rate discloses full rate, scaled false "
         "(FR-019)");
 }
@@ -965,11 +958,11 @@ auto test_full_rate_pair_ratio() -> void
 // contract itself: a leaf set the provider cannot serve opens no window,
 // and an address carrying no separator names no object at all
 // (FR-011, FR-036, T066).
-auto open_refusal_scenario() -> void
+auto openRefusalScenario() -> void
 {
   FakeProvider provider;
-  provider.add_object("package-1/core-3", "core", "a scripted core");
-  static_cast<void>(provider.add_counter(
+  provider.addObject("package-1/core-3", "core", "a scripted core");
+  static_cast<void>(provider.addCounter(
       "package-1/core-3", "cycles", "ops", "cycles elapsed"));
   const Target where {};
   check(provider.open(LeafSet {.addresses = {"package-1/core-3/cycles"}}, where)
@@ -989,28 +982,28 @@ auto open_refusal_scenario() -> void
 // A scalar multiple of a composite: the scale is one node over the
 // spine root, so the fold multiplies the sum the addition node folds to
 // and that node keeps both operands at full weight (FR-016, T066).
-auto scaled_composite_scenario() -> void
+auto scaledCompositeScenario() -> void
 {
-  using sg::counters::expression;
-  using sg::counters::scope;
-  const auto core = *system::local().object("package-1/core-3");
-  const auto work = core.counter<events>("instructions");
-  const auto cycle = core.counter<events>("cycles");
+  using sg::counters::Expression;
+  using sg::counters::Scope;
+  const auto core = *System::local().object("package-1/core-3");
+  const auto work = core.counter<Events>("instructions");
+  const auto cycle = core.counter<Events>("cycles");
   check(work.has_value() && cycle.has_value(),
         "the scripted core serves the two leaves the composite spans");
-  const expression<events> a {*work};
-  const expression<events> b {*cycle};
+  const Expression<Events> a {*work};
+  const Expression<Events> b {*cycle};
   const auto sum = a + b;
   const auto scaled = 3.0 * sum;
-  auto compiled = compile(system::local(), scaled, a, b);
+  auto compiled = compile(System::local(), scaled, a, b);
   if (!compiled.has_value()) {
     fail("the scaled composite plan compiles");
   }
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
   window.finish();
   check(
-      same_double(window.metric(scaled).value,
+      sameDouble(window.metric(scaled).value,
                   3.0 * (window.metric(a).value + window.metric(b).value)),
       "a scalar multiple of a composite scales the sum its operands fold "
       "to exactly (FR-016)");
@@ -1019,41 +1012,41 @@ auto scaled_composite_scenario() -> void
 // A scalar multiple of a composite whose operands are themselves
 // arithmetic: the scale multiplies the composite's folded value, so the
 // quotient and the sum keep their own arithmetic (FR-015).
-auto scaled_quotient_scenario() -> void
+auto scaledQuotientScenario() -> void
 {
-  using sg::counters::expression;
-  using sg::counters::scope;
-  const auto core = *system::local().object("package-1/core-3");
-  const auto work = core.counter<events>("instructions");
-  const auto cycle = core.counter<events>("cycles");
+  using sg::counters::Expression;
+  using sg::counters::Scope;
+  const auto core = *System::local().object("package-1/core-3");
+  const auto work = core.counter<Events>("instructions");
+  const auto cycle = core.counter<Events>("cycles");
   check(work.has_value() && cycle.has_value(),
         "the scripted core serves the two leaves the quotient spans");
-  const expression<events> a {*work};
-  const expression<events> b {*cycle};
+  const Expression<Events> a {*work};
+  const Expression<Events> b {*cycle};
   const auto quotient = a / b;
   const auto sum = a + b;
-  const auto doubled_quotient = 2.0 * quotient;
-  const auto doubled_sum = 2.0 * sum;
+  const auto doubledQuotient = 2.0 * quotient;
+  const auto doubledSum = 2.0 * sum;
   auto compiled = compile(
-      system::local(), a, b, quotient, sum, doubled_quotient, doubled_sum);
+      System::local(), a, b, quotient, sum, doubledQuotient, doubledSum);
   if (!compiled.has_value()) {
     fail("the scaled quotient plan compiles");
   }
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
   window.finish();
   // Both scripted sequences are past their explicit points, so the
   // window spans the tail deltas: instructions 2100, cycles 100. The
   // two undoubled folds pin them.
-  check(same_double(window.metric(quotient).value, 21.0)
-            && same_double(window.metric(sum).value, 2200.0),
+  check(sameDouble(window.metric(quotient).value, 21.0)
+            && sameDouble(window.metric(sum).value, 2200.0),
         "the undoubled folds pin the window's scripted deltas (FR-036)");
   // 2 * (2100 / 100) and 2 * (2100 + 100).
-  check(same_double(window.metric(doubled_quotient).value, 42.0)
-            && same_double(window.metric(doubled_sum).value, 4400.0),
+  check(sameDouble(window.metric(doubledQuotient).value, 42.0)
+            && sameDouble(window.metric(doubledSum).value, 4400.0),
         "a scalar multiple of a composite scales its folded value (FR-015)");
-  check(window.metric(doubled_quotient).scaled
-            && window.metric(doubled_sum).scaled
+  check(window.metric(doubledQuotient).scaled
+            && window.metric(doubledSum).scaled
             && !window.metric(quotient).scaled && !window.metric(sum).scaled,
         "the scaled flag reports a scale the caller applied and no other "
         "(FR-019)");
@@ -1065,14 +1058,14 @@ auto scaled_quotient_scenario() -> void
 // scaled spine is the right operand on purpose, because a left operand
 // splices at base zero and a remap there changes nothing
 // (FR-015, US1 scenario 3).
-auto scaled_spliced_operand_scenario() -> void
+auto scaledSplicedOperandScenario() -> void
 {
-  using sg::counters::expression;
-  using sg::counters::scope;
-  const auto scratch = *system::local().object("package-1/splice");
-  const auto only = *scratch.counter<events>("only");
-  const auto numerator = *scratch.counter<events>("numerator");
-  const auto scaled_operand = *scratch.counter<events>("scaled_operand");
+  using sg::counters::Expression;
+  using sg::counters::Scope;
+  const auto scratch = *System::local().object("package-1/splice");
+  const auto only = *scratch.counter<Events>("only");
+  const auto numerator = *scratch.counter<Events>("numerator");
+  const auto scaledOperand = *scratch.counter<Events>("scaled_operand");
   // Every window of this object sees the same deltas, because each
   // leaf's tail step repeats its scripted step: only 200, numerator
   // 2100, scaled_operand 400 (FR-036). The scaled leaf's delta differs
@@ -1080,17 +1073,17 @@ auto scaled_spliced_operand_scenario() -> void
   // the wrong operand folds a value of its own: node 0 is the leaf
   // `only` at 200, which divides as 2300 / 400 = 5.75.
   const auto sum = only + numerator;
-  const auto doubled_operand = 2.0 * expression<events> {scaled_operand};
-  const auto folded = sum / doubled_operand;
-  auto compiled = compile(system::local(), folded);
+  const auto doubledOperand = 2.0 * Expression<Events> {scaledOperand};
+  const auto folded = sum / doubledOperand;
+  auto compiled = compile(System::local(), folded);
   if (!compiled.has_value()) {
     fail("the spliced scaled-operand plan compiles");
   }
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
   window.finish();
   // (200 + 2100) / (2 * 400) = 2300 / 800.
-  check(same_double(window.metric(folded).value, 2.875),
+  check(sameDouble(window.metric(folded).value, 2.875),
         "a scaled expression spliced as an operand folds its own "
         "arithmetic exactly (FR-015, US1 scenario 3)");
 }
@@ -1102,20 +1095,20 @@ auto scaled_spliced_operand_scenario() -> void
 // disclosure column, which leaves each earlier group with no column of
 // its own (FR-007). A provider reading such a group writes no disclosure
 // beside its points.
-auto test_multi_group_disclosure() -> void
+auto testMultiGroupDisclosure() -> void
 {
-  const auto all_cores = system::local().objects("core");
-  check(all_cores.has_value() && all_cores->size() > 1,
+  const auto allCores = System::local().objects("core");
+  check(allCores.has_value() && allCores->size() > 1,
         "the fixture publishes more than one core");
-  if (!all_cores.has_value() || all_cores->size() <= 1) {
+  if (!allCores.has_value() || allCores->size() <= 1) {
     return;
   }
-  const auto core = *system::local().object("package-1/core-3");
-  const auto cycles = *core.counter<events>("cycles");
-  const auto instructions = *core.counter<events>("instructions");
+  const auto core = *System::local().object("package-1/core-3");
+  const auto cycles = *core.counter<Events>("cycles");
+  const auto instructions = *core.counter<Events>("instructions");
   const auto ipc = instructions / cycles;
 
-  auto fanout = compile(system::local(), ipc, *all_cores);
+  auto fanout = compile(System::local(), ipc, *allCores);
   check(fanout.has_value(), "a fan-out over every core compiles");
   if (!fanout.has_value()) {
     return;
@@ -1125,17 +1118,17 @@ auto test_multi_group_disclosure() -> void
   rec.sample();
   rec.sample();
   const auto folded = target.fold(ipc, rec.view());
-  check(folded.size() == all_cores->size(),
+  check(folded.size() == allCores->size(),
         "the fan-out reports one metric per selected core");
 }
 
 // A window opened with the default disclosure column writes its leaves
 // and writes no disclosure (FR-007).
-auto test_open_without_disclosure() -> void
+auto testOpenWithoutDisclosure() -> void
 {
   FakeProvider provider;
-  provider.add_counter("machine", "quiet", "ops", "opened with no disclosure");
-  provider.set_points("machine", "quiet", {4}, 0);
+  provider.addCounter("machine", "quiet", "ops", "opened with no disclosure");
+  provider.setPoints("machine", "quiet", {4}, 0);
   const Target where {};
   auto window = provider.open(LeafSet {.addresses = {"machine/quiet"}}, where);
   if (window == nullptr) {
@@ -1151,30 +1144,30 @@ auto test_open_without_disclosure() -> void
 
 auto main() -> int
 {
-  test_open_without_disclosure();
-  test_registration();
-  test_tree_walk();
-  test_resolution_diagnostics();
-  test_compile_zero_reads();
-  test_scope_exactness();
-  test_additive_algebra();
-  test_construction_and_fold_edges();
-  test_multi_expression_splice();
-  test_move_assignment();
-  test_nested_parent_and_suggestions();
-  test_fanout_construction_errors();
-  test_permission_blocked_leaf();
-  test_wrap();
-  test_ratio_product();
-  test_shared_leaf_exponent();
-  test_frozen_pair_ratio();
-  test_full_rate_pair_ratio();
-  test_seeded_tail();
-  test_multi_group_disclosure();
-  open_refusal_scenario();
-  scaled_composite_scenario();
-  scaled_quotient_scenario();
-  scaled_spliced_operand_scenario();
+  testOpenWithoutDisclosure();
+  testRegistration();
+  testTreeWalk();
+  testResolutionDiagnostics();
+  testCompileZeroReads();
+  testScopeExactness();
+  testAdditiveAlgebra();
+  testConstructionAndFoldEdges();
+  testMultiExpressionSplice();
+  testMoveAssignment();
+  testNestedParentAndSuggestions();
+  testFanoutConstructionErrors();
+  testPermissionBlockedLeaf();
+  testWrap();
+  testRatioProduct();
+  testSharedLeafExponent();
+  testFrozenPairRatio();
+  testFullRatePairRatio();
+  testSeededTail();
+  testMultiGroupDisclosure();
+  openRefusalScenario();
+  scaledCompositeScenario();
+  scaledQuotientScenario();
+  scaledSplicedOperandScenario();
   std::printf("counters_fake_test: all checks passed\n");
   return 0;
 }

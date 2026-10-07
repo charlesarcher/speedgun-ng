@@ -45,7 +45,7 @@ namespace sg::counters::detail
 // index past the operand bound names no counter any host has; both fall
 // back to the group read. Pure over the published value, so a synthetic
 // page covers it in CI (T066; plan.md Coverage strategy).
-auto fast_index_valid(const std::uint32_t index) noexcept -> bool
+auto fastIndexValid(const std::uint32_t index) noexcept -> bool
 {
   return index != 0 && index <= kRnpmcMaxIndex;
 }
@@ -55,7 +55,7 @@ auto fast_index_valid(const std::uint32_t index) noexcept -> bool
 // the mask on every host that publishes one, so a host whose counters
 // are not 48 bits wide is measured correctly. Pure over the published
 // width, so a synthetic page covers it in CI (T066).
-auto fast_counter_width(const std::uint16_t published) noexcept -> std::uint32_t
+auto fastCounterWidth(const std::uint16_t published) noexcept -> std::uint32_t
 {
   return published == 0 ? kRnpmcCounterWidth
                         : static_cast<std::uint32_t>(published);
@@ -66,26 +66,25 @@ auto fast_counter_width(const std::uint16_t published) noexcept -> std::uint32_t
 // payload rides that update, so a moved sequence means the payload was
 // read mid-rewrite and the caller retries. Pure over the two published
 // values, so a synthetic page covers it in CI (T066).
-auto fast_pair_stable(const std::uint32_t sequence_before,
-                      const std::uint32_t sequence_after) noexcept -> bool
+auto fastPairStable(const std::uint32_t sequenceBefore,
+                    const std::uint32_t sequenceAfter) noexcept -> bool
 {
-  return sequence_before == sequence_after;
+  return sequenceBefore == sequenceAfter;
 }
 
-auto fast_pinning_ok(const int pinned_cpu,
-                     const int current_cpu) noexcept -> bool
+auto fastPinningOk(const int pinnedCpu, const int currentCpu) noexcept -> bool
 {
-  return pinned_cpu < 0 || pinned_cpu == current_cpu;
+  return pinnedCpu < 0 || pinnedCpu == currentCpu;
 }
 
-auto fast_decode(const std::uint32_t sequence_before,
-                 const std::uint32_t sequence_after,
-                 const std::uint32_t index,
-                 const std::uint64_t capability,
-                 const std::uint64_t raw,
-                 const std::int64_t offset,
-                 const std::uint32_t width,
-                 std::uint64_t& value) -> fast_read_verdict
+auto fastDecode(const std::uint32_t sequenceBefore,
+                const std::uint32_t sequenceAfter,
+                const std::uint32_t index,
+                const std::uint64_t capability,
+                const std::uint64_t raw,
+                const std::int64_t offset,
+                const std::uint32_t width,
+                std::uint64_t& value) -> FastReadVerdict
 {
   // Protocol order (FR-040, R-011), the order the header documents: the
   // capability gate, then the one-based index the instruction takes, then
@@ -95,15 +94,15 @@ auto fast_decode(const std::uint32_t sequence_before,
   // into the point the caller folds (FR-002, FR-003).
   if ((capability & 1U) == 0) {
     value = 0;
-    return fast_read_verdict::not_allowed;
+    return FastReadVerdict::NOT_ALLOWED;
   }
-  if (!fast_index_valid(index)) {
+  if (!fastIndexValid(index)) {
     value = 0;
-    return fast_read_verdict::not_allowed;
+    return FastReadVerdict::NOT_ALLOWED;
   }
-  if (!fast_pair_stable(sequence_before, sequence_after)) {
+  if (!fastPairStable(sequenceBefore, sequenceAfter)) {
     value = 0;
-    return fast_read_verdict::unstable;
+    return FastReadVerdict::UNSTABLE;
   }
   // The recipe the kernel's own interface header documents: sign extend
   // the instruction result from the published `pmc_width` bits, then add
@@ -115,29 +114,29 @@ auto fast_decode(const std::uint32_t sequence_before,
   // shift is the sign extension the recipe calls for, and no unsigned
   // spelling of it extends anything (FR-004).
   // NOLINTNEXTLINE(bugprone-signed-bitwise)
-  const auto sign_extended =
+  const auto signExtended =
       static_cast<std::int64_t>(raw << (64U - width)) >> (64U - width);
   // The offset is unsigned and the extension signed, and the sum is cast
   // to the unsigned type the counter holds before anything compares it.
   // NOLINTNEXTLINE(modernize-use-integer-sign-comparison)
-  value = static_cast<std::uint64_t>(sign_extended + offset);
+  value = static_cast<std::uint64_t>(signExtended + offset);
   // NOLINTNEXTLINE(modernize-use-integer-sign-comparison)
-  SG_ENSURE(value == static_cast<std::uint64_t>(sign_extended + offset),
+  SG_ENSURE(value == static_cast<std::uint64_t>(signExtended + offset),
             "an ok verdict leaves the offset plus the sign-extended "
             "instruction value (FR-004)");
-  return fast_read_verdict::ok;
+  return FastReadVerdict::OK;
 }
 
-auto fast_probe_allows(const bool capability_granted,
-                       const std::uint32_t index,
-                       std::string& refusal) -> bool
+auto fastProbeAllows(const bool capabilityGranted,
+                     const std::uint32_t index,
+                     std::string& refusal) -> bool
 {
-  if (!capability_granted) {
+  if (!capabilityGranted) {
     refusal = "the event page the kernel mapped publishes no cap_user_rdpmc "
               "bit, so this caller may not read counters from user space";
     return false;
   }
-  if (!fast_index_valid(index)) {
+  if (!fastIndexValid(index)) {
     refusal = "the event page the kernel mapped publishes counter index "
         + std::to_string(index)
         + ", which names no counter the rdpmc instruction can read";
@@ -149,10 +148,10 @@ auto fast_probe_allows(const bool capability_granted,
 
 #if !defined(SG_PMU_FAST_X86)
 
-std::unique_ptr<fast_context> fast_context_open(const int,
-                                                const std::uint64_t,
-                                                const Target&,
-                                                std::string* refusal)
+std::unique_ptr<FastContext> fast_context_open(const int,
+                                               const std::uint64_t,
+                                               const Target&,
+                                               std::string* refusal)
 {
   if (refusal != nullptr) {
     *refusal = "the host is not x86, so the mapped-page read does not apply";
@@ -160,19 +159,19 @@ std::unique_ptr<fast_context> fast_context_open(const int,
   return nullptr;
 }
 
-auto fast_context_read(const fast_context&, std::uint64_t&) -> fast_read_verdict
+auto fast_context_read(const FastContext&, std::uint64_t&) -> FastReadVerdict
 {
-  return fast_read_verdict::not_allowed;
+  return FastReadVerdict::not_allowed;
 }
 
-auto fast_context_time_pair(const fast_context&,
-                            std::uint64_t&,
-                            std::uint64_t&) -> bool
+auto fastContextTimePair(const FastContext&,
+                         std::uint64_t&,
+                         std::uint64_t&) -> bool
 {
   return false;
 }
 
-void fast_context_close(fast_context&) {}
+void fast_context_close(FastContext&) {}
 
 #else
 
@@ -183,17 +182,17 @@ namespace
 // it (include/uapi/linux/perf_event.h). The type is the kernel's, so
 // every field below is read at the offset the running kernel's UAPI
 // header fixes and no layout is mirrored here (R-011, Constitution I).
-using event_page = perf_event_mmap_page;
+using EventPage = perf_event_mmap_page;
 
 }  // namespace
 
-std::unique_ptr<fast_context> fast_context_open(const int type,
-                                                const std::uint64_t config,
-                                                const Target& where,
-                                                std::string* refusal)
+std::unique_ptr<FastContext> fastContextOpen(const int type,
+                                             const std::uint64_t config,
+                                             const Target& where,
+                                             std::string* refusal)
 {
   const auto refuse =
-      [refusal](std::string sentence) -> std::unique_ptr<fast_context>
+      [refusal](std::string sentence) -> std::unique_ptr<FastContext>
   {
     if (refusal != nullptr) {
       *refusal = std::move(sentence);
@@ -207,7 +206,7 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   attr.config = config;
   attr.exclude_kernel = 1;
   attr.exclude_hv = 1;
-  const auto [pid, cpu] = leader_pid(where);
+  const auto [pid, cpu] = leaderPid(where);
   const long fd =
       ::syscall(SYS_perf_event_open, &attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
   // LCOV_EXCL_BR_START : coverage exclusion (T140): the granted arm of the
@@ -226,11 +225,11 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   // fills. The descriptor above exists only where the kernel granted the
   // open, so a runner whose `perf_event_open` is refused fills no context
   // here, and the host that grants it fills one on every granted call.
-  auto context = std::make_unique<fast_context>();
+  auto context = std::make_unique<FastContext>();
   context->owner = std::this_thread::get_id();
-  context->pinned_cpu = where.kind == TargetKind::CPU ? where.cpu : -1;
+  context->pinnedCpu = where.kind == TargetKind::CPU ? where.cpu : -1;
   context->fd = static_cast<int>(fd);
-  context->map_length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+  context->mapLength = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
   // LCOV_EXCL_STOP
   // The mapping is the kernel's own page type read at the offsets that
   // type declares, so no cast of a mirrored layout is involved and no P2
@@ -241,9 +240,9 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
   // fixture reaches this arm; the open refusal above is the reachable
   // half and `test/source/counters_linux_pmu_seam_test.cpp` covers it.
   void* mapping = ::mmap(
-      nullptr, context->map_length, PROT_READ, MAP_SHARED, context->fd, 0);
+      nullptr, context->mapLength, PROT_READ, MAP_SHARED, context->fd, 0);
   if (mapping == MAP_FAILED) {  // LCOV_EXCL_BR_LINE
-    fast_context_close(*context);
+    fastContextClose(*context);
     return refuse(
         "the event descriptor the kernel returned could not be " "mapped: "
         + std::string(std::strerror(errno)));  // LCOV_EXCL_LINE
@@ -264,11 +263,11 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
 // source of one is a granted `perf_event_open`. A runner whose
 // `perf_event_open` is refused opens no context, so this body never runs
 // there; the host that grants it runs the body on every sample. The gates
-// the body applies are covered for both arms by `fast_decode` and the
-// `fast_index_valid` and `fast_pair_stable` seams in
+// the body applies are covered for both arms by `fastDecode` and the
+// `fastIndexValid` and `fastPairStable` seams in
 // `test/source/counters_linux_pmu_seam_test.cpp`.
-auto fast_context_read(const fast_context& context,
-                       std::uint64_t& value) -> fast_read_verdict
+auto fastContextRead(const FastContext& context,
+                     std::uint64_t& value) -> FastReadVerdict
 {
   SG_REQUIRE(std::this_thread::get_id() == context.owner,
              "a mapped-page read runs on the thread that opened its "
@@ -277,34 +276,34 @@ auto fast_context_read(const fast_context& context,
   // configured `ignore` emits no check, and the per-sample cost stays
   // where FR-008 holds it. A thread-bound plan pins nothing and the
   // second conjunct is a compile-time-known-true compare against -1.
-  SG_REQUIRE(fast_pinning_ok(context.pinned_cpu, ::sched_getcpu()),
+  SG_REQUIRE(fastPinningOk(context.pinnedCpu, ::sched_getcpu()),
              "a cpu-target fast-mode plan requires its sampling thread to "
              "run on the processor this plan opened its contexts on "
              "(FR-045)");
-  const auto* page = static_cast<const event_page*>(context.map);
+  const auto* page = static_cast<const EventPage*>(context.map);
   // The protocol the header publishes, in its order: snapshot the
   // sequence, take the payload and the instruction, compare the sequence
   // again (FR-040, R-011). Every gate below is decided by the page, so
-  // `fast_decode` applies them and a caller the kernel refuses pays for
+  // `fastDecode` applies them and a caller the kernel refuses pays for
   // page loads only.
   const auto sequence = page->lock;
   _mm_lfence();
   const auto index = page->index;
   const auto offset = page->offset;
-  const auto width = fast_counter_width(page->pmc_width);
+  const auto width = fastCounterWidth(page->pmc_width);
   const auto capability = static_cast<std::uint64_t>(page->cap_user_rdpmc);
   // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that withholds
   // the instruction. The kernel assigns a nonzero index to every event it
   // opens on a host that grants the capability, so the arm needs a host
   // that grants the capability and indexes nothing; the same gate is
-  // covered for both arms by `fast_index_valid` inside `fast_decode`.
+  // covered for both arms by `fastIndexValid` inside `fastDecode`.
   const auto raw = index == 0  // LCOV_EXCL_BR_LINE
       ? 0ULL
       : static_cast<std::uint64_t>(  // LCOV_EXCL_BR_LINE
             _rdpmc(static_cast<int>(index) - 1));  // LCOV_EXCL_BR_LINE
   // LCOV_EXCL_BR_STOP
   _mm_lfence();
-  return fast_decode(
+  return fastDecode(
       sequence, page->lock, index, capability, raw, offset, width, value);
   // LCOV_EXCL_STOP
 }
@@ -313,25 +312,25 @@ auto fast_context_read(const fast_context& context,
 // read. It reads the same granted mapping the counter read above needs, so a
 // runner whose `perf_event_open` is refused never runs it, and the host that
 // grants the syscall runs it on every sampling action. The stability gate
-// the body applies is covered for both arms by `fast_pair_stable`.
-auto fast_context_time_pair(const fast_context& context,
-                            std::uint64_t& enabled,
-                            std::uint64_t& running) -> bool
+// the body applies is covered for both arms by `fastPairStable`.
+auto fastContextTimePair(const FastContext& context,
+                         std::uint64_t& enabled,
+                         std::uint64_t& running) -> bool
 {
   SG_REQUIRE(std::this_thread::get_id() == context.owner,
              "the enabled/running pair is read on the thread that opened "
              "its context (FR-031, FR-040)");
-  SG_REQUIRE(fast_pinning_ok(context.pinned_cpu, ::sched_getcpu()),
+  SG_REQUIRE(fastPinningOk(context.pinnedCpu, ::sched_getcpu()),
              "a cpu-target fast-mode plan requires its sampling thread to "
              "run on the processor this plan opened its contexts on "
              "(FR-045)");
-  const auto* page = static_cast<const event_page*>(context.map);
+  const auto* page = static_cast<const EventPage*>(context.map);
   // The pair is payload of the same user-page update the counter value
   // rides, so it is read under the same seqlock snapshot (FR-041, R-011).
   const auto sequence = page->lock;
   _mm_lfence();
-  const auto page_enabled = page->time_enabled;
-  const auto page_running = page->time_running;
+  const auto pageEnabled = page->time_enabled;
+  const auto pageRunning = page->time_running;
   // The header reads the cycle counter, the scale, offset, and shift, the
   // page index, and the short-counter fields inside the sequence snapshot,
   // before the comparison that closes it (FR-007, FR-008). A field read
@@ -340,7 +339,7 @@ auto fast_context_time_pair(const fast_context& context,
   const bool cap_user_time = page->cap_user_time != 0;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
   const bool cap_user_time_short = page->cap_user_time_short != 0;
-  const auto page_index = page->index;
+  const auto pageIndex = page->index;
   const auto time_shift = page->time_shift;
   const auto time_mult = page->time_mult;
   const auto time_offset = page->time_offset;
@@ -349,13 +348,13 @@ auto fast_context_time_pair(const fast_context& context,
   // The header samples the cycle counter only where the capability bit is
   // set and the enabled count differs from the running count.
   const auto cyc =
-      (cap_user_time && page_enabled != page_running) ? __rdtsc() : 0U;
+      (cap_user_time && pageEnabled != pageRunning) ? __rdtsc() : 0U;
   _mm_lfence();
   // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that reports no
   // pair. It needs the kernel to rewrite the page between the two reads of
   // its sequence, which a test cannot force deterministically; the same
-  // comparison is covered for both arms by `fast_pair_stable`.
-  if (!fast_pair_stable(sequence, page->lock)) {  // LCOV_EXCL_BR_LINE
+  // comparison is covered for both arms by `fastPairStable`.
+  if (!fastPairStable(sequence, page->lock)) {  // LCOV_EXCL_BR_LINE
     return false;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_LINE
   // LCOV_EXCL_BR_STOP
@@ -364,12 +363,12 @@ auto fast_context_time_pair(const fast_context& context,
   // bit and on an enabled count that differs from the running count, so a
   // page that names no time capability, or one whose counts already agree,
   // keeps the raw pair and the arithmetic below never runs.
-  const event_time_fields fields {
+  const EventTimeFields fields {
       .cap_user_time = cap_user_time,
       .cap_user_time_short = cap_user_time_short,
-      .time_enabled = page_enabled,
-      .time_running = page_running,
-      .index = page_index,
+      .time_enabled = pageEnabled,
+      .time_running = pageRunning,
+      .index = pageIndex,
       .time_shift = time_shift,
       .time_mult = time_mult,
       .time_offset = time_offset,
@@ -377,24 +376,24 @@ auto fast_context_time_pair(const fast_context& context,
       .time_mask = time_mask,
       .cyc = cyc,
   };
-  const auto pair = fast_time_pair(fields);
+  const auto pair = fastTimePair(fields);
   enabled = pair.enabled;
   running = pair.running;
   return true;
   // LCOV_EXCL_STOP
 }
 
-void fast_context_close(fast_context& context)
+void fastContextClose(FastContext& context)
 {
   // Both arms run on any host. `fast_context_lifetime_scenario` in
   // `test/source/counters_linux_pmu_seam_test.cpp` reaches them through
-  // `~fast_context` with a descriptor and an anonymous mapping the test
+  // `~FastContext` with a descriptor and an anonymous mapping the test
   // opened itself, so no marker over this release stands and the coverage
   // gate measures it (T074, FR-027, FR-046).
   if (context.map != nullptr) {
-    ::munmap(context.map, context.map_length);
+    ::munmap(context.map, context.mapLength);
     context.map = nullptr;
-    context.map_length = 0;
+    context.mapLength = 0;
   }
   if (context.fd >= 0) {
     ::close(context.fd);

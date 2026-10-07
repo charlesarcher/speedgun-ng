@@ -25,14 +25,14 @@ namespace sg::counters
 namespace
 {
 
-constexpr std::size_t suggestion_limit = 5;
-constexpr int near_miss_distance = 2;
+constexpr std::size_t kSuggestionLimit = 5;
+constexpr int kNearMissDistance = 2;
 
 // Levenshtein edit distance, capped: returns `max + 1` once the row
 // minimum exceeds `max`, so near-miss probes stay cheap.
-[[nodiscard]] auto edit_distance(std::string_view a,
-                                 std::string_view b,
-                                 const int max) -> int
+[[nodiscard]] auto editDistance(std::string_view a,
+                                std::string_view b,
+                                const int max) -> int
 {
   std::vector<int> previous(b.size() + 1);
   std::vector<int> current(b.size() + 1);
@@ -41,14 +41,14 @@ constexpr int near_miss_distance = 2;
   }
   for (std::size_t i = 1; i <= a.size(); ++i) {
     current[0] = static_cast<int>(i);
-    int row_min = current[0];
+    int rowMin = current[0];
     for (std::size_t j = 1; j <= b.size(); ++j) {
       const int substitution = previous[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1);
       current[j] =
           std::min({previous[j] + 1, current[j - 1] + 1, substitution});
-      row_min = std::min(row_min, current[j]);
+      rowMin = std::min(rowMin, current[j]);
     }
-    if (row_min > max) {
+    if (rowMin > max) {
       return max + 1;
     }
     previous = current;
@@ -56,8 +56,7 @@ constexpr int near_miss_distance = 2;
   return previous[b.size()];
 }
 
-[[nodiscard]] auto split_words(std::string_view text)
-    -> std::vector<std::string>
+[[nodiscard]] auto splitWords(std::string_view text) -> std::vector<std::string>
 {
   std::vector<std::string> words;
   std::size_t start = 0;
@@ -80,11 +79,11 @@ constexpr int near_miss_distance = 2;
 }  // LCOV_EXCL_LINE
 
 // True when any word of `description` equals a word of `query`.
-[[nodiscard]] auto shares_word(std::string_view description,
-                               std::string_view query) -> bool
+[[nodiscard]] auto sharesWord(std::string_view description,
+                              std::string_view query) -> bool
 {
-  const auto wanted = split_words(query);
-  for (const auto& word : split_words(description)) {
+  const auto wanted = splitWords(query);
+  for (const auto& word : splitWords(description)) {
     if (std::ranges::find(wanted, word) != wanted.end()) {
       return true;
     }
@@ -95,23 +94,23 @@ constexpr int near_miss_distance = 2;
 // Near-miss suggestions (FR-008): names within edit distance two
 // first, then description word overlaps; catalog order breaks ties;
 // at most five.
-[[nodiscard]] auto near_misses(
+[[nodiscard]] auto nearMisses(
     std::string_view query,
-    const std::vector<std::pair<std::string, std::string>>& name_description)
+    const std::vector<std::pair<std::string, std::string>>& nameDescription)
     -> std::vector<std::string>
 {
   std::vector<std::string> close;
   std::vector<std::string> related;
-  for (const auto& [name, description] : name_description) {
-    if (edit_distance(query, name, near_miss_distance) <= near_miss_distance) {
+  for (const auto& [name, description] : nameDescription) {
+    if (editDistance(query, name, kNearMissDistance) <= kNearMissDistance) {
       close.push_back(name);
-    } else if (shares_word(description, query)) {
+    } else if (sharesWord(description, query)) {
       related.push_back(name);
     }
   }
   std::vector<std::string> suggestions = std::move(close);
   suggestions.insert(suggestions.end(), related.begin(), related.end());
-  suggestions.resize(std::min(suggestions.size(), suggestion_limit));
+  suggestions.resize(std::min(suggestions.size(), kSuggestionLimit));
   return suggestions;
 }
 
@@ -119,26 +118,25 @@ constexpr int near_miss_distance = 2;
 // and a counter name the object already carries (FR-008, FR-017).
 // `root_leaves` holds the machine root's committed leaves plus the batch
 // this call has staged, so a machine seed is checked against both.
-[[nodiscard]] auto build_leaves(const ObjectSeed& seed,
-                                const std::string& path,
-                                const bool on_root,
-                                const std::vector<leaf_record>& root_leaves,
-                                const int provider_index)
-    -> std::expected<std::vector<leaf_record>, Error>
+[[nodiscard]] auto buildLeaves(const ObjectSeed& seed,
+                               const std::string& path,
+                               const bool onRoot,
+                               const std::vector<LeafRecord>& rootLeaves,
+                               const int providerIndex)
+    -> std::expected<std::vector<LeafRecord>, Error>
 {
-  std::vector<leaf_record> leaves;
+  std::vector<LeafRecord> leaves;
   for (const auto& entry : seed.entries) {
     const auto mapped = unitFromToken(entry.unit);
     if (!mapped.has_value()) {
       return std::unexpected(mapped.error());
     }
     const std::string name(entry.name);
-    const bool taken = std::ranges::any_of(leaves,
-                                           [&](const leaf_record& leaf)
-                                           { return leaf.core.name == name; });
-    const bool clashes = on_root
-        && std::ranges::any_of(root_leaves,
-                               [&](const leaf_record& leaf)
+    const bool taken = std::ranges::any_of(
+        leaves, [&](const LeafRecord& leaf) { return leaf.core.name == name; });
+    const bool clashes = onRoot
+        && std::ranges::any_of(rootLeaves,
+                               [&](const LeafRecord& leaf)
                                { return leaf.core.name == name; });
     if (taken || clashes) {
       return std::unexpected(Error {.message = "duplicate counter name '" + name
@@ -150,7 +148,7 @@ constexpr int near_miss_distance = 2;
     // of the `std::vector` growth inside `push_back`. They exist only if the
     // allocation throws, and the counters tree never grows a leaf vector past
     // the catalog a provider declares.
-    leaves.push_back(leaf_record {
+    leaves.push_back(LeafRecord {
         // LCOV_EXCL_BR_LINE
         .core =
             detail::LeafCore {
@@ -163,8 +161,8 @@ constexpr int near_miss_distance = 2;
                 .frequencyHz = entry.frequencyHz,
                 .scaled = entry.scaled,
             },
-        .has_ratio_pair = entry.hasRatioPair,
-        .provider_index = provider_index,
+        .hasRatioPair = entry.hasRatioPair,
+        .providerIndex = providerIndex,
     });  // LCOV_EXCL_BR_LINE
   }  // LCOV_EXCL_BR_LINE
   // LCOV_EXCL_BR_STOP
@@ -176,7 +174,7 @@ constexpr int near_miss_distance = 2;
 // objects would hand every lookup of it to whichever registered first,
 // so a clash is refused. `map::emplace` would drop the second node and
 // leave it unreported (FR-002).
-[[nodiscard]] auto alias_is_held(
+[[nodiscard]] auto aliasIsHeld(
     const std::map<std::string, std::string>& merged,
     const std::vector<std::pair<std::string, std::string>>& staged,
     const std::string& alias) -> bool
@@ -190,7 +188,7 @@ constexpr int near_miss_distance = 2;
 // The canonical path split at its separators, so both filter tests
 // below read one component list. The tree is frozen once open, so the
 // views stay valid for the call (FR-009).
-[[nodiscard]] auto path_components(const std::string& path)
+[[nodiscard]] auto pathComponents(const std::string& path)
     -> std::vector<std::string_view>
 {
   std::vector<std::string_view> components;
@@ -215,12 +213,12 @@ constexpr int near_miss_distance = 2;
 
 // True when the canonical path carries the component the filter spells,
 // `key-value` (FR-003).
-[[nodiscard]] auto path_carries(const std::string& path,
-                                const system::filter& one) -> bool
+[[nodiscard]] auto pathCarries(const std::string& path,
+                               const System::Filter& one) -> bool
 {
   const std::string wanted =
       std::string(one.key) + "-" + std::string(one.value);
-  return std::ranges::any_of(path_components(path),
+  return std::ranges::any_of(pathComponents(path),
                              [&](const std::string_view component)
                              { return component == wanted; });
 }
@@ -233,10 +231,10 @@ constexpr int near_miss_distance = 2;
 // field of its own in the seed. A declared key whose value matches
 // nothing stays defined, so a filter that matches nothing selects
 // nothing.
-[[nodiscard]] auto key_defined(
-    const std::map<std::string, std::unique_ptr<tree_node>>& objects,
+[[nodiscard]] auto keyDefined(
+    const std::map<std::string, std::unique_ptr<TreeNode>>& objects,
     const std::string_view kind,
-    const system::filter& one) -> bool
+    const System::Filter& one) -> bool
 {
   if (one.key == "package" || one.key == "core") {
     return true;
@@ -246,7 +244,7 @@ constexpr int near_miss_distance = 2;
     if (node->kind != kind) {
       continue;
     }
-    for (const auto component : path_components(path)) {
+    for (const auto component : pathComponents(path)) {
       if (component.starts_with(prefix)) {
         return true;
       }
@@ -263,7 +261,7 @@ constexpr int near_miss_distance = 2;
 // where it fills `CatalogEntry::targets` (FR-021). The table is filled
 // while a provider registers and read only after the catalog opens, so no
 // read races a write (FR-009).
-auto probed_kind_table() -> std::map<std::string, TargetMask>&
+auto probedKindTable() -> std::map<std::string, TargetMask>&
 {
   static std::map<std::string, TargetMask> table;
   return table;
@@ -271,28 +269,28 @@ auto probed_kind_table() -> std::map<std::string, TargetMask>&
 
 }  // namespace
 
-system::system()
-    : m_impl(std::make_unique<impl>())
+System::System()
+    : m_impl(std::make_unique<Impl>())
 {
-  auto root = std::make_unique<tree_node>();
+  auto root = std::make_unique<TreeNode>();
   root->kind = "machine";
   root->path = "machine";
   root->description = "local machine";
   m_impl->objects.emplace(root->path, std::move(root));
 }
 
-system::~system() = default;
+System::~System() = default;
 
-auto system::local() -> system&
+auto System::local() -> System&
 {
-  static system instance;
+  static System instance;
   return instance;
 }
 
-auto system::register_provider(std::unique_ptr<ProviderIface> provider)
+auto System::registerProvider(std::unique_ptr<ProviderIface> provider)
     -> std::expected<void, Error>
 {
-  if (m_impl->is_open()) {
+  if (m_impl->isOpen()) {
     return std::unexpected(Error {
         .message = "provider registration after the system opened (FR-009)",
         .suggestions = {}});
@@ -300,7 +298,7 @@ auto system::register_provider(std::unique_ptr<ProviderIface> provider)
 
   // Staging sink: the tree stays unchanged unless the whole provider
   // validates (FR-008).
-  struct staging_sink final : ObjectSink
+  struct StagingSink final : ObjectSink
   {
     std::vector<ObjectSeed> seeds;
 
@@ -309,20 +307,20 @@ auto system::register_provider(std::unique_ptr<ProviderIface> provider)
 
   provider->enumerate(sink);
 
-  const int provider_index = static_cast<int>(m_impl->providers.size());
-  std::vector<std::unique_ptr<tree_node>> staged;
+  const int providerIndex = static_cast<int>(m_impl->providers.size());
+  std::vector<std::unique_ptr<TreeNode>> staged;
   // Seeded with the machine root's committed leaves so the whole merge
   // lands in one assignment after every seed validates (FR-008).
-  auto root_leaves = m_impl->objects.at("machine")->leaves;
-  std::vector<std::pair<std::string, std::string>> staged_aliases;
+  auto rootLeaves = m_impl->objects.at("machine")->leaves;
+  std::vector<std::pair<std::string, std::string>> stagedAliases;
 
   for (const auto& seed : sink.seeds) {
     const std::string path(seed.path);
-    const bool on_root = path == "machine";
-    if (!on_root
+    const bool onRoot = path == "machine";
+    if (!onRoot
         && (m_impl->objects.contains(path)
             || std::ranges::any_of(staged,
-                                   [&](const std::unique_ptr<tree_node>& one)
+                                   [&](const std::unique_ptr<TreeNode>& one)
                                    { return one->path == path; })))
     {
       // A path the batch already staged collides the same way a path the
@@ -334,20 +332,19 @@ auto system::register_provider(std::unique_ptr<ProviderIface> provider)
                                     .suggestions = {}});
     }
 
-    auto leaves =
-        build_leaves(seed, path, on_root, root_leaves, provider_index);
+    auto leaves = buildLeaves(seed, path, onRoot, rootLeaves, providerIndex);
     if (!leaves.has_value()) {
       return std::unexpected(leaves.error());
     }
 
-    if (on_root) {
-      root_leaves.insert(root_leaves.end(),
-                         std::make_move_iterator(leaves->begin()),
-                         std::make_move_iterator(leaves->end()));
+    if (onRoot) {
+      rootLeaves.insert(rootLeaves.end(),
+                        std::make_move_iterator(leaves->begin()),
+                        std::make_move_iterator(leaves->end()));
       continue;
     }
 
-    auto node = std::make_unique<tree_node>();
+    auto node = std::make_unique<TreeNode>();
     node->kind = std::string(seed.kind);
     node->path = path;
     node->alias = std::string(seed.alias);
@@ -355,33 +352,33 @@ auto system::register_provider(std::unique_ptr<ProviderIface> provider)
 
     if (!seed.alias.empty()) {
       const std::string alias(seed.alias);
-      if (alias_is_held(m_impl->aliases, staged_aliases, alias)) {
+      if (aliasIsHeld(m_impl->aliases, stagedAliases, alias)) {
         return std::unexpected(
             Error {.message = "duplicate platform alias '" + alias
                        + "' already held by another " "object (FR-002)",
                    .suggestions = {}});
       }
-      staged_aliases.emplace_back(alias, path);
+      stagedAliases.emplace_back(alias, path);
     }
     node->leaves = std::move(*leaves);
     staged.push_back(std::move(node));
   }
 
-  m_impl->objects.at("machine")->leaves = std::move(root_leaves);
+  m_impl->objects.at("machine")->leaves = std::move(rootLeaves);
   for (auto& node : staged) {
     m_impl->objects.emplace(node->path, std::move(node));
   }
-  for (auto& [alias, path] : staged_aliases) {
+  for (auto& [alias, path] : stagedAliases) {
     m_impl->aliases.emplace(std::move(alias), std::move(path));
   }
   m_impl->providers.push_back(std::move(provider));
   return {};
 }
 
-auto system::object(std::string_view path)
-    -> std::expected<sg::counters::object, Error>
+auto System::object(std::string_view path)
+    -> std::expected<sg::counters::Object, Error>
 {
-  m_impl->ensure_open();
+  m_impl->ensureOpen();
   const std::string canonical = m_impl->canonicalize(path);
   const auto located = m_impl->objects.find(canonical);
   if (located == m_impl->objects.end()) {
@@ -391,9 +388,9 @@ auto system::object(std::string_view path)
     }
     return std::unexpected(
         Error {.message = "no object at path '" + std::string(path) + "'",
-               .suggestions = near_misses(path, candidates)});
+               .suggestions = nearMisses(path, candidates)});
   }
-  return handle_for(canonical);
+  return handleFor(canonical);
 }
 
 // The time-stamp entry as a shorter spelling of the uniform lookup
@@ -403,7 +400,7 @@ auto system::object(std::string_view path)
 // provider (FR-006). The two failure branches are recoverable errors and
 // never contract violations, so neither carries a contract macro (FR-007,
 // FR-008).
-auto system::tsc() const -> std::expected<counter<Dim<0, 1>>, Error>
+auto System::tsc() const -> std::expected<Counter<Dim<0, 1>>, Error>
 {
   const auto* node = m_impl->find("machine");
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the short-circuit arc
@@ -420,7 +417,7 @@ auto system::tsc() const -> std::expected<counter<Dim<0, 1>>, Error>
   // LCOV_EXCL_BR_STOP
   for (const auto& leaf : node->leaves) {
     if (leaf.core.name == "tsc") {
-      return counter<Dim<0, 1>> {.leaf = leaf.core};
+      return Counter<Dim<0, 1>> {.leaf = leaf.core};
     }
   }
   return std::unexpected(Error {
@@ -429,12 +426,12 @@ auto system::tsc() const -> std::expected<counter<Dim<0, 1>>, Error>
       .suggestions = {}});
 }
 
-auto system::handle_for(const std::string& canonical) -> sg::counters::object&
+auto System::handleFor(const std::string& canonical) -> sg::counters::Object&
 {
   // One lock covers the lookup and the insert, so a concurrent miss on one
   // address constructs the handle once and hands the same entry to every
   // thread that named it (FR-010).
-  const std::scoped_lock guard {m_impl->handles_lock};
+  const std::scoped_lock guard {m_impl->handlesLock};
   const auto existing = m_impl->handles.find(canonical);
   if (existing != m_impl->handles.end()) {
     return *existing->second;
@@ -443,95 +440,95 @@ auto system::handle_for(const std::string& canonical) -> sg::counters::object&
   // is private and `system` is its only friend (T113).
   const auto inserted = m_impl->handles.emplace(
       canonical,
-      std::unique_ptr<sg::counters::object>(
-          new sg::counters::object(m_impl->objects.at(canonical).get())));
+      std::unique_ptr<sg::counters::Object>(
+          new sg::counters::Object(m_impl->objects.at(canonical).get())));
   return *inserted.first->second;
 }
 
-auto system::objects(const std::string_view kind,
-                     const std::initializer_list<filter> filters)
-    -> std::expected<std::vector<const sg::counters::object*>, Error>
+auto System::objects(const std::string_view kind,
+                     const std::initializer_list<Filter> filters)
+    -> std::expected<std::vector<const sg::counters::Object*>, Error>
 {
-  m_impl->ensure_open();
-  bool known_kind = false;
+  m_impl->ensureOpen();
+  bool knownKind = false;
   for (const auto& [path, node] : m_impl->objects) {
     if (node->kind == kind) {
-      known_kind = true;
+      knownKind = true;
       break;
     }
   }
-  if (!known_kind) {
+  if (!knownKind) {
     return std::unexpected(Error {.message = "no object of kind '"
                                       + std::string(kind)
                                       + "' in the tree (FR-003)",
                                   .suggestions = {}});
   }
   for (const auto& one : filters) {
-    if (!key_defined(m_impl->objects, kind, one)) {
+    if (!keyDefined(m_impl->objects, kind, one)) {
       return std::unexpected(Error {.message = "unknown filter key '"
                                         + std::string(one.key) + "' (FR-003)",
                                     .suggestions = {}});
     }
   }
-  std::vector<const sg::counters::object*> matches;
+  std::vector<const sg::counters::Object*> matches;
   for (const auto& [path, node] : m_impl->objects) {
     if (node->kind != kind) {
       continue;
     }
-    bool matches_all = true;
+    bool matchesAll = true;
     for (const auto& one : filters) {
-      if (!path_carries(path, one)) {
-        matches_all = false;
+      if (!pathCarries(path, one)) {
+        matchesAll = false;
         break;
       }
     }
-    if (matches_all) {
-      matches.push_back(&handle_for(path));
+    if (matchesAll) {
+      matches.push_back(&handleFor(path));
     }
   }
   return matches;
 }
 
-auto object::path() const noexcept -> std::string_view
+auto Object::path() const noexcept -> std::string_view
 {
-  return static_cast<const tree_node*>(m_node)->path;
+  return static_cast<const TreeNode*>(m_node)->path;
 }
 
-auto object::alias() const noexcept -> std::string_view
+auto Object::alias() const noexcept -> std::string_view
 {
-  return static_cast<const tree_node*>(m_node)->alias;
+  return static_cast<const TreeNode*>(m_node)->alias;
 }
 
-auto object::kind() const noexcept -> std::string_view
+auto Object::kind() const noexcept -> std::string_view
 {
-  return static_cast<const tree_node*>(m_node)->kind;
+  return static_cast<const TreeNode*>(m_node)->kind;
 }
 
-auto object::description() const noexcept -> std::string_view
+auto Object::description() const noexcept -> std::string_view
 {
-  return static_cast<const tree_node*>(m_node)->description;
+  return static_cast<const TreeNode*>(m_node)->description;
 }
 
-auto object::parent() const noexcept -> const object*
+auto Object::parent() const noexcept -> const Object*
 {
-  const auto* node = static_cast<const tree_node*>(m_node);
+  const auto* node = static_cast<const TreeNode*>(m_node);
   if (node->path == "machine") {
     return nullptr;
   }
-  auto& system_ref = system::local();
+  auto& systemRef = System::local();
   const auto slash = node->path.rfind('/');
-  const std::string parent_path = slash == std::string::npos
+  const std::string parentPath = slash == std::string::npos
       ? std::string("machine")
       : node->path.substr(0, slash);
-  if (system_ref.m_impl->find(parent_path) == nullptr) {
+  if (systemRef.m_impl->find(parentPath) == nullptr) {
     return nullptr;
   }
-  return &system_ref.handle_for(parent_path);
+  return &systemRef.handleFor(parentPath);
 }
 
-auto object::counters() const -> std::vector<CatalogEntry>
+auto Object::counters() const -> std::vector<CatalogEntry>
 {
-  const auto* node = static_cast<const tree_node*>(m_node);
+  const auto* node = static_cast<const TreeNode*>(m_node);
   std::vector<CatalogEntry> entries;
   entries.reserve(node->leaves.size());
   for (const auto& leaf : node->leaves) {
@@ -546,9 +543,9 @@ auto object::counters() const -> std::vector<CatalogEntry>
     // one target kind and every other state names none, however its object
     // is scoped. The decision itself is declared in the seam beside the
     // others, with its own contract (FR-046).
-    const TargetMask probed = detail::probed_kinds_at(leaf.core.address);
-    const TargetMask targets = detail::settled_targets(
-        leaf.core.avail, probed, node->kind, node->path);
+    const TargetMask probed = detail::probedKindsAt(leaf.core.address);
+    const TargetMask targets =
+        detail::settledTargets(leaf.core.avail, probed, node->kind, node->path);
     SG_ENSURE((leaf.core.avail != Availability::COUNTABLE) == (targets == 0),
               "a countable entry names at least one target kind and every "
               "other state names none (FR-021)");
@@ -570,19 +567,19 @@ auto object::counters() const -> std::vector<CatalogEntry>
   return entries;
 }  // LCOV_EXCL_LINE
 
-auto object::children() const -> std::vector<const object*>
+auto Object::children() const -> std::vector<const Object*>
 {
-  const auto* node = static_cast<const tree_node*>(m_node);
-  auto& system_ref = system::local();
-  std::vector<const object*> direct;
-  for (const auto& [objectPath, child] : system_ref.m_impl->objects) {
-    const bool is_direct = node->path == "machine"
+  const auto* node = static_cast<const TreeNode*>(m_node);
+  auto& systemRef = System::local();
+  std::vector<const Object*> direct;
+  for (const auto& [objectPath, child] : systemRef.m_impl->objects) {
+    const bool isDirect = node->path == "machine"
         ? (objectPath.find('/') == std::string::npos && objectPath != "machine")
         : (objectPath.size() > node->path.size() + 1
            && objectPath.starts_with(node->path + "/")
            && objectPath.find('/', node->path.size() + 1) == std::string::npos);
-    if (is_direct) {
-      direct.push_back(&system_ref.handle_for(objectPath));
+    if (isDirect) {
+      direct.push_back(&systemRef.handleFor(objectPath));
     }
   }
   // LCOV_EXCL_LINE : coverage exclusion (T066): the NRVO epilogue block of
@@ -593,34 +590,34 @@ auto object::children() const -> std::vector<const object*>
 namespace detail
 {
 
-void note_probed_kinds(const std::string& address, const TargetMask probed)
+void noteProbedKinds(const std::string& address, const TargetMask probed)
 {
-  probed_kind_table()[address] = probed;
+  probedKindTable()[address] = probed;
 }
 
-auto probed_kinds_at(const std::string& address) noexcept -> TargetMask
+auto probedKindsAt(const std::string& address) noexcept -> TargetMask
 {
-  const auto& table = probed_kind_table();
+  const auto& table = probedKindTable();
   const auto found = table.find(address);
   return found == table.end() ? TargetMask {} : found->second;
 }
 
-auto settled_targets(const Availability probed,
-                     const TargetMask probed_kinds,
-                     const std::string_view kind,
-                     const std::string& path) noexcept -> TargetMask
+auto settledTargets(const Availability probed,
+                    const TargetMask probedKinds,
+                    const std::string_view kind,
+                    const std::string& path) noexcept -> TargetMask
 {
   const bool countable = probed == Availability::COUNTABLE;
-  const bool core_device =
+  const bool coreDevice =
       path == "cpu" || path == "cpu_core" || path == "cpu_atom";
-  const bool device_scoped = kind == "pmu" && !core_device;
+  const bool deviceScoped = kind == "pmu" && !coreDevice;
   // The kinds the probe settled answer for every leaf it settled one on.
   // A leaf it settled none on is the enabled/running pair or a leaf no
   // event provider probed, and the object's own scope answers for those
   // (FR-021, FR-022).
   const TargetMask scoped =
-      device_scoped ? kTargetCpuBit : kTargetThreadBit | kTargetCpuBit;
-  const TargetMask named = probed_kinds == 0 ? scoped : probed_kinds;
+      deviceScoped ? kTargetCpuBit : kTargetThreadBit | kTargetCpuBit;
+  const TargetMask named = probedKinds == 0 ? scoped : probedKinds;
   const TargetMask settled = countable ? named : TargetMask {};
   // The rule is spelled once and both the mask and the postcondition read
   // it, so the check cannot disagree with the decision it checks (FR-021,
@@ -633,10 +630,10 @@ auto settled_targets(const Availability probed,
   return settled;
 }
 
-auto resolveLeafCore(const object& obj,
+auto resolveLeafCore(const Object& obj,
                      std::string_view name) -> std::expected<LeafCore, Error>
 {
-  const auto* node = static_cast<const tree_node*>(obj.m_node);
+  const auto* node = static_cast<const TreeNode*>(obj.m_node);
   for (const auto& leaf : node->leaves) {
     if (leaf.core.name == name) {
       return leaf.core;
@@ -649,7 +646,7 @@ auto resolveLeafCore(const object& obj,
   return std::unexpected(Error {.message = "object '" + node->path
                                     + "' has no counter named '"
                                     + std::string(name) + "' (FR-008)",
-                                .suggestions = near_misses(name, candidates)});
+                                .suggestions = nearMisses(name, candidates)});
 }
 
 }  // namespace detail

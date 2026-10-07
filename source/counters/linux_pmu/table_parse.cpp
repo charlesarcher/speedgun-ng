@@ -52,13 +52,13 @@
 namespace sg::counters::detail
 {
 
-auto pmu_ident_current() -> pmu_ident
+auto pmuIdentCurrent() -> PmuIdent
 {
   // Cached once per process (FR-038): the ident never changes.
-  static const pmu_ident ident = []
+  static const PmuIdent kIdent = []
   {
 #  if defined(__x86_64__) || defined(__i386__)
-    pmu_ident id;
+    PmuIdent id;
     unsigned int eax = 0;
     unsigned int ebx = 0;
     unsigned int ecx = 0;
@@ -88,27 +88,27 @@ auto pmu_ident_current() -> pmu_ident
     // LCOV_EXCL_BR_START : coverage exclusion (T066): a CPU whose highest
     // basic leaf is 0, which predates every CPU this library targets.
     if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {  // LCOV_EXCL_BR_LINE
-      const auto base_family = static_cast<int>((eax >> 8) & 0xFU);
-      const auto ext_family = static_cast<int>((eax >> 20) & 0xFFU);
-      const auto base_model = static_cast<int>((eax >> 4) & 0xFU);
-      const auto ext_model = static_cast<int>((eax >> 16) & 0xFU);
-      id.family = base_family + ext_family;
+      const auto baseFamily = static_cast<int>((eax >> 8) & 0xFU);
+      const auto extFamily = static_cast<int>((eax >> 20) & 0xFFU);
+      const auto baseModel = static_cast<int>((eax >> 4) & 0xFU);
+      const auto extModel = static_cast<int>((eax >> 16) & 0xFU);
+      id.family = baseFamily + extFamily;
       // The mapfile's hex-model spelling (kernel jevents convention).
-      id.model = base_model | (ext_model << 4);
+      id.model = baseModel | (extModel << 4);
     }  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_STOP
     return id;
 #  else
-    return pmu_ident {};
+    return PmuIdent {};
 #  endif
   }();
-  return ident;
+  return kIdent;
 }
 
 namespace
 {
 
-auto to_lower(std::string text) -> std::string
+auto toLower(std::string text) -> std::string
 {
   std::transform(text.begin(),
                  text.end(),
@@ -121,7 +121,7 @@ auto to_lower(std::string text) -> std::string
 // Parse a scalar as a config value: hex string ("0x3c"), decimal
 // string, or integer. False for anything else (expressions, free
 // text), so non-semantic keys are skipped when their parse fails.
-auto parse_scalar(simdjson::dom::element value, std::uint64_t& out) -> bool
+auto parseScalar(simdjson::dom::element value, std::uint64_t& out) -> bool
 {
   if (value.get_uint64().get(out) == simdjson::SUCCESS) {
     return true;
@@ -154,9 +154,9 @@ auto parse_scalar(simdjson::dom::element value, std::uint64_t& out) -> bool
 // and is read ahead of this loop instead: the index names the format its
 // register value encodes into, and the encoder sees that one field, never
 // the index itself (FR-010, D-05).
-auto carries_no_obligation(const std::string_view key) noexcept -> bool
+auto carriesNoObligation(const std::string_view key) noexcept -> bool
 {
-  constexpr std::array<std::string_view, 6> no_obligation {
+  constexpr std::array<std::string_view, 6> kNoObligation {
       "SampleAfterValue",
       "MSRIndex",
       "PEBS",
@@ -164,7 +164,7 @@ auto carries_no_obligation(const std::string_view key) noexcept -> bool
       "PerPkg",
       "Experimental",
   };
-  return std::ranges::find(no_obligation, key) != std::end(no_obligation);
+  return std::ranges::find(kNoObligation, key) != std::end(kNoObligation);
 }
 
 // The constraint and deprecation keys. They name a condition on when a
@@ -174,19 +174,19 @@ auto carries_no_obligation(const std::string_view key) noexcept -> bool
 // name, and a row reaching the encoder with either one resolves to nothing
 // and publishes `not_encodable` for a field no format reads (FR-012,
 // FR-013, D-06).
-auto carries_no_constraint(const std::string_view key) noexcept -> bool
+auto carriesNoConstraint(const std::string_view key) noexcept -> bool
 {
-  constexpr std::array<std::string_view, 2> no_constraint {
+  constexpr std::array<std::string_view, 2> kNoConstraint {
       "Counter",
       "Deprecated",
   };
-  return std::ranges::find(no_constraint, key) != std::end(no_constraint);
+  return std::ranges::find(kNoConstraint, key) != std::end(kNoConstraint);
 }
 
 // The register value key. The value is not a field of its own either: the
 // index names the format, and the pair is recorded under that one name so
 // the encoder sees a single field it can resolve (FR-010, D-05).
-auto is_register_value(const std::string_view key) noexcept -> bool
+auto isRegisterValue(const std::string_view key) noexcept -> bool
 {
   return key == "MSRValue";
 }
@@ -201,7 +201,7 @@ auto is_register_value(const std::string_view key) noexcept -> bool
 // The case labels are the kernel's register numbers. Naming each one
 // would hide the map the kernel publishes.
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
-auto register_format(const std::uint64_t index) noexcept -> std::string_view
+auto registerFormat(const std::uint64_t index) noexcept -> std::string_view
 {
   switch (index) {
     case 0x3f6:
@@ -226,7 +226,7 @@ auto register_format(const std::uint64_t index) noexcept -> std::string_view
 // values in every table the pinned tree ships, and the index may be a
 // comma-separated pair. The pair resolves through its first index, the
 // same rule the kernel's generator applies (FR-010, D-05).
-struct register_filter
+struct RegisterFilter
 {
   std::uint64_t value = 0;
   std::string_view format;
@@ -244,8 +244,8 @@ constexpr std::string_view kUnnamedRegister {"unnamed_register"};
 // The register number one index text names. The text may carry a
 // comma-separated pair, and the kernel's generator reads the first index of
 // that pair, so the first index is what this parses.
-auto first_index_of(const std::string_view text,
-                    std::uint64_t& out) noexcept -> bool
+auto firstIndexOf(const std::string_view text,
+                  std::uint64_t& out) noexcept -> bool
 {
   const auto comma = text.find(',');
   const std::string_view first =
@@ -289,37 +289,37 @@ auto first_index_of(const std::string_view text,
 }
 
 // NOLINTNEXTLINE(misc-include-cleaner)
-auto register_filter_of(simdjson::dom::object attributes) -> register_filter
+auto registerFilterOf(simdjson::dom::object attributes) -> RegisterFilter
 {
-  register_filter out;
-  simdjson::dom::element value_element;
+  RegisterFilter out;
+  simdjson::dom::element valueElement;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-  if (attributes["MSRValue"].get(value_element) != simdjson::SUCCESS) {
+  if (attributes["MSRValue"].get(valueElement) != simdjson::SUCCESS) {
     return out;
   }
-  if (!parse_scalar(value_element, out.value)) {
+  if (!parseScalar(valueElement, out.value)) {
     return out;
   }
-  simdjson::dom::element index_element;
+  simdjson::dom::element indexElement;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-  if (attributes["MSRIndex"].get(index_element) != simdjson::SUCCESS) {
+  if (attributes["MSRIndex"].get(indexElement) != simdjson::SUCCESS) {
     // A value with no index names no format. A zero value encodes no
     // filter, so only a non-zero value refuses the row (FR-010).
     out.unnamed = out.value != 0;
     return out;
   }
-  std::string_view index_text;
+  std::string_view indexText;
   std::uint64_t index = 0;
   // A blank index, an index that does not parse, and an index that is not
   // a string name no format. A non-zero value then refuses the row, the
   // same refusal a missing index takes (FR-010).
-  if (index_element.get_string().get(index_text) != simdjson::SUCCESS
-      || !first_index_of(index_text, index))
+  if (indexElement.get_string().get(indexText) != simdjson::SUCCESS
+      || !firstIndexOf(indexText, index))
   {
     out.unnamed = out.value != 0;
     return out;
   }
-  out.format = register_format(index);
+  out.format = registerFormat(index);
   out.present = true;
   out.unnamed = out.value != 0 && out.format.empty();
   return out;
@@ -329,7 +329,7 @@ auto register_filter_of(simdjson::dom::object attributes) -> register_filter
 // of these keys at jevents.py:389-404. The field is recorded under the
 // kernel spelling, so the encoder resolves the row's key against a format
 // the device publishes (FR-011, D-06).
-auto kernel_spelling(const std::string_view key) noexcept -> std::string_view
+auto kernelSpelling(const std::string_view key) noexcept -> std::string_view
 {
   if (key == "CounterMask") {
     return "cmask";
@@ -370,9 +370,9 @@ auto kernel_spelling(const std::string_view key) noexcept -> std::string_view
   return {};
 }
 
-void add_entry(std::vector<pmu_table_entry>& table,
-               std::string_view name,
-               simdjson::dom::object attributes)
+void addEntry(std::vector<PmuTableEntry>& table,
+              std::string_view name,
+              simdjson::dom::object attributes)
 {
   // Metric definitions are catalog data for a future release,
   // never countables (R-010, US6).
@@ -381,12 +381,12 @@ void add_entry(std::vector<pmu_table_entry>& table,
   {
     return;
   }
-  pmu_table_entry entry;
+  PmuTableEntry entry;
   entry.name = std::string(name);
   // The row's own register filter, resolved through the kernel's index map
   // before the fields are read, because the value and the index are string
   // keys and neither encodes as a field of its own (FR-010, D-05).
-  const auto filter = register_filter_of(attributes);
+  const auto filter = registerFilterOf(attributes);
   for (auto [key, value] : attributes) {
     std::uint64_t number = 0;
     if (key == "EventCode") {
@@ -394,18 +394,18 @@ void add_entry(std::vector<pmu_table_entry>& table,
       // generator takes the first code, and `first_index_of` is that rule.
       std::string_view text;
       if (value.get_string().get(text) == simdjson::SUCCESS) {
-        if (first_index_of(text, number)) {
+        if (firstIndexOf(text, number)) {
           entry.fields.emplace_back("event", number);
         }
-      } else if (parse_scalar(value, number)) {
+      } else if (parseScalar(value, number)) {
         entry.fields.emplace_back("event", number);
       }
     } else if (key == "UMask" || key == "Umask") {
-      if (parse_scalar(value, number)) {
+      if (parseScalar(value, number)) {
         entry.fields.emplace_back("umask", number);
       }
     } else if (key == "UMASK_EXT") {
-      if (parse_scalar(value, number)) {
+      if (parseScalar(value, number)) {
         entry.fields.emplace_back("umask_ext", number);
       }
     } else if (key == "EventName" || key == "Description"
@@ -413,21 +413,21 @@ void add_entry(std::vector<pmu_table_entry>& table,
                || key == "Unit")
     {
       // Descriptive keys carry no config semantic.
-    } else if (carries_no_obligation(key)) {
+    } else if (carriesNoObligation(key)) {
       // Dropped above the encoder: it names no published format. The
       // register value sits beside it and is read ahead of this loop, so
       // the row never carries either one as a field (FR-010, D-05).
-    } else if (carries_no_constraint(key)) {
+    } else if (carriesNoConstraint(key)) {
       // A condition on when the counter is meaningful. Neither key names a
       // bit in an encoding register (FR-012, FR-013, D-06).
-    } else if (is_register_value(key)) {
+    } else if (isRegisterValue(key)) {
       // Read ahead of this loop and recorded under the format its index
       // names, never under its own name (FR-010, D-05).
-    } else if (const auto kernel = kernel_spelling(key);
-               !kernel.empty() && parse_scalar(value, number))
+    } else if (const auto kernel = kernelSpelling(key);
+               !kernel.empty() && parseScalar(value, number))
     {
       entry.fields.emplace_back(std::string(kernel), number);
-    } else if (parse_scalar(value, number)) {
+    } else if (parseScalar(value, number)) {
       // Any other integer-valued key is recorded under its own name, and
       // the encoder admits it only where the device publishes a format of
       // that name. A row needing a field the device does not publish
@@ -441,9 +441,9 @@ void add_entry(std::vector<pmu_table_entry>& table,
   // composition refuses the row and it publishes `not_encodable` (FR-010,
   // FR-011, D-05).
   if (filter.value != 0) {
-    const std::string_view field_name =
+    const std::string_view fieldName =
         filter.format.empty() ? kUnnamedRegister : filter.format;
-    entry.fields.emplace_back(std::string(field_name), filter.value);
+    entry.fields.emplace_back(std::string(fieldName), filter.value);
   }
   // A register index and a register value never survive as fields of
   // their own: the value is read ahead of the loop and recorded under the
@@ -466,11 +466,11 @@ void add_entry(std::vector<pmu_table_entry>& table,
     }
   }
   simdjson::dom::element unit;
-  std::string_view unit_text;
+  std::string_view unitText;
   if (attributes["Unit"].get(unit) == simdjson::SUCCESS
-      && unit.get_string().get(unit_text) == simdjson::SUCCESS)
+      && unit.get_string().get(unitText) == simdjson::SUCCESS)
   {
-    entry.unit = std::string(unit_text);
+    entry.unit = std::string(unitText);
   }
   table.push_back(std::move(entry));
 }
@@ -484,8 +484,8 @@ void add_entry(std::vector<pmu_table_entry>& table,
 // type, so the pair cannot both be satisfied, and the include stays because
 // FR-013 makes this the only unit under source/counters/ that may include it.
 // NOLINTNEXTLINE(misc-include-cleaner)
-void parse_padded(const simdjson::padded_string& loaded,
-                  std::vector<pmu_table_entry>& table)
+void parsePadded(const simdjson::padded_string& loaded,
+                 std::vector<PmuTableEntry>& table)
 {
   simdjson::dom::parser dom;
   simdjson::dom::element root;
@@ -500,12 +500,12 @@ void parse_padded(const simdjson::padded_string& loaded,
     for (auto item : items) {
       simdjson::dom::object attributes;
       simdjson::dom::element name;
-      std::string_view name_text;
+      std::string_view nameText;
       if (item.get_object().get(attributes) == simdjson::SUCCESS
           && attributes["EventName"].get(name) == simdjson::SUCCESS
-          && name.get_string().get(name_text) == simdjson::SUCCESS)
+          && name.get_string().get(nameText) == simdjson::SUCCESS)
       {
-        add_entry(table, name_text, attributes);
+        addEntry(table, nameText, attributes);
       }
     }
     return;
@@ -515,29 +515,28 @@ void parse_padded(const simdjson::padded_string& loaded,
     for (auto [key, value] : pairs) {
       simdjson::dom::object attributes;
       if (value.get_object().get(attributes) == simdjson::SUCCESS) {
-        add_entry(table, key, attributes);
+        addEntry(table, key, attributes);
       }
     }
   }
 }
 
-void parse_json_file(const std::filesystem::path& path,
-                     std::vector<pmu_table_entry>& table)
+void parseJsonFile(const std::filesystem::path& path,
+                   std::vector<PmuTableEntry>& table)
 {
   const auto loaded = simdjson::padded_string::load(path.string());
   if (loaded.error() != simdjson::SUCCESS) {
     return;
   }
-  parse_padded(loaded.value_unsafe(), table);
+  parsePadded(loaded.value_unsafe(), table);
 }
 
 // The vendored tables reach the parser as bytes the library already owns
 // (FR-036). The padded copy is what simdjson requires and what the file
 // loader gets from the file system, so the walk cannot tell them apart.
-void parse_json_bytes(std::string_view bytes,
-                      std::vector<pmu_table_entry>& table)
+void parseJsonBytes(std::string_view bytes, std::vector<PmuTableEntry>& table)
 {
-  parse_padded(simdjson::padded_string {bytes}, table);
+  parsePadded(simdjson::padded_string {bytes}, table);
 }
 
 }  // namespace
@@ -547,9 +546,9 @@ void parse_json_bytes(std::string_view bytes,
 // accepts the POSIX spelling in its ECMAScript grammar, so the mapfile
 // rows match either way on this toolchain; libc++ and MSVC do not, and
 // an untranslated class is a row that silently stops matching.
-auto to_ecma(std::string_view pattern) -> std::string
+auto toEcma(std::string_view pattern) -> std::string
 {
-  constexpr std::string_view class_name[] = {"alnum",
+  constexpr std::string_view kClassName[] = {"alnum",
                                              "alpha",
                                              "blank",
                                              "cntrl",
@@ -562,19 +561,19 @@ auto to_ecma(std::string_view pattern) -> std::string
                                              "upper",
                                              "word",
                                              "xdigit"};
-  constexpr std::string_view replacement[] = {"0-9A-Za-z",
-                                              "A-Za-z",
-                                              " \\t",
-                                              "\\x00-\\x1f\\x7f",
-                                              "0-9",
-                                              "!-~",
-                                              "a-z",
-                                              " -~",
-                                              "!-/:-@[-`{-~",
-                                              " \\t\\n\\v\\f\\r",
-                                              "A-Z",
-                                              "0-9A-Za-z_",
-                                              "0-9A-Fa-f"};
+  constexpr std::string_view kReplacement[] = {"0-9A-Za-z",
+                                               "A-Za-z",
+                                               " \\t",
+                                               "\\x00-\\x1f\\x7f",
+                                               "0-9",
+                                               "!-~",
+                                               "a-z",
+                                               " -~",
+                                               "!-/:-@[-`{-~",
+                                               " \\t\\n\\v\\f\\r",
+                                               "A-Z",
+                                               "0-9A-Za-z_",
+                                               "0-9A-Fa-f"};
   std::string out;
   out.reserve(pattern.size());
   std::size_t i = 0;
@@ -594,11 +593,11 @@ auto to_ecma(std::string_view pattern) -> std::string
             ? body.substr(1, body.size() - 2)
             : std::string_view {};
         for (int k = 0; k < 13; ++k) {
-          if (name == class_name[k]) {
+          if (name == kClassName[k]) {
             // The table holds the class body, so the brackets that
             // delimit it are written here.
             out += '[';
-            out += replacement[k];
+            out += kReplacement[k];
             out += ']';
             i = close + 2;
             replaced = true;
@@ -620,22 +619,22 @@ auto to_ecma(std::string_view pattern) -> std::string
 // The mapping-file key for `id`: "<vendor>-<family>-<MODEL>", with the
 // family decimal and the model uppercase hex (kernel jevents
 // convention).
-auto mapfile_key(const pmu_ident& id) -> std::string
+auto mapfileKey(const PmuIdent& id) -> std::string
 {
   char hex[8];
   std::snprintf(hex, sizeof(hex), "%X", static_cast<unsigned>(id.model));
   return id.vendor + '-' + std::to_string(id.family) + '-' + hex;
 }
 
-auto pmu_select_directory(std::istream& mapfile,
-                          const pmu_ident& id) -> std::string
+auto pmuSelectDirectory(std::istream& mapfile,
+                        const PmuIdent& id) -> std::string
 {
   // Format finding (the vendored file is truth): the columns are
   // "Family-model,Version,Filename,EventType"; the first is a
   // POSIX-class regex matched against the mapping-file key, and the
   // Filename column is a directory name relative to the mapfile. The
   // first matching row wins (FR-038).
-  const std::string key = mapfile_key(id);
+  const std::string key = mapfileKey(id);
   std::string selected;
   std::string line;
   bool header = true;
@@ -664,7 +663,7 @@ auto pmu_select_directory(std::istream& mapfile,
     // (`tools/pmu_events/update_pmu_events.py`), so a row that fails to
     // compile here is corrupt data, and naming the corrupt row beats
     // selecting a table the mapfile does not name for this CPU.
-    const std::regex pattern(to_lower(to_ecma(text.substr(0, first))),
+    const std::regex pattern(toLower(toEcma(text.substr(0, first))),
                              std::regex::icase | std::regex::optimize);
     if (std::regex_match(key, pattern)) {
       selected = "arch/x86/";
@@ -676,15 +675,15 @@ auto pmu_select_directory(std::istream& mapfile,
   return selected;
 }
 
-auto pmu_select_directory(const pmu_ident& id) -> std::string
+auto pmuSelectDirectory(const PmuIdent& id) -> std::string
 {
-  static std::mutex cache_mutex;
+  static std::mutex cacheMutex;
   static std::map<std::string, std::string> cache;
   // The mapfile is compiled into the library as arch/x86's single file,
   // so selecting a directory reads no path (FR-036).
-  const std::string key = mapfile_key(id);
+  const std::string key = mapfileKey(id);
 
-  const std::scoped_lock lock(cache_mutex);
+  const std::scoped_lock lock(cacheMutex);
   if (const auto cached = cache.find(key); cached != cache.end()) {
     return cached->second;
   }
@@ -695,29 +694,29 @@ auto pmu_select_directory(const pmu_ident& id) -> std::string
   // unconditionally, naming the mapfile as its pattern, and fails the
   // build outright when the pattern matches nothing, so the entry is
   // present in every archive this library links (FR-036).
-  if (const embedded_dir* dir = embedded_find_dir("arch/x86")) {
+  if (const EmbeddedDir* dir = embeddedFindDir("arch/x86")) {
     std::istringstream mapfile {
-        std::string {embedded_file_bytes(*dir, "mapfile.csv")}};
-    selected = pmu_select_directory(mapfile, id);
+        std::string {embeddedFileBytes(*dir, "mapfile.csv")}};
+    selected = pmuSelectDirectory(mapfile, id);
   }
   // LCOV_EXCL_BR_STOP
   cache.emplace(key, selected);
   return selected;
 }
 
-auto pmu_load_table(const std::string& directory)
-    -> const std::vector<pmu_table_entry>&
+auto pmuLoadTable(const std::string& directory)
+    -> const std::vector<PmuTableEntry>&
 {
   // Once-per-directory lazy cache (FR-038).
-  static std::mutex cache_mutex;
-  static std::map<std::string, std::vector<pmu_table_entry>> cache;
+  static std::mutex cacheMutex;
+  static std::map<std::string, std::vector<PmuTableEntry>> cache;
 
-  const std::scoped_lock lock(cache_mutex);
+  const std::scoped_lock lock(cacheMutex);
   if (const auto cached = cache.find(directory); cached != cache.end()) {
     return cached->second;
   }
 
-  std::vector<pmu_table_entry> table;
+  std::vector<PmuTableEntry> table;
   // A directory arrives with a trailing separator and the registry names
   // it without one (FR-036).
   std::string_view key {directory};
@@ -726,21 +725,21 @@ auto pmu_load_table(const std::string& directory)
   }
   // A directory the library holds no bytes for parses nothing, which is
   // the seam contract: no files, empty table.
-  if (const embedded_dir* dir = embedded_find_dir(key)) {
-    for (std::size_t i = 0; i < dir->file_count; ++i) {
+  if (const EmbeddedDir* dir = embeddedFindDir(key)) {
+    for (std::size_t i = 0; i < dir->fileCount; ++i) {
       // The registry's index is a generated C array and its count is the
       // bound on this loop, so the subscript is in range by construction.
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      parse_json_bytes(embedded_file_bytes(*dir, dir->files[i].name), table);
+      parseJsonBytes(embeddedFileBytes(*dir, dir->files[i].name), table);
     }
   }
   return cache.emplace(directory, std::move(table)).first->second;
 }
 
-void pmu_parse_table_file(const std::string_view path,
-                          std::vector<pmu_table_entry>& out)
+void pmuParseTableFile(const std::string_view path,
+                       std::vector<PmuTableEntry>& out)
 {
-  parse_json_file(std::filesystem::path(std::string(path)), out);
+  parseJsonFile(std::filesystem::path(std::string(path)), out);
 }
 
 }  // namespace sg::counters::detail

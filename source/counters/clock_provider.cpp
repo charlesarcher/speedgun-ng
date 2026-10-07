@@ -206,7 +206,7 @@ struct detail::ClockWindow final : WindowReader
   }
 
   std::vector<std::uint8_t> kinds;
-  std::size_t disclosure_column = LeafSet::kNoDisclosureColumn;
+  std::size_t disclosureColumn = LeafSet::kNoDisclosureColumn;
 
   void readPoints(PointSink& sink) noexcept override
   {
@@ -232,8 +232,8 @@ struct detail::ClockWindow final : WindowReader
     // A clock leaf is a read of a clock the platform always keeps running,
     // so the action always measures and the disclosure names the entry's
     // own countability value (FR-007).
-    if (disclosure_column != LeafSet::kNoDisclosureColumn) {
-      sink.putDisclosure(disclosure_column,
+    if (disclosureColumn != LeafSet::kNoDisclosureColumn) {
+      sink.putDisclosure(disclosureColumn,
                          static_cast<std::uint64_t>(Availability::COUNTABLE));
     }
   }
@@ -312,7 +312,7 @@ std::unique_ptr<WindowReader> ClockProvider::open(const LeafSet& leaves,
                                                   const Target& /*where*/)
 {
   auto window = std::make_unique<detail::ClockWindow>();
-  window->disclosure_column = leaves.disclosureColumn;
+  window->disclosureColumn = leaves.disclosureColumn;
   window->kinds.reserve(leaves.addresses.size());
   for (const auto& address : leaves.addresses) {
     const int index = parse(address);

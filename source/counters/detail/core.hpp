@@ -25,37 +25,37 @@ namespace sg::counters
 {
 
 // One catalog leaf in the system tree.
-struct leaf_record
+struct LeafRecord
 {
   detail::LeafCore core;
   // True when the source discloses an enabled/running ratio pair as
   // ordinary leaves (FR-019); ratio pair slots land with US6.
-  bool has_ratio_pair = false;
+  bool hasRatioPair = false;
   // Index into the provider list; the merged machine root keeps the
   // per-leaf attribution its seeding provider had.
-  int provider_index = -1;
+  int providerIndex = -1;
 };
 
 // One countable object in the system tree.
-struct tree_node
+struct TreeNode
 {
   std::string kind;
   std::string path;  // canonical; unique per parent
   std::string alias;
   std::string description;
-  std::vector<leaf_record> leaves;
+  std::vector<LeafRecord> leaves;
 };
 
 // Shared buffer state living beside every recorder arena (US2) and
 // inside every scope.
-struct buffer_state
+struct BufferState
 {
   std::uint64_t head = 0;  // samples committed so far
 };
 
 // One provider window in the compiled read plan: the resolved thunk,
 // the live reader, and the contiguous slot range it fills.
-struct read_group
+struct ReadGroup
 {
   WindowReader::ReadThunk thunk = nullptr;
   std::unique_ptr<WindowReader> reader;
@@ -65,34 +65,34 @@ struct read_group
   // the per-action state to. Each group has one, laid out past its own slot
   // range, because a plan drawing leaves from two providers discloses each
   // provider's gaps in its own column (FR-001, FR-002, FR-004).
-  std::size_t disclosure_slot = 0;
+  std::size_t disclosureSlot = 0;
 };
 
 // The measured per-action cost of one `sample()` on one plan (FR-032).
-struct overhead_sample
+struct OverheadSample
 {
-  double min_ns = 0.0;
-  double median_ns = 0.0;
-  double max_ns = 0.0;
+  double minNs = 0.0;
+  double medianNs = 0.0;
+  double maxNs = 0.0;
 };
 
 // The compiled plan behind the opaque handle (E-07).
-struct plan_impl
+struct PlanImpl
 {
-  struct slot
+  struct Slot
   {
     detail::LeafCore core;
-    bool has_ratio_pair = false;
+    bool hasRatioPair = false;
     // Slot indices of this leaf's object-level enabled and running
     // leaves, or npos when the object discloses no time pair. The fold
     // reads them for the multiplex ratio (FR-019, FR-041).
-    std::size_t ratio_enabled = no_ratio_slot;
-    std::size_t ratio_running = no_ratio_slot;
+    std::size_t ratioEnabled = kNoRatioSlot;
+    std::size_t ratioRunning = kNoRatioSlot;
   };
 
-  static constexpr std::size_t no_ratio_slot = static_cast<std::size_t>(-1);
+  static constexpr std::size_t kNoRatioSlot = static_cast<std::size_t>(-1);
 
-  std::vector<slot> slots;
+  std::vector<Slot> slots;
   // The managed column carrying the per-action disclosure: a measured
   // action writes the countability value the catalog publishes for the
   // entry, and an action that measured nothing writes
@@ -103,7 +103,7 @@ struct plan_impl
   // A fold resolves the column from the group that owns the leaf rather
   // than from the plan, so this field names the first group's column for
   // the callers that read one column without naming a group.
-  std::size_t disclosure_slot = 0;
+  std::size_t disclosureSlot = 0;
   // Address to column slot, read by the fold layer. A composite's ops
   // and algebraic exponents travel with its spine, and no per-composite
   // program is stored here (T091): a fold accepts any expression over
@@ -127,22 +127,22 @@ struct plan_impl
   // the recorded window. Slot references stored per composite would
   // remove the lookup and would bind the plan to the composites that
   // existed at compile time, which is the reading T091 rejected above.
-  std::map<std::string, std::size_t> by_address;
-  std::vector<read_group> groups;
+  std::map<std::string, std::size_t> byAddress;
+  std::vector<ReadGroup> groups;
   // Recorder arenas: one buffer per minted recorder, owned by the
   // plan; recorders are non-owning cursors (FR-029).
   std::vector<std::unique_ptr<std::uint64_t[]>> arenas;
-  std::thread::id bound_thread = std::this_thread::get_id();
+  std::thread::id boundThread = std::this_thread::get_id();
   // Calibration state (FR-032): the first accessor call measures the
   // plan's own read sequence and the distribution is kept here.
   mutable bool calibrated = false;
-  mutable overhead_sample overhead;
-  mutable std::vector<std::uint64_t> calibration_buffer;
+  mutable OverheadSample overhead;
+  mutable std::vector<std::uint64_t> calibrationBuffer;
 
   // The managed leaves, and nothing else. One sampling action writes one
   // point per leaf through the shared sink, so this is the cursor's bound
   // and the obligation `checkAction` enforces (FR-047).
-  [[nodiscard]] auto leaf_count() const noexcept -> std::size_t
+  [[nodiscard]] auto leafCount() const noexcept -> std::size_t
   {
     return slots.size();
   }
@@ -153,7 +153,7 @@ struct plan_impl
   // and a column index are the same number and the two orders cannot
   // interleave. This is the count every buffer and arena is sized against
   // (FR-002, FR-007).
-  [[nodiscard]] auto column_count() const noexcept -> std::size_t
+  [[nodiscard]] auto columnCount() const noexcept -> std::size_t
   {
     return slots.size() + groups.size();
   }
@@ -162,18 +162,18 @@ struct plan_impl
 // The compiled fan-out layout behind the FanoutPlan handle
 // (US3 scenario 5): the instantiated inner plan and the selected
 // canonical paths in selection order.
-struct fanout_impl
+struct FanoutImpl
 {
-  std::unique_ptr<plan> inner;
+  std::unique_ptr<Plan> inner;
   std::vector<std::string> paths;
 };
 
 // The two-point window behind the scope handle (FR-030).
-struct scope_core
+struct ScopeCore
 {
-  const plan_impl* impl = nullptr;
+  const PlanImpl* impl = nullptr;
   std::vector<std::uint64_t> buffer;  // leaf_count columns, stride 2
-  buffer_state state;
+  BufferState state;
   bool started = false;
   bool finished = false;
 
@@ -190,17 +190,17 @@ struct scope_core
   }
 };
 
-struct system::impl
+struct System::Impl
 {
   std::vector<std::unique_ptr<ProviderIface>> providers;
-  std::map<std::string, std::unique_ptr<tree_node>> objects;  // canonical
-  std::map<std::string, std::unique_ptr<sg::counters::object>> handles;
+  std::map<std::string, std::unique_ptr<TreeNode>> objects;  // canonical
+  std::map<std::string, std::unique_ptr<sg::counters::Object>> handles;
   // The handle map's own lock. Resolution, listing, and the parent and
   // children walk all reach the map through `handle_for`, and the map is
   // written on a miss, so the lock covers the lookup and the insert as one
   // step: two threads naming one address both receive the same entry
   // (FR-010). No contract check guards it, because a lock does.
-  std::mutex handles_lock;
+  std::mutex handlesLock;
   std::map<std::string, std::string> aliases;  // alias to path
   // The catalog opens lazily, on the first resolution that needs it, so no
   // separate open call exists to own the transition. The flag is atomic
@@ -212,14 +212,14 @@ struct system::impl
   // The open boundary. The first caller transitions the flag; every other
   // caller finds it already set and writes nothing, so concurrent
   // resolution performs one store in total (FR-011).
-  auto ensure_open() noexcept -> void
+  auto ensureOpen() noexcept -> void
   {
     bool expected = false;
     (void)open.compare_exchange_strong(
         expected, true, std::memory_order_acq_rel);
   }
 
-  [[nodiscard]] auto is_open() const noexcept -> bool
+  [[nodiscard]] auto isOpen() const noexcept -> bool
   {
     return open.load(std::memory_order_acquire);
   }
@@ -235,7 +235,7 @@ struct system::impl
 
   // Deliberately no const overload: every call site reaches the tree through a
   // non-const `system::impl`, so one would be dead code (X.3).
-  [[nodiscard]] auto find(std::string_view path) -> tree_node*
+  [[nodiscard]] auto find(std::string_view path) -> TreeNode*
   {
     const auto it = objects.find(canonicalize(path));
     if (it == objects.end()) {
@@ -247,7 +247,7 @@ struct system::impl
 
 // Splits a canonical leaf address into the object path and the leaf
 // name at the final separator.
-[[nodiscard]] inline auto split_leaf_address(std::string_view address)
+[[nodiscard]] inline auto splitLeafAddress(std::string_view address)
     -> std::pair<std::string_view, std::string_view>
 {
   const auto slash = address.rfind('/');

@@ -24,5 +24,5 @@ namespace
 #if defined(__GNUC__)
 [[gnu::used]]
 #endif
-[[maybe_unused]] constinit auto const link_proof = &hwloc_get_api_version;
+[[maybe_unused]] constinit auto const kLinkProof = &hwloc_get_api_version;
 }  // namespace

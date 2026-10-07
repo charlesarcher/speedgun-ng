@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_COUNTERS_HPP
-#define SPEEDGUN_NG_COUNTERS_HPP
+#ifndef SG_COUNTERS_HPP
+#define SG_COUNTERS_HPP
 
 /**
  * @file counters.hpp

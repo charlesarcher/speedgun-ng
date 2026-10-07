@@ -54,7 +54,7 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-auto same_double(const double lhs, const double rhs) -> bool
+auto sameDouble(const double lhs, const double rhs) -> bool
 {
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
@@ -64,23 +64,23 @@ using sg::counters::CatalogEntry;
 using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
-using sg::counters::expression;
+using sg::counters::Expression;
 using sg::counters::LeafSet;
-using sg::counters::object;
+using sg::counters::Object;
 using sg::counters::PointSink;
 using sg::counters::PushCounter;
 using sg::counters::PushProvider;
 using sg::counters::ReadMode;
-using sg::counters::scope;
-using sg::counters::system;
+using sg::counters::Scope;
+using sg::counters::System;
 using sg::counters::Target;
 using sg::counters::Unit;
 
-using events = Dim<0, 1>;
-using time_dim = Dim<1, 0>;
+using Events = Dim<0, 1>;
+using TimeDim = Dim<1, 0>;
 
-auto find_entry(const std::vector<CatalogEntry>& entries,
-                const std::string_view name) -> const CatalogEntry*
+auto findEntry(const std::vector<CatalogEntry>& entries,
+               const std::string_view name) -> const CatalogEntry*
 {
   for (const auto& entry : entries) {
     if (entry.name == name) {
@@ -96,7 +96,7 @@ auto contains(std::string_view haystack, std::string_view needle) -> bool
 }
 
 // CPU-bound work: a few tens of milliseconds of scalar arithmetic.
-auto burn_cpu() -> void
+auto burnCpu() -> void
 {
   volatile double acc = 0.0;
   for (int i = 0; i < 30'000'000; ++i) {
@@ -107,33 +107,32 @@ auto burn_cpu() -> void
 
 // Scenario 1: the three clock windows are positive and mutually
 // consistent on CPU-bound work (FR-033).
-auto clock_windows_scenario() -> void
+auto clockWindowsScenario() -> void
 {
-  struct window_reading
+  struct WindowReading
   {
-    double mono_ns = 0.0;
-    double thread_ns = 0.0;
-    double process_ns = 0.0;
+    double monoNs = 0.0;
+    double threadNs = 0.0;
+    double processNs = 0.0;
   };
 
-  const auto machine = *system::local().object("machine");
-  const expression<time_dim> mono {*machine.counter<time_dim>("monotonic")};
-  const expression<time_dim> thread {*machine.counter<time_dim>("thread_cpu")};
-  const expression<time_dim> process {
-      *machine.counter<time_dim>("process_cpu")};
-  auto compiled = compile(system::local(), mono, thread, process);
+  const auto machine = *System::local().object("machine");
+  const Expression<TimeDim> mono {*machine.counter<TimeDim>("monotonic")};
+  const Expression<TimeDim> thread {*machine.counter<TimeDim>("thread_cpu")};
+  const Expression<TimeDim> process {*machine.counter<TimeDim>("process_cpu")};
+  auto compiled = compile(System::local(), mono, thread, process);
   if (!compiled.has_value()) {
     fail("clock plan compiles");
   }
   const auto measure = [&]()
   {
-    scope window {*compiled};
+    Scope window {*compiled};
     window.start();
-    burn_cpu();
+    burnCpu();
     window.finish();
-    return window_reading {window.metric(mono).value,
-                           window.metric(thread).value,
-                           window.metric(process).value};
+    return WindowReading {window.metric(mono).value,
+                          window.metric(thread).value,
+                          window.metric(process).value};
   };
 
   // Wall time also advances while the thread is descheduled, and the
@@ -143,68 +142,68 @@ auto clock_windows_scenario() -> void
   // the loop keeps the cleanest sample. Retrying cannot carry a wrong
   // delta: a counter that mismeasures disagrees in every sample.
   constexpr int kAttempts = 5;
-  window_reading cleanest;
+  WindowReading cleanest;
   for (int attempt = 0; attempt < kAttempts; ++attempt) {
-    const window_reading sample = measure();
-    check(sample.mono_ns > 1.0e6, "monotonic window is positive on busy work");
-    check(sample.thread_ns > 0.0, "thread CPU is positive on busy work");
-    const double skew_ns = sample.mono_ns - sample.thread_ns;
-    if (attempt == 0 || skew_ns < cleanest.mono_ns - cleanest.thread_ns) {
+    const WindowReading sample = measure();
+    check(sample.monoNs > 1.0e6, "monotonic window is positive on busy work");
+    check(sample.threadNs > 0.0, "thread CPU is positive on busy work");
+    const double skewNs = sample.monoNs - sample.threadNs;
+    if (attempt == 0 || skewNs < cleanest.monoNs - cleanest.threadNs) {
       cleanest = sample;
     }
   }
-  check(cleanest.thread_ns <= 1.5 * cleanest.mono_ns + 1.0e7,
+  check(cleanest.threadNs <= 1.5 * cleanest.monoNs + 1.0e7,
         "thread CPU stays within tolerance of wall time");
-  check(cleanest.mono_ns <= 2.0 * cleanest.thread_ns + 2.0e7,
+  check(cleanest.monoNs <= 2.0 * cleanest.threadNs + 2.0e7,
         "thread CPU stays within tolerance below wall time on busy work");
-  check(cleanest.process_ns >= 0.9 * cleanest.thread_ns,
+  check(cleanest.processNs >= 0.9 * cleanest.threadNs,
         "process CPU covers at least the thread CPU");
 }
 
 // Scenario 2: add(1000) between two samples folds to exactly 1000
 // (FR-035).
-auto push_exact_scenario(PushCounter& bytes_handle) -> void
+auto pushExactScenario(PushCounter& bytesHandle) -> void
 {
-  const auto machine = *system::local().object("machine");
-  const expression<events> bytes {*machine.counter<events>("bytes")};
-  auto compiled = compile(system::local(), bytes);
+  const auto machine = *System::local().object("machine");
+  const Expression<Events> bytes {*machine.counter<Events>("bytes")};
+  auto compiled = compile(System::local(), bytes);
   if (!compiled.has_value()) {
     fail("push plan compiles");
   }
   auto rec = compiled->recorder(2);
   rec.sample();
-  bytes_handle.add(1000);
+  bytesHandle.add(1000);
   rec.sample();
   const auto folded = bytes.fold(rec.view());
-  check(same_double(folded.value, 1000.0),
+  check(sameDouble(folded.value, 1000.0),
         "add(1000) between samples folds to exactly 1000");
-  check(same_double(folded.runningRatio, 1.0),
+  check(sameDouble(folded.runningRatio, 1.0),
         "push fold carries the standard disclosure");
 }
 
 // Scenario 3: bytes / monotonic folds to the byte rate with standard
 // disclosure; rate x window reconstitutes the pushed total (FR-019,
 // FR-035).
-auto byte_rate_scenario(PushCounter& bytes_handle) -> void
+auto byteRateScenario(PushCounter& bytesHandle) -> void
 {
-  const auto machine = *system::local().object("machine");
-  const expression<events> bytes {*machine.counter<events>("bytes")};
-  const expression<time_dim> mono {*machine.counter<time_dim>("monotonic")};
+  const auto machine = *System::local().object("machine");
+  const Expression<Events> bytes {*machine.counter<Events>("bytes")};
+  const Expression<TimeDim> mono {*machine.counter<TimeDim>("monotonic")};
   const auto rate = bytes / mono;
-  auto compiled = compile(system::local(), rate, mono);
+  auto compiled = compile(System::local(), rate, mono);
   if (!compiled.has_value()) {
     fail("byte rate plan compiles");
   }
-  scope window {*compiled};
+  Scope window {*compiled};
   window.start();
-  bytes_handle.add(3000);
+  bytesHandle.add(3000);
   window.finish();
-  const auto rate_result = window.metric(rate);
-  const auto mono_ns = window.metric(mono).value;
-  check(rate_result.value > 0.0, "the byte rate is positive");
-  check(std::fabs(rate_result.value * mono_ns - 3000.0) <= 3.0e-6,
+  const auto rateResult = window.metric(rate);
+  const auto monoNs = window.metric(mono).value;
+  check(rateResult.value > 0.0, "the byte rate is positive");
+  check(std::fabs(rateResult.value * monoNs - 3000.0) <= 3.0e-6,
         "rate x window reconstitutes the pushed total");
-  check(same_double(rate_result.runningRatio, 1.0),
+  check(sameDouble(rateResult.runningRatio, 1.0),
         "the composite carries the standard disclosure");
 }
 
@@ -213,7 +212,7 @@ auto byte_rate_scenario(PushCounter& bytes_handle) -> void
 // (specs/008-timestamp-counter FR-001, FR-002). The checks read the
 // entry's own fields, so they hold on a host that publishes a frequency
 // and on this one, which publishes none.
-auto tsc_scenario(const CatalogEntry* tsc) -> void
+auto tscScenario(const CatalogEntry* tsc) -> void
 {
   if (tsc == nullptr) {
     std::printf("SKIP scenario 5: this build does not execute the "
@@ -238,26 +237,26 @@ auto tsc_scenario(const CatalogEntry* tsc) -> void
 // Scenario 4: the machine catalog lists clock leaves and the push
 // counter countable with descriptions and achieved read modes
 // (FR-009).
-auto catalog_scenario() -> void
+auto catalogScenario() -> void
 {
-  const auto machine = *system::local().object("machine");
+  const auto machine = *System::local().object("machine");
   const auto entries = machine.counters();
   for (std::string_view name : {"monotonic", "thread_cpu", "process_cpu"}) {
-    const auto* entry = find_entry(entries, name);
+    const auto* entry = findEntry(entries, name);
     check(entry != nullptr, "machine lists the clock leaf");
     check(entry->avail == Availability::COUNTABLE, "clock leaf is countable");
     check(entry->mode == ReadMode::SYSCALL,
           "clock leaf reports the syscall read mode");
     check(!entry->description.empty(), "clock leaf is described");
   }
-  const auto* bytes = find_entry(entries, "bytes");
+  const auto* bytes = findEntry(entries, "bytes");
   check(bytes != nullptr, "machine lists the push counter");
   check(bytes->avail == Availability::COUNTABLE, "push counter is countable");
   check(bytes->mode == ReadMode::PUSH_LOAD,
         "push counter reports the push-load read mode");
   check(!bytes->description.empty(), "push counter is described");
 
-  const auto* tsc = find_entry(entries, "tsc");
+  const auto* tsc = findEntry(entries, "tsc");
 #if SG_TEST_HAS_TSC
   check(tsc != nullptr,
         "the tsc entry publishes wherever the build executes the "
@@ -266,13 +265,13 @@ auto catalog_scenario() -> void
   check(tsc == nullptr,
         "a build without the instruction publishes no tsc entry (FR-001)");
 #endif
-  tsc_scenario(tsc);
+  tscScenario(tsc);
 }
 
 // A push handle names the counter it was declared for, so a caller can
 // report which cell a number came from (FR-035).
-auto push_name_scenario(const PushCounter& first,
-                        const PushCounter& second) -> void
+auto pushNameScenario(const PushCounter& first,
+                      const PushCounter& second) -> void
 {
   check(first.name() == "bytes",
         "a push handle names the counter it was declared for (FR-035)");
@@ -286,12 +285,12 @@ auto push_name_scenario(const PushCounter& first,
 // Every address the system resolves names a published leaf, so these
 // refusals are reachable only through the open contract itself
 // (FR-011, T066).
-auto open_refusal_scenario() -> void
+auto openRefusalScenario() -> void
 {
   const Target where {};
   PushProvider pushes;
   static_cast<void>(
-      pushes.add_counter("bytes", "bytes", "hot-path bytes written"));
+      pushes.addCounter("bytes", "bytes", "hot-path bytes written"));
   check(pushes.open(LeafSet {.addresses = {"machine/bytes"}}, where) != nullptr,
         "a declared push counter opens a window");
   check(pushes.open(LeafSet {.addresses = {"machine/nosuchcounter"}}, where)
@@ -315,20 +314,20 @@ auto open_refusal_scenario() -> void
   // instruction (FR-001, FR-011). A build without it omits the leaf
   // and refuses the open. The fixture asks the catalog which, and holds
   // the open to the same answer (FR-003).
-  const auto machine = *system::local().object("machine");
-  bool catalog_has_tsc = false;
+  const auto machine = *System::local().object("machine");
+  bool catalogHasTsc = false;
   for (const auto& entry : machine.counters()) {
     if (entry.name == "tsc") {
-      catalog_has_tsc = true;
+      catalogHasTsc = true;
     }
   }
-  const auto tsc_window =
+  const auto tscWindow =
       clocks.open(LeafSet {.addresses = {"machine/tsc"}}, where);
-  check((tsc_window != nullptr) == catalog_has_tsc,
+  check((tscWindow != nullptr) == catalogHasTsc,
         "the time-stamp entry opens exactly where the catalog publishes it "
         "(specs/008-timestamp-counter FR-003)");
   std::printf("clock: the catalog publishes the tsc entry: %s\n",
-              catalog_has_tsc ? "yes" : "no");
+              catalogHasTsc ? "yes" : "no");
 }
 
 }  // namespace
@@ -336,59 +335,59 @@ auto open_refusal_scenario() -> void
 // A window opened with the default disclosure column writes its leaves
 // and writes no disclosure. compile() always names a column. This arm
 // opens the provider directly (FR-007).
-auto sample_without_disclosure() -> void
+auto sampleWithoutDisclosure() -> void
 {
   const Target where {};
   ClockProvider clocks;
-  auto ClockWindow =
+  auto clockWindow =
       clocks.open(LeafSet {.addresses = {"machine/monotonic"}}, where);
-  if (ClockWindow == nullptr) {
+  if (clockWindow == nullptr) {
     fail("the monotonic leaf opens with no disclosure column");
   }
-  std::vector<std::uint64_t> clock_columns(1, 0);
-  PointSink clock_sink(clock_columns.data(), 1, 1, 1, 0);
-  ClockWindow->readPoints(clock_sink);
-  check(clock_columns[0] != 0,
+  std::vector<std::uint64_t> clockColumns(1, 0);
+  PointSink clockSink(clockColumns.data(), 1, 1, 1, 0);
+  clockWindow->readPoints(clockSink);
+  check(clockColumns[0] != 0,
         "a clock sample with no disclosure column still writes the leaf "
         "(FR-007)");
 
   PushProvider pushes;
-  auto handle = pushes.add_counter("quiet", "ops", "opened with no disclosure");
+  auto handle = pushes.addCounter("quiet", "ops", "opened with no disclosure");
   handle.add(3);
-  auto PushWindow =
+  auto pushWindow =
       pushes.open(LeafSet {.addresses = {"machine/quiet"}}, where);
-  if (PushWindow == nullptr) {
+  if (pushWindow == nullptr) {
     fail("the push leaf opens with no disclosure column");
   }
-  std::vector<std::uint64_t> push_columns(1, 0);
-  PointSink push_sink(push_columns.data(), 1, 1, 1, 0);
-  PushWindow->readPoints(push_sink);
-  check(push_columns[0] == 3,
+  std::vector<std::uint64_t> pushColumns(1, 0);
+  PointSink pushSink(pushColumns.data(), 1, 1, 1, 0);
+  pushWindow->readPoints(pushSink);
+  check(pushColumns[0] == 3,
         "a push sample with no disclosure column writes the leaf alone "
         "(FR-007)");
 }
 
 auto main() -> int
 {
-  sample_without_disclosure();
+  sampleWithoutDisclosure();
   auto clock = std::make_unique<ClockProvider>();
   auto push = std::make_unique<PushProvider>();
-  auto bytes_handle =
-      push->add_counter("bytes", "bytes", "hot-path bytes written");
-  auto second_handle = push->add_counter("records", "ops", "records appended");
-  if (!system::local().register_provider(std::move(clock)).has_value()) {
+  auto bytesHandle =
+      push->addCounter("bytes", "bytes", "hot-path bytes written");
+  auto secondHandle = push->addCounter("records", "ops", "records appended");
+  if (!System::local().registerProvider(std::move(clock)).has_value()) {
     fail("clock provider registers");
   }
-  if (!system::local().register_provider(std::move(push)).has_value()) {
+  if (!System::local().registerProvider(std::move(push)).has_value()) {
     fail("push provider registers");
   }
 
-  catalog_scenario();
-  push_name_scenario(bytes_handle, second_handle);
-  clock_windows_scenario();
-  push_exact_scenario(bytes_handle);
-  byte_rate_scenario(bytes_handle);
-  open_refusal_scenario();
+  catalogScenario();
+  pushNameScenario(bytesHandle, secondHandle);
+  clockWindowsScenario();
+  pushExactScenario(bytesHandle);
+  byteRateScenario(bytesHandle);
+  openRefusalScenario();
 
   std::printf("counters_clock_push_test PASS: clock, push, and composites\n");
   return 0;

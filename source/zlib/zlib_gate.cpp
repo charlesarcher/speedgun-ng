@@ -30,5 +30,5 @@ namespace
 #if defined(__GNUC__)
 [[gnu::used]]
 #endif
-[[maybe_unused]] constinit auto const link_proof = &zlibVersion;
+[[maybe_unused]] constinit auto const kLinkProof = &zlibVersion;
 }  // namespace
