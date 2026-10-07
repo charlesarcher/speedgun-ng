@@ -517,11 +517,11 @@ jobs:
         lib=build/consumer-release/libspeedgun-ng.a
         test -f "$lib"
         nm -C "$lib" > /tmp/consumer-release-nm.txt
-        if grep -F 'sg::dbc::check_' /tmp/consumer-release-nm.txt; then
-          echo "FAIL: sg::dbc::check_ symbols present under ignore"
+        if grep -E 'sg::dbc::check[A-Z]' /tmp/consumer-release-nm.txt; then
+          echo "FAIL: sg::dbc::check symbols present under ignore"
           exit 1
         fi
-        echo "PASS: no sg::dbc::check_ symbols"
+        echo "PASS: no sg::dbc::check symbols"
 
     - name: Configure ignore developer build
       run: >

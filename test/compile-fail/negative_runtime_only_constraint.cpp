@@ -10,8 +10,7 @@
 
 auto main() -> int
 {
-  constexpr bool kConstraint =
-      sizeof(int) == 4;  // NOLINT(readability-identifier-naming)
+  constexpr bool kConstraint = sizeof(int) == 4;
   SG_REQUIRE(kConstraint,
              "constraint");  // runtime use of ct-evaluable constraint
   return 0;

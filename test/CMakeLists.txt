@@ -27,6 +27,12 @@ target_link_libraries(dbc_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(dbc_test PRIVATE cxx_std_23)
 add_test(NAME dbc_test COMMAND dbc_test)
 
+# Literal survives the rename fixer (D-01). Not a behavior check.
+add_executable(dbc_literal_fixture source/dbc_literal_fixture.cpp)
+target_link_libraries(dbc_literal_fixture PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(dbc_literal_fixture PRIVATE cxx_std_23)
+add_test(NAME dbc_literal_fixture COMMAND dbc_literal_fixture)
+
 # The trap fixture is NOT a test (it aborts in checked builds); it is a driven
 # executable used by dbc_trap_checked_test and the consumer-release CI job to
 # prove the release-clean / always-on contrast (SC-002, FR-036).

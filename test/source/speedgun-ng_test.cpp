@@ -27,7 +27,7 @@ struct violation_caught
   sg::dbc::ViolationRecord record {};
 };
 
-auto record_into(sg::dbc::ViolationRecord& out) -> sg::dbc::violation_observer
+auto record_into(sg::dbc::ViolationRecord& out) -> sg::dbc::ViolationObserver
 {
   return [&out](sg::dbc::ViolationRecord const& rec)
   {
@@ -38,14 +38,14 @@ auto record_into(sg::dbc::ViolationRecord& out) -> sg::dbc::violation_observer
 
 auto capture_violation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
 {
-  sg::dbc::set_observer(record_into(rec));
+  sg::dbc::setObserver(record_into(rec));
   bool caught = false;
   try {
     body();
   } catch (violation_caught const&) {
     caught = true;
   }
-  sg::dbc::set_observer({});
+  sg::dbc::setObserver({});
   return caught;
 }
 
@@ -91,7 +91,7 @@ auto run() -> int
   sg::dbc::ViolationRecord rec {};
   check(capture_violation(rec, [] { violate_class_invariant(); }),
         "fail: invariant violation delivered to the observer");
-  check(rec.kind == Kind::invariant, "fail: kind == invariant");
+  check(rec.kind == Kind::INVARIANT, "fail: kind == invariant");
   check(std::string(rec.message) == "inv: stored name is non-empty",
         "fail: invariant message text");
   check(std::string(rec.predicateText) == "!stored.empty()",
@@ -104,7 +104,7 @@ auto run() -> int
   rec = sg::dbc::ViolationRecord {};
   check(capture_violation(rec, violate_name_postcondition),
         "fail: postcondition violation delivered to the observer");
-  check(rec.kind == Kind::postcondition, "fail: kind == postcondition");
+  check(rec.kind == Kind::POSTCONDITION, "fail: kind == postcondition");
   check(std::string(rec.message) == "post: name() returns the project name",
         "fail: postcondition message text");
   check(std::string(rec.predicateText)

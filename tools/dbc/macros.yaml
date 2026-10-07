@@ -5,34 +5,34 @@
 # Consumed by dbc_doc_gate.py, dbc_pair_gate.py, and future AST gate.
 ---
 - macro: SG_REQUIRE
-  enforcement_function: sg::dbc::check_precondition
+  enforcement_function: sg::dbc::checkPrecondition
   kind: precondition
   always_on: false
 - macro: SG_ENSURE
-  enforcement_function: sg::dbc::check_postcondition
+  enforcement_function: sg::dbc::checkPostcondition
   kind: postcondition
   always_on: false
 - macro: SG_INVARIANT
-  enforcement_function: sg::dbc::check_invariant
+  enforcement_function: sg::dbc::checkInvariant
   kind: invariant
   always_on: false
 - macro: SG_ASSERT
-  enforcement_function: sg::dbc::check_assertion
+  enforcement_function: sg::dbc::checkAssertion
   kind: assertion
   always_on: false
 - macro: SG_REQUIRE_ALWAYS
-  enforcement_function: sg::dbc::check_precondition
+  enforcement_function: sg::dbc::checkPrecondition
   kind: precondition
   always_on: true
 - macro: SG_ENSURE_ALWAYS
-  enforcement_function: sg::dbc::check_postcondition
+  enforcement_function: sg::dbc::checkPostcondition
   kind: postcondition
   always_on: true
 - macro: SG_INVARIANT_ALWAYS
-  enforcement_function: sg::dbc::check_invariant
+  enforcement_function: sg::dbc::checkInvariant
   kind: invariant
   always_on: true
 - macro: SG_ASSERT_ALWAYS
-  enforcement_function: sg::dbc::check_assertion
+  enforcement_function: sg::dbc::checkAssertion
   kind: assertion
   always_on: true
