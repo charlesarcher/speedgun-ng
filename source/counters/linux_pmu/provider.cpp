@@ -321,15 +321,13 @@ auto load_device(const std::filesystem::path& dir)
   detail::pmu_device device;
   device.path = dir.filename().string();
   device.type = type;
-  // A device that publishes `cpumask` or `cpus` binds a processor set.
-  // The kernel registers no per-task context for that device, so the
-  // catalog marks it device-scoped and its entries take `scope_refused`
-  // from the published file. A device that publishes neither file takes
-  // the per-task probe, which is how `msr` keeps the thread target bit
-  // (FR-016, D-08).
+  // A `cpumask` file marks an uncore device. A core PMU publishes a
+  // `cpus` file instead, and that file does not mark the device scoped.
+  // `cpu`, `cpu_core`, and `cpu_atom` stay per-task capable. A device
+  // that publishes neither file takes the per-task probe, which is how
+  // `msr` keeps the thread target bit (FR-016, D-08).
   std::error_code scope_code;
-  device.device_scoped = std::filesystem::exists(dir / "cpumask", scope_code)
-      || std::filesystem::exists(dir / "cpus", scope_code);
+  device.device_scoped = std::filesystem::exists(dir / "cpumask", scope_code);
   device.description = "perf event source '" + device.path + "', PMU type "
       + std::to_string(type);
 
@@ -345,8 +343,7 @@ auto load_device(const std::filesystem::path& dir)
     // file there that the parser rejects.
     if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
             slurp(it->path()),
-            ranges))
-    {  // LCOV_EXCL_BR_LINE
+            ranges)) {  // LCOV_EXCL_BR_LINE
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -657,8 +654,8 @@ auto to_hex(const std::uint64_t value) -> std::string
 // itself with the event_attr text the kernel publishes, verbatim, so a
 // reader can reproduce the encoding; a vendored entry uses the table's
 // own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name,
-                       const std::string& text) -> std::string
+auto alias_description(const std::string& name, const std::string& text)
+    -> std::string
 {
   if (!text.empty()) {
     return "kernel event configuration: " + text;

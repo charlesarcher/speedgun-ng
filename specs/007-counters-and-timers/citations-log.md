@@ -661,3 +661,52 @@ head: c059b0f, working tree
 must_not_move: the embedding of the vendored tables, and the closed task
   lines
 ```
+
+## Corrections after the 013 merge
+
+A review of `daa4b6d` found two high defects and a set of small
+corrections. The entries below record them. The project version for the
+patch is 0.4.1. `SOVERSION` stays 1.
+
+### Hybrid core devices were marked device-scoped
+
+```yaml
+date: 2026-10-07
+task: review of daa4b6d
+section: Device scope from published per-task context
+claim_as_written: a device publishing cpumask or cpus is device-scoped
+figure_measured: a cpus file does not mark a device scoped. cpu_core and
+  cpu_atom stay per-task capable
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: daa4b6d
+must_not_move: the msr path, which still takes the per-task probe
+```
+
+### Offcore rows encoded event 0
+
+```yaml
+date: 2026-10-07
+task: review of daa4b6d
+section: none; the frozen record holds no claim on this requirement
+claim_as_written: an EventCode pair such as 0xB7, 0xBB encoded with event
+  bits of 0
+figure_measured: the first code reaches bits 0-7. The encodable-row counts
+  on the synthetic list stay 587, 346, 563, and 2222
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: daa4b6d
+must_not_move: the synthetic-list Intel pins
+```
+
+### The reference-host format list was not this host's list
+
+```yaml
+date: 2026-10-07
+task: review of daa4b6d
+section: The encodable-row counts the seam test pins
+figure_as_written: amdzen4 326 and amdzen5 322 against an Intel format list
+figure_measured: amdzen4 344 and amdzen5 353 against this host's format
+  list, event config:0-7,32-35 plus umask, edge, inv, and cmask
+command: ./build/dev/test/counters_linux_pmu_seam_test
+head: daa4b6d
+must_not_move: the synthetic Intel pins 587, 346, 563, and 2222
+```

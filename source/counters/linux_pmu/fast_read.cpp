@@ -72,8 +72,8 @@ auto fast_pair_stable(const std::uint32_t sequence_before,
   return sequence_before == sequence_after;
 }
 
-auto fast_pinning_ok(const int pinned_cpu,
-                     const int current_cpu) noexcept -> bool
+auto fast_pinning_ok(const int pinned_cpu, const int current_cpu) noexcept
+    -> bool
 {
   return pinned_cpu < 0 || pinned_cpu == current_cpu;
 }
@@ -149,13 +149,6 @@ auto fast_probe_allows(const bool capability_granted,
 
 #if !defined(SG_PMU_FAST_X86)
 
-void pmu_probe_fast(pmu_state& state)
-{
-  state.fast_available = false;
-  state.fast_refusal =
-      "the host is not x86, so the time-stamp read path does not apply";
-}
-
 std::unique_ptr<fast_context> fast_context_open(const int,
                                                 const std::uint64_t,
                                                 const target&,
@@ -172,9 +165,8 @@ auto fast_context_read(const fast_context&, std::uint64_t&) -> fast_read_verdict
   return fast_read_verdict::not_allowed;
 }
 
-auto fast_context_time_pair(const fast_context&,
-                            std::uint64_t&,
-                            std::uint64_t&) -> bool
+auto fast_context_time_pair(const fast_context&, std::uint64_t&, std::uint64_t&)
+    -> bool
 {
   return false;
 }
@@ -192,41 +184,7 @@ namespace
 // header fixes and no layout is mirrored here (R-011, Constitution I).
 using event_page = perf_event_mmap_page;
 
-// The event the capability probe opens: the core PMU's own instruction
-// event, which every x86 Linux kernel publishes and every caller that
-// may count its own instructions may open (FR-023).
-constexpr int kProbeType = PERF_TYPE_HARDWARE;
-constexpr std::uint64_t kProbeConfig = PERF_COUNT_HW_INSTRUCTIONS;
-
 }  // namespace
-
-void pmu_probe_fast(pmu_state& state)
-{
-  // The kernel's own page states this host's account, so the probe opens
-  // one real event and reads the mapping the descriptor returns
-  // (FR-023, R-011). No sysctl and no sysfs attribute takes part: the
-  // read protocol the header publishes consults neither, and a probe
-  // that guessed the host's policy from a sysctl was the defect this
-  // replaced.
-  state.fast_available = false;
-  const target where {};
-  auto context =
-      fast_context_open(kProbeType, kProbeConfig, where, &state.fast_refusal);
-  // LCOV_EXCL_START : coverage exclusion (T140): the arm that carries the
-  // kernel's own refusal, which `fast_context_open` already wrote into
-  // `state.fast_refusal`. It needs a host that refuses a per-process
-  // user-mode hardware event outright, which no test can arrange; the
-  // refusal text it publishes is covered for both arms by
-  // `context_open_refusal_scenario` in
-  // `test/source/counters_linux_pmu_seam_test.cpp`.
-  if (context) {  // LCOV_EXCL_BR_LINE
-    const auto* page = static_cast<const event_page*>(context->map);
-    state.fast_available = fast_probe_allows(
-        page->cap_user_rdpmc != 0, page->index, state.fast_refusal);
-    fast_context_close(*context);
-  }  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_STOP
-}
 
 std::unique_ptr<fast_context> fast_context_open(const int type,
                                                 const std::uint64_t config,
@@ -308,8 +266,8 @@ std::unique_ptr<fast_context> fast_context_open(const int type,
 // the body applies are covered for both arms by `fast_decode` and the
 // `fast_index_valid` and `fast_pair_stable` seams in
 // `test/source/counters_linux_pmu_seam_test.cpp`.
-auto fast_context_read(const fast_context& context,
-                       std::uint64_t& value) -> fast_read_verdict
+auto fast_context_read(const fast_context& context, std::uint64_t& value)
+    -> fast_read_verdict
 {
   SG_REQUIRE(std::this_thread::get_id() == context.owner,
              "a mapped-page read runs on the thread that opened its "
