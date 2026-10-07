@@ -57,7 +57,7 @@ using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::fake_provider;
-using sg::counters::push_provider;
+using sg::counters::PushProvider;
 using sg::counters::ReadMode;
 using sg::counters::scope;
 using sg::counters::system;
@@ -126,7 +126,7 @@ auto test_absent_provider() -> void
 // time-stamp entry.
 auto test_entry_absent_but_provider_present() -> void
 {
-  auto push = std::make_unique<push_provider>();
+  auto push = std::make_unique<PushProvider>();
   static_cast<void>(push->add_counter("records", "ops", "records pushed"));
   check(system::local().register_provider(std::move(push)).has_value(),
         "a provider seeding no time-stamp entry registers (FR-006)");

@@ -283,7 +283,7 @@ public:
  * `uint64` increment on the creating thread, sampled by plain load
  * (FR-035, R-008).
  *
- * Declared through `push_provider` before registration. Cross-thread
+ * Declared through `PushProvider` before registration. Cross-thread
  * `add` is a tier-3 violation, checked by default and elided under
  * `SG_CONTRACTS_IGNORE`.
  */
@@ -356,7 +356,7 @@ public:
   }
 
 private:
-  friend class push_provider;
+  friend class PushProvider;
 
   PushCounter(std::uint64_t* const value,
               const std::thread::id owner,

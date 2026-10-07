@@ -16,19 +16,19 @@
 namespace sg::counters
 {
 
-struct detail::push_window final : WindowReader
+struct detail::PushWindow final : WindowReader
 {
-  push_window() { setThunk(&read_direct); }
+  PushWindow() { setThunk(&read_direct); }
 
   // The compiled plan hands the window over as the base reference
-  // `ReadThunk` declares, and `push_provider::open` constructs it as
+  // `ReadThunk` declares, and `PushProvider::open` constructs it as
   // this final type, so the reference names a push window on every
   // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
   static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<push_window&>(base).readPoints(sink);
+    static_cast<PushWindow&>(base).readPoints(sink);
   }
 
   std::vector<const std::uint64_t*> cells;
@@ -54,17 +54,17 @@ struct detail::push_window final : WindowReader
   }
 };
 
-push_provider::push_provider() = default;
+PushProvider::PushProvider() = default;
 
-push_provider::~push_provider() = default;
+PushProvider::~PushProvider() = default;
 
-auto push_provider::add_counter(const std::string_view name,
-                                const std::string_view unit,
-                                const std::string_view description)
+auto PushProvider::add_counter(const std::string_view name,
+                               const std::string_view unit,
+                               const std::string_view description)
     -> PushCounter
 {
   SG_REQUIRE(!name.empty(), "add_counter names a counter (FR-035)");
-  m_points.emplace_back(push_point {
+  m_points.emplace_back(PushPoint {
       .value = 0,
       .owner = std::this_thread::get_id(),
       .name = std::string(name),
@@ -77,7 +77,7 @@ auto push_provider::add_counter(const std::string_view name,
   return PushCounter(&point.value, point.owner, point.name);
 }
 
-void push_provider::enumerate(ObjectSink& sink) const
+void PushProvider::enumerate(ObjectSink& sink) const
 {
   std::vector<CatalogSeed> entries;
   entries.reserve(m_points.size());
@@ -99,14 +99,14 @@ void push_provider::enumerate(ObjectSink& sink) const
   });
 }
 
-std::unique_ptr<WindowReader> push_provider::open(const LeafSet& leaves,
-                                                  const Target& /*where*/)
+std::unique_ptr<WindowReader> PushProvider::open(const LeafSet& leaves,
+                                                 const Target& /*where*/)
 {
-  auto window = std::make_unique<detail::push_window>();
+  auto window = std::make_unique<detail::PushWindow>();
   window->disclosure_column = leaves.disclosureColumn;
   window->cells.reserve(leaves.addresses.size());
   for (const auto& address : leaves.addresses) {
-    const push_point* match = nullptr;
+    const PushPoint* match = nullptr;
     for (const auto& point : m_points) {
       if (address == "machine/" + point.name) {
         match = &point;

@@ -68,8 +68,8 @@ using sg::counters::expression;
 using sg::counters::LeafSet;
 using sg::counters::object;
 using sg::counters::PointSink;
-using sg::counters::push_provider;
 using sg::counters::PushCounter;
+using sg::counters::PushProvider;
 using sg::counters::ReadMode;
 using sg::counters::scope;
 using sg::counters::system;
@@ -289,7 +289,7 @@ auto push_name_scenario(const PushCounter& first,
 auto open_refusal_scenario() -> void
 {
   const Target where {};
-  push_provider pushes;
+  PushProvider pushes;
   static_cast<void>(
       pushes.add_counter("bytes", "bytes", "hot-path bytes written"));
   check(pushes.open(LeafSet {.addresses = {"machine/bytes"}}, where) != nullptr,
@@ -352,17 +352,17 @@ auto sample_without_disclosure() -> void
         "a clock sample with no disclosure column still writes the leaf "
         "(FR-007)");
 
-  push_provider pushes;
+  PushProvider pushes;
   auto handle = pushes.add_counter("quiet", "ops", "opened with no disclosure");
   handle.add(3);
-  auto push_window =
+  auto PushWindow =
       pushes.open(LeafSet {.addresses = {"machine/quiet"}}, where);
-  if (push_window == nullptr) {
+  if (PushWindow == nullptr) {
     fail("the push leaf opens with no disclosure column");
   }
   std::vector<std::uint64_t> push_columns(1, 0);
   PointSink push_sink(push_columns.data(), 1, 1, 1, 0);
-  push_window->readPoints(push_sink);
+  PushWindow->readPoints(push_sink);
   check(push_columns[0] == 3,
         "a push sample with no disclosure column writes the leaf alone "
         "(FR-007)");
@@ -372,7 +372,7 @@ auto main() -> int
 {
   sample_without_disclosure();
   auto clock = std::make_unique<ClockProvider>();
-  auto push = std::make_unique<push_provider>();
+  auto push = std::make_unique<PushProvider>();
   auto bytes_handle =
       push->add_counter("bytes", "bytes", "hot-path bytes written");
   auto second_handle = push->add_counter("records", "ops", "records appended");

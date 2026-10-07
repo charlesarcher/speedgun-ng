@@ -67,7 +67,7 @@ using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::object;
 using sg::counters::PmuProvider;
-using sg::counters::push_provider;
+using sg::counters::PushProvider;
 using sg::counters::ReadMode;
 using sg::counters::scope;
 using sg::counters::system;
@@ -1168,7 +1168,7 @@ auto main() -> int
   // reads all three at once (SC-002). The handles stay unused: the
   // hot-path add belongs to the shipped-provider test, and this scenario
   // reads the catalog only.
-  auto push = std::make_unique<push_provider>();
+  auto push = std::make_unique<PushProvider>();
   static_cast<void>(
       push->add_counter("bytes", "bytes", "hot-path bytes written"));
   static_cast<void>(push->add_counter("records", "ops", "records appended"));
