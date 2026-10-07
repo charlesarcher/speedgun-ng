@@ -1574,7 +1574,12 @@ auto intel_encodable_rows_scenario() -> void
                                 "arch/x86/alderlake/",
                                 "arch/x86/sapphirerapids/"})
   {
-    for (const auto& row : sg::counters::detail::pmu_load_table(directory)) {
+    // The table cache copies its argument. A temporary string here is
+    // what Rocky's dangling-reference warning rejects.
+    const std::string table_directory {directory};
+    for (const auto& row :
+         sg::counters::detail::pmu_load_table(table_directory))
+    {
       for (const auto& [name, value] : row.fields) {
         static_cast<void>(value);
         check(name != "MSRIndex" && name != "MSRValue",
