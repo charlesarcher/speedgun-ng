@@ -220,7 +220,7 @@ struct PmuDevice
   // True when the device binds one processor for every task, which is what
   // an uncore device does. A device-scoped entry refuses a per-task target
   // by its own scope, which is a different refusal from an encoding one,
-  // so the provider answers `scope_refused` for that kind and runs no
+  // so the provider answers `SCOPE_REFUSED` for that kind and runs no
   // syscall (FR-021, FR-022).
   bool deviceScoped = false;
 };
@@ -608,7 +608,7 @@ struct EntryReadSelection
 /// The availability probe runs once per target kind, and a kind settles
 /// the entry exactly where the kernel counted that kind's event. A device
 /// that binds one processor for every task runs no per-task probe, so its
-/// `scope_refused` verdict settles no kind and the mask names the cpu kind
+/// `SCOPE_REFUSED` verdict settles no kind and the mask names the cpu kind
 /// alone. Pure over the two verdicts, so a registered test drives every arm
 /// on a host whose cpu-targeted probe is refused, which is what the
 /// reference host is (FR-021, FR-022, FR-046).
@@ -674,7 +674,7 @@ struct EntryReadSelection
 ///
 /// \pre none
 /// \post A permission verdict on a device-scoped device settles on
-///       `scope_refused`. Every other verdict, on a device-scoped device or
+///       `SCOPE_REFUSED`. Every other verdict, on a device-scoped device or
 ///       not, settles on itself.
 [[nodiscard]] auto scopeSettledState(
     Availability onCpu, bool deviceScoped) noexcept -> Availability;
@@ -686,7 +686,7 @@ struct EntryReadSelection
 /// error, refused before any provider window opens and before any
 /// hardware read. One state is not the caller's to clear: a device that
 /// binds one processor for every task refuses the per-task kind by its
-/// own scope and publishes `scope_refused` for it, so a request naming
+/// own scope and publishes `SCOPE_REFUSED` for it, so a request naming
 /// the cpu kind does not ask for the kind the scope refused. Such a
 /// request proceeds to the provider window, where the kernel's own
 /// verdict for the cpu-targeted event belongs; a refusal there names the
@@ -699,7 +699,7 @@ struct EntryReadSelection
 ///
 /// \pre none
 /// \post A countable entry answers true under either kind. A
-///       `scope_refused` entry answers true for the cpu kind alone, and
+///       `SCOPE_REFUSED` entry answers true for the cpu kind alone, and
 ///       answers false for the per-task kind. Every other state answers
 ///       false under either kind.
 [[nodiscard]] auto availabilityGatePasses(

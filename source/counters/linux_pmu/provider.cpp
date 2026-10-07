@@ -209,7 +209,7 @@ auto probeDevice(detail::PmuDevice& device, const bool fastCapable) -> void
     }
     // The probe runs once per target kind the entry can be counted on. A
     // device-scoped entry binds one processor for every task, so its own
-    // scope refuses the per-task kind. That refusal is `scope_refused`,
+    // scope refuses the per-task kind. That refusal is `SCOPE_REFUSED`,
     // which a caller can tell from an encoding refusal, and no syscall runs
     // for the kind the scope already refuses (FR-021, FR-022).
     Availability probed = Availability::SCOPE_REFUSED;
@@ -562,7 +562,7 @@ auto scopeSettledState(const Availability onCpu,
   // The device's own scope refuses the per-task kind and the cpu probe
   // refused that kind too, so no probe settled the entry. What this caller
   // may open on a device-scoped entry is the scope's own answer, so a
-  // permission refusal publishes as `scope_refused`. An encoding refusal
+  // permission refusal publishes as `SCOPE_REFUSED`. An encoding refusal
   // names the encoding instead, so it survives into `entry.avail` and the
   // caller reads the two refusals apart (FR-021, FR-022).
   const bool scopeRefusal =
