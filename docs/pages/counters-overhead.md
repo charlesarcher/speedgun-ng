@@ -413,6 +413,35 @@ One run reads 6.7 ns and 47.2 ns. Its bare pair reads 6.7 ns on the
 same process, so the drop is the host's, and the library still adds
 one tick. The agreed median excludes that run.
 
+Re-measured 2026-10-07 on the release preset
+(`build/test/counters_overhead`), the pass closed by convergence
+Task T039. Three processes ran the recipe above, each started with
+the one-minute load average below 1.0: 0.72, 0.68, 0.73.
+`perf_event_paranoid` read 1. Each row keeps the smallest minimum
+and the largest maximum across the three runs, and the median the
+runs agree on.
+
+| per sampling action | min | median | max | median |
+| --- | --- | --- | --- | --- |
+| bare `rdtsc` pair | 36 t | 37 t | 44 t | 8.6 ns |
+| library sampling path | 38 t | 38 t | 45 t | 8.8 ns |
+| gated core PMU group | 260 t | 261 t | 275 t | 60.7 ns |
+
+The quiet-host medians sit within the five percent gate: the library
+path reads 2.7 percent from the published 37 t / 8.6 ns and lands on
+the audit-point median of 8.8 ns, and the gated group reads 1.2
+percent from the published 258 t / 60.0 ns. The library still adds
+one tick. The published medians stand, and this pass is their
+host-state confirmation.
+
+The same host carries a fast mode. Earlier runs the same day, each
+started at a one-minute load average of 2.05, read the bare pair at
+28 t / 6.5 ns, the library path at 29 t / 6.7 ns, and the gated
+group at 204 t / 47.4 ns. The library-minus-bare delta stays one
+tick in both modes, and T031 of `specs/014` proves the object code
+identical across the rename, so the mode belongs to the host. A
+reader comparing figures needs the load line beside the run.
+
 A tick
 is a count and not a duration, so the conversion needs the rate above; a
 tick is not a core cycle unless the two frequencies happen to match, which
