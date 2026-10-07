@@ -10,6 +10,14 @@ The project adopts one naming law before the benchmark harness adds a public sur
 
 The audit point `6d32efcab3c13c3d41470c1c621d78839ce11543` has no passing gate record. Continuous Integration run 37553123469 failed the format check on 21 files. The gate baseline is a later default-branch commit where every hard gate passes and the rename has not started. The format repair is tasks.md T001. It lands before the first rename commit.
 
+### Gate baseline
+
+The green head is `5b9ed47631742f4f6b6b0174371e5155a287cef7`. It is not `6d32efcab3c13c3d41470c1c621d78839ce11543` and it is not `6aafd2dc8a1310ee335820ad8dc4dedd0eb0ae17`. [Run 37617561034](https://github.com/charlesarcher/speedgun-ng/actions/runs/37617561034) concluded success. Every job succeeded: lint, shared-audit, sanitize, tsan, coverage, test-rocky, downstream-consumer, consumer-release, dbc-gate, test, prose-lint, and docs.
+
+The test job passed these tests: simdjson_nm_proof, hdrhistogram_purity_scan, hdrhistogram_nm_proof, zlib_purity_scan, zlib_nm_proof, yaml_purity_scan, yaml_nm_proof, quill_dependency_check, quill_purity_scan, dbc_asm_smoke, counters_tsc_read_shape, simulation_mark_shape, dbc_gate_fixtures, prose_gate_fixtures, counters_tsc_test, counters_core_test, counters_fake_test, counters_compile_fail, counters_header_purity, counters_push_atomic_scan, counters_recorder_test, counters_noalloc_test, counters_trap_checked, counters_trap_checked_rejects_unknown_mode, counters_objects_test, counters_registration_order_test_clock_first, counters_registration_order_test_pmu_first, counters_clock_push_test, counters_provider_ext_test, pmu_events_check, counters_linux_pmu_seam_test, counters_standalone_example, counters_giraffe_example, counters_clock_raw_test, simulation_test, and dbc_semantics_matrix. counters_pmu_test and counters_overhead skipped. The host granted no PMU object.
+
+The name check is not a gate on this SHA. `WarningsAsErrors` does not yet name `readability-identifier-naming`, so the green run emitted no per-file count. The closing commit turns that check on.
+
 ### Format-check paths (CI run 37553123469)
 
 - include/speedgun-ng/counters_measurement.hpp
