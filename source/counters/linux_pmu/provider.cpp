@@ -44,17 +44,17 @@ namespace sg::counters
 
 // Off Linux the reduced catalog is the whole difference (FR-042): the
 // interface, the state, and the empty enumeration are identical.
-pmu_provider::pmu_provider()
+PmuProvider::PmuProvider()
     : m_state(std::make_unique<detail::pmu_state>())
 {
 }
 
-pmu_provider::~pmu_provider() = default;
+PmuProvider::~PmuProvider() = default;
 
-void pmu_provider::enumerate(ObjectSink& /*sink*/) const {}
+void PmuProvider::enumerate(ObjectSink& /*sink*/) const {}
 
-std::unique_ptr<WindowReader> pmu_provider::open(const LeafSet& /*leaves*/,
-                                                 const Target& /*where*/)
+std::unique_ptr<WindowReader> PmuProvider::open(const LeafSet& /*leaves*/,
+                                                const Target& /*where*/)
 {
   return nullptr;
 }
@@ -764,7 +764,7 @@ auto pmu_probe(const int type,
 
 }  // namespace detail
 
-pmu_provider::pmu_provider()
+PmuProvider::PmuProvider()
     : m_state(std::make_unique<detail::pmu_state>())
 {
   std::error_code code;
@@ -837,9 +837,9 @@ pmu_provider::pmu_provider()
   }  // LCOV_EXCL_LINE
 }  // LCOV_EXCL_LINE
 
-pmu_provider::~pmu_provider() = default;
+PmuProvider::~PmuProvider() = default;
 
-void pmu_provider::enumerate(ObjectSink& sink) const
+void PmuProvider::enumerate(ObjectSink& sink) const
 {
   for (const auto& device : m_state->devices) {
     std::vector<CatalogSeed> entries;
@@ -902,8 +902,8 @@ void pmu_provider::enumerate(ObjectSink& sink) const
 // `perf_event_open`, so a runner whose `perf_event_open` is refused refuses
 // every leaf before it reaches this body, while the host that grants the
 // syscall opens a window for every leaf set it serves.
-std::unique_ptr<WindowReader> pmu_provider::open(const LeafSet& leaves,
-                                                 const Target& where)
+std::unique_ptr<WindowReader> PmuProvider::open(const LeafSet& leaves,
+                                                const Target& where)
 {
   return detail::pmu_open_window(*m_state, leaves, where);
   // LCOV_EXCL_STOP

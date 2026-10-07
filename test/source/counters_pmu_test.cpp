@@ -66,7 +66,7 @@ using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
 using sg::counters::object;
-using sg::counters::pmu_provider;
+using sg::counters::PmuProvider;
 using sg::counters::push_provider;
 using sg::counters::ReadMode;
 using sg::counters::scope;
@@ -1152,7 +1152,7 @@ auto main() -> int
 #if !defined(__linux__)
   // FR-042: off Linux the provider keeps the identical interface and
   // seeds nothing; the reduced catalog is the whole difference.
-  auto pmu = std::make_unique<pmu_provider>();
+  auto pmu = std::make_unique<PmuProvider>();
   auto reg = system::local().register_provider(std::move(pmu));
   check(reg.has_value(), "the pmu provider registers off Linux");
   const auto objects = system::local().objects("pmu");
@@ -1162,7 +1162,7 @@ auto main() -> int
   return 0;
 #else
   auto clock = std::make_unique<ClockProvider>();
-  auto pmu = std::make_unique<pmu_provider>();
+  auto pmu = std::make_unique<PmuProvider>();
   // Scenario 4 holds the push counters countable while the pmu provider is
   // registered, so the push provider joins it here and the catalog walk
   // reads all three at once (SC-002). The handles stay unused: the
