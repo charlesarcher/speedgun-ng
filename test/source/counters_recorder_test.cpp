@@ -576,7 +576,7 @@ auto test_self_move_assignment() -> void
 // is what a runner without one still executes (FR-032).
 auto test_sample_overhead_calibration() -> void
 {
-  auto sc = ipc_scenario("cyc-cal", "ins-cal");
+  auto sc = ipc_scenario("cyc0", "ins0");
   const double low = sc.compiled.sample_overhead_ns_min();
   const double mid = sc.compiled.sample_overhead_ns_median();
   const double high = sc.compiled.sample_overhead_ns_max();
