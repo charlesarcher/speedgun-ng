@@ -53,7 +53,7 @@ using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::plan;
-using sg::counters::pmu_provider;
+using sg::counters::PmuProvider;
 using sg::counters::ReadMode;
 using sg::counters::RecorderHandle;
 using sg::counters::system;
@@ -324,7 +324,7 @@ auto main() -> int
   if (!system::local().register_provider(std::move(clock)).has_value()) {
     fail("clock provider registers");
   }
-  auto pmu = std::make_unique<pmu_provider>();
+  auto pmu = std::make_unique<PmuProvider>();
   if (!system::local().register_provider(std::move(pmu)).has_value()) {
     fail("pmu provider registers");
   }

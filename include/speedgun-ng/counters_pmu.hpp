@@ -35,7 +35,7 @@ struct pmu_state;
  * identical interface and seeds no objects: the reduced catalog is the
  * whole difference (FR-042).
  */
-class SPEEDGUN_NG_EXPORT pmu_provider final : public ProviderIface
+class SPEEDGUN_NG_EXPORT PmuProvider final : public ProviderIface
 {
 public:
   /**
@@ -46,7 +46,7 @@ public:
    * \pre none
    * \post none
    */
-  pmu_provider();
+  PmuProvider();
 
   /**
    * @brief The released provider state.
@@ -54,12 +54,12 @@ public:
    * \pre none
    * \post none
    */
-  ~pmu_provider() override;
+  ~PmuProvider() override;
 
-  pmu_provider(const pmu_provider&) = delete;
-  pmu_provider(pmu_provider&&) = delete;
-  auto operator=(const pmu_provider&) -> pmu_provider& = delete;
-  auto operator=(pmu_provider&&) -> pmu_provider& = delete;
+  PmuProvider(const PmuProvider&) = delete;
+  PmuProvider(PmuProvider&&) = delete;
+  auto operator=(const PmuProvider&) -> PmuProvider& = delete;
+  auto operator=(PmuProvider&&) -> PmuProvider& = delete;
 
   /**
    * @brief Reports every event-source object with its merged,

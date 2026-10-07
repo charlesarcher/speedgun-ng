@@ -35,7 +35,7 @@ auto main() -> int
     return 1;
   }
 
-  auto provider = std::make_unique<sg::counters::pmu_provider>();
+  auto provider = std::make_unique<sg::counters::PmuProvider>();
   if (!sg::counters::system::local()
            .register_provider(std::move(provider))
            .has_value())
