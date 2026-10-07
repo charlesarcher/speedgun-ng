@@ -469,3 +469,13 @@ the rename, in the closing commit.
   US4. Splitting that commit leaves a head whose gate item fails.
 - Commit after each rename task. Commit the closing group once.
 - Stop at any checkpoint and validate that story's named check.
+
+---
+
+## Phase 8: Convergence
+
+- [X] T037 Write the public-data-member naming rule into `.specify/memory/constitution.md` V.1, the rule `.clang-tidy:83` `PublicMemberCase: camelBack` already enforces, through the Governance procedure, per FR-009, FR-011, Constitution V.1 (contradicts) — CRITICAL
+- [X] T038 Run the full FR-005 hard-gate set at the rename head `baca50d` and record the result beside Step 10 of `specs/014-identifier-naming-camelcase/quickstart.md`, per FR-005, SC-008, FR-021 (partial) — HIGH
+- [X] T039 Re-measure the `docs/pages/counters-overhead.md` gated medians on the reference host until they sit within five percent of the gate-baseline figures, or record an explicit maintainer acceptance of the host-state deviation, per FR-003, SC-003 (partial) — HIGH
+- [X] T040 Update the stale old-spelling mentions in comments and test prose (`source/counters/detail/pmu.hpp`, `source/counters/linux_pmu/provider.cpp`, `source/counters/linux_pmu/table_parse.cpp:394`, `test/source/counters_recorder_test.cpp:266`, `test/source/counters_pmu_test.cpp:421`) to the live spellings, keeping the `dbc_literal_fixture.cpp` literal and the `plan.cpp` catalog strings untouched, per FR-015, SC-006 (partial) — LOW
+- [X] T041 Decide the fate of the untracked `.specify/integrations/generic.manifest.json`: commit it or add a `.gitignore` entry, per FR-016 scope (unrequested) — LOW
