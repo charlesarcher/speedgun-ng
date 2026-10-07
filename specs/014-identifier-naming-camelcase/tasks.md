@@ -80,7 +80,7 @@ commit opens.
   format of those files, and leave every identifier at its
   audit-point spelling. This task is the format repair. A rename
   commit does not absorb it (D-06, FR-021).
-- [ ] T002 After that repair is on the default branch and CI is green, `specs/014-identifier-naming-camelcase/plan.md`
+- [X] T002 After that repair is on the default branch and CI is green, `specs/014-identifier-naming-camelcase/plan.md`
   record the green head SHA, the per-translation-unit name-check
   finding counts, and the sampling figures in
   `specs/014-identifier-naming-camelcase/plan.md`. The comparison
