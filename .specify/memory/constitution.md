@@ -1,4 +1,47 @@
 <!--
+Sync Impact Report (2.14.0, MINOR): Principle V gains V.1 Identifier
+Naming and V.2 Naming exceptions, the one spelling rule every C++
+identifier the project owns follows, which
+`specs/014-identifier-naming-camelcase` requires.
+
+The addition binds every change. It removes no existing obligation and
+weakens none: `.clang-tidy` already carried a partial naming map, and
+this amendment states the rule that map implements.
+
+V.1 states eleven rules and the constant spelling, and V.2 states the
+closed exception list. Together they are the whole naming law. The
+amendment adds one gate item to VIII: `readability-identifier-naming`
+reports zero findings on owned code. The check is already in the
+wildcard set, so it reports findings at the pre-rename heads; the
+closing commit names it in `WarningsAsErrors`, and a finding then
+fails the build.
+
+The clause that governs this change is V.1's own: a rule that exists
+only in `.clang-tidy` is a defect. This amendment is that clause's
+route, and it lands in the same change as the configuration it governs.
+
+Two closed specifications state a naming convention this amendment
+supersedes: `specs/012-counters-defect-resolution` and the successor
+log that cites it. Both stay unedited on the terms the 2.11.0 report set
+for superseded merged artifacts. Each stated the convention that was true
+when its spec shipped.
+
+The Open deferrals block is left unaltered, and no entry in it changes.
+Its wording reads "binding until a spec lands them", and every entry
+records an obligation that no specification has delivered. The
+obligation this amendment adds is delivered by the specification in the
+first paragraph.
+
+The insertion shifts every line below line 1. A citation naming a line
+number in this file needs re-anchoring; the `runner` example token named
+in `specs/002-prose-commit-lint/contracts/rule-data.md`,
+`specs/002-prose-commit-lint/data-model.md`,
+`specs/002-prose-commit-lint/research.md`, and
+`tools/prose/prose_rules.yaml` moves again. Search this file for the
+token; the number those four files name was already stale and the
+correct anchor is the token's present position.
+
+<!--
 Sync Impact Report (2.13.0, MINOR): Principle VIII's hard gate list
 gains a thread-sanitizer item, which FR-012 and SC-003 of
 `specs/012-counters-defect-resolution` require.
@@ -384,6 +427,72 @@ the canonical location given there.
 - Formatting-only changes are committed separately from content changes.
   They MUST NOT be combined (also X.3, Pull Request Quality).
 
+#### V.1 Identifier Naming
+
+One spelling rule governs every C++ identifier the project owns. It is
+enforced by `readability-identifier-naming`, and `.clang-tidy` maps each
+key below to the rule it implements. A rule that exists only in
+`.clang-tidy` is a defect; this section is the rule and the configuration
+is its enforcement.
+
+- **N-1 Types take PascalCase.** `fake_provider` becomes `FakeProvider`.
+  One acronym spells as one word, so `pmu_table_entry` becomes
+  `PmuTableEntry` and never `PMUTableEntry`. The rule covers classes,
+  structs, unions, enums, type aliases, and typedefs.
+- **N-2 Functions take camelBack.** The rule holds for a free function
+  and for a member function alike. `register_provider` becomes
+  `registerProvider`; `select_directory` becomes `selectDirectory`.
+- **N-3 Macros take `UPPER_SNAKE_CASE` under the `SG_` prefix.** A macro
+  the project defines spells `SG_` first, as `SG_ENSURE` and
+  `SG_NOEXCEPT` do.
+- **N-4 A scoped enumerator takes `UPPER_SNAKE_CASE`**, with no prefix.
+- **N-5 Variables take camelBack.** A parameter and a local take the same
+  spelling as any other variable.
+- **N-6 A namespace takes `lower_case`.** The namespace tree is
+  `sg`, `sg::counters`, and `sg::counters::detail`.
+- **N-7 A template parameter takes PascalCase.** `D` in
+  `template<class D>` already complies; `dimension` becomes `Dimension`.
+- **N-8 The constant spelling: a named constant takes PascalCase under the
+  `k` prefix.** `hard_stop_width` becomes `kHardStopWidth`. The prefix is
+  `k` for a namespace-scope, class-scope, or `static` constant alike.
+- **N-9 File names stay `lower_case` with underscores.** No identifier
+  option governs a file name, and none is added. A header is
+  `counters_measurement.hpp`, and renaming one is out of scope.
+- **N-10 A private or protected data member keeps the `m_` prefix** and
+  takes camelBack for the remainder: `m_column_count` becomes
+  `m_columnCount`.
+- **N-11 A tag type drops its `_t` suffix and takes PascalCase.** The tag
+  object beside the type takes lowerCamelCase. `hard_stop_t` becomes
+  `HardStop`, `ring_t` becomes `Ring`, `hard_stop` becomes `hardStop`, and
+  `ring` stays `ring`. A tag object is an exception to N-8 and appears
+  in `ConstexprVariableIgnoredRegexp`.
+
+#### V.2 Naming exceptions
+
+A name that the language, the standard library, a vendored library, or
+the platform looks up by spelling keeps that spelling. No exception
+exists outside this list, and each suppression names the entry it cites.
+
+- Standard container and range protocol: `begin`, `end`, `cbegin`, `cend`,
+  `rbegin`, `rend`, `size`, `empty`, `data`, `swap`.
+- Standard member types: `value_type`, `size_type`, `difference_type`,
+  `reference`, `const_reference`, `pointer`, `iterator`,
+  `const_iterator`, `iterator_category`, `iterator_concept`,
+  `element_type`.
+- Specializations in `std`: `std::hash`, `std::formatter`,
+  `std::tuple_size`, `std::tuple_element`, and their members.
+- Structured binding protocol: `get`.
+- Operator functions, user-defined literal suffixes, and the names of
+  standard functions the code calls.
+- Names a vendored library or the platform defines: hwloc, simdjson,
+  HdrHistogram_c, yaml-cpp, zlib, quill, and Linux and POSIX names. The
+  fields of `perf_event_mmap_page` and `perf_event_attr` are kernel
+  names, for example `cap_user_rdpmc`, `time_mult`, and `pmc_width`.
+- The export macro `SPEEDGUN_NG_EXPORT`, which the export-header generator
+  writes from the target name and which carries no `SG_` prefix. Include
+  guards carry the `SG_` prefix like any other macro.
+- `main` in each executable, and every identifier inside `external/`.
+
 ### VI. Test-Backed Code and Coverage (NON-NEGOTIABLE)
 
 - New code ships with tests in the same change; every bug fix ships with a
@@ -447,6 +556,9 @@ Every change passes all of the following; each is hard.
   `ci-ubuntu` preset drives, so the report lands in the `test` job's build
   log and in the build a contributor runs locally. The gate reports, and a
   finding is a defect at lint parity: the author clears it before merge.
+- Name-check-clean: `readability-identifier-naming` reports zero
+  findings on the project tree, and `WarningsAsErrors` in `.clang-tidy`
+  makes a finding fail the build (V.1).
 - `format-check` and `spell-check` pass.
 - Generated prose satisfies XI: a discourse violation is a defect at lint
   parity. The `prose-lint` job enforces Principle XI and the commit template
@@ -550,10 +662,11 @@ obeys all four rules.
 - Every changed line traces to the requirement, task, or defect addressed.
   Diffs carrying drive-by refactors, adjacent comment polishing, or unrelated
   cleanup are rejected at review.
-- Local style wins: naming, indentation, comment conventions, file
-  organization in the edited file are matched even against a different
-  preference. Adopting another convention is a dedicated formatting-only
-  change (V).
+- Local style wins on indentation, comment conventions, and file
+  organization in the edited file, matched even against a different
+  preference. Naming follows the naming rules of this constitution, and
+  a local spelling yields to those rules. Adopting another convention is
+  a dedicated formatting-only change (V).
 - Working code is not refactored because another shape looks cleaner.
 - Orphans this change creates are removed in this change: unused includes,
   variables, functions, template instantiations, dead branches. Pre-existing
@@ -855,6 +968,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.14.0 | 2026-10-07 | V gains V.1 Identifier Naming and V.2 Naming exceptions: the one spelling rule every owned C++ identifier follows, and the closed list of names that keep a spelling the language, the standard library, a vendor, or the platform requires. FR-001 to FR-021 of specs/014. |
 | 2.13.0 | 2026-10-04 | VIII hard gate list gains a thread-sanitizer item: a `ci-tsan` preset and a `tsan` job report no race, FR-012 and SC-003 of specs/012 require them, no gate removed or weakened |
 | 2.12.0 | 2026-10-03 | XI.7 Simplified Technical English: generated prose reaches about 80 percent ASD-STE100 compliance, reviewer-enforced, XI.1 to XI.6 govern on conflict, no rule identifier added |
 | 2.11.0 | 2026-10-02 | supported platform narrowed to Linux; gate list, platform definition, and release-build clause name it alone; 2.7.0 Windows suspension and 2.8.0 macOS deferral superseded, both reports retained; macOS Open deferral closed, retiring specs/009 T038; five merged vendor specs superseded by name and left unedited |
@@ -874,4 +988,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.13.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-04
+**Version**: 2.14.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-07

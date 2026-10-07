@@ -710,3 +710,28 @@ command: ./build/dev/test/counters_linux_pmu_seam_test
 head: daa4b6d
 must_not_move: the synthetic Intel pins 587, 346, 563, and 2222
 ```
+
+### The 014 rename map carries the renamed spellings
+
+```yaml
+date: 2026-10-07
+task: specs/014-identifier-naming-camelcase closing commit
+section: none; the map carries every changed shipped-header spelling
+claim_as_written: the counters and dbc names as this log spells them
+  predate the rename
+figure_measured: specs/014-identifier-naming-camelcase/rename-map.md
+  lists old spelling, new spelling, declaring header, and kind for
+  every changed shipped-header name, detail names marked
+command: sed -n '1,20p' specs/014-identifier-naming-camelcase/rename-map.md
+head: 15d335d
+must_not_move: every closed spec directory except the two sentences
+  below
+```
+
+The two sentences naming the shared-object rule in a closed directory
+were corrected beside this entry:
+`specs/013-counters-defect-followup/spec.md:891` and
+`specs/013-counters-defect-followup/checklists/requirements.md:44`
+now call the shared-object version a hand-kept number, the live rule
+`specs/013-counters-defect-followup/spec.md:657` already states. No
+other closed directory was edited.

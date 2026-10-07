@@ -17,7 +17,7 @@ The mapping is complete: every facility construct has a documented counterpart o
 | `SG_CONTRACTS_SEMANTIC == 1` (observe)| `observe` semantic                                   | Predicate evaluated; on violation the handler is invoked and execution continues. |
 | `SG_CONTRACTS_SEMANTIC == 2` (enforce)| `enforce` semantic                                   | Predicate evaluated; on violation the handler is invoked; if the handler returns normally the program is contract-terminated. |
 | `SG_CONTRACTS_SEMANTIC == 3` (quick_enforce) | `quick-enforce` semantic                        | Predicate evaluated; on violation the program is contract-terminated immediately with no handler invocation. |
-| `sg::dbc::set_observer(obs)` + default response | handle_contract_violation (user-replaceable, taking std::contracts::contract_violation const&) | The facility's runtime-swappable observer is replaced at link time by defining the global handler function. Default handler behavior (diagnostic + terminate under enforce) matches. Under quick-enforce the handler is not called in either design. |
+| `sg::dbc::setObserver(obs)` + default response | handle_contract_violation (user-replaceable, taking std::contracts::contract_violation const&) | The facility's runtime-swappable observer is replaced at link time by defining the global handler function. Default handler behavior (diagnostic + terminate under enforce) matches. Under quick-enforce the handler is not called in either design. |
 | Compile-time contract layer (`SG_CT_REJECT`, static_assert rejection of runtime checks on constant expressions) | C++26 contract rules in manifestly constant-evaluated contexts | Compile-time constraints continue to use `static_assert`, concepts, or `constexpr` validators (FR-022). A runtime contract on a compile-time-evaluable predicate is ill-formed under terminating semantics in C++26, matching the facility's rejection. |
 
 ## Semantics behavior match (SC-010 / US5 acceptance 1)
@@ -61,7 +61,7 @@ All eight macros named for the completeness probe:
 - [x] `observe` semantic maps to `observe`
 - [x] `enforce` semantic maps to `enforce`
 - [x] `quick_enforce` semantic maps to `quick-enforce`
-- [x] violation observer hook (set_observer + default response) maps to replaceable handle_contract_violation (global)
+- [x] violation observer hook (setObserver + default response) maps to replaceable handle_contract_violation (global)
 - [x] compile-time layer (rejection of runtime checks on ct-evaluable predicates; use of `static_assert`/concepts) maps to C++26 constant-evaluation rules for contracts
 - [x] All eight macros are named explicitly above.
 - [x] All four semantics are named explicitly above.

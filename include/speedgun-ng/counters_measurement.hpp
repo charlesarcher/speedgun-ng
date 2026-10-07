@@ -22,13 +22,15 @@
  * the dimension algebra, plan compile, folds with disclosure, and the
  * scope sugar (FR-014..FR-030).
  *
- * @version 0.4.1
+ * @version 0.5.0
  *
  * Commit `cd5cbd1` removed two public declarations, and 0.4.0 records
  * both removals. The removed declarations are the non-member
  * multiplication of an expression by a double, and the provider concept.
  * Both declarations remain absent from the public headers (FR-032).
- * 0.4.1 changes no public signature. `SOVERSION` stays 1.
+ * 0.4.1 changes no public signature; `SOVERSION` stayed 1. 0.5.0
+ * renames the whole owned surface, a breaking change on the 0.x line,
+ * and the hand-kept `SOVERSION` moves to 2.
  *
  * Dimensions live in types and are erased before the point buffer (FR-016).
  * The read path holds no expression tree and no name lookup; a window that
