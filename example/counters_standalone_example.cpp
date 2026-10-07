@@ -22,7 +22,7 @@
 namespace
 {
 
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::fake_provider;
@@ -38,7 +38,7 @@ constexpr std::size_t kIterations = 60;
 
 auto main() -> int
 {
-  auto clock = std::make_unique<clock_provider>();
+  auto clock = std::make_unique<ClockProvider>();
   if (!system::local().register_provider(std::move(clock)).has_value()) {
     std::fprintf(stderr, "standalone: clock provider registration failed\n");
     return 1;

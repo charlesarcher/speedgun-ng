@@ -49,7 +49,7 @@ auto same_double(const double lhs, const double rhs) -> bool
   return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
 }
 
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
@@ -517,7 +517,7 @@ auto register_everything() -> void
   // carrying no disclosure column. The scripted provider alone can never
   // reach that direction, because a lone provider is always the last
   // group and always the one that discloses (FR-007).
-  auto clock = std::make_unique<clock_provider>();
+  auto clock = std::make_unique<ClockProvider>();
   const auto clocked = system::local().register_provider(std::move(clock));
   if (!clocked.has_value()) {
     fail("the clock provider registers after the scripted provider");

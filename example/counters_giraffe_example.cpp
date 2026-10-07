@@ -19,7 +19,7 @@ namespace
 
 using sg::counters::Availability;
 using sg::counters::CatalogSeed;
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
@@ -102,7 +102,7 @@ auto main() -> int
     return 1;
   }
   if (!system::local()
-           .register_provider(std::make_unique<clock_provider>())
+           .register_provider(std::make_unique<ClockProvider>())
            .has_value())
   {
     std::fprintf(stderr, "giraffe: clock registration failed\n");

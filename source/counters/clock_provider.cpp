@@ -65,7 +65,7 @@ auto parse(const std::string_view address) noexcept -> int
   return -1;
 }
 
-auto monotonic_ns() noexcept -> std::uint64_t
+auto monotonicNs() noexcept -> std::uint64_t
 {
 #if defined(_WIN32)
   LARGE_INTEGER now {};
@@ -80,7 +80,7 @@ auto monotonic_ns() noexcept -> std::uint64_t
       / static_cast<std::uint64_t>(frequency.QuadPart);
 #else
   timespec stamp {};
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): `monotonic_ns` does not
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): `monotonicNs` does not
   // fail on Linux. glibc routes it through the vDSO and the kernel clock is
   // unconditional, so no test can make this arm run.
   if (clock_gettime(CLOCK_MONOTONIC, &stamp) != 0) {  // LCOV_EXCL_BR_LINE
@@ -96,10 +96,10 @@ auto monotonic_ns() noexcept -> std::uint64_t
 // long campaign of stored results holds no accumulated drift against the
 // hardware counter underneath. The conversion is the same integer
 // expression the three readers above use, with no floating-point step.
-auto monotonic_raw_ns() noexcept -> std::uint64_t
+auto monotonicRawNs() noexcept -> std::uint64_t
 {
   timespec stamp {};
-  // LCOV_EXCL_BR_START : coverage exclusion (011 T007): `monotonic_raw_ns`
+  // LCOV_EXCL_BR_START : coverage exclusion (011 T007): `monotonicRawNs`
   // does not fail on Linux. glibc routes it through the vDSO and the kernel
   // clock is unconditional, so no test can make this arm run.
   if (clock_gettime(CLOCK_MONOTONIC_RAW, &stamp) != 0) {  // LCOV_EXCL_BR_LINE
@@ -109,7 +109,7 @@ auto monotonic_raw_ns() noexcept -> std::uint64_t
       + static_cast<std::uint64_t>(stamp.tv_nsec);
 }
 
-auto thread_cpu_ns() noexcept -> std::uint64_t
+auto threadCpuNs() noexcept -> std::uint64_t
 {
 #if defined(_WIN32)
   FILETIME creation {};
@@ -126,7 +126,7 @@ auto thread_cpu_ns() noexcept -> std::uint64_t
   return (kernel_time.QuadPart + user_time.QuadPart) * 100ULL;
 #else
   timespec stamp {};
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): `thread_cpu_ns` does not
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): `threadCpuNs` does not
   // fail on Linux. glibc routes it through the vDSO and the kernel clock is
   // unconditional, so no test can make this arm run.
   if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &stamp) != 0)
@@ -138,7 +138,7 @@ auto thread_cpu_ns() noexcept -> std::uint64_t
 #endif
 }
 
-auto process_cpu_ns() noexcept -> std::uint64_t
+auto processCpuNs() noexcept -> std::uint64_t
 {
 #if defined(_WIN32)
   FILETIME creation {};
@@ -155,7 +155,7 @@ auto process_cpu_ns() noexcept -> std::uint64_t
   return (kernel_time.QuadPart + user_time.QuadPart) * 100ULL;
 #else
   timespec stamp {};
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): `process_cpu_ns` does not
+  // LCOV_EXCL_BR_START : coverage exclusion (T066): `processCpuNs` does not
   // fail on Linux. glibc routes it through the vDSO and the kernel clock is
   // unconditional, so no test can make this arm run.
   if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stamp) != 0)
@@ -173,7 +173,7 @@ auto process_cpu_ns() noexcept -> std::uint64_t
 // fixture can remove an instruction from a running binary, so the absent arm
 // does (T066, P2 recorded in
 // specs/007-counters-and-timers/plan.md Complexity Tracking).
-auto tsc_ticks() noexcept -> std::uint64_t
+auto tscTicks() noexcept -> std::uint64_t
 {
 #ifdef SG_COUNTERS_X86
   // P2 intrinsic justification (T036): `__rdtsc` is chosen over
@@ -190,19 +190,19 @@ auto tsc_ticks() noexcept -> std::uint64_t
 
 }  // namespace
 
-struct detail::clock_window final : WindowReader
+struct detail::ClockWindow final : WindowReader
 {
-  clock_window() { setThunk(&read_direct); }
+  ClockWindow() { setThunk(&readDirect); }
 
   // The compiled plan hands the window over as the base reference
-  // `ReadThunk` declares, and `clock_provider::open` constructs it as
+  // `ReadThunk` declares, and `ClockProvider::open` constructs it as
   // this final type, so the reference names a clock window on every
   // call. `final` fixes the target of the `readPoints` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
+  static auto readDirect(WindowReader& base, PointSink& sink) noexcept -> void
   {
-    static_cast<clock_window&>(base).readPoints(sink);
+    static_cast<ClockWindow&>(base).readPoints(sink);
   }
 
   std::vector<std::uint8_t> kinds;
@@ -213,19 +213,19 @@ struct detail::clock_window final : WindowReader
     for (const std::uint8_t kind : kinds) {
       switch (kind) {
         case 0:
-          sink.put(monotonic_ns());
+          sink.put(monotonicNs());
           break;
         case 1:
-          sink.put(thread_cpu_ns());
+          sink.put(threadCpuNs());
           break;
         case 2:
-          sink.put(process_cpu_ns());
+          sink.put(processCpuNs());
           break;
         case 4:
-          sink.put(monotonic_raw_ns());
+          sink.put(monotonicRawNs());
           break;
         default:
-          sink.put(tsc_ticks());
+          sink.put(tscTicks());
           break;
       }
     }
@@ -239,11 +239,11 @@ struct detail::clock_window final : WindowReader
   }
 };
 
-clock_provider::clock_provider() = default;
+ClockProvider::ClockProvider() = default;
 
-clock_provider::~clock_provider() = default;
+ClockProvider::~ClockProvider() = default;
 
-void clock_provider::enumerate(ObjectSink& sink) const
+void ClockProvider::enumerate(ObjectSink& sink) const
 {
   std::vector<CatalogSeed> entries {
       CatalogSeed {
@@ -308,10 +308,10 @@ void clock_provider::enumerate(ObjectSink& sink) const
   });
 }
 
-std::unique_ptr<WindowReader> clock_provider::open(const LeafSet& leaves,
-                                                   const Target& /*where*/)
+std::unique_ptr<WindowReader> ClockProvider::open(const LeafSet& leaves,
+                                                  const Target& /*where*/)
 {
-  auto window = std::make_unique<detail::clock_window>();
+  auto window = std::make_unique<detail::ClockWindow>();
   window->disclosure_column = leaves.disclosureColumn;
   window->kinds.reserve(leaves.addresses.size());
   for (const auto& address : leaves.addresses) {

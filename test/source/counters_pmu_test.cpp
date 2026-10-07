@@ -61,7 +61,7 @@ auto same_double(const double lhs, const double rhs) -> bool
 
 using sg::counters::Availability;
 using sg::counters::CatalogEntry;
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
@@ -1161,7 +1161,7 @@ auto main() -> int
   std::printf("counters_pmu_test PASS: reduced catalog off Linux\n");
   return 0;
 #else
-  auto clock = std::make_unique<clock_provider>();
+  auto clock = std::make_unique<ClockProvider>();
   auto pmu = std::make_unique<pmu_provider>();
   // Scenario 4 holds the push counters countable while the pmu provider is
   // registered, so the push provider joins it here and the catalog walk

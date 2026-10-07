@@ -56,7 +56,7 @@ auto check(const bool cond, const char* what) -> void
 }
 
 using sg::counters::CatalogEntry;
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
@@ -390,7 +390,7 @@ auto test_per_leaf_order(const expression<time_dim>& elapsed) -> void
 
 auto main() -> int
 {
-  auto clock = std::make_unique<clock_provider>();
+  auto clock = std::make_unique<ClockProvider>();
   check(system::local().register_provider(std::move(clock)).has_value(),
         "the clock provider registers");
 

@@ -108,7 +108,7 @@ auto measure(quill::Logger* logger) -> std::expected<double, std::string>
 {
   // Registers before the fake source: it supplies the machine object, and
   // reversing the two silently breaks machine resolution below.
-  auto clock = std::make_unique<counters::clock_provider>();
+  auto clock = std::make_unique<counters::ClockProvider>();
   if (!counters::system::local()
            .register_provider(std::move(clock))
            .has_value())

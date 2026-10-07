@@ -53,7 +53,7 @@ auto check(const bool cond, const char* what) -> void
 
 using sg::counters::Availability;
 using sg::counters::CatalogEntry;
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::fake_provider;
@@ -144,7 +144,7 @@ auto test_entry_absent_but_provider_present() -> void
 // registration that follows it in this same process still succeeds.
 auto register_fixture() -> void
 {
-  auto clock = std::make_unique<clock_provider>();
+  auto clock = std::make_unique<ClockProvider>();
   check(system::local().register_provider(std::move(clock)).has_value(),
         "the clock provider registers after an accessor call (FR-006)");
 

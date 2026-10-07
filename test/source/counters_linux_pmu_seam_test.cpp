@@ -3445,7 +3445,7 @@ auto availability_gate_scenario() -> void
 // a granted event (FR-046).
 auto clock_disclosure_scenario() -> void
 {
-  using sg::counters::clock_provider;
+  using sg::counters::ClockProvider;
 
   // The sink indexes cells as `columns[index * stride + row]`, so a stride
   // of one puts column `n` in cell `n`.
@@ -3453,7 +3453,7 @@ auto clock_disclosure_scenario() -> void
   constexpr std::size_t column_count = 2;
   constexpr std::size_t row_stride = 1;
 
-  clock_provider provider {};
+  ClockProvider provider {};
 
   LeafSet disclosing;
   disclosing.addresses = {"machine/monotonic"};

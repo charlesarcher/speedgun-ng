@@ -153,7 +153,7 @@ they include when a name in that header changes.
   call sites, including the qualification at
   `include/speedgun-ng/counters_measurement.hpp:427`. The member
   spelling `availability` stays (FR-018, D-02).
-- [ ] T008 [US2] Rename owned identifiers in `include/speedgun-ng/counters_clock.hpp`
+- [X] T008 [US2] Rename owned identifiers in `include/speedgun-ng/counters_clock.hpp`
   `include/speedgun-ng/counters_clock.hpp` and
   `source/counters/clock_provider.cpp` in one commit (D-02).
 - [ ] T009 [US2] Rename owned identifiers in `include/speedgun-ng/counters_pmu.hpp`

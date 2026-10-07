@@ -47,7 +47,7 @@ auto same_double(const double lhs, const double rhs) -> bool
 using sg::counters::Availability;
 using sg::counters::CatalogEntry;
 using sg::counters::CatalogSeed;
-using sg::counters::clock_provider;
+using sg::counters::ClockProvider;
 using sg::counters::compile;
 using sg::counters::Dim;
 using sg::counters::expression;
@@ -73,15 +73,15 @@ constexpr std::uint64_t kHonksPerAction = 7;
 class honk_window final : public WindowReader
 {
 public:
-  honk_window() { setThunk(&honk_window::read_direct); }
+  honk_window() { setThunk(&honk_window::readDirect); }
 
   void readPoints(PointSink& sink) noexcept override
   {
-    read_direct(*this, sink);
+    readDirect(*this, sink);
   }
 
 private:
-  static auto read_direct(WindowReader& base, PointSink& sink) noexcept -> void
+  static auto readDirect(WindowReader& base, PointSink& sink) noexcept -> void
   {
     auto& reader = static_cast<honk_window&>(base);
     reader.m_total += kHonksPerAction;
@@ -349,7 +349,7 @@ auto main() -> int
     fail("out-of-tree provider registers");
   }
   if (!system::local()
-           .register_provider(std::make_unique<clock_provider>())
+           .register_provider(std::make_unique<ClockProvider>())
            .has_value())
   {
     fail("clock provider registers");
