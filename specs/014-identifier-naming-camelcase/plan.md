@@ -248,3 +248,52 @@ Commit groups, the rename tool, the machine-code comparison, and the macro-colli
 ## Complexity Tracking
 
 No unjustified constitution violation. The X.3 naming clause conflicts with the new law at the audit point. The amendment in this plan removes that conflict in the same change that adopts the law. Principle V stays in force for every formatting change that does not ride a renamed identifier.
+
+### Rename-head record
+
+The closing commit is `a12de1b`. The records below are its.
+
+- T030: `cmake --preset=ci-ubuntu` and `cmake --build build` exit 0 at
+  the rename head, with the preset's `enforce` contract configuration
+  and the preset's clang-tidy and cppcheck hooks live.
+- T031 (D-03): the release preset built with
+  `speedgun-ng_CONTRACTS=ignore` at the gate baseline `5b9ed47` and at
+  the rename head. Sixty-seven owned object pairs. Each `objdump -d` is
+  normalized: address column stripped, owned mangled symbols replaced
+  by positional tokens (`nm` and `llvm-cxxfilt` carry the demangling),
+  symbol offsets dropped. Every normalized diff is empty. FR-002,
+  SC-002.
+- T032 (D-04): a unit including every public header plus
+  `linux/perf_event.h`, `linux/types.h`, `unistd.h`, and
+  `sys/syscall.h` is preprocessed with `clang++ -std=c++23 -dM -E`. No
+  enumerator token and no `kPascalCase` constant token is a defined
+  macro; the risk tokens `NONE`, `GAP`, `SYSCALL`, `CPU`, `THREAD`,
+  `ABSENT`, `BYTES`, `OPS` are in the checked set. The twenty-one `SG_*`
+  macros the headers define are the library's own.
+- T033: the name check reports zero findings over the forty-seven owned
+  translation units of `build/dev/compile_commands.json`, and zero
+  inside the full-check `ci-ubuntu` build. The per-file full-check
+  counts at the head match the gate baseline built in the same
+  `enforce` configuration: totals 4,129 to 4,052, and no file's count
+  rises after the `dbc_literal_fixture.cpp` include the rename made
+  unused was removed in this record's commit. The fixture is new at
+  `f7591cc`; it is not a baseline file.
+- T034: the consumer scenario runs against the installed 0.5 package:
+  `consumer: pmu catalog entries 385` and
+  `embedded: arch/x86/skylake/ 587`. Both lines stay.
+- T035: the overhead re-measure on the reference host moves the raw
+  gated medians beyond five percent in the fast direction: library
+  sampling path 30 t / 7.0 ns against the published 37 t / 8.6 ns,
+  gated core PMU group 187 t / 43.5 ns against 258 t / 60.0 ns. The
+  bare `rdtsc` pair moves with them: 29 t against the published 36 t,
+  nineteen percent. The page's own record names a host-state run at
+  6.7 ns and 47.2 ns with this signature. The library-minus-bare delta
+  stays one tick, and T031 proves the object code identical, so no
+  measured path changed; the move is the host's. The audit-point run
+  stays the gated figure, and the record flags the move.
+- T036: every quickstart scenario carries its result beside it.
+- Version list: `CMakeLists.txt:7` is `0.5.0`, `CMakeLists.txt:47` is
+  `SOVERSION 2`, `cmake/install-rules.cmake:39` stays
+  `SameMinorVersion`. A consumer requesting 0.4 against the installed
+  0.5 package fails to configure with "The version found is not
+  compatible with the version requested."

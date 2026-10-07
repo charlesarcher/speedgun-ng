@@ -21,7 +21,7 @@ The rename spans these commits:
 | `5c110ca` | `counters_push.hpp` and the push provider |
 | `8a7b1a5` | `counters_fake.hpp` and the fake provider |
 | `24ea24f` | `counters_system.hpp`, `simulation.hpp`, and the file-local helpers |
-| `15d335d` | test-only names; none of them enters this map |
+| `fb7ba67` | test-only names; none of them enters this map |
 
 ## Names by header
 
