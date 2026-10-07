@@ -35,9 +35,11 @@ provider.
 
 The public surface changes twice: `metric_result` and `points_view` gain
 an availability field, and the version lineage records the two
-declarations commit `cd5cbd1` removed. The release is 0.4.0 with the
-shared-object version on the major position of the 0.x line. The
-camelCase rename lands next, so no declaration is restored.
+declarations commit `cd5cbd1` removed. The release is 0.4.0.
+`SOVERSION` is a hand-kept ABI number, set to 1 in `CMakeLists.txt`.
+The maintainer bumps that number when a public signature or a public
+record layout changes. A patch that changes neither leaves it at 1.
+The camelCase rename lands next, so no declaration is restored.
 
 ## Technical Context
 
@@ -135,15 +137,22 @@ The version lineage records this feature under 0.4.0:
 - The package config compatibility moves from the major-version
   compatibility to the minor-version compatibility while the project
   major version stays 0.
-- The shared-object version is stated as 1. Taking it from the major
-  position yields 0 on this line, so every 0.x release would claim the
-  same shared-object version and a consumer could not tell one from
-  another. The value is dormant while `BUILD_SHARED_LIBS` is forced off
+- `SOVERSION` is 1, a hand-kept ABI number. The maintainer bumps it
+  when a public signature or a public record layout changes. Deriving
+  it from the project major version yields 0 for every 0.x release.
+  The value is dormant while `BUILD_SHARED_LIBS` is forced off
   at `CMakeLists.txt:137` and `:232`, and it becomes live the moment that
   is turned on.
+- `point_sink` gains a `column_count` constructor parameter, and the
+  class gains `put_disclosure`. Both shipped in 0.4.0.
 - Commit `cd5cbd1` removed `operator*(const expression&, const double)`
   and the `concept provider` declaration. Both stay removed, and this
   version records both removals.
+
+The 0.4.1 patch changes no public signature and no public record layout.
+`SOVERSION` stays 1. `SameMinorVersion` lets a 0.4 request accept 0.4.1.
+The patch corrects hybrid scope, the first event code of a pair, and
+the `points_view::availability` contract text.
 
 Neither declaration is restored. The camelCase rename lands next and
 renames the whole surface, so a restored declaration would be renamed
@@ -377,8 +386,9 @@ probe verdict stays, and it is the evidence the catalog publishes.
 `cmake/install-rules.cmake:39` writes `SameMajorVersion`, and on a 0.x
 line that accepts every later minor release. The minor-version
 compatibility is the right reading while the major version is 0. The
-project version moves to 0.4.0 and the shared-object version takes the
-major position.
+project version moves to 0.4.0. `SOVERSION` is the hand-kept ABI number
+1. The maintainer bumps it when a public signature or a public record
+layout changes.
 
 The two declarations `cd5cbd1` removed stay removed, and the version
 lineage records both with this bump. Restoring them would be renamed away
@@ -404,7 +414,7 @@ so both counts are zero and the step holds without a special case.
 | `source/counters/linux_pmu/provider.cpp` | the fast verdict is per device; the uncore unit map and the instance suffix; scope from the per-task probe | FR-014, FR-015, FR-016, FR-018 |
 | `source/counters/linux_pmu/group_io.cpp` | the mark is read per action; a fast window narrows per device | FR-006, FR-017, FR-019 |
 | `cmake/install-rules.cmake` | the minor-version compatibility | FR-021 |
-| `CMakeLists.txt` | the project version 0.4.0 and the shared-object version on the major position | FR-021 |
+| `CMakeLists.txt` | the project version 0.4.1 and hand-kept `SOVERSION` 1 | FR-021 |
 | `.github/workflows/ci.yml` | the consumer-count step in the audit job | FR-022 |
 | `docs/pages/counters-overhead.md` | the figures each correction changes | FR-024, SC-013 |
 | `specs/007-counters-and-timers/citations-log.md` | one entry per correction, against the requirement it restores | FR-030 |

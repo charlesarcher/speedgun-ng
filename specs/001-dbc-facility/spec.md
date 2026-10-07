@@ -58,7 +58,7 @@ As a maintainer and as a consumer of speedgun-ng, when the library is built for 
 
 ### User Story 3 - Observe violations deterministically in tests (Priority: P2)
 
-As a test author, when I need to assert that a contract is enforced in the running process. Documentation alone leaves the fail side unproven, I want to install a substitute violation observer and inspect the structured violation record without killing the test process, so that every contract is proven to fail loudly when it should fail: the fail side of 100% DBC coverage.
+As a test author, I need to assert that a contract is enforced in the running process. Documentation alone leaves the fail side unproven. I want to install a substitute violation observer and inspect the structured violation record without killing the test process, so that every contract is proven to fail loudly when it should fail: the fail side of 100% DBC coverage.
 
 **Why this priority**: A contract that is documented but never proven to fire provides no protection and would silently hollow out the coverage gate. Observability is what makes "every contract has an intentional-violation test" (the pass-side AND fail-side requirement) deterministic and automatable. It depends on Story 1 (working contracts) and enables the test strategy the coverage gate assumes.
 

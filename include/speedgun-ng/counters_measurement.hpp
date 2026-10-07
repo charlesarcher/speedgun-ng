@@ -22,12 +22,13 @@
  * the dimension algebra, plan compile, folds with disclosure, and the
  * scope sugar (FR-014..FR-030).
  *
- * @version 0.4.0
+ * @version 0.4.1
  *
  * Commit `cd5cbd1` removed two public declarations, and 0.4.0 records
  * both removals. The removed declarations are the non-member
  * multiplication of an expression by a double, and the provider concept.
  * Both declarations remain absent from the public headers (FR-032).
+ * 0.4.1 changes no public signature. `SOVERSION` stays 1.
  *
  * Dimensions live in types and are erased before the point buffer (FR-016).
  * The read path holds no expression tree and no name lookup; a window that
@@ -395,14 +396,12 @@ struct recorder_api
  * E-10): catalog facts, the raw point column, point identity, and the
  * multiplex ratio.
  *
- * `availability` is the state the disclosure column holds for the window
- * this leaf belongs to, so a caller reading raw points reads the gap
- * state beside them without naming a column index in its own source
- * (FR-004, FR-005). The value is the one the disclosure column holds for
- * the same sampling action: `availability::gap` where the action measured
- * nothing, and the leaf's own countability elsewhere. A caller reads one
- * point and the state that point was taken under, which is what a raw view
- * is for.
+ * `availability` is the disclosure state of the window's end point
+ * only. An interior row can hold a zero from a gap while this field
+ * stays `availability::countable`, because the end point of that window
+ * measured a count. A caller that needs the state of each point uses
+ * `fold` or `fold_pairs`, which disclose each window's own gap state
+ * (FR-004, FR-005).
  *
  * `ratio` is the multiplex fraction over the window this view spans, and
  * it is meaningful only when `availability != availability::gap`. A view
@@ -615,8 +614,9 @@ namespace detail
     const target& tg,
     const std::vector<const expr_core*>& exprs) -> std::expected<plan, error>;
 
-[[nodiscard]] SPEEDGUN_NG_EXPORT auto metric_core(
-    const scope& scope_obj, const expr_core& core) -> metric_result;
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto metric_core(const scope& scope_obj,
+                                                  const expr_core& core)
+    -> metric_result;
 
 }  // namespace detail
 
@@ -791,8 +791,8 @@ template<class D1, class D2>
 // The body is dimension-independent: same tags means same spine
 // algebra, and the static_assert names the violation.
 template<class D1, class D2>
-[[nodiscard]] auto operator+(const expression<D1>& a,
-                             const expression<D2>& b) -> expression<D1>
+[[nodiscard]] auto operator+(const expression<D1>& a, const expression<D2>& b)
+    -> expression<D1>
 {
   static_assert(dim_same<D1, D2>,
                 "expression addition requires identical dimension tags");
@@ -807,8 +807,8 @@ template<class D1, class D2>
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator-(const expression<D1>& a,
-                             const expression<D2>& b) -> expression<D1>
+[[nodiscard]] auto operator-(const expression<D1>& a, const expression<D2>& b)
+    -> expression<D1>
 {
   static_assert(dim_same<D1, D2>,
                 "expression subtraction requires identical dimension tags");
@@ -863,8 +863,8 @@ template<class D1, class D2>
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator+(const counter<D1>& a,
-                             const counter<D2>& b) -> expression<D1>
+[[nodiscard]] auto operator+(const counter<D1>& a, const counter<D2>& b)
+    -> expression<D1>
 {
   static_assert(dim_same<D1, D2>,
                 "counter addition requires identical dimension tags");
@@ -872,8 +872,8 @@ template<class D1, class D2>
 }
 
 template<class D1, class D2>
-[[nodiscard]] auto operator-(const counter<D1>& a,
-                             const counter<D2>& b) -> expression<D1>
+[[nodiscard]] auto operator-(const counter<D1>& a, const counter<D2>& b)
+    -> expression<D1>
 {
   static_assert(dim_same<D1, D2>,
                 "counter subtraction requires identical dimension tags");
@@ -980,10 +980,11 @@ public:
   [[nodiscard]] auto sample_overhead_ns_max() const -> double;
 
 private:
-  friend auto detail::compile_core(const system& sys,
-                                   const target& tg,
-                                   const std::vector<const detail::expr_core*>&
-                                       exprs) -> std::expected<plan, error>;
+  friend auto detail::compile_core(
+      const system& sys,
+      const target& tg,
+      const std::vector<const detail::expr_core*>& exprs)
+      -> std::expected<plan, error>;
   friend class scope;
 
   explicit plan(void* impl) noexcept
@@ -1079,8 +1080,9 @@ public:
   [[nodiscard]] auto view() const noexcept -> recorder_api;
 
 private:
-  friend auto detail::metric_core(
-      const scope& scope_obj, const detail::expr_core& core) -> metric_result;
+  friend auto detail::metric_core(const scope& scope_obj,
+                                  const detail::expr_core& core)
+      -> metric_result;
 
   void* m_core = nullptr;  // the scope internals
 };
@@ -1097,11 +1099,11 @@ private:
  * \post none
  */
 template<class... E>
-  requires(detail::is_specialization_of<std::remove_cvref_t<E>,
-                                        expression>::value
-           && ...)
-[[nodiscard]] auto compile(const system& sys,
-                           const E&... exprs) -> std::expected<plan, error>
+  requires(
+      detail::is_specialization_of<std::remove_cvref_t<E>, expression>::value
+      && ...)
+[[nodiscard]] auto compile(const system& sys, const E&... exprs)
+    -> std::expected<plan, error>
 {
   const std::vector<const detail::expr_core*> cores {&exprs.core...};
   return detail::compile_core(sys, target {}, cores);
@@ -1114,9 +1116,9 @@ template<class... E>
  * \post none
  */
 template<class... E>
-  requires(detail::is_specialization_of<std::remove_cvref_t<E>,
-                                        expression>::value
-           && ...)
+  requires(
+      detail::is_specialization_of<std::remove_cvref_t<E>, expression>::value
+      && ...)
 [[nodiscard]] auto compile(const system& sys,
                            const target& tg,
                            const E&... exprs) -> std::expected<plan, error>

@@ -1051,8 +1051,8 @@ auto destroy_before_open_scenario() -> void
 }
 
 // The synthetic-table writer, defined below the scenarios that predate it.
-auto write_fixture(const char* name,
-                   const std::string_view body) -> std::string;
+auto write_fixture(const char* name, const std::string_view body)
+    -> std::string;
 
 // The named synthetic sysfs format list every encodable-row count in this
 // file is measured against, so one number gates every host on the matrix
@@ -1070,7 +1070,8 @@ auto synthetic_core_device() -> pmu_device
   pmu_device device;
   device.path = "synthetic";
   device.type = 4;
-  for (const auto& [name, spec] : {
+  for (const auto& [name, spec] :
+       {
            std::pair {"event", "config:0-7"},
            std::pair {"umask", "config:8-15"},
            std::pair {"cmask", "config:24-31"},
@@ -1096,32 +1097,23 @@ auto synthetic_core_device() -> pmu_device
   return device;
 }
 
-// The reference host's own core format list: a literal transcription of
-// what its `/sys/bus/event_source/devices/cpu/format/` directory
-// publishes, which is `cmask`, `edge`, `event`, `inv`, and `umask`. The
-// list is recorded in this file; no read touches the running machine, so
-// one measured number gates every host on the matrix (FR-020, SC-005).
-// The reference host's own published format list, read from the running
-// kernel's `format` file on the machine this was pinned. A row encodes
-// where every field it carries reached a published format, so the count
-// this list yields is the count a host with exactly these formats
-// produces (FR-020, SC-005).
+// The reference host's core format list, transcribed from
+// `/sys/bus/event_source/devices/cpu/format/` on this machine on
+// 2026-10-07. The host is an AMD Zen core PMU. It publishes `event` as
+// `config:0-7,32-35`, plus `umask`, `edge`, `inv`, and `cmask`. The list
+// is recorded here. The test does not read sysfs, so one measured number
+// gates every host on the matrix (FR-020, SC-005).
 auto reference_host_core_device() -> pmu_device
 {
   pmu_device device;
   device.path = "reference-host";
-  for (const auto& [name, spec] : {
-           std::pair {"event", "config:0-7"},
+  for (const auto& [name, spec] :
+       {
+           std::pair {"event", "config:0-7,32-35"},
            std::pair {"umask", "config:8-15"},
-           std::pair {"cmask", "config:24-31"},
            std::pair {"edge", "config:18"},
            std::pair {"inv", "config:23"},
-           std::pair {"config", "config:0-63"},
-           std::pair {"config1", "config1:0-63"},
-           std::pair {"config2", "config2:0-63"},
-           std::pair {"ldlat", "config1:0-15"},
-           std::pair {"frontend", "config1:0-23"},
-           std::pair {"offcore_rsp", "config1:0-63"},
+           std::pair {"cmask", "config:24-31"},
        })
   {
     std::vector<format_range> ranges;
@@ -1136,8 +1128,8 @@ auto reference_host_core_device() -> pmu_device
 // The encodable rows one pinned directory yields against the synthetic
 // format list: a row encodes where every field it carries reached a
 // published format.
-auto encodable_rows(const std::string& directory,
-                    const pmu_device& device) -> std::size_t
+auto encodable_rows(const std::string& directory, const pmu_device& device)
+    -> std::size_t
 {
   const auto& table = sg::counters::detail::pmu_load_table(directory);
   std::size_t encodable = 0;
@@ -1201,12 +1193,12 @@ auto intel_encodable_rows_scenario() -> void
   // implementation measures, recorded in data-model.md beside the
   // synthetic-list column they are measured against.
   const auto reference = reference_host_core_device();
-  constexpr expectation kReference[] = {{"arch/x86/skylake/", 581},
-                                        {"arch/x86/icelake/", 346},
-                                        {"arch/x86/alderlake/", 563},
-                                        {"arch/x86/sapphirerapids/", 1993},
-                                        {"arch/x86/amdzen4/", 326},
-                                        {"arch/x86/amdzen5/", 322}};
+  constexpr expectation kReference[] = {{"arch/x86/skylake/", 294},
+                                        {"arch/x86/icelake/", 250},
+                                        {"arch/x86/alderlake/", 477},
+                                        {"arch/x86/sapphirerapids/", 1892},
+                                        {"arch/x86/amdzen4/", 344},
+                                        {"arch/x86/amdzen5/", 353}};
   static_assert(kReference[0].encodable > 0,
                 "a count of one row does not satisfy FR-020");
   for (const auto& one : kReference) {
@@ -2535,8 +2527,6 @@ auto group_open_scenario() -> void
 auto fast_branch_scenario() -> void
 {
   pmu_state state = synthetic_state();
-  state.fast_available = true;
-  state.fast_refusal = "synthetic fast-capable state";
   const target where {};
   // The fast window opens exactly when the availability probe grants the
   // config the member carries, the same verdict `group_open_scenario`
@@ -2587,10 +2577,8 @@ auto fast_branch_scenario() -> void
             && (over_syscall != nullptr) == granted,
         "a fast-capable catalog opens over a fast member and over a "
         "syscall-mode member exactly when the probe grants the config");
-  pmu_state host_refused = state;
-  host_refused.fast_available = false;
   const auto despite_host = sg::counters::detail::pmu_open_window(
-      host_refused, leaf_set_of({"cpu/fast"}), where);
+      state, leaf_set_of({"cpu/fast"}), where);
   check((despite_host != nullptr) == granted,
         "a catalog that discloses the fast read keeps that read when the "
         "host-wide instructions flag is clear (FR-017)");
@@ -2758,6 +2746,101 @@ auto embedded_registry_scenario() -> void
 // one that names a hybrid scope, and the pair is what FR-021's per-kind
 // refusal rests on: a device the chain leaves unscoped is one whose
 // entries a cpu target can count.
+auto config_word(const std::vector<std::pair<int, std::uint64_t>>& words,
+                 const int index) -> std::uint64_t
+{
+  for (const auto& [word, value] : words) {
+    if (word == index) {
+      return value;
+    }
+  }
+  return 0;
+}
+
+// OCR rows spell two event codes in one string. The kernel's generator
+// takes the first code. A count of encodable rows cannot see the defect,
+// because the row already encodes with event bits of 0.
+auto offcore_event_code_scenario() -> void
+{
+  const auto device = synthetic_core_device();
+  const std::string directory = "arch/x86/skylake/";
+  const auto& table = sg::counters::detail::pmu_load_table(directory);
+  const auto row = std::ranges::find_if(
+      table,
+      [](const pmu_table_entry& entry)
+      { return entry.name == "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE"; });
+  check(row != table.end(), "the pinned skylake table holds the named OCR row");
+  if (row == table.end()) {
+    return;
+  }
+  std::vector<std::pair<int, std::uint64_t>> words;
+  check(pmu_compose_config(row->fields, device.formats, words),
+        "the pinned OCR row encodes against the synthetic core formats");
+  check((config_word(words, 0) & 0xffU) == 0xB7U,
+        "the first event code of the pinned OCR row reaches bits 0-7");
+  check(((config_word(words, 0) >> 8) & 0xffU) == 0x1U,
+        "the pinned OCR row keeps its umask in bits 8-15");
+  check(config_word(words, 1) == 0x10004U,
+        "the pinned OCR row keeps its offcore response in config1");
+
+  const std::filesystem::path path(std::filesystem::path(SG_SEAM_TABLE_DIR)
+                                   / "event-pair.json");
+  std::ofstream file(path, std::ios::binary | std::ios::trunc);
+  file
+      << R"([{"EventName":"pair_event","EventCode":"0xB7, 0xBB","UMask":"0x1","BriefDescription":"a pair of event codes"}])";
+  file.close();
+  std::vector<pmu_table_entry> parsed;
+  sg::counters::detail::pmu_parse_table_file(path.string(), parsed);
+  check(parsed.size() == 1, "a synthetic pair row parses");
+  if (parsed.size() != 1) {
+    return;
+  }
+  std::vector<std::pair<int, std::uint64_t>> pair_words;
+  check(pmu_compose_config(parsed.front().fields, device.formats, pair_words),
+        "a synthetic pair row encodes");
+  check((config_word(pair_words, 0) & 0xffU) == 0xB7U,
+        "a synthetic event-code pair encodes its first code in bits 0-7");
+}
+
+// One device publishes the fast mode and one publishes the syscall mode.
+// A plan over both opens no fast window. A host-wide verdict that marked
+// the second device fast would make `pmu_open_fast_window` the path the
+// assertion rejects.
+auto per_device_fast_plan_scenario() -> void
+{
+  pmu_state state = synthetic_state();
+  pmu_device refused = state.devices.front();
+  refused.path = "uncore";
+  refused.entries.clear();
+  pmu_entry blocked;
+  blocked.name = "uncore_count";
+  blocked.description = "synthetic refused page";
+  blocked.words.emplace_back(0, PERF_COUNT_HW_INSTRUCTIONS);
+  blocked.avail = availability::countable;
+  blocked.mode = read_mode::syscall;
+  refused.entries.push_back(std::move(blocked));
+  state.devices.push_back(std::move(refused));
+
+  const auto& granted = state.devices.front();
+  const auto fast = std::ranges::find_if(granted.entries,
+                                         [](const pmu_entry& entry)
+                                         { return entry.name == "fast"; });
+  check(fast != granted.entries.end() && fast->mode == read_mode::fast_rdpmc,
+        "the granting device publishes fast_rdpmc on its fast entry");
+  check(state.devices.back().entries.front().mode == read_mode::syscall,
+        "the refused device publishes the syscall mode");
+  check(state.devices.back().entries.front().avail != availability::gap,
+        "the refused device records no gap");
+
+  const target where {};
+  check(sg::counters::detail::pmu_open_fast_window(
+            state, leaf_set_of({"cpu/fast", "uncore/uncore_count"}), where)
+            == nullptr,
+        "a plan over a refused device opens no fast window");
+  check(state.devices.back().entries.front().avail == availability::countable,
+        "the refused device stays countable. The open records no gap");
+}
+
 auto hybrid_device_scope_scenario() -> void
 {
   const std::filesystem::path root(SG_SEAM_TABLE_DIR);
@@ -2771,23 +2854,33 @@ auto hybrid_device_scope_scenario() -> void
     if (!file) {
       fail("a hybrid device fixture carries a readable type");
     }
-    // A leftover processor-set file from an earlier run would mark the
-    // device scoped. This fixture publishes none, so both files go.
+    // The kernel publishes a `cpus` file for these devices. A `cpumask`
+    // file is the uncore marker, and this fixture publishes none.
     std::filesystem::remove(dir / "cpumask", code);
-    std::filesystem::remove(dir / "cpus", code);
+    std::ofstream cpus(dir / "cpus", std::ios::binary | std::ios::trunc);
+    cpus << "0\n";
+    cpus.close();
     const auto loaded = load_device(dir);
     check(loaded.has_value(), "a hybrid per-core device directory loads");
     if (!loaded.has_value()) {
       continue;
     }
     check(loaded->device_scoped == false,
-          "a hybrid per-core device publishes no processor set, so it stays "
+          "a hybrid per-core device that publishes a cpus file stays "
           "per-task capable (FR-016)");
+    pmu_device probed = *loaded;
+    pmu_entry cycles;
+    cycles.name = "cycles";
+    cycles.words.emplace_back(0, 0);
+    probed.entries.push_back(std::move(cycles));
+    probe_device(probed, false);
+    check(probed.entries.front().avail != availability::scope_refused,
+          "a hybrid entry takes the per-task probe, so a refused cpu probe "
+          "does not publish scope_refused (FR-016)");
   }
 
-  // A device that publishes `cpumask` or `cpus` binds a processor set. The
-  // kernel registers no per-task context for it, and the catalog marks it
-  // device-scoped from that file (FR-016).
+  // A `cpumask` file marks a device scoped. A `cpus` file does not.
+  // The kernel publishes `cpus` for a core PMU and `cpumask` for uncore.
   const auto write_scoped = [&root](const char* name, const char* file)
   {
     std::error_code scoped_code;
@@ -2805,8 +2898,8 @@ auto hybrid_device_scope_scenario() -> void
   check(by_mask.has_value() && by_mask->device_scoped,
         "a device that publishes a cpumask is device scoped (FR-016)");
   const auto by_cpus = write_scoped("scoped_cpus", "cpus");
-  check(by_cpus.has_value() && by_cpus->device_scoped,
-        "a device that publishes a cpus file is device scoped (FR-016)");
+  check(by_cpus.has_value() && by_cpus->device_scoped == false,
+        "a cpus file alone does not mark a device scoped (FR-016)");
 }
 
 // Whether the placement step left a row of `name` on `device` (FR-019).
@@ -3092,7 +3185,8 @@ auto device_scope_probe_scenario() -> void
   using sg::counters::detail::pmu_probe;
   using sg::counters::detail::scope_settled_state;
 
-  for (const auto verdict : {
+  for (const auto verdict :
+       {
            availability::countable,
            availability::permission_blocked,
            availability::not_encodable,
@@ -3180,7 +3274,8 @@ auto settled_target_mask_scenario() -> void
 
   // Every pair of probe verdicts, so each kind's bit is driven on both of
   // its arcs and against every state the other kind can answer with.
-  for (const auto per_task : {
+  for (const auto per_task :
+       {
            availability::countable,
            availability::permission_blocked,
            availability::not_encodable,
@@ -3189,7 +3284,8 @@ auto settled_target_mask_scenario() -> void
            availability::gap,
        })
   {
-    for (const auto on_cpu : {
+    for (const auto on_cpu :
+         {
              availability::countable,
              availability::permission_blocked,
              availability::not_encodable,
@@ -3210,7 +3306,8 @@ auto settled_target_mask_scenario() -> void
     }
   }
 
-  for (const auto state : {
+  for (const auto state :
+       {
            availability::permission_blocked,
            availability::not_encodable,
            availability::absent,
@@ -3292,7 +3389,8 @@ auto availability_gate_scenario() -> void
   using sg::counters::target_kind;
   using sg::counters::detail::availability_gate_passes;
 
-  for (const auto state : {
+  for (const auto state :
+       {
            availability::permission_blocked,
            availability::not_encodable,
            availability::absent,
@@ -3479,7 +3577,9 @@ auto main() -> int
   group_open_scenario();
   fast_branch_scenario();
   probe_verdict_scenario();
+  offcore_event_code_scenario();
   hybrid_device_scope_scenario();
+  per_device_fast_plan_scenario();
   uncore_device_fixture_scenario();
   vendored_row_placement_scenario();
   unpublished_device_probe_scenario();

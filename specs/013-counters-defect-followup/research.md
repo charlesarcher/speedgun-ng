@@ -406,11 +406,10 @@ against a device that publishes none.
 
 ### D-08 Device scope comes from the kernel's published data or the probe
 
-**Decision**: the provider stops deciding scope by name. A device whose
-sysfs entry publishes a per-task context takes the per-task probe, and a
-device that publishes none keeps the scope refusal. The three core names
-stay device-scoped because the kernel publishes no per-task context for
-them.
+**Decision**: the provider stops deciding scope by name. A `cpumask`
+file marks a device device-scoped. A `cpus` file does not. `cpu`,
+`cpu_core`, and `cpu_atom` stay per-task capable. A device that
+publishes neither file takes the per-task probe.
 
 **Rationale**: the `msr` PMU publishes `perf_sw_context` as its task
 context and accepts per-task events, so the entries are countable on a
@@ -475,20 +474,20 @@ window per device at compile time by consulting the page the open
 returns. Accepted, and it is the same decision stated as an
 implementation site.
 
-### D-11 The release ships as 0.4.0 with the major shared-object position
+### D-11 The release ships as 0.4.0 with a hand-kept shared-object number
 
 **Decision**: the project version becomes 0.4.0, the package config
 compatibility becomes the minor-version compatibility while the major
-version stays 0, and the shared-object version takes the major position
-on the 0.x line. Neither removed declaration is restored; both removals
+version stays 0, and `SOVERSION` is the hand-kept ABI number 1. The
+maintainer bumps that number when a public signature or a public record
+layout changes. Neither removed declaration is restored; both removals
 are recorded in the version lineage with this bump.
 
 **Rationale**: the availability field D-02 adds is additive, and the two
 removals spec 012's `cd5cbd1` made are breaking, so the release takes
-the minor position. A shared object built against 0.4 no longer satisfies
-a 0.3 consumer, because the declarations that consumer's code may name
-are gone, so the shared-object version takes the major position while
-the project version stays on the 0.x line. Restoring the declarations
+the minor position. `SOVERSION` stays a hand-kept number so a 0.x
+release can name a new ABI without waiting for major version 1.
+Restoring the declarations
 now buys nothing: the camelCase rename lands next and renames the whole
 surface, so a restored declaration would be renamed away.
 

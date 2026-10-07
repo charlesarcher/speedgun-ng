@@ -111,11 +111,10 @@ publishes `scope_refused` at `provider.cpp:176`.
 
 **After this feature**: the name rule goes and the probe verdict stays.
 
-**Contract**: a device that publishes no per-task context is
-device-scoped, and a device whose per-thread probe succeeds publishes the
-thread target bit on its entries. The three core names stay
-device-scoped because the kernel publishes no per-task context for them,
-not because of their spelling.
+**Contract**: a `cpumask` file marks a device device-scoped. A `cpus`
+file does not. `cpu`, `cpu_core`, and `cpu_atom` stay per-task capable.
+A device whose per-thread probe succeeds publishes the thread target
+bit on its entries.
 
 **Why**: the `msr` PMU registers a per-task context and accepts per-task
 events, and this host publishes it at `/sys/bus/event_source/devices/msr`.

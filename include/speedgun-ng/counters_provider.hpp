@@ -378,8 +378,8 @@ protected:
   }
 
 private:
-  static auto default_thunk(window_reader& reader,
-                            point_sink& sink) noexcept -> void
+  static auto default_thunk(window_reader& reader, point_sink& sink) noexcept
+      -> void
   {
     reader.read_points(sink);
   }

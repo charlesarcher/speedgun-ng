@@ -264,7 +264,7 @@ measured state, and it is why the two lists are pinned separately.
 | Field | At the audit point | After this feature |
 | --- | --- | --- |
 | project version | 0.3.0 | 0.4.0 |
-| shared-object version | 0 | 1, the major position on the 0.x line |
+| shared-object version | 0 | 1, a hand-kept ABI number |
 | package config compatibility | the major-version compatibility | the minor-version compatibility |
 | `operator*(const expression&, const double)` | removed, unrecorded | removed, recorded in the lineage |
 | `concept provider` | removed, unrecorded | removed, recorded in the lineage |
@@ -272,9 +272,9 @@ measured state, and it is why the two lists are pinned separately.
 | `points_view` | six fields | seven fields |
 
 **Rules**: the release takes the minor position because the added field is
-additive and the removals are breaking. The shared-object version takes
-the major position because a shared object built against 0.4 is not
-loadable by a 0.3 consumer. Neither declaration is restored.
+additive and the removals are breaking. `SOVERSION` is a hand-kept ABI
+number. The maintainer bumps it when a public signature or a public
+record layout changes. Neither declaration is restored.
 
 ## Successor-log entry
 

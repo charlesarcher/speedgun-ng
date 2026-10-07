@@ -406,9 +406,15 @@ jobs:
     - name: Compare the installed count against the build tree's
       run: |
         set -euo pipefail
-        # Developer mode stays off in this job, so the test binary is
-        # absent. The build-tree figure is the same consumer source
-        # linked to the uninstalled library.
+        restore_tables() {
+          if [ -d external/pmu-events.aside ]; then
+            mv external/pmu-events.aside external/pmu-events
+          fi
+        }
+        trap restore_tables EXIT
+        if [ -d external/pmu-events ]; then
+          mv external/pmu-events external/pmu-events.aside
+        fi
         compiler=$(sed -n 's/^CMAKE_CXX_COMPILER:FILEPATH=//p' \
           build/CMakeCache.txt)
         "$compiler" -std=c++23 \
@@ -417,42 +423,48 @@ jobs:
           build/libspeedgun-ng.a \
           -ldl -lpthread -lm -lrt \
           -o build/pmu-catalog-count
-        # A runner with no performance monitoring unit device registers
-        # the provider and seeds no object. The consumer reports no pmu
-        # objects and prints no number. That count is zero, and the
-        # comparison holds (FR-022, D-12).
+        "$compiler" -std=c++23 \
+          -I include -I build/export \
+          test/consumer/embedded_count.cpp \
+          build/libspeedgun-ng.a \
+          -ldl -lpthread -lm -lrt \
+          -o build/embedded-count
+        "$compiler" -std=c++23 \
+          -I include -I prefix/include \
+          test/consumer/embedded_count.cpp \
+          prefix/lib/libspeedgun-ng.a \
+          -ldl -lpthread -lm -lrt \
+          -o build/embedded-count-installed
+        embedded_rows() {
+          "$1" arch/x86/skylake/ | sed -n 's/^embedded: .* \([0-9]\+\)$/\1/p'
+        }
+        built_rows=$(embedded_rows ./build/embedded-count)
+        installed_rows=$(embedded_rows ./build/embedded-count-installed)
+        if [ -z "$built_rows" ] || [ "$built_rows" != "$installed_rows" ]; then
+          echo "::error::embedded skylake rows differ: build $built_rows" \
+            "installed $installed_rows"
+          exit 1
+        fi
+        echo "embedded skylake rows agree: $built_rows"
+        if [ ! -d /sys/bus/event_source/devices/cpu ]; then
+          echo "::warning::no cpu device under /sys/bus/event_source/devices;" \
+            "the live catalog comparison is skipped"
+          exit 0
+        fi
         catalog_count() {
           local log
           log=$("$1" || true)
-          local count
-          count=$(printf '%s\n' "$log" \
-            | sed -n 's/^consumer: pmu catalog entries \([0-9]\+\)$/\1/p')
-          if [ -n "$count" ]; then
-            printf '%s\n' "$count"
-            return 0
-          fi
-          if printf '%s\n' "$log" | grep -qx 'consumer: no pmu objects'; then
-            printf '0\n'
-            return 0
-          fi
-          printf '%s\n' "$log" >&2
-          return 1
+          printf '%s\n' "$log" \
+            | sed -n 's/^consumer: pmu catalog entries \([0-9]\+\)$/\1/p'
         }
-        installed=$(catalog_count ./build-consumer/consumer) \
-          || { echo "::error::the installed catalog figure is missing"; exit 1; }
-        built=$(catalog_count ./build/pmu-catalog-count) \
-          || { echo "::error::the build-tree catalog figure is missing"; exit 1; }
-        if [ "$installed" != "$built" ]; then
-          echo "::error::the installed catalog publishes $installed entries" \
-            "and the build tree publishes $built"
+        installed=$(catalog_count ./build-consumer/consumer)
+        built=$(catalog_count ./build/pmu-catalog-count)
+        if [ -z "$installed" ] || [ -z "$built" ] || [ "$installed" != "$built" ]; then
+          echo "::error::the installed catalog publishes '$installed' and" \
+            "the build tree publishes '$built'"
           exit 1
         fi
         echo "installed and build-tree counts agree: $installed"
-      # The installed consumer and the uninstalled library read the same
-      # catalog on this runner. A difference is a packaging fault. A
-      # runner with no performance monitoring unit device publishes zero
-      # entries on both sides, and the comparison holds
-      # (FR-022, SC-012, D-12).
     - name: Audit consumer logs for hwloc
       run: test -z "$(grep -i hwloc consumer-configure.log consumer-build.log)"
     - name: Audit consumer logs for simdjson

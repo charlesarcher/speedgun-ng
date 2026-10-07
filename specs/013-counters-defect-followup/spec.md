@@ -610,11 +610,10 @@ specification meets the 25-word limit.
 - **FR-015**: No uncore row SHALL appear on a core device, and the core
   routing of 012 FR-019 stays unchanged.
 - **FR-016**: Device scope SHALL come from data the kernel publishes for
-  each device, or from the probe verdict. The provider currently decides
-  scope by name alone, marking every device other than the three core
-  names as device-scoped, and it skips the per-thread probe for those
-  entries. An entry on a device whose per-thread probe succeeds SHALL
-  publish the thread target bit (012 FR-021, 012 FR-022).
+  each device, or from the probe verdict. A `cpumask` file marks a device
+  device-scoped. A `cpus` file does not. `cpu`, `cpu_core`, and `cpu_atom`
+  stay per-task capable. An entry on a device whose per-thread probe
+  succeeds SHALL publish the thread target bit (012 FR-021, 012 FR-022).
 
 ### Fast-read mode per device (I-04(a))
 
@@ -655,10 +654,10 @@ specification meets the 25-word limit.
   and the 0.3 release adds availability values and removes the
   declarations FR-020 names. The release takes the minor position because
   the availability field FR-004 adds is additive while the removals
-  FR-020 records are breaking. The shared-object version SHALL take the
-  major position on the 0.x line, because a shared object built against
-  0.4 is not loadable by a 0.3 consumer once the removed declarations are
-  gone. The plan SHALL record that rule.
+  FR-020 records are breaking. `SOVERSION` is a hand-kept ABI number.
+  The maintainer bumps it when a public signature or a public record
+  layout changes. A patch that changes neither leaves the number as it
+  stands. The plan SHALL record that rule.
 - **FR-022**: A continuous-integration step SHALL fail where the
   installed consumer's catalog entry count differs from the build tree's
   count on the same runner (012 SC-008). The step SHALL run unprivileged
