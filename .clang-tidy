@@ -80,6 +80,8 @@ CheckOptions:
     value: 'camelBack'
   - key: 'readability-identifier-naming.LocalConstantCase'
     value: 'camelBack'
+  # N-12: a public data member of an aggregate takes camelBack, prefix
+  # free.
   - key: 'readability-identifier-naming.PublicMemberCase'
     value: 'camelBack'
   - key: 'readability-identifier-naming.PrivateMemberCase'

@@ -1,4 +1,21 @@
 <!--
+Sync Impact Report (2.15.0, MINOR): Principle V.1 gains N-12, the
+public data member rule. `.clang-tidy` has enforced the spelling since
+the 2.14.0 amendment, through `PublicMemberCase: camelBack`, yet V.1
+held no matching rule. V.1 names that shape a defect, so the rule
+joins the law here and the key cites it. `specs/014-identifier-naming-camelcase`
+Task T037 records the finding.
+
+The amendment adds one rule to V.1. It removes no obligation and
+weakens none. V.2 and the VIII gate list stay as 2.14.0 wrote them.
+The version moves MINOR under Governance: expanded guidance, one
+rule added.
+
+The insertion shifts every line below line 1. A citation naming a line
+number in this file needs re-anchoring; search for the named token.
+-->
+
+<!--
 Sync Impact Report (2.14.0, MINOR): Principle V gains V.1 Identifier
 Naming and V.2 Naming exceptions, the one spelling rule every C++
 identifier the project owns follows, which
@@ -466,6 +483,10 @@ is its enforcement.
   `HardStop`, `ring_t` becomes `Ring`, `hard_stop` becomes `hardStop`, and
   `ring` stays `ring`. A tag object is an exception to N-8 and appears
   in `ConstexprVariableIgnoredRegexp`.
+- **N-12 A public data member of an aggregate takes camelBack, prefix
+  free.** `frequency_hz` becomes `frequencyHz`. The `m_` prefix marks a
+  private or protected member under N-10, and it stays off a public
+  member. `.clang-tidy` enforces the rule through `PublicMemberCase`.
 
 #### V.2 Naming exceptions
 
@@ -968,6 +989,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.15.0 | 2026-10-07 | V.1 gains N-12: a public data member of an aggregate takes camelBack, prefix free, the rule `.clang-tidy` `PublicMemberCase` enforces; T037 of specs/014 closes the gap where the rule lived only in the key |
 | 2.14.0 | 2026-10-07 | V gains V.1 Identifier Naming and V.2 Naming exceptions: the one spelling rule every owned C++ identifier follows, and the closed list of names that keep a spelling the language, the standard library, a vendor, or the platform requires. FR-001 to FR-021 of specs/014. |
 | 2.13.0 | 2026-10-04 | VIII hard gate list gains a thread-sanitizer item: a `ci-tsan` preset and a `tsan` job report no race, FR-012 and SC-003 of specs/012 require them, no gate removed or weakened |
 | 2.12.0 | 2026-10-03 | XI.7 Simplified Technical English: generated prose reaches about 80 percent ASD-STE100 compliance, reviewer-enforced, XI.1 to XI.6 govern on conflict, no rule identifier added |
@@ -988,4 +1010,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.14.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-07
+**Version**: 2.15.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-07
