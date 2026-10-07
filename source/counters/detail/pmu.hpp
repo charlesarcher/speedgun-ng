@@ -520,8 +520,8 @@ inline fast_context::~fast_context()
 // thread runs on. A thread-bound plan pins nothing and answers true; a
 // cpu-pinned context answers true only on the processor it was opened on,
 // which is the pinning precondition the fast read carries (FR-045).
-[[nodiscard]] auto fast_pinning_ok(int pinned_cpu, int current_cpu) noexcept
-    -> bool;
+[[nodiscard]] auto fast_pinning_ok(int pinned_cpu,
+                                   int current_cpu) noexcept -> bool;
 
 // The corrected decisions that sit behind a syscall only a granted
 // `perf_event_open` can reach. Each is a small pure function over values
@@ -603,9 +603,8 @@ struct entry_read_selection
 /// \post A countable entry publishes the fast read mode only where the
 ///       host grants it. Every other state publishes the syscall mode.
 ///       Only a countable entry publishes the enabled/running pair.
-[[nodiscard]] auto entry_read_selection_for(availability probed,
-                                            bool fast_capable) noexcept
-    -> entry_read_selection;
+[[nodiscard]] auto entry_read_selection_for(
+    availability probed, bool fast_capable) noexcept -> entry_read_selection;
 
 /// @brief The target kinds the two probes settled one entry on (FR-021).
 ///
@@ -621,9 +620,8 @@ struct entry_read_selection
 /// \post A verdict of `countable` names that kind's bit, and every other
 ///       verdict names no bit. The answer names the cpu bit for a
 ///       `countable` cpu verdict whatever the per-task verdict is (FR-021).
-[[nodiscard]] auto probed_kind_mask(availability per_task,
-                                    availability on_cpu) noexcept
-    -> target_mask;
+[[nodiscard]] auto probed_kind_mask(
+    availability per_task, availability on_cpu) noexcept -> target_mask;
 
 /// @brief The target kinds one catalog entry can be counted on, read from
 /// the probe's per-kind verdicts (FR-021).
@@ -681,9 +679,8 @@ struct entry_read_selection
 /// \post A permission verdict on a device-scoped device settles on
 ///       `scope_refused`. Every other verdict, on a device-scoped device or
 ///       not, settles on itself.
-[[nodiscard]] auto scope_settled_state(availability on_cpu,
-                                       bool device_scoped) noexcept
-    -> availability;
+[[nodiscard]] auto scope_settled_state(
+    availability on_cpu, bool device_scoped) noexcept -> availability;
 
 /// @brief Whether a catalog entry's own state lets the request open a
 /// provider window (FR-021, FR-024).
@@ -708,9 +705,8 @@ struct entry_read_selection
 ///       `scope_refused` entry answers true for the cpu kind alone, and
 ///       answers false for the per-task kind. Every other state answers
 ///       false under either kind.
-[[nodiscard]] auto availability_gate_passes(availability probed,
-                                            target_kind requested) noexcept
-    -> bool;
+[[nodiscard]] auto availability_gate_passes(
+    availability probed, target_kind requested) noexcept -> bool;
 
 // The fast-mode window (group_io.cpp, FR-040): one context per member
 // leaf, the enabled/running pair taken from the leader's page. Null

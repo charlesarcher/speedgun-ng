@@ -53,4 +53,11 @@ function(speedgun_embed_pmu_events target vendored_root)
     ${generated}
     PROPERTIES SKIP_UNITY_BUILD ON SKIP_LINTING ON
                INCLUDE_DIRECTORIES "${SPEEDGUN_SOURCE_ROOT}/source")
+  # Alder Lake's embedded literal is longer than the 65536 characters a
+  # C++ compiler must accept. Clang promotes that to an error under
+  # -Werror. The bytes are generated, so the warning is off for Clang.
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set_source_files_properties(${generated}
+      PROPERTIES COMPILE_OPTIONS "-Wno-overlength-strings")
+  endif()
 endfunction()

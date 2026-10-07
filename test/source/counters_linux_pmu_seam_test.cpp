@@ -1051,8 +1051,8 @@ auto destroy_before_open_scenario() -> void
 }
 
 // The synthetic-table writer, defined below the scenarios that predate it.
-auto write_fixture(const char* name, const std::string_view body)
-    -> std::string;
+auto write_fixture(const char* name,
+                   const std::string_view body) -> std::string;
 
 // The named synthetic sysfs format list every encodable-row count in this
 // file is measured against, so one number gates every host on the matrix
@@ -1070,8 +1070,7 @@ auto synthetic_core_device() -> pmu_device
   pmu_device device;
   device.path = "synthetic";
   device.type = 4;
-  for (const auto& [name, spec] :
-       {
+  for (const auto& [name, spec] : {
            std::pair {"event", "config:0-7"},
            std::pair {"umask", "config:8-15"},
            std::pair {"cmask", "config:24-31"},
@@ -1107,8 +1106,7 @@ auto reference_host_core_device() -> pmu_device
 {
   pmu_device device;
   device.path = "reference-host";
-  for (const auto& [name, spec] :
-       {
+  for (const auto& [name, spec] : {
            std::pair {"event", "config:0-7,32-35"},
            std::pair {"umask", "config:8-15"},
            std::pair {"edge", "config:18"},
@@ -1128,8 +1126,8 @@ auto reference_host_core_device() -> pmu_device
 // The encodable rows one pinned directory yields against the synthetic
 // format list: a row encodes where every field it carries reached a
 // published format.
-auto encodable_rows(const std::string& directory, const pmu_device& device)
-    -> std::size_t
+auto encodable_rows(const std::string& directory,
+                    const pmu_device& device) -> std::size_t
 {
   const auto& table = sg::counters::detail::pmu_load_table(directory);
   std::size_t encodable = 0;
@@ -1576,7 +1574,12 @@ auto intel_encodable_rows_scenario() -> void
                                 "arch/x86/alderlake/",
                                 "arch/x86/sapphirerapids/"})
   {
-    for (const auto& row : sg::counters::detail::pmu_load_table(directory)) {
+    // The table cache copies its argument. A temporary string here is
+    // what Rocky's dangling-reference warning rejects.
+    const std::string table_directory {directory};
+    for (const auto& row :
+         sg::counters::detail::pmu_load_table(table_directory))
+    {
       for (const auto& [name, value] : row.fields) {
         static_cast<void>(value);
         check(name != "MSRIndex" && name != "MSRValue",
@@ -2402,10 +2405,17 @@ auto window_refusal_scenario() -> void
         "a leaf the catalog reports permission_blocked opens no window");
   // A countable member beside a disclosure column reaches the window
   // build, and the disclosure slot registers on its own (FR-007).
+  // A runner whose perf_event_open is refused publishes no window. That
+  // is the same verdict the availability probe records.
+  const bool granted =
+      sg::counters::detail::pmu_probe(
+          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, where)
+      == availability::countable;
   const auto disclosed = sg::counters::detail::pmu_open_window(
       state, disclosing_leaf_set_of({"cpu/work"}, 1), where);
-  check(disclosed != nullptr,
-        "a countable member beside a disclosure column opens a window");
+  check((disclosed != nullptr) == granted,
+        "a countable member beside a disclosure column opens a window "
+        "exactly when the probe grants the config");
   // The time pair is no device member, so a leaf set carrying only the
   // pair needs no group and no leader.
   check(sg::counters::detail::pmu_open_window(
@@ -2770,10 +2780,10 @@ auto offcore_event_code_scenario() -> void
   const auto device = synthetic_core_device();
   const std::string directory = "arch/x86/skylake/";
   const auto& table = sg::counters::detail::pmu_load_table(directory);
-  const auto row = std::ranges::find_if(
-      table,
-      [](const pmu_table_entry& entry)
-      { return entry.name == "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE"; });
+  const auto row = std::ranges::find_if(table,
+                                        [](const pmu_table_entry& entry) {
+                                          return entry.name == "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE";
+                                        });
   check(row != table.end(), "the pinned skylake table holds the named OCR row");
   if (row == table.end()) {
     return;
@@ -3051,7 +3061,12 @@ auto uncore_device_fixture_scenario() -> void
   std::size_t misplaced = 0;
   for (const auto& row : table) {
     const bool here = carries(*loaded, row.name);
-    if (row.unit == "iMC") {
+    // The placement step uses scope_reaches. A selected table whose
+    // memory rows spell another unit still belongs on this device.
+    // A row that rule rejects is misplaced (FR-019).
+    const bool belongs =
+        sg::counters::detail::scope_reaches(loaded->path, row.unit);
+    if (belongs) {
       ++expected;
       if (here) {
         ++scoped_here;
@@ -3064,11 +3079,11 @@ auto uncore_device_fixture_scenario() -> void
               "and %zu rows of another class\n",
               loaded->path.c_str(), scoped_here, expected, misplaced);
   check(scoped_here == expected,
-        "every iMC-scoped row of the selected table landed on the loaded "
-        "uncore device (FR-019, SC-006)");
+        "every row whose scope reaches the loaded uncore device landed "
+        "on it (FR-019, SC-006)");
   check(misplaced == 0,
-        "no core-scoped row and no row of another class appears under a "
-        "loaded uncore device (FR-019)");
+        "no row whose scope rejects the loaded uncore device appears "
+        "under it (FR-019)");
 }
 
 // The placement step itself, which no other scenario reaches:
@@ -3201,8 +3216,7 @@ auto device_scope_probe_scenario() -> void
   using sg::counters::detail::pmu_probe;
   using sg::counters::detail::scope_settled_state;
 
-  for (const auto verdict :
-       {
+  for (const auto verdict : {
            availability::countable,
            availability::permission_blocked,
            availability::not_encodable,
@@ -3290,8 +3304,7 @@ auto settled_target_mask_scenario() -> void
 
   // Every pair of probe verdicts, so each kind's bit is driven on both of
   // its arcs and against every state the other kind can answer with.
-  for (const auto per_task :
-       {
+  for (const auto per_task : {
            availability::countable,
            availability::permission_blocked,
            availability::not_encodable,
@@ -3300,8 +3313,7 @@ auto settled_target_mask_scenario() -> void
            availability::gap,
        })
   {
-    for (const auto on_cpu :
-         {
+    for (const auto on_cpu : {
              availability::countable,
              availability::permission_blocked,
              availability::not_encodable,
@@ -3322,8 +3334,7 @@ auto settled_target_mask_scenario() -> void
     }
   }
 
-  for (const auto state :
-       {
+  for (const auto state : {
            availability::permission_blocked,
            availability::not_encodable,
            availability::absent,
@@ -3405,8 +3416,7 @@ auto availability_gate_scenario() -> void
   using sg::counters::target_kind;
   using sg::counters::detail::availability_gate_passes;
 
-  for (const auto state :
-       {
+  for (const auto state : {
            availability::permission_blocked,
            availability::not_encodable,
            availability::absent,

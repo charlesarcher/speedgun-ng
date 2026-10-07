@@ -131,8 +131,8 @@ struct fold_context
 // (FR-019, FR-020). No value means the leaf discloses no measured
 // fraction: it carries no enabled/running pair, or no enabled time
 // elapsed across the window.
-[[nodiscard]] auto leaf_ratio(const fold_context& ctx, const std::size_t slot)
-    -> std::optional<double>
+[[nodiscard]] auto leaf_ratio(const fold_context& ctx,
+                              const std::size_t slot) -> std::optional<double>
 {
   const auto& entry = ctx.layout.slots[slot];
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the second operand can
@@ -169,8 +169,8 @@ struct ratio_result
 // without an enabled/running pair contributes 1.0 by construction. A
 // pair with no elapsed enabled time contributes 1.0; the fold has no
 // measured fraction to report and states full rate.
-[[nodiscard]] auto window_ratio(const fold_context& ctx, const expr_core& core)
-    -> ratio_result
+[[nodiscard]] auto window_ratio(const fold_context& ctx,
+                                const expr_core& core) -> ratio_result
 {
   ratio_result out;
   for (std::size_t index = 0; index < core.leaves.size(); ++index) {
@@ -226,8 +226,8 @@ struct ratio_result
 // no measurement supports. A gap strictly inside the window changes
 // nothing: the recorded counts are cumulative, so a window with two
 // measured end points has an exact delta between them (FR-001).
-[[nodiscard]] auto window_is_gap(const fold_context& ctx, const expr_core& core)
-    -> bool
+[[nodiscard]] auto window_is_gap(const fold_context& ctx,
+                                 const expr_core& core) -> bool
 {
   const auto gap = availability::gap;
   // Every leaf's own group decides, so a plan drawing leaves from two
@@ -313,8 +313,8 @@ auto fold_core(const expr_core& core,
   };
 }
 
-auto fold_pairs_core(const expr_core& core, const recorder_api& rec)
-    -> std::vector<metric_result>
+auto fold_pairs_core(const expr_core& core,
+                     const recorder_api& rec) -> std::vector<metric_result>
 {
   SG_REQUIRE(rec.count >= 2,
              "pair folds need at least two committed points (FR-018)");
@@ -367,9 +367,12 @@ auto raw_core(const expr_core& core,
           // The fraction this leaf ran for. The state decides the
           // fallback, so the ratio a caller reads and the state beside it
           // cannot disagree (FR-004, FR-005, FR-019, FR-020).
+          // LCOV_EXCL_BR_START : coverage exclusion (T140): the gap
+          // fallback. A runner that never records a gap takes only one arm.
           .ratio = (state == availability::gap)
               ? 1.0
               : leaf_ratio(ctx, slot).value_or(1.0),
+          // LCOV_EXCL_BR_STOP
           .availability = state,
       };
     }

@@ -429,8 +429,11 @@ jobs:
           build/libspeedgun-ng.a \
           -ldl -lpthread -lm -lrt \
           -o build/embedded-count
+        installed_inc=$(find prefix/include -name speedgun-ng_export.hpp \
+          -printf '%h\n' | head -1)
+        installed_inc=$(dirname "$installed_inc")
         "$compiler" -std=c++23 \
-          -I include -I prefix/include \
+          -I include -I "$installed_inc" \
           test/consumer/embedded_count.cpp \
           prefix/lib/libspeedgun-ng.a \
           -ldl -lpthread -lm -lrt \

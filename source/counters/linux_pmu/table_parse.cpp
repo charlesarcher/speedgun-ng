@@ -69,7 +69,8 @@ auto pmu_ident_current() -> pmu_ident
     // highest basic leaf number, which is at least 1 on any CPU that also
     // answers leaf 1.
     if (__get_cpuid(0, &eax, &ebx, &ecx, &edx)  // LCOV_EXCL_BR_LINE
-        && eax >= 1) {  // LCOV_EXCL_BR_LINE
+        && eax >= 1)
+    {  // LCOV_EXCL_BR_LINE
       // The vendor string lives in EBX:EDX:ECX of leaf 0. Leaf 1
       // overwrites those registers, so the string is captured before
       // the family and model are read.
@@ -243,8 +244,8 @@ constexpr std::string_view kUnnamedRegister {"unnamed_register"};
 // The register number one index text names. The text may carry a
 // comma-separated pair, and the kernel's generator reads the first index of
 // that pair, so the first index is what this parses.
-auto first_index_of(const std::string_view text, std::uint64_t& out) noexcept
-    -> bool
+auto first_index_of(const std::string_view text,
+                    std::uint64_t& out) noexcept -> bool
 {
   const auto comma = text.find(',');
   const std::string_view first =
@@ -449,8 +450,7 @@ void add_entry(std::vector<pmu_table_entry>& table,
   // format its index names, and both keys are dropped before a field is
   // built (FR-010, D-05). The seam fixture asserts the recorded names.
   // Description precedence; AMD tables ship only "BriefDescription".
-  for (const auto candidate :
-       {
+  for (const auto candidate : {
            "Description",
            "PublicDescription",
            "BriefDescription",
@@ -627,8 +627,8 @@ auto mapfile_key(const pmu_ident& id) -> std::string
   return id.vendor + '-' + std::to_string(id.family) + '-' + hex;
 }
 
-auto pmu_select_directory(std::istream& mapfile, const pmu_ident& id)
-    -> std::string
+auto pmu_select_directory(std::istream& mapfile,
+                          const pmu_ident& id) -> std::string
 {
   // Format finding (the vendored file is truth): the columns are
   // "Family-model,Version,Filename,EventType"; the first is a

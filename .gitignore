@@ -24,3 +24,9 @@ speedgun-ng-*-specify-prompt.md
 !.opencode/commands/
 .agents/*
 !.agents/skills/
+
+# In-source compiler products
+*.o
+*.a
+*.so
+*.log

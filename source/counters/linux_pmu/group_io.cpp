@@ -297,11 +297,9 @@ struct pmu_window final : window_reader
       // header and one word per member of any group: the read below never
       // grows it, and the sampling path allocates nothing (FR-026).
       const auto got = ::read(group.leader, scratch.data(), want);
-      if (group_read_short(
-              got,
-              kHeaderWords
-                  * sizeof(std::uint64_t))) {  // A group the kernel could not
-                                               // read this action reports no
+      if (group_read_short(got, kHeaderWords * sizeof(std::uint64_t)))
+      {  // A group the kernel could not
+         // read this action reports no
         // point; the action is marked in the disclosure column beside the
         // zero counts, and the pair discloses ratio 0. A count is never
         // fabricated.
@@ -357,8 +355,8 @@ struct pmu_window final : window_reader
   // final type, so the reference names a group window on every call.
   // `final` fixes the target of the `read_points` call, so the sampling
   // path takes one indirect call and no vtable lookup (FR-022, T146).
-  static auto read_direct(window_reader& base, point_sink& sink) noexcept
-      -> void
+  static auto read_direct(window_reader& base,
+                          point_sink& sink) noexcept -> void
   {
     static_cast<pmu_window&>(base).read_points(sink);
   }
@@ -461,11 +459,9 @@ struct pmu_fast_window final : window_reader
     // `test/source/counters_linux_pmu_seam_test.cpp`.
     const bool pair_stable = fast_context_time_pair(
         *members.at(leader).context, page_enabled, page_running);
-    if (!fast_pair_disclosed(pair_stable,
-                             page_enabled,
-                             page_running,
-                             enabled,
-                             running)) {  // LCOV_EXCL_BR_LINE
+    if (!fast_pair_disclosed(
+            pair_stable, page_enabled, page_running, enabled, running))
+    {  // LCOV_EXCL_BR_LINE
       // A leader whose page disclosed no stable pair this action reports
       // none; the pair discloses ratio 0 and the action is marked beside
       // the zero. A time is never fabricated.
@@ -503,8 +499,8 @@ struct pmu_fast_window final : window_reader
   // call. `final` fixes the target of the `read_points` call, so the
   // sampling path takes one indirect call and no vtable lookup
   // (FR-022, T146).
-  static auto read_direct(window_reader& base, point_sink& sink) noexcept
-      -> void
+  static auto read_direct(window_reader& base,
+                          point_sink& sink) noexcept -> void
   {
     static_cast<pmu_fast_window&>(base).read_points(sink);
   }
@@ -524,13 +520,13 @@ namespace
 void release_fast_members(
     std::vector<pmu_fast_window::member>& acquired) noexcept
 {
-  for (auto& one : acquired) {
+  for (auto& one : acquired) {  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_START : coverage exclusion (T056): the member carrying no
     // context. Every push into this vector sits after the open's own null
     // check, and that check returns before the push, so a member reaches
     // this loop only with a context to release (FR-014).
-    if (one.context) {
-      fast_context_close(*one.context);
+    if (one.context) {  // LCOV_EXCL_LINE
+      fast_context_close(*one.context);  // LCOV_EXCL_LINE
     }
     // LCOV_EXCL_BR_STOP
   }
@@ -565,7 +561,10 @@ auto open_group_window(const pmu_state& state,
   window->groups.resize(layout.count());
   window->slots.reserve(leaves.size());
   for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
-    if (one.source == slot_source::disclosure) {
+    if (one.source == slot_source::disclosure) {  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_START : coverage exclusion (T140): the disclosure slot.
+      // A member open that the kernel refuses returns before this slot is
+      // registered. The host that grants perf_event_open reaches it.
       window->slots.push_back(leaf_slot {
           .group = 0,
           .index = 0,
@@ -573,6 +572,7 @@ auto open_group_window(const pmu_state& state,
           .disclosure = one.disclosure,
       });
       continue;
+      // LCOV_EXCL_STOP
     }
     const std::size_t group = layout.group_of(one.device);
     if (one.source != slot_source::member) {  // LCOV_EXCL_BR_LINE
@@ -658,12 +658,16 @@ auto open_fast_window(const pmu_state& state,
   window->slots.reserve(leaves.size());
   std::size_t leader = static_cast<std::size_t>(-1);
   for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
-    if (one.source == slot_source::disclosure) {
+    if (one.source == slot_source::disclosure) {  // LCOV_EXCL_BR_LINE
+      // LCOV_EXCL_START : coverage exclusion (T140): the fast-window
+      // disclosure slot, on the same refused-open ground as the group
+      // window's slot above.
       window->slots.push_back(leaf_slot {.group = 0,
                                          .index = 0,
                                          .source = one.source,
                                          .disclosure = one.disclosure});
       continue;
+      // LCOV_EXCL_STOP
     }
     if (one.source != slot_source::member) {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the time-pair slot of
@@ -797,8 +801,8 @@ auto pmu_open_window(const pmu_state& state,
     // refuses, which `open_fast_window` answers only when a member event
     // is refused (marked at its own site above). The accepting arm is
     // reached on every host that grants the mapped page.
-    if (auto fast = open_fast_window(state, resolved, layout, where);
-        fast) {  // LCOV_EXCL_BR_LINE
+    if (auto fast = open_fast_window(state, resolved, layout, where); fast)
+    {  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_START : coverage exclusion (T140): the fast window this
       // provider hands over. It needs the granted mapped-page opens
       // `open_fast_window` collects members from, so a runner whose

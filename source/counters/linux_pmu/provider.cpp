@@ -185,14 +185,17 @@ auto device_page_fast_verdict(const detail::pmu_device& device) -> bool
     std::string refusal;
     auto context =
         fast_context_open(device.type, config->second, where, &refusal);
-    if (!context) {
+    if (!context) {  // LCOV_EXCL_BR_LINE
       continue;
     }
+    // LCOV_EXCL_START : coverage exclusion (T140): the granted mapped page.
+    // A runner whose perf_event_open is refused never holds a context.
     const auto* page = static_cast<const perf_event_mmap_page*>(context->map);
     const bool granted = page_grants_user_rdpmc(page->cap_user_rdpmc);
     fast_context_close(*context);
     return granted;
-  }
+    // LCOV_EXCL_STOP
+  }  // LCOV_EXCL_LINE
   return false;
 }
 
@@ -239,7 +242,7 @@ auto probe_device(detail::pmu_device& device, const bool fast_capable) -> void
       // is extracted, so a registered test drives both of its arms on any
       // host (FR-021, FR-022, FR-046).
       probed = detail::scope_settled_state(on_cpu, device.device_scoped);
-    } else if (probed != availability::countable) {
+    } else if (probed != availability::countable) {  // LCOV_EXCL_BR_LINE
       probed = on_cpu;
     }
     entry.avail = probed;
@@ -343,7 +346,8 @@ auto load_device(const std::filesystem::path& dir)
     // file there that the parser rejects.
     if (detail::parse_format_field(  // LCOV_EXCL_BR_LINE
             slurp(it->path()),
-            ranges)) {  // LCOV_EXCL_BR_LINE
+            ranges))
+    {  // LCOV_EXCL_BR_LINE
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -654,8 +658,8 @@ auto to_hex(const std::uint64_t value) -> std::string
 // itself with the event_attr text the kernel publishes, verbatim, so a
 // reader can reproduce the encoding; a vendored entry uses the table's
 // own prose and names the event code when the table carries none.
-auto alias_description(const std::string& name, const std::string& text)
-    -> std::string
+auto alias_description(const std::string& name,
+                       const std::string& text) -> std::string
 {
   if (!text.empty()) {
     return "kernel event configuration: " + text;
@@ -875,9 +879,12 @@ void pmu_provider::enumerate(object_sink& sink) const
       // that kind's own probe counted the entry. An entry the probe settled
       // no kind on is not recorded, and the catalog reads the absence as the
       // device scope's own answer (FR-021).
-      if (entry.probed_kinds != 0) {
+      if (entry.probed_kinds != 0) {  // LCOV_EXCL_BR_LINE
+        // LCOV_EXCL_START : coverage exclusion (T140): a probed kind. A
+        // runner whose perf_event_open is refused settles no kind.
         detail::note_probed_kinds(device.path + "/" + entry.name,
                                   entry.probed_kinds);
+        // LCOV_EXCL_STOP
       }
     }
     sink.add_object(object_seed {
