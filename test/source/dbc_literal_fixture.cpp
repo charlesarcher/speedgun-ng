@@ -1,4 +1,6 @@
-#include "speedgun-ng/dbc.hpp"
+// D-01 fixture: this literal keeps the pre-rename spelling through the
+// rename workflow, which makes the workflow's literal safety observable.
+// The file names no library entity, so it includes no header.
 
 auto main() -> int
 {

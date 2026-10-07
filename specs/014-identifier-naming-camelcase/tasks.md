@@ -332,35 +332,35 @@ successor-log entry records the map and the closed-directory edit.
 
 **Purpose**: Run the checks that apply to the rename head.
 
-- [ ] T030 Build the release preset once from `CMakeLists.txt` with
+- [X] T030 Build the release preset once from `CMakeLists.txt` with
   `cmake --preset=ci-ubuntu` and `cmake --build build`
   (Principle IX, plan Test Plan step 3).
-- [ ] T031 Run the D-03 comparison after T030 and record it in `specs/014-identifier-naming-camelcase/plan.md`: build the release preset twice
+- [X] T031 Run the D-03 comparison after T030 and record it in `specs/014-identifier-naming-camelcase/plan.md`: build the release preset twice
   with `speedgun-ng_CONTRACTS=ignore`, normalize owned mangled
   symbols with `nm` and `llvm-cxxfilt`, strip the address column, and
   diff `objdump -d` output. Both tasks use `build/`. The permitted
   difference is the contract-predicate string
   FR-002 names. Record the result in
   `specs/014-identifier-naming-camelcase/plan.md` (FR-002, SC-002).
-- [ ] T032 [P] Run the D-04 macro-collision check and record it in `specs/014-identifier-naming-camelcase/plan.md` with
+- [X] T032 [P] Run the D-04 macro-collision check and record it in `specs/014-identifier-naming-camelcase/plan.md` with
   `clang++ -dM -E -std=c++23` over a translation unit that includes
   every public header and the Linux headers a library unit includes.
   The checked set is every new enumerator and every new constant.
   `NONE`, `GAP`, `SYSCALL`, `CPU`, `THREAD`, `ABSENT`, `BYTES`, and
   `OPS` are in that set. Record the result in
   `specs/014-identifier-naming-camelcase/plan.md` (FR-006, SC-007).
-- [ ] T033 [P] Run the name check and record zero findings in `specs/014-identifier-naming-camelcase/plan.md`
+- [X] T033 [P] Run the name check and record zero findings in `specs/014-identifier-naming-camelcase/plan.md`
   `specs/014-identifier-naming-camelcase/plan.md`. Confirm no other
   static-analysis count of a translation unit rose (FR-004, SC-004).
-- [ ] T034 [P] Run the downstream consumer job in `.github/workflows/ci.yml`. The output lines
+- [X] T034 [P] Run the downstream consumer job in `.github/workflows/ci.yml`. The output lines
   `consumer: pmu catalog entries` and `embedded:` stay. The job
   file is `.github/workflows/ci.yml` (FR-005, FR-017).
-- [ ] T035 [P] Re-measure the overhead figures on the reference host `docs/pages/counters-overhead.md`
+- [X] T035 [P] Re-measure the overhead figures on the reference host `docs/pages/counters-overhead.md`
   in `docs/pages/counters-overhead.md` (Linux 7.2.4-1-cachyos,
   Ryzen 9 9950X3D) and compare them with the gate-baseline figures.
   The noise bound is five percent, the bound the page gates at
   lines 406-411 (FR-003, D-07).
-- [ ] T036 Run every scenario in `specs/014-identifier-naming-camelcase/quickstart.md`
+- [X] T036 Run every scenario in `specs/014-identifier-naming-camelcase/quickstart.md`
   `specs/014-identifier-naming-camelcase/quickstart.md` and record
   each result beside that scenario. Step 10 runs the gates FR-005
   names (FR-005, SC-008, plan Test Plan).

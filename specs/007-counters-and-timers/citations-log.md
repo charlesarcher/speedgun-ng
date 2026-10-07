@@ -723,7 +723,7 @@ figure_measured: specs/014-identifier-naming-camelcase/rename-map.md
   lists old spelling, new spelling, declaring header, and kind for
   every changed shipped-header name, detail names marked
 command: sed -n '1,20p' specs/014-identifier-naming-camelcase/rename-map.md
-head: 15d335d
+head: fb7ba67
 must_not_move: every closed spec directory except the two sentences
   below
 ```
