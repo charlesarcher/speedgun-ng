@@ -21,5 +21,8 @@ skip = */.git,*/build,*/prefix,*/node_modules,*/.omo,*/external
 # "behaviour", "judgement", "licence", "serialisation", and
 # "organisation" are correct British spellings, part of them in closed
 # artifacts (specs/007-counters-and-timers) and in the project's own prose.
-ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation
+# "onOther" is a renamed identifier (specs/014-identifier-naming-camelcase,
+# test/source/counters_linux_pmu_seam_test.cpp); codespell's typo
+# dictionary proposes "another", a different word.
+ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation,onother
 quiet-level = 2
