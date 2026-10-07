@@ -187,6 +187,17 @@ gates. Build the release preset once:
 
 Expected: every gate exits 0.
 
+Result: pass. CI run `37678329308` at convergence head `a734c6c`
+concluded success across all eleven jobs: lint, prose-lint, test,
+test-rocky, shared-audit, dbc-gate, sanitize, tsan, coverage,
+downstream-consumer, and consumer-release. The coverage gate first
+failed at head `69d6fcd` on one branch of the machine-root leg of
+`Object::children`, whose gcov attribution moves with the host
+topology: the same object code recorded one hit on that leg in one
+run and zero in the next. The T066 branch-exclusion pair took the
+leg out of the count, and the local coverage pass then read 867 of
+867 branches at 100 percent.
+
 ## Rename command
 
 Each rename commit runs clang-tidy 23.1.1 with a temporary copy of the
