@@ -223,9 +223,10 @@ private:
 auto main() -> int
 {
   using sg::dbc::Kind;
-  sg::dbc::ViolationRecord rec {};
 
 #if SG_CONTRACTS_SEMANTIC != 3
+  sg::dbc::ViolationRecord rec {};
+
   // (a)/(b) precondition (FR-002/FR-021)
   rec = sg::dbc::ViolationRecord {};
   check(captureViolation(rec, [] { violatePrecondition(); }),
@@ -539,7 +540,7 @@ auto main() -> int
     std::printf(
         "--- (f) quick_enforce gated trap (SG_CONTRACTS_SEMANTIC=3) ---\n");
 #  if defined(__unix__)
-    auto res = run_in_child(
+    auto res = runInChild(
         []
         {
           SG_REQUIRE(false, "qe-gated-violation");
@@ -548,7 +549,7 @@ auto main() -> int
           _exit(0);
         },
         5);
-    bool trapped = (res.term_sig != 0 || res.exit_status != 0);
+    bool trapped = (res.termSig != 0 || res.exitStatus != 0);
     bool marker_absent =
         res.output.find("qe-marker-reached") == std::string::npos;
     (void)marker_absent;
