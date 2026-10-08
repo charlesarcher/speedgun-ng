@@ -103,4 +103,4 @@ public:
 
 }  // namespace sg::counters
 
-#endif  // SPEEDGUN_NG_COUNTERS_CLOCK_HPP
+#endif  // SG_COUNTERS_CLOCK_HPP

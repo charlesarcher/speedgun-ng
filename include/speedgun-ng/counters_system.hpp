@@ -128,7 +128,7 @@ public:
     // reads the error branch of the inner `expected` (FR-017).
     const auto recognized = unitFromToken(leaf->unit);
     // LCOV_EXCL_BR_START : coverage exclusion (T066): a stored catalog unit
-    // is a recognized token by construction. `register_provider` refuses an
+    // is a recognized token by construction. `registerProvider` refuses an
     // unrecognized token, so the tree never holds one, and the recognized
     // set is closed.
     if (!recognized.has_value()) {  // LCOV_EXCL_BR_LINE
@@ -299,4 +299,4 @@ private:
 
 }  // namespace sg::counters
 
-#endif  // SPEEDGUN_NG_COUNTERS_SYSTEM_HPP
+#endif  // SG_COUNTERS_SYSTEM_HPP

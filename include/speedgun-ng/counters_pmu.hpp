@@ -86,4 +86,4 @@ private:
 
 }  // namespace sg::counters
 
-#endif  // SPEEDGUN_NG_COUNTERS_PMU_HPP
+#endif  // SG_COUNTERS_PMU_HPP

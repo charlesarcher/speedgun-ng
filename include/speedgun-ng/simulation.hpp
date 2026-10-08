@@ -50,4 +50,4 @@ SPEEDGUN_NG_EXPORT void simulationStart() noexcept;
 
 }  // namespace sg
 
-#endif  // SPEEDGUN_NG_SIMULATION_HPP
+#endif  // SG_SIMULATION_HPP

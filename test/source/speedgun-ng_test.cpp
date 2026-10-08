@@ -49,7 +49,7 @@ auto captureViolation(sg::dbc::ViolationRecord& rec, auto&& body) -> bool
   return caught;
 }
 
-// Test-only helpers that violate the same contract kinds exported_class
+// Test-only helpers that violate the same contract kinds ExportedClass
 // enforces (class invariant / named-result postcondition). The production
 // members cannot be driven into violation without a public seam.
 auto violateClassInvariant() -> void

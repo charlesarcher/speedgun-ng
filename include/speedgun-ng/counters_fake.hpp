@@ -35,9 +35,9 @@ namespace sg::counters
  * followed by a per-sample tail (FR-036, T014).
  *
  * When the explicit sequence is exhausted, the script keeps stepping
- * the tail. A `tail_delta` of zero holds the last value, freezing the
- * leaf. A `delta_seed` steps the seeded per-sample delta sequence
- * documented beside `set_points` and supersedes `tail_delta`, so one
+ * the tail. A `tailDelta` of zero holds the last value, freezing the
+ * leaf. A `deltaSeed` steps the seeded per-sample delta sequence
+ * documented beside `setPoints` and supersedes `tailDelta`, so one
  * seed reproduces a whole workload.
  */
 struct FakeScript
@@ -155,7 +155,7 @@ public:
    * Declaring a counter on an undeclared path auto-creates that
    * object with default kind and description.
    *
-   * `ratio_pair` declares that the owning object discloses a time
+   * `ratioPair` declares that the owning object discloses a time
    * pair, which the seam reads as the counters named `enabled` and
    * `running` on the same object. A fold over such a leaf multiplies
    * their delta ratio into its disclosure (FR-019, FR-041).
@@ -175,8 +175,8 @@ public:
   /**
    * @brief Scripts one leaf with an explicit cumulative sequence.
    *
-   * Once the sequence is exhausted the tail steps by `tail_delta`.
-   * A `delta_seed` puts the tail on the seeded per-sample delta
+   * Once the sequence is exhausted the tail steps by `tailDelta`.
+   * A `deltaSeed` puts the tail on the seeded per-sample delta
    * sequence instead: the leaf adds `step(seed)`, then
    * `step(step(seed))`, then `step(step(step(seed)))`, where one step is
    * `state = (state * 37 + 11) mod 2^16`. A single-digit multiplier
@@ -250,4 +250,4 @@ private:
 
 }  // namespace sg::counters
 
-#endif  // SPEEDGUN_NG_COUNTERS_FAKE_HPP
+#endif  // SG_COUNTERS_FAKE_HPP

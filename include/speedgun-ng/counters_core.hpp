@@ -288,4 +288,4 @@ struct MetricResult
 
 }  // namespace sg::counters
 
-#endif  // SPEEDGUN_NG_COUNTERS_CORE_HPP
+#endif  // SG_COUNTERS_CORE_HPP

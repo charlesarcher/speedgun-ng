@@ -110,4 +110,4 @@ private:
 
 }  // namespace sg::counters
 
-#endif  // SPEEDGUN_NG_COUNTERS_PUSH_HPP
+#endif  // SG_COUNTERS_PUSH_HPP

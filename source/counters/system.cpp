@@ -436,8 +436,8 @@ auto System::handleFor(const std::string& canonical) -> sg::counters::Object&
   if (existing != m_impl->handles.end()) {
     return *existing->second;
   }
-  // `make_unique` cannot build this handle: `object`'s node constructor
-  // is private and `system` is its only friend (T113).
+  // `make_unique` cannot build this handle: `Object`'s node constructor
+  // is private and `System` is its only friend (T113).
   const auto inserted = m_impl->handles.emplace(
       canonical,
       std::unique_ptr<sg::counters::Object>(
