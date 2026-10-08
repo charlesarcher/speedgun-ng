@@ -219,7 +219,17 @@ docs job skipped. Its coverage job failed the first attempt on one
 branch of the machine-root leg of `counters/system.cpp`, 866 of 867
 branches, the gcov attribution this record already names as host-
 topology flaky; the local gate at the same head read 867 of 867, and
-the job passed on the rerun.
+the job passed on the rerun. CI run `37773644494` at convergence head
+`f8b8d0c` repeated the pass and concluded failure: ten of the eleven
+executed jobs succeeded, the docs job skipped, and the coverage job
+failed on its first attempt at `counters/system.cpp`, 866 of 867
+branches. The run's `coverage-info` artifact pins that branch to line
+585, the false leg of the `Object::children` direct-child ternary, so
+the T066 exclusion pair, whose stop closes after the true leg at line
+581, never covered it. The local gate at the same head reads 867 of
+867 because the local gcov attributes no branch to that line; the CI
+gcov does. T055 moves the stop after the ternary so the exclusion
+covers every branch of the host-dependent test.
 
 ## Rename command
 

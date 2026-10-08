@@ -517,3 +517,9 @@ A fifth converge pass over the tree at head `075054f`. The law at 2.16.0, the `.
 A sixth converge pass over the tree at head `ac10efc`. The law at 2.16.0, the `.clang-tidy` keys, the version fields, the map pair, the FR-015 search, the suppressions, the qualification, and the single citations-log entry all verify clean, and the head's own CI run is green; one record residual remains.
 
 - [X] T054 Record CI run `37769547155` at head `ac10efc` beside Step 10 of `specs/014-identifier-naming-camelcase/quickstart.md` — all eleven executed jobs success on attempt 2, the docs job skipped, the coverage job rerun after its attempt-1 failure at `counters/system.cpp` 866 of 867 branches, the machine-root gcov attribution the step's record already names as host-topology flaky, the local gate at the head reading 867 of 867 — the record the head advance past `eb1f444` leaves stale, per FR-005, SC-008 (partial) — LOW
+
+## Phase 14: Convergence
+
+A seventh converge pass over the tree at head `f8b8d0c`. The law at 2.16.0, the `.clang-tidy` keys, the version fields, the map pair, the FR-015 search, the FR-017 record, the suppressions, and the qualification all verify clean, and the local coverage gate reads 867 of 867 branches at GCC 16.2.1; one residual remains.
+
+- [ ] T055 Fix the coverage exclusion the head's CI run exposes: CI run `37773644494` at `f8b8d0c` concluded failure because the coverage job read 866 of 867 branches at `counters/system.cpp`, and the run's `coverage-info` artifact pins the uncovered branch to line 585, the false leg of the `Object::children` direct-child ternary, which sits outside the T066 `LCOV_EXCL_BR_START`/`LCOV_EXCL_BR_STOP` pair whose stop closes after the true leg at 581. Move the stop after the closing parenthesis of the ternary so the exclusion covers every branch of the host-dependent test, re-run the local coverage gate, and push so CI confirms the job at the new head, per FR-005, SC-008 (contradicts) — HIGH
