@@ -32,14 +32,14 @@
 namespace
 {
 
-using clock = std::chrono::steady_clock;
+using Clock = std::chrono::steady_clock;
 
-constexpr int k_default_n = 100000000;
-constexpr int k_default_trials = 51;
-// A trial shorter than this is below a credible clock sample (tiny N).
-constexpr std::int64_t k_min_trial_ns = 1000000;
+constexpr int kDefaultN = 100000000;
+constexpr int kDefaultTrials = 51;
+// A trial shorter than this is below a credible Clock sample (tiny N).
+constexpr std::int64_t kMinTrialNs = 1000000;
 
-SG_OH_NOINLINE auto uncontracted_loop(int const n, int const x) -> std::int64_t
+SG_OH_NOINLINE auto uncontractedLoop(int const n, int const x) -> std::int64_t
 {
   std::int64_t acc = 0;
   volatile int vx = x;
@@ -50,7 +50,7 @@ SG_OH_NOINLINE auto uncontracted_loop(int const n, int const x) -> std::int64_t
   return acc;
 }
 
-SG_OH_NOINLINE auto contracted_loop(int const n, int const x) -> std::int64_t
+SG_OH_NOINLINE auto contractedLoop(int const n, int const x) -> std::int64_t
 {
   std::int64_t acc = 0;
   volatile int vx = x;
@@ -62,33 +62,33 @@ SG_OH_NOINLINE auto contracted_loop(int const n, int const x) -> std::int64_t
   return acc;
 }
 
-auto now_ns(clock::time_point const t0,
-            clock::time_point const t1) -> std::int64_t
+auto nowNs(Clock::time_point const t0,
+            Clock::time_point const t1) -> std::int64_t
 {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
 }
 
-auto time_uncontracted(int const n,
+auto timeUncontracted(int const n,
                        int const x,
                        std::int64_t& sink) -> std::int64_t
 {
-  auto const t0 = clock::now();
-  sink += uncontracted_loop(n, x);
-  auto const t1 = clock::now();
-  return now_ns(t0, t1);
+  auto const t0 = Clock::now();
+  sink += uncontractedLoop(n, x);
+  auto const t1 = Clock::now();
+  return nowNs(t0, t1);
 }
 
-auto time_contracted(int const n,
+auto timeContracted(int const n,
                      int const x,
                      std::int64_t& sink) -> std::int64_t
 {
-  auto const t0 = clock::now();
-  sink += contracted_loop(n, x);
-  auto const t1 = clock::now();
-  return now_ns(t0, t1);
+  auto const t0 = Clock::now();
+  sink += contractedLoop(n, x);
+  auto const t1 = Clock::now();
+  return nowNs(t0, t1);
 }
 
-auto nearest_rank(std::vector<double> const& sorted,
+auto nearestRank(std::vector<double> const& sorted,
                   int const percent) -> double
 {
   auto const n = sorted.size();
@@ -105,7 +105,7 @@ auto nearest_rank(std::vector<double> const& sorted,
   return sorted[rank - 1U];
 }
 
-auto print_csv(char const* const key, std::vector<double> const& values) -> void
+auto printCsv(char const* const key, std::vector<double> const& values) -> void
 {
   std::fputs(key, stdout);
   std::fputc('=', stdout);
@@ -118,16 +118,16 @@ auto print_csv(char const* const key, std::vector<double> const& values) -> void
   std::fputc('\n', stdout);
 }
 
-auto print_dist(char const* const prefix, std::vector<double> sorted) -> void
+auto printDist(char const* const prefix, std::vector<double> sorted) -> void
 {
   std::sort(sorted.begin(), sorted.end());
   std::printf("%s_min=%.6f\n", prefix, sorted.front());
   std::printf("%s_max=%.6f\n", prefix, sorted.back());
-  std::printf("%s_n50=%.6f\n", prefix, nearest_rank(sorted, 50));
-  std::printf("%s_n99=%.6f\n", prefix, nearest_rank(sorted, 99));
+  std::printf("%s_n50=%.6f\n", prefix, nearestRank(sorted, 50));
+  std::printf("%s_n99=%.6f\n", prefix, nearestRank(sorted, 99));
 }
 
-auto parse_positive_int(char const* const text, int const fallback) -> int
+auto parsePositiveInt(char const* const text, int const fallback) -> int
 {
   if (text == nullptr || text[0] == '\0') {
     return fallback;
@@ -144,9 +144,9 @@ auto parse_positive_int(char const* const text, int const fallback) -> int
 
 auto main(int argc, char** argv) -> int
 {
-  int const n = parse_positive_int(argc > 1 ? argv[1] : nullptr, k_default_n);
+  int const n = parsePositiveInt(argc > 1 ? argv[1] : nullptr, kDefaultN);
   int const trials =
-      parse_positive_int(argc > 2 ? argv[2] : nullptr, k_default_trials);
+      parsePositiveInt(argc > 2 ? argv[2] : nullptr, kDefaultTrials);
   if (n < 1 || trials < 1) {
     std::fprintf(stderr, "overhead: usage: overhead [N] [trials]\n");
     return 2;
@@ -157,83 +157,83 @@ auto main(int argc, char** argv) -> int
 
   std::int64_t sink = 0;
   // Full-N warm-up so timed trials are not dominated by cold I-cache.
-  sink += uncontracted_loop(n, x);
-  sink += contracted_loop(n, x);
-  sink += uncontracted_loop(n, x);
-  sink += contracted_loop(n, x);
+  sink += uncontractedLoop(n, x);
+  sink += contractedLoop(n, x);
+  sink += uncontractedLoop(n, x);
+  sink += contractedLoop(n, x);
 
-  std::vector<double> uncontracted_ns_per_iter;
-  std::vector<double> contracted_ns_per_iter;
-  std::vector<double> overhead_ns_per_iter;
-  uncontracted_ns_per_iter.reserve(static_cast<std::size_t>(trials));
-  contracted_ns_per_iter.reserve(static_cast<std::size_t>(trials));
-  overhead_ns_per_iter.reserve(static_cast<std::size_t>(trials));
+  std::vector<double> uncontractedNsPerIter;
+  std::vector<double> contractedNsPerIter;
+  std::vector<double> overheadNsPerIter;
+  uncontractedNsPerIter.reserve(static_cast<std::size_t>(trials));
+  contractedNsPerIter.reserve(static_cast<std::size_t>(trials));
+  overheadNsPerIter.reserve(static_cast<std::size_t>(trials));
 
-  std::int64_t uncontracted_sum_ns = 0;
-  std::int64_t contracted_sum_ns = 0;
-  std::int64_t uncontracted_min_ns = 0;
+  std::int64_t uncontractedSumNs = 0;
+  std::int64_t contractedSumNs = 0;
+  std::int64_t uncontractedMinNs = 0;
   bool first = true;
-  bool any_zero = false;
+  bool anyZero = false;
 
   for (int trial = 0; trial < trials; ++trial) {
     // ABBA pairing cancels first-of-pair warm-up bias.
-    std::int64_t u_ns = 0;
-    std::int64_t c_ns = 0;
+    std::int64_t uNs = 0;
+    std::int64_t cNs = 0;
     if (trial % 2 == 0) {
-      auto const u1 = time_uncontracted(n, x, sink);
-      auto const c1 = time_contracted(n, x, sink);
-      auto const c2 = time_contracted(n, x, sink);
-      auto const u2 = time_uncontracted(n, x, sink);
-      u_ns = u1 + u2;
-      c_ns = c1 + c2;
+      auto const u1 = timeUncontracted(n, x, sink);
+      auto const c1 = timeContracted(n, x, sink);
+      auto const c2 = timeContracted(n, x, sink);
+      auto const u2 = timeUncontracted(n, x, sink);
+      uNs = u1 + u2;
+      cNs = c1 + c2;
     } else {
-      auto const c1 = time_contracted(n, x, sink);
-      auto const u1 = time_uncontracted(n, x, sink);
-      auto const u2 = time_uncontracted(n, x, sink);
-      auto const c2 = time_contracted(n, x, sink);
-      u_ns = u1 + u2;
-      c_ns = c1 + c2;
+      auto const c1 = timeContracted(n, x, sink);
+      auto const u1 = timeUncontracted(n, x, sink);
+      auto const u2 = timeUncontracted(n, x, sink);
+      auto const c2 = timeContracted(n, x, sink);
+      uNs = u1 + u2;
+      cNs = c1 + c2;
     }
-    uncontracted_sum_ns += u_ns;
-    contracted_sum_ns += c_ns;
-    if (first || u_ns < uncontracted_min_ns) {
-      uncontracted_min_ns = u_ns;
+    uncontractedSumNs += uNs;
+    contractedSumNs += cNs;
+    if (first || uNs < uncontractedMinNs) {
+      uncontractedMinNs = uNs;
     }
     first = false;
-    if (u_ns <= 0) {
-      any_zero = true;
+    if (uNs <= 0) {
+      anyZero = true;
     }
     // Each trial now covers 2N iterations (the ABBA pair).
-    double const inv_n = 1.0 / (2.0 * static_cast<double>(n));
-    double const u = static_cast<double>(u_ns) * inv_n;
-    double const c = static_cast<double>(c_ns) * inv_n;
-    uncontracted_ns_per_iter.push_back(u);
-    contracted_ns_per_iter.push_back(c);
-    overhead_ns_per_iter.push_back(c - u);
+    double const invN = 1.0 / (2.0 * static_cast<double>(n));
+    double const u = static_cast<double>(uNs) * invN;
+    double const c = static_cast<double>(cNs) * invN;
+    uncontractedNsPerIter.push_back(u);
+    contractedNsPerIter.push_back(c);
+    overheadNsPerIter.push_back(c - u);
   }
 
   volatile std::int64_t live = sink;
   static_cast<void>(live);
 
-  std::vector<double> uncontracted_sorted = uncontracted_ns_per_iter;
-  std::vector<double> contracted_sorted = contracted_ns_per_iter;
-  std::sort(uncontracted_sorted.begin(), uncontracted_sorted.end());
-  std::sort(contracted_sorted.begin(), contracted_sorted.end());
-  double const uncontracted_n50 = nearest_rank(uncontracted_sorted, 50);
-  double const contracted_n50 = nearest_rank(contracted_sorted, 50);
-  // Predicted-taken branch cost is often inside clock noise; treat
+  std::vector<double> uncontractedSorted = uncontractedNsPerIter;
+  std::vector<double> contractedSorted = contractedNsPerIter;
+  std::sort(uncontractedSorted.begin(), uncontractedSorted.end());
+  std::sort(contractedSorted.begin(), contractedSorted.end());
+  double const uncontractedN50 = nearestRank(uncontractedSorted, 50);
+  double const contractedN50 = nearestRank(contractedSorted, 50);
+  // Predicted-taken branch cost is often inside Clock noise; treat
   // contracted as >= baseline if it is within 10% of uncontracted n50.
-  double const baseline_floor = uncontracted_n50 * 0.9;
+  double const baselineFloor = uncontractedN50 * 0.9;
 
   char const* reason = "ok";
   int valid = 1;
-  if (any_zero || uncontracted_sum_ns <= 0) {
+  if (anyZero || uncontractedSumNs <= 0) {
     reason = "uncontracted baseline is zero";
     valid = 0;
-  } else if (uncontracted_min_ns < k_min_trial_ns) {
+  } else if (uncontractedMinNs < kMinTrialNs) {
     reason = "uncontracted trial below 1ms credibility floor";
     valid = 0;
-  } else if (contracted_sum_ns < 0 || contracted_n50 < baseline_floor) {
+  } else if (contractedSumNs < 0 || contractedN50 < baselineFloor) {
     reason = "contracted loop faster than uncontracted baseline";
     valid = 0;
   }
@@ -241,15 +241,15 @@ auto main(int argc, char** argv) -> int
   std::printf("n=%d\n", n);
   std::printf("trials=%d\n", trials);
   std::printf("uncontracted_sum_ns=%lld\n",
-              static_cast<long long>(uncontracted_sum_ns));
+              static_cast<long long>(uncontractedSumNs));
   std::printf("contracted_sum_ns=%lld\n",
-              static_cast<long long>(contracted_sum_ns));
-  print_dist("uncontracted_ns_per_iter", uncontracted_ns_per_iter);
-  print_dist("contracted_ns_per_iter", contracted_ns_per_iter);
-  print_dist("overhead_ns_per_iter", overhead_ns_per_iter);
-  print_csv("raw_uncontracted_ns_per_iter", uncontracted_ns_per_iter);
-  print_csv("raw_contracted_ns_per_iter", contracted_ns_per_iter);
-  print_csv("raw_overhead_ns_per_iter", overhead_ns_per_iter);
+              static_cast<long long>(contractedSumNs));
+  printDist("uncontracted_ns_per_iter", uncontractedNsPerIter);
+  printDist("contracted_ns_per_iter", contractedNsPerIter);
+  printDist("overhead_ns_per_iter", overheadNsPerIter);
+  printCsv("raw_uncontracted_ns_per_iter", uncontractedNsPerIter);
+  printCsv("raw_contracted_ns_per_iter", contractedNsPerIter);
+  printCsv("raw_overhead_ns_per_iter", overheadNsPerIter);
   std::printf("valid=%d\n", valid);
   std::printf("reason=%s\n", reason);
 
