@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/speedgun-ng.hpp file | speedgun-ng</title>
+  <title>sg::counters::MetricResult struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,27 +49,41 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>speedgun-ng.hpp <span class="m-thin">file</span>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>MetricResult <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
         </h1>
-        <p><span></span></p>
+        <p>The fold output: value, running-ratio disclosure, the availability the window discloses, and the scaled flag. The fields are members of the returned struct, so omitting the disclosure is structurally impossible (FR-019).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+<p><code><a href="#aa3cc596cb7ae009696665cf174f1864e" class="m-doc">availability</a></code> names the state the folded window carries. A fold whose start point or whose end point is an action that measured nothing reports <code><a href="namespacesg_1_1counters.html#ae4f8d1b86303a8e05962028dbc3b51aaae80ae93ca3e3a2f0af277594318d456a" class="m-doc">Availability::<wbr />GAP</a></code> and a <code><a href="#aee0d979cb406c0c62bae4c39214abcec" class="m-doc">value</a></code> that is not a measurement, so a caller reads the state before the number. A fold whose two end points are both measured reports the state those leaves disclosed, which is <code><a href="namespacesg_1_1counters.html#ae4f8d1b86303a8e05962028dbc3b51aaa36c887d76edf2049177a634a23176b15" class="m-doc">Availability::<wbr />COUNTABLE</a></code> for a leaf the host can count and one of the other enumerators otherwise. A gap anywhere strictly inside the window changes no fold, because the recorded counts are cumulative and a window with two measured end points has an exact delta between them (FR-001, FR-004, FR-005).</p><p><code><a href="#ab59ae510cd3f3e548c351503581f3989" class="m-doc">runningRatio</a></code> is the multiplex disclosure over the window. A window that carries a gap publishes <code>1.0</code> and discloses nothing, because no measured time covers an action that measured no count (FR-005).</p>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              class <a href="classExportedClass.html" class="m-doc">ExportedClass</a>
+            <dt id="aee0d979cb406c0c62bae4c39214abcec">
+              double <a href="#aee0d979cb406c0c62bae4c39214abcec" class="m-doc-self">value</a>
             </dt>
-            <dd>Reports the name of the library.</dd>
+            <dd><span></span></dd>
+            <dt id="ab59ae510cd3f3e548c351503581f3989">
+              double <a href="#ab59ae510cd3f3e548c351503581f3989" class="m-doc-self">runningRatio</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="aa3cc596cb7ae009696665cf174f1864e">
+              <a href="namespacesg_1_1counters.html#ae4f8d1b86303a8e05962028dbc3b51aa" class="m-doc">Availability</a> <a href="#aa3cc596cb7ae009696665cf174f1864e" class="m-doc-self">availability</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="af02873b4913034bb52a4534e54719d86">
+              bool <a href="#af02873b4913034bb52a4534e54719d86" class="m-doc-self">scaled</a>
+            </dt>
+            <dd><span></span></dd>
           </dl>
         </section>
       </div>

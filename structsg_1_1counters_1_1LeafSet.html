@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/speedgun-ng.hpp file | speedgun-ng</title>
+  <title>sg::counters::LeafSet struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,27 +49,43 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>speedgun-ng.hpp <span class="m-thin">file</span>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>LeafSet <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__provider_8hpp.html">&lt;speedgun-ng/counters_provider.hpp&gt;</a></div>
         </h1>
-        <p><span></span></p>
+        <p>The leaves one provider is asked to manage.</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#pub-static-attribs">Public static variables</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+<p>Addresses are canonical leaf spellings, <code>&lt;object path&gt;/&lt;name&gt;</code>, in stable order; <code>readPoints</code> yields one point per address in exactly this order (C-PRO-2).</p><p><code><a href="#a9dec6e88f010c84323758fd582ef2738" class="m-doc">disclosureColumn</a></code> names the managed column the sampling action writes last, beside the counts and the ratio pair&#x27;s two columns, and it is the column no leaf address resolves to. The request that owns the plan&#x27;s last group carries it; every earlier request carries <code><a href="#af458d0792101baf1be6e846970a4fd4d" class="m-doc">kNoDisclosureColumn</a></code>, because a window writes the column once per action (FR-007).</p>
+        <section id="pub-static-attribs">
+          <h2><a href="#pub-static-attribs">Public static variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              class <a href="classExportedClass.html" class="m-doc">ExportedClass</a>
+            <dt id="af458d0792101baf1be6e846970a4fd4d">
+              static std::size_t <a href="#af458d0792101baf1be6e846970a4fd4d" class="m-doc-self">kNoDisclosureColumn</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
-            <dd>Reports the name of the library.</dd>
+            <dd>No request writes the disclosure column (FR-007).</dd>
+          </dl>
+        </section>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
+          <dl class="m-doc">
+            <dt id="aaac33c362410b0e928987df6456a1334">
+              std::vector&lt;std::string&gt; <a href="#aaac33c362410b0e928987df6456a1334" class="m-doc-self">addresses</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a9dec6e88f010c84323758fd582ef2738">
+              std::size_t <a href="#a9dec6e88f010c84323758fd582ef2738" class="m-doc-self">disclosureColumn</a>
+            </dt>
+            <dd><span></span></dd>
           </dl>
         </section>
       </div>

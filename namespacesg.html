@@ -78,7 +78,7 @@
           <h2><a href="#func-members">Functions</a></h2>
           <dl class="m-doc">
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#aedf5c7537c0c6c24ee20af6279309a13" class="m-doc">simulation_start</a>(</span><span class="m-doc-wrap">) -&gt; SPEEDGUN_NG_EXPORT void <span class="m-label m-flat m-success">noexcept</span></span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ad3d06112deede02f7594c60d0b39dc5f" class="m-doc">simulationStart</a>(</span><span class="m-doc-wrap">) -&gt; SPEEDGUN_NG_EXPORT void <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>Emits the marker sequence an attached tracer watches for, so collection begins at this point in the run.</dd>
           </dl>
@@ -87,16 +87,16 @@
           <h2><a href="#var-members">Variables</a></h2>
           <dl class="m-doc">
             <dt>
-              std::uint32_t <a href="#a5a18fe4806eea7a301c86ed0f0040779" class="m-doc">simulation_start_tag</a> <span class="m-label m-flat m-primary">constexpr</span>
+              std::uint32_t <a href="#ae0176430391232fe1fdf558116fc0ceb" class="m-doc">kSimulationStartTag</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd>The tag an attached tracer watches for. The value is <code>0xFACE</code>, and a caller passes it to the tracer as <code>-start_ssc_mark FACE</code> on the tracer&#x27;s command line, written hexadecimal with the most-significant nibble first and no <code>0x</code> prefix.</dd>
           </dl>
         </section>
         <section>
           <h2>Function documentation</h2>
-          <section class="m-doc-details" id="aedf5c7537c0c6c24ee20af6279309a13"><div>
+          <section class="m-doc-details" id="ad3d06112deede02f7594c60d0b39dc5f"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aedf5c7537c0c6c24ee20af6279309a13" class="m-doc-self">simulation_start</a>(</span><span class="m-doc-wrap">) <span class="m-label m-success">noexcept</span></span></span>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad3d06112deede02f7594c60d0b39dc5f" class="m-doc-self">simulationStart</a>(</span><span class="m-doc-wrap">) <span class="m-label m-success">noexcept</span></span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="simulation_8hpp.html">&lt;speedgun-ng/simulation.hpp&gt;</a></div>
             </h3>
             <p>Emits the marker sequence an attached tracer watches for, so collection begins at this point in the run.</p>
@@ -105,9 +105,9 @@
         </section>
         <section>
           <h2>Variable documentation</h2>
-          <section class="m-doc-details" id="a5a18fe4806eea7a301c86ed0f0040779"><div>
+          <section class="m-doc-details" id="ae0176430391232fe1fdf558116fc0ceb"><div>
             <h3>
-              std::uint32_t sg::<wbr /><a href="#a5a18fe4806eea7a301c86ed0f0040779" class="m-doc-self">simulation_start_tag</a> <span class="m-label m-primary">constexpr</span>
+              std::uint32_t sg::<wbr /><a href="#ae0176430391232fe1fdf558116fc0ceb" class="m-doc-self">kSimulationStartTag</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="simulation_8hpp.html">&lt;speedgun-ng/simulation.hpp&gt;</a></div>
             </h3>
             <p>The tag an attached tracer watches for. The value is <code>0xFACE</code>, and a caller passes it to the tracer as <code>-start_ssc_mark FACE</code> on the tracer&#x27;s command line, written hexadecimal with the most-significant nibble first and no <code>0x</code> prefix.</p>

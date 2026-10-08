@@ -66,7 +66,7 @@
             </li>
           </ul>
         </nav>
-<aside class="m-note m-default"><h4>Version</h4><p>0.4.1</p></aside><p>Commit <code>cd5cbd1</code> removed two public declarations, and 0.4.0 records both removals. The removed declarations are the non-member multiplication of an expression by a double, and the provider concept. Both declarations remain absent from the public headers (FR-032). 0.4.1 changes no public signature. <code>SOVERSION</code> stays 1.</p><p>Dimensions live in types and are erased before the point buffer (FR-016). The read path holds no expression tree and no name lookup; a window that installed no thunk pays one vtable lookup per sample (FR-022).</p><section id="cadence"><h2><a href="#cadence">The cadence idiom</a></h2><p>A tight loop pays for every <code>sample()</code>, so the caller chooses a cadence. For a loop of <code>N</code> known iterations sampling every <code>K</code> of them, mint <code>plan::recorder(N / K + 1)</code> and call <code>sample()</code> once per chunk; the extra row holds the endpoint that closes the last chunk. The first sample lands before the work, so the count is <code>N / K + 1</code> exactly.</p><p><code>expression::fold_pairs(recorder)</code> then yields one <code>metric_result</code> per adjacent interval, which is the per-chunk series. A first-to-last <code>fold()</code> answers the single total. A window from <code>i</code> to <code>j</code> costs the sampling actions at both endpoints, and <code>K = 1</code> spends one action per iteration, so an <code>N</code>-iteration window pays <code>N</code> of them. The per-action medians behind those figures are the ones <code><a href="counters-overhead_8md.html" class="m-doc">docs/<wbr />pages/<wbr />counters-overhead.md</a></code> publishes for its reference host. Its release build (<code>-O3 -DNDEBUG</code>, contracts <code>ignore</code>) measures 40 ns for the clock plan&#x27;s one clock read and 70 ns for a two-event-counter plan, one read per group leader per action, so sampling every iteration adds <code>N * 40 ns</code> and <code>N * 70 ns</code> across the window and the two endpoints of one window cost <code>2 * 40 = 80 ns</code> and <code>2 * 70 = 140 ns</code>. Its correctness build (<code>-g</code>, contracts <code>enforce</code>) measures 70 ns and 180 ns for those two plans, so the same arithmetic gives <code>N * 70 ns</code> and <code>N * 180 ns</code> across the window, with 140 ns and 360 ns at the endpoints. The page records the host, the load under it, and the commands, and the page owns the refresh. <code>plan::sample_overhead_ns_median()</code> reports the figure for the plan in hand (FR-032). A benchmark whose measured work is shorter than that reads its own instrumentation, so the cadence must be coarse enough for the work.</p></section><section id="exactness"><h2><a href="#exactness">Numeric exactness</a></h2><p>Points are <code>uint64</code> and deltas subtract modularly at <code>2^64</code>, so a counter wrap subtracts out and a long window stays exact (FR-013). Folds then convert to <code>double</code>, which carries 53 bits of mantissa: a delta above <code>2^53</code> loses its low bits. A count reaches <code>2^53</code> at roughly 9007199 events per nanosecond sustained for one second, so any counter-backed delta is exact on every host this feature targets. A scaled expression, such as a per-iteration rate, can reach the threshold through its scale factor alone; <code>metric_result::scaled</code> reports that the value carries a scale the caller applied.</p></section>
+<aside class="m-note m-default"><h4>Version</h4><p>0.5.0</p></aside><p>Commit <code>cd5cbd1</code> removed two public declarations, and 0.4.0 records both removals. The removed declarations are the non-member multiplication of an expression by a double, and the provider concept. Both declarations remain absent from the public headers (FR-032). 0.4.1 changes no public signature; <code>SOVERSION</code> stayed 1. 0.5.0 renames the whole owned surface, a breaking change on the 0.x line, and the hand-kept <code>SOVERSION</code> moves to 2.</p><p>Dimensions live in types and are erased before the point buffer (FR-016). The read path holds no expression tree and no name lookup; a window that installed no thunk pays one vtable lookup per sample (FR-022).</p><section id="cadence"><h2><a href="#cadence">The cadence idiom</a></h2><p>A tight loop pays for every <code>sample()</code>, so the caller chooses a cadence. For a loop of <code>N</code> known iterations sampling every <code>K</code> of them, mint <code>plan::recorder(N / K + 1)</code> and call <code>sample()</code> once per chunk; the extra row holds the endpoint that closes the last chunk. The first sample lands before the work, so the count is <code>N / K + 1</code> exactly.</p><p><code>expression::foldPairs(recorder)</code> then yields one <code>MetricResult</code> per adjacent interval, which is the per-chunk series. A first-to-last <code>fold()</code> answers the single total. A window from <code>i</code> to <code>j</code> costs the sampling actions at both endpoints, and <code>K = 1</code> spends one action per iteration, so an <code>N</code>-iteration window pays <code>N</code> of them. The per-action medians behind those figures are the ones <code><a href="counters-overhead_8md.html" class="m-doc">docs/<wbr />pages/<wbr />counters-overhead.md</a></code> publishes for its reference host. Its release build (<code>-O3 -DNDEBUG</code>, contracts <code>ignore</code>) measures 40 ns for the clock plan&#x27;s one clock read and 70 ns for a two-event-counter plan, one read per group leader per action, so sampling every iteration adds <code>N * 40 ns</code> and <code>N * 70 ns</code> across the window and the two endpoints of one window cost <code>2 * 40 = 80 ns</code> and <code>2 * 70 = 140 ns</code>. Its correctness build (<code>-g</code>, contracts <code>enforce</code>) measures 70 ns and 180 ns for those two plans, so the same arithmetic gives <code>N * 70 ns</code> and <code>N * 180 ns</code> across the window, with 140 ns and 360 ns at the endpoints. The page records the host, the load under it, and the commands, and the page owns the refresh. <code>plan::sampleOverheadNsMedian()</code> reports the figure for the plan in hand (FR-032). A benchmark whose measured work is shorter than that reads its own instrumentation, so the cadence must be coarse enough for the work.</p></section><section id="exactness"><h2><a href="#exactness">Numeric exactness</a></h2><p>Points are <code>uint64</code> and deltas subtract modularly at <code>2^64</code>, so a counter wrap subtracts out and a long window stays exact (FR-013). Folds then convert to <code>double</code>, which carries 53 bits of mantissa: a delta above <code>2^53</code> loses its low bits. A count reaches <code>2^53</code> at roughly 9007199 events per nanosecond sustained for one second, so any counter-backed delta is exact on every host this feature targets. A scaled expression, such as a per-iteration rate, can reach the threshold through its scale factor alone; <code>MetricResult::scaled</code> reports that the value carries a scale the caller applied.</p></section>
         <section id="namespaces">
           <h2><a href="#namespaces">Namespaces</a></h2>
           <dl class="m-doc">
@@ -82,76 +82,76 @@
           <h2><a href="#nested-classes">Classes</a></h2>
           <dl class="m-doc">
             <dt>
-              struct <a href="structsg_1_1counters_1_1detail_1_1leaf__core.html" class="m-doc">sg::counters::detail::leaf_core</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1LeafCore.html" class="m-doc">sg::counters::detail::LeafCore</a>
             </dt>
             <dd><span></span></dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1detail_1_1expr__node.html" class="m-doc">sg::counters::detail::expr_node</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1ExprNode.html" class="m-doc">sg::counters::detail::ExprNode</a>
             </dt>
             <dd><span></span></dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">sg::counters::detail::expr_core</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">sg::counters::detail::ExprCore</a>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;class T, template&lt;class...&gt; class Primary&gt;</div>
-              struct <a href="structsg_1_1counters_1_1detail_1_1is__specialization__of.html" class="m-doc">sg::counters::detail::is_specialization_of</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1IsSpecializationOf.html" class="m-doc">sg::counters::detail::IsSpecializationOf</a>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;template&lt;class...&gt; class Primary, class... Args&gt;</div>
-              struct <a href="structsg_1_1counters_1_1detail_1_1is__specialization__of_3_01Primary_3_01Args_8_8_8_01_4_00_01Primary_01_4.html" class="m-doc">sg::counters::detail::is_specialization_of&lt;Primary&lt;Args...&gt;, Primary&gt;</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1IsSpecializationOf_3_01Primary_3_01Args_8_8_8_01_4_00_01Primary_01_4.html" class="m-doc">sg::counters::detail::IsSpecializationOf&lt;Primary&lt;Args...&gt;, Primary&gt;</a>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;class D&gt;</div>
-              class <a href="classsg_1_1counters_1_1counter.html" class="m-doc">sg::counters::counter</a>
+              class <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">sg::counters::Counter</a>
             </dt>
             <dd>A resolved leaf handle: slot identity, catalog metadata, and the compile-time dimension tag (E-05).</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1push__counter.html" class="m-doc">sg::counters::push_counter</a>
+              class <a href="classsg_1_1counters_1_1PushCounter.html" class="m-doc">sg::counters::PushCounter</a>
             </dt>
             <dd>Hot-path handle of a push counter: a plain, non-atomic <code>uint64</code> increment on the creating thread, sampled by plain load (FR-035, R-008).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">sg::counters::recorder_api</a>
+              struct <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">sg::counters::RecorderApi</a>
             </dt>
             <dd>The recorded-window view a fold reads (FR-018): the compiled layout pointer, the point columns, and the bookkeeping a fold consults (extent, wrap, drops).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1points__view.html" class="m-doc">sg::counters::points_view</a>
+              struct <a href="structsg_1_1counters_1_1PointsView.html" class="m-doc">sg::counters::PointsView</a>
             </dt>
             <dd>The raw per-leaf provenance view of a composite (FR-020, E-10): catalog facts, the raw point column, point identity, and the multiplex ratio.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">sg::counters::hard_stop_t</a>
+              struct <a href="structsg_1_1counters_1_1HardStop.html" class="m-doc">sg::counters::HardStop</a>
             </dt>
             <dd>Overflow policy tag: a sample past capacity is a violation (FR-025). The default policy.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">sg::counters::ring_t</a>
+              struct <a href="structsg_1_1counters_1_1Ring.html" class="m-doc">sg::counters::Ring</a>
             </dt>
             <dd>Overflow policy tag: writes mask into the ring, drop with accounting (FR-025, FR-028).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class P&gt;</div>
-              class <a href="classsg_1_1counters_1_1recorder__handle.html" class="m-doc">sg::counters::recorder_handle</a>
+              class <a href="classsg_1_1counters_1_1RecorderHandle.html" class="m-doc">sg::counters::RecorderHandle</a>
             </dt>
-            <dd>The recorder value handle (E-08, FR-029): a trivially copyable cursor over one plan-arena buffer of <code><a href="classsg_1_1counters_1_1recorder__handle.html#a6a7be82b1e8eae14f1b953b0856c16c3" class="m-doc">capacity</a></code> point columns, one per compiled leaf. <code>P</code> is the overflow policy tag: <code><a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a></code> or <code><a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_<wbr />t</a></code>, chosen by the plan factory (FR-025). The plan owns the buffer; the plan outlives its recorders.</dd>
+            <dd>The recorder value handle (E-08, FR-029): a trivially copyable cursor over one plan-arena buffer of <code><a href="classsg_1_1counters_1_1RecorderHandle.html#aa962120a76f7a9d50592cda461112812" class="m-doc">capacity</a></code> point columns, one per compiled leaf. <code>P</code> is the overflow policy tag: <code><a href="structsg_1_1counters_1_1HardStop.html" class="m-doc">HardStop</a></code> or <code><a href="structsg_1_1counters_1_1Ring.html" class="m-doc">Ring</a></code>, chosen by the plan factory (FR-025). The plan owns the buffer; the plan outlives its recorders.</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D&gt;</div>
-              class <a href="classsg_1_1counters_1_1expression.html" class="m-doc">sg::counters::expression</a>
+              class <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">sg::counters::Expression</a>
             </dt>
             <dd>A typed composition of resolved leaves (E-05).</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1plan.html" class="m-doc">sg::counters::plan</a>
+              class <a href="classsg_1_1counters_1_1Plan.html" class="m-doc">sg::counters::Plan</a>
             </dt>
             <dd>The compiled read plan (E-07): flat leaf slots, per-provider read groups, arena geometry, and the per-thread binding.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1scope.html" class="m-doc">sg::counters::scope</a>
+              class <a href="classsg_1_1counters_1_1Scope.html" class="m-doc">sg::counters::Scope</a>
             </dt>
-            <dd>Exactly a two-point recorder (FR-030): <code><a href="classsg_1_1counters_1_1scope.html#a0444ef7705562690a4ea3b2eb8f1650f" class="m-doc">start()</a></code> samples point zero, <code><a href="classsg_1_1counters_1_1scope.html#ade0cb683de26176697feeec6216429b8" class="m-doc">finish()</a></code> samples point one, and <code>metric(expr)</code> folds the window. One semantics, two spellings with the recorder.</dd>
+            <dd>Exactly a two-point recorder (FR-030): <code><a href="classsg_1_1counters_1_1Scope.html#a0ff5cf2bd43a207b3819a384fc670a2a" class="m-doc">start()</a></code> samples point zero, <code><a href="classsg_1_1counters_1_1Scope.html#acba1e876b1237f19be14fdab10ccc8d4" class="m-doc">finish()</a></code> samples point one, and <code>metric(expr)</code> folds the window. One semantics, two spellings with the recorder.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1fanout__result.html" class="m-doc">sg::counters::fanout_result</a>
+              struct <a href="structsg_1_1counters_1_1FanoutResult.html" class="m-doc">sg::counters::FanoutResult</a>
             </dt>
             <dd>One object&#x27;s result of a fan-out fold (SC-007): the canonical path and the metric over that object&#x27;s instantiated leaves.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1fanout__plan.html" class="m-doc">sg::counters::fanout_plan</a>
+              class <a href="classsg_1_1counters_1_1FanoutPlan.html" class="m-doc">sg::counters::FanoutPlan</a>
             </dt>
             <dd>A fan-out plan (US3 scenario 5, SC-007): the exemplar expression instantiated per selected object; every instantiated leaf is read inside each shared sampling action (FR-047). Move-only; the plan owns the layout and the recorder arenas.</dd>
           </dl>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/speedgun-ng.hpp file | speedgun-ng</title>
+  <title>sg::counters::Dim struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,27 +49,34 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>speedgun-ng.hpp <span class="m-thin">file</span>
+          <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
+          <div class="m-doc-template">template&lt;int T, int C&gt;</div>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>Dim <span class="m-thin">struct</span>
         </h1>
-        <p><span></span></p>
+        <p>Compile-time dimension tag: time^T x events^C.</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#pub-static-attribs">Public static variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+<p>The pair of integer exponents is the whole tag. Tags live in types and never reach the recorded point columns (FR-015, FR-016).</p>
+        <section id="pub-static-attribs">
+          <h2><a href="#pub-static-attribs">Public static variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              class <a href="classExportedClass.html" class="m-doc">ExportedClass</a>
+            <dt id="af7c375dbd94b0d176c6f8e3627d2007f">
+              static int <a href="#af7c375dbd94b0d176c6f8e3627d2007f" class="m-doc-self">kTimeExponent</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
-            <dd>Reports the name of the library.</dd>
+            <dd><span></span></dd>
+            <dt id="afdea07160a8911c9fb1db651d071a593">
+              static int <a href="#afdea07160a8911c9fb1db651d071a593" class="m-doc-self">kEventsExponent</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
           </dl>
         </section>
       </div>

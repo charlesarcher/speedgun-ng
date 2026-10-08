@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/speedgun-ng.hpp file | speedgun-ng</title>
+  <title>sg::counters::CatalogEntry struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,27 +49,57 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>speedgun-ng.hpp <span class="m-thin">file</span>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>CatalogEntry <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
         </h1>
-        <p><span></span></p>
+        <p>One named counter on one object, as the catalog reports it (FR-005, E-03).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+<p>Views into provider-owned or system-owned storage; catalog strings are immutable once the system is open (FR-009). <code><a href="#af3113b932900f23b9fa886b675b8f8df" class="m-doc">avail</a></code> and <code><a href="#ad925e0ae6c75d5adbe683259fab0078c" class="m-doc">targets</a></code> agree: a state of <code>countable</code> names at least one target bit, and every other state names none (FR-021).</p>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              class <a href="classExportedClass.html" class="m-doc">ExportedClass</a>
+            <dt id="a00ca57f9945106a29e1bbe0c045db7ef">
+              std::string_view <a href="#a00ca57f9945106a29e1bbe0c045db7ef" class="m-doc-self">name</a>
             </dt>
-            <dd>Reports the name of the library.</dd>
+            <dd><span></span></dd>
+            <dt id="a367c3243d73b67fe14741927e05362ea">
+              std::string_view <a href="#a367c3243d73b67fe14741927e05362ea" class="m-doc-self">description</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a35ad717204d28406f4f15f130b14a6d9">
+              <a href="namespacesg_1_1counters.html#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">sg::<wbr />counters::<wbr />Unit</a> <a href="#a35ad717204d28406f4f15f130b14a6d9" class="m-doc-self">unit</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="af3113b932900f23b9fa886b675b8f8df">
+              <a href="namespacesg_1_1counters.html#ae4f8d1b86303a8e05962028dbc3b51aa" class="m-doc">Availability</a> <a href="#af3113b932900f23b9fa886b675b8f8df" class="m-doc-self">avail</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a77ee44941db8317a1817a2f3f70304ba">
+              <a href="namespacesg_1_1counters.html#a35e21455ba0ee51dfac91a6b3f6503d2" class="m-doc">ReadMode</a> <a href="#a77ee44941db8317a1817a2f3f70304ba" class="m-doc-self">mode</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ad925e0ae6c75d5adbe683259fab0078c">
+              <a href="namespacesg_1_1counters.html#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a> <a href="#ad925e0ae6c75d5adbe683259fab0078c" class="m-doc-self">targets</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ada55c41b3e8d513fed3510b84b5291f5">
+              std::uint64_t <a href="#ada55c41b3e8d513fed3510b84b5291f5" class="m-doc-self">frequencyHz</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a5117256a14235d7fde50344df0372305">
+              bool <a href="#a5117256a14235d7fde50344df0372305" class="m-doc-self">scaled</a>
+            </dt>
+            <dd><span></span></dd>
           </dl>
         </section>
       </div>

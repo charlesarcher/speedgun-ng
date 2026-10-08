@@ -79,139 +79,139 @@
           <h2><a href="#nested-classes">Classes</a></h2>
           <dl class="m-doc">
             <dt>
-              class <a href="classsg_1_1counters_1_1clock__provider.html" class="m-doc">clock_provider</a>
+              class <a href="classsg_1_1counters_1_1ClockProvider.html" class="m-doc">ClockProvider</a>
             </dt>
             <dd>The shipped clock provider: always countable, zero privileges (FR-033, R-007).</dd>
             <dt>
               <div class="m-doc-template">template&lt;int T, int C&gt;</div>
-              struct <a href="structsg_1_1counters_1_1dim.html" class="m-doc">dim</a>
+              struct <a href="structsg_1_1counters_1_1Dim.html" class="m-doc">Dim</a>
             </dt>
             <dd>Compile-time dimension tag: time^T x events^C.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>
+              struct <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>
             </dt>
             <dd>Tier-2 recoverable error: names the failing input and carries near-miss suggestions (FR-008).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1dimension.html" class="m-doc">dimension</a>
+              struct <a href="structsg_1_1counters_1_1Dimension.html" class="m-doc">Dimension</a>
             </dt>
-            <dd>Runtime mirror of a <code><a href="structsg_1_1counters_1_1dim.html" class="m-doc">dim</a></code> tag: the exponent pair as data, used where a dimension travels as a value (catalog resolution, FR-017).</dd>
+            <dd>Runtime mirror of a <code><a href="structsg_1_1counters_1_1Dim.html" class="m-doc">Dim</a></code> tag: the exponent pair as data, used where a dimension travels as a value (catalog resolution, FR-017).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1catalog__entry.html" class="m-doc">catalog_entry</a>
+              struct <a href="structsg_1_1counters_1_1CatalogEntry.html" class="m-doc">CatalogEntry</a>
             </dt>
             <dd>One named counter on one object, as the catalog reports it (FR-005, E-03).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1metric__result.html" class="m-doc">metric_result</a>
+              struct <a href="structsg_1_1counters_1_1MetricResult.html" class="m-doc">MetricResult</a>
             </dt>
             <dd>The fold output: value, running-ratio disclosure, the availability the window discloses, and the scaled flag. The fields are members of the returned struct, so omitting the disclosure is structurally impossible (FR-019).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1fake__script.html" class="m-doc">fake_script</a>
+              struct <a href="structsg_1_1counters_1_1FakeScript.html" class="m-doc">FakeScript</a>
             </dt>
             <dd>One scripted leaf: an explicit point sequence, optionally followed by a per-sample tail (FR-036, T014).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1fake__counter__data.html" class="m-doc">fake_counter_data</a>
+              struct <a href="structsg_1_1counters_1_1FakeCounterData.html" class="m-doc">FakeCounterData</a>
             </dt>
             <dd>One scripted counter: catalog metadata, script, and playback position.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1fake__provider.html" class="m-doc">fake_provider</a>
+              class <a href="classsg_1_1counters_1_1FakeProvider.html" class="m-doc">FakeProvider</a>
             </dt>
             <dd>The scripted provider (FR-036).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D&gt;</div>
-              class <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>
+              class <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>
             </dt>
             <dd>A resolved leaf handle: slot identity, catalog metadata, and the compile-time dimension tag (E-05).</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1push__counter.html" class="m-doc">push_counter</a>
+              class <a href="classsg_1_1counters_1_1PushCounter.html" class="m-doc">PushCounter</a>
             </dt>
             <dd>Hot-path handle of a push counter: a plain, non-atomic <code>uint64</code> increment on the creating thread, sampled by plain load (FR-035, R-008).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_api</a>
+              struct <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>
             </dt>
             <dd>The recorded-window view a fold reads (FR-018): the compiled layout pointer, the point columns, and the bookkeeping a fold consults (extent, wrap, drops).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1points__view.html" class="m-doc">points_view</a>
+              struct <a href="structsg_1_1counters_1_1PointsView.html" class="m-doc">PointsView</a>
             </dt>
             <dd>The raw per-leaf provenance view of a composite (FR-020, E-10): catalog facts, the raw point column, point identity, and the multiplex ratio.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_stop_t</a>
+              struct <a href="structsg_1_1counters_1_1HardStop.html" class="m-doc">HardStop</a>
             </dt>
             <dd>Overflow policy tag: a sample past capacity is a violation (FR-025). The default policy.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_t</a>
+              struct <a href="structsg_1_1counters_1_1Ring.html" class="m-doc">Ring</a>
             </dt>
             <dd>Overflow policy tag: writes mask into the ring, drop with accounting (FR-025, FR-028).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class P&gt;</div>
-              class <a href="classsg_1_1counters_1_1recorder__handle.html" class="m-doc">recorder_handle</a>
+              class <a href="classsg_1_1counters_1_1RecorderHandle.html" class="m-doc">RecorderHandle</a>
             </dt>
-            <dd>The recorder value handle (E-08, FR-029): a trivially copyable cursor over one plan-arena buffer of <code><a href="classsg_1_1counters_1_1recorder__handle.html#a6a7be82b1e8eae14f1b953b0856c16c3" class="m-doc">capacity</a></code> point columns, one per compiled leaf. <code>P</code> is the overflow policy tag: <code><a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a></code> or <code><a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_<wbr />t</a></code>, chosen by the plan factory (FR-025). The plan owns the buffer; the plan outlives its recorders.</dd>
+            <dd>The recorder value handle (E-08, FR-029): a trivially copyable cursor over one plan-arena buffer of <code><a href="classsg_1_1counters_1_1RecorderHandle.html#aa962120a76f7a9d50592cda461112812" class="m-doc">capacity</a></code> point columns, one per compiled leaf. <code>P</code> is the overflow policy tag: <code><a href="structsg_1_1counters_1_1HardStop.html" class="m-doc">HardStop</a></code> or <code><a href="structsg_1_1counters_1_1Ring.html" class="m-doc">Ring</a></code>, chosen by the plan factory (FR-025). The plan owns the buffer; the plan outlives its recorders.</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D&gt;</div>
-              class <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>
+              class <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>
             </dt>
             <dd>A typed composition of resolved leaves (E-05).</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1plan.html" class="m-doc">plan</a>
+              class <a href="classsg_1_1counters_1_1Plan.html" class="m-doc">Plan</a>
             </dt>
             <dd>The compiled read plan (E-07): flat leaf slots, per-provider read groups, arena geometry, and the per-thread binding.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1scope.html" class="m-doc">scope</a>
+              class <a href="classsg_1_1counters_1_1Scope.html" class="m-doc">Scope</a>
             </dt>
-            <dd>Exactly a two-point recorder (FR-030): <code><a href="classsg_1_1counters_1_1scope.html#a0444ef7705562690a4ea3b2eb8f1650f" class="m-doc">start()</a></code> samples point zero, <code><a href="classsg_1_1counters_1_1scope.html#ade0cb683de26176697feeec6216429b8" class="m-doc">finish()</a></code> samples point one, and <code>metric(expr)</code> folds the window. One semantics, two spellings with the recorder.</dd>
+            <dd>Exactly a two-point recorder (FR-030): <code><a href="classsg_1_1counters_1_1Scope.html#a0ff5cf2bd43a207b3819a384fc670a2a" class="m-doc">start()</a></code> samples point zero, <code><a href="classsg_1_1counters_1_1Scope.html#acba1e876b1237f19be14fdab10ccc8d4" class="m-doc">finish()</a></code> samples point one, and <code>metric(expr)</code> folds the window. One semantics, two spellings with the recorder.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1fanout__result.html" class="m-doc">fanout_result</a>
+              struct <a href="structsg_1_1counters_1_1FanoutResult.html" class="m-doc">FanoutResult</a>
             </dt>
             <dd>One object&#x27;s result of a fan-out fold (SC-007): the canonical path and the metric over that object&#x27;s instantiated leaves.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1fanout__plan.html" class="m-doc">fanout_plan</a>
+              class <a href="classsg_1_1counters_1_1FanoutPlan.html" class="m-doc">FanoutPlan</a>
             </dt>
             <dd>A fan-out plan (US3 scenario 5, SC-007): the exemplar expression instantiated per selected object; every instantiated leaf is read inside each shared sampling action (FR-047). Move-only; the plan owns the layout and the recorder arenas.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1pmu__provider.html" class="m-doc">pmu_provider</a>
+              class <a href="classsg_1_1counters_1_1PmuProvider.html" class="m-doc">PmuProvider</a>
             </dt>
             <dd>The hardware event provider: the rich catalog and its probed availability (FR-037..FR-041).</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1catalog__seed.html" class="m-doc">catalog_seed</a>
+              struct <a href="structsg_1_1counters_1_1CatalogSeed.html" class="m-doc">CatalogSeed</a>
             </dt>
             <dd>One catalog entry as a provider seeds it.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1object__seed.html" class="m-doc">object_seed</a>
+              struct <a href="structsg_1_1counters_1_1ObjectSeed.html" class="m-doc">ObjectSeed</a>
             </dt>
             <dd>One countable object as a provider seeds it, with its entries.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1object__sink.html" class="m-doc">object_sink</a>
+              class <a href="classsg_1_1counters_1_1ObjectSink.html" class="m-doc">ObjectSink</a>
             </dt>
             <dd>Receiver for provider enumeration at registration time.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1leaf__set.html" class="m-doc">leaf_set</a>
+              struct <a href="structsg_1_1counters_1_1LeafSet.html" class="m-doc">LeafSet</a>
             </dt>
             <dd>The leaves one provider is asked to manage.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1target.html" class="m-doc">target</a>
+              struct <a href="structsg_1_1counters_1_1Target.html" class="m-doc">Target</a>
             </dt>
             <dd>Sampling target handed to a provider at open (FR-031).</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1point__sink.html" class="m-doc">point_sink</a>
+              class <a href="classsg_1_1counters_1_1PointSink.html" class="m-doc">PointSink</a>
             </dt>
             <dd>The per-action write cursor a provider fills.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1window__reader.html" class="m-doc">window_reader</a>
+              class <a href="classsg_1_1counters_1_1WindowReader.html" class="m-doc">WindowReader</a>
             </dt>
             <dd>The sampling primitive a provider implements for one open window.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1provider__iface.html" class="m-doc">provider_iface</a>
+              class <a href="classsg_1_1counters_1_1ProviderIface.html" class="m-doc">ProviderIface</a>
             </dt>
             <dd>The registration base every provider derives from.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1push__provider.html" class="m-doc">push_provider</a>
+              class <a href="classsg_1_1counters_1_1PushProvider.html" class="m-doc">PushProvider</a>
             </dt>
             <dd>The shipped push provider: declared counters are ordinary machine-object entries at push read mode (FR-035).</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a>
+              class <a href="classsg_1_1counters_1_1Object.html" class="m-doc">Object</a>
             </dt>
             <dd>One countable object in the system tree (E-02).</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>
+              class <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>
             </dt>
             <dd>The root handle to the local machine&#x27;s counting world (E-01).</dd>
           </dl>
@@ -220,32 +220,32 @@
           <h2><a href="#enum-members">Enums</a></h2>
           <dl class="m-doc">
             <dt>
-              <span class="m-doc-wrap-bumper">enum class <a href="#ab0c129dec78e6f3044e9b12adac7fb61" class="m-doc">unit</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ab0c129dec78e6f3044e9b12adac7fb61a783e8e29e6a8c3e22baa58a19420eb4f" class="m-doc">seconds</a>,
-              <a href="#ab0c129dec78e6f3044e9b12adac7fb61a092070dba8c01560ba67cdb9ae01ae46" class="m-doc">nanoseconds</a>,
-              <a href="#ab0c129dec78e6f3044e9b12adac7fb61a4b3a6218bb3e3a7303e8a171a60fcf92" class="m-doc">bytes</a>,
-              <a href="#ab0c129dec78e6f3044e9b12adac7fb61ae847897826ceb8346eb5141f8c23436a" class="m-doc">ops</a>,
-              <a href="#ab0c129dec78e6f3044e9b12adac7fb61a334c4a4c42fdb79d7ebc3e73b517e6f8" class="m-doc">none</a> }</span>
+              <span class="m-doc-wrap-bumper">enum class <a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">Unit</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ad98116374d6a4fb0018dca88dcb93564aa9126caa6ef3db9cf3c35ac627ad22b5" class="m-doc">SECONDS</a>,
+              <a href="#ad98116374d6a4fb0018dca88dcb93564a5b3b43ddfdecac6712fd1dbc20798e6b" class="m-doc">NANOSECONDS</a>,
+              <a href="#ad98116374d6a4fb0018dca88dcb93564a9f1908a641ea399fd2e76f0905c88fcf" class="m-doc">BYTES</a>,
+              <a href="#ad98116374d6a4fb0018dca88dcb93564a76f74a94597f51a32c4ffd1c588ade8d" class="m-doc">OPS</a>,
+              <a href="#ad98116374d6a4fb0018dca88dcb93564ab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a> }</span>
             </dt>
             <dd>The recognized catalog units. The mapping from unit tokens to this enumeration, and from here to a dimension, is a closed switch: an unrecognized token is a resolution error naming the token and is never guessed (FR-017).</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">enum class <a href="#a5546738d604fd359a329e3833335b618" class="m-doc">availability</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a5546738d604fd359a329e3833335b618a144e3430ea7f3a4c147ab8b5f5fc8b43" class="m-doc">countable</a>,
-              <a href="#a5546738d604fd359a329e3833335b618a01a2386c207fa705fd0631dc9c8bfaba" class="m-doc">permission_blocked</a>,
-              <a href="#a5546738d604fd359a329e3833335b618aba8d69341a9b0af1e8db58a76ed0744a" class="m-doc">not_encodable</a>,
-              <a href="#a5546738d604fd359a329e3833335b618ae5671794bf87ebab2a0d5e0ded530e68" class="m-doc">absent</a>,
-              <a href="#a5546738d604fd359a329e3833335b618a85af19b6ab7556b3fa75032104bd8cbe" class="m-doc">scope_refused</a>,
-              <a href="#a5546738d604fd359a329e3833335b618adf9bcbd6578a1e49c06b7ec2874f9e23" class="m-doc">gap</a> }</span>
+              <span class="m-doc-wrap-bumper">enum class <a href="#ae4f8d1b86303a8e05962028dbc3b51aa" class="m-doc">Availability</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ae4f8d1b86303a8e05962028dbc3b51aaa36c887d76edf2049177a634a23176b15" class="m-doc">COUNTABLE</a>,
+              <a href="#ae4f8d1b86303a8e05962028dbc3b51aaaf6c6a64b74911f2058253c09b7d10a0c" class="m-doc">PERMISSION_BLOCKED</a>,
+              <a href="#ae4f8d1b86303a8e05962028dbc3b51aaadacd9bb460d54d09216283385e6b49a4" class="m-doc">NOT_ENCODABLE</a>,
+              <a href="#ae4f8d1b86303a8e05962028dbc3b51aaab2f1a4a4f2ef254af6be776168da6e6d" class="m-doc">ABSENT</a>,
+              <a href="#ae4f8d1b86303a8e05962028dbc3b51aaadc7c804869244bc53d57a8263015d295" class="m-doc">SCOPE_REFUSED</a>,
+              <a href="#ae4f8d1b86303a8e05962028dbc3b51aaae80ae93ca3e3a2f0af277594318d456a" class="m-doc">GAP</a> }</span>
             </dt>
             <dd>Per-entry catalog state: described-ness and countability are separate predicates carried by the state name (FR-006).</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">enum class <a href="#afeebde13e398eedd49f888523fbd575a" class="m-doc">read_mode</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#afeebde13e398eedd49f888523fbd575aa3ce4fe0fb01a2193714d65603c3ebe46" class="m-doc">fast_tsc</a>,
-              <a href="#afeebde13e398eedd49f888523fbd575aa84a1dff37c2197b7b8134811d8753f26" class="m-doc">fast_rdpmc</a>,
-              <a href="#afeebde13e398eedd49f888523fbd575aa620d9e52985d394f7b1a12db6b2d4e56" class="m-doc">syscall</a>,
-              <a href="#afeebde13e398eedd49f888523fbd575aa16e81b24fc5619c26ca8a0700d8587cc" class="m-doc">push_load</a> }</span>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a35e21455ba0ee51dfac91a6b3f6503d2" class="m-doc">ReadMode</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a35e21455ba0ee51dfac91a6b3f6503d2a8d41830ccd02431747d48381a57e2ffb" class="m-doc">FAST_TSC</a>,
+              <a href="#a35e21455ba0ee51dfac91a6b3f6503d2a002abd805140843fc96c626db1d34f3e" class="m-doc">FAST_RDPMC</a>,
+              <a href="#a35e21455ba0ee51dfac91a6b3f6503d2a45f1e61f22cb04eb7a6a39016b56db9b" class="m-doc">SYSCALL</a>,
+              <a href="#a35e21455ba0ee51dfac91a6b3f6503d2ad58c2543841f87cd9237366e583f0a69" class="m-doc">PUSH_LOAD</a> }</span>
             </dt>
             <dd>The achieved read mechanism for a leaf, probed during provider enumeration before the catalog freezes at the open boundary, and disclosed per catalog entry (FR-023).</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">enum class <a href="#af74049bfa37f03b5345fbc78d75e177a" class="m-doc">target_kind</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#af74049bfa37f03b5345fbc78d75e177aadc127f5d2483352fd20eaddb38feb6d2" class="m-doc">thread</a>,
-              <a href="#af74049bfa37f03b5345fbc78d75e177aad9747e2da342bdb995f6389533ad1a3d" class="m-doc">cpu</a> }</span>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a56bb795bd3571af03570db84e9e982cb" class="m-doc">TargetKind</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a56bb795bd3571af03570db84e9e982cba57f8b9e1bf05e9058d703c68ac2d53b0" class="m-doc">THREAD</a>,
+              <a href="#a56bb795bd3571af03570db84e9e982cba2b55387dd066c5bac646ac61543d152d" class="m-doc">CPU</a> }</span>
             </dt>
             <dd>What a plan samples on: the current thread, or a pinned cpu.</dd>
           </dl>
@@ -255,96 +255,96 @@
           <dl class="m-doc">
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              using <a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_quotient</a> = <a href="structsg_1_1counters_1_1dim.html" class="m-doc">dim</a>&lt;D1::time_exponent - D2::time_exponent, D1::events_exponent - D2::events_exponent&gt;
+              using <a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a> = <a href="structsg_1_1counters_1_1Dim.html" class="m-doc">Dim</a>&lt;D1::kTimeExponent - D2::kTimeExponent, D1::kEventsExponent - D2::kEventsExponent&gt;
             </dt>
             <dd>The quotient tag: exponents subtract (FR-015).</dd>
             <dt>
-              using <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_mask</a> = std::uint32_t
+              using <a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a> = std::uint32_t
             </dt>
-            <dd>The target kinds one entry can be counted on, as a fixed-size bitmask over <code><a href="#af74049bfa37f03b5345fbc78d75e177a" class="m-doc">target_<wbr />kind</a></code> (FR-021).</dd>
+            <dd>The target kinds one entry can be counted on, as a fixed-size bitmask over <code><a href="#a56bb795bd3571af03570db84e9e982cb" class="m-doc">TargetKind</a></code> (FR-021).</dd>
           </dl>
         </section>
         <section id="func-members">
           <h2><a href="#func-members">Functions</a></h2>
           <dl class="m-doc">
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a8468b14154435ac91db6620127c87fc2" class="m-doc">unit_from_token</a>(</span><span class="m-doc-wrap">const std::string_view token) -&gt; std::expected&lt;<a href="#ab0c129dec78e6f3044e9b12adac7fb61" class="m-doc">unit</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a6a5282557feeebe470d30b244fdc9fcf" class="m-doc">unitFromToken</a>(</span><span class="m-doc-wrap">const std::string_view token) -&gt; std::expected&lt;<a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">Unit</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt;</span>
             </dt>
             <dd>Maps a provider unit token through the closed switch to a recognized unit.</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a9bfc07ad5aeded172b560094688b06a6" class="m-doc">dimension_of</a>(</span><span class="m-doc-wrap">const <a href="#ab0c129dec78e6f3044e9b12adac7fb61" class="m-doc">unit</a> value) -&gt; std::expected&lt;<a href="structsg_1_1counters_1_1dimension.html" class="m-doc">dimension</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#acd18d21cd8647d055243092a2f2f32b2" class="m-doc">dimensionOf</a>(</span><span class="m-doc-wrap">const <a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">Unit</a> value) -&gt; std::expected&lt;<a href="structsg_1_1counters_1_1Dimension.html" class="m-doc">Dimension</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt;</span>
             </dt>
             <dd>Maps a recognized unit to its dimension (FR-017).</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#ac336ab8aaea083c7aeec5d86a307e9a4" class="m-doc">unit_name</a>(</span><span class="m-doc-wrap">const <a href="#ab0c129dec78e6f3044e9b12adac7fb61" class="m-doc">unit</a> value) -&gt; std::string_view</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ada29169a47641491e24fb7c5fbb0b07d" class="m-doc">unitName</a>(</span><span class="m-doc-wrap">const <a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">Unit</a> value) -&gt; std::string_view</span>
             </dt>
             <dd>The canonical token spelling of a recognized unit.</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#aca70b366f300bbd7ba926d579b9b6986" class="m-doc">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;<a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_<wbr />quotient</a>&lt;D1, D2&gt;&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ad7aa78cbfc2967d4d049539f8e61531a" class="m-doc">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;<a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a>&lt;D1, D2&gt;&gt;</span>
             </dt>
             <dd>Cross-dimension division: exponents subtract (FR-015).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#a2cd55b31902bf154419df60557adc668" class="m-doc">operator+</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a5395f0350e42a338da37348c6b7bb7ca" class="m-doc">operator+</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;</span>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#ac3bc5aae789b7fa7a2e40e5f3b3e2152" class="m-doc">operator-</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ad5f1abc6cf4f721c29768cd1edaa3438" class="m-doc">operator-</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;</span>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#a3485346905d703b822021e244338d078" class="m-doc">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;<a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_<wbr />quotient</a>&lt;D1, D2&gt;&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a72c916ca4bc1d2e19bf48d517753b28b" class="m-doc">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;<a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a>&lt;D1, D2&gt;&gt;</span>
             </dt>
             <dd>Divides two resolved counters (FR-015).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#ac4f0ec25b22038aa6f19762ee986b8ce" class="m-doc">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;<a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_<wbr />quotient</a>&lt;D1, D2&gt;&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a6f985ac1bbe5782f1924e71080986199" class="m-doc">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;<a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a>&lt;D1, D2&gt;&gt;</span>
             </dt>
             <dd>Divides an expression by a resolved counter (FR-015).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#a5c926420166fa118f1d63deac1e62592" class="m-doc">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;<a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_<wbr />quotient</a>&lt;D1, D2&gt;&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ab091d24d0ac70bf70bbb0b2f93226af5" class="m-doc">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;<a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a>&lt;D1, D2&gt;&gt;</span>
             </dt>
             <dd>Divides a resolved counter by an expression (FR-015).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#a004d9d1bc35060da2f189e3cf64979c7" class="m-doc">operator+</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a2edcb22afbcaf05ab8fbc8f972b34f2b" class="m-doc">operator+</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;</span>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#a9f506114baa426c065576ccd238bd80a" class="m-doc">operator-</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac5ffd5407781c8a365310a03c389ee7c" class="m-doc">operator-</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D2&gt;&amp; b) -&gt; <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;</span>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;class... E&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#ac81a3f2202d54571b13cd330abf9d5af" class="m-doc">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const E&amp;... exprs) -&gt; std::expected&lt;<a href="classsg_1_1counters_1_1plan.html" class="m-doc">plan</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a7c2a0e306675d5fbb96e2ac21299eca2" class="m-doc">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const E&amp;... exprs) -&gt; std::expected&lt;<a href="classsg_1_1counters_1_1Plan.html" class="m-doc">Plan</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt;</span>
             </dt>
             <dd>Compiles expressions into a plan (FR-021, FR-022): name resolution through the system tree, dimension checking, group layout, and arena geometry, once in the untimed region. The read mode each leaf opens through is the one the enumeration-time probe recorded and the catalog disclosed before that open boundary (FR-023). Zero hardware reads (FR-021).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class... E&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#a556d2dc9d0ce6961cc455978652e70b9" class="m-doc">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const <a href="structsg_1_1counters_1_1target.html" class="m-doc">target</a>&amp; tg,
-              const E&amp;... exprs) -&gt; std::expected&lt;<a href="classsg_1_1counters_1_1plan.html" class="m-doc">plan</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ad4452a5a13804c06ec0192dc7f5bf9dd" class="m-doc">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const <a href="structsg_1_1counters_1_1Target.html" class="m-doc">Target</a>&amp; tg,
+              const E&amp;... exprs) -&gt; std::expected&lt;<a href="classsg_1_1counters_1_1Plan.html" class="m-doc">Plan</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt;</span>
             </dt>
             <dd>Compiles expressions into a plan bound to a target.</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D&gt;</div>
-              <span class="m-doc-wrap-bumper">auto <a href="#a5717da31acdf7b16e02d48b3b5302b4f" class="m-doc">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D&gt;&amp; expr,
-              const std::vector&lt;const <a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a>*&gt;&amp; selection) -&gt; std::expected&lt;<a href="classsg_1_1counters_1_1fanout__plan.html" class="m-doc">fanout_<wbr />plan</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt;</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#aaa7b5f5136d6ca8f07635a100faf4b08" class="m-doc">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D&gt;&amp; expr,
+              const std::vector&lt;const <a href="classsg_1_1counters_1_1Object.html" class="m-doc">Object</a>*&gt;&amp; selection) -&gt; std::expected&lt;<a href="classsg_1_1counters_1_1FanoutPlan.html" class="m-doc">FanoutPlan</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt;</span>
             </dt>
             <dd>Compiles one fan-out plan: the exemplar expression instantiated at every selected object, all leaves read within one sampling action (FR-047, US3 scenario 5). An empty selection, a duplicate selection entry, or a leaf missing on a selected object is a recoverable construction error (FR-024).</dd>
           </dl>
@@ -354,54 +354,54 @@
           <dl class="m-doc">
             <dt>
               <div class="m-doc-template">template&lt;class D1, class D2&gt;</div>
-              bool <a href="#acbe5cd53effd858363ab89fdfed227e7" class="m-doc">dim_same</a> <span class="m-label m-flat m-primary">constexpr</span>
+              bool <a href="#a15679c48e54c3e1f44dd8b97e7622a89" class="m-doc">kDimSame</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd>True when both tags name the same dimension.</dd>
             <dt>
-              <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a> <a href="#a344bcd59252022751293528ed96cd5b6" class="m-doc">target_thread_bit</a> <span class="m-label m-flat m-primary">constexpr</span>
+              <a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a> <a href="#a1866daa0a0820a6163cd6e572a578538" class="m-doc">kTargetThreadBit</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
-            <dd><code><a href="#af74049bfa37f03b5345fbc78d75e177aadc127f5d2483352fd20eaddb38feb6d2" class="m-doc">target_kind::<wbr />thread</a></code>, bit 0 of <code><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a></code> (FR-021).</dd>
+            <dd><code><a href="#a56bb795bd3571af03570db84e9e982cba57f8b9e1bf05e9058d703c68ac2d53b0" class="m-doc">TargetKind::<wbr />THREAD</a></code>, bit 0 of <code><a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a></code> (FR-021).</dd>
             <dt>
-              <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a> <a href="#abb277a8fbba76c22720c0d272c4e045c" class="m-doc">target_cpu_bit</a> <span class="m-label m-flat m-primary">constexpr</span>
+              <a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a> <a href="#a93ffc8a5cef055cf5319c6198f81b162" class="m-doc">kTargetCpuBit</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
-            <dd><code><a href="#af74049bfa37f03b5345fbc78d75e177aad9747e2da342bdb995f6389533ad1a3d" class="m-doc">target_kind::<wbr />cpu</a></code>, bit 1 of <code><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a></code> (FR-021).</dd>
+            <dd><code><a href="#a56bb795bd3571af03570db84e9e982cba2b55387dd066c5bac646ac61543d152d" class="m-doc">TargetKind::<wbr />CPU</a></code>, bit 1 of <code><a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a></code> (FR-021).</dd>
             <dt>
-              <a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a> <a href="#a2201b57597a8f33b8fbe8e9777f6b166" class="m-doc">hard_stop</a> <span class="m-label m-flat m-primary">constexpr</span>
+              <a href="structsg_1_1counters_1_1HardStop.html" class="m-doc">HardStop</a> <a href="#a98004c48152bff7e081bf0aa1bbff34d" class="m-doc">hardStop</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_<wbr />t</a> <a href="#ae4a093ddd79e7d07781e577140a0bcce" class="m-doc">ring</a> <span class="m-label m-flat m-primary">constexpr</span>
+              <a href="structsg_1_1counters_1_1Ring.html" class="m-doc">Ring</a> <a href="#adf916a44318c16a046518955ceb099a7" class="m-doc">ring</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd><span></span></dd>
           </dl>
         </section>
         <section>
           <h2>Enum documentation</h2>
-          <section class="m-doc-details" id="ab0c129dec78e6f3044e9b12adac7fb61"><div>
+          <section class="m-doc-details" id="ad98116374d6a4fb0018dca88dcb93564"><div>
             <h3>
-              enum class sg::<wbr />counters::<wbr /><a href="#ab0c129dec78e6f3044e9b12adac7fb61" class="m-doc-self">unit</a>: std::uint8_t
+              enum class sg::<wbr />counters::<wbr /><a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc-self">Unit</a>: std::uint8_t
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
             <p>The recognized catalog units. The mapping from unit tokens to this enumeration, and from here to a dimension, is a closed switch: an unrecognized token is a resolution error naming the token and is never guessed (FR-017).</p>
           </div></section>
-          <section class="m-doc-details" id="a5546738d604fd359a329e3833335b618"><div>
+          <section class="m-doc-details" id="ae4f8d1b86303a8e05962028dbc3b51aa"><div>
             <h3>
-              enum class sg::<wbr />counters::<wbr /><a href="#a5546738d604fd359a329e3833335b618" class="m-doc-self">availability</a>: std::uint8_t
+              enum class sg::<wbr />counters::<wbr /><a href="#ae4f8d1b86303a8e05962028dbc3b51aa" class="m-doc-self">Availability</a>: std::uint8_t
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
             <p>Per-entry catalog state: described-ness and countability are separate predicates carried by the state name (FR-006).</p>
-<p><code>scope_refused</code> separates a refusal the entry&#x27;s own scope causes from a refusal its encoding causes, so a caller that reads it knows a cpu-target plan may still compile over the entry. <code>gap</code> names the one case the catalog never publishes for an entry: a gap is a property of one sampling action and an entry spans many, so the value travels in the plan&#x27;s disclosure column beside the zero count the action produced (FR-021).</p>
+<p><code>SCOPE_REFUSED</code> separates a refusal the entry&#x27;s own scope causes from a refusal its encoding causes, so a caller that reads it knows a cpu-target plan may still compile over the entry. <code>GAP</code> names the one case the catalog never publishes for an entry: a gap is a property of one sampling action and an entry spans many, so the value travels in the plan&#x27;s disclosure column beside the zero count the action produced (FR-021).</p>
           </div></section>
-          <section class="m-doc-details" id="afeebde13e398eedd49f888523fbd575a"><div>
+          <section class="m-doc-details" id="a35e21455ba0ee51dfac91a6b3f6503d2"><div>
             <h3>
-              enum class sg::<wbr />counters::<wbr /><a href="#afeebde13e398eedd49f888523fbd575a" class="m-doc-self">read_mode</a>: std::uint8_t
+              enum class sg::<wbr />counters::<wbr /><a href="#a35e21455ba0ee51dfac91a6b3f6503d2" class="m-doc-self">ReadMode</a>: std::uint8_t
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
             <p>The achieved read mechanism for a leaf, probed during provider enumeration before the catalog freezes at the open boundary, and disclosed per catalog entry (FR-023).</p>
           </div></section>
-          <section class="m-doc-details" id="af74049bfa37f03b5345fbc78d75e177a"><div>
+          <section class="m-doc-details" id="a56bb795bd3571af03570db84e9e982cb"><div>
             <h3>
-              enum class sg::<wbr />counters::<wbr /><a href="#af74049bfa37f03b5345fbc78d75e177a" class="m-doc-self">target_kind</a>: std::uint8_t
+              enum class sg::<wbr />counters::<wbr /><a href="#a56bb795bd3571af03570db84e9e982cb" class="m-doc-self">TargetKind</a>: std::uint8_t
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__provider_8hpp.html">&lt;speedgun-ng/counters_provider.hpp&gt;</a></div>
             </h3>
             <p>What a plan samples on: the current thread, or a pinned cpu.</p>
@@ -409,178 +409,178 @@
         </section>
         <section>
           <h2>Typedef documentation</h2>
-          <section class="m-doc-details" id="a2d1b7ef4ebb1e6c672991d2d08377ee5"><div>
+          <section class="m-doc-details" id="ac49a90d916fbdc9f103416583fe67a68"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              using sg::<wbr />counters::<wbr /><a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc-self">dim_quotient</a> = <a href="structsg_1_1counters_1_1dim.html" class="m-doc">dim</a>&lt;D1::time_exponent - D2::time_exponent, D1::events_exponent - D2::events_exponent&gt;
+              using sg::<wbr />counters::<wbr /><a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc-self">DimQuotient</a> = <a href="structsg_1_1counters_1_1Dim.html" class="m-doc">Dim</a>&lt;D1::kTimeExponent - D2::kTimeExponent, D1::kEventsExponent - D2::kEventsExponent&gt;
             </h3>
             <p>The quotient tag: exponents subtract (FR-015).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="acffa06536a63551d9ed6bb9a3294dac0"><div>
+          <section class="m-doc-details" id="a554af94cf3a7e01cfe9030f41f3ef473"><div>
             <h3>
-              using sg::<wbr />counters::<wbr /><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc-self">target_mask</a> = std::uint32_t
+              using sg::<wbr />counters::<wbr /><a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc-self">TargetMask</a> = std::uint32_t
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
-            <p>The target kinds one entry can be counted on, as a fixed-size bitmask over <code><a href="#af74049bfa37f03b5345fbc78d75e177a" class="m-doc">target_<wbr />kind</a></code> (FR-021).</p>
-<p>Bit 0 is <code><a href="#af74049bfa37f03b5345fbc78d75e177aadc127f5d2483352fd20eaddb38feb6d2" class="m-doc">target_kind::<wbr />thread</a></code> and bit 1 is <code><a href="#af74049bfa37f03b5345fbc78d75e177aad9747e2da342bdb995f6389533ad1a3d" class="m-doc">target_kind::<wbr />cpu</a></code>. The type is a fixed-size unsigned integer and allocates no memory, so a caller reads an entry&#x27;s targets without a container and without an allocation. A new kernel target takes the next free bit: no enumerator value changes and no stored bit moves.</p>
+            <p>The target kinds one entry can be counted on, as a fixed-size bitmask over <code><a href="#a56bb795bd3571af03570db84e9e982cb" class="m-doc">TargetKind</a></code> (FR-021).</p>
+<p>Bit 0 is <code><a href="#a56bb795bd3571af03570db84e9e982cba57f8b9e1bf05e9058d703c68ac2d53b0" class="m-doc">TargetKind::<wbr />THREAD</a></code> and bit 1 is <code><a href="#a56bb795bd3571af03570db84e9e982cba2b55387dd066c5bac646ac61543d152d" class="m-doc">TargetKind::<wbr />CPU</a></code>. The type is a fixed-size unsigned integer and allocates no memory, so a caller reads an entry&#x27;s targets without a container and without an allocation. A new kernel target takes the next free bit: no enumerator value changes and no stored bit moves.</p>
           </div></section>
         </section>
         <section>
           <h2>Function documentation</h2>
-          <section class="m-doc-details" id="a8468b14154435ac91db6620127c87fc2"><div>
+          <section class="m-doc-details" id="a6a5282557feeebe470d30b244fdc9fcf"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="#ab0c129dec78e6f3044e9b12adac7fb61" class="m-doc">unit</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a8468b14154435ac91db6620127c87fc2" class="m-doc-self">unit_from_token</a>(</span><span class="m-doc-wrap">const std::string_view token)</span></span>
+              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">Unit</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a6a5282557feeebe470d30b244fdc9fcf" class="m-doc-self">unitFromToken</a>(</span><span class="m-doc-wrap">const std::string_view token)</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
             <p>Maps a provider unit token through the closed switch to a recognized unit.</p>
 <p>Recognized tokens: &quot;seconds&quot;, &quot;nanoseconds&quot;, &quot;bytes&quot;, &quot;ops&quot;, &quot;none&quot;. On failure the error message names the rejected token and the suggestion list is empty; the <code>expected</code> return carries the failure tier (FR-046), so no runtime check is added on top of the type.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a9bfc07ad5aeded172b560094688b06a6"><div>
+          <section class="m-doc-details" id="acd18d21cd8647d055243092a2f2f32b2"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="structsg_1_1counters_1_1dimension.html" class="m-doc">dimension</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9bfc07ad5aeded172b560094688b06a6" class="m-doc-self">dimension_of</a>(</span><span class="m-doc-wrap">const <a href="#ab0c129dec78e6f3044e9b12adac7fb61" class="m-doc">unit</a> value)</span></span>
+              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="structsg_1_1counters_1_1Dimension.html" class="m-doc">Dimension</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acd18d21cd8647d055243092a2f2f32b2" class="m-doc-self">dimensionOf</a>(</span><span class="m-doc-wrap">const <a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">Unit</a> value)</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
             <p>Maps a recognized unit to its dimension (FR-017).</p>
 <p>&quot;seconds&quot; and &quot;nanoseconds&quot; map to time^1. &quot;bytes&quot;, &quot;ops&quot; and &quot;none&quot; map to events^1. The enumeration is closed: every enumerator maps, so the failure branch exists only as the defensive close of the switch.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="ac336ab8aaea083c7aeec5d86a307e9a4"><div>
+          <section class="m-doc-details" id="ada29169a47641491e24fb7c5fbb0b07d"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">std::string_view sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac336ab8aaea083c7aeec5d86a307e9a4" class="m-doc-self">unit_name</a>(</span><span class="m-doc-wrap">const <a href="#ab0c129dec78e6f3044e9b12adac7fb61" class="m-doc">unit</a> value)</span></span>
+              <span class="m-doc-wrap-bumper">std::string_view sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ada29169a47641491e24fb7c5fbb0b07d" class="m-doc-self">unitName</a>(</span><span class="m-doc-wrap">const <a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">Unit</a> value)</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
             <p>The canonical token spelling of a recognized unit.</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="aca70b366f300bbd7ba926d579b9b6986"><div>
+          <section class="m-doc-details" id="ad7aa78cbfc2967d4d049539f8e61531a"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;<a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_<wbr />quotient</a>&lt;D1, D2&gt;&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aca70b366f300bbd7ba926d579b9b6986" class="m-doc-self">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D2&gt;&amp; b)</span></span>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;<a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a>&lt;D1, D2&gt;&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad7aa78cbfc2967d4d049539f8e61531a" class="m-doc-self">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D2&gt;&amp; b)</span></span>
             </h3>
             <p>Cross-dimension division: exponents subtract (FR-015).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a2cd55b31902bf154419df60557adc668"><div>
+          <section class="m-doc-details" id="a5395f0350e42a338da37348c6b7bb7ca"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a2cd55b31902bf154419df60557adc668" class="m-doc-self">operator+</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D2&gt;&amp; b)</span></span>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a5395f0350e42a338da37348c6b7bb7ca" class="m-doc-self">operator+</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D2&gt;&amp; b)</span></span>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="ac3bc5aae789b7fa7a2e40e5f3b3e2152"><div>
+          <section class="m-doc-details" id="ad5f1abc6cf4f721c29768cd1edaa3438"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac3bc5aae789b7fa7a2e40e5f3b3e2152" class="m-doc-self">operator-</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D2&gt;&amp; b)</span></span>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad5f1abc6cf4f721c29768cd1edaa3438" class="m-doc-self">operator-</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D2&gt;&amp; b)</span></span>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a3485346905d703b822021e244338d078"><div>
+          <section class="m-doc-details" id="a72c916ca4bc1d2e19bf48d517753b28b"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;<a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_<wbr />quotient</a>&lt;D1, D2&gt;&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a3485346905d703b822021e244338d078" class="m-doc-self">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D2&gt;&amp; b)</span></span>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;<a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a>&lt;D1, D2&gt;&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a72c916ca4bc1d2e19bf48d517753b28b" class="m-doc-self">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D2&gt;&amp; b)</span></span>
             </h3>
             <p>Divides two resolved counters (FR-015).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="ac4f0ec25b22038aa6f19762ee986b8ce"><div>
+          <section class="m-doc-details" id="a6f985ac1bbe5782f1924e71080986199"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;<a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_<wbr />quotient</a>&lt;D1, D2&gt;&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac4f0ec25b22038aa6f19762ee986b8ce" class="m-doc-self">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D2&gt;&amp; b)</span></span>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;<a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a>&lt;D1, D2&gt;&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a6f985ac1bbe5782f1924e71080986199" class="m-doc-self">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D2&gt;&amp; b)</span></span>
             </h3>
             <p>Divides an expression by a resolved counter (FR-015).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a5c926420166fa118f1d63deac1e62592"><div>
+          <section class="m-doc-details" id="ab091d24d0ac70bf70bbb0b2f93226af5"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;<a href="#a2d1b7ef4ebb1e6c672991d2d08377ee5" class="m-doc">dim_<wbr />quotient</a>&lt;D1, D2&gt;&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a5c926420166fa118f1d63deac1e62592" class="m-doc-self">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D2&gt;&amp; b)</span></span>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;<a href="#ac49a90d916fbdc9f103416583fe67a68" class="m-doc">DimQuotient</a>&lt;D1, D2&gt;&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ab091d24d0ac70bf70bbb0b2f93226af5" class="m-doc-self">operator/</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D2&gt;&amp; b)</span></span>
             </h3>
             <p>Divides a resolved counter by an expression (FR-015).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a004d9d1bc35060da2f189e3cf64979c7"><div>
+          <section class="m-doc-details" id="a2edcb22afbcaf05ab8fbc8f972b34f2b"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a004d9d1bc35060da2f189e3cf64979c7" class="m-doc-self">operator+</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D2&gt;&amp; b)</span></span>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a2edcb22afbcaf05ab8fbc8f972b34f2b" class="m-doc-self">operator+</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D2&gt;&amp; b)</span></span>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a9f506114baa426c065576ccd238bd80a"><div>
+          <section class="m-doc-details" id="ac5ffd5407781c8a365310a03c389ee7c"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D1&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9f506114baa426c065576ccd238bd80a" class="m-doc-self">operator-</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D1&gt;&amp; a,
-              const <a href="classsg_1_1counters_1_1counter.html" class="m-doc">counter</a>&lt;D2&gt;&amp; b)</span></span>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D1&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac5ffd5407781c8a365310a03c389ee7c" class="m-doc-self">operator-</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D1&gt;&amp; a,
+              const <a href="classsg_1_1counters_1_1Counter.html" class="m-doc">Counter</a>&lt;D2&gt;&amp; b)</span></span>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="ac81a3f2202d54571b13cd330abf9d5af"><div>
+          <section class="m-doc-details" id="a7c2a0e306675d5fbb96e2ac21299eca2"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class... E&gt;
               </div>
-              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="classsg_1_1counters_1_1plan.html" class="m-doc">plan</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac81a3f2202d54571b13cd330abf9d5af" class="m-doc-self">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
+              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="classsg_1_1counters_1_1Plan.html" class="m-doc">Plan</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a7c2a0e306675d5fbb96e2ac21299eca2" class="m-doc-self">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
               const E&amp;... exprs)</span></span>
             </h3>
             <p>Compiles expressions into a plan (FR-021, FR-022): name resolution through the system tree, dimension checking, group layout, and arena geometry, once in the untimed region. The read mode each leaf opens through is the one the enumeration-time probe recorded and the catalog disclosed before that open boundary (FR-023). Zero hardware reads (FR-021).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a556d2dc9d0ce6961cc455978652e70b9"><div>
+          <section class="m-doc-details" id="ad4452a5a13804c06ec0192dc7f5bf9dd"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class... E&gt;
               </div>
-              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="classsg_1_1counters_1_1plan.html" class="m-doc">plan</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a556d2dc9d0ce6961cc455978652e70b9" class="m-doc-self">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const <a href="structsg_1_1counters_1_1target.html" class="m-doc">target</a>&amp; tg,
+              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="classsg_1_1counters_1_1Plan.html" class="m-doc">Plan</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad4452a5a13804c06ec0192dc7f5bf9dd" class="m-doc-self">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const <a href="structsg_1_1counters_1_1Target.html" class="m-doc">Target</a>&amp; tg,
               const E&amp;... exprs)</span></span>
             </h3>
             <p>Compiles expressions into a plan bound to a target.</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a5717da31acdf7b16e02d48b3b5302b4f"><div>
+          <section class="m-doc-details" id="aaa7b5f5136d6ca8f07635a100faf4b08"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D&gt;
               </div>
-              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="classsg_1_1counters_1_1fanout__plan.html" class="m-doc">fanout_<wbr />plan</a>, <a href="structsg_1_1counters_1_1error.html" class="m-doc">error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a5717da31acdf7b16e02d48b3b5302b4f" class="m-doc-self">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const <a href="classsg_1_1counters_1_1expression.html" class="m-doc">expression</a>&lt;D&gt;&amp; expr,
-              const std::vector&lt;const <a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a>*&gt;&amp; selection)</span></span>
+              <span class="m-doc-wrap-bumper">std::expected&lt;<a href="classsg_1_1counters_1_1FanoutPlan.html" class="m-doc">FanoutPlan</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt; sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aaa7b5f5136d6ca8f07635a100faf4b08" class="m-doc-self">compile</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">Expression</a>&lt;D&gt;&amp; expr,
+              const std::vector&lt;const <a href="classsg_1_1counters_1_1Object.html" class="m-doc">Object</a>*&gt;&amp; selection)</span></span>
             </h3>
             <p>Compiles one fan-out plan: the exemplar expression instantiated at every selected object, all leaves read within one sampling action (FR-047, US3 scenario 5). An empty selection, a duplicate selection entry, or a leaf missing on a selected object is a recoverable construction error (FR-024).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
@@ -588,41 +588,41 @@
         </section>
         <section>
           <h2>Variable documentation</h2>
-          <section class="m-doc-details" id="acbe5cd53effd858363ab89fdfed227e7"><div>
+          <section class="m-doc-details" id="a15679c48e54c3e1f44dd8b97e7622a89"><div>
             <h3>
               <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
               <div class="m-doc-template">
                 template&lt;class D1, class D2&gt;
               </div>
-              bool sg::<wbr />counters::<wbr /><a href="#acbe5cd53effd858363ab89fdfed227e7" class="m-doc-self">dim_same</a> <span class="m-label m-primary">constexpr</span>
+              bool sg::<wbr />counters::<wbr /><a href="#a15679c48e54c3e1f44dd8b97e7622a89" class="m-doc-self">kDimSame</a> <span class="m-label m-primary">constexpr</span>
             </h3>
             <p>True when both tags name the same dimension.</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a344bcd59252022751293528ed96cd5b6"><div>
+          <section class="m-doc-details" id="a1866daa0a0820a6163cd6e572a578538"><div>
             <h3>
-              <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a> sg::<wbr />counters::<wbr /><a href="#a344bcd59252022751293528ed96cd5b6" class="m-doc-self">target_thread_bit</a> <span class="m-label m-primary">constexpr</span>
+              <a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a> sg::<wbr />counters::<wbr /><a href="#a1866daa0a0820a6163cd6e572a578538" class="m-doc-self">kTargetThreadBit</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
-            <p><code><a href="#af74049bfa37f03b5345fbc78d75e177aadc127f5d2483352fd20eaddb38feb6d2" class="m-doc">target_kind::<wbr />thread</a></code>, bit 0 of <code><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a></code> (FR-021).</p>
+            <p><code><a href="#a56bb795bd3571af03570db84e9e982cba57f8b9e1bf05e9058d703c68ac2d53b0" class="m-doc">TargetKind::<wbr />THREAD</a></code>, bit 0 of <code><a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a></code> (FR-021).</p>
           </div></section>
-          <section class="m-doc-details" id="abb277a8fbba76c22720c0d272c4e045c"><div>
+          <section class="m-doc-details" id="a93ffc8a5cef055cf5319c6198f81b162"><div>
             <h3>
-              <a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a> sg::<wbr />counters::<wbr /><a href="#abb277a8fbba76c22720c0d272c4e045c" class="m-doc-self">target_cpu_bit</a> <span class="m-label m-primary">constexpr</span>
+              <a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a> sg::<wbr />counters::<wbr /><a href="#a93ffc8a5cef055cf5319c6198f81b162" class="m-doc-self">kTargetCpuBit</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
-            <p><code><a href="#af74049bfa37f03b5345fbc78d75e177aad9747e2da342bdb995f6389533ad1a3d" class="m-doc">target_kind::<wbr />cpu</a></code>, bit 1 of <code><a href="#acffa06536a63551d9ed6bb9a3294dac0" class="m-doc">target_<wbr />mask</a></code> (FR-021).</p>
+            <p><code><a href="#a56bb795bd3571af03570db84e9e982cba2b55387dd066c5bac646ac61543d152d" class="m-doc">TargetKind::<wbr />CPU</a></code>, bit 1 of <code><a href="#a554af94cf3a7e01cfe9030f41f3ef473" class="m-doc">TargetMask</a></code> (FR-021).</p>
           </div></section>
-          <section class="m-doc-details" id="a2201b57597a8f33b8fbe8e9777f6b166"><div>
+          <section class="m-doc-details" id="a98004c48152bff7e081bf0aa1bbff34d"><div>
             <h3>
-              <a href="structsg_1_1counters_1_1hard__stop__t.html" class="m-doc">hard_<wbr />stop_<wbr />t</a> sg::<wbr />counters::<wbr /><a href="#a2201b57597a8f33b8fbe8e9777f6b166" class="m-doc-self">hard_stop</a> <span class="m-label m-primary">constexpr</span>
+              <a href="structsg_1_1counters_1_1HardStop.html" class="m-doc">HardStop</a> sg::<wbr />counters::<wbr /><a href="#a98004c48152bff7e081bf0aa1bbff34d" class="m-doc-self">hardStop</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="ae4a093ddd79e7d07781e577140a0bcce"><div>
+          <section class="m-doc-details" id="adf916a44318c16a046518955ceb099a7"><div>
             <h3>
-              <a href="structsg_1_1counters_1_1ring__t.html" class="m-doc">ring_<wbr />t</a> sg::<wbr />counters::<wbr /><a href="#ae4a093ddd79e7d07781e577140a0bcce" class="m-doc-self">ring</a> <span class="m-label m-primary">constexpr</span>
+              <a href="structsg_1_1counters_1_1Ring.html" class="m-doc">Ring</a> sg::<wbr />counters::<wbr /><a href="#adf916a44318c16a046518955ceb099a7" class="m-doc-self">ring</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>

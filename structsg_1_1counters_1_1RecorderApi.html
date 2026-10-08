@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/speedgun-ng.hpp file | speedgun-ng</title>
+  <title>sg::counters::RecorderApi struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,27 +49,49 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>speedgun-ng.hpp <span class="m-thin">file</span>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>RecorderApi <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
         </h1>
-        <p><span></span></p>
+        <p>The recorded-window view a fold reads (FR-018): the compiled layout pointer, the point columns, and the bookkeeping a fold consults (extent, wrap, drops).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+<p>Plain data: the recorder handle and the scope both produce one. The view borrows columns from its producer for as long as the producer lives.</p>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              class <a href="classExportedClass.html" class="m-doc">ExportedClass</a>
+            <dt id="a27ff9dc8eb18aade4d444f08a24509ae">
+              const void* <a href="#a27ff9dc8eb18aade4d444f08a24509ae" class="m-doc-self">impl</a>
             </dt>
-            <dd>Reports the name of the library.</dd>
+            <dd><span></span></dd>
+            <dt id="a0c5952f48f6a1b5ec371ac44572b3326">
+              const std::uint64_t* <a href="#a0c5952f48f6a1b5ec371ac44572b3326" class="m-doc-self">columns</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ab89d2864ae75c7fc3ed891c68ffd0a62">
+              std::size_t <a href="#ab89d2864ae75c7fc3ed891c68ffd0a62" class="m-doc-self">stride</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a9b07fa6cbd8a38c1f52f3502004ad5c9">
+              std::size_t <a href="#a9b07fa6cbd8a38c1f52f3502004ad5c9" class="m-doc-self">count</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a63559a16a08a950e8aaeabaa99d89cff">
+              bool <a href="#a63559a16a08a950e8aaeabaa99d89cff" class="m-doc-self">wrapped</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a1fa49e28b2e0f41b6014601c3146362c">
+              std::uint64_t <a href="#a1fa49e28b2e0f41b6014601c3146362c" class="m-doc-self">dropped</a>
+            </dt>
+            <dd><span></span></dd>
           </dl>
         </section>
       </div>

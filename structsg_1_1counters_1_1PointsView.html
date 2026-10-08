@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/speedgun-ng.hpp file | speedgun-ng</title>
+  <title>sg::counters::PointsView struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,27 +49,61 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>speedgun-ng.hpp <span class="m-thin">file</span>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>PointsView <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
         </h1>
-        <p><span></span></p>
+        <p>The raw per-leaf provenance view of a composite (FR-020, E-10): catalog facts, the raw point column, point identity, and the multiplex ratio.</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+<p><code><a href="#a0ef34b91d5b6276bf30951de8e789285" class="m-doc">availability</a></code> is the disclosure state of the window&#x27;s end point only. An interior row can hold a zero from a gap while this field stays <code><a href="namespacesg_1_1counters.html#ae4f8d1b86303a8e05962028dbc3b51aaa36c887d76edf2049177a634a23176b15" class="m-doc">Availability::<wbr />COUNTABLE</a></code>, because the end point of that window measured a count. A caller that needs the state of each point uses <code>fold</code> or <code>foldPairs</code>, which disclose each window&#x27;s own gap state (FR-004, FR-005).</p><p><code><a href="#ae0252a313d9edbe3a884484719d293dd" class="m-doc">ratio</a></code> is the multiplex fraction over the window this view spans, and it is meaningful only when <code><a href="#a0ef34b91d5b6276bf30951de8e789285" class="m-doc">availability</a> != <a href="namespacesg_1_1counters.html#ae4f8d1b86303a8e05962028dbc3b51aaae80ae93ca3e3a2f0af277594318d456a" class="m-doc">Availability::<wbr />GAP</a></code>. A view whose end point is an action that measured nothing publishes <code>1.0</code> and discloses no fraction, because no measured time covers an action that measured no count. The state beside the ratio names that condition, so a caller reads the ratio only after the state (FR-005, FR-019, FR-020).</p>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              class <a href="classExportedClass.html" class="m-doc">ExportedClass</a>
+            <dt id="a77aa24b95f818c570365ab2008efe992">
+              std::string_view <a href="#a77aa24b95f818c570365ab2008efe992" class="m-doc-self">objectPath</a>
             </dt>
-            <dd>Reports the name of the library.</dd>
+            <dd><span></span></dd>
+            <dt id="a96283b7b3bfc886fd3a049ac6efc777b">
+              std::string_view <a href="#a96283b7b3bfc886fd3a049ac6efc777b" class="m-doc-self">name</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a256b5325fd2d4170a260c8cf2c81e852">
+              std::string_view <a href="#a256b5325fd2d4170a260c8cf2c81e852" class="m-doc-self">description</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a9c5415563e8268c44f4954ef2c8a8087">
+              std::string_view <a href="#a9c5415563e8268c44f4954ef2c8a8087" class="m-doc-self">unit</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="aba990bb98efee79b4839e81577b50b31">
+              std::size_t <a href="#aba990bb98efee79b4839e81577b50b31" class="m-doc-self">slot</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a3f6c6efcd9c92e9d0bcfe593101062ac">
+              const std::uint64_t* <a href="#a3f6c6efcd9c92e9d0bcfe593101062ac" class="m-doc-self">points</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a2f4ec5de62227f6a70916fc369e44477">
+              std::size_t <a href="#a2f4ec5de62227f6a70916fc369e44477" class="m-doc-self">count</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ae0252a313d9edbe3a884484719d293dd">
+              double <a href="#ae0252a313d9edbe3a884484719d293dd" class="m-doc-self">ratio</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a0ef34b91d5b6276bf30951de8e789285">
+              <a href="namespacesg_1_1counters.html#ae4f8d1b86303a8e05962028dbc3b51aa" class="m-doc">Availability</a> <a href="#a0ef34b91d5b6276bf30951de8e789285" class="m-doc-self">availability</a>
+            </dt>
+            <dd><span></span></dd>
           </dl>
         </section>
       </div>

@@ -87,10 +87,10 @@
           <h2><a href="#enum-members">Enums</a></h2>
           <dl class="m-doc">
             <dt>
-              <span class="m-doc-wrap-bumper">enum class <a href="#a3611e3c72c57513baadf3015dd020310" class="m-doc">Kind</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a3611e3c72c57513baadf3015dd020310ac3c270a815f2c6329cf95844e757cf7f" class="m-doc">precondition</a>,
-              <a href="#a3611e3c72c57513baadf3015dd020310a251848760bc80cc0b08dec58b4199c6b" class="m-doc">postcondition</a>,
-              <a href="#a3611e3c72c57513baadf3015dd020310a97a1fb4792ab0d80857d825020ced2f0" class="m-doc">invariant</a>,
-              <a href="#a3611e3c72c57513baadf3015dd020310a2a7639f0b1870ad2e6b2d8c7b810ba11" class="m-doc">assertion</a> }</span>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a3611e3c72c57513baadf3015dd020310" class="m-doc">Kind</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a3611e3c72c57513baadf3015dd020310af789a4a4eeed3371f8d3c818cbfc0aa0" class="m-doc">PRECONDITION</a>,
+              <a href="#a3611e3c72c57513baadf3015dd020310a327876e9a57832e1226775ebe5b0d8b8" class="m-doc">POSTCONDITION</a>,
+              <a href="#a3611e3c72c57513baadf3015dd020310abdbe9b3e99678fa8369d445ccf769ccc" class="m-doc">INVARIANT</a>,
+              <a href="#a3611e3c72c57513baadf3015dd020310a955ed1d178e6b3beec03cb1022e5dc59" class="m-doc">ASSERTION</a> }</span>
             </dt>
             <dd>Discriminates the four contract kinds.</dd>
           </dl>
@@ -99,69 +99,69 @@
           <h2><a href="#typedef-members">Typedefs</a></h2>
           <dl class="m-doc">
             <dt>
-              using <a href="#a7b785c07c1bece57d462915a2b4aa4a1" class="m-doc">violation_observer</a> = std::function&lt;void(<a href="structsg_1_1dbc_1_1ViolationRecord.html" class="m-doc">ViolationRecord</a> const &amp;)&gt;
+              using <a href="#ae3d117da2d996984af0eb3a96a8bbd83" class="m-doc">ViolationObserver</a> = std::function&lt;void(<a href="structsg_1_1dbc_1_1ViolationRecord.html" class="m-doc">ViolationRecord</a> const &amp;)&gt;
             </dt>
-            <dd>Observer hook type installed via set_observer.</dd>
+            <dd>Observer hook type installed via setObserver.</dd>
           </dl>
         </section>
         <section id="func-members">
           <h2><a href="#func-members">Functions</a></h2>
           <dl class="m-doc">
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#a4e663a995349c3ae2bf6a5d0aa2a2dc4" class="m-doc">set_observer</a>(</span><span class="m-doc-wrap"><a href="#a7b785c07c1bece57d462915a2b4aa4a1" class="m-doc">violation_<wbr />observer</a> observer)</span>
+              <span class="m-doc-wrap-bumper">void <a href="#acaa718f260993ecc15229aecad0f8974" class="m-doc">setObserver</a>(</span><span class="m-doc-wrap"><a href="#ae3d117da2d996984af0eb3a96a8bbd83" class="m-doc">ViolationObserver</a> observer)</span>
             </dt>
             <dd>Install the process-wide violation observer (unique hook).</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#a9a234f63c22d7875fdbd399ab0a8fa12" class="m-doc">check_precondition</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void <a href="#a5c240dea7ba3b9a556f811ea935b757b" class="m-doc">checkPrecondition</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span>
             </dt>
             <dd>Dispatch a precondition violation under the active semantic.</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#aff300c7f9403d60db7e05c805d78b729" class="m-doc">check_postcondition</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void <a href="#a95b30e7c0fbff2041ebc84ff593265f3" class="m-doc">checkPostcondition</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span>
             </dt>
             <dd>Dispatch a postcondition violation under the active semantic.</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#a9c3cc4244c8bd6c25ca3f6d8b9964b1f" class="m-doc">check_invariant</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void <a href="#a09de6cefc6d2b71dcc18d08fb4d76d70" class="m-doc">checkInvariant</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span>
             </dt>
             <dd>Dispatch an invariant violation under the active semantic.</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#ae8f26643f554f5afd386ee821c275c48" class="m-doc">check_assertion</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void <a href="#a02e0b175f5aef1eba0e8376855021e6c" class="m-doc">checkAssertion</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span>
             </dt>
             <dd>Dispatch an in-body assertion violation under the active semantic.</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#a1a3d1a2fdfc7e702d454e57699de895c" class="m-doc">check_precondition_always</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void <a href="#a820fae51dcb017244db2f4c7a3da24c2" class="m-doc">checkPreconditionAlways</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span>
             </dt>
             <dd>Dispatch a precondition violation and terminate.</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#aa4f7739430bb503605180eea693b555d" class="m-doc">check_postcondition_always</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void <a href="#a79aac3220d4567813adfe37e92b93f6b" class="m-doc">checkPostconditionAlways</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span>
             </dt>
             <dd>Dispatch a postcondition violation and terminate.</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#ae73509ddc4751f22740faa40801091f3" class="m-doc">check_invariant_always</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void <a href="#ada8e52151751917defc6e4cdfd3d6fdf" class="m-doc">checkInvariantAlways</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span>
             </dt>
             <dd>Dispatch an invariant violation and terminate.</dd>
             <dt>
-              <span class="m-doc-wrap-bumper">void <a href="#afbd51c59e9aeb996816295d038d69654" class="m-doc">check_assertion_always</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void <a href="#a0cc0782629ebfe68f2d70b50dbb033f2" class="m-doc">checkAssertionAlways</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span>
@@ -181,27 +181,27 @@
         </section>
         <section>
           <h2>Typedef documentation</h2>
-          <section class="m-doc-details" id="a7b785c07c1bece57d462915a2b4aa4a1"><div>
+          <section class="m-doc-details" id="ae3d117da2d996984af0eb3a96a8bbd83"><div>
             <h3>
-              using sg::<wbr />dbc::<wbr /><a href="#a7b785c07c1bece57d462915a2b4aa4a1" class="m-doc-self">violation_observer</a> = std::function&lt;void(<a href="structsg_1_1dbc_1_1ViolationRecord.html" class="m-doc">ViolationRecord</a> const &amp;)&gt;
+              using sg::<wbr />dbc::<wbr /><a href="#ae3d117da2d996984af0eb3a96a8bbd83" class="m-doc-self">ViolationObserver</a> = std::function&lt;void(<a href="structsg_1_1dbc_1_1ViolationRecord.html" class="m-doc">ViolationRecord</a> const &amp;)&gt;
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="dbc_8hpp.html">&lt;speedgun-ng/dbc.hpp&gt;</a></div>
             </h3>
-            <p>Observer hook type installed via set_observer.</p>
+            <p>Observer hook type installed via setObserver.</p>
           </div></section>
         </section>
         <section>
           <h2>Function documentation</h2>
-          <section class="m-doc-details" id="a4e663a995349c3ae2bf6a5d0aa2a2dc4"><div>
+          <section class="m-doc-details" id="acaa718f260993ecc15229aecad0f8974"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a4e663a995349c3ae2bf6a5d0aa2a2dc4" class="m-doc-self">set_observer</a>(</span><span class="m-doc-wrap"><a href="#a7b785c07c1bece57d462915a2b4aa4a1" class="m-doc">violation_<wbr />observer</a> observer)</span></span>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acaa718f260993ecc15229aecad0f8974" class="m-doc-self">setObserver</a>(</span><span class="m-doc-wrap"><a href="#ae3d117da2d996984af0eb3a96a8bbd83" class="m-doc">ViolationObserver</a> observer)</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="dbc_8hpp.html">&lt;speedgun-ng/dbc.hpp&gt;</a></div>
             </h3>
             <p>Install the process-wide violation observer (unique hook).</p>
 <p>The observer (if non-null) is invoked from the violation path in observe and enforce semantics, before any default response. Only one observer may be active at a time.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a9a234f63c22d7875fdbd399ab0a8fa12"><div>
+          <section class="m-doc-details" id="a5c240dea7ba3b9a556f811ea935b757b"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9a234f63c22d7875fdbd399ab0a8fa12" class="m-doc-self">check_precondition</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a5c240dea7ba3b9a556f811ea935b757b" class="m-doc-self">checkPrecondition</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span></span>
@@ -210,9 +210,9 @@
             <p>Dispatch a precondition violation under the active semantic.</p>
 <p>Message argument must be a string literal constant (enforced by the char const(&amp;)[] parameter per FR-020). On failure in a terminating semantic the violation response is invoked and execution ends.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="aff300c7f9403d60db7e05c805d78b729"><div>
+          <section class="m-doc-details" id="a95b30e7c0fbff2041ebc84ff593265f3"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aff300c7f9403d60db7e05c805d78b729" class="m-doc-self">check_postcondition</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a95b30e7c0fbff2041ebc84ff593265f3" class="m-doc-self">checkPostcondition</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span></span>
@@ -221,9 +221,9 @@
             <p>Dispatch a postcondition violation under the active semantic.</p>
 <p>Message argument must be a string literal constant (enforced by the char const(&amp;)[] parameter per FR-020). On failure in a terminating semantic the violation response is invoked and execution ends.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a9c3cc4244c8bd6c25ca3f6d8b9964b1f"><div>
+          <section class="m-doc-details" id="a09de6cefc6d2b71dcc18d08fb4d76d70"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9c3cc4244c8bd6c25ca3f6d8b9964b1f" class="m-doc-self">check_invariant</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a09de6cefc6d2b71dcc18d08fb4d76d70" class="m-doc-self">checkInvariant</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span></span>
@@ -232,9 +232,9 @@
             <p>Dispatch an invariant violation under the active semantic.</p>
 <p>Message argument must be a string literal constant (enforced by the char const(&amp;)[] parameter per FR-020). On failure in a terminating semantic the violation response is invoked and execution ends.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="ae8f26643f554f5afd386ee821c275c48"><div>
+          <section class="m-doc-details" id="a02e0b175f5aef1eba0e8376855021e6c"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae8f26643f554f5afd386ee821c275c48" class="m-doc-self">check_assertion</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a02e0b175f5aef1eba0e8376855021e6c" class="m-doc-self">checkAssertion</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span></span>
@@ -243,9 +243,9 @@
             <p>Dispatch an in-body assertion violation under the active semantic.</p>
 <p>Message argument must be a string literal constant (enforced by the char const(&amp;)[] parameter per FR-020). On failure in a terminating semantic the violation response is invoked and execution ends.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="a1a3d1a2fdfc7e702d454e57699de895c"><div>
+          <section class="m-doc-details" id="a820fae51dcb017244db2f4c7a3da24c2"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a1a3d1a2fdfc7e702d454e57699de895c" class="m-doc-self">check_precondition_always</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a820fae51dcb017244db2f4c7a3da24c2" class="m-doc-self">checkPreconditionAlways</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span></span>
@@ -254,9 +254,9 @@
             <p>Dispatch a precondition violation and terminate.</p>
 <p>Always-on: present in every evaluation semantic, including ignore. Message must be string literal (FR-020). Invokes response then terminates (FR-013 for quick path uses trap instead).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="aa4f7739430bb503605180eea693b555d"><div>
+          <section class="m-doc-details" id="a79aac3220d4567813adfe37e92b93f6b"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aa4f7739430bb503605180eea693b555d" class="m-doc-self">check_postcondition_always</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a79aac3220d4567813adfe37e92b93f6b" class="m-doc-self">checkPostconditionAlways</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span></span>
@@ -265,9 +265,9 @@
             <p>Dispatch a postcondition violation and terminate.</p>
 <p>Always-on: present in every evaluation semantic, including ignore. Message must be string literal (FR-020). Invokes response then terminates.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="ae73509ddc4751f22740faa40801091f3"><div>
+          <section class="m-doc-details" id="ada8e52151751917defc6e4cdfd3d6fdf"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae73509ddc4751f22740faa40801091f3" class="m-doc-self">check_invariant_always</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ada8e52151751917defc6e4cdfd3d6fdf" class="m-doc-self">checkInvariantAlways</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span></span>
@@ -276,9 +276,9 @@
             <p>Dispatch an invariant violation and terminate.</p>
 <p>Always-on: present in every evaluation semantic, including ignore. Message must be string literal (FR-020). Invokes response then terminates.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
-          <section class="m-doc-details" id="afbd51c59e9aeb996816295d038d69654"><div>
+          <section class="m-doc-details" id="a0cc0782629ebfe68f2d70b50dbb033f2"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#afbd51c59e9aeb996816295d038d69654" class="m-doc-self">check_assertion_always</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
+              <span class="m-doc-wrap-bumper">void sg::<wbr />dbc::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a0cc0782629ebfe68f2d70b50dbb033f2" class="m-doc-self">checkAssertionAlways</a>(</span><span class="m-doc-wrap">char const (&amp;message)[],
               char const*const file,
               unsigned const line,
               char const*const pred)</span></span>

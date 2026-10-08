@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/speedgun-ng.hpp file | speedgun-ng</title>
+  <title>sg::counters::ObjectSeed struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,27 +49,45 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>speedgun-ng.hpp <span class="m-thin">file</span>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>ObjectSeed <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__provider_8hpp.html">&lt;speedgun-ng/counters_provider.hpp&gt;</a></div>
         </h1>
-        <p><span></span></p>
+        <p>One countable object as a provider seeds it, with its entries.</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+<p><code><a href="#a114a628731865e7366a719caee3d784c" class="m-doc">path</a></code> is the canonical structured spelling; <code><a href="#a4e649b0326fe104034c7b7b03891f718" class="m-doc">alias</a></code> is the optional platform instance name, empty when the object has none (FR-002). String views must stay valid for the duration of the <code>enumerate</code> call; the system copies what it keeps.</p>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              class <a href="classExportedClass.html" class="m-doc">ExportedClass</a>
+            <dt id="ade95cc269f88c44248222e3e7ef6f3d4">
+              std::string_view <a href="#ade95cc269f88c44248222e3e7ef6f3d4" class="m-doc-self">kind</a>
             </dt>
-            <dd>Reports the name of the library.</dd>
+            <dd><span></span></dd>
+            <dt id="a114a628731865e7366a719caee3d784c">
+              std::string_view <a href="#a114a628731865e7366a719caee3d784c" class="m-doc-self">path</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a4e649b0326fe104034c7b7b03891f718">
+              std::string_view <a href="#a4e649b0326fe104034c7b7b03891f718" class="m-doc-self">alias</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a3facd1563907c45cd00392710ad32da5">
+              std::string_view <a href="#a3facd1563907c45cd00392710ad32da5" class="m-doc-self">description</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ac6549c30473bd82719819ae212a98bdb">
+              std::vector&lt;<a href="structsg_1_1counters_1_1CatalogSeed.html" class="m-doc">CatalogSeed</a>&gt; <a href="#ac6549c30473bd82719819ae212a98bdb" class="m-doc-self">entries</a>
+            </dt>
+            <dd><span></span></dd>
           </dl>
         </section>
       </div>

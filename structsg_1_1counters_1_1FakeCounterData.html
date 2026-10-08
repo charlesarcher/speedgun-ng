@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/dbc.hpp file | speedgun-ng</title>
+  <title>sg::counters::FakeCounterData struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,122 +49,84 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>dbc.hpp <span class="m-thin">file</span>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>FakeCounterData <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__fake_8hpp.html">&lt;speedgun-ng/counters_fake.hpp&gt;</a></div>
         </h1>
-        <p><span></span></p>
+        <p>One scripted counter: catalog metadata, script, and playback position.</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#namespaces">Namespaces</a></li>
-                <li><a href="#nested-classes">Classes</a></li>
-                <li><a href="#define-members">Defines</a></li>
+                <li><a href="#pub-methods">Public functions</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="namespaces">
-          <h2><a href="#namespaces">Namespaces</a></h2>
+        <section id="pub-methods">
+          <h2><a href="#pub-methods">Public functions</a></h2>
           <dl class="m-doc">
-            <dt>namespace <a href="namespacesg.html" class="m-doc">sg</a></dt>
-            <dd><span></span></dd>
-            <dt>namespace <a href="namespacesg_1_1dbc.html" class="m-doc">sg::dbc</a></dt>
-            <dd><span></span></dd>
-            <dt>namespace <a href="namespacesg_1_1dbc_1_1detail.html" class="m-doc">sg::dbc::detail</a></dt>
-            <dd><span></span></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a40d223282ad01235434374297d4698df" class="m-doc">gapsAt</a>(</span><span class="m-doc-wrap">const std::uint64_t action) const -&gt; bool</span>
+            </dt>
+            <dd>Whether this leaf measures nothing on the one-based sampling <code>action</code>.</dd>
           </dl>
         </section>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              struct <a href="structsg_1_1dbc_1_1ViolationRecord.html" class="m-doc">sg::dbc::ViolationRecord</a>
-            </dt>
-            <dd>Stable identity of a contract violation (FR-021).</dd>
-            <dt>
-              class <a href="classsg_1_1dbc_1_1detail_1_1ResponseGuard.html" class="m-doc">sg::dbc::detail::ResponseGuard</a>
+            <dt id="a7679c167f94eb80e53d19eaa28b22c91">
+              std::string <a href="#a7679c167f94eb80e53d19eaa28b22c91" class="m-doc-self">description</a>
             </dt>
             <dd><span></span></dd>
-          </dl>
-        </section>
-        <section id="define-members">
-          <h2><a href="#define-members">Defines</a></h2>
-          <dl class="m-doc">
-            <dt id="aa9b695cb259a26f24eda7014324ac068">
-              <span class="m-doc-wrap-bumper">#define <a href="#aa9b695cb259a26f24eda7014324ac068" class="m-doc-self">SG_CONTRACTS_SEMANTIC</a></span>
+            <dt id="a6aa1f276ef7ee605609c0aed5b63903a">
+              std::string <a href="#a6aa1f276ef7ee605609c0aed5b63903a" class="m-doc-self">unit</a>
             </dt>
             <dd><span></span></dd>
-            <dt id="a6d8cc03dfb83ebf5bd0bcb991906ba8d">
-              <span class="m-doc-wrap-bumper">#define <a href="#a6d8cc03dfb83ebf5bd0bcb991906ba8d" class="m-doc-self">SG_NOINLINE</a></span>
+            <dt id="ab41b542175fff8d931f6ee3e58ff2850">
+              <a href="namespacesg_1_1counters.html#ae4f8d1b86303a8e05962028dbc3b51aa" class="m-doc">Availability</a> <a href="#ab41b542175fff8d931f6ee3e58ff2850" class="m-doc-self">avail</a>
             </dt>
             <dd><span></span></dd>
-            <dt id="a5e9cdb326ede7aa99ae696adb1e467f8">
-              <span class="m-doc-wrap-bumper">#define <a href="#a5e9cdb326ede7aa99ae696adb1e467f8" class="m-doc-self">SG_COLD</a></span>
+            <dt id="a2c7f6fb73ce912d0168da5d4659a1aa9">
+              <a href="namespacesg_1_1counters.html#a35e21455ba0ee51dfac91a6b3f6503d2" class="m-doc">ReadMode</a> <a href="#a2c7f6fb73ce912d0168da5d4659a1aa9" class="m-doc-self">mode</a>
             </dt>
             <dd><span></span></dd>
-            <dt id="ad5ebe58ebdb52c1947c6c5aeb7109526">
-              <span class="m-doc-wrap-bumper">#define <a href="#ad5ebe58ebdb52c1947c6c5aeb7109526" class="m-doc-self">SG_UNREACHABLE</a></span>
+            <dt id="abe15a0766632e2a307aaf71a79650703">
+              bool <a href="#abe15a0766632e2a307aaf71a79650703" class="m-doc-self">ratioPair</a>
             </dt>
             <dd><span></span></dd>
-            <dt id="ad741fcfc1dc6f01a36947f7e37475fb3">
-              <span class="m-doc-wrap-bumper">#define <a href="#ad741fcfc1dc6f01a36947f7e37475fb3" class="m-doc-self">SG_TRAP</a></span>
+            <dt id="a89ede32c5f9559db8433a38d520ad445">
+              <a href="structsg_1_1counters_1_1FakeScript.html" class="m-doc">FakeScript</a> <a href="#a89ede32c5f9559db8433a38d520ad445" class="m-doc-self">script</a>
             </dt>
             <dd><span></span></dd>
-            <dt>
-              <span class="m-doc-wrap-bumper">#define <a href="#ae24436973ba94a565ccac22d34f563bd" class="m-doc">SG_CT_REJECT</a>(</span><span class="m-doc-wrap">pred)</span>
-            </dt>
-            <dd></dd>
-            <dt id="ad34c67f7aa7c2a053f3866dd68edd508">
-              <span class="m-doc-wrap-bumper">#define <a href="#ad34c67f7aa7c2a053f3866dd68edd508" class="m-doc-self">SG_REQUIRE_ALWAYS</a>(</span><span class="m-doc-wrap">pred,
-              msg)</span>
+            <dt id="ae71e5190fceb55c04f5340c767fbe04a">
+              std::size_t <a href="#ae71e5190fceb55c04f5340c767fbe04a" class="m-doc-self">position</a>
             </dt>
             <dd><span></span></dd>
-            <dt id="ad67b6e6fed7a670f5e9d0fd192a11d9a">
-              <span class="m-doc-wrap-bumper">#define <a href="#ad67b6e6fed7a670f5e9d0fd192a11d9a" class="m-doc-self">SG_ENSURE_ALWAYS</a>(</span><span class="m-doc-wrap">pred,
-              msg)</span>
+            <dt id="a34afb095d1c07a5dba86eda09108214e">
+              std::uint64_t <a href="#a34afb095d1c07a5dba86eda09108214e" class="m-doc-self">last</a>
             </dt>
             <dd><span></span></dd>
-            <dt id="a95edeb9c6e98d1b12ac4ac90d341e94d">
-              <span class="m-doc-wrap-bumper">#define <a href="#a95edeb9c6e98d1b12ac4ac90d341e94d" class="m-doc-self">SG_INVARIANT_ALWAYS</a>(</span><span class="m-doc-wrap">pred,
-              msg)</span>
+            <dt id="ad2bfd9ae79b7e54e932a7d3645c237e7">
+              std::uint64_t <a href="#ad2bfd9ae79b7e54e932a7d3645c237e7" class="m-doc-self">deltaState</a>
             </dt>
             <dd><span></span></dd>
-            <dt id="a67d19f7bf8163adf410e4269f962ec53">
-              <span class="m-doc-wrap-bumper">#define <a href="#a67d19f7bf8163adf410e4269f962ec53" class="m-doc-self">SG_ASSERT_ALWAYS</a>(</span><span class="m-doc-wrap">pred,
-              msg)</span>
-            </dt>
-            <dd><span></span></dd>
-            <dt id="aae2bcf476d4ea0ae734ee3caf01b0c8e">
-              <span class="m-doc-wrap-bumper">#define <a href="#aae2bcf476d4ea0ae734ee3caf01b0c8e" class="m-doc-self">SG_REQUIRE</a>(</span><span class="m-doc-wrap">pred,
-              msg)</span>
-            </dt>
-            <dd><span></span></dd>
-            <dt id="ab2a4798fc1da0a558c554bc59df0e0d4">
-              <span class="m-doc-wrap-bumper">#define <a href="#ab2a4798fc1da0a558c554bc59df0e0d4" class="m-doc-self">SG_ENSURE</a>(</span><span class="m-doc-wrap">pred,
-              msg)</span>
-            </dt>
-            <dd><span></span></dd>
-            <dt id="a1e2368e91bdfdc719de505ee29eeb746">
-              <span class="m-doc-wrap-bumper">#define <a href="#a1e2368e91bdfdc719de505ee29eeb746" class="m-doc-self">SG_INVARIANT</a>(</span><span class="m-doc-wrap">pred,
-              msg)</span>
-            </dt>
-            <dd><span></span></dd>
-            <dt id="a03e0f0ca17cbd6cb80a1e01e000679a4">
-              <span class="m-doc-wrap-bumper">#define <a href="#a03e0f0ca17cbd6cb80a1e01e000679a4" class="m-doc-self">SG_ASSERT</a>(</span><span class="m-doc-wrap">pred,
-              msg)</span>
+            <dt id="aba18a159de350b99fcc907faa130e5b6">
+              std::vector&lt;std::size_t&gt; <a href="#aba18a159de350b99fcc907faa130e5b6" class="m-doc-self">gaps</a>
             </dt>
             <dd><span></span></dd>
           </dl>
         </section>
         <section>
-          <h2>Define documentation</h2>
-          <section class="m-doc-details" id="ae24436973ba94a565ccac22d34f563bd"><div>
+          <h2>Function documentation</h2>
+          <section class="m-doc-details" id="a40d223282ad01235434374297d4698df"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">#define <a href="#ae24436973ba94a565ccac22d34f563bd" class="m-doc-self">SG_CT_REJECT</a>(</span><span class="m-doc-wrap">pred)</span>
+              <span class="m-doc-wrap-bumper">bool sg::<wbr />counters::<wbr />FakeCounterData::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a40d223282ad01235434374297d4698df" class="m-doc-self">gapsAt</a>(</span><span class="m-doc-wrap">const std::uint64_t action) const</span></span>
             </h3>
-<p>Compile-time contract layer (FR-022 / FR-023 / FR-024).</p><p>Constraints evaluable at compile time (type properties, template-parameter ranges, size relations) must be expressed with <code>static_assert</code>, a concept, or a <code>constexpr</code> validator — not a runtime <code>SG_*</code> check. Those forms are active in every configuration at zero runtime cost. Constexpr-only interfaces are constrained through this layer and are exempt from runtime enforcement. A runtime <code>SG_*</code> check whose predicate is a compile-time-true constant is a compile error.</p>
+            <p>Whether this leaf measures nothing on the one-based sampling <code>action</code>.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
         </section>
       </div>

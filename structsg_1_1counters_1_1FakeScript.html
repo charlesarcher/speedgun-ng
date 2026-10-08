@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>speedgun-ng/speedgun-ng.hpp file | speedgun-ng</title>
+  <title>sg::counters::FakeScript struct | speedgun-ng</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
   <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
   <link rel="icon" href="favicon-dark.png" type="image/png" />
@@ -49,27 +49,37 @@
     <div class="m-row">
       <div class="m-col-l-10 m-push-l-1">
         <h1>
-          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>speedgun-ng.hpp <span class="m-thin">file</span>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1counters.html">counters</a>::<wbr/></span>FakeScript <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__fake_8hpp.html">&lt;speedgun-ng/counters_fake.hpp&gt;</a></div>
         </h1>
-        <p><span></span></p>
+        <p>One scripted leaf: an explicit point sequence, optionally followed by a per-sample tail (FR-036, T014).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
             <li>
               Reference
               <ul>
-                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
-        <section id="nested-classes">
-          <h2><a href="#nested-classes">Classes</a></h2>
+<p>When the explicit sequence is exhausted, the script keeps stepping the tail. A <code><a href="#ab09e0c22a29d0ada8b6e1606c0eb6e0e" class="m-doc">tailDelta</a></code> of zero holds the last value, freezing the leaf. A <code><a href="#af4fb5b8d069c89dc8b3da450f8a76fc3" class="m-doc">deltaSeed</a></code> steps the seeded per-sample delta sequence documented beside <code>setPoints</code> and supersedes <code><a href="#ab09e0c22a29d0ada8b6e1606c0eb6e0e" class="m-doc">tailDelta</a></code>, so one seed reproduces a whole workload.</p>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
-            <dt>
-              class <a href="classExportedClass.html" class="m-doc">ExportedClass</a>
+            <dt id="ad531970545069164193f99c42de1df7d">
+              std::vector&lt;std::uint64_t&gt; <a href="#ad531970545069164193f99c42de1df7d" class="m-doc-self">points</a>
             </dt>
-            <dd>Reports the name of the library.</dd>
+            <dd><span></span></dd>
+            <dt id="ab09e0c22a29d0ada8b6e1606c0eb6e0e">
+              std::uint64_t <a href="#ab09e0c22a29d0ada8b6e1606c0eb6e0e" class="m-doc-self">tailDelta</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="af4fb5b8d069c89dc8b3da450f8a76fc3">
+              std::optional&lt;std::uint64_t&gt; <a href="#af4fb5b8d069c89dc8b3da450f8a76fc3" class="m-doc-self">deltaSeed</a>
+            </dt>
+            <dd><span></span></dd>
           </dl>
         </section>
       </div>

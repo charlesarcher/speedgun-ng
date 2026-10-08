@@ -68,25 +68,25 @@
           <h2><a href="#nested-classes">Classes</a></h2>
           <dl class="m-doc">
             <dt>
-              struct <a href="structsg_1_1counters_1_1detail_1_1leaf__core.html" class="m-doc">leaf_core</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1LeafCore.html" class="m-doc">LeafCore</a>
             </dt>
             <dd><span></span></dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1detail_1_1expr__node.html" class="m-doc">expr_node</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1ExprNode.html" class="m-doc">ExprNode</a>
             </dt>
             <dd><span></span></dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_core</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;class T, template&lt;class...&gt; class Primary&gt;</div>
-              struct <a href="structsg_1_1counters_1_1detail_1_1is__specialization__of.html" class="m-doc">is_specialization_of</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1IsSpecializationOf.html" class="m-doc">IsSpecializationOf</a>
             </dt>
             <dd><span></span></dd>
             <dt>
               <div class="m-doc-template">template&lt;template&lt;class...&gt; class Primary, class... Args&gt;</div>
-              struct <a href="structsg_1_1counters_1_1detail_1_1is__specialization__of_3_01Primary_3_01Args_8_8_8_01_4_00_01Primary_01_4.html" class="m-doc">is_specialization_of&lt;Primary&lt;Args...&gt;, Primary&gt;</a>
+              struct <a href="structsg_1_1counters_1_1detail_1_1IsSpecializationOf_3_01Primary_3_01Args_8_8_8_01_4_00_01Primary_01_4.html" class="m-doc">IsSpecializationOf&lt;Primary&lt;Args...&gt;, Primary&gt;</a>
             </dt>
             <dd><span></span></dd>
           </dl>
@@ -95,19 +95,19 @@
           <h2><a href="#func-members">Functions</a></h2>
           <dl class="m-doc">
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#aa80382211d43a31d598721e2654592a4" class="m-doc">splice</a>(</span><span class="m-doc-wrap"><a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">detail::<wbr />expr_core</a>&amp; dst,
-              const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">detail::<wbr />expr_core</a>&amp; src) -&gt; int</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ae81961642156aa1ca20e61fd2ac3d5f3" class="m-doc">splice</a>(</span><span class="m-doc-wrap"><a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">detail::<wbr />ExprCore</a>&amp; dst,
+              const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">detail::<wbr />ExprCore</a>&amp; src) -&gt; int</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#aa35dfb6ef3e6a215e79d46fe618a1a45" class="m-doc">hard_stop_sample_core</a>(</span><span class="m-doc-wrap">const void* impl,
+              <span class="m-doc-wrap-bumper">auto <a href="#ae405c075f8b420abec289fd02f596785" class="m-doc">hardStopSampleCore</a>(</span><span class="m-doc-wrap">const void* impl,
               std::uint64_t* columns,
               std::size_t capacity,
               std::size_t&amp; head) noexcept -&gt; void -&gt; SPEEDGUN_NG_EXPORT auto <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a99960ca74f79ba73f8bb6bee65d3b053" class="m-doc">ring_sample_core</a>(</span><span class="m-doc-wrap">const void* impl,
+              <span class="m-doc-wrap-bumper">auto <a href="#a4329afce7c17e2dc6539839a8b8b0d23" class="m-doc">ringSampleCore</a>(</span><span class="m-doc-wrap">const void* impl,
               std::uint64_t* columns,
               std::size_t capacity,
               std::size_t&amp; head,
@@ -116,68 +116,68 @@
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#acd2d4b2ab7c4cdba6878b5a1c0b4ae9b" class="m-doc">fold_core</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core,
-              const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec,
+              <span class="m-doc-wrap-bumper">auto <a href="#a8a6a7398e19e54e9bf7f61e06ed152cb" class="m-doc">foldCore</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core,
+              const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>&amp; rec,
               std::size_t i,
-              std::size_t j) -&gt; metric_result -&gt; SPEEDGUN_NG_EXPORT auto</span>
+              std::size_t j) -&gt; MetricResult -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a90e2fd82ce8b369e6ad3af53abc8906a" class="m-doc">fold_pairs_core</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core,
-              const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec) -&gt; std::vector&lt; metric_result &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ad4f370e794bdfa601e6b3a63f0bc8bb0" class="m-doc">foldPairsCore</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core,
+              const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>&amp; rec) -&gt; std::vector&lt; MetricResult &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#ae4f8f3c4a3afa29ea1bcd9040f9781c8" class="m-doc">raw_core</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core,
-              const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec,
-              std::string_view object_path,
-              std::string_view leaf_name) -&gt; std::expected&lt; points_view, error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a48781985b6cf6875cff377a2f2c4f4b8" class="m-doc">rawCore</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core,
+              const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>&amp; rec,
+              std::string_view objectPath,
+              std::string_view leafName) -&gt; std::expected&lt; PointsView, Error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a09676f85dc2642b5269acc3c16d67cd3" class="m-doc">resolve_leaf_core</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a>&amp; obj,
-              std::string_view name) -&gt; std::expected&lt; leaf_core, error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac5349d7bfd8b302794dff7e1423f5d28" class="m-doc">resolveLeafCore</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Object.html" class="m-doc">Object</a>&amp; obj,
+              std::string_view name) -&gt; std::expected&lt; LeafCore, Error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a2304cda243155320011179821bd07fda" class="m-doc">compile_core</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const <a href="structsg_1_1counters_1_1target.html" class="m-doc">target</a>&amp; tg,
-              const std::vector&lt;const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>*&gt;&amp; exprs) -&gt; std::expected&lt; plan, error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a85e2b17c42d328bfd42351db06f24a15" class="m-doc">compileCore</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const <a href="structsg_1_1counters_1_1Target.html" class="m-doc">Target</a>&amp; tg,
+              const std::vector&lt;const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>*&gt;&amp; exprs) -&gt; std::expected&lt; Plan, Error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a4ed7c6c0e68bc4ebcbf34e64ed562abf" class="m-doc">metric_core</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1scope.html" class="m-doc">scope</a>&amp; scope_obj,
-              const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core) -&gt; metric_result -&gt; SPEEDGUN_NG_EXPORT auto</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a3c8c36dbf67a1da8ab1ba2f08121579c" class="m-doc">metricCore</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Scope.html" class="m-doc">Scope</a>&amp; scopeObj,
+              const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core) -&gt; MetricResult -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a79ae4c135bf7f59bb8818c0e239b27cb" class="m-doc">compile_fanout_core</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const <a href="structsg_1_1counters_1_1target.html" class="m-doc">target</a>&amp; tg,
-              const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; exemplar,
-              const std::vector&lt;const <a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a>*&gt;&amp; selection) -&gt; std::expected&lt; fanout_plan, error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a5927a3f94524535cebb4aae6090c470d" class="m-doc">compileFanoutCore</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const <a href="structsg_1_1counters_1_1Target.html" class="m-doc">Target</a>&amp; tg,
+              const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; exemplar,
+              const std::vector&lt;const <a href="classsg_1_1counters_1_1Object.html" class="m-doc">Object</a>*&gt;&amp; selection) -&gt; std::expected&lt; FanoutPlan, Error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd><span></span></dd>
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a4f0d04810ea604f664daf1199959f197" class="m-doc">fanout_fold_core</a>(</span><span class="m-doc-wrap">const void* fanout,
-              const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core,
-              const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec) -&gt; std::vector&lt; fanout_result &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+              <span class="m-doc-wrap-bumper">auto <a href="#a81bb138808fb34082ad78b33f94b53b2" class="m-doc">fanoutFoldCore</a>(</span><span class="m-doc-wrap">const void* fanout,
+              const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core,
+              const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>&amp; rec) -&gt; std::vector&lt; FanoutResult &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd><span></span></dd>
           </dl>
         </section>
         <section>
           <h2>Function documentation</h2>
-          <section class="m-doc-details" id="aa80382211d43a31d598721e2654592a4"><div>
+          <section class="m-doc-details" id="ae81961642156aa1ca20e61fd2ac3d5f3"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">int sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aa80382211d43a31d598721e2654592a4" class="m-doc-self">splice</a>(</span><span class="m-doc-wrap"><a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">detail::<wbr />expr_core</a>&amp; dst,
-              const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">detail::<wbr />expr_core</a>&amp; src)</span></span>
+              <span class="m-doc-wrap-bumper">int sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae81961642156aa1ca20e61fd2ac3d5f3" class="m-doc-self">splice</a>(</span><span class="m-doc-wrap"><a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">detail::<wbr />ExprCore</a>&amp; dst,
+              const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">detail::<wbr />ExprCore</a>&amp; src)</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="aa35dfb6ef3e6a215e79d46fe618a1a45"><div>
+          <section class="m-doc-details" id="ae405c075f8b420abec289fd02f596785"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aa35dfb6ef3e6a215e79d46fe618a1a45" class="m-doc-self">hard_stop_sample_core</a>(</span><span class="m-doc-wrap">const void* impl,
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae405c075f8b420abec289fd02f596785" class="m-doc-self">hardStopSampleCore</a>(</span><span class="m-doc-wrap">const void* impl,
               std::uint64_t* columns,
               std::size_t capacity,
               std::size_t&amp; head) noexcept -&gt; void <span class="m-label m-success">noexcept</span></span></span>
@@ -185,9 +185,9 @@
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a99960ca74f79ba73f8bb6bee65d3b053"><div>
+          <section class="m-doc-details" id="a4329afce7c17e2dc6539839a8b8b0d23"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a99960ca74f79ba73f8bb6bee65d3b053" class="m-doc-self">ring_sample_core</a>(</span><span class="m-doc-wrap">const void* impl,
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a4329afce7c17e2dc6539839a8b8b0d23" class="m-doc-self">ringSampleCore</a>(</span><span class="m-doc-wrap">const void* impl,
               std::uint64_t* columns,
               std::size_t capacity,
               std::size_t&amp; head,
@@ -197,74 +197,74 @@
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="acd2d4b2ab7c4cdba6878b5a1c0b4ae9b"><div>
+          <section class="m-doc-details" id="a8a6a7398e19e54e9bf7f61e06ed152cb"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acd2d4b2ab7c4cdba6878b5a1c0b4ae9b" class="m-doc-self">fold_core</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core,
-              const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec,
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a8a6a7398e19e54e9bf7f61e06ed152cb" class="m-doc-self">foldCore</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core,
+              const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>&amp; rec,
               std::size_t i,
-              std::size_t j) -&gt; metric_result</span></span>
+              std::size_t j) -&gt; MetricResult</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a90e2fd82ce8b369e6ad3af53abc8906a"><div>
+          <section class="m-doc-details" id="ad4f370e794bdfa601e6b3a63f0bc8bb0"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a90e2fd82ce8b369e6ad3af53abc8906a" class="m-doc-self">fold_pairs_core</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core,
-              const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec) -&gt; std::vector&lt; metric_result &gt;</span></span>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad4f370e794bdfa601e6b3a63f0bc8bb0" class="m-doc-self">foldPairsCore</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core,
+              const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>&amp; rec) -&gt; std::vector&lt; MetricResult &gt;</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="ae4f8f3c4a3afa29ea1bcd9040f9781c8"><div>
+          <section class="m-doc-details" id="a48781985b6cf6875cff377a2f2c4f4b8"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae4f8f3c4a3afa29ea1bcd9040f9781c8" class="m-doc-self">raw_core</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core,
-              const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec,
-              std::string_view object_path,
-              std::string_view leaf_name) -&gt; std::expected&lt; points_view, error &gt;</span></span>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a48781985b6cf6875cff377a2f2c4f4b8" class="m-doc-self">rawCore</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core,
+              const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>&amp; rec,
+              std::string_view objectPath,
+              std::string_view leafName) -&gt; std::expected&lt; PointsView, Error &gt;</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a09676f85dc2642b5269acc3c16d67cd3"><div>
+          <section class="m-doc-details" id="ac5349d7bfd8b302794dff7e1423f5d28"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a09676f85dc2642b5269acc3c16d67cd3" class="m-doc-self">resolve_leaf_core</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a>&amp; obj,
-              std::string_view name) -&gt; std::expected&lt; leaf_core, error &gt;</span></span>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac5349d7bfd8b302794dff7e1423f5d28" class="m-doc-self">resolveLeafCore</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Object.html" class="m-doc">Object</a>&amp; obj,
+              std::string_view name) -&gt; std::expected&lt; LeafCore, Error &gt;</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a2304cda243155320011179821bd07fda"><div>
+          <section class="m-doc-details" id="a85e2b17c42d328bfd42351db06f24a15"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a2304cda243155320011179821bd07fda" class="m-doc-self">compile_core</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const <a href="structsg_1_1counters_1_1target.html" class="m-doc">target</a>&amp; tg,
-              const std::vector&lt;const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>*&gt;&amp; exprs) -&gt; std::expected&lt; plan, error &gt;</span></span>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a85e2b17c42d328bfd42351db06f24a15" class="m-doc-self">compileCore</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const <a href="structsg_1_1counters_1_1Target.html" class="m-doc">Target</a>&amp; tg,
+              const std::vector&lt;const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>*&gt;&amp; exprs) -&gt; std::expected&lt; Plan, Error &gt;</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a4ed7c6c0e68bc4ebcbf34e64ed562abf"><div>
+          <section class="m-doc-details" id="a3c8c36dbf67a1da8ab1ba2f08121579c"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a4ed7c6c0e68bc4ebcbf34e64ed562abf" class="m-doc-self">metric_core</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1scope.html" class="m-doc">scope</a>&amp; scope_obj,
-              const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core) -&gt; metric_result</span></span>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a3c8c36dbf67a1da8ab1ba2f08121579c" class="m-doc-self">metricCore</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Scope.html" class="m-doc">Scope</a>&amp; scopeObj,
+              const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core) -&gt; MetricResult</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a79ae4c135bf7f59bb8818c0e239b27cb"><div>
+          <section class="m-doc-details" id="a5927a3f94524535cebb4aae6090c470d"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a79ae4c135bf7f59bb8818c0e239b27cb" class="m-doc-self">compile_fanout_core</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1system.html" class="m-doc">system</a>&amp; sys,
-              const <a href="structsg_1_1counters_1_1target.html" class="m-doc">target</a>&amp; tg,
-              const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; exemplar,
-              const std::vector&lt;const <a href="classsg_1_1counters_1_1object.html" class="m-doc">object</a>*&gt;&amp; selection) -&gt; std::expected&lt; fanout_plan, error &gt;</span></span>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a5927a3f94524535cebb4aae6090c470d" class="m-doc-self">compileFanoutCore</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>&amp; sys,
+              const <a href="structsg_1_1counters_1_1Target.html" class="m-doc">Target</a>&amp; tg,
+              const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; exemplar,
+              const std::vector&lt;const <a href="classsg_1_1counters_1_1Object.html" class="m-doc">Object</a>*&gt;&amp; selection) -&gt; std::expected&lt; FanoutPlan, Error &gt;</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a4f0d04810ea604f664daf1199959f197"><div>
+          <section class="m-doc-details" id="a81bb138808fb34082ad78b33f94b53b2"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a4f0d04810ea604f664daf1199959f197" class="m-doc-self">fanout_fold_core</a>(</span><span class="m-doc-wrap">const void* fanout,
-              const <a href="structsg_1_1counters_1_1detail_1_1expr__core.html" class="m-doc">expr_<wbr />core</a>&amp; core,
-              const <a href="structsg_1_1counters_1_1recorder__api.html" class="m-doc">recorder_<wbr />api</a>&amp; rec) -&gt; std::vector&lt; fanout_result &gt;</span></span>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a81bb138808fb34082ad78b33f94b53b2" class="m-doc-self">fanoutFoldCore</a>(</span><span class="m-doc-wrap">const void* fanout,
+              const <a href="structsg_1_1counters_1_1detail_1_1ExprCore.html" class="m-doc">ExprCore</a>&amp; core,
+              const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">RecorderApi</a>&amp; rec) -&gt; std::vector&lt; FanoutResult &gt;</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__measurement_8hpp.html">&lt;speedgun-ng/counters_measurement.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>

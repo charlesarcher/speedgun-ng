@@ -64,7 +64,7 @@
             </li>
           </ul>
         </nav>
-<p>A provider registers objects with named catalog entries (<code>enumerate</code>), and yields cumulative points for the leaves the system asks it to manage (<code>open</code>, then <code>read_points</code> per action). Virtual calls belong to setup; the compiled read path reaches a provider through the <code>window_reader::read_thunk</code> slot its window fills in the window constructor, one static function naming that window&#x27;s own read (R-004, FR-022).</p>
+<p>A provider registers objects with named catalog entries (<code>enumerate</code>), and yields cumulative points for the leaves the system asks it to manage (<code>open</code>, then <code>readPoints</code> per action). Virtual calls belong to setup; the compiled read path reaches a provider through the <code>WindowReader::ReadThunk</code> slot its window fills in the window constructor, one static function naming that window&#x27;s own read (R-004, FR-022).</p>
         <section id="namespaces">
           <h2><a href="#namespaces">Namespaces</a></h2>
           <dl class="m-doc">
@@ -78,35 +78,35 @@
           <h2><a href="#nested-classes">Classes</a></h2>
           <dl class="m-doc">
             <dt>
-              struct <a href="structsg_1_1counters_1_1catalog__seed.html" class="m-doc">sg::counters::catalog_seed</a>
+              struct <a href="structsg_1_1counters_1_1CatalogSeed.html" class="m-doc">sg::counters::CatalogSeed</a>
             </dt>
             <dd>One catalog entry as a provider seeds it.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1object__seed.html" class="m-doc">sg::counters::object_seed</a>
+              struct <a href="structsg_1_1counters_1_1ObjectSeed.html" class="m-doc">sg::counters::ObjectSeed</a>
             </dt>
             <dd>One countable object as a provider seeds it, with its entries.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1object__sink.html" class="m-doc">sg::counters::object_sink</a>
+              class <a href="classsg_1_1counters_1_1ObjectSink.html" class="m-doc">sg::counters::ObjectSink</a>
             </dt>
             <dd>Receiver for provider enumeration at registration time.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1leaf__set.html" class="m-doc">sg::counters::leaf_set</a>
+              struct <a href="structsg_1_1counters_1_1LeafSet.html" class="m-doc">sg::counters::LeafSet</a>
             </dt>
             <dd>The leaves one provider is asked to manage.</dd>
             <dt>
-              struct <a href="structsg_1_1counters_1_1target.html" class="m-doc">sg::counters::target</a>
+              struct <a href="structsg_1_1counters_1_1Target.html" class="m-doc">sg::counters::Target</a>
             </dt>
             <dd>Sampling target handed to a provider at open (FR-031).</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1point__sink.html" class="m-doc">sg::counters::point_sink</a>
+              class <a href="classsg_1_1counters_1_1PointSink.html" class="m-doc">sg::counters::PointSink</a>
             </dt>
             <dd>The per-action write cursor a provider fills.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1window__reader.html" class="m-doc">sg::counters::window_reader</a>
+              class <a href="classsg_1_1counters_1_1WindowReader.html" class="m-doc">sg::counters::WindowReader</a>
             </dt>
             <dd>The sampling primitive a provider implements for one open window.</dd>
             <dt>
-              class <a href="classsg_1_1counters_1_1provider__iface.html" class="m-doc">sg::counters::provider_iface</a>
+              class <a href="classsg_1_1counters_1_1ProviderIface.html" class="m-doc">sg::counters::ProviderIface</a>
             </dt>
             <dd>The registration base every provider derives from.</dd>
           </dl>
