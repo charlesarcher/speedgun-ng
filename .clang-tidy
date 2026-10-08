@@ -125,9 +125,12 @@ CheckOptions:
     value: 'CamelCase'
   - key: 'readability-identifier-naming.ClassConstantPrefix'
     value: 'k'
-  # N-11: a tag object keeps lowerCamelCase beside its PascalCase tag type.
+  # N-11: a tag object keeps lowerCamelCase beside its PascalCase tag
+  # type. The entry names the two tag objects and nothing else: the
+  # seam-test constants that once rode it are ordinary named constants
+  # under N-8, now spelled kCyc and kOffset.
   - key: 'readability-identifier-naming.ConstexprVariableIgnoredRegexp'
-    value: '(hardStop|ring|cyc|offset)'
+    value: '^(hardStop|ring)$'
   # The exception list: the fields of perf_event_mmap_page and
   # perf_event_attr are kernel names, so a struct that mirrors the mapped
   # page keeps their spelling.
