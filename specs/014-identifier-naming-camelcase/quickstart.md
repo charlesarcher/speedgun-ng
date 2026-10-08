@@ -209,7 +209,11 @@ run, and two of them edit C++. All eleven executed jobs concluded
 success, the docs job skipped, and the coverage gate held with the
 machine-root leg excluded. CI run `37762327363` at convergence head
 `835481b` repeated the pass again: all eleven executed jobs
-concluded success, the docs job skipped.
+concluded success, the docs job skipped. The five commits after
+that head sat unpushed, so no run covered them until T053 pushed
+them; CI run `37768182864` at convergence head `eb1f444` then
+repeated the pass: all eleven executed jobs concluded success, the
+docs job skipped.
 
 ## Rename command
 
