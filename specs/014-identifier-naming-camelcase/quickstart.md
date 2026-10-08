@@ -252,7 +252,12 @@ whole. CI run `37778739445` at convergence head `4f73163` repeated the
 pass: eleven executed jobs concluded success, the docs job skipped, and
 the coverage job held at 860 of 860 branches. T057 records that run; the
 commits that opened this pass, recorded the range walk, and wrote this
-sentence carry documents alone.
+sentence carry documents alone. Run `37792388408` at head `f394404`
+failed its coverage job on attempt 1 at `clock_provider.cpp:60`, the
+loop-exit arc of `parse()` that an unknown leaf address alone reaches,
+and read 859 of 860 branches; attempt 2 read 860 of 860 and the run
+concluded success. The local trace carries no branch record at that
+line.
 
 ## Rename command
 
