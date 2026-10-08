@@ -248,7 +248,11 @@ covers every branch of the host-dependent test. CI run
 span on its first attempt: all eleven executed jobs concluded success,
 the docs job skipped, and the coverage job read 100.0 percent at 860
 of 860 branches on the CI gcov, the count that exclusion now covers
-whole.
+whole. CI run `37778739445` at convergence head `4f73163` repeated the
+pass: eleven executed jobs concluded success, the docs job skipped, and
+the coverage job held at 860 of 860 branches. T057 records that run; the
+commits that opened this pass, recorded the range walk, and wrote this
+sentence carry documents alone.
 
 ## Rename command
 
