@@ -71,6 +71,15 @@ struct MetricValue {
   sg::counters::Availability availability;
 };
 
+struct ResultRow {
+  // kind: repetition or aggregate; aggregates appear only when
+  // repetitions exceed 1 (FR-027, FR-035)
+  std::uint64_t iterations;          // the N of the measured run
+  double timePerIterationNs;         // the monotonic fold / N (FR-020)
+  std::vector<MetricValue> metrics;  // one per metric (FR-024)
+  double overheadFloorNs;            // Plan::sampleOverheadNsMedian()
+};
+
 struct BenchmarkResult {
   std::string name;
   RunOutcome outcome;
@@ -83,6 +92,9 @@ struct BenchmarkResult {
   report shall format it and add nothing to it (FR-036).
 - Each `MetricValue` shall carry the running ratio, the scaled flag,
   and the gap state beside its value (FR-024).
+- Every `ResultRow` shall carry `overheadFloorNs` beside its values
+  (FR-026); aggregate rows append after the repetition rows (FR-027,
+  FR-035).
 
 ## Barriers (FR-029, FR-055)
 
