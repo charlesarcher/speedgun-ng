@@ -218,6 +218,8 @@ A reader of the live overhead page no longer meets the name of a removed probe. 
 
 These rules are constitutional. FR-009 carries each one into the constitution. The constitution wins on any difference from this list.
 
+The numbers below are the spec's own and predate the constitution's final list. Principle V.1 of the constitution carries the numbering that governs, and a later spec, plan, or task cites those numbers. The mapping: spec N-1 to N-5 match; spec N-6 splits into constitution N-12 for a public aggregate member and constitution N-10 for the `m_` prefix; spec N-7 is constitution N-6; spec N-8 is constitution N-7; spec N-9 matches; spec N-10 lives inside constitution N-1; spec N-11 matches; the unnumbered named-constant paragraph below is constitution N-8. `rename-map.md` already carries the constitution's numbers.
+
 - **N-1**: Types use PascalCase. The set covers classes, structs, unions, enumeration types, type aliases, concepts, and type traits. Examples at the audit point: `point_sink` becomes `PointSink`, `metric_result` becomes `MetricResult`, `points_view` becomes `PointsView`, `availability` becomes `Availability`, `target_mask` becomes `TargetMask`, `target_kind` becomes `TargetKind`, `read_mode` becomes `ReadMode`, `unit` becomes `Unit`. `Kind` and `ViolationRecord` already comply.
 
 - **N-2**: Functions and methods use lowerCamelCase. The rule covers free functions, member functions, static functions, virtual functions, and constexpr functions. File-local helpers follow the same rule. Examples: `put_disclosure` becomes `putDisclosure`, `pmu_load_table` becomes `pmuLoadTable`, `check_precondition` becomes `checkPrecondition`, `first_index_of` becomes `firstIndexOf`, `device_page_fast_verdict` becomes `devicePageFastVerdict`.

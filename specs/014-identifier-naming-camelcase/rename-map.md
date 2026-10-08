@@ -8,7 +8,9 @@ a file-local helper and is out of this map's scope. A test-only name
 stays out. Each entry carries the kind, and a mark records a name in
 a `detail` namespace.
 
-The rename spans these commits:
+The rename spans these commits. Each hash is the one the commit carried
+on the `014-identifier-naming-camelcase` branch; `citations.md` maps
+every hash in this directory to its `master` equivalent:
 
 | Commit | Scope |
 | --- | --- |
@@ -127,12 +129,12 @@ The rename spans these commits:
 | `sample_overhead_ns_min` | `sampleOverheadNsMin` | function |  | N-2 |
 | `scale_all` | `scaleAll` | function | yes | N-2 |
 | `unit_token` | `unitToken` | function |  | N-2 |
-| `m_capacity` | `mCapacity` | member |  | N-12 |
-| `m_columns` | `mColumns` | member |  | N-12 |
-| `m_dropped` | `mDropped` | member |  | N-12 |
-| `m_head` | `mHead` | member |  | N-12 |
-| `m_impl` | `mImpl` | member |  | N-12 |
-| `m_wrapped` | `mWrapped` | member |  | N-12 |
+| `m_capacity` | `mCapacity` | member |  | N-10 |
+| `m_columns` | `mColumns` | member |  | N-10 |
+| `m_dropped` | `mDropped` | member |  | N-10 |
+| `m_head` | `mHead` | member |  | N-10 |
+| `m_impl` | `mImpl` | member |  | N-10 |
+| `m_wrapped` | `mWrapped` | member |  | N-10 |
 | `hard_stop` | `hardStop` | tag |  | N-11 |
 | `counter` | `Counter` | type |  | N-1 |
 | `dimension_tag` | `DimensionTag` | type |  | N-1 |
