@@ -422,12 +422,8 @@ struct PointsView
   const std::uint64_t* points = nullptr;
   std::size_t count = 0;
   double ratio = 1.0;  // the multiplex fraction; 1.0 discloses no fraction
-  // The field carries the contract's name, and the type is qualified for
-  // the same reason as the one on `MetricResult`: a member named as a
-  // type already in this namespace changes that name's meaning for the
-  // rest of the class body, which is ill-formed (FR-004, FR-035).
-  ::sg::counters::Availability availability =
-      ::sg::counters::Availability::COUNTABLE;
+  // The field name is the contract name. The type spelling is Availability.
+  Availability availability = Availability::COUNTABLE;
 };
 
 /**
@@ -1264,4 +1260,4 @@ template<class D>
 
 }  // namespace sg::counters
 
-#endif  // SPEEDGUN_NG_COUNTERS_MEASUREMENT_HPP
+#endif  // SG_COUNTERS_MEASUREMENT_HPP
