@@ -24,5 +24,8 @@ skip = */.git,*/build,*/prefix,*/node_modules,*/.omo,*/external
 # "onOther" is a renamed identifier (specs/014-identifier-naming-camelcase,
 # test/source/counters_linux_pmu_seam_test.cpp); codespell's typo
 # dictionary proposes "another", a different word.
-ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation,onother
+# "nowNs" is the same class: a renamed identifier
+# (specs/014-identifier-naming-camelcase, tools/dbc/overhead.cpp) whose
+# unit suffix makes codespell propose "knowns" or "nouns".
+ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation,onother,nowns
 quiet-level = 2

@@ -2,10 +2,10 @@
 #include "speedgun-ng/counters.hpp"
 
 // Time^1 plus events^1 is a dimension violation (FR-014, US1 scenario 3).
-auto add_time_to_events(
-    const sg::counters::Expression<sg::counters::Dim<1, 0>>& time_axis,
-    const sg::counters::Expression<sg::counters::Dim<0, 1>>& events_axis)
+auto addTimeToEvents(
+    const sg::counters::Expression<sg::counters::Dim<1, 0>>& timeAxis,
+    const sg::counters::Expression<sg::counters::Dim<0, 1>>& eventsAxis)
     -> sg::counters::Expression<sg::counters::Dim<1, 0>>
 {
-  return time_axis + events_axis;
+  return timeAxis + eventsAxis;
 }

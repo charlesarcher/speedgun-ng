@@ -1,4 +1,36 @@
 <!--
+Sync Impact Report (2.17.0, MINOR): V.2 gains the tag-object entry, names
+the macros the build writes, and states the shape the kernel-name entry
+reaches.
+
+`.clang-tidy` exempted `hardStop` and `ring` through
+`ConstexprVariableIgnoredRegexp` while V.2 held no entry naming them,
+and V.2 says no exception exists outside its list. N-11 describes the
+shape, so the list now carries the entry the enforcement cites.
+
+The macro entry named `SPEEDGUN_NG_EXPORT` alone, while the export-header
+generator writes a family and `cmake/variables.cmake` writes
+`SPEEDGUN_NG_SUPPRESS_C4251`. The configuration exempted every
+`SPEEDGUN_NG_*` name, a wider set than the entry described. The entry
+now names the family, and the configuration is anchored to it. Include
+guards carry the `SG_` prefix, and the five test fixtures that did not
+carry it now do.
+
+The kernel-name entry named the fields without naming the shape they
+occupy, so the configuration exempted a parameter and a local constant
+besides the member. The entry now states that the exemption reaches the
+member spelling a mirror copies, and the configuration is anchored to
+the field names.
+
+The amendment adds one entry and completes two. It removes no entry and
+weakens none. The version moves MINOR under Governance: an entry added
+to an existing list.
+
+The insertion shifts every line below line 1. A citation naming a line
+number in this file needs re-anchoring; search for the named token.
+-->
+
+<!--
 Sync Impact Report (2.16.0, MINOR): Principle V.1 gains the FR-012
 obligation sentence, and N-1 names concepts and type traits.
 
@@ -541,10 +573,19 @@ exists outside this list, and each suppression names the entry it cites.
 - Names a vendored library or the platform defines: hwloc, simdjson,
   HdrHistogram_c, yaml-cpp, zlib, quill, and Linux and POSIX names. The
   fields of `perf_event_mmap_page` and `perf_event_attr` are kernel
-  names, for example `cap_user_rdpmc`, `time_mult`, and `pmc_width`.
-- The export macro `SPEEDGUN_NG_EXPORT`, which the export-header generator
-  writes from the target name and which carries no `SG_` prefix. Include
-  guards carry the `SG_` prefix like any other macro.
+  names, for example `cap_user_rdpmc`, `time_mult`, and `pmc_width`. The
+  exemption reaches the member spelling a mirror of such a struct
+  copies; a parameter and a local take the project spelling under N-5.
+- The macros the build writes from the target name: `SPEEDGUN_NG_EXPORT`
+  and the generator siblings `SPEEDGUN_NG_NO_EXPORT`,
+  `SPEEDGUN_NG_DEPRECATED`, `SPEEDGUN_NG_DEPRECATED_EXPORT`,
+  `SPEEDGUN_NG_DEPRECATED_NO_EXPORT`, `SPEEDGUN_NG_NO_DEPRECATED`,
+  `SPEEDGUN_NG_STATIC_DEFINE`, `SPEEDGUN_NG_LIBRARY_DEFINE`, and
+  `SPEEDGUN_NG_EXPORT_H`, plus `SPEEDGUN_NG_SUPPRESS_C4251` from
+  `cmake/variables.cmake`. Each carries no `SG_` prefix. Include guards
+  carry the `SG_` prefix like any other macro.
+- A tag object beside its tag type: `hardStop` and `ring`, the exception
+  N-11 names, exempt through `ConstexprVariableIgnoredRegexp`.
 - `main` in each executable, and every identifier inside `external/`.
 
 ### VI. Test-Backed Code and Coverage (NON-NEGOTIABLE)
@@ -1022,6 +1063,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.17.0 | 2026-10-08 | V.2 gains the tag-object entry `hardStop` and `ring` that `.clang-tidy` already exempted, names the export-header macro family and `SPEEDGUN_NG_SUPPRESS_C4251` in place of the single export macro, and states that the kernel-field entry reaches the member spelling a mirror copies; specs/014 post-merge repair |
 | 2.16.0 | 2026-10-08 | V.1 gains the FR-012 obligation: a later spec, plan, local naming override, or suppression creates no deviation, a deviation needs an amendment, and a suppression names the V.2 entry it applies; N-1 adds concepts and type traits to the enumeration; T048 and T050 of specs/014 |
 | 2.15.0 | 2026-10-07 | V.1 gains N-12: a public data member of an aggregate takes camelBack, prefix free, the rule `.clang-tidy` `PublicMemberCase` enforces; T037 of specs/014 closes the gap where the rule lived only in the key |
 | 2.14.0 | 2026-10-07 | V gains V.1 Identifier Naming and V.2 Naming exceptions: the one spelling rule every owned C++ identifier follows, and the closed list of names that keep a spelling the language, the standard library, a vendor, or the platform requires. FR-001 to FR-021 of specs/014. |

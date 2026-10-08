@@ -11,7 +11,7 @@ namespace
 {
 
 template<int N>
-constexpr auto get_positive() -> int
+constexpr auto getPositive() -> int
 {
   static_assert(N > 0,
                 "N must be positive (ct constraint for constexpr interface)");
@@ -22,7 +22,7 @@ constexpr auto get_positive() -> int
 
 auto main() -> int
 {
-  constexpr int value = get_positive<42>();
+  constexpr int value = getPositive<42>();
   static_cast<void>(value);
   return 0;
 }

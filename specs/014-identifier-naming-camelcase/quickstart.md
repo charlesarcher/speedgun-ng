@@ -48,7 +48,10 @@ of the commit.
 
 Result: pass. Ten rename commits: `f7591cc`, `13d8e2f`, `c3908b4`,
 `7318450`, `4789921`, `bcf6c9b`, `5c110ca`, `8a7b1a5`, `24ea24f`, and
-`fb7ba67`; the sentence this one replaces counted nine. T056 walked the
+`fb7ba67`; the sentence this one replaces counted nine. Each hash is the
+one the commit carried on the `014-identifier-naming-camelcase` branch,
+and `citations.md` maps every hash this directory cites to its `master`
+equivalent. T056 walked the
 range in order and at each commit ran `cmake --preset=dev`,
 `cmake --build --preset=dev`, `ctest --preset=dev`, and the
 `format-check` target. The configure, the build, and the format check

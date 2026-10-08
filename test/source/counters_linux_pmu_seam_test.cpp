@@ -125,7 +125,7 @@ struct EventPageFields
   std::uint16_t time_shift = 0;
   std::uint32_t time_mult = 0;
   std::uint64_t time_offset = 0;
-  bool cap_usr_time_short = false;
+  bool capUserTimeShort = false;
   std::uint64_t time_cycles = 0;
   std::uint64_t time_mask = 0;
   // The cycle counter the read takes from the instruction when the page
@@ -153,7 +153,7 @@ auto makeEventPage(const EventPageFields& fields) -> perf_event_mmap_page
   // (linux/perf_event.h:640-652), so each bit is set through its own
   // member and the page keeps whatever else a caller wrote.
   page.cap_user_time = fields.cap_user_time;
-  page.cap_user_time_short = fields.cap_usr_time_short;
+  page.cap_user_time_short = fields.capUserTimeShort;
   page.time_shift = fields.time_shift;
   page.time_mult = fields.time_mult;
   page.time_offset = fields.time_offset;

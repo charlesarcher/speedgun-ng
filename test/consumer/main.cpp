@@ -46,14 +46,14 @@ auto main() -> int
 
   // The event tables reach a catalog entry, so the row count the linked
   // package resolves is the count the pmu objects publish.
-  const auto pmu_objects = sg::counters::System::local().objects("pmu");
-  if (!pmu_objects.has_value()) {
+  const auto pmuObjects = sg::counters::System::local().objects("pmu");
+  if (!pmuObjects.has_value()) {
     std::puts("consumer: no pmu objects");
     return 1;
   }
 
   std::size_t entries = 0;
-  for (const auto* object : *pmu_objects) {
+  for (const auto* object : *pmuObjects) {
     entries += object->counters().size();
   }
   std::printf("consumer: pmu catalog entries %zu\n", entries);

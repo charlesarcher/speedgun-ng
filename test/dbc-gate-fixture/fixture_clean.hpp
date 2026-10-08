@@ -1,5 +1,5 @@
-#ifndef SPEEDGUN_NG_TEST_DBC_GATE_FIXTURE_CLEAN_HPP
-#define SPEEDGUN_NG_TEST_DBC_GATE_FIXTURE_CLEAN_HPP
+#ifndef SG_TEST_DBC_GATE_FIXTURE_CLEAN_HPP
+#define SG_TEST_DBC_GATE_FIXTURE_CLEAN_HPP
 
 #include <speedgun-ng/dbc.hpp>
 
@@ -12,7 +12,7 @@ namespace sg::test::dbc::gate_fixture
  * \pre none
  * \post result >= 0
  */
-inline int clean_with_none_pre(int x)
+inline int cleanWithNonePre(int x)
 {
   // explicit none for pre; post is enforced
   int result = (x < 0 ? 0 : x);
@@ -26,7 +26,7 @@ inline int clean_with_none_pre(int x)
  * \pre x >= 0
  * \post result > x
  */
-inline int clean_full(int x)
+inline int cleanFull(int x)
 {
   SG_REQUIRE(x >= 0, "x >= 0");
   int result = x + 1;
@@ -41,7 +41,7 @@ inline int clean_full(int x)
  * \pre none
  * \post none
  */
-inline void clean_both_none()
+inline void cleanBothNone()
 {
   // no SG_* required for explicit none
 }

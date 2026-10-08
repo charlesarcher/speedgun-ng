@@ -25,13 +25,13 @@ The rename spans these commits:
 
 ## Names by header
 
-### `include/speedgun-ng/counters.hpp`
+### include/speedgun-ng/counters.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
 | `SPEEDGUN_NG_COUNTERS_HPP` | `SG_COUNTERS_HPP` | macro |  | N-3 |
 
-### `include/speedgun-ng/counters_clock.hpp`
+### include/speedgun-ng/counters_clock.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -39,7 +39,7 @@ The rename spans these commits:
 | `clock_provider` | `ClockProvider` | type |  | N-1 |
 | `clock_window` | `ClockWindow` | type | yes | N-1 |
 
-### `include/speedgun-ng/counters_core.hpp`
+### include/speedgun-ng/counters_core.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -80,7 +80,7 @@ The rename spans these commits:
 | `frequency_hz` | `frequencyHz` | member |  | N-12 |
 | `running_ratio` | `runningRatio` | member |  | N-12 |
 
-### `include/speedgun-ng/counters_fake.hpp`
+### include/speedgun-ng/counters_fake.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -103,7 +103,7 @@ The rename spans these commits:
 | `ratio_pair` | `ratioPair` | variable |  | N-5 |
 | `tail_delta` | `tailDelta` | variable |  | N-5 |
 
-### `include/speedgun-ng/counters_measurement.hpp`
+### include/speedgun-ng/counters_measurement.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -161,7 +161,7 @@ The rename spans these commits:
 | `object_path` | `objectPath` | variable |  | N-5 |
 | `scope_obj` | `scopeObj` | variable | yes | N-5 |
 
-### `include/speedgun-ng/counters_pmu.hpp`
+### include/speedgun-ng/counters_pmu.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -169,7 +169,7 @@ The rename spans these commits:
 | `pmu_provider` | `PmuProvider` | type |  | N-1 |
 | `pmu_state` | `PmuState` | type | yes | N-1 |
 
-### `include/speedgun-ng/counters_provider.hpp`
+### include/speedgun-ng/counters_provider.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -204,7 +204,7 @@ The rename spans these commits:
 | `has_ratio_pair` | `hasRatioPair` | variable |  | N-5 |
 | `leaf_count` | `leafCount` | variable |  | N-5 |
 
-### `include/speedgun-ng/counters_push.hpp`
+### include/speedgun-ng/counters_push.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -214,7 +214,7 @@ The rename spans these commits:
 | `push_provider` | `PushProvider` | type |  | N-1 |
 | `push_window` | `PushWindow` | type | yes | N-1 |
 
-### `include/speedgun-ng/counters_system.hpp`
+### include/speedgun-ng/counters_system.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -225,7 +225,7 @@ The rename spans these commits:
 | `impl` | `Impl` | type |  | N-1 |
 | `system` | `System` | type |  | N-1 |
 
-### `include/speedgun-ng/dbc.hpp`
+### include/speedgun-ng/dbc.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -253,7 +253,7 @@ The rename spans these commits:
 | `in_response` | `inResponse` | variable | yes | N-5 |
 | `predicate_text` | `predicateText` | variable | yes | N-5 |
 
-### `include/speedgun-ng/simulation.hpp`
+### include/speedgun-ng/simulation.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |
@@ -261,7 +261,7 @@ The rename spans these commits:
 | `simulation_start_tag` | `kSimulationStartTag` | constant |  | N-8 |
 | `simulation_start` | `simulationStart` | function |  | N-2 |
 
-### `include/speedgun-ng/speedgun-ng.hpp`
+### include/speedgun-ng/speedgun-ng.hpp
 
 | Old | New | Kind | Detail | Rule |
 | --- | --- | --- | --- | --- |

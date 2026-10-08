@@ -57,15 +57,16 @@ CheckOptions:
     value: 'camelBack'
   - key: 'readability-identifier-naming.GlobalFunctionCase'
     value: 'camelBack'
-  # N-3: a macro takes UPPER_SNAKE_CASE under SG_. The export header
-  # generator and every include guard write their own name and carry no
-  # prefix, which is the exception entry both cite.
+  # N-3: a macro takes UPPER_SNAKE_CASE under SG_. The only exemption is
+  # the V.2 entry for the macros the build writes: the export-header
+  # generator's family and SPEEDGUN_NG_SUPPRESS_C4251. Include guards
+  # carry the SG_ prefix like any other macro and need no exemption.
   - key: 'readability-identifier-naming.MacroDefinitionCase'
     value: 'UPPER_CASE'
   - key: 'readability-identifier-naming.MacroDefinitionPrefix'
     value: 'SG_'
   - key: 'readability-identifier-naming.MacroDefinitionIgnoredRegexp'
-    value: '^SPEEDGUN_NG_'
+    value: '^SPEEDGUN_NG_(EXPORT_H|EXPORT|NO_EXPORT|DEPRECATED|DEPRECATED_EXPORT|DEPRECATED_NO_EXPORT|NO_DEPRECATED|STATIC_DEFINE|LIBRARY_DEFINE|SUPPRESS_C4251)$'
   # N-4: a scoped enumerator takes UPPER_SNAKE_CASE, no prefix.
   - key: 'readability-identifier-naming.EnumConstantCase'
     value: 'UPPER_CASE'
@@ -128,18 +129,17 @@ CheckOptions:
   # N-11: a tag object keeps lowerCamelCase beside its PascalCase tag
   # type. The entry names the two tag objects and nothing else: the
   # seam-test constants that once rode it are ordinary named constants
-  # under N-8, now spelled kCyc and kOffset.
+  # under N-8, now spelled kCyc and kOffset. V.2 lists the two names.
   - key: 'readability-identifier-naming.ConstexprVariableIgnoredRegexp'
     value: '^(hardStop|ring)$'
-  # The exception list: the fields of perf_event_mmap_page and
-  # perf_event_attr are kernel names, so a struct that mirrors the mapped
-  # page keeps their spelling.
+  # The V.2 entry for names a vendored library or the platform defines.
+  # The fields of perf_event_mmap_page and perf_event_attr are kernel
+  # names, so the struct that mirrors the mapped page keeps their
+  # spelling. The entry reaches a member the platform looks up by
+  # spelling, so it is anchored to the field names alone: a parameter or
+  # a local takes the project spelling under N-5 and N-8.
   - key: 'readability-identifier-naming.PublicMemberIgnoredRegexp'
-    value: '(cap_user_rdpmc|cap_user_time|cap_user_time_short|cap_usr_time_short|pmc_width|time_enabled|time_running|time_shift|time_mult|time_offset|time_cycles|time_mask)'
-  - key: 'readability-identifier-naming.LocalConstantIgnoredRegexp'
-    value: '(cap_user_rdpmc|cap_user_time|cap_user_time_short|cap_usr_time_short|pmc_width|time_enabled|time_running|time_shift|time_mult|time_offset|time_cycles|time_mask)'
-  - key: 'readability-identifier-naming.ParameterIgnoredRegexp'
-    value: '(cap_user_rdpmc|cap_user_time|cap_user_time_short|cap_usr_time_short|pmc_width|time_enabled|time_running|time_shift|time_mult|time_offset|time_cycles|time_mask)'
+    value: '^(cap_user_rdpmc|cap_user_time|cap_user_time_short|pmc_width|time_enabled|time_running|time_shift|time_mult|time_offset|time_cycles|time_mask)$'
   # main in each executable, and every identifier inside external/.
   - key: 'readability-identifier-naming.IgnoreMainLikeFunctions'
     value: 'true'
