@@ -1,4 +1,31 @@
 <!--
+Sync Impact Report (2.16.0, MINOR): Principle V.1 gains the FR-012
+obligation sentence, and N-1 names concepts and type traits.
+
+`specs/014-identifier-naming-camelcase` T017 required the 2.14.0
+amendment to state that a later spec, plan, local naming override, or
+suppression cannot create a deviation, and that a suppression names
+the exception entry it applies. V.1 carried no such sentence. FR-012
+is a standing obligation of every later change, so it joins the law.
+
+The spec's N-1 enumerates concepts and type traits among the types.
+The 2.14.0 text omitted both shapes from the enumeration, so the
+constitution covered fewer shapes than the rule it restates. The
+clang-tidy 23.1.1 dump carries no `ConceptCase` key, so a concept
+stays PascalCase under N-1 by review, and
+`specs/014-identifier-naming-camelcase/contracts/naming-check.md`
+records that silence. The enumeration now matches the spec.
+
+The amendment adds one obligation and completes one enumeration. It
+removes no obligation and weakens none. V.2 and the VIII gate list
+stay as 2.14.0 wrote them. The version moves MINOR under Governance:
+an obligation added inside an existing principle.
+
+The insertion shifts every line below line 1. A citation naming a line
+number in this file needs re-anchoring; search for the named token.
+-->
+
+<!--
 Sync Impact Report (2.15.0, MINOR): Principle V.1 gains N-12, the
 public data member rule. `.clang-tidy` has enforced the spelling since
 the 2.14.0 amendment, through `PublicMemberCase: camelBack`, yet V.1
@@ -455,7 +482,8 @@ is its enforcement.
 - **N-1 Types take PascalCase.** `fake_provider` becomes `FakeProvider`.
   One acronym spells as one word, so `pmu_table_entry` becomes
   `PmuTableEntry` and never `PMUTableEntry`. The rule covers classes,
-  structs, unions, enums, type aliases, and typedefs.
+  structs, unions, enums, type aliases, typedefs, concepts, and type
+  traits.
 - **N-2 Functions take camelBack.** The rule holds for a free function
   and for a member function alike. `register_provider` becomes
   `registerProvider`; `select_directory` becomes `selectDirectory`.
@@ -487,6 +515,11 @@ is its enforcement.
   free.** `frequency_hz` becomes `frequencyHz`. The `m_` prefix marks a
   private or protected member under N-10, and it stays off a public
   member. `.clang-tidy` enforces the rule through `PublicMemberCase`.
+
+Every later change obeys these rules. A deviation requires a
+constitutional amendment through Governance. A spec, a plan, a local
+naming override, or a suppression comment creates no deviation. A
+suppression names the V.2 exception entry it applies.
 
 #### V.2 Naming exceptions
 
@@ -989,6 +1022,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.16.0 | 2026-10-08 | V.1 gains the FR-012 obligation: a later spec, plan, local naming override, or suppression creates no deviation, a deviation needs an amendment, and a suppression names the V.2 entry it applies; N-1 adds concepts and type traits to the enumeration; T048 and T050 of specs/014 |
 | 2.15.0 | 2026-10-07 | V.1 gains N-12: a public data member of an aggregate takes camelBack, prefix free, the rule `.clang-tidy` `PublicMemberCase` enforces; T037 of specs/014 closes the gap where the rule lived only in the key |
 | 2.14.0 | 2026-10-07 | V gains V.1 Identifier Naming and V.2 Naming exceptions: the one spelling rule every owned C++ identifier follows, and the closed list of names that keep a spelling the language, the standard library, a vendor, or the platform requires. FR-001 to FR-021 of specs/014. |
 | 2.13.0 | 2026-10-04 | VIII hard gate list gains a thread-sanitizer item: a `ci-tsan` preset and a `tsan` job report no race, FR-012 and SC-003 of specs/012 require them, no gate removed or weakened |
@@ -1010,4 +1044,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.15.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-07
+**Version**: 2.16.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-08
