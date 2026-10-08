@@ -10,7 +10,7 @@
 // convention; no test framework may be added to this repository.
 //
 // The first scenario runs before any provider is registered, because
-// `system::local()` is a process singleton and the unregistered branch is
+// `System::local()` is a process singleton and the unregistered branch is
 // reachable only in a fresh process (FR-007). Reordering the scenarios
 // silently loses that branch.
 // ============================================================================

@@ -715,10 +715,10 @@ struct EntryReadSelection
     -> std::unique_ptr<WindowReader>;
 
 // The decisions the seam reaches so a fixture can drive them with a
-// device the reference host does not publish. `probe_device` takes a
+// device the reference host does not publish. `probeDevice` takes a
 // device and settles each entry's countability per target kind,
-// `load_device` takes a device directory and reads one, and
-// `merge_vendored` places the vendored rows. All three sit in this
+// `loadDevice` takes a device directory and reads one, and
+// `mergeVendored` places the vendored rows. All three sit in this
 // namespace so a registered test can supply a device the running kernel
 // never lists, which is what reaches a hybrid per-core scope.
 void probeDevice(PmuDevice& device, bool fastCapable);

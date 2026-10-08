@@ -110,7 +110,7 @@ auto exemplarPrefix(const detail::ExprCore& core) -> std::string
 auto availabilityName(const Availability state) -> std::string_view
 {
   // LCOV_EXCL_START : coverage exclusion (T066): the `countable` arm.
-  // `availability_name` runs only on the construction-failure path at
+  // `availabilityName` runs only on the construction-failure path at
   // `plan.cpp:456`, and a leaf the catalog reports as `countable` never
   // takes it.
   switch (state) {
@@ -129,7 +129,7 @@ auto availabilityName(const Availability state) -> std::string_view
   }
   // LCOV_EXCL_LINE : coverage exclusion (T066): the defensive close of a
   // closed enumeration, reachable only by casting an out-of-range integer
-  // to `availability`. `availability_name` is file-local, so no test can
+  // to `Availability`. `availabilityName` is file-local, so no test can
   // hand it such a value.
   return "outside the closed enumeration";  // LCOV_EXCL_LINE
 }  // LCOV_EXCL_STOP

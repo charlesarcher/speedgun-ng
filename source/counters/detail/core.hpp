@@ -172,7 +172,7 @@ struct FanoutImpl
 struct ScopeCore
 {
   const PlanImpl* impl = nullptr;
-  std::vector<std::uint64_t> buffer;  // leaf_count columns, stride 2
+  std::vector<std::uint64_t> buffer;  // leafCount columns, stride 2
   BufferState state;
   bool started = false;
   bool finished = false;
@@ -196,7 +196,7 @@ struct System::Impl
   std::map<std::string, std::unique_ptr<TreeNode>> objects;  // canonical
   std::map<std::string, std::unique_ptr<sg::counters::Object>> handles;
   // The handle map's own lock. Resolution, listing, and the parent and
-  // children walk all reach the map through `handle_for`, and the map is
+  // children walk all reach the map through `handleFor`, and the map is
   // written on a miss, so the lock covers the lookup and the insert as one
   // step: two threads naming one address both receive the same entry
   // (FR-010). No contract check guards it, because a lock does.

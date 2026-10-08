@@ -21,7 +21,7 @@
  * C4251 is emitted when an exported class has a non-static data member of a
  * non-exported class type.
  *
- * The exported class in our case is the class below (exported_class), which
+ * The exported class in our case is the class below (ExportedClass), which
  * has a non-static data member (m_name) of a non-exported class type
  * (std::string).
  *

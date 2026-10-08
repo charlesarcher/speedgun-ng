@@ -37,7 +37,7 @@
 # is spelled `ReadMode::FAST_RDPMC` and lives in a
 # scanned header. The shipped provider header is `counters_pmu.hpp` in
 # lowercase, and its include guard is
-# `SPEEDGUN_NG_COUNTERS_PMU_HPP`, where `PMU` sits between word
+# `SG_COUNTERS_PMU_HPP`, where `PMU` sits between word
 # characters and the word boundary rejects it. A bare `pmu` term
 # matches all three, so the term is the uppercase acronym and the
 # boundary keeps the guard.

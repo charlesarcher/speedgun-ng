@@ -1,7 +1,7 @@
 # Counters sampling cost (SC-004, SC-010)
 
 Documented measurement of the per-action cost of one
-`recorder_handle::sample()` on this feature's plans, published as
+`RecorderHandle::sample()` on this feature's plans, published as
 min/median/max per read regime (constitution Principle VII; T051, T056).
 Fold cost is measured with the sampling path outside the loop, so the
 two costs stay separable. This file is **not** a CI gate and **not** a
@@ -94,8 +94,8 @@ regime is measured and which is skipped.
 - Plans: one leaf per sampling action on the clock plan, one read per
   group leader on the PMU plan, so the two rows differ in the read
   sequence and in nothing else the plan charges
-- Source of the numbers: `plan::sample_overhead_ns_min()`,
-  `sample_overhead_ns_median()`, `sample_overhead_ns_max()` (FR-032);
+- Source of the numbers: `Plan::sampleOverheadNsMin()`,
+  `sampleOverheadNsMedian()`, `sampleOverheadNsMax()` (FR-032);
   the first call on a plan runs the calibration, so compile itself
   performs no hardware read (FR-021)
 - Fold cost: 1000 first-to-last folds over a 64-point recorder, divided
@@ -216,7 +216,7 @@ prints the corrected and uncorrected figures and asserts neither,
 because Principle VI requires the suite to run in every CI job.
 
 A fold window from `i` to `j` costs two sampling actions plus the fold:
-`2 * sample_overhead_ns_median()`, so 80 ns for the clock plan and 140 ns
+`2 * sampleOverheadNsMedian()`, so 80 ns for the clock plan and 140 ns
 for the PMU group plan in the release build, and 140 ns and 360 ns in the
 correctness build. Those four figures are the per-action medians of the
 tables above multiplied by two, and the cadence comment in
@@ -225,7 +225,7 @@ the same two medians.
 
 ## Raw trial inputs (ns per sample(), run order)
 
-The time-stamp entry is reachable through `system::local().tsc()` and
+The time-stamp entry is reachable through `System::local().tsc()` and
 composes with every other counter, since it carries the unit 007 already
 assigned and the same counter type. Measured in the release build over
 200000 back-to-back read pairs: minimum 1 tick, first quartile 1, median

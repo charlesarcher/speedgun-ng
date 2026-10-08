@@ -20,4 +20,4 @@
 #include "speedgun-ng/counters_push.hpp"
 #include "speedgun-ng/counters_system.hpp"
 
-#endif  // SPEEDGUN_NG_COUNTERS_HPP
+#endif  // SG_COUNTERS_HPP

@@ -15,7 +15,7 @@ EXTRACT_ALL = YES
 # concept aborts the whole documentation build. Upstream m.css master
 # has no concept support either, so the pin cannot be bumped past it.
 # The concept is a one-line `std::derived_from` alias over
-# `provider_iface`, whose own documentation already states the shape a
+# `ProviderIface`, whose own documentation already states the shape a
 # provider implements, so nothing is lost from the rendered docs.
 EXCLUDE_SYMBOLS = provider
 RECURSIVE = YES

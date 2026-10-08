@@ -59,7 +59,7 @@
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_system.hpp"
 
-// One alias covers every type, and the bare name `system`
+// One alias covers every type, and the bare name `System`
 // would otherwise resolve to the global ::system function, which the analyzer
 // reports as a missing direct include.
 namespace counters = sg::counters;

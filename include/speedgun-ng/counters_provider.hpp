@@ -71,10 +71,10 @@ struct ObjectSeed
 /**
  * @brief Receiver for provider enumeration at registration time.
  *
- * The system implements this; a provider calls `add_object` once per
+ * The system implements this; a provider calls `addObject` once per
  * object it owns. A duplicate canonical path under one parent, or a
  * duplicate counter name within one object, is reported after
- * `enumerate` returns, through the `register_provider` result, with the
+ * `enumerate` returns, through the `registerProvider` result, with the
  * tree left unchanged (FR-008).
  *
  */
@@ -453,4 +453,4 @@ public:
 
 }  // namespace sg::counters
 
-#endif  // SPEEDGUN_NG_COUNTERS_PROVIDER_HPP
+#endif  // SG_COUNTERS_PROVIDER_HPP

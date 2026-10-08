@@ -2590,7 +2590,7 @@ auto fastBranchScenario() -> void
         "opens no window");
 }
 
-// The verdicts' own journey: `probe_device` runs the per-kind probes, the
+// The verdicts' own journey: `probeDevice` runs the per-kind probes, the
 // kinds they settled ride on the catalog entry, the provider records them
 // under the address the system gives a seeded leaf, and the mask the
 // catalog publishes is the record the probe left. Every check is read
@@ -2634,7 +2634,7 @@ auto probeKindRecordScenario() -> void
       .description = description,
       .words = words,
   });
-  probeDevice(core, /*fast_capable=*/false);
+  probeDevice(core, /*fastCapable=*/false);
   check(core.entries.front().probedKinds == counted,
         "the catalog entry carries exactly the kinds the two probes settled "
         "for it (FR-021)");
@@ -2658,7 +2658,7 @@ auto probeKindRecordScenario() -> void
       .description = description,
       .words = words,
   });
-  probeDevice(scoped, /*fast_capable=*/false);
+  probeDevice(scoped, /*fastCapable=*/false);
   check(scoped.entries.front().probedKinds == (counted & kTargetCpuBit),
         "a device-scoped entry consults no per-task probe, so its record "
         "names the cpu kind alone (FR-021, FR-022)");
