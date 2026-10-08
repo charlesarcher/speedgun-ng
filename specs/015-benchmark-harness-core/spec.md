@@ -737,8 +737,8 @@ a constant without it.
 - **FR-034**: The command-line options of this spec shall be: a name
   filter by regular expression; a list mode that prints the matching
   benchmark names and runs nothing; a repetition count; a minimum time
-  in seconds or as an explicit iteration count; a minimum warm-up
-  time; a dry run of one iteration and one repetition; the counter
+  in seconds; an explicit iteration count; a minimum warm-up time; a
+  dry run of one iteration and one repetition; the counter
   leaves of FR-021; and the catalog listing of FR-037. An invalid
   option value shall be a recoverable error at the 007 FR-046 tier: the
   executable shall report it, run no benchmark, and exit nonzero.

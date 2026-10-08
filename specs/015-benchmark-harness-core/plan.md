@@ -54,7 +54,7 @@ iteration cap is 10^12 iterations; every harness decision reads a
 counters fold (FR-038); tests run unprivileged at
 `perf_event_paranoid` 2 (FR-054).
 
-**Scale/Scope**: FR-001 through FR-055; two public headers, six new
+**Scale/Scope**: FR-001 through FR-055; two public headers, five new
 library sources, one example suite, six test executables, two gate
 scripts, one constitution amendment, one version bump.
 
@@ -170,8 +170,9 @@ State { iterations, skipWithError, skipWithMessage, range-for }
 Run { two points } ──fold──> MetricResult { value, runningRatio,
                                             availability, scaled }
                      ▼
-BenchmarkResult { name, outcome, rows[repetitions], aggregates,
-                  overheadFloorNs, reason }
+BenchmarkResult { name, outcome,
+                  rows[ResultRow: repetitions, then aggregates],
+                  reason }
                      ▼
 report.cpp formats BenchmarkResult as fixed-column rows; nothing is
 added to the value (FR-036).
@@ -337,7 +338,7 @@ rename gaps, which await their separate fix.
 | Principle | Change after design | Verdict |
 |-----------|--------------------|---------|
 | I | The barrier statement shape was settled at one extended `__asm__` per overload with the D-4 operand form; the P2 text is recorded in research.md R-13. | PASS with the recorded P2 |
-| II | The two-point capture was settled at a `hardStop` recorder of capacity 2 per benchmark; a `Scope` per run was considered and rejected. The recorder is the mechanism D-2 and FR-019 name. | PASS, research.md R-02 |
+| II | The two-point capture was settled at one `hardStop` recorder per benchmark, two points per run, at the capacity D-3 derives: `2 × (96 + 96 + R)`; a `Scope` per run was considered and rejected. The recorder is the mechanism D-2 and FR-019 name. | PASS, research.md R-02 |
 | VI | The fake-provider substitution was settled at tolerating the duplicate-machine refusal when a test registers its fake first, so no counters signature changes and FR-042 holds on the existing surface. | PASS, research.md R-03 |
 | VII | The context-line fields were settled at build-written macros plus catalog facts, so no context value bypasses the counters library. | PASS, research.md R-08, R-14 |
 | X | The address-attached leaf was settled at resolving through the catalog unit's dimension, which removes a second resolution API the design first considered. | PASS, research.md R-04 |
