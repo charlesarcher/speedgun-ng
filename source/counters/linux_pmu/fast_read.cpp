@@ -148,10 +148,10 @@ auto fastProbeAllows(const bool capabilityGranted,
 
 #if !defined(SG_PMU_FAST_X86)
 
-std::unique_ptr<FastContext> fast_context_open(const int,
-                                               const std::uint64_t,
-                                               const Target&,
-                                               std::string* refusal)
+std::unique_ptr<FastContext> fastContextOpen(const int,
+                                             const std::uint64_t,
+                                             const Target&,
+                                             std::string* refusal)
 {
   if (refusal != nullptr) {
     *refusal = "the host is not x86, so the mapped-page read does not apply";
@@ -159,9 +159,9 @@ std::unique_ptr<FastContext> fast_context_open(const int,
   return nullptr;
 }
 
-auto fast_context_read(const FastContext&, std::uint64_t&) -> FastReadVerdict
+auto fastContextRead(const FastContext&, std::uint64_t&) -> FastReadVerdict
 {
-  return FastReadVerdict::not_allowed;
+  return FastReadVerdict::NOT_ALLOWED;
 }
 
 auto fastContextTimePair(const FastContext&,
@@ -171,7 +171,7 @@ auto fastContextTimePair(const FastContext&,
   return false;
 }
 
-void fast_context_close(FastContext&) {}
+void fastContextClose(FastContext&) {}
 
 #else
 

@@ -496,7 +496,7 @@ struct EventTimePair
 // does for a group window (FR-041, FR-040). False when the page carries
 // no pair or the sequence moved under the read, and the caller then
 // reports a zero pair. The calling thread is the thread that opened
-// `context`, on the same contract as `fast_context_read` (FR-031,
+// `context`, on the same contract as `fastContextRead` (FR-031,
 // FR-040).
 [[nodiscard]] auto fastContextTimePair(const FastContext& context,
                                        std::uint64_t& enabled,
