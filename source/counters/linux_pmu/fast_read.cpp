@@ -336,19 +336,18 @@ auto fastContextTimePair(const FastContext& context,
   // before the comparison that closes it (FR-007, FR-008). A field read
   // after that comparison can come from a later update.
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-  const bool cap_user_time = page->cap_user_time != 0;
+  const bool capUserTime = page->cap_user_time != 0;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-  const bool cap_user_time_short = page->cap_user_time_short != 0;
+  const bool capUserTimeShort = page->cap_user_time_short != 0;
   const auto pageIndex = page->index;
-  const auto time_shift = page->time_shift;
-  const auto time_mult = page->time_mult;
-  const auto time_offset = page->time_offset;
-  const auto time_cycles = page->time_cycles;
-  const auto time_mask = page->time_mask;
+  const auto timeShift = page->time_shift;
+  const auto timeMult = page->time_mult;
+  const auto timeOffset = page->time_offset;
+  const auto timeCycles = page->time_cycles;
+  const auto timeMask = page->time_mask;
   // The header samples the cycle counter only where the capability bit is
   // set and the enabled count differs from the running count.
-  const auto cyc =
-      (cap_user_time && pageEnabled != pageRunning) ? __rdtsc() : 0U;
+  const auto cyc = (capUserTime && pageEnabled != pageRunning) ? __rdtsc() : 0U;
   _mm_lfence();
   // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that reports no
   // pair. It needs the kernel to rewrite the page between the two reads of
@@ -364,16 +363,16 @@ auto fastContextTimePair(const FastContext& context,
   // page that names no time capability, or one whose counts already agree,
   // keeps the raw pair and the arithmetic below never runs.
   const EventTimeFields fields {
-      .cap_user_time = cap_user_time,
-      .cap_user_time_short = cap_user_time_short,
+      .cap_user_time = capUserTime,
+      .cap_user_time_short = capUserTimeShort,
       .time_enabled = pageEnabled,
       .time_running = pageRunning,
       .index = pageIndex,
-      .time_shift = time_shift,
-      .time_mult = time_mult,
-      .time_offset = time_offset,
-      .time_cycles = time_cycles,
-      .time_mask = time_mask,
+      .time_shift = timeShift,
+      .time_mult = timeMult,
+      .time_offset = timeOffset,
+      .time_cycles = timeCycles,
+      .time_mask = timeMask,
       .cyc = cyc,
   };
   const auto pair = fastTimePair(fields);

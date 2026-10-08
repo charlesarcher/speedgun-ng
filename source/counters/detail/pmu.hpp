@@ -726,7 +726,7 @@ void probeDevice(PmuDevice& device, bool fastCapable);
 // The fast verdict over one event page. The header publishes the
 // capability as the `cap_user_rdpmc` bit, and that bit is the verdict
 // (FR-017).
-[[nodiscard]] auto pageGrantsUserRdpmc(std::uint64_t cap_user_rdpmc) noexcept
+[[nodiscard]] auto pageGrantsUserRdpmc(std::uint64_t capUserRdpmc) noexcept
     -> bool;
 
 // The fast verdict of one device, read from an event page that device

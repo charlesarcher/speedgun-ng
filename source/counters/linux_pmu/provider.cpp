@@ -160,9 +160,9 @@ auto mergeVendored(detail::PmuDevice& device) -> void
   // epilogue above carries.
 }  // LCOV_EXCL_LINE
 
-auto pageGrantsUserRdpmc(const std::uint64_t cap_user_rdpmc) noexcept -> bool
+auto pageGrantsUserRdpmc(const std::uint64_t capUserRdpmc) noexcept -> bool
 {
-  return cap_user_rdpmc != 0;
+  return capUserRdpmc != 0;
 }
 
 // Opens one event of `device` and reads `cap_user_rdpmc` from the page
