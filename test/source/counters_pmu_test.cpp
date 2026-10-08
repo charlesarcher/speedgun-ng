@@ -257,7 +257,7 @@ auto mergeAndCatalogScenario(const std::vector<const Object*>& pmuObjects)
       // Scenario 3's closed-state assertion travels here: the probe
       // pipeline reports one of the three states a test-open answers with,
       // and the fourth state a device-scoped device settles its entries on
-      // when its cpu probe refuses too. `probe_device` publishes that state
+      // when its cpu probe refuses too. `probeDevice` publishes that state
       // in place of the cpu verdict for a kind the device's own scope
       // already refused, so a caller can tell the two refusals apart; an
       // absent object is never seeded, and `gap` is a property of one
@@ -485,7 +485,7 @@ auto availabilityScenario(const std::vector<const Object*>& pmuObjects) -> void
   }
 
   // A scope refusal is separable from an encoding refusal on real catalog
-  // data, not by naming two enumerators. `probe_device` publishes it
+  // data, not by naming two enumerators. `probeDevice` publishes it
   // where the entry's own scope refuses the per-task kind, and the core
   // PMU plus its per-core hybrid instances are the devices that count a
   // thread's own events; every other published device binds one processor
@@ -932,8 +932,8 @@ auto cpuTargetScenario() -> void
 
 // FR-022: a scope refusal is a refusal the entry's own scope causes, and
 // it is separable from an encoding refusal, so a caller that reads it
-// knows a cpu-target plan may still compile over the entry. `cpu_target_
-// scenario` compiles over an entry the catalog already published as
+// knows a cpu-target plan may still compile over the entry. The
+// `cpuTargetScenario` compiles over an entry the catalog already published as
 // countable, which is the other direction; this compiles over the entry
 // the state names. The compile either binds, on a host whose
 // kernel grants a cpu-targeted event for that device, and the window
@@ -1148,7 +1148,7 @@ auto main() -> int
   // FR-042: off Linux the provider keeps the identical interface and
   // seeds nothing; the reduced catalog is the whole difference.
   auto pmu = std::make_unique<PmuProvider>();
-  auto reg = System::local().register_provider(std::move(pmu));
+  auto reg = System::local().registerProvider(std::move(pmu));
   check(reg.has_value(), "the pmu provider registers off Linux");
   const auto objects = System::local().objects("pmu");
   check(!objects.has_value() || objects->empty(),

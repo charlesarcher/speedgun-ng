@@ -45,7 +45,7 @@ namespace sg::counters
 // Off Linux the reduced catalog is the whole difference (FR-042): the
 // interface, the state, and the empty enumeration are identical.
 PmuProvider::PmuProvider()
-    : m_state(std::make_unique<detail::pmu_state>())
+    : m_state(std::make_unique<detail::PmuState>())
 {
 }
 
@@ -815,7 +815,7 @@ PmuProvider::PmuProvider()
     const bool fastCapable = detail::devicePageFastVerdict(*device);
     detail::probeDevice(*device, fastCapable);
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the refusal wording,
-    // on the same kernel-gate ground as the mode ternary in `probe_device`.
+    // on the same kernel-gate ground as the mode ternary in `probeDevice`.
     const std::string verdict = levelNote
         + (fastCapable  // LCOV_EXCL_BR_LINE
                ? "; this device's event page grants user counter reads; "  // LCOV_EXCL_LINE
