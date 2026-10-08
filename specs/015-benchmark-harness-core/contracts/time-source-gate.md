@@ -37,8 +37,9 @@ the table names is a hit. The scan follows the matching discipline of
 | a planted `std::chrono::system_clock` in `tools/dbc/overhead.cpp` | exit 1, with the `file:line` printed |
 | that plant removed | exit 0 |
 
-SC-013 records both runs: the failing planted run and the passing
-removal run. The quickstart names the commands.
+SC-013 records both pairs: the failing planted run and the
+passing removal run of each plant. The quickstart names the
+commands.
 
 ## CI binding
 
