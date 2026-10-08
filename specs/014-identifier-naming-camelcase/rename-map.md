@@ -129,12 +129,12 @@ every hash in this directory to its `master` equivalent:
 | `sample_overhead_ns_min` | `sampleOverheadNsMin` | function |  | N-2 |
 | `scale_all` | `scaleAll` | function | yes | N-2 |
 | `unit_token` | `unitToken` | function |  | N-2 |
-| `m_capacity` | `mCapacity` | member |  | N-10 |
-| `m_columns` | `mColumns` | member |  | N-10 |
-| `m_dropped` | `mDropped` | member |  | N-10 |
-| `m_head` | `mHead` | member |  | N-10 |
-| `m_impl` | `mImpl` | member |  | N-10 |
-| `m_wrapped` | `mWrapped` | member |  | N-10 |
+| `m_capacity` | `mCapacity` | member |  | N-12 |
+| `m_columns` | `mColumns` | member |  | N-12 |
+| `m_dropped` | `mDropped` | member |  | N-12 |
+| `m_head` | `mHead` | member |  | N-12 |
+| `m_impl` | `mImpl` | member |  | N-12 |
+| `m_wrapped` | `mWrapped` | member |  | N-12 |
 | `hard_stop` | `hardStop` | tag |  | N-11 |
 | `counter` | `Counter` | type |  | N-1 |
 | `dimension_tag` | `DimensionTag` | type |  | N-1 |
