@@ -213,7 +213,13 @@ concluded success, the docs job skipped. The five commits after
 that head sat unpushed, so no run covered them until T053 pushed
 them; CI run `37768182864` at convergence head `eb1f444` then
 repeated the pass: all eleven executed jobs concluded success, the
-docs job skipped.
+docs job skipped. CI run `37769547155` at convergence head `ac10efc`
+repeated the pass: all eleven executed jobs concluded success, the
+docs job skipped. Its coverage job failed the first attempt on one
+branch of the machine-root leg of `counters/system.cpp`, 866 of 867
+branches, the gcov attribution this record already names as host-
+topology flaky; the local gate at the same head read 867 of 867, and
+the job passed on the rerun.
 
 ## Rename command
 
