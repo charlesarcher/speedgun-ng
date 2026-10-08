@@ -119,11 +119,11 @@ auto threadCpuNs() noexcept -> std::uint64_t
   if (!GetThreadTimes(GetCurrentThread(), &creation, &exit, &kernel, &user)) {
     return 0;
   }
-  const ULARGE_INTEGER kernel_time {.LowPart = kernel.dwLowDateTime,
-                                    .HighPart = kernel.dwHighDateTime};
-  const ULARGE_INTEGER user_time {.LowPart = user.dwLowDateTime,
-                                  .HighPart = user.dwHighDateTime};
-  return (kernel_time.QuadPart + user_time.QuadPart) * 100ULL;
+  const ULARGE_INTEGER kernelTime {.LowPart = kernel.dwLowDateTime,
+                                   .HighPart = kernel.dwHighDateTime};
+  const ULARGE_INTEGER userTime {.LowPart = user.dwLowDateTime,
+                                 .HighPart = user.dwHighDateTime};
+  return (kernelTime.QuadPart + userTime.QuadPart) * 100ULL;
 #else
   timespec stamp {};
   // LCOV_EXCL_BR_START : coverage exclusion (T066): `threadCpuNs` does not
@@ -148,11 +148,11 @@ auto processCpuNs() noexcept -> std::uint64_t
   if (!GetProcessTimes(GetCurrentProcess(), &creation, &exit, &kernel, &user)) {
     return 0;
   }
-  const ULARGE_INTEGER kernel_time {.LowPart = kernel.dwLowDateTime,
-                                    .HighPart = kernel.dwHighDateTime};
-  const ULARGE_INTEGER user_time {.LowPart = user.dwLowDateTime,
-                                  .HighPart = user.dwHighDateTime};
-  return (kernel_time.QuadPart + user_time.QuadPart) * 100ULL;
+  const ULARGE_INTEGER kernelTime {.LowPart = kernel.dwLowDateTime,
+                                   .HighPart = kernel.dwHighDateTime};
+  const ULARGE_INTEGER userTime {.LowPart = user.dwLowDateTime,
+                                 .HighPart = user.dwHighDateTime};
+  return (kernelTime.QuadPart + userTime.QuadPart) * 100ULL;
 #else
   timespec stamp {};
   // LCOV_EXCL_BR_START : coverage exclusion (T066): `processCpuNs` does not
