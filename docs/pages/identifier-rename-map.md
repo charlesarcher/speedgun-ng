@@ -8,7 +8,10 @@ a file-local helper and is out of this map's scope. A test-only name
 stays out. Each entry carries the kind, and a mark records a name in
 a `detail` namespace.
 
-The rename spans these commits:
+The rename spans these commits. Each hash is the one the commit carried
+on the `014-identifier-naming-camelcase` branch; the repository file
+`specs/014-identifier-naming-camelcase/citations.md` maps every one of
+them to its `master` equivalent:
 
 | Commit | Scope |
 | --- | --- |
