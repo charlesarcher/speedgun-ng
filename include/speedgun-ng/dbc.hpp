@@ -27,9 +27,9 @@
 #  define SG_UNREACHABLE static_cast<void>(0)
 #  define SG_TRAP \
     do { \
-      volatile int sg_trap_sink = 0; \
-      sg_trap_sink = 1; \
-      static_cast<void>(sg_trap_sink); \
+      volatile int sgTrapSink = 0; \
+      sgTrapSink = 1; \
+      static_cast<void>(sgTrapSink); \
       std::abort(); \
     } while (false)
 #endif
@@ -416,8 +416,8 @@ inline auto checkAssertion(char const (&message)[],
 
 #define SG_REQUIRE_ALWAYS(pred, msg) \
   do { \
-    [[maybe_unused]] constexpr bool _sg_ct_reject = SG_CT_REJECT(pred); \
-    static_assert(!_sg_ct_reject, \
+    [[maybe_unused]] constexpr bool sgCtReject = SG_CT_REJECT(pred); \
+    static_assert(!sgCtReject, \
                   "compile-time-evaluable constraint must use static_assert, " \
                   "not a runtime SG_* check"); \
     if (!(pred)) [[unlikely]] { \
@@ -427,8 +427,8 @@ inline auto checkAssertion(char const (&message)[],
 
 #define SG_ENSURE_ALWAYS(pred, msg) \
   do { \
-    [[maybe_unused]] constexpr bool _sg_ct_reject = SG_CT_REJECT(pred); \
-    static_assert(!_sg_ct_reject, \
+    [[maybe_unused]] constexpr bool sgCtReject = SG_CT_REJECT(pred); \
+    static_assert(!sgCtReject, \
                   "compile-time-evaluable constraint must use static_assert, " \
                   "not a runtime SG_* check"); \
     if (!(pred)) [[unlikely]] { \
@@ -438,8 +438,8 @@ inline auto checkAssertion(char const (&message)[],
 
 #define SG_INVARIANT_ALWAYS(pred, msg) \
   do { \
-    [[maybe_unused]] constexpr bool _sg_ct_reject = SG_CT_REJECT(pred); \
-    static_assert(!_sg_ct_reject, \
+    [[maybe_unused]] constexpr bool sgCtReject = SG_CT_REJECT(pred); \
+    static_assert(!sgCtReject, \
                   "compile-time-evaluable constraint must use static_assert, " \
                   "not a runtime SG_* check"); \
     if (!(pred)) [[unlikely]] { \
@@ -449,8 +449,8 @@ inline auto checkAssertion(char const (&message)[],
 
 #define SG_ASSERT_ALWAYS(pred, msg) \
   do { \
-    [[maybe_unused]] constexpr bool _sg_ct_reject = SG_CT_REJECT(pred); \
-    static_assert(!_sg_ct_reject, \
+    [[maybe_unused]] constexpr bool sgCtReject = SG_CT_REJECT(pred); \
+    static_assert(!sgCtReject, \
                   "compile-time-evaluable constraint must use static_assert, " \
                   "not a runtime SG_* check"); \
     if (!(pred)) [[unlikely]] { \
@@ -466,8 +466,8 @@ inline auto checkAssertion(char const (&message)[],
 #else
 #  define SG_REQUIRE(pred, msg) \
     do { \
-      [[maybe_unused]] constexpr bool _sg_ct_reject = SG_CT_REJECT(pred); \
-      static_assert(!_sg_ct_reject, \
+      [[maybe_unused]] constexpr bool sgCtReject = SG_CT_REJECT(pred); \
+      static_assert(!sgCtReject, \
                     "compile-time-evaluable constraint must use " \
                     "static_assert, " "not a runtime SG_* check"); \
       if (!(pred)) [[unlikely]] { \
@@ -477,8 +477,8 @@ inline auto checkAssertion(char const (&message)[],
 
 #  define SG_ENSURE(pred, msg) \
     do { \
-      [[maybe_unused]] constexpr bool _sg_ct_reject = SG_CT_REJECT(pred); \
-      static_assert(!_sg_ct_reject, \
+      [[maybe_unused]] constexpr bool sgCtReject = SG_CT_REJECT(pred); \
+      static_assert(!sgCtReject, \
                     "compile-time-evaluable constraint must use " \
                     "static_assert, " "not a runtime SG_* check"); \
       if (!(pred)) [[unlikely]] { \
@@ -488,8 +488,8 @@ inline auto checkAssertion(char const (&message)[],
 
 #  define SG_INVARIANT(pred, msg) \
     do { \
-      [[maybe_unused]] constexpr bool _sg_ct_reject = SG_CT_REJECT(pred); \
-      static_assert(!_sg_ct_reject, \
+      [[maybe_unused]] constexpr bool sgCtReject = SG_CT_REJECT(pred); \
+      static_assert(!sgCtReject, \
                     "compile-time-evaluable constraint must use " \
                     "static_assert, " "not a runtime SG_* check"); \
       if (!(pred)) [[unlikely]] { \
@@ -499,8 +499,8 @@ inline auto checkAssertion(char const (&message)[],
 
 #  define SG_ASSERT(pred, msg) \
     do { \
-      [[maybe_unused]] constexpr bool _sg_ct_reject = SG_CT_REJECT(pred); \
-      static_assert(!_sg_ct_reject, \
+      [[maybe_unused]] constexpr bool sgCtReject = SG_CT_REJECT(pred); \
+      static_assert(!sgCtReject, \
                     "compile-time-evaluable constraint must use " \
                     "static_assert, " "not a runtime SG_* check"); \
       if (!(pred)) [[unlikely]] { \
