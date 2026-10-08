@@ -3,7 +3,7 @@
 
 // Cycle time (time^1) minus bytes (events^1) is a dimension violation
 // (FR-014, US1 scenario 3).
-auto subtract_bytes_from_monotonic(
+auto subtractBytesFromMonotonic(
     const sg::counters::Counter<sg::counters::Dim<1, 0>>& monotonic,
     const sg::counters::Counter<sg::counters::Dim<0, 1>>& bytes)
     -> sg::counters::Expression<sg::counters::Dim<1, 0>>

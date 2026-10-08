@@ -3,7 +3,7 @@
 
 // Bytes (events^1) plus monotonic (time^1) is a dimension violation
 // (FR-014, US1 scenario 3).
-auto add_bytes_to_monotonic(
+auto addBytesToMonotonic(
     const sg::counters::Counter<sg::counters::Dim<0, 1>>& bytes,
     const sg::counters::Counter<sg::counters::Dim<1, 0>>& monotonic)
     -> sg::counters::Expression<sg::counters::Dim<0, 1>>
