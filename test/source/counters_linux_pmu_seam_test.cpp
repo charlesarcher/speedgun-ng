@@ -693,13 +693,14 @@ auto multiplexWindowScenario() -> void
   // descriptor behind it, so the recipe takes the cycle counter from the
   // page's own field where the header's read takes it from the
   // instruction (FR-007, FR-023).
-  constexpr std::uint64_t cyc = 12'345'678;
+  constexpr std::uint64_t kCyc = 12'345'678;
   constexpr std::uint64_t kShift = 20;
   constexpr std::uint64_t kMult = 4'000;
-  constexpr std::uint64_t offset = 500'000;
-  const std::uint64_t quot = cyc >> kShift;
-  const std::uint64_t rem = cyc & ((1ULL << kShift) - 1);
-  const std::uint64_t delta = offset + quot * kMult + ((rem * kMult) >> kShift);
+  constexpr std::uint64_t kOffset = 500'000;
+  const std::uint64_t quot = kCyc >> kShift;
+  const std::uint64_t rem = kCyc & ((1ULL << kShift) - 1);
+  const std::uint64_t delta =
+      kOffset + quot * kMult + ((rem * kMult) >> kShift);
 
   auto page = makeEventPage(EventPageFields {
       .sequence = 12,
@@ -712,8 +713,8 @@ auto multiplexWindowScenario() -> void
       .cap_user_time = true,
       .time_shift = static_cast<std::uint16_t>(kShift),
       .time_mult = static_cast<std::uint32_t>(kMult),
-      .time_offset = offset,
-      .cyc = cyc});
+      .time_offset = kOffset,
+      .cyc = kCyc});
   sg::counters::detail::FastContext context {
       .fd = -1,
       .map = &page,
@@ -799,8 +800,8 @@ auto multiplexWindowScenario() -> void
           .index = rawPage.index,
           .time_shift = static_cast<std::uint16_t>(kShift),
           .time_mult = static_cast<std::uint32_t>(kMult),
-          .time_offset = offset,
-          .cyc = cyc});
+          .time_offset = kOffset,
+          .cyc = kCyc});
   check(corrected.applied,
         "a page stating the time fields applies the kernel's own recipe "
         "(FR-009)");
