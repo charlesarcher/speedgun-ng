@@ -550,9 +550,9 @@ auto main() -> int
         },
         5);
     bool trapped = (res.termSig != 0 || res.exitStatus != 0);
-    bool marker_absent =
+    bool markerAbsent =
         res.output.find("qe-marker-reached") == std::string::npos;
-    (void)marker_absent;
+    (void)markerAbsent;
     check(trapped, "(f) quick_enforce child trapped (no parent death)");
     std::printf("(f) parent survived quick_enforce trap in child\n");
 #  else
