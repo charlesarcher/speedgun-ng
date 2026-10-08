@@ -207,7 +207,9 @@ head `ef257e9` repeated the pass over the whole head: the three
 commits `5e770f4`, `bf8327c` and `59378c4` postdated the recorded
 run, and two of them edit C++. All eleven executed jobs concluded
 success, the docs job skipped, and the coverage gate held with the
-machine-root leg excluded.
+machine-root leg excluded. CI run `37762327363` at convergence head
+`835481b` repeated the pass again: all eleven executed jobs
+concluded success, the docs job skipped.
 
 ## Rename command
 
