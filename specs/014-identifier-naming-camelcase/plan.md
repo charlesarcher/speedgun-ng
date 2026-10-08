@@ -306,3 +306,41 @@ The closing commit is `a12de1b`. The records below are its.
   `SameMinorVersion`. A consumer requesting 0.4 against the installed
   0.5 package fails to configure with "The version found is not
   compatible with the version requested."
+
+### FR-017 re-search record
+
+T047 re-ran the FR-017 search over every gate, registry, script, and
+workflow at convergence head `59378c4`. Each audit hit of FR-017, and
+every hit the re-search adds, carries its disposition.
+
+- `tools/dbc/macros.yaml` names `sg::dbc::checkPrecondition`,
+  `sg::dbc::checkPostcondition`, `sg::dbc::checkInvariant`, and
+  `sg::dbc::checkAssertion`. Updated with the functions.
+- `test/counters_tsc_read_shape.sh` matches `readPoints.*PointSink`,
+  locates `readPoints` in the object, and defines and matches
+  `probeArm`. Updated with the function and the type.
+- `tools/dbc/asm_smoke.sh` matches the namespace `sg::dbc` and the
+  mangled prefix `_ZN2sg3dbc`. Both stay: the namespace keeps its
+  spelling under N-7.
+- `test/consumer/embedded_count.cpp` calls
+  `sg::counters::detail::pmuLoadTable`. Updated with the function.
+- `test/consumer/main.cpp` calls `sg::simulationStart`, constructs
+  `sg::counters::PmuProvider`, and calls `sg::counters::System::local()`.
+  Updated with each name.
+- `.github/workflows/ci.yml` compiles both consumer sources, matches
+  `consumer: pmu catalog entries` and `embedded:`, and matches
+  `sg::dbc::check[A-Z]` for the negative symbol check under the ignore
+  contract configuration. The output strings stay; the function match
+  updated with the functions.
+- The re-search over `tools/`, `test/`, `.github/workflows/`, `cmake/`,
+  `example/`, and `docs/` for the old-spelling patterns of renamed
+  entities returns only string literals and file names: the
+  `running_ratio {}` format string in
+  `tools/quill/quill_dependency_check.cpp`, the `simulation_start_tag:`
+  output label in `test/source/simulation_test.cpp`, the D-01 fixture
+  literal `"check_precondition"` in `test/source/dbc_literal_fixture.cpp`,
+  and the `push_provider.cpp`, `clock_provider.cpp`, and
+  `fake_provider.cpp` file references in the gate scripts and the
+  overhead page. A string literal keeps its text (D-01) and a file name
+  stays (FR-016). No gate, registry, script, or workflow names an old
+  C++ identifier at the head.
