@@ -31,13 +31,13 @@ already carries the counters surface.
 ## R-02: the two-point capture mechanism
 
 **Decision**: one `hardStop` recorder per benchmark, minted with
-`Plan::recorder(2 × (95 + 95 + R))` before the first run, where R is
+`Plan::recorder(2 × (96 + 96 + R))` before the first run, where R is
 the repetition count. Each run calls `sample()` at the timed-loop
 entry and at its exit; the fold for run k reads points `2k` and
 `2k+1` through `Expression::fold(recorder.view(), i, j)`.
 
 **Rationale**: D-2 mints one recorder per benchmark and FR-019 fixes
-its capacity from the FR-016 step bound before the first run; the
+its capacity from the FR-016 run bound before the first run; the
 recorder spelling is the one those clauses use. The capacity formula
 is the one D-3 derives. `RecorderHandle::sample()` is the documented
 zero-allocation, zero-lock action (PC-2), and the fold layer runs all
@@ -117,32 +117,40 @@ match and the spec pins the upstream reading.
 
 ## R-06: SIGINT mechanics (FR-032)
 
-**Decision**: `speedgunMain` installs a `SIGINT` handler that sets one
-`std::atomic<bool>`. The timed-loop iterator tests the flag before
-each iteration, so the loop ends at the next iteration boundary; the
-runner closes the window with its exit sample, folds, marks the
-benchmark skipped with the interrupt reason, and the process exits
-nonzero. The plan and recorder are RAII objects of the runner frame,
-so the same release path the exception rule uses (FR-032, PC-6)
-discharges the resources.
+**Decision**: `speedgunMain` installs a `SIGINT` handler that stores
+`true` into one `std::atomic<bool>`. A `static_assert` on
+`std::atomic<bool>::is_always_lock_free` keeps the store signal-safe.
+The runner reads the flag after each warm-up, calibration, and
+measured run. The timed loop reads no flag. On a set flag, the runner
+marks the current benchmark skipped with the interrupt reason and
+starts no later run. The process exits nonzero. The plan and recorder
+are RAII objects of the runner frame. The release path of the
+exception rule (FR-032, PC-6) discharges them.
 
-**Rationale**: the flag plus the iterator check needs no timer, no
-descriptor, and no second thread. The handler body stays
-signal-safe: one store. The iterator check is the one place the loop
-can stop, because the loop body belongs to the user.
+**Rationale**: A flag test inside the loop adds a load and a branch to
+every iteration of every benchmark. The overhead floor measures the
+sampling action alone. The reported time per iteration would carry
+that cost uncorrected. The trade is latency: the interrupt waits for
+the current run to complete.
 
-**Alternatives considered**: `setitimer` with a periodic tick,
-rejected as a second mechanism for one flag; `signalfd`, rejected
-because it adds a descriptor to poll inside a loop the harness does
-not own.
+**Alternatives considered**: a flag test in the `State` iterator
+before each iteration, rejected for the per-iteration cost above;
+`setitimer` with a periodic tick, rejected as a second mechanism for
+one flag; `signalfd`, rejected because it adds a descriptor to poll
+inside a loop the harness does not own.
 
 ## R-07: the time-source gate mechanism (FR-040, SC-013)
 
-**Decision**: `test/time_source_gate.sh` scans the harness sources
-(`source/harness/`), the harness public headers
-(`include/speedgun-ng/benchmark.hpp`, `include/speedgun-ng/barrier.hpp`),
-the example suite, and `speedgunMain` for the constitutional banned
-list: the `std::chrono` clocks, `std::clock`, `std::time`,
+**Decision**: `test/time_source_gate.sh` scans every C++ source and
+header the D-6 scope names: `source/`, `include/`, `example/`,
+`test/`, and `tools/`, with the counters library excluded. The
+counters library is `source/counters/`, the
+`include/speedgun-ng/counters*.hpp` headers, and the `counters_` tests
+and gate scripts under `test/`. The script carries one allowance keyed
+by path and term: `tools/dbc/overhead.cpp` with the `<chrono>` include
+and `std::chrono::steady_clock`. Any other term in that file is a hit.
+The script applies the constitutional banned list: the `std::chrono`
+clocks, `std::clock`, `std::time`,
 `timespec_get`, `clock_gettime`, `clock_getres`, `gettimeofday`,
 `time`, `times`, `getrusage`, the `rdtsc` and `rdtscp` instructions
 and their intrinsics, and the headers that declare them. A hit prints
@@ -154,9 +162,15 @@ records the planted-failure and removal runs SC-013 asks for.
 directly, follows the shape of the existing gate scripts
 (`test/counters_header_purity.sh` and siblings), and needs no new
 tooling. CTest registration is the mechanism Principle VIII already
-runs in every job that tests.
+runs in every job that tests. The 006 overhead measurement times the
+contract cost against an independent, well-known reference clock on
+purpose. D-6 names it as the one exception. A port onto the counters
+library would remove that independence.
 
-**Alternatives considered**: a clang-tidy custom check, rejected
+**Alternatives considered**: a port of `tools/dbc/overhead.cpp` onto
+the counters library, rejected by Charles; a scope that leaves
+`tools/` outside the rule, rejected because it opens every future tool
+to the banned list; a clang-tidy custom check, rejected
 because the project carries no custom analyzer module and the pin is
 governance; an include-graph scan, rejected because the list names
 spelled sources and instructions, which a pattern scan reaches
@@ -239,7 +253,7 @@ sampling actions per window.
 nanoseconds: the factor is `1.4 × minTime / max(decisionTime, 1 ns)`,
 the factor is 10 when `decisionTime ≤ 0.1 × minTime`, the next count
 is `max(round(N × factor), N + 1)`, capped at 10^12 iterations. The
-qualify test is the five-condition list of FR-008. The 95-step bound
+qualify test is the five-condition list of FR-008. The 96-run bound
 of D-3 sizes the recorder.
 
 **Rationale**: D-3 pins the upstream text at the recorded revision,
@@ -277,25 +291,23 @@ measures pure computation.
 
 ## R-14: the build-type field (FR-035)
 
-**Decision**: the harness target carries a `SPEEDGUN_NG_BUILD_TYPE`
-compile definition holding `CMAKE_BUILD_TYPE`, written by CMake from
-the preset. The D-6 amendment extends the V.2 entry that names the
-build-written macro family, so the entry gains
-`SPEEDGUN_NG_BUILD_TYPE` beside the export-header family it already
-carries, and `.clang-tidy` anchors `MacroDefinitionIgnoredRegexp` to
-the extended entry. V.2 states no exception exists outside its list,
-so the extension is part of the amendment.
+**Decision**: the harness target carries an `SG_BUILD_TYPE` compile
+definition holding `CMAKE_BUILD_TYPE`, written by CMake from the
+preset. The name follows N-3, and V.2 and `.clang-tidy` stay
+unchanged.
 
 **Rationale**: the build type is a build fact, the counters library
 publishes none, and FR-035 wants the field. A build-written macro is
-the pattern the V.2 entry already describes for
-`SPEEDGUN_NG_STATIC_DEFINE` and siblings.
+the smallest mechanism, and the report reads it as a literal. N-3
+admits an `SG_` name, and the build-written family of V.2 covers
+generator-derived names alone.
 
 **Alternatives considered**: a runtime query of the library build,
 rejected because no such query exists; printing the harness's own
 `NDEBUG` state, rejected because it reports one
 translation unit's macros, which leaves the configured build type
-unreported.
+unreported; a `SPEEDGUN_`-prefixed build-type name, rejected because it
+needs a V.2 entry and a `.clang-tidy` change.
 
 ## Resolved unknowns
 
@@ -304,6 +316,6 @@ unreported.
 | Primary dependencies | R-01, R-03: the counters library and the 007 fake provider, no new dependency |
 | Testing | R-03, R-05, R-07: fake-provider suites, fixture aggregates, script gates |
 | Target platform | R-04, R-08: catalog facts carry platform differences; no harness branch on the clock set |
-| Performance goals | R-02, R-12: two sampling actions, fixed capacity, 95-step bound |
+| Performance goals | R-02, R-12: two sampling actions, fixed capacity, 96-run bound |
 | Constraints | R-06, R-13: signal flag mechanics, the recorded P2 |
 | Scale/Scope | R-01: one target, two headers, six sources |

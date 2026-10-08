@@ -28,19 +28,19 @@ and every requirement below serves that rule."
 
 ### Session 2026-10-08
 
-- Q: When a benchmark fixes the iteration count and a minimum warm-up time is also set, does the harness still run warm-up? → A: Warm-up still runs; the fixed count sizes each warm-up run, and warm-up repeats until the minimum warm-up time is met.
-- Q: How should the harness treat a SIGINT that arrives while a benchmark is running? → A: SIGINT ends the current run, the benchmark reports as skipped with an interrupt reason, resources release, and the process exits nonzero.
+- Q: When a benchmark fixes the iteration count and a minimum warm-up time is also set, does the harness still run warm-up? → A: Warm-up still runs. It starts at the fixed count and grows by the calibration rule against the minimum warm-up time, within the run bound. The measured phase then runs the fixed count.
+- Q: How should the harness treat a SIGINT that arrives while a benchmark is running? → A: The current run completes. The harness then reports the benchmark as skipped with an interrupt reason, releases its resources, starts no later run, and exits nonzero. The timed loop reads no interrupt flag.
 - Q: What exit status does the executable return when the filter matches no benchmark, and in list mode? → A: Both exit zero; nonzero stays reserved for a failed benchmark, a failed catalog listing, or an interrupt.
-- Q: How should the command line handle an invalid numeric value, such as a zero, negative, or unparseable iteration count or time? → A: Report a recoverable error at the 007 FR-046 tier, run nothing, and exit nonzero.
+- Q: How should the command line handle an invalid numeric value, such as a zero, negative, or unparseable iteration count or time? → A: Report a recoverable error at the 007 FR-046 tier, run nothing, and exit nonzero. A zero minimum warm-up time stays valid, as the FR-007 default requires.
 
 ## Audit point
 
 | Field | Value |
 | --- | --- |
-| Audit point | `997368facc353753cdb04fd8148e4ba050f04437` |
-| Audit-point date | 2026-10-08 13:53:40 -0500 |
-| Default branch at run time | `master`, tip `ca92a56` |
-| Working tree at run time | branch `014-post-merge-followups`, six follow-up commits ahead of `master` |
+| Audit point | `d6bcbb54ff1103843426d9ddc2ccb2d5a8a1babe` |
+| Audit-point date | 2026-10-08 14:00:44 -0500 |
+| Default branch at run time | `master`, tip `d6bcbb5` |
+| Working tree at run time | `master` at `d6bcbb5` |
 | Feature number at run time | 015, the next free number under `specs/` |
 | Short name at run time | `benchmark-harness-core` |
 | Project version at the audit point | 0.5.0 |
@@ -48,15 +48,15 @@ and every requirement below serves that rule."
 | Package compatibility at the audit point | `SameMinorVersion` |
 | Constitution version at the audit point | 2.17.0, lineage table and footer equal |
 
-The audit ran against the checked-out tree at `997368f`. The five
-counters changes named in the request sit on `master`: 012, 013 with
-its 0.4.1 patch, the 0.4.1 version, 014, and the post-merge rename
-repair that is the `master` tip `ca92a56` (pull request 30). The
-working branch adds six follow-up commits above that tip: the
-constitution footer correction, the recorder member rule labels, the
-dbc macro-local renames, the Windows clock local renames, the test
-marker local rename, and the map citation fix. The feature builds on
-the checked-out tree, so every citation below was read there.
+The audit read the tree of `d6bcbb5`, the `master` commit that merged
+pull request 31. The five counters changes named in the request sit on
+`master`. They are 012, 013 with its 0.4.1 patch, the 0.4.1 version,
+014, and the post-merge rename repair of pull request 30. Pull request
+31 adds six follow-up commits. Three are the constitution footer
+correction, the recorder member rule labels, and the dbc macro-local
+renames. Three are the Windows clock local renames, the test marker
+local rename, and the map citation fix. Every citation below was read
+at `d6bcbb5`.
 
 The request binds no spec number, commit, version, or source line.
 Each value in this table was resolved at run time, as instructed.
@@ -194,7 +194,8 @@ is a dependency on a separate fix (X.3), recorded under Dependencies.
 The harness copies no old spelling and adds no new one.
 
 Name-check question: the name check does not report `sgCtReject` in a
-harness translation unit. Commit `60bce4a` records the mechanism:
+harness translation unit. Commit `4a3e0fe` on master records the
+mechanism:
 clang-tidy sees the tokens of a macro body without resolving the
 identifiers in it. The tree at the audit point passes the Principle
 VIII name gate with `sgCtReject` present, and the harness expands
@@ -262,7 +263,8 @@ revision read: `google/benchmark`, branch `main`, commit
   the next count is the rounded product, or the old count plus 1
   iteration where that is larger; the iteration cap of 10^12
   iterations limits it (`kMaxIterations`);
-- warm-up uses the same rule against the minimum warm-up time
+- warm-up uses the same rule against the minimum warm-up time, and it
+  starts from the fixed count where the benchmark sets one
   (`RunWarmUp`); the measured phase discards the warm-up count and
   starts again from its own start count;
 - only the first repetition calibrates, and each later repetition
@@ -270,16 +272,16 @@ revision read: `google/benchmark`, branch `main`, commit
 - an explicit iteration count skips calibration; a dry run takes 1
   iteration, 1 repetition, and no warm-up.
 
-Step bound. A non-qualifying run has a decision time below the
+Run bound. A non-qualifying run has a decision time below the
 minimum time, so its factor exceeds 1.4 before rounding, or it is 10.
 With rounding, the realized factor never falls below 4/3 once the
-count reaches 3. From 1 iteration, the count therefore reaches the
-10^12 cap in at most 95 steps: two steps reach 3, and 3 times
-(4/3)^93 exceeds 10^12. A benchmark then runs at most 95 warm-up
-steps, 95 calibration steps in the first repetition, and one measured
-run in each later repetition. The recorder capacity of D-2 is
-2 × (95 + 95 + R) sampling actions for a repetition count R, and
-FR-019 fixes it before the first run.
+count reaches 3. From 1 iteration, two growth steps reach 3, and 93
+more pass the 10^12 cap: 3 times (4/3)^93 exceeds 10^12. Each phase
+therefore holds at most 96 runs: the start run and 95 growth steps.
+A benchmark runs at most 96 warm-up runs, 96 calibration runs in the
+first repetition, and one measured run in each later repetition. The
+recorder capacity of D-2 is 2 × (96 + 96 + R) sampling actions for a
+repetition count R. FR-019 fixes it before the first run.
 
 Every time the rule reads comes from the counters library (FR-038).
 
@@ -320,6 +322,11 @@ binds every later spec.
   the counters library measures or reports comes from the
   `sg::counters` library. A plan, a recorder, a fold, or a value a
   plan publishes supplies it.
+- Scope: the rule binds every C++ source and header under `source/`,
+  `include/`, `example/`, `test/`, and `tools/`. Code under `external/`
+  and the counters library sit outside it. The counters library is
+  `source/counters/`, the `include/speedgun-ng/counters*.hpp` headers,
+  and the `counters_` tests and gate scripts under `test/`.
 - Banned list: the entry names the direct time sources that code
   outside the counters library shall not call. The list is the one in
   FR-040. It covers the `std::chrono` clocks, `std::clock`,
@@ -330,17 +337,16 @@ binds every later spec.
 - Missing capability: a need the counters library does not meet
   becomes a counters-library change. No code outside the library
   bypasses it.
-- Exceptions: an exception needs a constitutional amendment. A spec, a
-  plan, a local override, or a suppression comment creates no
+- Exceptions: an exception needs a constitutional amendment. This
+  amendment names one. `tools/dbc/overhead.cpp` keeps the `<chrono>`
+  include and `std::chrono::steady_clock`. It measures the contract
+  overhead against an independent, well-known reference clock on
+  purpose. The exception covers those two terms in that file alone. A
+  spec, a plan, a local override, or a suppression comment creates no
   exception.
 - Gate: the Principle VIII gate list gains a hard CI gate. The
-  time-source gate of SC-013 reports zero hits outside the counters
-  library, and a hit fails the build.
-- Naming: V.2's build-written macro-family entry gains
-  `SPEEDGUN_NG_BUILD_TYPE`, the field R-14 writes from CMake, and
-  `.clang-tidy` anchors `MacroDefinitionIgnoredRegexp` to the extended
-  list. V.2 states no exception exists outside its list, so the entry
-  extension is part of this amendment.
+  time-source gate of SC-013 scans the code the rule binds and allows
+  the named exception alone. A hit fails the build.
 - Procedure: the amendment follows the Governance section at the audit
   point. It records the rationale and bumps the version. It writes a
   new Sync Impact Report at the head of the file, adds a lineage row,
@@ -527,12 +533,12 @@ a constant without it.
 
 **Acceptance Scenarios**:
 
-1. **Given** a benchmark that computes a value and discards it,
-   **When** it calls `doNotOptimize` on the value, **Then** the
-   optimized build keeps the computation.
-2. **Given** the same benchmark without the barrier, **When** the
-   optimized build compiles it, **Then** the computation is
-   eliminated.
+1. **Given** a benchmark that discards a computed value, **When** it
+   calls `doNotOptimize` on the value, **Then** the `-O2` disassembly
+   of GCC and Clang keeps it.
+2. **Given** the same benchmark without the barrier, **When** GCC and
+   Clang compile it at `-O2`, **Then** neither disassembly holds the
+   computation.
 
 ---
 
@@ -554,12 +560,13 @@ a constant without it.
   resources, and the process descriptor and mapping counts return to
   their start values (PC-6).
 - A benchmark skips: the reason prints, and no statistics print.
-- SIGINT arrives mid-run: the run ends, the benchmark reports as
-  skipped with an interrupt reason, no resource is left held, and the
-  exit status is nonzero.
-- A benchmark fixes N: calibration is skipped entirely, and a set
-  minimum warm-up time still produces warm-up runs of N iterations
-  whose results are discarded.
+- SIGINT arrives mid-run: the current run completes, and no later run
+  starts. The benchmark reports as skipped with an interrupt reason,
+  no resource is left held, and the exit status is nonzero.
+- A benchmark fixes N: calibration is skipped entirely. A set minimum
+  warm-up time still runs warm-up, which starts at N and grows by the
+  FR-010 rule within the FR-016 bound. The harness discards every
+  warm-up result.
 - A dry run: one iteration, one repetition, no warm-up.
 - An option carries an invalid numeric value: the executable reports a
   recoverable error, runs no benchmark, and exits nonzero.
@@ -621,10 +628,10 @@ a constant without it.
 - **FR-011**: Warm-up shall use the same rule against the minimum
   warm-up time. The measured phase shall discard the warm-up count and
   start again from its own start count. The harness shall discard
-  every warm-up result. A benchmark that fixes N shall still warm up
-  when a minimum warm-up time is set: the fixed count sizes each
-  warm-up run, and warm-up repeats until the minimum warm-up time is
-  met.
+  every warm-up result. A set minimum warm-up time shall still produce
+  warm-up for a benchmark that fixes N. That warm-up shall start at N
+  and grow by the FR-010 rule within the FR-016 bound. The measured
+  phase shall then run N iterations.
 - **FR-012**: Only the first repetition shall calibrate. Each later
   repetition shall reuse the count the first repetition settled.
 - **FR-013**: When a benchmark fixes N directly, the harness shall
@@ -635,8 +642,9 @@ a constant without it.
 - **FR-015**: A command-line value shall apply where the benchmark
   sets none. A value the benchmark sets shall win over the command
   line.
-- **FR-016**: The calibration step count shall stay within the bound
-  derived in D-3: at most 95 steps from 1 iteration to the cap.
+- **FR-016**: Each warm-up phase and each calibration phase shall stay
+  within the bound derived in D-3: at most 96 runs from 1 iteration to
+  the cap.
 
 ### Raw capture and post-processing
 
@@ -661,9 +669,11 @@ a constant without it.
   the 007 C++ arithmetic, for example instructions / cycles. A
   command-line option shall attach catalog leaves by address, for
   example `cpu/instructions`, to every selected benchmark.
-- **FR-022**: A count metric shall report per iteration. A ratio or a
-  rate shall keep its window value (007 design journal, section
-  "Harness seam notes").
+- **FR-022**: A metric of dimension events^1 or time^1 shall report
+  per iteration: its window value divided by N. A metric of any other
+  dimension shall keep its window value. Examples are a dimensionless
+  ratio, such as instructions per cycle, and an events-per-time rate
+  (007 design journal, section "Harness seam notes").
 - **FR-023**: Before the run, the harness shall read the availability
   of every leaf each metric needs (PC-3). A leaf that cannot count
   shall mark the metric unavailable with its refusal kind, and the
@@ -709,10 +719,12 @@ a constant without it.
   every plan, recorder, descriptor, and mapping the benchmark held,
   and shall continue the run (PC-6; the 007 design journal lists
   unwind-clean construction resources as a harness acceptance item,
-  section "Harness seam notes"). When SIGINT arrives during a run,
-  the harness shall end that run, report the benchmark as skipped
-  with an interrupt reason, release the same resources, and return a
-  nonzero exit status.
+  section "Harness seam notes"). When SIGINT arrives, the handler
+  shall set one flag. The harness shall read the flag after each run.
+  The current run shall complete, and the timed loop shall read no
+  flag. On a set flag, the harness shall report the current benchmark
+  as skipped with an interrupt reason. It shall start no later run,
+  release the same resources, and return a nonzero exit status.
 
 ### Command line and console report
 
@@ -728,9 +740,11 @@ a constant without it.
   in seconds or as an explicit iteration count; a minimum warm-up
   time; a dry run of one iteration and one repetition; the counter
   leaves of FR-021; and the catalog listing of FR-037. An invalid
-  option value, for example an unparseable, zero, or negative count or
-  time, shall be a recoverable error at the 007 FR-046 tier: the
+  option value shall be a recoverable error at the 007 FR-046 tier: the
   executable shall report it, run no benchmark, and exit nonzero.
+  Invalid values are an unparseable or negative count or time, and a
+  zero repetition count, iteration count, or minimum time. A zero
+  minimum warm-up time is valid, as the default of FR-007 requires.
 - **FR-035**: The console report shall print one row per repetition
   and one row per aggregate in fixed columns. Context lines above the
   rows shall give the host, the cpu, the library version, and the
@@ -772,16 +786,19 @@ a constant without it.
   Process CPU time uses `machine/process_cpu`. The tsc leaf is a tick
   count with no published rate, so the harness reports it as a count
   and derives no time from it.
-- **FR-040**: Harness code shall call no time source outside the
-  counters library. The banned set is the constitutional list of D-6:
+- **FR-040**: No code the D-6 rule binds shall call a time source
+  outside the counters library. The banned set is the constitutional
+  list of D-6:
   the `std::chrono` clocks, `std::clock`, `std::time`, and
   `timespec_get`; `clock_gettime`, `clock_getres`, `gettimeofday`,
   `time`, `times`, and `getrusage`; the `rdtsc` and `rdtscp`
   instructions and their intrinsics; and the headers that declare
-  them. This requirement is the gate form of FR-038. Harness code is
-  every harness source and header, the example
-  suite, and `speedgunMain`. The counters library under
-  `source/counters/` keeps its own clock reads.
+  them. This requirement is the gate form of FR-038. The gate scans
+  every C++ source and header the D-6 scope names. It allows the
+  `<chrono>` include and `std::chrono::steady_clock` in
+  `tools/dbc/overhead.cpp` alone, the one D-6 exception. Any other
+  banned term in that file is a hit. The counters library keeps its
+  own clock reads.
 - **FR-041**: A harness need the counters library does not meet shall
   become a counters change inside this spec, as D-6 requires. Examples
   are a cheaper clock read for calibration and a clock the catalog
@@ -804,10 +821,8 @@ a constant without it.
 - **FR-045**: The amendment shall follow the Governance section at the
   audit point: rationale recorded, version bumped to 2.18.0, a new
   Sync Impact Report at the head of the file, a lineage row, the Last
-  Amended date set, and the version footer set to the new version. The
-  V.2 build-written macro-family entry gains `SPEEDGUN_NG_BUILD_TYPE`
-  (R-14), and `.clang-tidy` anchors its macro-name exemption to the
-  extended entry.
+  Amended date set, and the version footer set to the new version.
+  The amendment leaves V.2 and `.clang-tidy` unchanged.
 
 ### Version
 
@@ -868,8 +883,9 @@ Out, each owned by a later roadmap spec:
 - argument families, fixtures, templated benchmarks, setup and
   teardown callbacks, and suite naming
   (`harness-registration-and-fixtures`);
-- CPU time, process CPU time, manual time, pause and resume, and time
-  units (`harness-timing-modes`);
+- CPU time and process CPU time as reported columns, manual time,
+  pause and resume, and time units (`harness-timing-modes`).
+  Calibration still reads thread CPU time under FR-009;
 - user counters and their flags, bytes and items processed, labels,
   custom statistics, and complexity
   (`harness-user-counters-and-statistics`);
@@ -928,10 +944,12 @@ enters this spec.
 - **SC-002**: A fake-provider benchmark with scripted
   `machine/monotonic` and `machine/thread_cpu` deltas walks the D-3
   calibration sequence. The test asserts the iteration count of each
-  step and the step that qualifies. A step that qualifies on the
-  real-time condition alone also passes. The recorded points of each
+  step and the step that qualifies. A scripted step whose real time
+  reaches 5 times the minimum time qualifies, while its thread CPU
+  time stays below the minimum time. The recorded points of each
   measured run meet a D-3 stop condition. Warm-up and calibration runs
-  add no sample to the statistics. A fixed N skips calibration.
+  add no sample to the statistics. A fixed N skips calibration. Its
+  warm-up starts at N and grows within the FR-016 bound.
 - **SC-003**: A fixture with a known set of repetition results matches
   mean, median, standard deviation, coefficient of variation, min, and
   max exactly.
@@ -972,11 +990,13 @@ enters this spec.
   at the feature head, and the plan's version table records both. A
   consumer that requests version 0.5 rejects the new package.
 - **SC-013**: The time-source gate of the D-6 amendment runs in ctest
-  and as a hard CI gate. It scans speedgun code outside the counters
-  library for every banned source on the constitutional list and
-  fails on a hit. A planted `std::chrono::steady_clock::now()` call in
-  a harness source fails the gate, and its removal returns the gate to
-  a pass. The feature records both runs.
+  and as a hard CI gate. It scans the code the D-6 scope binds,
+  `tools/` included, for every banned source on the constitutional
+  list and fails on a hit. A planted `std::chrono::steady_clock::now()`
+  call in a harness source fails the gate, and its removal returns the
+  gate to a pass. The feature records both runs. A planted
+  `std::chrono::system_clock` in `tools/dbc/overhead.cpp` fails the
+  gate, and its removal returns the gate to a pass.
 - **SC-014**: Every time the harness reports traces to a counters
   fold. A fake-provider run scripts each clock leaf. The test checks
   three outputs: the reported real time per iteration, each
@@ -994,6 +1014,22 @@ enters this spec.
   the CI workflow runs that gate, and a hit fails the job; the
   version, Sync Impact Report, lineage row, Last Amended date, and a
   version footer equal to the new lineage row follow D-6.
+- **SC-017**: A fake-provider benchmark raises `SIGINT` inside its
+  function during a measured run. That run completes, and no later run
+  starts. The report marks the benchmark skipped with an interrupt
+  reason. The process descriptor count and mapping count return to
+  their start values, and the exit status is nonzero. A source check
+  finds no read of the interrupt flag in the `State` iterator.
+- **SC-018**: Each invalid value of FR-034 fails before any benchmark
+  runs. The cases are an unparseable value and a negative value for
+  each numeric option, and a zero repetition count, iteration count,
+  and minimum time. Each case prints a recoverable error, runs no
+  benchmark function, and exits nonzero. A zero minimum warm-up time
+  runs and exits zero.
+- **SC-019**: The exit statuses match FR-036. A filter that matches no
+  benchmark and a list-mode run each exit zero and run no benchmark
+  function. A failed benchmark, a failed catalog listing, and an
+  interrupt each exit nonzero.
 
 ## Assumptions
 
@@ -1005,8 +1041,9 @@ enters this spec.
 - The default minimum time, warm-up time, and repetition count are the
   D-3 values, read at the recorded upstream revision. A later upstream
   change does not move them; this spec pins the values it read.
-- The reference host for SC-008 and SC-009 is the AMD Zen host class
-  the CI matrix runs on.
+- The reference host for SC-008 and SC-009 is the maintainer host. CI
+  runs on GitHub-hosted runners, which promise no CPU vendor and no
+  PMU access. CI covers the SC-008 branch its runner reaches.
 - Tests run unprivileged at `perf_event_paranoid` 2, as the Constraints
   section states.
 - The roadmap spec names in the Out list are the scope boundary. A
@@ -1032,7 +1069,7 @@ enters this spec.
 
 ## Citations
 
-File and line citations, read at the audit point `997368f`.
+File and line citations, read at the audit point `d6bcbb5`.
 
 | Artifact | Location |
 | --- | --- |

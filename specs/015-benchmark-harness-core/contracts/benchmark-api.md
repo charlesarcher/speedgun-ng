@@ -46,7 +46,7 @@ public:
 - A skip shall end the timed loop, record the reason, and suppress the
   statistics for that benchmark (FR-031).
 - `\invariant`: the range-for cursor advances only inside the timed
-  loop; the iterator tests the interrupt flag before each step (R-06).
+  loop, and the loop reads no interrupt flag (R-06).
 
 ## Run-control precedence (FR-007, FR-013, FR-015)
 
@@ -54,9 +54,10 @@ public:
   repetitions 1; calibration start 1 iteration (FR-007, D-3).
 - A value set on the handle shall win over the command line; a
   command-line value applies where the benchmark sets none (FR-015).
-- `iterations(n)` shall skip calibration and run n iterations; a set
-  warm-up time still produces warm-up runs of n iterations whose
-  results are discarded (FR-011, FR-013).
+- `iterations(n)` shall skip calibration and run n iterations in each
+  measured run. A set warm-up time still runs warm-up from n, grown by
+  the FR-010 rule within the FR-016 bound. The harness discards the
+  warm-up results (FR-011, FR-013).
 
 ## Result value (FR-036)
 

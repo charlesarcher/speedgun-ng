@@ -46,7 +46,7 @@ links the harness target and becomes one speedgun executable (D-1).
 
 **Performance Goals**: the timed loop allocates nothing, takes no
 lock, and performs exactly two sampling actions per run (FR-052,
-SC-005). The calibration step count stays within the 95-step bound of
+SC-005). The calibration run count stays within the 96-run bound of
 FR-016.
 
 **Constraints**: single-threaded execution (Assumptions); the
@@ -74,7 +74,7 @@ design.*
 | V | Style and formatting | PASS. New identifiers follow N-1 through N-12 (FR-047); the harness copies no old spelling (PC-10). New files fall inside the formatter's glob, so `format-check` covers them with no configuration change. |
 | VI | Test-Backed Code and Coverage | PASS. Every capability arrives with its test (FR-054); exact-value tests run on the fake provider and stay deterministic. `cmake/coverage.cmake` already measures `include/speedgun-ng/*` and `source/*`, so the new files enter the 100% gates with no configuration change. |
 | VII | Performance Discipline | PASS. The timed loop is the designated critical path, and SC-005 is its performance test case: two sampling actions and zero allocations over 10,000 runs. The report carries the distribution form of VII (FR-027), and the overhead floor rides every row (FR-026). The Open deferrals baseline entry stays untouched. |
-| VIII | CI Quality Gates | PASS through the amendment route. The gate set grows by one item, the time-source gate of D-6, and Principle VIII names the constitution amendment as the route for a gate-set change. The amendment lands inside this feature (FR-043 to FR-045) and extends the V.2 macro-family entry for the build-written `SPEEDGUN_NG_BUILD_TYPE` (R-14). No gate is removed or weakened. |
+| VIII | CI Quality Gates | PASS through the amendment route. The gate set grows by one item, the time-source gate of D-6, and Principle VIII names the constitution amendment as the route for a gate-set change. The amendment lands inside this feature (FR-043 to FR-045). No gate is removed or weakened. |
 | IX | Spec-driven development | PASS. The change touches public API and build configuration, so the full workflow runs. One release-configuration build with `cmake --preset=ci-ubuntu` then `cmake --build build` closes the feature. |
 | X | Anti-slop discipline | PASS. The design carries no seam the spec does not name: timing modes, threads, JSON, and recorder reuse stay in the later roadmap specs named in the Out list. Assumptions are recorded in research.md with the candidates each decision displaced. |
 | XI | Prose standards | PASS, verified mechanically by `prose-lint` over this feature's artifacts. |
@@ -133,7 +133,6 @@ test/CMakeLists.txt                      # six test targets and two gate registr
 test/consumer/CMakeLists.txt             # the consumer suite links the harness target
 test/consumer/main.cpp                   # one registered benchmark and speedgunMain
 .github/workflows/ci.yml                 # the gate step and the consumer-count fix
-.clang-tidy                              # the macro-name exemption anchored for SPEEDGUN_NG_BUILD_TYPE
 .specify/memory/constitution.md          # the D-6 amendment to 2.18.0
 docs/                                    # the barrier rule page
 ```
@@ -163,7 +162,7 @@ speedgunMain ──parses──> RunOptions { filter, listMode, repetitions, min
                      ▼  per selected entry, in order
 BenchmarkHandle ──compiles──> Plan { monotonic, thread_cpu, metric exprs }
                      │             │
-                     │             └─ recorder(2 × (95 + 95 + R))  (D-2, FR-019)
+                     │             └─ recorder(2 × (96 + 96 + R))  (D-2, FR-019)
                      ▼
 State { iterations, skipWithError, skipWithMessage, range-for }
                      │  the timed loop: sample at entry, sample at exit
@@ -240,8 +239,8 @@ rides the unwind.
 | `source/harness/catalog.cpp` | the catalog listing over `Object::counters()` | FR-037, PC-9 |
 | `source/harness/cli.cpp` | `speedgunMain`, `getopt_long`, option validation, exit statuses, SIGINT handler | FR-033, FR-034, FR-036, FR-042, FR-050 |
 | `example/benchmark_example.cpp` | the SC-008 suite: ns per iteration and instructions per cycle | Scope In |
-| `test/time_source_gate.sh` | the banned-source scan over harness code | FR-040, SC-013 |
-| `test/barrier_shape.sh` | compile, disassemble, and count the measured work with and without the barrier | FR-029, US6 |
+| `test/time_source_gate.sh` | the banned-source scan over the D-6 scope, with the one D-6 allowance | FR-040, SC-013 |
+| `test/barrier_shape.sh` | compile with GCC and Clang at `-O2`, disassemble, and count the measured work with and without the barrier | FR-029, US6 |
 
 ### Build targets and link relationships
 
@@ -304,10 +303,13 @@ which is the shape SC-013 records.
 | US3 / SC-009 | `harness_catalog_test` on a fake system with a known leaf set | fake provider |
 | US4 / SC-006 | `harness_cli_test` throwing suite: descriptor and mapping counts return to their start values; the next benchmark runs | real host |
 | US5 / SC-003 | `harness_statistics_test` matches every aggregate against the fixture | fixture |
-| US6 | `barrier_shape.sh` compiles the same work with and without the barrier and counts the surviving instructions | codegen gate |
+| US6 | `barrier_shape.sh` compiles the same work with and without the barrier with GCC and Clang at `-O2` and counts the surviving instructions | codegen gate |
 | FR-040 / SC-013 | `time_source_gate.sh` fails on a planted `std::chrono::steady_clock::now()` and passes after its removal; both runs recorded | gate |
 | SC-005 | `harness_capture_test` counts sampling actions through `FakeProvider::readActions()` and allocation through an allocation-counting `operator new` over 10,000 runs | fake provider |
-| SC-008 | `benchmark_example` run in CI on the reference host | real host |
+| SC-008 | `benchmark_example` on the reference host, recorded in the tasks.md Execution Log; CI covers the branch its runner reaches | real host |
+| FR-032 / SC-017 | `harness_cli_test` raises `SIGINT` in a measured run; the run completes, no later run starts, the outcome is skipped, and the exit status is nonzero | fake provider |
+| FR-034 / SC-018 | `harness_cli_test` feeds each invalid value; no benchmark runs, and the exit status is nonzero | fake provider |
+| FR-036 / SC-019 | `harness_cli_test` checks each exit status of FR-036 | fake provider |
 | SC-010 | the downstream consumer job builds and runs the consumer suite against the installed package | job |
 
 ### Determinism and regression
