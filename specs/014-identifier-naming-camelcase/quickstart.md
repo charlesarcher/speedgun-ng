@@ -121,7 +121,13 @@ closing commit is finished. The tree returns to zero findings
 Result: pass. Zero findings over the 47 owned translation units. The
 planted `bad_name_plant` in `dbc.hpp` reported
 `include/speedgun-ng/dbc.hpp:40:8: error: invalid case style for global
-function 'bad_name_plant'` and exited 1; removal returned exit 0.
+function 'bad_name_plant'` and exited 1; removal returned exit 0. The
+second plant the contract Proof names landed in a `.cpp` under
+`source/`: `bad_name_plant` appended to `source/counters/fold.cpp`
+reported `source/counters/fold.cpp:394:5: error: invalid case style for
+global function 'bad_name_plant'` and exited 1; removal returned exit 0
+over the same TU. Both Proof plantings fail the step, so
+`HeaderFilterRegex` reports `include/speedgun-ng/` and `source/`.
 
 ## Step 7: version and package request
 
