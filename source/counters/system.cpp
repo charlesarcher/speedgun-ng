@@ -573,16 +573,18 @@ auto Object::children() const -> std::vector<const Object*>
   auto& systemRef = System::local();
   std::vector<const Object*> direct;
   for (const auto& [objectPath, child] : systemRef.m_impl->objects) {
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): the machine-root
-    // leg of the direct-child test. Its branch attribution moves with
-    // the host topology, and the leg holds no host-independent decision.
+    // LCOV_EXCL_BR_START : coverage exclusion (T066): the direct-child
+    // test. Its branch attribution moves with the host topology and the
+    // gcov version, and no leg of the test holds a host-independent
+    // decision. The stop sits after the whole ternary: the CI gcov
+    // attributes a branch of the false leg to its last line, so a stop
+    // at the true leg leaves that branch inside the count.
     const bool isDirect = node->path == "machine"
         ? (objectPath.find('/') == std::string::npos && objectPath != "machine")
-        // LCOV_EXCL_BR_STOP
-
         : (objectPath.size() > node->path.size() + 1
            && objectPath.starts_with(node->path + "/")
            && objectPath.find('/', node->path.size() + 1) == std::string::npos);
+    // LCOV_EXCL_BR_STOP
     if (isDirect) {
       direct.push_back(&systemRef.handleFor(objectPath));
     }
