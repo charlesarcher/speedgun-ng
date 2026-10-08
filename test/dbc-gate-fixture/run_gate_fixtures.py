@@ -75,7 +75,7 @@ EXPECTATIONS: dict[str, dict[str, Expectation | None]] = {
     "fixture_missing_docs": {
         "doc": Expectation(
             result="fail",
-            interface="missing_docs",
+            interface="missingDocs",
             missing_section=True,
         ),
         "pair": None,
@@ -93,7 +93,7 @@ EXPECTATIONS: dict[str, dict[str, Expectation | None]] = {
         "doc": None,
         "pair": Expectation(
             result="fail",
-            interface="enforced_not_documented",
+            interface="enforcedNotDocumented",
             kind="precondition",
             drift="enforced-not-documented",
         ),

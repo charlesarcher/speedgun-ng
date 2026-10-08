@@ -27,24 +27,24 @@ public:
    * \pre none
    * \post none
    */
-  void public_none() {}
+  void publicNone() {}
 
   // friend declaration inside class (exempt per FR-029)
-  friend void friend_target(int);
+  friend void friendTarget(int);
 
 private:
-  void private_member(int y) { SG_REQUIRE_ALWAYS(y >= 0, "y >= 0"); }
+  void privateMember(int y) { SG_REQUIRE_ALWAYS(y >= 0, "y >= 0"); }
 
 protected:
-  void protected_member() {}
+  void protectedMember() {}
 };
 
-inline void friend_target(int x)
+inline void friendTarget(int x)
 {
   static_cast<void>(x);
 }
 
-constexpr int constexpr_only(int v)
+constexpr int constexprOnly(int v)
 {
   return v * 2;
 }

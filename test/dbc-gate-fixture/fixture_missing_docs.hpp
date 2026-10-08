@@ -13,7 +13,7 @@ namespace sg::test::dbc::gate_fixture
  * A public interface must document its contracts; absence of \pre/\post
  * must be reported.
  */
-inline int missing_docs(int x)
+inline int missingDocs(int x)
 {
   // Intentionally no SG_* enforcement and no contract documentation sections.
   // (If SG were present this would also be an enforced-not-documented case.)

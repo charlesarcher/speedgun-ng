@@ -12,7 +12,7 @@ namespace sg::test::dbc::gate_fixture
  * This is the enforced-not-documented drift case (FR-028). Pairing gate
  * must detect SG_REQUIRE without a matching \pre section.
  */
-inline int enforced_not_documented(int x)
+inline int enforcedNotDocumented(int x)
 {
   SG_REQUIRE(x > 0, "x > 0");
   return x + 1;
