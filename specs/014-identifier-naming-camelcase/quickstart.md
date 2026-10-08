@@ -196,7 +196,12 @@ failed at head `69d6fcd` on one branch of the machine-root leg of
 topology: the same object code recorded one hit on that leg in one
 run and zero in the next. The T066 branch-exclusion pair took the
 leg out of the count, and the local coverage pass then read 867 of
-867 branches at 100 percent.
+867 branches at 100 percent. CI run `37760326237` at convergence
+head `ef257e9` repeated the pass over the whole head: the three
+commits `5e770f4`, `bf8327c` and `59378c4` postdated the recorded
+run, and two of them edit C++. All eleven executed jobs concluded
+success, the docs job skipped, and the coverage gate held with the
+machine-root leg excluded.
 
 ## Rename command
 
