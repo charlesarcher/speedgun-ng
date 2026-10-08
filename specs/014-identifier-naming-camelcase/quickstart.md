@@ -229,7 +229,12 @@ the T066 exclusion pair, whose stop closes after the true leg at line
 581, never covered it. The local gate at the same head reads 867 of
 867 because the local gcov attributes no branch to that line; the CI
 gcov does. T055 moves the stop after the ternary so the exclusion
-covers every branch of the host-dependent test.
+covers every branch of the host-dependent test. CI run
+`37776487851` at convergence head `1aa3793` confirmed the widened
+span on its first attempt: all eleven executed jobs concluded success,
+the docs job skipped, and the coverage job read 100.0 percent at 860
+of 860 branches on the CI gcov, the count that exclusion now covers
+whole.
 
 ## Rename command
 
