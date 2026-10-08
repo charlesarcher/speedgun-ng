@@ -20,9 +20,11 @@ fixes.
 
 - A benchmark value set through the handle shall win over the command
   line (FR-015).
-- An unparseable, zero, or negative count or time shall be a
-  recoverable error at the 007 FR-046 tier: the executable reports it,
-  runs no benchmark, and exits nonzero (FR-034, clarification).
+- An unparseable or negative count or time shall be a recoverable
+  error, and so shall a zero repetition count, iteration count, or
+  minimum time. A zero minimum warm-up time is valid, as the default of
+  FR-007 requires. The executable reports the error, runs no benchmark,
+  and exits nonzero (FR-034, clarification).
 - `getopt_long` shall appear in the implementation alone; no public
   header names it (FR-050).
 
@@ -74,7 +76,7 @@ BM_copy                    18432            311.4                  22.7   ipc=1.
 
 ## Interrupt behavior (clarification, FR-032)
 
-SIGINT ends the current run at the next iteration boundary; the
-benchmark reports as skipped with an interrupt reason; the plan, the
-recorder, and every descriptor and mapping release; the process exits
-nonzero (R-06).
+SIGINT sets one flag. The runner reads it after each run, and the
+current run completes. The benchmark reports as skipped with an
+interrupt reason, and no later run starts. The plan, the recorder, and
+every descriptor and mapping release. The process exits nonzero (R-06).

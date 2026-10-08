@@ -17,7 +17,7 @@ order.
 | `minTimeNs` | `std::optional<std::int64_t>` | a benchmark value wins over the command line (FR-015) |
 | `warmupTimeNs` | `std::optional<std::int64_t>` | same precedence rule (FR-011, FR-015) |
 | `repetitions` | `std::optional<std::uint64_t>` | same precedence rule (FR-012, FR-015) |
-| `fixedIterations` | `std::optional<std::uint64_t>` | set means calibration is skipped (FR-013) |
+| `fixedIterations` | `std::optional<std::uint64_t>` | set means calibration is skipped (FR-013); warm-up still starts from it and grows by the FR-010 rule (FR-011) |
 | `expressions` | type-erased metric expressions, one per attached metric | built with the 007 arithmetic (FR-021) |
 
 Relationships: the `BenchmarkHandle` (E-02) is the caller's view of
@@ -46,7 +46,7 @@ The object the harness passes to the benchmark function (FR-004).
 | Field | Type | Rule |
 | --- | --- | --- |
 | `m_iterations` | `std::uint64_t` | the iteration count of the current run; the function reads it through `iterations()` (FR-005) |
-| `m_index` | loop cursor | the range-for `begin`/`end` pair spans `m_iterations` steps; the iterator tests the interrupt flag before each step (R-06) |
+| `m_index` | loop cursor | the range-for `begin`/`end` pair spans `m_iterations` steps; the iterator reads no interrupt flag (R-06) |
 | `m_outcome` | `RunOutcome` plus reason text | set by `skipWithError` or `skipWithMessage` (FR-031) |
 
 Validation: `skipWithError` and `skipWithMessage` end the timed loop;
@@ -79,7 +79,7 @@ of a run (E-04).
 | Field | Type | Rule |
 | --- | --- | --- |
 | `expression` | 007 `Expression` spine | compiled into the benchmark's plan (R-11) |
-| `perIteration` | `bool` | a count metric divides by iterations; a ratio or rate keeps its window value (FR-022, the 007 seam rule) |
+| `perIteration` | `bool` | true for dimension events^1 or time^1, false for every other dimension (FR-022); the `Dim` tag or `dimensionOf` sets it |
 | `availability` | `Availability` | read before the run for every leaf the metric needs; a leaf that cannot count marks the metric unavailable with its refusal kind (FR-023, PC-3) |
 
 Relationships: one metric folds into every ResultRow (E-06); the
@@ -123,7 +123,7 @@ The context lines above the rows (FR-035).
 | Field | Source | Rule |
 | --- | --- | --- |
 | `version` | the build-written version macro | always printed |
-| `buildType` | `SPEEDGUN_NG_BUILD_TYPE` (R-14) | always printed |
+| `buildType` | `SG_BUILD_TYPE` (R-14) | always printed |
 | `host`, `cpu` | the counters catalog, where it publishes them | a field the library does not publish stays out of the line (FR-035, R-08) |
 
 ## E-09: RunOptions (the parsed command line)
@@ -132,7 +132,7 @@ The context lines above the rows (FR-035).
 | --- | --- | --- |
 | `filter` | `std::optional<std::string>` | a regular expression over names; a miss says so, runs nothing, exits zero (FR-034, edge case) |
 | `listMode` | `bool` | prints matching names, runs nothing, exits zero (US2, clarification) |
-| `repetitions`, `minTime`, `warmupTime`, `iterations` | numeric | an unparseable, zero, or negative value is a recoverable error: report, run nothing, exit nonzero (FR-034, clarification) |
+| `repetitions`, `minTime`, `warmupTime`, `iterations` | numeric | an unparseable or negative value is a recoverable error; a zero repetition count, iteration count, or minimum time is a recoverable error; a zero warm-up time is valid (FR-034, clarification) |
 | `dryRun` | `bool` | one iteration, one repetition, no warm-up (FR-014) |
 | `leafAddresses` | `std::vector<std::string>` | attached to every selected benchmark (FR-021) |
 | `listCatalog` | `bool` | prints the catalog and exits without running a benchmark (FR-037) |
@@ -160,7 +160,8 @@ BenchmarkResult 1──* ResultRow      report formats BenchmarkResult + ReportC
 The benchmark outcome machine is the plan's Logical view:
 `registered → running → measured | skipped | failed`, with `skipped`
 reached by `skipWithError`, `skipWithMessage`, or SIGINT, and
-`failed` reached by an exception. A `failed` or `skipped` outcome
+`failed` reached by an exception. The runner reads the SIGINT flag
+after each run. A `failed` or `skipped` outcome
 releases the plan, the recorder, and every descriptor and mapping
 through the runner frame's RAII destruction (FR-032, PC-6).
 

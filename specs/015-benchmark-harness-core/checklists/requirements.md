@@ -45,25 +45,31 @@ this repository set in specs 007, 012, and 013:
   file and line citation sits in one table at the end, so a reader of
   the requirements never meets a line number.
 - The 55 requirements carry identifiers FR-001 through FR-055 with no
-  gap and no duplicate, and the 16 success criteria carry SC-001
-  through SC-016. The success criteria map one to one onto the
-  criteria of the request, renumbered to the repository's three-digit
-  convention.
+  gap and no duplicate. The 19 success criteria carry SC-001 through
+  SC-019. SC-001 through SC-016 map one to one onto the criteria of the
+  request. SC-017 through SC-019 cover the clarified behavior of FR-032,
+  FR-034, and FR-036.
 - No [NEEDS CLARIFICATION] marker was needed. Every open point in the
   request arrived settled as a decision (D-1 through D-6) or resolved
   by the HEAD audit. The audit raised no question the request left
   open.
 - All eleven preconditions passed at the audit point
-  `997368facc353753cdb04fd8148e4ba050f04437`, each with its evidence
-  recorded beside it. The three old-spelling hits of PC-10 are
+  `d6bcbb54ff1103843426d9ddc2ccb2d5a8a1babe`, the merge of pull request
+  31, each with its evidence recorded beside it. The three old-spelling
+  hits of PC-10 are
   recorded as dependencies on a separate fix, and none lies on the
   harness path.
 - The Google Benchmark values of D-3 were read at the recorded
   upstream revision `e662de9aab8e705ecf4fa4bd41a207e5a0acfd0c`
-  (2026-10-08), and the step bound of 95 calibration steps is derived
+  (2026-10-08), and the run bound of 96 calibration runs is derived
   in D-3 from the factor floor and the iteration cap.
 - The roadmap document named in the request is absent from this
   machine at the audit point. The specification records that fact and
   transcribes the scope boundary from the request itself.
 - The repository prose gate reports zero findings over the
   specification and this checklist.
+- D-6 binds `tools/`. Its one exception is `tools/dbc/overhead.cpp`,
+  which measures the contract overhead against
+  `std::chrono::steady_clock` on purpose.
+- A review at `99afc6f` raised fifteen findings. The commit that
+  applies them records each one.

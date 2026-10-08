@@ -92,7 +92,8 @@ ctest --preset=dev -R harness_cli_test --output-on-failure
 
 Expected: the throwing suite leaves the process descriptor count and
 mapping count at their start values across 1,000 runs, and the next
-benchmark runs and reports.
+benchmark runs and reports. An interrupted suite exits nonzero with the
+benchmark skipped (SC-017).
 
 ## 7. The time-source gate (SC-013)
 
@@ -111,7 +112,12 @@ ctest --preset=dev -R time_source_gate          # removed: exit 0
 ```
 
 Expected: the planted run fails with the `file:line` printed; the
-removal returns the gate to a pass. Record both runs for SC-013.
+removal returns the gate to a pass. Record both runs for SC-013. The
+clean scan covers `tools/` and allows the one D-6 exception.
+
+Plant `std::chrono::system_clock` in `tools/dbc/overhead.cpp`, run the
+gate (expect exit 1), remove it, and run the gate again (expect exit 0).
+Record that pair too (SC-013).
 
 ## 8. Barrier codegen gate (US6)
 
@@ -119,8 +125,8 @@ removal returns the gate to a pass. Record both runs for SC-013.
 ctest --preset=dev -R barrier_shape --output-on-failure
 ```
 
-Expected: the optimized build keeps the measured work when the
-benchmark calls `doNotOptimize`, and eliminates it without the
+Expected: the -O2 build from GCC and from Clang keeps the measured work
+when the benchmark calls `doNotOptimize`, and eliminates it without the
 barrier.
 
 ## 9. Release configuration and the downstream consumer (IX, SC-010, SC-012)
