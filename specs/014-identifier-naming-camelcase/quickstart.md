@@ -46,9 +46,23 @@ pass, and the format check exits 0. A failure stops the sequence. Repeat
 for each group. A whitespace change with no renamed identifier stays out
 of the commit.
 
-Result: pass. Nine rename commits, `f7591cc` through `fb7ba67`. The
-closing dev build exits 0, `ctest --preset=dev` exits 0, and the format
-check exits 0 at the head.
+Result: pass. Ten rename commits: `f7591cc`, `13d8e2f`, `c3908b4`,
+`7318450`, `4789921`, `bcf6c9b`, `5c110ca`, `8a7b1a5`, `24ea24f`, and
+`fb7ba67`; the sentence this one replaces counted nine. T056 walked the
+range in order and at each commit ran `cmake --preset=dev`,
+`cmake --build --preset=dev`, `ctest --preset=dev`, and the
+`format-check` target. The configure, the build, and the format check
+exit 0 at all ten. `ctest --preset=dev` reports 48 of 48 at eight of
+them, and 47 of 48 at `f7591cc` and at `bcf6c9b`, where
+`counters_overhead` printed `COUNTERS OVERHEAD FAIL: the published
+floor excludes the two clock reads that bracket each sampling action
+(FR-025, FR-026)` and exited 1. That check compares a measured median
+against a bracketed median at `counters_overhead.cpp:231`, and the dev
+test preset runs the set with `jobs: 32`, so 31 sibling tests share the
+host with it. T056 then built that target at each of the ten commits
+and ran the binary alone: it exits 0 at every one, the two commits
+above included. The closing dev build exits 0, `ctest --preset=dev`
+exits 0, and the format check exits 0 at the head.
 
 ## Step 3: string literal fixture
 
