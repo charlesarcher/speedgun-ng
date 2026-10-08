@@ -318,4 +318,4 @@ needs a V.2 entry and a `.clang-tidy` change.
 | Target platform | R-04, R-08: catalog facts carry platform differences; no harness branch on the clock set |
 | Performance goals | R-02, R-12: two sampling actions, fixed capacity, 96-run bound |
 | Constraints | R-06, R-13: signal flag mechanics, the recorded P2 |
-| Scale/Scope | R-01: one target, two headers, six sources |
+| Scale/Scope | R-01: one target, two headers, five sources |

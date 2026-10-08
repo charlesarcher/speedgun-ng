@@ -656,7 +656,7 @@ a constant without it.
   calibration and warm-up decision shall read its run through a fold
   over that run's two points.
 - **FR-019**: The harness shall fix the recorder capacity from the
-  step bound of FR-016 before the first run, and shall mint the
+  run bound of FR-016 before the first run, and shall mint the
   recorder in the untimed region (007 FR-050, D-2). One recorder
   serves one benchmark.
 
@@ -814,8 +814,9 @@ a constant without it.
 
 - **FR-043**: The feature shall add the D-6 entry to Additional
   Constraints beside the Library-first entry, stating the rule, the
-  full banned list, the counters-change route, and the amendment-only
-  exception route.
+  D-6 scope sentence, the counters-library definition, the full
+  banned list, the named exception, the counters-change route, and
+  the amendment-only exception route.
 - **FR-044**: The Principle VIII gate list shall gain the time-source
   gate as a hard gate.
 - **FR-045**: The amendment shall follow the Governance section at the
@@ -994,7 +995,7 @@ enters this spec.
   `tools/` included, for every banned source on the constitutional
   list and fails on a hit. A planted `std::chrono::steady_clock::now()`
   call in a harness source fails the gate, and its removal returns the
-  gate to a pass. The feature records both runs. A planted
+  gate to a pass. The feature records both pairs. A planted
   `std::chrono::system_clock` in `tools/dbc/overhead.cpp` fails the
   gate, and its removal returns the gate to a pass.
 - **SC-014**: Every time the harness reports traces to a counters
@@ -1008,8 +1009,10 @@ enters this spec.
   with it.
 - **SC-016**: The constitution at the feature head carries the D-6
   rule. A review against D-6 confirms four facts: the Additional
-  Constraints entry states the rule, the full banned list, the
-  counters-change route, and the amendment-only exception route; the
+  Constraints entry states the rule, the D-6 scope sentence, the
+  counters-library definition, the full banned list, the named
+  exception, the counters-change route, and the amendment-only
+  exception route; the
   Principle VIII gate list names the time-source gate as a hard gate;
   the CI workflow runs that gate, and a hit fails the job; the
   version, Sync Impact Report, lineage row, Last Amended date, and a
