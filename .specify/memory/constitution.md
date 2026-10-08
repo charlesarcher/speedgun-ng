@@ -1086,4 +1086,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.16.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-08
+**Version**: 2.17.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-08
