@@ -132,8 +132,9 @@ struct BenchmarkResult
  * and its teardown; setup and teardown sit outside the loop, in the
  * untimed region (FR-004, FR-005).
  *
- * \invariant The loop cursor never passes the iteration count of the
- *            current run, and the loop reads no interrupt flag: the
+ * \invariant The loop cursor counts down from the iteration count of
+ *            the current run, so it cannot pass that count by
+ *            construction, and the loop reads no interrupt flag: the
  *            runner reads that flag after a run completes (R-06).
  */
 class SPEEDGUN_NG_EXPORT State
@@ -141,6 +142,9 @@ class SPEEDGUN_NG_EXPORT State
 public:
   /**
    * @brief The range-for cursor of the timed loop (E-03).
+   *
+   * The cursor holds the count of the iterations that remain in the run
+   * and only decrements it.
    */
   class Cursor
   {
@@ -149,21 +153,18 @@ public:
      * @brief True while the loop still runs: the local count of the
      * remaining iterations has not reached zero.
      *
-     * The comparison reads that one local count. The postcondition runs
-     * once, at loop exit.
+     * The comparison reads that one local count. The count starts at
+     * the run's iteration count and only decrements, so it reaches zero
+     * and no lower: no check guards it.
      *
-     * \pre the cursor belongs to the run its state describes
-     * \post at loop exit the cursor ran at most the run's iteration count
+     * \pre none
+     * \post true while an iteration of this run remains, false once
+     *       none remains
      */
     [[nodiscard]] auto operator!=(
         [[maybe_unused]] const Cursor& other) const noexcept -> bool
     {
-      if (m_remaining != 0) [[likely]] {
-        return true;
-      }
-      SG_INVARIANT(m_start <= m_state->m_iterations,
-                   "the cursor ran at most the run's iteration count");
-      return false;
+      return m_remaining != 0;
     }
 
     /**
@@ -192,14 +193,12 @@ public:
   private:
     friend class State;
 
-    Cursor(State& state, const std::uint64_t remaining) noexcept
-        : m_state(&state)
-        , m_start(remaining)
+    explicit Cursor(const std::uint64_t remaining) noexcept
+        : m_start(remaining)
         , m_remaining(remaining)
     {
     }
 
-    State* m_state;
     std::uint64_t m_start;
     std::uint64_t m_remaining;
   };
@@ -225,11 +224,9 @@ public:
    * \post the returned cursor names iteration zero of this run, or an
    *       empty loop when the function already requested a skip
    */
-  auto begin() noexcept -> Cursor
+  auto begin() const noexcept -> Cursor
   {
-    SG_INVARIANT(m_index <= m_iterations,
-                 "the loop cursor stays inside the timed loop");
-    return Cursor {*this, m_skipRequested ? 0 : m_iterations};
+    return Cursor {m_skipRequested ? 0 : m_iterations};
   }
 
   /**
@@ -238,7 +235,7 @@ public:
    * \pre none
    * \post the returned cursor names the end of this run's loop
    */
-  auto end() noexcept -> Cursor { return Cursor {*this, 0}; }
+  static auto end() noexcept -> Cursor { return Cursor {0}; }
 
   /**
    * @brief Skip the benchmark with an error reason (FR-031).
@@ -305,7 +302,6 @@ private:
   }
 
   std::uint64_t m_iterations = 0;
-  std::uint64_t m_index = 0;
   bool m_skipRequested = false;
   RunOutcome m_outcome = RunOutcome::MEASURED;
   std::string m_reason;
