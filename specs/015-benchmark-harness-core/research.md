@@ -58,7 +58,11 @@ refusal naming the machine object as a pass. A test executable
 registers its `FakeProvider`, carrying scripted `machine/monotonic`
 and `machine/thread_cpu` leaves, before it calls `speedgunMain`; the
 real provider is then refused and the scripted leaves drive every
-harness decision.
+harness decision. `speedgunMain` registers `PmuProvider` first for the
+same reason: a suite that names no provider still resolves the
+`--counter` leaves of FR-021 and the catalog listing of FR-037, and a
+test that owns the machine object is refused by the same duplicate-path
+rule (T051).
 
 **Rationale**: `FakeProvider::addCounter` auto-creates the machine
 object with the machine kind and description
