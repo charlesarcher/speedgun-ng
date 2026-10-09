@@ -64,9 +64,7 @@ auto printResult(const BenchmarkResult& result) -> void
                   static_cast<unsigned long long>(row.timeStats.samples));
       for (std::size_t column = 0; column < row.metricStats.size(); ++column) {
         const auto& stats = row.metricStats[column];
-        const char* label = column < result.metricLabels.size()
-            ? result.metricLabels[column].c_str()
-            : "metric";
+        const char* label = result.metricLabels[column].c_str();
         std::printf("%-24s %10s  %s mean=%9.3f median=%9.3f sd=%9.3f "
                     "cv=%8.4f min=%9.3f max=%9.3f n=%llu\n",
                     result.name.c_str(),
@@ -91,9 +89,7 @@ auto printResult(const BenchmarkResult& result) -> void
                 row.overheadFloorNs);
     for (std::size_t column = 0; column < row.metrics.size(); ++column) {
       const auto& metric = row.metrics[column];
-      const char* label = column < result.metricLabels.size()
-          ? result.metricLabels[column].c_str()
-          : "metric";
+      const char* label = result.metricLabels[column].c_str();
       std::printf(
           "  %s=%9.3f ratio=%.3f scaled=%d gap=%d",
           label,

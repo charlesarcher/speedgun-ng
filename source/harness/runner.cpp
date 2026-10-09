@@ -49,9 +49,9 @@ auto splitAddress(std::string_view address)
 auto statisticsOf(std::vector<double> values) -> sg::Statistics
 {
   sg::Statistics stats;
-  if (values.empty()) {
-    return stats;
-  }
+  SG_ASSERT(!values.empty(),
+            "the caller builds the summary only for a measured run with more "
+            "than one repetition, so it hands over one value per row");
 
   std::sort(values.begin(), values.end());
   stats.samples = static_cast<std::uint64_t>(values.size());
@@ -72,8 +72,10 @@ auto statisticsOf(std::vector<double> values) -> sg::Statistics
   for (const double value : values) {
     squared += (value - stats.mean) * (value - stats.mean);
   }
-  stats.sampleStdDev =
-      n > 1 ? std::sqrt(squared / static_cast<double>(n - 1)) : 0.0;
+  SG_ASSERT(n > 1,
+            "the caller builds the summary only for a measured run with more "
+            "than one repetition");
+  stats.sampleStdDev = std::sqrt(squared / static_cast<double>(n - 1));
   stats.coefficientOfVariation = std::fpclassify(stats.mean) != FP_ZERO
       ? stats.sampleStdDev / stats.mean
       : 0.0;
@@ -118,7 +120,9 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
     value.runningRatio = folded.runningRatio;
     value.scaled = folded.scaled;
     value.availability = folded.availability;
-    if (column.perIteration && record.iterations > 0
+    SG_ASSERT(record.iterations > 0,
+              "a measured run counts at least one iteration (FR-016)");
+    if (column.perIteration
         && folded.availability == sg::counters::Availability::COUNTABLE)
     {
       value.value /= static_cast<double>(record.iterations);
@@ -235,7 +239,11 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
               "the counters system maps every unit name a provider registers, "
               "so a catalog entry always carries a dimension (FR-005)");
 
-    if (dimension->time == 1 && dimension->events == 0) {
+    if (dimension->time == 1) {
+      SG_ASSERT(dimension->events == 0,
+                "the unit table maps a time unit to no event exponent, so a "
+                "catalog entry with a time exponent carries no event exponent "
+                "(FR-005)");
       const auto leaf = object->counter<sg::counters::Dim<1, 0>>(leafName);
       SG_ASSERT(leaf.has_value(),
                 "the entry's unit picks the dimension the lookup asks for, and "
