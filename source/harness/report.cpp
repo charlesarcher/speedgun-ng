@@ -25,6 +25,10 @@ static_assert(kAvailabilityNames.size()
 auto availabilityName(const sg::counters::Availability availability) -> const
     char*
 {
+  // The static_assert above ties the table to the last enumerator, so the
+  // index of a value of the closed enumeration sits inside the table
+  // (FR-021).
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return kAvailabilityNames[std::to_underlying(availability)];
 }
 
