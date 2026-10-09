@@ -477,7 +477,22 @@ auto main(const int argc, char** argv) -> int
         "the interrupt reports skipped with its reason (SC-017)");
   check(interruptRuns == 1,
         "the current run completes and no later run starts (SC-017)");
-  check(openDescriptorCount() == descriptors && mappingCount() == mappings,
+
+  // ThreadSanitizer maps its shadow ranges when the process takes its
+  // first signal, so the resource pair is read across two identical
+  // interrupted runs: the first pays for the runtime, the second has to
+  // give everything back.
+  interruptRuns = 0;
+  const auto heldDescriptors = openDescriptorCount();
+  const auto heldMappings = mappingCount();
+  const std::string interruptedAgain = captureRun(
+      {"--filter", "^bmInterrupts$", "--iterations=1", "--repetitions=3"}, 1);
+  check(interruptedAgain.find("SKIPPED: interrupted") != std::string::npos,
+        "a second interrupted run reports the same reason (SC-017)");
+  check(interruptRuns == 1,
+        "the second run completes and no later run starts (SC-017)");
+  check(openDescriptorCount() == heldDescriptors
+            && mappingCount() == heldMappings,
         "the interrupted run releases the same resources (SC-017)");
 
   // IF-07, FR-032: the flag is read after every run, the qualifying
