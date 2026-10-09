@@ -397,3 +397,79 @@ is one follow-up item with the gate that holds it.
 - [X] T064 FU-3: give the barrier shape's `Big` a copy constructor with a body, assert `!std::is_trivially_copyable_v<Big>` in the shape source, and run the zero-store sweep under g++ alone (contradicts): a defaulted copy constructor leaves the type trivially copyable, so the gcc `"+m"` case for a type that is not trivially copyable never ran, and the clang `"+r,m"` form can load and store each swept element
 - [X] T065 FU-4: take the build directory of `test/loop_shape.sh` as its first argument with `SG_BUILD_DIR` as the fallback, and fail naming both when neither is set (contradicts): the script searched `\$ROOT/build` alone, so a build tree anywhere else failed the gate
 - [X] T066 FU-5: include `<algorithm>` in `source/harness/detail/calibration.hpp`, which calls `std::min` (partial): the call reached `std::min` through a transitive include, and a translation unit that includes the header alone compiles at `3e0d093` under both compilers, so no failing state reproduces
+
+---
+
+## Phase 13: PR #32 blockers
+
+Appended after the review of the pull request at `6446ead`. Each task is
+one blocker, with the check that fails at `6446ead` and passes at this
+head.
+
+- [X] T067 PR-1: bind the vector that `object->counters()` returns to one
+  local before the search loop, so every entry pointer stays inside its
+  scope (contradicts): the temporary died at the end of the statement and
+  the loop carried dangling entries; AddressSanitizer reported
+  heap-use-after-free at `source/harness/runner.cpp:185` in
+  `harness_cli_test` and `harness_statistics_test` under `ci-sanitize`,
+  and both pass at this head
+- [X] T068 PR-2: take the entry sample in `State::begin()`, the exit
+  sample in the cursor comparison at zero and in a skip inside the loop,
+  top every run up to exactly two samples, and fail a run with no single
+  completed loop with a reason that names its case (contradicts): the
+  runner sampled around the whole function, so the window covered the
+  setup and the teardown; `scenarioWindow` reports 8 ns per iteration at
+  this head against a bound of 1000 ns where `6446ead` reports tens of
+  microseconds, and `scenarioFailedPair` plus the three `harness_cli_test`
+  cases fail at `6446ead` because a run with no loop was measured. The
+  second-loop case came from `harness_gap_test`, which found that a
+  completed second loop passed the first version of the check
+- [X] T069 PR-3: mark `anyFailed` and `anyInterrupted`
+  `[[maybe_unused]]`, the only reader of both being the run-wide
+  postcondition that the ignore semantic expands to nothing (contradicts):
+  the `ci-linux-ignore` build at `6446ead` failed with `variable 'anyFailed
+  set but not used` at `source/harness/cli.cpp:257` and the same at 258,
+  and the same build is clean at this head
+- [X] T070 PR-4a: carry the contract block of `sg::doNotOptimize` on each
+  overload, state the conditions of `addMetric` in the template that
+  enforces them, state no precondition for `speedgunMain`, and teach the
+  pairing scan to skip a digit separator and a template parameter list
+  (contradicts): `doc-gate: 1 of 167 interfaces missing contract
+  documentation` at `6446ead`, and the scan hid every definition behind a
+  digit separator, so `sg::speedgunMain` and `sg::BenchmarkHandle::addMetric`
+  reported documented-not-enforced although their bodies carry the macros;
+  `dbc-gate` now reports 167 interfaces with no gaps under every semantic
+- [ ] T071 PR-4b: add `test/source/harness_gap_test.cpp`, thirteen modes
+  over a scripted provider, each measuring one path the feature opened:
+  the metric leaves the run refuses, the pushed read mode in the listing,
+  a machine object without the monotonic leaf, a count that overflows the
+  signed read and a count with trailing text, the cursor that names its
+  iteration, the handle's own warm-up and repetition options, the run
+  stopped by a signal during the warm-up or during calibration, the run
+  that enters the timed loop twice, the run that throws outside
+  `std::exception`, and the availability names the report prints
+  (partial): `coverage-gate: line coverage is not 100%` at `6446ead` with
+  lines 97.4%, functions 95.8% and branches 95.3%; at this head lines 98.9% (2883 of 2915), functions 97.8% (404 of 413) and branches 97.0% (1136 of 1171), with the whole suite passing. The residue is
+  32 lines, and each of them is a path the public surface cannot produce:
+  the machine object and its monotonic leaf, which the counters system
+  always opens; the unit outside the closed enumeration, which the
+  registration of any provider rejects; the availability guard that runs
+  after a plan the counters library has already refused; the growth bound
+  at one trillion iterations; the tail return of two switches over closed
+  enumerations; the closing brace of two lambdas, which gcov counts as its
+  own line; and `reportsPerIteration`, a `constexpr` predicate that every
+  call site folds at compile time. The gate needs a project rule for those
+  lines, or their deletion under Principle X.2, and that is a decision for
+  the pull request
+- [X] T072 PR-4c: keep `harness_capture_test` out of the ThreadSanitizer
+  tree, the way `counters_noalloc_test.cpp` already does (contradicts): the
+  `ci-tsan` build failed at its link step with `multiple definition of
+  'operator new(unsigned long)'` from
+  `test/source/harness_capture_test.cpp:37` against `libclang_rt.tsan_cxx`,
+  and the build and its 57 tests pass at this head
+- [X] T073 PR-4d: replace the nothrow form of `operator new` in the capture
+  test, so the allocation the vendored simdjson makes returns through the
+  same pair as every other allocation of the process (contradicts):
+  `alloc-dealloc-mismatch (operator new vs free)` in
+  `harness_capture_test` under `ci-sanitize`, and the test passes at this
+  head
