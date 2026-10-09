@@ -497,6 +497,16 @@ add_executable(harness_calibration_test source/harness_calibration_test.cpp)
 target_link_libraries(harness_calibration_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_calibration_test PRIVATE cxx_std_23)
 add_test(NAME harness_calibration_test COMMAND harness_calibration_test)
+set_tests_properties(harness_calibration_test PROPERTIES TIMEOUT 120)
+
+# IF-09: the growth rule and its stop outcomes, over the calibration
+# header the runner shares with the warm-up phase (FR-008, FR-010,
+# FR-016).
+add_executable(harness_growth_test source/harness_growth_test.cpp)
+target_link_libraries(harness_growth_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_growth_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_growth_test PRIVATE cxx_std_23)
+add_test(NAME harness_growth_test COMMAND harness_growth_test)
 
 # The command line over a scripted provider (T020; US2, FR-009, FR-015,
 # FR-021, FR-022, FR-034, FR-036, SC-007).
