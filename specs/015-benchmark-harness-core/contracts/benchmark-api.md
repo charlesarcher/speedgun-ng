@@ -31,7 +31,7 @@ auto registerBenchmark(std::function<void(State&)> fn,
 class State {
 public:
   [[nodiscard]] auto iterations() const noexcept -> std::uint64_t;
-  auto begin() const noexcept;   // range-for cursor over the timed loop
+  auto begin() noexcept;   // range-for cursor over the timed loop
   static auto end() noexcept;
   auto skipWithError(std::string_view reason) noexcept -> void;
   auto skipWithMessage(std::string_view reason) noexcept -> void;
@@ -43,12 +43,22 @@ public:
   teardown (FR-004).
 - `iterations()` shall report the iteration count of the current run
   (FR-005).
-- A skip records the reason, and the function then leaves the loop with
-  `break` or `return`, the form Google Benchmark documents; the skip
-  takes effect at loop exit, and the statistics for that benchmark stay
-  suppressed (FR-031).
-- `\invariant`: the range-for cursor advances only inside the timed
-  loop, and the loop reads no interrupt flag (R-06).
+- The sampling window of a run shall open in `begin()`, before the
+  first pass of the loop, and close when the loop runs out, in the
+  cursor comparison; setup and teardown sit outside the window, so the
+  measured window covers the loop and nothing else (FR-004, FR-017).
+- A skip inside the loop shall close the window at once, the way the
+  upstream timer stops its clock; a skip requested before the loop
+  takes no sample at all (FR-017, FR-031).
+- Every run shall own exactly two samples. A run that ends by an
+  exception, by a loop the function never completed, or by no loop at
+  all is topped up to two so the pair index of the next run stays
+  aligned, and a run with no completed loop fails with a reason that
+  names the case and cites FR-017; a failed run adds no statistics
+  (FR-017).
+- The range-for cursor counts down from the iteration count of the
+  current run, so it cannot pass that count by construction, and the
+  loop reads no interrupt flag (R-06).
 
 ## Run-control precedence (FR-007, FR-013, FR-015)
 

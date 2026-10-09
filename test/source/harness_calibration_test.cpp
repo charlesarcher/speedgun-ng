@@ -40,6 +40,7 @@
 
 #include <unistd.h>
 
+#include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 
@@ -50,6 +51,11 @@ constexpr std::uint64_t kWalkMonotonicStep = 100;
 constexpr std::uint64_t kWalkThreadCpuBase = 1000;
 constexpr std::uint64_t kFivefoldMonotonicStep = 5000;
 constexpr std::uint64_t kFivefoldThreadCpuStep = 100;
+// PR-2 (PR #32): the setup and the teardown of bmWindow each burn a
+// dependent chain of this length, far past one pass of its loop, and
+// the reported per-iteration time must show the loop alone.
+constexpr std::uint64_t kWindowBurn = 1'000'000;
+constexpr double kWindowBoundNs = 1000.0;
 
 sg::counters::FakeProvider* fake = nullptr;
 
@@ -101,7 +107,53 @@ auto bmCapped(sg::State& state) -> void
   }
 }
 
-auto captureRun(const std::vector<std::string>& arguments) -> std::string
+// PR-2 (PR #32): the three marks of the measured window. The setup burn
+// before the loop, the loop itself, and the teardown burn after it are
+// each longer than a pass of the loop, so a window that reached the
+// setup or the teardown would report a per-iteration time orders of
+// magnitude above the loop's own (FR-004, FR-017).
+auto bmWindow(sg::State& state) -> void
+{
+  std::uint64_t mark = 0;
+  for (std::uint64_t index = 0; index < kWindowBurn; ++index) {
+    mark += index;
+  }
+  sg::doNotOptimize(mark);
+  for (auto _ : state) {
+    sg::doNotOptimize(mark);
+  }
+  for (std::uint64_t index = 0; index < kWindowBurn; ++index) {
+    mark += index;
+  }
+  sg::doNotOptimize(mark);
+}
+
+// PR-2 (PR #32): a function with no timed loop has no measured window.
+auto bmNoLoop(sg::State& state) -> void
+{
+  (void)state;
+}
+
+// PR-2 (PR #32): a loop the function leaves without a skip is not a
+// completed timed loop.
+auto bmBreakNoSkip(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    break;
+  }
+}
+
+// PR-2 (PR #32): a throw inside the loop ends the run with the window
+// still open, and the pair of that run stays whole.
+auto bmThrowInside(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    throw std::runtime_error("the scripted throw inside the loop");
+  }
+}
+
+auto captureRun(const std::vector<std::string>& arguments,
+                const bool expectZero = true) -> std::string
 {
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_calibration_test"));
@@ -121,7 +173,7 @@ auto captureRun(const std::vector<std::string>& arguments) -> std::string
     fail("cannot restore stdout");
   }
   close(saved);
-  if (status != 0) {
+  if (expectZero && status != 0) {
     std::fprintf(stderr, "speedgunMain returned %d\n", status);
     fail("the run did not exit zero");
   }
@@ -337,11 +389,73 @@ auto scenarioFivefold() -> int
   return 0;
 }
 
+// PR-2 (PR #32): the measured window bounds the timed loop. The setup
+// and the teardown of bmWindow each burn about a millisecond of real
+// time; over 64 iterations a window that reached either of them would
+// report tens of microseconds per iteration, while a window that bounds
+// the loop reports nanoseconds.
+auto scenarioWindow() -> int
+{
+  const std::string report =
+      captureRun({"--filter", "^bmWindow$", "--iterations=64"});
+  const std::vector<std::string> rows = linesOf(report, "bmWindow");
+  check(rows.size() == 1,
+        "the window scenario prints one measured row (FR-012)");
+  const double perIteration = doubleFieldOf(rows[0], "time/iter (ns)=");
+  check(perIteration < kWindowBoundNs,
+        "the measured window covers the loop, not the setup or the "
+        "teardown (FR-004, FR-017)");
+  std::puts("harness_calibration_test window: ok");
+  return 0;
+}
+
+// PR-2 (PR #32): a run that fails owns exactly two sampling actions, so
+// the pair index of the next run stays aligned (FR-017). The plan of the
+// failing benchmark calibrates to the same length as bmWalk's, because
+// both plans read the same leaves.
+auto scenarioFailedPair() -> int
+{
+  scriptedProvider(kWalkMonotonicStep, kWalkThreadCpuBase);
+  const std::uint64_t planActions = probePlanActions();
+
+  for (const auto& failing : {"bmNoLoop", "bmBreakNoSkip", "bmThrowInside"}) {
+    const std::uint64_t before = fake->readActions();
+    const std::string report = captureRun(
+        {"--filter", std::string("^") + failing + "$", "--iterations=4"},
+        false);
+    check(fake->readActions() - before == planActions + 2,
+          "a run that ends without a completed loop still owns two sampling "
+          "actions (FR-017)");
+    check(report.contains("FAILED:"),
+          "a run that ends without a completed loop reports a reason (FR-017)");
+  }
+
+  const std::string noLoop =
+      captureRun({"--filter", "^bmNoLoop$", "--iterations=4"}, false);
+  check(noLoop.contains("FAILED: the benchmark never entered the timed loop"),
+        "the run with no loop names the missing loop (FR-017)");
+  const std::string broken =
+      captureRun({"--filter", "^bmBreakNoSkip$", "--iterations=4"}, false);
+  check(broken.contains(
+            "FAILED: the benchmark left the timed loop without a skip"),
+        "the run that breaks names the early exit (FR-017)");
+  const std::string thrown =
+      captureRun({"--filter", "^bmThrowInside$", "--iterations=4"}, false);
+  check(thrown.contains("FAILED: the scripted throw inside the loop"),
+        "the throw inside the loop keeps its own reason (FR-032)");
+  std::puts("harness_calibration_test failedPair: ok");
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmWork)
 SG_BENCHMARK(bmWalk)
 SG_BENCHMARK(bmCapped)
+SG_BENCHMARK(bmWindow)
+SG_BENCHMARK(bmNoLoop)
+SG_BENCHMARK(bmBreakNoSkip)
+SG_BENCHMARK(bmThrowInside)
 
 auto main(const int argc, char** argv) -> int
 {
@@ -358,11 +472,24 @@ auto main(const int argc, char** argv) -> int
   if (mode == "fivefold") {
     return scenarioFivefold();
   }
+  if (mode == "window") {
+    return scenarioWindow();
+  }
+  if (mode == "failedPair") {
+    return scenarioFailedPair();
+  }
 
   // The scripted scenarios own one provider script each, so each runs
   // in a re-exec of this binary; its failure exits nonzero here.
   const std::string self = argv[0];
-  for (const auto& scenario : {"walk", "warm-up", "warmupFivefold", "fivefold"})
+  for (const auto& scenario : {
+           "walk",
+           "warm-up",
+           "warmupFivefold",
+           "fivefold",
+           "window",
+           "failedPair",
+       })
   {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
     check(status == 0, "the scripted scenario passes (SC-002)");

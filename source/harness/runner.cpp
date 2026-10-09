@@ -285,21 +285,38 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     record.iterations = iterations;
     record.pair = nextPair;
 
-    State state(iterations);
-    recorder.sample();
+    State state(iterations, recorder);
     try {
       entry.callable(state);
     } catch (const std::exception& error) {
-      recorder.sample();
+      state.topUpWindow();
       ++nextPair;
       return std::unexpected(error.what());
     } catch (...) {
-      recorder.sample();
+      state.topUpWindow();
       ++nextPair;
       return std::unexpected("the benchmark threw an unknown exception");
     }
-    recorder.sample();
+    state.topUpWindow();
     ++nextPair;
+
+    // FR-017: a measured run owns one complete timed loop. A function
+    // that never entered it, entered it twice, or left it early without
+    // a skip has no single measured window to report.
+    if (state.outcome() != RunOutcome::SKIPPED) {
+      if (state.loopsStarted() == 0) {
+        return std::unexpected(
+            "the benchmark never entered the timed loop (FR-017)");
+      }
+      if (state.loopsStarted() > 1) {
+        return std::unexpected(
+            "the benchmark entered the timed loop twice (FR-017)");
+      }
+      if (!state.loopCompleted()) {
+        return std::unexpected(
+            "the benchmark left the timed loop without a skip (FR-017)");
+      }
+    }
 
     record.realNs = static_cast<std::int64_t>(
         std::llround(foldAt(realTime.core, record.pair).value));

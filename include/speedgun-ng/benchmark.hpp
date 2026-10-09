@@ -130,12 +130,12 @@ struct BenchmarkResult
  *
  * The function runs its setup, the timed loop as `for (auto _ : state)`,
  * and its teardown; setup and teardown sit outside the loop, in the
- * untimed region (FR-004, FR-005).
- *
- * \invariant The loop cursor counts down from the iteration count of
- *            the current run, so it cannot pass that count by
- *            construction, and the loop reads no interrupt flag: the
- *            runner reads that flag after a run completes (R-06).
+ * untimed region (FR-004, FR-005). The sampling window opens in
+ * `begin()` and closes when the loop runs out, so the window covers the
+ * loop and not the setup or the teardown (FR-017). The loop cursor
+ * counts down from the iteration count of the current run, so it cannot
+ * pass that count by construction, and the loop reads no interrupt
+ * flag: the runner reads that flag after a run completes (R-06).
  */
 class SPEEDGUN_NG_EXPORT State
 {
@@ -153,25 +153,41 @@ public:
      * @brief True while the loop still runs: the local count of the
      * remaining iterations has not reached zero.
      *
-     * The comparison reads that one local count. The count starts at
-     * the run's iteration count and only decrements, so it reaches zero
-     * and no lower: no check guards it.
+     * The fast path reads that one local count and does no other work.
+     * The count starts at the run's iteration count and only
+     * decrements, so it reaches zero and no lower: no check guards it.
+     * At zero the cursor closes the run's sampling window once, on the
+     * path that leaves the loop, and returns false (FR-017).
+     *
+     * The timed loop holds no contract check, so this comparison states
+     * no condition of its own: the count-down construction of the
+     * cursor, and the single close of the window in `closeWindow`, are
+     * what make the result what it is.
      *
      * \pre none
-     * \post true while an iteration of this run remains, false once
-     *       none remains
+     * \post none
      */
     [[nodiscard]] auto operator!=(
         [[maybe_unused]] const Cursor& other) const noexcept -> bool
     {
-      return m_remaining != 0;
+      if (m_remaining != 0) {
+        return true;
+      }
+      if (m_state != nullptr) [[unlikely]] {
+        m_state->closeWindow();
+      }
+      return false;
     }
 
     /**
      * @brief Advances the cursor by one iteration.
      *
-     * \pre the cursor sits inside the timed loop (class invariant)
-     * \post the cursor names the next iteration
+     * The decrement is unconditional: the loop body holds no contract
+     * check, so the pre and post conditions of this step are stated
+     * here and guarded by the count-down construction of the cursor.
+     *
+     * \pre none
+     * \post none
      */
     auto operator++() noexcept -> Cursor&
     {
@@ -193,12 +209,21 @@ public:
   private:
     friend class State;
 
-    explicit Cursor(const std::uint64_t remaining) noexcept
-        : m_start(remaining)
+    Cursor(State& state, const std::uint64_t remaining) noexcept
+        : m_state(&state)
+        , m_start(remaining)
         , m_remaining(remaining)
     {
     }
 
+    explicit Cursor(const std::uint64_t remaining) noexcept
+        : m_state(nullptr)
+        , m_start(remaining)
+        , m_remaining(remaining)
+    {
+    }
+
+    State* m_state;
     std::uint64_t m_start;
     std::uint64_t m_remaining;
   };
@@ -218,29 +243,47 @@ public:
    * @brief The cursor at the first iteration of the timed loop.
    *
    * The skip flag is read here, once for the loop. A skip requested
-   * before the loop leaves the loop with no pass at all.
+   * before the loop leaves the loop with no pass at all and takes no
+   * sample. Otherwise this is where the run's sampling window opens,
+   * before the first pass of the loop and after the setup the function
+   * already ran (FR-005, FR-017).
    *
    * \pre none
-   * \post the returned cursor names iteration zero of this run, or an
-   *       empty loop when the function already requested a skip
+   * \post the returned cursor names iteration zero of this run with
+   *       the entry sample taken, or an empty cursor when the function
+   *       already requested a skip
    */
-  auto begin() const noexcept -> Cursor
+  auto begin() noexcept -> Cursor
   {
-    return Cursor {m_skipRequested ? 0 : m_iterations};
+    if (m_skipRequested) {
+      return Cursor {0};
+    }
+    ++m_loopsStarted;
+    openWindow();
+    SG_ENSURE(m_windowOpened || m_recorder == nullptr,
+              "the loop entry takes the entry sample (FR-017)");
+    return Cursor {*this, m_iterations};
   }
 
   /**
    * @brief The cursor one past the last iteration of the timed loop.
    *
+   * The end cursor owns no sampling: the window closes on the exit of
+   * the loop, in the cursor `begin()` returns.
+   *
    * \pre none
-   * \post the returned cursor names the end of this run's loop
+   * \post none
    */
   static auto end() noexcept -> Cursor { return Cursor {0}; }
 
   /**
    * @brief Skip the benchmark with an error reason (FR-031).
    *
-   * \pre called from inside the benchmark function
+   * A skip inside the loop closes the sampling window at once, so the
+   * measured window stops where the function stops, the way the
+   * upstream timer stops its clock (FR-017).
+   *
+   * \pre none
    * \post the reason is recorded, the function leaves the timed loop
    *       with break or return, and no statistics print for this
    *       benchmark
@@ -250,6 +293,7 @@ public:
     m_skipRequested = true;
     m_outcome = RunOutcome::SKIPPED;
     m_reason.assign(reason);
+    takeExitSample();
     SG_ENSURE(m_outcome == RunOutcome::SKIPPED,
               "a skip records the skipped outcome (FR-031)");
   }
@@ -257,7 +301,10 @@ public:
   /**
    * @brief Skip the benchmark with a message reason (FR-031).
    *
-   * \pre called from inside the benchmark function
+   * A skip inside the loop closes the sampling window at once, as the
+   * error skip does (FR-017).
+   *
+   * \pre none
    * \post the reason is recorded, the function leaves the timed loop
    *       with break or return, and no statistics print for this
    *       benchmark
@@ -267,6 +314,7 @@ public:
     m_skipRequested = true;
     m_outcome = RunOutcome::SKIPPED;
     m_reason.assign(reason);
+    takeExitSample();
     SG_ENSURE(m_outcome == RunOutcome::SKIPPED,
               "a skip records the skipped outcome (FR-031)");
   }
@@ -296,15 +344,62 @@ public:
 private:
   friend class detail::Runner;
 
-  explicit State(const std::uint64_t iterations) noexcept
+  State(const std::uint64_t iterations,
+        counters::RecorderHandle<counters::HardStop>& recorder) noexcept
       : m_iterations(iterations)
+      , m_recorder(&recorder)
   {
+  }
+
+  auto openWindow() noexcept -> void
+  {
+    if (m_recorder != nullptr && !m_windowOpened) {
+      m_recorder->sample();
+      m_windowOpened = true;
+    }
+  }
+
+  auto takeExitSample() noexcept -> void
+  {
+    if (m_recorder != nullptr && m_windowOpened && !m_windowClosed) {
+      m_recorder->sample();
+      m_windowClosed = true;
+    }
+  }
+
+  [[gnu::cold]] auto closeWindow() noexcept -> void
+  {
+    m_loopCompleted = true;
+    takeExitSample();
+  }
+
+  // A run owns exactly one point pair, however it ended, so the pair
+  // index of the next run stays aligned with the recorder (FR-017).
+  auto topUpWindow() noexcept -> void
+  {
+    openWindow();
+    takeExitSample();
+  }
+
+  [[nodiscard]] auto loopsStarted() const noexcept -> std::uint64_t
+  {
+    return m_loopsStarted;
+  }
+
+  [[nodiscard]] auto loopCompleted() const noexcept -> bool
+  {
+    return m_loopCompleted;
   }
 
   std::uint64_t m_iterations = 0;
   bool m_skipRequested = false;
   RunOutcome m_outcome = RunOutcome::MEASURED;
   std::string m_reason;
+  counters::RecorderHandle<counters::HardStop>* m_recorder = nullptr;
+  std::uint64_t m_loopsStarted = 0;
+  bool m_windowOpened = false;
+  bool m_windowClosed = false;
+  bool m_loopCompleted = false;
 };
 
 /**

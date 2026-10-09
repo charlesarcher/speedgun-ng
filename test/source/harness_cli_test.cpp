@@ -124,6 +124,33 @@ auto bmSkipInside(sg::State& state) -> void
   }
 }
 
+// PR-2 (PR #32): the three ways a run can end without a completed
+// timed loop. Each owns its pair, and each reports the reason that
+// names the case.
+auto bmNoLoop(sg::State& state) -> void
+{
+  (void)state;
+}
+
+int breakNoSkipPasses = 0;
+
+auto bmBreakNoSkip(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    ++breakNoSkipPasses;
+    if (breakNoSkipPasses == 2) {
+      break;
+    }
+  }
+}
+
+auto bmThrowInside(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    throw std::runtime_error("the scripted throw inside the loop");
+  }
+}
+
 // The counts SC-006 compares around the failed runs. The listing holds one
 // descriptor of its own while it reads, in both measurements, so the
 // difference is what the comparison sees.
@@ -261,6 +288,9 @@ SG_BENCHMARK(bmInterrupts)
 SG_BENCHMARK(bmAfter)
 SG_BENCHMARK(bmSkipBefore)
 SG_BENCHMARK(bmSkipInside)
+SG_BENCHMARK(bmNoLoop)
+SG_BENCHMARK(bmBreakNoSkip)
+SG_BENCHMARK(bmThrowInside)
 
 auto main(const int argc, char** argv) -> int
 {
@@ -496,6 +526,43 @@ auto main(const int argc, char** argv) -> int
         "the skip inside the loop reports its reason (FR-031)");
   check(skipInsidePasses == 3,
         "the function that breaks leaves the loop at once (FR-031)");
+
+  // PR-2 (PR #32): a run without a completed timed loop fails with the
+  // reason that names its case, and the measured benchmark that follows
+  // it keeps the scripted time it reports on its own, so the failed
+  // run left the sampling pairs aligned.
+  const std::string noLoop =
+      captureRun({"--filter", "^bmNoLoop$", "--iterations=5"}, 1);
+  check(noLoop.find("FAILED: the benchmark never entered the timed loop")
+            != std::string::npos,
+        "the function with no loop names the missing loop (FR-017)");
+
+  breakNoSkipPasses = 0;
+  const std::string broken =
+      captureRun({"--filter", "^bmBreakNoSkip$", "--iterations=9"}, 1);
+  check(
+      broken.find("FAILED: the benchmark left the timed loop without a skip")
+          != std::string::npos,
+      "the function that breaks without a skip names the early exit (FR-017)");
+  check(breakNoSkipPasses == 2,
+        "the loop ran to the break and no further (FR-017)");
+
+  const std::string thrownInside =
+      captureRun({"--filter", "^bmThrowInside$", "--iterations=5"}, 1);
+  check(thrownInside.find("FAILED: the scripted throw inside the loop")
+            != std::string::npos,
+        "the throw inside the loop keeps its own reason (FR-032)");
+
+  const std::string alone =
+      captureRun({"--filter", "^bmBeta$", "--iterations=4"});
+  const std::string afterFailure =
+      captureRun({"--filter",
+                  "^bm(NoLoop|BreakNoSkip|ThrowInside|Beta)$",
+                  "--iterations=4"},
+                 1);
+  check(linesOf(alone, "bmBeta") == linesOf(afterFailure, "bmBeta"),
+        "a measured benchmark after three failed benchmarks keeps its "
+        "scripted row (FR-017)");
 
   std::puts("harness_cli_test: ok");
   return 0;

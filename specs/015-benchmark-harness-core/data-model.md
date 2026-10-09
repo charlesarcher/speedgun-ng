@@ -46,14 +46,18 @@ The object the harness passes to the benchmark function (FR-004).
 | Field | Type | Rule |
 | --- | --- | --- |
 | `m_iterations` | `std::uint64_t` | the iteration count of the current run; the function reads it through `iterations()` (FR-005) |
-| `m_index` | loop cursor | the range-for `begin`/`end` pair spans `m_iterations` steps; the iterator reads no interrupt flag (R-06) |
+| `m_recorder` | `counters::RecorderHandle<HardStop>*` | the recorder of the current run, handed by the runner; null for a `State` outside a run (FR-017) |
+| `m_windowOpened`, `m_windowClosed` | `bool` | the entry sample taken in `begin()` and the exit sample taken at loop exit, in that order, one each per run (FR-017) |
+| `m_loopsStarted`, `m_loopCompleted` | `std::uint64_t`, `bool` | a measured run owns one completed loop; a second loop, or a loop left without a skip, fails the run (FR-017) |
 | `m_outcome` | `RunOutcome` plus reason text | set by `skipWithError` or `skipWithMessage` (FR-031) |
 
 Validation: `skipWithError` and `skipWithMessage` record the reason, and
 the function leaves the loop with `break` or `return`; the reason prints
 and no statistics print (FR-031). Setup and
 teardown live in the function, outside the range-for, in the untimed
-region (007 FR-050).
+region (007 FR-050). The sampling window of a run opens in `begin()` and
+closes at loop exit, so the two points of the pair bound the loop and not
+the setup or the teardown (FR-017).
 
 ## E-04: Run
 
