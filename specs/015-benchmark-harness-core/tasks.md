@@ -291,7 +291,7 @@ tree at this commit.
   index so run k folds `1000 << k` ns against a 8000 ns minimum: the
   walk runs 1, 11, 62, 174 and qualifies at the fourth run, the report
   carries `iterations=174` three times with `n=3`, and the action count
-  `planActions + 12` proves exactly those six runs ran. `warmup` fixes
+  `planActions + 12` proves exactly those six runs ran. `warm-up` fixes
   N=5 with an 8000 ns warm-up: four warm-up runs grow by the FR-010
   rule (`planActions + 10` actions) and the measured row still carries
   `iterations=5`. `fivefold` scripts a 5000 ns monotonic step against a

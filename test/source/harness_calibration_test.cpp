@@ -274,7 +274,7 @@ auto scenarioWarmup() -> int
   // the measured phase then ran once.
   check(consumed == planActions + 2 * 5,
         "the warm-up started at N and grew by the FR-010 rule (SC-002)");
-  std::puts("harness_calibration_test warmup: ok");
+  std::puts("harness_calibration_test warm-up: ok");
   return 0;
 }
 
@@ -349,7 +349,7 @@ auto main(const int argc, char** argv) -> int
   if (mode == "walk") {
     return scenarioWalk();
   }
-  if (mode == "warmup") {
+  if (mode == "warm-up") {
     return scenarioWarmup();
   }
   if (mode == "warmupFivefold") {
@@ -362,7 +362,7 @@ auto main(const int argc, char** argv) -> int
   // The scripted scenarios own one provider script each, so each runs
   // in a re-exec of this binary; its failure exits nonzero here.
   const std::string self = argv[0];
-  for (const auto& scenario : {"walk", "warmup", "warmupFivefold", "fivefold"})
+  for (const auto& scenario : {"walk", "warm-up", "warmupFivefold", "fivefold"})
   {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
     check(status == 0, "the scripted scenario passes (SC-002)");
