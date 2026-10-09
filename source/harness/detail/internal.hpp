@@ -103,7 +103,7 @@ auto printResult(const BenchmarkResult& result) -> void;
 
 /// @brief Print the catalog listing; false when the listing failed
 /// (FR-037).
-[[nodiscard]] auto printCatalog() -> bool;
+auto printCatalog() -> void;
 
 /// @brief The refusal kind of an availability state, as the report and
 /// the listing print it (FR-023, FR-037).

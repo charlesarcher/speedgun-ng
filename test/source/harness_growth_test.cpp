@@ -12,8 +12,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <limits>
 #include <expected>
+#include <limits>
 
 #include "detail/calibration.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -143,6 +143,14 @@ auto theFivefoldStaysInRange() -> void
         "an ordinary target takes its fivefold (FR-008)");
 }
 
+// FR-016: a run slower than the target grows by the ordinary factor, so
+// the count moves by one.
+auto aSlowRunGrowsByOne() -> void
+{
+  const auto grown = sg::detail::nextIterationCount(100, 1'000'000, 1000);
+  check(grown == 101, "a run slower than the target grows by one (FR-016)");
+}
+
 auto main() -> int
 {
   neverQualifiesWithinTheBound();
@@ -151,6 +159,7 @@ auto main() -> int
   interruptAfterARunStopsTheGrowth();
   growthClampsAtTheCap();
   theFivefoldStaysInRange();
+  aSlowRunGrowsByOne();
   std::puts("harness_growth_test: ok");
   return 0;
 }

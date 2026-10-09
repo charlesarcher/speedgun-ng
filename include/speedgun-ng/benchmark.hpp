@@ -353,7 +353,10 @@ private:
 
   auto openWindow() noexcept -> void
   {
-    if (m_recorder != nullptr && !m_windowOpened) {
+    SG_ASSERT(m_recorder != nullptr,
+              "the harness constructs every state with the recorder that "
+              "samples its window");
+    if (!m_windowOpened) {
       m_recorder->sample();
       m_windowOpened = true;
     }
@@ -361,7 +364,10 @@ private:
 
   auto takeExitSample() noexcept -> void
   {
-    if (m_recorder != nullptr && m_windowOpened && !m_windowClosed) {
+    SG_ASSERT(m_recorder != nullptr,
+              "the harness constructs every state with the recorder that "
+              "samples its window");
+    if (m_windowOpened && !m_windowClosed) {
       m_recorder->sample();
       m_windowClosed = true;
     }

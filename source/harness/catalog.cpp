@@ -52,14 +52,13 @@ void printObject(const sg::counters::Object& object)
 
 }  // namespace
 
-auto printCatalog() -> bool
+auto printCatalog() -> void
 {
   const auto machine = sg::counters::System::local().object("machine");
   SG_ASSERT(machine.has_value(),
             "the counters system opens the host provider, and that provider "
             "publishes the machine object (FR-002)");
   printObject(*machine);
-  return true;
 }
 
 }  // namespace sg::detail
