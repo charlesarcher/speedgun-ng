@@ -33,16 +33,31 @@
 std::uint64_t allocationCount = 0;
 bool countAllocations = false;
 
-auto operator new(std::size_t size) -> void*
+auto allocate(const std::size_t size) -> void*
 {
   if (countAllocations) {
     ++allocationCount;
   }
-  void* const block = std::malloc(size);
+  return std::malloc(size == 0 ? 1 : size);
+}
+
+auto operator new(std::size_t size) -> void*
+{
+  void* const block = allocate(size);
   if (block == nullptr) {
     throw std::bad_alloc();
   }
   return block;
+}
+
+// The vendored simdjson allocates its parser with the nothrow form, so
+// that form has to hand out the same memory as the free below. Left to
+// the library, a nothrow allocation returns through this file's
+// deallocation, which AddressSanitizer reports as alloc-dealloc-mismatch
+// (operator new vs free).
+auto operator new(std::size_t size, const std::nothrow_t&) noexcept -> void*
+{
+  return allocate(size);
 }
 
 // GCC's warning pass attributes every allocation in a translation unit
