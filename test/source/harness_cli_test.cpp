@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "speedgun-ng/benchmark.hpp"
@@ -237,6 +238,21 @@ SG_BENCHMARK(bmAfter)
 auto main(const int argc, char** argv) -> int
 {
   const std::string mode = argc > 1 ? argv[1] : "";
+  if (mode == "failthenrun") {
+    // IF-01: one failed benchmark and one measured benchmark in a single
+    // entry-point call. The run continues past the failure and the exit
+    // status stays nonzero.
+    scriptedProvider();
+    const std::vector<std::string> arguments = {
+        "--filter", "^bm(Throws|After)$", "--iterations=1"};
+    std::vector<char*> inner;
+    inner.push_back(argv[0]);
+    for (const auto& argument : arguments) {
+      inner.push_back(const_cast<char*>(argument.c_str()));
+    }
+    return sg::speedgunMain(static_cast<int>(inner.size()), inner.data());
+  }
+
   if (mode == "arg" && argc > 2) {
     scriptedProvider();
     const std::vector<std::string> arguments = {
@@ -412,6 +428,20 @@ auto main(const int argc, char** argv) -> int
         "the warm-up interrupt reports skipped with its reason (FR-032)");
   check(interruptRuns == 1,
         "the flag read after the warm-up run stops the measured run (FR-032)");
+
+  // IF-01, FR-032 and FR-036: a failed benchmark and a measured
+  // benchmark share one entry-point call. The run continues, and the
+  // status stays nonzero for the whole run.
+  std::string failThenRun;
+  const int failThenRunStatus =
+      subprocessOutput("\"" + self + "\" failthenrun 2>&1", failThenRun);
+  check(WEXITSTATUS(failThenRunStatus) == 1,
+        "a failure followed by a measured benchmark exits nonzero (FR-036)");
+  check(failThenRun.find("FAILED: the scripted failure") != std::string::npos,
+        "the failed benchmark reports its exception (FR-032)");
+  check(failThenRun.find("bmAfter") != std::string::npos
+            && failThenRun.find("iterations=") != std::string::npos,
+        "the measured benchmark after the failure carries its row (FR-032)");
 
   std::puts("harness_cli_test: ok");
   return 0;
