@@ -6,8 +6,10 @@
 # library does not own.
 #
 # The scanned set is the D-6 scope: source/, include/, example/, test/,
-# and tools/. The counters library sits outside the rule and keeps its
-# own clock reads (FR-040): source/counters/, the
+# and tools/, over the C and C++ extensions .c, .cc, .cpp, .cxx, .h,
+# .hh, .hpp, .hxx, .ipp, .inl, and .tpp. The counters library sits
+# outside the rule and keeps its own clock reads (FR-040):
+# source/counters/, the
 # include/speedgun-ng/counters*.hpp headers, and the counters_ tests and
 # gate scripts under test/. Code under external/ is outside the rule.
 #
@@ -74,7 +76,9 @@ scan_root() {
   done < <(
     cd "$root" || return 2
     find source include example test tools -type f \
-         \( -name '*.cpp' -o -name '*.hpp' \) 2>/dev/null \
+         \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' \
+            -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \
+            -o -name '*.ipp' -o -name '*.inl' -o -name '*.tpp' \) 2>/dev/null \
       | grep -v '^source/counters/' \
       | grep -v '^include/speedgun-ng/counters' \
       | grep -v '^test/source/counters_' \
@@ -114,8 +118,10 @@ probe() {
   local probe_root="$WORKDIR/probe"
   local out status
 
-  mkdir -p "$probe_root/source/harness" || return 1
+  mkdir -p "$probe_root/source/harness" \
+    || return 1
   printf 'int probe() { return 0; }\n' >"$probe_root/source/harness/probe.cpp"
+  mkdir -p "$probe_root/include/speedgun-ng" || return 1
 
   out=$(scan_root "$probe_root" 2>&1)
   status=$?
@@ -138,6 +144,20 @@ probe() {
     return 1
   fi
   echo "  planted the banned call in the scratch root, the gate reported it"
+
+  printf 'void probe3() { clock_gettime(0, 0); }\n' \
+    >"$probe_root/include/speedgun-ng/probe.h"
+
+  out=$(scan_root "$probe_root" 2>&1)
+  status=$?
+  if [ $status -ne 1 ] || ! printf '%s\n' "$out" | grep -q 'probe.h:'; then
+    echo "FAIL: the planted clock_gettime in a .h header went unreported" >&2
+    echo "      (status $status), so a clean run on the repository proves" >&2
+    echo "      nothing" >&2
+    printf '%s\n' "$out" >&2
+    return 1
+  fi
+  echo "  planted the banned call in a .h header, the gate reported it"
   return 0
 }
 
