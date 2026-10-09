@@ -1,10 +1,13 @@
 #include <atomic>
 #include <cerrno>
+#include <cmath>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <memory>
+#include <optional>
 #include <regex>
 #include <string>
 #include <vector>
@@ -29,6 +32,11 @@ void handleInterrupt(const int) noexcept
   detail::interruptFlag().store(true);
 }
 
+// The largest whole number of seconds whose nanoseconds fit the signed
+// count the run control carries.
+constexpr std::int64_t kMaxWholeSeconds =
+    std::numeric_limits<std::int64_t>::max() / 1'000'000'000;
+
 // FR-034: an invalid value is a usage error that reports and exits
 // nonzero without running anything. The signed read is deliberate:
 // `strtoull` wraps `-5` to a huge count, so a negative count would
@@ -52,11 +60,16 @@ auto parseSeconds(const char* text, const char* option) -> std::int64_t
   errno = 0;
   char* end = nullptr;
   const double seconds = std::strtod(text, &end);
-  if (errno != 0 || end == text || *end != '\0' || seconds < 0.0) {
-    std::fprintf(stderr,
-                 "%s: expected a non-negative number of seconds, got " "'%s'\n",
-                 option,
-                 text);
+  if (errno != 0 || end == text || *end != '\0' || seconds < 0.0
+      || !std::isfinite(seconds)
+      || seconds > static_cast<double>(kMaxWholeSeconds))
+  {
+    std::fprintf(
+        stderr,
+        "%s: expected a finite number of seconds at most %lld, got " "'%s'\n",
+        option,
+        static_cast<long long>(kMaxWholeSeconds),
+        text);
     std::exit(2);
   }
   return static_cast<std::int64_t>(seconds * 1'000'000'000.0);
@@ -69,10 +82,15 @@ auto parsePositiveSeconds(const char* text, const char* option) -> std::int64_t
   errno = 0;
   char* end = nullptr;
   const double seconds = std::strtod(text, &end);
-  if (errno != 0 || end == text || *end != '\0' || !(seconds > 0.0)) {
+  if (errno != 0 || end == text || *end != '\0' || !(seconds > 0.0)
+      || !std::isfinite(seconds)
+      || seconds > static_cast<double>(kMaxWholeSeconds))
+  {
     std::fprintf(stderr,
-                 "%s: expected a positive number of seconds, got " "'%s'\n",
+                 "%s: expected a finite positive number of seconds at most "
+                 "%lld, got '%s'\n",
                  option,
+                 static_cast<long long>(kMaxWholeSeconds),
                  text);
     std::exit(2);
   }
@@ -196,9 +214,18 @@ auto speedgunMain(int argc, char** argv) -> int
       selected.push_back(entry.get());
     }
   } else {
-    const std::regex pattern(options.filter);
+    std::optional<std::regex> pattern;
+    try {
+      pattern.emplace(options.filter);
+    } catch (const std::regex_error& error) {
+      std::fprintf(stderr,
+                   "--filter: invalid regular expression '%s': %s\n",
+                   options.filter.c_str(),
+                   error.what());
+      return 2;
+    }
     for (auto& entry : registry()) {
-      if (std::regex_search(entry->name, pattern)) {
+      if (std::regex_search(entry->name, *pattern)) {
         selected.push_back(entry.get());
       }
     }

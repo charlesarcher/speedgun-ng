@@ -345,6 +345,13 @@ auto main(const int argc, char** argv) -> int
         UsageCase {"--min-time=0", "--min-time", false},
         UsageCase {"--warmup-time=abc", "--warmup-time", false},
         UsageCase {"--warmup-time=-1", "--warmup-time", false},
+        UsageCase {"--warmup-time=nan", "--warmup-time", false},
+        UsageCase {"--warmup-time=inf", "--warmup-time", false},
+        UsageCase {"--warmup-time=1e300", "--warmup-time", false},
+        UsageCase {"--min-time=inf", "--min-time", false},
+        UsageCase {"--min-time=nan", "--min-time", false},
+        UsageCase {"--min-time=1e300", "--min-time", false},
+        UsageCase {"--filter=(", "invalid regular expression", false},
         UsageCase {"--nonsense=1", "unknown option", false},
         UsageCase {"--warmup-time=0", "", true},
         UsageCase {"--counter=machine/nosuchleaf", "no such leaf", true}})
