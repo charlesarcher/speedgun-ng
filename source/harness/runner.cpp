@@ -380,13 +380,12 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     if (repetition == 0 && !fixedIterations.has_value() && !dryRun) {
       // FR-014: the first repetition calibrates from one iteration, and
       // the run that qualifies is its measured run.
-      const auto grown =
-          growUntilQualified(1,
-                             minTimeNs,
-                             kRunBound,
-                             sampleRun,
-                             []() noexcept -> bool
-                             { return interruptFlag().load(); });
+      const auto grown = growUntilQualified(1,
+                                            minTimeNs,
+                                            kRunBound,
+                                            sampleRun,
+                                            []() noexcept -> bool
+                                            { return interruptFlag().load(); });
       if (grown.outcome == GrowOutcome::FAILED) {
         return fail(grown.error);
       }
