@@ -149,20 +149,33 @@ liveness_probe() {
 
 # The D-4 constraint forms (IF-10). The sweep loop passes each element of
 # a 64-element array through the barrier, and the big struct is 64 bytes
-# with a user-declared copy constructor, taken as an lvalue and as an
-# rvalue. Upstream splits these cases by compiler and by type, and the
-# sweep is where a register-first constraint would show a store.
+# with a copy constructor that has a body, so it is not trivially
+# copyable: that is the type the gcc "+m" form is for. Upstream splits
+# these cases by compiler and by type, and the sweep is where a
+# register-first constraint would show a store. The zero-store claim is a
+# g++ claim, because the clang "+r,m" form may load and store each
+# element: the sweep runs under g++ alone, and the struct stays a compile
+# check under both compilers.
 constraint_source() {
   cat <<'SOURCE'
 #include <cstdint>
+#include <type_traits>
 
 #include "speedgun-ng/barrier.hpp"
 
 struct Big {
   std::uint64_t words[8];
   Big() = default;
-  Big(const Big&) = default;
+  Big(const Big& other) noexcept
+  {
+    for (int i = 0; i < 8; ++i) {
+      words[i] = other.words[i];
+    }
+  }
 };
+
+static_assert(!std::is_trivially_copyable_v<Big>,
+              "the sweep needs the type the +m form is for");
 
 std::uint64_t table[64];
 
@@ -258,14 +271,16 @@ for cxx in g++ clang++; do
   fi
 
   # IF-10: the barrier accepts the big struct as an lvalue and as an
-  # rvalue, and the sweep loop keeps each array element where it sits.
+  # rvalue under every compiler, and under g++ the sweep loop keeps each
+  # array element where it sits.
   if ! compile_constraints "$cxx" "$WORKDIR/constraint-$cxx.o"; then
-    echo "FAIL $cxx: the 64-byte struct with a user-declared copy" \
+    echo "FAIL $cxx: the 64-byte struct with a copy constructor that has a" \
       >&2
-    echo "      constructor did not pass through the barrier" >&2
+    echo "      body did not pass through the barrier" >&2
     sed 's/^/  /' "$WORKDIR/err.txt" >&2
     status=1
-  elif ! analyze_constraints "$cxx" "$WORKDIR/constraint-$cxx.o"; then
+  elif [ "$cxx" = g++ ] &&
+       ! analyze_constraints "$cxx" "$WORKDIR/constraint-$cxx.o"; then
     echo "      D-4: the constraint form sends the sweep through a register" >&2
     status=1
   fi
