@@ -255,27 +255,32 @@ auto speedgunMain(int argc, char** argv) -> int
 
   int status = 0;
   bool anyFailed = false;
+  bool anyInterrupted = false;
   detail::Runner runner(options);
   for (auto* entry : selected) {
     const auto result = runner.run(*entry);
     detail::printResult(result);
+    // FR-036: the flag is read once per pass, so the status update, the
+    // per-pass check and the break all see one instant of the flag.
+    const bool interrupted = detail::interruptFlag().load();
     if (result.outcome == RunOutcome::FAILED) {
       anyFailed = true;
       status = 1;
     }
-    if (detail::interruptFlag().load()) {
+    if (interrupted) {
+      anyInterrupted = true;
       status = 1;
     }
 
     SG_ENSURE(!(result.outcome == RunOutcome::FAILED && status == 0),
               "a failed benchmark sets a nonzero exit status (FR-036)");
 
-    if (detail::interruptFlag().load()) {
+    if (interrupted) {
       break;
     }
   }
 
-  SG_ENSURE((status != 0) == (anyFailed || detail::interruptFlag().load()),
+  SG_ENSURE((status != 0) == (anyFailed || anyInterrupted),
             "the exit status follows the table of contracts/cli.md (FR-036)");
 
   return status;
