@@ -146,15 +146,24 @@ public:
   {
   public:
     /**
-     * @brief True while the loop still runs: the cursor has not reached
-     * the end and no skip ended the run.
+     * @brief True while the loop still runs: the local count of the
+     * remaining iterations has not reached zero.
      *
-     * \pre none
-     * \post none
+     * The comparison reads that one local count. The postcondition runs
+     * once, at loop exit.
+     *
+     * \pre the cursor belongs to the run its state describes
+     * \post at loop exit the cursor ran at most the run's iteration count
      */
-    [[nodiscard]] auto operator!=(const Cursor& other) const noexcept -> bool
+    [[nodiscard]] auto operator!=(
+        [[maybe_unused]] const Cursor& other) const noexcept -> bool
     {
-      return !m_state->loopEndRequested() && m_index != other.m_index;
+      if (m_remaining != 0) [[likely]] {
+        return true;
+      }
+      SG_INVARIANT(m_start <= m_state->m_iterations,
+                   "the cursor ran at most the run's iteration count");
+      return false;
     }
 
     /**
@@ -165,9 +174,7 @@ public:
      */
     auto operator++() noexcept -> Cursor&
     {
-      SG_INVARIANT(m_index < m_state->m_iterations,
-                   "the loop cursor stays inside the timed loop");
-      m_index = m_index + 1;
+      m_remaining = m_remaining - 1;
       return *this;
     }
 
@@ -179,20 +186,22 @@ public:
      */
     [[nodiscard]] auto operator*() const noexcept -> std::uint64_t
     {
-      return m_index;
+      return m_start - m_remaining;
     }
 
   private:
     friend class State;
 
-    Cursor(State& state, const std::uint64_t index) noexcept
+    Cursor(State& state, const std::uint64_t remaining) noexcept
         : m_state(&state)
-        , m_index(index)
+        , m_start(remaining)
+        , m_remaining(remaining)
     {
     }
 
     State* m_state;
-    std::uint64_t m_index;
+    std::uint64_t m_start;
+    std::uint64_t m_remaining;
   };
 
   /**
@@ -209,14 +218,18 @@ public:
   /**
    * @brief The cursor at the first iteration of the timed loop.
    *
+   * The skip flag is read here, once for the loop. A skip requested
+   * before the loop leaves the loop with no pass at all.
+   *
    * \pre none
-   * \post the returned cursor names iteration zero of this run
+   * \post the returned cursor names iteration zero of this run, or an
+   *       empty loop when the function already requested a skip
    */
   auto begin() noexcept -> Cursor
   {
     SG_INVARIANT(m_index <= m_iterations,
                  "the loop cursor stays inside the timed loop");
-    return Cursor {*this, 0};
+    return Cursor {*this, m_skipRequested ? 0 : m_iterations};
   }
 
   /**
@@ -225,14 +238,15 @@ public:
    * \pre none
    * \post the returned cursor names the end of this run's loop
    */
-  auto end() noexcept -> Cursor { return Cursor {*this, m_iterations}; }
+  auto end() noexcept -> Cursor { return Cursor {*this, 0}; }
 
   /**
    * @brief Skip the benchmark with an error reason (FR-031).
    *
    * \pre called from inside the benchmark function
-   * \post the timed loop ends, the reason is recorded, and no
-   *       statistics print for this benchmark
+   * \post the reason is recorded, the function leaves the timed loop
+   *       with break or return, and no statistics print for this
+   *       benchmark
    */
   auto skipWithError(std::string_view reason) noexcept -> void
   {
@@ -247,8 +261,9 @@ public:
    * @brief Skip the benchmark with a message reason (FR-031).
    *
    * \pre called from inside the benchmark function
-   * \post the timed loop ends, the reason is recorded, and no
-   *       statistics print for this benchmark
+   * \post the reason is recorded, the function leaves the timed loop
+   *       with break or return, and no statistics print for this
+   *       benchmark
    */
   auto skipWithMessage(std::string_view reason) noexcept -> void
   {
@@ -287,11 +302,6 @@ private:
   explicit State(const std::uint64_t iterations) noexcept
       : m_iterations(iterations)
   {
-  }
-
-  [[nodiscard]] auto loopEndRequested() const noexcept -> bool
-  {
-    return m_skipRequested;
   }
 
   std::uint64_t m_iterations = 0;

@@ -43,8 +43,10 @@ public:
   teardown (FR-004).
 - `iterations()` shall report the iteration count of the current run
   (FR-005).
-- A skip shall end the timed loop, record the reason, and suppress the
-  statistics for that benchmark (FR-031).
+- A skip records the reason, and the function then leaves the loop with
+  `break` or `return`, the form Google Benchmark documents; the skip
+  takes effect at loop exit, and the statistics for that benchmark stay
+  suppressed (FR-031).
 - `\invariant`: the range-for cursor advances only inside the timed
   loop, and the loop reads no interrupt flag (R-06).
 

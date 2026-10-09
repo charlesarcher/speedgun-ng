@@ -49,8 +49,9 @@ The object the harness passes to the benchmark function (FR-004).
 | `m_index` | loop cursor | the range-for `begin`/`end` pair spans `m_iterations` steps; the iterator reads no interrupt flag (R-06) |
 | `m_outcome` | `RunOutcome` plus reason text | set by `skipWithError` or `skipWithMessage` (FR-031) |
 
-Validation: `skipWithError` and `skipWithMessage` end the timed loop;
-the reason prints and no statistics print (FR-031). Setup and
+Validation: `skipWithError` and `skipWithMessage` record the reason, and
+the function leaves the loop with `break` or `return`; the reason prints
+and no statistics print (FR-031). Setup and
 teardown live in the function, outside the range-for, in the untimed
 region (007 FR-050).
 
