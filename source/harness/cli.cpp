@@ -83,11 +83,22 @@ auto parsePositiveSeconds(const char* text, const char* option) -> std::int64_t
 
 namespace detail
 {
+namespace
+{
+
+// R-06: one flag for the process. The signal handler sets it, and the
+// runner reads it after each run.
+constinit std::atomic<bool> interruptFlagValue {false};
+
+}  // namespace
+
+static_assert(std::atomic<bool>::is_always_lock_free,
+              "R-06: the signal handler reaches the flag with no "
+              "static-initialization guard");
 
 auto interruptFlag() -> std::atomic<bool>&
 {
-  static std::atomic<bool> flag;
-  return flag;
+  return interruptFlagValue;
 }
 
 }  // namespace detail
@@ -210,6 +221,8 @@ auto speedgunMain(int argc, char** argv) -> int
   // One entry-point invocation owns one interrupt flag: a suite that
   // calls the entry point again starts with no pending interrupt.
   detail::interruptFlag().store(false);
+  SG_ENSURE(!detail::interruptFlag().load(),
+            "the entry point starts with no pending interrupt (R-06)");
   std::signal(SIGINT, handleInterrupt);
   detail::printContext();
 
