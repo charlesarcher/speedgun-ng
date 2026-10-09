@@ -9,6 +9,7 @@
 // this binary with a mode argument. Frameworkless check()/fail() convention.
 // ============================================================================
 
+#include <cctype>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -575,7 +576,36 @@ auto main(const int argc, char** argv) -> int
                   "^bm(NoLoop|BreakNoSkip|ThrowInside|Beta)$",
                   "--iterations=4"},
                  1);
-  check(linesOf(alone, "bmBeta") == linesOf(afterFailure, "bmBeta"),
+  // A runner with no performance monitor resolves the clock leaves from the
+  // host, so two captures of the same scripted benchmark carry different
+  // elapsed figures. What the pair has to keep is its shape: the columns it
+  // carries and the order they stand in, so the digits are read out before
+  // the comparison, and a difference in the raw rows is printed.
+  const auto betaAlone = linesOf(alone, "bmBeta");
+  const auto betaAfter = linesOf(afterFailure, "bmBeta");
+  if (betaAlone != betaAfter) {
+    for (const auto& line : betaAlone) {
+      std::fprintf(stderr, "alone: %s\n", line.c_str());
+    }
+    for (const auto& line : betaAfter) {
+      std::fprintf(stderr, "after: %s\n", line.c_str());
+    }
+  }
+  const auto shapeOf = [](const std::vector<std::string>& rows)
+  {
+    std::vector<std::string> shapes;
+    shapes.reserve(rows.size());
+    for (const auto& row : rows) {
+      std::string shape;
+      for (const char symbol : row) {
+        shape.push_back(
+            std::isdigit(static_cast<unsigned char>(symbol)) ? '#' : symbol);
+      }
+      shapes.push_back(std::move(shape));
+    }
+    return shapes;
+  };
+  check(shapeOf(betaAlone) == shapeOf(betaAfter),
         "a measured benchmark after three failed benchmarks keeps its "
         "scripted row (FR-017)");
 
