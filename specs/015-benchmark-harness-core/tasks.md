@@ -458,9 +458,15 @@ head.
   at one trillion iterations; the tail return of two switches over closed
   enumerations; the closing brace of two lambdas, which gcov counts as its
   own line; and `reportsPerIteration`, a `constexpr` predicate that every
-  call site folds at compile time. The gate needs a project rule for those
-  lines, or their deletion under Principle X.2, and that is a decision for
-  the pull request
+  call site folds at compile time. No gcov exclusion marker stands on
+  them: the constitution grants an exclusion only for the contract
+  facility's own check machinery, and the counters library states its
+  allowance per feature, so nothing permits a marker in
+  `source/harness/`. The branches stay, because each one closes a
+  documented condition and the counters system guarantees the unit
+  mapping that makes one of them unreachable. The gate stands at 99.1%
+  lines on this branch, and closing it needs an amendment to
+  Principle VI
 - [X] T072 PR-4c: keep `harness_capture_test` out of the ThreadSanitizer
   tree, the way `counters_noalloc_test.cpp` already does (contradicts): the
   `ci-tsan` build failed at its link step with `multiple definition of
