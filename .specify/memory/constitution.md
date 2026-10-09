@@ -1,4 +1,31 @@
 <!--
+Sync Impact Report (2.18.0, MINOR): Additional Constraints gains the
+counters-only rule, and Principle VIII gains its hard gate.
+
+specs/015-benchmark-harness-core adds a benchmark harness whose every
+time and counter value comes from the counters library. The rule is a
+standing obligation of every later change, so it lives in Additional
+Constraints beside Library-first. The feature spec carries no copy of it. The
+entry names the scope the rule binds, the counters library it excludes,
+the direct time sources it forbids, the route a missing capability
+takes, and the one exception the amendment grants:
+`tools/dbc/overhead.cpp` keeps the `<chrono>` include and
+`std::chrono::steady_clock` because that tool measures contract overhead
+against an independent reference clock on purpose.
+
+`test/time_source_gate.sh` enforces the entry, and an entry with no gate
+is a preference, so Principle VIII's hard gate list gains the scan. A hit
+fails the build.
+
+The amendment adds one constraint and one gate. It removes no constraint,
+weakens none, and adds no Open deferrals entry. The version moves MINOR
+under Governance: a new constraint and a new gate.
+
+The insertion shifts every line below line 1. A citation naming a line
+number in this file needs re-anchoring; search for the named token.
+-->
+
+<!--
 Sync Impact Report (2.17.0, MINOR): V.2 gains the tag-object entry, names
 the macros the build writes, and states the shape the kernel-name entry
 reaches.
@@ -660,6 +687,13 @@ Every change passes all of the following; each is hard.
   in CI over the pull-request range, and
   `cmake -P cmake/prose-lint.cmake` reproduces the verdict locally
   (specs/002-prose-commit-lint).
+- Time-source-clean: `test/time_source_gate.sh` scans every C++ source
+  and header the counters-only constraint of Additional Constraints
+  binds, prints one `file:line` per hit, and fails the build on any hit;
+  the one exception the constraint names is the only allowance, and the
+  scan carries a planted-call probe so a clean run cannot come from a
+  scan that inspects nothing
+  (specs/015-benchmark-harness-core SC-013, FR-039, FR-040).
 - Coverage gates of VI pass: 100% LOC, 100% branch, 100% DBC. DBC
   completeness is checked (II).
 - Critical-path performance metrics stay within baseline (VII) once
@@ -1031,6 +1065,31 @@ it touches into compliance, the same way XI.1 does.
   API is exposed through `include/speedgun-ng/` only, implementation in
   `source/`. Symbol visibility hidden by default via the generated export
   header.
+- **Counters-only time and counters:** every time and counter value that
+  speedgun code outside the counters library measures or reports comes
+  from the `sg::counters` library, and a plan, a recorder, a fold, or a
+  value a plan publishes supplies it (specs/015-benchmark-harness-core
+  D-6, FR-038). The rule binds every C++ source and header under
+  `source/`, `include/`, `example/`, `test/`, and `tools/`. Code under
+  `external/` sits outside it, and so does the counters library,
+  which is `source/counters/`, the `include/speedgun-ng/counters*.hpp`
+  headers, and the `counters_` tests and gate scripts under `test/`.
+  Bound code shall not reach `std::chrono::system_clock`,
+  `std::chrono::steady_clock`, `std::chrono::high_resolution_clock`, the
+  `<chrono>` header, `std::clock`, `std::time`, `timespec_get`,
+  `clock_gettime`, `clock_getres`, `gettimeofday`, `time`, `times`, or
+  `getrusage`, and shall not reach `rdtsc`, `rdtscp`, `__rdtsc`,
+  `__rdtscp`, or the headers that declare them: `<x86intrin.h>`,
+  `<immintrin.h>`, and `<ia32intrin.h>`. A capability the counters
+  library does not meet becomes a counters-library change, and no code
+  outside the library bypasses it. An exception needs a constitutional
+  amendment, and this amendment names one: `tools/dbc/overhead.cpp`
+  keeps the `<chrono>` include and `std::chrono::steady_clock`, because
+  that tool measures contract overhead against an independent, well-known
+  reference clock on purpose, and the exception covers those two terms in
+  that file alone. A spec, a plan, a local override, or a suppression
+  comment creates no exception. `test/time_source_gate.sh` enforces the
+  rule, and Principle VIII lists the scan as a hard gate.
 - **Dependencies:** no new hard runtime dependency without documented
   justification in the feature spec. Zero external runtime dependencies today;
   keep it that way.
@@ -1063,6 +1122,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.18.0 | 2026-10-08 | Additional Constraints gains the counters-only rule: every time and counter value outside the counters library comes from `sg::counters`, the bound scope, the counters library, the forbidden time sources, and the single `tools/dbc/overhead.cpp` exception are named, and Principle VIII gains `test/time_source_gate.sh` as a hard gate; specs/015-benchmark-harness-core D-6, FR-038 to FR-043 |
 | 2.17.0 | 2026-10-08 | V.2 gains the tag-object entry `hardStop` and `ring` that `.clang-tidy` already exempted, names the export-header macro family and `SPEEDGUN_NG_SUPPRESS_C4251` in place of the single export macro, and states that the kernel-field entry reaches the member spelling a mirror copies; specs/014 post-merge repair |
 | 2.16.0 | 2026-10-08 | V.1 gains the FR-012 obligation: a later spec, plan, local naming override, or suppression creates no deviation, a deviation needs an amendment, and a suppression names the V.2 entry it applies; N-1 adds concepts and type traits to the enumeration; T048 and T050 of specs/014 |
 | 2.15.0 | 2026-10-07 | V.1 gains N-12: a public data member of an aggregate takes camelBack, prefix free, the rule `.clang-tidy` `PublicMemberCase` enforces; T037 of specs/014 closes the gap where the rule lived only in the key |
@@ -1086,4 +1146,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.17.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-08
+**Version**: 2.18.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-08
