@@ -119,6 +119,18 @@ auto interruptFlag() -> std::atomic<bool>&
   return interruptFlagValue;
 }
 
+// FR-042: the entry point needs a time source. The counters system opens
+// the host provider, and that provider publishes the machine object, so
+// only the monotonic leaf can be missing (FR-002).
+auto timeSourcePresent(counters::System& sys) -> bool
+{
+  const auto machine = sys.object("machine");
+  SG_ASSERT(machine.has_value(),
+            "the counters system opens the host provider, which publishes the "
+            "machine object (FR-002)");
+  return machine->counter<counters::Dim<1, 0>>("monotonic").has_value();
+}
+
 }  // namespace detail
 
 /**
@@ -139,10 +151,7 @@ auto speedgunMain(int argc, char** argv) -> int
   const auto registered =
       sys.registerProvider(std::make_unique<counters::ClockProvider>());
   if (!registered.has_value()) {
-    const auto machine = sys.object("machine");
-    const bool scripted = machine.has_value()
-        && machine->counter<counters::Dim<1, 0>>("monotonic").has_value();
-    if (!scripted) {
+    if (!detail::timeSourcePresent(sys)) {
       std::fprintf(stderr,
                    "the clock provider cannot register: %s\n",
                    registered.error().message.c_str());
