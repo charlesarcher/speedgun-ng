@@ -99,7 +99,11 @@ One repetition row or one aggregate row (FR-035).
 | `overheadFloorNs` | `double` | `Plan::sampleOverheadNsMedian()`; the row states that the window includes the cost of its two endpoint samples (FR-026, PC-5) |
 
 Validation: a run with a gap reports its value unavailable and adds no
-sample to the statistics (FR-025, PC-4). The aggregate fields are
+sample to the statistics (FR-025, PC-4). The gap belongs to the
+quantity whose fold measured nothing: that quantity's aggregate drops
+the repetition, and a quantity whose own window measured cleanly keeps
+its sample (the per-quantity reading of FR-025's run-level wording,
+settled at T050). The aggregate fields are
 mean, median, sample standard deviation, coefficient of variation,
 min, and max over the qualifying repetitions (FR-027, R-05). The
 percentile form stays out (FR-028).
@@ -115,6 +119,7 @@ adds nothing to it (FR-036).
 | `outcome` | `RunOutcome`: measured, skipped, failed | skipped carries the skip or interrupt reason; failed carries the exception text (FR-031, FR-032) |
 | `rows` | `std::vector<ResultRow>` | one per repetition, aggregates appended (FR-027, FR-035) |
 | `reason` | `std::string` | the skip or failure text; a skipped outcome prints it and prints no statistics |
+| `metricLabels` | `std::vector<std::string>` | the column label of each metric position in attachment order; the report prints each metric under its label and takes no value from it (FR-026, FR-035) |
 
 ## E-08: ReportContext
 
@@ -122,7 +127,7 @@ The context lines above the rows (FR-035).
 
 | Field | Source | Rule |
 | --- | --- | --- |
-| `version` | the build-written version macro | always printed |
+| `version` | the build-written version macro | always printed; the harness target's private `SG_PROJECT_VERSION` compile definition, the sibling of `SG_BUILD_TYPE` (T002, T051) |
 | `buildType` | `SG_BUILD_TYPE` (R-14) | always printed |
 | `host`, `cpu` | the counters catalog, where it publishes them | a field the library does not publish stays out of the line (FR-035, R-08) |
 

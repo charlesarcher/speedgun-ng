@@ -85,13 +85,22 @@ struct BenchmarkResult {
   RunOutcome outcome;
   std::vector<ResultRow> rows;   // repetitions, then aggregates
   std::string reason;            // skip or failure text
+  std::vector<std::string> metricLabels;  // one per metric position
 };
 ```
 
 - The harness shall expose the results as this value, and the console
   report shall format it and add nothing to it (FR-036).
+- `metricLabels` carries the column label of each metric position in
+  attachment order; the report prints each metric column under its
+  label and takes no value from it (FR-026, FR-035). The values stay
+  in `MetricValue`.
 - Each `MetricValue` shall carry the running ratio, the scaled flag,
-  and the gap state beside its value (FR-024).
+  and the gap state beside its value (FR-024). The gap belongs to the
+  quantity whose fold measured nothing: that quantity reports
+  unavailable and its aggregate drops the repetition, while a quantity
+  whose own window measured cleanly keeps its sample (the per-quantity
+  reading of FR-025's run-level wording, settled at T050).
 - Every `ResultRow` shall carry `overheadFloorNs` beside its values
   (FR-026); aggregate rows append after the repetition rows (FR-027,
   FR-035).
