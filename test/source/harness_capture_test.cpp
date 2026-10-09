@@ -412,6 +412,21 @@ auto main() -> int
   check(tenThousandActions - nineThousandActions == 2,
         "one measured run is two sampling actions over 10,000 runs (SC-005)");
 
+  // FR-022: the per-iteration rule reads the dimension tag. These two
+  // calls sit outside any constant expression, so the rule runs.
+  auto timeRule = &sg::reportsPerIteration<sg::counters::Dim<1, 0>>;
+  const bool timePerIteration = timeRule();
+  check(timePerIteration,
+        "a time column reports the value divided by the iterations (FR-022)");
+  auto eventsRule = &sg::reportsPerIteration<sg::counters::Dim<0, 1>>;
+  auto ratioRule = &sg::reportsPerIteration<sg::counters::Dim<1, 1>>;
+  const bool eventsPerIteration = eventsRule();
+  const bool ratioKeepsWindow = ratioRule();
+  check(eventsPerIteration,
+        "an events column reports the value divided by the iterations "
+        "(FR-022)");
+  check(!ratioKeepsWindow, "a ratio column keeps its window value (FR-022)");
+
   std::puts("harness_capture_test: ok");
   return 0;
 }
