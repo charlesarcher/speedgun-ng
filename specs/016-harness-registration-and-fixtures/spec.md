@@ -91,16 +91,16 @@ version effect of the extension is recorded under PC-4 and FR-026.
   setup and teardown in the untimed region and requires the state to
   report the iteration count of the current run. H1 FR-017
   (`spec.md:651`) samples once at the entry of the timed loop and once
-  at its exit, exactly two raw points per run, no other counter work
-  in the loop.
-- The H1 merge moved both samples into `State`. The entry sample is
-  taken in `State::begin()` through `openWindow()`
-  (`benchmark.hpp:256-266, 354`); the exit sample is taken on the path
-  that leaves the loop, `Cursor::operator!=` into `closeWindow()` into
+  at its exit. The loop carries exactly two raw points per run and no
+  other counter work.
+- The H1 merge moved both samples into `State`. H1 takes the entry
+  sample in `State::begin()` through `openWindow()`
+  (`benchmark.hpp:256-266, 354`). The exit sample comes from the path
+  that leaves the loop: `Cursor::operator!=` into `closeWindow()` into
   `takeExitSample()` (`benchmark.hpp:173-179, 365-381`). The recorder
   handle is a `State` member (`:404`).
 - The loop-shape gate `test/loop_shape.sh` reads the shipped loop back
-  from the generated code and fails on a per-iteration check or flag
+  from the generated code. It fails on a per-iteration check or flag
   load (IF-04; 015 FR-004, FR-005, R-06). Fixture setup and teardown
   and the callbacks of this spec rest on this rule, and the rule holds.
 
@@ -135,13 +135,13 @@ version effect of the extension is recorded under PC-4 and FR-026.
   one pointer (`:542`).
 - Argument storage in `State` changes its layout. `BenchmarkHandle`
   gains methods only and keeps its one-pointer layout.
-- The `SOVERSION` value is hand-kept, not derived. The rule is stated
-  in full at `CMakeLists.txt:41-47` for the counters archive and
-  applied unchanged to the harness archive at `CMakeLists.txt:211-218`,
-  where the comment records the H1 decision: "the harness adds a
-  surface and changes no existing signature, so the ABI number stays
-  2 (D-5, FR-046)". This spec changes that condition: `State` gains
-  storage. The rule applies, and FR-026 carries the effect.
+- The `SOVERSION` value is hand-kept. The rule is stated in full at
+  `CMakeLists.txt:41-47` for the counters archive. The same rule
+  applies to the harness archive at `CMakeLists.txt:211-218`. A
+  comment there records the H1 decision: "the harness adds a surface
+  and changes no existing signature, so the ABI number stays 2 (D-5,
+  FR-046)". This spec changes that condition: `State` gains storage.
+  The rule applies, and FR-026 carries the effect.
 
 ### PC-5: the fake provider. PASS
 
@@ -149,10 +149,11 @@ version effect of the extension is recorded under PC-4 and FR-026.
   any leaf through `FakeScript` (`:43`): an explicit cumulative point
   sequence per leaf, with gap actions (`:86, 226`). It scripts
   `machine/monotonic` and `machine/thread_cpu` like any other leaf.
-- The H1 harness tests already run on it: `test/source/
-  harness_calibration_test.cpp` scripts `machine/thread_cpu` so run
-  deltas are exact (lines 7 and 252), and `harness_capture_test.cpp`
-  takes time from `machine/monotonic` alone (line 362). H1 FR-042
+- The H1 harness tests already run on it.
+  `test/source/harness_calibration_test.cpp` scripts `machine/thread_cpu`
+  so run deltas are exact (lines 7 and 252), and
+  `test/source/harness_capture_test.cpp` takes time from
+  `machine/monotonic` alone (line 362). H1 FR-042
   (`specs/015-benchmark-harness-core/spec.md:807`) binds the fake
   provider as the test substitution. Every test of this spec runs on
   it, and no test needs a PMU.
@@ -161,14 +162,14 @@ version effect of the extension is recorded under PC-4 and FR-026.
 
 This is spec H2 of the speedgun harness roadmap. H1 shipped the runner
 and one registration form. This spec completes the registration and
-fixture surface of Google Benchmark features F-1 and F-2: argument
-families, instance names, argument access, capture, templates,
-fixtures, setup and teardown callbacks, the `DISABLED_` prefix, and
-suite and case naming. The spec needs no hardware; every test runs on
-the fake provider. The roadmap document sits outside this repository
-and is absent from this machine at the audit point; the scope boundary
-below is transcribed from the request, and the roadmap spec names are
-the boundary.
+fixture surface of Google Benchmark features F-1 and F-2. It covers
+argument families, instance names, argument access, capture,
+templates, fixtures, setup and teardown callbacks, the `DISABLED_`
+prefix, and suite and case naming. The spec needs no hardware; every
+test runs on the fake provider. The roadmap document sits outside this
+repository and is absent from this machine at the audit point. The
+scope boundary below comes from the request. The roadmap spec names
+are the boundary.
 
 ## Google Benchmark reference read
 
@@ -185,36 +186,37 @@ spec takes, with the file and function of that revision:
 | Free list builders `CreateRange`, `CreateDenseRange` | `src/benchmark_register.cc` (`CreateRange` `:544`, `CreateDenseRange` `:550`); declarations `benchmark_api.h:282,285` |
 | Range growth: bounds inclusive, powers of the multiplier strictly between, default multiplier 8, negatives mirrored | `src/benchmark_register.h` (`AddRange` `:61`); `src/benchmark_register.cc` (`kRangeMultiplier` `:61`) |
 | Range preconditions: multiplier above 1, low not above high, arity consistent | `benchmark_register.cc` (`RangeMultiplier` `:373`, `DenseRange` `:329`, `CreateDenseRange` `:551`, `AddRange` checks through `benchmark_register.h:64-65`, `ArgsCnt` `:509`) |
-| Instance name: family name, then one `/`-joined segment per argument, each segment `label:value` where an argument name is set | `src/benchmark_api_internal.cc` (`BenchmarkInstance` constructor `:34-51`); `src/benchmark_name.cc` (`BenchmarkName::str` `:56`) |
+| Instance name: family name, then one `/`-joined segment per argument. A segment reads `label:value` where an argument name is set | `src/benchmark_api_internal.cc` (`BenchmarkInstance` constructor `:34-51`); `src/benchmark_name.cc` (`BenchmarkName::str` `:56`) |
 | Capture name: `func/captureName` | `include/benchmark/registration.h` (`BENCHMARK_CAPTURE` `:69-75`) |
-| Template name: `fn<type0,type1,...>` with the type arguments stringified | `registration.h` (`BENCHMARK_TEMPLATE` `:101-107`) |
+| Template name: `fn<`, the type arguments as written, then `>`. The variadic form yields `fn<int, double>` | `registration.h` (`BENCHMARK_TEMPLATE` `:101-107`) |
 | Fixture instance name: `BaseClass/Method`, template fixture `BaseClass<types>/Method` | `registration.h` (`BENCHMARK_PRIVATE_DECLARE_F` `:121-130`, `BENCHMARK_TEMPLATE_PRIVATE_DECLARE_F` `:154-163`) |
 | Fixture `SetUp`/`TearDown` run inside `Run`, around the benchmark method | `benchmark_api.h` (`Fixture` `:264-279`) |
-| Setup and teardown callbacks wrap each run, including each warm-up run, and receive a state carrying the instance arguments | `src/benchmark_runner.cc` (`RunWarmUp` `:440-442`, `DoOneRepetition` `:513-515`); `src/benchmark_api_internal.cc` (`BenchmarkInstance::Setup` `:103-109`, `::Teardown` `:111-117`) |
+| Setup and teardown callbacks wrap each run: warm-up, calibration, and measured runs included. They receive a state carrying the instance arguments | `src/benchmark_runner.cc` (`RunWarmUp` `:440-442`, `DoOneRepetition` `:513-515`); `src/benchmark_api_internal.cc` (`BenchmarkInstance::Setup` `:103-109`, `::Teardown` `:111-117`) |
 | `DISABLED_` prefix: registered, never run, excluded from filter matching and from the listed set | `benchmark_register.cc` (`kDisabledPrefix` `:67`, `FindBenchmarks` `:181`); `src/benchmark.cc` (`RunSpecifiedBenchmarks` list path `:650-651`) |
 | Family-size warning above 100 instances | `benchmark_register.cc` (`kMaxFamilySize` `:65`, warning `:163-165`) |
 | Argument access: `range(pos)` returns the instance argument, `range_size()` the count | `include/benchmark/state.h` (`range` `:123`, `range_size` `:151`) |
 
 Semantics deliberately not taken: the name segments for `min_time`,
 `iterations`, `repeats`, time type, and threads
-(`benchmark_api_internal.cc:53-89`) belong to the timing-modes and
-threads specs of the roadmap; the thread families (`Threads`,
-`ThreadRange`, `ThreadPerCpu`) belong to the threads spec; the
-deprecated `range_x`/`range_y` accessors (`state.h:128-132`) are
-omitted.
+(`benchmark_api_internal.cc:53-89`) belong to later roadmap specs.
+The thread families (`Threads`, `ThreadRange`, `ThreadPerCpu`) belong
+to the threads spec. This spec omits the deprecated `range_x` and
+`range_y` accessors (`state.h:128-132`). It also omits the
+`BENCHMARK_TEMPLATE1`, `BENCHMARK_TEMPLATE2`, and template capture
+macros; the variadic forms cover them.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Sweep one function over a family of arguments (Priority: P1)
 
 A user registers one benchmark function and states its arguments as a
-family: single arguments, an argument vector, a geometric range, a
-dense range, a product of lists, or a saved list built with the free
-range helpers. Each instance of the family runs, sees its own argument
-values through the state, and reports under a name that carries those
-values. This is the MVP slice: without families the harness runs one
-function once, and every benchmark suite in the roadmap's examples
-needs the sweep.
+family. The family forms are single arguments, an argument vector, a
+geometric range, and a dense range. Two more forms are a product of
+lists and a saved list built with the free range helpers. Each
+instance of the family runs, sees its own argument values through the
+state, and reports under a name that carries those values. This is
+the MVP slice: without families the harness runs one function once,
+and every benchmark suite in the roadmap's examples needs the sweep.
 
 **Why this priority**: F-1 is the registration surface every later
 capability names instances against. Capture, templates, and fixtures
@@ -222,7 +224,7 @@ all produce instances that this story's naming and argument access
 already define.
 
 **Independent Test**: Register one function with each family call on
-the fake provider, run the suite, and check that the instance set, the
+the fake provider, and run the suite. Check that the instance set, the
 per-instance argument reads, and the reported names match the table of
 the cited revision.
 
@@ -230,22 +232,21 @@ the cited revision.
 
 1. **Given** a function registered with `args({8, 64})` and
    `args({8, 1024})`, **When** the suite runs, **Then** two instances
-   run, each reads its own pair through `range(index)`, and the names
-   carry one segment per argument.
+   run. Each instance reads its own pair through `range(index)`, and
+   the names carry one segment per argument.
 2. **Given** a function registered with `range(8, 1024)` at the
    default multiplier, **When** the suite runs, **Then** the instance
-   set is the geometric set of the cited revision: the bounds and the
-   powers of 8 strictly between.
+   set is the geometric set. That set holds the bounds and the powers
+   of 8 strictly between, as the cited revision defines.
 3. **Given** a function registered with `denseRange(1, 4)`, **When**
    the suite runs, **Then** four instances run with arguments 1, 2, 3,
    4.
 4. **Given** a function registered with `argsProduct` over two lists,
    **When** the suite runs, **Then** the instance set is the product
    in the order of the cited revision.
-5. **Given** a family whose argument count is fixed by an earlier
-   call, **When** a later family call states a different count,
-   **Then** the registration fails as a precondition violation naming
-   the arity.
+5. **Given** a family with a fixed argument count, **When** a later
+   family call states another count, **Then** the FR-006 check reports
+   a violation. The violation names the arity.
 
 ---
 
@@ -261,7 +262,7 @@ error, and the first registration stays.
 the command line; it depends on US1 and adds no new run mechanics.
 
 **Independent Test**: Register families with and without argument
-labels, run list mode and filters, and compare the names and the
+labels, and run list mode and filters. Compare the names and the
 selected set against the cited revision.
 
 **Acceptance Scenarios**:
@@ -272,17 +273,18 @@ selected set against the cited revision.
 2. **Given** a filter that matches one instance name exactly,
    **When** the suite runs, **Then** exactly that instance runs.
 3. **Given** two registrations whose expanded instance names are
-   equal, **When** the second registers, **Then** the harness reports
-   a recoverable error at the H1 duplicate tier, keeps the first, and
-   runs the rest.
+   equal, **When** the suite starts, **Then** the harness reports a
+   recoverable error at the H1 duplicate tier. The earlier instance
+   stays. The later instance does not run, and every other instance
+   runs.
 
 ---
 
 ### User Story 3 - Capture arguments and instantiate templates (Priority: P2)
 
 A user registers a function with extra captured parameters under a
-capture name, as `BENCHMARK_CAPTURE` does, and registers a function
-template instantiated over one or more type arguments, as
+capture name, as `BENCHMARK_CAPTURE` does. The user also registers a
+function template instantiated over one or more type arguments, as
 `BENCHMARK_TEMPLATE` does. The capture name and the type list become
 name segments.
 
@@ -300,7 +302,7 @@ values against the cited revision.
    captured values reach the function.
 2. **Given** `SG_BENCHMARK_TEMPLATE(sortOf, int, double)`, **When**
    the suite runs, **Then** one instance runs named
-   `sortOf<int,double>`.
+   `sortOf<int, double>`.
 
 ---
 
@@ -310,25 +312,26 @@ A user derives a class from the fixture base, overrides `setUp` and
 `tearDown`, and defines benchmark methods with the fixture macros. The
 fixture pair runs around each run in the untimed region, so its work
 never enters the reported time. Each instance carries a suite name and
-a case name, a fixture instance takes the fixture class as its suite,
-and the report groups rows by suite in registration order.
+a case name. A fixture instance takes the fixture class as its suite.
+The report prints suites in the order of their first registered
+instance, and rows within one suite keep registration order.
 
 **Why this priority**: Fixtures are the F-2 half of the surface; they
 depend on US1's instance model and drive the report's grouping.
 
 **Independent Test**: Register a fixture with scripted counting in
-`setUp` and `tearDown`, run on the fake provider, and check the call
+`setUp` and `tearDown`, and run on the fake provider. Check the call
 counts, the scripted clock deltas, and the grouped report.
 
 **Acceptance Scenarios**:
 
 1. **Given** a fixture instance, **When** the harness runs it,
    **Then** `setUp` runs before the timed loop and `tearDown` after
-   it, once per run, and the scripted clock deltas show their work
-   adds nothing to the reported time.
+   it, once per run. The scripted clock deltas show their work adds
+   nothing to the reported time.
 2. **Given** two fixture instances of one fixture class, **When** the
    report prints, **Then** both rows carry the fixture class as their
-   suite and group under it in registration order.
+   suite. The rows group under it in registration order.
 3. **Given** `SG_BENCHMARK_DEFINE_F` defining a method and
    `SG_BENCHMARK_REGISTER_F` registering it later, **When** the suite
    runs, **Then** the instance runs named `FixtureClass/Method`.
@@ -353,8 +356,8 @@ the scripted clock deltas.
 
 1. **Given** a handle with `setup` and `teardown` callbacks, **When**
    the harness runs the instance, **Then** the callbacks run once
-   around each run, warm-up runs included, and the reported time
-   carries no callback work.
+   around each run. Warm-up, calibration, and measured runs each get
+   the pair, and the reported time carries no callback work.
 2. **Given** a setup callback reading `range(0)`, **When** it runs for
    an instance with arguments, **Then** it reads that instance's
    argument.
@@ -366,15 +369,15 @@ the scripted clock deltas.
 A family name with the `DISABLED_` prefix registers and never runs;
 the filter and list mode treat it as the cited revision does. The
 example suite gains one argument family, one fixture, and one
-templated benchmark, and the documentation page gains a section for
-each capability.
+templated benchmark. A new harness documentation page holds a section
+for each capability.
 
 **Why this priority**: The prefix is a run gate over surface US1 to
 US5 already build; examples and documentation follow the code.
 
-**Independent Test**: Register a `DISABLED_` family, run list mode and
-a matching filter, and check that no function runs and the listing and
-filter follow C-8.
+**Independent Test**: Register a `DISABLED_` family, run list mode,
+and run a matching filter. Check that no function runs and that the
+listing and filter follow C-8.
 
 **Acceptance Scenarios**:
 
@@ -392,22 +395,27 @@ filter follow C-8.
 - A family expands to more than 100 instances: the harness warns with
   the bound of the cited revision and runs anyway.
 - A `range` low bound above its high bound, a `rangeMultiplier` below
-  2, or a `denseRange` step of zero: a precondition violation, since
-  the values come from code.
-- An `argNames` list shorter than the arity: the extra arguments carry
-  no label, as in the cited revision; longer than the arity: a
-  precondition violation.
-- A family with no family call at all: one instance with zero
-  arguments, as H1 leaves it; `rangeCount()` reports zero and
+  2, or a `denseRange` step of zero is a precondition violation. The
+  values come from code.
+- An `argName` or `argNames` list whose length differs from the family
+  arity: a precondition violation, as the cited revision checks
+  (`benchmark_register.cc:315-324`). An empty label leaves its segment
+  without a label.
+- A family with no family call at all has one instance with zero
+  arguments, as H1 leaves it. `rangeCount()` reports zero and
   `range(0)` is a precondition violation.
 - A `range(index)` index at or above the argument count: a
   precondition violation.
 - A capture name or template instantiation that collides with an
   existing instance name: the H1 duplicate tier, first stays.
-- A `DISABLED_` family is the only match of a filter: the run reports
-  no match, as the cited revision does.
+- A `DISABLED_` family is the only match of a filter: the executable
+  says so, runs nothing, and exits zero, as H1 states (015
+  `spec.md:550`, FR-036).
 - A fixture instance and a plain family instance with equal names: one
   name, one duplicate error, first stays.
+- A fixture method named `DISABLED_x` runs. The cited revision tests
+  the prefix on the full instance name, and a fixture name starts with
+  its class (`benchmark_register.cc:181`).
 - A setup or teardown callback attached twice: the last attachment
   wins, one callback stored per slot.
 
@@ -417,28 +425,31 @@ filter follow C-8.
 
 - **FR-001**: The handle shall offer the family calls `arg`, `args`,
   `range`, `rangeMultiplier`, `ranges`, `denseRange`, `argsProduct`,
-  `apply`, `argName`, and `argNames` in lowerCamelCase, with the
-  instance-expansion semantics of the cited revision.
+  `apply`, `argName`, and `argNames` in lowerCamelCase. Each call
+  shall expand with the semantics of the cited revision.
 - **FR-002**: The free functions `createRange` and `createDenseRange`
   shall build argument lists with the semantics of the cited
-  revision, and a family call shall accept a list they build.
+  revision. A family call shall accept a list they build.
 - **FR-003**: Each family call shall expand into the instance set of
-  the cited revision, and registration shall complete all expansion,
-  naming, and allocation before the first run. No expansion work
-  shall happen during a run.
+  the cited revision. Expansion, naming, and every allocation shall
+  complete at the start of `speedgunMain`, before the filter and the
+  first run. No expansion work shall happen during a run.
 - **FR-004**: `range` and `ranges` shall grow by powers of the range
-  multiplier, default 8, with both bounds included and negatives
-  handled as the cited revision does. `rangeMultiplier` shall set the
-  multiplier for later range calls of that family.
+  multiplier, default 8, with both bounds included. Negatives follow
+  the cited revision. `rangeMultiplier` shall set the multiplier for
+  later range calls of that family.
 - **FR-005**: `denseRange` shall step from the low bound to the high
   bound inclusive, default step 1.
 - **FR-006**: Invalid family arguments shall be precondition
-  violations enforced in source: a multiplier below 2, a low bound
-  above a high bound, and an arity inconsistent with the family's
-  argument count. (Q-2 adopted.)
-- **FR-007**: When one family expands to more than 100 instances, the
-  harness shall warn with the bound of the cited revision and keep the
-  instances. (Q-3 adopted.)
+  violations enforced in source. They are a multiplier below 2, a low
+  bound above a high bound, and a `denseRange` step below 1. An arity
+  or label count unequal to the family arity is also a violation. The
+  step check goes beyond the cited revision. Under the ignore
+  semantic these checks emit no code, and a `denseRange` step of zero
+  then never ends. (Q-2 adopted.)
+- **FR-007**: A family that expands to more than 100 instances shall
+  draw one warning with the bound of the cited revision. Its instances
+  shall stay. (Q-3 adopted.)
 
 ### Argument access
 
@@ -452,25 +463,26 @@ filter follow C-8.
 ### Instance names
 
 - **FR-010**: Each instance name shall start with the family name and
-  add one `/`-joined segment per argument, each segment carrying the
-  `argName` label as `label:` where one is set, in the form of the
+  add one `/`-joined segment per argument. A segment carries the
+  `argName` label as `label:` where one is set. The form follows the
   cited revision.
 - **FR-011**: The filter and list mode of H1 shall match instance
   names.
 - **FR-012**: Two instances with one name shall be a recoverable
-  registration error at the H1 duplicate tier; the first registration
-  shall stay and the rest shall run.
+  error at the H1 duplicate tier, found at expansion. The instance of
+  the earlier registration shall stay. The later instance shall not
+  run, and every other instance shall run. The cited revision has no
+  such check.
 
 ### Capture and templates
 
 - **FR-013**: A macro shall register one function under a family name
-  with captured arguments, as `BENCHMARK_CAPTURE` does, and the
-  capture name shall become a name segment in the form of the cited
-  revision.
+  with captured arguments, as `BENCHMARK_CAPTURE` does. The capture
+  name shall become a name segment in the form of the cited revision.
 - **FR-014**: Macros shall register a function template instantiated
-  over one or more type arguments, as `BENCHMARK_TEMPLATE` does, and
-  the type list shall enter the instance name in the stringified form
-  of the cited revision.
+  over one or more type arguments, as `BENCHMARK_TEMPLATE` does. The
+  type list shall enter the instance name in the stringified form of
+  the cited revision.
 
 ### Fixtures
 
@@ -480,17 +492,18 @@ filter follow C-8.
   prefix: `SG_BENCHMARK_F`, `SG_BENCHMARK_DEFINE_F`,
   `SG_BENCHMARK_REGISTER_F`, `SG_BENCHMARK_TEMPLATE_F`,
   `SG_BENCHMARK_TEMPLATE_DEFINE_F`, `SG_BENCHMARK_TEMPLATE_METHOD_F`,
-  and `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F`, with the definition,
-  registration, and naming behavior of the cited revision.
+  and `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F`. Each shall carry the
+  definition, registration, and naming behavior of the cited
+  revision.
 - **FR-017**: Fixture `setUp` and `tearDown` shall run in the untimed
   region of each run, resting on the H1 FR-005 and FR-017 rule.
 
 ### Setup and teardown callbacks
 
 - **FR-018**: The handle shall accept setup and teardown callbacks.
-  Each shall run around each run, warm-up runs included, at the
-  points the cited revision uses, in the untimed region. The state
-  handed to a callback shall carry the instance arguments.
+  Each shall run once around each run, the warm-up, calibration, and
+  measured runs included, in the untimed region. The state handed to a
+  callback shall carry the instance arguments.
 - **FR-019**: This spec runs one thread. The once-per-thread-group
   rule stays with the threads spec of the roadmap.
 
@@ -504,7 +517,9 @@ filter follow C-8.
 
 - **FR-021**: Each instance shall carry a suite name and a case name.
   A fixture instance shall take the fixture class as its suite. The
-  report shall group rows by suite in registration order. The JSON
+  report shall print suites in the order of their first registered
+  instance. Rows within one suite shall keep registration order. The
+  pair of suite and case shall be unique for each instance. The JSON
   report of the roadmap shall reuse these two fields. (Q-1 adopted:
   the family name up to its first `/` is the suite.)
 
@@ -522,14 +537,15 @@ filter follow C-8.
 - **FR-025**: Every time and counter value shall come from the
   counters library; the time-source gate shall stay clean.
 - **FR-026**: The feature shall release version 0.7.0, the next minor
-  above the audit point's 0.6.0, and raise the harness `SOVERSION`
-  from 2 to 3, because `State` gains
-  argument storage and its layout changes under the hand-kept rule of
-  `CMakeLists.txt:41-47`. The counters archive keeps `SOVERSION` 2.
-  The plan's version table shall record both. (Q-4 adopted.)
-- **FR-027**: The example suite shall gain one argument family, one
-  fixture, and one templated benchmark. The documentation page for the
-  harness shall gain a section for each capability C-1 through C-10.
+  above 0.6.0. `State` gains argument storage, so its layout changes.
+  Under the hand-kept rule of `CMakeLists.txt:41-47`, the harness
+  `SOVERSION` shall rise from 2 to 3. The counters archive keeps
+  `SOVERSION` 2. The plan's version table shall record both. (Q-4
+  adopted.)
+- **FR-027**: `example/benchmark_example.cpp` shall gain one argument
+  family, one fixture, and one templated benchmark. A new page,
+  `docs/pages/harness.md`, shall hold one section for each capability
+  C-1 through C-10.
 - **FR-028**: The feature shall add no compiler extension and no
   runtime dependency.
 - **FR-029**: The plan shall record TDD mode. Every test of this spec
@@ -541,15 +557,15 @@ filter follow C-8.
 ## Key Entities *(include if feature involves data)*
 
 - **Family record**: the H1 registry entry extended with the argument
-  lists, the argument-name labels, the range multiplier, and the setup
-  and teardown callbacks of one family. It exists before the first
-  run and expands into instances.
+  lists, the argument-name labels, and the range multiplier of one
+  family. It also holds the setup and teardown callbacks. It exists
+  before the first run and expands into instances.
 - **Instance**: one point of a family: the argument vector, the
   instance name, the suite name, and the case name. It is what the
   filter selects, what the runner runs, and what the report prints.
 - **State argument view**: the read-only view of the current
-  instance's arguments carried by `State`, established at
-  registration and unchanged through a run.
+  instance's arguments carried by `State`, fixed at expansion and
+  unchanged through a run.
 - **Fixture**: a user class derived from `sg::Fixture`, contributing
   `setUp` and `tearDown` around each run and its class name as the
   suite of its instances.
@@ -572,7 +588,9 @@ filter follow C-8.
   show that their work adds nothing to the reported time.
 - **SC-006**: A `DISABLED_` family runs no function, and list mode and
   the filter follow FR-020.
-- **SC-007**: The report groups rows by suite in registration order.
+- **SC-007**: The report prints suites in the order of their first
+  registered instance, and rows within one suite keep registration
+  order.
 - **SC-008**: Every hard gate of Principle VIII passes at the feature
   head, the time-source gate and the loop-shape gate included.
 - **SC-009**: The version and `SOVERSION` follow FR-026, and the
@@ -597,15 +615,16 @@ Out, each owned by a later roadmap spec:
 - The argument-count method on the state is named `rangeCount()`; the
   request names `range(index)` and leaves the count unnamed, and
   `range_size` is not a V.2 exception.
-- The family-size warning is checked where expansion completes, at
-  registration; the cited revision checks it while resolving the
-  filter, and H2 expands earlier.
-- The case name of an instance is the family name with the suite
-  segment removed; a family with no `/` carries one name as both
+- The family-size warning is checked where expansion completes: at
+  expansion, at the start of `speedgunMain`. The cited revision checks
+  it while resolving the filter, and H2 expands earlier.
+- The case name of an instance is its instance name with the leading
+  suite and its `/` removed. An instance name equal to its suite is
+  also its case name. Each instance thus carries a unique pair of
   suite and case.
 - A callback's state is a harness-built state carrying the instance
   arguments, mirroring the temporary state the cited revision hands
-  the callbacks; it opens no sampling window.
+  the callbacks. It opens no sampling window.
 - The template name form stringifies the type arguments exactly as
   written at the macro site, as the cited revision does; no
   demangling.
@@ -647,6 +666,7 @@ File and line citations, read at the audit point `30f3118`.
 | Version, `SOVERSION` rule | `CMakeLists.txt:7,41-47` |
 | Harness archive `SOVERSION` | `CMakeLists.txt:211-218` |
 | Package compatibility | `cmake/install-rules.cmake:39` |
+| Existing documentation pages | `docs/pages/` (no harness page at the audit point) |
 | Constitution V.1, N-6, V.2 | `.specify/memory/constitution.md:533-580,555-556,583-634` |
 | Constitution VIII gates, time-source item | `constitution.md:657-699,691` |
 | Counters-only rule | `constitution.md:1068-1092` |
