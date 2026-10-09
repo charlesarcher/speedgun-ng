@@ -24,4 +24,9 @@ add_example(empty_example)
 add_example(counters_giraffe_example)
 add_example(counters_standalone_example)
 
+# The harness example is one speedgun executable (D-1): it links the
+# harness archive beside the counters archive (T018, FR-033).
+add_example(benchmark_example)
+target_link_libraries(benchmark_example PRIVATE speedgun-ng::harness)
+
 add_folders(Example)

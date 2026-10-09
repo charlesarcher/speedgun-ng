@@ -22,6 +22,7 @@ sections:                          # FR-010, seeded from history plus the
   - Constitution
   - Counters
   - Docs
+  - Harness
   - Meta
   - dbc
   - deploy

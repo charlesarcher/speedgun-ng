@@ -8,4 +8,5 @@
  * @section about-dbc DBC facility
  * - dbc-overhead.md (checked-build overhead, SC-008)
  * - dbc-migration.md (C++26 migration mapping, SC-010)
+ * - barrier-rule.md (when an optimization barrier is justified, 015 FR-030)
  */
