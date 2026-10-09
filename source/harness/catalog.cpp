@@ -26,6 +26,9 @@ static_assert(kReadModeNames.size()
 
 auto readModeName(const sg::counters::ReadMode mode) -> const char*
 {
+  // The static_assert above ties the table size to the last enumerator of
+  // the closed enumeration, so the index stays inside the table.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return kReadModeNames[std::to_underlying(mode)];
 }
 
