@@ -2,6 +2,7 @@
 #define SG_BARRIER_HPP
 
 #include <atomic>
+#include <type_traits>
 #include <utility>
 
 /**
@@ -25,9 +26,23 @@ namespace sg
 /**
  * @brief Keep `value` alive against the optimizer (FR-029, D-4).
  *
- * The statement names the value as an input and output operand with a
- * register-or-memory constraint and carries a memory clobber, which is
- * the form D-4 reads at the recorded revision.
+ * The overloads and their constraints mirror `DoNotOptimize` of
+ * google/benchmark at the revision D-4 reads, commit
+ * `e662de9aab8e705ecf4fa4bd41a207e5a0acfd0c`, `include/benchmark/utils.h`.
+ * The const-reference overload that upstream marks deprecated stays out
+ * (D-4). Each statement names the value as an input and output operand
+ * and carries a memory clobber:
+ *
+ * - the lvalue and rvalue overloads outside the `__GNUC__` branch take
+ *   `"+r,m"` under `__clang__` and `"+m,r"` elsewhere;
+ * - in the `__GNUC__` branch, a type that is trivially copyable and no
+ *   larger than a pointer takes `"+m,r"`, and any other type takes
+ *   `"+m"`.
+ *
+ * The constraint order is the alternative order the compiler prefers.
+ * Upstream puts memory first under gcc so a memory operand stays in
+ * memory, and the order is a property of the generated code that no
+ * runtime check can see.
  *
  * The contract of a barrier is a property of the generated code, and no
  * runtime check can see it, so this interface carries no runtime
@@ -38,11 +53,59 @@ namespace sg
  * \pre none
  * \post none
  */
+#if !defined(__GNUC__) || defined(__llvm__) || defined(__INTEL_COMPILER)
+
+template<class T>
+auto doNotOptimize(T& value) noexcept -> void
+{
+#  ifdef __clang__
+  asm volatile("" : "+r,m"(value) : : "memory");
+#  else
+  asm volatile("" : "+m,r"(value) : : "memory");
+#  endif
+}
+
 template<class T>
 auto doNotOptimize(T&& value) noexcept -> void
 {
+#  ifdef __clang__
   asm volatile("" : "+r,m"(value) : : "memory");
+#  else
+  asm volatile("" : "+m,r"(value) : : "memory");
+#  endif
 }
+
+#elif __GNUC__ >= 5
+
+template<class T>
+  requires std::is_trivially_copyable_v<T> && (sizeof(T) <= sizeof(T*))
+auto doNotOptimize(T& value) noexcept -> void
+{
+  asm volatile("" : "+m,r"(value) : : "memory");
+}
+
+template<class T>
+  requires(!std::is_trivially_copyable_v<T> || (sizeof(T) > sizeof(T*)))
+auto doNotOptimize(T& value) noexcept -> void
+{
+  asm volatile("" : "+m"(value) : : "memory");
+}
+
+template<class T>
+  requires std::is_trivially_copyable_v<T> && (sizeof(T) <= sizeof(T*))
+auto doNotOptimize(T&& value) noexcept -> void
+{
+  asm volatile("" : "+m,r"(value) : : "memory");
+}
+
+template<class T>
+  requires(!std::is_trivially_copyable_v<T> || (sizeof(T) > sizeof(T*)))
+auto doNotOptimize(T&& value) noexcept -> void
+{
+  asm volatile("" : "+m"(value) : : "memory");
+}
+
+#endif
 
 /**
  * @brief Forbid the reordering of memory accesses across this point
