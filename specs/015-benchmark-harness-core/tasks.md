@@ -384,3 +384,16 @@ head, and none of them opens a new spec.
 - [X] T059 IF-09: return a failed result when a phase exhausts its run bound, and cover the rule directly in `test/source/harness_growth_test.cpp` (partial): the runner dereferenced the chosen record with no guard, and the rule had no test of its own
 - [X] T060 IF-10: mirror the `DoNotOptimize` overloads of the recorded revision with their compiler and type conditions under `requires` clauses (contradicts): one `"+r,m"` constraint stood for every compiler and every type, where D-4 names the form at the revision read
 - [X] T061 IF-11: catch the regular-expression error around the filter construction and report it with status 2 (contradicts): an invalid `--filter` threw an uncaught `std::regex_error` and the process terminated
+
+---
+
+## Phase 12: Review follow-up
+
+Appended after the follow-up review of the branch at `3e0d093`. Each task
+is one follow-up item with the gate that holds it.
+
+- [X] T062 FU-1: read the interrupt flag once per pass into a local `interrupted`, carry one `anyInterrupted` through the loop, and let the run-wide postcondition compare `status != 0` with `anyFailed || anyInterrupted` (contradicts): the entry point read the flag three times, so a signal landing between the last reading and the postcondition left the status at zero against a set flag and the postcondition aborted the run; `test/cli_shape.sh` gates the shape
+- [X] T063 FU-2: drop the `SG_INVARIANT` of `Cursor::operator!=`, `State::m_index` and the `begin()` check on it, and state in the class doc that the count-down cursor cannot pass the run's count by construction (partial): the check compared `m_start` with the run's count, where `m_start` is that count or zero, so it could never fail, and `test/loop_shape.sh` now bounds the loop body at the reference count, a bound the exit check alone broke by one instruction under clang++
+- [X] T064 FU-3: give the barrier shape's `Big` a copy constructor with a body, assert `!std::is_trivially_copyable_v<Big>` in the shape source, and run the zero-store sweep under g++ alone (contradicts): a defaulted copy constructor leaves the type trivially copyable, so the gcc `"+m"` case for a type that is not trivially copyable never ran, and the clang `"+r,m"` form can load and store each swept element
+- [X] T065 FU-4: take the build directory of `test/loop_shape.sh` as its first argument with `SG_BUILD_DIR` as the fallback, and fail naming both when neither is set (contradicts): the script searched `\$ROOT/build` alone, so a build tree anywhere else failed the gate
+- [X] T066 FU-5: include `<algorithm>` in `source/harness/detail/calibration.hpp`, which calls `std::min` (partial): the call reached `std::min` through a transitive include, and a translation unit that includes the header alone compiles at `3e0d093` under both compilers, so no failing state reproduces
