@@ -530,7 +530,12 @@ add_test(NAME barrier_shape
 # The timed-loop codegen shape at -O2 in every compiler present (IF-04;
 # FR-004, FR-005, R-06).
 add_test(NAME loop_shape
-         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/loop_shape.sh)
+         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/loop_shape.sh ${CMAKE_BINARY_DIR})
+
+# The run-control shape of the entry point: one flag reading per pass and
+# a run-wide postcondition that reads no flag (FU-1; FR-032, FR-036, R-06).
+add_test(NAME cli_shape
+         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/cli_shape.sh)
 
 # The repetition aggregates against the printed rows, and the gap that
 # drops a sample (T032; US5, FR-025, FR-027, FR-028, FR-035, SC-003).
