@@ -486,10 +486,16 @@ add_test(
 
 # The capture path over a scripted provider (T012; US1, SC-001, SC-004,
 # SC-005, SC-014, FR-017, FR-022, FR-024, FR-025, FR-026).
+# The capture proof replaces the global operator new and delete in this
+# translation unit. The thread sanitizer runtime defines those operators
+# too, so the two definitions cannot link, and this test stays out of
+# that preset for the same reason as counters_noalloc_test above.
+if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "fsanitize=thread")
 add_executable(harness_capture_test source/harness_capture_test.cpp)
 target_link_libraries(harness_capture_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_capture_test PRIVATE cxx_std_23)
 add_test(NAME harness_capture_test COMMAND harness_capture_test)
+endif()
 
 # The run-control calibration on the real clock (T019; US2, FR-010 to
 # FR-014, FR-016, SC-014).
