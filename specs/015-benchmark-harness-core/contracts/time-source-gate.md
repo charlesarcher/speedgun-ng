@@ -6,8 +6,10 @@ CTest (R-07).
 
 ## Scanned set
 
-Every C++ source and header the D-6 scope names: `source/`,
-`include/`, `example/`, `test/`, and `tools/`.
+Every C and C++ source and header the D-6 scope names: `source/`,
+`include/`, `example/`, `test/`, and `tools/`. The extensions are `.c`,
+`.cc`, `.cpp`, `.cxx`, `.h`, `.hh`, `.hpp`, `.hxx`, `.ipp`, `.inl`, and
+`.tpp`.
 
 The counters library sits outside the rule: `source/counters/`, the
 `include/speedgun-ng/counters*.hpp` headers, and the `counters_` tests
@@ -34,6 +36,8 @@ the table names is a hit. The scan follows the matching discipline of
 | clean tree | exit 0 |
 | a planted `std::chrono::steady_clock::now()` in a harness source | exit 1, with the `file:line` printed |
 | the planted call removed | exit 0 |
+| a planted `clock_gettime` in a `.h` header under `include/` | exit 1, with the `file:line` printed |
+| that plant removed | exit 0 |
 | a planted `std::chrono::system_clock` in `tools/dbc/overhead.cpp` | exit 1, with the `file:line` printed |
 | that plant removed | exit 0 |
 
