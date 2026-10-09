@@ -73,6 +73,9 @@ auto bmUnknownThrow(sg::State& state) -> void
 {
   for (auto _ : state) {
   }
+  // The run has to end through the handler for what lies outside
+  // std::exception (FR-032).
+  // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
   throw 7;
 }
 
@@ -444,6 +447,50 @@ auto modeNamesAndListing() -> int
 
 }  // namespace
 
+auto modeCounterAddress() -> int
+{
+  baseProvider("nanoseconds");
+  const auto report = captureRun({"--filter",
+                                  "^bmPlain$",
+                                  "--repetitions",
+                                  "1",
+                                  "--iterations",
+                                  "4",
+                                  "--counter",
+                                  "gap/seconds",
+                                  "--counter",
+                                  "gap/counts"});
+  const auto row = lineWith(report, "bmPlain");
+  check(row.contains("seconds="),
+        "a time address resolves through the catalog (R-04)");
+  check(row.contains("counts="),
+        "an event address resolves through the catalog (R-04)");
+
+  const auto refused = captureRun({"--filter",
+                                   "^bmPlain$",
+                                   "--repetitions",
+                                   "1",
+                                   "--iterations",
+                                   "4",
+                                   "--counter",
+                                   "gap/blocked"},
+                                  1);
+  check(refused.contains("gap/blocked"),
+        "an address the host refuses stops the run (FR-023)");
+
+  const auto bare = captureRun({"--filter",
+                                "^bmPlain$",
+                                "--repetitions",
+                                "1",
+                                "--iterations",
+                                "4",
+                                "--counter",
+                                "seconds"});
+  check(lineWith(bare, "bmPlain").contains("iterations="),
+        "an address with no object leaves the run running (R-04)");
+  return 0;
+}
+
 SG_BENCHMARK(bmPlain)
 SG_BENCHMARK(bmIndex)
 SG_BENCHMARK(bmUnknownThrow)
@@ -494,6 +541,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "namesListing") {
     return modeNamesAndListing();
   }
+  if (mode == "counterAddress") {
+    return modeCounterAddress();
+  }
 
   const std::string self = argv[0];
   for (const auto& name : {
@@ -510,6 +560,7 @@ auto main(const int argc, char** argv) -> int
            "warmupEnds",
            "handleOptions",
            "namesListing",
+           "counterAddress",
        })
   {
     const int status = std::system(("\"" + self + "\" " + name).c_str());
