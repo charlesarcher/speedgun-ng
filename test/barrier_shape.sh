@@ -147,6 +147,77 @@ liveness_probe() {
   return 0
 }
 
+# The D-4 constraint forms (IF-10). The sweep loop passes each element of
+# a 64-element array through the barrier, and the big struct is 64 bytes
+# with a user-declared copy constructor, taken as an lvalue and as an
+# rvalue. Upstream splits these cases by compiler and by type, and the
+# sweep is where a register-first constraint would show a store.
+constraint_source() {
+  cat <<'SOURCE'
+#include <cstdint>
+
+#include "speedgun-ng/barrier.hpp"
+
+struct Big {
+  std::uint64_t words[8];
+  Big() = default;
+  Big(const Big&) = default;
+};
+
+std::uint64_t table[64];
+
+__attribute__((noinline)) auto sweep() -> void
+{
+  for (auto& element : table) {
+    sg::doNotOptimize(element);
+  }
+}
+
+__attribute__((noinline)) auto useLvalue(Big& value) -> void
+{
+  sg::doNotOptimize(value);
+}
+
+__attribute__((noinline)) auto useRvalue() -> void
+{
+  Big value{};
+  sg::doNotOptimize(Big {value});
+}
+SOURCE
+}
+
+# A store in AT&T spelling: a mov with a register source and a memory
+# destination. Padding such as `nopw 0x0(%rax,%rax,1)` is not a store.
+count_stores() {
+  printf '%s\n' "$1" | grep -cE $'\tmov[a-z0-9]*\t%[a-z0-9]+,[-0-9(]' || true
+}
+
+analyze_constraints() {
+  local cxx=$1 obj=$2
+  local body stores
+
+  body=$(dump_function "$obj" 'sweep')
+  if [ -z "$body" ]; then
+    echo "FAIL $cxx: could not locate sweep in the object" >&2
+    return 1
+  fi
+  stores=$(count_stores "$body")
+  echo "  $cxx sweep: the loop holds $stores store instructions"
+  if [ "$stores" -ne 0 ]; then
+    echo "FAIL $cxx: the sweep loop stores through a register" >&2
+    printf '%s\n' "$body" | sed 's/^/  /' >&2
+    return 1
+  fi
+  return 0
+}
+
+compile_constraints() {
+  local cxx=$1 out=$2
+  printf '%s\n' "$(constraint_source)" > "$WORKDIR/constraint.cpp"
+  "$cxx" -O2 -std=c++23 -I "$ROOT/include" -c "$WORKDIR/constraint.cpp" \
+    -o "$out" 2> "$WORKDIR/err.txt"
+}
+
 status=0
 found=0
 
@@ -183,6 +254,19 @@ for cxx in g++ clang++; do
   fi
   if ! analyze "$WORKDIR/without-$cxx.o" "$cxx without the barrier" 1 3; then
     echo "      FR-030: the work survived with no barrier at all" >&2
+    status=1
+  fi
+
+  # IF-10: the barrier accepts the big struct as an lvalue and as an
+  # rvalue, and the sweep loop keeps each array element where it sits.
+  if ! compile_constraints "$cxx" "$WORKDIR/constraint-$cxx.o"; then
+    echo "FAIL $cxx: the 64-byte struct with a user-declared copy" \
+      >&2
+    echo "      constructor did not pass through the barrier" >&2
+    sed 's/^/  /' "$WORKDIR/err.txt" >&2
+    status=1
+  elif ! analyze_constraints "$cxx" "$WORKDIR/constraint-$cxx.o"; then
+    echo "      D-4: the constraint form sends the sweep through a register" >&2
     status=1
   fi
 done
