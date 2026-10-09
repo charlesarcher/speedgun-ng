@@ -500,5 +500,9 @@ head.
   time through a function pointer for a time, an events and a ratio
   dimension. The guards the counters library makes unreachable became
   contract macros that cite the guarantee, and the conditions the call
-  site excludes left the generated code. No `LCOV_EXCL` marker stands
-  under `source/harness/`.
+  site excludes left the generated code. The machine-object guard became
+  an assertion inside one named probe function, while the missing-leaf
+  path stayed a reported failure with exit status one: a contract check
+  put there aborted `harness_gap_test` in the `tsan` job at `0781c9b`,
+  because a runner without a performance monitor takes that path. No
+  `LCOV_EXCL` marker stands under `source/harness/`.
