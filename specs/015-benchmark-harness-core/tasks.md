@@ -447,10 +447,10 @@ head.
   iteration, the handle's own warm-up and repetition options, the run
   stopped by a signal during the warm-up or during calibration, the run
   that enters the timed loop twice, the run that throws outside
-  `std::exception`, and the availability names the report prints
+  `std::exception`, and the availability names the report prints, and the counter address whose unit is time
   (partial): `coverage-gate: line coverage is not 100%` at `6446ead` with
-  lines 97.4%, functions 95.8% and branches 95.3%; at this head lines 98.9% (2883 of 2915), functions 97.8% (404 of 413) and branches 97.0% (1136 of 1171), with the whole suite passing. The residue is
-  32 lines, and each of them is a path the public surface cannot produce:
+  lines 97.4%, functions 95.8% and branches 95.3%; at this head lines 99.1% (2888 of 2915), functions 97.8% (404 of 413) and branches 97.4% (1140 of 1171), with the whole suite passing. The residue is
+  27 lines, and each of them is a path the public surface cannot produce:
   the machine object and its monotonic leaf, which the counters system
   always opens; the unit outside the closed enumeration, which the
   registration of any provider rejects; the availability guard that runs
@@ -473,3 +473,24 @@ head.
   `alloc-dealloc-mismatch (operator new vs free)` in
   `harness_capture_test` under `ci-sanitize`, and the test passes at this
   head
+
+- [X] T074 PR-4c: read the loop from its tightest back edge in
+  `test/loop_shape.sh` (contradicts): the `test-rocky` job reported
+  `FAIL g++: the shapeLoop loop calls out of line`, because the extractor
+  took the last backward jump in the function and GCC 14 parks the cold
+  window-close tail after the loop; the gate passes on both compilers here
+  and still fails the planted loop for the extra work it carries
+- [X] T075 PR-4c: compare the scripted row of `bmBeta` by its columns and
+  their order, and print both rows when the raw text differs
+  (contradicts): the `test-rocky` job failed
+  `a measured benchmark after three failed benchmarks keeps its scripted
+  row (FR-017)` in a container with no performance monitor, where the
+  clock leaves resolve through the host and two captures carry different
+  elapsed figures; the check passes here and the printed rows will carry
+  the evidence if a runner differs again
+- [X] T076 PR-4c: pair the resource check of the interrupted run across two
+  identical interrupted runs (contradicts): the `tsan` job failed
+  `the interrupted run releases the same resources (SC-017)`, because
+  ThreadSanitizer maps its shadow ranges when a process takes its first
+  signal and the baseline counted those mappings as a leak; the test
+  passes under ThreadSanitizer here
