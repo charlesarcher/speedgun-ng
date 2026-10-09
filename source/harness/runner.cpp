@@ -166,7 +166,10 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     }
 
     const sg::counters::CatalogEntry* found = nullptr;
-    for (const auto& catalogEntry : object->counters()) {
+    // counters() returns the catalog by value, so the vector has to
+    // outlive the search: `found` points into it below.
+    const auto catalog = object->counters();
+    for (const auto& catalogEntry : catalog) {
       if (catalogEntry.name == leafName) {
         found = &catalogEntry;
         break;
