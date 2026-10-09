@@ -85,6 +85,22 @@ auto bmWalk(sg::State& state) -> void
   }
 }
 
+// IF-02: a warm-up phase that ignores the FR-008 stop keeps growing and
+// reaches this function's third call. The skip names the overrun, so a
+// measured row for this benchmark can only come from a warm-up that
+// stopped on the rule.
+auto bmCapped(sg::State& state) -> void
+{
+  static std::uint64_t calls = 0;
+  ++calls;
+  if (calls == 3) {
+    state.skipWithError("warm-up overran the FR-008 stop");
+    return;
+  }
+  for (auto _ : state) {
+  }
+}
+
 auto captureRun(const std::vector<std::string>& arguments) -> std::string
 {
   std::vector<char*> argv;
@@ -262,6 +278,31 @@ auto scenarioWarmup() -> int
   return 0;
 }
 
+// IF-02, FR-011: warm-up applies the same stop rule as the measured
+// phase. The scripted fivefold step qualifies the first warm-up run on
+// real time, so one warm-up run and the fixed-N measured run follow.
+auto scenarioWarmupFivefold() -> int
+{
+  scriptedProvider(kFivefoldMonotonicStep, kFivefoldThreadCpuStep);
+  const std::uint64_t planActions = probePlanActions();
+
+  const std::uint64_t before = fake->readActions();
+  const std::string report = captureRun(
+      {"--filter", "^bmCapped$", "--iterations=5", "--warmup-time=0.000001"});
+  const std::uint64_t consumed = fake->readActions() - before;
+
+  const std::vector<std::string> rows = linesOf(report, "bmCapped");
+  check(rows.size() == 1, "the run carries one measured row (FR-011)");
+  check(countFieldOf(rows[0], "iterations=") == 5,
+        "the measured run keeps the fixed count (FR-013)");
+  // One warm-up run qualified on the fivefold real-time condition, then
+  // the measured run followed: two runs of two actions.
+  check(consumed == planActions + 2 * 2,
+        "warm-up stopped on the FR-008 rule (FR-011)");
+  std::puts("harness_calibration_test warmupFivefold: ok");
+  return 0;
+}
+
 // SC-002, FR-008: a scripted step whose real time reaches five times the
 // minimum time qualifies while its thread CPU time stays below it. A
 // fixed N with no warm-up also shows calibration skipped outright.
@@ -300,6 +341,7 @@ auto scenarioFivefold() -> int
 
 SG_BENCHMARK(bmWork)
 SG_BENCHMARK(bmWalk)
+SG_BENCHMARK(bmCapped)
 
 auto main(const int argc, char** argv) -> int
 {
@@ -310,6 +352,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "warmup") {
     return scenarioWarmup();
   }
+  if (mode == "warmupFivefold") {
+    return scenarioWarmupFivefold();
+  }
   if (mode == "fivefold") {
     return scenarioFivefold();
   }
@@ -317,7 +362,8 @@ auto main(const int argc, char** argv) -> int
   // The scripted scenarios own one provider script each, so each runs
   // in a re-exec of this binary; its failure exits nonzero here.
   const std::string self = argv[0];
-  for (const auto& scenario : {"walk", "warmup", "fivefold"}) {
+  for (const auto& scenario : {"walk", "warmup", "warmupFivefold", "fivefold"})
+  {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
     check(status == 0, "the scripted scenario passes (SC-002)");
   }

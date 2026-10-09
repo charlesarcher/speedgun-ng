@@ -400,6 +400,19 @@ auto main(const int argc, char** argv) -> int
   check(openDescriptorCount() == descriptors && mappingCount() == mappings,
         "the interrupted run releases the same resources (SC-017)");
 
+  // IF-07, FR-032: the flag is read after every run, the qualifying
+  // warm-up run included, so no measured run starts behind it.
+  interruptRuns = 0;
+  const std::string warmInterrupted = captureRun({"--filter",
+                                                  "^bmInterrupts$",
+                                                  "--iterations=1",
+                                                  "--warmup-time=0.000000001"},
+                                                 1);
+  check(warmInterrupted.find("SKIPPED: interrupted") != std::string::npos,
+        "the warm-up interrupt reports skipped with its reason (FR-032)");
+  check(interruptRuns == 1,
+        "the flag read after the warm-up run stops the measured run (FR-032)");
+
   std::puts("harness_cli_test: ok");
   return 0;
 }

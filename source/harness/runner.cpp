@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "detail/calibration.hpp"
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
@@ -16,48 +17,11 @@
 namespace
 {
 
-// FR-016 bounds the iteration count; FR-010 bounds the calibration and
-// warm-up runs; FR-007 and FR-011 carry the defaults.
-constexpr std::uint64_t kIterationCap = 1'000'000'000'000ULL;
-constexpr std::uint64_t kRunBound = 96;
+// FR-007 and FR-011 carry the defaults; FR-010 and FR-016 bound the
+// growth, and detail/calibration.hpp owns that rule.
 constexpr std::int64_t kDefaultMinTimeNs = 500'000'000;
 constexpr std::int64_t kDefaultWarmupNs = 0;
 constexpr std::uint64_t kDefaultRepetitions = 1;
-
-// R-012: the growth factor is integer arithmetic on nanoseconds, and a
-// run far below the target jumps by ten.
-auto nextIterationCount(const std::uint64_t current,
-                        const std::int64_t decisionNs,
-                        const std::int64_t targetNs) -> std::uint64_t
-{
-  double factor = 1.4 * static_cast<double>(targetNs)
-      / static_cast<double>(decisionNs > 0 ? decisionNs : 1);
-  if (decisionNs <= targetNs / 10) {
-    factor = 10.0;
-  }
-
-  const double grown = static_cast<double>(current) * factor;
-  std::uint64_t next = current + 1;
-  if (grown >= static_cast<double>(kIterationCap)) {
-    next = kIterationCap;
-  } else if (grown > static_cast<double>(next)) {
-    next = static_cast<std::uint64_t>(std::llround(grown));
-  }
-  return std::min(next, kIterationCap);
-}
-
-// FR-008: the run that meets any one of these conditions is the
-// measured run of its repetition.
-auto qualifies(const bool skipped,
-               const std::uint64_t iterations,
-               const std::int64_t decisionNs,
-               const std::int64_t realNs,
-               const std::int64_t minTimeNs,
-               const bool dryRun) -> bool
-{
-  return skipped || dryRun || iterations >= kIterationCap
-      || decisionNs >= minTimeNs || realNs >= 5 * minTimeNs;
-}
 
 // A metric column of one run: the label, the FR-022 per-iteration
 // decision, the erased spine, and the availability the catalog
@@ -70,18 +34,6 @@ struct MetricColumn
   sg::counters::Availability availability =
       sg::counters::Availability::COUNTABLE;
   sg::counters::detail::ExprCore core;
-};
-
-// One sampled run: the two endpoint actions, the fold of each clock,
-// and what the benchmark function asked for.
-struct RunRecord
-{
-  std::uint64_t iterations = 0;
-  std::uint64_t pair = 0;
-  std::int64_t realNs = 0;
-  std::int64_t decisionNs = 0;
-  bool skipped = false;
-  std::string reason;
 };
 
 auto splitAddress(std::string_view address)
@@ -393,24 +345,25 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
   // target, and their results are discarded. The measured phase keeps
   // its own start count, so the warm-up count never carries into it.
   if (warmupNs > 0 && !dryRun) {
-    std::uint64_t iterations = settled;
-    for (std::uint64_t run = 0; run < kRunBound; ++run) {
-      const auto record = sampleRun(iterations);
-      if (!record.has_value()) {
-        return fail(record.error());
-      }
-      if (record->skipped) {
-        result.outcome = RunOutcome::SKIPPED;
-        result.reason = record->reason;
-        return result;
-      }
-      if (record->decisionNs >= warmupNs) {
-        break;
-      }
-      iterations = nextIterationCount(iterations, record->decisionNs, warmupNs);
-      if (interruptFlag().load()) {
-        return interrupted(result);
-      }
+    const auto warm = growUntilQualified(settled,
+                                         warmupNs,
+                                         kRunBound,
+                                         sampleRun,
+                                         []() noexcept -> bool
+                                         { return interruptFlag().load(); });
+    if (warm.outcome == GrowOutcome::FAILED) {
+      return fail(warm.error);
+    }
+    if (warm.outcome == GrowOutcome::SKIPPED) {
+      result.outcome = RunOutcome::SKIPPED;
+      result.reason = warm.record.reason;
+      return result;
+    }
+    if (warm.outcome == GrowOutcome::INTERRUPTED) {
+      return interrupted(result);
+    }
+    if (warm.outcome == GrowOutcome::BOUND_EXHAUSTED) {
+      return fail("warm-up did not qualify within 96 runs (FR-011)");
     }
   }
 
@@ -427,33 +380,29 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     if (repetition == 0 && !fixedIterations.has_value() && !dryRun) {
       // FR-014: the first repetition calibrates from one iteration, and
       // the run that qualifies is its measured run.
-      iterations = 1;
-      for (std::uint64_t run = 0; run < kRunBound; ++run) {
-        auto record = sampleRun(iterations);
-        if (!record.has_value()) {
-          return fail(record.error());
-        }
-        if (record->skipped) {
-          result.outcome = RunOutcome::SKIPPED;
-          result.reason = record->reason;
-          return result;
-        }
-        if (qualifies(false,
-                      iterations,
-                      record->decisionNs,
-                      record->realNs,
-                      minTimeNs,
-                      dryRun))
-        {
-          chosen = std::move(record);
-          break;
-        }
-        iterations =
-            nextIterationCount(iterations, record->decisionNs, minTimeNs);
-        if (interruptFlag().load()) {
-          return interrupted(result);
-        }
+      const auto grown =
+          growUntilQualified(1,
+                             minTimeNs,
+                             kRunBound,
+                             sampleRun,
+                             []() noexcept -> bool
+                             { return interruptFlag().load(); });
+      if (grown.outcome == GrowOutcome::FAILED) {
+        return fail(grown.error);
       }
+      if (grown.outcome == GrowOutcome::SKIPPED) {
+        result.outcome = RunOutcome::SKIPPED;
+        result.reason = grown.record.reason;
+        return result;
+      }
+      if (grown.outcome == GrowOutcome::INTERRUPTED) {
+        return interrupted(result);
+      }
+      if (grown.outcome == GrowOutcome::BOUND_EXHAUSTED) {
+        return fail("calibration did not qualify within 96 runs (FR-016)");
+      }
+      chosen = std::move(grown.record);
+      iterations = chosen->iterations;
       settled = iterations;
     } else {
       chosen = sampleRun(iterations);
