@@ -227,26 +227,29 @@ auto speedgunMain(int argc, char** argv) -> int
   detail::printContext();
 
   int status = 0;
+  bool anyFailed = false;
   detail::Runner runner(options);
   for (auto* entry : selected) {
     const auto result = runner.run(*entry);
     detail::printResult(result);
     if (result.outcome == RunOutcome::FAILED) {
+      anyFailed = true;
       status = 1;
     }
     if (detail::interruptFlag().load()) {
       status = 1;
     }
 
-    SG_ENSURE((status != 0)
-                  == (result.outcome == RunOutcome::FAILED
-                      || detail::interruptFlag().load()),
-              "the exit status follows the table of contracts/cli.md (FR-036)");
+    SG_ENSURE(!(result.outcome == RunOutcome::FAILED && status == 0),
+              "a failed benchmark sets a nonzero exit status (FR-036)");
 
     if (detail::interruptFlag().load()) {
       break;
     }
   }
+
+  SG_ENSURE((status != 0) == (anyFailed || detail::interruptFlag().load()),
+            "the exit status follows the table of contracts/cli.md (FR-036)");
 
   return status;
 }
