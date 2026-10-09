@@ -468,7 +468,11 @@ head.
   allowance per feature, so nothing permits a marker in
   `source/harness/`. The branches stay, because each one closes a
   documented condition and the counters system guarantees the unit
-  mapping that makes one of them unreachable. The gate stands at 99.1%
+  mapping that makes one of them unreachable. The same holds for the
+  machine object and its monotonic leaf, which the counters system opens
+  on every supported host, and for the counter lookup that follows a
+  catalog entry, because the entry’s unit decides which dimension the
+  lookup asks for. The gate stands at 99.1%
   lines on this branch, and closing it needs an amendment to
   Principle VI
 - [X] T072 PR-4c: keep `harness_capture_test` out of the ThreadSanitizer
