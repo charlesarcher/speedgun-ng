@@ -408,19 +408,25 @@ public:
    * @brief Attach a counter expression built with the 007 arithmetic
    * (FR-021).
    *
-   * \pre the run has not started for this benchmark, and the
-   *      expression's leaves resolve through the system catalog; a
-   *      leaf the catalog lacks is a recoverable error naming the
-   *      leaf (FR-023)
-   * \post the entry carries the metric, and the report prints one
-   *       column for it under `label`
+   * A leaf the catalog lacks is not a rejected call here: the plan
+   * compile of the run reports it as a recoverable error naming the
+   * leaf, and that benchmark fails (FR-023).
+   *
+   * \pre the handle names a registered entry and the run has not
+   *      started for this benchmark (E-02)
+   * \post the returned handle is this handle, and the entry carries
+   *       the metric under `label` (FR-021)
    */
   template<class D>
   auto addMetric(const sg::counters::Expression<D>& expression,
                  std::string_view label) -> BenchmarkHandle&
   {
-    return addMetricCore(detail::MetricSeed {
+    SG_REQUIRE(m_entry != nullptr,
+               "a metric attaches to a registered entry (E-02)");
+    auto& attached = addMetricCore(detail::MetricSeed {
         expression.core, std::string(label), reportsPerIteration<D>()});
+    SG_ENSURE(&attached == this, "the handle carries the metric (FR-021)");
+    return attached;
   }
 
 private:
@@ -456,8 +462,13 @@ private:
  * A suite links `speedgun-ng::harness` and calls this from `main`
  * (D-1).
  *
- * \pre the command line follows the option table of
- *      `specs/015-benchmark-harness-core/contracts/cli.md`
+ * A command line that does not follow the option table of
+ * `specs/015-benchmark-harness-core/contracts/cli.md` is a usage error:
+ * the entry point reports it and exits with status two from inside the
+ * parse (FR-035). That path leaves no status to state a postcondition
+ * about, so this function takes no precondition of its own.
+ *
+ * \pre none
  * \post the returned status follows the exit-status table of that
  *       contract (FR-036)
  */
