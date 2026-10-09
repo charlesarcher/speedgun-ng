@@ -70,35 +70,59 @@ dump_function() {
 }
 
 # The body of the loop: the instructions from the target of the backward
-# jump up to that jump. The backward jump is the one whose operand address
-# sits at or below its own address.
+# jump up to that jump. The backward jump chosen is the one with the
+# shortest span, the cycle the iterations travel. A wider back edge can
+# belong to a cold tail the compiler parks after the loop. That tail
+# runs once per run; the iterations travel the short cycle.
 loop_body() {
-  printf '%s\n' "$1" | awk '
-    {
-      addr[NR] = $1
-      ins[NR] = $2
-      op[NR] = $3
-      n = NR
-    }
-    END {
-      for (i = n; i >= 1; --i) {
-        if (ins[i] ~ /^j/) {
-          target = op[i]
-          gsub(/[^0-9a-f]/, "", target)
-          if (length(target) > 0 && strtonum("0x" target) <= strtonum("0x" addr[i])) {
-            for (k = 1; k <= n; ++k) {
-              if (addr[k] == target) {
-                for (m = k; m <= i; ++m) {
-                  printf "%s\t%s\t%s\n", addr[m], ins[m], op[m]
-                }
-                exit
-              }
-            }
-          }
-        }
-      }
-    }
-  '
+printf '%s\n' "$1" | awk '
+{
+addr[NR] = $1
+ins[NR] = $2
+op[NR] = $3
+n = NR
+}
+END {
+best = 0
+bestk = 0
+bestspan = -1
+for (i = 1; i <= n; ++i) {
+if (ins[i] !~ /^j/) {
+continue
+}
+target = op[i]
+gsub(/[^0-9a-f]/, "", target)
+if (length(target) == 0) {
+continue
+}
+if (strtonum("0x" target) > strtonum("0x" addr[i])) {
+continue
+}
+k = 0
+for (m = 1; m <= n; ++m) {
+if (addr[m] == target) {
+k = m
+break
+}
+}
+if (k == 0) {
+continue
+}
+span = strtonum("0x" addr[i]) - strtonum("0x" target)
+if (bestspan < 0 || span < bestspan) {
+bestspan = span
+best = i
+bestk = k
+}
+}
+if (best == 0) {
+exit
+}
+for (m = bestk; m <= best; ++m) {
+printf "%s\t%s\t%s\n", addr[m], ins[m], op[m]
+}
+}
+'
 }
 
 shape_source() {
