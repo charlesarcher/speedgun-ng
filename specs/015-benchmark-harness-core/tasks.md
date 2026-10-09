@@ -365,3 +365,22 @@ deviations already recorded above are noted where a task resolves one.
 - [X] T049 Scale the sampling-action and allocation probe of `test/source/harness_capture_test.cpp` to 10,000 runs per SC-005 (partial): the difference of two `readActions()` windows proves two actions per run and the in-loop allocation check fires, but the observation covers one run of 8 iterations rather than the stated 10,000
 - [X] T050 Settle the gap-exclusion scope in `source/harness/runner.cpp` per FR-025 (partial): the statistics of the gapped quantity drop the repetition while the time aggregate keeps its sample, and `harness_statistics_test` asserts that split; either exclude the gapped run's time sample or record the per-quantity reading against FR-025's run-level wording
 - [X] T051 Justify or remove the additions beyond the artifacts: `BenchmarkResult::metricLabels` beyond E-07, the private `SG_PROJECT_VERSION` compile definition beyond T002, and the `PmuProvider` registration in `speedgunMain` where R-03 names the clock provider alone (unrequested): all three are recorded as deviations 3, 4, and 5 above, and each needs a contract line or a removal
+
+---
+
+## Phase 11: Review fixes
+
+Appended after the review of the branch at `58c5906`. Each task is one
+review defect, fixed with a covering test that runs against the branch
+head, and none of them opens a new spec.
+
+- [X] T052 IF-01: keep one `anyFailed` flag through the benchmark loop of `speedgunMain`, assert per benchmark that a failed outcome sets a nonzero status, and assert after the loop that the status follows the failed and interrupted benchmarks (contradicts): the postcondition compared the accumulated status against the current benchmark alone, so a measured benchmark after a failed one aborted the run, and a plain skip exited nonzero against the table of `contracts/cli.md`
+- [X] T053 IF-02: move the growth rule into `source/harness/detail/calibration.hpp` with one `growUntilQualified` template that the warm-up phase and the calibration phase both call (contradicts): warm-up stopped only on its own target, so a benchmark with little thread CPU time grew toward the FR-016 cap
+- [X] T054 IF-04: count the remaining iterations in the loop cursor, read the skip flag once in `begin()`, and hold no contract macro in `operator++` (partial): the loop paid a flag load and an invariant check per iteration, a cost the overhead floor does not cover; `test/loop_shape.sh` gates the shape
+- [X] T055 IF-05: give the interrupt flag namespace scope as a `constinit` object and assert the lock-free property beside it (partial): R-06 names the assertion and the flag was a function-local static the signal handler reached through a static-initialization guard
+- [X] T056 IF-06: scan the C and C++ extensions `.c`, `.cc`, `.cpp`, `.cxx`, `.h`, `.hh`, `.hpp`, `.hxx`, `.ipp`, `.inl`, and `.tpp` in the time-source gate (contradicts): the scan covered `.cpp` and `.hpp` alone, and a planted `clock_gettime` in a `.h` header went unreported
+- [X] T057 IF-07: read the interrupt flag after every run of a phase, the qualifying run included (contradicts): warm-up broke on its target before the read, so one further run started behind the interrupt
+- [X] T058 IF-08: reject a non-finite seconds value and one above the largest whole seconds whose nanoseconds fit `std::int64_t` (contradicts): `nan`, `inf`, and `1e300` parsed, and the cast of such a value to `std::int64_t` is undefined behaviour
+- [X] T059 IF-09: return a failed result when a phase exhausts its run bound, and cover the rule directly in `test/source/harness_growth_test.cpp` (partial): the runner dereferenced the chosen record with no guard, and the rule had no test of its own
+- [X] T060 IF-10: mirror the `DoNotOptimize` overloads of the recorded revision with their compiler and type conditions under `requires` clauses (contradicts): one `"+r,m"` constraint stood for every compiler and every type, where D-4 names the form at the revision read
+- [X] T061 IF-11: catch the regular-expression error around the filter construction and report it with status 2 (contradicts): an invalid `--filter` threw an uncaught `std::regex_error` and the process terminated
