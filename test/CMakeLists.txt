@@ -527,6 +527,11 @@ add_test(NAME harness_catalog_test COMMAND harness_catalog_test)
 add_test(NAME barrier_shape
          COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/barrier_shape.sh)
 
+# The timed-loop codegen shape at -O2 in every compiler present (IF-04;
+# FR-004, FR-005, R-06).
+add_test(NAME loop_shape
+         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/loop_shape.sh)
+
 # The repetition aggregates against the printed rows, and the gap that
 # drops a sample (T032; US5, FR-025, FR-027, FR-028, FR-035, SC-003).
 add_executable(harness_statistics_test source/harness_statistics_test.cpp)

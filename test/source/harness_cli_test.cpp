@@ -99,6 +99,31 @@ auto bmAfter(sg::State& state) -> void
   }
 }
 
+int skipBeforePasses = 0;
+int skipInsidePasses = 0;
+
+// IF-04: a skip before the loop leaves the loop with no pass at all.
+auto bmSkipBefore(sg::State& state) -> void
+{
+  state.skipWithError("the scripted skip before the loop");
+  for (auto _ : state) {
+    ++skipBeforePasses;
+  }
+}
+
+// IF-04: a skip inside the loop records its reason, and the function
+// leaves the loop itself.
+auto bmSkipInside(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    ++skipInsidePasses;
+    if (skipInsidePasses == 3) {
+      state.skipWithMessage("the scripted skip inside the loop");
+      break;
+    }
+  }
+}
+
 // The counts SC-006 compares around the failed runs. The listing holds one
 // descriptor of its own while it reads, in both measurements, so the
 // difference is what the comparison sees.
@@ -234,6 +259,8 @@ SG_BENCHMARK(bmSkips)
 SG_BENCHMARK(bmThrows)
 SG_BENCHMARK(bmInterrupts)
 SG_BENCHMARK(bmAfter)
+SG_BENCHMARK(bmSkipBefore)
+SG_BENCHMARK(bmSkipInside)
 
 auto main(const int argc, char** argv) -> int
 {
@@ -449,6 +476,26 @@ auto main(const int argc, char** argv) -> int
   check(failThenRun.find("bmAfter") != std::string::npos
             && failThenRun.find("iterations=") != std::string::npos,
         "the measured benchmark after the failure carries its row (FR-032)");
+
+  // IF-04: a skip before the loop leaves no pass, and a skip inside the
+  // loop reports its reason once the function leaves the loop.
+  skipBeforePasses = 0;
+  const std::string skipBefore =
+      captureRun({"--filter", "^bmSkipBefore$", "--iterations=5"});
+  check(skipBefore.find("SKIPPED: the scripted skip before the loop")
+            != std::string::npos,
+        "the skip before the loop reports its reason (FR-031)");
+  check(skipBeforePasses == 0,
+        "the skip before the loop runs no pass (FR-031)");
+
+  skipInsidePasses = 0;
+  const std::string skipInside =
+      captureRun({"--filter", "^bmSkipInside$", "--iterations=9"});
+  check(skipInside.find("SKIPPED: the scripted skip inside the loop")
+            != std::string::npos,
+        "the skip inside the loop reports its reason (FR-031)");
+  check(skipInsidePasses == 3,
+        "the function that breaks leaves the loop at once (FR-031)");
 
   std::puts("harness_cli_test: ok");
   return 0;
