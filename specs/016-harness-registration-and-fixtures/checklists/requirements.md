@@ -32,19 +32,20 @@
 ## Notes
 
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
-- The deliverable of this feature is a library API, so the spec names the
-  public surface it adds (`range(index)`, `sg::Fixture`, the `SG_` macro
-  family). That is the what, not the how: the spec prescribes no internal
-  structure, storage, or algorithm beyond the semantics of the cited
-  Google Benchmark revision. This matches the convention accepted for
+- The deliverable of this feature is a library API, so the spec names
+  the public surface it adds: `range(index)`, `sg::Fixture`, and the
+  `SG_` macro family. The spec prescribes no internal structure,
+  storage, or algorithm beyond the semantics of the cited Google
+  Benchmark revision. This matches the convention accepted for
   `specs/015-benchmark-harness-core/`.
-- The success criteria name the project's own verification artifacts
-  (the time-source gate, the loop-shape gate, the version table) because
-  Principle VIII makes those gates the measurable outcome of "the build
-  is clean". They stay verifiable without knowing the implementation.
+- The success criteria name the project's own verification artifacts:
+  the time-source gate, the loop-shape gate, and the version table.
+  Principle VIII makes those gates the measurable outcome of "the
+  build is clean". They stay verifiable without knowing the
+  implementation.
 - The four open questions carried by the request (Q-1 to Q-4) each have
-  a recommendation, the spec adopts the recommendation as the working
-  default in FR-006, FR-007, FR-021, and FR-026, and the Open questions
+  a recommendation. The spec adopts each recommendation as the working
+  default in FR-006, FR-007, FR-021, and FR-026. The Open questions
   section hands them to `/speckit-clarify` for confirmation. No
   [NEEDS CLARIFICATION] marker was needed.
 - Validation ran against the audit point `30f3118`. Every file and line
