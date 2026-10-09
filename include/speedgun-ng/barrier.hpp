@@ -23,6 +23,8 @@
 namespace sg
 {
 
+#if !defined(__GNUC__) || defined(__llvm__) || defined(__INTEL_COMPILER)
+
 /**
  * @brief Keep `value` alive against the optimizer (FR-029, D-4).
  *
@@ -53,8 +55,6 @@ namespace sg
  * \pre none
  * \post none
  */
-#if !defined(__GNUC__) || defined(__llvm__) || defined(__INTEL_COMPILER)
-
 template<class T>
 auto doNotOptimize(T& value) noexcept -> void
 {
@@ -65,6 +65,15 @@ auto doNotOptimize(T& value) noexcept -> void
 #  endif
 }
 
+/**
+ * @brief Keep `value` alive against the optimizer (FR-029, D-4).
+ *
+ * The rvalue form of the rule above: same operands, the same
+ * recorded deviation.
+ *
+ * \pre none
+ * \post none
+ */
 template<class T>
 auto doNotOptimize(T&& value) noexcept -> void
 {
@@ -77,6 +86,25 @@ auto doNotOptimize(T&& value) noexcept -> void
 
 #elif __GNUC__ >= 5
 
+/**
+ * @brief Keep `value` alive against the optimizer (FR-029, D-4).
+ *
+ * The same rule and the same recorded deviation as the overload in the
+ * branch above; only the operand order differs, memory first so a
+ * memory operand stays in memory.
+ *
+ * \pre none
+ * \post none
+ */
+/**
+ * @brief Keep `value` alive against the optimizer (FR-029, D-4).
+ *
+ * The small trivially copyable case: the operand order puts memory
+ * first, as the branch above explains.
+ *
+ * \pre none
+ * \post none
+ */
 template<class T>
   requires std::is_trivially_copyable_v<T> && (sizeof(T) <= sizeof(T*))
 auto doNotOptimize(T& value) noexcept -> void
@@ -84,6 +112,15 @@ auto doNotOptimize(T& value) noexcept -> void
   asm volatile("" : "+m,r"(value) : : "memory");
 }
 
+/**
+ * @brief Keep `value` alive against the optimizer (FR-029, D-4).
+ *
+ * The case that does not fit a register: the value takes only a
+ * memory operand.
+ *
+ * \pre none
+ * \post none
+ */
 template<class T>
   requires(!std::is_trivially_copyable_v<T> || (sizeof(T) > sizeof(T*)))
 auto doNotOptimize(T& value) noexcept -> void
@@ -91,6 +128,14 @@ auto doNotOptimize(T& value) noexcept -> void
   asm volatile("" : "+m"(value) : : "memory");
 }
 
+/**
+ * @brief Keep `value` alive against the optimizer (FR-029, D-4).
+ *
+ * The rvalue form of the small trivially copyable case.
+ *
+ * \pre none
+ * \post none
+ */
 template<class T>
   requires std::is_trivially_copyable_v<T> && (sizeof(T) <= sizeof(T*))
 auto doNotOptimize(T&& value) noexcept -> void
@@ -98,6 +143,14 @@ auto doNotOptimize(T&& value) noexcept -> void
   asm volatile("" : "+m,r"(value) : : "memory");
 }
 
+/**
+ * @brief Keep `value` alive against the optimizer (FR-029, D-4).
+ *
+ * The rvalue form of the memory-only case.
+ *
+ * \pre none
+ * \post none
+ */
 template<class T>
   requires(!std::is_trivially_copyable_v<T> || (sizeof(T) > sizeof(T*)))
 auto doNotOptimize(T&& value) noexcept -> void
