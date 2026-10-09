@@ -125,9 +125,7 @@ auto interruptFlag() -> std::atomic<bool>&
  * @brief Run the benchmark suite the command line names (FR-040).
  *
  * @pre none
- * @post the run holds a time source: the counters system opens the host
- *       provider, and that provider publishes `machine` and its monotonic
- *       leaf (FR-002)
+ * @post none
  */
 auto speedgunMain(int argc, char** argv) -> int
 {
@@ -141,13 +139,15 @@ auto speedgunMain(int argc, char** argv) -> int
   const auto registered =
       sys.registerProvider(std::make_unique<counters::ClockProvider>());
   if (!registered.has_value()) {
-    [[maybe_unused]] const auto machine = sys.object("machine");
-    SG_ENSURE((machine.has_value()
-               && machine->counter<counters::Dim<1, 0>>("monotonic")
-                      .has_value()),
-              "the counters system opens the host provider, which publishes "
-              "machine and its monotonic leaf, so the run keeps a time source "
-              "(FR-002)");
+    const auto machine = sys.object("machine");
+    const bool scripted = machine.has_value()
+        && machine->counter<counters::Dim<1, 0>>("monotonic").has_value();
+    if (!scripted) {
+      std::fprintf(stderr,
+                   "the clock provider cannot register: %s\n",
+                   registered.error().message.c_str());
+      return 1;
+    }
   }
 
   // The metric leaves reach the catalog through the pmu provider; a host
