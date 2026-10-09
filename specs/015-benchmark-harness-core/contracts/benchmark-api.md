@@ -31,8 +31,8 @@ auto registerBenchmark(std::function<void(State&)> fn,
 class State {
 public:
   [[nodiscard]] auto iterations() const noexcept -> std::uint64_t;
-  auto begin() noexcept;   // range-for cursor over the timed loop
-  auto end() noexcept;
+  auto begin() const noexcept;   // range-for cursor over the timed loop
+  static auto end() noexcept;
   auto skipWithError(std::string_view reason) noexcept -> void;
   auto skipWithMessage(std::string_view reason) noexcept -> void;
 };
