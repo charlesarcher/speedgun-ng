@@ -80,6 +80,53 @@ auto statisticsOf(std::vector<double> values) -> sg::Statistics
   return stats;
 }
 
+constexpr const char* kInterruptReason = "interrupted by the user (SIGINT)";
+
+// The run a signal stopped keeps the skip outcome and the one reason,
+// whichever phase it stopped in.
+auto markInterrupted(sg::BenchmarkResult& result) noexcept -> void
+{
+  result.outcome = sg::RunOutcome::SKIPPED;
+  result.reason = kInterruptReason;
+}
+
+// One measured row: the pair the run left in the recorder, folded
+// through every column, with the FR-022 division and the FR-019 floor.
+template<class Recorder>
+auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
+                       const sg::detail::RunRecord& record,
+                       const std::vector<MetricColumn>& columns,
+                       double overheadFloorNs,
+                       const Recorder& recorder) -> void
+{
+  sg::ResultRow& row = rows.emplace_back();
+  row.kind = sg::RowKind::REPETITION;
+  row.iterations = record.iterations;
+  row.timePerIterationNs = static_cast<double>(record.realNs)
+      / static_cast<double>(record.iterations);
+  row.overheadFloorNs = overheadFloorNs;
+  for (const auto& column : columns) {
+    sg::MetricValue value;
+    if (column.unavailable) {
+      value.availability = column.availability;
+      row.metrics.push_back(value);
+      continue;
+    }
+    const auto folded = sg::counters::detail::foldCore(
+        column.core, recorder.view(), 2 * record.pair, 2 * record.pair + 1);
+    value.value = folded.value;
+    value.runningRatio = folded.runningRatio;
+    value.scaled = folded.scaled;
+    value.availability = folded.availability;
+    if (column.perIteration && record.iterations > 0
+        && folded.availability == sg::counters::Availability::COUNTABLE)
+    {
+      value.value /= static_cast<double>(record.iterations);
+    }
+    row.metrics.push_back(value);
+  }
+}
+
 }  // namespace
 
 namespace sg::detail
@@ -111,15 +158,13 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
   };
 
   const auto machine = sys.object("machine");
-  if (!machine.has_value()) {
-    return fail("the system publishes no machine object: "
-                + machine.error().message);
-  }
+  SG_ASSERT(machine.has_value(),
+            "the counters system opens the host provider, and that provider "
+            "publishes the machine object (FR-002)");
   const auto monotonic = machine->counter<sg::counters::Dim<1, 0>>("monotonic");
-  if (!monotonic.has_value()) {
-    return fail("machine/monotonic does not resolve: "
-                + monotonic.error().message);
-  }
+  SG_ASSERT(monotonic.has_value(),
+            "the host provider publishes machine/monotonic as its clock leaf "
+            "(FR-002)");
   const auto threadCpu =
       machine->counter<sg::counters::Dim<1, 0>>("thread_cpu");
   if (!threadCpu.has_value()) {
@@ -186,29 +231,22 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     }
 
     const auto dimension = sg::counters::dimensionOf(found->unit);
-    if (!dimension.has_value()) {
-      column.unavailable = true;
-      column.availability = sg::counters::Availability::ABSENT;
-      std::fprintf(stderr,
-                   "%s: %s\n",
-                   address.c_str(),
-                   dimension.error().message.c_str());
-      columns.push_back(std::move(column));
-      continue;
-    }
+    SG_ASSERT(dimension.has_value(),
+              "the counters system maps every unit name a provider registers, "
+              "so a catalog entry always carries a dimension (FR-005)");
 
     if (dimension->time == 1 && dimension->events == 0) {
       const auto leaf = object->counter<sg::counters::Dim<1, 0>>(leafName);
-      if (!leaf.has_value()) {
-        return fail(leaf.error().message);
-      }
+      SG_ASSERT(leaf.has_value(),
+                "the entry's unit picks the dimension the lookup asks for, and "
+                "the object lists that leaf (FR-005)");
       const sg::counters::Expression<sg::counters::Dim<1, 0>> expression(*leaf);
       column.core = expression.core;
     } else {
       const auto leaf = object->counter<sg::counters::Dim<0, 1>>(leafName);
-      if (!leaf.has_value()) {
-        return fail(leaf.error().message);
-      }
+      SG_ASSERT(leaf.has_value(),
+                "the entry's unit picks the dimension the lookup asks for, and "
+                "the object lists that leaf (FR-005)");
       const sg::counters::Expression<sg::counters::Dim<0, 1>> expression(*leaf);
       column.core = expression.core;
     }
@@ -239,12 +277,11 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     if (column.unavailable) {
       continue;
     }
-    for (const auto& leaf : column.core.leaves) {
-      if (leaf.avail != sg::counters::Availability::COUNTABLE) {
-        column.unavailable = true;
-        column.availability = leaf.avail;
-        break;
-      }
+    for ([[maybe_unused]] const auto& leaf : column.core.leaves) {
+      SG_ASSERT(leaf.avail == sg::counters::Availability::COUNTABLE,
+                "the plan compiler refuses a leaf the catalog does not mark "
+                "countable, so a compiled plan holds only countable leaves "
+                "(FR-023)");
     }
   }
 
@@ -259,15 +296,6 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
 
   // R-06: one flag read after each run ends the benchmark with this
   // reason, and the process exits nonzero.
-  constexpr const char* kInterruptReason = "interrupted by the user (SIGINT)";
-  auto interrupted = [&](const BenchmarkResult& current) -> BenchmarkResult
-  {
-    BenchmarkResult stopped = current;
-    stopped.outcome = RunOutcome::SKIPPED;
-    stopped.reason = kInterruptReason;
-    return stopped;
-  };
-
   auto foldAt = [&](const sg::counters::detail::ExprCore& core,
                     const std::uint64_t pair) -> sg::counters::MetricResult
   {
@@ -329,36 +357,6 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     return record;
   };
 
-  auto measuredRow = [&](const RunRecord& record) -> ResultRow
-  {
-    ResultRow row;
-    row.kind = RowKind::REPETITION;
-    row.iterations = record.iterations;
-    row.timePerIterationNs = static_cast<double>(record.realNs)
-        / static_cast<double>(record.iterations);
-    row.overheadFloorNs = overheadFloorNs;
-    for (const auto& column : columns) {
-      MetricValue value;
-      if (column.unavailable) {
-        value.availability = column.availability;
-        row.metrics.push_back(value);
-        continue;
-      }
-      const auto folded = foldAt(column.core, record.pair);
-      value.value = folded.value;
-      value.runningRatio = folded.runningRatio;
-      value.scaled = folded.scaled;
-      value.availability = folded.availability;
-      if (column.perIteration && record.iterations > 0
-          && folded.availability == sg::counters::Availability::COUNTABLE)
-      {
-        value.value /= static_cast<double>(record.iterations);
-      }
-      row.metrics.push_back(value);
-    }
-    return row;
-  };
-
   std::uint64_t settled = fixedIterations.value_or(1);
 
   // FR-011: warm-up runs grow by the same rule against the warm-up
@@ -368,10 +366,13 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     const auto warm = growUntilQualified(settled,
                                          warmupNs,
                                          kRunBound,
+                                         PhaseText {"warm-up", "FR-011"},
                                          sampleRun,
                                          []() noexcept -> bool
                                          { return interruptFlag().load(); });
-    if (warm.outcome == GrowOutcome::FAILED) {
+    if (warm.outcome == GrowOutcome::FAILED
+        || warm.outcome == GrowOutcome::BOUND_EXHAUSTED)
+    {
       return fail(warm.error);
     }
     if (warm.outcome == GrowOutcome::SKIPPED) {
@@ -380,10 +381,8 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
       return result;
     }
     if (warm.outcome == GrowOutcome::INTERRUPTED) {
-      return interrupted(result);
-    }
-    if (warm.outcome == GrowOutcome::BOUND_EXHAUSTED) {
-      return fail("warm-up did not qualify within 96 runs (FR-011)");
+      markInterrupted(result);
+      return result;
     }
   }
 
@@ -403,10 +402,13 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
       const auto grown = growUntilQualified(1,
                                             minTimeNs,
                                             kRunBound,
+                                            PhaseText {"calibration", "FR-016"},
                                             sampleRun,
                                             []() noexcept -> bool
                                             { return interruptFlag().load(); });
-      if (grown.outcome == GrowOutcome::FAILED) {
+      if (grown.outcome == GrowOutcome::FAILED
+          || grown.outcome == GrowOutcome::BOUND_EXHAUSTED)
+      {
         return fail(grown.error);
       }
       if (grown.outcome == GrowOutcome::SKIPPED) {
@@ -415,10 +417,8 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
         return result;
       }
       if (grown.outcome == GrowOutcome::INTERRUPTED) {
-        return interrupted(result);
-      }
-      if (grown.outcome == GrowOutcome::BOUND_EXHAUSTED) {
-        return fail("calibration did not qualify within 96 runs (FR-016)");
+        markInterrupted(result);
+        return result;
       }
       chosen = std::move(grown.record);
       iterations = chosen->iterations;
@@ -435,7 +435,7 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
       }
     }
 
-    result.rows.push_back(measuredRow(*chosen));
+    appendMeasuredRow(result.rows, *chosen, columns, overheadFloorNs, recorder);
 
     if (interruptFlag().load()) {
       result.outcome = RunOutcome::SKIPPED;

@@ -1,4 +1,6 @@
+#include <array>
 #include <cstdio>
+#include <utility>
 
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -7,24 +9,23 @@
 namespace sg::detail
 {
 
+// The names sit in a table indexed by the enumerator, so the report
+// holds no branch for a value the enumeration excludes.
+constexpr std::array<const char*, 6> kAvailabilityNames {
+    "countable",
+    "permission-blocked",
+    "not-encodable",
+    "absent",
+    "scope-refused",
+    "gap",
+};
+static_assert(kAvailabilityNames.size()
+              == std::to_underlying(sg::counters::Availability::GAP) + 1);
+
 auto availabilityName(const sg::counters::Availability availability) -> const
     char*
 {
-  switch (availability) {
-    case sg::counters::Availability::COUNTABLE:
-      return "countable";
-    case sg::counters::Availability::PERMISSION_BLOCKED:
-      return "permission-blocked";
-    case sg::counters::Availability::NOT_ENCODABLE:
-      return "not-encodable";
-    case sg::counters::Availability::ABSENT:
-      return "absent";
-    case sg::counters::Availability::SCOPE_REFUSED:
-      return "scope-refused";
-    case sg::counters::Availability::GAP:
-      return "gap";
-  }
-  return "unknown";
+  return kAvailabilityNames[std::to_underlying(availability)];
 }
 
 auto printContext() -> void

@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <expected>
 
 #include "detail/calibration.hpp"
@@ -55,9 +56,16 @@ auto neverQualifiesWithinTheBound() -> void
 {
   auto sample = Sample {10, 10, 0, 0};
   const auto result =
-      sg::detail::growUntilQualified(1, 1000, 3, sample, [] { return false; });
+      sg::detail::growUntilQualified(1,
+                                     1000,
+                                     3,
+                                     sg::detail::PhaseText {"probe", "FR-016"},
+                                     sample,
+                                     [] { return false; });
   check(result.outcome == sg::detail::GrowOutcome::BOUND_EXHAUSTED,
         "three runs without a qualifying run exhaust the bound (FR-016)");
+  check(result.error == "probe did not qualify within 3 runs (FR-016)",
+        "the exhausted bound carries the phase text (FR-011, FR-016)");
   check(sample.samples == 3, "the bound counts exactly three samples");
   check(result.record.iterations == 0,
         "an exhausted bound carries no qualifying record");
@@ -66,8 +74,13 @@ auto neverQualifiesWithinTheBound() -> void
 auto growthReachesTheCap() -> void
 {
   auto sample = Sample {0, 0, 0, 0};
-  const auto result = sg::detail::growUntilQualified(
-      1, 1000, sg::detail::kRunBound, sample, [] { return false; });
+  const auto result =
+      sg::detail::growUntilQualified(1,
+                                     1000,
+                                     sg::detail::kRunBound,
+                                     sg::detail::PhaseText {"probe", "FR-016"},
+                                     sample,
+                                     [] { return false; });
   check(result.outcome == sg::detail::GrowOutcome::QUALIFIED,
         "the cap qualifies the run that reaches it (FR-016)");
   // The FR-010 rule multiplies by ten while the decision time sits at or
@@ -80,8 +93,13 @@ auto growthReachesTheCap() -> void
 auto fivefoldRealTimeQualifiesAtOnce() -> void
 {
   auto sample = Sample {5000, 10, 0, 0};
-  const auto result = sg::detail::growUntilQualified(
-      1, 1000, sg::detail::kRunBound, sample, [] { return false; });
+  const auto result =
+      sg::detail::growUntilQualified(1,
+                                     1000,
+                                     sg::detail::kRunBound,
+                                     sg::detail::PhaseText {"probe", "FR-008"},
+                                     sample,
+                                     [] { return false; });
   check(result.outcome == sg::detail::GrowOutcome::QUALIFIED,
         "real time at five times the target qualifies (FR-008)");
   check(sample.samples == 1, "the first run qualified");
@@ -91,7 +109,12 @@ auto interruptAfterARunStopsTheGrowth() -> void
 {
   auto sample = Sample {5000, 10, 0, 0};
   const auto result =
-      sg::detail::growUntilQualified(1, 1000, 3, sample, [] { return true; });
+      sg::detail::growUntilQualified(1,
+                                     1000,
+                                     3,
+                                     sg::detail::PhaseText {"probe", "FR-032"},
+                                     sample,
+                                     [] { return true; });
   check(result.outcome == sg::detail::GrowOutcome::INTERRUPTED,
         "the flag read after a run stops the growth (FR-032, R-06)");
   check(sample.samples == 1, "no further run starts after the interrupt");
@@ -99,12 +122,35 @@ auto interruptAfterARunStopsTheGrowth() -> void
 
 }  // namespace
 
+// FR-016: growth that would pass the cap stops at the cap.
+auto growthClampsAtTheCap() -> void
+{
+  const auto grown =
+      sg::detail::nextIterationCount(200'000'000'000ULL, 1, 1000);
+  check(grown == sg::detail::kIterationCap,
+        "growth that would pass the cap stops at the cap (FR-016)");
+}
+
+// FR-008: a target with no representable fivefold keeps the largest count
+// the threshold can hold.
+auto theFivefoldStaysInRange() -> void
+{
+  constexpr std::int64_t kMax = std::numeric_limits<std::int64_t>::max();
+  check(sg::detail::fivefoldNs(kMax / 5 + 1) == kMax,
+        "a target above one fifth of the largest count takes that count "
+        "(FR-008)");
+  check(sg::detail::fivefoldNs(1000) == 5000,
+        "an ordinary target takes its fivefold (FR-008)");
+}
+
 auto main() -> int
 {
   neverQualifiesWithinTheBound();
   growthReachesTheCap();
   fivefoldRealTimeQualifiesAtOnce();
   interruptAfterARunStopsTheGrowth();
+  growthClampsAtTheCap();
+  theFivefoldStaysInRange();
   std::puts("harness_growth_test: ok");
   return 0;
 }

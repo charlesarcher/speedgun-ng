@@ -1,8 +1,11 @@
+#include <array>
 #include <cstdio>
+#include <utility>
 
 #include "detail/internal.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_system.hpp"
+#include "speedgun-ng/dbc.hpp"
 
 namespace sg::detail
 {
@@ -10,19 +13,20 @@ namespace sg::detail
 namespace
 {
 
+// The names sit in a table indexed by the enumerator, so the listing
+// holds no branch for a mode the enumeration excludes.
+constexpr std::array<const char*, 4> kReadModeNames {
+    "fast-tsc",
+    "fast-rdpmc",
+    "syscall",
+    "push-load",
+};
+static_assert(kReadModeNames.size()
+              == std::to_underlying(sg::counters::ReadMode::PUSH_LOAD) + 1);
+
 auto readModeName(const sg::counters::ReadMode mode) -> const char*
 {
-  switch (mode) {
-    case sg::counters::ReadMode::FAST_TSC:
-      return "fast-tsc";
-    case sg::counters::ReadMode::FAST_RDPMC:
-      return "fast-rdpmc";
-    case sg::counters::ReadMode::SYSCALL:
-      return "syscall";
-    case sg::counters::ReadMode::PUSH_LOAD:
-      return "push-load";
-  }
-  return "unknown";
+  return kReadModeNames[std::to_underlying(mode)];
 }
 
 void printObject(const sg::counters::Object& object)
@@ -51,12 +55,9 @@ void printObject(const sg::counters::Object& object)
 auto printCatalog() -> bool
 {
   const auto machine = sg::counters::System::local().object("machine");
-  if (!machine.has_value()) {
-    std::fprintf(stderr,
-                 "the catalog publishes no machine object: %s\n",
-                 machine.error().message.c_str());
-    return false;
-  }
+  SG_ASSERT(machine.has_value(),
+            "the counters system opens the host provider, and that provider "
+            "publishes the machine object (FR-002)");
   printObject(*machine);
   return true;
 }

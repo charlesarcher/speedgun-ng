@@ -7,6 +7,7 @@
 #include <expected>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "speedgun-ng/benchmark.hpp"
@@ -86,13 +87,28 @@ struct GrowResult
   std::string error;
 };
 
+// Which phase is growing, and the requirement its failure text cites.
+struct PhaseText
+{
+  std::string_view name;
+  std::string_view citation;
+};
+
+// \pre none
+// \post The text names the phase, the bound it spent, and the citation,
+//       so the caller forwards it without holding wording of its own.
+auto boundText(const PhaseText& phase, std::uint64_t runBound) -> std::string;
+
 // One phase of runs, the warm-up phase and the calibration phase alike:
 // sample at the count, read what the function asked for, read the
 // interrupt flag, then stop or grow (FR-008, FR-010, FR-016, FR-032).
+// \pre runBound is at least one.
+// \post An exhausted bound returns the phase text of boundText in error.
 template<class Sample, class Interrupt>
 auto growUntilQualified(const std::uint64_t start,
                         const std::int64_t targetNs,
                         const std::uint64_t runBound,
+                        const PhaseText& phase,
                         Sample&& sample,
                         Interrupt&& interrupted) -> GrowResult
 {
@@ -113,7 +129,15 @@ auto growUntilQualified(const std::uint64_t start,
     }
     count = nextIterationCount(count, record->decisionNs, targetNs);
   }
-  return {GrowOutcome::BOUND_EXHAUSTED, {}, {}};
+  return {GrowOutcome::BOUND_EXHAUSTED, {}, boundText(phase, runBound)};
+}
+
+inline auto boundText(const PhaseText& phase,
+                      const std::uint64_t runBound) -> std::string
+{
+  return std::string(phase.name) + " did not qualify within "
+      + std::to_string(runBound) + " runs (" + std::string(phase.citation)
+      + ")";
 }
 
 }  // namespace sg::detail
