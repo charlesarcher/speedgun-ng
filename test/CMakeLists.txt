@@ -528,6 +528,14 @@ target_link_libraries(harness_catalog_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_catalog_test PRIVATE cxx_std_23)
 add_test(NAME harness_catalog_test COMMAND harness_catalog_test)
 
+# The harness paths the feature's own tests leave unmeasured (T071; PR-4b,
+# FR-005, FR-017, FR-021, FR-023, FR-024, FR-032, FR-034, FR-038).
+add_executable(harness_gap_test source/harness_gap_test.cpp)
+target_link_libraries(harness_gap_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_gap_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_gap_test PRIVATE cxx_std_23)
+add_test(NAME harness_gap_test COMMAND harness_gap_test)
+
 # The barrier codegen shape at -O2 in every compiler present (T036; US6,
 # FR-029, FR-030).
 add_test(NAME barrier_shape
