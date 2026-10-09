@@ -473,6 +473,64 @@ target_link_libraries(simulation_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(simulation_test PRIVATE cxx_std_23)
 add_test(NAME simulation_test COMMAND simulation_test)
 
+# ---- Benchmark harness core (feature 015) ----
+
+# The time-source gate (T008, T011; FR-039, FR-040, SC-013, D-6): no C++
+# source or header outside the counters library reaches a time or
+# time-stamp source the counters library does not own. Same pure-scan
+# registration pattern as the vendored purity scans.
+add_test(
+  NAME time_source_gate
+  COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/time_source_gate.sh ${CMAKE_SOURCE_DIR}
+)
+
+# The capture path over a scripted provider (T012; US1, SC-001, SC-004,
+# SC-005, SC-014, FR-017, FR-022, FR-024, FR-025, FR-026).
+add_executable(harness_capture_test source/harness_capture_test.cpp)
+target_link_libraries(harness_capture_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_capture_test PRIVATE cxx_std_23)
+add_test(NAME harness_capture_test COMMAND harness_capture_test)
+
+# The run-control calibration on the real clock (T019; US2, FR-010 to
+# FR-014, FR-016, SC-014).
+add_executable(harness_calibration_test source/harness_calibration_test.cpp)
+target_link_libraries(harness_calibration_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_calibration_test PRIVATE cxx_std_23)
+add_test(NAME harness_calibration_test COMMAND harness_calibration_test)
+
+# The command line over a scripted provider (T020; US2, FR-009, FR-015,
+# FR-021, FR-022, FR-034, FR-036, SC-007).
+add_executable(harness_cli_test source/harness_cli_test.cpp)
+target_link_libraries(harness_cli_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_cli_test PRIVATE cxx_std_23)
+add_test(NAME harness_cli_test COMMAND harness_cli_test)
+
+# The catalog listing over a scripted leaf set (T025; US3, FR-036, FR-037,
+# SC-009).
+add_executable(harness_catalog_test source/harness_catalog_test.cpp)
+target_link_libraries(harness_catalog_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_catalog_test PRIVATE cxx_std_23)
+add_test(NAME harness_catalog_test COMMAND harness_catalog_test)
+
+# The barrier codegen shape at -O2 in every compiler present (T036; US6,
+# FR-029, FR-030).
+add_test(NAME barrier_shape
+         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/barrier_shape.sh)
+
+# The repetition aggregates against the printed rows, and the gap that
+# drops a sample (T032; US5, FR-025, FR-027, FR-028, FR-035, SC-003).
+add_executable(harness_statistics_test source/harness_statistics_test.cpp)
+target_link_libraries(harness_statistics_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_statistics_test PRIVATE cxx_std_23)
+add_test(NAME harness_statistics_test COMMAND harness_statistics_test)
+
+# The registry, the handle options, and the contract violation of a setter
+# after the run starts (T014; FR-001, FR-002, FR-010, FR-013, FR-015, E-02).
+add_executable(harness_registry_test source/harness_registry_test.cpp)
+target_link_libraries(harness_registry_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_registry_test PRIVATE cxx_std_23)
+add_test(NAME harness_registry_test COMMAND harness_registry_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

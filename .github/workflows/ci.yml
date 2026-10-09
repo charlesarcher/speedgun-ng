@@ -26,6 +26,11 @@ jobs:
     - name: Lint
       run: cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake
 
+    # The time-source gate of the 015 amendment to Principle VIII, run from
+    # the source tree alone so no build can hide a hit (FR-044, SC-013).
+    - name: Time-source gate
+      run: bash test/time_source_gate.sh .
+
     - name: Spell check
       if: always()
       run: cmake -P cmake/spell.cmake
@@ -420,7 +425,7 @@ jobs:
         "$compiler" -std=c++23 \
           -I include -I build/export \
           test/consumer/main.cpp \
-          build/libspeedgun-ng.a \
+          build/libspeedgun-ng-harness.a build/libspeedgun-ng.a \
           -ldl -lpthread -lm -lrt \
           -o build/pmu-catalog-count
         "$compiler" -std=c++23 \

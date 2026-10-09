@@ -21,7 +21,7 @@ install(
 )
 
 install(
-    TARGETS speedgun-ng_speedgun-ng
+    TARGETS speedgun-ng_speedgun-ng speedgun-ng_harness
     EXPORT speedgun-ngTargets
     RUNTIME #
     COMPONENT speedgun-ng_Runtime

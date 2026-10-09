@@ -13,6 +13,7 @@ find_package(speedgun-ng REQUIRED)
 
 add_executable(consumer main.cpp)
 
-target_link_libraries(consumer PRIVATE speedgun-ng::speedgun-ng)
+target_link_libraries(consumer PRIVATE speedgun-ng::speedgun-ng
+                                      speedgun-ng::harness)
 
 target_compile_features(consumer PRIVATE cxx_std_23)

@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.5.0
+    VERSION 0.6.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -170,6 +170,57 @@ include(cmake/SimdjsonArchiveMerge.cmake)
 simdjson_archive_merge(speedgun-ng_speedgun-ng)
 
 include(cmake/dbc.cmake)
+
+# ---- Harness library ----
+
+# The benchmark harness builds as its own static archive beside the
+# counters archive (specs/015 R-01). A suite links speedgun-ng::harness
+# and becomes one speedgun executable (D-1, FR-033). The split keeps the
+# counters surface free of harness terms (FR-049) and keeps getopt_long
+# inside one implementation target (FR-050).
+#
+# No export header is generated for this target: its public headers reuse
+# the counters export header and SPEEDGUN_NG_EXPORT, and the PUBLIC link
+# below propagates the export-header directory together with
+# SPEEDGUN_NG_STATIC_DEFINE (T002, FR-049).
+#
+# The target is declared ahead of the install rules because
+# cmake/install-rules.cmake installs it, and that include sits where the
+# specs/005 R-010 load order requires.
+file(
+    GLOB_RECURSE speedgun-ng_harness_sources
+    CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/harness/*.cpp"
+)
+add_library(speedgun-ng_harness ${speedgun-ng_harness_sources})
+add_library(speedgun-ng::harness ALIAS speedgun-ng_harness)
+
+target_link_libraries(speedgun-ng_harness PUBLIC speedgun-ng::speedgun-ng)
+
+# The build type is a build fact the counters library publishes nowhere,
+# so the build writes it and the report reads it as a literal (R-14).
+# The project version travels the same way: the report prints it beside
+# the build type (FR-035), and the counters library publishes no version
+# string of its own.
+target_compile_definitions(
+    speedgun-ng_harness
+    PRIVATE SG_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+            SG_PROJECT_VERSION="${PROJECT_VERSION}"
+)
+
+set_target_properties(
+    speedgun-ng_harness PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN YES
+    VERSION "${PROJECT_VERSION}"
+    # The 0.x rule of the counters archive applies unchanged here: the
+    # harness adds a surface and changes no existing signature, so the
+    # ABI number stays 2 (D-5, FR-046).
+    SOVERSION 2
+    EXPORT_NAME harness
+    OUTPUT_NAME speedgun-ng-harness
+)
+
+target_compile_features(speedgun-ng_harness PUBLIC cxx_std_23)
 
 # ---- Install rules ----
 
