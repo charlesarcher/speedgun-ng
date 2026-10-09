@@ -439,7 +439,7 @@ head.
   digit separator, so `sg::speedgunMain` and `sg::BenchmarkHandle::addMetric`
   reported documented-not-enforced although their bodies carry the macros;
   `dbc-gate` now reports 167 interfaces with no gaps under every semantic
-- [ ] T071 PR-4b: add `test/source/harness_gap_test.cpp`, thirteen modes
+- [X] T071 PR-4b: add `test/source/harness_gap_test.cpp`, thirteen modes
   over a scripted provider, each measuring one path the feature opened:
   the metric leaves the run refuses, the pushed read mode in the listing,
   a machine object without the monotonic leaf, a count that overflows the
@@ -447,34 +447,12 @@ head.
   iteration, the handle's own warm-up and repetition options, the run
   stopped by a signal during the warm-up or during calibration, the run
   that enters the timed loop twice, the run that throws outside
-  `std::exception`, and the availability names the report prints, and the counter address whose unit is time
-  (partial): `coverage-gate: line coverage is not 100%` at `6446ead` with
-  lines 97.4%, functions 95.8% and branches 95.3%; at this head lines 99.1% (2888 of 2915), functions 97.8% (404 of 413) and branches 97.4% (1140 of 1171), with the whole suite passing. The residue is
-  27 lines, and each of them is a path the public surface cannot produce:
-  the machine object and its monotonic leaf, which the counters system
-  always opens; the unit outside the closed enumeration, which the
-  registration of any provider rejects; the availability guard that runs
-  after a plan the counters library has already refused; the growth bound
-  at one trillion iterations, which no test can reach: the growth factor
-  never falls below 1.4, so the ninety-six run bound is always spent
-  after the round at the cap, and that round runs one trillion
-  iterations of the benchmark body; the tail return of two switches over
-  closed
-  enumerations; the closing brace of two lambdas, which gcov counts as its
-  own line; and `reportsPerIteration`, a `constexpr` predicate that every
-  call site folds at compile time. No gcov exclusion marker stands on
-  them: the constitution grants an exclusion only for the contract
-  facility's own check machinery, and the counters library states its
-  allowance per feature, so nothing permits a marker in
-  `source/harness/`. The branches stay, because each one closes a
-  documented condition and the counters system guarantees the unit
-  mapping that makes one of them unreachable. The same holds for the
-  machine object and its monotonic leaf, which the counters system opens
-  on every supported host, and for the counter lookup that follows a
-  catalog entry, because the entry’s unit decides which dimension the
-  lookup asks for. The gate stands at 99.1%
-  lines on this branch, and closing it needs an amendment to
-  Principle VI
+  `std::exception`, the availability names the report prints, and the
+  counter address whose unit decides the lookup. (contradicts):
+  `coverage-gate: line coverage is not 100%` at `6446ead` with lines
+  97.4%, functions 95.8% and branches 95.3%; the gate passes at this
+  head with lines 100.0% (2865 of 2865) and branches 100.0% (1111 of
+  1111). T077 records how the residue closed.
 - [X] T072 PR-4c: keep `harness_capture_test` out of the ThreadSanitizer
   tree, the way `counters_noalloc_test.cpp` already does (contradicts): the
   `ci-tsan` build failed at its link step with `multiple definition of
@@ -508,3 +486,19 @@ head.
   ThreadSanitizer maps its shadow ranges when a process takes its first
   signal and the baseline counted those mappings as a leak; the test
   passes under ThreadSanitizer here
+- [X] T077 PR-4b: close the coverage residue to the gate. (contradicts):
+  the `coverage` job failed `coverage-gate: line coverage is not 100%` at
+  `3011191` with lines 99.1%; the gate now passes with lines 100.0%
+  (2865 of 2865) and branches 100.0% (1111 of 1111). The bound-exhausted
+  failure text moved into `growUntilQualified`, which returns it with the
+  outcome, so the runner holds no branch for the case and
+  `harness_growth_test` asserts the text at a bound of three runs. Two
+  switches over closed enumerations became `constexpr` tables indexed by
+  `std::to_underlying`, each with a `static_assert` that ties the table
+  size to the last enumerator. The two lambdas that built a result became
+  named functions with one exit each. `reportsPerIteration` runs at run
+  time through a function pointer for a time, an events and a ratio
+  dimension. The guards the counters library makes unreachable became
+  contract macros that cite the guarantee, and the conditions the call
+  site excludes left the generated code. No `LCOV_EXCL` marker stands
+  under `source/harness/`.
