@@ -254,8 +254,10 @@ auto speedgunMain(int argc, char** argv) -> int
   detail::printContext();
 
   int status = 0;
-  bool anyFailed = false;
-  bool anyInterrupted = false;
+  // The two run-wide flags are read by the postcondition below, which the
+  // default semantic compiles away, so a consumer build needs the marker.
+  [[maybe_unused]] bool anyFailed = false;
+  [[maybe_unused]] bool anyInterrupted = false;
   detail::Runner runner(options);
   for (auto* entry : selected) {
     const auto result = runner.run(*entry);
