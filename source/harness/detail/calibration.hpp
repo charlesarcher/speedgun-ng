@@ -1,6 +1,7 @@
 #ifndef SG_HARNESS_DETAIL_CALIBRATION_HPP
 #define SG_HARNESS_DETAIL_CALIBRATION_HPP
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <expected>
