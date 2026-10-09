@@ -455,7 +455,11 @@ head.
   always opens; the unit outside the closed enumeration, which the
   registration of any provider rejects; the availability guard that runs
   after a plan the counters library has already refused; the growth bound
-  at one trillion iterations; the tail return of two switches over closed
+  at one trillion iterations, which no test can reach: the growth factor
+  never falls below 1.4, so the ninety-six run bound is always spent
+  after the round at the cap, and that round runs one trillion
+  iterations of the benchmark body; the tail return of two switches over
+  closed
   enumerations; the closing brace of two lambdas, which gcov counts as its
   own line; and `reportsPerIteration`, a `constexpr` predicate that every
   call site folds at compile time. No gcov exclusion marker stands on
