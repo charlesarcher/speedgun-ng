@@ -224,6 +224,13 @@ def blank_comments_and_strings(text: str) -> str:
             out.append("".join("\n" if c == "\n" else " " for c in chunk))
             i = j + 2
             continue
+        if text[i] == "'" and out and (out[-1].isalnum() or out[-1] in "_'"):
+            # A digit separator inside a numeric literal, not the opening
+            # quote of a character literal: blanking it would hide every
+            # declaration that follows it in the file.
+            out.append(text[i])
+            i += 1
+            continue
         if text[i] in "\"'":
             quote = text[i]
             out.append(" ")
@@ -491,6 +498,24 @@ def parse_class_head(text: str, i: int) -> tuple[str, int] | None:
     return None
 
 
+def match_angle(text: str, i: int) -> int | None:
+    """Return the index of the '>' that closes the '<' at i."""
+    depth = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c == "<":
+            depth += 1
+        elif c == ">":
+            depth -= 1
+            if depth == 0:
+                return i
+        elif c in "{;()":
+            return None
+        i += 1
+    return None
+
+
 def parse_regions(text: str, path: Path, macros: set[str]) -> list[Region]:
     regions: list[Region] = []
     scope: list[tuple[str, int]] = []
@@ -527,6 +552,21 @@ def parse_regions(text: str, path: Path, macros: set[str]) -> list[Region]:
                 continue
             scope.append(("", close))
             i = brace + 1
+            continue
+        if text.startswith("template", i) and (
+            i == 0 or not (text[i - 1].isalnum() or text[i - 1] in "_.>")
+        ):
+            # A template header is not a class: skipping it keeps the
+            # definition that follows it visible to the pairing scan.
+            j = i + len("template")
+            while j < n and text[j].isspace():
+                j += 1
+            if j < n and text[j] == "<":
+                close = match_angle(text, j)
+                if close is not None:
+                    i = close + 1
+                    continue
+            i = j
             continue
         if CLASS_KW.match(text, i) and (
             i == 0 or not (text[i - 1].isalnum() or text[i - 1] == "_")
