@@ -2,7 +2,12 @@
 # test/loop_shape.sh
 # Codegen-shape gate for the timed loop (IF-04; 015 FR-004, FR-005, R-06).
 #
-# Usage: loop_shape.sh
+# Usage: loop_shape.sh [build-dir]
+#
+# The build directory holds the generated export header of the counters
+# library. The CMake test passes the build directory as the argument; a
+# manual run can set SG_BUILD_DIR instead. With neither, the gate fails
+# and names both.
 #
 # The timed loop is the region whose cost the harness reports, so its shape
 # is a property of the generated code and the gate reads that code back.
@@ -29,9 +34,16 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 # benchmark.hpp reaches the generated export header of the counters
 # library, so the gate needs the build tree's export directory.
-EXPORT_DIR=$(find "$ROOT/build" -maxdepth 3 -type d -name export 2>/dev/null | head -1)
+BUILD_DIR=${1:-${SG_BUILD_DIR:-}}
+if [ -z "$BUILD_DIR" ]; then
+  echo "FAIL: no build directory: pass it as the first argument or set" >&2
+  echo "      SG_BUILD_DIR" >&2
+  exit 1
+fi
+
+EXPORT_DIR=$(find "$BUILD_DIR" -maxdepth 3 -type d -name export 2>/dev/null | head -1)
 if [ -z "$EXPORT_DIR" ]; then
-  echo "FAIL: no generated export directory under $ROOT/build" >&2
+  echo "FAIL: no generated export directory under $BUILD_DIR" >&2
   exit 1
 fi
 
@@ -167,10 +179,11 @@ analyze() {
 
   echo "  $cxx $label: loop body holds $body_n instructions, the count-down" \
        "reference $reference_n"
-  # The two loops can be spelled with a count-up compare (inc, cmp, jne)
-  # or a count-down test (sub, jne), one instruction apart. The bound
-  # absorbs that spelling difference and still catches an extra load.
-  if [ "$body_n" -gt $((reference_n + 1)) ]; then
+  # The shipped loop counts down the remaining iterations, exactly as the
+  # reference does, so the two bodies must match instruction for
+  # instruction. A per-iteration check or load makes the shipped loop
+  # longer, which is what the gate is for.
+  if [ "$body_n" -gt "$reference_n" ]; then
     echo "FAIL $cxx: the $label loop is longer than the count-down reference" \
       >&2
     printf '%s\n' "$body" | sed 's/^/  /' >&2

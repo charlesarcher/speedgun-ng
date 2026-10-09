@@ -528,7 +528,9 @@ add_test(NAME barrier_shape
          COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/barrier_shape.sh)
 
 # The timed-loop codegen shape at -O2 in every compiler present (IF-04;
-# FR-004, FR-005, R-06).
+# FR-004, FR-005, R-06). The build directory is passed so the gate finds
+# the generated export header in any build tree (FU-4). This directory is
+# a project of its own, so the top-level build tree is CMAKE_BINARY_DIR.
 add_test(NAME loop_shape
          COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/loop_shape.sh ${CMAKE_BINARY_DIR})
 
