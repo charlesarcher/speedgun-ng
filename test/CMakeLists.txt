@@ -689,6 +689,20 @@ target_include_directories(harness_manual_time_test PRIVATE ${CMAKE_SOURCE_DIR}/
 target_compile_features(harness_manual_time_test PRIVATE cxx_std_23)
 add_test(NAME harness_manual_time_test COMMAND harness_manual_time_test)
 
+# Pause and resume of a run's timing (T020; US4, C-5, FR-009 to FR-014,
+# SC-002, SC-003, SC-004). One scripted provider steps every leaf by a
+# constant per sampling action, so each column is the window fold minus the
+# paused interval fold to the scripted nanosecond, and an attached metric
+# core carries the same subtraction. Each mode owns one provider script, so
+# it runs in a re-exec of this binary and the parent reads its wait status.
+# The suite is registered with the internal source/harness include directory
+# that harness_manual_time_test also carries.
+add_executable(harness_pause_test source/harness_pause_test.cpp)
+target_link_libraries(harness_pause_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_pause_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_pause_test PRIVATE cxx_std_23)
+add_test(NAME harness_pause_test COMMAND harness_pause_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
