@@ -303,6 +303,18 @@ Beyond the entries above, these are the places where this feature settled a ques
 
 ## Execution Log
 
+### CF-1 fixture pair state, measured by the lead, 2026-10-10
+
+The covering tests went first and the red state is recorded: with the
+runner handing the run state to the pair, `begin()` in `setUp` entered
+the timed loop legally, the child printed "the benchmark entered the
+timed loop twice" and exited 0, and the suite failed the check "the
+loop or skip operation in the fixture pair is a precondition violation
+(FR-017, FR-018)". The fix hands `callbackState` to `setUp` and
+`tearDown` in `source/harness/runner.cpp`; the order setup, setUp,
+callable, tearDown, teardown stands. The suite then passes: three
+re-exec abort modes and the read scenario of `ReadStateFixture/run/7`.
+
 ### Convergence pass, measured by the lead, 2026-10-10
 
 T054 to T057 close the four findings of the converge assessment. The dbc
@@ -591,3 +603,18 @@ rows. The tasks below are the remaining work.
 - [x] T055 Register and run the three untested fixture macros `SG_BENCHMARK_TEMPLATE_DEFINE_F`, `SG_BENCHMARK_TEMPLATE_METHOD_F`, and `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` in `test/source/harness_fixture_test.cpp`, asserting the `BaseClass<types>/Method` name for each path: the macros stand at `include/speedgun-ng/benchmark.hpp:1250,1322,1350` and expand independently of `SG_BENCHMARK_TEMPLATE_F`, and no test or example uses them, so T027's "each of the seven macros of FR-016 registers and runs" and the plan's C-6 row stand unmet for three of seven per FR-016, T027, plan: Test Plan C-6 (partial)
 - [x] T056 Guard the label prefix of `instanceName` against an empty label at `source/harness/family.cpp:226-229` — it appends `label:` unconditionally, so `argName("")` names the segment `:value`, while the cited revision guards `if (!arg_name.empty())` in the `BenchmarkInstance` constructor of `benchmark_api_internal.cc` and the spec's edge cases state "an empty label leaves its segment without a label" — and pin the row in a name-table case per the spec Edge Cases, FR-001, FR-010 (contradicts)
 - [x] T057 Record in the Deviations section that the `suite` and `caseName` fields are filled in `Runner::run` at `source/harness/runner.cpp:151-152`, not in `source/harness/report.cpp` as T033 and the plan's physical view state: the FR-021 behavior and `contracts/result-fields.md` are satisfied and tested, only the filling file differs, and the deviation is currently unrecorded per plan: physical view, T033 (partial)
+
+## Phase 11: Content fixes
+
+The content-fix pass of pull request #33. Each task is added and
+closed in the same commit as its fix, and the Execution Log records
+the red state of the covering test before the fix.
+
+- [x] T058 Hand the fixture pair the callback state: the runner passes
+  `callbackState` to `setUp` and `tearDown`, so `begin()`,
+  `skipWithError` and `skipWithMessage` are precondition violations in
+  the pair as FR-017 and `contracts/fixtures.md` state, the argument
+  and iteration reads stay legal, and the wrapping order stands; the
+  Q-5 entry in the spec records that one rule settled both pairs, and
+  the C-6 section of `docs/pages/harness.md` states the state and the
+  three rejected operations (FR-017, FR-018, R-05)

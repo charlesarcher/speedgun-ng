@@ -769,6 +769,10 @@ and the capability list at the end of this section.
 - Q-5 Callback state: what a setup or teardown callback, or a fixture
   `setUp`/`tearDown`, may do with the `State` it receives. Confirmed in
   the clarify session of 2026-10-09 and adopted in FR-018 and FR-017.
+  The same rule settled for both pairs: the state the runner hands the
+  fixture pair is the callback state, carrying the instance arguments
+  and the iteration count, and it rejects `begin()`, `skipWithError`
+  and `skipWithMessage`.
 - Q-6 Report shape for a suite: the console row keeps the H1 name
   column, and the suite and case pair reaches the caller as a field of
   the result value. Confirmed in the clarify session of 2026-10-09 and

@@ -30,3 +30,6 @@ speedgun-ng-*-specify-prompt.md
 *.a
 *.so
 *.log
+
+# Report captures written by harness suites run from the repository root
+harness_*_out.txt

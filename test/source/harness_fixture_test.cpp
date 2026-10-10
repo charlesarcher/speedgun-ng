@@ -573,10 +573,127 @@ auto templatePairScenario() -> void
         "the templated method reaches its body (FR-016)");
 }
 
+// The fixture pair receives the callback state of FR-018: the loop and
+// skip operations are precondition violations there, and the argument
+// and iteration reads are legal (FR-017, FR-018, R-05). These fixtures
+// are registered only in the re-exec modes and the read scenario, so
+// they stay out of the registry the other scenarios inspect.
+class BeginSetupFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State& state) -> void override { state.begin(); }
+};
+
+class SkipSetupFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State& state) -> void override
+  {
+    state.skipWithError("the setUp asks to skip");
+  }
+};
+
+class BeginTeardownFixture : public sg::Fixture
+{
+public:
+  auto tearDown(sg::State& state) -> void override { state.begin(); }
+};
+
+int readRange = -1;
+int readCount = -1;
+long long readIterations = -1;
+
+class ReadStateFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State& state) -> void override
+  {
+    readRange = static_cast<int>(state.range(0));
+    readCount = static_cast<int>(state.rangeCount());
+    readIterations = static_cast<long long>(state.iterations());
+  }
+};
+
+// The pair reads the instance arguments and the run's iteration count
+// from the state it receives (FR-017, FR-018).
+auto callbackStateScenario() -> void
+{
+  scriptedProvider();
+  auto handle = sg::registerFixtureBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "ReadStateFixture/run",
+      []() -> std::unique_ptr<sg::Fixture>
+      { return std::make_unique<ReadStateFixture>(); });
+  handle.arg(7);
+  captureRun({"--filter", "^ReadStateFixture/run/7$", "--iterations=1"});
+  check(readRange == 7, "setUp reads the instance argument (FR-017)");
+  check(readCount == 1, "setUp reads the argument count (FR-017)");
+  check(readIterations == 1, "setUp reads the iteration count (FR-017)");
+}
+
+// A precondition violation ends the process, so the abort modes run in
+// a re-exec of this binary and the parent reads only the exit status
+// (FR-017, FR-018).
+auto runAbortMode(const std::string& mode) -> void
+{
+  scriptedProvider();
+  const auto body = [](sg::State& state)
+  {
+    for (auto _ : state) {
+    }
+  };
+  if (mode == "begin-in-setup") {
+    auto handle = sg::registerFixtureBenchmark(
+        body,
+        "BeginSetupFixture/run",
+        []() -> std::unique_ptr<sg::Fixture>
+        { return std::make_unique<BeginSetupFixture>(); });
+    handle.iterations(1);
+    char arg0[] = "harness_fixture_test";
+    char filter[] = "--filter";
+    char pattern[] = "^BeginSetupFixture/run$";
+    char* argv[] = {arg0, filter, pattern};
+    (void)sg::speedgunMain(3, argv);
+  } else if (mode == "skip-in-setup") {
+    auto handle = sg::registerFixtureBenchmark(
+        body,
+        "SkipSetupFixture/run",
+        []() -> std::unique_ptr<sg::Fixture>
+        { return std::make_unique<SkipSetupFixture>(); });
+    handle.iterations(1);
+    char arg0[] = "harness_fixture_test";
+    char filter[] = "--filter";
+    char pattern[] = "^SkipSetupFixture/run$";
+    char* argv[] = {arg0, filter, pattern};
+    (void)sg::speedgunMain(3, argv);
+  } else if (mode == "begin-in-teardown") {
+    auto handle = sg::registerFixtureBenchmark(
+        body,
+        "BeginTeardownFixture/run",
+        []() -> std::unique_ptr<sg::Fixture>
+        { return std::make_unique<BeginTeardownFixture>(); });
+    handle.iterations(1);
+    char arg0[] = "harness_fixture_test";
+    char filter[] = "--filter";
+    char pattern[] = "^BeginTeardownFixture/run$";
+    char* argv[] = {arg0, filter, pattern};
+    (void)sg::speedgunMain(3, argv);
+  }
+  std::exit(0);
+}
+
 }  // namespace
 
-auto main() -> int
+auto main(int argc, char** argv) -> int
 {
+  if (argc > 1) {
+    runAbortMode(argv[1]);
+  }
+
   scriptedProvider();
 
   instanceNameScenario();
@@ -587,9 +704,23 @@ auto main() -> int
   templateScenario();
   templatePairScenario();
   disabledMethodScenario();
+  callbackStateScenario();
 
   check(queueConstructs == queueDestructs,
         "no fixture object outlives the run that built it (R-09)");
+
+  // The fixture pair receives the callback state: begin and the skip
+  // calls abort inside setUp and tearDown (FR-017, FR-018).
+  const std::string self = argc > 0 ? argv[0] : "harness_fixture_test";
+  for (const char* mode :
+       {"begin-in-setup", "skip-in-setup", "begin-in-teardown"})
+  {
+    const int status =
+        std::system(("\"" + self + "\" " + mode + " 2>/dev/null").c_str());
+    check(status != 0,
+          "the loop or skip operation in the fixture pair is a "
+          "precondition violation (FR-017, FR-018)");
+  }
 
   std::puts("harness_fixture_test: ok");
   return 0;

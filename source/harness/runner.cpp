@@ -343,7 +343,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // `setUp` and destroyed after `tearDown` when the scope ends, the
     // catch paths included. The pair runs in the untimed region, before
     // `begin()` opens the window and after the loop closes it, so its
-    // work adds nothing to the reported time (FR-017).
+    // work adds nothing to the reported time (FR-017). The pair
+    // receives the callback state, the one rule Q-5 settled for both
+    // pairs: the argument and iteration reads are legal there and the
+    // loop and skip operations are precondition violations (FR-017,
+    // FR-018).
     std::unique_ptr<Fixture> fixture;
     try {
       // R-10: the callback pair wraps the run, the setup callback
@@ -354,11 +358,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
       if (entry.fixtureFactory) {
         fixture = entry.fixtureFactory();
-        fixture->setUp(state);
+        fixture->setUp(callbackState);
       }
       entry.callable(state);
       if (fixture) {
-        fixture->tearDown(state);
+        fixture->tearDown(callbackState);
       }
       if (entry.teardown) {
         entry.teardown(callbackState);

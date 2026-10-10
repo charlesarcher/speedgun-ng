@@ -135,7 +135,11 @@ instance, `untimedScenario` checks the scripted `machine/monotonic`
 delta against the reported time, `oneObjectPerRunScenario` counts
 fixture constructions and destructions, `laterRegistrationScenario`
 covers the define-then-register pair, `templateScenario` covers
-`TypedFixture<int>/run`, and `disabledMethodScenario` covers the
+`TypedFixture<int>/run`, `templatePairScenario` covers the two split
+template pairs, `callbackStateScenario` reads the argument and iteration
+counts from the state of the pair and re-execs the binary to observe
+`begin()` and `skipWithError()` aborting inside the pair, and
+`disabledMethodScenario` covers the
 fixture exception of C-8.
 
 ## C-7: Setup and teardown callbacks
