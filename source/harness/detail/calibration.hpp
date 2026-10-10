@@ -72,12 +72,16 @@ inline auto fivefoldNs(const std::int64_t targetNs) -> std::int64_t
 }
 
 // FR-008: the run that meets any one of these conditions is the run the
-// phase stops at.
+// phase stops at. D-05: the fivefold condition compares the wall-clock
+// fold against the target, and a manual run has no clock fold to
+// compare, so the manual flag exempts that one condition.
 inline auto qualifies(const RunRecord& record,
                       const std::int64_t targetNs) -> bool
 {
-  return record.iterations >= kIterationCap || record.decisionNs >= targetNs
-      || record.realNs >= fivefoldNs(targetNs);
+  if (record.iterations >= kIterationCap || record.decisionNs >= targetNs) {
+    return true;
+  }
+  return !record.manual && record.realNs >= fivefoldNs(targetNs);
 }
 
 enum class GrowOutcome : std::uint8_t
