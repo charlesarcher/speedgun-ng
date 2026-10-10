@@ -21,6 +21,21 @@ needs no hardware: every test runs on the fake provider. [...] This
 spec extends that surface. It replaces no H1 signature without a
 recorded version effect."
 
+## Clarifications
+
+### Session 2026-10-09
+
+- Q: When the report splits an instance name into a suite and a case, what should the suite field be? → A: The family name up to its first `/` is the suite, and a fixture instance takes its fixture class as the suite. The case is the instance name with the leading suite and its `/` removed.
+- Q: How should the harness react when a family call carries an invalid argument - a range multiplier below 2, a low bound above the high bound, or a `denseRange` step of zero? → A: A `SG_REQUIRE` precondition violation, enforced in source, as every other contract check in the library.
+- Q: What should happen when one family expands to more than 100 instances? → A: One warning with the bound of the cited revision, the instances kept, and the run continues.
+- Q: What version and `SOVERSION` should this feature ship, given that `State` gains argument storage and so changes layout? → A: Version 0.7.0, the harness `SOVERSION` up from 2 to 3, the counters archive unchanged at 2.
+- Q: What may a setup or teardown callback, or a fixture `setUp`/`tearDown`, do with the `State` it receives? → A: Read the instance arguments and the iteration count. `begin()`, `end()`, and the skip methods are precondition violations in that state, which stays a `State&` with no new public view type.
+- Q: When an instance carries a suite and a case, how does the console report show that split? → A: Row order only. The report keeps the H1 single name column carrying the full instance name, and the suite and case pair becomes a readable field of the result value the harness exposes.
+- Q: Which capabilities do C-1 through C-10 name? → A: C-1 argument families, C-2 instance names, C-3 argument access, C-4 capture, C-5 templates, C-6 fixtures, C-7 setup and teardown callbacks, C-8 the `DISABLED_` prefix, C-9 suite and case naming, C-10 examples and documentation. Scope carries the table mapping each to its requirements.
+- Q: Where does the harness report a duplicate instance name found at expansion, and does it change the exit status? → A: One line on the standard error stream naming both instance names, the later instance dropped, and the exit status unchanged, as H1 treats a registration duplicate.
+- Q: What types does the argument surface carry: one family argument, the range index and its return value, the argument-count method, and the lists the free range builders build? → A: `std::int64_t` arguments; `range(index)` takes a `std::size_t` and returns a `std::int64_t`; the count method returns a `std::size_t`; `createRange` and `createDenseRange` build `std::vector<std::int64_t>`.
+- Q: Does a fixture's `setUp`/`tearDown` pair run around every run of its instance, warm-up and calibration included, or only around its measured runs? → A: Every run, the warm-up, calibration, and measured runs included, the single rule FR-018 already gives the callbacks.
+
 ## Audit point
 
 | Field | Value |
@@ -330,8 +345,9 @@ counts, the scripted clock deltas, and the grouped report.
    it, once per run. The scripted clock deltas show their work adds
    nothing to the reported time.
 2. **Given** two fixture instances of one fixture class, **When** the
-   report prints, **Then** both rows carry the fixture class as their
-   suite. The rows group under it in registration order.
+   report prints, **Then** both instances carry the fixture class as
+   their suite, and their rows print in registration order under the
+   H1 row shape.
 3. **Given** `SG_BENCHMARK_DEFINE_F` defining a method and
    `SG_BENCHMARK_REGISTER_F` registering it later, **When** the suite
    runs, **Then** the instance runs named `FixtureClass/Method`.
@@ -426,10 +442,12 @@ listing and filter follow C-8.
 - **FR-001**: The handle shall offer the family calls `arg`, `args`,
   `range`, `rangeMultiplier`, `ranges`, `denseRange`, `argsProduct`,
   `apply`, `argName`, and `argNames` in lowerCamelCase. Each call
-  shall expand with the semantics of the cited revision.
+  shall expand with the semantics of the cited revision. Every family
+  argument is a `std::int64_t`.
 - **FR-002**: The free functions `createRange` and `createDenseRange`
   shall build argument lists with the semantics of the cited
-  revision. A family call shall accept a list they build.
+  revision. A family call shall accept a list they build. Each such
+  list is a `std::vector<std::int64_t>`.
 - **FR-003**: Each family call shall expand into the instance set of
   the cited revision. Expansion, naming, and every allocation shall
   complete at the start of `speedgunMain`, before the filter and the
@@ -446,16 +464,18 @@ listing and filter follow C-8.
   or label count unequal to the family arity is also a violation. The
   step check goes beyond the cited revision. Under the ignore
   semantic these checks emit no code, and a `denseRange` step of zero
-  then never ends. (Q-2 adopted.)
+  then never ends. (Q-2 confirmed.)
 - **FR-007**: A family that expands to more than 100 instances shall
   draw one warning with the bound of the cited revision. Its instances
-  shall stay. (Q-3 adopted.)
+  shall stay. (Q-3 confirmed.)
 
 ### Argument access
 
 - **FR-008**: The state shall report the argument count of the current
-  instance and each argument by index through `range(index)`. A read
-  shall allocate nothing.
+  instance and each argument by index through `range(index)`. The index
+  is a `std::size_t`, the argument and the count method return a
+  `std::int64_t` and a `std::size_t`. A read shall allocate nothing.
+  (Q-8 confirmed.)
 - **FR-009**: The timed loop shall stay as H1 left it: no added work,
   no allocation, no lock, no contract check. The loop-shape gate of
   H1 shall stay green.
@@ -471,8 +491,10 @@ listing and filter follow C-8.
 - **FR-012**: Two instances with one name shall be a recoverable
   error at the H1 duplicate tier, found at expansion. The instance of
   the earlier registration shall stay. The later instance shall not
-  run, and every other instance shall run. The cited revision has no
-  such check.
+  run, and every other instance shall run. The error shall print one
+  line on the standard error stream naming both instance names, and the
+  exit status shall stay as H1 FR-036 fixes it. The cited revision has
+  no such check. (Q-7 confirmed: standard error, status unchanged.)
 
 ### Capture and templates
 
@@ -496,22 +518,32 @@ listing and filter follow C-8.
   definition, registration, and naming behavior of the cited
   revision.
 - **FR-017**: Fixture `setUp` and `tearDown` shall run in the untimed
-  region of each run, resting on the H1 FR-005 and FR-017 rule.
+  region of each run, the warm-up, calibration, and measured runs
+  included, resting on the H1 FR-005 and FR-017 rule. The state handed
+  to them follows the FR-018 rule for a callback state. (Q-9 confirmed:
+  every run, the one rule the callbacks carry.)
 
 ### Setup and teardown callbacks
 
 - **FR-018**: The handle shall accept setup and teardown callbacks.
   Each shall run once around each run, the warm-up, calibration, and
   measured runs included, in the untimed region. The state handed to a
-  callback shall carry the instance arguments.
+  callback shall carry the instance arguments. In that state reading
+  the instance arguments and the iteration count is legal, and
+  `begin()`, `end()`, `skipWithError`, and `skipWithMessage` are
+  precondition violations. The state stays a `State&`; no new public
+  view type enters the surface.
 - **FR-019**: This spec runs one thread. The once-per-thread-group
   rule stays with the threads spec of the roadmap.
 
 ### Disabled benchmarks
 
-- **FR-020**: A family name with the `DISABLED_` prefix shall register
-  and never run. The filter shall not match it and list mode shall not
-  print it, as the cited revision treats it.
+- **FR-020**: An instance whose expanded instance name starts with the
+  `DISABLED_` prefix shall register and never run. The filter shall not
+  match it and list mode shall not print it, as the cited revision
+  treats it. A family whose name carries the prefix expands to such
+  instances; a fixture method named `DISABLED_x` does not, because that
+  instance name starts with the fixture class.
 
 ### Suite and case naming
 
@@ -519,9 +551,14 @@ listing and filter follow C-8.
   A fixture instance shall take the fixture class as its suite. The
   report shall print suites in the order of their first registered
   instance. Rows within one suite shall keep registration order. The
-  pair of suite and case shall be unique for each instance. The JSON
-  report of the roadmap shall reuse these two fields. (Q-1 adopted:
-  the family name up to its first `/` is the suite.)
+  pair of suite and case shall be unique for each instance. The result
+  value the harness exposes shall carry the suite and the case of its
+  instance, and that value is where the split is readable: the console
+  row keeps the H1 shape, one name column carrying the full instance
+  name. The JSON report of the roadmap shall reuse these two fields.
+  (Q-1 confirmed: the family name up to its first `/` is the suite;
+  Q-6 confirmed: row order alone, the pair readable on the result
+  value.)
 
 ### Surface, version, and discipline
 
@@ -537,11 +574,12 @@ listing and filter follow C-8.
 - **FR-025**: Every time and counter value shall come from the
   counters library; the time-source gate shall stay clean.
 - **FR-026**: The feature shall release version 0.7.0, the next minor
-  above 0.6.0. `State` gains argument storage, so its layout changes.
+  above 0.6.0. `State` gains argument storage and the result value
+  gains the suite and case fields, so both layouts change.
   Under the hand-kept rule of `CMakeLists.txt:41-47`, the harness
   `SOVERSION` shall rise from 2 to 3. The counters archive keeps
   `SOVERSION` 2. The plan's version table shall record both. (Q-4
-  adopted.)
+  confirmed.)
 - **FR-027**: `example/benchmark_example.cpp` shall gain one argument
   family, one fixture, and one templated benchmark. A new page,
   `docs/pages/harness.md`, shall hold one section for each capability
@@ -563,9 +601,10 @@ listing and filter follow C-8.
 - **Instance**: one point of a family: the argument vector, the
   instance name, the suite name, and the case name. It is what the
   filter selects, what the runner runs, and what the report prints.
+  The suite and case reach the caller as fields of the result value.
 - **State argument view**: the read-only view of the current
   instance's arguments carried by `State`, fixed at expansion and
-  unchanged through a run.
+  unchanged through a run. The arguments are `std::int64_t` values.
 - **Fixture**: a user class derived from `sg::Fixture`, contributing
   `setUp` and `tearDown` around each run and its class name as the
   suite of its instances.
@@ -582,15 +621,18 @@ listing and filter follow C-8.
   form, capture, and template case. The filter selects exactly the
   matching instances.
 - **SC-004**: A duplicate instance name is a recoverable error, and
-  the first registration stays.
+  the first registration stays. A test observes the standard error line
+  and the run's exit status.
 - **SC-005**: Fixture `setUp` and `tearDown` and the setup and
-  teardown callbacks run once around each run. Scripted clock deltas
+  teardown callbacks run once around each run, the warm-up and
+  calibration runs included. Scripted clock deltas
   show that their work adds nothing to the reported time.
 - **SC-006**: A `DISABLED_` family runs no function, and list mode and
   the filter follow FR-020.
 - **SC-007**: The report prints suites in the order of their first
   registered instance, and rows within one suite keep registration
-  order.
+  order. A test observes that order through the suite and case fields
+  of the result value; the console row shape stays as H1 fixed it.
 - **SC-008**: Every hard gate of Principle VIII passes at the feature
   head, the time-source gate and the loop-shape gate included.
 - **SC-009**: The version and `SOVERSION` follow FR-026, and the
@@ -599,7 +641,24 @@ listing and filter follow C-8.
 ## Scope
 
 In: FR-001 through FR-030, a test for each capability C-1 through
-C-10, and the version effect of FR-026.
+C-10, and the version effect of FR-026. The ten capabilities, with the
+requirements that carry each:
+
+| Capability | Requirements |
+| --- | --- |
+| C-1 argument families | FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007 |
+| C-2 instance names | FR-010, FR-011, FR-012 |
+| C-3 argument access | FR-008, FR-009 |
+| C-4 capture | FR-013 |
+| C-5 templates | FR-014 |
+| C-6 fixtures | FR-015, FR-016, FR-017 |
+| C-7 setup and teardown callbacks | FR-018, FR-019 |
+| C-8 the `DISABLED_` prefix | FR-020 |
+| C-9 suite and case naming | FR-021 |
+| C-10 examples and documentation | FR-027 |
+
+FR-022 through FR-030 bind the whole surface and carry no capability
+id.
 
 Out, each owned by a later roadmap spec:
 
@@ -610,8 +669,10 @@ Out, each owned by a later roadmap spec:
 
 ## Assumptions
 
-- The recommendations of Q-1 through Q-4 stand as the working
-  defaults, and the open questions below carry them to clarify.
+- The Q-1 to Q-9 recommendations and confirmations of the clarify
+  session of 2026-10-09 stand as the adopted decisions; the Open
+  questions section records each, and the Clarifications section carries
+  the question and the answer for each.
 - The argument-count method on the state is named `rangeCount()`; the
   request names `range(index)` and leaves the count unnamed, and
   `range_size` is not a V.2 exception.
@@ -624,7 +685,8 @@ Out, each owned by a later roadmap spec:
   suite and case.
 - A callback's state is a harness-built state carrying the instance
   arguments, mirroring the temporary state the cited revision hands
-  the callbacks. It opens no sampling window.
+  the callbacks. It opens no sampling window, so the loop and skip
+  operations of it are precondition violations (clarify session).
 - The template name form stringifies the type arguments exactly as
   written at the macro site, as the cited revision does; no
   demangling.
@@ -682,19 +744,45 @@ File and line citations, read at the audit point `30f3118`.
 
 The request carries four questions to clarify. Each has a
 recommendation, the spec adopts the recommendation as the working
-default, and clarify confirms or replaces it.
+default, and clarify confirms or replaces it. The clarify session of
+2026-10-09 settled five more the spec had left open, Q-5 through Q-9,
+and the capability list at the end of this section.
 
 - Q-1 Suite and case source: Google Benchmark has no suite field.
   Recommendation: the family name up to its first `/` is the suite,
-  and the fixture class is the suite for a fixture instance. Adopted
-  in FR-021.
+  and the fixture class is the suite for a fixture instance.
+  Confirmed in the clarify session of 2026-10-09 and adopted in
+  FR-021.
 - Q-2 Invalid family arguments, for example a multiplier below 2 or a
   low bound above the high bound: Google Benchmark aborts.
   Recommendation: a `SG_REQUIRE` precondition, since the values come
-  from code. Adopted in FR-006.
+  from code. Confirmed in the clarify session of 2026-10-09 and
+  adopted in FR-006.
 - Q-3 Large families: Google Benchmark warns above 100 instances in
   one family. Recommendation: keep the warning with the same bound.
-  Adopted in FR-007.
+  Confirmed in the clarify session of 2026-10-09 and adopted in
+  FR-007.
 - Q-4 Version: Recommendation: the next minor version, and `SOVERSION`
-  up by one when `State` or `BenchmarkHandle` changes layout. Adopted
-  in FR-026.
+  up by one when `State` or `BenchmarkHandle` changes layout.
+  Confirmed in the clarify session of 2026-10-09 and adopted in
+  FR-026.
+- Q-5 Callback state: what a setup or teardown callback, or a fixture
+  `setUp`/`tearDown`, may do with the `State` it receives. Confirmed in
+  the clarify session of 2026-10-09 and adopted in FR-018 and FR-017.
+- Q-6 Report shape for a suite: the console row keeps the H1 name
+  column, and the suite and case pair reaches the caller as a field of
+  the result value. Confirmed in the clarify session of 2026-10-09 and
+  adopted in FR-021, FR-026, SC-007, and Key Entities.
+- Q-7 Duplicate at expansion: one line on the standard error stream and
+  an unchanged exit status. Confirmed in the clarify session of
+  2026-10-09 and adopted in FR-012 and SC-004.
+- Q-8 Argument surface types: `std::int64_t` arguments, a `std::size_t`
+  index, a `std::size_t` count, and `std::vector<std::int64_t>` lists.
+  Confirmed in the clarify session of 2026-10-09 and adopted in FR-001,
+  FR-002, FR-008, and Key Entities.
+- Q-9 Fixture pair scope: every run, the warm-up and calibration runs
+  included. Confirmed in the clarify session of 2026-10-09 and adopted
+  in FR-017 and SC-005.
+- Capability list: the ten capabilities behind `C-1` through `C-10` are
+  the table Scope carries, each mapped to the requirements that hold it.
+  Confirmed in the clarify session of 2026-10-09.
