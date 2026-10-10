@@ -675,6 +675,20 @@ target_link_libraries(harness_real_time_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_real_time_test PRIVATE cxx_std_23)
 add_test(NAME harness_real_time_test COMMAND harness_real_time_test)
 
+# Manual time as the primary time of a family (T017; US3, C-4, FR-006,
+# FR-007, FR-008, SC-001). The benchmark hands the harness one nanosecond
+# count per iteration, the harness sums those counts, and the sum over the
+# run's iteration count fills the real column, so the growth rule grows on
+# the accepted sum while the fivefold stop stands exempt. Each scripted
+# scenario owns one provider script, so it runs in a re-exec of this binary
+# and the parent reads the wait status. The suite reads the calibration
+# header at the internal seam the way harness_growth_test does.
+add_executable(harness_manual_time_test source/harness_manual_time_test.cpp)
+target_link_libraries(harness_manual_time_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_manual_time_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_manual_time_test PRIVATE cxx_std_23)
+add_test(NAME harness_manual_time_test COMMAND harness_manual_time_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
