@@ -56,6 +56,8 @@ int instanceRuns = 0;
 // Unsigned because state.iterations() is unsigned, so the accumulation in
 // the body needs no signed conversion (-Wsign-conversion).
 std::uint64_t captureSum = 0;
+int capChainCaptured = 0;
+int capChainRange0 = -1;
 
 auto addTwo(sg::State& state, int a, int b) -> void
 {
@@ -129,6 +131,17 @@ auto captureRun(const std::vector<std::string>& arguments,
   std::stringstream buffer;
   buffer << file.rdbuf();
   return buffer.str();
+}
+
+// The body of the chained-site case: one captured value and one family
+// argument chained at the macro site (FR-013).
+auto bmCapChain(sg::State& state, int captured) -> void
+{
+  capChainCaptured = captured;
+  capChainRange0 = static_cast<int>(state.range(0));
+  ++instanceRuns;
+  for (auto _ : state) {
+  }
 }
 
 auto readFile(const char* path) -> std::string
@@ -288,6 +301,26 @@ auto duplicateScenario(const std::string& self) -> void
         "every other instance still runs (FR-012)");
 }
 
+// FR-013: the chained capture site runs one instance named by the
+// capture, and the body reads both the captured value and the family
+// argument.
+auto chainedCaptureScenario() -> void
+{
+  SG_BENCHMARK_CAPTURE(bmCapChain, pair, 2).arg(4);
+
+  const std::string listed = captureRun({"--list"});
+  check(lineOf(listed, "bmCapChain/pair/4") == "bmCapChain/pair/4",
+        "the chained capture site names bmCapChain/pair/4 (FR-013)");
+  const int before = instanceRuns;
+  const std::string run =
+      captureRun({"--filter", "^bmCapChain/pair/4$", "--iterations=1"});
+  check(linesOf(run, "bmCapChain/pair/4").size() == 1,
+        "the chained capture site runs one instance (FR-013)");
+  check(instanceRuns - before == 1, "the run reaches the body (FR-013)");
+  check(capChainCaptured == 2 && capChainRange0 == 4,
+        "the body reads the captured value and range(0) (FR-013)");
+}
+
 }  // namespace
 
 auto main(const int argc, char** argv) -> int
@@ -320,6 +353,7 @@ auto main(const int argc, char** argv) -> int
   captureNameScenario();
   capturedValuesScenario();
   twoCapturesScenario();
+  chainedCaptureScenario();
   duplicateScenario(self);
 
   std::puts("harness_capture_macro_test: ok");

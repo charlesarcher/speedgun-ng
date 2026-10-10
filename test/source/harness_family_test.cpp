@@ -57,6 +57,17 @@ auto bmFamily(sg::State& state) -> void
   }
 }
 
+// The chained registration form of FR-013: the macro yields the
+// registration handle, and the family call chains at the site.
+auto bmChain(sg::State& state) -> void
+{
+  ++familyRuns;
+  for (auto _ : state) {
+  }
+}
+
+SG_BENCHMARK(bmChain).range(8, 64);
+
 auto captureRun(const std::vector<std::string>& arguments,
                 int expected = 0) -> std::string
 {
@@ -425,6 +436,11 @@ auto main(const int argc, char** argv) -> int
            "(FR-001 to FR-005)");
     }
   }
+
+  // FR-013: the chained macro site expands like a runtime family.
+  check(namesUnder(listed, "bmChain")
+            == std::vector<std::string> {"bmChain/8", "bmChain/64"},
+        "the chained SG_BENCHMARK site expands to the range set (FR-013)");
 
   // FR-003 again from the other side: the filter reads instance names, so
   // the expansion it selects against was already complete.

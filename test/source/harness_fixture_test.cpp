@@ -87,6 +87,9 @@ int typedTearDowns = 0;
 int typedRuns = 0;
 int boxRuns = 0;
 int bufferRuns = 0;
+int chainRuns = 0;
+int chainSetUps = 0;
+int chainTearDowns = 0;
 int disabledRuns = 0;
 
 // The provider of every scenario, kept by pointer so a scenario can read the
@@ -182,6 +185,25 @@ class BoxFixture : public sg::Fixture
 {
 };
 
+// The fixture whose family is stated by a chained registration site:
+// SG_BENCHMARK_REGISTER_F yields the handle and denseRange expands the
+// fixture record like any family record (FR-016).
+class ChainFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State& state) -> void override
+  {
+    (void)state;
+    ++chainSetUps;
+  }
+
+  auto tearDown(sg::State& state) -> void override
+  {
+    (void)state;
+    ++chainTearDowns;
+  }
+};
+
 // The fixture whose method carries the DISABLED_ prefix, which the prefix
 // test of R-11 never reaches because the instance name starts with the class
 // name (FR-020).
@@ -253,7 +275,18 @@ SG_BENCHMARK_TEMPLATE_METHOD_F(BufferFixture, touch)
   }
 }
 
-SG_BENCHMARK_TEMPLATE_INSTANTIATE_F(BufferFixture, touch, int);
+SG_BENCHMARK_TEMPLATE_INSTANTIATE_F(BufferFixture, touch, int).arg(5);
+
+SG_BENCHMARK_DEFINE_F(ChainFixture, m)
+
+(sg::State& state)
+{
+  ++chainRuns;
+  for (auto _ : state) {
+  }
+}
+
+SG_BENCHMARK_REGISTER_F(ChainFixture, m).denseRange(1, 3);
 
 SG_BENCHMARK_F(DisabledFixture, DISABLED_x)
 
@@ -551,10 +584,10 @@ auto templatePairScenario() -> void
   check(lineOf(listed, "BoxFixture<int>/fill") == "BoxFixture<int>/fill",
         "TEMPLATE_DEFINE_F plus REGISTER_F registers the instance named "
         "BoxFixture<int>/fill (FR-016)");
-  check(lineOf(listed, "BufferFixture<int>/touch")
-            == "BufferFixture<int>/touch",
+  check(lineOf(listed, "BufferFixture<int>/touch/5")
+            == "BufferFixture<int>/touch/5",
         "TEMPLATE_METHOD_F plus TEMPLATE_INSTANTIATE_F registers the "
-        "instance named BufferFixture<int>/touch (FR-016)");
+        "instance named BufferFixture<int>/touch/5 (FR-016)");
 
   const int fillBefore = boxRuns;
   const std::string fill =
@@ -565,9 +598,9 @@ auto templatePairScenario() -> void
         "the defined method reaches its body (FR-016)");
 
   const int touchBefore = bufferRuns;
-  const std::string touch =
-      captureRun({"--filter", "^BufferFixture<int>/touch$", "--iterations=1"});
-  check(runRowsOf(touch, "BufferFixture<int>/touch").size() == 1,
+  const std::string touch = captureRun(
+      {"--filter", "^BufferFixture<int>/touch/5$", "--iterations=1"});
+  check(runRowsOf(touch, "BufferFixture<int>/touch/5").size() == 1,
         "the method pair runs and prints one row (FR-016)");
   check(bufferRuns - touchBefore == 1,
         "the templated method reaches its body (FR-016)");
@@ -686,6 +719,29 @@ auto runAbortMode(const std::string& mode) -> void
   std::exit(0);
 }
 
+// FR-016: the chained registration site expands the fixture record like
+// any family record. Three instances run, each with its own pair, and the
+// instance names carry the argument segment.
+auto chainedFixtureScenario() -> void
+{
+  scriptedProvider();
+  const std::string listed = captureRun({"--list"});
+  for (const char* name :
+       {"ChainFixture/m/1", "ChainFixture/m/2", "ChainFixture/m/3"})
+  {
+    check(lineOf(listed, name) == name,
+          "the chained REGISTER_F site expands one instance per argument "
+          "(FR-016)");
+  }
+
+  const std::string run =
+      captureRun({"--filter", "^ChainFixture/m/", "--iterations=1"});
+  check(runRowsOf(run, "ChainFixture/m/").size() == 3,
+        "the chained fixture family runs three instances (FR-016)");
+  check(chainSetUps == 3 && chainTearDowns == 3 && chainRuns == 3,
+        "each instance gets its own pair (FR-016, FR-017)");
+}
+
 }  // namespace
 
 auto main(int argc, char** argv) -> int
@@ -703,6 +759,7 @@ auto main(int argc, char** argv) -> int
   laterRegistrationScenario();
   templateScenario();
   templatePairScenario();
+  chainedFixtureScenario();
   disabledMethodScenario();
   callbackStateScenario();
 

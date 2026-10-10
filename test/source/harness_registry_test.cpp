@@ -129,7 +129,7 @@ auto lineOf(const std::string& report, const std::string& name) -> std::string
 
 }  // namespace
 
-SG_BENCHMARK(bmRegistered)
+SG_BENCHMARK(bmRegistered);
 
 auto main(const int argc, char** argv) -> int
 {

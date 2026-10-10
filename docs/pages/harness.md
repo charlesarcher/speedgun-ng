@@ -8,6 +8,14 @@ needs a PMU.
 
 ## C-1: Argument families
 
+The five registration macros `SG_BENCHMARK`,
+`SG_BENCHMARK_CAPTURE`, `SG_BENCHMARK_TEMPLATE`,
+`SG_BENCHMARK_REGISTER_F` and `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F`
+each declare one handle initialized by the registration, so the
+family calls chain at the site and the site ends with `;`:
+`SG_BENCHMARK(fn).range(8, 1024);`. A site with no chain reads
+`SG_BENCHMARK(fn);`.
+
 The ten family calls stand on `BenchmarkHandle` and each returns the
 handle for chaining: `arg`, the two `args` overloads over an
 `std::initializer_list` and an `std::vector`, `range`,
@@ -35,7 +43,8 @@ Coverage: `test/source/harness_family_test.cpp`. The `FamilyCase` table
 asserts the instance set of every call through list mode, with rows
 `bmArg`, `bmArgsList`, `bmArgsVector`, `bmRange`, `bmHalf`, `bmLater`,
 `bmRanges`, `bmDense`, `bmStepped`, `bmProduct`, `bmApplied`,
-`bmLabelled`, `bmNamed`, `bmBuilt`, `bmBuiltScaled`, and `bmBuiltDense`.
+`bmLabelled`, `bmNamed`, `bmBuilt`, `bmBuiltScaled`, `bmBuiltDense`,
+and the chained site `bmChain`.
 The `oversize` re-exec mode asserts the single warning naming the bound
 and the unchanged exit status, and the re-exec modes `bad-multiplier`,
 `bad-range`, `bad-step`, `bad-argnames`, `bad-apply`, and `bad-builder`
@@ -88,14 +97,18 @@ observe the precondition violations through the `range-zero-args` and
 the captured values bound into the callable, under the instance name
 `fn/captureName`. The capture name is one name segment, and the
 instance takes part in the filter, list mode, and duplicate handling of
-C-2 like any other instance.
+C-2 like any other instance. The registration yields the handle, so a
+site chains family calls: `SG_BENCHMARK_CAPTURE(fn, pair, 2).arg(4);`
+registers `fn/pair/4`.
 
 Coverage: `test/source/harness_capture_macro_test.cpp`.
 `captureNameScenario` lists `addTwo/pair` and no further name under it,
 `capturedValuesScenario` runs the instance and checks the sum of the
 captured values, `twoCapturesScenario` registers `fn` twice under
-`captureA` and `captureB`, and `duplicateScenario` shows a capture name
-clashing with a family instance at the duplicate tier.
+`captureA` and `captureB`, `chainedCaptureScenario` registers
+`bmCapChain/pair/4` through a chained site and reads the captured
+value and the argument from the state, and `duplicateScenario` shows a
+capture name clashing with a family instance at the duplicate tier.
 
 ## C-5: Templates
 
@@ -103,15 +116,18 @@ clashing with a family instance at the duplicate tier.
 instantiated over one or more type arguments, under the instance name
 `fn<` followed by the type list stringified exactly as written at the
 macro site, followed by `>`. There is no demangling: the spacing at the
-macro site is the spacing in the name.
+macro site is the spacing in the name. The registration yields the
+handle, so a site chains family calls:
+`SG_BENCHMARK_TEMPLATE(fn, int).arg(8);` registers `fn<int>/8`.
 
 Coverage: `test/source/harness_template_test.cpp`.
 `singleTypeArgumentScenario` asserts `sortOf<int>`,
 `twoTypeArgumentsScenario` asserts `sortOf<int, double>` with the comma
 spacing of the macro site, `qualifiedTypeArgumentScenario` asserts
-`pairOf<std::pair<int, int>>`, and `instantiationRunsScenario` runs
-each of the three instances and checks that the reached instantiation
-carries the named types.
+`pairOf<std::pair<int, int>>`, `chainedSiteScenario` registers
+`chainOf<int>/8` through a chained site and reads `range(0)`, and
+`instantiationRunsScenario` runs each of the three instances and checks
+that the reached instantiation carries the named types.
 
 ## C-6: Fixtures
 
@@ -126,7 +142,14 @@ is named `FixtureClass/Method`, and a template fixture instance is
 named `BaseClass<types>/Method`. The pair runs in the untimed region of
 every run, the warm-up, calibration, and measured runs included, and
 the runner builds one fixture object per run and destroys it after
-`tearDown`.
+`tearDown`. The state the pair receives is the callback state of C-7:
+`range(index)`, `rangeCount()` and `iterations()` are legal in it,
+while `begin()`, `skipWithError` and `skipWithMessage` are `SG_REQUIRE`
+precondition violations. `SG_BENCHMARK_REGISTER_F` and
+`SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` yield the handle, so a fixture
+family chains its family calls at the site:
+`SG_BENCHMARK_REGISTER_F(F, m).denseRange(1, 3);` expands the fixture
+record like any family record, one instance per argument list.
 
 Coverage: `test/source/harness_fixture_test.cpp`. `instanceNameScenario`
 asserts `QueueFixture/push` in list mode, `pairPerRunScenario` counts
@@ -138,7 +161,9 @@ covers the define-then-register pair, `templateScenario` covers
 `TypedFixture<int>/run`, `templatePairScenario` covers the two split
 template pairs, `callbackStateScenario` reads the argument and iteration
 counts from the state of the pair and re-execs the binary to observe
-`begin()` and `skipWithError()` aborting inside the pair, and
+`begin()` and `skipWithError()` aborting inside the pair,
+`chainedFixtureScenario` expands a chained `SG_BENCHMARK_REGISTER_F`
+site into three instances each with its own pair, and
 `disabledMethodScenario` covers the
 fixture exception of C-8.
 

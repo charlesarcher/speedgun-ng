@@ -77,6 +77,7 @@ auto argNames(std::vector<std::string> labels) -> BenchmarkHandle&;
 ## Registration macros (FR-013, FR-014)
 
 ```cpp
+#define SG_BENCHMARK(fn)                            // handle; chain, end with ;
 #define SG_BENCHMARK_CAPTURE(fn, captureName, ...)  // one instance, name fn/captureName
 #define SG_BENCHMARK_TEMPLATE(fn, ...)              // one instance, name fn<types as written>
 ```
@@ -86,7 +87,8 @@ auto argNames(std::vector<std::string> labels) -> BenchmarkHandle&;
 | `SG_BENCHMARK_CAPTURE` shall register one function under the family name `fn/captureName`, as `BENCHMARK_CAPTURE` does (`registration.h:69-75`), and the captured values shall reach the function. | FR-013 |
 | `SG_BENCHMARK_TEMPLATE` shall instantiate a function template over one or more type arguments and name the instance `fn<` plus the stringified type list plus `>`, as `BENCHMARK_TEMPLATE` does (`registration.h:101-107`). | FR-014 |
 | The stringification shall carry the type arguments exactly as written at the macro site (R-13). | FR-014 |
-| Generated identifiers shall follow the `SG_BENCHMARK` shape `SgBenchmarkRegistrar_##fn` (`benchmark.hpp:582-593`, R-13). | FR-013, FR-014 |
+| Each of the five registration macros shall expand to a namespace-scope declaration of one `sg::BenchmarkHandle` initialized from the registration call, leaving that call as the last token sequence, so a site chains family calls after the macro and ends with `;`: `SG_BENCHMARK(fn).range(8, 1024);`. | FR-013, FR-014, FR-016, FR-022 |
+| Generated identifiers shall follow the `SG_BENCHMARK` shape `sgBenchmarkRegistrar_##fn` plus the source line through the `SG_BENCHMARK_EXPAND` paste chain (`benchmark.hpp`, R-13). | FR-013, FR-014 |
 
 ## Expansion and instance names (FR-003, FR-010, FR-012)
 

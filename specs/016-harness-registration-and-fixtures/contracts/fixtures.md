@@ -41,7 +41,8 @@ public:
 | The seven macros shall exist under the `SG_` prefix with the behavior of `BENCHMARK_F`, `BENCHMARK_DEFINE_F`, `BENCHMARK_REGISTER_F`, `BENCHMARK_TEMPLATE_F`, `BENCHMARK_TEMPLATE_DEFINE_F`, `BENCHMARK_TEMPLATE_METHOD_F`, and `BENCHMARK_TEMPLATE_INSTANTIATE_F` at the cited revision (`registration.h:121-163`). | FR-016 |
 | A fixture instance shall be named `FixtureClass/Method`; a template fixture instance shall be named `BaseClass<types>/Method` (`registration.h:121-130,154-163`, R-13). | FR-016 |
 | `SG_BENCHMARK_DEFINE_F` followed by `SG_BENCHMARK_REGISTER_F` shall register the method later under the same name. | FR-016 |
-| Generated identifiers shall follow the `SG_BENCHMARK` shape `SgBenchmarkRegistrar_##fn` (`benchmark.hpp:582-593`, R-13); they carry no leading underscore and no `__`. | FR-016, FR-023 |
+| `SG_BENCHMARK_REGISTER_F` and `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` shall expand to a namespace-scope declaration of one `sg::BenchmarkHandle` initialized from the registration call, leaving that call as the last token sequence, so a fixture family chains its family calls at the site: `SG_BENCHMARK_REGISTER_F(F, m).denseRange(1, 3);`. The fixture record then expands like any family record, one instance per argument list. | FR-016 |
+| Generated identifiers shall follow the `SG_BENCHMARK` shape `sgBenchmarkRegistrar_##fn` (`benchmark.hpp`, R-13); they carry no leading underscore and no `__`. | FR-016, FR-023 |
 
 ## Timing of the pair (FR-017)
 

@@ -50,6 +50,7 @@ auto check(const bool cond, const char* what) -> void
 // The count of benchmark functions the selections of this test reached.
 // List mode has to leave it at zero.
 int instanceRuns = 0;
+int chainRange0 = -1;
 
 // The type names the bodies recorded, in the order the bodies ran. Each
 // instantiation contributes the string the compiler chose for it, so the
@@ -104,6 +105,17 @@ auto pairOf(sg::State& state) -> void
   for (auto _ : state) {
   }
   instantiated.push_back(typeName<T>());
+}
+
+// The body of the chained-site case: one type argument, one family call
+// chained at the macro site (FR-014).
+template<typename... T>
+auto chainOf(sg::State& state) -> void
+{
+  ++instanceRuns;
+  chainRange0 = static_cast<int>(state.range(0));
+  for (auto _ : state) {
+  }
 }
 
 auto readFile(const char* path) -> std::string
@@ -279,14 +291,32 @@ auto instantiationRunsScenario() -> void
   }
 }
 
+auto chainedSiteScenario() -> void
+{
+  const std::string listed = captureRun({"--list"});
+  check(
+      lineOf(listed, "chainOf<int>/8") == "chainOf<int>/8",
+      "the chained SG_BENCHMARK_TEMPLATE site names chainOf<int>/8 " "(FR-"
+                                                                     "014)");
+  const int before = instanceRuns;
+  const std::string run =
+      captureRun({"--filter", "^chainOf<int>/8$", "--iterations=1"});
+  check(linesOf(run, "chainOf<int>/8").size() == 1,
+        "the chained site runs one instance (FR-014)");
+  check(instanceRuns - before == 1, "the run reaches the body (FR-014)");
+  check(chainRange0 == 8, "the chained family call reaches range(0) (FR-014)");
+}
+
 }  // namespace
 
 // The three registrations whose names FR-014 owes, at namespace scope the way
 // SG_BENCHMARK registers, so the type list of each is written exactly once at
-// the macro site and stringified from there.
-SG_BENCHMARK_TEMPLATE(sortOf, int)
-SG_BENCHMARK_TEMPLATE(sortOf, int, double)
-SG_BENCHMARK_TEMPLATE(pairOf, std::pair<int, int>)
+// the macro site and stringified from there. The chained site of FR-014
+// carries one family call after the registration.
+SG_BENCHMARK_TEMPLATE(sortOf, int);
+SG_BENCHMARK_TEMPLATE(sortOf, int, double);
+SG_BENCHMARK_TEMPLATE(pairOf, std::pair<int, int>);
+SG_BENCHMARK_TEMPLATE(chainOf, int).arg(8);
 
 auto main() -> int
 {
@@ -296,6 +326,7 @@ auto main() -> int
   twoTypeArgumentsScenario();
   qualifiedTypeArgumentScenario();
   instantiationRunsScenario();
+  chainedSiteScenario();
 
   std::puts("harness_template_test: ok");
   return 0;
