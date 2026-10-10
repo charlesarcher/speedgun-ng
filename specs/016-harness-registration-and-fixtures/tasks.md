@@ -303,6 +303,19 @@ Beyond the entries above, these are the places where this feature settled a ques
 
 ## Execution Log
 
+### CF-3 argName replace semantics, 2026-10-10
+
+The covering test went first. With the appending `argName`, the
+`bmRelabel` row of `kNameCases` aborted the list-mode child: "a label
+count unequal to the family arity violates the bound label count ==
+family arity (FR-006)" at `source/harness/family.cpp:222`, and the
+binary exited 134. The fix replaced the list in `argName` behind the
+unchanged arity check, added the class-row invariant with
+`SG_INVARIANT` enforcement in both label members, and switched the
+example to one `argNames` call. The suite then passed, the pair gate
+returned 187 interfaces with zero gaps, and the example still prints
+`bmArgs/width:8/depth:16`.
+
 ### CF-2 chained registration macros, 2026-10-10
 
 The covering tests went first. With the registrar-object macros in
@@ -643,3 +656,11 @@ the red state of the covering test before the fix.
   family sites of the family, template, capture and fixture suites
   stand, and the spec, both contracts and the C-1, C-4, C-5 and C-6
   sections state the chained form (FR-013, FR-014, FR-016, FR-022)
+- [x] T060 Set the label list with `argName`: the call replaces the
+  entry's label list with the one label while the arity check stands,
+  `argNames` keeps its replace semantics, the class invariant of
+  `BenchmarkHandle` carries the rule and both members enforce it with
+  `SG_INVARIANT`, the `bmRelabel` row and the `arity-label` re-exec of
+  `test/source/harness_instance_name_test.cpp` cover the two shapes,
+  and the example states its labels through one `argNames` call
+  (FR-006)

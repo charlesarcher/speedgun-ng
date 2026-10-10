@@ -39,6 +39,7 @@ auto argNames(std::vector<std::string> labels) -> BenchmarkHandle&;
 | `denseRange` shall step from the low bound to the high bound inclusive, default step 1. | FR-005 |
 | A multiplier below 2, a low bound above a high bound, and a `denseRange` step below 1 shall be `SG_REQUIRE` precondition violations (R-15). | FR-006 |
 | An arity or label count unequal to the family arity shall be a precondition violation, as `benchmark_register.cc:315-324` checks. | FR-006 |
+| `argName` shall set the label list to the one label and `argNames` shall set it to its list; a later label call replaces the list that stood before, and the arity check of `argName` stands. | FR-006 |
 | A family that expands to more than 100 instances shall draw one warning naming `kMaxFamilySize`, keep its instances, and continue the run (R-14). | FR-007 |
 
 ## Free argument-list builders (FR-002)

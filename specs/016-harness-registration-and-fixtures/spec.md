@@ -442,8 +442,10 @@ listing and filter follow C-8.
 - **FR-001**: The handle shall offer the family calls `arg`, `args`,
   `range`, `rangeMultiplier`, `ranges`, `denseRange`, `argsProduct`,
   `apply`, `argName`, and `argNames` in lowerCamelCase. Each call
-  shall expand with the semantics of the cited revision. Every family
-  argument is a `std::int64_t`.
+  shall expand with the semantics of the cited revision, except that
+  `argName` shall set the label list to the one label and `argNames`
+  shall set it to its list, replacing whatever list stood before.
+  Every family argument is a `std::int64_t`.
 - **FR-002**: The free functions `createRange` and `createDenseRange`
   shall build argument lists with the semantics of the cited
   revision. A family call shall accept a list they build. Each such

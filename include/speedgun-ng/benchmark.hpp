@@ -587,6 +587,9 @@ struct MetricSeed
  *
  * Every setter writes one option of the entry before the run starts.
  * A handle copied or moved names the same entry.
+ *
+ * \invariant a label call leaves the entry carrying exactly the labels
+ *            that call set, whatever label list stood before (FR-006)
  */
 class SPEEDGUN_NG_EXPORT BenchmarkHandle
 {
@@ -800,20 +803,25 @@ public:
   }
 
   /**
-   * @brief Append the label of the next free argument position of this
-   * family (FR-001, E-04).
+   * @brief Set the label list of this family to the one label
+   * (FR-001, E-04).
+   *
+   * A later `argName` or `argNames` call replaces the list again; the
+   * entry never carries more labels than this last call states.
    *
    * \pre the handle names a registered entry, the run has not started
    *      for this benchmark, and the family arity stands unset or at
    *      one (E-02, FR-006)
-   * \post the entry carries the label at that position, and the
-   *       returned handle is this handle (FR-001)
+   * \post the entry carries the label list of exactly this label, and
+   *       the returned handle is this handle (FR-001)
    */
   auto argName(std::string_view label) -> BenchmarkHandle&;
 
   /**
-   * @brief Append the labels of every argument position of this family
-   * (FR-001, E-04).
+   * @brief Set the label list of this family to `labels`, one per
+   * argument position (FR-001, E-04).
+   *
+   * The call replaces the whole list, whatever list stood before.
    *
    * \pre the handle names a registered entry, the run has not started
    *      for this benchmark, and `labels` holds one label per argument
