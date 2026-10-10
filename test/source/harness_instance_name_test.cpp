@@ -227,6 +227,13 @@ const std::vector<NameCase> kNameCases = {
     NameCase {"bmBlank",
               [](sg::BenchmarkHandle& handle) { handle.argName("").arg(8); },
               {"bmBlank/8"}},
+    // argName sets the label list to the one label: the second call
+    // replaces the first, so the family carries the label "b" alone
+    // (FR-006).
+    NameCase {"bmRelabel",
+              [](sg::BenchmarkHandle& handle)
+              { handle.argName("a").argName("b").arg(8); },
+              {"bmRelabel/b:8"}},
     // No family call: one instance, named by the family name alone.
     NameCase {"bmPlain", [](sg::BenchmarkHandle&) {}, {"bmPlain"}},
 };
@@ -544,6 +551,18 @@ auto consoleRowScenario() -> void
         "the console row prints no separate suite column (R-07, FR-021)");
 }
 
+// FR-006: the arity check of argName stands beside the replace
+// semantics of the label list: on a family whose arity is two, one
+// label is a precondition violation.
+auto arityLabelScenario(const std::string& self) -> void
+{
+  const int status =
+      std::system(("\"" + self + "\" arity-label 2>/dev/null").c_str());
+  check(status != 0,
+        "argName on an arity-two family aborts as a precondition "
+        "violation (FR-006)");
+}
+
 }  // namespace
 
 auto main(const int argc, char** argv) -> int
@@ -613,6 +632,22 @@ auto main(const int argc, char** argv) -> int
     return sg::speedgunMain(static_cast<int>(inner.size()), inner.data());
   }
 
+  // FR-006 at the arity check: the family states arity two, so the
+  // one-label call aborts before the run begins.
+  if (mode == "arity-label") {
+    scriptedProvider();
+    auto handle = sg::registerBenchmark(&bmInstance, "bmArityLabel");
+    handle.args({8, 16});
+    handle.argName("a");
+    const std::vector<std::string> arguments = {"--iterations=1"};
+    std::vector<char*> inner;
+    inner.push_back(argv[0]);
+    for (const auto& argument : arguments) {
+      inner.push_back(const_cast<char*>(argument.c_str()));
+    }
+    return sg::speedgunMain(static_cast<int>(inner.size()), inner.data());
+  }
+
   scriptedProvider();
 
   nameFormScenario();
@@ -621,6 +656,7 @@ auto main(const int argc, char** argv) -> int
   duplicateScenario(self);
   familyClashScenario(self);
   fixtureClashScenario(self);
+  arityLabelScenario(self);
 
   suiteCaseScenario();
   pairUniquenessScenario();

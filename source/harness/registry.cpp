@@ -284,9 +284,12 @@ auto BenchmarkHandle::argName(const std::string_view label) -> BenchmarkHandle&
   SG_REQUIRE(m_entry->args.empty() || m_entry->args.front().size() == 1,
              "an argName label on a family of another arity violates the bound "
              "label count == family arity (FR-006)");
-  m_entry->argNames.emplace_back(label);
-  SG_ENSURE(m_entry->argNames.back() == label,
-            "the entry carries the label (FR-001)");
+  m_entry->argNames = {std::string(label)};
+  SG_ENSURE(m_entry->argNames.size() == 1 && m_entry->argNames.front() == label,
+            "the entry carries the one label (FR-001)");
+  SG_INVARIANT(
+      m_entry->argNames.size() == 1 && m_entry->argNames.front() == label,
+      "the label list is the one label this call set (FR-006)");
   return *this;
 }
 
@@ -303,6 +306,8 @@ auto BenchmarkHandle::argNames(std::vector<std::string> labels)
   m_entry->argNames = std::move(labels);
   SG_ENSURE(m_entry->argNames.size() == labelCount,
             "the entry carries the labels (FR-001)");
+  SG_INVARIANT(m_entry->argNames.size() == labelCount,
+               "the label list is the list this call set (FR-006)");
   return *this;
 }
 

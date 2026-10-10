@@ -36,7 +36,7 @@ auto bmTouch(sg::State& state) -> void
 }
 
 // FR-027: an argument family of arity two. Each position carries an
-// `argName` label, so its instance names read `bmArgs/width:N/depth:M`.
+// `argNames` label, so its instance names read `bmArgs/width:N/depth:M`.
 auto bmArgs(sg::State& state) -> void
 {
   const std::size_t cells = static_cast<std::size_t>(state.range(0))
@@ -86,8 +86,7 @@ SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t);
 
 // FR-013: the chained registration site. The macro yields the handle,
 // the family calls chain after it, and the site ends with ';'.
-SG_BENCHMARK(bmArgs).argName("width").argName("depth").args({8, 16}).args({16,
-                                                                           32});
+SG_BENCHMARK(bmArgs).argNames({"width", "depth"}).args({8, 16}).args({16, 32});
 
 // FR-027: the fixture method, registered by `SG_BENCHMARK_F` as the
 // instance `TableFixture/bmTableTouch`, whose suite is the fixture class

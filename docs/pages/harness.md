@@ -21,7 +21,9 @@ handle for chaining: `arg`, the two `args` overloads over an
 `std::initializer_list` and an `std::vector`, `range`,
 `rangeMultiplier`, `ranges`, `denseRange`, `argsProduct`, `apply`,
 `argName`, and `argNames`. Every family argument is a
-`std::int64_t`. One `args` call appends one argument list, so
+`std::int64_t`. `argName` sets the label list to the one label and
+`argNames` sets it to its whole list; a later label call replaces the
+list that stood before. One `args` call appends one argument list, so
 `args({8, 64})` states one instance of arity two while `arg(8).arg(64)`
 states two instances of arity one. `range` and `ranges` grow by powers
 of the range multiplier with both bounds included, the default
