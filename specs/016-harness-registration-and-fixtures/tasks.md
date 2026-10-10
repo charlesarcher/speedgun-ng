@@ -740,11 +740,11 @@ the red state of the covering test before the fix.
   with `unknown` behind a bounds guard instead of subscripting the
   six-name table, the shape the gap suite pins for FR-024, and the
   mode check of `test/source/harness_gap_test.cpp` tests
-  `WIFEXITED` before `WEXITSTATUS`, so a signalled child can no
+  `WIFEXITED` before `WEXITSTATUS`, so a signaled child can no
   longer read as a passing exit status (FR-024, FR-035)
 - [x] T064 Remove every `LCOV_EXCL` marker under `source/harness/`:
   `createRange`, `createDenseRange` and `instanceName` return a
-  separate object instead of the named local, so the local's
+  separate object built from the named local, so the local's
   destructor runs at the closing brace and gcov records no
   unexecutable line; the six markers and their comments are
   deleted and the coverage target reports 100% line and branch

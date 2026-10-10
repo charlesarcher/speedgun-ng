@@ -569,9 +569,9 @@ auto main(const int argc, char** argv) -> int
     const std::string_view modeName {name};
     const int wanted =
         (modeName == "hugeCount" || modeName == "junkCount") ? 2 : 0;
-    // A signalled child carries no exit code: WEXITSTATUS of that
+    // A signaled child carries no exit code: WEXITSTATUS of that
     // status reads zero, so the exit test stands only for a child
-    // that actually exited (FR-035).
+    // that ran to completion (FR-035).
     check(WIFEXITED(status) && WEXITSTATUS(status) == wanted,
           "the gap mode passes (FR-023, FR-024, FR-032)");
   }
