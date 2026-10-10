@@ -414,6 +414,71 @@ public:
   auto setIterationTime(std::int64_t nanoseconds) -> void;
 
   /**
+   * @brief Stop the timed window from this point (FR-009).
+   *
+   * The call stands in the benchmark body. It takes one sampling action,
+   * the same action the endpoint pair takes, and opens one pause
+   * interval that `resumeTiming` closes (FR-009). The runner folds every
+   * closed interval and subtracts it from each column of the row
+   * (FR-010). The allowance guard runs before the sample, so the breach
+   * is named while the recorder still holds its points (FR-014).
+   *
+   * \pre this state belongs to a run, its sampling window stands open
+   *      and unclosed, no pause stands open on it, and its pause count
+   *      stands below `kMaxPausePerRun` (FR-011, FR-014, D-15)
+   * \post one further sample stands in the run's span and one pause is
+   *       open (FR-009)
+   */
+  auto pauseTiming() -> void
+  {
+    SG_REQUIRE(!m_callbackState,
+               "pauseTiming in a callback state violates the callback-state "
+               "rule that the callback state opens no sampling window "
+               "(R-05, D-15)");
+    SG_REQUIRE(m_windowOpened && !m_windowClosed,
+               "pauseTiming needs the open sampling window of a run (FR-011)");
+    SG_REQUIRE(m_pauseDepth == 0,
+               "a second pauseTiming beside an open pause violates the bound "
+               "of one open pause per run (FR-011)");
+    SG_REQUIRE(m_pauseCount < kMaxPausePerRun,
+               "a pause past kMaxPausePerRun exceeds the recorder room the "
+               "capacity rule reserves (FR-014)");
+    m_recorder->sample();
+    ++m_samplesTaken;
+    m_pauseDepth = 1;
+    SG_ENSURE(m_pauseDepth == 1,
+              "one pause stands open after the pause sample (FR-009)");
+  }
+
+  /**
+   * @brief Restart the timed window and record the interval it paused
+   * (FR-009).
+   *
+   * The call takes the sample that closes the open pause, records the
+   * pair of sample ordinals of that interval inside the run's span, and
+   * counts one interval against the run's allowance (E-03, FR-018).
+   *
+   * \pre this state belongs to a run and one pause stands open on it
+   *      (FR-011, D-15)
+   * \post one further sample stands in the run's span, the ordinal pair
+   *       of the closed interval stands in the run's pause list, and no
+   *       pause is open (FR-009, E-03)
+   */
+  auto resumeTiming() -> void
+  {
+    SG_REQUIRE(!m_callbackState,
+               "resumeTiming in a callback state violates the callback-state "
+               "rule that the callback state opens no sampling window "
+               "(R-05, D-15)");
+    SG_REQUIRE(m_pauseDepth == 1,
+               "resumeTiming with no open pause violates the bound of one "
+               "open pause per run (FR-011)");
+    closePausePair();
+    SG_ENSURE(m_pauseDepth == 0,
+              "no pause stands open after the resume sample (FR-009)");
+  }
+
+  /**
    * @brief The outcome the function requested, if any.
    *
    * \pre none
@@ -468,6 +533,9 @@ public:
 
 private:
   friend class detail::Runner;
+  // The guard reads the skip flag of the run so its destructor can skip
+  // the resume on a skip path (FR-012).
+  friend class ScopedPauseTiming;
 
   // A callback state names the state the harness hands a setup or
   // teardown callback: it carries the instance arguments, holds no
@@ -490,6 +558,7 @@ private:
               "samples its window");
     if (!m_windowOpened) {
       m_recorder->sample();
+      ++m_samplesTaken;
       m_windowOpened = true;
     }
   }
@@ -501,21 +570,42 @@ private:
               "samples its window");
     if (m_windowOpened && !m_windowClosed) {
       m_recorder->sample();
+      ++m_samplesTaken;
       m_windowClosed = true;
     }
   }
 
+  // The closing half of one pause interval: the sample, the ordinal pair
+  // and the interval count (FR-009). The pause sample is the last one
+  // taken, so its ordinal stands one below the sample this call takes
+  // (E-03). `resumeTiming` and the throw and skip path below share it.
+  auto closePausePair() noexcept -> void
+  {
+    m_recorder->sample();
+    m_pausePairs.emplace_back(m_samplesTaken - 1, m_samplesTaken);
+    ++m_samplesTaken;
+    m_pauseDepth = 0;
+    ++m_pauseCount;
+  }
+
   [[gnu::cold]] auto closeWindow() noexcept -> void
   {
+    SG_ASSERT(m_pauseDepth == 0,
+              "the loop leaves with no pause open, so every recorded pause "
+              "pair holds two samples (FR-011, D-10)");
     m_loopCompleted = true;
     takeExitSample();
   }
 
-  // A run owns exactly one point pair, however it ended, so the pair
-  // index of the next run stays aligned with the recorder (FR-017).
+  // A run owns its exit sample however it ended, and an interval left
+  // open by a throw or a skip owns its closing sample too, so every
+  // recorded pair holds two points before a fold reads it (FR-017, D-11).
   auto topUpWindow() noexcept -> void
   {
     openWindow();
+    if (m_pauseDepth != 0) {
+      closePausePair();
+    }
     takeExitSample();
   }
 
@@ -556,6 +646,60 @@ private:
   // The manual accumulator: the sum of the iteration times a manual
   // benchmark supplies, in nanoseconds (E-04, FR-007).
   std::int64_t m_manualNs = 0;
+};
+
+/**
+ * @brief The scoped form of the pause pair: the region from this
+ * object's construction to the end of its scope stands outside the
+ * timed window (FR-012).
+ *
+ * The constructor calls `State::pauseTiming` and the destructor calls
+ * `State::resumeTiming`, so the interval the guard bounds is the
+ * interval the explicit pair bounds. The preconditions and
+ * postconditions of those two calls stand once on the calls themselves
+ * (FR-011). The destructor skips the resume when the run was skipped,
+ * so a guard that leaves its scope on a skip path cannot turn one
+ * breach into a second (FR-012).
+ *
+ * \pre none
+ * \post none
+ */
+class SPEEDGUN_NG_EXPORT ScopedPauseTiming
+{
+public:
+  /**
+   * @brief Open one pause interval on `state` (FR-012).
+   *
+   * \pre none
+   * \post none
+   */
+  explicit ScopedPauseTiming(State& state) noexcept
+      : m_state(state)
+  {
+    m_state.pauseTiming();
+  }
+
+  /**
+   * @brief Close the pause interval, and leave it open when the run was
+   * skipped (FR-012).
+   *
+   * \pre none
+   * \post none
+   */
+  ~ScopedPauseTiming()
+  {
+    if (!m_state.m_skipRequested) {
+      m_state.resumeTiming();
+    }
+  }
+
+  ScopedPauseTiming(const ScopedPauseTiming&) = delete;
+  ScopedPauseTiming(ScopedPauseTiming&&) = delete;
+  auto operator=(const ScopedPauseTiming&) -> ScopedPauseTiming& = delete;
+  auto operator=(ScopedPauseTiming&&) -> ScopedPauseTiming& = delete;
+
+private:
+  State& m_state;
 };
 
 /**
