@@ -92,13 +92,46 @@ auto markInterrupted(sg::BenchmarkResult& result) noexcept -> void
   result.reason = kInterruptReason;
 }
 
-// One measured row: the pair the run left in the recorder, folded
-// through every column, with the FR-022 division and the FR-019 floor.
+// D-08, FR-010: one rule for every column: the fold over the run's
+// sample span minus the fold of each paused interval. The availability
+// of the netted value is the worst availability of the folds it reads,
+// so a gap on a pause interval reaches the row. With no pause pairs the
+// helper is the H1 two-point fold.
+template<class Recorder>
+auto nettedFold(const sg::counters::detail::ExprCore& core,
+                const Recorder& recorder,
+                const sg::detail::RunRecord& record) -> sg::counters::MetricResult
+{
+  const auto view = recorder.view();
+  auto net = sg::counters::detail::foldCore(
+      core,
+      view,
+      record.basePoint,
+      static_cast<std::size_t>(record.basePoint + record.samples - 1));
+  for (const auto& pause : record.pausePairs) {
+    const auto paused = sg::counters::detail::foldCore(
+        core,
+        view,
+        static_cast<std::size_t>(record.basePoint + pause.first),
+        static_cast<std::size_t>(record.basePoint + pause.second));
+    net.value -= paused.value;
+    if (paused.availability > net.availability) {
+      net.availability = paused.availability;
+    }
+  }
+  return net;
+}
+
+// One measured row: the sample span the run left in the recorder,
+// netted through every column, with the FR-022 division, the FR-019
+// floor, and the two time columns of FR-001 beside the sample count of
+// FR-013 and the primary availability of research D-13.
 template<class Recorder>
 auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
                        const sg::detail::RunRecord& record,
                        const std::vector<MetricColumn>& columns,
                        double overheadFloorNs,
+                       const sg::counters::detail::ExprCore& primaryCore,
                        const Recorder& recorder) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
@@ -106,6 +139,10 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
   row.iterations = record.iterations;
   row.timePerIterationNs = static_cast<double>(record.realNs)
       / static_cast<double>(record.iterations);
+  row.cpuTimePerIterationNs = static_cast<double>(record.cpuNs)
+      / static_cast<double>(record.iterations);
+  row.endpointSamples = record.samples;
+  row.timeAvailability = nettedFold(primaryCore, recorder, record).availability;
   row.overheadFloorNs = overheadFloorNs;
   for (const auto& column : columns) {
     sg::MetricValue value;
@@ -114,8 +151,7 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
       row.metrics.push_back(value);
       continue;
     }
-    const auto folded = sg::counters::detail::foldCore(
-        column.core, recorder.view(), 2 * record.pair, 2 * record.pair + 1);
+    const auto folded = nettedFold(column.core, recorder, record);
     value.value = folded.value;
     value.runningRatio = folded.runningRatio;
     value.scaled = folded.scaled;
@@ -177,15 +213,20 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   SG_ASSERT(monotonic.has_value(),
             "the host provider publishes machine/monotonic as its clock leaf "
             "(FR-002)");
-  const auto threadCpu =
-      machine->counter<sg::counters::Dim<1, 0>>("thread_cpu");
-  if (!threadCpu.has_value()) {
-    return fail("machine/thread_cpu does not resolve: "
-                + threadCpu.error().message);
+  // D-02, FR-004: one CPU leaf per benchmark, chosen once beside the
+  // monotonic resolution. The family's process-CPU switch moves the
+  // leaf to machine/process_cpu, and a leaf the host does not publish
+  // fails this benchmark with the resolution line.
+  const std::string_view cpuLeafName =
+      entry.processCpuTime ? "process_cpu" : "thread_cpu";
+  const auto cpuLeaf = machine->counter<sg::counters::Dim<1, 0>>(cpuLeafName);
+  if (!cpuLeaf.has_value()) {
+    return fail("machine/" + std::string(cpuLeafName)
+                + " does not resolve: " + cpuLeaf.error().message);
   }
 
   sg::counters::Expression<sg::counters::Dim<1, 0>> realTime(*monotonic);
-  sg::counters::Expression<sg::counters::Dim<1, 0>> decisionTime(*threadCpu);
+  sg::counters::Expression<sg::counters::Dim<1, 0>> cpuTime(*cpuLeaf);
 
   std::vector<MetricColumn> columns;
   columns.reserve(entry.metrics.size() + m_options.counterAddresses.size());
@@ -272,7 +313,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   std::vector<const sg::counters::detail::ExprCore*> cores;
   cores.reserve(columns.size() + 2);
   cores.push_back(&realTime.core);
-  cores.push_back(&decisionTime.core);
+  cores.push_back(&cpuTime.core);
   for (auto& column : columns) {
     result.metricLabels.push_back(column.label);
     if (!column.unavailable) {
@@ -308,26 +349,21 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       static_cast<std::size_t>(2 * (kRunBound + kRunBound + repetitions)));
   const double overheadFloorNs = plan->sampleOverheadNsMedian();
 
-  std::uint64_t nextPair = 0;
+  // D-07: a point cursor in place of the H1 pair counter. A run owns
+  // the points from its base to the recorder's count when the run
+  // ends, so the next run's base stays aligned whatever samples that
+  // run took.
+  std::size_t nextPoint = 0;
 
   // R-06: one flag read after each run ends the benchmark with this
   // reason, and the process exits nonzero.
-  auto foldAt = [&](const sg::counters::detail::ExprCore& core,
-                    const std::uint64_t pair) -> sg::counters::MetricResult
-  {
-    return sg::counters::detail::foldCore(
-        core,
-        recorder.view(),
-        static_cast<std::size_t>(2 * pair),
-        static_cast<std::size_t>(2 * pair + 1));
-  };
 
   auto sampleRun = [&](const std::uint64_t iterations)
       -> std::expected<RunRecord, std::string>
   {
     RunRecord record;
     record.iterations = iterations;
-    record.pair = nextPair;
+    record.basePoint = nextPoint;
 
     // R-05, E-07: the callback state carries the arguments this
     // instance owns and holds no recorder, so it opens no sampling
@@ -369,15 +405,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
     } catch (const std::exception& error) {
       state.topUpWindow();
-      ++nextPair;
+      nextPoint = recorder.count();
       return std::unexpected(error.what());
     } catch (...) {
       state.topUpWindow();
-      ++nextPair;
+      nextPoint = recorder.count();
       return std::unexpected("the benchmark threw an unknown exception");
     }
     state.topUpWindow();
-    ++nextPair;
+    nextPoint = recorder.count();
 
     // FR-017: a measured run owns one complete timed loop. A function
     // that never entered it, entered it twice, or left it early without
@@ -397,10 +433,19 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
     }
 
+    // E-07: the span is the points the recorder took from the run's
+    // base to the count it reached, and the pause intervals are the
+    // state's ordinals inside that span.
+    record.samples = recorder.count() - record.basePoint;
+    record.pausePairs = state.m_pausePairs;
     record.realNs = static_cast<std::int64_t>(
-        std::llround(foldAt(realTime.core, record.pair).value));
-    record.decisionNs = static_cast<std::int64_t>(
-        std::llround(foldAt(decisionTime.core, record.pair).value));
+        std::llround(nettedFold(realTime.core, recorder, record).value));
+    record.cpuNs = static_cast<std::int64_t>(
+        std::llround(nettedFold(cpuTime.core, recorder, record).value));
+    // FR-002: the primary time is the CPU fold by default and the real
+    // fold when the family asked for it; the manual sum joins with the
+    // manual mode.
+    record.decisionNs = entry.realTime ? record.realNs : record.cpuNs;
     if (state.outcome() == RunOutcome::SKIPPED) {
       record.skipped = true;
       record.reason = state.reason();
@@ -486,7 +531,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
     }
 
-    appendMeasuredRow(result.rows, *chosen, columns, overheadFloorNs, recorder);
+    appendMeasuredRow(result.rows,
+                      *chosen,
+                      columns,
+                      overheadFloorNs,
+                      entry.realTime ? realTime.core : cpuTime.core,
+                      recorder);
 
     if (interruptFlag().load()) {
       result.outcome = RunOutcome::SKIPPED;
