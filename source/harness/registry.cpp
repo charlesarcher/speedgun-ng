@@ -118,7 +118,7 @@ auto appendArguments(RegistryEntry& entry,
   SG_REQUIRE(entry.args.empty() || entry.args.front().size() == values.size(),
              "an argument list unequal to the family arity violates the bound "
              "list size == family arity (FR-006)");
-  const std::size_t arity = values.size();
+  [[maybe_unused]] const std::size_t arity = values.size();
   entry.args.push_back(std::move(values));
   SG_ENSURE(entry.args.back().size() == arity,
             "the entry carries the appended argument list (FR-001)");
@@ -157,7 +157,7 @@ auto BenchmarkHandle::args(std::vector<std::int64_t> values) -> BenchmarkHandle&
 {
   SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
              "a family call runs before the run starts (E-02)");
-  const std::size_t arity = values.size();
+  [[maybe_unused]] const std::size_t arity = values.size();
   appendArguments(*m_entry, std::move(values));
   SG_ENSURE(m_entry->args.back().size() == arity,
             "the entry carries the appended argument list (FR-001)");
@@ -210,7 +210,7 @@ auto BenchmarkHandle::ranges(std::vector<std::pair<std::int64_t, std::int64_t>>
     grown.push_back(
         createRange(bound.first, bound.second, m_entry->rangeMultiplier));
   }
-  const std::size_t before = m_entry->args.size();
+  [[maybe_unused]] const std::size_t before = m_entry->args.size();
   argsProduct(std::move(grown));
   SG_ENSURE(m_entry->args.size() > before,
             "the entry carries the product of the grown pairs (FR-004)");
@@ -243,7 +243,7 @@ auto BenchmarkHandle::argsProduct(std::vector<std::vector<std::int64_t>> lists)
 {
   SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
              "a family call runs before the run starts (E-02)");
-  for (const auto& list : lists) {
+  for ([[maybe_unused]] const auto& list : lists) {
     SG_REQUIRE(!list.empty(),
                "an argsProduct list with no argument violates the bound "
                "list size >= 1 (FR-006)");
@@ -253,7 +253,7 @@ auto BenchmarkHandle::argsProduct(std::vector<std::vector<std::int64_t>> lists)
   // every combination, and a list that wraps carries the next.
   std::vector<std::size_t> position(lists.size(), 0);
   std::size_t combinations = 1;
-  const std::size_t before = m_entry->args.size();
+  [[maybe_unused]] const std::size_t before = m_entry->args.size();
   for (const auto& list : lists) {
     combinations *= list.size();
   }
@@ -302,7 +302,7 @@ auto BenchmarkHandle::argNames(std::vector<std::string> labels)
                  m_entry->args.front().size() == labels.size(),
              "an argNames count unequal to the family arity violates the bound "
              "label count == family arity (FR-006)");
-  const std::size_t labelCount = labels.size();
+  [[maybe_unused]] const std::size_t labelCount = labels.size();
   m_entry->argNames = std::move(labels);
   SG_ENSURE(m_entry->argNames.size() == labelCount,
             "the entry carries the labels (FR-001)");

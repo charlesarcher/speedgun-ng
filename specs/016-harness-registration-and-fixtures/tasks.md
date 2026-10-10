@@ -686,3 +686,10 @@ the red state of the covering test before the fix.
   registration and `endLegalScenario` of
   `test/source/harness_callback_test.cpp` pin the legality (FR-018,
   R-05)
+- [x] T062 Keep the ignore build warning-free: the six locals of
+  `source/harness/registry.cpp` that feed only `SG_ENSURE` and
+  `SG_INVARIANT` carry `[[maybe_unused]]`, so the
+  `speedgun-ng_CONTRACTS=ignore` build with `-Wunused -Werror` stays
+  clean, and the sweep of `source/harness/` and
+  `include/speedgun-ng/` found no other contract-only local
+  (Principle II, FR-024)
