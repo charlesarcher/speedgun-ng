@@ -222,6 +222,11 @@ const std::vector<NameCase> kNameCases = {
               [](sg::BenchmarkHandle& handle)
               { handle.argName("size").arg(8).arg(64); },
               {"bmLabelled/size:8", "bmLabelled/size:64"}},
+    // An empty label leaves its segment unlabeled: the cited revision
+    // skips an empty label and its ':' (FR-010, spec edge case).
+    NameCase {"bmBlank",
+              [](sg::BenchmarkHandle& handle) { handle.argName("").arg(8); },
+              {"bmBlank/8"}},
     // No family call: one instance, named by the family name alone.
     NameCase {"bmPlain", [](sg::BenchmarkHandle&) {}, {"bmPlain"}},
 };

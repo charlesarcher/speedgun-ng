@@ -303,6 +303,29 @@ Beyond the entries above, these are the places where this feature settled a ques
 
 ## Execution Log
 
+### Convergence pass, measured by the lead, 2026-10-10
+
+T054 to T057 close the four findings of the converge assessment. The dbc
+pair gate ran for this feature for the first time and reported 20 of 187
+interfaces drifted, every row a feature-016 interface: documented `\post`
+and `\invariant` clauses with no macro of that kind in the interface
+scope. The gate attributes a member's invariant to the class row, so a
+member block cannot pair one; the member blocks now document the `\pre`
+and `\post` pair the H1 setters pair, the const accessors mark `\post
+none`, and the eight family calls that lacked one gained `SG_ENSURE`
+postconditions. `apply` carries its `SG_REQUIRE` and `SG_ENSURE` in its
+own scope, and `applyGuard` stays for the run-started check the header
+cannot read on the incomplete `RegistryEntry`. The two builders carry
+`SG_INVARIANT` for their never-empty rule. `instanceName` skips an empty
+label and its colon, the cited revision's rule the spec edge case states,
+pinned by the `bmBlank` row of the name table. The fixture suite registers
+and runs `SG_BENCHMARK_TEMPLATE_DEFINE_F` with `SG_BENCHMARK_REGISTER_F`
+and `SG_BENCHMARK_TEMPLATE_METHOD_F` with
+`SG_BENCHMARK_TEMPLATE_INSTANTIATE_F`. Measured: dev build exit 0,
+`ctest --test-dir build/dev` 100% tests passed out of 68, doc gate 187
+interfaces 0 gaps, pair gate 187 interfaces 0 gaps, prose 0 findings,
+format check clean.
+
 Record here, as the work lands: the T006 baseline pass count, each red observation of T007, T008, T017, T022, T023, T027, T028, T036 and T041, each green run of T016, T021, T026, T035, T040 and T045, the four gate verdicts of T046-T049, the FR-022 audit of T050, the quickstart §1-§13 outcomes of T051, and the release-build record of T052.
 
 
@@ -522,7 +545,19 @@ Accumulating section, kept current as the work proceeds; it is not written at th
 - Contract documentation ahead of definition in `source/harness/family.cpp`. `expandRegistry()` and `instances()` landed with doxygen contract blocks for `createRange`, `createDenseRange`, `instanceName`, `deriveSuiteAndCase`, `hasDuplicateInstance` and `checkFamilySize` and no definitions under them. The blocks are the contracts the later tasks implement, and every later task is instructed to put its definition directly under the existing block and keep the block's wording, so the text cannot rot into a comment that describes nothing. The `dbc_pair_gate.py` gate is unaffected: it pairs contract macros in `include/speedgun-ng` and `source/`, and no contract macro stands outside a definition
 - FR-008 in the callback state is covered once, not twice. T008 asks that "the arguments reach the callback state too", and `test/source/harness_argument_test.cpp` carried a case for it that called `handle.setup()`, a US5 API (T037), which made a US1 suite unbuildable until US5 landed. `test/source/harness_callback_test.cpp` already covers it as a strict superset: `range(0)` of a one-argument instance at line 315, `rangeCount()` and `iterations()` of a two-argument instance at 322-323, and `rangeCount()` of a zero-argument instance at 327-330. The duplicated case is deleted from the argument suite and the requirement stays covered by the US5 suite, where the API it exercises lives
 - The prose gate must be run in tree mode to cover this feature. `cmake -P cmake/prose-lint.cmake` defaults to `PROSE_MODE=range`, which takes its left edge from the merge base with `origin/master` and its right edge from `HEAD`; because this feature is uncommitted, `HEAD` is the merge base, the range is empty, and the reported "5 sources, 759 units" is not coverage of the feature. `tools/prose/prose_gate.py` accepts only `range` and `tree`, so the working-tree check is `cmake -DPROSE_MODE=tree -P cmake/prose-lint.cmake`, which reports `307 sources, 48580 units examined, 0 findings, 0 skipped` at exit 0 and covers every file the feature adds
-- No commits. The Notes of this file say to commit after each task or logical group, per the constitution's Pull Request Quality rules. The standing instruction for this session forbids a commit without an explicit request, and the request never arrived, so the whole feature stays in the working tree on `016-harness-registration-and-fixtures` against merge base `30f3118`. The consequence is recorded rather than hidden: there is no per-task bisect history, and the recovery point for a wrecked tracked file is `git checkout -- <path>` against that merge base
+- Commits were deferred during the implement run. The Notes of this file say to
+  commit after each task or logical group, per the constitution's Pull
+  Request Quality rules. The implement session forbade commits, so the work
+  landed in whole commits on `016-harness-registration-and-fixtures` for
+  pull request #33 against merge base `30f3118`; the per-task bisect history
+  the Notes call for does not exist for the original run
+- Result-field filling file. T033 and the plan's physical view name
+  `source/harness/report.cpp` as the file that fills the `suite` and
+  `caseName` fields of `BenchmarkResult`. The filling stands in `Runner::run`
+  (`source/harness/runner.cpp`), where the `Instance` is at hand, and
+  `report.cpp` prints the row and carries no filling. The FR-021 behavior and
+  `contracts/result-fields.md` are satisfied and tested; only the file
+  attribution differs (T057)
 
 ## Artifact inconsistency carried forward deliberately
 
@@ -538,3 +573,21 @@ nonzero-status pattern already used for a contract violation at
 `test/source/harness_registry_test.cpp:209-212`, and no new
 `test/compile-fail/` unit is invented for R-05. T053 records this as a
 deviation against the artifacts.
+
+## Phase 10: Convergence
+
+Assessment of 2026-10-10 against the committed head `88f69c3` (the
+feature is committed and the tree is clean, superseding the No-commits
+Deviations entry). Measured green at the head: dev build exit 0 and
+`ctest --test-dir build/dev` 68/68, the prose gate in tree mode (330
+sources, 0 findings), the version and `SOVERSION` greps, the H1
+signatures of FR-022 present verbatim, the `DISABLED_` gate on the
+expanded instance name, expansion before the filter, the callback-state
+guards, the suite-grouped expansion, the ten-section
+`docs/pages/harness.md`, and the example's family, fixture, and template
+rows. The tasks below are the remaining work.
+
+- [x] T054 CRITICAL: Pair the contract blocks of the 20 drifted feature-016 interfaces with enforcement in the interface scope, or narrow the blocks to the H1 convention, and bring `cmake --build build/dev -t dbc-gate` to exit 0: the pair gate reports 20 of 187 interfaces drifted with 31 documented-not-enforced clauses, every drifted row a feature-016 interface (`arg`, the two `args`, `range`, `rangeMultiplier`, `ranges`, `denseRange`, `argsProduct`, `apply`, `argName`, `argNames`, `setup`, `teardown`, `Fixture` with `setUp`/`tearDown`, `State::range`, `State::rangeCount`, `createRange`, `createDenseRange`); each documents `\pre`/`\post`/`\invariant` clauses its scope never enforces, and `apply`'s `\pre` stands in `applyGuard` outside the scope the gate scans; the passing H1 shape is `minTime` (`SG_REQUIRE` plus `SG_ENSURE` for its `\pre`/`\post`) and `name()` (`\pre none`/`\post none`); the CI `dbc-gate` job at `.github/workflows/ci.yml:669` fails at the head today, and no Execution Log entry records the target per FR-024, SC-008, Constitution II, VI, VIII (contradicts)
+- [x] T055 Register and run the three untested fixture macros `SG_BENCHMARK_TEMPLATE_DEFINE_F`, `SG_BENCHMARK_TEMPLATE_METHOD_F`, and `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` in `test/source/harness_fixture_test.cpp`, asserting the `BaseClass<types>/Method` name for each path: the macros stand at `include/speedgun-ng/benchmark.hpp:1250,1322,1350` and expand independently of `SG_BENCHMARK_TEMPLATE_F`, and no test or example uses them, so T027's "each of the seven macros of FR-016 registers and runs" and the plan's C-6 row stand unmet for three of seven per FR-016, T027, plan: Test Plan C-6 (partial)
+- [x] T056 Guard the label prefix of `instanceName` against an empty label at `source/harness/family.cpp:226-229` — it appends `label:` unconditionally, so `argName("")` names the segment `:value`, while the cited revision guards `if (!arg_name.empty())` in the `BenchmarkInstance` constructor of `benchmark_api_internal.cc` and the spec's edge cases state "an empty label leaves its segment without a label" — and pin the row in a name-table case per the spec Edge Cases, FR-001, FR-010 (contradicts)
+- [x] T057 Record in the Deviations section that the `suite` and `caseName` fields are filled in `Runner::run` at `source/harness/runner.cpp:151-152`, not in `source/harness/report.cpp` as T033 and the plan's physical view state: the FR-021 behavior and `contracts/result-fields.md` are satisfied and tested, only the filling file differs, and the deviation is currently unrecorded per plan: physical view, T033 (partial)

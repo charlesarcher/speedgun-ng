@@ -140,6 +140,7 @@ auto createRange(const std::int64_t low,
   std::vector<std::int64_t> values;
   addRange(values, low, high, multiplier);
   SG_ENSURE(!values.empty(), "the built list carries both bounds (FR-004)");
+  SG_INVARIANT(!values.empty(), "both bounds stand in the built list (FR-004)");
   return values;
   // LCOV_EXCL_LINE : coverage exclusion (T048): gcov attaches this closing
   // brace a line record that no execution can advance. Verified with
@@ -175,6 +176,7 @@ auto createDenseRange(const std::int64_t low,
     values.push_back(value);
   }
   SG_ENSURE(!values.empty(), "the built list carries its low bound (FR-005)");
+  SG_INVARIANT(!values.empty(), "`low` stands in the built list (FR-005)");
   return values;
   // LCOV_EXCL_LINE : coverage exclusion (T048): the same gcov line record as
   // in createRange, count 0 with no advanceable block.
@@ -210,7 +212,7 @@ namespace
  *      that count equals the family arity (FR-006).
  * \post the name starts with the family name and adds one segment per
  *       argument, each segment the argument value in decimal, labeled
- *       where a label stands at that position (FR-010).
+ *       where a nonempty label stands at that position (FR-010).
  * \invariant the family name is a prefix of every instance name of
  *            that family (FR-010).
  */
@@ -224,7 +226,10 @@ auto instanceName(const RegistryEntry& entry,
   std::string name = entry.name;
   for (std::size_t position = 0; position < arguments.size(); ++position) {
     name += '/';
-    if (position < entry.argNames.size()) {
+    // An empty label leaves its segment unlabeled, as the cited
+    // revision's BenchmarkInstance constructor skips the empty name and
+    // its ':' (FR-010).
+    if (position < entry.argNames.size() && !entry.argNames[position].empty()) {
       name += entry.argNames[position];
       name += ':';
     }

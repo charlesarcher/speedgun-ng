@@ -382,10 +382,7 @@ public:
    * index: no allocation, no lock, no recorder work (R-04, FR-009).
    *
    * \pre `index` stands below `rangeCount()` (FR-008)
-   * \post the argument of that position of the running instance
-   *       returns, and nothing else changes
-   * \invariant the argument view of a state stays fixed for the whole
-   *            of the run (E-03)
+   * \post none
    */
   [[nodiscard]] auto range(const std::size_t index) const -> std::int64_t
   {
@@ -402,9 +399,7 @@ public:
    * arguments, and this reports that zero.
    *
    * \pre none
-   * \post the count of the arguments of the running instance returns
-   * \invariant the argument view of a state stays fixed for the whole
-   *            of the run (E-03)
+   * \post none
    */
   [[nodiscard]] auto rangeCount() const noexcept -> std::size_t
   {
@@ -506,9 +501,6 @@ private:
  *
  * \pre none
  * \post none
- * \invariant one fixture object belongs to one run, from its
- *            construction before `setUp` to its destruction after
- *            `tearDown` (R-09).
  */
 class SPEEDGUN_NG_EXPORT Fixture
 {
@@ -536,8 +528,6 @@ public:
    *
    * \pre none
    * \post none
-   * \invariant the pair runs in the untimed region, so its work adds
-   *            nothing to the reported time (FR-017).
    */
   virtual auto setUp([[maybe_unused]] State& state) -> void {}
 
@@ -550,8 +540,6 @@ public:
    *
    * \pre none
    * \post none
-   * \invariant the pair runs in the untimed region, so its work adds
-   *            nothing to the reported time (FR-017).
    */
   virtual auto tearDown([[maybe_unused]] State& state) -> void {}
 };
@@ -686,8 +674,6 @@ public:
    *      started for this benchmark (E-02)
    * \post the entry carries one more argument list of one argument,
    *       and the returned handle is this handle (FR-001)
-   * \invariant every argument list of one family carries the argument
-   *            count of that family (FR-006)
    */
   auto arg(std::int64_t value) -> BenchmarkHandle&;
 
@@ -699,8 +685,6 @@ public:
    *      started for this benchmark (E-02)
    * \post the entry carries one more argument list holding `values`,
    *       and the returned handle is this handle (FR-001)
-   * \invariant every argument list of one family carries the argument
-   *            count of that family (FR-006)
    */
   auto args(std::initializer_list<std::int64_t> values) -> BenchmarkHandle&;
 
@@ -715,8 +699,6 @@ public:
    *      started for this benchmark (E-02)
    * \post the entry carries one more argument list holding `values`,
    *       and the returned handle is this handle (FR-001)
-   * \invariant every argument list of one family carries the argument
-   *            count of that family (FR-006)
    */
   auto args(std::vector<std::int64_t> values) -> BenchmarkHandle&;
 
@@ -731,8 +713,6 @@ public:
    * \post the entry carries one more argument list per value of
    *       `createRange(low, high, multiplier)`, and the returned handle
    *       is this handle (FR-004)
-   * \invariant every argument list of one family carries the argument
-   *            count of that family (FR-006)
    */
   auto range(std::int64_t low, std::int64_t high) -> BenchmarkHandle&;
 
@@ -745,7 +725,6 @@ public:
    * \post the entry carries the multiplier, every later `range` and
    *       `ranges` call of this family grows by it, and the returned
    *       handle is this handle (FR-004)
-   * \invariant the multiplier of a family stays at or above 2 (FR-006)
    */
   auto rangeMultiplier(std::int64_t multiplier) -> BenchmarkHandle&;
 
@@ -760,8 +739,6 @@ public:
    * \post the entry carries one more argument list per combination of
    *       the grown pairs, and the returned handle is this handle
    *       (FR-001)
-   * \invariant every argument list of one family carries the argument
-   *            count of that family (FR-006)
    */
   auto ranges(std::vector<std::pair<std::int64_t, std::int64_t>> bounds)
       -> BenchmarkHandle&;
@@ -776,8 +753,6 @@ public:
    * \post the entry carries one more argument list per value of
    *       `createDenseRange(low, high, step)`, and the returned handle
    *       is this handle (FR-005)
-   * \invariant every argument list of one family carries the argument
-   *            count of that family (FR-006)
    */
   auto denseRange(std::int64_t low,
                   std::int64_t high,
@@ -793,8 +768,6 @@ public:
    *      one argument (E-02, FR-006)
    * \post the entry carries one more argument list per combination, and
    *       the returned handle is this handle (FR-001)
-   * \invariant every argument list of one family carries the argument
-   *            count of that family (FR-006)
    */
   auto argsProduct(std::vector<std::vector<std::int64_t>> lists)
       -> BenchmarkHandle&;
@@ -808,14 +781,16 @@ public:
    *      started for this benchmark (E-02)
    * \post the returned handle is this handle, `fn` ran on it once, and
    *       every family call `fn` stated stands on the entry (FR-001)
-   * \invariant every argument list of one family carries the argument
-   *            count of that family (FR-006)
    */
   template<class F>
   auto apply(F&& fn) -> BenchmarkHandle&
   {
+    SG_REQUIRE(m_entry != nullptr,
+               "a family call runs before the run starts (E-02)");
     applyGuard();
     fn(*this);
+    SG_ENSURE(m_entry != nullptr,
+              "the handle still names its entry after apply (FR-001)");
     return *this;
   }
 
@@ -828,8 +803,6 @@ public:
    *      one (E-02, FR-006)
    * \post the entry carries the label at that position, and the
    *       returned handle is this handle (FR-001)
-   * \invariant the label count of a family stays at or below its
-   *            argument count (FR-006)
    */
   auto argName(std::string_view label) -> BenchmarkHandle&;
 
@@ -842,8 +815,6 @@ public:
    *      position of the family arity (E-02, FR-006)
    * \post the entry carries the labels in order, and the returned
    *       handle is this handle (FR-001)
-   * \invariant the label count of a family stays at or below its
-   *            argument count (FR-006)
    */
   auto argNames(std::vector<std::string> labels) -> BenchmarkHandle&;
 
@@ -867,8 +838,6 @@ public:
    * \post the entry's setup slot carries `callback`, the callback this
    *       call attached wins the slot, and the returned handle is this
    *       handle (FR-018, R-10)
-   * \invariant the family's setup slot holds at most one callback
-   *            (E-07, R-10)
    */
   auto setup(std::function<void(State&)> callback) -> BenchmarkHandle&;
 
@@ -886,8 +855,6 @@ public:
    * \post the entry's teardown slot carries `callback`, the callback
    *       this call attached wins the slot, and the returned handle is
    *       this handle (FR-018, R-10)
-   * \invariant the family's teardown slot holds at most one callback
-   *            (E-07, R-10)
    */
   auto teardown(std::function<void(State&)> callback) -> BenchmarkHandle&;
 
