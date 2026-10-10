@@ -653,6 +653,17 @@ target_link_libraries(harness_time_columns_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_time_columns_test PRIVATE cxx_std_23)
 add_test(NAME harness_time_columns_test COMMAND harness_time_columns_test)
 
+# The process CPU leaf behind the CPU column (T014; US2, C-2, FR-004,
+# FR-002, SC-001). The scripted provider steps each machine time leaf by a
+# constant per sampling action, so the switched column names the leaf the
+# runner resolved. The missing-leaf script needs a machine object that
+# publishes no such leaf, so that scenario runs in a re-exec of this
+# binary and the parent reads its wait status.
+add_executable(harness_cpu_leaf_test source/harness_cpu_leaf_test.cpp)
+target_link_libraries(harness_cpu_leaf_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_cpu_leaf_test PRIVATE cxx_std_23)
+add_test(NAME harness_cpu_leaf_test COMMAND harness_cpu_leaf_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
