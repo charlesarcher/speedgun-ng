@@ -44,12 +44,21 @@ endif()
 # as a negative taken count and lcov aborts the capture. The class is
 # narrowed for the same reason as `mismatch`: it names one parsing complaint,
 # and every other lcov check stays live.
+# `inconsistent` is the third class, and the fixture macros of feature 016
+# need it. `SG_BENCHMARK_F` and its six siblings generate a case function
+# whose body spans several source lines while gcov records the generated
+# function at the macro invocation line, so lcov 2.3 reads the recorded end
+# line and the last line of the body as a pair that disagrees, and aborts the
+# capture. The class names that parsing complaint. Narrowing it keeps every
+# other lcov check, and gcov's own diagnostics, live, and it changes no
+# number the gate reads: the lines of the body carry their own line and
+# branch counters either way.
 set(
     COVERAGE_TRACE_COMMAND
     "${LCOV_EXECUTABLE}" -c -q
     --branch-coverage
     --no-external
-    --ignore-errors mismatch,negative
+    --ignore-errors mismatch,negative,inconsistent
     --base-directory "${PROJECT_SOURCE_DIR}"
     --rc geninfo_unexecuted_blocks=1
     -o "${PROJECT_BINARY_DIR}/coverage.raw.info"
