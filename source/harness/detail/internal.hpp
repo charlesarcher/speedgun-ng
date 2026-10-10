@@ -37,8 +37,9 @@ inline constexpr std::size_t kMaxFamilySize = 100;
  * handle accumulates: the argument lists the family calls append, one
  * list per instance (FR-001, FR-002); the `argName` labels, one per
  * position (E-04); the range multiplier (E-05); the setup and teardown
- * callback pair (E-07); and the fixture factory, null for a plain
- * family (E-06).
+ * callback pair (E-07); the fixture factory, null for a plain family
+ * (E-06); and the timing selection the four handle calls set before the
+ * first run (FR-004, FR-005, FR-006, FR-015).
  */
 class RegistryEntry
 {
@@ -60,6 +61,14 @@ public:
   // The factory of the one fixture object each run builds, through the
   // public `sg::Fixture` base; null for a plain family (E-06, R-09).
   std::function<std::unique_ptr<Fixture>()> fixtureFactory;
+
+  // The timing selection of data-model.md E-01: family state settled
+  // before the first run of the family, and read once per benchmark
+  // when the runner builds the run plan.
+  bool processCpuTime = false;
+  bool realTime = false;
+  bool manualTime = false;
+  TimeUnit timeUnit = TimeUnit::NANOSECONDS;
 };
 
 /**
