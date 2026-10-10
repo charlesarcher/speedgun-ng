@@ -141,12 +141,12 @@ auto createRange(const std::int64_t low,
   addRange(values, low, high, multiplier);
   SG_ENSURE(!values.empty(), "the built list carries both bounds (FR-004)");
   SG_INVARIANT(!values.empty(), "both bounds stand in the built list (FR-004)");
-  return values;
-  // LCOV_EXCL_LINE : coverage exclusion (T048): gcov attaches this closing
-  // brace a line record that no execution can advance. Verified with
-  // `gcov -b -i` on the coverage tree: the record reports count 0 with no
-  // block record at all, while the return line above reports a count of 18.
-}  // LCOV_EXCL_LINE
+  // A `return values;` would make `values` the return object itself, and
+  // gcov would then attach an unexecutable count-zero record to the closing
+  // brace. Returning a separate object leaves the destructor of `values` to
+  // run at the brace, which every call executes.
+  return std::vector<std::int64_t>(values);
+}
 
 /**
  * @brief `createDenseRange`: the argument list a dense range call
@@ -177,10 +177,8 @@ auto createDenseRange(const std::int64_t low,
   }
   SG_ENSURE(!values.empty(), "the built list carries its low bound (FR-005)");
   SG_INVARIANT(!values.empty(), "`low` stands in the built list (FR-005)");
-  return values;
-  // LCOV_EXCL_LINE : coverage exclusion (T048): the same gcov line record as
-  // in createRange, count 0 with no advanceable block.
-}  // LCOV_EXCL_LINE
+  return std::vector<std::int64_t>(values);
+}
 
 namespace detail
 {
@@ -238,10 +236,8 @@ auto instanceName(const RegistryEntry& entry,
   SG_ENSURE(name.rfind(entry.name, 0) == 0,
             "the family name is a prefix of every instance name of that "
             "family (FR-010)");
-  return name;
-  // LCOV_EXCL_LINE : coverage exclusion (T048): the same gcov line record as
-  // in createRange, count 0 with no advanceable block.
-}  // LCOV_EXCL_LINE
+  return std::string(name);
+}
 
 /**
  * @brief The suite and case derivation of one instance name

@@ -303,6 +303,23 @@ Beyond the entries above, these are the places where this feature settled a ques
 
 ## Execution Log
 
+### CI-3 the coverage markers, 2026-10-10
+
+Three builders in `source/harness/family.cpp` ended with a named
+local, contract checks and `return` of that local. The local is
+then the return object itself: nothing runs at the closing brace,
+and gcov 16 attaches an unexecutable count-zero line record to it
+(`=====` in the text report, no block record). The T048 markers hid
+the six brace lines. Each function now returns a separate object,
+`std::vector<std::int64_t>(values)` or `std::string(name)`, so the
+local's destructor runs at the closing brace, the brace line
+executes and its record is covered. A probe on four return shapes
+(`-O0 --coverage`, `gcov -b`) separated the cause: named-local and
+block-wrapped returns keep the `=====` brace, a copy-expression
+return covers it. All `\pre`, `\post` and `\invariant` clauses and
+their `SG_REQUIRE`, `SG_ENSURE` and `SG_INVARIANT` checks stand
+where they were.
+
 ### CI-2 the gap mode aborts, 2026-10-10
 
 The failing case is `harness_gap_test` in the test, sanitize, tsan
@@ -725,3 +742,10 @@ the red state of the covering test before the fix.
   mode check of `test/source/harness_gap_test.cpp` tests
   `WIFEXITED` before `WEXITSTATUS`, so a signalled child can no
   longer read as a passing exit status (FR-024, FR-035)
+- [x] T064 Remove every `LCOV_EXCL` marker under `source/harness/`:
+  `createRange`, `createDenseRange` and `instanceName` return a
+  separate object instead of the named local, so the local's
+  destructor runs at the closing brace and gcov records no
+  unexecutable line; the six markers and their comments are
+  deleted and the coverage target reports 100% line and branch
+  coverage (FR-004, FR-005, FR-010, Principle VI)
