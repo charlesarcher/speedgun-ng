@@ -567,6 +567,81 @@ target_link_libraries(harness_registry_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_registry_test PRIVATE cxx_std_23)
 add_test(NAME harness_registry_test COMMAND harness_registry_test)
 
+# The argument families and the instance expansion (T016; US1, FR-001
+# to FR-005, FR-007, FR-008, FR-010, R-12).
+add_executable(harness_family_test source/harness_family_test.cpp)
+target_link_libraries(harness_family_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_family_test PRIVATE cxx_std_23)
+add_test(NAME harness_family_test COMMAND harness_family_test)
+
+# The capture registration macro (T026; US3, FR-013, R-13). One capture
+# registers the one instance `fn/captureName`, the captured arguments
+# draw no segment of their own, and the values reach the function.
+add_executable(harness_capture_macro_test source/harness_capture_macro_test.cpp)
+target_link_libraries(harness_capture_macro_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_capture_macro_test PRIVATE cxx_std_23)
+add_test(NAME harness_capture_macro_test COMMAND harness_capture_macro_test)
+
+# The template registration macro (T026; US3, FR-014, R-13). The type
+# list enters the instance name stringified as written at the macro
+# site, including a qualified argument written with a space.
+add_executable(harness_template_test source/harness_template_test.cpp)
+target_link_libraries(harness_template_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_template_test PRIVATE cxx_std_23)
+add_test(NAME harness_template_test COMMAND harness_template_test)
+
+# The instance names of every family shape, the FR-012 duplicate, and
+# the suite and case pair of FR-021 (T021; US2, US4, FR-010, FR-011,
+# FR-012, FR-021, R-07, R-08, R-12). The suite reads the expansion and
+# the result value at the internal seam, so it includes
+# "detail/internal.hpp" the way harness_gap_test does.
+add_executable(harness_instance_name_test source/harness_instance_name_test.cpp)
+target_link_libraries(harness_instance_name_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_instance_name_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_instance_name_test PRIVATE cxx_std_23)
+add_test(NAME harness_instance_name_test COMMAND harness_instance_name_test)
+
+# The fixture base, the fixture macros, the pair around each run, the
+# one fixture object per run, and the fixture method named DISABLED_x
+# (T035; US4, FR-015, FR-016, FR-017, FR-020, R-09, SC-005).
+add_executable(harness_fixture_test source/harness_fixture_test.cpp)
+target_link_libraries(harness_fixture_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_fixture_test PRIVATE cxx_std_23)
+add_test(NAME harness_fixture_test COMMAND harness_fixture_test)
+
+# The setup and teardown callback pair around each run, the untimed
+# region, the last attachment winning each slot, and the argument and
+# iteration reads of the callback state (T040; US5, FR-018, FR-019,
+# R-05, R-10).
+add_executable(harness_callback_test source/harness_callback_test.cpp)
+target_link_libraries(harness_callback_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_callback_test PRIVATE cxx_std_23)
+add_test(NAME harness_callback_test COMMAND harness_callback_test)
+
+# Instance argument access and the no-allocation read inside the timed
+# loop (T016; US1, FR-008, FR-009, R-04). The allocation proof replaces
+# the global operator new and delete in this translation unit, so the
+# thread sanitizer runtime cannot define its own pair alongside them and
+# this test stays out of that preset for the same reason as
+# harness_capture_test above.
+if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "fsanitize=thread")
+add_executable(harness_argument_test source/harness_argument_test.cpp)
+target_link_libraries(harness_argument_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_argument_test PRIVATE cxx_std_23)
+add_test(NAME harness_argument_test COMMAND harness_argument_test)
+endif()
+
+# The `DISABLED_` prefix gate at selection: a disabled instance registers,
+# never runs, stays out of the filter match and out of list mode, and a
+# fixture method named `DISABLED_x` runs because its instance name starts
+# with its fixture class (T045; US6, FR-020, FR-021, R-11). The suite
+# re-execs its own binary to separate the two streams, so it needs no
+# resource lock of its own: the scratch files it writes are named for it.
+add_executable(harness_disabled_test source/harness_disabled_test.cpp)
+target_link_libraries(harness_disabled_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_disabled_test PRIVATE cxx_std_23)
+add_test(NAME harness_disabled_test COMMAND harness_disabled_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

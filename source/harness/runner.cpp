@@ -136,12 +136,20 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
 namespace sg::detail
 {
 
-auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
+auto Runner::run(Instance& instance) -> BenchmarkResult
 {
+  // The callable, the run control, and the metrics ride the family
+  // record; the instance carries the name it runs under and the
+  // arguments it owns (R-02).
+  RegistryEntry& entry = *instance.family;
   entry.runStarted = true;
 
   BenchmarkResult result;
-  result.name = entry.name;
+  result.name = instance.name;
+  // FR-021, R-07: the split reaches the caller through these two
+  // fields; the console row keeps the single H1 name column.
+  result.suite = instance.suite;
+  result.caseName = instance.caseName;
 
   auto& sys = sg::counters::System::local();
   const std::int64_t minTimeNs =
@@ -321,9 +329,40 @@ auto Runner::run(RegistryEntry& entry) -> BenchmarkResult
     record.iterations = iterations;
     record.pair = nextPair;
 
-    State state(iterations, recorder);
+    // R-05, E-07: the callback state carries the arguments this
+    // instance owns and holds no recorder, so it opens no sampling
+    // window and the loop and skip operations of it are precondition
+    // violations (FR-018).
+    State callbackState(iterations, nullptr, instance.arguments, true);
+
+    // R-04: the state reads the arguments this instance owns. The
+    // instance outlives every run of itself, so the span needs no copy,
+    // and the timed loop keeps its H1 shape (FR-009).
+    State state(iterations, &recorder, instance.arguments);
+    // R-09: one fixture object per run, built inside this scope before
+    // `setUp` and destroyed after `tearDown` when the scope ends, the
+    // catch paths included. The pair runs in the untimed region, before
+    // `begin()` opens the window and after the loop closes it, so its
+    // work adds nothing to the reported time (FR-017).
+    std::unique_ptr<Fixture> fixture;
     try {
+      // R-10: the callback pair wraps the run, the setup callback
+      // first and the teardown callback last, the warm-up,
+      // calibration, and measured runs included (FR-018).
+      if (entry.setup) {
+        entry.setup(callbackState);
+      }
+      if (entry.fixtureFactory) {
+        fixture = entry.fixtureFactory();
+        fixture->setUp(state);
+      }
       entry.callable(state);
+      if (fixture) {
+        fixture->tearDown(state);
+      }
+      if (entry.teardown) {
+        entry.teardown(callbackState);
+      }
     } catch (const std::exception& error) {
       state.topUpWindow();
       ++nextPair;

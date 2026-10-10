@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -34,9 +35,64 @@ auto bmTouch(sg::State& state) -> void
   }
 }
 
+// FR-027: an argument family of arity two. Each position carries an
+// `argName` label, so its instance names read `bmArgs/width:N/depth:M`.
+auto bmArgs(sg::State& state) -> void
+{
+  const std::size_t cells = static_cast<std::size_t>(state.range(0))
+      * static_cast<std::size_t>(state.range(1));
+  std::vector<std::uint64_t> values(cells, 1);
+  std::uint64_t total = 0;
+  for (auto _ : state) {
+    for (const std::uint64_t value : values) {
+      total += value;
+    }
+    sg::doNotOptimize(total);
+  }
+}
+
+// FR-027: the function template `SG_BENCHMARK_TEMPLATE` instantiates
+// over one type argument.
+template<class Value>
+auto bmFill(sg::State& state) -> void
+{
+  std::vector<Value> values(64);
+  for (auto _ : state) {
+    for (Value& value : values) {
+      value = Value {1};
+    }
+    sg::doNotOptimize(values);
+  }
+}
+
+// FR-027: the fixture whose object one run builds: the harness runs the
+// `setUp` and `tearDown` pair around the method in the untimed region
+// (FR-017).
+class TableFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State&) -> void override { m_values.assign(64, 1); }
+
+  auto tearDown(sg::State&) -> void override { m_values.clear(); }
+
+protected:
+  std::vector<std::uint64_t> m_values;
+};
+
 }  // namespace
 
 SG_BENCHMARK(bmTouch)
+SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t)
+
+// FR-027: the fixture method, registered by `SG_BENCHMARK_F` as the
+// instance `TableFixture/bmTableTouch`, whose suite is the fixture class
+// (FR-016, FR-021).
+SG_BENCHMARK_F(TableFixture, bmTableTouch)(sg::State& state)
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(m_values.back());
+  }
+}
 
 auto main(int argc, char** argv) -> int
 {
@@ -60,6 +116,16 @@ auto main(int argc, char** argv) -> int
       }
     }
   }
+
+  auto argsHandle = sg::registerBenchmark(&bmArgs, "bmArgs");
+  if (!argsHandle.name().empty()) {
+    argsHandle.argName("width").argName("depth").args({8, 16}).args({16, 32});
+  }
+
+  // FR-020: the prefix gate, visible in the same listing. The family
+  // registers and expands, and selection drops it, so list mode prints no
+  // such name and a run selects nothing that is disabled.
+  (void)sg::registerBenchmark(&bmTouch, "DISABLED_bmTouch");
 
   return sg::speedgunMain(argc, argv);
 }

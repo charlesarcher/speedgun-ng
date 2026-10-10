@@ -10,6 +10,7 @@
 #include <optional>
 #include <regex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <getopt.h>
@@ -36,6 +37,10 @@ void handleInterrupt(const int) noexcept
 // count the run control carries.
 constexpr std::int64_t kMaxWholeSeconds =
     std::numeric_limits<std::int64_t>::max() / 1'000'000'000;
+
+// FR-020, R-11: the prefix of a disabled instance. The gate is a prefix
+// test on the expanded instance name, and selection is where it stands.
+constexpr std::string_view kDisabledPrefix = "DISABLED_";
 
 // FR-034: an invalid value is a usage error that reports and exits
 // nonzero without running anything. The signed read is deliberate:
@@ -224,13 +229,13 @@ auto speedgunMain(int argc, char** argv) -> int
     return 0;
   }
 
-  std::vector<RegistryEntry*> selected;
-  if (options.filter.empty()) {
-    for (auto& entry : registry()) {
-      selected.push_back(entry.get());
-    }
-  } else {
-    std::optional<std::regex> pattern;
+  // FR-003, R-03: expansion completes here, before the filter and
+  // before the first run, so a run carries no expansion work.
+  detail::expandRegistry();
+
+  std::vector<Instance*> selected;
+  std::optional<std::regex> pattern;
+  if (!options.filter.empty()) {
     try {
       pattern.emplace(options.filter);
     } catch (const std::regex_error& error) {
@@ -240,16 +245,24 @@ auto speedgunMain(int argc, char** argv) -> int
                    error.what());
       return 2;
     }
-    for (auto& entry : registry()) {
-      if (std::regex_search(entry->name, *pattern)) {
-        selected.push_back(entry.get());
-      }
+  }
+  for (auto& instance : detail::instances()) {
+    // FR-020, R-11: the gate stands here, on the expanded instance name.
+    // A disabled instance stays in the registry and in the expansion; the
+    // filter never matches it and list mode never prints it, and a filter
+    // whose only match is disabled leaves the empty-selection report of
+    // contracts/cli.md untouched.
+    if (instance.name.starts_with(kDisabledPrefix)) {
+      continue;
+    }
+    if (!pattern || std::regex_search(instance.name, *pattern)) {
+      selected.push_back(&instance);
     }
   }
 
   if (options.listMode) {
-    for (auto* entry : selected) {
-      std::printf("%s\n", entry->name.c_str());
+    for (auto* instance : selected) {
+      std::printf("%s\n", instance->name.c_str());
     }
     return 0;
   }
@@ -275,6 +288,9 @@ auto speedgunMain(int argc, char** argv) -> int
   [[maybe_unused]] bool anyFailed = false;
   [[maybe_unused]] bool anyInterrupted = false;
   detail::Runner runner(options);
+  // The loop variable keeps the spelling `entry`: `test/cli_shape.sh`
+  // locates this loop by the `runner.run(*entry)` line and reads the
+  // flag exactly once inside it.
   for (auto* entry : selected) {
     const auto result = runner.run(*entry);
     detail::printResult(result);
