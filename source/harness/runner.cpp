@@ -549,9 +549,16 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     ResultRow aggregate;
     aggregate.kind = RowKind::AGGREGATE;
 
+    // D-13, FR-002: one aggregate summarizes the primary time, and the
+    // gap rule of the Edge Cases keeps a repetition whose primary fold
+    // carried a disclosure out of the statistics.
     std::vector<double> times;
     for (const auto& row : result.rows) {
-      times.push_back(row.timePerIterationNs);
+      if (row.timeAvailability != sg::counters::Availability::COUNTABLE) {
+        continue;
+      }
+      times.push_back(entry.realTime ? row.timePerIterationNs
+                                     : row.cpuTimePerIterationNs);
     }
     aggregate.timeStats = statisticsOf(std::move(times));
 

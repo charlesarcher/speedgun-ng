@@ -293,7 +293,7 @@ auto scenarioWalk() -> int
   }
   check(countFieldOf(rows.back(), " n=") == 3,
         "the warm-up and calibration runs add no sample (SC-002)");
-  check(closeTo(doubleFieldOf(rows[0], "time/iter (ns)="),
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
                 static_cast<double>(kWalkMonotonicStep) / 174.0),
         "the measured run is the qualifying run's fold over N (FR-018)");
   // Three calibration runs, their qualifying run, and the two later
@@ -372,7 +372,7 @@ auto scenarioFivefold() -> int
   check(rows.size() == 1, "the five-times step ends the walk (FR-008)");
   check(countFieldOf(rows[0], "iterations=") == 1,
         "the first run qualified on real time alone (SC-002)");
-  check(closeTo(doubleFieldOf(rows[0], "time/iter (ns)="),
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
                 static_cast<double>(kFivefoldMonotonicStep)),
         "the qualifying run's real time is the scripted delta (FR-020)");
   check(consumed == planActions + 2,
@@ -401,7 +401,7 @@ auto scenarioWindow() -> int
   const std::vector<std::string> rows = linesOf(report, "bmWindow");
   check(rows.size() == 1,
         "the window scenario prints one measured row (FR-012)");
-  const double perIteration = doubleFieldOf(rows[0], "time/iter (ns)=");
+  const double perIteration = doubleFieldOf(rows[0], "real time/iter (ns)=");
   check(perIteration < kWindowBoundNs,
         "the measured window covers the loop, not the setup or the "
         "teardown (FR-004, FR-017)");

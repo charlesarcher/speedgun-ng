@@ -485,7 +485,7 @@ auto untimedScenario() -> void
       captureRun({"--filter", "^QueueFixture/push$", "--iterations=4"});
   const std::vector<std::string> rows = runRowsOf(report, "QueueFixture/push");
   check(rows.size() == 1, "the scripted run prints one measured row (FR-012)");
-  check(closeTo(doubleFieldOf(rows[0], "time/iter (ns)="),
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
                 static_cast<double>(kMonotonicStep) / 4.0),
         "the reported time is the scripted delta over N, so the pair's work "
         "adds nothing to it (FR-017)");
