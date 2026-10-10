@@ -524,7 +524,11 @@ public:
    * (FR-017).
    *
    * The empty default does nothing; a fixture overrides it to build
-   * what its method measures on.
+   * what its method measures on. The state the harness hands the pair
+   * is the callback state of FR-018: reading the instance arguments
+   * and the iteration count is legal there, and `begin()`,
+   * `skipWithError` and `skipWithMessage` are precondition violations
+   * (FR-017).
    *
    * \pre none
    * \post none
@@ -536,7 +540,8 @@ public:
    * (FR-017).
    *
    * The empty default does nothing; a fixture overrides it to release
-   * what `setUp` built.
+   * what `setUp` built. The state follows the same callback-state rule
+   * as `setUp` (FR-017).
    *
    * \pre none
    * \post none
