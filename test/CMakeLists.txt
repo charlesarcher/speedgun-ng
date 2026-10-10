@@ -664,6 +664,17 @@ target_link_libraries(harness_cpu_leaf_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_cpu_leaf_test PRIVATE cxx_std_23)
 add_test(NAME harness_cpu_leaf_test COMMAND harness_cpu_leaf_test)
 
+# Real time as the primary time of a family (T013; US2, C-3, FR-001,
+# FR-002, FR-005, SC-001). One scripted provider drives both machine
+# time leaves and doubles each run's fold, so the two selections walk
+# different lengths and the aggregate names the column it summarizes.
+# Each scripted scenario owns one provider script, so it runs in a
+# re-exec of this binary and the parent reads its wait status.
+add_executable(harness_real_time_test source/harness_real_time_test.cpp)
+target_link_libraries(harness_real_time_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_real_time_test PRIVATE cxx_std_23)
+add_test(NAME harness_real_time_test COMMAND harness_real_time_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
