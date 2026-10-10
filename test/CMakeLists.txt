@@ -642,6 +642,17 @@ target_link_libraries(harness_disabled_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_disabled_test PRIVATE cxx_std_23)
 add_test(NAME harness_disabled_test COMMAND harness_disabled_test)
 
+# The two time columns of the repetition row, the run's own sample
+# count, and the primary-time aggregate, over a scripted provider whose
+# three machine time leaves each step by a constant per sampling action,
+# so every printed figure is that step over the fixed iteration count
+# (T008; US1, C-1, FR-001, FR-002, FR-003, FR-013, FR-018, SC-001,
+# SC-004).
+add_executable(harness_time_columns_test source/harness_time_columns_test.cpp)
+target_link_libraries(harness_time_columns_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_time_columns_test PRIVATE cxx_std_23)
+add_test(NAME harness_time_columns_test COMMAND harness_time_columns_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
