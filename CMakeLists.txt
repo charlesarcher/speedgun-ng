@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.6.0
+    VERSION 0.7.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -212,10 +212,11 @@ set_target_properties(
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES
     VERSION "${PROJECT_VERSION}"
-    # The 0.x rule of the counters archive applies unchanged here: the
-    # harness adds a surface and changes no existing signature, so the
-    # ABI number stays 2 (D-5, FR-046).
-    SOVERSION 2
+    # The 0.x rule of the counters archive applies unchanged here: State
+    # gains argument storage and BenchmarkResult gains two fields, so both
+    # exported layouts change and the hand-kept number moves up to 3
+    # (FR-026, R-16).
+    SOVERSION 3
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
