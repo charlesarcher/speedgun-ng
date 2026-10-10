@@ -9,8 +9,9 @@
 namespace sg::detail
 {
 
-// The names sit in a table indexed by the enumerator, so the report
-// holds no branch for a value the enumeration excludes.
+// The names sit in a table indexed by the enumerator, and a value
+// outside the closed enumeration answers the one name the report and
+// the listing print for it (FR-024).
 constexpr std::array<const char*, 6> kAvailabilityNames {
     "countable",
     "permission-blocked",
@@ -25,11 +26,15 @@ static_assert(kAvailabilityNames.size()
 auto availabilityName(const sg::counters::Availability availability) -> const
     char*
 {
-  // The static_assert above ties the table to the last enumerator, so the
-  // index of a value of the closed enumeration sits inside the table
-  // (FR-021).
+  // The static_assert above ties the table to the last enumerator, so
+  // the index of a value of the closed enumeration sits inside the
+  // table, and the guard answers every other value (FR-021, FR-024).
+  const auto index = std::to_underlying(availability);
+  if (index >= kAvailabilityNames.size()) {
+    return "unknown";
+  }
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  return kAvailabilityNames[std::to_underlying(availability)];
+  return kAvailabilityNames[index];
 }
 
 auto printContext() -> void
