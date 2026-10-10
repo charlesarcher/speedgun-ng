@@ -303,6 +303,31 @@ Beyond the entries above, these are the places where this feature settled a ques
 
 ## Execution Log
 
+### CI-2 the gap mode aborts, 2026-10-10
+
+The failing case is `harness_gap_test` in the test, sanitize, tsan
+and coverage jobs: the `namesListing` child calls
+`availabilityName` with a value outside the closed enumeration, the
+six-name table is subscripted past its end, and libstdc++'s
+`_GLIBCXX_ASSERTIONS` subscript check aborts the child. Locally the
+suite stayed green because the mode check read
+`WEXITSTATUS(status)` of a status that reports a signal: that read
+yields zero, so an aborted child passed. `strace -e wait4` on the
+parent shows the child dying of `SIGABRT` while the check compares
+zero to zero. The causes are two: the missing tail of
+`availabilityName`, restored behind a bounds guard, and the vacuous
+mode check, now gated on `WIFEXITED`.
+
+### CI-1 the ignore build warns, 2026-10-10
+
+Under `speedgun-ng_CONTRACTS=ignore` the enforcement macros expand
+to nothing and six locals that feed only contract checks became
+unused; the consumer-release job builds that semantic with
+`-Wunused -Werror` and stopped. The `ci-linux-ignore` Release
+configure reproduced it: five named locals and the range-for
+binding of the `argsProduct` emptiness check. All six carry
+`[[maybe_unused]]` and the ignore build compiles clean.
+
 ### CF-4 callback-state rule and end(), 2026-10-10
 
 CF-4 changed no behavior, so no covering test could fail first: the
@@ -693,3 +718,10 @@ the red state of the covering test before the fix.
   clean, and the sweep of `source/harness/` and
   `include/speedgun-ng/` found no other contract-only local
   (Principle II, FR-024)
+- [x] T063 Fix the CI ctest failures at their causes:
+  `availabilityName` answers a value outside the closed enumeration
+  with `unknown` behind a bounds guard instead of subscripting the
+  six-name table, the shape the gap suite pins for FR-024, and the
+  mode check of `test/source/harness_gap_test.cpp` tests
+  `WIFEXITED` before `WEXITSTATUS`, so a signalled child can no
+  longer read as a passing exit status (FR-024, FR-035)

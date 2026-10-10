@@ -569,7 +569,10 @@ auto main(const int argc, char** argv) -> int
     const std::string_view modeName {name};
     const int wanted =
         (modeName == "hugeCount" || modeName == "junkCount") ? 2 : 0;
-    check(WEXITSTATUS(status) == wanted,
+    // A signalled child carries no exit code: WEXITSTATUS of that
+    // status reads zero, so the exit test stands only for a child
+    // that actually exited (FR-035).
+    check(WIFEXITED(status) && WEXITSTATUS(status) == wanted,
           "the gap mode passes (FR-023, FR-024, FR-032)");
   }
   std::puts("harness_gap_test: ok");
