@@ -29,7 +29,7 @@ recorded version effect."
 - Q: How should the harness react when a family call carries an invalid argument - a range multiplier below 2, a low bound above the high bound, or a `denseRange` step of zero? → A: A `SG_REQUIRE` precondition violation, enforced in source, as every other contract check in the library.
 - Q: What should happen when one family expands to more than 100 instances? → A: One warning with the bound of the cited revision, the instances kept, and the run continues.
 - Q: What version and `SOVERSION` should this feature ship, given that `State` gains argument storage and so changes layout? → A: Version 0.7.0, the harness `SOVERSION` up from 2 to 3, the counters archive unchanged at 2.
-- Q: What may a setup or teardown callback, or a fixture `setUp`/`tearDown`, do with the `State` it receives? → A: Read the instance arguments and the iteration count. `begin()`, `end()`, and the skip methods are precondition violations in that state, which stays a `State&` with no new public view type.
+- Q: What may a setup or teardown callback, or a fixture `setUp`/`tearDown`, do with the `State` it receives? → A: Read the instance arguments and the iteration count. `begin()` and the skip methods are precondition violations in that state. `end()` is static and stays legal. The state stays a `State&` with no new public view type.
 - Q: When an instance carries a suite and a case, how does the console report show that split? → A: Row order only. The report keeps the H1 single name column carrying the full instance name, and the suite and case pair becomes a readable field of the result value the harness exposes.
 - Q: Which capabilities do C-1 through C-10 name? → A: C-1 argument families, C-2 instance names, C-3 argument access, C-4 capture, C-5 templates, C-6 fixtures, C-7 setup and teardown callbacks, C-8 the `DISABLED_` prefix, C-9 suite and case naming, C-10 examples and documentation. Scope carries the table mapping each to its requirements.
 - Q: Where does the harness report a duplicate instance name found at expansion, and does it change the exit status? → A: One line on the standard error stream naming both instance names, the later instance dropped, and the exit status unchanged, as H1 treats a registration duplicate.
@@ -550,9 +550,10 @@ listing and filter follow C-8.
   measured runs included, in the untimed region. The state handed to a
   callback shall carry the instance arguments. In that state reading
   the instance arguments and the iteration count is legal, and
-  `begin()`, `end()`, `skipWithError`, and `skipWithMessage` are
-  precondition violations. The state stays a `State&`; no new public
-  view type enters the surface.
+  `begin()`, `skipWithError`, and `skipWithMessage` are precondition
+  violations. `end()` is static, touches no state, and stays legal.
+  The state stays a `State&`; no new public view type enters the
+  surface.
 - **FR-019**: This spec runs one thread. The once-per-thread-group
   rule stays with the threads spec of the roadmap.
 

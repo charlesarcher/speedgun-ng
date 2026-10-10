@@ -303,6 +303,20 @@ Beyond the entries above, these are the places where this feature settled a ques
 
 ## Execution Log
 
+### CF-4 callback-state rule and end(), 2026-10-10
+
+CF-4 changed no behavior, so no covering test could fail first: the
+runner never guarded `end()` and the guard scenario already aborted
+only on `begin()`, `skipWithError` and `skipWithMessage`. The wrong
+claim lived in the spec alone: the Clarifications entry and FR-018
+listed `end()` among the precondition violations. Both now state the
+rule as the contracts, the plan, the data model and the C-7 section
+already did. The new `bmCbEndLegal` registration and
+`endLegalScenario` pin the legality: the setup callback calls `end()`,
+returns, and the run prints its row; the suite passed on first run
+against the unguarded code, which is the state the corrected spec
+describes.
+
 ### CF-3 argName replace semantics, 2026-10-10
 
 The covering test went first. With the appending `argName`, the
@@ -664,3 +678,11 @@ the red state of the covering test before the fix.
   `test/source/harness_instance_name_test.cpp` cover the two shapes,
   and the example states its labels through one `argNames` call
   (FR-006)
+- [x] T061 Align the callback-state rule with `end()`: the
+  Clarifications entry and FR-018 state that `begin()`,
+  `skipWithError` and `skipWithMessage` are precondition violations
+  while `end()` is static, touches no state, and stays legal; the
+  other artifacts already carried that rule; the `bmCbEndLegal`
+  registration and `endLegalScenario` of
+  `test/source/harness_callback_test.cpp` pin the legality (FR-018,
+  R-05)
