@@ -637,9 +637,9 @@ auto endLegalScenario() -> void
 {
   const std::string run =
       captureRun({"--filter", "^bmCbEndLegal$", "--iterations=1"});
-  check(runRowsOf(run, "bmCbEndLegal").size() == 1,
-        "the instance with an end() call in its setup callback runs "
-        "(FR-018)");
+  check(
+      runRowsOf(run, "bmCbEndLegal").size() == 1,
+      "the instance with an end() call in its setup callback runs " "(FR-018)");
   check(endCalls == 1,
         "end() in a callback state returns without aborting (R-05)");
 }
