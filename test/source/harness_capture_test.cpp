@@ -327,7 +327,7 @@ auto main() -> int
   // owes is one plan-level floor, published on every row of the plan.
   check(fieldOf(scriptedLine, "overhead floor (ns)=") > 0.0,
         "the row carries the plan's overhead floor (FR-026)");
-  check(sameDouble(fieldOf(scriptedLine, "time/iter (ns)="),
+  check(sameDouble(fieldOf(scriptedLine, "real time/iter (ns)="),
                    static_cast<double>(kMonotonicStep) / 8.0),
         "time per iteration is the scripted delta over N (SC-001)");
   // FR-022: a dimensionless window keeps its value undivided; scripted
@@ -369,7 +369,7 @@ auto main() -> int
   check(sameDouble(fieldOf(tscLine, "machine/tsc="),
                    static_cast<double>(kTscStep) / 4.0),
         "the tsc leaf reports its ticks as a count per iteration (FR-039)");
-  check(sameDouble(fieldOf(tscLine, "time/iter (ns)="),
+  check(sameDouble(fieldOf(tscLine, "real time/iter (ns)="),
                    static_cast<double>(kMonotonicStep) / 4.0),
         "no time is derived from the tsc leaf (FR-039)");
   checkHas(tscLine.substr(tscLine.find("machine/tsc=")),

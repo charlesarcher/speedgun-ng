@@ -163,7 +163,10 @@ auto scriptedProvider() -> void
   provider->addCounter("machine", "monotonic", "nanoseconds", "monotonic");
   provider->setPoints("machine", "monotonic", {0}, 0, 7);
   provider->addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
-  provider->setPoints("machine", "thread_cpu", {0}, 2000);
+  // The aggregate summarizes the primary time, which is the CPU column
+  // under the default selection, so the varying script belongs to that
+  // leaf and the sample form stays exercised.
+  provider->setPoints("machine", "thread_cpu", {0}, 0, 3);
   provider->addObject("gapobj", "gapobj", "the gapped object");
   provider->addCounter("gapobj", "gnum", "none", "a leaf with a scripted gap");
   provider->setPoints("gapobj", "gnum", {0}, 600);
@@ -196,7 +199,7 @@ auto main() -> int
 
   std::vector<double> times;
   for (std::size_t row = 0; row + 1 < rows.size(); ++row) {
-    times.push_back(doubleFieldOf(rows[row], "time/iter (ns)="));
+    times.push_back(doubleFieldOf(rows[row], "cpu time/iter (ns)="));
   }
   const std::string& aggregate = rows.back();
   check(aggregate.find("AGGREGATE") != std::string::npos,
@@ -228,11 +231,14 @@ auto main() -> int
         "the percentile form stays out (FR-028)");
 
   // FR-025: a repetition whose run carries a gap contributes no sample to
-  // the aggregate of the affected quantity, and the time aggregate keeps
-  // all five. The gap script matches the window's own action count, and one
-  // window holds the plan's calibration points plus ten measured points, so
-  // the batch above reveals the calibration length and the next window's
-  // second run ends at calibration plus four.
+  // the aggregate of the affected quantity. The scripted gap sits on the
+  // window that also carries the two time leaves, so the primary fold of
+  // that repetition carries the disclosure too and the time aggregate
+  // drops it beside the metric (FR-025, research D-13). The gap script
+  // matches the window's own action count, and one window holds the
+  // plan's calibration points plus ten measured points, so the batch
+  // above reveals the calibration length and the next window's second run
+  // ends at calibration plus four.
   const std::uint64_t consumed = fakeLeaf->readActions();
   fakeLeaf->setGapActions("gapobj", "gnum", {consumed - 6});
   const std::string gapped = captureRun({"--filter",
@@ -246,8 +252,9 @@ auto main() -> int
         "the aggregate rows carry the metric aggregate too (FR-035)");
   const std::string& timeAggregate = gappedRows[5];
   const std::string& metricAggregate = gappedRows[6];
-  check(countFieldOf(timeAggregate, " n=") == 5,
-        "the time aggregate keeps every measured repetition (FR-027)");
+  check(countFieldOf(timeAggregate, " n=") == 4,
+        "the gapped window gaps the primary fold, so the time aggregate "
+        "drops that repetition (FR-025, research D-13)");
   check(metricAggregate.find("gapobj/gnum") != std::string::npos
             && countFieldOf(metricAggregate, " n=") == 4,
         "the gapped repetition contributes no sample (FR-025)");

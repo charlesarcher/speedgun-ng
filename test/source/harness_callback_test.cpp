@@ -461,7 +461,7 @@ auto untimedScenario() -> void
   const std::vector<std::string> rows = runRowsOf(report, "bmCbUntimed");
   check(rows.size() == 1, "the scripted run prints one measured row (FR-012)");
   check(untimedSetups == 1, "the burning setup callback ran once (FR-018)");
-  check(closeTo(doubleFieldOf(rows[0], "time/iter (ns)="),
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
                 static_cast<double>(kMonotonicStep) / 4.0),
         "the reported time is the scripted delta over N, so the callback's "
         "work adds nothing to it (FR-018)");

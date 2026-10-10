@@ -60,8 +60,9 @@ auto printResult(const BenchmarkResult& result) -> void
 
   for (const auto& row : result.rows) {
     if (row.kind == RowKind::AGGREGATE) {
-      std::printf("%-24s %10s  time/iter (ns) mean=%9.3f median=%9.3f "
-                  "sd=%9.3f cv=%8.4f min=%9.3f max=%9.3f n=%llu\n",
+      std::printf("%-24s %10s  primary time/iter (ns) mean=%9.3f "
+                  "median=%9.3f sd=%9.3f cv=%8.4f min=%9.3f max=%9.3f "
+                  "n=%llu\n",
                   result.name.c_str(),
                   "AGGREGATE",
                   row.timeStats.mean,
@@ -90,12 +91,15 @@ auto printResult(const BenchmarkResult& result) -> void
       continue;
     }
 
-    std::printf("%-24s iterations=%10llu  time/iter (ns)=%9.3f  "
-                "overhead floor (ns)=%9.3f  endpoint samples=2",
+    std::printf("%-24s iterations=%10llu  real time/iter (ns)=%9.3f  "
+                "cpu time/iter (ns)=%9.3f  overhead floor (ns)=%9.3f  "
+                "endpoint samples=%llu",
                 result.name.c_str(),
                 static_cast<unsigned long long>(row.iterations),
                 row.timePerIterationNs,
-                row.overheadFloorNs);
+                row.cpuTimePerIterationNs,
+                row.overheadFloorNs,
+                static_cast<unsigned long long>(row.endpointSamples));
     for (std::size_t column = 0; column < row.metrics.size(); ++column) {
       const auto& metric = row.metrics[column];
       const char* label = result.metricLabels[column].c_str();
