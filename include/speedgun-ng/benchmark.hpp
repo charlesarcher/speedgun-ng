@@ -395,6 +395,25 @@ public:
   }
 
   /**
+   * @brief Add one iteration time to the manual accumulator (FR-007).
+   *
+   * A manual benchmark supplies its own time: this call takes one
+   * nanosecond count per iteration and the harness records the sum of
+   * the accepted values by summation alone, with no clock behind it.
+   * The real column of the run shows that sum divided by the iteration
+   * count (FR-006, FR-007, D-05). The call stands in the benchmark
+   * body, inside the timed loop or outside it, and the run state owns
+   * the accumulator.
+   *
+   * \pre this state belongs to a run: a callback state owns no run to
+   *      accumulate for, so accepting a value there is a precondition
+   *      violation (R-05, D-15)
+   * \post the manual accumulator carries the sum of every accepted
+   *       value, this one included (FR-007)
+   */
+  auto setIterationTime(std::int64_t nanoseconds) -> void;
+
+  /**
    * @brief The outcome the function requested, if any.
    *
    * \pre none
@@ -732,6 +751,25 @@ public:
    *       family, and the returned handle is this handle (FR-005)
    */
   auto useRealTime() -> BenchmarkHandle&;
+
+  /**
+   * @brief Make the manual sum the primary time of this family (FR-006).
+   *
+   * The benchmark supplies one iteration time per iteration through
+   * `State::setIterationTime`, and the primary time of a run becomes
+   * the sum of the accepted values. The qualification test, the growth
+   * rule, and the aggregate time statistics read that sum, and the
+   * fivefold real-time stop leaves a manual run alone (FR-006, D-05).
+   * The selection excludes the real-time selection, so the second of
+   * the two calls is the violation, in either order (FR-008, D-04).
+   *
+   * \pre the handle names a registered entry, the run has not started
+   *      for this benchmark, and this family selects no real time
+   *      (E-02, FR-008)
+   * \post the entry makes the manual sum the primary time of that
+   *       family, and the returned handle is this handle (FR-006)
+   */
+  auto useManualTime() -> BenchmarkHandle&;
 
   /**
    * @brief Attach a counter expression built with the 007 arithmetic

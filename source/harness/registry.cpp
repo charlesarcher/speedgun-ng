@@ -119,6 +119,33 @@ auto BenchmarkHandle::useRealTime() -> BenchmarkHandle&
   return *this;
 }
 
+auto BenchmarkHandle::useManualTime() -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  SG_REQUIRE(!m_entry->realTime,
+             "a manual-time selection beside a real-time selection "
+             "violates the bound real time and manual time exclude each "
+             "other (FR-008)");
+  m_entry->manualTime = true;
+  SG_ENSURE(m_entry->manualTime,
+            "the entry makes the manual sum the primary time (FR-006)");
+  return *this;
+}
+
+auto State::setIterationTime(const std::int64_t nanoseconds) -> void
+{
+  SG_REQUIRE(!m_callbackState,
+             "setIterationTime in a callback state violates the callback-state "
+             "rule that the callback state owns no run to accumulate for "
+             "(R-05)");
+  [[maybe_unused]] const std::int64_t before = m_manualNs;
+  m_manualNs += nanoseconds;
+  SG_ENSURE(m_manualNs == before + nanoseconds,
+            "the manual accumulator carries the sum of every accepted value "
+            "(FR-007)");
+}
+
 auto BenchmarkHandle::addMetricCore(const detail::MetricSeed& seed)
     -> BenchmarkHandle&
 {
