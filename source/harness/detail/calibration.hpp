@@ -4,11 +4,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstddef>
 #include <expected>
 #include <limits>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "speedgun-ng/benchmark.hpp"
 
@@ -19,8 +21,10 @@ namespace sg::detail
 inline constexpr std::uint64_t kIterationCap = 1'000'000'000'000ULL;
 inline constexpr std::uint64_t kRunBound = 96;
 
-// One sampled run: the two endpoint actions, the fold of each clock,
-// and what the benchmark function asked for.
+// One sampled run: the sample span the run owns, the fold of each clock
+// over that span, the paused intervals to net out, and the iteration
+// count the benchmark function asked for. The H1 fields keep their
+// order, so an aggregate that names them positionally stays valid.
 struct RunRecord
 {
   std::uint64_t iterations = 0;
@@ -29,6 +33,11 @@ struct RunRecord
   std::int64_t decisionNs = 0;
   bool skipped = false;
   std::string reason;
+  std::size_t basePoint = 0;
+  std::uint64_t samples = 0;
+  std::vector<std::pair<std::uint64_t, std::uint64_t>> pausePairs;
+  std::int64_t cpuNs = 0;
+  bool manual = false;
 };
 
 // R-012: the growth factor is integer arithmetic on nanoseconds, and a

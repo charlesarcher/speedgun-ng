@@ -48,7 +48,11 @@ struct Sample
   {
     ++samples;
     lastCount = count;
-    return sg::detail::RunRecord {count, 0, realNs, decisionNs, false, {}};
+    auto record = sg::detail::RunRecord {};
+    record.iterations = count;
+    record.realNs = realNs;
+    record.decisionNs = decisionNs;
+    return record;
   }
 };
 
