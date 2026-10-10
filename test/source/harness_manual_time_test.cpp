@@ -283,7 +283,7 @@ auto scenarioEmpty() -> int
   check(rows.size() == 1, "one repetition prints one measured row (FR-012)");
   check(countFieldOf(rows[0], "iterations=") == 4,
         "the fixed count reached the run (FR-013)");
-  check(doubleFieldOf(rows[0], "real time/iter (ns)=") == 0.0,
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="), 0.0),
         "a run that accepted nothing reports zero (FR-007)");
   std::puts("harness_manual_time_test empty: ok");
   return 0;
@@ -401,26 +401,40 @@ auto main(const int argc, char** argv) -> int
   // Each scripted scenario owns one provider script, so each runs in a
   // re-exec of this binary; a failed check exits there and shows here.
   const std::string self = argc > 0 ? argv[0] : "harness_manual_time_test";
-  for (const auto& scenario : {"report",
-                               "growth",
-                               "fivefold",
-                               "empty",
-                               "rule",
-                               "real-then-manual",
-                               "manual-then-real"})
+  for (const auto& scenario :
+       {"report", "growth", "fivefold", "empty", "rule"})
   {
     const int status =
         std::system(("\"" + self + "\" " + scenario + " 2>/dev/null").c_str());
-    const std::string_view name {scenario};
-    if (name == "real-then-manual" || name == "manual-then-real") {
-      // A signaled child carries no exit code, so the signal test stands
-      // apart from the exit test (FR-008).
-      check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT,
-            "the second of the two selections ends the re-exec (FR-008)");
-      continue;
-    }
     check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
           "the scripted scenario passes");
+  }
+
+  // A shell reports a signaled child as its own exit 134, so the two
+  // guard modes fork and exec directly, the pattern of
+  // harness_callback_test.cpp:599, and the parent reads the signal from
+  // waitpid (FR-008).
+  for (const auto& guardMode : {"real-then-manual", "manual-then-real"})
+  {
+    const pid_t pid = fork();
+    if (pid < 0) {
+      fail("cannot fork the guarded selection");
+    }
+    if (pid == 0) {
+      if (std::freopen("/dev/null", "w", stderr) == nullptr) {
+        _exit(2);
+      }
+      char* const execArgv[] = {const_cast<char*>(self.c_str()),
+                                const_cast<char*>(guardMode), nullptr};
+      (void)execv(self.c_str(), execArgv);
+      _exit(2);
+    }
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) {
+      fail("cannot wait for the guarded selection");
+    }
+    check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT,
+          "the second of the two selections ends the re-exec (FR-008)");
   }
   std::puts("harness_manual_time_test: ok");
   return 0;
