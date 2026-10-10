@@ -95,6 +95,30 @@ auto BenchmarkHandle::iterations(const std::uint64_t count) -> BenchmarkHandle&
   return *this;
 }
 
+auto BenchmarkHandle::measureProcessCpuTime() -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  m_entry->processCpuTime = true;
+  SG_ENSURE(m_entry->processCpuTime,
+            "the entry selects the process CPU leaf (FR-004)");
+  return *this;
+}
+
+auto BenchmarkHandle::useRealTime() -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  SG_REQUIRE(!m_entry->manualTime,
+             "a real-time selection beside a manual-time selection "
+             "violates the bound real time and manual time exclude each "
+             "other (FR-008)");
+  m_entry->realTime = true;
+  SG_ENSURE(m_entry->realTime,
+            "the entry makes the real column the primary time (FR-005)");
+  return *this;
+}
+
 auto BenchmarkHandle::addMetricCore(const detail::MetricSeed& seed)
     -> BenchmarkHandle&
 {

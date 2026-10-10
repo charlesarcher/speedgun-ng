@@ -703,6 +703,37 @@ public:
   auto iterations(std::uint64_t count) -> BenchmarkHandle&;
 
   /**
+   * @brief Move the CPU column of this family to the process CPU leaf
+   * (FR-004).
+   *
+   * The selection stands for every instance of the family, and it
+   * combines with the real-time call and with the manual-time call
+   * (FR-004, FR-008).
+   *
+   * \pre the handle names a registered entry and the run has not
+   *      started for this benchmark (E-02)
+   * \post the entry selects `machine/process_cpu` for the CPU column of
+   *       that family, and the returned handle is this handle (FR-004)
+   */
+  auto measureProcessCpuTime() -> BenchmarkHandle&;
+
+  /**
+   * @brief Make real time the primary time of this family (FR-005).
+   *
+   * The qualification test, the growth rule, and the aggregate time
+   * statistics read the real column from this call on. The selection
+   * excludes the manual-time selection, so the second of the two calls
+   * is the violation, in either order (FR-008, D-04).
+   *
+   * \pre the handle names a registered entry, the run has not started
+   *      for this benchmark, and this family selects no manual time
+   *      (E-02, FR-008)
+   * \post the entry makes the real column the primary time of that
+   *       family, and the returned handle is this handle (FR-005)
+   */
+  auto useRealTime() -> BenchmarkHandle&;
+
+  /**
    * @brief Attach a counter expression built with the 007 arithmetic
    * (FR-021).
    *
