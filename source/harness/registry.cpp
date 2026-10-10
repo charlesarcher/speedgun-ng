@@ -137,6 +137,8 @@ auto BenchmarkHandle::arg(const std::int64_t value) -> BenchmarkHandle&
   SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
              "a family call runs before the run starts (E-02)");
   appendArguments(*m_entry, {value});
+  SG_ENSURE(m_entry->args.back().front() == value,
+            "the entry carries the appended argument (FR-001)");
   return *this;
 }
 
@@ -146,6 +148,8 @@ auto BenchmarkHandle::args(std::initializer_list<std::int64_t> values)
   SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
              "a family call runs before the run starts (E-02)");
   appendArguments(*m_entry, std::vector<std::int64_t>(values));
+  SG_ENSURE(m_entry->args.back().size() == values.size(),
+            "the entry carries the appended argument list (FR-001)");
   return *this;
 }
 
@@ -153,7 +157,10 @@ auto BenchmarkHandle::args(std::vector<std::int64_t> values) -> BenchmarkHandle&
 {
   SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
              "a family call runs before the run starts (E-02)");
+  const std::size_t arity = values.size();
   appendArguments(*m_entry, std::move(values));
+  SG_ENSURE(m_entry->args.back().size() == arity,
+            "the entry carries the appended argument list (FR-001)");
   return *this;
 }
 
@@ -170,6 +177,8 @@ auto BenchmarkHandle::range(const std::int64_t low,
   {
     appendArguments(*m_entry, {value});
   }
+  SG_ENSURE(m_entry->args.back().front() == high,
+            "the entry carries the grown range (FR-004)");
   return *this;
 }
 
@@ -201,7 +210,11 @@ auto BenchmarkHandle::ranges(std::vector<std::pair<std::int64_t, std::int64_t>>
     grown.push_back(
         createRange(bound.first, bound.second, m_entry->rangeMultiplier));
   }
-  return argsProduct(std::move(grown));
+  const std::size_t before = m_entry->args.size();
+  argsProduct(std::move(grown));
+  SG_ENSURE(m_entry->args.size() > before,
+            "the entry carries the product of the grown pairs (FR-004)");
+  return *this;
 }
 
 auto BenchmarkHandle::denseRange(const std::int64_t low,
@@ -219,6 +232,9 @@ auto BenchmarkHandle::denseRange(const std::int64_t low,
   for (const std::int64_t value : createDenseRange(low, high, step)) {
     appendArguments(*m_entry, {value});
   }
+  SG_ENSURE(m_entry->args.back().front() >= low
+                && m_entry->args.back().front() <= high,
+            "the entry carries the stepped range (FR-005)");
   return *this;
 }
 
@@ -237,6 +253,7 @@ auto BenchmarkHandle::argsProduct(std::vector<std::vector<std::int64_t>> lists)
   // every combination, and a list that wraps carries the next.
   std::vector<std::size_t> position(lists.size(), 0);
   std::size_t combinations = 1;
+  const std::size_t before = m_entry->args.size();
   for (const auto& list : lists) {
     combinations *= list.size();
   }
@@ -255,6 +272,8 @@ auto BenchmarkHandle::argsProduct(std::vector<std::vector<std::int64_t>> lists)
       }
     }
   }
+  SG_ENSURE(m_entry->args.size() == before + combinations,
+            "the entry carries the product of the lists (FR-001)");
   return *this;
 }
 

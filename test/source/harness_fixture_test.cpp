@@ -2,13 +2,17 @@
 // TDD test for the fixture surface (T027; US4, capability C-6, FR-015,
 // FR-016, FR-017, FR-020).
 //
-// Four fixture classes stand for the macro shapes of FR-016: one defined and
+// Six fixture classes stand for the macro shapes of FR-016: one defined and
 // registered by SG_BENCHMARK_F, one defined by SG_BENCHMARK_DEFINE_F and
 // registered later by SG_BENCHMARK_REGISTER_F, one class template registered
-// by SG_BENCHMARK_TEMPLATE_F, and one method named DISABLED_x. The instance
-// name each shape owes is a literal of this file, hand-computed from the
-// naming rule of the cited revision: `FixtureClass/Method`, and
-// `BaseClass<types>/Method` for the template. The names are read back through
+// by SG_BENCHMARK_TEMPLATE_F, one class template defined by
+// SG_BENCHMARK_TEMPLATE_DEFINE_F and registered later by
+// SG_BENCHMARK_REGISTER_F, one class template method defined by
+// SG_BENCHMARK_TEMPLATE_METHOD_F and registered per instantiation by
+// SG_BENCHMARK_TEMPLATE_INSTANTIATE_F, and one method named DISABLED_x. The
+// instance name each shape owes is a literal of this file, hand-computed from
+// the naming rule of the cited revision: `FixtureClass/Method`, and
+// `BaseClass<types>/Method` for the templates. The names are read back through
 // list mode, which prints one name per line and runs no fixture method, and
 // through the rows of one filtered run, which is how FR-011 selects a single
 // instance.
@@ -81,6 +85,8 @@ int otherRuns = 0;
 int typedSetUps = 0;
 int typedTearDowns = 0;
 int typedRuns = 0;
+int boxRuns = 0;
+int bufferRuns = 0;
 int disabledRuns = 0;
 
 // The provider of every scenario, kept by pointer so a scenario can read the
@@ -168,10 +174,27 @@ public:
   }
 };
 
+// The fixture class template whose instantiated method
+// SG_BENCHMARK_TEMPLATE_DEFINE_F defines now and SG_BENCHMARK_REGISTER_F
+// registers later (FR-016).
+template<typename Type>
+class BoxFixture : public sg::Fixture
+{
+};
+
 // The fixture whose method carries the DISABLED_ prefix, which the prefix
 // test of R-11 never reaches because the instance name starts with the class
 // name (FR-020).
 class DisabledFixture : public sg::Fixture
+{
+};
+
+// The fixture class template whose method SG_BENCHMARK_TEMPLATE_METHOD_F
+// defines once for every instantiation and
+// SG_BENCHMARK_TEMPLATE_INSTANTIATE_F registers one instantiation of
+// (FR-016).
+template<typename Type>
+class BufferFixture : public sg::Fixture
 {
 };
 
@@ -209,6 +232,28 @@ SG_BENCHMARK_TEMPLATE_F(TypedFixture, run, int)
   for (auto _ : state) {
   }
 }
+
+SG_BENCHMARK_TEMPLATE_DEFINE_F(BoxFixture, fill, int)
+
+(sg::State& state)
+{
+  ++boxRuns;
+  for (auto _ : state) {
+  }
+}
+
+SG_BENCHMARK_REGISTER_F(BoxFixture, fill);
+
+SG_BENCHMARK_TEMPLATE_METHOD_F(BufferFixture, touch)
+
+(sg::State& state)
+{
+  ++bufferRuns;
+  for (auto _ : state) {
+  }
+}
+
+SG_BENCHMARK_TEMPLATE_INSTANTIATE_F(BufferFixture, touch, int);
 
 SG_BENCHMARK_F(DisabledFixture, DISABLED_x)
 
@@ -495,6 +540,39 @@ auto disabledMethodScenario() -> void
         "and its body reaches the run (FR-020, R-11)");
 }
 
+// FR-016: the two split template pairs register and run. The defined pair
+// names its instance `BoxFixture<int>/fill`, and the method pair names it
+// `BufferFixture<int>/touch`, the type arguments between class and method
+// as for SG_BENCHMARK_TEMPLATE_F.
+auto templatePairScenario() -> void
+{
+  scriptedProvider();
+  const std::string listed = captureRun({"--list"});
+  check(lineOf(listed, "BoxFixture<int>/fill") == "BoxFixture<int>/fill",
+        "TEMPLATE_DEFINE_F plus REGISTER_F registers the instance named "
+        "BoxFixture<int>/fill (FR-016)");
+  check(lineOf(listed, "BufferFixture<int>/touch")
+            == "BufferFixture<int>/touch",
+        "TEMPLATE_METHOD_F plus TEMPLATE_INSTANTIATE_F registers the "
+        "instance named BufferFixture<int>/touch (FR-016)");
+
+  const int fillBefore = boxRuns;
+  const std::string fill =
+      captureRun({"--filter", "^BoxFixture<int>/fill$", "--iterations=1"});
+  check(runRowsOf(fill, "BoxFixture<int>/fill").size() == 1,
+        "the defined pair runs and prints one row (FR-016)");
+  check(boxRuns - fillBefore == 1,
+        "the defined method reaches its body (FR-016)");
+
+  const int touchBefore = bufferRuns;
+  const std::string touch =
+      captureRun({"--filter", "^BufferFixture<int>/touch$", "--iterations=1"});
+  check(runRowsOf(touch, "BufferFixture<int>/touch").size() == 1,
+        "the method pair runs and prints one row (FR-016)");
+  check(bufferRuns - touchBefore == 1,
+        "the templated method reaches its body (FR-016)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -507,6 +585,7 @@ auto main() -> int
   oneObjectPerRunScenario();
   laterRegistrationScenario();
   templateScenario();
+  templatePairScenario();
   disabledMethodScenario();
 
   check(queueConstructs == queueDestructs,
