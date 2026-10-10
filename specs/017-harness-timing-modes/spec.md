@@ -19,6 +19,29 @@ and resume, and time units. Every time value comes from the counters
 library as a fold over raw point pairs. The spec needs no hardware:
 every test runs on the fake provider. [...]"
 
+## Clarifications
+
+### Session 2026-10-10
+
+- Q: When `pauseTiming` or `resumeTiming` takes its sample, which
+  leaves of the run plan does it sample? → A: Every leaf of the plan.
+  Time columns and attached metric folds all subtract the paused
+  interval, one rule for every value.
+- Q: Which clock drives warm-up qualification and calibration growth
+  for a benchmark that selects no timing mode? → A: The CPU time
+  selection, thread CPU by default; the real-time or manual-time call
+  replaces it for that benchmark.
+- Q: What does the state's manual-time acceptance call take as its
+  argument? → A: An integer nanosecond count, matching the harness's
+  integer-nanosecond convention; the documentation shows a
+  measurement taken through the counters API.
+- Q: What happens when a benchmark leaves the timed loop with a pause
+  still open? → A: A precondition violation, reported like every
+  other contract breach.
+- Q: How is the default time unit settable in this feature? → A: A
+  library call sets it now; the command-line option waits for the
+  full command-line spec.
+
 ## Audit point
 
 | Field | Value |
@@ -568,7 +591,7 @@ one section per capability.
   layouts change. Under the hand-kept rule of `CMakeLists.txt:41-47`,
   the harness `SOVERSION` shall rise from 3 to 4. The counters
   archive keeps `SOVERSION` 2. The plan's version table shall record
-  both. (Q-6 confirmed.)
+  both. (Q-6 closed by the hand-kept rule.)
 - **FR-023**: No `LCOV_EXCL` marker shall enter `source/harness/`.
   Coverage shall stay at 100% line and branch.
 - **FR-024**: The plan shall record TDD mode. Every test of this spec
@@ -646,8 +669,9 @@ Out, each owned by a later roadmap spec:
 ## Assumptions
 
 - The Q-1 to Q-6 recommendations of the request stand as the adopted
-  working defaults; the Open questions section records each, and
-  clarify confirms or replaces it.
+  working defaults. The clarify session of 2026-10-10 confirmed Q-1
+  through Q-5; Q-6 follows from the hand-kept rule alone. The Open
+  questions section records each outcome.
 - The per-run pause allowance inside the capacity rule takes its
   value in the plan. The spec fixes only that the rule covers pause
   pairs and that exceeding the allowance is a precondition violation.
@@ -716,24 +740,33 @@ File and line citations, read at the audit point `adc3b92`.
 ## Open questions
 
 The request carries six questions to clarify. Each has a
-recommendation, the spec adopts the recommendation as the working
-default, and clarify confirms or replaces it.
+recommendation, and the spec adopted the recommendation as the
+working default. The clarify session of 2026-10-10 confirmed Q-1
+through Q-5. Q-6 needs no decision: the hand-kept rule of
+`CMakeLists.txt:41-47` sets the outcome mechanically from the layout
+change, so the session spent no question on it.
 
 - Q-1 Calibration clock: Google Benchmark calibrates on CPU time
   unless real or manual time is selected. Recommendation: follow that
-  rule. Adopted in FR-002, FR-005, and FR-006.
+  rule. Confirmed in the clarify session of 2026-10-10 and adopted in
+  FR-002, FR-005, and FR-006.
 - Q-2 Manual time source: Recommendation: the state accepts a
   duration in nanoseconds, and the documentation shows a measurement
-  through the counters API. Adopted in FR-007.
+  through the counters API. Confirmed in the clarify session of
+  2026-10-10 and adopted in FR-007.
 - Q-3 Pause state at loop exit: Recommendation: a pause still open at
-  loop exit is a precondition violation. Adopted in FR-011.
+  loop exit is a precondition violation. Confirmed in the clarify
+  session of 2026-10-10 and adopted in FR-011.
 - Q-4 Pause sampling: Recommendation: each pause and resume samples
   every leaf of the plan, so attached metrics exclude paused work
-  too. Adopted in FR-009 and FR-010.
+  too. Confirmed in the clarify session of 2026-10-10 and adopted in
+  FR-009 and FR-010.
 - Q-5 Default time unit: Recommendation: a library call sets it now;
   the command-line option waits for the full command-line spec.
-  Adopted in FR-016.
+  Confirmed in the clarify session of 2026-10-10 and adopted in
+  FR-016.
 - Q-6 Version: Recommendation: the next minor version, and `SOVERSION`
-  up by one when `State` or `BenchmarkHandle` changes layout. Adopted
-  in FR-022: version 0.8.0, harness `SOVERSION` 3 to 4, because
-  `State` gains pause bookkeeping and the manual accumulator.
+  up by one when `State` or `BenchmarkHandle` changes layout. Closed
+  by the hand-kept rule, which the layout facts of FR-018 satisfy:
+  version 0.8.0, harness `SOVERSION` 3 to 4, because `State` gains
+  pause bookkeeping and the manual accumulator. Adopted in FR-022.
