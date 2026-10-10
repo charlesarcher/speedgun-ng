@@ -511,6 +511,18 @@ private:
   // The arguments of the running instance, owned by that instance
   // (E-03, R-04).
   std::span<const std::int64_t> m_arguments;
+
+  // The pause bookkeeping of one run. A pause pair holds the sample
+  // ordinals, zero-based, of one paused interval inside that run's
+  // sample span, so the runner adds the run's base point when it
+  // folds (E-03, R-05).
+  std::uint8_t m_pauseDepth = 0;
+  std::vector<std::pair<std::uint64_t, std::uint64_t>> m_pausePairs;
+  std::uint64_t m_pauseCount = 0;
+  std::uint64_t m_samplesTaken = 0;
+  // The manual accumulator: the sum of the iteration times a manual
+  // benchmark supplies, in nanoseconds (E-04, FR-007).
+  std::int64_t m_manualNs = 0;
 };
 
 /**
