@@ -214,6 +214,7 @@ int firstTeardowns = 0;
 int secondTeardowns = 0;
 int orderSetups = 0;
 int orderTeardowns = 0;
+int endCalls = 0;
 int fixtureSetUps = 0;
 int fixtureTearDowns = 0;
 std::vector<std::string> events;
@@ -302,6 +303,17 @@ auto registerAll() -> void
   auto messageGuard = sg::registerBenchmark(&bmQuiet, "bmCbGuardSkipMessage");
   messageGuard.setup([](sg::State& state)
                      { state.skipWithMessage("a skip in a callback state"); });
+
+  // The legal call of the R-05 rule: end() is static, touches no state,
+  // and stays callable from a callback state.
+  auto endLegal = sg::registerBenchmark(&bmQuiet, "bmCbEndLegal");
+  endLegal.setup(
+      [](sg::State& state)
+      {
+        (void)state.end();
+        ++endCalls;
+      });
+
   auto pair = sg::registerBenchmark(&bmPair, "bmCbPair");
   pair.setup([](sg::State&) { ++pairSetups; });
   pair.teardown([](sg::State&) { ++pairTeardowns; });
@@ -619,6 +631,19 @@ auto guardScenario() -> void
   }
 }
 
+// FR-018: end() is static, touches no state, and stays legal in a
+// callback state: the callback returns and the run completes.
+auto endLegalScenario() -> void
+{
+  const std::string run =
+      captureRun({"--filter", "^bmCbEndLegal$", "--iterations=1"});
+  check(runRowsOf(run, "bmCbEndLegal").size() == 1,
+        "the instance with an end() call in its setup callback runs "
+        "(FR-018)");
+  check(endCalls == 1,
+        "end() in a callback state returns without aborting (R-05)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -633,6 +658,7 @@ auto main() -> int
   stateReadScenario();
   lastAttachmentScenario();
   orderScenario();
+  endLegalScenario();
   guardScenario();
 
   std::puts("harness_callback_test: ok");
