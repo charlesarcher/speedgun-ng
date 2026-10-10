@@ -442,10 +442,19 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         std::llround(nettedFold(realTime.core, recorder, record).value));
     record.cpuNs = static_cast<std::int64_t>(
         std::llround(nettedFold(cpuTime.core, recorder, record).value));
-    // FR-002: the primary time is the CPU fold by default and the real
-    // fold when the family asked for it; the manual sum joins with the
-    // manual mode.
-    record.decisionNs = entry.realTime ? record.realNs : record.cpuNs;
+    // FR-002, D-05: the primary time is the CPU fold by default and the
+    // real fold when the family asked for it. A manual run reports the
+    // sum the benchmark supplied: the real column and the value the
+    // growth rule reads are that sum, read from the state after the run,
+    // and the manual flag stands so the fivefold stop leaves the run
+    // alone (FR-006, FR-007).
+    if (entry.manualTime) {
+      record.realNs = state.m_manualNs;
+      record.decisionNs = state.m_manualNs;
+      record.manual = true;
+    } else {
+      record.decisionNs = entry.realTime ? record.realNs : record.cpuNs;
+    }
     if (state.outcome() == RunOutcome::SKIPPED) {
       record.skipped = true;
       record.reason = state.reason();
