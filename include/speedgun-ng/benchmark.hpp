@@ -42,6 +42,33 @@ class Runner;
 inline constexpr std::int64_t kDefaultRangeMultiplier = 8;
 
 /**
+ * @brief The unit the report scales a printed time value to (E-02).
+ *
+ * A stored time value stays nanoseconds and the report applies the
+ * divisor of the benchmark's unit at print time. `NANOSECONDS` carries
+ * the label `ns` with the divisor 1, `MICROSECONDS` `us` with 1000,
+ * `MILLISECONDS` `ms` with 1000000, `SECONDS` `s` with 1000000000
+ * (FR-015, FR-016).
+ */
+enum class TimeUnit : std::uint8_t
+{
+  NANOSECONDS,
+  MICROSECONDS,
+  MILLISECONDS,
+  SECONDS
+};
+
+/**
+ * @brief The largest number of pause intervals one run opens, the
+ * bound the recorder capacity rule reserves room for (FR-014).
+ *
+ * A run holds its two endpoint samples plus two samples per interval,
+ * so the allowance bounds one run at 18 points and the pause guard can
+ * name the breach before the recorder loses a point.
+ */
+inline constexpr std::size_t kMaxPausePerRun = 8;
+
+/**
  * @brief The outcome of one benchmark within a run (E-07).
  */
 enum class RunOutcome : std::uint8_t
