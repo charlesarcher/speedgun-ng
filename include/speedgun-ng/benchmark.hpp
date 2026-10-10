@@ -138,7 +138,21 @@ struct ResultRow
 {
   RowKind kind = RowKind::REPETITION;
   std::uint64_t iterations = 0;
+  // The real-time column: the netted monotonic fold of the run, or the
+  // manual sum when the benchmark supplies its own time (FR-007). The
+  // H1 name stands unchanged (FR-018).
   double timePerIterationNs = 0.0;
+  // The CPU-time column: the netted fold of the chosen CPU leaf,
+  // `machine/thread_cpu` unless the family switched it (FR-001, FR-004).
+  double cpuTimePerIterationNs = 0.0;
+  // The endpoint samples that run took: two when it paused nothing, two
+  // more per pause interval (FR-013).
+  std::uint64_t endpointSamples = 0;
+  // The availability of the primary fold of this row. The aggregate
+  // statistics skip a row whose primary fold reported a gap (FR-002,
+  // research D-13).
+  sg::counters::Availability timeAvailability =
+      sg::counters::Availability::COUNTABLE;
   std::vector<MetricValue> metrics;
   double overheadFloorNs = 0.0;
   Statistics timeStats;
