@@ -22,9 +22,9 @@
 
 **Purpose**: The branch and the version effect of FR-022.
 
-- [ ] T001 Create the feature branch `017-harness-timing-modes` from `master` at `29f7982` and commit the spec 017 artifacts (the staged `specs/017-harness-timing-modes/` tree) with a `Docs:` message
-- [ ] T002 Raise the project version to `0.8.0` (`CMakeLists.txt:7`) and the harness archive `SOVERSION` from 3 to 4 (`CMakeLists.txt:219`); the counters archive keeps `SOVERSION 2` (`CMakeLists.txt:47`); record both in the plan version table, per FR-022
-- [ ] T003 [P] Read the harness test registration block of `test/CMakeLists.txt` and note the exact shape each new `harness_<area>_test` executable copies (target, link to `speedgun-ng::harness`, `cxx_std_23`, the CTest name equal to the target name, and the `target_include_directories(... ${CMAKE_SOURCE_DIR}/source/harness)` line that `harness_growth_test` and `harness_gap_test` carry)
+- [x] T001 Create the feature branch `017-harness-timing-modes` from `master` at `29f7982` and commit the spec 017 artifacts (the staged `specs/017-harness-timing-modes/` tree) with a `Docs:` message
+- [x] T002 Raise the project version to `0.8.0` (`CMakeLists.txt:7`) and the harness archive `SOVERSION` from 3 to 4 (`CMakeLists.txt:219`); the counters archive keeps `SOVERSION 2` (`CMakeLists.txt:47`); record both in the plan version table, per FR-022
+- [x] T003 [P] Read the harness test registration block of `test/CMakeLists.txt` and note the exact shape each new `harness_<area>_test` executable copies (target, link to `speedgun-ng::harness`, `cxx_std_23`, the CTest name equal to the target name, and the `target_include_directories(... ${CMAKE_SOURCE_DIR}/source/harness)` line that `harness_growth_test` and `harness_gap_test` carry)
 
 **Checkpoint**: Branch exists, version table records 0.8.0 and SOVERSION 4, the registration pattern is known.
 
@@ -36,10 +36,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 Add `enum class TimeUnit : std::uint8_t { NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS }` and `inline constexpr std::size_t kMaxPausePerRun = 8` in namespace `sg` in `include/speedgun-ng/benchmark.hpp`, beside `kDefaultRangeMultiplier` at line 42, with doxygen blocks (E-02, FR-014, FR-015)
-- [ ] T005 Add the four timing fields to `RegistryEntry` in `source/harness/detail/internal.hpp`: `processCpuTime`, `realTime`, `manualTime` (each `bool`, default `false`) and `timeUnit` (`TimeUnit`) (E-01)
-- [ ] T006 Add the run-record fields to `RunRecord` in `source/harness/detail/calibration.hpp`: `basePoint` (`std::size_t`), `samples` (`std::uint64_t`), `pausePairs` (`std::vector<std::pair<std::uint64_t, std::uint64_t>>`), `cpuNs` (`std::int64_t`), `manual` (`bool`), keeping the H1 names `realNs`, `decisionNs`, `skipped`, `reason` (E-05)
-- [ ] T007 Add the private `State` timing members in `include/speedgun-ng/benchmark.hpp`: `m_pauseDepth` (`std::uint8_t`), `m_pausePairs` (`std::vector<std::pair<std::uint64_t, std::uint64_t>>`), `m_pauseCount` (`std::uint64_t`), `m_samplesTaken` (`std::uint64_t`), `m_manualNs` (`std::int64_t`) (E-03)
+- [x] T004 Add `enum class TimeUnit : std::uint8_t { NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS }` and `inline constexpr std::size_t kMaxPausePerRun = 8` in namespace `sg` in `include/speedgun-ng/benchmark.hpp`, beside `kDefaultRangeMultiplier` at line 42, with doxygen blocks (E-02, FR-014, FR-015)
+- [x] T005 Add the four timing fields to `RegistryEntry` in `source/harness/detail/internal.hpp`: `processCpuTime`, `realTime`, `manualTime` (each `bool`, default `false`) and `timeUnit` (`TimeUnit`) (E-01)
+- [x] T006 Add the run-record fields to `RunRecord` in `source/harness/detail/calibration.hpp`: `basePoint` (`std::size_t`), `samples` (`std::uint64_t`), `pausePairs` (`std::vector<std::pair<std::uint64_t, std::uint64_t>>`), `cpuNs` (`std::int64_t`), `manual` (`bool`), keeping the H1 names `realNs`, `decisionNs`, `skipped`, `reason` (E-05)
+- [x] T007 Add the private `State` timing members in `include/speedgun-ng/benchmark.hpp`: `m_pauseDepth` (`std::uint8_t`), `m_pausePairs` (`std::vector<std::pair<std::uint64_t, std::uint64_t>>`), `m_pauseCount` (`std::uint64_t`), `m_samplesTaken` (`std::uint64_t`), `m_manualNs` (`std::int64_t`) (E-03)
 
 **Checkpoint**: Dev build green, `ctest --preset=dev` green, `cmake --build build/dev -t dbc-gate` green. Foundation ready.
 
@@ -55,14 +55,14 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (FR-024).**
 
-- [ ] T008 [US1] Write the failing suite `test/source/harness_time_columns_test.cpp` for C-1: both columns exact to the scripted deltas, the CPU column following `machine/thread_cpu`, `endpoint samples=2` for a no-pause run, an attached metric keeping its H1 fold beside the two columns, and the aggregate line `primary time/iter (ns) mean=` summarizing the CPU selection (quickstart section 2); register it in `test/CMakeLists.txt` in the pattern noted by T003 and observe it red
+- [x] T008 [US1] Write the failing suite `test/source/harness_time_columns_test.cpp` for C-1: both columns exact to the scripted deltas, the CPU column following `machine/thread_cpu`, `endpoint samples=2` for a no-pause run, an attached metric keeping its H1 fold beside the two columns, and the aggregate line `primary time/iter (ns) mean=` summarizing the CPU selection (quickstart section 2); register it in `test/CMakeLists.txt` in the pattern noted by T003 and observe it red
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] In `source/harness/runner.cpp`: resolve the CPU leaf (`machine/thread_cpu` by default, the resolution-failure line of `:176-187` for a missing leaf), add the file-local netted fold helper `fold(window) − Σ fold(pause interval)` reading `record.basePoint`, `record.samples`, `record.pausePairs` (D-07, D-08, contracts/sampling-capacity.md), replace the `nextPair` counter at `:311` with a point cursor advanced by the samples that run took, fill `RunRecord.realNs`, `cpuNs`, `decisionNs` (the CPU selection as the default primary, FR-002), and fill the `ResultRow` fields `cpuTimePerIterationNs`, `endpointSamples`, `timeAvailability` (D-01, D-13)
-- [ ] T010 [US1] In `include/speedgun-ng/benchmark.hpp`: add the `ResultRow` fields `cpuTimePerIterationNs` (`double`), `endpointSamples` (`std::uint64_t`), `timeAvailability` (`sg::counters::Availability`) and keep `timePerIterationNs` as the real column (E-06, FR-018)
-- [ ] T011 [US1] In `source/harness/report.cpp`: print `real time/iter (<U>)=`, `cpu time/iter (<U>)=`, `overhead floor (<U>)=`, and `endpoint samples=<S>` in the repetition row, and `primary time/iter (<U>) mean=...` in the aggregate row, with the aggregate collecting the primary time and skipping a row whose `timeAvailability` is not `COUNTABLE` (D-13, D-14, contracts/report-columns.md); in the same commit move the field token in `test/source/harness_calibration_test.cpp:296,375,404`, `test/source/harness_callback_test.cpp:464`, `test/source/harness_capture_test.cpp:330,372`, `test/source/harness_fixture_test.cpp:488`, and `test/source/harness_statistics_test.cpp:199` to the exact column token each reader means, so every commit of the chain keeps the suite green
-- [ ] T012 [US1] Make `ctest --test-dir build/dev -R harness_time_columns_test` pass, then the full dev `ctest` green including `loop_shape`, `cli_shape`, `barrier_shape`, and `time_source_gate`; commit as one atomic change
+- [x] T009 [US1] In `source/harness/runner.cpp`: resolve the CPU leaf (`machine/thread_cpu` by default, the resolution-failure line of `:176-187` for a missing leaf), add the file-local netted fold helper `fold(window) − Σ fold(pause interval)` reading `record.basePoint`, `record.samples`, `record.pausePairs` (D-07, D-08, contracts/sampling-capacity.md), replace the `nextPair` counter at `:311` with a point cursor advanced by the samples that run took, fill `RunRecord.realNs`, `cpuNs`, `decisionNs` (the CPU selection as the default primary, FR-002), and fill the `ResultRow` fields `cpuTimePerIterationNs`, `endpointSamples`, `timeAvailability` (D-01, D-13)
+- [x] T010 [US1] In `include/speedgun-ng/benchmark.hpp`: add the `ResultRow` fields `cpuTimePerIterationNs` (`double`), `endpointSamples` (`std::uint64_t`), `timeAvailability` (`sg::counters::Availability`) and keep `timePerIterationNs` as the real column (E-06, FR-018)
+- [x] T011 [US1] In `source/harness/report.cpp`: print `real time/iter (<U>)=`, `cpu time/iter (<U>)=`, `overhead floor (<U>)=`, and `endpoint samples=<S>` in the repetition row, and `primary time/iter (<U>) mean=...` in the aggregate row, with the aggregate collecting the primary time and skipping a row whose `timeAvailability` is not `COUNTABLE` (D-13, D-14, contracts/report-columns.md); in the same commit move the field token in `test/source/harness_calibration_test.cpp:296,375,404`, `test/source/harness_callback_test.cpp:464`, `test/source/harness_capture_test.cpp:330,372`, `test/source/harness_fixture_test.cpp:488`, and `test/source/harness_statistics_test.cpp:199` to the exact column token each reader means, so every commit of the chain keeps the suite green
+- [x] T012 [US1] Make `ctest --test-dir build/dev -R harness_time_columns_test` pass, then the full dev `ctest` green including `loop_shape`, `cli_shape`, `barrier_shape`, and `time_source_gate`; commit as one atomic change
 
 **Checkpoint**: US1 works on its own: two exact columns, the real sample count, the CPU-driven aggregate. This is the MVP.
 
@@ -76,7 +76,7 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T013 [US2] Write the failing suite `test/source/harness_real_time_test.cpp` for C-3: the scripted growth sequence follows the monotonic fold, differing from the CPU-driven walk of `test/source/harness_calibration_test.cpp:276-304`, and the aggregate summarizes the real column; register it in `test/CMakeLists.txt` and observe it red (quickstart section 4)
+- [x] T013 [US2] Write the failing suite `test/source/harness_real_time_test.cpp` for C-3: the scripted growth sequence follows the monotonic fold, differing from the CPU-driven walk of `test/source/harness_calibration_test.cpp:276-304`, and the aggregate summarizes the real column; register it in `test/CMakeLists.txt` and observe it red (quickstart section 4)
 - [ ] T014 [US2] Write the failing suite `test/source/harness_cpu_leaf_test.cpp` for C-2: the switch moves the CPU column to the scripted `machine/process_cpu` fold, the switch combines with `useRealTime`, and a provider that publishes no `machine/process_cpu` leaves that benchmark failed with the resolution line; register it in `test/CMakeLists.txt` and observe it red (quickstart section 3)
 
 ### Implementation for User Story 2
@@ -232,3 +232,17 @@ Task: "Add the seven capability sections to docs/pages/harness.md" (T027)
 ## Execution Log
 
 - (append one entry per completed task: the task id, the command run, the captured result, the commit)
+- T001: `git switch -c 017-harness-timing-modes 29f7982` -> branch `017-harness-timing-modes` exists, ten spec 017 artifacts land with 1734 insertions (3392331)
+- T002: `grep -n 'VERSION 0.8.0' CMakeLists.txt`, `grep -n SOVERSION CMakeLists.txt` -> line 7 `VERSION 0.8.0`, the counters archive at `SOVERSION 2` on line 47, the harness archive at `SOVERSION 4` on line 219 (405f833)
+- T003: `grep -n harness_time_columns_test test/CMakeLists.txt` -> the four-line block to copy: `add_executable`, the link to `speedgun-ng::harness`, `cxx_std_23`, and `add_test` named after the target. Read-only task, no commit.
+- T004: `grep -n 'enum class TimeUnit' include/speedgun-ng/benchmark.hpp` -> the enumeration on line 53 and `kMaxPausePerRun = 8` on line 69 (d16b8d5)
+- T005: `grep -n processCpuTime source/harness/detail/internal.hpp` -> the four timing fields on lines 68 to 71 (718c40b)
+- T006: `grep -n basePoint source/harness/detail/calibration.hpp` -> the five run-record fields on lines 36 to 40 (2d1c392)
+- T007: `grep -n m_pauseDepth include/speedgun-ng/benchmark.hpp` -> the five state members on lines 533 to 539 (d72830b)
+- T008: `git show --stat d8c1f40` -> `test/source/harness_time_columns_test.cpp` 311 lines plus the `test/CMakeLists.txt` block; the commit body records the red as a compile failure on the two missing `ResultRow` fields (d8c1f40)
+- T009: `git show --stat d81a2ad` -> `source/harness/runner.cpp` 79 insertions and 29 deletions: the CPU leaf choice, the file-local netted fold, the point cursor, and the row time fields (d81a2ad)
+- T010: `grep -n cpuTimePerIterationNs include/speedgun-ng/benchmark.hpp` -> the three `ResultRow` fields on lines 147, 150 and 154 (eb45a1f)
+- T011: `grep -n 'real time/iter' source/harness/report.cpp` -> the aggregate token on line 63 and the measured row tokens on lines 94 to 96; the five reader files move to the exact token in that same commit (a17ef7c)
+- T012: `ctest --test-dir build/dev -R harness_time_columns_test --output-on-failure` -> `100% tests passed out of 1`, exit 0; `ctest --test-dir build/dev` -> `100% tests passed out of 69`, exit 0 (a17ef7c)
+- T013: `git show --stat 327de40` -> `test/source/harness_real_time_test.cpp` 342 lines land; the suite is absent from `test/CMakeLists.txt`, so it stays outside the CTest set until T016 registers it (327de40)
+- Checkpoint at `a17ef7c` on 2026-10-10: `cmake --build --preset=dev` exit 0; `ctest --test-dir build/dev -R harness_time_columns_test --output-on-failure` exit 0; `ctest --test-dir build/dev` 69 of 69 passed in 130.87 s, exit 0; `cmake --build build/dev -t dbc-gate` -> `doc-gate: 187 interfaces, 0 gaps` and `pair-gate: 187 interfaces, 0 gaps`, exit 0; `python3 tools/prose/prose_gate.py --check prose --mode tree --paths` over the 26 files of `29f7982..HEAD` -> `26 sources, 3991 units examined, 0 findings`, exit 0; `cmake -P cmake/spell.cmake` exit 0
