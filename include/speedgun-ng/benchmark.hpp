@@ -981,20 +981,29 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
 
 /**
  * @brief Register `fn` at namespace scope before `main` begins, under
- * the name of `fn` (FR-001, R-09, R-10).
+ * the name of `fn`, and yield the registration handle (FR-001, R-09,
+ * R-10, FR-013).
+ *
+ * The macro declares one handle initialized by the registration, and
+ * the registration call is the last token sequence, so a call site
+ * chains family calls after the macro and ends with `;`:
+ * `SG_BENCHMARK(fn).range(8, 1024);`. A site with no chain reads
+ * `SG_BENCHMARK(fn);`.
  */
-#define SG_BENCHMARK(fn) \
-  namespace \
-  { \
-  struct SgBenchmarkRegistrar_##fn \
-  { \
-    SgBenchmarkRegistrar_##fn() \
-    { \
-      (void)::sg::registerBenchmark(&(fn), #fn); \
-    } \
-  }; \
-  const SgBenchmarkRegistrar_##fn sgBenchmarkRegistrar_##fn {}; \
-  }
+// The paste chain of `SG_BENCHMARK`: the generated identifier carries
+// the source line, `__LINE__` is standard C++ with no compiler
+// extension (FR-023, FR-028), and the middle link expands the id
+// before the last link pastes it, because a parameter standing next to
+// `##` is pasted unexpanded. The declaration is `static`, so two
+// translation units each register their own without an ODR clash.
+
+#define SG_BENCHMARK_REGISTRAR(fn, id) \
+  [[maybe_unused]] static const ::sg::BenchmarkHandle \
+      sgBenchmarkRegistrar_##fn##_##id = ::sg::registerBenchmark(&(fn), #fn)
+
+#define SG_BENCHMARK_EXPAND(fn, id) SG_BENCHMARK_REGISTRAR(fn, id)
+
+#define SG_BENCHMARK(fn) SG_BENCHMARK_EXPAND(fn, __LINE__)
 
 /**
  * @brief Register `fn` with captured arguments as the one instance
@@ -1008,23 +1017,33 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
  * `BENCHMARK_CAPTURE` does at the cited revision
  * (`registration.h:69-75`).
  *
+ * The macro declares one handle initialized by the registration, so
+ * a call site chains family calls after the macro and ends with `;`.
+ *
  * \pre `fn` takes a `State&` followed by the captured arguments, and
  *      the registration runs before the run starts (E-02)
  * \post the registry holds one family record named `fn/captureName`
- *       whose callable passes the captured values to `fn` (FR-013)
+ *       whose callable passes the captured values to `fn`, and the
+ *       yielded handle points at it (FR-013)
  * \invariant one macro site registers one family, and that family
  *            expands to the one instance `fn/captureName` (FR-013)
  */
+// The paste chain of `SG_BENCHMARK_CAPTURE`, the same three links as
+// `SG_BENCHMARK`: two registrations of one function and capture name
+// on one source line collide.
+
+#define SG_BENCHMARK_CAPTURE_REGISTRAR(fn, captureName, id, ...) \
+  [[maybe_unused]] static const ::sg::BenchmarkHandle \
+      sgBenchmarkRegistrar_##fn##_##captureName##_##id = \
+          ::sg::registerBenchmark([](::sg::State& state) \
+                                  { (fn)(state __VA_OPT__(, ) __VA_ARGS__); }, \
+                                  #fn "/" #captureName)
+
+#define SG_BENCHMARK_CAPTURE_EXPAND(fn, captureName, id, ...) \
+  SG_BENCHMARK_CAPTURE_REGISTRAR(fn, captureName, id, __VA_ARGS__)
+
 #define SG_BENCHMARK_CAPTURE(fn, captureName, ...) \
-  static const struct SgBenchmarkRegistrar_##fn##_##captureName \
-  { \
-    SgBenchmarkRegistrar_##fn##_##captureName() \
-    { \
-      (void)::sg::registerBenchmark( \
-          [](::sg::State& state) { (fn)(state __VA_OPT__(, ) __VA_ARGS__); }, \
-          #fn "/" #captureName); \
-    } \
-  } sgBenchmarkRegistrar_##fn##_##captureName {};
+  SG_BENCHMARK_CAPTURE_EXPAND(fn, captureName, __LINE__, __VA_ARGS__)
 
 // The paste chain of `SG_BENCHMARK_TEMPLATE`. The generated identifier
 // cannot spell a type list, so it carries the source line of the
@@ -1034,14 +1053,9 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
 // it is pasted, because a parameter that stands next to `##` is
 // pasted unexpanded.
 #define SG_BENCHMARK_TEMPLATE_REGISTRAR(fn, id, ...) \
-  static const struct SgBenchmarkRegistrar_##fn##_##id \
-  { \
-    SgBenchmarkRegistrar_##fn##_##id() \
-    { \
-      (void)::sg::registerBenchmark(&fn<__VA_ARGS__>, \
-                                    #fn "<" #__VA_ARGS__ ">"); \
-    } \
-  } sgBenchmarkRegistrar_##fn##_##id {};
+  [[maybe_unused]] static const ::sg::BenchmarkHandle \
+      sgBenchmarkRegistrar_##fn##_##id = \
+          ::sg::registerBenchmark(&fn<__VA_ARGS__>, #fn "<" #__VA_ARGS__ ">")
 
 #define SG_BENCHMARK_TEMPLATE_EXPAND(fn, id, ...) \
   SG_BENCHMARK_TEMPLATE_REGISTRAR(fn, id, __VA_ARGS__)
@@ -1060,9 +1074,12 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
  *
  * \pre `fn` is a function template taking a `State&`, and the
  *      registration runs before the run starts (E-02)
+ * The macro declares one handle initialized by the registration, so
+ * a call site chains family calls after the macro and ends with `;`.
+ *
  * \post the registry holds one family record named `fn<types>` whose
- *       callable is the instantiation for exactly those types
- *       (FR-014)
+ *       callable is the instantiation for exactly those types, and
+ *       the yielded handle points at it (FR-014)
  * \invariant one macro site registers one family, and that family
  *            expands to the one instance its name states (FR-014)
  */
@@ -1072,7 +1089,7 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
 // The shared machinery of the seven fixture macros. A macro site
 // generates one derived class, named by pasting
 // SgBenchmarkFixture_ plus the class plus the method, and one
-// registrar object in the `SgBenchmarkRegistrar_##fn` shape of
+// handle variable in the `sgBenchmarkRegistrar_##fn` shape of
 // `SG_BENCHMARK` (R-13); the identifiers carry no leading
 // underscore and no `__` (FR-023). The derived class holds the method
 // the macro site defines, the instance name the registrar registers,
@@ -1095,22 +1112,18 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
   };
 
 #define SG_BENCHMARK_FIXTURE_REGISTER(FixtureClass, Method, DerivedClass) \
-  static const struct SgBenchmarkRegistrar_##FixtureClass##_##Method \
-  { \
-    SgBenchmarkRegistrar_##FixtureClass##_##Method() \
-    { \
-      (void)::sg::registerFixtureBenchmark( \
-          [](::sg::State& state) \
-          { DerivedClass::sgCurrentCase->sgBenchmarkCase(state); }, \
-          DerivedClass::sgFixtureName, \
-          []() -> std::unique_ptr<::sg::Fixture> \
-          { \
-            auto object = std::make_unique<DerivedClass>(); \
-            DerivedClass::sgCurrentCase = object.get(); \
-            return object; \
-          }); \
-    } \
-  } sgBenchmarkRegistrar_##FixtureClass##_##Method {}
+  [[maybe_unused]] static const ::sg::BenchmarkHandle \
+      sgBenchmarkRegistrar_##FixtureClass##_##Method = \
+          ::sg::registerFixtureBenchmark( \
+              [](::sg::State& state) \
+              { DerivedClass::sgCurrentCase->sgBenchmarkCase(state); }, \
+              DerivedClass::sgFixtureName, \
+              []() -> std::unique_ptr<::sg::Fixture> \
+              { \
+                auto object = std::make_unique<DerivedClass>(); \
+                DerivedClass::sgCurrentCase = object.get(); \
+                return object; \
+              })
 
 /**
  * @brief Define and register the fixture method as the instance
@@ -1158,13 +1171,19 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
 
 /**
  * @brief Register the method that `SG_BENCHMARK_DEFINE_F` defined,
- * under the name that macro's generated class carries (FR-016).
+ * under the name that macro's generated class carries, and yield the
+ * registration handle (FR-016).
+ *
+ * The macro declares one handle initialized by the registration, so a
+ * fixture family chains its family calls at the site:
+ * `SG_BENCHMARK_REGISTER_F(F, m).range(8, 64);`. The fixture record
+ * expands like any family record, one instance per argument list.
  *
  * \pre `SG_BENCHMARK_DEFINE_F` named the same pair earlier in the same
  *      scope, and the registration runs before the run starts (E-02)
  * \post the registry holds one family record named
- *       `FixtureClass/Method` whose callable is the defined method
- *       (FR-016)
+ *       `FixtureClass/Method` whose callable is the defined method and
+ *       the yielded handle points at it (FR-016)
  * \invariant one macro site registers one family, and that family
  *            expands to the one instance `FixtureClass/Method`
  *            (FR-016)
@@ -1246,28 +1265,24 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
     static constexpr std::string_view sgFixtureName = \
         #FixtureClass "<" #__VA_ARGS__ ">/" #Method; \
   }; \
-  static const struct SgBenchmarkRegistrar_##FixtureClass##_##Method##_##id \
-  { \
-    SgBenchmarkRegistrar_##FixtureClass##_##Method##_##id() \
-    { \
-      (void)::sg::registerFixtureBenchmark( \
-          [](::sg::State& state) \
-          { \
-            SgBenchmarkFixtureTemplate_##FixtureClass##_##Method< \
-                __VA_ARGS__>::sgCurrentCase->sgBenchmarkCase(state); \
-          }, \
-          SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id :: \
-              sgFixtureName, \
-          []() -> std::unique_ptr<::sg::Fixture> \
-          { \
-            auto object = std::make_unique< \
-                SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id>(); \
-            SgBenchmarkFixtureTemplate_##FixtureClass##_##Method< \
-                __VA_ARGS__>::sgCurrentCase = object.get(); \
-            return object; \
-          }); \
-    } \
-  } sgBenchmarkRegistrar_##FixtureClass##_##Method##_##id {}
+  [[maybe_unused]] static const ::sg::BenchmarkHandle \
+      sgBenchmarkRegistrar_##FixtureClass##_##Method##_##id = \
+          ::sg::registerFixtureBenchmark( \
+              [](::sg::State& state) \
+              { \
+                SgBenchmarkFixtureTemplate_##FixtureClass##_##Method< \
+                    __VA_ARGS__>::sgCurrentCase->sgBenchmarkCase(state); \
+              }, \
+              SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id :: \
+                  sgFixtureName, \
+              []() -> std::unique_ptr<::sg::Fixture> \
+              { \
+                auto object = std::make_unique< \
+                    SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id>(); \
+                SgBenchmarkFixtureTemplate_##FixtureClass##_##Method< \
+                    __VA_ARGS__>::sgCurrentCase = object.get(); \
+                return object; \
+              })
 
 #define SG_BENCHMARK_TEMPLATE_INSTANTIATE_EXPAND( \
     FixtureClass, Method, id, ...) \

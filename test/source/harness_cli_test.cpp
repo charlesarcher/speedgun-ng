@@ -281,17 +281,17 @@ auto scriptedProvider() -> void
 
 }  // namespace
 
-SG_BENCHMARK(bmAlpha)
-SG_BENCHMARK(bmBeta)
-SG_BENCHMARK(bmSkips)
-SG_BENCHMARK(bmThrows)
-SG_BENCHMARK(bmInterrupts)
-SG_BENCHMARK(bmAfter)
-SG_BENCHMARK(bmSkipBefore)
-SG_BENCHMARK(bmSkipInside)
-SG_BENCHMARK(bmNoLoop)
-SG_BENCHMARK(bmBreakNoSkip)
-SG_BENCHMARK(bmThrowInside)
+SG_BENCHMARK(bmAlpha);
+SG_BENCHMARK(bmBeta);
+SG_BENCHMARK(bmSkips);
+SG_BENCHMARK(bmThrows);
+SG_BENCHMARK(bmInterrupts);
+SG_BENCHMARK(bmAfter);
+SG_BENCHMARK(bmSkipBefore);
+SG_BENCHMARK(bmSkipInside);
+SG_BENCHMARK(bmNoLoop);
+SG_BENCHMARK(bmBreakNoSkip);
+SG_BENCHMARK(bmThrowInside);
 
 auto main(const int argc, char** argv) -> int
 {

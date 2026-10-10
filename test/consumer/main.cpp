@@ -45,7 +45,7 @@ auto bmConsumer(sg::State& state) -> void
   }
 }
 
-SG_BENCHMARK(bmConsumer)
+SG_BENCHMARK(bmConsumer);
 
 auto main(int argc, char** argv) -> int
 {

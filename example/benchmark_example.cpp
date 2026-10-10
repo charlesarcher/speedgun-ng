@@ -81,8 +81,13 @@ protected:
 
 }  // namespace
 
-SG_BENCHMARK(bmTouch)
-SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t)
+SG_BENCHMARK(bmTouch);
+SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t);
+
+// FR-013: the chained registration site. The macro yields the handle,
+// the family calls chain after it, and the site ends with ';'.
+SG_BENCHMARK(bmArgs).argName("width").argName("depth").args({8, 16}).args({16,
+                                                                           32});
 
 // FR-027: the fixture method, registered by `SG_BENCHMARK_F` as the
 // instance `TableFixture/bmTableTouch`, whose suite is the fixture class
@@ -115,11 +120,6 @@ auto main(int argc, char** argv) -> int
         handle.addMetric(*instructions / *cycles, "instructions/cycle");
       }
     }
-  }
-
-  auto argsHandle = sg::registerBenchmark(&bmArgs, "bmArgs");
-  if (!argsHandle.name().empty()) {
-    argsHandle.argName("width").argName("depth").args({8, 16}).args({16, 32});
   }
 
   // FR-020: the prefix gate, visible in the same listing. The family

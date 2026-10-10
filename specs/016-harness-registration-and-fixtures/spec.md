@@ -501,10 +501,22 @@ listing and filter follow C-8.
 - **FR-013**: A macro shall register one function under a family name
   with captured arguments, as `BENCHMARK_CAPTURE` does. The capture
   name shall become a name segment in the form of the cited revision.
+  `SG_BENCHMARK`, `SG_BENCHMARK_CAPTURE`, `SG_BENCHMARK_TEMPLATE`,
+  `SG_BENCHMARK_REGISTER_F`, and
+  `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` shall each expand to a
+  namespace-scope declaration of one `sg::BenchmarkHandle`. The
+  declaration is initialized from the registration call and leaves
+  that call as the last token sequence.
 - **FR-014**: Macros shall register a function template instantiated
   over one or more type arguments, as `BENCHMARK_TEMPLATE` does. The
   type list shall enter the instance name in the stringified form of
   the cited revision.
+  `SG_BENCHMARK`, `SG_BENCHMARK_CAPTURE`, `SG_BENCHMARK_TEMPLATE`,
+  `SG_BENCHMARK_REGISTER_F`, and
+  `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` shall each expand to a
+  namespace-scope declaration of one `sg::BenchmarkHandle`. The
+  declaration is initialized from the registration call and leaves
+  that call as the last token sequence.
 
 ### Fixtures
 
@@ -517,6 +529,12 @@ listing and filter follow C-8.
   and `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F`. Each shall carry the
   definition, registration, and naming behavior of the cited
   revision.
+  `SG_BENCHMARK`, `SG_BENCHMARK_CAPTURE`, `SG_BENCHMARK_TEMPLATE`,
+  `SG_BENCHMARK_REGISTER_F`, and
+  `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` shall each expand to a
+  namespace-scope declaration of one `sg::BenchmarkHandle`. The
+  declaration is initialized from the registration call and leaves
+  that call as the last token sequence.
 - **FR-017**: Fixture `setUp` and `tearDown` shall run in the untimed
   region of each run, the warm-up, calibration, and measured runs
   included, resting on the H1 FR-005 and FR-017 rule. The state handed
@@ -565,6 +583,12 @@ listing and filter follow C-8.
 - **FR-022**: This spec shall extend the H1 surface and replace no H1
   signature. `registerBenchmark`, `SG_BENCHMARK`, `speedgunMain`, the
   H1 setters, and the H1 `State` methods shall keep their signatures.
+  `SG_BENCHMARK`, `SG_BENCHMARK_CAPTURE`, `SG_BENCHMARK_TEMPLATE`,
+  `SG_BENCHMARK_REGISTER_F`, and
+  `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` shall each expand to a
+  namespace-scope declaration of one `sg::BenchmarkHandle`. The
+  declaration is initialized from the registration call and leaves
+  that call as the last token sequence.
 - **FR-023**: Every new identifier shall follow V.1 rules N-1 through
   N-12, and every new macro shall take the `SG_` prefix. The name
   check shall report zero findings.

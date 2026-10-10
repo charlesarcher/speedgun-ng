@@ -126,7 +126,7 @@ auto scriptedProvider() -> void
 
 }  // namespace
 
-SG_BENCHMARK(bmCatalog)
+SG_BENCHMARK(bmCatalog);
 
 auto main() -> int
 {

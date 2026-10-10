@@ -449,13 +449,13 @@ auto scenarioFailedPair() -> int
 
 }  // namespace
 
-SG_BENCHMARK(bmWork)
-SG_BENCHMARK(bmWalk)
-SG_BENCHMARK(bmCapped)
-SG_BENCHMARK(bmWindow)
-SG_BENCHMARK(bmNoLoop)
-SG_BENCHMARK(bmBreakNoSkip)
-SG_BENCHMARK(bmThrowInside)
+SG_BENCHMARK(bmWork);
+SG_BENCHMARK(bmWalk);
+SG_BENCHMARK(bmCapped);
+SG_BENCHMARK(bmWindow);
+SG_BENCHMARK(bmNoLoop);
+SG_BENCHMARK(bmBreakNoSkip);
+SG_BENCHMARK(bmThrowInside);
 
 auto main(const int argc, char** argv) -> int
 {

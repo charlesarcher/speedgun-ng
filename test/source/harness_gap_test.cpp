@@ -491,13 +491,13 @@ auto modeCounterAddress() -> int
   return 0;
 }
 
-SG_BENCHMARK(bmPlain)
-SG_BENCHMARK(bmIndex)
-SG_BENCHMARK(bmUnknownThrow)
-SG_BENCHMARK(bmTwoLoops)
-SG_BENCHMARK(bmAlwaysFail)
-SG_BENCHMARK(bmAlwaysSkip)
-SG_BENCHMARK(bmSignal)
+SG_BENCHMARK(bmPlain);
+SG_BENCHMARK(bmIndex);
+SG_BENCHMARK(bmUnknownThrow);
+SG_BENCHMARK(bmTwoLoops);
+SG_BENCHMARK(bmAlwaysFail);
+SG_BENCHMARK(bmAlwaysSkip);
+SG_BENCHMARK(bmSignal);
 
 auto main(const int argc, char** argv) -> int
 {

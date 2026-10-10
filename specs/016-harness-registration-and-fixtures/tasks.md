@@ -303,6 +303,21 @@ Beyond the entries above, these are the places where this feature settled a ques
 
 ## Execution Log
 
+### CF-2 chained registration macros, 2026-10-10
+
+The covering tests went first. With the registrar-object macros in
+place, the four chained sites did not compile: `harness_family_test.cpp
+:69` reported "cannot use dot operator on a type", `harness_template_test.cpp
+:318` the same, `harness_capture_macro_test.cpp :309` "expected
+expression", and `harness_fixture_test.cpp :278` "expected ';' after
+top level declarator". The macro rework replaced each registrar struct
+with a `[[maybe_unused]] static const ::sg::BenchmarkHandle` initialized
+by the registration call, added the three-link `__LINE__` paste chain
+to `SG_BENCHMARK` and `SG_BENCHMARK_CAPTURE`, and gave every site its
+`;`. The dev build then passed and `ctest` reported 68 of 68, the four
+chain suites among them; the example prints `bmArgs/width:8/depth:16`
+and `bmArgs/width:16/depth:32` from its chained site.
+
 ### CF-1 fixture pair state, measured by the lead, 2026-10-10
 
 The covering tests went first and the red state is recorded: with the
@@ -618,3 +633,13 @@ the red state of the covering test before the fix.
   Q-5 entry in the spec records that one rule settled both pairs, and
   the C-6 section of `docs/pages/harness.md` states the state and the
   three rejected operations (FR-017, FR-018, R-05)
+- [x] T059 Make the five registration macros yield the handle: each of
+  `SG_BENCHMARK`, `SG_BENCHMARK_CAPTURE`, `SG_BENCHMARK_TEMPLATE`,
+  `SG_BENCHMARK_REGISTER_F` and `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F`
+  expands to a declaration of one `sg::BenchmarkHandle` initialized
+  from the registration call, the call is the last token sequence, the
+  generated identifier carries the source line through the paste chain
+  of `SG_BENCHMARK_EXPAND`, every site ends with `;`, the chained
+  family sites of the family, template, capture and fixture suites
+  stand, and the spec, both contracts and the C-1, C-4, C-5 and C-6
+  sections state the chained form (FR-013, FR-014, FR-016, FR-022)

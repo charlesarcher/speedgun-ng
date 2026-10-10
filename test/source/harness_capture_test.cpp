@@ -271,9 +271,9 @@ auto scriptedProvider() -> void
 
 }  // namespace
 
-SG_BENCHMARK(bmScripted)
-SG_BENCHMARK(bmGapped)
-SG_BENCHMARK(bmCounted)
+SG_BENCHMARK(bmScripted);
+SG_BENCHMARK(bmGapped);
+SG_BENCHMARK(bmCounted);
 
 auto main() -> int
 {

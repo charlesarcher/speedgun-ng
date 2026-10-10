@@ -178,7 +178,7 @@ auto scriptedProvider() -> void
 
 }  // namespace
 
-SG_BENCHMARK(bmWork)
+SG_BENCHMARK(bmWork);
 
 auto main() -> int
 {
