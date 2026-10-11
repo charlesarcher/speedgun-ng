@@ -79,6 +79,58 @@ protected:
   std::vector<std::uint64_t> m_values;
 };
 
+// FR-004: the process CPU leaf. The body is a plain accumulator; what
+// the row shows is the CPU column folded from `machine/process_cpu`.
+auto bmProcessCpu(sg::State& state) -> void
+{
+  std::uint64_t total = 0;
+  for (auto _ : state) {
+    total += table().size();
+    sg::doNotOptimize(total);
+  }
+}
+
+// FR-005: real time as the primary time. The qualification test, the
+// growth rule and the aggregate statistics read the real column.
+auto bmRealTime(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(table().back());
+  }
+}
+
+// FR-006, FR-007: manual time. The benchmark supplies one nanosecond
+// count per iteration and the real column shows that sum over N.
+auto bmManual(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    state.setIterationTime(1500);
+  }
+}
+
+// FR-009, FR-012: the guard stands inside the timed loop, on the first
+// pass, so one run holds exactly one paused interval and the row prints
+// `endpoint samples=4`.
+auto bmPaused(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      sg::ScopedPauseTiming guard {state};
+      sg::doNotOptimize(table().front());
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-015: the unit the report scales this family to. The stored value
+// stays nanoseconds, the printed value carries the `ms` label.
+auto bmMillis(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(table().size());
+  }
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmTouch);
@@ -87,6 +139,14 @@ SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t);
 // FR-013: the chained registration site. The macro yields the handle,
 // the family calls chain after it, and the site ends with ';'.
 SG_BENCHMARK(bmArgs).argNames({"width", "depth"}).args({8, 16}).args({16, 32});
+
+// FR-004, FR-005, FR-006, FR-012, FR-015: the five timing-mode
+// capabilities, each one chained registration like the family above.
+SG_BENCHMARK(bmProcessCpu).measureProcessCpuTime();
+SG_BENCHMARK(bmRealTime).useRealTime();
+SG_BENCHMARK(bmManual).useManualTime();
+SG_BENCHMARK(bmPaused);
+SG_BENCHMARK(bmMillis).unit(sg::TimeUnit::MILLISECONDS);
 
 // FR-027: the fixture method, registered by `SG_BENCHMARK_F` as the
 // instance `TableFixture/bmTableTouch`, whose suite is the fixture class
