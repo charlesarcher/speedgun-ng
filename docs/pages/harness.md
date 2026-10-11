@@ -1,4 +1,4 @@
-# The benchmark harness registration surface (016 C-1 to C-10)
+# The benchmark harness surface (016 C-1 to C-10, 017 C-1 to C-7)
 
 Feature 016 completes the registration and fixture surface of the
 benchmark harness on top of the feature-015 core. Each section below
@@ -242,3 +242,200 @@ carries them. The example suite carries the new surface:
 with the `argName` labels `width` and `depth`, the fixture method
 `TableFixture/bmTableTouch` through `SG_BENCHMARK_F`, and the templated
 benchmark `SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t)`.
+
+## Feature 017: the timing modes
+
+Feature 017 completes the timing surface of the harness on top of the
+feature-015 core and the feature-016 registration surface. Each feature
+numbers its own capabilities, so the ids below restart at C-1. Every
+suite named here runs on the counters fake provider, so no test needs a
+PMU.
+
+## 017 C-1: Two time columns
+
+Every measured row prints two time columns, `real time/iter (ns)=` and
+`cpu time/iter (ns)=`. Each value is a fold over the raw point pair of
+that run, and the counters library supplies the fold. The CPU column
+follows `machine/thread_cpu` until the C-2 call moves it. The row keeps
+the feature-015 fields around the pair:
+
+```text
+<name>  iterations=<N>  real time/iter (ns)=<v>  cpu time/iter (ns)=<v>
+        overhead floor (ns)=<v>  endpoint samples=<S>
+```
+
+`ResultRow` carries the pair as `timePerIterationNs` and
+`cpuTimePerIterationNs`, each one nanosecond per iteration, and carries
+`endpointSamples` as the count the row prints. A run that pauses
+nothing takes one sample pair, so that count reads 2 samples and the
+timed loop keeps the feature-015 shape: the loop-shape gate
+`test/loop_shape.sh` stays green.
+
+One primary time per benchmark drives warm-up qualification,
+calibration growth, and the aggregate time statistics, and the CPU
+selection is that primary time by default. The aggregate line names it:
+`primary time/iter (ns) mean=`. A repetition whose primary fold carried
+a gap disclosure stays out of those statistics, and
+`ResultRow::timeAvailability` carries the disclosure.
+
+Coverage: `test/source/harness_time_columns_test.cpp`. `columnsScenario`
+reads each column against its scripted delta over the iteration count,
+`metricScenario` keeps the feature-015 metric fold beside the two
+columns, and `aggregateScenario` compares the aggregate line against
+the CPU selection.
+
+## 017 C-2: The process CPU leaf
+
+`BenchmarkHandle::measureProcessCpuTime()` moves the CPU column of one
+family to the `machine/process_cpu` leaf and returns the handle, so the
+call chains at the registration site:
+`SG_BENCHMARK(bmProcessCpu).measureProcessCpuTime();`. The selection
+stands for every instance of that family, and it combines with the
+real-time call of C-3 and with the manual-time call of C-4, so one row
+can carry process CPU time beside real time. The call carries the guard
+the other setters carry: a handle that names no registered entry, or a
+family whose run started, is an `SG_REQUIRE` precondition violation. A
+provider that publishes no `machine/process_cpu` leaves that benchmark
+failed with the resolution line the runner already prints for a missing
+leaf.
+
+Coverage: `test/source/harness_cpu_leaf_test.cpp`. `processCpuScenario`
+reads the scripted `machine/process_cpu` delta in the CPU column,
+`combinedScenario` runs the switch together with `useRealTime`, and
+`missingProcessCpuScenario` with its `missingProcessCpu` re-exec mode
+asserts the failed benchmark and its resolution line.
+
+## 017 C-3: Real time as the primary time
+
+`BenchmarkHandle::useRealTime()` makes real time the primary time of
+one family and returns the handle. From that call on, the qualification
+test, the growth rule, and the aggregate time statistics read the real
+column, and the CPU column keeps the CPU fold it carries. The selection
+excludes the manual-time call of C-4: the second of the two calls is
+the `SG_REQUIRE` precondition violation, in either order.
+
+Coverage: `test/source/harness_real_time_test.cpp`. `scenarioRealWalk`
+and `scenarioCpuWalk` run one scripted growth sequence under each
+selection and compare the iteration counts the walk reaches, and
+`scenarioAggregate` checks the aggregate line against the real column.
+The three stand behind the `real-walk`, `cpu-walk`, and `aggregate`
+re-exec modes.
+
+## 017 C-4: Manual time
+
+`BenchmarkHandle::useManualTime()` selects manual time for one family,
+and `State::setIterationTime(std::int64_t nanoseconds)` hands the state
+one iteration time per iteration. The primary time of a run becomes the
+sum of the accepted values: the harness records it by summation alone
+and reads no clock for it, so the time-source gate stays clean. The
+real column shows that sum divided by the iteration count, and the CPU
+column keeps its own fold. The fivefold real-time stop leaves a manual
+run alone, so such a run stops at its target or at the iteration cap.
+A manual benchmark that accepts nothing reports 0.000 ns in the real
+column and qualifies at the cap. `setIterationTime` in a callback state
+is a precondition violation, because that state owns no run to
+accumulate for.
+
+Coverage: `test/source/harness_manual_time_test.cpp`. `scenarioReport`
+checks the accepted sum over N in the real column, `scenarioGrowth`
+reads that sum through the growth rule, `scenarioFivefold` shows the
+exemption, `scenarioEmpty` reports the empty sum at the cap, and
+`scenarioRule` with the `real-then-manual` and `manual-then-real`
+re-exec modes asserts each order of the conflicting pair.
+
+## 017 C-5: Pause and resume
+
+`State::pauseTiming()` stops the timed window from that point and
+`State::resumeTiming()` restarts it, and each call takes one sample of
+every leaf of the run plan. The reported time of a run is the window
+fold minus the fold of each closed interval:
+
+```text
+reported = fold(base, base + samples - 1)
+           - the fold of each closed interval
+```
+
+The subtraction reaches every time column and every attached metric
+fold, so a paused stretch leaves the metric columns too.
+`ScopedPauseTiming(State&)` is the scoped form: the constructor pauses,
+the destructor resumes, and the destructor skips the resume when the
+run was skipped.
+
+The calls stand in the benchmark body, inside the timed loop or outside
+it, and the loop keeps the feature-015 shape. The preconditions bound
+one open pause per run. `pauseTiming` needs a run state whose sampling
+window stands open, no pause already open, and a pause count below
+`kMaxPausePerRun` (8 samples); `resumeTiming` needs one open pause. A
+pause still open at loop exit is an `SG_ASSERT` breach in `closeWindow`,
+and the skip and exception path closes an open pair in `topUpWindow`
+before the exit sample, so every fold reads a complete pair. A pause in
+a callback state is a precondition violation, the callback-state rule of
+feature 016 extended.
+
+Each call costs one sampling action, and the row discloses the cost:
+`endpoint samples=<S>` prints the count that run took, so a run with
+one paused interval prints `endpoint samples=4`. The recorder capacity
+rule reserves the room, at
+`2 * (1 + kMaxPausePerRun) * (kRunBound + kRunBound + repetitions)`
+points with `kRunBound` 96 iterations, and a run past the allowance is
+a precondition violation named before the recorder loses a point.
+
+Coverage: `test/source/harness_pause_test.cpp`. `scenarioExact` checks
+every time column and an attached metric against the window fold minus
+the scripted pause fold to the nanosecond, `scenarioScoped` reports the
+same value through the guard, and the `doublePause`, `resumeFirst`,
+`openAtExit`, `callbackPause`, and `ninthPause` re-exec modes assert
+each precondition breach.
+
+## 017 C-6: Time units
+
+`TimeUnit` names the scale and the label of a printed time value:
+`NANOSECONDS`, `MICROSECONDS`, `MILLISECONDS`, and `SECONDS`.
+`BenchmarkHandle::unit(TimeUnit timeUnit)` sets the unit of one family
+and returns the handle:
+`SG_BENCHMARK(bmMillis).unit(sg::TimeUnit::MILLISECONDS);`.
+`sg::setDefaultTimeUnit(TimeUnit)` sets the process default that a
+later registration captures, and `sg::getDefaultTimeUnit()` reads it
+back. The default starts at `TimeUnit::NANOSECONDS`.
+
+A stored value stays nanoseconds, so the C++ value keeps one unit, and
+the report applies the divisor at print time: `ns` 1 ns, `us` 1000 ns,
+`ms` 1000000 ns, `s` 1000000000 ns. The scaling reaches both time
+columns, the overhead floor, and the aggregate line, so one line
+carries one scale, and the metric columns keep the feature-015 form. A
+registration captures the default of its own moment, so a
+`setDefaultTimeUnit` call after a registration leaves that benchmark at
+the unit it captured, and a `unit` call overwrites the captured unit.
+The command-line unit option stays with the full command-line spec of
+the roadmap.
+
+Coverage: `test/source/harness_time_unit_test.cpp`. The `unitCall`
+re-exec mode checks the two columns, the overhead floor, and the
+aggregate line under the `ms` label through `checkMillisecondRow` and
+`checkMillisecondAggregate`, the `default` mode scales a benchmark that
+sets no unit, and the `captured` mode keeps a benchmark at the unit its
+own registration captured.
+
+## 017 C-7: Examples, documentation, and the version effect
+
+FR-017 asks for one example benchmark for each of C-2 through C-6, and
+`example/benchmark_example.cpp` carries them beside the feature-016
+rows: `bmProcessCpu` with `measureProcessCpuTime`, `bmRealTime` with
+`useRealTime`, `bmManual` with `useManualTime` and one
+`setIterationTime` call per iteration, `bmPaused` with a
+`ScopedPauseTiming` region inside the loop, and `bmMillis` with the
+millisecond unit. A dry run of
+`build/example/benchmark_example` prints one row for each, the paused
+row with `endpoint samples=4` and the millisecond row with the `ms`
+label. This page carries one section for each capability of the
+feature.
+
+The feature releases version 0.8.0, the next minor above 0.7.0. Three
+layouts change: `State` gains the pause bookkeeping and the manual
+accumulator, `ResultRow` gains `cpuTimePerIterationNs`,
+`endpointSamples` and `timeAvailability`, and `BenchmarkResult` gains
+`timeUnit`. Under the hand-kept rule of `CMakeLists.txt:41-47`, the
+harness archive `SOVERSION` rises from 3 to 4 (`CMakeLists.txt:219`),
+and the counters archive keeps `SOVERSION` 2 (`CMakeLists.txt:47`). No
+existing signature is replaced: the report row layout changes and the
+feature-015 and feature-016 surface keeps its shape.
