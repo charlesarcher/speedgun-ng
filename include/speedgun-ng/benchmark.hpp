@@ -185,6 +185,12 @@ struct BenchmarkResult
   // the metrics were attached. The report prints a metric column under
   // this label (FR-026); the values stay in MetricValue (E-05).
   std::vector<std::string> metricLabels;
+  // The unit the report scales this result's printed time values to: the
+  // unit of the family, captured from the process default at
+  // registration and replaced by a `unit` call (E-02, FR-015, FR-016).
+  // The stored row values stay nanoseconds; only the printed scale
+  // follows this field.
+  TimeUnit timeUnit = TimeUnit::NANOSECONDS;
 };
 
 /**
