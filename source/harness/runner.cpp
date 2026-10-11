@@ -100,7 +100,8 @@ auto markInterrupted(sg::BenchmarkResult& result) noexcept -> void
 template<class Recorder>
 auto nettedFold(const sg::counters::detail::ExprCore& core,
                 const Recorder& recorder,
-                const sg::detail::RunRecord& record) -> sg::counters::MetricResult
+                const sg::detail::RunRecord& record)
+    -> sg::counters::MetricResult
 {
   const auto view = recorder.view();
   auto net = sg::counters::detail::foldCore(
@@ -342,11 +343,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
   }
 
-  // R-02, FR-019: one hardStop recorder for the whole benchmark,
-  // sized for the warm-up bound, the calibration bound, and the
-  // measured repetitions.
-  auto recorder = plan->recorder(
-      static_cast<std::size_t>(2 * (kRunBound + kRunBound + repetitions)));
+  // R-02, FR-019, FR-014: one hardStop recorder for the whole
+  // benchmark, sized for the warm-up bound, the calibration bound, and
+  // the measured repetitions, with room for the endpoint pair plus
+  // kMaxPausePerRun pause pairs in every run the phase rule can start.
+  auto recorder = plan->recorder(static_cast<std::size_t>(
+      2 * (1 + sg::kMaxPausePerRun) * (kRunBound + kRunBound + repetitions)));
   const double overheadFloorNs = plan->sampleOverheadNsMedian();
 
   // D-07: a point cursor in place of the H1 pair counter. A run owns
@@ -433,10 +435,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
     }
 
-    // E-07: the span is the points the recorder took from the run's
-    // base to the count it reached, and the pause intervals are the
-    // state's ordinals inside that span.
-    record.samples = recorder.count() - record.basePoint;
+    // E-07, FR-013: the span is the run's own sample count, read from
+    // the state after the run, and the pause intervals are the state's
+    // ordinals inside that span.
+    record.samples = state.m_samplesTaken;
     record.pausePairs = state.m_pausePairs;
     record.realNs = static_cast<std::int64_t>(
         std::llround(nettedFold(realTime.core, recorder, record).value));
