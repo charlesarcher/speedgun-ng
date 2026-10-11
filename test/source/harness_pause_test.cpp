@@ -27,6 +27,16 @@
 // sampling cost of the one pause interval, and no constant for the plan
 // calibration length stands in this file.
 //
+// Three scenarios cover a run that leaves the timed loop with a pause still
+// open. A skip closes the sampling window at once and the function then
+// leaves the loop, so the runner's window top-up owns the closing sample of
+// the open interval, the guard destructor leaves the resume out on a skip
+// path, and every recorded pair still holds two points (FR-012, FR-017,
+// D-11). The last of the three scripts one gap action on the pause sample of
+// one repetition: the fold of that paused interval carries the disclosure,
+// the fold of the run keeps its two measured end points, and the row
+// reports the worse availability of the two folds (research D-13).
+//
 // Each mode owns one provider script, so it runs in a re-exec of this binary,
 // the way the calibration test's scripted scenarios do. A contract breach
 // ends that child through the contract facility, which calls `std::abort`,
@@ -73,6 +83,17 @@ constexpr double kPlainCpuPerIteration =
     static_cast<double>(kThreadCpuStep) / static_cast<double>(kIterations);
 constexpr double kPlainOpsPerIteration =
     static_cast<double>(kOpsStep) / static_cast<double>(kIterations);
+
+// The four sampling actions one paused run owns: entry, pause, resume and
+// exit. A fixed iteration count leaves the plan no warm-up and no calibration
+// phase of the run, so the window of a three-repetition batch holds twelve of
+// them beside the actions the plan calibrates itself with.
+constexpr std::uint64_t kPausedRunSamples = 4;
+
+// The value of a row whose paused interval carries no measurement: the
+// window fold of three steps stands unsubtracted over the iteration count.
+constexpr double kGapRowRealPerIteration = 3.0
+    * static_cast<double>(kMonotonicStep) / static_cast<double>(kIterations);
 
 sg::counters::FakeProvider* fake = nullptr;
 
@@ -165,6 +186,33 @@ auto bmOpenAtExit(sg::State& state) -> void
 auto bmCallbackPause(sg::State& state) -> void
 {
   for (auto _ : state) {
+  }
+}
+
+// FR-012, FR-017, D-11: the skip closes the window, the function leaves the
+// loop, and the interval the pause opened is the window top-up's to close.
+auto bmSkipOpenPause(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.pauseTiming();
+      state.skipWithMessage("the run leaves the loop with a pause open");
+      return;
+    }
+  }
+}
+
+// FR-012: the guard destructor reads the skip flag of the run, so the resume
+// it would otherwise take never runs and the open interval is left for the
+// same top-up.
+auto bmScopedSkip(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      sg::ScopedPauseTiming guard {state};
+      state.skipWithError("the guard leaves its scope on a skip path");
+      return;
+    }
   }
 }
 
@@ -362,6 +410,97 @@ auto scenarioScoped() -> int
   return 0;
 }
 
+// FR-012, FR-017, D-11: a run that leaves the loop with a pause open still
+// owns its closing sample, and the skip stands as the one outcome of the
+// benchmark.
+auto scenarioSkipOpenPause() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmSkipOpenPause, "bmSkipOpenPause");
+  attachOps(handle);
+  const std::string report =
+      captureRun({"--filter", "^bmSkipOpenPause$", "--iterations=4"});
+  check(report.contains("SKIPPED: the run leaves the loop with a pause open"),
+        "the skipped run reports the reason it gave (FR-031)");
+  check(!report.contains("iterations="),
+        "a skipped run prints no measured row (FR-031)");
+  std::puts("harness_pause_test skipOpenPause: ok");
+  return 0;
+}
+
+// FR-012: the guard that leaves its scope on a skip path leaves one interval
+// open, and the run still reports the single skip it requested.
+auto scenarioScopedSkip() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmScopedSkip, "bmScopedSkip");
+  attachOps(handle);
+  const std::string report =
+      captureRun({"--filter", "^bmScopedSkip$", "--iterations=4"});
+  check(report.contains("SKIPPED: the guard leaves its scope on a skip path"),
+        "the guard path reports the skip it requested (FR-012, FR-031)");
+  check(!report.contains("iterations="),
+        "a skipped run prints no measured row (FR-031)");
+  std::puts("harness_pause_test scopedSkip: ok");
+  return 0;
+}
+
+// D-13, FR-025: one gap action on the pause sample of one repetition makes
+// the fold of that paused interval carry the disclosure, while the fold of
+// the run keeps two measured end points. The row reports the worse of the
+// two, so its time columns keep the window fold unsubtracted and the
+// aggregate leaves the repetition out.
+auto scenarioGapInPause() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmPause, "bmGap");
+  attachOps(handle);
+
+  // The gap script names the sampling actions of the window that samples the
+  // leaf, and that window opens with the actions the plan calibrates itself
+  // with, so one single-repetition run reads the offset they leave: the four
+  // actions of one paused run beside that fixed prefix.
+  const std::uint64_t before = fake->readActions();
+  captureRun({"--filter", "^bmGap$", "--iterations=4", "--repetitions=1"});
+  const std::uint64_t oneRun = fake->readActions() - before;
+
+  // The window of the run that follows holds three repetitions, so the pause
+  // sample of its last repetition stands two paused runs and two actions
+  // past the single run the read above measured.
+  fake->setGapActions("pause", "ops",
+                      {oneRun + (2 * kPausedRunSamples) - 2});
+  const std::string report =
+      captureRun({"--filter", "^bmGap$", "--iterations=4", "--repetitions=3"});
+  const std::vector<std::string> rows = linesOf(report, "bmGap");
+  check(rows.size() == 5,
+        "three repetitions print three rows, the time aggregate and the "
+        "metric aggregate (FR-035)");
+
+  std::size_t gapRows = 0;
+  for (std::size_t row = 0; row < rows.size(); ++row) {
+    if (rows[row].contains("gap=1")) {
+      ++gapRows;
+      check(row == 2,
+            "the scripted action is the pause sample of the last repetition");
+    }
+  }
+  check(gapRows == 1, "one repetition carries the gap disclosure (FR-025)");
+  check(closeTo(doubleFieldOf(rows[2], "real time/iter (ns)="),
+                kGapRowRealPerIteration),
+        "the row whose paused interval carries the gap prints the window "
+        "fold alone (D-13)");
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
+                kPausedRealPerIteration)
+            && closeTo(doubleFieldOf(rows[1], "real time/iter (ns)="),
+                       kPausedRealPerIteration),
+        "the two clean repetitions keep the netted value (FR-010)");
+  check(rows[3].contains(" n=2"),
+        "the promoted availability keeps that repetition out of the time "
+        "aggregate (D-13, FR-025)");
+  std::puts("harness_pause_test gapInPause: ok");
+  return 0;
+}
+
 // FR-011: a second pause before the resume ends the process.
 auto modeDoublePause() -> int
 {
@@ -420,6 +559,15 @@ auto main(const int argc, char** argv) -> int
   if (mode == "scoped") {
     return scenarioScoped();
   }
+  if (mode == "skipOpenPause") {
+    return scenarioSkipOpenPause();
+  }
+  if (mode == "scopedSkip") {
+    return scenarioScopedSkip();
+  }
+  if (mode == "gapInPause") {
+    return scenarioGapInPause();
+  }
   if (mode == "doublePause") {
     return modeDoublePause();
   }
@@ -437,7 +585,14 @@ auto main(const int argc, char** argv) -> int
   }
 
   const std::string self = argv[0];
-  for (const auto& scenario : {"exact", "scoped"}) {
+  for (const auto& scenario : {
+           "exact",
+           "scoped",
+           "skipOpenPause",
+           "scopedSkip",
+           "gapInPause",
+       })
+  {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
     check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
           "the scripted scenario passes (SC-003)");

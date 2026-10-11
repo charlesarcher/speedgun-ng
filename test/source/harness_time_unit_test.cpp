@@ -20,6 +20,11 @@
 // a sampling overhead of ten microseconds; a floor printed at the
 // nanosecond scale would sit four orders above it.
 //
+// A default outside the closed enumeration reaches the report through the
+// registration that captured it, because the setter holds no range check, so
+// the scale guard answers it at the nanosecond scale, the one divisor that
+// cannot divide by zero (FR-015, spec Edge Cases).
+//
 // Each mode owns one provider script, so it runs in a re-exec of this binary,
 // the way the calibration test's scripted scenarios do. Frameworkless
 // check()/fail() convention.
@@ -269,6 +274,40 @@ auto modeCaptured() -> int
   return 0;
 }
 
+// FR-015, spec Edge Cases: a value outside the closed enumeration of the unit
+// prints the nanosecond label and the raw fold, because the guard falls back
+// to the scale whose divisor is one.
+auto modeOutOfRange() -> int
+{
+  scriptProvider();
+  constexpr auto kBogusUnit = static_cast<sg::TimeUnit>(9);
+  sg::setDefaultTimeUnit(kBogusUnit);
+  check(sg::getDefaultTimeUnit() == kBogusUnit,
+        "the library reads back the value it was given (FR-016)");
+  const auto handle = sg::registerBenchmark(&bmUnit, "bmBogus");
+  check(handle.name() == "bmBogus", "the benchmark registers");
+
+  const std::string report =
+      captureRun({"--filter", "^bmBogus$", "--iterations=4"});
+  const std::vector<std::string> rows = linesOf(report, "bmBogus");
+  check(rows.size() == 1, "one repetition prints one measured row (FR-012)");
+  check(rows[0].contains("real time/iter (ns)=")
+            && rows[0].contains("cpu time/iter (ns)=")
+            && rows[0].contains("overhead floor (ns)="),
+        "the out-of-range unit carries the ns label on every time field "
+        "(FR-015)");
+  check(!rows[0].contains("(ms)=") && !rows[0].contains("(us)="),
+        "one line carries one scale (FR-015, plan R-08)");
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
+                kRealPerIterationNs)
+            && closeTo(doubleFieldOf(rows[0], "cpu time/iter (ns)="),
+                       kCpuPerIterationNs),
+        "the fallback divisor is one, so the printed value keeps the scripted "
+        "fold (FR-015, SC-005)");
+  std::puts("harness_time_unit_test outOfRange: ok");
+  return 0;
+}
+
 }  // namespace
 
 // The registration stands at static initialization, before any mode of this
@@ -287,9 +326,13 @@ auto main(const int argc, char** argv) -> int
   if (mode == "captured") {
     return modeCaptured();
   }
+  if (mode == "outOfRange") {
+    return modeOutOfRange();
+  }
 
   const std::string self = argv[0];
-  for (const auto& scenario : {"unitCall", "default", "captured"}) {
+  for (const auto& scenario : {"unitCall", "default", "captured", "outOfRange"})
+  {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
     // A signaled child carries no exit code: WEXITSTATUS of that wait status
     // reads zero, so the exit test stands only for a child that ran to
