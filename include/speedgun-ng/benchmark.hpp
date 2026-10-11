@@ -916,6 +916,22 @@ public:
   auto useManualTime() -> BenchmarkHandle&;
 
   /**
+   * @brief Set the unit the report scales the printed time values of
+   * this family to (FR-015).
+   *
+   * A stored time value stays nanoseconds; the report divides each
+   * printed time value of that family by the unit's divisor and prints
+   * the unit's label. The call overwrites the unit the registration
+   * captured from the process default (FR-015, FR-016, D-12).
+   *
+   * \pre the handle names a registered entry and the run has not
+   *      started for this benchmark (E-02)
+   * \post the entry carries `timeUnit` as the unit of that family, and
+   *       the returned handle is this handle (FR-015)
+   */
+  auto unit(TimeUnit timeUnit) -> BenchmarkHandle&;
+
+  /**
    * @brief Attach a counter expression built with the 007 arithmetic
    * (FR-021).
    *
@@ -1233,6 +1249,35 @@ private:
     std::function<void(State&)> fn,
     std::string_view name,
     std::function<std::unique_ptr<Fixture>()> factory) -> BenchmarkHandle;
+
+/**
+ * @brief Set the process default unit that a later registration
+ * captures (FR-016).
+ *
+ * The default reaches the registrations that follow it; a benchmark
+ * registered earlier keeps the unit it captured at its own moment
+ * (FR-016, D-12). The command-line unit option stays with the full
+ * command-line spec of the roadmap (FR-016).
+ *
+ * \pre none
+ * \post `getDefaultTimeUnit` reads back `timeUnit`, and every earlier
+ *       registration keeps the unit it captured (FR-016)
+ */
+SPEEDGUN_NG_EXPORT auto setDefaultTimeUnit(TimeUnit timeUnit) -> void;
+
+/**
+ * @brief Read the process default unit of this moment (FR-016).
+ *
+ * The default starts at `TimeUnit::NANOSECONDS`, so a benchmark
+ * registered during static initialization captures nanoseconds under
+ * the default (FR-016).
+ *
+ * \pre none
+ * \post the returned unit is the value of the last
+ *       `setDefaultTimeUnit` call, or `TimeUnit::NANOSECONDS` when no
+ *       such call has run (FR-016)
+ */
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto getDefaultTimeUnit() -> TimeUnit;
 
 /**
  * @brief Run the registered benchmarks named by the command line and

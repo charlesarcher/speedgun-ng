@@ -20,6 +20,21 @@ auto registry() -> std::vector<std::unique_ptr<RegistryEntry>>&
   return entries;
 }
 
+namespace
+{
+
+// The process default unit of FR-016. A function-local static carries
+// it, because `SG_BENCHMARK` registers during static initialization and
+// a namespace-scope object here would sit behind an initialization
+// order that registration can reach first.
+auto defaultTimeUnit() -> TimeUnit&
+{
+  static TimeUnit unit = TimeUnit::NANOSECONDS;
+  return unit;
+}
+
+}  // namespace
+
 auto addRegistryEntry(std::function<void(State&)> fn, std::string_view name)
     -> std::expected<RegistryEntry*, std::string>
 {
@@ -35,6 +50,10 @@ auto addRegistryEntry(std::function<void(State&)> fn, std::string_view name)
   auto entry = std::make_unique<RegistryEntry>();
   entry->name = name;
   entry->callable = std::move(fn);
+  // FR-016, D-12: the family record captures the process default of
+  // this moment, so a later setDefaultTimeUnit reaches no earlier
+  // registration.
+  entry->timeUnit = getDefaultTimeUnit();
   auto* stored = entry.get();
   registry().push_back(std::move(entry));
   return stored;
@@ -130,6 +149,16 @@ auto BenchmarkHandle::useManualTime() -> BenchmarkHandle&
   m_entry->manualTime = true;
   SG_ENSURE(m_entry->manualTime,
             "the entry makes the manual sum the primary time (FR-006)");
+  return *this;
+}
+
+auto BenchmarkHandle::unit(const TimeUnit timeUnit) -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  m_entry->timeUnit = timeUnit;
+  SG_ENSURE(m_entry->timeUnit == timeUnit,
+            "the entry carries the unit of that family (FR-015)");
   return *this;
 }
 
@@ -423,6 +452,21 @@ auto registerFixtureBenchmark(std::function<void(State&)> fn,
   SG_ENSURE(registry().back()->fixtureFactory != nullptr,
             "the entry carries the fixture factory (FR-017)");
   return BenchmarkHandle(**added);
+}
+
+auto setDefaultTimeUnit(const TimeUnit timeUnit) -> void
+{
+  defaultTimeUnit() = timeUnit;
+  SG_ENSURE(defaultTimeUnit() == timeUnit,
+            "the library reads back the default it was given (FR-016)");
+}
+
+auto getDefaultTimeUnit() -> TimeUnit
+{
+  const TimeUnit current = defaultTimeUnit();
+  SG_ENSURE(current == defaultTimeUnit(),
+            "the read yields the process default of this moment (FR-016)");
+  return current;
 }
 
 }  // namespace sg
