@@ -187,6 +187,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // fields; the console row keeps the single H1 name column.
   result.suite = instance.suite;
   result.caseName = instance.caseName;
+  // FR-015: the report scales every printed time value of this result by
+  // the unit the family carries.
+  result.timeUnit = entry.timeUnit;
 
   auto& sys = sg::counters::System::local();
   const std::int64_t minTimeNs =

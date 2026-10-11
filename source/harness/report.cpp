@@ -37,6 +37,42 @@ auto availabilityName(const sg::counters::Availability availability) -> const
   return kAvailabilityNames[index];
 }
 
+namespace
+{
+
+// The label and the divisor of each time unit, indexed by the
+// enumerator, so one printed line carries one scale (E-02, FR-015).
+struct UnitScale
+{
+  const char* label;
+  double divisor;
+};
+
+constexpr std::array<UnitScale, 4> kUnitScales {
+    UnitScale {"ns", 1.0},
+    UnitScale {"us", 1'000.0},
+    UnitScale {"ms", 1'000'000.0},
+    UnitScale {"s", 1'000'000'000.0},
+};
+static_assert(kUnitScales.size()
+              == std::to_underlying(sg::TimeUnit::SECONDS) + 1);
+
+auto unitScale(const sg::TimeUnit timeUnit) -> const UnitScale&
+{
+  // The static_assert above ties the table to the last enumerator, so
+  // the index of a value of the closed enumeration sits inside the
+  // table, and the guard answers every other value at the nanosecond
+  // scale, the one divisor that cannot divide by zero (FR-015).
+  const auto index = std::to_underlying(timeUnit);
+  if (index >= kUnitScales.size()) {
+    return kUnitScales[0];
+  }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  return kUnitScales[index];
+}
+
+}  // namespace
+
 auto printContext() -> void
 {
   // R-08: the catalog publishes no host or cpu model string at this
@@ -58,19 +94,21 @@ auto printResult(const BenchmarkResult& result) -> void
     return;
   }
 
+  const auto& scale = unitScale(result.timeUnit);
   for (const auto& row : result.rows) {
     if (row.kind == RowKind::AGGREGATE) {
-      std::printf("%-24s %10s  primary time/iter (ns) mean=%9.3f "
+      std::printf("%-24s %10s  primary time/iter (%s) mean=%9.3f "
                   "median=%9.3f sd=%9.3f cv=%8.4f min=%9.3f max=%9.3f "
                   "n=%llu\n",
                   result.name.c_str(),
                   "AGGREGATE",
-                  row.timeStats.mean,
-                  row.timeStats.median,
-                  row.timeStats.sampleStdDev,
+                  scale.label,
+                  row.timeStats.mean / scale.divisor,
+                  row.timeStats.median / scale.divisor,
+                  row.timeStats.sampleStdDev / scale.divisor,
                   row.timeStats.coefficientOfVariation,
-                  row.timeStats.min,
-                  row.timeStats.max,
+                  row.timeStats.min / scale.divisor,
+                  row.timeStats.max / scale.divisor,
                   static_cast<unsigned long long>(row.timeStats.samples));
       for (std::size_t column = 0; column < row.metricStats.size(); ++column) {
         const auto& stats = row.metricStats[column];
@@ -91,14 +129,17 @@ auto printResult(const BenchmarkResult& result) -> void
       continue;
     }
 
-    std::printf("%-24s iterations=%10llu  real time/iter (ns)=%9.3f  "
-                "cpu time/iter (ns)=%9.3f  overhead floor (ns)=%9.3f  "
+    std::printf("%-24s iterations=%10llu  real time/iter (%s)=%9.3f  "
+                "cpu time/iter (%s)=%9.3f  overhead floor (%s)=%9.3f  "
                 "endpoint samples=%llu",
                 result.name.c_str(),
                 static_cast<unsigned long long>(row.iterations),
-                row.timePerIterationNs,
-                row.cpuTimePerIterationNs,
-                row.overheadFloorNs,
+                scale.label,
+                row.timePerIterationNs / scale.divisor,
+                scale.label,
+                row.cpuTimePerIterationNs / scale.divisor,
+                scale.label,
+                row.overheadFloorNs / scale.divisor,
                 static_cast<unsigned long long>(row.endpointSamples));
     for (std::size_t column = 0; column < row.metrics.size(); ++column) {
       const auto& metric = row.metrics[column];
