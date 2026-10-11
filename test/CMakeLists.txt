@@ -703,6 +703,17 @@ target_include_directories(harness_pause_test PRIVATE ${CMAKE_SOURCE_DIR}/source
 target_compile_features(harness_pause_test PRIVATE cxx_std_23)
 add_test(NAME harness_pause_test COMMAND harness_pause_test)
 
+# The printed time unit of a run (T023; US5, C-6, FR-015, FR-016, SC-005).
+# One scripted provider steps every machine time leaf by a constant per
+# sampling action, so each printed figure is that step divided by the fixed
+# iteration count and again by the unit divisor, and the aggregate carries the
+# scale of the column it summarizes. Each mode owns one provider script, so it
+# runs in a re-exec of this binary and the parent reads its wait status.
+add_executable(harness_time_unit_test source/harness_time_unit_test.cpp)
+target_link_libraries(harness_time_unit_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_time_unit_test PRIVATE cxx_std_23)
+add_test(NAME harness_time_unit_test COMMAND harness_time_unit_test)
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
