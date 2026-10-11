@@ -467,8 +467,7 @@ auto scenarioGapInPause() -> int
   // The window of the run that follows holds three repetitions, so the pause
   // sample of its last repetition stands two paused runs and two actions
   // past the single run the read above measured.
-  fake->setGapActions("pause", "ops",
-                      {oneRun + (2 * kPausedRunSamples) - 2});
+  fake->setGapActions("pause", "ops", {oneRun + (2 * kPausedRunSamples) - 2});
   const std::string report =
       captureRun({"--filter", "^bmGap$", "--iterations=4", "--repetitions=3"});
   const std::vector<std::string> rows = linesOf(report, "bmGap");
