@@ -365,7 +365,7 @@ The calls stand in the benchmark body, inside the timed loop or outside
 it, and the loop keeps the feature-015 shape. The preconditions bound
 one open pause per run. `pauseTiming` needs a run state whose sampling
 window stands open, no pause already open, and a pause count below
-`kMaxPausePerRun` (8 samples); `resumeTiming` needs one open pause. A
+`kMaxPausePerRun` (8 intervals); `resumeTiming` needs one open pause. A
 pause still open at loop exit is an `SG_ASSERT` breach in `closeWindow`,
 and the skip and exception path closes an open pair in `topUpWindow`
 before the exit sample, so every fold reads a complete pair. A pause in
