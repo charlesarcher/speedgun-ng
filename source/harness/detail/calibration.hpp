@@ -23,12 +23,12 @@ inline constexpr std::uint64_t kRunBound = 96;
 
 // One sampled run: the sample span the run owns, the fold of each clock
 // over that span, the paused intervals to net out, and the iteration
-// count the benchmark function asked for. The H1 fields keep their
-// order, so an aggregate that names them positionally stays valid.
+// count the benchmark function asked for. Feature 017 replaced the H1
+// pair field with the point cursor's span: the record owns its base
+// point, its sample count, and its pause ordinals.
 struct RunRecord
 {
   std::uint64_t iterations = 0;
-  std::uint64_t pair = 0;
   std::int64_t realNs = 0;
   std::int64_t decisionNs = 0;
   bool skipped = false;
