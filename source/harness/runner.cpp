@@ -585,7 +585,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
                           ? row.timePerIterationNs
                           : row.cpuTimePerIterationNs);
     }
-    aggregate.timeStats = statisticsOf(std::move(times));
+    // The Edge Cases edge: every repetition can carry a disclosure,
+    // and the gap rule of FR-025 then hands the summary no value. The
+    // aggregate keeps the default record, zero in every field beside
+    // a zero sample count, and statisticsOf keeps its non-empty input.
+    aggregate.timeStats =
+        times.empty() ? sg::Statistics {} : statisticsOf(std::move(times));
 
     for (std::size_t column = 0; column < columns.size(); ++column) {
       std::vector<double> values;
@@ -598,7 +603,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           values.push_back(row.metrics[column].value);
         }
       }
-      aggregate.metricStats.push_back(statisticsOf(std::move(values)));
+      aggregate.metricStats.push_back(
+          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values)));
     }
 
     result.rows.push_back(aggregate);

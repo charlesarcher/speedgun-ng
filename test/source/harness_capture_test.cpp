@@ -358,6 +358,33 @@ auto main() -> int
            "gap=1",
            "a window whose endpoint measured nothing reports the gap (FR-025)");
 
+  // The Edge Cases edge, statistics half: with every repetition
+  // carrying a disclosure, the gap rule of FR-025 empties each
+  // summary's input. The aggregate row stands, and every quantity
+  // reports a zero sample count.
+  const std::string gapRepeats =
+      captureRun({"--filter", "^bmGap$", "--iterations=4", "--repetitions=2"});
+  checkHas(
+      gapRepeats, "AGGREGATE", "the repeated gap run prints its aggregate");
+  const auto lastWith = [&gapRepeats](const std::string& needle) -> std::string
+  {
+    std::string found;
+    std::istringstream stream(gapRepeats);
+    for (std::string line; std::getline(stream, line);) {
+      if (line.contains(needle)) {
+        found = line;
+      }
+    }
+    return found;
+  };
+  checkHas(lastWith(" AGGREGATE "), "n=0",
+           "a run set where every window carries a gap leaves the primary "
+           "time with no sample (FR-025, Edge Cases)");
+  const std::string gappedSummary = lastWith("gnum/gden mean=");
+  check(!gappedSummary.empty() && gappedSummary.ends_with("n=0"),
+        "a quantity every repetition disclosed summarizes zero samples "
+        "(FR-025, Edge Cases)");
+
   // FR-039: the scripted tsc leaf reports as a count, and the reported
   // time still comes from machine/monotonic alone.
   const std::string tscLine = lineOf(captureRun({"--filter",
