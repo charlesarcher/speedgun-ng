@@ -260,9 +260,12 @@ unusable environment. The vocabulary and thresholds live in
 Principle XI and the Pull Request Quality template. The gate's own
 fixtures run through `ctest -R prose_gate_fixtures`.
 
-The coverage gate runs as its own build target, and the `coverage-linux`
+The coverage gate runs as its own build target, and every developer-mode
 preset makes lcov and genhtml hard requirements: configuration fails when
-either is absent. genhtml loads the `GD.pm` perl module when it runs,
+either is absent, because `cmake/coverage.cmake` runs from the
+developer-mode block of `CMakeLists.txt`. The `coverage-linux` preset
+adds the instrumented build that produces the trace the gate reads.
+genhtml loads the `GD.pm` perl module when it runs,
 which no configure-time check can see, so the GD perl package of the
 distribution has to be installed as well. That package name varies
 (`perl-gd` on Arch-family, where the lcov package does not pull it in).
