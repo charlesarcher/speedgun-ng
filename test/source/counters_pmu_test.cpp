@@ -574,7 +574,21 @@ auto disclosedModeReadScenario(const std::vector<const Object*>& pmuObjects)
       burnCpuShort();
       window.finish();
       const auto metric = window.metric(over);
-      check(metric.value > 0.0,
+      const bool positive = metric.value > 0.0;
+      if (!positive) {
+        // A countable leaf that reads zero over the burn is host news:
+        // naming the leaf and its disclosed mode tells a rare event that
+        // legitimately stays quiet apart from a read path that stays
+        // silent on this host (FR-023).
+        const std::string objectPath(obj->path());
+        const std::string leafName(entry.name);
+        std::printf("zero count: %s/%s mode %d value %.3f\n",
+                    objectPath.c_str(),
+                    leafName.c_str(),
+                    static_cast<int>(entry.mode),
+                    metric.value);
+      }
+      check(positive,
             "a plan over a countable leaf delivers a positive count, so the "
             "disclosed mode is a mode that reads (FR-023)");
       ++sampled;
