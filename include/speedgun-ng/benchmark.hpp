@@ -414,6 +414,9 @@ public:
    * \pre this state belongs to a run: a callback state owns no run to
    *      accumulate for, so accepting a value there is a precondition
    *      violation (R-05, D-15)
+   * \pre the count is at least zero: a duration has no negative
+   *      nanoseconds, and a negative value is accepted nowhere without
+   *      naming its caller (FR-007)
    * \post the manual accumulator carries the sum of every accepted
    *       value, this one included (FR-007)
    */

@@ -168,6 +168,9 @@ auto State::setIterationTime(const std::int64_t nanoseconds) -> void
              "setIterationTime in a callback state violates the callback-state "
              "rule that the callback state owns no run to accumulate for "
              "(R-05)");
+  SG_REQUIRE(nanoseconds >= 0,
+             "a negative iteration time violates the bound that an accepted "
+             "duration carries at least zero nanoseconds (FR-007)");
   [[maybe_unused]] const std::int64_t before = m_manualNs;
   m_manualNs += nanoseconds;
   SG_ENSURE(m_manualNs == before + nanoseconds,
