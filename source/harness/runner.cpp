@@ -603,8 +603,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           values.push_back(row.metrics[column].value);
         }
       }
-      aggregate.metricStats.push_back(
-          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values)));
+      // The same empty-input shape as the primary time above: a
+      // quantity every repetition disclosed summarizes to the zero
+      // record. The value lands in the slot before the push, so the
+      // fold's summary carries the identical structure of the time
+      // aggregate beside it.
+      sg::Statistics columnStats =
+          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values));
+      aggregate.metricStats.push_back(columnStats);
     }
 
     result.rows.push_back(aggregate);
