@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>sg::BenchmarkHandle class | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">Pages</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="3">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>BenchmarkHandle <span class="m-thin">class</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+        </h1>
+        <p>The registration result: the caller&#x27;s view of one registry entry (E-02).</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#typeless-methods">Constructors, destructors, conversion operators</a></li>
+                <li><a href="#pub-methods">Public functions</a></li>
+                <li><a href="#friends">Friends</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+<p>Every setter writes one option of the entry before the run starts. A handle copied or moved names the same entry.</p><aside class="m-note m-success"><h4>Invariant</h4><p>a label call leaves the entry carrying exactly the labels that call set, whatever label list stood before (FR-006)</p></aside>
+        <section id="typeless-methods">
+          <h2><a href="#typeless-methods">Constructors, destructors, conversion operators</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>(</span><span class="m-doc-wrap">) <span class="m-label m-flat m-info">defaulted</span></span>
+            </dt>
+            <dd>An empty handle, the default state of a handle that names no entry.</dd>
+          </dl>
+        </section>
+        <section id="pub-methods">
+          <h2><a href="#pub-methods">Public functions</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a3a07923ec5e446513e42da17a8f638da" class="m-doc">name</a>(</span><span class="m-doc-wrap">) const -&gt; std::string_view <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The registered name, empty for an empty handle.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac41be936f535619a40616496935ed24b" class="m-doc">minTime</a>(</span><span class="m-doc-wrap">std::int64_t nanoseconds) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Set the minimum time per run in nanoseconds (FR-007, FR-015).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a12cefc807e62780c3c1abbb2259b35c6" class="m-doc">warmupTime</a>(</span><span class="m-doc-wrap">std::int64_t nanoseconds) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Set the minimum warm-up time in nanoseconds (FR-011, FR-015).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a2d0c4c1f0f5ed38611093d0fe2666ef3" class="m-doc">repetitions</a>(</span><span class="m-doc-wrap">std::uint64_t count) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Set the repetition count (FR-012, FR-015).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a8e55caa9de24037c0b96599b57f53316" class="m-doc">iterations</a>(</span><span class="m-doc-wrap">std::uint64_t count) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Fix the iteration count, which skips calibration (FR-013).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a655ab7a16615c516edbf7765f379dff8" class="m-doc">measureProcessCpuTime</a>(</span><span class="m-doc-wrap">) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Move the CPU column of this family to the process CPU leaf (FR-004).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#abd2b608aa4d080028b15e183b580808e" class="m-doc">useRealTime</a>(</span><span class="m-doc-wrap">) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Make real time the primary time of this family (FR-005).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#acd9246c86abb5c57e0c9d6984c8b4a56" class="m-doc">useManualTime</a>(</span><span class="m-doc-wrap">) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Make the manual sum the primary time of this family (FR-006).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a9949ff601bfc6fe242ef4a9edaab5025" class="m-doc">unit</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#ad1596a132e4c08a8d4e4aad33bb52cb2" class="m-doc">TimeUnit</a> timeUnit) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Set the unit the report scales the printed time values of this family to (FR-015).</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class D&gt;</div>
+              <span class="m-doc-wrap-bumper">auto <a href="#a64bf3a4f3fc143838c800fb6d661ef3a" class="m-doc">addMetric</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">sg::<wbr />counters::<wbr />Expression</a>&lt;D&gt;&amp; expression,
+              std::string_view label) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Attach a counter expression built with the 007 arithmetic (FR-021).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a142db17b282415dd63d90ef145521947" class="m-doc">arg</a>(</span><span class="m-doc-wrap">std::int64_t value) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Append one instance carrying the single argument <code>value</code> (FR-001).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a2ceed24a4f4c34ade16fd8d36c814a8a" class="m-doc">args</a>(</span><span class="m-doc-wrap">std::initializer_list&lt;std::int64_t&gt; values) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Append one instance carrying the arguments of <code>values</code>, one list per call (FR-001).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a3f9b2ff2fb2a00ab83a6c6936a04df76" class="m-doc">args</a>(</span><span class="m-doc-wrap">std::vector&lt;std::int64_t&gt; values) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Append one instance carrying <code>values</code> as its argument list, one list per call (FR-001).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a88e863ff460abcb723e049efcbdc10cf" class="m-doc">range</a>(</span><span class="m-doc-wrap">std::int64_t low,
+              std::int64_t high) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Append one instance per argument of the range from <code>low</code> to <code>high</code>: both bounds, plus every power of the family multiplier strictly between them (FR-001, FR-004).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a16f7859925c1ddb483b2e77bee5b6ccf" class="m-doc">rangeMultiplier</a>(</span><span class="m-doc-wrap">std::int64_t multiplier) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Set the multiplier the later range calls of this family grow by (FR-004).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a960d4a775e5313b6f7dce667d1f83d15" class="m-doc">ranges</a>(</span><span class="m-doc-wrap">std::vector&lt;std::pair&lt;std::int64_t, std::int64_t&gt;&gt; bounds) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Append the instances of one range per bound pair of <code>bounds</code>, the pairs grown and then taken as one product (FR-001, FR-004).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a1179584474d15d61fdc333fd915d44e5" class="m-doc">denseRange</a>(</span><span class="m-doc-wrap">std::int64_t low,
+              std::int64_t high,
+              std::int64_t step = 1) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Append one instance per value from <code>low</code> to <code>high</code> in steps of <code>step</code> (FR-001, FR-005).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aa312bbe3ba0cda7cafd4dae3f0b0fb87" class="m-doc">argsProduct</a>(</span><span class="m-doc-wrap">std::vector&lt;std::vector&lt;std::int64_t&gt;&gt; lists) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Append the product of <code>lists</code>: one instance per combination in the odometer order of the cited revision, where the first list advances fastest (FR-001).</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class F&gt;</div>
+              <span class="m-doc-wrap-bumper">auto <a href="#aa8f3c9368bc25eb7b5632d9b50efa41f" class="m-doc">apply</a>(</span><span class="m-doc-wrap">F&amp;&amp; fn) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Run <code>fn</code> on this handle, the way <code>Apply</code> does at the cited revision, so <code>fn</code> states the family calls of the whole family on it (FR-001).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a0d9c75ea086e02ddef137a1c7e274dba" class="m-doc">argName</a>(</span><span class="m-doc-wrap">std::string_view label) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Set the label list of this family to the one label (FR-001, E-04).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#abc3b854acc935e00c83b539151be0cfd" class="m-doc">argNames</a>(</span><span class="m-doc-wrap">std::vector&lt;std::string&gt; labels) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Set the label list of this family to <code>labels</code>, one per argument position (FR-001, E-04).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aafe1816c9890d9c97fa807db29da9455" class="m-doc">setup</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; callback) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Attach the setup callback of this family (FR-018).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#acd19515321928ff66a4995d8cb382123" class="m-doc">teardown</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; callback) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Attach the teardown callback of this family (FR-018).</dd>
+          </dl>
+        </section>
+        <section id="friends">
+          <h2><a href="#friends">Friends</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a7c2a718566fb67416a1276902f13b05c" class="m-doc">registerBenchmark</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; fn,
+              std::string_view name) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a></span>
+            </dt>
+            <dd>Register a benchmark function under a unique name (FR-001).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#abae9c1eecfd80bf7a97ac2bb23aa7e8b" class="m-doc">registerFixtureBenchmark</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; fn,
+              std::string_view name,
+              std::function&lt;std::unique_ptr&lt;<a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a>&gt;()&gt; factory) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a></span>
+            </dt>
+            <dd>Register a fixture method: the callable plus the factory of the one fixture object each run builds (FR-015, FR-016, R-09).</dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Function documentation</h2>
+          <section class="m-doc-details" id="a556dc5380ac3de43d15f1e6f807e5083"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"> sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc-self">BenchmarkHandle</a>(</span><span class="m-doc-wrap">) <span class="m-label m-info">defaulted</span></span></span>
+            </h3>
+            <p>An empty handle, the default state of a handle that names no entry.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a3a07923ec5e446513e42da17a8f638da"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::string_view sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a3a07923ec5e446513e42da17a8f638da" class="m-doc-self">name</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The registered name, empty for an empty handle.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac41be936f535619a40616496935ed24b"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac41be936f535619a40616496935ed24b" class="m-doc-self">minTime</a>(</span><span class="m-doc-wrap">std::int64_t nanoseconds)</span></span>
+            </h3>
+            <p>Set the minimum time per run in nanoseconds (FR-007, FR-015).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries this value, and it wins over a command-line value (FR-015)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a12cefc807e62780c3c1abbb2259b35c6"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a12cefc807e62780c3c1abbb2259b35c6" class="m-doc-self">warmupTime</a>(</span><span class="m-doc-wrap">std::int64_t nanoseconds)</span></span>
+            </h3>
+            <p>Set the minimum warm-up time in nanoseconds (FR-011, FR-015).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries this value, and it wins over a command-line value (FR-015)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a2d0c4c1f0f5ed38611093d0fe2666ef3"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a2d0c4c1f0f5ed38611093d0fe2666ef3" class="m-doc-self">repetitions</a>(</span><span class="m-doc-wrap">std::uint64_t count)</span></span>
+            </h3>
+            <p>Set the repetition count (FR-012, FR-015).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries this value, and it wins over a command-line value (FR-015)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a8e55caa9de24037c0b96599b57f53316"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a8e55caa9de24037c0b96599b57f53316" class="m-doc-self">iterations</a>(</span><span class="m-doc-wrap">std::uint64_t count)</span></span>
+            </h3>
+            <p>Fix the iteration count, which skips calibration (FR-013).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries this value, calibration is skipped, and a set warm-up time still warms up from this count (FR-011)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a655ab7a16615c516edbf7765f379dff8"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a655ab7a16615c516edbf7765f379dff8" class="m-doc-self">measureProcessCpuTime</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Move the CPU column of this family to the process CPU leaf (FR-004).</p>
+<p>The selection stands for every instance of the family, and it combines with the real-time call and with the manual-time call (FR-004, FR-008).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry selects <code>machine/process_cpu</code> for the CPU column of that family, and the returned handle is this handle (FR-004)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="abd2b608aa4d080028b15e183b580808e"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#abd2b608aa4d080028b15e183b580808e" class="m-doc-self">useRealTime</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Make real time the primary time of this family (FR-005).</p>
+<p>The qualification test, the growth rule, and the aggregate time statistics read the real column from this call on. The selection excludes the manual-time selection, so the second of the two calls is the violation, in either order (FR-008, D-04).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and this family selects no manual time (E-02, FR-008)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry makes the real column the primary time of that family, and the returned handle is this handle (FR-005)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="acd9246c86abb5c57e0c9d6984c8b4a56"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acd9246c86abb5c57e0c9d6984c8b4a56" class="m-doc-self">useManualTime</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Make the manual sum the primary time of this family (FR-006).</p>
+<p>The benchmark supplies one iteration time per iteration through <code><a href="classsg_1_1State.html#af8dfee04a3340adc9f83d785451e68ed" class="m-doc">State::<wbr />setIterationTime</a></code>, and the primary time of a run becomes the sum of the accepted values. The qualification test, the growth rule, and the aggregate time statistics read that sum, and the fivefold real-time stop leaves a manual run alone (FR-006, D-05). The selection excludes the real-time selection, so the second of the two calls is the violation, in either order (FR-008, D-04).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and this family selects no real time (E-02, FR-008)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry makes the manual sum the primary time of that family, and the returned handle is this handle (FR-006)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a9949ff601bfc6fe242ef4a9edaab5025"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9949ff601bfc6fe242ef4a9edaab5025" class="m-doc-self">unit</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#ad1596a132e4c08a8d4e4aad33bb52cb2" class="m-doc">TimeUnit</a> timeUnit)</span></span>
+            </h3>
+            <p>Set the unit the report scales the printed time values of this family to (FR-015).</p>
+<p>A stored time value stays nanoseconds; the report divides each printed time value of that family by the unit&#x27;s divisor and prints the unit&#x27;s label. The call overwrites the unit the registration captured from the process default (FR-015, FR-016, D-12).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries <code>timeUnit</code> as the unit of that family, and the returned handle is this handle (FR-015)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a64bf3a4f3fc143838c800fb6d661ef3a"><div>
+            <h3>
+              <div class="m-doc-template">
+                template&lt;class D&gt;
+              </div>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a64bf3a4f3fc143838c800fb6d661ef3a" class="m-doc-self">addMetric</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1counters_1_1Expression.html" class="m-doc">sg::<wbr />counters::<wbr />Expression</a>&lt;D&gt;&amp; expression,
+              std::string_view label)</span></span>
+            </h3>
+            <p>Attach a counter expression built with the 007 arithmetic (FR-021).</p>
+<p>A leaf the catalog lacks is not a rejected call here: the plan compile of the run reports it as a recoverable error naming the leaf, and that benchmark fails (FR-023).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned handle is this handle, and the entry carries the metric under <code>label</code> (FR-021)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a142db17b282415dd63d90ef145521947"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a142db17b282415dd63d90ef145521947" class="m-doc-self">arg</a>(</span><span class="m-doc-wrap">std::int64_t value)</span></span>
+            </h3>
+            <p>Append one instance carrying the single argument <code>value</code> (FR-001).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one more argument list of one argument, and the returned handle is this handle (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a2ceed24a4f4c34ade16fd8d36c814a8a"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a2ceed24a4f4c34ade16fd8d36c814a8a" class="m-doc-self">args</a>(</span><span class="m-doc-wrap">std::initializer_list&lt;std::int64_t&gt; values)</span></span>
+            </h3>
+            <p>Append one instance carrying the arguments of <code>values</code>, one list per call (FR-001).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one more argument list holding <code>values</code>, and the returned handle is this handle (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a3f9b2ff2fb2a00ab83a6c6936a04df76"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a3f9b2ff2fb2a00ab83a6c6936a04df76" class="m-doc-self">args</a>(</span><span class="m-doc-wrap">std::vector&lt;std::int64_t&gt; values)</span></span>
+            </h3>
+            <p>Append one instance carrying <code>values</code> as its argument list, one list per call (FR-001).</p>
+<p>A list that <code><a href="namespacesg.html#ac39aadbb45ee71dc617798585bef459a" class="m-doc">createRange</a></code> or <code><a href="namespacesg.html#aab4baa3903bec562782976f7a9a359e6" class="m-doc">createDenseRange</a></code> built is one such value (FR-002).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one more argument list holding <code>values</code>, and the returned handle is this handle (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a88e863ff460abcb723e049efcbdc10cf"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a88e863ff460abcb723e049efcbdc10cf" class="m-doc-self">range</a>(</span><span class="m-doc-wrap">std::int64_t low,
+              std::int64_t high)</span></span>
+            </h3>
+            <p>Append one instance per argument of the range from <code>low</code> to <code>high</code>: both bounds, plus every power of the family multiplier strictly between them (FR-001, FR-004).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and <code>low</code> stands at or below <code>high</code> (E-02, FR-006)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one more argument list per value of <code>createRange(low, high, multiplier)</code>, and the returned handle is this handle (FR-004)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a16f7859925c1ddb483b2e77bee5b6ccf"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a16f7859925c1ddb483b2e77bee5b6ccf" class="m-doc-self">rangeMultiplier</a>(</span><span class="m-doc-wrap">std::int64_t multiplier)</span></span>
+            </h3>
+            <p>Set the multiplier the later range calls of this family grow by (FR-004).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and <code>multiplier</code> stands at or above 2 (E-02, FR-006)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries the multiplier, every later <code><a href="#a88e863ff460abcb723e049efcbdc10cf" class="m-doc">range</a></code> and <code><a href="#a960d4a775e5313b6f7dce667d1f83d15" class="m-doc">ranges</a></code> call of this family grows by it, and the returned handle is this handle (FR-004)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a960d4a775e5313b6f7dce667d1f83d15"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a960d4a775e5313b6f7dce667d1f83d15" class="m-doc-self">ranges</a>(</span><span class="m-doc-wrap">std::vector&lt;std::pair&lt;std::int64_t, std::int64_t&gt;&gt; bounds)</span></span>
+            </h3>
+            <p>Append the instances of one range per bound pair of <code>bounds</code>, the pairs grown and then taken as one product (FR-001, FR-004).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and every bound pair holds its low bound at or below its high bound (E-02, FR-006)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one more argument list per combination of the grown pairs, and the returned handle is this handle (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a1179584474d15d61fdc333fd915d44e5"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a1179584474d15d61fdc333fd915d44e5" class="m-doc-self">denseRange</a>(</span><span class="m-doc-wrap">std::int64_t low,
+              std::int64_t high,
+              std::int64_t step = 1)</span></span>
+            </h3>
+            <p>Append one instance per value from <code>low</code> to <code>high</code> in steps of <code>step</code> (FR-001, FR-005).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, <code>low</code> stands at or below <code>high</code>, and <code>step</code> stands at or above 1 (E-02, FR-006)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one more argument list per value of <code>createDenseRange(low, high, step)</code>, and the returned handle is this handle (FR-005)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aa312bbe3ba0cda7cafd4dae3f0b0fb87"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aa312bbe3ba0cda7cafd4dae3f0b0fb87" class="m-doc-self">argsProduct</a>(</span><span class="m-doc-wrap">std::vector&lt;std::vector&lt;std::int64_t&gt;&gt; lists)</span></span>
+            </h3>
+            <p>Append the product of <code>lists</code>: one instance per combination in the odometer order of the cited revision, where the first list advances fastest (FR-001).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and every list of <code>lists</code> carries at least one argument (E-02, FR-006)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one more argument list per combination, and the returned handle is this handle (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aa8f3c9368bc25eb7b5632d9b50efa41f"><div>
+            <h3>
+              <div class="m-doc-template">
+                template&lt;class F&gt;
+              </div>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aa8f3c9368bc25eb7b5632d9b50efa41f" class="m-doc-self">apply</a>(</span><span class="m-doc-wrap">F&amp;&amp; fn)</span></span>
+            </h3>
+            <p>Run <code>fn</code> on this handle, the way <code>Apply</code> does at the cited revision, so <code>fn</code> states the family calls of the whole family on it (FR-001).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned handle is this handle, <code>fn</code> ran on it once, and every family call <code>fn</code> stated stands on the entry (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a0d9c75ea086e02ddef137a1c7e274dba"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a0d9c75ea086e02ddef137a1c7e274dba" class="m-doc-self">argName</a>(</span><span class="m-doc-wrap">std::string_view label)</span></span>
+            </h3>
+            <p>Set the label list of this family to the one label (FR-001, E-04).</p>
+<p>A later <code><a href="#a0d9c75ea086e02ddef137a1c7e274dba" class="m-doc">argName</a></code> or <code><a href="#abc3b854acc935e00c83b539151be0cfd" class="m-doc">argNames</a></code> call replaces the list again; the entry never carries more labels than this last call states.</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and the family arity stands unset or at one (E-02, FR-006)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries the label list of exactly this label, and the returned handle is this handle (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="abc3b854acc935e00c83b539151be0cfd"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#abc3b854acc935e00c83b539151be0cfd" class="m-doc-self">argNames</a>(</span><span class="m-doc-wrap">std::vector&lt;std::string&gt; labels)</span></span>
+            </h3>
+            <p>Set the label list of this family to <code>labels</code>, one per argument position (FR-001, E-04).</p>
+<p>The call replaces the whole list, whatever list stood before.</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and <code>labels</code> holds one label per argument position of the family arity (E-02, FR-006)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries the labels in order, and the returned handle is this handle (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aafe1816c9890d9c97fa807db29da9455"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aafe1816c9890d9c97fa807db29da9455" class="m-doc-self">setup</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; callback)</span></span>
+            </h3>
+            <p>Attach the setup callback of this family (FR-018).</p>
+<p>The callback runs once before each run of every instance of the family, the warm-up, calibration, and measured runs included, in the untimed region, so its work adds nothing to the reported time (FR-018). One callback stands per slot and the last attachment wins it (E-07, R-10). The state the callback receives is a harness-built state carrying the instance arguments and the run&#x27;s iteration count, and it opens no sampling window: reading <code>range(index)</code>, <code>rangeCount()</code> and <code><a href="#a8e55caa9de24037c0b96599b57f53316" class="m-doc">iterations()</a></code> is legal there, while <code>begin()</code>, <code>skipWithError</code> and <code>skipWithMessage</code> are <code><a href="dbc_8hpp.html#aae2bcf476d4ea0ae734ee3caf01b0c8e" class="m-doc">SG_<wbr />REQUIRE</a></code> precondition violations, and <code>end()</code> stays legal because it is static and touches no state (R-05).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry&#x27;s setup slot carries <code>callback</code>, the callback this call attached wins the slot, and the returned handle is this handle (FR-018, R-10)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="acd19515321928ff66a4995d8cb382123"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acd19515321928ff66a4995d8cb382123" class="m-doc-self">teardown</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; callback)</span></span>
+            </h3>
+            <p>Attach the teardown callback of this family (FR-018).</p>
+<p>The callback runs once after each run of every instance of the family, after the timed loop and the fixture <code>tearDown</code>, in the untimed region, and it carries the same restricted state as the setup callback (R-05). One callback stands per slot and the last attachment wins it (E-07, R-10).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry&#x27;s teardown slot carries <code>callback</code>, the callback this call attached wins the slot, and the returned handle is this handle (FR-018, R-10)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a7c2a718566fb67416a1276902f13b05c"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a> </span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a7c2a718566fb67416a1276902f13b05c" class="m-doc-self">registerBenchmark</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; fn,
+              std::string_view name)</span></span>
+            </h3>
+            <p>Register a benchmark function under a unique name (FR-001).</p>
+<p>A runtime registration reaches the registry from any code that runs before the run starts. A repeated name reports a recoverable error, keeps the first registration, and leaves the rest runnable (FR-002).</p><aside class="m-note m-success"><h4>Precondition</h4><p>called before the run starts</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the name is registered in registration order, and the returned handle names that entry (FR-003)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="abae9c1eecfd80bf7a97ac2bb23aa7e8b"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a> </span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#abae9c1eecfd80bf7a97ac2bb23aa7e8b" class="m-doc-self">registerFixtureBenchmark</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; fn,
+              std::string_view name,
+              std::function&lt;std::unique_ptr&lt;<a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a>&gt;()&gt; factory)</span></span>
+            </h3>
+            <p>Register a fixture method: the callable plus the factory of the one fixture object each run builds (FR-015, FR-016, R-09).</p>
+<p>The fixture macros of FR-016 call this; the factory yields the derived object through the <code><a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a></code> base, and the runner builds one object per run with it, runs the pair around the callable, and destroys the object after <code>tearDown</code> (FR-017, R-09).</p><aside class="m-note m-success"><h4>Precondition</h4><p>called before the run starts, and both <code>fn</code> and <code>factory</code> name a callable (FR-001)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the registry holds one family record under <code><a href="#a3a07923ec5e446513e42da17a8f638da" class="m-doc">name</a></code> whose callable is <code>fn</code> and whose fixture factory is <code>factory</code>, and the returned handle names that entry (FR-003, FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>the family record&#x27;s factory yields one fixture object per run of that family (R-09)</p></aside>
+          </div></section>
+        </section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>

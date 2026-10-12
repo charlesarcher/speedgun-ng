@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>The optimization barrier rule (015 FR-029, FR-030) | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">Pages</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="3">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          The optimization barrier rule (015 FR-029, FR-030)
+        </h1>
+<p><a name="autotoc_md11"></a></p><p>Constitution Principle X.2 states the rule: a <code>DoNotOptimize</code>-style barrier appears only where the compiler would otherwise eliminate the measured work, and a barrier with nothing to defeat is noise. In a benchmarking framework that noise is a defect, because the number on the console then describes work the binary does not contain.</p><section id="autotoc_md12"><h2><a href="#autotoc_md12">What the header provides</a></h2><p><code><a href="barrier_8hpp.html" class="m-doc">include/<wbr />speedgun-ng/<wbr />barrier.hpp</a></code> holds two functions in namespace <code><a href="namespacesg.html" class="m-doc">sg</a></code>.</p><ul><li><code>sg::doNotOptimize(value)</code> takes any non-cv-qualified, non-reference type by universal reference and emits one empty extended-assembly statement that names the value as an input and output operand with a register-or-memory constraint and a <code>memory</code> clobber. The compiler can neither discard a value the asm reads nor move a store across the clobber.</li><li><code><a href="namespacesg.html#a04c6ad4387cfc6d0a3485f4f3cdfb41b" class="m-doc">sg::<wbr />clobberMemory()</a></code> is <code>std::atomic_signal_fence(std::memory_order_acq_rel)</code>: stores the compiler has held pending become visible to its analysis at that point.</li></ul><p>Both carry <code>\pre none</code> and <code>\post none</code>, and the contract deviation sits in the recorded note below.</p></section><section id="autotoc_md13"><h2><a href="#autotoc_md13">When a barrier is justified</a></h2><p>The measured work has to keep a result the harness can see. A loop whose accumulator reaches nothing else is the case: at <code>-O2</code> the optimizer proves the accumulator dead and removes the loop. The barrier goes after the loop, on the accumulator.</p><p>No barrier is justified where the result already reaches the harness. A store into a buffer the benchmark owns, a call the linker cannot see through, and a value the loop feeds to its own next iteration each keep the work alive on their own. A barrier there costs an instruction the measurement pays for and defeats nothing.</p></section><section id="autotoc_md14"><h2><a href="#autotoc_md14">How the rule is enforced</a></h2><p><code>test/barrier_shape.sh</code> compiles one dead-by-construction chain at <code>-O2</code> three ways and counts the instructions the shape function holds. The columns are the counts the gate printed on the reference host.</p><table class="m-table"><thead><tr><th>Build</th><th>g++</th><th>clang++</th></tr></thead><tbody><tr><td>with <code><a href="namespacesg.html#af7515b4a176a5c2258aba6d8e78145e7" class="m-doc">sg::<wbr />doNotOptimize</a></code></td><td>12</td><td>52</td></tr><tr><td>with no barrier at all</td><td>1</td><td>1</td></tr><tr><td>with a planted no-op barrier</td><td>1</td><td>1</td></tr></tbody></table><p>The gate fails where the barrier build loses the chain, where the bare build keeps it, or where the planted no-op barrier passes the barrier check. That last case is the liveness probe: a clean run cannot come from a detector that counts nothing. A missing compiler is skipped by name, and the gate fails only where neither g++ nor clang++ is present.</p></section><section id="autotoc_md15"><h2><a href="#autotoc_md15">The recorded contract deviation</a></h2><p>Principle II asks that a header document a contract and the source enforce it. The barriers carry doxygen <code>\pre none</code> and <code>\post none</code> with no runtime <code><a href="dbc_8hpp.html#ab2a4798fc1da0a558c554bc59df0e0d4" class="m-doc">SG_<wbr />ENSURE</a></code>, recorded in the 015 plan&#x27;s Complexity Tracking table on the 011 precedent. Their postcondition is a property of the generated code, which no runtime assertion can observe, and a counter inside a barrier would defeat the barrier it is meant to check. The codegen gate above is the enforcement.</p></section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>

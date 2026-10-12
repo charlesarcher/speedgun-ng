@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>speedgun-ng/benchmark.hpp file | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">Pages</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="3">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          <span class="m-breadcrumb"><a href="dir_0cd1953d100c23d6bc6dc1b0117ee37a.html">speedgun-ng</a>/</span>benchmark.hpp <span class="m-thin">file</span>
+        </h1>
+        <p>The benchmark harness surface: registration, the state object of the timed loop, the run-control options, the result value, and the entry point every speedgun executable calls.</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#namespaces">Namespaces</a></li>
+                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#define-members">Defines</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+<p>Feature 015-benchmark-harness-core. Namespace <code><a href="namespacesg.html" class="m-doc">sg</a></code>. Every time and counter value the harness measures or reports comes from <code><a href="namespacesg_1_1counters.html" class="m-doc">sg::<wbr />counters</a></code> (FR-038); this header declares no clock and no platform term (FR-050).</p>
+        <section id="namespaces">
+          <h2><a href="#namespaces">Namespaces</a></h2>
+          <dl class="m-doc">
+            <dt>namespace <a href="namespacesg.html" class="m-doc">sg</a></dt>
+            <dd><span></span></dd>
+            <dt>namespace <a href="namespacesg_1_1detail.html" class="m-doc">sg::detail</a></dt>
+            <dd><span></span></dd>
+          </dl>
+        </section>
+        <section id="nested-classes">
+          <h2><a href="#nested-classes">Classes</a></h2>
+          <dl class="m-doc">
+            <dt>
+              struct <a href="structsg_1_1MetricValue.html" class="m-doc">sg::MetricValue</a>
+            </dt>
+            <dd>One metric of one row, with the disclosure beside the value (FR-024).</dd>
+            <dt>
+              struct <a href="structsg_1_1Statistics.html" class="m-doc">sg::Statistics</a>
+            </dt>
+            <dd>The aggregate form of Principle VII over the repetitions that produced a measured value (FR-027, R-05).</dd>
+            <dt>
+              struct <a href="structsg_1_1ResultRow.html" class="m-doc">sg::ResultRow</a>
+            </dt>
+            <dd>One repetition row or one aggregate row (E-06).</dd>
+            <dt>
+              struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">sg::BenchmarkResult</a>
+            </dt>
+            <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
+            <dt>
+              class <a href="classsg_1_1State.html" class="m-doc">sg::State</a>
+            </dt>
+            <dd>The object the harness hands the benchmark function (E-03).</dd>
+            <dt>
+              class <a href="classsg_1_1State_1_1Cursor.html" class="m-doc">sg::State::Cursor</a>
+            </dt>
+            <dd>The range-for cursor of the timed loop (E-03).</dd>
+            <dt>
+              class <a href="classsg_1_1ScopedPauseTiming.html" class="m-doc">sg::ScopedPauseTiming</a>
+            </dt>
+            <dd>The scoped form of the pause pair: the region from this object&#x27;s construction to the end of its scope stands outside the timed window (FR-012).</dd>
+            <dt>
+              class <a href="classsg_1_1Fixture.html" class="m-doc">sg::Fixture</a>
+            </dt>
+            <dd>The base of a fixture: the <code><a href="classsg_1_1Fixture.html#aae6cacc771f9db0ad29d245cab760dae" class="m-doc">setUp</a></code> and <code><a href="classsg_1_1Fixture.html#a3023d0249454a5afd76b3e28b8126161" class="m-doc">tearDown</a></code> pair around each run (E-06, FR-015).</dd>
+            <dt>
+              struct <a href="structsg_1_1detail_1_1MetricSeed.html" class="m-doc">sg::detail::MetricSeed</a>
+            </dt>
+            <dd>The erased metric record a handle hands the registry (E-01, E-05): the expression spine, its column label, and the FR-022 per-iteration decision taken from the dimension tag.</dd>
+            <dt>
+              class <a href="classsg_1_1BenchmarkHandle.html" class="m-doc">sg::BenchmarkHandle</a>
+            </dt>
+            <dd>The registration result: the caller&#x27;s view of one registry entry (E-02).</dd>
+          </dl>
+        </section>
+        <section id="define-members">
+          <h2><a href="#define-members">Defines</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#a58946f13bf47a7c09d36e6c4e3838678" class="m-doc">SG_BENCHMARK_REGISTRAR</a>(</span><span class="m-doc-wrap">fn,
+              id)</span>
+            </dt>
+            <dd>Register <code>fn</code> at namespace scope before <code>main</code> begins, under the name of <code>fn</code>, and yield the registration handle (FR-001, R-09, R-10, FR-013).</dd>
+            <dt id="af2e3bff176dfd003eee5059fd5c5d7eb">
+              <span class="m-doc-wrap-bumper">#define <a href="#af2e3bff176dfd003eee5059fd5c5d7eb" class="m-doc-self">SG_BENCHMARK_EXPAND</a>(</span><span class="m-doc-wrap">fn,
+              id)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a49a327aeb093f819467e743fc4bd5abd">
+              <span class="m-doc-wrap-bumper">#define <a href="#a49a327aeb093f819467e743fc4bd5abd" class="m-doc-self">SG_BENCHMARK</a>(</span><span class="m-doc-wrap">fn)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#ae89819db9a50ee010b9c8d1313b9c0a9" class="m-doc">SG_BENCHMARK_CAPTURE_REGISTRAR</a>(</span><span class="m-doc-wrap">fn,
+              captureName,
+              id,
+              ...)</span>
+            </dt>
+            <dd>Register <code>fn</code> with captured arguments as the one instance <code>fn/captureName</code> (FR-013, R-13).</dd>
+            <dt id="a18489ec45f080f869f344cf98eab5151">
+              <span class="m-doc-wrap-bumper">#define <a href="#a18489ec45f080f869f344cf98eab5151" class="m-doc-self">SG_BENCHMARK_CAPTURE_EXPAND</a>(</span><span class="m-doc-wrap">fn,
+              captureName,
+              id,
+              ...)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ac0b2c1c10ca474da4e275054189ab503">
+              <span class="m-doc-wrap-bumper">#define <a href="#ac0b2c1c10ca474da4e275054189ab503" class="m-doc-self">SG_BENCHMARK_CAPTURE</a>(</span><span class="m-doc-wrap">fn,
+              captureName,
+              ...)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a6e5a67285be74610d74ccf75d83f8a1c">
+              <span class="m-doc-wrap-bumper">#define <a href="#a6e5a67285be74610d74ccf75d83f8a1c" class="m-doc-self">SG_BENCHMARK_TEMPLATE_REGISTRAR</a>(</span><span class="m-doc-wrap">fn,
+              id,
+              ...)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a60e36e61a0d97d2f515090c014036c93">
+              <span class="m-doc-wrap-bumper">#define <a href="#a60e36e61a0d97d2f515090c014036c93" class="m-doc-self">SG_BENCHMARK_TEMPLATE_EXPAND</a>(</span><span class="m-doc-wrap">fn,
+              id,
+              ...)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#a279f12e8b3af559738e4c9f028db9905" class="m-doc">SG_BENCHMARK_TEMPLATE</a>(</span><span class="m-doc-wrap">fn,
+              ...)</span>
+            </dt>
+            <dd>Register the instantiation <code>fn&lt;types&gt;</code> as the instance named <code>fn&lt;</code> plus the type list plus <code>&gt;</code> (FR-014, R-13).</dd>
+            <dt id="a701ceda0603c70d5b5b40c0ead67aa2f">
+              <span class="m-doc-wrap-bumper">#define <a href="#a701ceda0603c70d5b5b40c0ead67aa2f" class="m-doc-self">SG_BENCHMARK_FIXTURE_DECLARE</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a36c733b4c96e4ad320b023dec8ed4273">
+              <span class="m-doc-wrap-bumper">#define <a href="#a36c733b4c96e4ad320b023dec8ed4273" class="m-doc-self">SG_BENCHMARK_FIXTURE_REGISTER</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              DerivedClass)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#a5528eb0fa68f724ab21f1f8d234a26a4" class="m-doc">SG_BENCHMARK_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </dt>
+            <dd>Define and register the fixture method as the instance <code>FixtureClass/Method</code> (FR-016, R-13).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#a6a539cfdc17e8a5ffa2db823277b519e" class="m-doc">SG_BENCHMARK_DEFINE_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </dt>
+            <dd>Define the fixture method now, registering it later with <code><a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc">SG_<wbr />BENCHMARK_<wbr />REGISTER_<wbr />F</a></code> under the one name <code>FixtureClass/Method</code> (FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc">SG_BENCHMARK_REGISTER_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </dt>
+            <dd>Register the method that <code><a href="#a6a539cfdc17e8a5ffa2db823277b519e" class="m-doc">SG_<wbr />BENCHMARK_<wbr />DEFINE_<wbr />F</a></code> defined, under the name that macro&#x27;s generated class carries, and yield the registration handle (FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#a5be86e620b958795ea1173d59c15af25" class="m-doc">SG_BENCHMARK_TEMPLATE_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              ...)</span>
+            </dt>
+            <dd>Define and register the method of the fixture class template instantiated over <code>types</code>, as the instance <code>FixtureClass&lt;types&gt;/Method</code> (FR-016, R-13).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#a51b8e4d5b9e253108a02d015b7cdba0b" class="m-doc">SG_BENCHMARK_TEMPLATE_DEFINE_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              ...)</span>
+            </dt>
+            <dd>Define the method of the instantiated fixture class template now, registering it later with <code><a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc">SG_<wbr />BENCHMARK_<wbr />REGISTER_<wbr />F</a></code> under the name <code>FixtureClass&lt;types&gt;/Method</code> (FR-016).</dd>
+            <dt id="a3bf51fb3b8a8b6859892522b9070337b">
+              <span class="m-doc-wrap-bumper">#define <a href="#a3bf51fb3b8a8b6859892522b9070337b" class="m-doc-self">SG_BENCHMARK_TEMPLATE_INSTANTIATE_REGISTRAR</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              id,
+              ...)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a641c3e38f12c4513d680627503b15140">
+              <span class="m-doc-wrap-bumper">#define <a href="#a641c3e38f12c4513d680627503b15140" class="m-doc-self">SG_BENCHMARK_TEMPLATE_INSTANTIATE_EXPAND</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              id,
+              ...)</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#a2b3623f6ac2a409d70d30778eed26de2" class="m-doc">SG_BENCHMARK_TEMPLATE_METHOD_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </dt>
+            <dd>Define the method of a fixture class template once for every instantiation (FR-016, R-13).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">#define <a href="#a389479783a838fa46d74147e344b7187" class="m-doc">SG_BENCHMARK_TEMPLATE_INSTANTIATE_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              ...)</span>
+            </dt>
+            <dd>Register one instantiation of the method that <code><a href="#a2b3623f6ac2a409d70d30778eed26de2" class="m-doc">SG_<wbr />BENCHMARK_<wbr />TEMPLATE_<wbr />METHOD_<wbr />F</a></code> defined, as the instance <code>FixtureClass&lt;types&gt;/Method</code> (FR-016, R-13).</dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Define documentation</h2>
+          <section class="m-doc-details" id="a58946f13bf47a7c09d36e6c4e3838678"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#a58946f13bf47a7c09d36e6c4e3838678" class="m-doc-self">SG_BENCHMARK_REGISTRAR</a>(</span><span class="m-doc-wrap">fn,
+              id)</span>
+            </h3>
+            <p>Register <code>fn</code> at namespace scope before <code>main</code> begins, under the name of <code>fn</code>, and yield the registration handle (FR-001, R-09, R-10, FR-013).</p>
+<p>The macro declares one handle initialized by the registration, and the registration call is the last token sequence, so a call site chains family calls after the macro and ends with <code>;</code>: <code><a href="#a49a327aeb093f819467e743fc4bd5abd" class="m-doc">SG_<wbr />BENCHMARK(fn)</a>.range(8, 1024);</code>. A site with no chain reads <code><a href="#a49a327aeb093f819467e743fc4bd5abd" class="m-doc">SG_<wbr />BENCHMARK(fn)</a>;</code>.</p>
+          </div></section>
+          <section class="m-doc-details" id="ae89819db9a50ee010b9c8d1313b9c0a9"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#ae89819db9a50ee010b9c8d1313b9c0a9" class="m-doc-self">SG_BENCHMARK_CAPTURE_REGISTRAR</a>(</span><span class="m-doc-wrap">fn,
+              captureName,
+              id,
+              ...)</span>
+            </h3>
+            <p>Register <code>fn</code> with captured arguments as the one instance <code>fn/captureName</code> (FR-013, R-13).</p>
+<p>The capture name is the one name segment the instance adds; the captured arguments draw no segment of their own, so the family carries the single name <code>fn/captureName</code> and expands to one instance with no argument (FR-013). The values stand inside the registered callable, which calls <code>fn(state, ...)</code> the way <code>BENCHMARK_CAPTURE</code> does at the cited revision (<code>registration.h:69-75</code>).</p><p>The macro declares one handle initialized by the registration, so a call site chains family calls after the macro and ends with <code>;</code>.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>fn</code> takes a <code>State&amp;</code> followed by the captured arguments, and the registration runs before the run starts (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the registry holds one family record named <code>fn/captureName</code> whose callable passes the captured values to <code>fn</code>, and the yielded handle points at it (FR-013)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>one macro site registers one family, and that family expands to the one instance <code>fn/captureName</code> (FR-013)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a279f12e8b3af559738e4c9f028db9905"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#a279f12e8b3af559738e4c9f028db9905" class="m-doc-self">SG_BENCHMARK_TEMPLATE</a>(</span><span class="m-doc-wrap">fn,
+              ...)</span>
+            </h3>
+            <p>Register the instantiation <code>fn&lt;types&gt;</code> as the instance named <code>fn&lt;</code> plus the type list plus <code>&gt;</code> (FR-014, R-13).</p>
+<p>The type list enters the name stringified from the macro site, so a qualified type argument written with a space keeps that space: the preprocessor splits such an argument at its comma, and the stringification joins the pieces back as the site spells them (FR-014, R-13). The instantiation the name states is the callable the registry holds, the way <code>BENCHMARK_TEMPLATE</code> does at the cited revision (<code>registration.h:101-107</code>).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>fn</code> is a function template taking a <code>State&amp;</code>, and the registration runs before the run starts (E-02) The macro declares one handle initialized by the registration, so a call site chains family calls after the macro and ends with <code>;</code>.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the registry holds one family record named <code>fn&lt;types&gt;</code> whose callable is the instantiation for exactly those types, and the yielded handle points at it (FR-014)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>one macro site registers one family, and that family expands to the one instance its name states (FR-014)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a5528eb0fa68f724ab21f1f8d234a26a4"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#a5528eb0fa68f724ab21f1f8d234a26a4" class="m-doc-self">SG_BENCHMARK_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </h3>
+            <p>Define and register the fixture method as the instance <code>FixtureClass/Method</code> (FR-016, R-13).</p>
+<p>The macro declares the class derived from <code>FixtureClass</code>, registers it, and ends with the method definition header: the site follows the macro with <code>(state) { body }</code>, the way <code>BENCHMARK_F</code> does at the cited revision (<code>registration.h:196-200</code>). The instance name starts with the fixture class, so the suite of FR-021 is that class and a method named <code>DISABLED_x</code> is no disabled instance (R-08, R-11).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>FixtureClass</code> derives from <code><a href="classsg_1_1Fixture.html" class="m-doc">sg::<wbr />Fixture</a></code>, <code>Method</code> is a new name in that generated class, and the registration runs before the run starts (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the registry holds one family record named <code>FixtureClass/Method</code> with the method as its callable and a factory of the derived object (FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>one macro site registers one family, and that family expands to the one instance <code>FixtureClass/Method</code> (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a6a539cfdc17e8a5ffa2db823277b519e"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#a6a539cfdc17e8a5ffa2db823277b519e" class="m-doc-self">SG_BENCHMARK_DEFINE_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </h3>
+            <p>Define the fixture method now, registering it later with <code><a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc">SG_<wbr />BENCHMARK_<wbr />REGISTER_<wbr />F</a></code> under the one name <code>FixtureClass/Method</code> (FR-016).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p><code>FixtureClass</code> derives from <code><a href="classsg_1_1Fixture.html" class="m-doc">sg::<wbr />Fixture</a></code> and <code>Method</code> is a new name in the generated class (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the derived class stands defined once its method body follows the macro; nothing is registered yet (FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p><code><a href="#a6a539cfdc17e8a5ffa2db823277b519e" class="m-doc">SG_<wbr />BENCHMARK_<wbr />DEFINE_<wbr />F</a></code> and <code><a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc">SG_<wbr />BENCHMARK_<wbr />REGISTER_<wbr />F</a></code> name the same generated class, so the later registration reaches this definition (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="af3f2d75231dd6b765d589103e575adc9"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc-self">SG_BENCHMARK_REGISTER_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </h3>
+            <p>Register the method that <code><a href="#a6a539cfdc17e8a5ffa2db823277b519e" class="m-doc">SG_<wbr />BENCHMARK_<wbr />DEFINE_<wbr />F</a></code> defined, under the name that macro&#x27;s generated class carries, and yield the registration handle (FR-016).</p>
+<p>The macro declares one handle initialized by the registration, so a fixture family chains its family calls at the site: <code><a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc">SG_<wbr />BENCHMARK_<wbr />REGISTER_<wbr />F(F, m)</a>.range(8, 64);</code>. The fixture record expands like any family record, one instance per argument list.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code><a href="#a6a539cfdc17e8a5ffa2db823277b519e" class="m-doc">SG_<wbr />BENCHMARK_<wbr />DEFINE_<wbr />F</a></code> named the same pair earlier in the same scope, and the registration runs before the run starts (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the registry holds one family record named <code>FixtureClass/Method</code> whose callable is the defined method and the yielded handle points at it (FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>one macro site registers one family, and that family expands to the one instance <code>FixtureClass/Method</code> (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a5be86e620b958795ea1173d59c15af25"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#a5be86e620b958795ea1173d59c15af25" class="m-doc-self">SG_BENCHMARK_TEMPLATE_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              ...)</span>
+            </h3>
+            <p>Define and register the method of the fixture class template instantiated over <code>types</code>, as the instance <code>FixtureClass&lt;types&gt;/Method</code> (FR-016, R-13).</p>
+<p>The type list enters the name stringified from the macro site, the way <code><a href="#a279f12e8b3af559738e4c9f028db9905" class="m-doc">SG_<wbr />BENCHMARK_<wbr />TEMPLATE</a></code> carries it (<code>registration.h:154-163</code>).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>FixtureClass</code> is a class template of fixtures, <code>Method</code> is a new name in the generated class, and the registration runs before the run starts (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the registry holds one family record named <code>FixtureClass&lt;types&gt;/Method</code> with the method as its callable and a factory of the derived object (FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>one macro site registers one family, and that family expands to the one instance its name states (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a51b8e4d5b9e253108a02d015b7cdba0b"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#a51b8e4d5b9e253108a02d015b7cdba0b" class="m-doc-self">SG_BENCHMARK_TEMPLATE_DEFINE_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              ...)</span>
+            </h3>
+            <p>Define the method of the instantiated fixture class template now, registering it later with <code><a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc">SG_<wbr />BENCHMARK_<wbr />REGISTER_<wbr />F</a></code> under the name <code>FixtureClass&lt;types&gt;/Method</code> (FR-016).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p><code>FixtureClass</code> is a class template of fixtures and <code>Method</code> is a new name in the generated class (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the derived class stands defined once its method body follows the macro; nothing is registered yet (FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p><code><a href="#a51b8e4d5b9e253108a02d015b7cdba0b" class="m-doc">SG_<wbr />BENCHMARK_<wbr />TEMPLATE_<wbr />DEFINE_<wbr />F</a></code> and <code><a href="#af3f2d75231dd6b765d589103e575adc9" class="m-doc">SG_<wbr />BENCHMARK_<wbr />REGISTER_<wbr />F</a></code> name the same generated class, so the later registration reaches this definition (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a2b3623f6ac2a409d70d30778eed26de2"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#a2b3623f6ac2a409d70d30778eed26de2" class="m-doc-self">SG_BENCHMARK_TEMPLATE_METHOD_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method)</span>
+            </h3>
+            <p>Define the method of a fixture class template once for every instantiation (FR-016, R-13).</p>
+<p>The macro declares a class template derived from <code>FixtureClass&lt;Args...&gt;</code> and ends with the method definition header the way <code>BENCHMARK_TEMPLATE_METHOD_F</code> does at the cited revision (<code>registration.h:184-193</code>); <code><a href="#a389479783a838fa46d74147e344b7187" class="m-doc">SG_<wbr />BENCHMARK_<wbr />TEMPLATE_<wbr />INSTANTIATE_<wbr />F</a></code> then registers one instantiation per call.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>FixtureClass</code> is a class template of fixtures, and the definition completes before the run starts (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the method template stands defined once its body follows the macro; nothing is registered yet (FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>one method definition serves every instantiation of the pair of macros (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a389479783a838fa46d74147e344b7187"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">#define <a href="#a389479783a838fa46d74147e344b7187" class="m-doc-self">SG_BENCHMARK_TEMPLATE_INSTANTIATE_F</a>(</span><span class="m-doc-wrap">FixtureClass,
+              Method,
+              ...)</span>
+            </h3>
+            <p>Register one instantiation of the method that <code><a href="#a2b3623f6ac2a409d70d30778eed26de2" class="m-doc">SG_<wbr />BENCHMARK_<wbr />TEMPLATE_<wbr />METHOD_<wbr />F</a></code> defined, as the instance <code>FixtureClass&lt;types&gt;/Method</code> (FR-016, R-13).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p><code><a href="#a2b3623f6ac2a409d70d30778eed26de2" class="m-doc">SG_<wbr />BENCHMARK_<wbr />TEMPLATE_<wbr />METHOD_<wbr />F</a></code> named the same pair earlier in the same scope, and the registration runs before the run starts (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the registry holds one family record named <code>FixtureClass&lt;types&gt;/Method</code> whose callable is that instantiation&#x27;s method (FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>one macro site registers one family, and that family expands to the one instance its name states (FR-016)</p></aside>
+          </div></section>
+        </section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>sg::State class | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">Pages</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="3">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>State <span class="m-thin">class</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+        </h1>
+        <p>The object the harness hands the benchmark function (E-03).</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#pub-types">Public types</a></li>
+                <li><a href="#pub-static-methods">Public static functions</a></li>
+                <li><a href="#pub-methods">Public functions</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+<p>The function runs its setup, the timed loop as <code>for (auto _ : state)</code>, and its teardown; setup and teardown sit outside the loop, in the untimed region (FR-004, FR-005). The sampling window opens in <code><a href="#a0af2430db522e976c5be3d5f8b0ce2f5" class="m-doc">begin()</a></code> and closes when the loop runs out, so the window covers the loop and not the setup or the teardown (FR-017). The loop cursor counts down from the iteration count of the current run, so it cannot pass that count by construction, and the loop reads no interrupt flag: the runner reads that flag after a run completes (R-06).</p>
+        <section id="pub-types">
+          <h2><a href="#pub-types">Public types</a></h2>
+          <dl class="m-doc">
+            <dt>
+              class <a href="classsg_1_1State_1_1Cursor.html" class="m-doc">Cursor</a>
+            </dt>
+            <dd>The range-for cursor of the timed loop (E-03).</dd>
+          </dl>
+        </section>
+        <section id="pub-static-methods">
+          <h2><a href="#pub-static-methods">Public static functions</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">static auto <a href="#ab404b12de4004bba262480bc8b6b9665" class="m-doc">end</a>(</span><span class="m-doc-wrap">) -&gt; <a href="classsg_1_1State_1_1Cursor.html" class="m-doc">Cursor</a> <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The cursor one past the last iteration of the timed loop.</dd>
+          </dl>
+        </section>
+        <section id="pub-methods">
+          <h2><a href="#pub-methods">Public functions</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ae6978f52a56e0b4bdc6634f0fde1bb89" class="m-doc">iterations</a>(</span><span class="m-doc-wrap">) const -&gt; std::uint64_t <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The iteration count of the current run (FR-005).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a0af2430db522e976c5be3d5f8b0ce2f5" class="m-doc">begin</a>(</span><span class="m-doc-wrap">) -&gt; <a href="classsg_1_1State_1_1Cursor.html" class="m-doc">Cursor</a> <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The cursor at the first iteration of the timed loop.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#a2bef6cdf05daf1b344352545d2b0391e" class="m-doc">skipWithError</a>(</span><span class="m-doc-wrap">std::string_view reason) <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>Skip the benchmark with an error reason (FR-031).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#a8c30dc1468107fd747e2a10aaccdbc14" class="m-doc">skipWithMessage</a>(</span><span class="m-doc-wrap">std::string_view reason) <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>Skip the benchmark with a message reason (FR-031).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#af8dfee04a3340adc9f83d785451e68ed" class="m-doc">setIterationTime</a>(</span><span class="m-doc-wrap">std::int64_t nanoseconds)</span>
+            </dt>
+            <dd>Add one iteration time to the manual accumulator (FR-007).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#acafb3f266eb1620fe286346fb333a3ee" class="m-doc">pauseTiming</a>(</span><span class="m-doc-wrap">)</span>
+            </dt>
+            <dd>Stop the timed window from this point (FR-009).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#a6a50a13c7e4229b8332f9664cccbcd6e" class="m-doc">resumeTiming</a>(</span><span class="m-doc-wrap">)</span>
+            </dt>
+            <dd>Restart the timed window and record the interval it paused (FR-009).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac79bab778ba1f5ccac7973a4a792e4b3" class="m-doc">outcome</a>(</span><span class="m-doc-wrap">) const -&gt; <a href="namespacesg.html#af156701d1055d1ff54af1c060c449591" class="m-doc">RunOutcome</a> <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The outcome the function requested, if any.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ae3833b71f4c816efd999d1079a65d3b5" class="m-doc">reason</a>(</span><span class="m-doc-wrap">) const -&gt; const std::string&amp; <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The reason a skip requested, empty otherwise.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a81e0b8b7531efe955867cfcad6e5568a" class="m-doc">range</a>(</span><span class="m-doc-wrap">const std::size_t index) const -&gt; std::int64_t</span>
+            </dt>
+            <dd>The argument of the running instance at <code>index</code> (FR-008).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a32d876db2c92720f3c77b449cd38011f" class="m-doc">rangeCount</a>(</span><span class="m-doc-wrap">) const -&gt; std::size_t <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The argument count of the running instance (FR-008).</dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Function documentation</h2>
+          <section class="m-doc-details" id="ab404b12de4004bba262480bc8b6b9665"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">static <a href="classsg_1_1State_1_1Cursor.html" class="m-doc">Cursor</a> sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ab404b12de4004bba262480bc8b6b9665" class="m-doc-self">end</a>(</span><span class="m-doc-wrap">) <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The cursor one past the last iteration of the timed loop.</p>
+<p>The end cursor owns no sampling: the window closes on the exit of the loop, in the cursor <code><a href="#a0af2430db522e976c5be3d5f8b0ce2f5" class="m-doc">begin()</a></code> returns.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ae6978f52a56e0b4bdc6634f0fde1bb89"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::uint64_t sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae6978f52a56e0b4bdc6634f0fde1bb89" class="m-doc-self">iterations</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The iteration count of the current run (FR-005).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a0af2430db522e976c5be3d5f8b0ce2f5"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="classsg_1_1State_1_1Cursor.html" class="m-doc">Cursor</a> sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a0af2430db522e976c5be3d5f8b0ce2f5" class="m-doc-self">begin</a>(</span><span class="m-doc-wrap">) <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The cursor at the first iteration of the timed loop.</p>
+<p>The skip flag is read here, once for the loop. A skip requested before the loop leaves the loop with no pass at all and takes no sample. Otherwise this is where the run&#x27;s sampling window opens, before the first pass of the loop and after the setup the function already ran (FR-005, FR-017).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run: a callback state opens no sampling window, so opening one here is a precondition violation (R-05)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned cursor names iteration zero of this run with the entry sample taken, or an empty cursor when the function already requested a skip</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a2bef6cdf05daf1b344352545d2b0391e"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a2bef6cdf05daf1b344352545d2b0391e" class="m-doc-self">skipWithError</a>(</span><span class="m-doc-wrap">std::string_view reason) <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>Skip the benchmark with an error reason (FR-031).</p>
+<p>A skip inside the loop closes the sampling window at once, so the measured window stops where the function stops, the way the upstream timer stops its clock (FR-017).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run: a skip in a callback state is a precondition violation (R-05)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the reason is recorded, the function leaves the timed loop with break or return, and no statistics print for this benchmark</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a8c30dc1468107fd747e2a10aaccdbc14"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a8c30dc1468107fd747e2a10aaccdbc14" class="m-doc-self">skipWithMessage</a>(</span><span class="m-doc-wrap">std::string_view reason) <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>Skip the benchmark with a message reason (FR-031).</p>
+<p>A skip inside the loop closes the sampling window at once, as the error skip does (FR-017).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run: a skip in a callback state is a precondition violation (R-05)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the reason is recorded, the function leaves the timed loop with break or return, and no statistics print for this benchmark</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="af8dfee04a3340adc9f83d785451e68ed"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#af8dfee04a3340adc9f83d785451e68ed" class="m-doc-self">setIterationTime</a>(</span><span class="m-doc-wrap">std::int64_t nanoseconds)</span></span>
+            </h3>
+            <p>Add one iteration time to the manual accumulator (FR-007).</p>
+<p>A manual benchmark supplies its own time: this call takes one nanosecond count per iteration and the harness records the sum of the accepted values by summation alone, with no clock behind it. The real column of the run shows that sum divided by the iteration count (FR-006, FR-007, D-05). The call stands in the benchmark body, inside the timed loop or outside it, and the run state owns the accumulator.</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run: a callback state owns no run to accumulate for, so accepting a value there is a precondition violation (R-05, D-15)</p><p>the count is at least zero: a duration has no negative nanoseconds, and a negative value is accepted nowhere without naming its caller (FR-007)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the manual accumulator carries the sum of every accepted value, this one included (FR-007)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="acafb3f266eb1620fe286346fb333a3ee"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acafb3f266eb1620fe286346fb333a3ee" class="m-doc-self">pauseTiming</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Stop the timed window from this point (FR-009).</p>
+<p>The call stands in the benchmark body. It takes one sampling action, the same action the endpoint pair takes, and opens one pause interval that <code><a href="#a6a50a13c7e4229b8332f9664cccbcd6e" class="m-doc">resumeTiming</a></code> closes (FR-009). The runner folds every closed interval and subtracts it from each column of the row (FR-010). The allowance guard runs before the sample, so the breach is named while the recorder still holds its points (FR-014).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run, its sampling window stands open and unclosed, no pause stands open on it, and its pause count stands below <code><a href="namespacesg.html#a2fed8029bffc3b318da7fd8b57ec4761" class="m-doc">kMaxPausePerRun</a></code> (FR-011, FR-014, D-15)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>one further sample stands in the run&#x27;s span and one pause is open (FR-009)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a6a50a13c7e4229b8332f9664cccbcd6e"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a6a50a13c7e4229b8332f9664cccbcd6e" class="m-doc-self">resumeTiming</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Restart the timed window and record the interval it paused (FR-009).</p>
+<p>The call takes the sample that closes the open pause, records the pair of sample ordinals of that interval inside the run&#x27;s span, and counts one interval against the run&#x27;s allowance (E-03, FR-018).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run and one pause stands open on it (FR-011, D-15)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>one further sample stands in the run&#x27;s span, the ordinal pair of the closed interval stands in the run&#x27;s pause list, and no pause is open (FR-009, E-03)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac79bab778ba1f5ccac7973a4a792e4b3"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="namespacesg.html#af156701d1055d1ff54af1c060c449591" class="m-doc">RunOutcome</a> sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac79bab778ba1f5ccac7973a4a792e4b3" class="m-doc-self">outcome</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The outcome the function requested, if any.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ae3833b71f4c816efd999d1079a65d3b5"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">const std::string&amp; sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae3833b71f4c816efd999d1079a65d3b5" class="m-doc-self">reason</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The reason a skip requested, empty otherwise.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a81e0b8b7531efe955867cfcad6e5568a"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::int64_t sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a81e0b8b7531efe955867cfcad6e5568a" class="m-doc-self">range</a>(</span><span class="m-doc-wrap">const std::size_t index) const</span></span>
+            </h3>
+            <p>The argument of the running instance at <code>index</code> (FR-008).</p>
+<p>The instance owns the storage this reads, so a read is one span index: no allocation, no lock, no recorder work (R-04, FR-009).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>index</code> stands below <code><a href="#a32d876db2c92720f3c77b449cd38011f" class="m-doc">rangeCount()</a></code> (FR-008)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a32d876db2c92720f3c77b449cd38011f"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::size_t sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a32d876db2c92720f3c77b449cd38011f" class="m-doc-self">rangeCount</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The argument count of the running instance (FR-008).</p>
+<p>A family that states no family call has one instance with zero arguments, and this reports that zero.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+        </section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>

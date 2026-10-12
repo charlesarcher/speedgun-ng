@@ -59,6 +59,8 @@
               Reference
               <ul>
                 <li><a href="#namespaces">Namespaces</a></li>
+                <li><a href="#nested-classes">Classes</a></li>
+                <li><a href="#enum-members">Enums</a></li>
                 <li><a href="#func-members">Functions</a></li>
                 <li><a href="#var-members">Variables</a></li>
               </ul>
@@ -68,15 +70,132 @@
         <section id="namespaces">
           <h2><a href="#namespaces">Namespaces</a></h2>
           <dl class="m-doc">
+            <dt>namespace <a href="namespacesg_1_1detail.html" class="m-doc">detail</a></dt>
+            <dd><span></span></dd>
             <dt>namespace <a href="namespacesg_1_1counters.html" class="m-doc">counters</a></dt>
             <dd><span></span></dd>
             <dt>namespace <a href="namespacesg_1_1dbc.html" class="m-doc">dbc</a></dt>
             <dd><span></span></dd>
           </dl>
         </section>
+        <section id="nested-classes">
+          <h2><a href="#nested-classes">Classes</a></h2>
+          <dl class="m-doc">
+            <dt>
+              struct <a href="structsg_1_1MetricValue.html" class="m-doc">MetricValue</a>
+            </dt>
+            <dd>One metric of one row, with the disclosure beside the value (FR-024).</dd>
+            <dt>
+              struct <a href="structsg_1_1Statistics.html" class="m-doc">Statistics</a>
+            </dt>
+            <dd>The aggregate form of Principle VII over the repetitions that produced a measured value (FR-027, R-05).</dd>
+            <dt>
+              struct <a href="structsg_1_1ResultRow.html" class="m-doc">ResultRow</a>
+            </dt>
+            <dd>One repetition row or one aggregate row (E-06).</dd>
+            <dt>
+              struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">BenchmarkResult</a>
+            </dt>
+            <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
+            <dt>
+              class <a href="classsg_1_1State.html" class="m-doc">State</a>
+            </dt>
+            <dd>The object the harness hands the benchmark function (E-03).</dd>
+            <dt>
+              class <a href="classsg_1_1ScopedPauseTiming.html" class="m-doc">ScopedPauseTiming</a>
+            </dt>
+            <dd>The scoped form of the pause pair: the region from this object&#x27;s construction to the end of its scope stands outside the timed window (FR-012).</dd>
+            <dt>
+              class <a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a>
+            </dt>
+            <dd>The base of a fixture: the <code><a href="classsg_1_1Fixture.html#aae6cacc771f9db0ad29d245cab760dae" class="m-doc">setUp</a></code> and <code><a href="classsg_1_1Fixture.html#a3023d0249454a5afd76b3e28b8126161" class="m-doc">tearDown</a></code> pair around each run (E-06, FR-015).</dd>
+            <dt>
+              class <a href="classsg_1_1BenchmarkHandle.html" class="m-doc">BenchmarkHandle</a>
+            </dt>
+            <dd>The registration result: the caller&#x27;s view of one registry entry (E-02).</dd>
+          </dl>
+        </section>
+        <section id="enum-members">
+          <h2><a href="#enum-members">Enums</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#ad1596a132e4c08a8d4e4aad33bb52cb2" class="m-doc">TimeUnit</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2a5b3b43ddfdecac6712fd1dbc20798e6b" class="m-doc">NANOSECONDS</a>,
+              <a href="#ad1596a132e4c08a8d4e4aad33bb52cb2a98a5b3971201a65b35d420793d7148ea" class="m-doc">MICROSECONDS</a>,
+              <a href="#ad1596a132e4c08a8d4e4aad33bb52cb2ab4fd5e5c06e72437a57379576df36936" class="m-doc">MILLISECONDS</a>,
+              <a href="#ad1596a132e4c08a8d4e4aad33bb52cb2aa9126caa6ef3db9cf3c35ac627ad22b5" class="m-doc">SECONDS</a> }</span>
+            </dt>
+            <dd>The unit the report scales a printed time value to (E-02).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#af156701d1055d1ff54af1c060c449591" class="m-doc">RunOutcome</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#af156701d1055d1ff54af1c060c449591a8e2d9df5dd7c7bcf3eca2394b6e47717" class="m-doc">MEASURED</a>,
+              <a href="#af156701d1055d1ff54af1c060c449591a203ec08f57cb105eeb2b121ba6503b52" class="m-doc">SKIPPED</a>,
+              <a href="#af156701d1055d1ff54af1c060c449591ab9e14d9b2886bcff408b85aefa780419" class="m-doc">FAILED</a> }</span>
+            </dt>
+            <dd>The outcome of one benchmark within a run (E-07).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a1c36c8c7e4c0862e2c04cfa59ccba993" class="m-doc">RowKind</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a1c36c8c7e4c0862e2c04cfa59ccba993a4937d446de173dd3e1248cbb27d4c297" class="m-doc">REPETITION</a>,
+              <a href="#a1c36c8c7e4c0862e2c04cfa59ccba993a361d91ce0f028b6708f607b76b12a318" class="m-doc">AGGREGATE</a> }</span>
+            </dt>
+            <dd>Whether a result row carries one repetition or one aggregate (E-06).</dd>
+          </dl>
+        </section>
         <section id="func-members">
           <h2><a href="#func-members">Functions</a></h2>
           <dl class="m-doc">
+            <dt>
+              <div class="m-doc-template">template&lt;class T&gt;</div>
+              <span class="m-doc-wrap-bumper">void <a href="#af7515b4a176a5c2258aba6d8e78145e7" class="m-doc">doNotOptimize</a>(</span><span class="m-doc-wrap">T&amp; value) <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>Keep <code>value</code> alive against the optimizer (FR-029, D-4).</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class T&gt;</div>
+              <span class="m-doc-wrap-bumper">void <a href="#a3263fc6f09ca10eb4b62f159bcf88a3c" class="m-doc">doNotOptimize</a>(</span><span class="m-doc-wrap">T&amp;&amp; value) <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>Keep <code>value</code> alive against the optimizer (FR-029, D-4).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#a04c6ad4387cfc6d0a3485f4f3cdfb41b" class="m-doc">clobberMemory</a>(</span><span class="m-doc-wrap">) <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>Forbid the reordering of memory accesses across this point (FR-029, D-4).</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;class D&gt;</div>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac97304eea56cfacdf135350bf2e0835e" class="m-doc">reportsPerIteration</a>(</span><span class="m-doc-wrap">) -&gt; bool <span class="m-label m-flat m-primary">constexpr</span> <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>True when a metric of dimension <code>D</code> reports per iteration: dimension events^1 or time^1 divides by N, every other dimension keeps its window value (FR-022).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac39aadbb45ee71dc617798585bef459a" class="m-doc">createRange</a>(</span><span class="m-doc-wrap">std::int64_t low,
+              std::int64_t high,
+              std::int64_t multiplier = <a href="#aa14a0c92cb138510aafe26afc0c598a1" class="m-doc">kDefaultRangeMultiplier</a>) -&gt; std::vector&lt; std::int64_t &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>The argument list a range call accepts: <code>low</code>, <code>high</code>, and every power of <code>multiplier</code> strictly between them, in increasing order (FR-002, FR-004).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aab4baa3903bec562782976f7a9a359e6" class="m-doc">createDenseRange</a>(</span><span class="m-doc-wrap">std::int64_t low,
+              std::int64_t high,
+              std::int64_t step = 1) -&gt; std::vector&lt; std::int64_t &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>The argument list a dense range call accepts: every value from <code>low</code> to <code>high</code> in steps of <code>step</code> (FR-002, FR-005).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ae43cae6c058a3229e6e20a1285071cff" class="m-doc">registerBenchmark</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; fn,
+              std::string_view name) -&gt;BenchmarkHandle -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Register a benchmark function under a unique name (FR-001).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a6d93b8e4d35aa559828831d711540d6d" class="m-doc">registerFixtureBenchmark</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; fn,
+              std::string_view name,
+              std::function&lt;std::unique_ptr&lt;<a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a>&gt;()&gt; factory) -&gt;BenchmarkHandle -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Register a fixture method: the callable plus the factory of the one fixture object each run builds (FR-015, FR-016, R-09).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a1bff82fa0bfdd41307f8e086280bb736" class="m-doc">setDefaultTimeUnit</a>(</span><span class="m-doc-wrap"><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2" class="m-doc">TimeUnit</a> timeUnit) -&gt; void -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Set the process default unit that a later registration captures (FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a727921fbac1971afcaa457fa572ac824" class="m-doc">getDefaultTimeUnit</a>(</span><span class="m-doc-wrap">) -&gt; TimeUnit -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Read the process default unit of this moment (FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac29b781b85d46d6887a027c02897d33a" class="m-doc">speedgunMain</a>(</span><span class="m-doc-wrap">int argc,
+              char** argv) -&gt; int -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Run the registered benchmarks named by the command line and print the report (FR-033).</dd>
             <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#ad3d06112deede02f7594c60d0b39dc5f" class="m-doc">simulationStart</a>(</span><span class="m-doc-wrap">) -&gt; SPEEDGUN_NG_EXPORT void <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
@@ -87,13 +206,151 @@
           <h2><a href="#var-members">Variables</a></h2>
           <dl class="m-doc">
             <dt>
+              std::int64_t <a href="#aa14a0c92cb138510aafe26afc0c598a1" class="m-doc">kDefaultRangeMultiplier</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::size_t <a href="#a2fed8029bffc3b318da7fd8b57ec4761" class="m-doc">kMaxPausePerRun</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd>The largest number of pause intervals one run opens, the bound the recorder capacity rule reserves room for (FR-014).</dd>
+            <dt>
               std::uint32_t <a href="#ae0176430391232fe1fdf558116fc0ceb" class="m-doc">kSimulationStartTag</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd>The tag an attached tracer watches for. The value is <code>0xFACE</code>, and a caller passes it to the tracer as <code>-start_ssc_mark FACE</code> on the tracer&#x27;s command line, written hexadecimal with the most-significant nibble first and no <code>0x</code> prefix.</dd>
           </dl>
         </section>
         <section>
+          <h2>Enum documentation</h2>
+          <section class="m-doc-details" id="ad1596a132e4c08a8d4e4aad33bb52cb2"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2" class="m-doc-self">TimeUnit</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The unit the report scales a printed time value to (E-02).</p>
+<p>A stored time value stays nanoseconds and the report applies the divisor of the benchmark&#x27;s unit at print time. <code>NANOSECONDS</code> carries the label <code>ns</code> with the divisor 1, <code>MICROSECONDS</code> <code>us</code> with 1000, <code>MILLISECONDS</code> <code>ms</code> with 1000000, <code>SECONDS</code> <code>s</code> with 1000000000 (FR-015, FR-016).</p>
+          </div></section>
+          <section class="m-doc-details" id="af156701d1055d1ff54af1c060c449591"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#af156701d1055d1ff54af1c060c449591" class="m-doc-self">RunOutcome</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The outcome of one benchmark within a run (E-07).</p>
+          </div></section>
+          <section class="m-doc-details" id="a1c36c8c7e4c0862e2c04cfa59ccba993"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#a1c36c8c7e4c0862e2c04cfa59ccba993" class="m-doc-self">RowKind</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Whether a result row carries one repetition or one aggregate (E-06).</p>
+          </div></section>
+        </section>
+        <section>
           <h2>Function documentation</h2>
+          <section class="m-doc-details" id="af7515b4a176a5c2258aba6d8e78145e7"><div>
+            <h3>
+              <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="barrier_8hpp.html">&lt;speedgun-ng/barrier.hpp&gt;</a></div>
+              <div class="m-doc-template">
+                template&lt;class T&gt;
+              </div>
+              <span class="m-doc-wrap-bumper">void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#af7515b4a176a5c2258aba6d8e78145e7" class="m-doc-self">doNotOptimize</a>(</span><span class="m-doc-wrap">T&amp; value) <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>Keep <code>value</code> alive against the optimizer (FR-029, D-4).</p>
+<p>The overloads and their constraints mirror <code>DoNotOptimize</code> of google/benchmark at the revision D-4 reads, commit <code>e662de9aab8e705ecf4fa4bd41a207e5a0acfd0c</code>, <code>include/benchmark/utils.h</code>. The const-reference overload that upstream marks deprecated stays out (D-4). Each statement names the value as an input and output operand and carries a memory clobber:</p><ul><li>the lvalue and rvalue overloads outside the <code>__GNUC__</code> branch take <code>&quot;+r,m&quot;</code> under <code>__clang__</code> and <code>&quot;+m,r&quot;</code> elsewhere;</li><li>in the <code>__GNUC__</code> branch, a type that is trivially copyable and no larger than a pointer takes <code>&quot;+m,r&quot;</code>, and any other type takes <code>&quot;+m&quot;</code>.</li></ul><p>The constraint order is the alternative order the compiler prefers. Upstream puts memory first under gcc so a memory operand stays in memory, and the order is a property of the generated code that no runtime check can see.</p><p>The contract of a barrier is a property of the generated code, and no runtime check can see it, so this interface carries no runtime <code><a href="dbc_8hpp.html#ab2a4798fc1da0a558c554bc59df0e0d4" class="m-doc">SG_<wbr />ENSURE</a></code>. The deviation from Principle II is recorded in the plan&#x27;s Complexity Tracking, and <code>test/barrier_shape.sh</code> enforces the property at -O2 in CI.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a3263fc6f09ca10eb4b62f159bcf88a3c"><div>
+            <h3>
+              <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="barrier_8hpp.html">&lt;speedgun-ng/barrier.hpp&gt;</a></div>
+              <div class="m-doc-template">
+                template&lt;class T&gt;
+              </div>
+              <span class="m-doc-wrap-bumper">void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a3263fc6f09ca10eb4b62f159bcf88a3c" class="m-doc-self">doNotOptimize</a>(</span><span class="m-doc-wrap">T&amp;&amp; value) <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>Keep <code>value</code> alive against the optimizer (FR-029, D-4).</p>
+<p>The rvalue form of the rule above: same operands, the same recorded deviation.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a04c6ad4387cfc6d0a3485f4f3cdfb41b"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a04c6ad4387cfc6d0a3485f4f3cdfb41b" class="m-doc-self">clobberMemory</a>(</span><span class="m-doc-wrap">) <span class="m-label m-success">noexcept</span></span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="barrier_8hpp.html">&lt;speedgun-ng/barrier.hpp&gt;</a></div>
+            </h3>
+            <p>Forbid the reordering of memory accesses across this point (FR-029, D-4).</p>
+<p>The same recorded deviation applies: the property lives in the generated code, and <code>test/barrier_shape.sh</code> enforces it.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac97304eea56cfacdf135350bf2e0835e"><div>
+            <h3>
+              <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+              <div class="m-doc-template">
+                template&lt;class D&gt;
+              </div>
+              <span class="m-doc-wrap-bumper">bool sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac97304eea56cfacdf135350bf2e0835e" class="m-doc-self">reportsPerIteration</a>(</span><span class="m-doc-wrap">) <span class="m-label m-primary">constexpr</span> <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>True when a metric of dimension <code>D</code> reports per iteration: dimension events^1 or time^1 divides by N, every other dimension keeps its window value (FR-022).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac39aadbb45ee71dc617798585bef459a"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac39aadbb45ee71dc617798585bef459a" class="m-doc-self">createRange</a>(</span><span class="m-doc-wrap">std::int64_t low,
+              std::int64_t high,
+              std::int64_t multiplier = <a href="#aa14a0c92cb138510aafe26afc0c598a1" class="m-doc">kDefaultRangeMultiplier</a>) -&gt; std::vector&lt; std::int64_t &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The argument list a range call accepts: <code>low</code>, <code>high</code>, and every power of <code>multiplier</code> strictly between them, in increasing order (FR-002, FR-004).</p>
+<p><code>range</code>, <code>ranges</code> and <code>args</code> each take a list this builder returns (FR-002).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>multiplier</code> stands at or above 2 and <code>low</code> stands at or below <code>high</code> (FR-006, R-15)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned list holds both bounds and every power of <code>multiplier</code> strictly between them in increasing order, and a negative span follows the mirror of <code>AddRange</code> at the cited revision (FR-004)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>the returned list is never empty, because both bounds stand in it (FR-004)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aab4baa3903bec562782976f7a9a359e6"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aab4baa3903bec562782976f7a9a359e6" class="m-doc-self">createDenseRange</a>(</span><span class="m-doc-wrap">std::int64_t low,
+              std::int64_t high,
+              std::int64_t step = 1) -&gt; std::vector&lt; std::int64_t &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The argument list a dense range call accepts: every value from <code>low</code> to <code>high</code> in steps of <code>step</code> (FR-002, FR-005).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p><code>step</code> stands at or above 1 and <code>low</code> stands at or below <code>high</code> (FR-006, R-15)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned list holds <code>low</code>, <code>low + step</code>, and each further step that stays at or below <code>high</code>, in increasing order (FR-005)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>the returned list is never empty, because <code>low</code> stands in it (FR-005)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ae43cae6c058a3229e6e20a1285071cff"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae43cae6c058a3229e6e20a1285071cff" class="m-doc-self">registerBenchmark</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; fn,
+              std::string_view name) -&gt;BenchmarkHandle</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Register a benchmark function under a unique name (FR-001).</p>
+<p>A runtime registration reaches the registry from any code that runs before the run starts. A repeated name reports a recoverable error, keeps the first registration, and leaves the rest runnable (FR-002).</p><aside class="m-note m-success"><h4>Precondition</h4><p>called before the run starts</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the name is registered in registration order, and the returned handle names that entry (FR-003)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a6d93b8e4d35aa559828831d711540d6d"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a6d93b8e4d35aa559828831d711540d6d" class="m-doc-self">registerFixtureBenchmark</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; fn,
+              std::string_view name,
+              std::function&lt;std::unique_ptr&lt;<a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a>&gt;()&gt; factory) -&gt;BenchmarkHandle</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Register a fixture method: the callable plus the factory of the one fixture object each run builds (FR-015, FR-016, R-09).</p>
+<p>The fixture macros of FR-016 call this; the factory yields the derived object through the <code><a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a></code> base, and the runner builds one object per run with it, runs the pair around the callable, and destroys the object after <code>tearDown</code> (FR-017, R-09).</p><aside class="m-note m-success"><h4>Precondition</h4><p>called before the run starts, and both <code>fn</code> and <code>factory</code> name a callable (FR-001)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the registry holds one family record under <code>name</code> whose callable is <code>fn</code> and whose fixture factory is <code>factory</code>, and the returned handle names that entry (FR-003, FR-016)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>the family record&#x27;s factory yields one fixture object per run of that family (R-09)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a1bff82fa0bfdd41307f8e086280bb736"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a1bff82fa0bfdd41307f8e086280bb736" class="m-doc-self">setDefaultTimeUnit</a>(</span><span class="m-doc-wrap"><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2" class="m-doc">TimeUnit</a> timeUnit) -&gt; void</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Set the process default unit that a later registration captures (FR-016).</p>
+<p>The default reaches the registrations that follow it; a benchmark registered earlier keeps the unit it captured at its own moment (FR-016, D-12). The command-line unit option stays with the full command-line spec of the roadmap (FR-016).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code><a href="#a727921fbac1971afcaa457fa572ac824" class="m-doc">getDefaultTimeUnit</a></code> reads back <code>timeUnit</code>, and every earlier registration keeps the unit it captured (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a727921fbac1971afcaa457fa572ac824"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a727921fbac1971afcaa457fa572ac824" class="m-doc-self">getDefaultTimeUnit</a>(</span><span class="m-doc-wrap">) -&gt; TimeUnit</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Read the process default unit of this moment (FR-016).</p>
+<p>The default starts at <code><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2a5b3b43ddfdecac6712fd1dbc20798e6b" class="m-doc">TimeUnit::<wbr />NANOSECONDS</a></code>, so a benchmark registered during static initialization captures nanoseconds under the default (FR-016).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned unit is the value of the last <code><a href="#a1bff82fa0bfdd41307f8e086280bb736" class="m-doc">setDefaultTimeUnit</a></code> call, or <code><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2a5b3b43ddfdecac6712fd1dbc20798e6b" class="m-doc">TimeUnit::<wbr />NANOSECONDS</a></code> when no such call has run (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac29b781b85d46d6887a027c02897d33a"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac29b781b85d46d6887a027c02897d33a" class="m-doc-self">speedgunMain</a>(</span><span class="m-doc-wrap">int argc,
+              char** argv) -&gt; int</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Run the registered benchmarks named by the command line and print the report (FR-033).</p>
+<p>A suite links <code>speedgun-ng::harness</code> and calls this from <code>main</code> (D-1).</p><p>A command line that does not follow the option table of <code>specs/015-benchmark-harness-core/contracts/cli.md</code> is a usage error: the entry point reports it and exits with status two from inside the parse (FR-035). That path leaves no status to state a postcondition about, so this function takes no precondition of its own.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned status follows the exit-status table of that contract (FR-036)</p></aside>
+          </div></section>
           <section class="m-doc-details" id="ad3d06112deede02f7594c60d0b39dc5f"><div>
             <h3>
               <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad3d06112deede02f7594c60d0b39dc5f" class="m-doc-self">simulationStart</a>(</span><span class="m-doc-wrap">) <span class="m-label m-success">noexcept</span></span></span>
@@ -105,6 +362,21 @@
         </section>
         <section>
           <h2>Variable documentation</h2>
+          <section class="m-doc-details" id="aa14a0c92cb138510aafe26afc0c598a1"><div>
+            <h3>
+              std::int64_t sg::<wbr /><a href="#aa14a0c92cb138510aafe26afc0c598a1" class="m-doc-self">kDefaultRangeMultiplier</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a2fed8029bffc3b318da7fd8b57ec4761"><div>
+            <h3>
+              std::size_t sg::<wbr /><a href="#a2fed8029bffc3b318da7fd8b57ec4761" class="m-doc-self">kMaxPausePerRun</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The largest number of pause intervals one run opens, the bound the recorder capacity rule reserves room for (FR-014).</p>
+<p>A run holds its two endpoint samples plus two samples per interval, so the allowance bounds one run at 18 points and the pause guard can name the breach before the recorder loses a point.</p>
+          </div></section>
           <section class="m-doc-details" id="ae0176430391232fe1fdf558116fc0ceb"><div>
             <h3>
               std::uint32_t sg::<wbr /><a href="#ae0176430391232fe1fdf558116fc0ceb" class="m-doc-self">kSimulationStartTag</a> <span class="m-label m-primary">constexpr</span>
