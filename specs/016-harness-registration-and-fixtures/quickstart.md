@@ -111,9 +111,12 @@ ctest --test-dir build -R harness_callback_test --output-on-failure
 ctest --test-dir build -R compile_fail --output-on-failure   # test/compile-fail/run.sh:76
 ```
 
-Expected: both report passed. The pair runs once around each run in the order
+Expected: both report passed. `harness_callback_test` proves the ordering:
+the pair runs once around each run in the order
 setup, `setUp`, callable, `tearDown`, teardown, and the last attachment wins in
-each slot (R-10). Each negative translation unit in `test/compile-fail/` fails
+each slot (R-10). That rule is a runtime precondition, so no translation unit
+of the compile-fail suite proves it. Each negative translation unit in
+`test/compile-fail/` fails
 to compile with the diagnostic its `// expect:` line names (R-05).
 
 ## 9. C-8 the `DISABLED_` prefix (FR-020, SC-006)
@@ -157,8 +160,12 @@ that page is new in this feature (`docs/pages/`).
 ctest --test-dir build -R loop_shape --output-on-failure
 ```
 
-Expected: CTest reports the test passed, and the script prints no `FAIL` line
-for any compiler present. The gate reads disassembly: it takes the backward jump
+Expected: CTest reports the test passed. For each compiler present the script
+prints one liveness line, and the liveness probe prints the `FAIL` lines the
+planted loop earns: those lines are the script's own negative control, the
+proof that the detector refuses a loop with one extra load per iteration. A
+passing run keeps every `FAIL` line on `plantedLoop`, and none on `shapeLoop`.
+The gate reads disassembly: it takes the backward jump
 with the shortest span in the whole function (`test/loop_shape.sh:96-113`) and
 fails on an out-of-line `call` inside that body (`:190`) or on a body longer
 than the count-down reference (`:210`). A new contract check must not emit a
