@@ -39,11 +39,17 @@ configuration may not.
 
 ## Build, test, verify
 
-`cmake --preset=dev` then `cmake --build --preset=dev` then
-`ctest --preset=dev`. Once per feature, also build the release preset:
-`cmake --preset=ci-ubuntu` then `cmake --build build`. The dev preset builds unoptimized, and an unoptimized build
-cannot report a finding an optimizer's analysis produces.
-`CMakeUserPresets.json` is machine-local and never committed.
+The `dev` presets are machine-local: `CMakeUserPresets.json` is
+machine-local and never committed, and a fresh clone carries no `dev`
+preset. On a fresh clone drive the daily loop with `ci-rocky`, a release
+developer-mode build into `build`:
+`cmake --preset=ci-rocky` then `cmake --build build` then
+`ctest --test-dir build --output-on-failure`. Once per feature, also
+build `ci-ubuntu`, the same build with clang-tidy and cppcheck wired in:
+`cmake --preset=ci-ubuntu` then `cmake --build build`. An unoptimized
+dev preset cannot report a finding an optimizer's analysis produces,
+which is why the checked-in release presets drive a machine that has no
+`CMakeUserPresets.json`.
 
 Linux is the supported platform: `ci-ubuntu` on Ubuntu and `ci-rocky` on Rocky
 Linux are the release presets. macOS and Windows are unsupported. A future
