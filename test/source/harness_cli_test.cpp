@@ -601,9 +601,19 @@ auto main(const int argc, char** argv) -> int
     shapes.reserve(rows.size());
     for (const auto& row : rows) {
       std::string shape;
+      // One run of digits stands for one printed number, so a value that
+      // crosses a power of ten between the two captures keeps its shape.
+      // The columns and their order are what the check owns; a per-digit
+      // mask would also compare digit counts, and that is what the load
+      // of a sanitizer run moves.
       for (const char symbol : row) {
-        shape.push_back(
-            std::isdigit(static_cast<unsigned char>(symbol)) ? '#' : symbol);
+        if (std::isdigit(static_cast<unsigned char>(symbol)) != 0) {
+          if (shape.empty() || shape.back() != '#') {
+            shape.push_back('#');
+          }
+          continue;
+        }
+        shape.push_back(symbol);
       }
       shapes.push_back(std::move(shape));
     }
