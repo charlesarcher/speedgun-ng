@@ -44,6 +44,7 @@
 // convention.
 // ============================================================================
 
+#include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -598,17 +599,34 @@ auto main(const int argc, char** argv) -> int
   }
 
   // FR-011, FR-014: each breach ends its child through the contract
-  // facility, which aborts. A signaled child carries no exit code:
-  // WEXITSTATUS of that wait status reads zero, so the exit test stands only
-  // for a child that ran to completion.
+  // facility, which aborts. A shell that waits reports that death as its own
+  // exit 134, so the loop forks and execs directly, the pattern of
+  // harness_manual_time_test.cpp's guard modes, and the parent reads the
+  // signal from waitpid.
   for (const auto& breach : {"doublePause",
                              "resumeFirst",
                              "openAtExit",
                              "callbackPause",
                              "ninthPause"})
   {
-    const int status = std::system(("\"" + self + "\" " + breach).c_str());
-    check(!WIFEXITED(status),
+    const pid_t pid = fork();
+    if (pid < 0) {
+      fail("cannot fork the breached child");
+    }
+    if (pid == 0) {
+      if (std::freopen("/dev/null", "w", stderr) == nullptr) {
+        _exit(2);
+      }
+      char* const execArgv[] = {
+          const_cast<char*>(self.c_str()), const_cast<char*>(breach), nullptr};
+      (void)execv(self.c_str(), execArgv);
+      _exit(2);
+    }
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) {
+      fail("cannot wait for the breached child");
+    }
+    check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT,
           "the breach ends the signaled child (FR-011, FR-014)");
   }
 
