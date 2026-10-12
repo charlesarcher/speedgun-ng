@@ -692,6 +692,13 @@ public:
    * @brief Close the pause interval, and leave it open when the run was
    * skipped (FR-012).
    *
+   * The destructor calls resumeTiming, and its contract guards run
+   * under this class's implicit noexcept. The trap semantics of the
+   * default contract build ends the process on a violation, the message
+   * naming the broken pause pair. In a build whose handler throws, a
+   * violation surfacing from this destructor ends the process while it
+   * unwinds.
+   *
    * \pre none
    * \post none
    */
