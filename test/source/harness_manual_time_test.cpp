@@ -289,6 +289,42 @@ auto scenarioEmpty() -> int
   return 0;
 }
 
+// FR-002, FR-006: with more than one repetition the aggregate row
+// summarizes the primary time. FR-006 makes the primary time of a
+// manual run the accepted sum. The scripted thread CPU step of
+// 300 over four iterations answers 75.000, so the aggregate separates
+// the two candidates by the figures it prints.
+auto scenarioAggregate() -> int
+{
+  scriptedProvider(7000, 300);
+  auto handle = sg::registerBenchmark(&bmManual, "bmAgg");
+  handle.useManualTime();
+
+  const std::string report =
+      captureRun({"--filter", "^bmAgg$", "--iterations=4", "--repetitions=3"});
+  const std::vector<std::string> rows = linesOf(report, "bmAgg");
+  check(rows.size() == 4,
+        "three repetitions and the aggregate print four rows (FR-012)");
+  for (std::size_t index = 0; index < 3; ++index) {
+    check(closeTo(doubleFieldOf(rows[index], "real time/iter (ns)="), 1000.0),
+          "each repetition reports the accepted sum over N (FR-007)");
+    check(closeTo(doubleFieldOf(rows[index], "cpu time/iter (ns)="), 75.0),
+          "each repetition keeps the scripted CPU fold (FR-001)");
+  }
+  const std::string& aggregate = rows[3];
+  check(aggregate.find("AGGREGATE") != std::string::npos,
+        "the fourth row is the aggregate (FR-018)");
+  check(countFieldOf(aggregate, " n=") == 3,
+        "the aggregate carries one sample per repetition (FR-018)");
+  check(closeTo(doubleFieldOf(aggregate, "mean="), 1000.0),
+        "the aggregate summarizes the accepted manual sum\n"
+        "  (FR-002, FR-006; contracts/report-columns.md)");
+  check(closeTo(doubleFieldOf(aggregate, "median="), 1000.0),
+        "the median stands on the same sum (FR-006)");
+  std::puts("harness_manual_time_test aggregate: ok");
+  return 0;
+}
+
 // One sample callable of the growth rule: the record a manual run leaves
 // behind. The accepted sum is zero, the manual flag stands, and the real
 // field carries the fivefold value that qualifies any other run.
@@ -388,6 +424,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "empty") {
     return scenarioEmpty();
   }
+  if (mode == "aggregate") {
+    return scenarioAggregate();
+  }
   if (mode == "rule") {
     return scenarioRule();
   }
@@ -401,7 +440,8 @@ auto main(const int argc, char** argv) -> int
   // Each scripted scenario owns one provider script, so each runs in a
   // re-exec of this binary; a failed check exits there and shows here.
   const std::string self = argc > 0 ? argv[0] : "harness_manual_time_test";
-  for (const auto& scenario : {"report", "growth", "fivefold", "empty", "rule"})
+  for (const auto& scenario :
+       {"report", "growth", "fivefold", "empty", "aggregate", "rule"})
   {
     const int status =
         std::system(("\"" + self + "\" " + scenario + " 2>/dev/null").c_str());

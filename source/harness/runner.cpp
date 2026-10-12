@@ -126,13 +126,16 @@ auto nettedFold(const sg::counters::detail::ExprCore& core,
 // One measured row: the sample span the run left in the recorder,
 // netted through every column, with the FR-022 division, the FR-019
 // floor, and the two time columns of FR-001 beside the sample count of
-// FR-013 and the primary availability of research D-13.
+// FR-013 and the primary availability of research D-13. A manual run
+// has no primary fold (FR-006): its primary time is the sum the
+// benchmark supplied, no fold can put a gap on it, and a null core
+// says so.
 template<class Recorder>
 auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
                        const sg::detail::RunRecord& record,
                        const std::vector<MetricColumn>& columns,
                        double overheadFloorNs,
-                       const sg::counters::detail::ExprCore& primaryCore,
+                       const sg::counters::detail::ExprCore* primaryCore,
                        const Recorder& recorder) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
@@ -143,7 +146,9 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
   row.cpuTimePerIterationNs = static_cast<double>(record.cpuNs)
       / static_cast<double>(record.iterations);
   row.endpointSamples = record.samples;
-  row.timeAvailability = nettedFold(primaryCore, recorder, record).availability;
+  row.timeAvailability = primaryCore != nullptr
+      ? nettedFold(*primaryCore, recorder, record).availability
+      : sg::counters::Availability::COUNTABLE;
   row.overheadFloorNs = overheadFloorNs;
   for (const auto& column : columns) {
     sg::MetricValue value;
@@ -545,12 +550,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
     }
 
-    appendMeasuredRow(result.rows,
-                      *chosen,
-                      columns,
-                      overheadFloorNs,
-                      entry.realTime ? realTime.core : cpuTime.core,
-                      recorder);
+    // FR-002, FR-005, FR-006: the fold behind the availability is the
+    // CPU core by default and the real core under the real selection.
+    // A manual run answers with a null core: its primary time is the
+    // sum, and no fold stands between it and the row.
+    const sg::counters::detail::ExprCore* primaryCore = entry.manualTime
+        ? nullptr
+        : (entry.realTime ? &realTime.core : &cpuTime.core);
+    appendMeasuredRow(
+        result.rows, *chosen, columns, overheadFloorNs, primaryCore, recorder);
 
     if (interruptFlag().load()) {
       result.outcome = RunOutcome::SKIPPED;
@@ -565,14 +573,17 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
 
     // D-13, FR-002: one aggregate summarizes the primary time, and the
     // gap rule of the Edge Cases keeps a repetition whose primary fold
-    // carried a disclosure out of the statistics.
+    // carried a disclosure out of the statistics. The primary time of a
+    // manual run is the sum the benchmark supplied, the one value the
+    // time column holds for it (FR-006).
     std::vector<double> times;
     for (const auto& row : result.rows) {
       if (row.timeAvailability != sg::counters::Availability::COUNTABLE) {
         continue;
       }
-      times.push_back(entry.realTime ? row.timePerIterationNs
-                                     : row.cpuTimePerIterationNs);
+      times.push_back(entry.manualTime || entry.realTime
+                          ? row.timePerIterationNs
+                          : row.cpuTimePerIterationNs);
     }
     aggregate.timeStats = statisticsOf(std::move(times));
 
