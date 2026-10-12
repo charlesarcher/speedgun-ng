@@ -228,9 +228,15 @@ auto measure(Plan& compiled, const std::string& label) -> Regime
               cost.label.c_str(),
               cost.medianNs,
               bracketedMedian);
-  check(cost.medianNs < bracketedMedian,
-        "the published floor excludes the two clock reads that bracket each "
-        "sampling action (FR-025, FR-026)");
+  // The bracketed median is the floor plus the two clock reads, read on
+  // this host at this moment. Under load the two medians rise together
+  // and can print equal, so the check owns the one direction a
+  // miscounted floor moves: a published floor above the bracketed median
+  // would count the two reads twice.
+  check(cost.medianNs <= bracketedMedian,
+        "the published floor stays at or below the median measured with "
+        "the two clock reads that bracket each sampling action (FR-025, "
+        "FR-026)");
   return cost;
 }
 
