@@ -401,8 +401,7 @@ auto main(const int argc, char** argv) -> int
   // Each scripted scenario owns one provider script, so each runs in a
   // re-exec of this binary; a failed check exits there and shows here.
   const std::string self = argc > 0 ? argv[0] : "harness_manual_time_test";
-  for (const auto& scenario :
-       {"report", "growth", "fivefold", "empty", "rule"})
+  for (const auto& scenario : {"report", "growth", "fivefold", "empty", "rule"})
   {
     const int status =
         std::system(("\"" + self + "\" " + scenario + " 2>/dev/null").c_str());
@@ -414,8 +413,7 @@ auto main(const int argc, char** argv) -> int
   // guard modes fork and exec directly, the pattern of
   // harness_callback_test.cpp:599, and the parent reads the signal from
   // waitpid (FR-008).
-  for (const auto& guardMode : {"real-then-manual", "manual-then-real"})
-  {
+  for (const auto& guardMode : {"real-then-manual", "manual-then-real"}) {
     const pid_t pid = fork();
     if (pid < 0) {
       fail("cannot fork the guarded selection");
@@ -425,7 +423,8 @@ auto main(const int argc, char** argv) -> int
         _exit(2);
       }
       char* const execArgv[] = {const_cast<char*>(self.c_str()),
-                                const_cast<char*>(guardMode), nullptr};
+                                const_cast<char*>(guardMode),
+                                nullptr};
       (void)execv(self.c_str(), execArgv);
       _exit(2);
     }
