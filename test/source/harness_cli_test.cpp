@@ -601,15 +601,23 @@ auto main(const int argc, char** argv) -> int
     shapes.reserve(rows.size());
     for (const auto& row : rows) {
       std::string shape;
-      // One run of digits stands for one printed number, so a value that
-      // crosses a power of ten between the two captures keeps its shape.
-      // The columns and their order are what the check owns; a per-digit
-      // mask would also compare digit counts, and that is what the load
-      // of a sanitizer run moves.
+      // One run of digits stands for one printed number and one run of
+      // spaces for the padding that number's field carries. The overhead
+      // floor of a row is measured per run, so a sanitizer capture can
+      // print it one digit wider than another, and the field's padding
+      // shifts with it. The columns and their order are what the check
+      // owns; any per-character mask would also compare widths, and that
+      // is what the load of a sanitizer run moves.
       for (const char symbol : row) {
         if (std::isdigit(static_cast<unsigned char>(symbol)) != 0) {
           if (shape.empty() || shape.back() != '#') {
             shape.push_back('#');
+          }
+          continue;
+        }
+        if (std::isspace(static_cast<unsigned char>(symbol)) != 0) {
+          if (shape.empty() || shape.back() != ' ') {
+            shape.push_back(' ');
           }
           continue;
         }
