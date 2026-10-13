@@ -714,6 +714,75 @@ target_link_libraries(harness_time_unit_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_time_unit_test PRIVATE cxx_std_23)
 add_test(NAME harness_time_unit_test COMMAND harness_time_unit_test)
 
+# ---- Main-page documentation gates (feature 018) ----
+
+# The root README.md teaches the harness surface, and every code block it
+# quotes is a marked region of a file under example/. One tool scans the
+# page against the tree in four passes: each marked block against its
+# region, the feature-section list against the sections the page carries,
+# the quick-reference rows against the public headers, and the option rows
+# against the command-line table. It then checks the list of maintainer
+# substance the page must stay free of (specs/018-docs-main-page FR-031 to
+# FR-035, FR-038; constitution IV.1). The scan reads no build output, so it
+# is registered unconditionally: a tree that configures no examples still
+# holds the page, the example sources, and the drift it may have grown.
+add_test(
+    NAME example_drift
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/docs/example_drift.py
+            ${CMAKE_SOURCE_DIR}
+)
+
+# The scans are proven live. Each fixture run builds a scratch tree, plants
+# one drift of every class the tool claims to catch, and requires the tool
+# to name it, so a clean verdict cannot come from a scan that inspects
+# nothing (FR-033, SC-008).
+add_test(
+    NAME example_drift_fixtures
+    COMMAND
+      python3
+      ${CMAKE_CURRENT_SOURCE_DIR}/example-drift-fixture/run_example_drift_fixtures.py
+      ${CMAKE_SOURCE_DIR}
+)
+
+# The same liveness argument for the report-shape comparator's mask: a
+# mask that masks nothing would let a renamed column pass as a changed
+# number (FR-012, SC-004).
+add_test(
+    NAME report_shape_fixtures
+    COMMAND
+      python3
+      ${CMAKE_CURRENT_SOURCE_DIR}/example-drift-fixture/run_report_shape_fixtures.py
+      ${CMAKE_SOURCE_DIR}
+)
+
+# Every C++ block of the page is a complete top-level declaration, so the
+# reader can paste it into the program the quick start builds. This gate
+# emits the blocks, wraps each in the canonical include prelude, and
+# syntax-compiles the result with the configured compiler. It rejects one
+# planted broken snippet first, so a run that compiled nothing cannot pass
+# (FR-011, SC-003; contract example-drift R-10).
+add_test(
+    NAME snippet_compile
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/snippet-compile/run.sh
+            ${CMAKE_SOURCE_DIR} ${CMAKE_CXX_COMPILER}
+)
+
+if(TARGET first_benchmark)
+  # The sample report block on the page is compared with what the quick
+  # start binary really prints, by shape: a digit that differs passes, a
+  # renamed or missing column fails. Only a tree that builds the examples
+  # has a binary to run, so this is the one conditional registration of the
+  # group (FR-012, SC-004).
+  add_test(
+      NAME report_shape
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:first_benchmark>
+        --readme ${CMAKE_SOURCE_DIR}/README.md
+  )
+  set_tests_properties(report_shape PROPERTIES TIMEOUT 120)
+endif()
+
 # ---- End-of-file commands ----
 
 add_folders(Test)

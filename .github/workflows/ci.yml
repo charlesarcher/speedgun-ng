@@ -20,6 +20,12 @@ jobs:
     - uses: actions/setup-python@v5
       with: { python-version: "3.12" }
 
+    # The main-page drift gate, run from the source tree alone: this job
+    # configures no build and builds no example, which is the tree the scan
+    # has to clear on its own (specs/018-docs-main-page FR-035).
+    - name: Example drift gate
+      run: python3 tools/docs/example_drift.py .
+
     - name: Install codespell and clang-format 18
       run: pip3 install codespell 'clang-format==18.1.8'
 
