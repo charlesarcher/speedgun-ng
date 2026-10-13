@@ -70,6 +70,8 @@ def mini_page() -> str:
 def build_tree(root: Path) -> None:
     for leaf in ("example", "include/speedgun-ng", "source/harness", "docs/pages"):
         (root / leaf).mkdir(parents=True, exist_ok=True)
+    for stale in ("docs/pages/harness.md", "docs/pages/building.md"):
+        (root / stale).unlink(missing_ok=True)
 
     (root / "example" / "mini.cpp").write_text(
         "// The region source the mini page quotes.\n"
@@ -282,6 +284,37 @@ def main() -> int:
             "--forbidden",
         )
         case(
+            "user-guide page with spec provenance",
+            user_page,
+            False,
+            ("docs/pages/harness.md",
+             "forbidden requirement identifier: FR-005",
+             "forbidden feature number: Feature 017",
+             "forbidden contract label: C-3"),
+            "--forbidden",
+        )
+        case(
+            "build page keeps pins, paths, and job names",
+            build_page,
+            True,
+            (),
+            "--forbidden",
+        )
+        case(
+            "--names owner-qualified member the headers declare",
+            lambda root: add_api_row(root, "State::rangeMultiplier", True),
+            True,
+            (),
+            "--names",
+        )
+        case(
+            "--names owner-qualified member no header declares",
+            lambda root: add_api_row(root, "State::missingMember", False),
+            False,
+            ("is not in", "State::missingMember"),
+            "--names",
+        )
+        case(
             "mini page missing one required section",
             lambda root: page(root).write_text(
                 page(root).read_text().replace(
@@ -300,6 +333,35 @@ def main() -> int:
         )
         emit_case()
     return 1 if FAILURES else 0
+
+
+def add_api_row(root: Path, name: str, declared: bool) -> None:
+    page(root).write_text(
+        page(root).read_text().replace(
+            "| `speedgunMain` |",
+            f"| `{name}` | Reads one argument position |\n| `speedgunMain` |",
+        )
+    )
+    if declared:
+        header = root / "include" / "speedgun-ng" / "benchmark.hpp"
+        header.write_text(
+            header.read_text() + "auto rangeMultiplier(int factor) -> int;\n"
+        )
+
+
+def user_page(root: Path) -> None:
+    (root / "docs" / "pages" / "harness.md").write_text(
+        "# The benchmark harness\n\nThe sweep of C-3 multiplies every bound "
+        "by FR-005 of Feature 017.\n"
+    )
+
+
+def build_page(root: Path) -> None:
+    (root / "docs" / "pages" / "building.md").write_text(
+        "# Building speedgun-ng\n\nPin libxml2 at v2.13.8, read "
+        "source/harness/cli.cpp before the compiler version clang-18.1.8 gate, "
+        "and let the test job run example/CMakeLists.txt.\n"
+    )
 
 
 def write_detail(root: Path, body: str) -> None:

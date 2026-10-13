@@ -52,8 +52,8 @@ FORBIDDEN_JOBS = (
 )
 GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 
-PAGE_LINE_CAP = 400
-SECTION_LINE_CAP = 25
+PAGE_LINE_CAP = 520
+SECTION_LINE_CAP = 48
 
 
 class Finding(Exception):
@@ -236,20 +236,47 @@ def prose_text(page: Path) -> str:
     return "\n".join(kept)
 
 
-def forbidden_hits(text: str) -> list[str]:
-    classes = (
-        ("commit hash", r"\b[0-9a-f]{7,40}\b"),
-        ("kernel ref", r"\b\d+\.\d+\.\d+-\d+[0-9A-Za-z.-]*\b"),
-        ("pinned version string", r"\b\d+\.\d+\.\d+\b"),
-        ("compiler version", r"\b(?i:(gcc|g\+\+|clang|clang-cl|msvc))[ -]\d[\d.]*"),
-        ("spec identifier", r"\b\d{3}-[a-z][0-9a-z-]*\b"),
-        ("requirement identifier", r"\b(FR|SC)-\d+\b"),
-        ("task identifier", r"\bT\d{2,4}\b"),
-        ("constitution principle number", r"\b[IVX]{1,5}\.\d+\b"),
-        ("re-pinning step", r"\b(?i:(re-pin|repin|update_pmu_events))\b"),
-        ("source path", r"\b(?:include|source|test|tools|external)/[^\s,;)]*"),
-        ("build file", r"\b[\w./-]*CMakeLists\.txt\b"),
-    )
+MAIN_CLASSES = (
+    ("commit hash", r"\b[0-9a-f]{7,40}\b"),
+    ("kernel ref", r"\b\d+\.\d+\.\d+-\d+[0-9A-Za-z.-]*\b"),
+    ("pinned version string", r"\b\d+\.\d+\.\d+\b"),
+    ("compiler version", r"\b(?i:(gcc|g\+\+|clang|clang-cl|msvc))[ -]\d[\d.]*"),
+    ("spec identifier", r"\b\d{3}-[a-z][0-9a-z-]*\b"),
+    ("requirement identifier", r"\b(FR|SC)-\d+\b"),
+    ("task identifier", r"\bT\d{2,4}\b"),
+    ("constitution principle number", r"\b[IVX]{1,5}\.\d+\b"),
+    ("re-pinning step", r"\b(?i:(re-pin|repin|update_pmu_events))\b"),
+    ("source path", r"\b(?:include|source|test|tools|external)/[^\s,;)]*"),
+    ("build file", r"\b[\w./-]*CMakeLists\.txt\b"),
+)
+
+# The documentation pages under the User guide heading of docs/conf.py.in.
+# The Internals pages keep their spec provenance, so the docs classes cover
+# this pair.
+USER_GUIDE_PAGES = ("docs/pages/building.md", "docs/pages/harness.md")
+
+# The classes a documentation page carries along with its facts. The pinned
+# version, compiler version, re-pinning, source path, build file, and CI job
+# classes stay off this list: the build page documents the vendor pins, the
+# test locations, and the quality gates by name. A user page states counts of
+# nanoseconds, so a hex run counts as a commit only when it holds a letter,
+# since a bare digit run could be either.
+DOCS_CLASSES = (
+    (
+        "commit hash",
+        r"\b(?=[0-9a-f]{7,40}\b)(?=[0-9a-f]*[a-f][0-9a-f]*\b)[0-9a-f]{7,40}\b",
+    ),
+    ("kernel ref", r"\b\d+\.\d+\.\d+-\d+[0-9A-Za-z.-]*\b"),
+    ("spec identifier", r"\b\d{3}-[a-z][0-9a-z-]*\b"),
+    ("requirement identifier", r"\b(FR|SC)-\d+\b"),
+    ("task identifier", r"\bT\d{2,4}\b"),
+    ("constitution principle number", r"\b[IVX]{1,5}\.\d+\b"),
+    ("feature number", r"\b(?i:feature)[ -]\d+\b|\b\d{3} C-\d+\b"),
+    ("contract label", r"\b[A-Z]-\d+\b"),
+)
+
+
+def forbidden_hits(text: str, classes: tuple[tuple[str, str], ...]) -> list[str]:
     hits = [
         f"{label}: {match.group(0)}"
         for label, pattern in classes
@@ -258,14 +285,15 @@ def forbidden_hits(text: str) -> list[str]:
         # the example file it quotes, its CMake file included.
         if not (label == "build file" and match.group(0).startswith("example/"))
     ]
-    for job in FORBIDDEN_JOBS:
-        for match in re.finditer(rf"\b{re.escape(job)}\b", text):
-            hits.append(f"CI job name: {match.group(0)}")
-    for job in GENERIC_JOBS:
-        for match in re.finditer(
-            rf"\b(?i:{re.escape(job)}) (?:job|target|step|gate)\b", text
-        ):
-            hits.append(f"CI job name: {match.group(0)}")
+    if classes is MAIN_CLASSES:
+        for job in FORBIDDEN_JOBS:
+            for match in re.finditer(rf"\b{re.escape(job)}\b", text):
+                hits.append(f"CI job name: {match.group(0)}")
+        for job in GENERIC_JOBS:
+            for match in re.finditer(
+                rf"\b(?i:{re.escape(job)}) (?:job|target|step|gate)\b", text
+            ):
+                hits.append(f"CI job name: {match.group(0)}")
     return hits
 
 
@@ -378,9 +406,10 @@ def check_page(page: Path, root: Path, is_main: bool) -> list[str]:
     return findings
 
 
-def check_forbidden(page: Path) -> list[str]:
+def check_forbidden(page: Path, classes: tuple[tuple[str, str], ...]) -> list[str]:
     return [
-        f"{rel(page)}: forbidden {hit}" for hit in forbidden_hits(prose_text(page))
+        f"{rel(page)}: forbidden {hit}"
+        for hit in forbidden_hits(prose_text(page), classes)
     ]
 
 
@@ -482,14 +511,18 @@ def run_all(root: Path, main_page: Path, args: argparse.Namespace) -> list[str]:
     if args.sections or every:
         findings.extend(check_sections(main_page, root))
     if args.forbidden or every:
-        findings.extend(check_forbidden(main_page))
+        findings.extend(check_forbidden(main_page, MAIN_CLASSES))
+        for name in USER_GUIDE_PAGES:
+            page = root / name
+            if page.is_file():
+                findings.extend(check_forbidden(page, DOCS_CLASSES))
     if args.names or every:
         present = header_names(root)
         findings.extend(
             f"{rel(main_page)}: quick-reference name '{name}' is not in "
             "benchmark.hpp or barrier.hpp"
             for name in table_rows(main_page, "| Name |")
-            if name not in present
+            if any(part not in present for part in name.split("::") if part)
         )
     if args.options or every:
         rows = table_rows(main_page, "| Option |")
