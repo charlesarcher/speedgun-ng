@@ -557,7 +557,10 @@ the canonical location given there.
 Every feature spec that adds or changes user-visible behavior MUST add or
 update its main-page section, with a working example in the shape
 specs/018-docs-main-page FR-010 defines, with its quick-reference rows,
-and the spec is incomplete until it does. The main page is the root
+and the spec is incomplete until it does. A working example compiles as
+the page shows it: the region is part of a translation unit an example
+target builds, so a reader who copies the block over the canonical
+includes gets a program that builds. The main page is the root
 `README.md`, and its code blocks live in marked regions of files under
 `example/`: a page block and its region are one fact with two spellings,
 and a change that moves one without the other is a defect the drift gate
@@ -740,8 +743,11 @@ Every change passes all of the following; each is hard.
 - Page-drift-clean: the example compile gate keeps the main page equal to
   the code it quotes. `example_drift` compares every marked page block with
   the example region it names, checks the feature-section list, the
-  quick-reference rows against the public headers, the option rows against
-  the command-line table, and the substance list the page must stay free of;
+  quick-reference rows against the public headers (an `Owner::member` row
+  splits at `::` and every segment must appear), the option rows against
+  the command-line table, and the substance list the page must stay free
+  of, on the main page and on the two User-guide pages its reader path
+  reaches;
   `example_drift_fixtures` proves the scans inspect something; `snippet_compile`
   compiles each emitted C++ block over the canonical includes after rejecting
   a planted broken snippet; `report_shape` runs the built quick start binary
@@ -1179,7 +1185,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
-| 2.19.0 | 2026-10-13 | IV.1 Main-page documentation per feature makes the root `README.md` section, its `example/` region, and its quick-reference rows part of every feature that changes user-visible behavior; the spec and tasks templates gain the "Main-page impact check (IV.1)" checklist line; Principle VIII gains the example compile gate as one hard gate, naming `example_drift`, `example_drift_fixtures`, `snippet_compile`, `report_shape`, `report_shape_fixtures`, the `lint`-job direct step, and the example build obligation; specs/018-docs-main-page FR-027 to FR-030 |
+| 2.19.0 | 2026-10-13 | IV.1 Main-page documentation per feature makes the root `README.md` section, its `example/` region, and its quick-reference rows part of every feature that changes user-visible behavior; the spec and tasks templates gain the "Main-page impact check (IV.1)" checklist line; Principle VIII gains the example compile gate as one hard gate, naming `example_drift`, `example_drift_fixtures`, `snippet_compile`, `report_shape`, `report_shape_fixtures`, the `lint`-job direct step, and the example build obligation; IV.1 states that a main-page example compiles as the page shows it; the drift gate splits an `Owner::member` quick-reference row at `::` and runs the substance scan over the two User-guide pages; specs/018-docs-main-page FR-027 to FR-030 |
 | 2.18.0 | 2026-10-08 | Additional Constraints gains the counters-only rule: every time and counter value outside the counters library comes from `sg::counters`, the bound scope, the counters library, the forbidden time sources, and the single `tools/dbc/overhead.cpp` exception are named, and Principle VIII gains `test/time_source_gate.sh` as a hard gate; specs/015-benchmark-harness-core D-6, FR-038 to FR-043 |
 | 2.17.0 | 2026-10-08 | V.2 gains the tag-object entry `hardStop` and `ring` that `.clang-tidy` already exempted, names the export-header macro family and `SPEEDGUN_NG_SUPPRESS_C4251` in place of the single export macro, and states that the kernel-field entry reaches the member spelling a mirror copies; specs/014 post-merge repair |
 | 2.16.0 | 2026-10-08 | V.1 gains the FR-012 obligation: a later spec, plan, local naming override, or suppression creates no deviation, a deviation needs an amendment, and a suppression names the V.2 entry it applies; N-1 adds concepts and type traits to the enumeration; T048 and T050 of specs/014 |
