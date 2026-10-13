@@ -78,6 +78,7 @@ auto bmCells(sg::State& state) -> void
 SG_BENCHMARK(bmCells)
     .argNames({"width", "depth"})
     .args({8, 64})
+    .argsProduct({{2, 4}, {8, 16}})
     .ranges({{8, 8}, {16, 32}})
     .rangeMultiplier(2);
 
