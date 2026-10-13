@@ -37,16 +37,15 @@ auto bmCells(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmCells);
-const auto kCells = sg::registerBenchmark(&bmCells, "Table/cells");
 
-auto bmCopy(sg::State& state, int width) -> void
+auto bmTable(sg::State& state) -> void
 {
   for (auto _ : state) {
-    sg::doNotOptimize(state.iterations() + static_cast<std::uint64_t>(width));
+    sg::doNotOptimize(state.iterations());
   }
 }
 
-SG_BENCHMARK_CAPTURE(bmCopy, wide, 8);
+const auto kTable = sg::registerBenchmark(&bmTable, "Table/cells");
 
 // sg-example:end registration
 
@@ -205,7 +204,6 @@ auto bmGuard(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmGuard).arg(0);
-const auto kQuiet = sg::registerBenchmark(&bmGuard, "DISABLED_bmGuard");
 
 // sg-example:end skips
 

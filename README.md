@@ -115,18 +115,17 @@ auto bmCells(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmCells);
-const auto kCells = sg::registerBenchmark(&bmCells, "Table/cells");
 
-auto bmCopy(sg::State& state, int width) -> void
+auto bmTable(sg::State& state) -> void
 {
   for (auto _ : state) {
-    sg::doNotOptimize(state.iterations() + static_cast<std::uint64_t>(width));
+    sg::doNotOptimize(state.iterations());
   }
 }
 
-SG_BENCHMARK_CAPTURE(bmCopy, wide, 8);
+const auto kTable = sg::registerBenchmark(&bmTable, "Table/cells");
 ```
-A name splits at its first `/` into suite and case, so `Table/cells` is the case `cells` of the suite `Table`, and `SG_BENCHMARK_CAPTURE(bmCopy, wide, 8)` names its case `wide` from the captured argument. See [captured arguments](docs/pages/harness.md#captured-arguments) and [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
+A name splits at its first `/` into suite and case, so `Table/cells` is the case `cells` of the suite `Table`, and the runtime form hands back the handle the family calls chain onto. See [captured arguments](docs/pages/harness.md#captured-arguments) and [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
 ### Argument families and ranges
 
 `arg`, `args`, `range`, `ranges`, `denseRange`, and `argsProduct` build the instance list, `argName` and `argNames` label the positions, and the body reads a position with `state.range(i)`.
@@ -300,7 +299,6 @@ auto bmGuard(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmGuard).arg(0);
-const auto kQuiet = sg::registerBenchmark(&bmGuard, "DISABLED_bmGuard");
 ```
 The report prints `SKIPPED: <reason>` for the first kind and `FAILED: <reason>` for the second, and `DISABLED_` at the front of an instance name keeps it registered while the run, the `--list` output, and every `--filter` match skip it. See [the `DISABLED_` prefix](docs/pages/harness.md#the-disabled_-prefix).
 ### The command line
