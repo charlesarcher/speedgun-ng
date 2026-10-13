@@ -145,7 +145,7 @@ machine-readable output, histogram output.
    D-14); the acceptance check is the page line count of the drift gate.
    The shipped cap is 520. The quick reference holds 46 API rows and 9
    option rows in 65 lines, every one of the twelve sections carries a
-   complete runnable block, and the page measures 502 with its tallest
+   complete runnable block, and the page measures 503 with its tallest
    section at 45. Prose shortens before a snippet is dropped.
 2. SC-011's "about 25 lines" per feature section (SC-011) lands as the
    binary cap `SECTION_LINE_CAP` counting from the H3 heading through the
