@@ -52,8 +52,8 @@ FORBIDDEN_JOBS = (
 )
 GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 
-PAGE_LINE_CAP = 520
-SECTION_LINE_CAP = 48
+PAGE_LINE_CAP = 400
+SECTION_LINE_CAP = 25
 
 
 class Finding(Exception):
