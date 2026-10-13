@@ -1,12 +1,12 @@
 # The benchmark harness surface
 
-Feature 016 completes the registration and fixture surface of the
-benchmark harness on top of the feature-015 core. Each section below
-states the surface of one capability and names the test that covers it.
-Every suite named here runs on the counters fake provider, so no test
-needs a PMU.
+This page states the registration and timing surface of the benchmark
+harness: what each call does, the name it produces, and the precondition
+it carries. Each section closes with the test that covers it. Every
+suite named here runs on the counters fake provider, so no test needs a
+PMU.
 
-## C-1: Argument families
+## Argument families
 
 The five registration macros `SG_BENCHMARK`,
 `SG_BENCHMARK_CAPTURE`, `SG_BENCHMARK_TEMPLATE`,
@@ -39,7 +39,9 @@ to the family arity are `SG_REQUIRE` precondition violations. A family
 above `kMaxFamilySize` (100 instances) draws one warning on the
 standard error stream, keeps its instances, and the run continues.
 Expansion completes at the start of `speedgunMain`, before the filter
-and the first run.
+and the first run. The example family `bmArgs` in
+`example/benchmark_example.cpp` carries the `argName` labels `width` and
+`depth`.
 
 Coverage: `test/source/harness_family_test.cpp`. The `FamilyCase` table
 asserts the instance set of every call through list mode, with rows
@@ -52,19 +54,18 @@ and the unchanged exit status, and the re-exec modes `bad-multiplier`,
 `bad-range`, `bad-step`, `bad-argnames`, `bad-apply`, and `bad-builder`
 assert each precondition.
 
-## C-2: Instance names
+## Instance names
 
 An instance name starts with the family name and adds one `/`-joined
 segment per argument. A segment reads `label:value` where `argName` or
 `argNames` set a label for that position, and an empty label leaves the
 segment without one. A family with no family call keeps the family name
-alone, with no `/`. The H1 `--filter` option and list mode match
+alone, with no `/`. The `--filter` option and list mode match
 instance names, so one full instance name selects one instance and the
 `--catalog` path prints none of them. Two instances with one name are a
 recoverable error found at expansion: one line on the standard error
 stream names both instance names, the earlier instance stays, the later
-instance does not run, and the exit status stays as the harness core
-fixes it.
+instance does not run, and the exit status stays as the runner fixes it.
 
 Coverage: `test/source/harness_instance_name_test.cpp`. The
 `nameFormScenario` rows assert the name forms, `filterScenario` asserts
@@ -74,7 +75,7 @@ that one full instance name runs exactly one instance,
 mode asserts the duplicate line, the kept instance, the dropped
 instance, and the unchanged status.
 
-## C-3: Argument access
+## Argument access
 
 `State::range(std::size_t index)` returns the argument of the running
 instance at that position and `State::rangeCount()` returns the
@@ -83,7 +84,7 @@ precondition violation. A family with no family call has one instance
 with zero arguments, so `rangeCount()` reports 0 and `range(0)`
 violates. A read allocates nothing: the instance owns the storage and
 the state holds a `std::span<const std::int64_t>` fixed at expansion.
-The timed loop keeps the feature-015 shape, and the loop-shape gate
+The timed loop keeps its shape, and the loop-shape gate
 `test/loop_shape.sh` stays green.
 
 Coverage: `test/source/harness_argument_test.cpp`. `twoArgumentFamily`
@@ -93,13 +94,14 @@ reads each instance's pair, `argumentCountReported` reads the counts,
 observe the precondition violations through the `range-zero-args` and
 `range-past-arity` re-exec modes.
 
-## C-4: Capture
+## Captured arguments
 
 `SG_BENCHMARK_CAPTURE(fn, captureName, ...)` registers `fn` once with
 the captured values bound into the callable, under the instance name
 `fn/captureName`. The capture name is one name segment, and the
 instance takes part in the filter, list mode, and duplicate handling of
-C-2 like any other instance. The registration yields the handle, so a
+the instance names above like any other instance. The registration yields
+the handle, so a
 site chains family calls: `SG_BENCHMARK_CAPTURE(fn, pair, 2).arg(4);`
 registers `fn/pair/4`.
 
@@ -112,7 +114,7 @@ captured values, `twoCapturesScenario` registers `fn` twice under
 value and the argument from the state, and `duplicateScenario` shows a
 capture name clashing with a family instance at the duplicate tier.
 
-## C-5: Templates
+## Template registrations
 
 `SG_BENCHMARK_TEMPLATE(fn, ...)` registers a function template
 instantiated over one or more type arguments, under the instance name
@@ -120,7 +122,10 @@ instantiated over one or more type arguments, under the instance name
 macro site, followed by `>`. There is no demangling: the spacing at the
 macro site is the spacing in the name. The registration yields the
 handle, so a site chains family calls:
-`SG_BENCHMARK_TEMPLATE(fn, int).arg(8);` registers `fn<int>/8`.
+`SG_BENCHMARK_TEMPLATE(fn, int).arg(8);` registers `fn<int>/8`. The
+example `SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t)` in
+`example/benchmark_example.cpp` is an instance named
+`bmFill<std::uint64_t>`.
 
 Coverage: `test/source/harness_template_test.cpp`.
 `singleTypeArgumentScenario` asserts `sortOf<int>`,
@@ -131,11 +136,11 @@ spacing of the macro site, `qualifiedTypeArgumentScenario` asserts
 `instantiationRunsScenario` runs each of the three instances and checks
 that the reached instantiation carries the named types.
 
-## C-6: Fixtures
+## Fixtures
 
 `sg::Fixture` is the fixture base class: a virtual destructor and the
 virtual `setUp(State&)` and `tearDown(State&)` with empty defaults. The
-seven macros of FR-016 attach a method of a derived class:
+seven macros below attach a method of a derived class:
 `SG_BENCHMARK_F`, `SG_BENCHMARK_DEFINE_F` paired with
 `SG_BENCHMARK_REGISTER_F`, `SG_BENCHMARK_TEMPLATE_F`,
 `SG_BENCHMARK_TEMPLATE_DEFINE_F`, `SG_BENCHMARK_TEMPLATE_METHOD_F`
@@ -144,7 +149,8 @@ is named `FixtureClass/Method`, and a template fixture instance is
 named `BaseClass<types>/Method`. The pair runs in the untimed region of
 every run, the warm-up, calibration, and measured runs included, and
 the runner builds one fixture object per run and destroys it after
-`tearDown`. The state the pair receives is the callback state of C-7:
+`tearDown`. The state the pair receives is the callback state of the
+setup and teardown callbacks section:
 `range(index)`, `rangeCount()` and `iterations()` are legal in it,
 while `begin()`, `skipWithError` and `skipWithMessage` are `SG_REQUIRE`
 precondition violations. `SG_BENCHMARK_REGISTER_F` and
@@ -152,6 +158,8 @@ precondition violations. `SG_BENCHMARK_REGISTER_F` and
 family chains its family calls at the site:
 `SG_BENCHMARK_REGISTER_F(F, m).denseRange(1, 3);` expands the fixture
 record like any family record, one instance per argument list.
+`TableFixture/bmTableTouch`, registered with `SG_BENCHMARK_F`, stands in
+`example/benchmark_example.cpp`.
 
 Coverage: `test/source/harness_fixture_test.cpp`. `instanceNameScenario`
 asserts `QueueFixture/push` in list mode, `pairPerRunScenario` counts
@@ -167,9 +175,9 @@ counts from the state of the pair and re-execs the binary to observe
 `chainedFixtureScenario` expands a chained `SG_BENCHMARK_REGISTER_F`
 site into three instances each with its own pair, and
 `disabledMethodScenario` covers the
-fixture exception of C-8.
+`DISABLED_` exception of a fixture method.
 
-## C-7: Setup and teardown callbacks
+## Setup and teardown callbacks
 
 `BenchmarkHandle::setup` and `BenchmarkHandle::teardown` attach one
 callback per slot, and the last attachment wins the slot. The pair runs
@@ -181,8 +189,8 @@ instance arguments and the iteration count: `range(index)`,
 `rangeCount()` and `iterations()` are legal there, while `begin()`,
 `skipWithError` and `skipWithMessage` are `SG_REQUIRE` precondition
 violations. `end()` stays legal because it is static and touches no
-state. This feature runs one thread; the once-per-thread-group rule
-belongs to the threads spec of the roadmap.
+state. The harness runs one thread today; the once-per-thread-group rule
+belongs to a future threads specification.
 
 Coverage: `test/source/harness_callback_test.cpp`. `pairPerRunScenario`
 and `repetitionsScenario` count the pair against every run,
@@ -195,7 +203,7 @@ instance and a fixture instance, and `guardScenario` observes
 `begin()`, `skipWithError` and `skipWithMessage` aborting in a callback
 state as `SIGABRT` in a forked child.
 
-## C-8: The `DISABLED_` prefix
+## The `DISABLED_` prefix
 
 The gate is a prefix test on the expanded instance name, held at
 selection time in `source/harness/cli.cpp`. An instance whose name
@@ -214,17 +222,17 @@ where the prefix does not reach, and `filterNoMatchScenario` and
 The fixture exception is covered a second time by
 `disabledMethodScenario` in `test/source/harness_fixture_test.cpp`.
 
-## C-9: Suite and case naming
+## Suite and case naming
 
-`BenchmarkResult` carries `suite` and `caseName` beside the H1 `name`.
+`BenchmarkResult` carries `suite` and `caseName` beside `name`.
 The suite is the family name up to its first `/`, and a fixture
 instance takes its fixture class as the suite. The case is the instance
 name with the leading suite and its `/` removed, and an instance name
 equal to its suite keeps that name as its case. The pair is unique per
 instance. After expansion the instance list groups stably by suite in
 first-appearance order, and rows within one suite keep registration
-order. The console row keeps the H1 shape: one name column carrying the
-full instance name, with the split readable on the result value. A
+order. The console row keeps one name column carrying the full instance
+name, with the split readable on the result value. A
 later JSON report reuses the two fields.
 
 Coverage: `test/source/harness_instance_name_test.cpp`.
@@ -234,30 +242,13 @@ fields, `pairUniquenessScenario` checks uniqueness across the instance
 list, `suiteOrderScenario` walks the grouped order of the instance
 list, and `consoleRowScenario` checks the single name column.
 
-## C-10: Examples and documentation
-
-FR-027 asks for one documentation section per capability, and this page
-carries them. The example suite carries the new surface:
-`example/benchmark_example.cpp` registers the argument family `bmArgs`
-with the `argName` labels `width` and `depth`, the fixture method
-`TableFixture/bmTableTouch` through `SG_BENCHMARK_F`, and the templated
-benchmark `SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t)`.
-
-## Feature 017: the timing modes
-
-Feature 017 completes the timing surface of the harness on top of the
-feature-015 core and the feature-016 registration surface. Each feature
-numbers its own capabilities, so the ids below restart at C-1. Every
-suite named here runs on the counters fake provider, so no test needs a
-PMU.
-
-## 017 C-1: Two time columns
+## Two time columns
 
 Every measured row prints two time columns, `real time/iter (ns)=` and
 `cpu time/iter (ns)=`. Each value is a fold over the raw point pair of
 that run, and the counters library supplies the fold. The CPU column
-follows `machine/thread_cpu` until the C-2 call moves it. The row keeps
-the feature-015 fields around the pair:
+follows `machine/thread_cpu` until `measureProcessCpuTime` moves it.
+The row keeps its other fields around the pair:
 
 ```text
 <name>  iterations=<N>  real time/iter (ns)=<v>  cpu time/iter (ns)=<v>
@@ -268,7 +259,7 @@ the feature-015 fields around the pair:
 `cpuTimePerIterationNs`, each one nanosecond per iteration, and carries
 `endpointSamples` as the count the row prints. A run that pauses
 nothing takes one sample pair, so that count reads 2 samples and the
-timed loop keeps the feature-015 shape: the loop-shape gate
+timed loop keeps its shape: the loop-shape gate
 `test/loop_shape.sh` stays green.
 
 One primary time per benchmark drives warm-up qualification,
@@ -280,24 +271,25 @@ a gap disclosure stays out of those statistics, and
 
 Coverage: `test/source/harness_time_columns_test.cpp`. `columnsScenario`
 reads each column against its scripted delta over the iteration count,
-`metricScenario` keeps the feature-015 metric fold beside the two
+`metricScenario` keeps the core metric fold beside the two
 columns, and `aggregateScenario` compares the aggregate line against
 the CPU selection.
 
-## 017 C-2: The process CPU leaf
+## The process CPU leaf
 
 `BenchmarkHandle::measureProcessCpuTime()` moves the CPU column of one
 family to the `machine/process_cpu` leaf and returns the handle, so the
 call chains at the registration site:
 `SG_BENCHMARK(bmProcessCpu).measureProcessCpuTime();`. The selection
-stands for every instance of that family, and it combines with the
-real-time call of C-3 and with the manual-time call of C-4, so one row
-can carry process CPU time beside real time. The call carries the guard
+stands for every instance of that family, and it combines with
+`useRealTime` and with `useManualTime`, so one row can carry process CPU
+time beside real time. The call carries the guard
 the other setters carry: a handle that names no registered entry, or a
 family whose run started, is an `SG_REQUIRE` precondition violation. A
 provider that publishes no `machine/process_cpu` leaves that benchmark
 failed with the resolution line the runner already prints for a missing
-leaf.
+leaf. In `example/benchmark_example.cpp`, `bmProcessCpu` carries the
+call.
 
 Coverage: `test/source/harness_cpu_leaf_test.cpp`. `processCpuScenario`
 reads the scripted `machine/process_cpu` delta in the CPU column,
@@ -305,14 +297,15 @@ reads the scripted `machine/process_cpu` delta in the CPU column,
 `missingProcessCpuScenario` with its `missingProcessCpu` re-exec mode
 asserts the failed benchmark and its resolution line.
 
-## 017 C-3: Real time as the primary time
+## Real time as the primary time
 
 `BenchmarkHandle::useRealTime()` makes real time the primary time of
 one family and returns the handle. From that call on, the qualification
 test, the growth rule, and the aggregate time statistics read the real
 column, and the CPU column keeps the CPU fold it carries. The selection
-excludes the manual-time call of C-4: the second of the two calls is
-the `SG_REQUIRE` precondition violation, in either order.
+excludes `useManualTime`: the second of the two calls is the
+`SG_REQUIRE` precondition violation, in either order. `bmRealTime` in
+`example/benchmark_example.cpp` carries the call.
 
 Coverage: `test/source/harness_real_time_test.cpp`. `scenarioRealWalk`
 and `scenarioCpuWalk` run one scripted growth sequence under each
@@ -321,7 +314,7 @@ selection and compare the iteration counts the walk reaches, and
 The three stand behind the `real-walk`, `cpu-walk`, and `aggregate`
 re-exec modes.
 
-## 017 C-4: Manual time
+## Manual time
 
 `BenchmarkHandle::useManualTime()` selects manual time for one family,
 and `State::setIterationTime(std::int64_t nanoseconds)` hands the state
@@ -334,7 +327,8 @@ run alone, so such a run stops at its target or at the iteration cap.
 A manual benchmark that accepts nothing reports 0.000 ns in the real
 column and qualifies at the cap. `setIterationTime` in a callback state
 is a precondition violation, because that state owns no run to
-accumulate for.
+accumulate for. `bmManual` in `example/benchmark_example.cpp` pairs the
+selection with one `setIterationTime` call per iteration.
 
 Coverage: `test/source/harness_manual_time_test.cpp`. `scenarioReport`
 checks the accepted sum over N in the real column, `scenarioGrowth`
@@ -343,7 +337,7 @@ exemption, `scenarioEmpty` reports the empty sum at the cap, and
 `scenarioRule` with the `real-then-manual` and `manual-then-real`
 re-exec modes asserts each order of the conflicting pair.
 
-## 017 C-5: Pause and resume
+## Pause and resume
 
 `State::pauseTiming()` stops the timed window from that point and
 `State::resumeTiming()` restarts it, and each call takes one sample of
@@ -361,16 +355,16 @@ fold, so a paused stretch leaves the metric columns too.
 the destructor resumes, and the destructor skips the resume when the
 run was skipped.
 
-The calls stand in the benchmark body, inside the timed loop or outside
-it, and the loop keeps the feature-015 shape. The preconditions bound
+The calls stand inside the timed loop, where the run's sampling window is
+open, and the loop keeps its shape. The preconditions bound
 one open pause per run. `pauseTiming` needs a run state whose sampling
 window stands open, no pause already open, and a pause count below
 `kMaxPausePerRun` (8 intervals); `resumeTiming` needs one open pause. A
 pause still open at loop exit is an `SG_ASSERT` breach in `closeWindow`,
 and the skip and exception path closes an open pair in `topUpWindow`
 before the exit sample, so every fold reads a complete pair. A pause in
-a callback state is a precondition violation, the callback-state rule of
-feature 016 extended.
+a callback state is a precondition violation, the callback-state rule
+extended to the pause calls.
 
 Each call costs one sampling action, and the row discloses the cost:
 `endpoint samples=<S>` prints the count that run took, so a run with
@@ -379,6 +373,9 @@ rule reserves the room, at
 `2 * (1 + kMaxPausePerRun) * (kRunBound + kRunBound + repetitions)`
 points with `kRunBound` 96 iterations, and a run past the allowance is
 a precondition violation named before the recorder loses a point.
+`bmPaused` in `example/benchmark_example.cpp` holds a
+`ScopedPauseTiming` region inside the loop, and a dry run of
+`build/example/benchmark_example` prints `endpoint samples=4` for it.
 
 Coverage: `test/source/harness_pause_test.cpp`. `scenarioExact` checks
 every time column and an attached metric against the window fold minus
@@ -387,7 +384,7 @@ same value through the guard, and the `doublePause`, `resumeFirst`,
 `openAtExit`, `callbackPause`, and `ninthPause` re-exec modes assert
 each precondition breach.
 
-## 017 C-6: Time units
+## Time units
 
 `TimeUnit` names the scale and the label of a printed time value:
 `NANOSECONDS`, `MICROSECONDS`, `MILLISECONDS`, and `SECONDS`.
@@ -402,12 +399,14 @@ A stored value stays nanoseconds, so the C++ value keeps one unit, and
 the report applies the divisor at print time: `ns` 1 ns, `us` 1000 ns,
 `ms` 1000000 ns, `s` 1000000000 ns. The scaling reaches both time
 columns, the overhead floor, and the aggregate line, so one line
-carries one scale, and the metric columns keep the feature-015 form. A
+carries one scale, and the metric columns keep their form. A
 registration captures the default of its own moment, so a
 `setDefaultTimeUnit` call after a registration leaves that benchmark at
 the unit it captured, and a `unit` call overwrites the captured unit.
-The command-line unit option stays with the full command-line spec of
-the roadmap.
+`bmMillis` in `example/benchmark_example.cpp` sets the millisecond unit,
+and a dry run of `build/example/benchmark_example` prints its row under
+the `ms` label. A command-line unit option belongs to a future
+command-line specification.
 
 Coverage: `test/source/harness_time_unit_test.cpp`. The `unitCall`
 re-exec mode checks the two columns, the overhead floor, and the
@@ -415,27 +414,3 @@ aggregate line under the `ms` label through `checkMillisecondRow` and
 `checkMillisecondAggregate`, the `default` mode scales a benchmark that
 sets no unit, and the `captured` mode keeps a benchmark at the unit its
 own registration captured.
-
-## 017 C-7: Examples, documentation, and the version effect
-
-FR-017 asks for one example benchmark for each of C-2 through C-6, and
-`example/benchmark_example.cpp` carries them beside the feature-016
-rows: `bmProcessCpu` with `measureProcessCpuTime`, `bmRealTime` with
-`useRealTime`, `bmManual` with `useManualTime` and one
-`setIterationTime` call per iteration, `bmPaused` with a
-`ScopedPauseTiming` region inside the loop, and `bmMillis` with the
-millisecond unit. A dry run of
-`build/example/benchmark_example` prints one row for each, the paused
-row with `endpoint samples=4` and the millisecond row with the `ms`
-label. This page carries one section for each capability of the
-feature.
-
-The feature releases version 0.8.0, the next minor above 0.7.0. Three
-layouts change: `State` gains the pause bookkeeping and the manual
-accumulator, `ResultRow` gains `cpuTimePerIterationNs`,
-`endpointSamples` and `timeAvailability`, and `BenchmarkResult` gains
-`timeUnit`. Under the hand-kept rule of `CMakeLists.txt:41-47`, the
-harness archive `SOVERSION` rises from 3 to 4 (`CMakeLists.txt:219`),
-and the counters archive keeps `SOVERSION` 2 (`CMakeLists.txt:47`). No
-existing signature is replaced: the report row layout changes and the
-feature-015 and feature-016 surface keeps its shape.
