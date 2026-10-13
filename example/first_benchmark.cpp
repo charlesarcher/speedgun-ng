@@ -1,0 +1,34 @@
+// sg-example:begin program
+#include <cstdint>
+#include <vector>
+
+#include "speedgun-ng/barrier.hpp"
+#include "speedgun-ng/benchmark.hpp"
+
+namespace
+{
+
+constexpr std::uint64_t kCells = 1 << 12;
+
+auto bmSum(sg::State& state) -> void
+{
+  std::vector<std::uint64_t> cells(kCells, 1);
+  std::uint64_t total = 0;
+  for (auto _ : state) {
+    for (const std::uint64_t cell : cells) {
+      total += cell;
+    }
+    sg::doNotOptimize(total);
+  }
+}
+
+}  // namespace
+
+SG_BENCHMARK(bmSum);
+
+auto main(int argc, char** argv) -> int
+{
+  return sg::speedgunMain(argc, argv);
+}
+
+// sg-example:end program
