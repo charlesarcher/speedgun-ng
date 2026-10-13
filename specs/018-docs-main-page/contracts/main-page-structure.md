@@ -85,11 +85,11 @@ names where the name lives (macro, type, free function,
 `BenchmarkHandle`, `State`) and Teaches links the feature section. The
 row set is closed to the harness surface:
 
-- Macros: the ten registration macros (`SG_BENCHMARK`,
+- Macros: the six registration macros the page shows (`SG_BENCHMARK`,
   `SG_BENCHMARK_CAPTURE`, `SG_BENCHMARK_TEMPLATE`, `SG_BENCHMARK_F`,
-  `SG_BENCHMARK_DEFINE_F`, `SG_BENCHMARK_REGISTER_F`,
-  `SG_BENCHMARK_TEMPLATE_F`, `SG_BENCHMARK_TEMPLATE_DEFINE_F`,
-  `SG_BENCHMARK_TEMPLATE_METHOD_F`, `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F`).
+  `SG_BENCHMARK_DEFINE_F`, `SG_BENCHMARK_REGISTER_F`). The four
+  template-fixture macros carry no row: the budget leaves their teaching
+  to `docs/pages/harness.md`, where the sections sit outside any cap.
 - Types: `State`, `BenchmarkHandle`, `Fixture`, `ScopedPauseTiming`,
   `TimeUnit`.
 - Free functions: `registerBenchmark`, `setDefaultTimeUnit`,
@@ -140,21 +140,15 @@ machine-readable output, histogram output.
 
 ## C-F: Budget and prose
 
-1. SC-011's "about 400 lines" (SC-011) lands as the binary cap
-   `PAGE_LINE_CAP` total lines including the quick reference (research
-   D-14); the acceptance check is the page line count of the drift gate.
-   The shipped cap is 520. The quick reference holds 46 API rows and 9
-   option rows in 65 lines, every one of the twelve sections carries a
-   complete runnable block, and the page measures 503 with its tallest
-   section at 45. Prose shortens before a snippet is dropped.
+1. SC-011's "about 400 lines" (SC-011) lands as the binary cap 400
+   total lines including the quick reference (research D-14); the
+   acceptance check is an executable `wc -l` assertion, and the drift gate
+   checks `PAGE_LINE_CAP` with that value in CI.
 2. SC-011's "about 25 lines" per feature section (SC-011) lands as the
-   binary cap `SECTION_LINE_CAP` counting from the H3 heading through the
-   line before the next heading (research D-14); the acceptance check is
-   the section pipeline of quickstart scenario 10. The shipped cap is 48:
-   a registration or fixture example needs its includes, its registration
-   site, and the two statements that show the feature, and that block
-   with its region marker, its fence, and one sentence of prose on each
-   side does not fit in 25 lines.
+   binary cap 25 lines counting from the H3 heading through the line
+   before the next heading (research D-14); the acceptance check is the
+   section pipeline of quickstart scenario 10, and the drift gate checks
+   `SECTION_LINE_CAP` with that value in CI.
 3. The prose gate reports zero findings on the page and on every file the
    feature changes (FR-040, SC-010). Code fences, inline code spans, and
    blockquote lines are auto-exempt by `tools/prose/prose_gate.py`, so

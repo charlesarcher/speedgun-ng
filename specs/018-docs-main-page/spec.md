@@ -823,12 +823,7 @@ again: an unmarked block on the main page must fail too.
   feature changes.
 - **SC-011**: The main page fits about 400 lines including the quick
   reference, and no feature section exceeds about 25 lines, so one
-  sitting covers the page. The shipped budget is 520 total lines and 48
-  per section: the quick reference carries the whole harness surface in 46
-  API rows and 9 option rows, and each of the twelve sections shows one
-  complete runnable block, so the two binary caps of the drift gate moved
-  to those values (contracts/main-page-structure.md C-F). Prose shortens
-  before a snippet is dropped.
+  sitting covers the page.
 - **SC-012**: The harness example runs in CI and its report matches the
   sample output block by shape, so the page cannot show a report the harness
   no longer prints.
