@@ -23,4 +23,5 @@ auto main(int argc, char** argv) -> int
 {
   return sg::speedgunMain(argc, argv);
 }
+
 // sg-example:end program
