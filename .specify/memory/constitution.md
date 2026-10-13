@@ -1,4 +1,34 @@
 <!--
+Sync Impact Report (2.19.0, MINOR): Principle IV gains IV.1, and
+Principle VIII gains the example compile gate.
+
+specs/018-docs-main-page rewrites the root `README.md` as a teaching page
+whose code blocks are regions of files under `example/`. IV.1 makes that
+page an obligation of every later feature: a spec that changes
+user-visible behavior carries its main-page section, its example region,
+and its quick-reference rows in the same change, and the spec is
+incomplete until it does. The spec and tasks templates gain the matching
+checklist line, so a plan and a task list carry the rule where a
+contributor reads it.
+
+The gate runs through `ctest` as `example_drift`,
+`example_drift_fixtures`, `snippet_compile`, `report_shape`, and
+`report_shape_fixtures`; the `lint` job runs `tools/docs/example_drift.py`
+directly in a tree that configures no examples, and the example targets
+keep the regions compiled. An entry with no gate is a preference and a
+gate with no entry in the law is a preference, so the sub-rule and the
+hard gate land in one amendment (FR-030).
+
+The amendment adds one sub-rule and one gate. It removes no constraint,
+weakens none, changes no public signature, and adds no Open deferrals
+entry. The version moves MINOR under Governance: a new sub-rule and a new
+gate.
+
+The insertion shifts every line below line 1. A citation naming a line
+number in this file needs re-anchoring; search for the named token.
+-->
+
+<!--
 Sync Impact Report (2.18.0, MINOR): Additional Constraints gains the
 counters-only rule, and Principle VIII gains its hard gate.
 
@@ -522,6 +552,19 @@ the canonical location given there.
 - Public API is documented (the `docs` target, Doxygen plus m.css). Man
   pages, where a component has them, are hand-written.
 
+#### IV.1 Main-page documentation per feature
+
+Every feature spec that adds or changes user-visible behavior MUST add or
+update its main-page section, with a working example in the shape
+specs/018-docs-main-page FR-010 defines, with its quick-reference rows,
+and the spec is incomplete until it does. The main page is the root
+`README.md`, and its code blocks live in marked regions of files under
+`example/`: a page block and its region are one fact with two spellings,
+and a change that moves one without the other is a defect the drift gate
+names. The checklist line "Main-page impact check (IV.1)" in the spec
+template and the tasks template carries the obligation where a
+contributor reads it (specs/018-docs-main-page FR-027, FR-029).
+
 ### V. Style and Formatting
 
 - All code is formatted with `.clang-format`; `format-check` MUST pass, CI
@@ -694,6 +737,20 @@ Every change passes all of the following; each is hard.
   scan carries a planted-call probe so a clean run cannot come from a
   scan that inspects nothing
   (specs/015-benchmark-harness-core SC-013, FR-039, FR-040).
+- Page-drift-clean: the example compile gate keeps the main page equal to
+  the code it quotes. `example_drift` compares every marked page block with
+  the example region it names, checks the feature-section list, the
+  quick-reference rows against the public headers, the option rows against
+  the command-line table, and the substance list the page must stay free of;
+  `example_drift_fixtures` proves the scans inspect something; `snippet_compile`
+  compiles each emitted C++ block over the canonical includes after rejecting
+  a planted broken snippet; `report_shape` runs the built quick start binary
+  and compares its report with the sample block by shape, so a digit
+  difference passes and a renamed or missing column fails;
+  `report_shape_fixtures` carries the mask golden pairs and the planted
+  failures. The `lint` job runs the drift gate directly in a tree that
+  configures no examples, and the example targets compile the regions on
+  every build (specs/018-docs-main-page FR-030 to FR-035).
 - Coverage gates of VI pass: 100% LOC, 100% branch, 100% DBC. DBC
   completeness is checked (II).
 - Critical-path performance metrics stay within baseline (VII) once
@@ -1122,6 +1179,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.19.0 | 2026-10-13 | IV.1 Main-page documentation per feature makes the root `README.md` section, its `example/` region, and its quick-reference rows part of every feature that changes user-visible behavior; the spec and tasks templates gain the "Main-page impact check (IV.1)" checklist line; Principle VIII gains the example compile gate as one hard gate, naming `example_drift`, `example_drift_fixtures`, `snippet_compile`, `report_shape`, `report_shape_fixtures`, the `lint`-job direct step, and the example build obligation; specs/018-docs-main-page FR-027 to FR-030 |
 | 2.18.0 | 2026-10-08 | Additional Constraints gains the counters-only rule: every time and counter value outside the counters library comes from `sg::counters`, the bound scope, the counters library, the forbidden time sources, and the single `tools/dbc/overhead.cpp` exception are named, and Principle VIII gains `test/time_source_gate.sh` as a hard gate; specs/015-benchmark-harness-core D-6, FR-038 to FR-043 |
 | 2.17.0 | 2026-10-08 | V.2 gains the tag-object entry `hardStop` and `ring` that `.clang-tidy` already exempted, names the export-header macro family and `SPEEDGUN_NG_SUPPRESS_C4251` in place of the single export macro, and states that the kernel-field entry reaches the member spelling a mirror copies; specs/014 post-merge repair |
 | 2.16.0 | 2026-10-08 | V.1 gains the FR-012 obligation: a later spec, plan, local naming override, or suppression creates no deviation, a deviation needs an amendment, and a suppression names the V.2 entry it applies; N-1 adds concepts and type traits to the enumeration; T048 and T050 of specs/014 |
@@ -1146,4 +1204,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.18.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-08
+**Version**: 2.19.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-13
