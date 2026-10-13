@@ -1,0 +1,8 @@
+# sg-example:begin report
+speedgun-ng 0.8.0 build=Release
+bmSum                    iterations=   1069106  real time/iter (ns)=  675.230  cpu time/iter (ns)=  674.173  overhead floor (ns)=  688.000  endpoint samples=2
+# sg-example:end report
+
+# sg-example:begin aggregate
+bmSum                     AGGREGATE  primary time/iter (ns) mean=  656.219 median=  650.596 sd=   10.314 cv=  0.0157 min=  649.938 max=  668.122 n=3
+# sg-example:end aggregate
