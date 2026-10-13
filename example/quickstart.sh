@@ -5,29 +5,17 @@
 
 set -eu
 
-# sg-example:begin configure
+# sg-example:begin library
 cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
-# sg-example:end configure
-
-# sg-example:begin build
 cmake --build build -j
-# sg-example:end build
-
-# sg-example:begin install
 cmake --install build --prefix "$HOME/.local"
-# sg-example:end install
+# sg-example:end library
 
-# sg-example:begin consumer-configure
+# sg-example:begin consumer
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$HOME/.local"
-# sg-example:end consumer-configure
-
-# sg-example:begin consumer-build
 cmake --build build
-# sg-example:end consumer-build
-
-# sg-example:begin run
 ./build/first_benchmark
-# sg-example:end run
+# sg-example:end consumer
 
 # sg-example:begin options
 ./build/first_benchmark --list
