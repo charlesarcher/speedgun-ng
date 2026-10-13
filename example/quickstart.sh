@@ -31,7 +31,7 @@ cmake --build build
 
 # sg-example:begin options
 ./build/first_benchmark --list
-./build/first_benchmark --filter='bmSum' --min-time=200000000
+./build/first_benchmark --filter='bmSum' --min-time=0.2
 ./build/first_benchmark --counter=machine/monotonic --dry-run
 ./build/first_benchmark --catalog
 # sg-example:end options
