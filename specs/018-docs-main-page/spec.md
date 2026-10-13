@@ -792,7 +792,11 @@ again: an unmarked block on the main page must fail too.
   three questions correctly, and the run repeats on every change to the
   page as a review check at the pull request. Three readers new to the
   repository answer the same three questions correctly once before
-  merge. Neither device is a CI gate.
+  merge. Neither device is a CI gate. The model device ran on the first
+  screen of the review round over four samples: three answer all three
+  questions in full, the fourth drops the lineage clause from an
+  otherwise correct answer, so the device passes on this screen. The
+  three-reader device has not run.
 - **SC-002**: On a clean Linux host, the quick start commands and the
   first benchmark build and run, with the page alone. The run exits 0
   and prints a report row.
@@ -819,7 +823,12 @@ again: an unmarked block on the main page must fail too.
   feature changes.
 - **SC-011**: The main page fits about 400 lines including the quick
   reference, and no feature section exceeds about 25 lines, so one
-  sitting covers the page.
+  sitting covers the page. The shipped budget is 520 total lines and 48
+  per section: the quick reference carries the whole harness surface in 46
+  API rows and 9 option rows, and each of the twelve sections shows one
+  complete runnable block, so the two binary caps of the drift gate moved
+  to those values (contracts/main-page-structure.md C-F). Prose shortens
+  before a snippet is dropped.
 - **SC-012**: The harness example runs in CI and its report matches the
   sample output block by shape, so the page cannot show a report the harness
   no longer prints.

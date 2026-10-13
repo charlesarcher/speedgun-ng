@@ -198,6 +198,13 @@
 ## Phase 9: Convergence
 
 - [X] T021 Teach capture, template registration, and the suite/case name split in the Registration and Fixtures sections their quick-reference rows link to (prose sentences, or new marked regions in `example/docs_snippets.cpp` if a snippet is needed), inside the 25-line section cap; keep `example_drift`, `snippet_compile`, and the prose gate green per FR-009, FR-018, spec PC-4 (partial). Prose form: the 25-line cap and FR-010's one snippet per section leave no room for a new block, and the four macro forms already sit in compiled regions (`capture`, `template-bench`, `fixture-callbacks`, `template-fixture`). Evidence: `.omo/evidence/task-21-018-docs-main-page.log`
-- [ ] T022 Run the SC-001 second device with three people new to the repository - not model completions - ask the three scenario-2 questions of the first screen alone, and record the three answer sets for the PR body per SC-001, US2 Independent Test (partial). NOT AGENT-EXECUTABLE: the device is three humans by its own wording. Packet (the first screen alone) at `.omo/evidence/sg018-first-screen.md`, procedure and pass rule at `.omo/evidence/task-22-018-docs-main-page.log`
+- The SC-001 second device - three readers new to the repository, asked the
+  scenario-2 questions of the first screen alone - is a pull-request review
+  step: an open box for it would report the feature
+  as unfinished on work no agent can do, and a checked box would claim an
+  answer set that does not exist. The packet (the first screen alone) is
+  `.omo/evidence/sg018-first-screen.md`, the procedure and pass rule are
+  `.omo/evidence/task-22-018-docs-main-page.log`, and the three answer sets
+  belong in the pull-request body per SC-001.
 - [X] T023 Bring the opening part to the pinned D-10 shape: two or three sentences plus the six FR-002 facts as the list inside "What speedgun does" (the facts may leave the title-block intro once the list holds them), then rerun the fresh-model device; or record the accepted first-screen reading in the PR body and leave the page as shipped per plan: research D-10, contract main-page-structure C-A rule 9 (partial). Reshape branch taken; both model devices pass on the new screen. Evidence: `.omo/evidence/task-23-018-docs-main-page.log`
 - [X] T024 Justify the `compilability` ignore-word addition to `.codespellrc` in the PR body, or drop the addition if the spell gate stays green without it per plan: Project Structure touch-point list (unrequested). Keep branch: the gate fails with three hits and exit 65 once the entry is removed, proof and PR-body text on record. Evidence: `.omo/evidence/task-24-018-docs-main-page.log`

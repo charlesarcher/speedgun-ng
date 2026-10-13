@@ -121,11 +121,16 @@ The same tool carries four checks used by the quickstart and by
 
 1. `--names`: every API name in the quick-reference API table appears in
    `include/speedgun-ng/benchmark.hpp` or `include/speedgun-ng/barrier.hpp`.
+   A name of the form `Owner::member` splits at `::` and every segment
+   must appear.
 2. `--options`: every option row appears in the long-option table of
    `source/harness/cli.cpp`, and every long option there has a row.
 3. `--forbidden`: the main page carries zero tokens of the classes in
    `main-page-structure.md` C-B (FR-038, SC-005), over prose text only
    (fence bodies and inline code exempt, the `prose_gate.py` mechanism).
+   The two User-guide pages, `docs/pages/building.md` and
+   `docs/pages/harness.md`, carry the same scan with the classes of
+   legitimate maintainer facts removed (C-B).
 4. `--sections`: each of the twelve FR-009 section titles (the fixed
    list compiled into the tool from the spec at the audit point) appears
    as an H3 of "How you do it", and each such section holds at least one
@@ -154,7 +159,11 @@ scan cases:
 | region moved inside its file, text equal | pass |
 | unbalanced region markers | fail, names the marker |
 | `--names` row absent from the headers | fail |
+| `--names` owner-qualified member the headers declare | pass |
+| `--names` owner-qualified member no header declares | fail |
 | `--options` table missing one row | fail |
+| user-guide page carrying `FR-nnn`, `Feature 0NN`, and `C-n` | fail, one line per class |
+| build page carrying a pinned version, a source path, a compiler version, a build file, and a job name | pass (the docs class set drops those classes) |
 | planted forbidden token (a commit-hash-shaped string) on the mini page | fail |
 | planted literal header path (`include/speedgun-ng/x.hpp`) in mini-page prose, and the same spelling inside a fenced block | prose hit fails; the fenced copy passes (scan surface is prose only) |
 | mini page missing one required H3 section | fail, names the section |
