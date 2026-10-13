@@ -197,7 +197,7 @@
 
 ## Phase 9: Convergence
 
-- [X] T021 Teach capture, template registration, and the suite/case name split in the Registration and Fixtures sections their quick-reference rows link to (prose sentences, or new marked regions in `example/docs_snippets.cpp` if a snippet is needed), inside the 25-line section cap; keep `example_drift`, `snippet_compile`, and the prose gate green per FR-009, FR-018, spec PC-4 (partial). Prose form: the 25-line cap and FR-010's one snippet per section leave no room for a new block, and the four macro forms already sit in compiled regions (`capture`, `template-bench`, `fixture-callbacks`, `template-fixture`). Evidence: `.omo/evidence/task-21-018-docs-main-page.log`
+- [X] T021 Teach capture, template registration, and the suite/case name split in the Registration and Fixtures sections their quick-reference rows link to (prose sentences, or new marked regions in `example/docs_snippets.cpp` if a snippet is needed), inside the 25-line section cap; keep `example_drift`, `snippet_compile`, and the prose gate green per FR-009, FR-018, spec PC-4 (partial). Prose form: the 25-line cap and FR-010's one snippet per section leave no room for a new block, and the macro forms sit in the compiled regions `registration` and `fixture`. Evidence: `.omo/evidence/task-21-018-docs-main-page.log`
 - T022 removed: a human first-screen study is out of scope for this branch;
   SC-001 rests on the structure checks. The SC-001 second device, three
   readers new to the repository, asked the
