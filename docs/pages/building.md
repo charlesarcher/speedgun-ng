@@ -1,9 +1,10 @@
 # Building speedgun-ng
 
 The maintainer facts behind the main page: the platform claim, the
-contract-check facility and its gate, how each vendored dependency is
-pinned and re-pinned, and the quality gates a change has to clear. The
-main page carries the reader-facing quick start and points here.
+contract-check facility and its gate, the archive versions a consumer
+links against, how each vendored dependency is pinned and re-pinned, and
+the quality gates a change has to clear. The main page carries the
+reader-facing quick start and points here.
 
 ## Platform
 
@@ -35,6 +36,21 @@ CI enforces the pairing in the `dbc-gate` job, and the
 contract code. The C++26 migration mapping lives in
 `docs/pages/dbc-migration.md`; measured enforcement overhead:
 `docs/pages/dbc-overhead.md`.
+
+## Archive versions
+
+Both shared archives carry a hand-kept `SOVERSION` in `CMakeLists.txt`.
+Deriving the number from the major version would make every `0.x` release
+claim the same ABI, so the value is stated by hand and the package
+config's compatibility requirement tracks the minor version position.
+
+Release 0.8.0, the next minor above 0.7.0, moved the harness archive from
+`SOVERSION` 3 to 4 and left the counters archive at `SOVERSION` 2. Three
+exported layouts changed: `State` gained the pause bookkeeping and the
+manual accumulator, `ResultRow` gained `cpuTimePerIterationNs`,
+`endpointSamples`, and `timeAvailability`, and `BenchmarkResult` gained
+`timeUnit`. No existing signature was replaced: the report row layout
+changed and the registration and timing surface kept its shape.
 
 ## Dependency re-pinning
 
