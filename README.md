@@ -5,15 +5,12 @@
 </p>
 
 A benchmark framework in the lineage of Google Benchmark, written in
-C++23 for Linux. A benchmark is a function over a `State` object: you
-write the loop, register the function, and read a report of time per
-iteration.
+C++23 for Linux, the one supported platform. A benchmark is a function
+over a `State` object: you write the loop, register the function, and
+read a report of time per iteration.
 
 ## What speedgun does
 
-- Written in C++23.
-- Runs on Linux, the one supported platform.
-- Continues the lineage of Google Benchmark.
 - Draws every time value and every counter value from the counters library of this project.
 - Attaches hardware counter metrics to a benchmark, printed beside the timing columns of the same run.
 - Guards its public API with design-by-contract checks at the boundaries.
@@ -118,7 +115,7 @@ bmSum                    iterations=   1069106  real time/iter (ns)=  675.230  c
 
 ### The run loop
 
-A benchmark is a function over `State`: the loop body runs once per iteration, and the harness settles the count it needs.
+A benchmark is a function over `State`: the loop body runs once per iteration, and the harness settles how many iterations the run needs.
 <!-- sg-example: example/docs_snippets.cpp#run-loop -->
 ```cpp
 auto bmLoop(sg::State& state) -> void
@@ -129,14 +126,14 @@ auto bmLoop(sg::State& state) -> void
   sg::clobberMemory();
 }
 
-[[maybe_unused]] const auto kLoopRegistrar =
-    sg::registerBenchmark(&bmLoop, "DISABLED_bmLoop");
+SG_BENCHMARK(bmLoop);
 ```
-The row prints the count and the time per iteration. `doNotOptimize` keeps a value live across the barrier, and `clobberMemory` pushes cached values back to memory.
+
+`doNotOptimize` keeps a value live across the barrier and `clobberMemory` pushes cached values back to memory; `speedgun-ng/barrier.hpp` declares both, and it stands beside `speedgun-ng/benchmark.hpp` in every snippet below.
 
 ### Registration
 
-`SG_BENCHMARK` registers a function under its own name, `SG_BENCHMARK_CAPTURE` registers one that takes captured arguments, and `SG_BENCHMARK_TEMPLATE` registers one instantiation of a function template; `registerBenchmark` is the form that names the family itself and returns a `BenchmarkHandle` whose calls chain.
+`SG_BENCHMARK`, `SG_BENCHMARK_CAPTURE`, and `SG_BENCHMARK_TEMPLATE` register a plain function, a function with a captured argument, and one instantiation of a function template; `registerBenchmark` is the runtime form, which names the family itself and returns the `BenchmarkHandle` the family calls chain onto.
 <!-- sg-example: example/docs_snippets.cpp#registration -->
 ```cpp
 auto bmNamed(sg::State& state) -> void
@@ -148,31 +145,69 @@ auto bmNamed(sg::State& state) -> void
 
 SG_BENCHMARK(bmNamed);
 
-[[maybe_unused]] const auto kNamedRegistrar =
-    sg::registerBenchmark(&bmNamed, "DISABLED_Suite/bmNamed").arg(8);
+auto bmSweep(sg::State& state, int cells) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(cells);
+  }
+}
+
+SG_BENCHMARK_CAPTURE(bmSweep, wide, 8);
+
+template<class Value>
+auto bmTyped(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(Value {1});
+  }
+}
+
+SG_BENCHMARK_TEMPLATE(bmTyped, std::uint64_t);
+
+const auto kTyped =
+    sg::registerBenchmark(&bmTyped<std::uint64_t>, "Table/typed");
 ```
-A name splits at its first `/` into suite and case, so `SG_BENCHMARK_CAPTURE(bmCapture, wide, 8)` is the case `wide` of the suite `bmCapture` and `"DISABLED_Suite/bmNamed"` is the case `bmNamed` of the suite `DISABLED_Suite`.
-`DISABLED_` at the front of the expanded instance name keeps that instance registered, out of every `--filter` match, out of `--list`, and out of the run.
+<!-- sg-example: example/docs_snippets.cpp#disabled-name -->
+```cpp
+auto bmQuiet(sg::State&) -> void {}
+
+const auto kQuiet = sg::registerBenchmark(&bmQuiet, "DISABLED_bmQuiet");
+```
+
+A name splits at its first `/` into suite and case, so `bmSweep/wide` is the case `wide` of the suite `bmSweep` and `Table/typed` is the case `typed` of the suite `Table`; `DISABLED_` at the front of the expanded instance name keeps that instance registered, out of every `--filter` match, out of `--list`, and out of the run. See [captured arguments](docs/pages/harness.md#captured-arguments), [template registrations](docs/pages/harness.md#template-registrations), [the `DISABLED_` prefix](docs/pages/harness.md#the-disabled_-prefix), and [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
 
 ### Argument families and ranges
 
-`arg`, `args`, `range`, `ranges`, `denseRange`, and `argsProduct` build the instance list, and `argName` labels each position.
+`arg`, `args`, `range`, `ranges`, `denseRange`, and `argsProduct` build the instance list, `argName` and `argNames` label the positions, and the body reads a position with `state.range(i)`.
 <!-- sg-example: example/docs_snippets.cpp#ranges -->
 ```cpp
-auto bmRanges(sg::State& state) -> void
+auto bmCells(sg::State& state) -> void
 {
   for (auto _ : state) {
     sg::doNotOptimize(state.range(0) + state.range(1));
   }
 }
 
-[[maybe_unused]] const auto kRangesRegistrar =
-    sg::registerBenchmark(&bmRanges, "DISABLED_bmRanges")
-        .argNames({"width", "depth"})
-        .rangeMultiplier(2)
-        .ranges({{8, 8}, {16, 32}});
+SG_BENCHMARK(bmCells)
+    .argNames({"width", "depth"})
+    .args({8, 64})
+    .ranges({{8, 8}, {16, 32}})
+    .rangeMultiplier(2);
 ```
-Each instance prints as its own row, named by the labels.
+<!-- sg-example: example/docs_snippets.cpp#ranges-family -->
+```cpp
+auto bmSquares(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.range(0) * state.range(0));
+  }
+}
+
+SG_BENCHMARK(bmSquares).argName("cells").arg(32).range(128, 512).denseRange(
+    1024, 2048, 512);
+```
+
+`rangeMultiplier(k)` scales every bound of every range of the family by `k`, so one call widens the whole sweep, and each instance prints as its own row, named by its labels. See [argument families](docs/pages/harness.md#argument-families) and [argument access](docs/pages/harness.md#argument-access).
 
 ### Fixtures
 
@@ -189,9 +224,33 @@ public:
 protected:
   std::vector<std::uint64_t> m_values;
 };
+
+SG_BENCHMARK_F(TableFixture, bmTableSum)
+
+(sg::State& state)
+{
+  std::uint64_t total = 0;
+  for (auto index : state) {
+    total += m_values[static_cast<std::size_t>(index) % m_values.size()];
+  }
+  sg::doNotOptimize(total);
+}
+
+SG_BENCHMARK_DEFINE_F(TableFixture, bmTableTouch)
+
+(sg::State& state)
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(m_values.front());
+  }
+}
+
+SG_BENCHMARK_REGISTER_F(TableFixture, bmTableTouch)
+    .setup([](sg::State& state) { sg::doNotOptimize(state.rangeCount()); })
+    .teardown([](sg::State&) {});
 ```
-`SG_BENCHMARK_F` defines the method and registers it in one step, `SG_BENCHMARK_DEFINE_F` defines one to register later, and `SG_BENCHMARK_REGISTER_F` registers a defined method and carries the `setup` and `teardown` callbacks that run outside the loop.
-The template forms are `SG_BENCHMARK_TEMPLATE_F`, `SG_BENCHMARK_TEMPLATE_DEFINE_F`, and the pair `SG_BENCHMARK_TEMPLATE_METHOD_F` with `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F`: a fixture instance is named `FixtureClass/Method`, or `FixtureClass<types>/Method` over a class template, so the fixture class is its suite.
+
+`SG_BENCHMARK_F` defines the method and registers it in one step, `SG_BENCHMARK_DEFINE_F` defines one to register later, and `SG_BENCHMARK_REGISTER_F` registers a defined method and carries the `setup` and `teardown` callbacks that run outside the loop. A fixture instance is named `FixtureClass/Method`, so the fixture class is its suite, and the template forms `SG_BENCHMARK_TEMPLATE_F`, `SG_BENCHMARK_TEMPLATE_DEFINE_F`, and `SG_BENCHMARK_TEMPLATE_METHOD_F` with `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` name an instance `FixtureClass<types>/Method`. See [fixtures](docs/pages/harness.md#fixtures) and [setup and teardown callbacks](docs/pages/harness.md#setup-and-teardown-callbacks).
 
 ### Run control
 
@@ -205,20 +264,34 @@ auto bmFixed(sg::State& state) -> void
   }
 }
 
-[[maybe_unused]] const auto kFixedRegistrar =
-    sg::registerBenchmark(&bmFixed, "DISABLED_bmFixed")
-        .minTime(200'000'000)
-        .warmupTime(50'000'000)
-        .repetitions(5)
-        .iterations(1000);
+SG_BENCHMARK(bmFixed)
+    .minTime(200'000'000)  // 200 ms, in nanoseconds
+    .warmupTime(50'000'000)
+    .iterations(1000)
+    .repetitions(5);
 ```
-Each repetition prints a row, and more than one ends with an aggregate row.
+
+`minTime` and `warmupTime` take nanoseconds in the handle chain, while `--min-time` and `--warmup-time` take seconds on the command line, and each repetition prints a row with an aggregate row at the end of more than one.
 
 ### Timing modes
 
-Real time is the default. `measureProcessCpuTime` moves the CPU column to process CPU time, and `useManualTime` lets the body report its own time.
+CPU time is the primary time of a run by default, `useRealTime` makes real time the primary time, and `useManualTime` lets the body report each iteration's own time.
 <!-- sg-example: example/docs_snippets.cpp#timing-modes -->
 ```cpp
+auto bmIo(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmIo);
+
+const auto kIoReal = sg::registerBenchmark(&bmIo, "Disk/real").useRealTime();
+
+const auto kIoProcess =
+    sg::registerBenchmark(&bmIo, "Disk/process").measureProcessCpuTime();
+
 auto bmHand(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -226,36 +299,41 @@ auto bmHand(sg::State& state) -> void
   }
 }
 
-[[maybe_unused]] const auto kHandRegistrar =
-    sg::registerBenchmark(&bmHand, "DISABLED_bmHand").useManualTime();
+SG_BENCHMARK(bmHand).useManualTime();
 ```
-`setIterationTime` states that time in nanoseconds.
+
+The primary time is the column the qualification test, the growth rule, and the aggregate statistics read: the CPU column by default, the real column under `useRealTime`, and the sum of the values the body reports through `setIterationTime` under `useManualTime`, which states that time in nanoseconds. `measureProcessCpuTime` leaves the primary time alone and selects the process CPU leaf for the CPU column. See [two time columns](docs/pages/harness.md#two-time-columns), [real time as the primary time](docs/pages/harness.md#real-time-as-the-primary-time), [manual time](docs/pages/harness.md#manual-time), and [the process CPU leaf](docs/pages/harness.md#the-process-cpu-leaf).
 
 ### Pause and resume
 
-`ScopedPauseTiming` takes a scope out of the measured window, and `pauseTiming` and `resumeTiming` are the manual pair.
+`pauseTiming` and `resumeTiming` take work out of the timed window, and `ScopedPauseTiming` is the guard that pairs them.
 <!-- sg-example: example/docs_snippets.cpp#paused -->
 ```cpp
 auto bmPaused(sg::State& state) -> void
 {
   std::vector<std::uint64_t> scratch(64, 1);
-  for (auto _ : state) {
-    {
+  for (auto index : state) {
+    if (index == 0) {
+      state.pauseTiming();
+      scratch.assign(128, 2);
+      state.resumeTiming();
+    }
+    if (index == 1) {
       const sg::ScopedPauseTiming guard {state};
-      scratch.assign(64, 1);
+      scratch.shrink_to_fit();
     }
     sg::doNotOptimize(scratch.front());
   }
 }
 
-[[maybe_unused]] const auto kPausedRegistrar =
-    sg::registerBenchmark(&bmPaused, "DISABLED_bmPaused");
+SG_BENCHMARK(bmPaused).iterations(4);
 ```
-Excluded work stays out of both time columns, and each pause adds a sample pair.
+
+A closed pause is subtracted from every time column of the row, one pause may stand open at a time, and each pause costs one more sample pair. See [pause and resume](docs/pages/harness.md#pause-and-resume).
 
 ### The time unit
 
-`unit` scales the columns of one family; `setDefaultTimeUnit` sets the process default a later registration captures.
+`unit` sets the unit of one family, and `setDefaultTimeUnit` sets the unit for the families that call no `unit`.
 <!-- sg-example: example/docs_snippets.cpp#time-unit -->
 ```cpp
 auto bmMillis(sg::State& state) -> void
@@ -265,11 +343,16 @@ auto bmMillis(sg::State& state) -> void
   }
 }
 
-[[maybe_unused]] const auto kMillisRegistrar =
-    sg::registerBenchmark(&bmMillis, "DISABLED_bmMillis")
-        .unit(sg::TimeUnit::MILLISECONDS);
+const auto kMillis = sg::registerBenchmark(&bmMillis, "Table/millis")
+                         .unit(sg::TimeUnit::MILLISECONDS);
+
+auto installTimeUnit() -> void
+{
+  sg::setDefaultTimeUnit(sg::TimeUnit::MICROSECONDS);
+}
 ```
-A registration keeps the unit it captured, so the call order decides.
+
+Call `setDefaultTimeUnit` in `main` before `speedgunMain`, and `TimeUnit` names the four scales a column can print in. See [time units](docs/pages/harness.md#time-units).
 
 ### Hardware counter metrics
 
@@ -291,7 +374,8 @@ auto attachMetric(sg::BenchmarkHandle& handle) -> void
   }
 }
 ```
-The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields. On a host where the leaf is unavailable the row prints the refusal kind in place of the number and the run continues.
+
+The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields, and on a host where the leaf is unavailable the row prints the refusal kind in place of the number and the run continues. This block is the one snippet that adds a header to the pair: `speedgun-ng/counters.hpp`.
 
 ### Skips
 
@@ -309,22 +393,23 @@ auto bmGuard(sg::State& state) -> void
   }
 }
 
-[[maybe_unused]] const auto kGuardRegistrar =
-    sg::registerBenchmark(&bmGuard, "DISABLED_bmGuard").arg(0);
+SG_BENCHMARK(bmGuard).arg(0);
 ```
+
 The report prints `SKIPPED: <reason>` for the first kind and `FAILED: <reason>` for the second.
 
 ### The command line
 
-One entry point, `speedgunMain`, reads the long options; the short letters stay inert because the short-option string is empty.
+One entry point, `speedgunMain`, reads the command line, and the options are long options alone.
 <!-- sg-example: example/quickstart.sh#options -->
 ```sh
 ./build/first_benchmark --list
-./build/first_benchmark --filter='bmSum' --min-time=200000000
+./build/first_benchmark --filter='bmSum' --min-time=0.2
 ./build/first_benchmark --counter=machine/monotonic --dry-run
 ./build/first_benchmark --catalog
 ```
-A usage error reports one line and exits with status 2.
+
+`--min-time` and `--warmup-time` take seconds, and a usage error reports one line and exits with status 2.
 
 ### Reading the report
 
@@ -333,42 +418,70 @@ A run prints a version line, then one row per instance and repetition.
 ```text
 bmSum                     AGGREGATE  primary time/iter (ns) mean=  656.219 median=  650.596 sd=   10.314 cv=  0.0157 min=  649.938 max=  668.122 n=3
 ```
-A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the measured cost of the sampling itself, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`.
+
+A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window, measured for the run and printed beside the per-iteration columns, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`.
 
 ## Quick reference
 
-The API names this page teaches:
+The API names this page teaches, with the object that owns each call:
 
-| Name | What it does | Teaches |
-| --- | --- | --- |
-| `SG_BENCHMARK` | Registers one function as one family | [Registration](#registration) |
-| `SG_BENCHMARK_CAPTURE` | Registers a function with captured arguments | [Registration](#registration) |
-| `SG_BENCHMARK_TEMPLATE` | Registers one instantiation of a template | [Registration](#registration) |
-| `SG_BENCHMARK_F` | Defines and registers a fixture method | [Fixtures](#fixtures) |
-| `SG_BENCHMARK_DEFINE_F` | Defines a fixture method to register later | [Fixtures](#fixtures) |
-| `SG_BENCHMARK_REGISTER_F` | Registers a defined fixture method | [Fixtures](#fixtures) |
-| `SG_BENCHMARK_TEMPLATE_F` | Defines and registers a template fixture | [Fixtures](#fixtures) |
-| `SG_BENCHMARK_TEMPLATE_DEFINE_F` | Defines a template fixture method | [Fixtures](#fixtures) |
-| `SG_BENCHMARK_TEMPLATE_METHOD_F` | Defines one method for many instantiations | [Fixtures](#fixtures) |
-| `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` | Registers one fixture instantiation | [Fixtures](#fixtures) |
-| `State` | The object a benchmark loop iterates over | [The run loop](#the-run-loop) |
-| `BenchmarkHandle` | The handle a registration returns; chains the options of one family | [Registration](#registration) |
-| `Fixture` | Builds state before the loop and releases it after | [Fixtures](#fixtures) |
-| `ScopedPauseTiming` | Takes a scope out of the measured window | [Pause and resume](#pause-and-resume) |
-| `BenchmarkResult` | One measured run of one instance | [Reading the report](#reading-the-report) |
-| `setDefaultTimeUnit` | Sets the time unit a later registration captures | [The time unit](#the-time-unit) |
-| `speedgunMain` | Runs the registry against the command line | [The command line](#the-command-line) |
-| `doNotOptimize` | Keeps a value live across the barrier | [The run loop](#the-run-loop) |
-| `clobberMemory` | Pushes cached values back to memory | [The run loop](#the-run-loop) |
+| Name | Owner | What it does | Teaches |
+| --- | --- | --- | --- |
+| `SG_BENCHMARK` | macro | Registers one function as one family | [registration](#registration) |
+| `SG_BENCHMARK_CAPTURE` | macro | Registers a function with its captured arguments | [registration](#registration) |
+| `SG_BENCHMARK_TEMPLATE` | macro | Registers one instantiation of a function template | [registration](#registration) |
+| `SG_BENCHMARK_F` | macro | Defines and registers a fixture method | [fixtures](#fixtures) |
+| `SG_BENCHMARK_DEFINE_F` | macro | Defines a fixture method to register later | [fixtures](#fixtures) |
+| `SG_BENCHMARK_REGISTER_F` | macro | Registers a defined fixture method and its callbacks | [fixtures](#fixtures) |
+| `SG_BENCHMARK_TEMPLATE_F` | macro | Defines and registers a template fixture method | [fixtures](#fixtures) |
+| `SG_BENCHMARK_TEMPLATE_DEFINE_F` | macro | Defines a template fixture method to register later | [fixtures](#fixtures) |
+| `SG_BENCHMARK_TEMPLATE_METHOD_F` | macro | Defines one method for every instantiation | [fixtures](#fixtures) |
+| `SG_BENCHMARK_TEMPLATE_INSTANTIATE_F` | macro | Registers one fixture instantiation | [fixtures](#fixtures) |
+| `State` | type | The object a benchmark loop iterates over | [the-run-loop](#the-run-loop) |
+| `BenchmarkHandle` | type | The handle a registration returns, chaining one family's calls | [registration](#registration) |
+| `Fixture` | type | Builds state before the loop and releases it after | [fixtures](#fixtures) |
+| `ScopedPauseTiming` | type | Takes a scope out of the timed window | [pause-and-resume](#pause-and-resume) |
+| `TimeUnit` | type | The four scales a time column prints in | [the-time-unit](#the-time-unit) |
+| `registerBenchmark` | free function | Registers a family under a name you give | [registration](#registration) |
+| `setDefaultTimeUnit` | free function | Sets the unit for families that call no `unit` | [the-time-unit](#the-time-unit) |
+| `speedgunMain` | free function | Runs the registry against the command line | [the-command-line](#the-command-line) |
+| `doNotOptimize` | free function | Keeps a value live across the barrier | [the-run-loop](#the-run-loop) |
+| `clobberMemory` | free function | Pushes cached values back to memory | [the-run-loop](#the-run-loop) |
+| `arg` | BenchmarkHandle | Appends one argument value to the instance list | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `args` | BenchmarkHandle | Appends a list of argument values | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `range` | BenchmarkHandle | Appends every value of a multiplied sweep | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `ranges` | BenchmarkHandle | Appends one position per bound pair | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `rangeMultiplier` | BenchmarkHandle | Scales every bound of every range of the family | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `denseRange` | BenchmarkHandle | Appends every value of a stepped sweep | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `argsProduct` | BenchmarkHandle | Appends one instance per combination of lists | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `argName` | BenchmarkHandle | Labels one argument position | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `argNames` | BenchmarkHandle | Labels the argument positions in order | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `minTime` | BenchmarkHandle | Sets the least measuring time of one instance, in nanoseconds | [run-control](#run-control) |
+| `warmupTime` | BenchmarkHandle | Sets the untimed warm-up window in nanoseconds | [run-control](#run-control) |
+| `iterations` | BenchmarkHandle | Fixes the iteration count of one instance | [run-control](#run-control) |
+| `repetitions` | BenchmarkHandle | Runs the instance again that many times | [run-control](#run-control) |
+| `setup` | BenchmarkHandle | Runs a callback before the loop of each repetition | [fixtures](#fixtures) |
+| `teardown` | BenchmarkHandle | Runs a callback after the loop of each repetition | [fixtures](#fixtures) |
+| `useRealTime` | BenchmarkHandle | Makes real time the primary time of the family | [timing-modes](#timing-modes) |
+| `useManualTime` | BenchmarkHandle | Makes the reported times the primary time of the family | [timing-modes](#timing-modes) |
+| `measureProcessCpuTime` | BenchmarkHandle | Selects the process CPU leaf for the CPU column | [timing-modes](#timing-modes) |
+| `unit` | BenchmarkHandle | Sets the unit one family prints its times in | [the-time-unit](#the-time-unit) |
+| `addMetric` | BenchmarkHandle | Attaches a counter expression to the family | [hardware-counter-metrics](#hardware-counter-metrics) |
+| `State::range` | State | Reads one argument position of the instance | [argument-families-and-ranges](#argument-families-and-ranges) |
+| `State::setIterationTime` | State | Reports one iteration's time in nanoseconds | [timing-modes](#timing-modes) |
+| `State::pauseTiming` | State | Opens the pause that excludes the work below it | [pause-and-resume](#pause-and-resume) |
+| `State::resumeTiming` | State | Closes the pause and records the interval | [pause-and-resume](#pause-and-resume) |
+| `State::skipWithMessage` | State | Ends the run as skipped, with a reason | [skips](#skips) |
+| `State::skipWithError` | State | Ends the run as failed, with a reason | [skips](#skips) |
 
 | Option | What it does |
 | --- | --- |
 | `--filter` | Selects the instances whose names match |
 | `--list` | Prints the registry and stops |
 | `--repetitions` | Sets how many times one instance runs |
-| `--min-time` | Sets the least time one instance spends measuring |
+| `--min-time` | Sets the least measuring seconds of one instance |
 | `--iterations` | Fixes the iteration count and skips calibration |
-| `--warmup-time` | Sets the untimed warm-up window |
+| `--warmup-time` | Sets the untimed warm-up seconds |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter to the report columns |
 | `--catalog` | Prints the counter catalog and stops |
