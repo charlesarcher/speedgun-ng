@@ -1,6 +1,19 @@
 DOXYFILE = 'Doxyfile'
 
+# The index reads by audience: the pages a reader of the main page follows
+# next, then the internals records a maintainer opens on demand.
 LINKS_NAVBAR1 = [
-    (None, 'pages', [(None, 'about')]),
+    ('User guide', 'pages', [
+        (None, 'about'),
+        (None, 'md_docs_2pages_2building'),
+        (None, 'md_docs_2pages_2harness'),
+    ]),
+    ('Internals', 'pages', [
+        (None, 'md_docs_2pages_2barrier-rule'),
+        (None, 'md_docs_2pages_2counters-overhead'),
+        (None, 'md_docs_2pages_2dbc-migration'),
+        (None, 'md_docs_2pages_2dbc-overhead'),
+        (None, 'md_docs_2pages_2identifier-rename-map'),
+    ]),
     (None, 'namespaces', []),
 ]

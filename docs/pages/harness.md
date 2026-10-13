@@ -1,4 +1,4 @@
-# The benchmark harness surface (016 C-1 to C-10, 017 C-1 to C-7)
+# The benchmark harness surface
 
 Feature 016 completes the registration and fixture surface of the
 benchmark harness on top of the feature-015 core. Each section below
