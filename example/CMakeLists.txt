@@ -29,14 +29,18 @@ add_example(counters_standalone_example)
 add_example(benchmark_example)
 target_link_libraries(benchmark_example PRIVATE speedgun-ng::harness)
 
-# The quick start program the root page quotes in full, and the capability
-# snippets the page quotes section by section. Their registrations carry the
-# `DISABLED_` prefix or stay inside a binary whose entry point never enters
-# the runner, so neither adds report output.
+# The quick start program the root page quotes in full.
 add_example(first_benchmark)
 target_link_libraries(first_benchmark PRIVATE speedgun-ng::harness)
 
-add_example(docs_snippets)
-target_link_libraries(docs_snippets PRIVATE speedgun-ng::harness)
+# The capability snippets the page quotes section by section build, so a
+# block that drifted into a fragment fails in the build. The target stays
+# out of `run-examples` and carries no `run_` target of its own: its entry
+# point returns without entering the runner, so the binary prints no
+# report and no page region shows any mechanism for that.
+add_executable(docs_snippets docs_snippets.cpp)
+target_link_libraries(docs_snippets
+                      PRIVATE speedgun-ng::speedgun-ng speedgun-ng::harness)
+target_compile_features(docs_snippets PRIVATE cxx_std_23)
 
 add_folders(Example)
