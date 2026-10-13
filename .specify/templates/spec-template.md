@@ -129,3 +129,9 @@
 - [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
 - [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
 - [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
+
+## Constitution Checklist
+
+- Main-page impact check (IV.1): does this feature change what the root
+  `README.md` teaches? If yes, update the page and its `example/` regions
+  in the same change.

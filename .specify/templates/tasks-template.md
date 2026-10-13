@@ -157,6 +157,9 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
+- [ ] TXXX Main-page impact check (IV.1): does this feature change what the root
+  `README.md` teaches? If yes, update the page and its `example/` regions in
+  the same change
 
 ---
 
