@@ -68,6 +68,12 @@ def golden_pairs() -> None:
           mask(STDOUT[1]) == mask(wider),
           f"{mask(STDOUT[1])!r} against {mask(wider)!r}")
 
+    eaten = STDOUT[1].replace("real time/iter (ns)=  660.5",
+                              "real time/iter (ns)=11052.473")
+    check("a wider value that eats the padding after an equals sign folds equal",
+          mask(STDOUT[1]) == mask(eaten),
+          f"{mask(STDOUT[1])!r} against {mask(eaten)!r}")
+
     other_build = STDOUT[0].replace("build=Release", "build=Sanitize")
     check("a build field naming another build folds equal",
           mask(STDOUT[0]) == mask(other_build),
@@ -131,6 +137,16 @@ def end_to_end(tool: Path) -> None:
         root.joinpath("README.md").write_text(page_text(list(STDOUT)))
         code, output = run_tool(root, tool, sanitizer)
         check("a run from another build type passes",
+              code == 0, f"exit {code}: {output.strip().splitlines()[:1]}")
+
+        wide = (STDOUT[0],
+                STDOUT[1].replace(
+                    "real time/iter (ns)=  660.5  cpu time/iter (ns)=  659.4",
+                    "real time/iter (ns)=11052.473  cpu time/iter (ns)=10843.136"),
+                STDOUT[2])
+        root.joinpath("README.md").write_text(page_text(list(STDOUT)))
+        code, output = run_tool(root, tool, wide)
+        check("a run whose wider values eat the field padding passes",
               code == 0, f"exit {code}: {output.strip().splitlines()[:1]}")
 
 

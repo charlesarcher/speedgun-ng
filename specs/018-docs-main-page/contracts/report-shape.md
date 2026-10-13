@@ -6,7 +6,10 @@ FR-034, SC-012. The check reuses the row-shape mask the harness test
 suite already owns (`test/source/harness_cli_test.cpp`: a digit run folds
 to one `#`, a whitespace run folds to one space, any other character
 copies; widths are deliberately not compared because a sanitizer run
-shifts field padding). The `build=` field of the header joins that
+shifts field padding). The python check adds one fold to that rule:
+whitespace directly after an `=` goes with it, because a value one column
+wider eats that padding, so one host prints `= #` and another `=#` for the
+same column. The `build=` field of the header joins that
 exemption for the same reason: it records the configuration of the build
 that ran, so the sanitize and coverage builds print another value for one
 and the same page (S-2).
@@ -30,6 +33,7 @@ then compare the masked sequences line for line.
 | Difference | Verdict |
 | --- | --- |
 | Any digit value differs | pass (the mask folds it) |
+| A value is wide enough to consume the padding after `=` | pass (widths are not compared) |
 | The `build=` field of the header names another build | pass (the build that ran owns it) |
 | A column header missing, renamed, or reordered | fail |
 | A row line missing or added | fail |
@@ -74,7 +78,8 @@ Mask golden pairs (pinned constants):
 2. a whitespace-run change folds equal;
 3. a header rename folds different;
 4. a width-only change (one digit wider) folds equal;
-5. a `build=` field naming another build folds equal, a renamed build field
+5. a value wide enough to eat the padding after an `=` folds equal;
+6. a `build=` field naming another build folds equal, a renamed build field
    folds different.
 
 End-to-end cases against a scratch page plus a fake-binary script that
@@ -85,7 +90,8 @@ prints pinned stdout (the planted-probe discipline):
 2. planted renamed column header in the scratch block: fail, named;
 3. planted missing row line: fail, named;
 4. planted extra aggregate line: fail, named;
-5. a run whose header names another build: pass.
+5. a run whose header names another build: pass;
+6. a run whose wider values eat the padding after an `=`: pass.
 
 The runner imports the mask and the comparator from
 `tools/docs/report_shape.py`; the import error is its TDD-red state.
