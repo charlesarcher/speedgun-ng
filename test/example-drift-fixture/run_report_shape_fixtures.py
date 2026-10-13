@@ -68,6 +68,15 @@ def golden_pairs() -> None:
           mask(STDOUT[1]) == mask(wider),
           f"{mask(STDOUT[1])!r} against {mask(wider)!r}")
 
+    other_build = STDOUT[0].replace("build=Release", "build=Sanitize")
+    check("a build field naming another build folds equal",
+          mask(STDOUT[0]) == mask(other_build),
+          f"{mask(STDOUT[0])!r} against {mask(other_build)!r}")
+
+    renamed_field = STDOUT[0].replace("build=Release", "built=Release")
+    check("a renamed build field folds different",
+          mask(STDOUT[0]) != mask(renamed_field), "both folded to the same shape")
+
     check("a missing aggregate line is a comparator finding",
           any("omits" in line for line in compare(list(STDOUT), [*STDOUT[:1], STDOUT[1],
                                                         AGGREGATE, STDOUT[2]])),
@@ -83,9 +92,10 @@ def page_text(block: list[str]) -> str:
     )
 
 
-def run_tool(root: Path, tool: Path) -> tuple[int, str]:
+def run_tool(root: Path, tool: Path,
+             stdout: tuple[str, ...] = STDOUT) -> tuple[int, str]:
     binary = root / "fake.sh"
-    binary.write_text("#!/bin/sh\ncat <<'EOF'\n" + "\n".join(STDOUT) + "\nEOF\n")
+    binary.write_text("#!/bin/sh\ncat <<'EOF'\n" + "\n".join(stdout) + "\nEOF\n")
     binary.chmod(0o755)
     result = subprocess.run(
         [sys.executable, str(tool), "--binary", str(binary),
@@ -115,6 +125,13 @@ def end_to_end(tool: Path) -> None:
             code, output = run_tool(root, tool)
             check(case, (code == 0) == want_pass,
                   f"exit {code}: {output.strip().splitlines()[:1]}")
+
+        sanitizer = (STDOUT[0].replace("build=Release", "build=Sanitize"),
+                     *STDOUT[1:])
+        root.joinpath("README.md").write_text(page_text(list(STDOUT)))
+        code, output = run_tool(root, tool, sanitizer)
+        check("a run from another build type passes",
+              code == 0, f"exit {code}: {output.strip().splitlines()[:1]}")
 
 
 def main() -> int:
