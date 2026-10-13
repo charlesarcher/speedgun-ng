@@ -293,12 +293,12 @@ the harness surface (clarify session).
 
 ## D-12: Teaching the disabled prefix, skips, and the unavailable-counter host is text plus one region each
 
-**Decision**: The page teaches the `DISABLED_` prefix from the region
-that already carries it in `benchmark_example.cpp`; the skips section
-teaches both calls from a region in `docs_snippets.cpp` and states what
-the report prints; the metrics section states the unavailable-counter host
-behavior in prose and links the harness detail page for the disclosure
-fields.
+**Decision**: The page teaches the `DISABLED_` prefix in one sentence of
+prose in the skips section, with the full rule on the harness page; the
+skips section teaches both calls from a region in `docs_snippets.cpp` and
+states what the report prints; the metrics section states the
+unavailable-counter host behavior in prose and links the harness detail
+page for the disclosure fields.
 
 **Rationale**: FR-009 lists all three capabilities; Edge Cases pin the
 behaviors. Each fact lands where the reader meets the name, and the
