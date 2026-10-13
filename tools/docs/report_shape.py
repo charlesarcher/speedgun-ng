@@ -5,7 +5,10 @@ Contract: specs/018-docs-main-page/contracts/report-shape.md. The mask is
 the row-shape fold the harness test suite owns (test/source/harness_cli_test.cpp):
 a digit run folds to one '#', a whitespace run to one ' ', any other
 character copies. Widths are not compared, because a sanitizer run shifts
-field padding. Exit 0 clean, 1 with any finding, 2 on a usage error.
+field padding. The build field of the header is folded as well: it names the
+configuration of the build that ran, so the sanitize and coverage builds
+print another value for one and the same page (contract S-2). Exit 0 clean,
+1 with any finding, 2 on a usage error.
 """
 
 from __future__ import annotations
@@ -21,8 +24,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from example_drift import Finding, scan_blocks  # noqa: E402
 
 
+BUILD_FIELD = re.compile(r"\bbuild=\S+")
+
+
 def mask(line: str) -> str:
-    return re.sub(r"\s+", " ", re.sub(r"\d+", "#", line)).strip()
+    """Fold the values a run owns: digits, whitespace runs, the build field."""
+    folded = BUILD_FIELD.sub("build=#", line)
+    return re.sub(r"\s+", " ", re.sub(r"\d+", "#", folded)).strip()
 
 
 def classify(shape: str) -> str:

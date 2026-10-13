@@ -6,7 +6,10 @@ FR-034, SC-012. The check reuses the row-shape mask the harness test
 suite already owns (`test/source/harness_cli_test.cpp`: a digit run folds
 to one `#`, a whitespace run folds to one space, any other character
 copies; widths are deliberately not compared because a sanitizer run
-shifts field padding).
+shifts field padding). The `build=` field of the header joins that
+exemption for the same reason: it records the configuration of the build
+that ran, so the sanitize and coverage builds print another value for one
+and the same page (S-2).
 
 ## S-1: The sample block
 
@@ -27,6 +30,7 @@ then compare the masked sequences line for line.
 | Difference | Verdict |
 | --- | --- |
 | Any digit value differs | pass (the mask folds it) |
+| The `build=` field of the header names another build | pass (the build that ran owns it) |
 | A column header missing, renamed, or reordered | fail |
 | A row line missing or added | fail |
 | An aggregate line appearing or vanishing | fail |
@@ -69,7 +73,9 @@ Mask golden pairs (pinned constants):
 1. a digit-run change folds equal;
 2. a whitespace-run change folds equal;
 3. a header rename folds different;
-4. a width-only change (one digit wider) folds equal.
+4. a width-only change (one digit wider) folds equal;
+5. a `build=` field naming another build folds equal, a renamed build field
+   folds different.
 
 End-to-end cases against a scratch page plus a fake-binary script that
 prints pinned stdout (the planted-probe discipline):
@@ -78,7 +84,8 @@ prints pinned stdout (the planted-probe discipline):
    pass;
 2. planted renamed column header in the scratch block: fail, named;
 3. planted missing row line: fail, named;
-4. planted extra aggregate line: fail, named.
+4. planted extra aggregate line: fail, named;
+5. a run whose header names another build: pass.
 
 The runner imports the mask and the comparator from
 `tools/docs/report_shape.py`; the import error is its TDD-red state.
