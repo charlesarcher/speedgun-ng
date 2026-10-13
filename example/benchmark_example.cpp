@@ -17,6 +17,7 @@ auto table() -> std::vector<std::uint64_t>&
   return values;
 }
 
+// sg-example:begin bm-sum
 auto bmSum(sg::State& state) -> void
 {
   std::uint64_t total = 0;
@@ -28,6 +29,8 @@ auto bmSum(sg::State& state) -> void
   }
 }
 
+// sg-example:end bm-sum
+
 auto bmTouch(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -37,6 +40,7 @@ auto bmTouch(sg::State& state) -> void
 
 // FR-027: an argument family of arity two. Each position carries an
 // `argNames` label, so its instance names read `bmArgs/width:N/depth:M`.
+// sg-example:begin bm-args
 auto bmArgs(sg::State& state) -> void
 {
   const std::size_t cells = static_cast<std::size_t>(state.range(0))
@@ -51,8 +55,11 @@ auto bmArgs(sg::State& state) -> void
   }
 }
 
+// sg-example:end bm-args
+
 // FR-027: the function template `SG_BENCHMARK_TEMPLATE` instantiates
 // over one type argument.
+// sg-example:begin bm-template
 template<class Value>
 auto bmFill(sg::State& state) -> void
 {
@@ -65,9 +72,12 @@ auto bmFill(sg::State& state) -> void
   }
 }
 
+// sg-example:end bm-template
+
 // FR-027: the fixture whose object one run builds: the harness runs the
 // `setUp` and `tearDown` pair around the method in the untimed region
 // (FR-017).
+// sg-example:begin table-fixture
 class TableFixture : public sg::Fixture
 {
 public:
@@ -79,8 +89,11 @@ protected:
   std::vector<std::uint64_t> m_values;
 };
 
+// sg-example:end table-fixture
+
 // FR-004: the process CPU leaf. The body is a plain accumulator; what
 // the row shows is the CPU column folded from `machine/process_cpu`.
+// sg-example:begin bm-process-cpu
 auto bmProcessCpu(sg::State& state) -> void
 {
   std::uint64_t total = 0;
@@ -90,8 +103,11 @@ auto bmProcessCpu(sg::State& state) -> void
   }
 }
 
+// sg-example:end bm-process-cpu
+
 // FR-005: real time as the primary time. The qualification test, the
 // growth rule and the aggregate statistics read the real column.
+// sg-example:begin bm-real-time
 auto bmRealTime(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -99,8 +115,11 @@ auto bmRealTime(sg::State& state) -> void
   }
 }
 
+// sg-example:end bm-real-time
+
 // FR-006, FR-007: manual time. The benchmark supplies one nanosecond
 // count per iteration and the real column shows that sum over N.
+// sg-example:begin bm-manual
 auto bmManual(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -108,9 +127,12 @@ auto bmManual(sg::State& state) -> void
   }
 }
 
+// sg-example:end bm-manual
+
 // FR-009, FR-012: the guard stands inside the timed loop, on the first
 // pass, so one run holds exactly one paused interval and the row prints
 // `endpoint samples=4`.
+// sg-example:begin bm-paused
 auto bmPaused(sg::State& state) -> void
 {
   for (auto index : state) {
@@ -121,6 +143,8 @@ auto bmPaused(sg::State& state) -> void
     sg::doNotOptimize(index);
   }
 }
+
+// sg-example:end bm-paused
 
 // FR-015: the unit the report scales this family to. The stored value
 // stays nanoseconds, the printed value carries the `ms` label.
@@ -168,6 +192,7 @@ auto main(int argc, char** argv) -> int
       std::make_unique<sg::counters::ClockProvider>());
   (void)system.registerProvider(std::make_unique<sg::counters::PmuProvider>());
 
+  // sg-example:begin metric-chain
   auto handle = sg::registerBenchmark(&bmSum, "bmSum");
   if (!handle.name().empty()) {
     const auto cpu = system.object("cpu");
@@ -180,11 +205,14 @@ auto main(int argc, char** argv) -> int
       }
     }
   }
+  // sg-example:end metric-chain
 
   // FR-020: the prefix gate, visible in the same listing. The family
   // registers and expands, and selection drops it, so list mode prints no
   // such name and a run selects nothing that is disabled.
+  // sg-example:begin disabled-registration
   (void)sg::registerBenchmark(&bmTouch, "DISABLED_bmTouch");
+  // sg-example:end disabled-registration
 
   return sg::speedgunMain(argc, argv);
 }
