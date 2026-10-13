@@ -555,9 +555,9 @@ the canonical location given there.
 #### IV.1 Main-page documentation per feature
 
 Every feature spec that adds or changes user-visible behavior MUST add or
-update its main-page section, with a working example in the shape
-specs/018-docs-main-page FR-010 defines, with its quick-reference rows,
-and the spec is incomplete until it does. A working example compiles as
+update its main-page section, with a working example in the shape one purpose
+sentence, one marked snippet, and one result sentence, with its
+quick-reference rows, and the spec is incomplete until it does. A working example compiles as
 the page shows it: the region is part of a translation unit an example
 target builds, so a reader who copies the block over the canonical
 includes gets a program that builds. The main page is the root
@@ -565,8 +565,8 @@ includes gets a program that builds. The main page is the root
 `example/`: a page block and its region are one fact with two spellings,
 and a change that moves one without the other is a defect the drift gate
 names. The checklist line "Main-page impact check (IV.1)" in the spec
-template and the tasks template carries the obligation where a
-contributor reads it (specs/018-docs-main-page FR-027, FR-029).
+template and the tasks template carries the obligation where a contributor
+reads it (shape: specs/018-docs-main-page FR-010; obligation: FR-027, FR-029).
 
 ### V. Style and Formatting
 
