@@ -355,9 +355,9 @@ A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overh
 | `minTime` | BenchmarkHandle | Sets the least measuring time of one instance, in nanoseconds | [run-control](#run-control) |
 | `warmupTime` | BenchmarkHandle | Sets the untimed warm-up window in nanoseconds | [run-control](#run-control) |
 | `iterations` | BenchmarkHandle | Fixes the iteration count of one instance | [run-control](#run-control) |
-| `repetitions` | BenchmarkHandle | Runs the instance again that many times | [run-control](#run-control) |
-| `setup` | BenchmarkHandle | Runs a callback before the loop of each repetition | [fixtures](#fixtures) |
-| `teardown` | BenchmarkHandle | Runs a callback after the loop of each repetition | [fixtures](#fixtures) |
+| `repetitions` | BenchmarkHandle | Sets how many runs one instance makes | [run-control](#run-control) |
+| `setup` | BenchmarkHandle | Runs a callback before the timed loop of each run | [fixtures](#fixtures) |
+| `teardown` | BenchmarkHandle | Runs a callback after the timed loop of each run | [fixtures](#fixtures) |
 | `useRealTime` | BenchmarkHandle | Makes real time the primary time of the family | [timing-modes](#timing-modes) |
 | `useManualTime` | BenchmarkHandle | Makes the reported times the primary time of the family | [timing-modes](#timing-modes) |
 | `measureProcessCpuTime` | BenchmarkHandle | Selects the process CPU leaf for the CPU column | [timing-modes](#timing-modes) |
