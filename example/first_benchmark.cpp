@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "speedgun-ng/barrier.hpp"
+#include "speedgun-ng/barrier.hpp"  // sg::doNotOptimize is declared here
 #include "speedgun-ng/benchmark.hpp"
 
 namespace
