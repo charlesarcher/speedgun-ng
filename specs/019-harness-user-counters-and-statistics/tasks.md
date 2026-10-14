@@ -380,3 +380,38 @@ Task: "Extend test/loop_shape.sh with a setCounter body (T015)"
   pattern (plan.md Test Plan) holds the abort cases
 - Commit cadence follows the repository rule (`<Section>: <one-line
   imperative>`), one atomic commit per task group or finer
+
+## Phase 12: Convergence
+
+Appended by the converge pass over pull request #37 on 2026-10-14. Each item
+traces to a reviewed defect (D-n) or nit (N-n) on the branch head, and the
+gap type is the relation between the current code and the artifact that owns
+it. Q-10 is unchanged: the decision line still carries both choices, so the
+spec entry stays a decision for Charles.
+
+- [ ] T046 Enforce the documented pre and post clauses of State::setBytesProcessed and State::setItemsProcessed with SG_REQUIRE and SG_ENSURE in the definitions in source/harness/runner.cpp, and report 0 drifted interfaces from the pair gate per D-1, Constitution II (contradicts)
+- [ ] T047 Stop dividing counter values by the counter base in counterColumns in source/harness/runner.cpp, so a stored value prints as stored and CounterBase selects only the human-readable suffix per D-3, FR-006 (contradicts)
+- [ ] T048 Replace the relative fit in fitCurve and relativeSums in source/harness/complexity.cpp with the least-squares form: coefficient equal to the sum of t times f(N) over the sum of f(N) squared, and RMS equal to the root of the mean squared residual over the mean of t, with the least-RMS curve kept and the constant curve as the fallback per D-5, FR-021 (contradicts)
+- [ ] T049 Rewrite FR-006, data-model.md, contracts/user-counters.md, the CounterBase doxygen, the README quick reference row, and the harness.md User counters and Throughput sections to the suffix-only base, removing the KiB per second claim per D-3 (partial)
+- [ ] T050 Rewrite FR-021, research D-08, contracts/complexity-and-modes.md, and the harness.md complexity text for the least-squares coefficient and the RMS percentage per D-5 (partial)
+- [ ] T051 Replace the complexity tests with known-answer vectors: planted N, N squared, and N log N families with exact coefficients, plus one noisy vector whose coefficient and RMS are computed by hand from the formulas and recorded in the test per D-5 (partial)
+- [ ] T052 Move the setBytesProcessed and setItemsProcessed calls after the timed loop in example/docs/user_counters.cpp and example/docs/throughput.cpp, scale them by state.iterations(), copy the regions to README.md unchanged, and state that the calls take the total work of the run per D-4 (partial)
+- [ ] T053 Add a test with a real timed loop of a known per-iteration count that checks the printed rate within a stated factor of count times iterations over the primary time, so a per-iteration value fails per D-4 (missing)
+- [ ] T054 Reserve state.m_pausePairs to half the pause room before the timed loop opens in the sampleRun lambda in source/harness/runner.cpp, so State::closePausePair never reallocates on the raw path per D-10 (partial)
+- [ ] T055 Add the proof that no allocation happens inside the timed loop on both pause paths, as a test/loop_shape.sh case or an allocation-counting hook, and record that the fold-path slot reset copies a plain recorder view per D-10 (missing)
+- [ ] T056 Make the command line section of README.md quote example/docs/command_line.cpp, keep the commands in a shell block marked from a region that runs that example binary, and remove the exemption in tools/docs/example_drift.py per D-8 (partial)
+- [ ] T057 Make the reading the report section quote example/docs/reading_the_report.cpp, extend that example to print a counter column, a label, one custom statistic and a BIG_O and RMS pair, add a sample output block checked by report_shape as a second sample check, name each new field in the result sentence, and remove the exemption per D-8, FR-030 (partial)
+- [ ] T058 Apply ITERATION_INVARIANT and AVG_ITERATIONS even when the primary time is zero, skipping only the time divisor, and add the test that shows it per N-3, FR-005 (contradicts)
+- [ ] T059 Compare the skip message as well as the instance name in test/example_run.sh and add the mismatching-message case to test/run_example_run_fixtures.sh per N-1 (partial)
+- [ ] T060 Show the SG_BENCHMARK_F and the SG_BENCHMARK_DEFINE_F with SG_BENCHMARK_REGISTER_F methods, with their timed loops, beside the fixture class in README.md, and remove the empty body and FAILED sentence per D-6 (partial)
+- [ ] T061 Add the capture and template regions of example/docs/registration.cpp to README.md as marked blocks and drop the link wording that replaced them per D-7 (missing)
+- [ ] T062 Rewrite each of the 21 Coverage paragraphs in docs/pages/harness.md as one reader-facing behaviour sentence or delete it, leaving no test file name, scenario name or re-exec mode on the page per D-9, Q-11, T037 (contradicts)
+- [ ] T063 Document combined flags built with the bitwise or operator in the CounterFlag doxygen and the harness.md User counters section, standing in for the rate and thread flag names, and add one test per N-2 (missing)
+- [ ] T064 Document that inverting a zero value keeps zero, where the reference implementation gives infinity, in the CounterFlag doxygen, FR-005 and harness.md per N-4 (missing)
+- [ ] T065 Record in research D-10 that pause history is held per family through RegistryEntry::pausePairsPerIteration, so a family whose instances pause differently reserves the largest observed room per N-5 (missing)
+- [ ] T066 Keep README.md at 550 lines or fewer after the section fixes, trimming prose and never a snippet, and report the final count per N-6, FR-044 (partial)
+- [ ] T067 Run quickstart.md sections 5 through 7, record the evidence, and check T042 only when it passes per D-2 (partial)
+- [ ] T068 Build the ci-coverage preset, hold 100 percent line and branch coverage, keep zero LCOV_EXCL markers under source/harness, record the evidence, and check T044 only when it passes per D-2 (partial)
+- [ ] T069 Write /tmp/019-rebase-plan.txt listing every pushed commit that fails the commit lint with its hash, old subject, new subject and the footer it gains, without running the rebase or force-pushing, and hold it for Charles to approve per D-1 (contradicts)
+- [ ] T070 Run the verification set on the new head: developer build with the full suite, the pair gate at 0 drift, the prose gate and codespell at 0 findings on changed files, the commit lint on new commits, the coverage, sanitize and tsan presets, the two hand spot checks on cells=64 and the throughput rate, and the CI result per item (missing)
+
