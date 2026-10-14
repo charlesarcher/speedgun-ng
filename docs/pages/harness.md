@@ -453,6 +453,75 @@ auto bmEncode(sg::State& state) -> void
 SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
 ```
 
+The fixture macros and the two other registration spellings need their own
+method each, so they sit here beside the class they extend.
+
+<!-- sg-example: example/docs/fixtures.cpp#fixture -->
+```cpp
+class TableFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State& state) -> void override
+  {
+    m_values.assign(3, 1);
+    sg::doNotOptimize(&state);
+  }
+
+  auto tearDown(sg::State& state) -> void override
+  {
+    m_values.clear();
+    sg::doNotOptimize(&state);
+  }
+
+protected:
+  std::vector<std::uint64_t> m_values {1, 2, 3};
+};
+```
+
+<!-- sg-example: example/docs/fixtures.cpp#fixture-methods -->
+```cpp
+SG_BENCHMARK_F(TableFixture, bmTableRead)(sg::State& state)
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(m_values.front());
+  }
+}
+
+SG_BENCHMARK_DEFINE_F(TableFixture, bmTableSize)(sg::State& state)
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(m_values.size());
+  }
+}
+
+SG_BENCHMARK_REGISTER_F(TableFixture, bmTableSize).argsProduct({{1}});
+```
+
+<!-- sg-example: example/docs/registration.cpp#capture -->
+```cpp
+auto bmAdd(sg::State& state, int left, int right) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(left + right);
+  }
+}
+
+SG_BENCHMARK_CAPTURE(bmAdd, pair, 2, 3);
+```
+
+<!-- sg-example: example/docs/registration.cpp#template -->
+```cpp
+template<typename Type>
+auto bmWidth(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK_TEMPLATE(bmWidth, std::uint32_t);
+```
+
 ## Reading a report row
 
 A run prints a version line, then one row per instance and repetition, and a
