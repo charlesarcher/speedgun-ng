@@ -396,7 +396,7 @@ spec entry stays a decision for Charles.
 - [X] T050 Rewrite FR-021, research D-08, contracts/complexity-and-modes.md, and the harness.md complexity text for the least-squares coefficient and the RMS percentage per D-5 (partial)
 - [X] T051 Replace the complexity tests with known-answer vectors: planted N, N squared, and N log N families with exact coefficients, plus one noisy vector whose coefficient and RMS are computed by hand from the formulas and recorded in the test per D-5 (partial)
 - [X] T052 Move the setBytesProcessed and setItemsProcessed calls after the timed loop in example/docs/user_counters.cpp and example/docs/throughput.cpp, scale them by state.iterations(), copy the regions to README.md unchanged, and state that the calls take the total work of the run per D-4 (partial)
-- [ ] T053 Add a test with a real timed loop of a known per-iteration count that checks the printed rate within a stated factor of count times iterations over the primary time, so a per-iteration value fails per D-4 (missing)
+- [X] T053 Add a test with a real timed loop of a known per-iteration count that checks the printed rate within a stated factor of count times iterations over the primary time, so a per-iteration value fails per D-4 (missing)
 - [X] T054 Reserve state.m_pausePairs to half the pause room before the timed loop opens in the sampleRun lambda in source/harness/runner.cpp, so State::closePausePair never reallocates on the raw path per D-10 (partial)
 - [ ] T055 Add the proof that no allocation happens inside the timed loop on both pause paths, as a test/loop_shape.sh case or an allocation-counting hook, and record that the fold-path slot reset copies a plain recorder view per D-10 (missing)
 - [ ] T056 Make the command line section of README.md quote example/docs/command_line.cpp, keep the commands in a shell block marked from a region that runs that example binary, and remove the exemption in tools/docs/example_drift.py per D-8 (partial)
@@ -482,3 +482,8 @@ command that showed it.
   columns show the value times and over the iteration count of the row,
   both finite, disclosure intact. Weakening the invariant expectation to the
   bare value fails the scenario; restoring it passes it and the binary.
+- T053: the throughput binary gains a scenario whose body totals units after
+  the timed loop on the real clock; the printed rate must land within twenty
+  percent of the one-iteration units over the one-iteration time read off the
+  same row. Dropping the iteration count from the total fails it; restoring
+  passes the scenario and the binary.
