@@ -38,6 +38,13 @@
 #     findings regardless of how the harness picks the range base.
 #   - kind empty-range: build nothing; pass --base and --head at the same
 #     commit.
+#   - kind delete: run `setup_commit` (it becomes the range base), then
+#     `git rm <delete.path>` and rewrite `<setup_commit.keep>` in the case
+#     commit, so the range holds a removal beside a file that stands at the
+#     head. A gate that scanned the removed path would report a skip for a
+#     file the change deleted, which is the change's own work.
+#   - expect.prose: run the prose check over the same (base, head) range and
+#     compare the summary counters: exit, sources, units, findings, skipped.
 #   - Message assembly: title; blank line; body lines, one per entry,
 #     joined by newlines (omitted when `body` is absent); blank line;
 #     footer line (omitted when `footer` is absent, which is how the
@@ -275,3 +282,39 @@ cases:
       exit: 0
       records: 0
       findings: []
+
+  # Deleted path: the range names a path the change removed, and the prose
+  # scan of that range covers the file standing at the head and says nothing
+  # of the removed one, so the summary carries no skip. A gate that read the
+  # removed path would report one skipped source here, the report a branch
+  # with a deleted file used to carry.
+  - name: deleted-path-leaves-no-skip
+    kind: delete
+    setup_commit:
+      title: "test: stage the file the case removes"
+      body:
+        - "The setup commit stands the file the delete case takes out, so the"
+        - "case range holds exactly that removal beside a surviving change."
+      footer: "Approved-by: charlesarcher"
+      files:
+        - path: "fixture/deleted.c"
+          lines: 3
+        - path: "fixture/kept.c"
+          lines: 2
+      keep: "fixture/kept.c"
+    delete:
+      path: "fixture/deleted.c"
+    kept_lines: 4
+    title: "test: drop the staged file from the tree"
+    body:
+      - "The case commit removes the staged file and rewrites the file that"
+      - "stays, so the range holds one removal and one surviving change."
+    footer: "Approved-by: charlesarcher"
+    expect:
+      exit: 0
+      findings: []
+      prose:
+        exit: 0
+        sources: 1
+        findings: 0
+        skipped: 0
