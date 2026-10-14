@@ -197,11 +197,14 @@ built beside `kIterationCap` in
 `std::uint64_t`, so the cap costs 256 KiB per leaf column. A family's
 first attempt reserves no pause room; it, and any later attempt whose
 room cannot cover the observed pauses, runs the fold path: each closed
-pause pair folds into the row's running pause totals at the commit of
-the pair's second point, from the same two raw counter points, so the
-netted columns are numerically identical and no per-pause array
-exists. The result carries `pauseSamplesFolded` and the report
-discloses a folded run (FR-025, FR-051 to FR-054, Q-11).
+pause pair folds into the row's running pause totals, one accumulator
+per leaf, at the commit of the pair's second point, from the same two
+raw counter points, so the netted columns are numerically identical
+and no per-pause array exists. The fold is the documented exception to
+the rule that every printed value is a fold over retained raw points,
+and it reads counters-library points alone. The result carries
+`pauseSamplesFolded` and the report discloses a folded run (FR-025,
+FR-051 to FR-054, Q-11).
 
 **Rationale**: a pause-per-iteration body at `kIterationCap` makes an
 iterations-proportional reservation unbounded; history sizing
