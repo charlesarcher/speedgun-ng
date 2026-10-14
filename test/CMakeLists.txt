@@ -762,6 +762,23 @@ target_include_directories(harness_custom_stats_test PRIVATE ${CMAKE_SOURCE_DIR}
 target_compile_features(harness_custom_stats_test PRIVATE cxx_std_23)
 add_test(NAME harness_custom_stats_test COMMAND harness_custom_stats_test)
 
+# A breached child dies at a contract call, so libgcov never runs the exit hook
+# that writes its counters, and the lines that child executed stay uncovered. The
+# handler in source/detail/gcov_flush.hpp writes them first, but it reaches the
+# dump through a weak reference, which leaves the archive member out of the link
+# and the address null. Forcing the symbol is what makes the dump reachable, and
+# only in a tree built with coverage instrumentation.
+if(ENABLE_COVERAGE)
+  set(breached_tests
+    harness_user_counters_test
+    harness_label_test
+    harness_custom_stats_test
+  )
+  foreach(breached IN LISTS breached_tests)
+    target_link_options(${breached} PRIVATE -Wl,-u,__gcov_dump)
+  endforeach()
+endif()
+
 # The aggregate-only modes (T024; US6, FR-016 to FR-018). One scripted provider
 # steps both machine time leaves by a constant per sampling action, so a
 # three-repetition family holds three measured rows beside its aggregate and a

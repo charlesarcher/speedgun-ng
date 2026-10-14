@@ -26,6 +26,14 @@ inline auto dumpCountersThenDie(int const signal) noexcept -> void
   if (&__gcov_dump != nullptr) {
     __gcov_dump();
   }
+  // The signal stays blocked while its own handler runs, so raising it here
+  // only marks it pending and the child exits on the line below. It must die
+  // by the signal, the death the parent asserts. Unblocking delivers it with
+  // the default action.
+  sigset_t unblock;
+  (void)sigemptyset(&unblock);
+  (void)sigaddset(&unblock, signal);
+  (void)sigprocmask(SIG_UNBLOCK, &unblock, nullptr);
   (void)std::raise(signal);
   std::_Exit(128 + signal);
 }
