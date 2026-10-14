@@ -233,12 +233,18 @@ auto bmInvertRate(sg::State& state) -> void
 }
 
 // FR-002: two flag sets combined while the row runs. Both operands of the join
-// are loads here, so `operator|` executes on this path, and the column prints
-// the reciprocal of its own rate as the constant spelling does.
+// arrive through the call below, so `operator|` executes on this path and the
+// column prints the reciprocal of its own rate, as the constant spelling does.
+// The call keeps the join a value of the run, which the optimizer cannot fold.
+[[gnu::noinline]] auto joinOperand(const bool rate) -> sg::CounterFlag
+{
+  return rate ? sg::CounterFlag::RATE : sg::CounterFlag::INVERT;
+}
+
 auto bmInvertRateJoin(sg::State& state) -> void
 {
-  volatile const sg::CounterFlag rate = sg::CounterFlag::RATE;
-  volatile const sg::CounterFlag invert = sg::CounterFlag::INVERT;
+  const auto rate = joinOperand(true);
+  const auto invert = joinOperand(false);
   for (auto index : state) {
     if (index == 0) {
       state.setCounter(
