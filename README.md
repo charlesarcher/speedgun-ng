@@ -400,19 +400,20 @@ auto spreadOf(const std::vector<double>& times, double& spread) -> bool
   if (times.empty()) {
     return false;
   }
-  const auto span = std::ranges::minmax(times);
-  if (span.min <= 0.0) {
+  double lo = times[0];
+  double hi = times[0];
+  for (const double value : times) {
+    lo = value < lo ? value : lo;
+    hi = value > hi ? value : hi;
+  }
+  if (lo <= 0.0) {
     return false;
   }
-  spread = (span.max - span.min) / span.min * 100.0;
+  spread = (hi - lo) / lo * 100.0;
   return true;
 }
-
-SG_BENCHMARK(bmHashRows)
-    .repetitions(5)
-    .addStatistic("spread", sg::StatUnit::PERCENTAGE, &spreadOf);
 ```
-`spread=    0.110` prints beside the built-in statistics with the percentage unit the registration declared, and the names `mean`, `median`, `sd`, `cv`, `min`, `max` and `n` stay reserved: a callback registered under one of them breaches its precondition at the call. See [custom statistics](docs/pages/harness.md#custom-statistics).
+`BenchmarkHandle::addStatistic("spread", sg::StatUnit::PERCENTAGE, &spreadOf)` attaches the callback to the family. `spread=    0.110` then prints beside the built-in statistics with the percentage unit the registration declared, and the names `mean`, `median`, `sd`, `cv`, `min`, `max` and `n` stay reserved: a callback registered under one of them breaches its precondition at the call. See [custom statistics](docs/pages/harness.md#custom-statistics).
 
 ### Aggregate-only reporting
 

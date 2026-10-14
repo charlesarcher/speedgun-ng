@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cstdint>
 #include <vector>
 
@@ -20,18 +19,23 @@ auto spreadOf(const std::vector<double>& times, double& spread) -> bool
   if (times.empty()) {
     return false;
   }
-  const auto span = std::ranges::minmax(times);
-  if (span.min <= 0.0) {
+  double lo = times[0];
+  double hi = times[0];
+  for (const double value : times) {
+    lo = value < lo ? value : lo;
+    hi = value > hi ? value : hi;
+  }
+  if (lo <= 0.0) {
     return false;
   }
-  spread = (span.max - span.min) / span.min * 100.0;
+  spread = (hi - lo) / lo * 100.0;
   return true;
 }
+// sg-example:end custom-statistics
 
 SG_BENCHMARK(bmHashRows)
     .repetitions(5)
     .addStatistic("spread", sg::StatUnit::PERCENTAGE, &spreadOf);
-// sg-example:end custom-statistics
 
 auto main(int argc, char** argv) -> int
 {
