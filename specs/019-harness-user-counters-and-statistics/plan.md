@@ -178,7 +178,8 @@ test/
 ├── source/harness_time_unit_test.cpp         # Edited: resolution moves to
 │                                             #   the start of the run
 ├── example_run.sh                     # Added: runs every docs example and
-│                                      #   fails on FAILED or SKIPPED
+│                                      #   fails on FAILED and on undeclared
+│                                      #   SKIPPED rows (D-15)
 └── loop_shape.sh, time_source_gate.sh # unchanged, both stay green
 
 example/
@@ -222,6 +223,7 @@ the existing `add_example` mechanism.
 | R-12 | One example file per main-page section under `example/docs/`, with a new `example_run` CTest gate | D-12 |
 | R-13 | The drift tool gains the six titles, the 550-line cap, and the region ownership check | D-13 |
 | R-14 | Constitution IV.1 and Principle VIII amend to the build-and-run obligation at 2.20.0 | D-14 |
+| R-15 | The run check passes a `SKIPPED` row only against a matching `// example-run: expect-skip <reason>` marker of the example file, with the four outcomes fixture-pinned | D-15 |
 
 ### Logical view: the counter store and the flag pass
 
@@ -422,7 +424,7 @@ wall-clock bound.
 | C-6 aggregate-only | each mode hides repetition rows from the console and keeps the aggregate; a single-run row never disappears | `test/source/harness_aggregates_only_test.cpp` |
 | C-7 complexity | a scripted quadratic family reports its class, coefficient, and RMS for the time and for each named quantity; a fixed curve and a user function are honored; `AUTOMATIC` picks the planted curve; a one-instance family and a non-positive N state the named reason | `test/source/harness_complexity_test.cpp` |
 | C-8 docs and leftovers | the six new sections, the quick-reference rows, the fixed fixture/capture/template snippets, the rewritten pause and unit texts, and the rewritten internal guide paragraphs; the drift gate passes | `tools/docs/example_drift.py`, prose gate, review |
-| C-9 runnable examples | every section example runs and prints a result row per registered benchmark, with no FAILED and no SKIPPED row | `test/example_run.sh` |
+| C-9 runnable examples | every section example runs and prints a result row per registered benchmark, no FAILED row stands, and every SKIPPED row matches an expected-skip marker of its file | `test/example_run.sh` |
 | whole surface | every hard gate of Principle VIII at the feature head, the time-source gate included | SC-06 run of the CI matrix |
 
 **Precondition violations** follow the established pattern: the scenario

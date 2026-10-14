@@ -531,7 +531,8 @@ travels with every capability but delivers value after them.
 **Independent Test**: for every main-page section, old and new,
 extract its region, run the example that owns it, and check every
 registered benchmark in that example prints a result row with no
-`FAILED` row and no skipped row; check the drift gate passes over the
+`FAILED` row; every skipped row matches an expected-skip marker of
+the example file; check the drift gate passes over the
 page.
 
 **Acceptance Scenarios**:
@@ -782,7 +783,10 @@ page.
 - **FR-034**: A CTest check shall run each section example with a
   short minimum time, pass only when every registered benchmark of
   the example prints a result row, and fail on any row that reads
-  `FAILED` or skipped. CI shall run this check.
+  `FAILED`. A `SKIPPED` row shall pass only when the example file
+  carries a matching expected-skip marker before the run, and an
+  expected-skip marker that prints no `SKIPPED` row shall fail the
+  check (research D-15). CI shall run this check.
 - **FR-035**: A reader shall be able to build and run any section
   example with one documented command named in the docs.
 - **FR-036**: Constitution IV.1 shall be amended at the next minor
@@ -950,7 +954,12 @@ page.
 - **SC-10**: Every main-page section, from D1 and from this spec, has
   an example under `example/` that CI builds and runs, and the run
   check shows a result row for every registered benchmark of every
-  such example, with no `FAILED` row and no skipped row.
+  such example, `FAILED` rows are absent, and every `SKIPPED` row
+  matches an expected-skip marker of that example file (D-15).
+- **SC-14**: The run check fixtures pin the four outcomes: an
+  undeclared skip fails the check, a declared skip whose reason
+  matches passes, an expected skip that never prints fails, and a
+  `FAILED` row fails (FR-034).
 - **SC-11**: A scripted run whose body closes two pause pairs in
   every iteration of a ten-thousand-iteration calibrated run
   completes with every column netted, and its reservation stays at
