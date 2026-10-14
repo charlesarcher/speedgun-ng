@@ -797,8 +797,7 @@ public:
     // one to its state at the attempt site beside the recorder it plans, and
     // the callback state, the sole holder of a null sink, opens no window and
     // falls to the precondition above.
-    if (m_recorder->count() + 2 > m_recorder->capacity())
-    {
+    if (m_recorder->count() + 2 > m_recorder->capacity()) {
       // The recorder keeps its room for the window's own points, and
       // the pair closes through the slot (FR-052).
       m_pauseFoldPair = true;
