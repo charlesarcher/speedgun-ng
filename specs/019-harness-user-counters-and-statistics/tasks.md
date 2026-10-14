@@ -1,0 +1,334 @@
+# Tasks: Harness User Counters and Statistics
+
+**Input**: Design documents from `specs/019-harness-user-counters-and-statistics/`
+
+**Prerequisites**: plan.md, spec.md, research.md (D-01..D-14),
+data-model.md (E-01..E-08), contracts/ (five files), quickstart.md
+
+**Tests**: Included. FR-050 fixes TDD mode: each story's test file is
+written first and observed failing before its implementation tasks.
+
+**Organization**: Tasks are grouped by user story. Every task carries
+exact file paths; constraints from data-model.md and contracts/ are
+quoted so no bound is left to implementation-time discretion.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: User story ownership (US1..US8 from spec.md)
+- Setup, Foundational, and Polish tasks carry no story label
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: The version effect the feature head must carry from the
+first build (FR-048, plan.md version table).
+
+- [ ] T001 In `CMakeLists.txt`, raise `project(speedgun-ng VERSION)` from 0.8.0 to 0.9.0 and the `speedgun-ng_harness` archive `SOVERSION` from 4 to 5; the `speedgun-ng` archive `SOVERSION` stays 2 (FR-048)
+
+**Checkpoint**: `cmake --preset=ci-rocky && cmake --build build`
+configures and builds at 0.9.0.
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: The counter types, the fixed store, and the result-model
+extensions every P1 story reads.
+
+**CRITICAL**: No user story work begins until this phase is complete.
+
+- [ ] T002 In `include/speedgun-ng/benchmark.hpp`, add the public counter vocabulary with doxygen blocks: `enum class CounterFlag : std::uint32_t { NONE = 0, RATE = 1u << 0, AVG_THREADS = 1u << 1, ITERATION_INVARIANT = 1u << 2, AVG_ITERATIONS = 1u << 3, INVERT = 1u << 31 }` with a `constexpr operator|`, `enum class CounterBase : std::uint8_t { K1000, K1024 }`, class `Counter` (value, flags, base; defaults `0.0`, `NONE`, `K1000`), `inline constexpr std::size_t kMaxUserCounters = 16`, and `inline constexpr std::size_t kMaxCounterNameBytes = 32` (E-02, FR-001, FR-002, research D-01)
+- [ ] T003 In `source/harness/runner.cpp` (state detail) implement `State::setCounter(std::string_view, const Counter&)` over a `std::array<CounterSlot, kMaxUserCounters>` of fixed slots with inline 32-byte name buffers, opened inside the timed loop with no allocation. Enforce, with reasons that state the bound: "A benchmark shall carry at most `kMaxUserCounters` (16) named counters; a further name fails the run with a reason stating the cap", "A name longer than `kMaxCounterNameBytes` minus one shall fail the run with a reason stating the bound", "A second `setCounter` for a used name shall carry equal flags and base; a difference fails the run naming that name", and the metric-label collision rule "A counter name equal to an attached metric label shall fail the run naming the collision" (contracts/user-counters.md, FR-001, FR-007, FR-008, spec Edge Cases; depends on T002)
+- [ ] T004 In `include/speedgun-ng/benchmark.hpp`, extend the result model: `RowKind` gains `BIG_O` and `RMS`; `ResultRow` gains `std::string label` and `std::vector<double> counters`; `BenchmarkResult` gains `std::vector<std::string> counterLabels`, `std::vector<Statistics> counterStats`, and `bool hideRepetitionRows`; no shipped field changes type (E-07, FR-006, FR-011, FR-022, FR-046)
+
+**Checkpoint**: The header types compile and the store opens names on a
+scripted run; user stories can proceed in parallel.
+
+## Phase 3: User Story 1 - Report user counters with flags (Priority: P1) - MVP
+
+**Goal**: A body sets named counters inside the timed loop; the runner
+applies the flags after the loop in the cited `Finish` order and the
+report prints one column per counter plus per-counter aggregate
+statistics (spec US1).
+
+**Independent Test**: "register a benchmark that sets two named counters
+on a scripted provider whose primary time is a fixed per-iteration
+value, run it, and read the printed columns against the values the
+cited `Finish` order produces for each flag, with the inverted form
+last" (spec.md US1).
+
+### Tests for User Story 1 (write first, observe failure)
+
+- [ ] T005 [P] [US1] Create `test/source/harness_user_counters_test.cpp` on the fake provider: flag-neutral column; rate over the primary time; iteration-invariant times iterations before the rate division; average-over-iterations divided by the count; invert applied last; combination flags in one run; re-exec modes for the seventeenth-name cap and the flag-change violation. Register `harness_user_counters_test` in `test/CMakeLists.txt` with the `${CMAKE_SOURCE_DIR}/source/harness` include directory and a CTest name equal to the target (contracts/user-counters.md, SC-01, SC-03)
+
+### Implementation for User Story 1
+
+- [ ] T006 [US1] In `source/harness/runner.cpp`, add the once-per-repetition flag pass after the loop, in the order rate, thread average, iteration-invariant, average-over-iterations, invert: "The rate divisor shall be the row's primary time in seconds: the CPU fold, the real fold under `useRealTime`, the manual sum under `useManualTime`"; "The thread-average divisor shall be one while threads are out of scope"; on a zero divisor or gap disclosure "the row prints the counter's flag-neutral value and a disclosure naming the zero divisor, never an infinity" (FR-003, FR-004, FR-005, research D-02, D-03)
+- [ ] T007 [US1] In `source/harness/report.cpp`, print counter columns after the metric fields in `counterLabels` order, "each printed as the flag-applied value divided by its base", with the disclosure token beside each counter column of a disclosed row (contracts/report-shape.md, FR-005, FR-006; depends on T006)
+- [ ] T008 [US1] In `source/harness/runner.cpp`, fill `BenchmarkResult::counterLabels` (name order fixed at the first row built) and `counterStats` with one `Statistics` per named counter "over the clean repetitions", excluding disclosed rows (E-07, FR-006; depends on T006)
+- [ ] T009 [P] [US1] Extend the report-shape gate to the counter columns: update the README sample report block and the comparator `tools/docs/report_shape.py` (registered in `test/CMakeLists.txt`), together with its fixture runner `test/example-drift-fixture/run_report_shape_fixtures.py`, so counter columns pass while the built-in fields keep their exact bytes (contracts/report-shape.md, SC-02)
+- [ ] T010 [P] [US1] Extend `test/loop_shape.sh` with a compiled body that calls `state.setCounter` inside `for (auto _ : state)` and keep the gate green: no allocation call and no out-of-line call inside the backward jump beyond the body's own call (FR-007)
+
+**Checkpoint**: US1 prints correct columns for every flag on scripted
+clocks; `ctest -R harness_user_counters_test` passes.
+
+## Phase 4: User Story 2 - Read throughput as bytes and items per second (Priority: P1)
+
+**Goal**: `setBytesProcessed` and `setItemsProcessed` open the two
+preset rate counters and print base-scaled rates over the primary time
+in all three timing modes (spec US2).
+
+**Independent Test**: "set `n` bytes per iteration on a scripted run
+whose primary time is fixed, and check the printed rate equals
+`n x iterations / primarySeconds`, scaled by the base the cited
+`SetBytesProcessed` chooses" (spec.md US2).
+
+### Tests for User Story 2 (write first, observe failure)
+
+- [ ] T011 [P] [US2] Create `test/source/harness_throughput_test.cpp`: the bytes rate over the scripted primary time; a `useRealTime` family dividing by the real column; a manual-time family reporting 2000 ns per iteration and 500 items dividing by the manual sum; the 1024 and 1000 base scaling on the printed value. Register `harness_throughput_test` in `test/CMakeLists.txt` (contracts/user-counters.md, FR-009, FR-010)
+
+### Implementation for User Story 2
+
+- [ ] T012 [US2] Add `State::setBytesProcessed(std::int64_t)` and `State::setItemsProcessed(std::int64_t)` to `include/speedgun-ng/benchmark.hpp` and their definitions on the runner store: `bytes_per_second` with the `RATE` flag and the `K1024` base, `items_per_second` with the `RATE` flag and the `K1000` base, each setting the value the body passes (E-03, FR-009, FR-010; depends on T003)
+
+**Checkpoint**: US2 prints exact rates in all three timing modes;
+`ctest -R harness_throughput_test` passes.
+
+## Phase 5: User Story 3 - Pause in every iteration; set the default unit in main (Priority: P1)
+
+**Goal**: The per-run pause allowance dies, the recorder bound follows
+the loop, and the default unit resolves when the run starts, making the
+shipped main-page sentences true (spec US3, PC-3, PC-4).
+
+**Independent Test**: "run a calibrated benchmark that pauses in every
+iteration on the fake provider and read its completed row; call
+`setDefaultTimeUnit` at the top of `main` before `speedgunMain` and
+check a `SG_BENCHMARK`-registered benchmark that calls no `unit` prints
+in the new unit" (spec.md US3).
+
+### Tests for User Story 3 (rewrite first, observe failure)
+
+- [ ] T013 [P] [US3] Rewrite `test/source/harness_pause_test.cpp`: delete the allowance-bound scenarios and the `ninthPause` re-exec mode; add a scenario whose body closes a `ScopedPause` in every iteration under scripted calibration and completes with every column netted; assert the source tree contains no `kMaxPausePerRun` constant or guard (FR-024, FR-025, FR-026)
+- [ ] T014 [P] [US3] Rewrite `test/source/harness_time_unit_test.cpp`: `setDefaultTimeUnit(kMicroseconds)` called in `main` before `speedgunMain` reaches macro registrations that call no `unit`; a `unit(kSeconds)` call still wins; the test-hook path without `speedgunMain` reads the process default at run start (FR-027)
+
+### Implementation for User Story 3
+
+- [ ] T015 [US3] In `source/harness/runner.cpp`, delete `kMaxPausePerRun` (the constant near `:80`), its guard, and its recorder capacity term (near `:356-359`); size each leaf's recorder at plan build between attempts so "A run's recorder points shall bound by `2 + 2 * iterations` per leaf, and the recorder shall reserve that many points at plan build between attempts"; an open pause at loop exit stays the existing contract violation (FR-024, FR-025, FR-026, research D-10)
+- [ ] T016 [US3] Change `RegistryEntry::timeUnit` to `std::optional<TimeUnit>` in `source/harness/detail/internal.hpp`; delete the registration-time capture at `source/harness/registry.cpp:50-56`; snapshot `getDefaultTimeUnit()` into the batch at `speedgunMain` entry; resolve each result's unit as the entry value, else the batch snapshot, else the process default read at run start (FR-027, research D-11)
+- [ ] T017 [US3] In the same commit range as T015 and T016, update the sentences the fixes make stale: the pause-allowance text in `README.md` (near `:242`) and `docs/pages/harness.md:296-298` and `:341-344`; the captured-at-registration unit text in `README.md:263` and `docs/pages/harness.md:402-405`; the `BenchmarkResult::timeUnit` doxygen at `include/speedgun-ng/benchmark.hpp:188-192` (FR-039, FR-041, contracts/run-fixes.md)
+
+**Checkpoint**: A pause-per-iteration calibrated run completes and the
+main-page unit promise holds; `ctest -R 'harness_pause_test|harness_time_unit_test'`
+passes.
+
+## Phase 6: User Story 4 - Mark a row with a label (Priority: P2)
+
+**Goal**: `setLabel` writes one string per row printed as the trailing
+` label=<text>` field, with the cited shared-label rule for the
+aggregate (spec US4).
+
+**Independent Test**: "set a label during the run of one scripted
+benchmark and check the printed row ends with its label in the trailing
+field; run repetitions whose labels disagree and check the aggregate
+line carries no label" (spec.md US4).
+
+### Tests for User Story 4 (write first, observe failure)
+
+- [ ] T018 [P] [US4] Create `test/source/harness_label_test.cpp`: the row ends with ` label=avx2`; the name column keeps its H1 bytes when no label stands; disagreeing repetition labels leave the aggregate unlabeled; a label containing a newline aborts the re-exec at `setLabel`. Register `harness_label_test` in `test/CMakeLists.txt` (contracts/statistics-and-labels.md, FR-011, FR-012, SC-03)
+
+### Implementation for User Story 4
+
+- [ ] T019 [US4] Add `State::setLabel(std::string_view)` to `include/speedgun-ng/benchmark.hpp` and its definition on the state detail, with the precondition "A label containing a newline character is a precondition violation at the call" and last-write-wins within a repetition; copy the string to `ResultRow::label` at row build in `source/harness/runner.cpp` (E-04, FR-011, research D-04; depends on T004)
+- [ ] T020 [US4] In `source/harness/report.cpp`, print ` label=<text>` after the name column, separated by two spaces, present only when the row carries a label; keep the label on the aggregate only "when every repetition's label is equal"; extend the README sample report block and the `tools/docs/report_shape.py` comparator with the field (FR-011, FR-012, SC-02, contracts/report-shape.md; depends on T019)
+
+**Checkpoint**: Labels print and the shared-label rule holds;
+`ctest -R harness_label_test` passes.
+
+## Phase 7: User Story 5 - Add custom statistics to the aggregate (Priority: P2)
+
+**Goal**: `addStatistic` registers a (name, unit, function) triple; the
+aggregate prints it among the built-in fields in the declared unit
+(spec US5).
+
+**Independent Test**: "add a statistic that returns the range of the
+repetition values on a scripted three-repetition run and check the
+printed value against the scripted times, in the declared unit; add a
+percentage statistic and check it prints with a percent meaning and
+without unit scaling" (spec.md US5).
+
+### Tests for User Story 5 (write first, observe failure)
+
+- [ ] T021 [P] [US5] Create `test/source/harness_custom_stats_test.cpp`: a `range` statistic of `StatUnit::TIME` prints among `mean=` and `sd=` in the row unit; a `StatUnit::PERCENTAGE` statistic prints unscaled; a function returning false prints no value while the run still reports; a name equal to `mean`, `median`, `sd`, `cv`, `min`, or `max` aborts the re-exec at the call. Register `harness_custom_stats_test` in `test/CMakeLists.txt` (contracts/statistics-and-labels.md, FR-013, FR-014, FR-015, SC-03)
+
+### Implementation for User Story 5
+
+- [ ] T022 [US5] Add `enum class StatUnit : std::uint8_t { TIME, PERCENTAGE }`, `using StatisticFunc = std::function<bool(const std::vector<double>& values, double& result)>`, and `BenchmarkHandle::addStatistic(std::string_view, StatUnit, const StatisticFunc&) -> BenchmarkHandle&` to `include/speedgun-ng/benchmark.hpp` and `source/harness/registry.cpp`, appending the triple to `RegistryEntry::statistics` in `source/harness/detail/internal.hpp` behind the standing precondition `m_entry != nullptr && !m_entry->runStarted` (FR-013, FR-046, research D-05)
+- [ ] T023 [US5] In `source/harness/runner.cpp`, compute each statistic over "the clean repetition values of the primary time, the same list the built-in `Statistics` consumes" after the built-in set is built, dropping a statistic whose function returns false; in `source/harness/report.cpp`, print the statistic fields after the built-ins in `addStatistic` order, `TIME` values in the row unit and `PERCENTAGE` values unscaled (FR-013, FR-014, FR-015; depends on T022)
+
+**Checkpoint**: Custom statistics print beside the built-ins in the
+declared unit; `ctest -R harness_custom_stats_test` passes.
+
+## Phase 8: User Story 6 - Show only the aggregates (Priority: P2)
+
+**Goal**: Two handle calls restrict the report of one family to
+aggregate rows while a single-run row never disappears (spec US6).
+
+**Independent Test**: "set each mode on a scripted three-repetition
+family and check the output it governs: the first mode shows no
+repetition rows, the second trims the console while the per-repetition
+rows remain in the other output channel the mode is defined against
+(today: with only the console alive, both modes trim the console)"
+(spec.md US6).
+
+### Tests for User Story 6 (write first, observe failure)
+
+- [ ] T024 [P] [US6] Create `test/source/harness_aggregates_only_test.cpp`: `reportAggregatesOnly` prints only the aggregate row for a three-repetition family; `displayAggregatesOnly` trims the console the same way while every stored row stays intact; a family with one run prints its single row under either mode. Register `harness_aggregates_only_test` in `test/CMakeLists.txt` (contracts/complexity-and-modes.md, FR-016, FR-017, FR-018)
+
+### Implementation for User Story 6
+
+- [ ] T025 [US6] Add `BenchmarkHandle::reportAggregatesOnly()` and `BenchmarkHandle::displayAggregatesOnly()` to `include/speedgun-ng/benchmark.hpp` and `source/harness/registry.cpp`; store the two booleans on `RegistryEntry` in `source/harness/detail/internal.hpp` behind the standing setter precondition; set `BenchmarkResult::hideRepetitionRows` when either mode stands (E-07, FR-016, FR-017, FR-046, research D-06)
+- [ ] T026 [US6] In `source/harness/report.cpp`, skip the repetition rows of a result whose `hideRepetitionRows` stands "unless no aggregate row exists", so "Neither mode shall hide a row that has no aggregate: a single-run instance prints its one row under either mode" (FR-016, FR-017, FR-018; depends on T025)
+
+**Checkpoint**: Both modes trim the console and single-run rows survive;
+`ctest -R harness_aggregates_only_test` passes.
+
+## Phase 9: User Story 7 - Fit the time against the problem size (Priority: P2)
+
+**Goal**: One least-squares fit per family prints, per fitted quantity,
+a BigO row and an RMS row: the primary time, each named user counter,
+each attached metric (spec US7, clarification 2026-10-14).
+
+**Independent Test**: "script a family whose per-iteration time is a
+known quadratic in N and check the reported class, coefficient, and RMS
+against the computed fit; check a user-supplied curve function is
+honored" (spec.md US7).
+
+### Tests for User Story 7 (write first, observe failure)
+
+- [ ] T027 [P] [US7] Create `test/source/harness_complexity_test.cpp`: a scripted quadratic family with `AUTOMATIC` reports the planted class, coefficient, and RMS for the time, for each named counter, and for each attached metric; a family fixed to the constant or N-cubed curve honors it whatever the RMS; a user-supplied `BigOFun` curve is honored; a one-instance family prints the reason naming the two-instance floor; an instance with a non-positive N prints the reason. Register `harness_complexity_test` in `test/CMakeLists.txt` with the `source/harness` include directory (contracts/complexity-and-modes.md, FR-019..FR-023, SC-04)
+
+### Implementation for User Story 7
+
+- [ ] T028 [US7] Create `source/harness/detail/complexity.hpp` (curve table for `ONE`, `N`, `N_SQUARED`, `N_CUBED`, `LOG_N`, `N_LOG_N`) and `source/harness/complexity.cpp` with the closed-form fit: "The coefficient shall minimize the relative-error least squares with the closed form `k = sum(f(N)/y) / sum((f(N)/y)^2)`" and "The RMS shall be the root-mean relative error times 100, printed unscaled by the unit multiplier"; `AUTOMATIC` "shall try each curve and keep the least RMS, with the constant curve as the fallback"; the harness target's `GLOB_RECURSE` at `CMakeLists.txt:191` collects the new file at the next configure (FR-021, research D-07)
+- [ ] T029 [US7] Add `State::setComplexityN(std::int64_t)` to `include/speedgun-ng/benchmark.hpp` and the state detail; add `enum class BigO : std::uint8_t { NONE, ONE, N, N_SQUARED, N_CUBED, LOG_N, N_LOG_N, AUTOMATIC }`, `using BigOFun = std::function<double(double n)>`, and both `BenchmarkHandle::complexity` overloads to the header and `source/harness/registry.cpp`, storing the selection on `RegistryEntry` behind the standing setter precondition (FR-019, FR-020, FR-046)
+- [ ] T030 [US7] In `source/harness/complexity.cpp` and `source/harness/runner.cpp`, assemble one fit per family after its instances report, per quantity (primary time, each named counter present in every instance, each attached metric), with "The instance N shall be the `setComplexityN` value when set, else the instance's range value"; carry the rows in one synthetic `BenchmarkResult` named after the family, pairs in the order time, counters in open order, metrics in attach order; a quantity missing from any instance ends that quantity's pair with the named reason (FR-022, FR-023, research D-08, D-09; depends on T028, T029, and on US1 for the counter quantities)
+- [ ] T031 [US7] In `source/harness/report.cpp`, print the fit pairs after the family's aggregate row in the exact shape `<family>  BIG_O  <quantity> <curve> (<coefficient>)` and `<family>  RMS    <quantity> <rms-percentage>%`, the time coefficient in the row unit and a counter or metric coefficient in that quantity's value (FR-022, contracts/report-shape.md; depends on T030)
+
+**Checkpoint**: A swept scripted family reports class, coefficient, and
+RMS per quantity; `ctest -R harness_complexity_test` passes.
+
+## Phase 10: User Story 8 - Read the page, copy the block, run the example (Priority: P3)
+
+**Goal**: Eighteen runnable example files own every main-page snippet,
+six new sections teach the new capabilities, and a CTest gate runs
+every example (spec US8).
+
+**Independent Test**: "for every main-page section, old and new,
+extract its region, run the example that owns it, and check every
+registered benchmark in that example prints a result row with no
+`FAILED` row and no skipped row; check the drift gate passes over the
+page" (spec.md US8).
+
+### Implementation for User Story 8
+
+- [ ] T032 [US8] Create the six feature example files `example/docs/user-counters.cpp`, `example/docs/throughput.cpp`, `example/docs/labels.cpp`, `example/docs/custom-statistics.cpp`, `example/docs/aggregates-only.cpp`, and `example/docs/complexity-fit.cpp`, each a complete program with the canonical includes and a `main` calling `speedgunMain`, each carrying the marked region comment the page copies (FR-032, FR-033, FR-049)
+- [ ] T033 [US8] Create the twelve D1-section example files under `example/docs/`, one per title in the `SECTIONS` list of `tools/docs/example_drift.py`, moving each marked region of `example/docs_snippets.cpp` verbatim into the file for its section, wrapped in a complete program (FR-032, research D-12)
+- [ ] T034 [US8] In `example/CMakeLists.txt`, wire all eighteen `example/docs/` files through `add_example` and the `run-examples` list, and delete `example/docs_snippets.cpp` together with its exclusion block (FR-033, research D-12; depends on T032, T033)
+- [ ] T035 [US8] Create `test/example_run.sh`: run every `run_` target of `example/docs/`, "fails when a registered benchmark of a file prints no result row, or prints `FAILED` or `SKIPPED`"; register the `example_run` CTest test in `test/CMakeLists.txt` (FR-034, FR-035, SC-10, research D-12; depends on T034)
+- [ ] T036 [P] [US8] In `README.md`, add the six feature sections in the D1 shape (one purpose sentence, one snippet region, one result sentence); add the Quick reference row per new API name (FR-029); update the "Reading the report" section to show the counter columns, the label field, the custom statistic fields, and the per-quantity fit rows (FR-030); fix the fixture, capture, and template snippets per the C-8 leftovers; and drop the six shipped entries from the planned-work list while it keeps structured machine-readable output and histogram output (FR-028, FR-030, FR-037, FR-038, FR-040, FR-042, FR-043, FR-049; depends on the features of the sections they teach)
+- [ ] T037 [P] [US8] In `docs/pages/harness.md`, add the detail section per new capability, and rewrite the internal "Coverage:" paragraphs at `:275-278`, `:313-315`, `:335-338`, `:383-386`, and `:410-416` as reader-facing sentences (FR-028, FR-031, Q-10)
+- [ ] T038 [US8] In `tools/docs/example_drift.py`, add the six new titles to `SECTIONS`, raise `PAGE_LINE_CAP` from 400 to 550 while `SECTION_LINE_CAP` holds at 25, and add the check that each page snippet region is a marked region of the example file named for its section; update the fixtures under `test/` for the drift tool; annotate the D1 budget note in `specs/018-docs-main-page/spec.md` as superseded (FR-044, SC-10, research D-13; depends on T032..T037)
+
+**Checkpoint**: `ctest -R example_run` passes and the drift gate covers
+the eighteen owners.
+
+## Phase 11: Polish & Cross-Cutting Concerns
+
+- [ ] T039 Amend `.specify/memory/constitution.md`: Principle IV gains IV.1's compiles-and-runs wording ("A main-page snippet shall come from an example CI builds and runs"), Principle VIII names the `example_run` check in its gate list, and the file records version 2.20.0 with the amendment record row, the lineage row, the footer, and the sync impact line, the format the 2.19.0 record shows (FR-036, research D-14)
+- [ ] T040 [P] Run quickstart.md sections 1 through 4 from the repository root (build, the six new executables, the two fixes, `example_run`) and record the results (SC-01..SC-05, SC-08, SC-09)
+- [ ] T041 [P] Run quickstart.md sections 5 through 7 (the full CTest suite, which carries the name check behind FR-045, `example_drift.py`, the prose gate, the constitution grep) and record the results (SC-06, SC-07)
+- [ ] T042 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (SC-06, Principle VIII)
+- [ ] T043 Build the `ci-coverage` preset from `CMakePresets.json`, run `ctest --test-dir build`, and confirm from the `cmake/coverage.cmake` report that "The coverage report keeps 100% line and branch over `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under `source/harness/`" (FR-047, SC-06)
+- [ ] T044 Main-page impact check (IV.1): confirm the six new README sections, their owning example files, and the region-ownership gate all shipped in the same change as the code they teach (FR-028, FR-036)
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: no dependencies
+- **Foundational (Phase 2)**: depends on Setup; blocks all user stories
+- **User Stories (Phases 3 to 10)**: depend on Foundational
+- **Polish (Phase 11)**: depends on the stories being delivered
+
+### User Story Dependencies
+
+- **US1 (P1)**: needs only Foundational
+- **US2 (P1)**: needs Foundational (T003's store); rides US1's flag pass
+  for its rate values, so schedule after US1's T006
+- **US3 (P1)**: independent of US1 and US2; blocks the shipped
+  counter examples of US8 per Q-7 (pause per iteration, default unit)
+- **US4 (P2)**: needs T004's `ResultRow::label`
+- **US5 (P2)**: independent of US1, US2, US3, US4
+- **US6 (P2)**: independent; reads only the row kinds already shipped
+- **US7 (P2)**: the time-quantity fit is independent; the
+  counter-quantity rows require US1 (T006, T008)
+- **US8 (P3)**: the six feature sections document US1 to US7 and the
+  examples run them; the pause and unit sections require US3
+
+### Within Each User Story
+
+- Tests are written first and observed failing (FR-050, TDD mode)
+- Store and header types before report printing
+- A story is complete when its CTest executable passes and the
+  existing gates named in plan.md stay green
+
+### Parallel Opportunities
+
+- T005, T009, T010 within US1 touch three different files
+- T013 and T014 are different test files
+- T018, T021, T024, T027 are four separate test files for four separate
+  stories and can all be written once Foundational is done
+- T036 and T037 are README and guide, different files
+- T040 and T041 split the quickstart walkthrough
+- After Foundational, whole stories run in parallel across developers;
+  within a story the test task and the independent-shape tasks hold the
+  [P] marks above
+
+## Parallel Example: User Story 1
+
+```bash
+# After Foundational, launch together (different files):
+Task: "Create test/source/harness_user_counters_test.cpp (T005)"
+# After T006 lands, launch together (different files):
+Task: "Extend README sample block and tools/docs/report_shape.py (T009)"
+Task: "Extend test/loop_shape.sh with a setCounter body (T010)"
+```
+
+## Implementation Strategy
+
+### MVP First (User Story 1)
+
+1. Complete Phase 1 (T001) and Phase 2 (T002..T004).
+2. Complete Phase 3 (T005..T010) and validate independently: this is
+   the MVP, the counter surface the whole feature rides.
+3. Note for the first shipped docs: Q-7 makes US3 (T013..T017) a
+   precondition of US8's counter examples, so a shippable documentation
+   milestone needs US1, US2, and US3 together.
+
+### Incremental Delivery
+
+1. Foundational, then US1: counters print columns (MVP).
+2. US2: throughput presets ride the same path.
+3. US3: the two H3 promises become true and their stale texts die.
+4. US4, US5, US6: label, statistics, modes, each one CTest executable.
+5. US7: the family fit prints per-quantity rows.
+6. US8: the page, the eighteen examples, the `example_run` gate.
+7. Polish: the constitution amendment, the sanitizer, thread-sanitizer,
+   and coverage matrices, the quickstart walkthrough.
+
+## Notes
+
+- [P] tasks touch different files with no dependency on an open task
+- Each story's checkpoint is an independent validation point
+- Every bound quoted above is a testable precondition; the re-exec
+  pattern (plan.md Test Plan) holds the abort cases
+- Commit cadence follows the repository rule (`<Section>: <one-line
+  imperative>`), one atomic commit per task group or finer
