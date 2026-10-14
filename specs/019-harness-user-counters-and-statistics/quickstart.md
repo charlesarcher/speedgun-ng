@@ -57,10 +57,11 @@ ctest --test-dir build --output-on-failure -R example_run
 The script runs every `docs_` binary through its `run_docs_` target
 and fails when a registered
 benchmark of a file prints no result row or prints `FAILED`; the
-"Skips" example declares its intentional skip with an
-`// example-run: expect-skip <reason>` marker, and the check fails on
-an undeclared skip or an unprinted expectation (FR-034, FR-035,
-D-15, SC-14).
+"Skips" example registers one instance that prints a row and declares
+its intentional skip with an
+`// example-run: expect-skip <instance>: <message>` marker, and the
+check fails on an undeclared skip or an unprinted expectation
+(FR-034, FR-035, D-15, SC-14).
 
 ## 5. The gates stay green (SC-06, SC-07, SC-10)
 

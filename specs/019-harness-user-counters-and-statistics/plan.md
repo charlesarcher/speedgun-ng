@@ -225,7 +225,7 @@ the existing `add_example` mechanism.
 | R-12 | One example file per main-page section under `example/docs/`, with a new `example_run` CTest gate | D-12 |
 | R-13 | The drift tool gains the six titles, the 550-line cap, and the region ownership check | D-13 |
 | R-14 | Constitution IV.1 and Principle VIII amend to the build-and-run obligation at 2.20.0 | D-14 |
-| R-15 | The run check passes a `SKIPPED` row only against a matching `// example-run: expect-skip <reason>` marker of the example file, with the four outcomes fixture-pinned | D-15 |
+| R-15 | The run check pairs each `SKIPPED` row with a `// example-run: expect-skip <instance>: <message>` marker of the example file, one-to-one, with the four outcomes fixture-pinned | D-15 |
 
 ### Logical view: the counter store and the flag pass
 

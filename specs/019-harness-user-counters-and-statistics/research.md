@@ -264,8 +264,10 @@ regions move.
 
 **Rationale**: the Q-9 recommendation adopted in the spec, and the run
 check is the obligation FR-034 states: a snippet that drifts into a
-fragment cannot hide behind a compiling-only block. Snake_case file
-names and the `docs_` target prefix keep the eighteen targets in the
+fragment cannot hide behind a compiling-only block. Each example file
+owns its snippets: the page copies the marked region, and a
+README-only edit fails the drift gate. Snake_case file names and the
+`docs_` target prefix keep the eighteen targets in the
 shape the shipped `add_example` helper and the `run_` target
 convention use, and the CTest name space stays uniform.
 
@@ -311,16 +313,19 @@ pattern for added obligations.
 
 ## D-15: The run check asserts the skips an example declares
 
-**Decision**: An example file declares its intentional skip with a
-comment marker beside the registration that causes it:
-`// example-run: expect-skip <reason>`. `test/example_run.sh` extracts
-the markers of each file it runs and asserts set equality against the
-printed rows: every `SKIPPED: <reason>` row must match one marker of
-that file, and every marker must match one printed row. Any other
+**Decision**: The "Skips" example registers one instance that runs
+and prints a row, beside the expected skip instance. An example file
+declares its intentional skip with a comment marker beside the
+registration that causes it:
+`// example-run: expect-skip <instance>: <message>`. `test/example_run.sh`
+extracts the markers of each file it runs and asserts one-to-one
+pairing with the printed rows: every `SKIPPED: <message>` row under
+an instance name must match one marker of that file by instance and
+message, and every marker must match one printed row. Any other
 `SKIPPED` row, and any `FAILED` row, fails the check. Fixture cases
-pin the four outcomes: an undeclared skip fails, a declared matching
-skip passes, an expected skip that never prints fails, and a `FAILED`
-row fails (FR-034, SC-14).
+pin the four outcomes: an undeclared skip fails, a matching
+declaration passes, an expected skip that never prints fails, and a
+`FAILED` row fails (FR-034, SC-14).
 
 **Rationale**: the declaration stands beside the registration that
 skips, so a reader copying the block sees why that benchmark skips;
