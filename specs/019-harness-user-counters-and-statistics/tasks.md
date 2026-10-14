@@ -96,7 +96,7 @@ last" (spec.md US1).
 
 ### Tests for User Story 1 (write first, observe failure)
 
-- [ ] T010 [P] [US1] Create `test/source/harness_user_counters_test.cpp` on the fake provider: flag-neutral column; rate over the primary time; iteration-invariant times iterations before the rate division; average-over-iterations divided by the count; invert applied last; combination flags in one run; re-exec modes for the seventeenth-name cap and the flag-change violation. Register `harness_user_counters_test` in `test/CMakeLists.txt` with the `${CMAKE_SOURCE_DIR}/source/harness` include directory and a CTest name equal to the target (contracts/user-counters.md, SC-01, SC-03)
+- [ ] T010 [P] [US1] Create `test/source/harness_user_counters_test.cpp` on the fake provider: flag-neutral column; rate over the primary time; iteration-invariant times iterations before the rate division; average-over-iterations divided by the count; invert applied last; combination flags in one run; re-exec modes for the seventeenth-name cap and the flag-change violation. Register `harness_user_counters_test` in `test/CMakeLists.txt` with the `${CMAKE_SOURCE_DIR}/source/harness` include directory and a CTest name equal to the target (contracts/user-counters.md, FR-001 to FR-008, SC-01, SC-03)
 
 ### Implementation for User Story 1
 
@@ -106,7 +106,7 @@ last" (spec.md US1).
 
 - [ ] T013 [US1] In `source/harness/runner.cpp`, fill `BenchmarkResult::counterLabels` (name order fixed at the first row built) and `counterStats` with one `Statistics` per named counter "over the clean repetitions", excluding disclosed rows (E-07, FR-006; depends on T011)
 
-- [ ] T014 [P] [US1] Extend the report-shape gate to the counter columns: teach the comparator `tools/docs/report_shape.py` (registered in `test/CMakeLists.txt`) and its fixture runner `test/example-drift-fixture/run_report_shape_fixtures.py` so counter columns pass while the built-in fields keep their exact bytes; the README sample report block keeps its exact bytes, because its example registers no counter and the comparator must still pass the block untouched (contracts/report-shape.md, SC-02)
+- [ ] T014 [P] [US1] Extend the report-shape gate to the counter columns: teach the comparator `tools/docs/report_shape.py` (registered in `test/CMakeLists.txt`) and its fixture runner `test/example-drift-fixture/run_report_shape_fixtures.py` so counter columns pass while the built-in fields keep their exact bytes; the README sample report block keeps its exact bytes, because its example registers no counter and the comparator must still pass the block untouched (contracts/report-shape.md, FR-006, SC-02)
 
 - [ ] T015 [P] [US1] Extend `test/loop_shape.sh` with a compiled body that calls `state.setCounter` inside `for (auto _ : state)` and keep the gate green: no allocation call and no out-of-line call inside the backward jump beyond the body's own call (FR-007)
 
@@ -275,11 +275,11 @@ the eighteen owners.
 
 - [ ] T040 Amend `.specify/memory/constitution.md`: Principle IV gains IV.1's compiles-and-runs wording ("A main-page snippet shall come from an example CI builds and runs"), Principle VIII names the `example_run` check in its gate list, and the file records version 2.20.0 with the amendment record row, the lineage row, the footer, and the sync impact line, the format the 2.19.0 record shows (FR-036, research D-14)
 
-- [ ] T041 [P] Run quickstart.md sections 1 through 4 from the repository root (build, the two fixes, the six new executables, `example_run`) and record the results (SC-01..SC-05, SC-08, SC-09)
+- [ ] T041 [P] Run quickstart.md sections 1 through 4 from the repository root (build, the two fixes, the six new executables, `example_run`) and record the results (FR-034, FR-035, SC-01..SC-05, SC-08, SC-09)
 
 - [ ] T042 [P] Run quickstart.md sections 5 through 7 (the full CTest suite, which carries the name check behind FR-045, `example_drift.py`, the prose gate, the constitution grep) and record the results (SC-06, SC-07)
 
-- [ ] T043 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (SC-06, Principle VIII)
+- [ ] T043 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (FR-050, SC-06, Principle VIII)
 
 - [ ] T044 Build the `ci-coverage` preset from `CMakePresets.json`, run `ctest --test-dir build`, and confirm from the `cmake/coverage.cmake` report that "The coverage report keeps 100% line and branch over `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under `source/harness/`" (FR-047, SC-06)
 
