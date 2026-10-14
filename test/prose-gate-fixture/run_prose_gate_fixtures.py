@@ -63,7 +63,7 @@ PROSE_FIXTURES = (
     "comments.cmake",
 )
 
-CASE_KINDS = ("commit", "merge", "rename", "binary", "empty-range")
+CASE_KINDS = ("commit", "merge", "rename", "delete", "binary", "empty-range")
 
 GIT_IDENTITY = (
     "-c",
@@ -211,6 +211,16 @@ def load_cases(cases_path: Path) -> list[dict[str, Any]]:
         records = expect.get("records")
         if records is not None and not isinstance(records, int):
             die(f"commit case {name} has a non-integer expect.records")
+        prose_expect = expect.get("prose")
+        if prose_expect is not None:
+            if not isinstance(prose_expect, dict):
+                die(f"commit case {name} has a non-mapping expect.prose")
+            if not isinstance(prose_expect.get("exit"), int):
+                die(f"commit case {name} needs an integer expect.prose.exit")
+            for count in ("sources", "units", "findings", "skipped"):
+                value = prose_expect.get(count)
+                if value is not None and not isinstance(value, int):
+                    die(f"case {name} has a non-integer expect.prose.{count}")
 
         if kind != "empty-range" and not isinstance(raw.get("title"), str):
             die(f"commit case {name} needs a string title")
@@ -228,6 +238,12 @@ def load_cases(cases_path: Path) -> list[dict[str, Any]]:
                 die(f"commit case {name} of kind rename needs a rename from/to mapping")
         if kind == "binary" and not isinstance(raw.get("binary_file"), str):
             die(f"commit case {name} of kind binary needs a binary_file path")
+        if kind == "delete":
+            if not isinstance(raw.get("setup_commit"), dict):
+                die(f"commit case {name} of kind delete needs a setup_commit mapping")
+            gone = raw.get("delete")
+            if not isinstance(gone, dict) or "path" not in gone:
+                die(f"commit case {name} of kind delete needs a delete path mapping")
         cases.append(raw)
     return cases
 
@@ -431,6 +447,31 @@ def build_case_commit(
             "-m",
             assemble_message(case.get("title"), case.get("body"), case.get("footer")),
         )
+    elif kind == "delete":
+        setup = case["setup_commit"]
+        commit_side_files(repo, setup)
+        run_git(
+            repo,
+            "commit",
+            "-m",
+            assemble_message(
+                setup.get("title"), setup.get("body"), setup.get("footer")
+            ),
+        )
+        # The setup commit is the range base, so the case range holds the
+        # removal alone beside a file that stands at the head.
+        setup_sha = git_head(repo)
+        run_git(repo, "rm", "--quiet", str(case["delete"]["path"]))
+        kept = str(setup.get("keep") or "fixture/kept.c")
+        write_numbered_lines(repo / kept, int(case.get("kept_lines", 2)))
+        run_git(repo, "add", "-A")
+        run_git(
+            repo,
+            "commit",
+            "-m",
+            assemble_message(case.get("title"), case.get("body"), case.get("footer")),
+        )
+        return setup_sha, git_head(repo)
     else:
         # Plain commit: a unique new text file with exactly changed_lines
         # added lines, so `git show --numstat -M` sums to exactly that count.
@@ -1022,6 +1063,9 @@ def run_timing_case() -> tuple[int, list[dict[str, Any]]]:
 
 
 SUMMARY_SOURCES_RE = re.compile(r"prose-lint: (\d+) sources,")
+SUMMARY_RE = re.compile(
+    r"prose-lint: (\d+) sources, (\d+) units examined, (\d+) findings, (\d+) skipped"
+)
 
 
 COMMIT_FINDING_RE = re.compile(
@@ -1050,7 +1094,9 @@ def scope_field_text(case: dict[str, Any], scope: str) -> str:
 
 
 def evaluate_commit_case(
-    case: dict[str, Any], proc: subprocess.CompletedProcess[str]
+    case: dict[str, Any],
+    proc: subprocess.CompletedProcess[str],
+    prose_proc: subprocess.CompletedProcess[str] | None = None,
 ) -> tuple[str, str, str]:
     """PASS only when exit code, findings, scopes, and records all match."""
     expect = case["expect"]
@@ -1080,6 +1126,25 @@ def evaluate_commit_case(
         text = scope_field_text(case, str(scope))
         if not any(tok and tok in text for tok in tokens):
             return expected, observed + f" scope:{scope}-mismatch", "FAIL"
+    want_prose = expect.get("prose")
+    if isinstance(want_prose, dict):
+        if prose_proc is None:
+            return expected + " prose:absent", observed + " prose:absent", "FAIL"
+        summary = SUMMARY_RE.search(prose_proc.stdout)
+        counts = {
+            "exit": prose_proc.returncode,
+            "sources": int(summary.group(1)) if summary else -1,
+            "units": int(summary.group(2)) if summary else -1,
+            "findings": int(summary.group(3)) if summary else -1,
+            "skipped": int(summary.group(4)) if summary else -1,
+        }
+        for key in ("exit", "sources", "units", "findings", "skipped"):
+            if key not in want_prose:
+                continue
+            expected += f" prose.{key}:{want_prose[key]}"
+            observed += f" prose.{key}:{counts[key]}"
+            if counts[key] != want_prose[key]:
+                return expected, observed, "FAIL"
     return expected, observed, "PASS"
 
 
@@ -1099,9 +1164,18 @@ def run_commit_cases(
             stage_repo,
             rules,
         )
-        expected, observed, result = evaluate_commit_case(case, proc)
+        prose_proc = None
+        if isinstance(case["expect"].get("prose"), dict):
+            prose_proc = run_gate(
+                ["--check", "prose", "--base", base, "--head", head],
+                stage_repo,
+                rules,
+            )
+        expected, observed, result = evaluate_commit_case(case, proc, prose_proc)
         print_verdict(case["name"], "commit", expected, observed, result)
         echo(proc)
+        if prose_proc is not None:
+            echo(prose_proc)
         if result == "FAIL":
             failures += 1
         rows.append(

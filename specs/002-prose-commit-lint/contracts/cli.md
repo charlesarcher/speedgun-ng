@@ -149,6 +149,9 @@ lines. Therefore:
   pull request's own rule data edit is what runs.
 - Discovery uses `git ls-files` at the checked-out commit, so untracked
   scratch files never change a verdict in either direction.
+- A range names every path its commits touched, including one it removed.
+  Paths absent at the head stand outside the scan, so a deletion earns no
+  report line for the file the change took away.
 - Ordering is by location then rule id, with no map iteration order leaking
   into output.
 

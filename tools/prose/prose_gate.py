@@ -587,7 +587,13 @@ def in_narrowed(path: str, paths: list[str] | None) -> bool:
 def collect_candidates(
     repo: Path, mode: str, base: str | None, head: str
 ) -> tuple[list[str], dict[str, dict[int, str]] | None]:
-    """Tracked in-scope-range paths plus the range authorship map."""
+    """Tracked in-scope-range paths plus the range authorship map.
+
+    A range that deletes a file names that path in its diff, and the file
+    stands nowhere at the head, so the path is left out of the candidate
+    list here. Reading it would report a skip for a file the change removed,
+    which is the change's own work and nothing for the gate to say about it.
+    """
     if mode == "tree":
         listing = run_git(repo, ["ls-files"], "discovery")
         return sorted(p for p in listing.split("\n") if p), None
@@ -598,7 +604,12 @@ def collect_candidates(
         "range",
     )
     authorship = parse_authorship(diff)
-    return sorted(authorship), authorship
+    present = set(
+        run_git(
+            repo, ["ls-tree", "-r", "--name-only", "--full-tree", head], "head listing"
+        ).split("\n")
+    )
+    return sorted(p for p in authorship if p in present), authorship
 
 
 # --- comment extraction (T013) ----------------------------------------------
