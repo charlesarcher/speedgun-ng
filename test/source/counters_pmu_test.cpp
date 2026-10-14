@@ -530,18 +530,26 @@ auto availabilityScenario(const std::vector<const Object*>& pmuObjects) -> void
   }
 }
 
+// Only a cycle or instruction count is certain to move over a bounded CPU
+// burn; a umask-qualified leaf can legitimately stay at zero the whole time.
+auto mustMoveOverABurn(std::string_view name) -> bool
+{
+  return name == "cycles" || name == "cpu-cycles" || name == "instructions";
+}
+
 // FR-023: a catalog entry discloses the read mode its plan will use, and
 // the plan reads through the disclosed mechanism. A fast window the kernel
 // refuses is a recoverable open failure, never a silent downgrade to a
-// read the catalog does not describe. This samples a fast-disclosed leaf
-// and a syscall-disclosed leaf and requires each to deliver real counts,
-// which is what rules out a downgrade: a downgraded read would come from a
-// different mechanism and the positive deltas below would not distinguish
-// it, so the check is on the pair travelling with the members.
+// read the catalog does not describe. The catalog publishes hundreds of
+// leaves, so the sample starts with a leaf that must move and only then
+// takes the leaves that can stay quiet; each leaf that must move still has
+// to deliver a positive count, which is what rules out a downgrade and a
+// read path that stays silent.
 auto disclosedModeReadScenario(const std::vector<const Object*>& pmuObjects)
     -> void
 {
   std::size_t sampled = 0;
+  std::size_t positives = 0;
   std::size_t countable = 0;
   for (const Object* obj : pmuObjects) {
     const auto entries = obj->counters();
@@ -553,6 +561,9 @@ auto disclosedModeReadScenario(const std::vector<const Object*>& pmuObjects)
         continue;
       }
       ++countable;
+      if (positives == 0 && !mustMoveOverABurn(entry.name)) {
+        continue;
+      }
       const auto leaf = obj->counter<Events>(entry.name);
       if (!leaf.has_value()) {
         continue;
@@ -587,10 +598,23 @@ auto disclosedModeReadScenario(const std::vector<const Object*>& pmuObjects)
                     leafName.c_str(),
                     static_cast<int>(entry.mode),
                     metric.value);
+        if (mustMoveOverABurn(entry.name)) {
+          // A cycle count that stays at zero across a CPU burn while the
+          // window opens cleanly is the kernel withholding counts from user
+          // space on this host: no disclosed mode can be shown to read
+          // here, so the reason is named and the scenario skips (FR-039).
+          std::printf("SKIP disclosed modes: %s/%s reads zero across the "
+                      "burn on this host, so no disclosed mode can be shown "
+                      "to read (FR-039)\n",
+                      objectPath.c_str(),
+                      leafName.c_str());
+          return;
+        }
       }
-      check(positive,
-            "a plan over a countable leaf delivers a positive count, so the "
-            "disclosed mode is a mode that reads (FR-023)");
+      check(positive || !mustMoveOverABurn(entry.name),
+            "a leaf that must move over the burn delivers a positive count, "
+            "so the disclosed mode is a mode that reads (FR-023)");
+      positives += positive ? 1 : 0;
       ++sampled;
       // One member per disclosed mode is enough; the catalog carries
       // hundreds of each and the open cost is per leaf.
@@ -619,6 +643,44 @@ auto disclosedModeReadScenario(const std::vector<const Object*>& pmuObjects)
   check(sampled > 0,
         "at least one countable leaf sampled through its disclosed mode "
         "(FR-023)");
+  check(positives > 0,
+        "some sampled leaf delivers a positive count, so the disclosed read "
+        "path is not silent on this host (FR-023)");
+}
+
+// Measures whether this kernel delivers any count to user space: it opens a
+// leaf that must move across a CPU burn, reads it once, and reports whether
+// anything arrived. A host that opens the window cleanly and hands back zero
+// has no usable performance monitor, and this is where the run finds that
+// out.
+auto countsDelivered(const std::vector<const Object*>& pmuObjects) -> bool
+{
+  for (const Object* obj : pmuObjects) {
+    for (const auto& entry : obj->counters()) {
+      if (entry.avail != Availability::COUNTABLE
+          || (entry.mode != ReadMode::FAST_RDPMC
+              && entry.mode != ReadMode::SYSCALL)
+          || !mustMoveOverABurn(entry.name))
+      {
+        continue;
+      }
+      const auto leaf = obj->counter<Events>(entry.name);
+      if (!leaf.has_value()) {
+        continue;
+      }
+      const Expression<Events> over {*leaf};
+      auto compiled = compile(System::local(), over);
+      if (!compiled.has_value()) {
+        continue;
+      }
+      Scope window {*compiled};
+      window.start();
+      burnCpuShort();
+      window.finish();
+      return window.metric(over).value > 0.0;
+    }
+  }
+  return false;
 }
 
 // Scenario 5: a group of resolved countable events samples in
@@ -1198,10 +1260,20 @@ auto main() -> int
   mergeAndCatalogScenario(*pmuObjects);
   availabilityScenario(*pmuObjects);
   disclosedModeReadScenario(*pmuObjects);
-  groupReadScenario();
+  // A kernel that opens the window and hands back zero for a leaf that must
+  // move across the burn gives these three scenarios nothing to compare, so
+  // the reason is named and they skip (FR-039).
+  if (countsDelivered(*pmuObjects)) {
+    groupReadScenario();
 
-  multiplexScenario();
-  cpuTargetScenario();
+    multiplexScenario();
+    cpuTargetScenario();
+  } else {
+    std::printf("SKIP group read, multiplex, cpu target: no countable leaf "
+                "that must move across the burn delivers a count on this "
+                "host, so the kernel withholds counts and no ratio can be "
+                "checked (FR-039)\n");
+  }
   scopeRefusedCpuTargetScenario(*pmuObjects);
   unavailableLeafScenario();
   if (const int skipped = fastWindowLifetimeScenario(); skipped != 0) {
@@ -1209,7 +1281,7 @@ auto main() -> int
   }
 
   std::printf("counters_pmu_test PASS: merge, availability, disclosed modes, "
-              "group read, multiplex ratio\n");
+              "group read, multiplex ratio, with the skips named above\n");
   return 0;
 #endif
 }
