@@ -79,7 +79,7 @@ cmake --build build
 Its output on one host's run, with the numbers of that machine:
 <!-- sg-sample-output: example/first_benchmark.expected#report -->
 ```text
-speedgun-ng 0.8.0 build=Release
+speedgun-ng 0.9.0 build=Release
 bmSum                    iterations=   1066261  real time/iter (ns)=  657.575  cpu time/iter (ns)=  656.663  overhead floor (ns)=  684.000  endpoint samples=2
 ```
 

@@ -52,6 +52,17 @@ manual accumulator, `ResultRow` gained `cpuTimePerIterationNs`,
 `timeUnit`. No existing signature was replaced: the report row layout
 changed and the registration and timing surface kept its shape.
 
+Release 0.9.0, the next minor above 0.8.0, moved the harness archive from
+`SOVERSION` 4 to 5 and left the counters archive at `SOVERSION` 2. Four
+exported shapes moved with it: the row model gained the counter columns
+(`Counter`, a per-row `counters` vector and a row `label`), the aggregate
+statistics (`StatisticValue`) and the complexity fit (`FitRow`); `State`
+gained `setCounter`, `setLabel` and `setComplexityN`; `BenchmarkHandle`
+gained `addStatistic`, `reportAggregatesOnly` and `complexity`; and the
+`BigO`, `CounterFlag`, `CounterBase` and `StatUnit` enums joined the
+public surface. Every one of those changes the layout of an exported
+type, which is the move the number records.
+
 ## Dependency re-pinning
 
 Every vendored dependency is a git submodule pinned by commit, and every one
