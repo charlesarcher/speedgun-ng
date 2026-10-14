@@ -20,7 +20,20 @@ cmake --build build
 The build produces the `run_*` example targets including the eighteen
 `example/docs` files (FR-032, FR-033).
 
-## 2. The new test executables (SC-01 to SC-05)
+## 2. The two fixes first (SC-08)
+
+```sh
+ctest --test-dir build --output-on-failure \
+  -R 'harness_pause_test|harness_time_unit_test'
+grep -rn 'kMaxPausePerRun' source test docs && echo FAIL || echo gone
+```
+
+The H3 fixes are the first working phase (Q-7), so they verify first:
+the pause test completes a run that pauses in every iteration; the time
+unit test shows a `setDefaultTimeUnit` call in `main` reaching macro
+registrations while `unit(...)` still wins (FR-024 to FR-027).
+
+## 3. The new test executables (SC-01 to SC-05)
 
 ```sh
 ctest --test-dir build --output-on-failure \
@@ -30,18 +43,6 @@ ctest --test-dir build --output-on-failure \
 Each executable scripts the fake provider, so no PMU is needed. The
 abort scenarios re-exec their own binary and read back the signal
 (FR-001, FR-008, FR-012, FR-015).
-
-## 3. The two fixes (SC-08)
-
-```sh
-ctest --test-dir build --output-on-failure \
-  -R 'harness_pause_test|harness_time_unit_test'
-grep -rn 'kMaxPausePerRun' source test docs && echo FAIL || echo gone
-```
-
-The pause test completes a run that pauses in every iteration; the time
-unit test shows a `setDefaultTimeUnit` call in `main` reaching macro
-registrations while `unit(...)` still wins (FR-024 to FR-027).
 
 ## 4. The docs examples run (SC-09)
 
