@@ -715,6 +715,17 @@ add_test(
     COMMAND bash -c "! grep -rn 'kMaxPause[P]erRun' ${CMAKE_SOURCE_DIR}/source ${CMAKE_SOURCE_DIR}/test ${CMAKE_SOURCE_DIR}/docs"
 )
 
+# FR-001 to FR-008, T010: the user counter store, the flag pass and the counter
+# columns. Every scenario scripts the fake provider, so each mode runs in a
+# re-exec of this binary and the parent reads the wait status of the child that
+# breaches a precondition. The suite carries the internal source/harness
+# include directory the pause suite carries.
+add_executable(harness_user_counters_test source/harness_user_counters_test.cpp)
+target_link_libraries(harness_user_counters_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_user_counters_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_user_counters_test PRIVATE cxx_std_23)
+add_test(NAME harness_user_counters_test COMMAND harness_user_counters_test)
+
 # The printed time unit of a run (T023; US5, C-6, FR-015, FR-016, SC-005).
 # One scripted provider steps every machine time leaf by a constant per
 # sampling action, so each printed figure is that step divided by the fixed
