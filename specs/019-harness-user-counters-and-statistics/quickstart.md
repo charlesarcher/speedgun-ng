@@ -69,7 +69,7 @@ check fails on an undeclared skip or an unprinted expectation
 ```sh
 ctest --test-dir build --output-on-failure   # the full suite
 python3 tools/docs/example_drift.py .        # drift, 550-line cap, ownership
-python3 tools/prose/prose_gate.py --check prose --mode diff
+python3 tools/prose/prose_gate.py --check prose --mode range --base master
 ```
 
 `loop_shape.sh` runs with a body that sets counters inside the loop and
@@ -79,10 +79,17 @@ stays green (FR-007); `time_source_gate.sh` stays clean (FR-050);
 ## 6. Sanitizers, threads, coverage (SC-06, FR-047)
 
 ```sh
-cmake --preset=ci-sanitize && cmake --build build && ctest --test-dir build
-cmake --preset=ci-tsan && cmake --build build && ctest --test-dir build
-cmake --preset=ci-coverage && cmake --build build && ctest --test-dir build
+cmake --preset=ci-sanitize && cmake --build --preset=ci-sanitize && ctest --preset=ci-sanitize
+cmake --preset=ci-tsan && cmake --build --preset=ci-tsan && ctest --preset=ci-tsan
+cmake --preset=ci-coverage && cmake --build build/coverage && \
+  ctest --test-dir build/coverage --output-on-failure && \
+  cmake --build build/coverage --target coverage
 ```
+
+Each preset builds into its own directory (`build/sanitize`, `build/tsan`,
+`build/coverage`), so the `--preset` forms name the tree the gate is about.
+A bare `--build build` here would rebuild the `ci-rocky` tree and report on
+a build with no instrumentation, which is a check that cannot fail.
 
 The coverage report keeps 100% line and branch over
 `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under
@@ -102,4 +109,4 @@ and the version footer and sync impact line state 2.20.0.
 
 Threads, JSON and CSV reports, the raw-data report, the full command
 line, percentile histograms, and reloaded pass-or-fail judgments each
-stand as a roadmap spec; `grep -rjn json source/harness` stays empty.
+stand as a roadmap spec; `grep -rn json source/harness` stays empty.
