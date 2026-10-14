@@ -26,6 +26,7 @@ protected:
 
 // sg-example:end fixture
 
+// sg-example:begin fixture-methods
 SG_BENCHMARK_F(TableFixture, bmTableRead)(sg::State& state)
 {
   for (auto _ : state) {
@@ -34,16 +35,15 @@ SG_BENCHMARK_F(TableFixture, bmTableRead)(sg::State& state)
 }
 
 SG_BENCHMARK_DEFINE_F(TableFixture, bmTableSize)(sg::State& state)
-
 {
   for (auto _ : state) {
     sg::doNotOptimize(m_values.size());
   }
 }
 
-SG_BENCHMARK_REGISTER_F(TableFixture, bmTableSize)
-    .setup([](sg::State&) {})
-    .teardown([](sg::State&) {});
+SG_BENCHMARK_REGISTER_F(TableFixture, bmTableSize).argsProduct({{1}});
+
+// sg-example:end fixture-methods
 
 auto main(int argc, char** argv) -> int
 {

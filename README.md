@@ -164,7 +164,7 @@ protected:
   std::vector<std::uint64_t> m_values {1, 2, 3};
 };
 ```
-`SG_BENCHMARK_F` defines a method and registers it in one step; `SG_BENCHMARK_DEFINE_F` defines one to register later, and `SG_BENCHMARK_REGISTER_F` registers it and carries the `setup` and `teardown` callbacks, which the runner runs in the untimed region of each run, with the fixture's own `setUp` and `tearDown` between those callbacks and the loop. `bmTableSize` keeps an empty body here to hold the section down, and a body that never enters the loop prints `FAILED: the benchmark never entered the timed loop`. A fixture instance is named `FixtureClass/Method`, so the fixture class is its suite. See [fixtures](docs/pages/harness.md#fixtures) and [setup and teardown callbacks](docs/pages/harness.md#setup-and-teardown-callbacks).
+`SG_BENCHMARK_F` defines a method and registers it in one step; `SG_BENCHMARK_DEFINE_F` defines one to register later, and `SG_BENCHMARK_REGISTER_F` registers it and carries the `setup` and `teardown` callbacks, which the runner runs in the untimed region of each run, with the fixture's own `setUp` and `tearDown` between those callbacks and the loop. A fixture instance is named `FixtureClass/Method`, so the fixture class is its suite. The three spellings sit beside the class in [longer forms of the same calls](docs/pages/harness.md#longer-forms-of-the-same-calls). See [fixtures](docs/pages/harness.md#fixtures) and [setup and teardown callbacks](docs/pages/harness.md#setup-and-teardown-callbacks).
 ### Run control
 
 `minTime`, `warmupTime`, `iterations`, and `repetitions` bound the measuring window and repeat it.
