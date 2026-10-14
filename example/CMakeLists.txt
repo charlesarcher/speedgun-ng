@@ -66,14 +66,5 @@ add_docs_example(custom_statistics)
 add_docs_example(aggregates_only)
 add_docs_example(complexity_fit)
 
-# The capability snippets the page quotes section by section build, so a
-# block that drifted into a fragment fails in the build. The target stays
-# out of `run-examples` and carries no `run_` target of its own: its entry
-# point returns without entering the runner, so the binary prints no
-# report and no page region shows any mechanism for that.
-add_executable(docs_snippets docs_snippets.cpp)
-target_link_libraries(docs_snippets
-                      PRIVATE speedgun-ng::speedgun-ng speedgun-ng::harness)
-target_compile_features(docs_snippets PRIVATE cxx_std_23)
 
 add_folders(Example)

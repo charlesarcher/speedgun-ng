@@ -17,7 +17,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "docs"))
 
-from example_drift import SECTIONS  # noqa: E402
+from example_drift import SECTIONS, SECTION_OWNERS  # noqa: E402
+
+
+def owner(title: str) -> str:
+    return "example/docs/" + SECTION_OWNERS[title][0]
 
 ROOT = Path()
 FAILURES: list[str] = []
@@ -49,7 +53,7 @@ def mini_page() -> str:
     for title in SECTIONS:
         parts.append(
             f"\n### {title}\n\nOne purpose sentence.\n\n"
-            f"<!-- sg-example: mini.cpp#{slug(title)} -->\n"
+            f"<!-- sg-example: {owner(title)}#{slug(title)} -->\n"
             f"```cpp\n{snippet(title)}\n```\n\nOne result sentence.\n"
         )
     parts.append(
@@ -68,21 +72,19 @@ def mini_page() -> str:
 
 
 def build_tree(root: Path) -> None:
-    for leaf in ("example", "include/speedgun-ng", "source/harness", "docs/pages"):
+    for leaf in ("example/docs", "include/speedgun-ng", "source/harness", "docs/pages"):
         (root / leaf).mkdir(parents=True, exist_ok=True)
     for stale in ("docs/pages/harness.md", "docs/pages/building.md"):
         (root / stale).unlink(missing_ok=True)
 
-    (root / "example" / "mini.cpp").write_text(
-        "// The region source the mini page quotes.\n"
-        '#include "speedgun-ng/benchmark.hpp"\n\n'
-        + "\n".join(
+    for title in SECTIONS:
+        leaf = root / owner(title)
+        leaf.parent.mkdir(parents=True, exist_ok=True)
+        leaf.write_text(
+            '//include "speedgun-ng/benchmark.hpp"\n\n'
             f"// sg-example:begin {slug(title)}\n{snippet(title)}\n"
-            f"// sg-example:end {slug(title)}"
-            for title in SECTIONS
+            f"// sg-example:end {slug(title)}\n"
         )
-        + "\n"
-    )
     (root / "example" / "quickstart.sh").write_text(
         "#!/usr/bin/env bash\n"
         "# sg-example:begin run\n./build/first_benchmark\n"
@@ -119,7 +121,7 @@ def build_tree(root: Path) -> None:
     (root / "README.md").write_text(mini_page())
     (root / "docs" / "pages" / "detail.md").write_text(
         "# Detail\n\nA marked block that matches its region:\n\n"
-        f"<!-- sg-example: mini.cpp#{slug(SECTIONS[0])} -->\n"
+        f"<!-- sg-example: {owner(SECTIONS[0])}#{slug(SECTIONS[0])} -->\n"
         f"```cpp\n{snippet(SECTIONS[0])}\n```\n\nAn unmarked block stays alone:\n\n"
         "```cpp\nnot a translation unit at all\n```\n"
     )
@@ -194,14 +196,14 @@ def main() -> int:
                 page(root).read_text().replace(snippet(SECTIONS[0]), drift, 1)
             ),
             False,
-            ("example/mini.cpp", f"block '{slug(SECTIONS[0])}' at line",
+            ("example/docs/" + SECTION_OWNERS[SECTIONS[0]][0], f"block '{slug(SECTIONS[0])}' at line",
              "differs from its region"),
         )
         case(
             "main-page block with no marker",
             lambda root: page(root).write_text(
                 page(root).read_text().replace(
-                    f"<!-- sg-example: mini.cpp#{slug(SECTIONS[0])} -->\n", "", 1
+                    f"<!-- sg-example: {owner(SECTIONS[0])}#{slug(SECTIONS[0])} -->\n", "", 1
                 )
             ),
             False,
@@ -230,11 +232,25 @@ def main() -> int:
             (),
         )
         case(
+            "section quotes another section's file",
+            lambda root: page(root).write_text(
+                page(root)
+                .read_text()
+                .replace(
+                    f"<!-- sg-example: {owner(SECTIONS[0])}#{slug(SECTIONS[0])} -->",
+                    f"<!-- sg-example: {owner(SECTIONS[1])}#{slug(SECTIONS[0])} -->",
+                    1,
+                )
+            ),
+            False,
+            ("README.md", "belongs to another section"),
+        )
+        case(
             "unbalanced region markers",
-            lambda root: drop_line(root / "example" / "mini.cpp",
+            lambda root: drop_line(root / owner(SECTIONS[1]),
                                    f"// sg-example:end {slug(SECTIONS[1])}"),
             False,
-            ("mini.cpp", "marker nests"),
+            ("example/docs/" + SECTION_OWNERS[SECTIONS[1]][0], "is never closed"),
         )
         case(
             "--names row absent from the headers",
@@ -372,7 +388,7 @@ def write_detail(root: Path, body: str) -> None:
 
 
 def move_region(root: Path, title: str) -> None:
-    source = root / "example" / "mini.cpp"
+    source = root / owner(title)
     text = source.read_text()
     block = (
         f"// sg-example:begin {slug(title)}\n{snippet(title)}\n"
@@ -417,7 +433,7 @@ def emit_case() -> None:
     page(tree).write_text(
         page(tree).read_text().replace(
             "<!-- sg-sample-output: first_benchmark.expected#report -->",
-            f"<!-- sg-example: mini.cpp#{slug(SECTIONS[1])} -->\n"
+            f"<!-- sg-example: {owner(SECTIONS[1])}#{slug(SECTIONS[1])} -->\n"
             f"```cpp\n{snippet(SECTIONS[1])}\n```\n\n"
             "<!-- sg-sample-output: first_benchmark.expected#report -->",
         )

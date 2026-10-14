@@ -19,10 +19,7 @@ auto bmScanBlocks(sg::State& state) -> void
   state.setLabel("summed");
 }
 
-SG_BENCHMARK(bmScanBlocks)
-    .argNames({"cells"})
-    .argsProduct({{256, 4096}})
-    .repetitions(3);
+SG_BENCHMARK(bmScanBlocks).argNames({"cells"}).range(256, 4096).repetitions(3);
 // sg-example:end labels
 
 auto main(int argc, char** argv) -> int

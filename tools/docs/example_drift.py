@@ -22,8 +22,9 @@ FENCE = re.compile(r"^\s{0,3}(?P<run>`{3,}|~{3,})(?P<info>[^`]*)$")
 PREMARK = re.compile(r"^\s*<!--\s*(sg-example|sg-sample-output):\s*(\S+)\s*-->\s*$")
 INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 
-# The twelve capabilities of spec FR-009 at the audit point, as the H3
-# titles of "How you do it".
+# The eighteen capabilities of the main page as the H3 titles of "How you do
+# it": the twelve of spec FR-009 at the H3 audit point plus the six this spec
+# adds (FR-028, FR-044, research D-13).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -37,7 +38,39 @@ SECTIONS = (
     "Skips",
     "The command line",
     "Reading the report",
+    "User counters",
+    "Throughput",
+    "Labels",
+    "Custom statistics",
+    "Aggregate-only reporting",
+    "Complexity fit",
 )
+
+# The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
+# Two sections keep a shipped owner beside their own: the shell driver states
+# the command line in the words a reader types, and the sample report block
+# stays the recorded output of the quick-start binary that `report_shape`
+# compares against the real run.
+SECTION_OWNERS = {
+    "The run loop": ("run_loop.cpp",),
+    "Registration": ("registration.cpp",),
+    "Argument families and ranges": ("argument_families.cpp",),
+    "Fixtures": ("fixtures.cpp",),
+    "Run control": ("run_control.cpp",),
+    "Timing modes": ("timing_modes.cpp",),
+    "Pause and resume": ("pause_and_resume.cpp",),
+    "The time unit": ("time_unit.cpp",),
+    "Hardware counter metrics": ("counter_metrics.cpp",),
+    "Skips": ("skips.cpp",),
+    "The command line": ("command_line.cpp", "quickstart.sh"),
+    "Reading the report": ("reading_the_report.cpp", "first_benchmark.expected"),
+    "User counters": ("user_counters.cpp",),
+    "Throughput": ("throughput.cpp",),
+    "Labels": ("labels.cpp",),
+    "Custom statistics": ("custom_statistics.cpp",),
+    "Aggregate-only reporting": ("aggregates_only.cpp",),
+    "Complexity fit": ("complexity_fit.cpp",),
+}
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
 # generic names only in their job-reference phrase: the page may not name
@@ -52,7 +85,10 @@ FORBIDDEN_JOBS = (
 )
 GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 
-PAGE_LINE_CAP = 400
+# The page carries six more capability sections and their snippets (FR-044);
+# the per-section budget of FR-024 holds, which is what keeps a section a
+# section rather than a second page.
+PAGE_LINE_CAP = 550
 SECTION_LINE_CAP = 25
 
 
@@ -438,11 +474,20 @@ def check_sections(page: Path, root: Path) -> list[str]:
             for block in blocks
         ):
             findings.append(f"{rel(page)}: section '{title}' holds no marked block")
+        for block in blocks:
+            if block.region is None or not start <= block.fence_line <= end:
+                continue
+            owner = block.region.split("#", 1)[0].rsplit("/", 1)[-1]
+            if owner not in SECTION_OWNERS[title]:
+                findings.append(
+                    f"{rel(page)}: section '{title}' quotes '{block.region}', whose "
+                    f"file belongs to another section ('{owner}')"
+                )
     for title in spans:
         if title not in SECTIONS:
             findings.append(
-                f"{rel(page)}: section '{title}' is not one of the twelve "
-                "capability sections"
+                f"{rel(page)}: section '{title}' is not one of the "
+                f"{len(SECTIONS)} capability sections"
             )
     return findings
 

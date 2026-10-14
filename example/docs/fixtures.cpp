@@ -23,6 +23,7 @@ public:
 protected:
   std::vector<std::uint64_t> m_values {1, 2, 3};
 };
+// sg-example:end fixture
 
 SG_BENCHMARK_F(TableFixture, bmTableRead)(sg::State& state)
 {
@@ -42,7 +43,6 @@ SG_BENCHMARK_DEFINE_F(TableFixture, bmTableSize)(sg::State& state)
 SG_BENCHMARK_REGISTER_F(TableFixture, bmTableSize)
     .setup([](sg::State&) {})
     .teardown([](sg::State&) {});
-// sg-example:end fixture
 
 auto main(int argc, char** argv) -> int
 {

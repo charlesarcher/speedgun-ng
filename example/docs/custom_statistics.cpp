@@ -5,6 +5,15 @@
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
+auto bmHashRows(sg::State& state) -> void
+{
+  std::uint64_t hash = 1469598103934665603ULL;
+  for (auto _ : state) {
+    hash = (hash ^ state.iterations()) * 1099511628211ULL;
+    sg::doNotOptimize(hash);
+  }
+}
+
 // sg-example:begin custom-statistics
 auto spreadOf(const std::vector<double>& times, double& spread) -> bool
 {
@@ -17,15 +26,6 @@ auto spreadOf(const std::vector<double>& times, double& spread) -> bool
   }
   spread = (span.max - span.min) / span.min * 100.0;
   return true;
-}
-
-auto bmHashRows(sg::State& state) -> void
-{
-  std::uint64_t hash = 1469598103934665603ULL;
-  for (auto _ : state) {
-    hash = (hash ^ state.iterations()) * 1099511628211ULL;
-    sg::doNotOptimize(hash);
-  }
 }
 
 SG_BENCHMARK(bmHashRows)

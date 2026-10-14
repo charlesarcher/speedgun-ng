@@ -87,7 +87,7 @@ bmSum                    iterations=   1066261  real time/iter (ns)=  657.575  c
 ### The run loop
 
 A benchmark is a function over `State`: the loop body runs once per iteration, and the harness settles how many iterations the run needs.
-<!-- sg-example: example/docs_snippets.cpp#run-loop -->
+<!-- sg-example: example/docs/run_loop.cpp#run-loop -->
 ```cpp
 auto bmLoop(sg::State& state) -> void
 {
@@ -105,7 +105,7 @@ SG_BENCHMARK(bmLoop);
 ### Registration
 
 `SG_BENCHMARK` registers a plain function, `SG_BENCHMARK_CAPTURE` registers one with a captured argument, and `registerBenchmark` is the runtime form, naming the family itself and returning the `BenchmarkHandle` the family calls chain onto; `SG_BENCHMARK_TEMPLATE` registers one instantiation of a function template, shown in [template registrations](docs/pages/harness.md#template-registrations).
-<!-- sg-example: example/docs_snippets.cpp#registration -->
+<!-- sg-example: example/docs/registration.cpp#registration -->
 ```cpp
 auto bmCells(sg::State& state) -> void
 {
@@ -129,7 +129,7 @@ A name splits at its first `/` into suite and case, so `Table/cells` is the case
 ### Argument families and ranges
 
 `arg`, `args`, `range`, `ranges`, `denseRange`, and `argsProduct` build the instance list, `argName` and `argNames` label the positions, and the body reads a position with `state.range(i)`.
-<!-- sg-example: example/docs_snippets.cpp#ranges -->
+<!-- sg-example: example/docs/argument_families.cpp#ranges -->
 ```cpp
 auto bmSquares(sg::State& state) -> void
 {
@@ -152,32 +152,32 @@ SG_BENCHMARK(bmSquares)
 ### Fixtures
 
 A `Fixture` subclass holds the state its methods measure, and three macros turn its methods into benchmark families.
-<!-- sg-example: example/docs_snippets.cpp#fixture -->
+<!-- sg-example: example/docs/fixtures.cpp#fixture -->
 ```cpp
 class TableFixture : public sg::Fixture
 {
+public:
+  auto setUp(sg::State& state) -> void override
+  {
+    m_values.assign(3, 1);
+    sg::doNotOptimize(&state);
+  }
+
+  auto tearDown(sg::State& state) -> void override
+  {
+    m_values.clear();
+    sg::doNotOptimize(&state);
+  }
+
 protected:
   std::vector<std::uint64_t> m_values {1, 2, 3};
 };
-
-SG_BENCHMARK_F(TableFixture, bmTableRead)(sg::State& state)
-{
-  for (auto _ : state) {
-    sg::doNotOptimize(m_values.front());
-  }
-}
-
-SG_BENCHMARK_DEFINE_F(TableFixture, bmTableSize)(sg::State&) {}
-
-SG_BENCHMARK_REGISTER_F(TableFixture, bmTableSize)
-    .setup([](sg::State&) {})
-    .teardown([](sg::State&) {});
 ```
 `SG_BENCHMARK_F` defines a method and registers it in one step; `SG_BENCHMARK_DEFINE_F` defines one to register later, and `SG_BENCHMARK_REGISTER_F` registers it and carries the `setup` and `teardown` callbacks, which the runner runs in the untimed region of each run, with the fixture's own `setUp` and `tearDown` between those callbacks and the loop. `bmTableSize` keeps an empty body here to hold the section down, and a body that never enters the loop prints `FAILED: the benchmark never entered the timed loop`. A fixture instance is named `FixtureClass/Method`, so the fixture class is its suite. See [fixtures](docs/pages/harness.md#fixtures) and [setup and teardown callbacks](docs/pages/harness.md#setup-and-teardown-callbacks).
 ### Run control
 
 `minTime`, `warmupTime`, `iterations`, and `repetitions` bound the measuring window and repeat it.
-<!-- sg-example: example/docs_snippets.cpp#run-control -->
+<!-- sg-example: example/docs/run_control.cpp#run-control -->
 ```cpp
 auto bmFixed(sg::State& state) -> void
 {
@@ -196,7 +196,7 @@ SG_BENCHMARK(bmFixed)
 ### Timing modes
 
 CPU time is the primary time of a run by default, `useRealTime` makes real time the primary time, and `useManualTime` lets the body report each iteration's own time.
-<!-- sg-example: example/docs_snippets.cpp#timing-modes -->
+<!-- sg-example: example/docs/timing_modes.cpp#timing-modes -->
 ```cpp
 auto bmIo(sg::State& state) -> void
 {
@@ -220,7 +220,7 @@ The primary time is the column the qualification test, the growth rule, and the 
 ### Pause and resume
 
 `pauseTiming` and `resumeTiming` take work out of the timed window, and `ScopedPauseTiming` is the guard that pairs them.
-<!-- sg-example: example/docs_snippets.cpp#paused -->
+<!-- sg-example: example/docs/pause_and_resume.cpp#paused -->
 ```cpp
 auto bmPaused(sg::State& state) -> void
 {
@@ -243,7 +243,7 @@ A closed pause is subtracted from every time column of the row. The calls stand 
 ### The time unit
 
 `unit` sets the unit of one family, and `setDefaultTimeUnit` sets the unit for the families that call no `unit`.
-<!-- sg-example: example/docs_snippets.cpp#time-unit -->
+<!-- sg-example: example/docs/time_unit.cpp#time-unit -->
 ```cpp
 auto bmMillis(sg::State& state) -> void
 {
@@ -264,7 +264,7 @@ Call `setDefaultTimeUnit` in `main` before `speedgunMain`, and `TimeUnit` names 
 ### Hardware counter metrics
 
 `addMetric` attaches a counter expression to a family, behind the availability check the counter lookup returns.
-<!-- sg-example: example/docs_snippets.cpp#metrics -->
+<!-- sg-example: example/docs/counter_metrics.cpp#metrics -->
 ```cpp
 #include "speedgun-ng/counters.hpp"
 
@@ -285,7 +285,7 @@ The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields, an
 ### Skips
 
 `skipWithMessage` ends a run early when the work cannot be done, and `skipWithError` ends it as a failure.
-<!-- sg-example: example/docs_snippets.cpp#skips -->
+<!-- sg-example: example/docs/skips.cpp#skips -->
 ```cpp
 auto bmGuard(sg::State& state) -> void
 {
@@ -298,7 +298,7 @@ auto bmGuard(sg::State& state) -> void
   }
 }
 
-SG_BENCHMARK(bmGuard).arg(0);
+SG_BENCHMARK(bmGuard).denseRange(0, 4, 4);
 ```
 The report prints `SKIPPED: <reason>` for the first kind and `FAILED: <reason>` for the second, and `DISABLED_` at the front of an instance name keeps it registered while the run, the `--list` output, and every `--filter` match skip it. See [the `DISABLED_` prefix](docs/pages/harness.md#the-disabled_-prefix).
 ### The command line
@@ -320,6 +320,146 @@ A run prints a version line, then one row per instance and repetition.
 bmSum                     AGGREGATE  primary time/iter (ns) mean=  649.108 median=  649.499 sd=    0.942 cv=  0.0015 min=  648.034 max=  649.792 n=3
 ```
 A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`.
+
+### User counters
+
+A counter is a named number the loop reports beside the times, and its flags say how the value scales.
+<!-- sg-example: example/docs/user_counters.cpp#user-counters -->
+```cpp
+auto bmCopyCells(sg::State& state) -> void
+{
+  const auto cells = static_cast<std::size_t>(state.range(0));
+  std::vector<std::uint64_t> sink(cells, 0);
+  for (auto _ : state) {
+    for (std::size_t cell = 0; cell < cells; ++cell) {
+      sink[cell] = cell + 1;
+    }
+    state.setCounter("cells", {static_cast<double>(cells)});
+    state.setBytesProcessed(static_cast<std::int64_t>(cells) * 16);
+    sg::doNotOptimize(sink);
+  }
+}
+
+SG_BENCHMARK(bmCopyCells).argsProduct({{64, 1024}}).repetitions(3);
+```
+A run of `bmCopyCells` prints `cells=` and the `bytes_per_second=` rate beside the two time columns, and its `AGGREGATE` row carries one statistic line for each counter, so `cells mean=` and `bytes_per_second mean=` stand under the built-in ones. Names are capped at `kMaxUserCounters`, sixteen for one benchmark, and a name must be shorter than `kMaxCounterNameBytes`, so 31 characters; both bounds are `SG_REQUIRE` preconditions on `State::setCounter`, and a breach ends the run with the bound in its message. See [user counters](docs/pages/harness.md#user-counters).
+
+### Throughput
+
+`setBytesProcessed` and `setItemsProcessed` open the two rate counters the harness derives from the time it measured.
+<!-- sg-example: example/docs/throughput.cpp#throughput -->
+```cpp
+auto bmEncode(sg::State& state) -> void
+{
+  const auto items = static_cast<std::size_t>(state.range(0));
+  std::vector<std::uint8_t> buffer(items);
+  for (auto _ : state) {
+    for (std::size_t item = 0; item < items; ++item) {
+      buffer[item] = static_cast<std::uint8_t>(item * 7);
+    }
+    state.setItemsProcessed(static_cast<std::int64_t>(items));
+    state.setBytesProcessed(static_cast<std::int64_t>(items));
+    sg::doNotOptimize(buffer);
+  }
+}
+
+SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
+```
+The row gains `items_per_second=` and `bytes_per_second=` columns that follow the real time of the instance, so a larger argument shows the throughput the loop actually held rather than a count. See [throughput](docs/pages/harness.md#throughput).
+
+### Labels
+
+A label is a trailing word a run prints after its numbers, so a row says which variant it measured.
+<!-- sg-example: example/docs/labels.cpp#labels -->
+```cpp
+auto bmScanBlocks(sg::State& state) -> void
+{
+  const auto cells = static_cast<std::size_t>(state.range(0));
+  std::vector<std::uint64_t> block(cells, 3);
+  for (auto _ : state) {
+    std::uint64_t total = 0;
+    for (const std::uint64_t cell : block) {
+      total += cell;
+    }
+    sg::doNotOptimize(total);
+  }
+  state.setLabel("summed");
+}
+
+SG_BENCHMARK(bmScanBlocks).argNames({"cells"}).range(256, 4096).repetitions(3);
+```
+`label=summed` stands last on every row of the family, after the counters, and the `AGGREGATE` row carries the label the repetitions agreed on. See [labels](docs/pages/harness.md#labels).
+
+### Custom statistics
+
+A custom statistic turns the repetition times of one instance into one more named number on its aggregate row.
+<!-- sg-example: example/docs/custom_statistics.cpp#custom-statistics -->
+```cpp
+auto spreadOf(const std::vector<double>& times, double& spread) -> bool
+{
+  if (times.empty()) {
+    return false;
+  }
+  const auto span = std::ranges::minmax(times);
+  if (span.min <= 0.0) {
+    return false;
+  }
+  spread = (span.max - span.min) / span.min * 100.0;
+  return true;
+}
+
+SG_BENCHMARK(bmHashRows)
+    .repetitions(5)
+    .addStatistic("spread", sg::StatUnit::PERCENTAGE, &spreadOf);
+```
+`spread=    0.110` prints beside the built-in statistics with the percentage unit the registration declared, and the names `mean`, `median`, `sd`, `cv`, `min`, `max` and `n` stay reserved: a callback registered under one of them breaches its precondition at the call. See [custom statistics](docs/pages/harness.md#custom-statistics).
+
+### Aggregate-only reporting
+
+`reportAggregatesOnly` keeps the repetition rows out of the report and leaves the aggregate.
+<!-- sg-example: example/docs/aggregates_only.cpp#aggregates-only -->
+```cpp
+auto bmCountWords(sg::State& state) -> void
+{
+  const std::string line =
+      "speedgun-ng reports one row per repetition and one aggregate";
+  for (auto _ : state) {
+    std::size_t spaces = 0;
+    for (const char letter : line) {
+      spaces += letter == ' ' ? 1 : 0;
+    }
+    sg::doNotOptimize(spaces);
+  }
+}
+
+SG_BENCHMARK(bmCountWords).repetitions(5).reportAggregatesOnly();
+```
+The family prints its single `AGGREGATE` row for the five repetitions and nothing above it; `displayAggregatesOnly` applies the same rule to every family from the command line. See [aggregate-only reporting](docs/pages/harness.md#aggregate-only-reporting).
+
+### Complexity fit
+
+A family fitted over its complexity sizes reports the curve each of its quantities follows.
+<!-- sg-example: example/docs/complexity_fit.cpp#complexity-fit -->
+```cpp
+auto bmSwapPasses(sg::State& state) -> void
+{
+  const auto cells = static_cast<std::size_t>(state.range(0));
+  std::vector<std::uint64_t> values(cells, 1);
+  for (auto _ : state) {
+    for (std::size_t row = 0; row < cells; ++row) {
+      for (std::size_t col = 0; col + 1 < cells; ++col) {
+        std::swap(values[col], values[col + 1]);
+      }
+    }
+    sg::doNotOptimize(values);
+  }
+}
+
+SG_BENCHMARK(bmSwapPasses)
+    .argsProduct({{8, 16, 32}})
+    .complexity(sg::BigO::AUTOMATIC);
+```
+The family ends with a `BIG_O` row naming the curve and its coefficient, an `RMS` row with the fit error as a percentage, one pair for every quantity the family carries, and a `SKIPPED` row naming the quantity a member never set. See [complexity fit](docs/pages/harness.md#complexity-fit).
 
 ## Quick reference
 
@@ -367,6 +507,21 @@ A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overh
 | `State::resumeTiming` | State | Closes the pause and records the interval | [pause-and-resume](#pause-and-resume) |
 | `State::skipWithMessage` | State | Ends the run as skipped, with a reason | [skips](#skips) |
 | `State::skipWithError` | State | Ends the run as failed, with a reason | [skips](#skips) |
+| `setCounter` | State | Reports a named number beside the times | [user counters](#user-counters) |
+| `setBytesProcessed` | State | Opens the `bytes_per_second` rate counter | [user counters](#user-counters) |
+| `setItemsProcessed` | State | Opens the `items_per_second` rate counter | [user counters](#user-counters) |
+| `setLabel` | State | Prints a trailing word after the row | [labels](#labels) |
+| `setComplexityN` | State | Sets the size the complexity fit scales against | [complexity fit](#complexity-fit) |
+| `Counter` | type | The named number one call reports | [user counters](#user-counters) |
+| `CounterFlag` | type | How a counter value scales into its column | [user counters](#user-counters) |
+| `CounterBase` | type | The divisor a counter column prints in | [user counters](#user-counters) |
+| `StatUnit` | type | The unit a custom statistic prints in | [custom statistics](#custom-statistics) |
+| `BigO` | type | The curves a complexity fit searches | [complexity fit](#complexity-fit) |
+| `BigOFun` | type | The curve shape a fit of your own supplies | [complexity fit](#complexity-fit) |
+| `addStatistic` | BenchmarkHandle | Adds a named aggregate statistic to the report | [custom statistics](#custom-statistics) |
+| `reportAggregatesOnly` | BenchmarkHandle | Keeps the repetition rows of this family out | [aggregate only reporting](#aggregate-only-reporting) |
+| `displayAggregatesOnly` | free function | Keeps every repetition row out of the report | [aggregate only reporting](#aggregate-only-reporting) |
+| `complexity` | BenchmarkHandle | Chooses the curve the fit searches | [complexity fit](#complexity-fit) |
 
 | Option | What it does |
 | --- | --- |
@@ -382,12 +537,6 @@ A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overh
 
 ## Planned work
 
-- Counters on the state
-- Bytes and items throughput
-- Labels
-- Custom statistics
-- Aggregate-only report output
-- Complexity fitting
 - Structured machine-readable output
 - Histogram output
 
