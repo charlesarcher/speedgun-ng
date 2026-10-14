@@ -648,6 +648,10 @@ page.
   library supplies (Q-1). A row whose primary fold carried a
   disclosure shall keep that disclosure on the counter column and
   shall keep that repetition out of the counter's aggregate statistic.
+  `CounterFlag::INVERT` shall take the reciprocal of a value that
+  differs from zero and leave a zero value at zero. Each flag of a
+  combined set shall apply on its own, so a zero primary fold skips the
+  rate divisor alone and the iteration flags still bind.
 - **FR-006**: The report shall print each user counter as a labeled
   column of the row carrying the flag-applied value, never a value the
   base divides: `CounterBase` selects the `k` or `Ki` suffix a
