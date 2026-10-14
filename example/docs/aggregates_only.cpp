@@ -7,8 +7,8 @@
 // sg-example:begin aggregates-only
 auto bmCountWords(sg::State& state) -> void
 {
-  const std::string line
-      = "speedgun-ng reports one row per repetition and one aggregate";
+  const std::string line =
+      "speedgun-ng reports one row per repetition and one aggregate";
   for (auto _ : state) {
     std::size_t spaces = 0;
     for (const char letter : line) {

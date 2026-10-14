@@ -4,13 +4,6 @@
 // sg-example:begin metrics
 #include "speedgun-ng/counters.hpp"
 
-auto bmTick(sg::State& state) -> void
-{
-  for (auto _ : state) {
-    sg::doNotOptimize(state.iterations());
-  }
-}
-
 auto attachMetric(sg::BenchmarkHandle& handle) -> void
 {
   const auto cpu = sg::counters::System::local().object("cpu");
@@ -24,6 +17,13 @@ auto attachMetric(sg::BenchmarkHandle& handle) -> void
   }
 }
 // sg-example:end metrics
+
+auto bmTick(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
 
 auto main(int argc, char** argv) -> int
 {
