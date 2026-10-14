@@ -935,7 +935,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         times.empty() ? sg::Statistics {} : statisticsOf(times);
 
     // FR-013, FR-014, FR-015: every attached statistic computes over the
-    // same clean primary values the built-in set just summarized, in the
+    // same clean primary values the built-in set summarized, in the
     // order the calls came in. A function that refuses its input leaves no
     // value, so the row holds no field for it and the run still reports.
     for (const auto& statistic : entry.statistics) {
@@ -1155,7 +1155,7 @@ auto Runner::fitForFamilyEnd(const Instance* next)
   clearPending();
 
   auto outcome = BenchmarkResult {};
-  // FR-022: the fit reports for the family, not for one instance, so the three
+  // FR-022: the fit reports for the family and for no single instance, so the
   // name fields carry the family name the rows print. The unit is the one the
   // rows of the family printed under, because the coefficient of the primary
   // time stands in it (FR-015).

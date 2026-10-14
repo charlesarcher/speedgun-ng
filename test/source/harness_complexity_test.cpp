@@ -10,7 +10,7 @@
 //
 // Every family here runs on manual time with one iteration, so the primary
 // value of an instance is exactly what its body reports and the fit has an
-// expected figure instead of a tolerance band:
+// expected figure with no tolerance band:
 //
 //   bmQuad     y = 12 N^2 ns      ->  N^2, k = 12.000, rms 0.000
 //            counter cells 4000 N^2 (the K1000 base leaves 4 N^2 in the row)
@@ -404,7 +404,7 @@ auto main() -> int
   auto sized = sg::registerBenchmark(&bmSized, "bmSized");
   check(sized.name() == "bmSized", "the sized family registers");
   // Two repetitions give this family an aggregate row, so the fit reads the
-  // summary of the instance rather than a single row (FR-022).
+  // summary of the instance in place of a single row (FR-022).
   sized.useManualTime().arg(1).arg(2).arg(4).repetitions(2).complexity(
       sg::BigO::AUTOMATIC);
   auto user = sg::registerBenchmark(&bmQuadratic, "bmUser");

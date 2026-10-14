@@ -5,9 +5,9 @@
 # Usage: example_run.sh [build-dir]
 #
 # Every docs_ target of example/docs/ runs through its own binary with
-# --min-time=0.01. A file passes when every benchmark it registers prints a
+# run with a min-time floor of 0.01 seconds. A file passes when every benchmark
 # result row, no row prints FAILED, and every SKIPPED row is one the file
-# declares beside its registration with an
+# is one the file declares beside its registration with an
 # `// example-run: expect-skip <instance>: <message>` marker. The list flag
 # gives the registered set, so a row that vanished and a benchmark that never
 # ran are both visible. A declared skip that never prints is a lie about the
