@@ -600,8 +600,8 @@ auto modeCallbackPause() -> int
 
 // FR-052, D-13: the raw pair whose own two points read a gap. The family
 // earns its history from an unscripted run, so the scripted run reserves
-// room and records its pairs beside the window rather than folding them,
-// and the net of the column takes the worse availability of the pair.
+// room and records its pairs beside the window, where the row still
+// discloses the gap that pair read.
 auto scenarioRawGapPair() -> int
 {
   scriptProvider();
@@ -654,7 +654,16 @@ auto scenarioHistoryOverCap() -> int
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmManyEachIteration, "bmMany");
   attachOps(handle);
+  const std::uint64_t before = fake->readActions();
   captureRun({"--filter", "^bmMany$", "--iterations=1"});
+  const std::uint64_t span = fake->readActions() - before;
+  // The gaps sit a quarter of the window away from either end point, so the
+  // window itself stays measured and only the folded pairs read a gap.
+  std::vector<std::uint64_t> interior;
+  for (std::uint64_t action = span / 4; action + span / 4 < span; ++action) {
+    interior.push_back(action);
+  }
+  fake->setGapActions("pause", "ops", interior);
   const std::string report =
       captureRun({"--filter", "^bmMany$", "--iterations=1"});
   const std::vector<std::string> rows = linesOf(report, "bmMany");
@@ -662,6 +671,9 @@ auto scenarioHistoryOverCap() -> int
         "the attempt over the cap prints its one measured row (FR-051)");
   check(rows[0].contains("pause=folded"),
         "history that cannot fit the cap folds every interval (FR-026)");
+  check(rows[0].contains("gap=1"),
+        "a gap inside a folded interval reaches the row through the running "
+        "totals the fold left behind (FR-052, D-13)");
   check(sg::detail::lastRecorderReservation().pauseRoomPoints == 0,
         "an attempt over the cap reserves no pause room (FR-051)");
   std::puts("harness_pause_test historyOverCap: ok");
