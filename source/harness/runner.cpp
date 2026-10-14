@@ -332,24 +332,117 @@ auto State::setCounter(const std::string_view name,
             "the call (FR-001)");
 }
 
+namespace
+{
+
+// D-1 (Constitution II): the two throughput clauses name conditions the code
+// can read, so the setters read them instead of leaving them documented
+// alone. Two passes answer the clauses: where a name stands in the store,
+// and whether the store can still carry the call. A template over the
+// container keeps the slot type out of the exported header.
+template<class Store>
+auto counterIndexOf(const Store& counters, const std::string_view name)
+    -> std::size_t
+{
+  for (std::size_t index = 0; index < counters.size(); ++index) {
+    const auto& slot = counters[index];
+    if (slot.used
+        && std::string_view(slot.name.data(), slot.nameSize) == name) {
+      return index;
+    }
+  }
+  return counters.size();
+}
+
+// The shared cap is what the precondition reads: the call needs no room when
+// its own name already stands, and one free slot otherwise (FR-001).
+template<class Store>
+auto counterRoom(const Store& counters, const std::size_t own) -> bool
+{
+  if (own < counters.size()) {
+    return true;
+  }
+  for (const auto& slot : counters) {
+    if (!slot.used) {
+      return true;
+    }
+  }
+  return false;
+}
+
+} // namespace
+
 // FR-009, E-03: the throughput setters open their one fixed name on the same
 // store as any user name, so a body reports throughput without naming a
 // column and the two columns share the cap, the flag pass, and the last-write
 // rule of the named counters.
 auto State::setBytesProcessed(const std::int64_t bytes) -> void
 {
-  setCounter(
-      "bytes_per_second",
-      Counter {
-          static_cast<double>(bytes), CounterFlag::RATE, CounterBase::K1024});
+  constexpr std::string_view kName = "bytes_per_second";
+  const std::size_t before = counterIndexOf(m_counters, kName);
+  SG_REQUIRE(counterRoom(m_counters, before),
+             "the two throughput columns share the cap of sixteen counter "
+             "names, so this call needs its name open or one slot free "
+             "(FR-001, FR-009)");
+  // A user name that opened this text with another pair keeps it, and the
+  // run ends with that reason (FR-008): the write, and with it the
+  // postcondition, belongs to the call only on the path it owns.
+  const bool writes =
+      before == m_counters.size()
+      || (m_counters[before].counter.flags == CounterFlag::RATE
+          && m_counters[before].counter.base == CounterBase::K1024);
+  setCounter(kName,
+             Counter {
+                 static_cast<double>(bytes),
+                 CounterFlag::RATE,
+                 CounterBase::K1024});
+  const std::size_t after = counterIndexOf(m_counters, kName);
+  SG_ENSURE(!writes
+                || (after < m_counters.size()
+                    // The stored value is the cast of the call, so the two-sided
+                    // test reads the same relation without the equality
+                    // the warning set forbids.
+                    && !(m_counters[after].counter.value
+                             < static_cast<double>(bytes)
+                         || m_counters[after].counter.value
+                                > static_cast<double>(bytes))
+                    && m_counters[after].counter.flags == CounterFlag::RATE
+                    && m_counters[after].counter.base == CounterBase::K1024),
+            "the run carries bytes_per_second with the value of the call, the "
+            "RATE flag and the K1024 base (FR-009)");
 }
 
 auto State::setItemsProcessed(const std::int64_t items) -> void
 {
-  setCounter(
-      "items_per_second",
-      Counter {
-          static_cast<double>(items), CounterFlag::RATE, CounterBase::K1000});
+  constexpr std::string_view kName = "items_per_second";
+  const std::size_t before = counterIndexOf(m_counters, kName);
+  SG_REQUIRE(counterRoom(m_counters, before),
+             "the two throughput columns share the cap of sixteen counter "
+             "names, so this call needs its name open or one slot free "
+             "(FR-001, FR-009)");
+  const bool writes =
+      before == m_counters.size()
+      || (m_counters[before].counter.flags == CounterFlag::RATE
+          && m_counters[before].counter.base == CounterBase::K1000);
+  setCounter(kName,
+             Counter {
+                 static_cast<double>(items),
+                 CounterFlag::RATE,
+                 CounterBase::K1000});
+  const std::size_t after = counterIndexOf(m_counters, kName);
+  SG_ENSURE(!writes
+                || (after < m_counters.size()
+                    // The stored value is the cast of the call, so the two-sided
+                    // test reads the same relation without the equality
+                    // the warning set forbids.
+                    && !(m_counters[after].counter.value
+                             < static_cast<double>(items)
+                         || m_counters[after].counter.value
+                                > static_cast<double>(items))
+                    && m_counters[after].counter.flags == CounterFlag::RATE
+                    && m_counters[after].counter.base == CounterBase::K1000),
+            "the run carries items_per_second with the value of the call, the "
+            "RATE flag and the K1000 base (FR-009)");
 }
 
 // D-04, FR-011: one string per repetition, and the newline bound is the
