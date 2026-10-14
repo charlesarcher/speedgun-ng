@@ -210,7 +210,7 @@ auto scenarioTrailing() -> int
 {
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmLabelled, "bmLabelled");
-  check(handle.name() == "bmLabelled", "the labelled benchmark registers");
+  check(handle.name() == "bmLabelled", "the labeled benchmark registers");
 
   const std::string report = captureGoodRun("^bmLabelled$");
   const std::vector<std::string> lines = linesOf(report, "bmLabelled");
