@@ -14,6 +14,7 @@ auto bmGuard(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmGuard).denseRange(0, 4, 4);
+
 // sg-example:end skips
 
 // example-run: expect-skip bmGuard/0: no cells configured

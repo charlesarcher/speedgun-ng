@@ -16,6 +16,7 @@ auto configureUnits() -> void
 {
   sg::setDefaultTimeUnit(sg::TimeUnit::MICROSECONDS);
 }
+
 // sg-example:end time-unit
 
 auto main(int argc, char** argv) -> int

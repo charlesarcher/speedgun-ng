@@ -178,8 +178,7 @@ auto closeTo(const double actual, const double expected) -> bool
 }
 
 // The field key of one column at one unit scale, as the report prints it.
-auto scaleKey(const char* const column, const char* const unit)
-    -> std::string
+auto scaleKey(const char* const column, const char* const unit) -> std::string
 {
   std::string key(column);
   key.append(" (");
@@ -206,16 +205,16 @@ constexpr ScaleExpectation kUsScale {
 
 // FR-015, SC-005: one line carries one scale, and every time value on it
 // carries the divisor of the unit under test.
-auto checkScaledRow(const std::string& line, const ScaleExpectation& scale)
-    -> void
+auto checkScaledRow(const std::string& line,
+                    const ScaleExpectation& scale) -> void
 {
   const std::string realKey = scaleKey("real time/iter", scale.unit);
   const std::string cpuKey = scaleKey("cpu time/iter", scale.unit);
   const std::string floorKey = scaleKey("overhead floor", scale.unit);
-  check(line.contains(realKey) && line.contains(cpuKey)
-            && line.contains(floorKey),
-        "every time field carries the label of the unit under test "
-        "(FR-015)");
+  check(
+      line.contains(realKey) && line.contains(cpuKey)
+          && line.contains(floorKey),
+      "every time field carries the label of the unit under test " "(FR-015)");
   for (const char* const other : {"ns", "us", "ms", "s"}) {
     if (std::string(other) == std::string(scale.unit)) {
       continue;

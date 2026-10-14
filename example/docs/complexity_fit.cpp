@@ -24,6 +24,7 @@ auto bmSwapPasses(sg::State& state) -> void
 SG_BENCHMARK(bmSwapPasses)
     .argsProduct({{8, 16, 32}})
     .complexity(sg::BigO::AUTOMATIC);
+
 // sg-example:end complexity-fit
 
 auto main(int argc, char** argv) -> int

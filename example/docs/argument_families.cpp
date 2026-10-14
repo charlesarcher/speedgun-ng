@@ -18,6 +18,7 @@ SG_BENCHMARK(bmSquares)
     .range(64, 512)
     .ranges({{4096, 8192}})
     .denseRange(1024, 2048, 512);
+
 // sg-example:end ranges
 
 auto main(int argc, char** argv) -> int

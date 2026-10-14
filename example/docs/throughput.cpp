@@ -21,6 +21,7 @@ auto bmEncode(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
+
 // sg-example:end throughput
 
 auto main(int argc, char** argv) -> int

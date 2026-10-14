@@ -21,6 +21,7 @@ auto bmTable(sg::State& state) -> void
 }
 
 const auto kTable = sg::registerBenchmark(&bmTable, "Table/cells");
+
 // sg-example:end registration
 
 // sg-example:begin capture
@@ -32,6 +33,7 @@ auto bmAdd(sg::State& state, int left, int right) -> void
 }
 
 SG_BENCHMARK_CAPTURE(bmAdd, pair, 2, 3);
+
 // sg-example:end capture
 
 // sg-example:begin template
@@ -44,6 +46,7 @@ auto bmWidth(sg::State& state) -> void
 }
 
 SG_BENCHMARK_TEMPLATE(bmWidth, std::uint32_t);
+
 // sg-example:end template
 
 auto main(int argc, char** argv) -> int

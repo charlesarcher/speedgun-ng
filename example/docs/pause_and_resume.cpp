@@ -21,6 +21,7 @@ auto bmPaused(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmPaused).iterations(3);
+
 // sg-example:end paused
 
 auto main(int argc, char** argv) -> int

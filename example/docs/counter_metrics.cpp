@@ -16,6 +16,7 @@ auto attachMetric(sg::BenchmarkHandle& handle) -> void
     handle.addMetric(*retired / *cycles, "instructions/cycle");
   }
 }
+
 // sg-example:end metrics
 
 auto bmTick(sg::State& state) -> void

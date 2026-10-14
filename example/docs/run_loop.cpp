@@ -15,6 +15,7 @@ auto bmLoop(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmLoop);
+
 // sg-example:end run-loop
 
 auto main(int argc, char** argv) -> int

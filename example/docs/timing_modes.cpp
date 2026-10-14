@@ -19,6 +19,7 @@ auto bmHand(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmHand).useManualTime();
+
 // sg-example:end timing-modes
 
 auto main(int argc, char** argv) -> int
