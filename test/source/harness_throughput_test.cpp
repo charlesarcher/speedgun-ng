@@ -133,6 +133,57 @@ auto bmTakenBytesName(sg::State& state) -> void
   }
 }
 
+// FR-008, FR-009: the byte name stands with no flag of its own, so the rate
+// pair the throughput call opens is not the pair that name carries.
+auto bmBytesPlainName(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("bytes_per_second", {4096.0});
+    }
+    state.setBytesProcessed(kRealBytes);
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-008, FR-009: the byte name carries the rate flag under the other base.
+auto bmBytesOtherBase(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("bytes_per_second",
+                       {4096.0, sg::CounterFlag::RATE, sg::CounterBase::K1000});
+    }
+    state.setBytesProcessed(kRealBytes);
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-008, FR-009: the item name stands with no flag of its own.
+auto bmItemsPlainName(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("items_per_second", {64.0});
+    }
+    state.setItemsProcessed(kItems);
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-008, FR-009: the item name carries the rate flag under the other base.
+auto bmItemsOtherBase(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("items_per_second",
+                       {64.0, sg::CounterFlag::RATE, sg::CounterBase::K1024});
+    }
+    state.setItemsProcessed(kItems);
+    sg::doNotOptimize(index);
+  }
+}
+
 // FR-006, FR-009: the body reports 2000 ns per iteration, so the primary is
 // the manual sum of the four values and the rate divides by that sum.
 auto bmManualItems(sg::State& state) -> void
@@ -404,6 +455,58 @@ auto scenarioManualTime() -> int
   return 0;
 }
 
+// FR-008, FR-009: a throughput call whose fixed name already stands under
+// another flag or another base fails the run naming that name, and the row
+// keeps the pair the name opened with instead of a written column.
+auto scenarioTakenName(std::function<void(sg::State&)> body,
+                       const std::string& name,
+                       const std::string& counter) -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(body, name);
+  check(handle.name() == name, "the benchmark that takes the name registers");
+  handle.useRealTime();
+
+  int status = 0;
+  const std::string report = captureRun(
+      {"--filter", "^" + name + "$", "--iterations=4", "--repetitions=3"},
+      status);
+  check(status == 1,
+        "a run whose throughput name stands under another pair fails "
+        "(FR-008, FR-036)");
+  const std::vector<std::string> lines = linesOf(report, name);
+  check(lines.size() == 1, "the failed run prints its one failure line");
+  check(lines[0].contains("FAILED:"),
+        "the failure line names the run as failed (FR-008)");
+  check(lines[0].contains(counter),
+        "the failure reason names the counter name the call meets (FR-008)");
+  return 0;
+}
+
+auto scenarioBytesPlainName() -> int
+{
+  return scenarioTakenName(
+      &bmBytesPlainName, "bmBytesPlainName", "bytes_per_second");
+}
+
+auto scenarioBytesOtherBase() -> int
+{
+  return scenarioTakenName(
+      &bmBytesOtherBase, "bmBytesOtherBase", "bytes_per_second");
+}
+
+auto scenarioItemsPlainName() -> int
+{
+  return scenarioTakenName(
+      &bmItemsPlainName, "bmItemsPlainName", "items_per_second");
+}
+
+auto scenarioItemsOtherBase() -> int
+{
+  return scenarioTakenName(
+      &bmItemsOtherBase, "bmItemsOtherBase", "items_per_second");
+}
+
 }  // namespace
 
 // FR-009, D-4: a total stated after the loop is divided by the primary time of
@@ -457,12 +560,31 @@ auto main(int argc, char** argv) -> int
     if (mode == "takenBytesName") {
       return scenarioTakenBytesName();
     }
+    if (mode == "bytesPlainName") {
+      return scenarioBytesPlainName();
+    }
+    if (mode == "bytesOtherBase") {
+      return scenarioBytesOtherBase();
+    }
+    if (mode == "itemsPlainName") {
+      return scenarioItemsPlainName();
+    }
+    if (mode == "itemsOtherBase") {
+      return scenarioItemsOtherBase();
+    }
     fail("unknown mode");
   }
 
   const std::string self = argv[0];
-  for (const auto& scenario :
-       {"bases", "realTime", "manualTime", "totalAfterLoop", "takenBytesName"})
+  for (const auto& scenario : {"bases",
+                               "realTime",
+                               "manualTime",
+                               "totalAfterLoop",
+                               "takenBytesName",
+                               "bytesPlainName",
+                               "bytesOtherBase",
+                               "itemsPlainName",
+                               "itemsOtherBase"})
   {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
     check(WIFEXITED(status) && WEXITSTATUS(status) == 0,

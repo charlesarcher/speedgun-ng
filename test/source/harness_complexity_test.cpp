@@ -251,6 +251,26 @@ auto bmZeroValues(sg::State& state) -> void
   }
 }
 
+// A family whose instances carry no argument and state no size: the size of
+// such an instance is zero, the value the fit reads when neither the body nor
+// the range names one (FR-019).
+auto bmSizeless(sg::State& state) -> void
+{
+  for (auto index : state) {
+    state.setIterationTime(kTimeCoefficientNs);
+    sg::doNotOptimize(index);
+  }
+}
+
+// A body that speaks no problem size and takes real time, so the fit of the
+// family reads the row's own real time per iteration (FR-022).
+auto bmRealFit(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+}
+
 auto captureRun(const std::vector<std::string>& arguments,
                 int& status) -> std::string
 {
@@ -605,6 +625,25 @@ auto main() -> int
   check(zeroValues.name() == "bmZeroValues", "the all-zero family registers");
   zeroValues.useManualTime().arg(2).arg(4).complexity(sg::BigO::AUTOMATIC);
 
+  auto zeroCurve = sg::registerBenchmark(&bmQuadratic, "bmZeroCurve");
+  check(zeroCurve.name() == "bmZeroCurve", "the zero-curve family registers");
+  // A curve that is zero at every size leaves the least squares no denominator
+  // to divide by, so the family earns no coefficient (FR-021, FR-022).
+  zeroCurve.useManualTime().arg(2).arg(4).complexity([](const double)
+                                                     { return 0.0; });
+
+  auto sizeless = sg::registerBenchmark(&bmSizeless, "bmSizeless");
+  check(sizeless.name() == "bmSizeless", "the argument-less family registers");
+  // No `arg` call stands one instance that carries no argument, so its size is
+  // the zero the fit reads from an instance that names no size (FR-019).
+  sizeless.useManualTime().complexity(sg::BigO::N);
+
+  auto realFit = sg::registerBenchmark(&bmRealFit, "bmRealFit");
+  check(realFit.name() == "bmRealFit", "the real-time fit family registers");
+  // One repetition leaves the instance no aggregate row, so the fit reads the
+  // real time per iteration of the row itself (FR-022).
+  realFit.useRealTime().arg(2).arg(4).complexity(sg::BigO::N);
+
   auto half = sg::registerBenchmark(&bmHalfCells, "bmHalf");
   check(half.name() == "bmHalf", "the partial family registers");
   // The instance that opens the counter stands last, so the name joins the
@@ -652,6 +691,32 @@ auto main() -> int
         "a quantity missing from an instance holds no pair (spec Edge Cases)");
   check(fitRowOf(halfLines, "SKIPPED", "half").contains("every instance"),
         "the missing quantity states its reason (spec Edge Cases)");
+
+  const std::vector<std::string> zeroCurveLines =
+      linesOf(report, "bmZeroCurve");
+  const std::string zeroCurveRow =
+      fitRowOf(zeroCurveLines, "BIG_O", "time/iter");
+  check(!zeroCurveRow.empty(),
+        "a family whose curve is zero at every size still prints its quantity "
+        "(FR-021)");
+  check(closeTo(coefficientOf(zeroCurveRow), 0.0),
+        "a curve with no denominator leaves no coefficient (FR-021, FR-022)");
+  check(std::isinf(rmsOf(fitRowOf(zeroCurveLines, "RMS", "time/iter"))),
+        "a curve that reproduces nothing reports an infinite error (FR-022)");
+
+  const std::vector<std::string> sizelessLines = linesOf(report, "bmSizeless");
+  check(fitRowOf(sizelessLines, "BIG_O", "time/iter").empty(),
+        "an instance that carries no size holds no fit row (FR-019, FR-023)");
+  check(!sizelessLines.empty() && sizelessLines[0].contains("iterations="),
+        "the argument-less instance still prints its measured row (FR-019)");
+
+  const std::vector<std::string> realFitLines = linesOf(report, "bmRealFit");
+  const std::string realFitRow = fitRowOf(realFitLines, "BIG_O", "time/iter");
+  check(!realFitRow.empty(),
+        "a family without an aggregate row fits the row time it printed "
+        "(FR-022)");
+  check(std::isfinite(rmsOf(fitRowOf(realFitLines, "RMS", "time/iter"))),
+        "the real-time row of one repetition carries a finite error (FR-022)");
 
   std::puts("harness_complexity_test: ok");
   return 0;

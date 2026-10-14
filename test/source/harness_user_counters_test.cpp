@@ -293,6 +293,19 @@ auto bmInvertZero(sg::State& state) -> void
   }
 }
 
+// FR-003, FR-005: the reciprocal of a value below zero keeps that sign. The
+// two-sided read of zero is a comparison against both sides, and the negative
+// side is the one this row takes.
+auto bmInvertNegative(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("below", {-2.0, sg::CounterFlag::INVERT});
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
 // FR-005: the primary fold of the row carries a disclosure, so the column
 // carries the flag-neutral value beside the disclosure of the fold.
 auto bmDisclosedRate(sg::State& state) -> void
@@ -698,6 +711,30 @@ auto scenarioInvert() -> int
   return 0;
 }
 
+// FR-003, FR-005: the reciprocal of a negative value is a negative reciprocal,
+// read from the negative side of the zero test the flag pass carries.
+auto scenarioInvertNegative() -> int
+{
+  scriptProvider(kThreadCpuStep);
+  auto handle = sg::registerBenchmark(&bmInvertNegative, "bmInvertNegative");
+  check(handle.name() == "bmInvertNegative",
+        "the negative invert benchmark registers");
+
+  const std::string report = captureGoodRun("^bmInvertNegative$");
+  const std::vector<std::string> rows =
+      measuredRowsOf(linesOf(report, "bmInvertNegative"));
+  check(rows.size() == kRepetitions,
+        "the batch prints one measured row per repetition (FR-006)");
+  checkFinite(rows);
+
+  for (const auto& row : rows) {
+    check(closeTo(fieldOf(row, "below="), -0.5),
+          "the reciprocal of a value below zero keeps its sign (FR-003, "
+          "FR-005)");
+  }
+  return 0;
+}
+
 // FR-003: `INVERT` stands after the rate, the position that fixes the order.
 auto scenarioInvertRate() -> int
 {
@@ -1050,6 +1087,9 @@ auto main(int argc, char** argv) -> int
     if (mode == "invert") {
       return scenarioInvert();
     }
+    if (mode == "invertNegative") {
+      return scenarioInvertNegative();
+    }
     if (mode == "invertRate") {
       return scenarioInvertRate();
     }
@@ -1110,6 +1150,7 @@ auto main(int argc, char** argv) -> int
                                "avgIterations",
                                "invariant",
                                "invert",
+                               "invertNegative",
                                "invertRate",
                                "invertRateJoin",
                                "invertZero",

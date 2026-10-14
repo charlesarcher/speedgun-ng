@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <utility>
@@ -133,10 +134,11 @@ auto printResult(const BenchmarkResult& result) -> void
   // FR-016, FR-017, FR-018: a family that asked to see its aggregates alone
   // shows no repetition row, and a family with no aggregate row at all shows
   // the rows it has: the mode hides no row that stands without an aggregate.
-  bool holdsAggregate = false;
-  for (const auto& row : result.rows) {
-    holdsAggregate = holdsAggregate || row.kind == RowKind::AGGREGATE;
-  }
+  const bool holdsAggregate =
+      std::any_of(result.rows.begin(),
+                  result.rows.end(),
+                  [](const sg::ResultRow& row) noexcept -> bool
+                  { return row.kind == RowKind::AGGREGATE; });
   const bool trimRepetitionRows = result.hideRepetitionRows && holdsAggregate;
   for (const auto& row : result.rows) {
     if (trimRepetitionRows && row.kind == RowKind::REPETITION) {
