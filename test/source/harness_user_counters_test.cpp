@@ -86,6 +86,8 @@ constexpr std::size_t kNameBound =
     static_cast<std::size_t>(sg::kMaxCounterNameBytes);
 constexpr std::size_t kNameCap = static_cast<std::size_t>(sg::kMaxUserCounters);
 
+sg::counters::FakeProvider* fake = nullptr;
+
 auto fail(const char* what) -> void
 {
   std::fprintf(stderr, "HARNESS USER COUNTERS TEST FAIL: %s\n", what);
@@ -112,6 +114,7 @@ auto scriptProvider(const std::uint64_t cpuStep) -> void
   owned->setPoints("machine", "monotonic", {0}, kMonotonicStep);
   owned->setPoints("machine", "thread_cpu", {0}, cpuStep);
   owned->setPoints("pause", "ops", {0}, 200);
+  fake = owned.get();
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(owned));
   check(registered.has_value(), "the fake provider registers");
@@ -233,6 +236,31 @@ auto bmInvertRate(sg::State& state) -> void
 // FR-005: the primary divisor of the row is zero, so the column carries the
 // flag-neutral value and a disclosure naming the zero divisor.
 auto bmZeroDivisor(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("bytes",
+                       {4096.0, sg::CounterFlag::RATE, sg::CounterBase::K1024});
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-005: `INVERT` of a value of zero has no reciprocal the row could print,
+// so the flag-neutral value stands and the column stays finite.
+auto bmInvertZero(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("nothing", {0.0, sg::CounterFlag::INVERT});
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-005: the primary fold of the row carries a disclosure, so the column
+// carries the flag-neutral value beside the disclosure of the fold.
+auto bmDisclosedRate(sg::State& state) -> void
 {
   for (auto index : state) {
     if (index == 0) {
@@ -672,6 +700,96 @@ auto scenarioZeroDivisor() -> int
   return 0;
 }
 
+// FR-005: an inverted zero prints the flag-neutral value and stays finite.
+auto scenarioInvertZero() -> int
+{
+  scriptProvider(kThreadCpuStep);
+  auto handle = sg::registerBenchmark(&bmInvertZero, "bmInvertZero");
+  check(handle.name() == "bmInvertZero",
+        "the inverted zero benchmark registers");
+
+  const std::string report = captureGoodRun("^bmInvertZero$");
+  const std::vector<std::string> rows =
+      measuredRowsOf(linesOf(report, "bmInvertZero"));
+  check(rows.size() == kRepetitions,
+        "the batch prints one measured row per repetition (FR-006)");
+  checkFinite(rows);
+
+  for (const auto& row : rows) {
+    check(closeTo(fieldOf(row, "nothing="), 0.0),
+          "a value of zero under INVERT prints the flag-neutral value "
+          "(FR-005)");
+  }
+  return 0;
+}
+
+// FR-005: a repetition whose primary fold carries a disclosure prints the
+// flag-neutral value with the disclosure and stands aside from the counter's
+// statistics. One sampling window holds the whole plan, and two captures of
+// one plan hold the same number of actions, so the length of the first window
+// names the second window's measured endpoints: the calibration reads come
+// first and the endpoint pairs of the repetitions are the last two actions of
+// each, so the opening endpoint of the last repetition is one action before
+// the end of the window. There the fold keeps a value the row can name beside
+// its disclosure; on a closing endpoint the fold would read zero and disclose
+// the zero divisor instead.
+auto scenarioFoldDisclosed() -> int
+{
+  scriptProvider(kThreadCpuStep);
+  auto handle = sg::registerBenchmark(&bmDisclosedRate, "bmDisclosedRate");
+  check(handle.name() == "bmDisclosedRate",
+        "the disclosed benchmark registers");
+
+  const double rate = 4096.0 / kCpuFoldSeconds / kK1024;
+  const std::uint64_t before = fake->readActions();
+  const std::vector<std::string> clean = measuredRowsOf(
+      linesOf(captureGoodRun("^bmDisclosedRate$"), "bmDisclosedRate"));
+  const std::uint64_t window = fake->readActions() - before;
+  check(clean.size() == kRepetitions,
+        "the batch prints one measured row per repetition (FR-006)");
+  for (const auto& row : clean) {
+    check(closeTo(fieldOf(row, "bytes="), rate),
+          "a run whose fold carries no gap keeps the rate value (FR-003)");
+    check(!row.contains("disclosed") && !row.contains("zero-divisor"),
+          "a clean row carries no disclosure (FR-005)");
+  }
+
+  fake->setGapActions("machine", "thread_cpu", {window - 1});
+  const std::string report = captureGoodRun("^bmDisclosedRate$");
+  const std::vector<std::string> lines = linesOf(report, "bmDisclosedRate");
+  const std::vector<std::string> rows = measuredRowsOf(lines);
+  check(rows.size() == kRepetitions,
+        "the batch prints one measured row per repetition (FR-006)");
+  checkFinite(rows);
+
+  std::size_t disclosed = 0;
+  for (const auto& row : rows) {
+    if (row.contains("fold-disclosed")) {
+      ++disclosed;
+    }
+  }
+  check(disclosed == 1, "the gapped repetition discloses its fold (FR-005)");
+  for (const auto& row : rows) {
+    const double value = fieldOf(row, "bytes=");
+    check(closeTo(value, rate) || closeTo(value, 4096.0 / kK1024),
+          "every row prints either the rate or the flag-neutral value "
+          "(FR-003, FR-005)");
+    if (row.contains("fold-disclosed")) {
+      check(closeTo(value, 4096.0 / kK1024),
+            "the disclosed row prints the flag-neutral value (FR-005)");
+    }
+  }
+
+  const std::string bytesLine = statisticLineOf(lines, "bytes");
+  check(bytesLine.contains("n=2"),
+        "the disclosed repetition stands aside from that counter's "
+        "statistics (FR-005)");
+  check(
+      closeTo(fieldOf(bytesLine, "mean="), rate),
+      "the counter statistic set summarizes the clean repetitions " "(FR-006)");
+  return 0;
+}
+
 // FR-001: the value of a used name is the last write, and the flags and the
 // base of the first open stand.
 auto scenarioLastWrite() -> int
@@ -809,6 +927,12 @@ auto main(int argc, char** argv) -> int
     if (mode == "zeroDivisor") {
       return scenarioZeroDivisor();
     }
+    if (mode == "invertZero") {
+      return scenarioInvertZero();
+    }
+    if (mode == "foldDisclosed") {
+      return scenarioFoldDisclosed();
+    }
     if (mode == "lastWrite") {
       return scenarioLastWrite();
     }
@@ -849,6 +973,8 @@ auto main(int argc, char** argv) -> int
                                "invariant",
                                "invert",
                                "invertRate",
+                               "invertZero",
+                               "foldDisclosed",
                                "zeroDivisor",
                                "lastWrite",
                                "flagChange",

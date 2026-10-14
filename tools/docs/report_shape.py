@@ -10,6 +10,13 @@ value one column wider eats that padding, so the same column reads "= #" on
 one host and "=#" on another. The build field of the header is folded as
 well: it names the configuration of the build that ran, so the sanitize and
 coverage builds print another value for one and the same page (contract S-2).
+Counter columns ride the same fold: a counter column and a counter statistic
+line belong to the row shape, so a program that opens counters prints them and
+the block carries them, while the built-in fields keep the bytes they always
+kept (019 report-shape contract, FR-006, SC-02). The trailing label field rides
+it too: the field is text the run owns, so a block that carries a label matches
+a run that prints it and fails a run that prints another or none, while the
+built-in fields of an unlabelled row keep their bytes (019 FR-011, SC-02).
 Exit 0 clean, 1 with any finding, 2 on a usage error.
 """
 
@@ -41,6 +48,11 @@ def classify(shape: str) -> str:
         return "aggregate line"
     if "iterations=" in shape:
         return "row line"
+    if "mean=" in shape:
+        # The aggregate family prints one statistic line per attached metric
+        # and one per opened counter, and neither carries the AGGREGATE word
+        # (018 contract, 019 FR-006).
+        return "statistic line"
     return "header line"
 
 

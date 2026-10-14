@@ -174,6 +174,13 @@ auto State::setIterationTime(const std::int64_t nanoseconds) -> void
             "(FR-007)");
 }
 
+auto State::setComplexityN(const std::int64_t problemSize) -> void
+{
+  m_complexityN = problemSize;
+  SG_ENSURE(m_complexityN.has_value() && *m_complexityN == problemSize,
+            "the run carries the problem size the body stated (FR-019)");
+}
+
 auto BenchmarkHandle::addMetricCore(const detail::MetricSeed& seed)
     -> BenchmarkHandle&
 {
@@ -182,6 +189,92 @@ auto BenchmarkHandle::addMetricCore(const detail::MetricSeed& seed)
   m_entry->metrics.push_back(seed);
   SG_ENSURE(m_entry->metrics.back().label == seed.label,
             "the entry carries the metric (FR-021)");
+  return *this;
+}
+
+namespace
+{
+
+// The aggregate names every family prints (FR-013): a custom statistic may
+// not take one of them, because the report prints the built-in fields and
+// the attached ones in one row and a shared name would leave the reader
+// without one value per name.
+auto isBuiltInStatisticName(const std::string_view name) -> bool
+{
+  for (const std::string_view builtIn : {std::string_view {"mean"},
+                                         std::string_view {"median"},
+                                         std::string_view {"sd"},
+                                         std::string_view {"cv"},
+                                         std::string_view {"min"},
+                                         std::string_view {"max"},
+                                         std::string_view {"n"}})
+  {
+    if (builtIn == name) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+auto BenchmarkHandle::addStatistic(const std::string_view name,
+                                   const StatUnit unit,
+                                   const StatisticFunc& function)
+    -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "a statistic is attached before the run starts (E-02)");
+  SG_REQUIRE(!isBuiltInStatisticName(name),
+             "a custom statistic named after a built-in aggregate name "
+             "violates the rule that mean, median, sd, cv, min, max and n "
+             "stay reserved for the built-in aggregates (FR-013)");
+  m_entry->statistics.push_back(
+      detail::StatisticSeed {std::string(name), unit, function});
+  SG_ENSURE(m_entry->statistics.back().name == name,
+            "the entry carries the statistic (FR-013)");
+  return *this;
+}
+
+auto BenchmarkHandle::reportAggregatesOnly() -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  m_entry->reportAggregatesOnly = true;
+  SG_ENSURE(m_entry->reportAggregatesOnly,
+            "the entry carries the report mode of that family (FR-016)");
+  return *this;
+}
+
+auto BenchmarkHandle::displayAggregatesOnly() -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  m_entry->displayAggregatesOnly = true;
+  SG_ENSURE(m_entry->displayAggregatesOnly,
+            "the entry carries the display mode of that family (FR-017)");
+  return *this;
+}
+
+auto BenchmarkHandle::complexity(const BigO bigO) -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  m_entry->bigO = bigO;
+  m_entry->bigOFun = {};
+  SG_ENSURE(m_entry->bigO == bigO,
+            "the entry carries the curve selection of that family (FR-019)");
+  return *this;
+}
+
+auto BenchmarkHandle::complexity(BigOFun function) -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  m_entry->bigO = BigO::NONE;
+  m_entry->bigOFun = std::move(function);
+  SG_ENSURE(static_cast<bool>(m_entry->bigOFun),
+            "the entry carries the curve function of that family (FR-020)");
   return *this;
 }
 

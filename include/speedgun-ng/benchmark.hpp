@@ -91,7 +91,10 @@ enum class RowKind : std::uint8_t
   // quantity naming its curve and coefficient, and one row carrying the
   // root-mean relative error of that fit (FR-022, FR-030).
   BIG_O,
-  RMS
+  RMS,
+  // The row a fitted quantity prints in place of its pair when that quantity
+  // does not stand in every instance of the family (FR-023, spec Edge Cases).
+  SKIPPED
 };
 
 /**
@@ -115,6 +118,19 @@ enum class CounterFlag : std::uint32_t
   AVG_ITERATIONS = 1u << 3,
   INVERT = 1u << 31
 };
+
+/**
+ * @brief Test whether a counter flag set carries a flag (FR-002).
+ *
+ * \pre none
+ * \post none
+ */
+[[nodiscard]] constexpr auto operator&(
+    const CounterFlag left, const CounterFlag right) noexcept -> CounterFlag
+{
+  return static_cast<CounterFlag>(static_cast<std::uint32_t>(left)
+                                  & static_cast<std::uint32_t>(right));
+}
 
 /**
  * @brief Combine two counter flag sets (FR-002).
@@ -205,6 +221,94 @@ struct Statistics
 };
 
 /**
+ * @brief The unit a custom statistic declares (FR-014).
+ *
+ * A `TIME` statistic holds nanoseconds like every other stored time value
+ * and prints in the unit the row prints in; a `PERCENTAGE` statistic
+ * prints unscaled by the unit (FR-014).
+ */
+enum class StatUnit : std::uint8_t
+{
+  TIME,
+  PERCENTAGE
+};
+
+/**
+ * @brief The function of a custom statistic (FR-013, FR-015).
+ *
+ * It receives the primary time per iteration of every clean repetition,
+ * the same list the built-in `Statistics` summarizes, in nanoseconds, and
+ * writes its value to `result`. Returning true prints that value among the
+ * built-in fields of the aggregate row; returning false leaves the
+ * statistic out of the row while the run still reports (FR-015).
+ *
+ * \pre the callable is callable: the list it receives can be empty when
+ *      every repetition carried a disclosure (FR-025)
+ */
+using StatisticFunc =
+    std::function<bool(const std::vector<double>& values, double& result)>;
+
+/**
+ * @brief One custom statistic of an aggregate row, with the value its
+ * function produced (FR-013, FR-014, FR-015).
+ */
+struct StatisticValue
+{
+  std::string name;
+  StatUnit unit = StatUnit::TIME;
+  double value = 0.0;
+};
+
+/**
+ * @brief The curve class a complexity fit tries or keeps (FR-019, FR-020).
+ *
+ * `NONE` asks for no fit and stands as the default, so a family that never
+ * calls `complexity` prints no fit rows. `AUTOMATIC` tries each curve and
+ * keeps the least root-mean relative error, with the constant curve as the
+ * fallback (FR-021).
+ */
+enum class BigO : std::uint8_t
+{
+  NONE,
+  ONE,
+  N,
+  N_SQUARED,
+  N_CUBED,
+  LOG_N,
+  N_LOG_N,
+  AUTOMATIC
+};
+
+/**
+ * @brief The curve function a family supplies for its complexity fit
+ * (FR-020).
+ *
+ * The harness fits its coefficient over the instances by the same closed form
+ * it uses for the built-in curves and prints the row under the name `f(N)`.
+ */
+using BigOFun = std::function<double(double n)>;
+
+/**
+ * @brief One row of a family's complexity fit (FR-022, FR-023).
+ *
+ * A fitted quantity carries its curve token, its coefficient and its
+ * root-mean relative error as a percentage. A quantity that does not stand in
+ * every instance carries the reason its pair is absent instead.
+ */
+struct FitRow
+{
+  std::string quantity;
+  std::string curve;
+  double coefficient = 0.0;
+  double rmsPercent = 0.0;
+  // True for the primary time, whose coefficient the report scales by the
+  // unit of the family; a counter or metric coefficient stands in that
+  // quantity's value (FR-022).
+  bool scalesWithUnit = false;
+  std::string reason;
+};
+
+/**
  * @brief One repetition row or one aggregate row (E-06).
  *
  * A repetition row carries the values of that repetition's measured
@@ -239,11 +343,19 @@ struct ResultRow
   // The counter values of this row in `BenchmarkResult::counterLabels`
   // order, after the runner applied the flags of each name (FR-006).
   std::vector<double> counters;
+  // The token the report prints beside every counter column of this row when
+  // a counter could not take its flags: `zero-divisor` when the primary time
+  // of the row is zero. Empty when the columns stand as computed (FR-005).
+  std::string counterDisclosure;
   // The text `State::setLabel` wrote during this row's run, empty when
   // the body wrote none. The report prints the field as a trailing
   // label, and an aggregate carries it only when every repetition
   // agrees (FR-011, FR-012).
   std::string label;
+  // The quantity, curve, coefficient and RMS of a fit row, or the reason a
+  // fitted quantity stands without a pair (FR-022, FR-023). Only the rows of
+  // the synthetic fit result carry this.
+  FitRow fit;
   double overheadFloorNs = 0.0;
   Statistics timeStats;
   std::vector<Statistics> metricStats;
@@ -282,6 +394,11 @@ struct BenchmarkResult
   // The aggregate form of each named counter over the clean
   // repetitions, one entry per `counterLabels` entry (FR-006, E-07).
   std::vector<Statistics> counterStats;
+  // The value of every statistic the family attached, in `addStatistic`
+  // order over the clean primary values; a statistic whose function refused
+  // its input holds no entry (FR-013, FR-014, FR-015). The aggregate row
+  // prints them, so a run with no aggregate row prints none.
+  std::vector<StatisticValue> statisticValues;
   // True when the family asked for its aggregate alone: the report
   // prints the aggregate row and holds back the repetition rows this
   // result carries, a result with no aggregate row keeps its rows
@@ -555,6 +672,73 @@ public:
   auto setCounter(std::string_view name, const Counter& counter) -> void;
 
   /**
+   * @brief Set the byte-throughput column to the count this call passes
+   * (FR-009).
+   *
+   * The call opens `bytes_per_second` with the `RATE` flag and the
+   * `K1024` base, so the printed column is this count divided by the
+   * primary time of the row in seconds and again by 1024 (FR-003, FR-006,
+   * FR-009). A later call writes the count alone, as for any used name
+   * (FR-001).
+   *
+   * \pre the run has opened at least one free counter name besides the
+   *      throughput columns it already opened, as the two throughput
+   *      setters share the cap of sixteen names (FR-001)
+   * \post the run carries `bytes_per_second` with the value of the
+   *       argument, the `RATE` flag and the `K1024` base (FR-009)
+   */
+  auto setBytesProcessed(std::int64_t bytes) -> void;
+
+  /**
+   * @brief Set the item-throughput column to the count this call passes
+   * (FR-009).
+   *
+   * The call opens `items_per_second` with the `RATE` flag and the
+   * `K1000` base, so the printed column is this count divided by the
+   * primary time of the row in seconds (FR-003, FR-006, FR-009). A later
+   * call writes the count alone, as for any used name (FR-001).
+   *
+   * \pre the run has opened at least one free counter name besides the
+   *      throughput columns it already opened, as the two throughput
+   *      setters share the cap of sixteen names (FR-001)
+   * \post the run carries `items_per_second` with the value of the
+   *       argument, the `RATE` flag and the `K1000` base (FR-009)
+   */
+  auto setItemsProcessed(std::int64_t items) -> void;
+
+  /**
+   * @brief State the problem size this instance measures (FR-019).
+   *
+   * The complexity fit of the family reads this value as its N; an instance
+   * that states none falls back to its range value, and an instance with no
+   * positive size of either kind leaves the family without a fit (FR-019,
+   * FR-023).
+   *
+   * \pre none
+   * \post the run carries `problemSize` as the complexity size of this
+   *       instance (FR-019)
+   */
+  auto setComplexityN(std::int64_t problemSize) -> void;
+
+  /**
+   * @brief Set the label of this repetition (FR-011).
+   *
+   * The runner copies the string to the row after the loop, and the
+   * report prints it as the trailing ` label=<text>` field of that row,
+   * present only when the row carries a label (FR-011, the clarification
+   * of 2026-10-14). The last call of a repetition wins, and the
+   * aggregate row takes the label only when every repetition shares it
+   * (FR-012, D-04).
+   *
+   * \pre `label` holds no newline character: the report prints one line
+   *      per row, so a label that breaks the line is a violation at the
+   *      call (spec Edge Cases, FR-011)
+   * \post this repetition carries `label` in place of any label an
+   *       earlier call of it set (FR-011, D-04)
+   */
+  auto setLabel(std::string_view label) -> void;
+
+  /**
    * @brief Stop the timed window from this point (FR-009).
    *
    * The call stands in the benchmark body. It takes one sampling action,
@@ -820,6 +1004,11 @@ private:
   // column order is the order the names opened (FR-006).
   std::array<CounterSlot, kMaxUserCounters> m_counters {};
 
+  // D-04, FR-011: the label of this repetition. One string on the state,
+  // one copy into the row after the loop; the last write of a repetition
+  // wins (D-04).
+  std::string m_label;
+
   // The pause bookkeeping of one run. A pause pair holds the sample
   // ordinals, zero-based, of one paused interval inside that run's
   // sample span, so the runner adds the run's base point when it
@@ -846,6 +1035,9 @@ private:
   // The manual accumulator: the sum of the iteration times a manual
   // benchmark supplies, in nanoseconds (E-04, FR-007).
   std::int64_t m_manualNs = 0;
+  // The problem size the body stated for this instance, the N of the
+  // complexity fit when it stands (FR-019).
+  std::optional<std::int64_t> m_complexityN;
 };
 
 /**
@@ -1000,6 +1192,15 @@ struct MetricSeed
   sg::counters::detail::ExprCore core;
   std::string label;
   bool perIteration = false;
+};
+
+// One statistic the handle accumulated before the run, the triple
+// `addStatistic` appends to the registry record (FR-013).
+struct StatisticSeed
+{
+  std::string name;
+  StatUnit unit = StatUnit::TIME;
+  StatisticFunc function;
 };
 
 }  // namespace detail
@@ -1162,6 +1363,89 @@ public:
     SG_ENSURE(&attached == this, "the handle carries the metric (FR-021)");
     return attached;
   }
+
+  /**
+   * @brief Attach one custom statistic to the aggregate of this family
+   * (FR-013, FR-014, FR-015).
+   *
+   * The function computes over the primary time per iteration of the clean
+   * repetitions, the same list the built-in statistics summarize, and its
+   * value prints among the built-in fields of the aggregate row in the
+   * order the calls came in. A `TIME` statistic prints in the unit of the
+   * row, a `PERCENTAGE` statistic unscaled by it.
+   *
+   * \pre the handle names a registered entry, the run has not started for
+   *      this benchmark, and `name` holds none of the reserved built-in
+   *      aggregate names `mean`, `median`, `sd`, `cv`, `min`, `max`, `n`
+   *      (E-02, FR-013)
+   * \post the entry carries the name, unit and function of that statistic,
+   *       and the returned handle is this handle (FR-013)
+   */
+  auto addStatistic(std::string_view name,
+                    StatUnit unit,
+                    const StatisticFunc& function) -> BenchmarkHandle&;
+
+  /**
+   * @brief Fit the family's values against the problem size of its instances
+   * (FR-019, FR-020, FR-021).
+   *
+   * The fit runs over the instances of the family and reports one pair of rows
+   * per fitted quantity: the primary time, each named user counter and each
+   * attached metric. A family with fewer than two instances, or with an
+   * instance that holds no positive size, states the reason in place of the
+   * rows (FR-023).
+   *
+   * \pre the handle names a registered entry and the run has not started for
+   *      this benchmark (E-02)
+   * \post the entry carries that curve selection, and the returned handle is
+   *       this handle (FR-019, FR-020)
+   */
+  auto complexity(BigO bigO) -> BenchmarkHandle&;
+
+  /**
+   * @brief Fit the family's values against a curve the caller supplies
+   * (FR-020).
+   *
+   * The function is the curve of the fit: its coefficient and root-mean
+   * relative error come from the same closed form the built-in curves use.
+   *
+   * \pre the handle names a registered entry, the run has not started for
+   *      this benchmark, and the callable is callable (E-02, FR-020)
+   * \post the entry carries that curve function as the selection of the fit,
+   *       and the returned handle is this handle (FR-020)
+   */
+  auto complexity(BigOFun function) -> BenchmarkHandle&;
+
+  /**
+   * @brief Restrict the report of this family to its aggregate rows
+   * (FR-016).
+   *
+   * The console is the only report output today, so the restriction reaches
+   * it; a later file output inherits the mode (FR-016). A family with no
+   * aggregate row keeps its rows: the mode hides no row that has no
+   * aggregate beside it (FR-018).
+   *
+   * \pre the handle names a registered entry and the run has not started for
+   *      this benchmark (E-02)
+   * \post the entry carries the report mode of that family, and the returned
+   *       handle is this handle (FR-016)
+   */
+  auto reportAggregatesOnly() -> BenchmarkHandle&;
+
+  /**
+   * @brief Restrict the console display of this family to its aggregate rows
+   * (FR-017).
+   *
+   * The stored result keeps every repetition row; the mode trims the display
+   * alone, and while the console is the only channel the two modes print the
+   * same trimmed console (FR-017, FR-018).
+   *
+   * \pre the handle names a registered entry and the run has not started for
+   *      this benchmark (E-02)
+   * \post the entry carries the display mode of that family, and the returned
+   *       handle is this handle (FR-017)
+   */
+  auto displayAggregatesOnly() -> BenchmarkHandle&;
 
   /**
    * @brief Append one instance carrying the single argument `value`

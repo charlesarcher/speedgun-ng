@@ -51,6 +51,16 @@ public:
   std::optional<std::uint64_t> repetitions;
   std::optional<std::uint64_t> fixedIterations;
   std::vector<detail::MetricSeed> metrics;
+  // The statistics the family attached, in registration order (FR-013).
+  std::vector<detail::StatisticSeed> statistics;
+  // The two aggregate-only modes the family asked for before its first run
+  // (FR-016, FR-017).
+  bool reportAggregatesOnly = false;
+  bool displayAggregatesOnly = false;
+  // The complexity selection the family asked for: the curve class, or the
+  // curve function when the family supplied one (FR-019, FR-020).
+  BigO bigO = BigO::NONE;
+  BigOFun bigOFun;
   bool runStarted = false;
 
   std::vector<std::vector<std::int64_t>> args;
@@ -227,8 +237,32 @@ public:
 
   [[nodiscard]] auto run(Instance& instance) -> BenchmarkResult;
 
+  /// @brief The complexity fit of the family the runner has been collecting,
+  /// when that family ends here: `next` names the instance the run turns to
+  /// next, and a null `next` ends the run and the last family with it
+  /// (FR-022, FR-023).
+  [[nodiscard]] auto fitForFamilyEnd(const Instance* next)
+      -> std::optional<BenchmarkResult>;
+
 private:
   const RunOptions& m_options;
+
+  // FR-022: the instances of one family since its last fit. The sizes and the
+  // values of every quantity stand in instance order, and a quantity a later
+  // instance opens joins the lists with the earlier instances backfilled.
+  RegistryEntry* m_pendingFamily = nullptr;
+  std::optional<TimeUnit> m_pendingUnit;
+  std::vector<std::int64_t> m_sizes;
+  std::vector<double> m_times;
+  std::vector<std::string> m_counterLabels;
+  std::vector<std::vector<double>> m_counterValues;
+  std::vector<std::string> m_metricLabels;
+  std::vector<std::vector<double>> m_metricValues;
+
+  void noteFitSample(const Instance& instance,
+                     const BenchmarkResult& result,
+                     std::optional<std::int64_t> statedSize);
+  void clearPending() noexcept;
 };
 
 /// @brief Print the context lines above the rows (FR-035).
