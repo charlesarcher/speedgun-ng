@@ -95,7 +95,7 @@ Tracking.)*
 | VIII | PASS with an amendment. No gate weakens. The requested strengthening moves IV.1 from compiles to compiles and runs, adds the `example_run` gate, and raises the page-line budget of the drift tool from 400 to 550 (FR-036, FR-044). The version and `SOVERSION` table records the rise FR-048 requires. |
 | IX | PASS. Spec, plan, and tasks each live in `specs/019-harness-user-counters-and-statistics/`. |
 | X | PASS. Threads, JSON reports, and histograms stay out: each is a roadmap spec (the Out list of the spec Scope). The four design choices that need a written justification stand in Complexity Tracking. |
-| XI | PASS. The artifacts and the code prose obey XI.1 to XI.7, the internal guide notes are rewritten as reader sentences (FR-031, Q-10), and the prose gate reports zero findings (FR-050). |
+| XI | PASS. The artifacts and the code prose obey XI.1 to XI.7, the internal guide notes are rewritten as reader sentences (FR-031, Q-11), and the prose gate reports zero findings (FR-050). |
 
 **Gate weakening requested**: no. **Gate strengthening requested**:
 yes, the IV.1 and Principle VIII amendment of FR-036, recorded at
@@ -116,7 +116,7 @@ docs/pages/harness.md                  # Edited: detail sections for the six
                                        #   new capabilities, the pause bound
                                        #   and capture-point texts rewritten,
                                        #   the five internal Coverage
-                                       #   paragraphs rewritten (Q-10)
+                                       #   paragraphs rewritten (Q-11)
 .specify/memory/constitution.md        # Edited: IV.1 build-and-run
                                        #   obligation, VIII gate names the
                                        #   example_run check, 2.20.0
@@ -220,7 +220,7 @@ the existing `add_example` mechanism.
 | R-07 | One closed-form relative-error least-squares fit per family, in one new source file, printed as synthetic fit rows | D-07 |
 | R-08 | Instance N is the `setComplexityN` value, falling back to the family's range value, and a non-positive N ends the fit with a reason | D-08 |
 | R-09 | Every fitted quantity (time, counters, metrics) prints one BigO row and one RMS row through one synthetic fit result per family | D-09 |
-| R-10 | Pause room is reserved from the family's observed pauses per iteration, capped at `kMaxPauseSamplesPerLeaf` points per leaf column; a first attempt or an over-cap run folds closed pairs into running totals, so memory stays bounded and the fixed allowance dies | D-10, Q-11 |
+| R-10 | Pause room is reserved from the family's observed pauses per iteration, capped at `kMaxPauseSamplesPerLeaf` raw points per leaf column (32'768 points, 256 KiB at one `std::uint64_t` per point); a first attempt or an over-cap run folds closed pairs into running totals, so memory stays bounded and the fixed allowance dies | D-10, Q-10 |
 | R-11 | The family record stores `std::optional<TimeUnit>`; the run resolves it at run start against the process default | D-11 |
 | R-12 | One example file per main-page section under `example/docs/`, with a new `example_run` CTest gate | D-12 |
 | R-13 | The drift tool gains the six titles, the 550-line cap, and the region ownership check | D-13 |

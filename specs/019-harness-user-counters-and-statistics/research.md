@@ -204,7 +204,7 @@ and no per-pause array exists. The fold is the documented exception to
 the rule that every printed value is a fold over retained raw points,
 and it reads counters-library points alone. The result carries
 `pauseSamplesFolded` and the report discloses a folded run (FR-025,
-FR-051 to FR-054, Q-11).
+FR-051 to FR-054, Q-10).
 
 **Rationale**: a pause-per-iteration body at `kIterationCap` makes an
 iterations-proportional reservation unbounded; history sizing
