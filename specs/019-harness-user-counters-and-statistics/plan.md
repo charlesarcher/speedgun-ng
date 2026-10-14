@@ -161,8 +161,9 @@ source/harness/
 │                                      #   lines, the statistic fields, the
 │                                      #   fit rows, the aggregate filter
 ├── family.cpp, cli.cpp, catalog.cpp   # unchanged
-CMakeLists.txt (repository root)       # Edited: VERSION 0.9.0 (:7), harness
-                                       #   SOVERSION 5 (:219)
+CMakeLists.txt (repository root)       # Edited: the project() VERSION
+                                       #   0.9.0, the harness target
+                                       #   SOVERSION 5
 
 test/
 ├── CMakeLists.txt                     # Edited: six new executables, two
@@ -272,7 +273,8 @@ fit rows (FR-022, R-09), printed after the family's rows:
 The label field stands after the name column and appears only when the
 row carries a label (FR-011, clarification 2026-10-14). Counter columns
 print the flag-applied value divided by the declared base, like the
-cited console (`src/console_reporter.cc:196`). The report drops
+cited console (the counter print with `oneK` in
+`src/console_reporter.cc`). The report drops
 repetition rows when the family's mode stands and an aggregate row
 exists (FR-016 to FR-018).
 
@@ -313,9 +315,11 @@ default unit (FR-027):
         else the process default read at run start
 ```
 
-The registration-time capture at `registry.cpp:50-56` dies with R-11,
-and the README and guide texts at `README.md:263` and
-`docs/pages/harness.md:402-405` state the new rule in the same commit
+The registration-time capture in `addRegistryEntry`
+(`source/harness/registry.cpp`) dies with R-11,
+and the README "The time unit" section and the
+`docs/pages/harness.md` "Time units" paragraph state the new rule in
+the same commit
 range (FR-041).
 
 ### Physical view
@@ -458,7 +462,8 @@ the coverage gates, `example_drift`, `example_drift_fixtures`,
 `snippet_compile`, `report_shape`, `report_shape_fixtures`, and the new
 `example_run`. The coverage target keeps measuring 100% line and branch
 over `include/speedgun-ng/*` and `source/*`, and it omits the contract
-macro lines (`cmake/coverage.cmake:76`), so every new branch needs a
+macro lines (the contract-macro exclusion of `cmake/coverage.cmake`),
+so every new branch needs a
 test while its contract lines stay free (FR-047).
 
 **Determinism**: scripted clock points drive every time figure; the fit

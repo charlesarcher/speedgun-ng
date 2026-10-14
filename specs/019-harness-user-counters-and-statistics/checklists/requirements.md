@@ -43,15 +43,20 @@
   require evidence that names the files and symbols of the current
   surface. Those sections record what exists. They prescribe no
   implementation.
-- Citations carry file and line numbers, unlike D1's name-only rule:
-  the prompt that opened this feature requires the audit-point line,
-  and every line cited was read at the audit point `a7776b6`. The
-  spec records in the Audit point section that the working checkout
-  and the `origin/master` tip are content-identical, so the read and
-  the cited commit agree byte for byte.
+- Citations name files with symbols, functions, or headings, unlike
+  D1's name-only note about its own style: every anchor was read at
+  the audit point `a7776b6`, and a plan-review pass replaced every
+  line-number citation with such an anchor, because line numbers rot
+  while names survive edits; the audit-point table keeps its commit
+  hash. The spec records in the Audit point section that the working
+  checkout and the `origin/master` tip are content-identical, so the
+  read and the cited commit agree byte for byte.
 - PC-3 and PC-4 record FAIL results with evidence: the per-run pause
-  allowance stands at `benchmark.hpp:69`, and the registration-time
-  default-unit capture stands at `registry.cpp:50-56`. Both are false
+  allowance stands as `kMaxPausePerRun`, with its `SG_REQUIRE` guard
+  in `State::pauseTiming`, in
+  `include/speedgun-ng/benchmark.hpp`, and the registration-time
+  default-unit capture stands in `addRegistryEntry` in
+  `source/harness/registry.cpp`. Both are false
   to the shipped main page. The request's Q-7 decision admits them as
   this spec's own early work, carried as FR-024 to FR-027 with the
   page texts that travel with them (FR-039, FR-041, FR-042).
@@ -69,11 +74,10 @@
   cleanup into the guide work.
 - Validation ran two passes over the drafted spec. The first pass
   corrected citation drift found by re-reading the cited files: the
-  `printResult` line ranges in PC-1 and Citations (the function opens
-  at `report.cpp:83`; the aggregate prints at `:99-129` and the
-  repetition row at `:132-160`), the `SG_BENCHMARK` macro line in
-  PC-4 (`benchmark.hpp:1341`), the `RegistryEntry` range
-  (`internal.hpp:44-72`), the pull-request numbers in PC-0 (H1 is
+  `printResult` spans named in PC-1 and Citations, the
+  `SG_BENCHMARK` macro reference in
+  PC-4, the `RegistryEntry` reference,
+  the pull-request numbers in PC-0 (H1 is
   pull request 32 and H2 is 33 on 017's own audit record), and the
   FR cross-references in PC-3 and PC-4 (FR-024 to FR-026 and FR-027).
   The second pass ran the repository prose gate over the file, found
