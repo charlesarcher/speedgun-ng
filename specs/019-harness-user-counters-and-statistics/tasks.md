@@ -410,7 +410,7 @@ spec entry stays a decision for Charles.
 - [X] T064 Document that inverting a zero value keeps zero, where the reference implementation gives infinity, in the CounterFlag doxygen, FR-005 and harness.md per N-4 (missing)
 - [X] T065 Record in research D-10 that pause history is held per family through RegistryEntry::pausePairsPerIteration, so a family whose instances pause differently reserves the largest observed room per N-5 (missing)
 - [ ] T066 Keep README.md at 550 lines or fewer after the section fixes, trimming prose and never a snippet, and report the final count per N-6, FR-044 (partial)
-- [ ] T067 Run quickstart.md sections 5 through 7, record the evidence, and check T042 only when it passes per D-2 (partial)
+- [X] T067 Run quickstart.md sections 5 through 7, record the evidence, and check T042 only when it passes per D-2 (partial)
 - [ ] T068 Build the ci-coverage preset, hold 100 percent line and branch coverage, keep zero LCOV_EXCL markers under source/harness, record the evidence, and check T044 only when it passes per D-2 (partial)
 - [X] T069 Write /tmp/019-rebase-plan.txt listing every pushed commit that fails the commit lint with its hash, old subject, new subject and the footer it gains, without running the rebase or force-pushing, and hold it for Charles to approve per D-1 (contradicts)
 - [ ] T070 Run the verification set on the new head: developer build with the full suite, the pair gate at 0 drift, the prose gate and codespell at 0 findings on changed files, the commit lint on new commits, the coverage, sanitize and tsan presets, the two hand spot checks on cells=64 and the throughput rate, and the CI result per item (missing)
@@ -491,3 +491,11 @@ command that showed it.
   guard, on the allocation reading, with a planted allocating loop beside them
   as liveness. Both pass on g++ and clang++; the fold path resets its slot
   through closePausePair, which copies m_slot.view(), a plain recorder view.
+- T067: quickstart sections 5 to 7 ran alone on eec66fe into
+  quickstart57.log. The suite reports 87 of 88 passing with
+  counters_pmu_test the only failure, because this host denies PMU access; that
+  is why T042 stays unchecked. example_drift.py reports nothing. The prose
+  range gate over master found one finding, the contrastive comment above
+  counterIndexOf in source/harness/runner.cpp, fixed in 15de151, which brings
+  the file to zero findings. The constitution carries 2.20.0 in the impact
+  report, in the version-history row and in the footer.
