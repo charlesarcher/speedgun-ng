@@ -280,6 +280,18 @@ auto printCatalog() -> void;
 [[nodiscard]] auto availabilityName(sg::counters::Availability availability)
     -> const char*;
 
+/// @brief Apply the flags of one repetition to its counter columns, one
+/// value per name in the order the names opened (FR-003, FR-005, FR-006).
+/// A divisor that stands at zero leaves the flag-neutral value of that
+/// column, so the count belongs to the input a caller passes. The run
+/// loop leaves one at the least, and the counter test hands this pass a
+/// count of zero to reach the case FR-005 discloses.
+auto appendCounterColumns(std::vector<double>& printed,
+                          const std::vector<std::string>& names,
+                          const std::vector<Counter>& store,
+                          const double primarySeconds,
+                          const std::uint64_t iterations) -> void;
+
 }  // namespace detail
 
 }  // namespace sg
