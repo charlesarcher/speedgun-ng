@@ -244,8 +244,9 @@ docs instead, rejected by the Q-7 decision recorded in the spec.
 page, eighteen files, each with its own `main` calling `speedgunMain`,
 each added through `add_example` and listed in `run-examples`. The new
 `test/example_run.sh` runs each and passes when every registered
-benchmark of the file prints a result row, with no `FAILED` and no
-`SKIPPED` row (FR-032 to FR-035). `docs_snippets.cpp` is deleted as its
+benchmark of the file prints a result row, with no `FAILED` row and
+with every `SKIPPED` row one the file declares (D-15)
+(FR-032 to FR-035). `docs_snippets.cpp` is deleted as its
 regions move.
 
 **Rationale**: the Q-9 recommendation adopted in the spec, and the run
@@ -291,3 +292,33 @@ a gate change silently.
 more, rejected because the constitution is the authority the review
 reads; a patch bump, rejected by the amendment history's minor-bump
 pattern for added obligations.
+
+## D-15: The run check asserts the skips an example declares
+
+**Decision**: An example file declares its intentional skip with a
+comment marker beside the registration that causes it:
+`// example-run: expect-skip <reason>`. `test/example_run.sh` extracts
+the markers of each file it runs and asserts set equality against the
+printed rows: every `SKIPPED: <reason>` row must match one marker of
+that file, and every marker must match one printed row. Any other
+`SKIPPED` row, and any `FAILED` row, fails the check. Fixture cases
+pin the four outcomes: an undeclared skip fails, a declared matching
+skip passes, an expected skip that never prints fails, and a `FAILED`
+row fails (FR-034, SC-14).
+
+**Rationale**: the declaration stands beside the registration that
+skips, so a reader copying the block sees why that benchmark skips;
+the check stays one script asserting rows, which is the rule FR-034
+states, and a process exit code stays untrusted as ever; and the
+markers live in the same files the drift gate reads, keeping one
+source of truth.
+
+**Alternatives considered**: a CTest `SKIP_REGULAR_EXPRESSION`
+property, rejected because it acts on the process outcome: an example
+that fails at another benchmark could hide behind it, and a property
+registered apart from the file carries no reason text and leaves the
+reader's copy without the declaration; allowing skips for whitelisted
+names in the script, rejected because the reasons drift and the skip
+becomes the check's blind spot; deleting the skip demo from the page,
+rejected because the D1 "Skips" section must show a skipping
+benchmark.
