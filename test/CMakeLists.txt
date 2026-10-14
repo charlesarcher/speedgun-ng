@@ -776,7 +776,7 @@ add_test(NAME harness_aggregates_only_test COMMAND harness_aggregates_only_test)
 # The complexity fit of a family (T027; US7, FR-019 to FR-023, SC-04). Every
 # family of the scenario runs on manual time with one iteration, so the value
 # the fit reads is the value the body states, and each planted curve has an
-# expected coefficient and RMS instead of a tolerance band: the automatic fit of
+# expected coefficient and RMS printed beside it, no tolerance band: the fit of
 # a quadratic family with a counter and a metric, a fixed curve over the same
 # data, a user curve, a family that states its own problem size, and the three
 # shapes that hold no fit.

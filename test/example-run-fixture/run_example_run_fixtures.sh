@@ -27,7 +27,7 @@ rowB='bmB                 2.40 ns         2.38 ns'
 skipB='bmB                 SKIPPED: no cells configured'
 
 # build_tree <case> <marker-line> <row-for-bmA> <row-for-bmB-or-empty>
-# The fake binary answers --list with the registered set and otherwise prints
+# The fake binary answers the list query with the registered set and prints
 # the rows the case says print.
 build_tree() {
   case=$1 marker=$2 first=$3 second=$4
