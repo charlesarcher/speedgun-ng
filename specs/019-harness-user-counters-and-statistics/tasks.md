@@ -283,7 +283,7 @@ the eighteen owners.
 
 - [ ] T044 Build the `ci-coverage` preset from `CMakePresets.json`, run `ctest --test-dir build`, and confirm from the `cmake/coverage.cmake` report that "The coverage report keeps 100% line and branch over `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under `source/harness/`" (FR-047, SC-06)
 
-- [ ] T045 Main-page impact check (IV.1): confirm the six new README sections, their owning example files, and the region-ownership gate all shipped in the same change as the code they teach (FR-028, FR-036)
+- [X] T045 Main-page impact check (IV.1): confirm the six new README sections, their owning example files, and the region-ownership gate all shipped in the same change as the code they teach (FR-028, FR-036)
 
 ## Dependencies & Execution Order
 
