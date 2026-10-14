@@ -163,6 +163,7 @@ public result structs gain fields; no shipped field changes type
 | `BenchmarkResult::counterLabels` | `std::vector<std::string>`, name order fixed at the first row built | + mirrors `metricLabels` (`benchmark.hpp:184-186`) |
 | `BenchmarkResult::counterStats` | `std::vector<Statistics>`, per named counter over clean rows | + (FR-006) |
 | `BenchmarkResult::hideRepetitionRows` | `bool`, set when either mode stands | + (D-06) |
+| `BenchmarkResult::pauseSamplesFolded` | `bool`, true when the run netted its closed pause pairs by folding | + (FR-052, FR-054) |
 | `RowKind` | gains `BIG_O` and `RMS` | + (D-09) |
 
 Relationships: the runner writes every field once per repetition and
@@ -179,8 +180,9 @@ single-run row never disappears (FR-018).
 
 | Piece | Rule | Source |
 | --- | --- | --- |
-| points per run | at most `2 + 2 * iterations` per leaf: entry, exit, and at most one pause pair per iteration | FR-025, D-10 |
-| recorder reservation | per leaf, sized at plan build between attempts | FR-025 |
+| points per leaf column | the endpoint points of every run the phase rule can start, plus pause room of 2 × observed pairs per iteration × iterations from the previous attempt, capped at `kMaxPauseSamplesPerLeaf` (32'768 raw points, 256 KiB at 8 bytes each) | FR-025, FR-051, D-10 |
+| recorder reservation | per leaf column, sized at plan build between attempts; no pause room without family pause history | FR-025, FR-053 |
+| fold fallback | an attempt without history or over the cap nets closed pairs into the row's running totals at point commit, from the same two raw points, printing the raw path's columns | FR-052, D-10 |
 | `kMaxPausePerRun` | deleted with its guard, its capacity term, its bound tests, and the `ninthPause` mode | FR-024, FR-026 |
 | batch default unit | the `getDefaultTimeUnit()` value snapshot taken at `speedgunMain` entry | FR-027, D-11 |
 | result unit | entry value, else batch snapshot, else the process default read at run start | FR-027 |

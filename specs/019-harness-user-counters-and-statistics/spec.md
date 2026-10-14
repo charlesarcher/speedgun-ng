@@ -726,10 +726,13 @@ page.
   (`benchmark.hpp:452-454`), and the tests that assert the bound
   (`test/source/harness_pause_test.cpp:220-225`, `:583`, `:610`)
   shall be removed (PC-3).
-- **FR-025**: The recorder room shall be reserved from the run's
-  sampling plan, so any number of closed pause intervals fits in one
-  run, in place of the fixed allowance of
-  `runner.cpp:356-359`.
+- **FR-025**: The recorder's pause room shall be reserved at plan
+  build from the family's observed pause history, in place of the
+  fixed allowance of the capacity argument of the `plan->recorder`
+  call in `Runner::run`; a run whose closed pairs outrun the
+  reservation shall net them by folding, so no closed pair is lost
+  and any number of closed pause intervals reports correct columns
+  with bounded memory (Q-11, FR-051 to FR-054).
 - **FR-026**: A calibrated run that pauses in every iteration shall
   complete, and every pause shall net out of every time column and
   metric fold of its row as it does today.
@@ -860,6 +863,28 @@ page.
   come from the counters library and the time-source gate shall stay
   clean. All prose shall obey Principle XI, including XI.7, with zero
   prose-gate findings.
+- **FR-051**: From a family's second attempt on, the recorder shall
+  reserve per leaf column two points per closed pause pair the
+  previous attempt observed per iteration of that family, times the
+  attempt's iteration count, plus the endpoint points of each run it
+  starts; the pause room of any reservation shall not exceed
+  `kMaxPauseSamplesPerLeaf` raw points per leaf column (FR-025,
+  Q-11).
+- **FR-052**: An attempt that reserves no pause room, a family's
+  first attempt included, or whose room cannot cover its closed
+  pairs, shall fold each closed pause pair into its row's running
+  pause totals at the commit of the pair's second point, from the
+  same two raw counter points and through the counters library
+  alone, and the netted columns shall equal the raw path's (FR-026,
+  FR-050).
+- **FR-053**: A run whose body closes no pause shall reserve no pause
+  room beyond the endpoint points of each run it starts (FR-051).
+- **FR-054**: The result shall record whether its run folded, and the
+  report shall disclose a folded run with a token beside the row; a
+  raw run keeps the exact bytes it prints today; and
+  `docs/pages/harness.md` shall state the fold rule beside the
+  sentence that every printed value is a fold over the raw point pair
+  (FR-052).
 
 ## Key Entities *(include if feature involves data)*
 
@@ -926,10 +951,19 @@ page.
   an example under `example/` that CI builds and runs, and the run
   check shows a result row for every registered benchmark of every
   such example, with no `FAILED` row and no skipped row.
+- **SC-11**: A scripted run whose body closes two pause pairs in
+  every iteration of a ten-thousand-iteration calibrated run
+  completes with every column netted, and its reservation stays at
+  or under `kMaxPauseSamplesPerLeaf` points per leaf column (FR-051).
+- **SC-12**: A scripted run whose body never pauses reserves exactly
+  the endpoint points and no pause room (FR-053).
+- **SC-13**: On the scripted provider, a run routed through the fold
+  path prints net columns equal to the same run through the raw path
+  (FR-052).
 
 ## Scope
 
-In: FR-001 to FR-050: the six capabilities, the two H3 leftovers, the
+In: FR-001 to FR-054: the six capabilities, the two H3 leftovers, the
 main-page sections, the runnable-example obligation, the D1 leftovers,
 the budget update, and the version effect.
 
@@ -1082,6 +1116,21 @@ default. `/speckit-clarify` may confirm each as written or replace it.
   (FR-031, FR-039): rewrite each paragraph as one reader-facing
   sentence, since C-7 and C-8 rewrite that page's neighborhoods
   anyway and Principle XI keeps the page to the reader's vocabulary.
+- **Q-11 Pause sample memory** (raised at plan review as the memory
+  question behind FR-025; the review's entry number Q-10 is already
+  held above, so this lands as Q-11): reserving pause room of
+  `2 + 2 × iterations` raw points per leaf is unbounded memory at the
+  iteration cap of `kIterationCap`. **Decision for Charles.
+  Recommendation as below; the plan follows the recommendation unless
+  Charles changes it.** From a family's second attempt, reserve two
+  points per closed pause pair observed per iteration of the previous
+  attempt, times the attempt's iteration count; cap the pause room at
+  `kMaxPauseSamplesPerLeaf` (32'768 raw points per leaf column; one
+  `std::uint64_t` per point, 256 KiB per leaf column at the cap); a
+  family's first attempt and any over-cap run fold each closed pair
+  into the row's running totals from the same two raw points, and the
+  report discloses the fold. Recorded at FR-025 and FR-051 to FR-054,
+  SC-11 to SC-13, and research D-10.
 
 ## Constitution Checklist
 

@@ -29,7 +29,11 @@ grep -rn 'kMaxPausePerRun' source test docs && echo FAIL || echo gone
 ```
 
 The H3 fixes are the first working phase (Q-7), so they verify first:
-the pause test completes a run that pauses in every iteration; the time
+the pause test completes a run that pauses in every iteration, keeps
+the reservation at or under `kMaxPauseSamplesPerLeaf` points per leaf
+column for a pause-heavy scripted run, reserves no pause room for a
+non-pausing body, and prints the fold path's columns equal to the raw
+path's (FR-051 to FR-054, SC-11 to SC-13); the time
 unit test shows a `setDefaultTimeUnit` call in `main` reaching macro
 registrations while `unit(...)` still wins (FR-024 to FR-027).
 

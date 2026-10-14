@@ -182,21 +182,38 @@ loop beside the results, rejected because the future file output would
 need a second consumer; fitting only the time, the pre-clarification
 default, replaced by the 2026-10-14 decision.
 
-## D-10: The point bound follows the loop, so the allowance dies
+## D-10: Pause sampling stays bounded: history-sized room, fold fallback
 
-**Decision**: A run's recorder points cannot exceed 2 + 2 × iterations,
-because the loop shape allows at most one pause and one resume per
-iteration; the runner reserves that many points per leaf per attempt
-when it builds the plan between attempts. `kMaxPausePerRun`, its guard,
-its capacity term at `runner.cpp:356-359`, and its tests die (FR-024,
-FR-025).
+**Decision**: `kMaxPausePerRun`, its guard in `State::pauseTiming`,
+its capacity argument at the `plan->recorder` call in `Runner::run`,
+and its tests die (FR-024). The per-leaf-column recorder reservation
+becomes the endpoint points of every run the phase rule can start,
+plus pause room only where the family's previous attempt observed
+closed pause pairs: two points per observed pair per iteration of the
+next attempt, plus the endpoint shape. The room is capped at
+`kMaxPauseSamplesPerLeaf = 32'768` raw points per leaf column,
+built beside `kIterationCap` in
+`source/harness/detail/calibration.hpp`; each point is one
+`std::uint64_t`, so the cap costs 256 KiB per leaf column. A family's
+first attempt reserves no pause room; it, and any later attempt whose
+room cannot cover the observed pauses, runs the fold path: each closed
+pause pair folds into the row's running pause totals at the commit of
+the pair's second point, from the same two raw counter points, so the
+netted columns are numerically identical and no per-pause array
+exists. The result carries `pauseSamplesFolded` and the report
+discloses a folded run (FR-025, FR-051 to FR-054, Q-11).
 
-**Rationale**: the bound is a theorem of the loop shape the loop-shape
-gate pins, so it is as static as the old fixed allowance while stating
-no cap a calibrated run can hit; the reservation stays outside every
-timed loop.
+**Rationale**: a pause-per-iteration body at `kIterationCap` makes an
+iterations-proportional reservation unbounded; history sizing
+reserves for the pauses the body takes, the cap turns the
+pathological body into a fold the fold machinery already computes, and
+the fold reads counters-library points alone, so the time-source gate
+holds. A non-pausing body reserves exactly the baseline, and the
+reservation stays outside every timed loop.
 
-**Alternatives considered**: an on-demand growing recorder, rejected
+**Alternatives considered**: a fixed `2 + 2 × iterations` bound per
+leaf, rejected at plan review because the product with the iteration
+cap is unbounded memory; an on-demand growing recorder, rejected
 because an overrun is detected inside the loop, where allocation is
 forbidden; keeping a larger fixed allowance, rejected by FR-024's
 searchable removal and by a calibrated run that needs one pause per
