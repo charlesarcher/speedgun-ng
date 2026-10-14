@@ -1,7 +1,7 @@
 # Contract: Labels and custom statistics
 
 `State` gains `setLabel`, and `BenchmarkHandle`
-(`include/speedgun-ng/benchmark.hpp:826`) gains `addStatistic`. Both
+(`include/speedgun-ng/benchmark.hpp`) gains `addStatistic`. Both
 write family or run state consumed by the report (FR-011 to FR-015).
 
 ## The label call (FR-011, FR-012)
@@ -15,7 +15,7 @@ auto setLabel(std::string_view label) -> void;
 | --- | --- |
 | The row carrying a non-empty label shall print ` label=<text>` after the name column, verbatim. | FR-011, clarification 2026-10-14 |
 | A row with no label shall print no label field, and the name column shall keep its H1 bytes. | FR-011 |
-| The aggregate row shall carry the label only when every repetition's label is equal, the cited shared-label rule. | FR-012; `src/statistics.cc:178-186` |
+| The aggregate row shall carry the label only when every repetition's label is equal, the cited shared-label rule. | FR-012; the label rule of `ComputeStats` in `src/statistics.cc` |
 | A label containing a newline character is a precondition violation at the call. | spec Edge Cases |
 | The last write before the row builds wins within one repetition. | research D-04 |
 
@@ -39,7 +39,7 @@ auto addStatistic(std::string_view name,
 | A `TIME` statistic shall print in the row's unit; a `PERCENTAGE` statistic shall print unscaled by the unit multiplier. | FR-014 |
 | A function returning false shall print no value for that statistic while the run still reports. | FR-015 |
 | A name equal to `mean`, `median`, `sd`, `cv`, `min`, or `max` is a precondition violation at the call. | spec Edge Cases |
-| The call shall stand behind the `m_entry != nullptr && !m_entry->runStarted` precondition the existing setters use. | FR-046; `source/harness/registry.cpp:75-79` |
+| The call shall stand behind the `m_entry != nullptr && !m_entry->runStarted` precondition the existing setters use. | FR-046; the standing `SG_REQUIRE` on the handle setters in `source/harness/registry.cpp` |
 
 ## Consumers
 

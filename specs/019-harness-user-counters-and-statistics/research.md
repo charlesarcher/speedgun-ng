@@ -22,7 +22,7 @@ The thirty-two-byte bound keeps each slot a plain trivially-copyable
 record, which is what lets the store sit in fixed storage.
 
 **Alternatives considered**: the cited revision's `std::map` of
-`UserCounters` (`counter.h:66`), rejected because every new name
+`UserCounters` (`counter.h`), rejected because every new name
 allocates on the timed path; a heap array grown at the first set,
 rejected because the first set is often the first loop iteration; a
 registry-side store keyed at registration, rejected because counters are
@@ -31,7 +31,7 @@ body-opened names the handle cannot know in advance (FR-001).
 ## D-02: One flag pass after the loop, in the cited order
 
 **Decision**: The runner applies the flags once per repetition after the
-loop, in the order of the cited `Finish` (`src/counter.cc:22-44`): rate
+loop, in the order of the cited `Finish` in `src/counter.cc`: rate
 over the row's primary time in seconds, thread average over one,
 iteration-invariant times the iteration count, average-over-iterations
 divided by it, and invert last. The rate divisor reads the decision
@@ -40,7 +40,8 @@ under `useManualTime` (FR-003, FR-004).
 
 **Rationale**: the cited order is what SC-01 pins, and the decision
 value is the same number the calibration and the aggregate already read
-(`runner.cpp:463-466`, PC-2). On one thread the cited total-seconds
+(the assignment of `record.decisionNs` in `Runner::run`, PC-2). On one
+thread the cited total-seconds
 divisor and the per-iteration divisor give the same rate, so the spec's
 per-row rule and the cited behavior agree (Assumptions).
 
@@ -59,7 +60,8 @@ from every counter's aggregate statistics (FR-005, spec Edge Cases).
 
 **Rationale**: the counters are divisors of that same primary time, so
 one disclosure covers the whole set; the aggregate rule copies the shape
-the time statistics already use at `runner.cpp:574-590`, keeping one
+the time statistics already use in the aggregate assembly in
+`Runner::run`, keeping one
 skip rule per row for the report to consume.
 
 **Alternatives considered**: per-counter availability records shaped
@@ -73,7 +75,8 @@ the Edge Cases entry that names the zero divisor.
 copies it to `ResultRow::label`; the report prints ` label=<text>` after
 the name column when the string is non-empty; the aggregate keeps the
 label only when every repetition's string is equal, matching the cited
-`ComputeStats` (`src/statistics.cc:178-186`). A newline in the string is
+`ComputeStats` (the label rule in `src/statistics.cc`). A newline in the
+string is
 a precondition violation at the call (FR-011, FR-012).
 
 **Rationale**: the trailing field is the clarification of 2026-10-14,
@@ -82,7 +85,8 @@ report-shape checks assert. One string with one copy per repetition
 costs nothing on a cold path.
 
 **Alternatives considered**: appending the label into the instance name,
-the cited name-composition shape (`benchmark_runner.cc:100`), rejected by
+the cited name-composition shape (the label copy onto the report in
+`benchmark_runner.cc`), rejected by
 the clarification that keeps the name field byte-stable; a per-column
 label table, rejected for a rule that names one field per row.
 
@@ -97,8 +101,9 @@ row still reports; a name equal to a built-in token (`mean`, `median`,
 (FR-013 to FR-015, spec Edge Cases).
 
 **Rationale**: the cited `ComputeStatistics` adds exactly this triple
-over the real-time values (`benchmark_api.h:137-139`,
-`src/statistics.cc:195-200`); the clean-value set is the same list the
+over the real-time values (`ComputeStatistics` in `benchmark_api.h`;
+the custom-statistic loop of `ComputeStats` in `src/statistics.cc`);
+the clean-value set is the same list the
 built-in statistics already consume, keeping one skip rule (D-03).
 
 **Alternatives considered**: a statistic over counters too, rejected
@@ -131,7 +136,8 @@ and at least two usable instances, one least-squares coefficient per
 curve by the closed form `k = sum(f(N)/y) / sum((f(N)/y)^2)` over the
 instances, and the RMS as the root-mean relative error times 100.
 `AUTOMATIC` tries every curve, keeps the least RMS, and falls back to
-the constant curve (FR-021; `src/complexity.cc:90,133-163`).
+the constant curve (FR-021; `LeastSquaresComplexity` and the
+`MinimalLeastSq` auto path in `src/complexity.cc`).
 
 **Rationale**: minimizing relative error is the cited rule, and the
 closed form needs no matrix solver: each curve fits by one scalar.
@@ -152,7 +158,8 @@ an instance, or with fewer than two instances, reports the named reason
 for the fit and prints no rows (FR-019, FR-023, D-09).
 
 **Rationale**: the cited revision takes N from the argument list or from
-`complexity_n` (`state.h:99-105`, `statistics.cc` usage), and speedgun
+`complexity_n` (`SetComplexityN` in `state.h`; its use in
+`statistics.cc`), and speedgun
 families are built by range expansion (H2), so the range value is the
 problem size the sweep already prints in the instance name.
 
@@ -175,7 +182,7 @@ a `%` token.
 **Rationale**: the report consumes `BenchmarkResult` values in order, so
 a synthetic result reuses the whole printing pipeline for family-level
 rows; this is the cited shape where one BigO row rides per fitted
-quantity (`src/complexity.cc:220-250`).
+quantity (the BigO row and the RMS row of `ComputeBigO`).
 
 **Alternatives considered**: printing fits from a separate family-level
 loop beside the results, rejected because the future file output would

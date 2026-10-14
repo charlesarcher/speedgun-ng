@@ -1,7 +1,8 @@
 # Contract: The pause capacity and the default-unit resolution
 
 The two H3 leftovers (FR-024 to FR-027) change rules the tree states
-today. Each rule below replaces the audit-point text at the cited line.
+today. Each rule below replaces the audit-point text at the cited
+place.
 
 ## The pause capacity (FR-024, FR-025, FR-026)
 
@@ -19,11 +20,11 @@ today. Each rule below replaces the audit-point text at the cited line.
 
 | Rule | Requirement | Replaces |
 | --- | --- | --- |
-| A macro or `registerBenchmark` registration shall store no unit; the family record shall hold `std::optional<TimeUnit>`. | FR-027 | `registry.cpp:50-56` (the registration-time capture) |
+| A macro or `registerBenchmark` registration shall store no unit; the family record shall hold `std::optional<TimeUnit>`. | FR-027 | the registration-time capture in `addRegistryEntry` (`source/harness/registry.cpp`) |
 | `speedgunMain` shall snapshot `getDefaultTimeUnit()` at its entry into the batch. | FR-027 | research D-11 |
-| A run's result unit shall resolve as: the `unit(...)` handle value when set, else the batch snapshot, else the process default read at that run's start. | FR-027 | `benchmark.hpp:188-192` doxygen sentence |
+| A run's result unit shall resolve as: the `unit(...)` handle value when set, else the batch snapshot, else the process default read at that run's start. | FR-027 | the `BenchmarkResult::timeUnit` doxygen sentence (`include/speedgun-ng/benchmark.hpp`) |
 | A `setDefaultTimeUnit` call in `main` before `speedgunMain` shall reach every macro registration; `unit(...)` shall still win over it. | FR-027 | `harness_time_unit_test.cpp` captured-at-registration scenario |
-| `README.md:263` and `docs/pages/harness.md:402-405` shall state the resolution rule at run start, in the same commit range as the code. | FR-041 | the captured-at-default sentences |
+| The README "The time unit" section and the `docs/pages/harness.md` "Time units" paragraph shall state the resolution rule at run start, in the same commit range as the code. | FR-041 | the captured-at-default sentences |
 
 ## Consumers
 

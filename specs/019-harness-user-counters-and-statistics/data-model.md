@@ -43,8 +43,8 @@ flags, its base, or its name, and never frees during the run.
 
 | Piece | Values | Source |
 | --- | --- | --- |
-| `CounterFlag` | `NONE`, `RATE`, `AVG_THREADS`, `ITERATION_INVARIANT`, `AVG_ITERATIONS`, `INVERT`, composable by `operator|` | + mirrors the cited `Counter::Flags` (`counter.h:33-44`) |
-| `CounterBase` | `K1000`, `K1024` | + mirrors the cited `OneK` (`counter.h:46`) |
+| `CounterFlag` | `NONE`, `RATE`, `AVG_THREADS`, `ITERATION_INVARIANT`, `AVG_ITERATIONS`, `INVERT`, composable by `operator|` | + mirrors the cited `Counter::Flags` (`counter.h`, the `Counter::Flags` enum) |
+| `CounterBase` | `K1000`, `K1024` | + mirrors the cited `OneK` (`counter.h`) |
 | `Counter` | value, flags, base, constructor defaults `0.0`, `NONE`, `K1000` | + (FR-002) |
 
 The flag pass is the runner's cold path after the loop; it is an
@@ -52,7 +52,7 @@ operation, stored state (D-02).
 
 | Step | Rule | Source |
 | --- | --- | --- |
-| rate | `v = v / (primaryNs / 1e9)` | FR-003, FR-004; `src/counter.cc:22-44` |
+| rate | `v = v / (primaryNs / 1e9)` | FR-003, FR-004; `internal::Finish` in `src/counter.cc` |
 | thread average | `v = v / 1` while threads are out of scope | FR-004, Q-3 |
 | iteration invariant | `v = v * iterations` | FR-003 |
 | average over iterations | `v = v / iterations` | FR-003 |
@@ -60,7 +60,8 @@ operation, stored state (D-02).
 | zero divisor | `primaryNs <= 0`: the neutral value stands, the row's counter set carries the disclosure | FR-005, Edge Cases |
 
 Relationships: `primaryNs` is the decision value of the run
-(`runner.cpp:463-466`), the same number the qualification and the growth
+(the assignment of `record.decisionNs` in `Runner::run`), the same
+number the qualification and the growth
 rule read (PC-2).
 
 ## E-03: Throughput counters
@@ -79,7 +80,8 @@ their printed value scales by their base like any counter (FR-006).
 
 Validation: repeated calls per iteration accumulate by the body's own
 arithmetic: the call sets the value the body passes, matching the cited
-assignment semantics (`state.h:86-91`, `:107-112`).
+assignment semantics (`SetBytesProcessed` and `SetItemsProcessed` in
+`state.h`).
 
 ## E-04: Label
 
@@ -94,7 +96,7 @@ One string per run and per row (FR-011, FR-012; clarification
 Relationships: the report prints ` label=<text>` after the name column
 when the string is non-empty; the aggregate result's label prints only
 when every repetition's string is equal, the cited rule
-(`src/statistics.cc:178-186`).
+(the label rule of `ComputeStats` in `src/statistics.cc`).
 
 Validation: a label containing a newline is a precondition violation at
 `setLabel` (Edge Cases). Any other text prints verbatim. The field is
@@ -108,8 +110,8 @@ A (name, unit, function) triple on the family record
 | Field | Type | Source |
 | --- | --- | --- |
 | `name` | printed token, written at `addStatistic` | + (FR-013) |
-| `unit` | `StatUnit::TIME` scales with the row unit; `StatUnit::PERCENTAGE` prints unscaled | + mirrors the cited `StatisticUnit` (`statistics.h:29`) |
-| `function` | `StatisticFunc = std::function<bool(const std::vector<double>&, double&)>` over the clean repetition values of the primary time | + mirrors the cited `StatisticsFunc` (`statistics.h:33`) |
+| `unit` | `StatUnit::TIME` scales with the row unit; `StatUnit::PERCENTAGE` prints unscaled | + mirrors the cited `StatisticUnit` (`statistics.h`) |
+| `function` | `StatisticFunc = std::function<bool(const std::vector<double>&, double&)>` over the clean repetition values of the primary time | + mirrors the cited `StatisticsFunc` (`statistics.h`) |
 
 Relationships: the runner evaluates each statistic after `Statistics`
 for the row is built, appending `(name, value, unit)` records the report
@@ -127,8 +129,8 @@ result (FR-019 to FR-023).
 
 | Piece | Type | Source |
 | --- | --- | --- |
-| `RegistryEntry` fit selection | `BigO` plus an optional `BigOFun`, default `NONE` | + mirrors the cited `Complexity` overloads (`benchmark_api.h:135-136`) |
-| `State` complexity N | `std::int64_t`, written by `setComplexityN`, default non-positive | + (`state.h:99-105`) |
+| `RegistryEntry` fit selection | `BigO` plus an optional `BigOFun`, default `NONE` | + mirrors the cited `Complexity` overloads (`benchmark_api.h`) |
+| `State` complexity N | `std::int64_t`, written by `setComplexityN`, default non-positive | + (the cited `SetComplexityN` in `state.h`) |
 | instance N | the complexity N when set, else the instance's range value (D-08) | + |
 | fit row | a `ResultRow` with `kind` `BIG_O` or `RMS`, `label` the quantity name (empty for the time), coefficient in the time field or `counters[0]`, RMS percentage in the time field of the RMS row | + (D-09) |
 | fit result | one synthetic `BenchmarkResult` per fitted family, named after the family, rows in pair order: time, counters in open order, metrics in attach order | + (FR-022) |
@@ -148,7 +150,7 @@ constant curve as the fallback (FR-021).
 
 ## E-07: Family record and result model, extended
 
-`RegistryEntry` (`source/harness/detail/internal.hpp:44-72`) and the
+`RegistryEntry` (`source/harness/detail/internal.hpp`) and the
 public result structs gain fields; no shipped field changes type
 (FR-046).
 
@@ -160,7 +162,7 @@ public result structs gain fields; no shipped field changes type
 | `RegistryEntry::timeUnit` | `std::optional<TimeUnit>` replacing the captured value | + (FR-027, D-11) |
 | `ResultRow::label` | `std::string` | + (FR-011) |
 | `ResultRow::counters` | `std::vector<double>`, flag-applied values in `BenchmarkResult::counterLabels` order | + (FR-006) |
-| `BenchmarkResult::counterLabels` | `std::vector<std::string>`, name order fixed at the first row built | + mirrors `metricLabels` (`benchmark.hpp:184-186`) |
+| `BenchmarkResult::counterLabels` | `std::vector<std::string>`, name order fixed at the first row built | + mirrors `metricLabels` (`BenchmarkResult::metricLabels` in `include/speedgun-ng/benchmark.hpp`) |
 | `BenchmarkResult::counterStats` | `std::vector<Statistics>`, per named counter over clean rows | + (FR-006) |
 | `BenchmarkResult::hideRepetitionRows` | `bool`, set when either mode stands | + (D-06) |
 | `BenchmarkResult::pauseSamplesFolded` | `bool`, true when the run netted its closed pause pairs by folding | + (FR-052, FR-054) |
@@ -190,11 +192,12 @@ single-run row never disappears (FR-018).
 Relationships: the pause intervals stay sample-ordinal pairs under the
 H3 netting rule (017 E-03), and a run with any number of closed pairs
 nets every column as before (FR-026). The unit reaches
-`BenchmarkResult::timeUnit` (`benchmark.hpp:193`) and the printed
+`BenchmarkResult::timeUnit` (in
+`include/speedgun-ng/benchmark.hpp`) and the printed
 columns through it.
 
 Validation: an open pause at loop exit stays the existing contract
 violation; a closed pair count above the bound cannot occur because the
-loop shape caps it (D-10). The `BenchmarkResult::timeUnit` doxygen at
-`:188-192` loses the captured-at-registration sentence with this change
+loop shape caps it (D-10). The `BenchmarkResult::timeUnit` doxygen
+block loses the captured-at-registration sentence with this change
 (FR-027).

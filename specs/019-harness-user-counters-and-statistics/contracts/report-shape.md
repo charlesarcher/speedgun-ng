@@ -16,7 +16,7 @@ fields print today keeps its bytes (FR-006, FR-011, FR-013, FR-022).
 | --- | --- |
 | The label field shall follow the name, separated by two spaces, present only when the row carries a label. | FR-011 |
 | The metric fields shall keep their H3 bytes and positions. | FR-046 |
-| Counter columns shall follow the metric fields in `counterLabels` order, each printed as the flag-applied value divided by its base. | FR-006; `src/console_reporter.cc:196` |
+| Counter columns shall follow the metric fields in `counterLabels` order, each printed as the flag-applied value divided by its base. | FR-006; the counter print with `oneK` in `src/console_reporter.cc` |
 | A disclosed row shall print the disclosure token beside each counter column of that row. | FR-005 |
 
 ## The aggregate row

@@ -1,6 +1,6 @@
 # Contract: The complexity fit and the aggregate-only modes
 
-`BenchmarkHandle` (`include/speedgun-ng/benchmark.hpp:826`) gains the
+`BenchmarkHandle` (`include/speedgun-ng/benchmark.hpp`) gains the
 fit selection, the mode calls, and `State` gains the problem size
 (FR-016 to FR-023).
 
@@ -21,20 +21,20 @@ auto complexity(BigOFun function) -> BenchmarkHandle&;
 
 | Rule | Requirement |
 | --- | --- |
-| Each call shall stand behind the standing before-the-first-run setter precondition. | FR-046; `source/harness/registry.cpp:75-79` |
-| The curve of `ONE`, `N`, `N_SQUARED`, `N_CUBED`, `LOG_N`, and `N_LOG_N` shall match the cited class list. | FR-020; `statistics.h:25` |
-| `AUTOMATIC` shall try each curve and keep the least RMS, with the constant curve as the fallback. | FR-021; `src/complexity.cc:133-163` |
+| Each call shall stand behind the standing before-the-first-run setter precondition. | FR-046; the standing `SG_REQUIRE` on the handle setters in `source/harness/registry.cpp` |
+| The curve of `ONE`, `N`, `N_SQUARED`, `N_CUBED`, `LOG_N`, and `N_LOG_N` shall match the cited class list. | FR-020; `BigO` in `statistics.h` |
+| `AUTOMATIC` shall try each curve and keep the least RMS, with the constant curve as the fallback. | FR-021; the `MinimalLeastSq` auto path in `src/complexity.cc` |
 
 ## The fit computation (FR-021, FR-022, FR-023)
 
 | Rule | Requirement |
 | --- | --- |
 | One fit per family over its instances, per fitted quantity: the primary time, each named user counter, each attached metric. | FR-022, clarification 2026-10-14 |
-| The coefficient shall minimize the relative-error least squares with the closed form `k = sum(f(N)/y) / sum((f(N)/y)^2)`. | FR-021; `src/complexity.cc:90` |
+| The coefficient shall minimize the relative-error least squares with the closed form `k = sum(f(N)/y) / sum((f(N)/y)^2)`. | FR-021; `LeastSquaresComplexity` in `src/complexity.cc` |
 | The RMS shall be the root-mean relative error times 100, printed unscaled by the unit multiplier. | FR-022 |
 | The instance N shall be the `setComplexityN` value when set, else the instance's range value. | FR-019, research D-08 |
 | A family with fewer than two instances shall state the named reason in place of rows. | FR-023 |
-| An instance without a positive N shall state the named reason in place of rows. | FR-023; `src/complexity.cc:171-182` |
+| An instance without a positive N shall state the named reason in place of rows. | FR-023; the `ComputeBigO` guards in `src/complexity.cc` |
 | A quantity missing from any instance shall state the named reason for that quantity's rows. | spec Edge Cases |
 
 ## The fit rows (FR-022)
