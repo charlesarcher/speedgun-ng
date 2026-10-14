@@ -33,6 +33,10 @@ public:
 
 ## The bounds (FR-001, FR-008)
 
+The cap and the name bound stand as `SG_REQUIRE` preconditions on
+`State::setCounter`, tripped at the call inside the timed loop, the
+same mechanism as the standing precondition of the existing setters.
+
 | Rule | Requirement |
 | --- | --- |
 | A benchmark shall carry at most `kMaxUserCounters` (16) named counters; a further name fails the run with a reason stating the cap. | FR-001 |
