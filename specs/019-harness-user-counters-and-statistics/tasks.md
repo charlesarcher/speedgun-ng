@@ -266,22 +266,24 @@ page" (spec.md US8).
 
 - [ ] T038 [US8] In `tools/docs/example_drift.py`, add the six new titles to `SECTIONS`, raise `PAGE_LINE_CAP` from 400 to 550 while `SECTION_LINE_CAP` holds at 25, and add the check that each page snippet region is a marked region of the example file named for its section; update the fixtures under `test/` for the drift tool; the budget change stands recorded by FR-044 in this spec, and no file under `specs/018-docs-main-page/` is edited (FR-044, SC-10, research D-13; depends on T032..T037)
 
+- [ ] T039 [US8] Spell out the counter-store bounds where the reader meets them: the README counter section gains the result sentence naming the `kMaxUserCounters` cap of sixteen names and the `kMaxCounterNameBytes` bound of that constant minus one characters, both tripped as `SG_REQUIRE` preconditions on `State::setCounter`; carry the same detail in the counter detail of `docs/pages/harness.md` (FR-001, FR-031, data-model E-01, contracts/user-counters.md; depends on T033, T036)
+
 **Checkpoint**: `ctest -R example_run` passes and the drift gate covers
 the eighteen owners.
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T039 Amend `.specify/memory/constitution.md`: Principle IV gains IV.1's compiles-and-runs wording ("A main-page snippet shall come from an example CI builds and runs"), Principle VIII names the `example_run` check in its gate list, and the file records version 2.20.0 with the amendment record row, the lineage row, the footer, and the sync impact line, the format the 2.19.0 record shows (FR-036, research D-14)
+- [ ] T040 Amend `.specify/memory/constitution.md`: Principle IV gains IV.1's compiles-and-runs wording ("A main-page snippet shall come from an example CI builds and runs"), Principle VIII names the `example_run` check in its gate list, and the file records version 2.20.0 with the amendment record row, the lineage row, the footer, and the sync impact line, the format the 2.19.0 record shows (FR-036, research D-14)
 
-- [ ] T040 [P] Run quickstart.md sections 1 through 4 from the repository root (build, the two fixes, the six new executables, `example_run`) and record the results (SC-01..SC-05, SC-08, SC-09)
+- [ ] T041 [P] Run quickstart.md sections 1 through 4 from the repository root (build, the two fixes, the six new executables, `example_run`) and record the results (SC-01..SC-05, SC-08, SC-09)
 
-- [ ] T041 [P] Run quickstart.md sections 5 through 7 (the full CTest suite, which carries the name check behind FR-045, `example_drift.py`, the prose gate, the constitution grep) and record the results (SC-06, SC-07)
+- [ ] T042 [P] Run quickstart.md sections 5 through 7 (the full CTest suite, which carries the name check behind FR-045, `example_drift.py`, the prose gate, the constitution grep) and record the results (SC-06, SC-07)
 
-- [ ] T042 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (SC-06, Principle VIII)
+- [ ] T043 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (SC-06, Principle VIII)
 
-- [ ] T043 Build the `ci-coverage` preset from `CMakePresets.json`, run `ctest --test-dir build`, and confirm from the `cmake/coverage.cmake` report that "The coverage report keeps 100% line and branch over `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under `source/harness/`" (FR-047, SC-06)
+- [ ] T044 Build the `ci-coverage` preset from `CMakePresets.json`, run `ctest --test-dir build`, and confirm from the `cmake/coverage.cmake` report that "The coverage report keeps 100% line and branch over `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under `source/harness/`" (FR-047, SC-06)
 
-- [ ] T044 Main-page impact check (IV.1): confirm the six new README sections, their owning example files, and the region-ownership gate all shipped in the same change as the code they teach (FR-028, FR-036)
+- [ ] T045 Main-page impact check (IV.1): confirm the six new README sections, their owning example files, and the region-ownership gate all shipped in the same change as the code they teach (FR-028, FR-036)
 
 ## Dependencies & Execution Order
 
@@ -331,7 +333,7 @@ the eighteen owners.
 - T018, T021, T024, T027 are four separate test files for four separate
   stories and can all be written once Foundational is done
 - T036 and T037 are README and guide, different files
-- T040 and T041 split the quickstart walkthrough
+- T041 and T042 split the quickstart walkthrough
 - After Foundational, whole stories run in parallel across developers;
   within a story the test task and the independent-shape tasks hold the
   [P] marks above
@@ -342,7 +344,7 @@ the eighteen owners.
 # After Foundational, launch together (different files):
 Task: "Create test/source/harness_user_counters_test.cpp (T010)"
 # After T011 lands, launch together (different files):
-Task: "Extend README sample block and tools/docs/report_shape.py (T014)"
+Task: "Teach the report-shape comparator and fixtures the counter columns (T014)"
 Task: "Extend test/loop_shape.sh with a setCounter body (T015)"
 ```
 

@@ -24,11 +24,15 @@ the value into a match, opens a free slot otherwise; the runner's flag
 pass (E-02) reads the slots once per repetition after the loop; the row
 copies the finished values (E-07).
 
-Validation: opening the seventeenth name fails the run with a reason
-stating `kMaxUserCounters` (FR-001). A name longer than
-`kMaxCounterNameBytes` minus one fails the run with a reason stating the
-bound (D-01). A second `setCounter` for a used name carrying different
-flags or a different base fails the run naming that name (FR-008). The
+Validation: the cap and the name bound stand as `SG_REQUIRE`
+preconditions on `State::setCounter`, tripped at the call like the
+setter requirements the handle already carries (FR-001, FR-046).
+Opening the seventeenth name trips the `kMaxUserCounters` guard with
+a reason stating the cap (FR-001). A name longer than
+`kMaxCounterNameBytes` minus one trips the name-length guard with a
+reason stating the bound (D-01). A second `setCounter` for a used
+carrying different flags or a different base fails the run naming
+that name (FR-008). The
 store allocates nothing inside the timed loop, so the loop-shape gate
 sees `setCounter` as body code alone (FR-007).
 
