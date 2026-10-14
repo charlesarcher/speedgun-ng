@@ -392,14 +392,14 @@ auto State::setBytesProcessed(const std::int64_t bytes) -> void
   // A user name that opened this text with another pair keeps it, and the
   // run ends with that reason (FR-008): the write, and with it the
   // postcondition, belongs to the call only on the path it owns.
-  const bool writes = before == m_counters.size()
+  [[maybe_unused]] const bool writes = before == m_counters.size()
       || (m_counters[before].counter.flags == CounterFlag::RATE
           && m_counters[before].counter.base == CounterBase::K1024);
   setCounter(
       kName,
       Counter {
           static_cast<double>(bytes), CounterFlag::RATE, CounterBase::K1024});
-  const std::size_t after = counterIndexOf(m_counters, kName);
+  [[maybe_unused]] const std::size_t after = counterIndexOf(m_counters, kName);
   SG_ENSURE(!writes
                 || (after < m_counters.size()
                     // The stored value is the cast of the call, so the two-sided
@@ -423,14 +423,14 @@ auto State::setItemsProcessed(const std::int64_t items) -> void
              "the two throughput columns share the cap of sixteen counter "
              "names, so this call needs its name open or one slot free "
              "(FR-001, FR-009)");
-  const bool writes = before == m_counters.size()
+  [[maybe_unused]] const bool writes = before == m_counters.size()
       || (m_counters[before].counter.flags == CounterFlag::RATE
           && m_counters[before].counter.base == CounterBase::K1000);
   setCounter(
       kName,
       Counter {
           static_cast<double>(items), CounterFlag::RATE, CounterBase::K1000});
-  const std::size_t after = counterIndexOf(m_counters, kName);
+  [[maybe_unused]] const std::size_t after = counterIndexOf(m_counters, kName);
   SG_ENSURE(!writes
                 || (after < m_counters.size()
                     // The stored value is the cast of the call, so the two-sided
