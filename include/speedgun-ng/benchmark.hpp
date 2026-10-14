@@ -1,6 +1,7 @@
 #ifndef SG_BENCHMARK_HPP
 #define SG_BENCHMARK_HPP
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -85,8 +86,85 @@ enum class RunOutcome : std::uint8_t
 enum class RowKind : std::uint8_t
 {
   REPETITION,
-  AGGREGATE
+  AGGREGATE,
+  // The two kinds a family's complexity fit prints: one row per fitted
+  // quantity naming its curve and coefficient, and one row carrying the
+  // root-mean relative error of that fit (FR-022, FR-030).
+  BIG_O,
+  RMS
 };
+
+/**
+ * @brief The flag bits that turn a counter's stored value into the
+ * value its column prints (E-02, FR-002).
+ *
+ * `NONE` prints the value the body set. `RATE` divides that value by the
+ * row's primary time in seconds. `AVG_THREADS` divides by the thread
+ * count of the run, one while threads stay out of scope.
+ * `ITERATION_INVARIANT` multiplies by the iteration count ahead of a
+ * rate division, and `AVG_ITERATIONS` divides by the iteration count.
+ * `INVERT` takes the reciprocal last, after every other flag (FR-003,
+ * FR-004, research D-02).
+ */
+enum class CounterFlag : std::uint32_t
+{
+  NONE = 0,
+  RATE = 1u << 0,
+  AVG_THREADS = 1u << 1,
+  ITERATION_INVARIANT = 1u << 2,
+  AVG_ITERATIONS = 1u << 3,
+  INVERT = 1u << 31
+};
+
+/**
+ * @brief Combine two counter flag sets (FR-002).
+ *
+ * \pre none
+ * \post none
+ */
+[[nodiscard]] constexpr auto operator|(
+    const CounterFlag left, const CounterFlag right) noexcept -> CounterFlag
+{
+  return static_cast<CounterFlag>(static_cast<std::uint32_t>(left)
+                                  | static_cast<std::uint32_t>(right));
+}
+
+/**
+ * @brief The divisor a counter column steps by at print time (FR-006).
+ *
+ * `K1000` steps by 1000 and `K1024` by 1024, so a byte counter reads in
+ * kB-style or KiB-style units under the base its preset chose (FR-009,
+ * FR-010).
+ */
+enum class CounterBase : std::uint8_t
+{
+  K1000,
+  K1024
+};
+
+/**
+ * @brief One named counter: the value the body set, its flags, and the
+ * base its column scales by (E-02, FR-001, FR-002).
+ *
+ * A name a run opens keeps the flags and base of the call that opened
+ * it, so a later call for that name carrying a different pair is a
+ * precondition violation (FR-001, FR-008).
+ */
+struct Counter
+{
+  double value = 0.0;
+  CounterFlag flags = CounterFlag::NONE;
+  CounterBase base = CounterBase::K1000;
+};
+
+// The counter names one benchmark may carry: a further name fails the run
+// with a reason stating this cap (FR-001).
+inline constexpr std::size_t kMaxUserCounters = 16;
+
+// The bytes a counter name may hold, so the longest name a run may open
+// is one shorter, and a longer name fails with a reason stating this
+// bound (FR-002).
+inline constexpr std::size_t kMaxCounterNameBytes = 32;
 
 /**
  * @brief One metric of one row, with the disclosure beside the value
@@ -158,6 +236,14 @@ struct ResultRow
   sg::counters::Availability timeAvailability =
       sg::counters::Availability::COUNTABLE;
   std::vector<MetricValue> metrics;
+  // The counter values of this row in `BenchmarkResult::counterLabels`
+  // order, after the runner applied the flags of each name (FR-006).
+  std::vector<double> counters;
+  // The text `State::setLabel` wrote during this row's run, empty when
+  // the body wrote none. The report prints the field as a trailing
+  // label, and an aggregate carries it only when every repetition
+  // agrees (FR-011, FR-012).
+  std::string label;
   double overheadFloorNs = 0.0;
   Statistics timeStats;
   std::vector<Statistics> metricStats;
@@ -189,6 +275,18 @@ struct BenchmarkResult
   // the metrics were attached. The report prints a metric column under
   // this label (FR-026); the values stay in MetricValue (E-05).
   std::vector<std::string> metricLabels;
+  // The label of every counter column of `rows`, in the order the names
+  // were first opened. The report prints a counter column under this
+  // label (FR-006, E-07).
+  std::vector<std::string> counterLabels;
+  // The aggregate form of each named counter over the clean
+  // repetitions, one entry per `counterLabels` entry (FR-006, E-07).
+  std::vector<Statistics> counterStats;
+  // True when the family asked for its aggregate alone: the report
+  // prints the aggregate row and holds back the repetition rows this
+  // result carries, a result with no aggregate row keeps its rows
+  // (FR-016, FR-017, FR-018).
+  bool hideRepetitionRows = false;
   // The unit the report scales this result's printed time values to:
   // the `unit` call when the family made one, else the batch snapshot
   // `speedgunMain` took of the process default at its entry, else the
@@ -431,6 +529,32 @@ public:
   auto setIterationTime(std::int64_t nanoseconds) -> void;
 
   /**
+   * @brief Set the value, flags, and base of one named counter
+   * (FR-001, FR-002).
+   *
+   * The call stands in the timed loop or in a body callback state of the
+   * run (FR-001). A name the run has not opened takes the flags and the
+   * base of this call and keeps them for the run's life, and a later
+   * call for that name writes the value alone (FR-001, FR-008). The
+   * runner applies the flags once per repetition after the loop, and the
+   * report prints one column per name in the order the names opened
+   * (FR-003, FR-006). The name copies into fixed storage, so opening a
+   * name allocates nothing (FR-007).
+   *
+   * A second call for a used name with another flags value or another
+   * base fails the run with a reason naming that name: the reason is a
+   * runtime text, and an `SG_REQUIRE` message is a literal, so the state
+   * records the failure and the run ends with it (FR-008).
+   *
+   * \pre `name` holds at most `kMaxCounterNameBytes` minus one bytes, a
+   *      free slot stands when `name` is new, and a used `name` carries
+   *      the flags and the base it opened with (FR-001, FR-002, FR-008)
+   * \post the run carries `name` with the value of the argument, and a
+   *       used name keeps the flags and base it opened with (FR-001)
+   */
+  auto setCounter(std::string_view name, const Counter& counter) -> void;
+
+  /**
    * @brief Stop the timed window from this point (FR-009).
    *
    * The call stands in the benchmark body. It takes one sampling action,
@@ -468,9 +592,7 @@ public:
       m_slot = m_slotReset;
       m_slot.sample();
       ++m_samplesTaken;
-    }
-    else
-    {
+    } else {
       m_pauseFoldPair = false;
       m_recorder->sample();
       ++m_samplesTaken;
@@ -681,6 +803,22 @@ private:
   // The arguments of the running instance, owned by that instance
   // (E-03, R-04).
   std::span<const std::int64_t> m_arguments;
+
+  // E-01: one counter name of the run's store. The name stands in a
+  // fixed buffer, so opening a name allocates nothing inside the timed
+  // loop (FR-007), and the flags and the base stand fixed from the
+  // slot's first open (FR-008).
+  struct CounterSlot
+  {
+    std::array<char, kMaxCounterNameBytes> name {};
+    std::uint8_t nameSize = 0;
+    Counter counter {};
+    bool used = false;
+  };
+
+  // The run's counter store, scanned in slot order, so the printed
+  // column order is the order the names opened (FR-006).
+  std::array<CounterSlot, kMaxUserCounters> m_counters {};
 
   // The pause bookkeeping of one run. A pause pair holds the sample
   // ordinals, zero-based, of one paused interval inside that run's

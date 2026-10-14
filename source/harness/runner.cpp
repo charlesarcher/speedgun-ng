@@ -107,8 +107,7 @@ template<class Recorder>
 auto nettedFold(const sg::counters::detail::ExprCore& core,
                 const Recorder& recorder,
                 const sg::detail::RunRecord& record,
-                const std::size_t foldColumn)
-    -> sg::counters::MetricResult
+                const std::size_t foldColumn) -> sg::counters::MetricResult
 {
   const auto view = recorder.view();
   auto net = sg::counters::detail::foldCore(
@@ -167,8 +166,7 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
   // the bytes it prints today.
   row.pauseSamplesFolded = record.pauseSamplesFolded;
   row.timeAvailability = primaryCore != nullptr
-      ? nettedFold(
-            *primaryCore, recorder, record, primaryFoldColumn)
+      ? nettedFold(*primaryCore, recorder, record, primaryFoldColumn)
             .availability
       : sg::counters::Availability::COUNTABLE;
   row.overheadFloorNs = overheadFloorNs;
@@ -198,6 +196,72 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
 
 }  // namespace
 
+namespace sg
+{
+
+// E-01, FR-001: the counter store of one run. The name bound and the
+// sixteen-name cap trip as `SG_REQUIRE` preconditions at the call. The
+// rule that names an offending name writes a runtime reason into the
+// state, because an `SG_REQUIRE` message is a string literal (FR-008).
+auto State::setCounter(const std::string_view name,
+                       const Counter& counter) -> void
+{
+  SG_REQUIRE(name.size() < kMaxCounterNameBytes,
+             "a counter name longer than kMaxCounterNameBytes minus one "
+             "bytes, that is longer than 31 bytes, fails the run (FR-002, "
+             "D-01)");
+  for (auto& slot : m_counters) {
+    if (!slot.used || slot.nameSize != static_cast<std::uint8_t>(name.size())) {
+      continue;
+    }
+    if (std::string_view(slot.name.data(), slot.nameSize) != name) {
+      continue;
+    }
+    if (slot.counter.flags != counter.flags
+        || slot.counter.base != counter.base)
+    {
+      // FR-008 and the Edge Cases rule name the offending name, so the
+      // reason is built here and the run ends with it (E-01).
+      m_outcome = RunOutcome::FAILED;
+      m_reason = "the counter name '" + std::string(name)
+               + "' already stands with other flags or another base, and a "
+                 "used name keeps the pair it opened with (FR-008)";
+      return;
+    }
+    slot.counter.value = counter.value;
+    SG_ENSURE(
+        slot.counter.flags == counter.flags
+            && slot.counter.base == counter.base,
+        "the used slot keeps the flags and the base it opened with " "(FR-"
+                                                                     "008)");
+    return;
+  }
+  std::size_t freeSlot = kMaxUserCounters;
+  for (std::size_t index = 0; index < m_counters.size(); ++index) {
+    if (!m_counters[index].used) {
+      freeSlot = index;
+      break;
+    }
+  }
+  SG_REQUIRE(freeSlot < kMaxUserCounters,
+             "a benchmark carries at most kMaxUserCounters named counters, "
+             "that is sixteen names, so a further name fails the run "
+             "(FR-001)");
+  auto& slot = m_counters[freeSlot];
+  // The guard above is a contract, and a contract can stand disabled, so
+  // the copy holds itself to the buffer it writes (FR-002).
+  const std::size_t length = std::min(name.size(), slot.name.size() - 1);
+  std::copy_n(name.begin(), length, slot.name.begin());
+  slot.nameSize = static_cast<std::uint8_t>(length);
+  slot.counter = counter;
+  slot.used = true;
+  SG_ENSURE(slot.used && slot.nameSize == static_cast<std::uint8_t>(length),
+            "the free slot opens with the name, flags, base, and value of "
+            "the call (FR-001)");
+}
+
+}  // namespace sg
+
 namespace sg::detail
 {
 
@@ -222,8 +286,7 @@ auto maxRecorderPauseRoom() -> std::size_t&
 // it through the counters library alone. The totals a run accumulates
 // this way reproduce the netted columns of the raw path (SC-13).
 auto commitPauseFoldPair(PauseFoldSink& sink,
-                         const sg::counters::RecorderApi& slot) noexcept
-    -> void
+                         const sg::counters::RecorderApi& slot) noexcept -> void
 {
   for (std::size_t column = 0; column < sink.columns.size(); ++column) {
     const auto folded =
@@ -508,6 +571,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       return std::unexpected("the benchmark threw an unknown exception");
     }
     state.topUpWindow();
+
+    // FR-008: a second setCounter for a used name with another flags
+    // value or another base fails the run naming that name. The reason
+    // is a runtime text the state holds, so the run ends here, ahead of
+    // the loop-shape rules that read the state (E-01).
+    if (state.outcome() == RunOutcome::FAILED) {
+      return std::unexpected(state.reason());
+    }
 
     // FR-017: a measured run owns one complete timed loop. A function
     // that never entered it, entered it twice, or left it early without
