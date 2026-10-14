@@ -598,6 +598,42 @@ auto modeCallbackPause() -> int
   return 0;
 }
 
+// FR-052, D-13: the raw pair whose own two points read a gap. The family
+// earns its history from an unscripted run, so the scripted run reserves
+// room and records its pairs beside the window rather than folding them,
+// and the net of the column takes the worse availability of the pair.
+auto scenarioRawGapPair() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmPauseEachIteration, "bmRawGap");
+  attachOps(handle);
+
+  const std::uint64_t before = fake->readActions();
+  captureRun({"--filter", "^bmRawGap$", "--iterations=4"});
+  const std::uint64_t span = fake->readActions() - before;
+  std::vector<std::uint64_t> interior;
+  for (std::uint64_t action = span / 2 + 1; action + 2 < span; ++action) {
+    interior.push_back(action);
+  }
+  fake->setGapActions("pause", "ops", interior);
+  const std::string report =
+      captureRun({"--filter", "^bmRawGap$", "--iterations=4"});
+
+  const std::vector<std::string> rows = linesOf(report, "bmRawGap");
+  check(rows.size() == 1, "the scripted run prints its one measured row");
+  check(!rows[0].contains("pause=folded"),
+        "the family with pause history records its pairs beside the window "
+        "(FR-051)");
+  check(rows[0].contains("gap=1"),
+        "the pair whose points read a gap discloses the gap the row reports "
+        "(FR-052, D-13)");
+  check(!closeTo(doubleFieldOf(rows[0], "ops="), kEveryOpsPerIteration),
+        "a pair that reports no value subtracts nothing from the window fold "
+        "(D-13)");
+  std::puts("harness_pause_test rawGapPair: ok");
+  return 0;
+}
+
 // E-08, FR-051: the attempt whose earned history cannot fit the cap. The
 // first run earns 17000 pairs per iteration, so the second asks for twice
 // that over a cap of 32768, reserves no room at all, and folds every
@@ -854,6 +890,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "historyOverCap") {
     return scenarioHistoryOverCap();
   }
+  if (mode == "rawGapPair") {
+    return scenarioRawGapPair();
+  }
   if (mode == "pauseHeavy") {
     return scenarioPauseHeavy();
   }
@@ -886,6 +925,7 @@ auto main(const int argc, char** argv) -> int
            "everyIteration",
            "foldedGap",
            "historyOverCap",
+           "rawGapPair",
            "pauseHeavy",
            "nonPauseReserve",
            "rawAfterHistory",
