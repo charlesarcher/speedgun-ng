@@ -62,9 +62,12 @@ for source in "$ROOT"/example/docs/*.cpp; do
     continue
   fi
 
-  declared=$(grep -o 'example-run: expect-skip .*' "$source" \
-    | sed 's/^example-run: expect-skip //' | sed 's/: .*//')
-  printed=$(printf '%s\n' "$output" | sed -n 's/^\([^ ]*\)[[:space:]]\+SKIPPED: .*/\1/p')
+  declared_pairs=$(grep -o 'example-run: expect-skip .*' "$source" \
+    | sed 's/^example-run: expect-skip //')
+  printed_pairs=$(printf '%s\n' "$output" \
+    | sed -n 's/^\([^ ]*\)[[:space:]]\+SKIPPED:[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*$/\1: \2/p')
+  declared=$(printf '%s\n' "$declared_pairs" | sed 's/: .*//')
+  printed=$(printf '%s\n' "$printed_pairs" | sed 's/: .*//')
 
   ok=1
   while IFS= read -r instance; do
@@ -91,13 +94,17 @@ EOF
 
   while IFS= read -r expectation; do
     [ -z "$expectation" ] && continue
-    instance=$expectation
-    if ! printf '%s\n' "$printed" | grep -qxF "$instance"; then
-      echo "FAIL: docs_$name declares a skip for $instance that did not print" >&2
+    instance=${expectation%%: *}
+    if ! printf '%s\n' "$printed_pairs" | grep -qxF "$expectation"; then
+      if printf '%s\n' "$printed" | grep -qxF "$instance"; then
+        echo "FAIL: docs_$name printed another message for $instance" >&2
+      else
+        echo "FAIL: docs_$name declares a skip for $instance that did not print" >&2
+      fi
       ok=0
     fi
   done <<EOF
-$declared
+$declared_pairs
 EOF
 
   if [ "$ok" -ne 1 ]; then
