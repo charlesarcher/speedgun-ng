@@ -130,6 +130,23 @@ auto bmManualItems(sg::State& state) -> void
   }
 }
 
+// FR-009: the body totals its units after the timed loop, reading the
+// iteration count off the state, so the printed rate divides that total by the
+// primary time of the row.
+constexpr std::int64_t kUnitsPerIteration = 4096;
+
+auto bmTotalAfterLoop(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+    for (int spin = 0; spin != 64; ++spin) {
+      sg::doNotOptimize(spin);
+    }
+  }
+  state.setItemsProcessed(kUnitsPerIteration
+                          * static_cast<std::int64_t>(state.iterations()));
+}
+
 // Captures one run of one benchmark and the exit status of the entry point.
 // Every mode of this binary shares the one output file, so the modes run one
 // after another.
@@ -345,6 +362,38 @@ auto scenarioManualTime() -> int
 
 }  // namespace
 
+// FR-009, D-4: a total stated after the loop is divided by the primary time of
+// the row, so the rate matches the units of one iteration over the time of one
+// iteration even though the body never speaks per iteration.
+auto scenarioTotalAfterLoop() -> int
+{
+  auto handle = sg::registerBenchmark(&bmTotalAfterLoop, "bmTotalAfterLoop");
+  check(handle.name() == "bmTotalAfterLoop",
+        "the totalled benchmark registers");
+  handle.useRealTime();
+
+  const std::string report = captureGoodRun("^bmTotalAfterLoop$");
+  const std::vector<std::string> rows =
+      measuredRowsOf(linesOf(report, "bmTotalAfterLoop"));
+  check(rows.size() == kRepetitions,
+        "the batch prints one measured row per repetition (FR-006)");
+  checkFinite(rows);
+
+  for (auto& row : rows) {
+    const double iterations = fieldOf(row, "iterations=");
+    const double seconds = fieldOf(row, "real time/iter (ns)=") * 1e-9;
+    check(iterations >= 1.0, "the row states the iterations it ran (FR-009)");
+    const double expected = static_cast<double>(kUnitsPerIteration) / seconds;
+    const double printed = fieldOf(row, "items_per_second=");
+    check(printed > 0.0, "the item rate is a positive number (FR-009)");
+    const double ratio = printed / expected;
+    check(ratio > 0.8 && ratio < 1.2,
+          "the total over the primary time lands within twenty percent of the "
+          "per-iteration rate (FR-009)");
+  }
+  return 0;
+}
+
 auto main(int argc, char** argv) -> int
 {
   const std::vector<std::string> arguments(argv, argv + argc);
@@ -359,11 +408,16 @@ auto main(int argc, char** argv) -> int
     if (mode == "manualTime") {
       return scenarioManualTime();
     }
+    if (mode == "totalAfterLoop") {
+      return scenarioTotalAfterLoop();
+    }
     fail("unknown mode");
   }
 
   const std::string self = argv[0];
-  for (const auto& scenario : {"bases", "realTime", "manualTime"}) {
+  for (const auto& scenario :
+       {"bases", "realTime", "manualTime", "totalAfterLoop"})
+  {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
     check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
           "the scripted scenario passes (FR-009, FR-010)");
