@@ -431,10 +431,11 @@ value by the primary time of the run in seconds,
 `CounterFlag::AVG_ITERATIONS` divides by that count,
 `CounterFlag::AVG_THREADS` divides by the thread count of the run, and
 `CounterFlag::INVERT` takes the reciprocal last, after every other flag.
-`CounterBase::K1000` and `CounterBase::K1024` are the divisors the
-column steps by at print time, so a byte counter reads in kB-style or
-KiB-style units. `CounterFlag::NONE` with `CounterBase::K1000` prints
-the value as it stands.
+`CounterBase::K1000` and `CounterBase::K1024` choose the suffix, `k` or
+`Ki`, that a human-readable rendering of the column carries. The
+console prints raw numbers, so the base never divides the value: a
+counter that holds 64 prints 64 under either base, and
+`CounterFlag::NONE` prints the value as it stands.
 
 One benchmark carries at most `kMaxUserCounters` names, sixteen of them,
 and a name holds at most `kMaxCounterNameBytes` minus one bytes, so 31
@@ -460,11 +461,12 @@ the value the body set.
 `State::setBytesProcessed(bytes)` and `State::setItemsProcessed(items)`
 report the work one run did and open a rate column for it. Each call sets
 a counter of its own name carrying `CounterFlag::RATE`, so the value
-divides by the primary time of the run in seconds. The byte column steps
-by `CounterBase::K1024` and the item column by `CounterBase::K1000`, so
-`bytes_per_second=` reads in KiB per second and `items_per_second=` in
-units of 1000. Both are counters of the row like any other: they print in
-the same fields and carry the same aggregate line.
+divides by the primary time of the run in seconds. The byte column opens
+with `CounterBase::K1024` and the item column with `CounterBase::K1000`:
+the base carries the suffix a human-readable rendering would show, and
+the console column prints the rate as a raw number. Both are counters of
+the row like any other: they print in the same fields and carry the same
+aggregate line.
 
 Coverage: `test/source/harness_throughput_test.cpp`. Each rate is read
 against the count over the primary time of the scripted run, and a run

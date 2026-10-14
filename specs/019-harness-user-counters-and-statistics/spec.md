@@ -649,9 +649,10 @@ page.
   disclosure shall keep that disclosure on the counter column and
   shall keep that repetition out of the counter's aggregate statistic.
 - **FR-006**: The report shall print each user counter as a labeled
-  column of the row, scaled by its declared base, as the cited
-  console does (the counter print with `oneK` in
-  `src/console_reporter.cc`). The aggregate row
+  column of the row carrying the flag-applied value, never a value the
+  base divides: `CounterBase` selects the `k` or `Ki` suffix a
+  human-readable rendering carries, and the console prints raw numbers,
+  so a counter that holds 64 prints 64 under either base. The aggregate row
   shall summarize each counter across the clean repetitions with the
   statistic set of `Statistics`, as the cited `ComputeStats` collects
   counters by name (the counter collection of `ComputeStats` in

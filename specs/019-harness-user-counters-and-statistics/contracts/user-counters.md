@@ -29,7 +29,7 @@ public:
 | `setCounter` shall set or open the named counter with the value, flags, and base of the argument. | FR-001, FR-002 |
 | `setBytesProcessed` shall set `bytes_per_second` with the `RATE` flag and the `K1024` base. | FR-009 |
 | `setItemsProcessed` shall set `items_per_second` with the `RATE` flag and the `K1000` base. | FR-009 |
-| The printed value of a counter shall divide by the declared base, as the cited console scales by `oneK`. | FR-006; the counter print with `oneK` in `src/console_reporter.cc` |
+| The printed value of a counter shall be the flag-applied value: the base selects the `k` or `Ki` suffix a rendered value carries and never divides the console column. | FR-006 |
 
 ## The bounds (FR-001, FR-008)
 

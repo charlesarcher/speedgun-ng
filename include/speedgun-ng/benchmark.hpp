@@ -108,6 +108,21 @@ enum class RowKind : std::uint8_t
  * rate division, and `AVG_ITERATIONS` divides by the iteration count.
  * `INVERT` takes the reciprocal last, after every other flag (FR-003,
  * FR-004, research D-02).
+ *
+ * The bits combine through `operator|`, so a rate that averages over the
+ * threads of the run is `CounterFlag::RATE | CounterFlag::AVG_THREADS`,
+ * a rate over a per-iteration measure is `CounterFlag::RATE
+ * | CounterFlag::ITERATION_INVARIANT`, and the mean of a per-iteration
+ * measure is `CounterFlag::AVG_ITERATIONS`. A combined set is one value
+ * and the flags apply in the order above; the reference implementation
+ * spellings `kAvgThreadsRate`, `kIsIterationInvariantRate` and
+ * `kAvgIterationsRate` have no single-name counterpart here (FR-003,
+ * FR-004).
+ *
+ * `INVERT` of a value that settled at zero keeps zero. The reference
+ * implementation prints an infinity at that point; a counter column that
+ * never prints an infinity is the contract, so the reciprocal is taken
+ * only where the value stands apart from zero (FR-005).
  */
 enum class CounterFlag : std::uint32_t
 {
@@ -146,10 +161,12 @@ enum class CounterFlag : std::uint32_t
 }
 
 /**
- * @brief The divisor a counter column steps by at print time (FR-006).
+ * @brief The suffix a rendered counter value carries (FR-006).
  *
- * `K1000` steps by 1000 and `K1024` by 1024, so a byte counter reads in
- * kB-style or KiB-style units under the base its preset chose (FR-009,
+ * `K1000` renders with `k` and `K1024` with `Ki`. The console report
+ * prints raw numbers, so the base never divides the value a column
+ * prints: a counter that holds 64 prints 64 under either base, and the
+ * base is the suffix a human-readable renderer would carry (FR-009,
  * FR-010).
  */
 enum class CounterBase : std::uint8_t
@@ -675,9 +692,13 @@ public:
    * @brief Set the byte-throughput column to the count this call passes
    * (FR-009).
    *
-   * The call opens `bytes_per_second` with the `RATE` flag and the
-   * `K1024` base, so the printed column is this count divided by the
-   * primary time of the row in seconds and again by 1024 (FR-003, FR-006,
+   * The call takes the total bytes the run did, so a body that works a
+   * known amount per iteration passes that amount times the iteration
+   * count after the loop (FR-009). The call opens `bytes_per_second`
+   * with the `RATE` flag and the `K1024` base, so the printed column is
+   * this count divided by the primary time of the row in seconds; the
+   * base carries the `Ki` suffix a rendered value would show and divides
+   * nothing further (FR-003, FR-006,
    * FR-009). A later call writes the count alone, as for any used name
    * (FR-001).
    *
@@ -693,9 +714,13 @@ public:
    * @brief Set the item-throughput column to the count this call passes
    * (FR-009).
    *
-   * The call opens `items_per_second` with the `RATE` flag and the
-   * `K1000` base, so the printed column is this count divided by the
-   * primary time of the row in seconds (FR-003, FR-006, FR-009). A later
+   * The call takes the total items the run did, so a body that works a
+   * known number per iteration passes that number times the iteration
+   * count after the loop (FR-009). The call opens `items_per_second`
+   * with the `RATE` flag and the `K1000` base, so the printed column is
+   * this count divided by the primary time of the row in seconds; the
+   * base carries the `k` suffix a rendered value would show and divides
+   * nothing further (FR-003, FR-006, FR-009). A later
    * call writes the count alone, as for any used name (FR-001).
    *
    * \pre the run has opened at least one free counter name besides the
