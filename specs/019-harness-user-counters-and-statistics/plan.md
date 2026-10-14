@@ -71,7 +71,7 @@ single-threaded, as H1 left it, so the thread-average divisor is one
 (FR-004); the page cap moves to 550 while the 25-line section cap holds
 (FR-044).
 
-**Scale/Scope**: 50 requirements, 9 capabilities, one public header
+**Scale/Scope**: 54 requirements, 9 capabilities, one public header
 extended, five harness sources edited plus one new, six new test
 executables, two rewrites, one new gate script, eighteen example files under
 `example/docs/`, six new main-page sections, and one constitution
