@@ -341,9 +341,9 @@ namespace
 {
 
 // D-1 (Constitution II): the two throughput clauses name conditions the code
-// can read, so the setters read them instead of leaving them documented
-// alone. Two passes answer the clauses: where a name stands in the store,
-// and whether the store can still carry the call. A template over the
+// can read, so the setters read them. A clause left in documentation alone
+// answers nothing. Two passes answer the clauses: where a name stands in the
+// store, and whether the store can still carry the call. A template over the
 // container keeps the slot type out of the exported header.
 template<class Store>
 auto counterIndexOf(const Store& counters,
