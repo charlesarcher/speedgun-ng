@@ -1183,9 +1183,8 @@ default. `/speckit-clarify` may confirm each as written or replace it.
 - **Q-10 Pause sample memory** (raised at plan review as the memory
   question behind FR-025): reserving pause room of
   `2 + 2 × iterations` raw points per leaf is unbounded memory at the
-  iteration cap of `kIterationCap`. **Decision for Charles.
-  Recommendation as below; the plan follows the recommendation unless
-  Charles changes it.** A family reserves pause-sample capacity only
+  iteration cap of `kIterationCap`. **Decided by Charles: recommendation accepted
+  (2026-10-14).** A family reserves pause-sample capacity only
   where an earlier attempt paused, sized from the pauses per
   iteration that attempt observed times the next attempt's iteration
   count, plus the endpoint points of each run. A fixed per-leaf
