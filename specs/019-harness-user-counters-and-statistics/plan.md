@@ -473,7 +473,7 @@ assertions compare exact doubles on scripted inputs.
 
 **Deliberately untouched**: threads and per-thread aggregation, JSON and
 CSV reports, the raw-data report, the full command line, percentile
-histograms, and reloaded pass-or-fail judgements. Each is a roadmap spec
+histograms, and reloaded pass-or-fail judgments. Each is a roadmap spec
 in the spec Out list, and X.2 keeps it out.
 
 ## Constitution Check
