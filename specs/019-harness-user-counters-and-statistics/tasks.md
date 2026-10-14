@@ -299,6 +299,9 @@ the eighteen owners.
 
 ### User Story Dependencies
 
+- **Every story**: depends on the H3 fixes phase (Phase 2), which
+  lands first per Q-7; the bullets below state only the
+  dependencies among the stories themselves
 - **US3 (P1)**: lands first (Phase 2), independent of US1 and US2;
   blocks the shipped counter examples of US8 per Q-7 (pause per
   iteration, default unit)
@@ -306,7 +309,7 @@ the eighteen owners.
 - **US2 (P1)**: needs Foundational (T008's store); rides US1's flag
   pass for its rate values, so schedule after US1's T011
 - **US4 (P2)**: needs T009's `ResultRow::label`
-- **US5 (P2)**: independent of US1, US2, US3, US4
+- **US5 (P2)**: independent of US1, US2, US4
 - **US6 (P2)**: independent; reads only the row kinds already shipped
 - **US7 (P2)**: the time-quantity fit is independent; the
   counter-quantity rows require US1 (T011, T013)
