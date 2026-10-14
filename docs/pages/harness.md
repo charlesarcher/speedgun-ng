@@ -43,16 +43,13 @@ and the first run. The example family `bmArgs` in
 `example/benchmark_example.cpp` carries the `argName` labels `width` and
 `depth`.
 
-Coverage: `test/source/harness_family_test.cpp`. The `FamilyCase` table
-asserts the instance set of every call through list mode, with rows
-`bmArg`, `bmArgsList`, `bmArgsVector`, `bmRange`, `bmHalf`, `bmLater`,
-`bmRanges`, `bmDense`, `bmStepped`, `bmProduct`, `bmApplied`,
-`bmLabelled`, `bmNamed`, `bmBuilt`, `bmBuiltScaled`, `bmBuiltDense`,
-and the chained site `bmChain`.
-The `oversize` re-exec mode asserts the single warning naming the bound
-and the unchanged exit status, and the re-exec modes `bad-multiplier`,
-`bad-range`, `bad-step`, `bad-argnames`, `bad-apply`, and `bad-builder`
-assert each precondition.
+Each registration site yields one instance per argument, and the instance
+set is exactly the arguments that call named, whether they come from a list,
+a range, a step, a product, an apply, a builder or a chained site. An
+argument list over the bound warns once naming the bound and keeps the
+instances that fit. A multiplier, range, step, argument name, apply function
+or builder that breaks a precondition ends the run with that precondition in
+the message.
 
 ## Instance names
 
@@ -67,13 +64,10 @@ recoverable error found at expansion: one line on the standard error
 stream names both instance names, the earlier instance stays, the later
 instance does not run, and the exit status stays as the runner fixes it.
 
-Coverage: `test/source/harness_instance_name_test.cpp`. The
-`nameFormScenario` rows assert the name forms, `filterScenario` asserts
-that one full instance name runs exactly one instance,
-`listAndCatalogScenario` asserts the listed set and the silent
-`--catalog` path, and `duplicateScenario` with its `duplicate` re-exec
-mode asserts the duplicate line, the kept instance, the dropped
-instance, and the unchanged status.
+An instance name is what a filter matches, and one full name selects exactly
+one instance. A repeated instance name is reported, the first registration
+is kept, the later one dropped, and the exit status is unchanged. The
+catalog walk covers the same set without printing rows.
 
 ## Argument access
 
@@ -87,12 +81,10 @@ the state holds a `std::span<const std::int64_t>` fixed at expansion.
 The timed loop keeps its shape, and the loop-shape gate
 `test/loop_shape.sh` stays green.
 
-Coverage: `test/source/harness_argument_test.cpp`. `twoArgumentFamily`
-reads each instance's pair, `argumentCountReported` reads the counts,
-`rangeReadAllocatesNothing` counts allocations through a replacing
-`operator new`, and `readZeroArgumentFamily` and `readPastFamilyArity`
-observe the precondition violations through the `range-zero-args` and
-`range-past-arity` re-exec modes.
+`range(i)` reads the argument of the instance that runs and `rangeCount()`
+the number of arguments it was given. Reading an argument allocates nothing.
+An index below the first argument or past the last one breaks the
+precondition of the accessor and ends the run.
 
 ## Captured arguments
 
@@ -105,14 +97,12 @@ the handle, so a
 site chains family calls: `SG_BENCHMARK_CAPTURE(fn, pair, 2).arg(4);`
 registers `fn/pair/4`.
 
-Coverage: `test/source/harness_capture_macro_test.cpp`.
-`captureNameScenario` lists `addTwo/pair` and no further name under it,
-`capturedValuesScenario` runs the instance and checks the sum of the
-captured values, `twoCapturesScenario` registers `fn` twice under
-`captureA` and `captureB`, `chainedCaptureScenario` registers
-`bmCapChain/pair/4` through a chained site and reads the captured
-value and the argument from the state, and `duplicateScenario` shows a
-capture name clashing with a family instance at the duplicate tier.
+A capture name groups the values one run records while the instance keeps
+its own name beside it. The same function may be registered under two
+capture names, and a chained site carries its capture name into the instance
+name and its argument into the state. A capture name that collides with a
+family instance name is settled at the duplicate tier, where the earlier
+registration stays.
 
 ## Template registrations
 
@@ -127,14 +117,10 @@ example `SG_BENCHMARK_TEMPLATE(bmFill, std::uint64_t)` in
 `example/benchmark_example.cpp` is an instance named
 `bmFill<std::uint64_t>`.
 
-Coverage: `test/source/harness_template_test.cpp`.
-`singleTypeArgumentScenario` asserts `sortOf<int>`,
-`twoTypeArgumentsScenario` asserts `sortOf<int, double>` with the comma
-spacing of the macro site, `qualifiedTypeArgumentScenario` asserts
-`pairOf<std::pair<int, int>>`, `chainedSiteScenario` registers
-`chainOf<int>/8` through a chained site and reads `range(0)`, and
-`instantiationRunsScenario` runs each of the three instances and checks
-that the reached instantiation carries the named types.
+Type arguments appear in the instance name in the order the macro site wrote
+them, keeping the spacing of that site through a comma and through a nested
+template. A chained site names each instantiation, and the instantiation the
+run reaches is the one the type list names.
 
 ## Fixtures
 
@@ -161,21 +147,16 @@ record like any family record, one instance per argument list.
 `TableFixture/bmTableTouch`, registered with `SG_BENCHMARK_F`, stands in
 `example/benchmark_example.cpp`.
 
-Coverage: `test/source/harness_fixture_test.cpp`. `instanceNameScenario`
-asserts `QueueFixture/push` in list mode, `pairPerRunScenario` counts
-the pair against the runs of a fixed-count, repeated, and warm-up
-instance, `untimedScenario` checks the scripted `machine/monotonic`
-delta against the reported time, `oneObjectPerRunScenario` counts
-fixture constructions and destructions, `laterRegistrationScenario`
-covers the define-then-register pair, `templateScenario` covers
-`TypedFixture<int>/run`, `templatePairScenario` covers the two split
-template pairs, `callbackStateScenario` reads the argument and iteration
-counts from the state of the pair and re-execs the binary to observe
-`begin()` and `skipWithError()` aborting inside the pair,
-`chainedFixtureScenario` expands a chained `SG_BENCHMARK_REGISTER_F`
-site into three instances each with its own pair, and
-`disabledMethodScenario` covers the
-`DISABLED_` exception of a fixture method.
+A fixture instance name is the fixture and the method. One fixture object is
+built and destroyed for each run, and the setup and teardown pair runs once
+per run, including a run of a fixed-count, repeated or warm-up instance.
+Untimed work in a setup callback does not reach the reported time, which is
+the delta of the timed leaf alone. A method reads the argument and iteration
+counts from the state of its own run, and `begin()` or `skipWithError()`
+called inside the pair aborts the run. A template fixture yields one
+instance per instantiation, a split pair spans the two halves, a chained
+site expands into one instance per argument each with its own pair, and a
+`DISABLED_` method is excluded like any other disabled name.
 
 ## Setup and teardown callbacks
 
@@ -192,16 +173,13 @@ violations. `end()` stays legal because it is static and touches no
 state. The harness runs one thread today; the once-per-thread-group rule
 belongs to a future threads specification.
 
-Coverage: `test/source/harness_callback_test.cpp`. `pairPerRunScenario`
-and `repetitionsScenario` count the pair against every run,
-`untimedScenario` burns work in a setup callback and checks the
-scripted time, `argumentReadScenario` reads `range(0)` of the running
-instance, `stateReadScenario` reads `rangeCount()` and `iterations()`,
-`lastAttachmentScenario` shows the first attachment staying at zero,
-`orderScenario` prints the event log of the wrapping order for a plain
-instance and a fixture instance, and `guardScenario` observes
-`begin()`, `skipWithError` and `skipWithMessage` aborting in a callback
-state as `SIGABRT` in a forked child.
+The setup and teardown callbacks run once per run for a plain instance, a
+repeated instance and a fixture. A callback reads the arguments and the
+counts of the running instance from its state. An attachment whose body
+never runs stays at zero. The wrapping order is fixed: the fixture pair sits
+outside the callbacks of the instance it wraps. A callback that calls
+`begin()`, `skipWithError()` or `skipWithMessage()` on a state it does not
+own aborts the process.
 
 ## The `DISABLED_` prefix
 
@@ -213,14 +191,10 @@ the filter match, and stays out of list mode. A fixture method named
 class. A `DISABLED_` family as the only match of a filter leaves the
 executable reporting no match, running nothing, and exiting zero.
 
-Coverage: `test/source/harness_disabled_test.cpp`.
-`disabledNeverRunsScenario` keeps the function of `DISABLED_slow` at
-zero while its sibling runs, `listExcludesScenario` keeps the prefix
-out of the listed set, `fixtureScenario` and `midNameScenario` show
-where the prefix does not reach, and `filterNoMatchScenario` and
-`onlyDisabledScenario` assert the no-match report and the zero exit.
-The fixture exception is covered a second time by
-`disabledMethodScenario` in `test/source/harness_fixture_test.cpp`.
+A family name with the `DISABLED_` prefix never runs and never appears in
+the listed set. The prefix is read only where a name begins, so a fixture
+method and a name that merely contains it are unaffected. A filter that
+matches nothing reports the no match and exits with a zero status.
 
 ## Suite and case naming
 
@@ -235,12 +209,10 @@ order. The console row keeps one name column carrying the full instance
 name, with the split readable on the result value. A
 later JSON report reuses the two fields.
 
-Coverage: `test/source/harness_instance_name_test.cpp`.
-`suiteCaseScenario` runs the three derivation rows of
-`contracts/result-fields.md` through `Runner::run` and checks the two
-fields, `pairUniquenessScenario` checks uniqueness across the instance
-list, `suiteOrderScenario` walks the grouped order of the instance
-list, and `consoleRowScenario` checks the single name column.
+The suite and case fields of a result come from the family name and the
+instance name of the run, and instances of one suite are reported together.
+Instance names stay unique across the list, and the console prints a single
+name column.
 
 ## Two time columns
 
@@ -271,10 +243,11 @@ selection is that primary time by default. The aggregate line names it:
 a gap disclosure stays out of those statistics, and
 `ResultRow::timeAvailability` carries the disclosure.
 
-Coverage: `test/source/harness_time_columns_test.cpp`. Each column is
-read against a scripted delta over the iteration count, a core metric
-keeps its fold beside the two columns, and the aggregate line is
-compared against the selection the run asked for.
+Each time column is the folded delta of its own leaf divided by the
+iteration count, so a scripted delta reports exactly the time it names. A
+core metric keeps its own fold beside the two time columns. The aggregate
+line is built from the selection the run asked for. A column that run did
+not print has no place in it.
 
 ## The process CPU leaf
 
@@ -292,11 +265,10 @@ failed with the resolution line the runner already prints for a missing
 leaf. In `example/benchmark_example.cpp`, `bmProcessCpu` carries the
 call.
 
-Coverage: `test/source/harness_cpu_leaf_test.cpp`. `processCpuScenario`
-reads the scripted `machine/process_cpu` delta in the CPU column,
-`combinedScenario` runs the switch together with `useRealTime`, and
-`missingProcessCpuScenario` with its `missingProcessCpu` re-exec mode
-asserts the failed benchmark and its resolution line.
+The CPU column reads the process CPU leaf and the real-time column the
+monotonic leaf; both may be asked for at once. Where the process CPU leaf
+cannot be resolved, the benchmark is reported as failed with a line naming
+the resolution that was sought.
 
 ## Real time as the primary time
 
@@ -308,11 +280,10 @@ excludes `useManualTime`: the second of the two calls is the
 `SG_REQUIRE` precondition violation, in either order. `bmRealTime` in
 `example/benchmark_example.cpp` carries the call.
 
-Coverage: `test/source/harness_real_time_test.cpp`. One scripted growth
-sequence runs under each selection, the iteration counts each walk
-reaches are compared, and the aggregate line is read against the column
-that selection prints, so the primary time stays the time the report
-shows.
+The time a run treats as primary decides where its growth rule stops, so one
+scripted sequence reaches a different iteration count under each selection.
+The aggregate line is read against the column that selection prints, which
+keeps the primary time the time the report shows.
 
 ## Manual time
 
@@ -330,10 +301,10 @@ is a precondition violation, because that state owns no run to
 accumulate for. `bmManual` in `example/benchmark_example.cpp` pairs the
 selection with one `setIterationTime` call per iteration.
 
-Coverage: `test/source/harness_manual_time_test.cpp`. The accepted sum is
-read through the growth rule, the empty sum at the cap is reported, and
-both orders of the conflicting pair are asserted, so a manual time reads
-the same whichever side of a timed loop it arrives on.
+A manual time is accepted against the growth rule of the run, and a sum that
+reaches the cap with nothing accepted in it is reported. The reading is the
+same whether the manual report arrives before or after the timed loop, so
+the order of the two carries no meaning.
 
 ## Pause and resume
 
@@ -381,12 +352,12 @@ the token too.
 `ScopedPauseTiming` region inside the loop, and a dry run of
 `build/example/benchmark_example` prints `endpoint samples=4` for it.
 
-Coverage: `test/source/harness_pause_test.cpp`. Every time column and an
-attached metric are read against the window fold minus the scripted pause
-fold to the nanosecond, the guard reports the value the explicit calls
-report, a loop that pauses in every iteration still completes, a run that
-pauses nothing reserves no pause room, and each precondition is tripped at
-its call, so a pause removes the time it names.
+A pause removes the time it names: every time column and every attached
+metric of the run is the window fold minus the pause fold, to the
+nanosecond. The guard reads the same interval as the explicit calls around
+it. A loop that pauses in every iteration still completes. A run that pauses
+nothing reserves no pause room, and a pause that is opened twice, closed
+twice or closed without an opening breaks the precondition at that call.
 
 ## Time units
 
@@ -416,10 +387,10 @@ and a dry run of `build/example/benchmark_example` prints its row under
 the `ms` label. A command-line unit option belongs to a future
 command-line specification.
 
-Coverage: `test/source/harness_time_unit_test.cpp`. Both columns, the overhead
-floor and the aggregate line are read under a moved unit, under a default
-no call set, and through a runner a test drives without the entry point,
-so every field of a line scales the same way.
+One unit choice scales every field of a line the same way: both time
+columns, the overhead floor and the aggregate line. A run that never calls
+the setter keeps the default unit, and the scaling holds for a runner driven
+without the entry point, and through it.
 
 ## User counters
 
@@ -451,10 +422,11 @@ each counter beside the built-in ones. `example/docs/user_counters.cpp`
 runs one family with a counter and a byte rate, and its aggregate lines
 print under the built-in ones.
 
-Coverage: `test/source/harness_user_counters_test.cpp`. Each bound is
-tripped at its call, one name keeps the flags and base of the call that
-opened it, and the printed column and its aggregate line are read against
-the value the body set.
+Every bound on a counter name and on the number of counters is a
+precondition of the call that breaches it, so a breach ends the run with the
+bound in the message. A name keeps the flags and the base of the call that
+opened it, the column carries the value the body set after the flags are
+applied, and the aggregate line carries one statistic for each counter.
 
 ## Throughput
 
@@ -471,9 +443,8 @@ the console column prints the rate as a raw number. Both are counters of
 the row like any other: they print in the same fields and carry the same
 aggregate line.
 
-Coverage: `test/source/harness_throughput_test.cpp`. Each rate is read
-against the count over the primary time of the scripted run, and a run
-that calls neither prints neither column.
+Each rate column is the total the body reported divided by the primary time
+of the run, and a run that reports no work prints neither column.
 
 ## Labels
 
@@ -485,10 +456,9 @@ row shape of the report, so the newline is a `SG_REQUIRE` precondition of
 the call. The aggregate row carries the label every repetition ended with,
 and prints no label where the repetitions ended apart.
 
-Coverage: `test/source/harness_label_test.cpp`. The trailing field is
-read on each row of a family and on its aggregate, the last call of a
-repetition is the one the row prints, and a newline in the label is
-tripped at the call.
+The label is a trailing field on every row of the family and on its
+aggregate. The label the last repetition set is the one the row prints. A
+label carrying a newline breaks the precondition of the call that sets it.
 
 ## Custom statistics
 
@@ -504,9 +474,10 @@ among the built-in fields in the order the calls came in. The names
 built-in statistics, and a call naming one of them breaches the
 precondition of `addStatistic`.
 
-Coverage: `test/source/harness_custom_stats_test.cpp`. A statistic of
-each unit is read on the aggregate row, a callback that returns false
-leaves its value out, and a reserved name is tripped at the call.
+A custom statistic appears on the aggregate row, one value per callback, in
+the unit the callback names. A callback that returns false leaves its value
+out of the row. A name a built-in field already uses breaks the precondition
+of the call that registers it.
 
 ## Aggregate-only reporting
 
@@ -518,9 +489,9 @@ every repetition row, the difference a second output channel reads back. A
 family with no aggregate row keeps its rows, so neither mode empties a run
 of output.
 
-Coverage: `test/source/harness_aggregates_only_test.cpp`. Each mode is
-read against the console of the same family, the stored rows of the
-display mode are counted, and a family with no aggregate keeps its row.
+Each aggregates-only mode changes what the console prints for the same
+family, and the rows it stores match the rows it displays. A family with
+nothing to aggregate keeps its row.
 
 ## Complexity fit
 
@@ -542,6 +513,6 @@ the fit error as a percentage. A quantity a member never set gets a
 fewer than two instances, or an instance without a positive size, states
 the reason in place of the rows.
 
-Coverage: `test/source/harness_complexity_test.cpp`. A family of each
-curve is fitted, the coefficient and the error of every quantity are read
-against a scripted series, and each short family states its reason.
+A curve is fitted from the series of the family, and the printed coefficient
+and error are those of that fit. A family with too few points to fit states
+the reason and prints no coefficient.
