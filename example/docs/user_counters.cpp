@@ -17,9 +17,12 @@ auto bmCopyCells(sg::State& state) -> void
       sink[cell] = cell + 1;
     }
     state.setCounter("cells", {static_cast<double>(cells)});
-    state.setBytesProcessed(static_cast<std::int64_t>(cells) * 16);
     sg::doNotOptimize(sink);
   }
+  // The byte setter takes the total work of the whole run (FR-009).
+  const auto bytes = static_cast<std::int64_t>(state.iterations())
+      * static_cast<std::int64_t>(cells) * 16;
+  state.setBytesProcessed(bytes);
 }
 
 SG_BENCHMARK(bmCopyCells).argsProduct({{64, 1024}}).repetitions(3);

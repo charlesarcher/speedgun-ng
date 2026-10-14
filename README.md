@@ -323,7 +323,6 @@ A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overh
 
 ### User counters
 
-A counter is a named number the loop reports beside the times, and its flags say how the value scales.
 <!-- sg-example: example/docs/user_counters.cpp#user-counters -->
 ```cpp
 auto bmCopyCells(sg::State& state) -> void
@@ -335,18 +334,20 @@ auto bmCopyCells(sg::State& state) -> void
       sink[cell] = cell + 1;
     }
     state.setCounter("cells", {static_cast<double>(cells)});
-    state.setBytesProcessed(static_cast<std::int64_t>(cells) * 16);
     sg::doNotOptimize(sink);
   }
+  // The byte setter takes the total work of the whole run (FR-009).
+  const auto bytes = static_cast<std::int64_t>(state.iterations())
+      * static_cast<std::int64_t>(cells) * 16;
+  state.setBytesProcessed(bytes);
 }
 
 SG_BENCHMARK(bmCopyCells).argsProduct({{64, 1024}}).repetitions(3);
 ```
-A run of `bmCopyCells` prints `cells=` and the `bytes_per_second=` rate beside the two time columns, and its `AGGREGATE` row carries one statistic line for each counter, so `cells mean=` and `bytes_per_second mean=` stand under the built-in ones. Names are capped at `kMaxUserCounters`, sixteen for one benchmark, and a name must be shorter than `kMaxCounterNameBytes`, so 31 characters; both bounds are `SG_REQUIRE` preconditions on `State::setCounter`, and a breach ends the run with the bound in its message. See [user counters](docs/pages/harness.md#user-counters).
+A counter is a named number the loop reports beside the times, and its flags say how the value scales. A run of `bmCopyCells` prints `cells=` and the `bytes_per_second=` rate beside the two time columns, and its `AGGREGATE` row carries one statistic line for each counter, so `cells mean=` and `bytes_per_second mean=` stand under the built-in ones. Names are capped at `kMaxUserCounters`, sixteen for one benchmark, and a name must be shorter than `kMaxCounterNameBytes`, so 31 characters; both bounds are `SG_REQUIRE` preconditions on `State::setCounter`, and a breach ends the run with the bound in its message. See [user counters](docs/pages/harness.md#user-counters).
 
 ### Throughput
 
-`setBytesProcessed` and `setItemsProcessed` open the two rate counters the harness derives from the time it measured.
 <!-- sg-example: example/docs/throughput.cpp#throughput -->
 ```cpp
 auto bmEncode(sg::State& state) -> void
@@ -357,15 +358,17 @@ auto bmEncode(sg::State& state) -> void
     for (std::size_t item = 0; item < items; ++item) {
       buffer[item] = static_cast<std::uint8_t>(item * 7);
     }
-    state.setItemsProcessed(static_cast<std::int64_t>(items));
-    state.setBytesProcessed(static_cast<std::int64_t>(items));
     sg::doNotOptimize(buffer);
   }
+  const auto total = static_cast<std::int64_t>(state.iterations())
+      * static_cast<std::int64_t>(items);
+  state.setItemsProcessed(total);
+  state.setBytesProcessed(total);
 }
 
 SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
 ```
-The row gains `items_per_second=` and `bytes_per_second=` columns, each one the count over the primary time of the run, so a larger argument shows the throughput the loop held. See [throughput](docs/pages/harness.md#throughput).
+`setBytesProcessed` and `setItemsProcessed` open the two rate counters the harness derives from the time it measured. The row gains `items_per_second=` and `bytes_per_second=` columns, each one the total the call passed divided by the primary time of the run, so a larger argument shows the throughput the loop held. Both calls take the total work of the whole run: a body that works a known amount per iteration passes that amount times `state.iterations()` after the loop, as the example does. See [throughput](docs/pages/harness.md#throughput).
 
 ### Labels
 
