@@ -392,6 +392,163 @@ columns, the overhead floor and the aggregate line. A run that never calls
 the setter keeps the default unit, and the scaling holds for a runner driven
 without the entry point, and through it.
 
+## Longer forms of the same calls
+
+The main page quotes the shortest form that shows each call. These are the
+same calls in the surrounding code a reader writes, with the families that
+carry more than one argument and the helper a custom statistic needs.
+
+<!-- sg-example: example/docs/registration.cpp#registration-table -->
+```cpp
+auto bmTable(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+const auto kTable = sg::registerBenchmark(&bmTable, "Table/cells");
+```
+
+<!-- sg-example: example/docs/user_counters.cpp#user-counters -->
+```cpp
+auto bmCopyCells(sg::State& state) -> void
+{
+  const auto cells = static_cast<std::size_t>(state.range(0));
+  std::vector<std::uint64_t> sink(cells, 0);
+  for (auto _ : state) {
+    for (std::size_t cell = 0; cell < cells; ++cell) {
+      sink[cell] = cell + 1;
+    }
+    state.setCounter("cells", {static_cast<double>(cells)});
+    sg::doNotOptimize(sink);
+  }
+  // The byte setter takes the total work of the whole run (FR-009).
+  const auto bytes = static_cast<std::int64_t>(state.iterations())
+      * static_cast<std::int64_t>(cells) * 16;
+  state.setBytesProcessed(bytes);
+}
+
+SG_BENCHMARK(bmCopyCells).argsProduct({{64, 1024}}).repetitions(3);
+```
+
+<!-- sg-example: example/docs/throughput.cpp#throughput -->
+```cpp
+auto bmEncode(sg::State& state) -> void
+{
+  const auto items = static_cast<std::size_t>(state.range(0));
+  std::vector<std::uint8_t> buffer(items);
+  for (auto _ : state) {
+    for (std::size_t item = 0; item < items; ++item) {
+      buffer[item] = static_cast<std::uint8_t>(item * 7);
+    }
+    sg::doNotOptimize(buffer);
+  }
+  const auto total = static_cast<std::int64_t>(state.iterations())
+      * static_cast<std::int64_t>(items);
+  state.setItemsProcessed(total);
+  state.setBytesProcessed(total);
+}
+
+SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
+```
+
+## Reading a report row
+
+A run prints a version line, then one row per instance and repetition, and a
+final `AGGREGATE` row when the benchmark asks for repetitions.
+
+<!-- sg-example: example/docs/reading_the_report.cpp#reading-the-report -->
+```cpp
+auto spreadOf(const std::vector<double>& times, double& spread) -> bool
+{
+  if (times.empty()) {
+    return false;
+  }
+  double lo = times.front();
+  double hi = lo;
+  for (const double time : times) {
+    lo = std::min(lo, time);
+    hi = std::max(hi, time);
+  }
+  spread = lo > 0.0 ? (hi - lo) / lo * 100.0 : 0.0;
+  return true;
+}
+
+auto bmRows(sg::State& state) -> void
+{
+  const auto cells = state.range(0);
+  for (auto _ : state) {
+    for (auto cell = std::int64_t {0}; cell < cells; ++cell) {
+      sg::doNotOptimize(cell);
+    }
+  }
+  state.setBytesProcessed(cells * 8);
+  state.setLabel("filled");
+}
+
+SG_BENCHMARK(bmRows)
+    .argsProduct({{8, 16, 32}})
+    .repetitions(3)
+    .complexity(sg::BigO::AUTOMATIC)
+    .addStatistic("spread", sg::StatUnit::PERCENTAGE, &spreadOf);
+```
+
+The registration asks for a counter column, a label, one custom statistic and
+the complexity fit, so the rows carry those fields. `bytes_per_second=` is the
+byte rate the byte setter reports, `label=` holds the text `setLabel` gave the
+instance, `spread=` is the custom statistic, and the fit prints a `BIG_O`
+estimate with an `RMS` residual for the primary time and for each counter.
+
+<!-- sg-sample-output: example/docs/reading_the_report.expected#report -->
+```text
+speedgun-ng 0.9.0 build=Release
+bmRows/8                 iterations=   6044798  real time/iter (ns)=    2.242  cpu time/iter (ns)=    2.236  overhead floor (ns)=  681.000  endpoint samples=2  bytes_per_second= 4734.871  label=filled
+bmRows/8                 iterations=   6044798  real time/iter (ns)=    2.250  cpu time/iter (ns)=    2.243  overhead floor (ns)=  681.000  endpoint samples=2  bytes_per_second= 4720.075  label=filled
+bmRows/8                 iterations=   6044798  real time/iter (ns)=    2.250  cpu time/iter (ns)=    2.247  overhead floor (ns)=  681.000  endpoint samples=2  bytes_per_second= 4712.806  label=filled
+bmRows/8                  AGGREGATE  primary time/iter (ns) mean=    2.242 median=    2.243 sd=    0.005 cv=  0.0024 min=    2.236 max=    2.247 n=3  spread=    0.468  label=filled
+bmRows/8                             bytes_per_second mean= 4722.584 median= 4720.075 sd=   11.245 cv=  0.0024 min= 4712.806 max= 4734.871 n=3
+bmRows/16                iterations=   3256469  real time/iter (ns)=    4.136  cpu time/iter (ns)=    4.130  overhead floor (ns)=  684.000  endpoint samples=2  bytes_per_second= 9516.840  label=filled
+bmRows/16                iterations=   3256469  real time/iter (ns)=    4.071  cpu time/iter (ns)=    4.066  overhead floor (ns)=  684.000  endpoint samples=2  bytes_per_second= 9666.322  label=filled
+bmRows/16                iterations=   3256469  real time/iter (ns)=    4.091  cpu time/iter (ns)=    4.085  overhead floor (ns)=  684.000  endpoint samples=2  bytes_per_second= 9621.425  label=filled
+bmRows/16                 AGGREGATE  primary time/iter (ns) mean=    4.094 median=    4.085 sd=    0.033 cv=  0.0080 min=    4.066 max=    4.130 n=3  spread=    1.571  label=filled
+bmRows/16                            bytes_per_second mean= 9601.529 median= 9621.425 sd=   76.701 cv=  0.0080 min= 9516.840 max= 9666.322 n=3
+bmRows/32                iterations=   1836085  real time/iter (ns)=    7.716  cpu time/iter (ns)=    7.644  overhead floor (ns)=  680.000  endpoint samples=2  bytes_per_second=18238.993  label=filled
+bmRows/32                iterations=   1836085  real time/iter (ns)=    7.589  cpu time/iter (ns)=    7.581  overhead floor (ns)=  680.000  endpoint samples=2  bytes_per_second=18391.439  label=filled
+bmRows/32                iterations=   1836085  real time/iter (ns)=    7.620  cpu time/iter (ns)=    7.612  overhead floor (ns)=  680.000  endpoint samples=2  bytes_per_second=18317.167  label=filled
+bmRows/32                 AGGREGATE  primary time/iter (ns) mean=    7.612 median=    7.612 sd=    0.032 cv=  0.0042 min=    7.581 max=    7.644 n=3  spread=    0.836  label=filled
+bmRows/32                            bytes_per_second mean=18315.866 median=18317.167 sd=   76.231 cv=  0.0042 min=18238.993 max=18391.439 n=3
+bmRows                        BIG_O  time/iter N (    0.243)
+bmRows                          RMS  time/iter     4.932%
+bmRows                        BIG_O  bytes_per_second N (  578.507)
+bmRows                          RMS  bytes_per_second     2.167%
+bmFill/8                 iterations=  31127816  real time/iter (ns)=    0.445  cpu time/iter (ns)=    0.445  overhead floor (ns)=  683.000  endpoint samples=2  bytes_per_second= 4622.274  label=filled
+```
+
+## The command line of an example
+
+One entry point reads the command line, and any example binary takes the same
+options. `--list` prints the registered instances, `--filter` selects them by
+name, `--dry-run` reports one iteration per instance against the counter you
+name, and `--catalog` lists the metrics the host offers.
+
+<!-- sg-example: example/docs/command_line.sh#options -->
+```sh
+./build/example/docs_command_line --list
+./build/example/docs_command_line --filter='bmWrite' --min-time=0.2
+./build/example/docs_command_line --counter=machine/monotonic --dry-run
+./build/example/docs_command_line --catalog
+```
+
+The aggregate row of the quick-start benchmark carries the built-in statistics
+for one benchmark: mean, median, `sd=`, `cv=`, min, max and the repetition
+count.
+
+<!-- sg-example: example/first_benchmark.expected#aggregate -->
+```text
+bmSum                     AGGREGATE  primary time/iter (ns) mean=  649.108 median=  649.499 sd=    0.942 cv=  0.0015 min=  648.034 max=  649.792 n=3
+```
+
 ## User counters
 
 `State::setCounter(name, counter)` reports a named number for the row the

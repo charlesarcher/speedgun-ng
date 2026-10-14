@@ -5,6 +5,7 @@
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
+// sg-example:begin reading-the-report
 auto spreadOf(const std::vector<double>& times, double& spread) -> bool
 {
   if (times.empty()) {
@@ -20,7 +21,6 @@ auto spreadOf(const std::vector<double>& times, double& spread) -> bool
   return true;
 }
 
-// sg-example:begin reading-the-report
 auto bmRows(sg::State& state) -> void
 {
   const auto cells = state.range(0);
@@ -40,6 +40,25 @@ SG_BENCHMARK(bmRows)
     .addStatistic("spread", sg::StatUnit::PERCENTAGE, &spreadOf);
 
 // sg-example:end reading-the-report
+
+// The main page quotes this pair: a loop that reports work done, then the
+// registration that asks for the counter column and the label.
+// sg-example:begin report-fields
+auto bmFill(sg::State& state) -> void
+{
+  const auto cells = state.range(0);
+  std::vector<std::uint64_t> row(static_cast<std::size_t>(cells), 0);
+  for (auto _ : state) {
+    row.front() = static_cast<std::uint64_t>(cells);
+    sg::doNotOptimize(row);
+  }
+  state.setBytesProcessed(cells * 8);
+  state.setLabel("filled");
+}
+
+SG_BENCHMARK(bmFill).argsProduct({{8}});
+
+// sg-example:end report-fields
 
 auto main(int argc, char** argv) -> int
 {

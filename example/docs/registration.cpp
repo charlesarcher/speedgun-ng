@@ -3,7 +3,7 @@
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
-// sg-example:begin registration
+// sg-example:begin registration-macro
 auto bmCells(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -13,6 +13,9 @@ auto bmCells(sg::State& state) -> void
 
 SG_BENCHMARK(bmCells);
 
+// sg-example:end registration-macro
+
+// sg-example:begin registration-table
 auto bmTable(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -22,7 +25,7 @@ auto bmTable(sg::State& state) -> void
 
 const auto kTable = sg::registerBenchmark(&bmTable, "Table/cells");
 
-// sg-example:end registration
+// sg-example:end registration-table
 
 // sg-example:begin capture
 auto bmAdd(sg::State& state, int left, int right) -> void

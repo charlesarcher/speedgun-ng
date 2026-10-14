@@ -867,6 +867,21 @@ if(TARGET first_benchmark)
   set_tests_properties(report_shape PROPERTIES TIMEOUT 120)
 endif()
 
+if(TARGET docs_reading_the_report)
+  # The user guide page carries a second recorded run: the report of the
+  # example that prints a counter column, a label, a custom statistic and the
+  # fit. The same shape fold checks it against a real run, so a renamed or
+  # dropped column there fails the suite too (T057, FR-006).
+  add_test(
+      NAME report_shape_guide_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_reading_the_report>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+  )
+  set_tests_properties(report_shape_guide_sample PROPERTIES TIMEOUT 120)
+endif()
+
 # Each docs example is a complete program whose regions the page quotes, so the
 # gate runs every one of them and requires a row for each registered benchmark,
 # with no FAILED row and with every skip declared in the source (T035; FR-034,
