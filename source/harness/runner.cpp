@@ -742,6 +742,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // of the run, fed at the commit of every pair the room cannot hold.
     state.m_slotReset = slotReset;
     state.m_pauseFold = &record.pauseFold;
+    // FR-051: a closed pair takes one slot of the raw path, and the room
+    // above counts two raw points per pair, so half that room is the pair
+    // count an attempt can reach. Holding the vector to that size before
+    // the loop opens keeps State::closePausePair free of any reallocation
+    // inside the timed loop.
+    state.m_pausePairs.reserve(pauseRoom / 2);
     for (const auto* core : cores) {
       record.pauseFold.addColumn(*core);
     }
