@@ -1,15 +1,8 @@
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
-// sg-example:begin command-line
+// sg-example:begin command-line-read
 auto bmRead(sg::State& state) -> void
-{
-  for (auto _ : state) {
-    sg::doNotOptimize(state.iterations());
-  }
-}
-
-auto bmWrite(sg::State& state) -> void
 {
   for (auto _ : state) {
     sg::doNotOptimize(state.iterations());
@@ -18,9 +11,16 @@ auto bmWrite(sg::State& state) -> void
 
 SG_BENCHMARK(bmRead).argNames({"cells"}).arg(256);
 
-SG_BENCHMARK(bmWrite).argNames({"cells"}).arg(256);
+// sg-example:end command-line-read
 
-// sg-example:end command-line
+auto bmWrite(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmWrite).argNames({"cells"}).arg(256);
 
 auto main(int argc, char** argv) -> int
 {

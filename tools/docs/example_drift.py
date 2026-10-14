@@ -47,10 +47,8 @@ SECTIONS = (
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
-# Two sections keep a shipped owner beside their own: the shell driver states
-# the command line in the words a reader types, and the sample report block
-# stays the recorded output of the quick-start binary that `report_shape`
-# compares against the real run.
+# Each section has exactly one owner: a shell block or a recorded run belongs to
+# the user guide page that quotes it, not to a main page section.
 SECTION_OWNERS = {
     "The run loop": ("run_loop.cpp",),
     "Registration": ("registration.cpp",),
@@ -62,8 +60,8 @@ SECTION_OWNERS = {
     "The time unit": ("time_unit.cpp",),
     "Hardware counter metrics": ("counter_metrics.cpp",),
     "Skips": ("skips.cpp",),
-    "The command line": ("command_line.cpp", "quickstart.sh"),
-    "Reading the report": ("reading_the_report.cpp", "first_benchmark.expected"),
+    "The command line": ("command_line.cpp",),
+    "Reading the report": ("reading_the_report.cpp",),
     "User counters": ("user_counters.cpp",),
     "Throughput": ("throughput.cpp",),
     "Labels": ("labels.cpp",),

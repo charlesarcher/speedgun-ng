@@ -105,7 +105,7 @@ SG_BENCHMARK(bmLoop);
 ### Registration
 
 `SG_BENCHMARK` registers a plain function, `SG_BENCHMARK_CAPTURE` registers one with a captured argument, and `registerBenchmark` is the runtime form, naming the family itself and returning the `BenchmarkHandle` the family calls chain onto; `SG_BENCHMARK_TEMPLATE` registers one instantiation of a function template, shown in [template registrations](docs/pages/harness.md#template-registrations).
-<!-- sg-example: example/docs/registration.cpp#registration -->
+<!-- sg-example: example/docs/registration.cpp#registration-macro -->
 ```cpp
 auto bmCells(sg::State& state) -> void
 {
@@ -115,15 +115,6 @@ auto bmCells(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmCells);
-
-auto bmTable(sg::State& state) -> void
-{
-  for (auto _ : state) {
-    sg::doNotOptimize(state.iterations());
-  }
-}
-
-const auto kTable = sg::registerBenchmark(&bmTable, "Table/cells");
 ```
 A name splits at its first `/` into suite and case, so `Table/cells` is the case `cells` of the suite `Table`, and the runtime form hands back the handle the family calls chain onto. See [captured arguments](docs/pages/harness.md#captured-arguments) and [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
 ### Argument families and ranges
@@ -304,69 +295,76 @@ The report prints `SKIPPED: <reason>` for the first kind and `FAILED: <reason>` 
 ### The command line
 
 One entry point, `speedgunMain`, reads the command line, and the options are long options alone.
-<!-- sg-example: example/quickstart.sh#options -->
-```sh
-./build/first_benchmark --list
-./build/first_benchmark --filter='bmSum' --min-time=0.2
-./build/first_benchmark --counter=machine/monotonic --dry-run
-./build/first_benchmark --catalog
+<!-- sg-example: example/docs/command_line.cpp#command-line-read -->
+```cpp
+auto bmRead(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmRead).argNames({"cells"}).arg(256);
 ```
 `--min-time` and `--warmup-time` take seconds, and a usage error reports one line and exits with status 2.
 ### Reading the report
 
 A run prints a version line, then one row per instance and repetition.
-<!-- sg-example: example/first_benchmark.expected#aggregate -->
-```text
-bmSum                     AGGREGATE  primary time/iter (ns) mean=  649.108 median=  649.499 sd=    0.942 cv=  0.0015 min=  648.034 max=  649.792 n=3
+
+<!-- sg-example: example/docs/reading_the_report.cpp#report-fields -->
+```cpp
+auto bmFill(sg::State& state) -> void
+{
+  const auto cells = state.range(0);
+  std::vector<std::uint64_t> row(static_cast<std::size_t>(cells), 0);
+  for (auto _ : state) {
+    row.front() = static_cast<std::uint64_t>(cells);
+    sg::doNotOptimize(row);
+  }
+  state.setBytesProcessed(cells * 8);
+  state.setLabel("filled");
+}
+
+SG_BENCHMARK(bmFill).argsProduct({{8}});
 ```
+The row carries `bytes_per_second=` from the byte setter and the `label=` field the label setter gave it, and [Reading a report row](docs/pages/harness.md#reading-a-report-row) shows the full run with the `spread=` statistic and the `BIG_O` and `RMS` pair of the fit.
 A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`.
 
 ### User counters
 
-<!-- sg-example: example/docs/user_counters.cpp#user-counters -->
+<!-- sg-example: example/docs/user_counters.cpp#counter-column -->
 ```cpp
-auto bmCopyCells(sg::State& state) -> void
+auto bmCount(sg::State& state) -> void
 {
   const auto cells = static_cast<std::size_t>(state.range(0));
-  std::vector<std::uint64_t> sink(cells, 0);
+  std::uint64_t sink = 0;
   for (auto _ : state) {
-    for (std::size_t cell = 0; cell < cells; ++cell) {
-      sink[cell] = cell + 1;
-    }
+    sink += cells;
     state.setCounter("cells", {static_cast<double>(cells)});
     sg::doNotOptimize(sink);
   }
-  // The byte setter takes the total work of the whole run (FR-009).
-  const auto bytes = static_cast<std::int64_t>(state.iterations())
-      * static_cast<std::int64_t>(cells) * 16;
-  state.setBytesProcessed(bytes);
 }
 
-SG_BENCHMARK(bmCopyCells).argsProduct({{64, 1024}}).repetitions(3);
+SG_BENCHMARK(bmCount).argsProduct({{64}}).repetitions(3);
 ```
 A counter is a named number the loop reports beside the times, and its flags say how the value scales. A run of `bmCopyCells` prints `cells=` and the `bytes_per_second=` rate beside the two time columns, and its `AGGREGATE` row carries one statistic line for each counter, so `cells mean=` and `bytes_per_second mean=` stand under the built-in ones. Names are capped at `kMaxUserCounters`, sixteen for one benchmark, and a name must be shorter than `kMaxCounterNameBytes`, so 31 characters; both bounds are `SG_REQUIRE` preconditions on `State::setCounter`, and a breach ends the run with the bound in its message. See [user counters](docs/pages/harness.md#user-counters).
 
 ### Throughput
 
-<!-- sg-example: example/docs/throughput.cpp#throughput -->
+<!-- sg-example: example/docs/throughput.cpp#throughput-call -->
 ```cpp
-auto bmEncode(sg::State& state) -> void
+auto bmScale(sg::State& state) -> void
 {
-  const auto items = static_cast<std::size_t>(state.range(0));
-  std::vector<std::uint8_t> buffer(items);
+  std::int64_t work = 0;
   for (auto _ : state) {
-    for (std::size_t item = 0; item < items; ++item) {
-      buffer[item] = static_cast<std::uint8_t>(item * 7);
-    }
-    sg::doNotOptimize(buffer);
+    work += static_cast<std::int64_t>(state.iterations());
+    sg::doNotOptimize(work);
   }
-  const auto total = static_cast<std::int64_t>(state.iterations())
-      * static_cast<std::int64_t>(items);
-  state.setItemsProcessed(total);
-  state.setBytesProcessed(total);
+  state.setItemsProcessed(work);
+  state.setBytesProcessed(work * 4);
 }
 
-SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
+SG_BENCHMARK(bmScale).argsProduct({{1}}).repetitions(3);
 ```
 `setBytesProcessed` and `setItemsProcessed` open the two rate counters the harness derives from the time it measured. The row gains `items_per_second=` and `bytes_per_second=` columns, each one the total the call passed divided by the primary time of the run, so a larger argument shows the throughput the loop held. Both calls take the total work of the whole run: a body that works a known amount per iteration passes that amount times `state.iterations()` after the loop, as the example does. See [throughput](docs/pages/harness.md#throughput).
 

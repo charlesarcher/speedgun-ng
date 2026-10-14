@@ -26,6 +26,22 @@ SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
 
 // sg-example:end throughput
 
+// sg-example:begin throughput-call
+auto bmScale(sg::State& state) -> void
+{
+  std::int64_t work = 0;
+  for (auto _ : state) {
+    work += static_cast<std::int64_t>(state.iterations());
+    sg::doNotOptimize(work);
+  }
+  state.setItemsProcessed(work);
+  state.setBytesProcessed(work * 4);
+}
+
+SG_BENCHMARK(bmScale).argsProduct({{1}}).repetitions(3);
+
+// sg-example:end throughput-call
+
 auto main(int argc, char** argv) -> int
 {
   return sg::speedgunMain(argc, argv);

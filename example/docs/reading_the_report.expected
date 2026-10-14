@@ -1,0 +1,23 @@
+# sg-example:begin report
+speedgun-ng 0.9.0 build=Release
+bmRows/8                 iterations=   6044798  real time/iter (ns)=    2.242  cpu time/iter (ns)=    2.236  overhead floor (ns)=  681.000  endpoint samples=2  bytes_per_second= 4734.871  label=filled
+bmRows/8                 iterations=   6044798  real time/iter (ns)=    2.250  cpu time/iter (ns)=    2.243  overhead floor (ns)=  681.000  endpoint samples=2  bytes_per_second= 4720.075  label=filled
+bmRows/8                 iterations=   6044798  real time/iter (ns)=    2.250  cpu time/iter (ns)=    2.247  overhead floor (ns)=  681.000  endpoint samples=2  bytes_per_second= 4712.806  label=filled
+bmRows/8                  AGGREGATE  primary time/iter (ns) mean=    2.242 median=    2.243 sd=    0.005 cv=  0.0024 min=    2.236 max=    2.247 n=3  spread=    0.468  label=filled
+bmRows/8                             bytes_per_second mean= 4722.584 median= 4720.075 sd=   11.245 cv=  0.0024 min= 4712.806 max= 4734.871 n=3
+bmRows/16                iterations=   3256469  real time/iter (ns)=    4.136  cpu time/iter (ns)=    4.130  overhead floor (ns)=  684.000  endpoint samples=2  bytes_per_second= 9516.840  label=filled
+bmRows/16                iterations=   3256469  real time/iter (ns)=    4.071  cpu time/iter (ns)=    4.066  overhead floor (ns)=  684.000  endpoint samples=2  bytes_per_second= 9666.322  label=filled
+bmRows/16                iterations=   3256469  real time/iter (ns)=    4.091  cpu time/iter (ns)=    4.085  overhead floor (ns)=  684.000  endpoint samples=2  bytes_per_second= 9621.425  label=filled
+bmRows/16                 AGGREGATE  primary time/iter (ns) mean=    4.094 median=    4.085 sd=    0.033 cv=  0.0080 min=    4.066 max=    4.130 n=3  spread=    1.571  label=filled
+bmRows/16                            bytes_per_second mean= 9601.529 median= 9621.425 sd=   76.701 cv=  0.0080 min= 9516.840 max= 9666.322 n=3
+bmRows/32                iterations=   1836085  real time/iter (ns)=    7.716  cpu time/iter (ns)=    7.644  overhead floor (ns)=  680.000  endpoint samples=2  bytes_per_second=18238.993  label=filled
+bmRows/32                iterations=   1836085  real time/iter (ns)=    7.589  cpu time/iter (ns)=    7.581  overhead floor (ns)=  680.000  endpoint samples=2  bytes_per_second=18391.439  label=filled
+bmRows/32                iterations=   1836085  real time/iter (ns)=    7.620  cpu time/iter (ns)=    7.612  overhead floor (ns)=  680.000  endpoint samples=2  bytes_per_second=18317.167  label=filled
+bmRows/32                 AGGREGATE  primary time/iter (ns) mean=    7.612 median=    7.612 sd=    0.032 cv=  0.0042 min=    7.581 max=    7.644 n=3  spread=    0.836  label=filled
+bmRows/32                            bytes_per_second mean=18315.866 median=18317.167 sd=   76.231 cv=  0.0042 min=18238.993 max=18391.439 n=3
+bmRows                        BIG_O  time/iter N (    0.243)
+bmRows                          RMS  time/iter     4.932%
+bmRows                        BIG_O  bytes_per_second N (  578.507)
+bmRows                          RMS  bytes_per_second     2.167%
+bmFill/8                 iterations=  31127816  real time/iter (ns)=    0.445  cpu time/iter (ns)=    0.445  overhead floor (ns)=  683.000  endpoint samples=2  bytes_per_second= 4622.274  label=filled
+# sg-example:end report
