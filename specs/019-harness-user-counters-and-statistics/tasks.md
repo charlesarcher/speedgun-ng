@@ -275,11 +275,11 @@ the eighteen owners.
 
 - [X] T040 Amend `.specify/memory/constitution.md`: Principle IV gains IV.1's compiles-and-runs wording ("A main-page snippet shall come from an example CI builds and runs"), Principle VIII names the `example_run` check in its gate list, and the file records version 2.20.0 with the amendment record row, the lineage row, the footer, and the sync impact line, the format the 2.19.0 record shows (FR-036, research D-14)
 
-- [ ] T041 [P] Run quickstart.md sections 1 through 4 from the repository root (build, the two fixes, the six new executables, `example_run`) and record the results (FR-034, FR-035, SC-01..SC-05, SC-08, SC-09)
+- [X] T041 [P] Run quickstart.md sections 1 through 4 from the repository root (build, the two fixes, the six new executables, `example_run`) and record the results (FR-034, FR-035, SC-01..SC-05, SC-08, SC-09)
 
 - [ ] T042 [P] Run quickstart.md sections 5 through 7 (the full CTest suite, which carries the name check behind FR-045, `example_drift.py`, the prose gate, the constitution grep) and record the results (SC-06, SC-07)
 
-- [ ] T043 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (FR-050, SC-06, Principle VIII)
+- [X] T043 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (FR-050, SC-06, Principle VIII)
 
 - [ ] T044 Build the `ci-coverage` preset from `CMakePresets.json`, run `ctest --test-dir build`, and confirm from the `cmake/coverage.cmake` report that "The coverage report keeps 100% line and branch over `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under `source/harness/`" (FR-047, SC-06)
 
