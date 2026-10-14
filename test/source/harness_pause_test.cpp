@@ -598,6 +598,40 @@ auto modeCallbackPause() -> int
   return 0;
 }
 
+// E-08, FR-051: the attempt whose earned history cannot fit the cap. The
+// first run earns 17000 pairs per iteration, so the second asks for twice
+// that over a cap of 32768, reserves no room at all, and folds every
+// interval it closes.
+auto bmManyEachIteration(sg::State& state) -> void
+{
+  for (auto index : state) {
+    for (std::uint64_t pair = 0; pair < 17000; ++pair) {
+      state.pauseTiming();
+      sg::doNotOptimize(index + pair);
+      state.resumeTiming();
+    }
+  }
+}
+
+auto scenarioHistoryOverCap() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmManyEachIteration, "bmMany");
+  attachOps(handle);
+  captureRun({"--filter", "^bmMany$", "--iterations=1"});
+  const std::string report =
+      captureRun({"--filter", "^bmMany$", "--iterations=1"});
+  const std::vector<std::string> rows = linesOf(report, "bmMany");
+  check(rows.size() == 1,
+        "the attempt over the cap prints its one measured row (FR-051)");
+  check(rows[0].contains("pause=folded"),
+        "history that cannot fit the cap folds every interval (FR-026)");
+  check(sg::detail::lastRecorderReservation().pauseRoomPoints == 0,
+        "an attempt over the cap reserves no pause room (FR-051)");
+  std::puts("harness_pause_test historyOverCap: ok");
+  return 0;
+}
+
 // FR-052, D-13: the folded pair whose own two points read a gap. The window
 // keeps its two measured end points, so the value of the column stays the
 // window fold, while the availability the fold reported is the worse of the
@@ -817,6 +851,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "foldedGap") {
     return scenarioFoldedGap();
   }
+  if (mode == "historyOverCap") {
+    return scenarioHistoryOverCap();
+  }
   if (mode == "pauseHeavy") {
     return scenarioPauseHeavy();
   }
@@ -848,6 +885,7 @@ auto main(const int argc, char** argv) -> int
            "gapInPause",
            "everyIteration",
            "foldedGap",
+           "historyOverCap",
            "pauseHeavy",
            "nonPauseReserve",
            "rawAfterHistory",
