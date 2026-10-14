@@ -772,14 +772,16 @@ page.
 
 - **FR-032**: Every main-page section, the twelve from D1 and the six
   this spec adds, shall have a runnable example in the source tree
-  under `example/`, and the page's snippet shall be a marked region
+  under `example/docs/`, named in snake_case for its section
+  (research D-12), and the page's snippet shall be a marked region
   of that example, which the drift check keeps equal.
 - **FR-033**: Each such example shall have a real `main` that calls
-  `speedgunMain`, a `run_` target, and an entry in `run-examples`,
-  through the `add_example` mechanism
-  (`example/CMakeLists.txt:12-21`). The compile-only exclusion of
-  `docs_snippets` (`example/CMakeLists.txt:36-44`) retires as its
-  regions move into runnable files.
+  `speedgunMain`, a `run_docs_` target, and an entry in
+  `run-examples`, through a sibling helper `add_docs_example` added
+  to `example/CMakeLists.txt` (research D-12). The compile-only
+  exclusion, the `add_executable` block that builds `docs_snippets`
+  without a run target, retires as its regions move into runnable
+  files.
 - **FR-034**: A CTest check shall run each section example with a
   short minimum time, pass only when every registered benchmark of
   the example prints a result row, and fail on any row that reads
