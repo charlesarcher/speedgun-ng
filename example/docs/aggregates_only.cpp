@@ -19,6 +19,7 @@ auto bmCountWords(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmCountWords).repetitions(5).reportAggregatesOnly();
+
 // sg-example:end aggregates-only
 
 auto main(int argc, char** argv) -> int

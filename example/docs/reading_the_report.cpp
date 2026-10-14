@@ -10,6 +10,7 @@ auto bmRows(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmRows).repetitions(3);
+
 // sg-example:end reading-the-report
 
 auto main(int argc, char** argv) -> int

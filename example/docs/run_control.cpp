@@ -14,6 +14,7 @@ SG_BENCHMARK(bmFixed)
     .warmupTime(50'000'000)
     .iterations(1000)
     .repetitions(5);
+
 // sg-example:end run-control
 
 auto main(int argc, char** argv) -> int

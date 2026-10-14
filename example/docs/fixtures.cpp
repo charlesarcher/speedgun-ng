@@ -23,6 +23,7 @@ public:
 protected:
   std::vector<std::uint64_t> m_values {1, 2, 3};
 };
+
 // sg-example:end fixture
 
 SG_BENCHMARK_F(TableFixture, bmTableRead)(sg::State& state)

@@ -23,6 +23,7 @@ auto bmCopyCells(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmCopyCells).argsProduct({{64, 1024}}).repetitions(3);
+
 // sg-example:end user-counters
 
 auto main(int argc, char** argv) -> int

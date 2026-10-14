@@ -19,6 +19,7 @@ auto bmWrite(sg::State& state) -> void
 SG_BENCHMARK(bmRead).argNames({"cells"}).arg(256);
 
 SG_BENCHMARK(bmWrite).argNames({"cells"}).arg(256);
+
 // sg-example:end command-line
 
 auto main(int argc, char** argv) -> int

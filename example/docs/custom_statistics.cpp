@@ -31,6 +31,7 @@ auto spreadOf(const std::vector<double>& times, double& spread) -> bool
   spread = (hi - lo) / lo * 100.0;
   return true;
 }
+
 // sg-example:end custom-statistics
 
 SG_BENCHMARK(bmHashRows)

@@ -20,6 +20,7 @@ auto bmScanBlocks(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmScanBlocks).argNames({"cells"}).range(256, 4096).repetitions(3);
+
 // sg-example:end labels
 
 auto main(int argc, char** argv) -> int

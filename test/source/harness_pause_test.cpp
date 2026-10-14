@@ -57,12 +57,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "detail/calibration.hpp"
+#include "detail/internal.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
-
-#include "detail/calibration.hpp"
-#include "detail/internal.hpp"
 
 // FR-024 removes the fixed pause allowance, so no spelling of that constant
 // may stand in the library, the tests, or the guide. A namespace-scope name
@@ -111,17 +110,14 @@ constexpr double kGapRowRealPerIteration = 3.0
 // sampling actions of its own points, so the window of the run spans nine
 // steps and the four intervals net four of them out of it.
 constexpr std::uint64_t kEveryActions = 2 + 2 * kIterations;
-constexpr double kEveryNetSteps = static_cast<double>(kEveryActions - 1)
-    - static_cast<double>(kIterations);
-constexpr double kEveryRealPerIteration =
-    kEveryNetSteps * static_cast<double>(kMonotonicStep)
-    / static_cast<double>(kIterations);
-constexpr double kEveryCpuPerIteration =
-    kEveryNetSteps * static_cast<double>(kThreadCpuStep)
-    / static_cast<double>(kIterations);
-constexpr double kEveryOpsPerIteration =
-    kEveryNetSteps * static_cast<double>(kOpsStep)
-    / static_cast<double>(kIterations);
+constexpr double kEveryNetSteps =
+    static_cast<double>(kEveryActions - 1) - static_cast<double>(kIterations);
+constexpr double kEveryRealPerIteration = kEveryNetSteps
+    * static_cast<double>(kMonotonicStep) / static_cast<double>(kIterations);
+constexpr double kEveryCpuPerIteration = kEveryNetSteps
+    * static_cast<double>(kThreadCpuStep) / static_cast<double>(kIterations);
+constexpr double kEveryOpsPerIteration = kEveryNetSteps
+    * static_cast<double>(kOpsStep) / static_cast<double>(kIterations);
 
 // The window points a raw run of the same shape keeps: the two endpoints
 // beside the two points of each of the four intervals.
@@ -681,9 +677,9 @@ auto scenarioNonPauseReserve() -> int
       sg::detail::lastRecorderReservation();
   check(reservation.pauseRoomPoints == 0,
         "the run with no pause reserves no pause room (FR-051, SC-12)");
-  check(reservation.endpointPoints == 2,
-        "the run with no pause reserves the one pair it owns (FR-051, "
-        "SC-12)");
+  check(
+      reservation.endpointPoints == 2,
+      "the run with no pause reserves the one pair it owns (FR-051, " "SC-12)");
   check(sg::detail::maxRecorderPauseRoom() == 0,
         "no attempt of the family earned pause room (FR-051, SC-12)");
   std::puts("harness_pause_test nonPauseReserve: ok");
@@ -699,8 +695,8 @@ auto scenarioRawAfterHistory() -> int
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmPairEachIteration, "bmPair");
   attachOps(handle);
-  const std::string report = captureRun(
-      {"--filter", "^bmPair$", "--iterations=4", "--repetitions=2"});
+  const std::string report =
+      captureRun({"--filter", "^bmPair$", "--iterations=4", "--repetitions=2"});
   const std::vector<std::string> rows = linesOf(report, "bmPair");
   check(rows.size() == 4,
         "two repetitions print two rows, the time aggregate and the metric "
@@ -714,14 +710,13 @@ auto scenarioRawAfterHistory() -> int
   check(rows[0].contains(samples) && rows[1].contains(samples),
         "both rows print the two points of every interval they own, the "
         "fold path and the raw path alike (FR-013, FR-052, SC-13)");
-  for (const char* field : {
-           "real time/iter (ns)=", "cpu time/iter (ns)=", "ops="})
+  for (const char* field :
+       {"real time/iter (ns)=", "cpu time/iter (ns)=", "ops="})
   {
     const std::string message =
         std::string("the folded row and the raw row print the same value ")
         + "(FR-052, SC-13): " + field;
-    check(closeTo(doubleFieldOf(rows[0], field),
-                  doubleFieldOf(rows[1], field)),
+    check(closeTo(doubleFieldOf(rows[0], field), doubleFieldOf(rows[1], field)),
           message.c_str());
   }
   check(closeTo(doubleFieldOf(rows[1], "real time/iter (ns)="),
@@ -817,10 +812,8 @@ auto main(const int argc, char** argv) -> int
   // exit 134, so the loop forks and execs directly, the pattern of
   // harness_manual_time_test.cpp's guard modes, and the parent reads the
   // signal from waitpid.
-  for (const auto& breach : {"doublePause",
-                             "resumeFirst",
-                             "openAtExit",
-                             "callbackPause"})
+  for (const auto& breach :
+       {"doublePause", "resumeFirst", "openAtExit", "callbackPause"})
   {
     const pid_t pid = fork();
     if (pid < 0) {
