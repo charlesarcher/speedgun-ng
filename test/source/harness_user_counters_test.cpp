@@ -294,6 +294,22 @@ auto bmFlagChange(sg::State& state) -> void
   }
 }
 
+// FR-008: the second open of a used name carries another base.
+auto bmBaseChange(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("scales",
+                       {5000.0, sg::CounterFlag::NONE, sg::CounterBase::K1024});
+    }
+    if (index == 1) {
+      state.setCounter("scales",
+                       {5000.0, sg::CounterFlag::NONE, sg::CounterBase::K1000});
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
 // FR-008: the counter name equals the label of the attached metric.
 auto bmCollision(sg::State& state) -> void
 {
@@ -835,6 +851,27 @@ auto scenarioFlagChange() -> int
   return 0;
 }
 
+auto scenarioBaseChange() -> int
+{
+  scriptProvider(kThreadCpuStep);
+  auto handle = sg::registerBenchmark(&bmBaseChange, "bmBaseChange");
+  check(handle.name() == "bmBaseChange", "the base breach benchmark registers");
+
+  int status = 0;
+  const std::string report = captureRun(
+      {"--filter", "^bmBaseChange$", "--iterations=4", "--repetitions=3"},
+      status);
+  check(status == 1,
+        "a failed run leaves the entry point with status 1 (FR-036)");
+  const std::vector<std::string> lines = linesOf(report, "bmBaseChange");
+  check(lines.size() == 1, "the failed run prints its one failure line");
+  check(lines[0].contains("FAILED:"),
+        "the failure line names the run as failed (FR-008)");
+  check(lines[0].contains("scales"),
+        "the failure reason names the counter name (FR-008)");
+  return 0;
+}
+
 // FR-008: a counter name equal to an attached metric label fails the run.
 auto scenarioCollision() -> int
 {
@@ -939,6 +976,9 @@ auto main(int argc, char** argv) -> int
     if (mode == "flagChange") {
       return scenarioFlagChange();
     }
+    if (mode == "baseChange") {
+      return scenarioBaseChange();
+    }
     if (mode == "collision") {
       return scenarioCollision();
     }
@@ -978,6 +1018,7 @@ auto main(int argc, char** argv) -> int
                                "zeroDivisor",
                                "lastWrite",
                                "flagChange",
+                               "baseChange",
                                "collision"})
   {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
