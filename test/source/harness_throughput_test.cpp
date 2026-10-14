@@ -369,7 +369,7 @@ auto scenarioTotalAfterLoop() -> int
 {
   auto handle = sg::registerBenchmark(&bmTotalAfterLoop, "bmTotalAfterLoop");
   check(handle.name() == "bmTotalAfterLoop",
-        "the totalled benchmark registers");
+        "the totaled benchmark registers");
   handle.useRealTime();
 
   const std::string report = captureGoodRun("^bmTotalAfterLoop$");
