@@ -235,7 +235,7 @@ auto bmInvertRate(sg::State& state) -> void
 // FR-002: two flag sets combined while the row runs. Both operands of the join
 // are loads here, so `operator|` executes on this path, and the column prints
 // the reciprocal of its own rate as the constant spelling does.
-auto bmInvertRateRuntime(sg::State& state) -> void
+auto bmInvertRateJoin(sg::State& state) -> void
 {
   volatile const sg::CounterFlag rate = sg::CounterFlag::RATE;
   volatile const sg::CounterFlag invert = sg::CounterFlag::INVERT;
@@ -714,17 +714,16 @@ auto scenarioInvertRate() -> int
 
 // FR-002, FR-003: a flag set the row builds at run time reaches the same
 // order: the rate division first, the reciprocal last, one printed column.
-auto scenarioInvertRateRuntime() -> int
+auto scenarioInvertRateJoin() -> int
 {
   scriptProvider(kThreadCpuStep);
-  auto handle =
-      sg::registerBenchmark(&bmInvertRateRuntime, "bmInvertRateRuntime");
-  check(handle.name() == "bmInvertRateRuntime",
+  auto handle = sg::registerBenchmark(&bmInvertRateJoin, "bmInvertRateJoin");
+  check(handle.name() == "bmInvertRateJoin",
         "the run-time join benchmark registers");
 
-  const std::string report = captureGoodRun("^bmInvertRateRuntime$");
+  const std::string report = captureGoodRun("^bmInvertRateJoin$");
   const std::vector<std::string> rows =
-      measuredRowsOf(linesOf(report, "bmInvertRateRuntime"));
+      measuredRowsOf(linesOf(report, "bmInvertRateJoin"));
   check(rows.size() == kRepetitions,
         "the batch prints one measured row per repetition (FR-006)");
   checkFinite(rows);
@@ -1046,8 +1045,8 @@ auto main(int argc, char** argv) -> int
     if (mode == "invertRate") {
       return scenarioInvertRate();
     }
-    if (mode == "invertRateRuntime") {
-      return scenarioInvertRateRuntime();
+    if (mode == "invertRateJoin") {
+      return scenarioInvertRateJoin();
     }
     if (mode == "zeroDivisor") {
       return scenarioZeroDivisor();
@@ -1104,7 +1103,7 @@ auto main(int argc, char** argv) -> int
                                "invariant",
                                "invert",
                                "invertRate",
-                               "invertRateRuntime",
+                               "invertRateJoin",
                                "invertZero",
                                "foldDisclosed",
                                "zeroDivisor",
