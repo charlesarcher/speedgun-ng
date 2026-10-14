@@ -386,8 +386,8 @@ Task: "Extend test/loop_shape.sh with a setCounter body (T015)"
 Appended by the converge pass over pull request #37 on 2026-10-14. Each item
 traces to a reviewed defect (D-n) or nit (N-n) on the branch head, and the
 gap type is the relation between the current code and the artifact that owns
-it. Q-10 is unchanged: the decision line still carries both choices, so the
-spec entry stays a decision for Charles.
+it. Q-10 was decided on 2026-10-14: Charles accepted the
+recommendation, and the spec entry records that decision.
 
 - [X] T046 Enforce the documented pre and post clauses of State::setBytesProcessed and State::setItemsProcessed with SG_REQUIRE and SG_ENSURE in the definitions in source/harness/runner.cpp, and report 0 drifted interfaces from the pair gate per D-1, Constitution II (contradicts)
 - [X] T047 Stop dividing counter values by the counter base in counterColumns in source/harness/runner.cpp, so a stored value prints as stored and CounterBase selects only the human-readable suffix per D-3, FR-006 (contradicts)

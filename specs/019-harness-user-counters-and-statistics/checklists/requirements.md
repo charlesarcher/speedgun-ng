@@ -66,9 +66,9 @@
   replace it. No `[NEEDS CLARIFICATION]` marker was needed: every
   open choice arrived with a recommendation and a stated consequence,
   so each one is a decision record ready for confirmation. Q-10 is
-  the pause-sample-memory decision raised at plan review, marked
-  there as Charles's decision with the plan following the
-  recommendation unless Charles changes it. Q-11 is the
+  the pause-sample-memory decision raised at plan review; Charles
+  accepted the recommendation on 2026-10-14, so the spec entry records
+  a decision. Q-11 is the
   recommendation raised with the request about the internal
   coverage notes of `docs/pages/harness.md`; the spec folds that
   cleanup into the guide work.
