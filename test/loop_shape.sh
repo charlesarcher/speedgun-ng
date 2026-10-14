@@ -193,6 +193,31 @@ __attribute__((noinline)) auto plantedCounterLoop(sg::State& state,
     sg::doNotOptimize(*new std::uint64_t[1]);
   }
 }
+
+// FR-007, E-06: a body that pauses its own timing with the explicit pair. The
+// pause is an out-of-line call into the harness and the fold path copies a
+// plain recorder view when it resets its slot, so the timed loop still reaches
+// no allocation.
+__attribute__((noinline)) auto pausePairLoop(sg::State& state,
+                                             std::uint64_t value) -> void
+{
+  for (auto _ : state) {
+    state.pauseTiming();
+    sg::doNotOptimize(value);
+    state.resumeTiming();
+  }
+}
+
+// FR-007, E-06: the same proof for the scope guard, whose destructor closes the
+// pair through the fold sink.
+__attribute__((noinline)) auto scopedPauseLoop(sg::State& state,
+                                               std::uint64_t value) -> void
+{
+  for (auto _ : state) {
+    sg::ScopedPauseTiming guard {state};
+    sg::doNotOptimize(value);
+  }
+}
 SOURCE
 }
 
@@ -304,6 +329,36 @@ analyze_counter() {
   return 0
 }
 
+# The pause paths of E-06 hold calls into the harness, so the count of calls
+# says nothing there. What has to hold is that the function reaches no
+# allocation: the fold path resets its slot by copying a plain recorder view,
+# which is a fixed-size store and not a request for memory.
+analyze_no_alloc() {
+  local obj=$1 cxx=$2 label=$3
+  local all body
+
+  all=$(dump_function "$obj" "$label" relocs)
+  if [ -z "$all" ]; then
+    echo "FAIL $cxx: could not locate $label in the object" >&2
+    return 1
+  fi
+  body=$(loop_body "$all")
+  if [ -z "$body" ]; then
+    echo "FAIL $cxx: $label holds no loop" >&2
+    return 1
+  fi
+
+  if printf '%s\n' "$all" | grep -qE '_Znwm|_ZnaYm|operator[[:space:]]+new|malloc|calloc|memcpy|memmove'; then
+    echo "FAIL $cxx: the $label function reaches an allocation, so the pause" \
+      >&2
+    echo "      path would allocate inside the timed loop (FR-007)" >&2
+    return 1
+  fi
+
+  echo "  $cxx $label: the pause path reaches no allocation"
+  return 0
+}
+
 # Liveness: the detector must fail on a loop that loads one extra value per
 # iteration, or a clean run below proves nothing.
 liveness_probe() {
@@ -347,6 +402,20 @@ for cxx in g++ clang++; do
 
   if ! analyze_counter "$WORKDIR/shape-$cxx.o" "$cxx" 'counterLoop'; then
     echo "      FR-007: the counter loop pays for more than its own call" >&2
+    status=1
+  fi
+
+  # Both pause paths, the explicit pair and the scope guard.
+  for pause_label in pausePairLoop scopedPauseLoop; do
+    if ! analyze_no_alloc "$WORKDIR/shape-$cxx.o" "$cxx" "$pause_label"; then
+      status=1
+    fi
+  done
+
+  # The allocation reading is live for the pause check too.
+  if analyze_no_alloc "$WORKDIR/shape-$cxx.o" "$cxx" 'plantedCounterLoop'; then
+    echo "FAIL $cxx: the pause allocation check accepted a loop that allocates" \
+      >&2
     status=1
   fi
 
