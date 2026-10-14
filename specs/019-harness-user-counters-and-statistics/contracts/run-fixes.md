@@ -12,7 +12,7 @@ today. Each rule below replaces the audit-point text at the cited line.
 | An attempt without pause history or over the cap shall fold each closed pause pair into its row's running totals at the pair's commit, from the same two raw points, printing columns equal to the raw path. | FR-052 | research D-10, Q-11 |
 | A run that closes no pause shall reserve no pause room beyond the endpoint points. | FR-053 | research D-10 |
 | The result records the fold and the report discloses a folded run with a token; raw runs keep their bytes. | FR-054 | research D-10 |
-| A benchmark that closes a `ScopedPause` in every iteration shall complete the run with every column netted by the H3 pause rule. | FR-026 | 017 E-03 netting, unchanged |
+| A benchmark that closes a `ScopedPauseTiming` in every iteration shall complete the run with every column netted by the H3 pause rule. | FR-026 | 017 E-03 netting, unchanged |
 | An open pause at loop exit shall stay the existing contract violation. | FR-026 | the H3 exit check, unchanged |
 
 ## The default-unit resolution (FR-027)
