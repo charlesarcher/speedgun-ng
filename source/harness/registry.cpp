@@ -200,7 +200,8 @@ namespace
 // the attached ones in one row and a shared name would leave the reader
 // without one value per name. The helper stands only in a contract, so a
 // configuration with the runtime contracts compiled out holds no call.
-[[maybe_unused]] auto isBuiltInStatisticName(const std::string_view name) -> bool
+[[maybe_unused]] auto isBuiltInStatisticName(const std::string_view name)
+    -> bool
 {
   for (const std::string_view builtIn : {std::string_view {"mean"},
                                          std::string_view {"median"},
