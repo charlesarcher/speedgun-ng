@@ -240,9 +240,22 @@ docs instead, rejected by the Q-7 decision recorded in the spec.
 
 ## D-12: One example file per section, and a gate that runs them
 
-**Decision**: `example/docs/<slug>.cpp` per feature section of the main
-page, eighteen files, each with its own `main` calling `speedgunMain`,
-each added through `add_example` and listed in `run-examples`. The new
+**Decision**: One file per main-page section under `example/docs/`,
+eighteen snake_case files, each with its own `main` calling
+`speedgunMain`. Twelve files are named from the `SECTIONS` titles of
+`tools/docs/example_drift.py`: `run_loop.cpp`, `registration.cpp`,
+`argument_families.cpp`, `fixtures.cpp`, `run_control.cpp`,
+`timing_modes.cpp`, `pause_and_resume.cpp`, `time_unit.cpp`,
+`counter_metrics.cpp`, `skips.cpp`, `command_line.cpp`,
+`reading_the_report.cpp`; the six feature files are
+`user_counters.cpp`, `throughput.cpp`, `labels.cpp`,
+`custom_statistics.cpp`, `aggregates_only.cpp`, `complexity_fit.cpp`.
+The sibling helper `add_docs_example(NAME)` added to
+`example/CMakeLists.txt` builds `docs/${NAME}.cpp` as target
+`docs_${NAME}`, links the counters and harness archives, and
+registers a `run_docs_${NAME}` target on `run-examples`; the
+standing `add_example` stays for the root-level examples, whose
+target names equal their file stems (FR-032, FR-033). The new
 `test/example_run.sh` runs each and passes when every registered
 benchmark of the file prints a result row, with no `FAILED` row and
 with every `SKIPPED` row one the file declares (D-15)
@@ -251,7 +264,10 @@ regions move.
 
 **Rationale**: the Q-9 recommendation adopted in the spec, and the run
 check is the obligation FR-034 states: a snippet that drifts into a
-fragment cannot hide behind a compiling-only block.
+fragment cannot hide behind a compiling-only block. Snake_case file
+names and the `docs_` target prefix keep the eighteen targets in the
+shape the shipped `add_example` helper and the `run_` target
+convention use, and the CTest name space stays uniform.
 
 **Alternatives considered**: one merged snippets binary (the Q-9
 fallback), rejected here because a reader's pasted block must show the

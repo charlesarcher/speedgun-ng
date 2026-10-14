@@ -183,12 +183,14 @@ test/
 └── loop_shape.sh, time_source_gate.sh # unchanged, both stay green
 
 example/
-├── docs/                              # Added: one runnable example per
-│                                      #   main-page feature section, eighteen
-│                                       #  files, each with a main that
-│                                       #   calls speedgunMain
-├── CMakeLists.txt                     # Edited: add_example per docs file,
-│                                      #   the docs_snippets exclusion dies
+├── docs/                              # Added: eighteen snake_case files,
+│                                      #   one per main-page section (D-12),
+│                                      #   each with a main that calls
+│                                      #   speedgunMain
+├── CMakeLists.txt                     # Edited: add_docs_example(NAME)
+│                                      #   builds docs/${NAME}.cpp as
+│                                      #   docs_${NAME} + run_docs_${NAME};
+│                                      #   the docs_snippets block dies
 └── docs_snippets.cpp                  # Deleted: its regions move into
                                        #   example/docs files
 

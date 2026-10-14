@@ -18,7 +18,7 @@ cmake --build build
 ```
 
 The build produces the `run_*` example targets including the eighteen
-`example/docs` files (FR-032, FR-033).
+`run_docs_*` targets of the `example/docs` files (FR-032, FR-033).
 
 ## 2. The two fixes first (SC-08)
 
@@ -54,7 +54,8 @@ abort scenarios re-exec their own binary and read back the signal
 ctest --test-dir build --output-on-failure -R example_run
 ```
 
-The script runs every `example/docs` target and fails when a registered
+The script runs every `docs_` binary through its `run_docs_` target
+and fails when a registered
 benchmark of a file prints no result row or prints `FAILED`; the
 "Skips" example declares its intentional skip with an
 `// example-run: expect-skip <reason>` marker, and the check fails on
