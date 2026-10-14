@@ -212,6 +212,45 @@ auto bmSized(sg::State& state) -> void
   }
 }
 
+// The family that runs two repetitions per instance, so the fit reads the
+// aggregate row of the instance: its counter and its metric both reach the fit
+// through the mean of a statistic set (FR-022).
+auto bmRepeating(sg::State& state) -> void
+{
+  const double size = static_cast<double>(state.range(0));
+  for (auto index : state) {
+    state.setIterationTime(
+        static_cast<std::int64_t>(kTimeCoefficientNs * size * size));
+    state.setCounter("packed",
+                     {static_cast<double>(kCellCoefficient) * size * size});
+    sg::doNotOptimize(index);
+  }
+}
+
+// A counter whose two instances cancel: the values average zero and the fit
+// cannot reproduce them, so the error of the fit has no mean to divide by.
+auto bmZeroSum(sg::State& state) -> void
+{
+  const double size = static_cast<double>(state.range(0));
+  const double delta = size < 3.0 ? 1000.0 : -1000.0;
+  for (auto index : state) {
+    state.setIterationTime(kTimeCoefficientNs);
+    state.setCounter("delta", {delta});
+    sg::doNotOptimize(index);
+  }
+}
+
+// A counter that is zero at every size: the fit reproduces the values exactly,
+// so the same zero mean earns a zero error.
+auto bmZeroValues(sg::State& state) -> void
+{
+  for (auto index : state) {
+    state.setIterationTime(kTimeCoefficientNs);
+    state.setCounter("quiet", {0.0});
+    sg::doNotOptimize(index);
+  }
+}
+
 auto captureRun(const std::vector<std::string>& arguments,
                 int& status) -> std::string
 {
@@ -463,6 +502,51 @@ auto registerQuadratic(const char* name,
   return handle;
 }
 
+// FR-022: a quantity whose values average zero and which the fit cannot
+// reproduce reports an infinite error, because the relative root-mean-square
+// has no mean left to divide the residual by.
+auto checkZeroMeanUnreproduced(const std::vector<std::string>& lines) -> void
+{
+  const std::string row = fitRowOf(lines, "RMS", "delta");
+  check(!row.empty(),
+        "a quantity whose values average zero earns an RMS row (FR-022)");
+  check(std::isinf(rmsOf(row)),
+        "a zero mean the fit misses reports an infinite error (FR-022)");
+}
+
+// FR-022: a quantity whose values average zero and which the fit reproduces
+// reports a zero error: the residual is nothing, so the fit stands.
+auto checkZeroMeanReproduced(const std::vector<std::string>& lines) -> void
+{
+  const std::string row = fitRowOf(lines, "RMS", "quiet");
+  check(!row.empty(),
+        "a quantity that is zero at every size earns an RMS row (FR-022)");
+  check(closeTo(rmsOf(row), 0.0),
+        "a zero mean the fit reproduces reports a zero error (FR-022)");
+  check(closeTo(coefficientOf(fitRowOf(lines, "BIG_O", "quiet")), 0.0),
+        "the fit of values that are all zero carries a zero coefficient");
+}
+
+// FR-022: the quantity of a family that runs several repetitions is the mean of
+// its statistic set, so the planted curve still names the class and carries the
+// planted coefficient through the aggregate row.
+auto checkAggregateQuantities(const std::vector<std::string>& lines) -> void
+{
+  const std::string counterRow = fitRowOf(lines, "BIG_O", "packed");
+  check(!counterRow.empty(),
+        "a counter of a repeated family is a fitted quantity (FR-022)");
+  check(curveOf(counterRow, "packed") == "N^2",
+        "the aggregate mean of a counter names the same class as its rows");
+  check(
+      closeTo(coefficientOf(counterRow), static_cast<double>(kCellCoefficient)),
+      "the aggregate mean carries the planted coefficient (FR-022)");
+  const std::string metricRow = fitRowOf(lines, "BIG_O", "flux");
+  check(!metricRow.empty(),
+        "a metric of a repeated family is a fitted quantity (FR-022)");
+  check(curveOf(metricRow, "flux") == "1",
+        "the aggregate mean of a constant metric keeps the constant curve");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -504,6 +588,23 @@ auto main() -> int
   check(badN.name() == "bmBadN", "the non-positive family registers");
   badN.useManualTime().arg(0).arg(4).complexity(sg::BigO::AUTOMATIC);
 
+  auto zeroSum = sg::registerBenchmark(&bmZeroSum, "bmZeroSum");
+  check(zeroSum.name() == "bmZeroSum", "the canceling family registers");
+  zeroSum.useManualTime().arg(2).arg(4).complexity(sg::BigO::AUTOMATIC);
+  auto repeating = sg::registerBenchmark(&bmRepeating, "bmRepeating");
+  check(repeating.name() == "bmRepeating", "the repeated family registers");
+  repeating.useManualTime().arg(2).arg(4).arg(8).repetitions(2).complexity(
+      sg::BigO::AUTOMATIC);
+  const auto repeatedObject = sg::counters::System::local().object("fit");
+  check(repeatedObject.has_value(), "the metric object resolves again");
+  const auto flux = repeatedObject->counter<sg::counters::Dim<0, 1>>("work");
+  check(flux.has_value(), "the metric leaf resolves again");
+  repeating.addMetric(sg::counters::Expression<sg::counters::Dim<0, 1>>(*flux),
+                      "flux");
+  auto zeroValues = sg::registerBenchmark(&bmZeroValues, "bmZeroValues");
+  check(zeroValues.name() == "bmZeroValues", "the all-zero family registers");
+  zeroValues.useManualTime().arg(2).arg(4).complexity(sg::BigO::AUTOMATIC);
+
   auto half = sg::registerBenchmark(&bmHalfCells, "bmHalf");
   check(half.name() == "bmHalf", "the partial family registers");
   // The instance that opens the counter stands last, so the name joins the
@@ -526,6 +627,9 @@ auto main() -> int
   checkUserCurve(linesOf(report, "bmUser"));
   checkLinearithmic(linesOf(report, "bmNlgN"));
   checkNoisy(linesOf(report, "bmNoisy"));
+  checkZeroMeanUnreproduced(linesOf(report, "bmZeroSum"));
+  checkZeroMeanReproduced(linesOf(report, "bmZeroValues"));
+  checkAggregateQuantities(linesOf(report, "bmRepeating"));
 
   const std::vector<std::string> singleLines = linesOf(report, "bmSingle");
   check(fitRowOf(singleLines, "BIG_O", "time/iter").empty(),
