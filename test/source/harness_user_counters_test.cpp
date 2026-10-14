@@ -810,6 +810,7 @@ auto scenarioZeroDivisor() -> int
   const std::string bytesLine = statisticLineOf(lines, "bytes");
   check(bytesLine.contains("n=0"),
         "a disclosed row stands aside from that counter's statistics (FR-005)");
+  std::puts(("zeroDivisor row: " + rows[0]).c_str());
   return 0;
 }
 
@@ -841,6 +842,7 @@ auto scenarioZeroDivisorFlags() -> int
     check(row.contains("zero-divisor"),
           "the row still discloses the zero divisor (FR-005)");
   }
+  std::puts(("zeroDivisorFlags row: " + rows[0]).c_str());
   return 0;
 }
 
@@ -976,6 +978,7 @@ auto scenarioFlagChange() -> int
         "the failure line names the run as failed (FR-008)");
   check(lines[0].contains("flips"),
         "the failure reason names the counter name (FR-008)");
+  std::puts(("flagChange line: " + lines[0]).c_str());
   return 0;
 }
 
@@ -997,6 +1000,7 @@ auto scenarioBaseChange() -> int
         "the failure line names the run as failed (FR-008)");
   check(lines[0].contains("scales"),
         "the failure reason names the counter name (FR-008)");
+  std::puts(("baseChange line: " + lines[0]).c_str());
   return 0;
 }
 
@@ -1020,6 +1024,7 @@ auto scenarioCollision() -> int
         "the failure line names the run as failed (FR-008)");
   check(lines[0].contains("widgets"),
         "the failure reason names the colliding name (FR-008)");
+  std::puts(("collision line: " + lines[0]).c_str());
   return 0;
 }
 
