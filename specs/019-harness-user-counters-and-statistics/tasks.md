@@ -30,10 +30,10 @@ first build (FR-048, plan.md version table).
 **Checkpoint**: `cmake --preset=ci-rocky && cmake --build build`
 configures and builds at 0.9.0.
 
-## Phase 2: The H3 Leftover Fixes - User Story 3 (Priority: P1, lands first per Q-7)
+## Phase 2: H3 leftover fixes (Q-7)
 
-**Purpose**: The two promises the audit point shows as false. Q-7
-fixes them before any feature work, so this phase precedes
+**Purpose**: User Story 3, the two promises the audit point shows as
+false. Q-7 fixes them before any feature work, so this phase precedes
 Foundational and every story that cites the fixed behavior.
 
 **Goal**: The per-run pause allowance dies, the recorder bound follows
@@ -288,12 +288,14 @@ the eighteen owners.
 ### Phase Dependencies
 
 - **Setup (Phase 1)**: no dependencies
-- **H3 fixes (Phase 2)**: depends on Setup only; independent of the
-  counter work, and lands first per Q-7
-- **Foundational (Phase 3)**: depends on Setup; blocks the counter
-  stories
-- **User Stories (Phases 4 to 10)**: depend on Foundational
-- **Polish (Phase 11)**: depends on the stories being delivered
+- **H3 fixes (Phase 2)**: depends on Setup only; every later phase
+  depends on this phase, and it lands first per Q-7
+- **Foundational (Phase 3)**: depends on Setup and on the H3 fixes
+  phase; blocks the counter stories
+- **User Stories (Phases 4 to 10)**: depend on the H3 fixes phase and
+  on Foundational
+- **Polish (Phase 11)**: depends on the stories being delivered, and
+  through them on the H3 fixes phase
 
 ### User Story Dependencies
 
