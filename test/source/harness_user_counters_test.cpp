@@ -399,6 +399,39 @@ auto bmSeventeen(sg::State& state) -> void
   }
 }
 
+// FR-001: the two throughput columns ask for a column from the same sixteen
+// slots that the named counters hold. A benchmark that fills all sixteen
+// leaves the byte column without one, and the contract at the attach says
+// so.
+auto bmThroughputCap(sg::State& state) -> void
+{
+  static const char* const kNames[] = {"c00",
+                                       "c01",
+                                       "c02",
+                                       "c03",
+                                       "c04",
+                                       "c05",
+                                       "c06",
+                                       "c07",
+                                       "c08",
+                                       "c09",
+                                       "c10",
+                                       "c11",
+                                       "c12",
+                                       "c13",
+                                       "c14",
+                                       "c15"};
+  for (auto index : state) {
+    if (index == 0) {
+      for (const char* const name : kNames) {
+        state.setCounter(name, {1000.0});
+      }
+      state.setBytesProcessed(4096.0);
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
 // FR-002: a name of `kMaxCounterNameBytes` bytes.
 auto bmLongName(sg::State& state) -> void
 {
@@ -1135,6 +1168,20 @@ auto main(int argc, char** argv) -> int
           status);
       return 0;
     }
+    if (mode == "throughputCap") {
+      scriptProvider(kThreadCpuStep);
+      const auto handle =
+          sg::registerBenchmark(&bmThroughputCap, "bmThroughputCap");
+      check(handle.name() == "bmThroughputCap",
+            "the shared cap benchmark registers");
+      int status = 0;
+      (void)captureRun({"--filter",
+                        "^bmThroughputCap$",
+                        "--iterations=4",
+                        "--repetitions=3"},
+                       status);
+      return 0;
+    }
     if (mode == "longName") {
       scriptProvider(kThreadCpuStep);
       const auto handle = sg::registerBenchmark(&bmLongName, "bmLongName");
@@ -1175,6 +1222,7 @@ auto main(int argc, char** argv) -> int
   check(kNameCap == 16, "the cap of one benchmark is sixteen names (FR-001)");
   check(kNameBound == 32, "the name bound is 32 bytes (FR-002)");
   runBreach(self, "seventeen", "sixteen");
+  runBreach(self, "throughputCap", "share the cap");
   runBreach(self, "longName", "31");
 
   std::puts("harness_user_counters_test: ok");
