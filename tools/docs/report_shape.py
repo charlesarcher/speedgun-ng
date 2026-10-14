@@ -34,13 +34,27 @@ from example_drift import Finding, scan_blocks  # noqa: E402
 
 
 BUILD_FIELD = re.compile(r"\bbuild=\S+")
+FIT_FIELD = re.compile(r"\bBIG_O\b")
+# The curve tokens source/harness/complexity.cpp prints: kCurves in order, plus
+# the token of a user-supplied curve. Longest first: an alternation takes the
+# first branch that matches, so N^2 must stand before N.
+FIT_CLASSES = ("NlgN", "N^2", "N^3", "lgN", "f(N)", "N", "1")
+FIT_CLASS = re.compile(
+    r"(?<![A-Za-z0-9])(?:" + "|".join(re.escape(c) for c in FIT_CLASSES) + r")(?![A-Za-z0-9])"
+)
 
 
 def mask(line: str) -> str:
-    """Fold the values a run owns: digits, whitespace runs, the build field."""
+    """Fold the values a run owns: digits, whitespace runs, the build field and,
+    on a line carrying the fit column, the curve the fit chose."""
     folded = BUILD_FIELD.sub("build=#", line)
+    if FIT_FIELD.search(folded):
+        folded = FIT_CLASS.sub("#", folded)
     folded = re.sub(r"\s+", " ", re.sub(r"\d+", "#", folded))
-    return re.sub(r"= ", "=", folded).strip()
+    # Two field paddings are dropped rather than collapsed: a value wide enough
+    # to consume the padding after an equals sign, or after the open paren of the
+    # coefficient field of a fit row, prints without it.
+    return re.sub(r"\( +", "(", re.sub(r"= ", "=", folded)).strip()
 
 
 def classify(shape: str) -> str:

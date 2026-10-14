@@ -94,6 +94,39 @@ def golden_pairs() -> None:
     check("a renamed build field folds different",
           mask(STDOUT[0]) != mask(renamed_field), "both folded to the same shape")
 
+    # The fit column's value is the class the run chose, so a build that measures
+    # differently may print another class for the same program.
+    fitted = STDOUT[1] + "  BIG_O  time/iter N (    0.243)"
+    other_class = STDOUT[1] + "  BIG_O  time/iter NlgN (    0.169)"
+    check("a fitted complexity class the run chose differently folds equal",
+          mask(fitted) == mask(other_class),
+          f"{mask(fitted)!r} against {mask(other_class)!r}")
+
+    quadratic = STDOUT[1] + "  BIG_O  time/iter N^2 (  104.5)"
+    check("a quadratic curve and a linear one fold equal",
+          mask(quadratic) == mask(fitted),
+          f"{mask(quadratic)!r} against {mask(fitted)!r}")
+
+    constant = STDOUT[1] + "  BIG_O  time/iter 1 (    7.500)"
+    user_curve = STDOUT[1] + "  BIG_O  time/iter f(N) (    7.500)"
+    check("the constant curve and a user curve fold equal",
+          mask(constant) == mask(user_curve),
+          f"{mask(constant)!r} against {mask(user_curve)!r}")
+
+    wide = STDOUT[1] + "  BIG_O  time/iter N (999999.999)"
+    check("a coefficient wide enough to eat the paren padding folds equal",
+          mask(wide) == mask(fitted),
+          f"{mask(wide)!r} against {mask(fitted)!r}")
+
+    plain = STDOUT[1] + "  time/iter N (    0.243)"
+    other_word = STDOUT[1] + "  time/iter NlgN (    0.243)"
+    check("a class word on a line the fit column does not mark folds different",
+          mask(plain) != mask(other_word), "both folded to the same shape")
+
+    name = "bmNRows  BIG_O  time/iter N (0.250)"
+    check("a benchmark name holding the class letters is not folded",
+          mask(name).startswith("bmNRows BIG_O time/iter #"), mask(name))
+
     check("a missing aggregate line is a comparator finding",
           any("omits" in line for line in compare(list(STDOUT), [*STDOUT[:1], STDOUT[1],
                                                         AGGREGATE, STDOUT[2]])),
