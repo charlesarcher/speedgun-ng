@@ -41,7 +41,7 @@ COUNTER_STAT = (
     "bmSum            bytes_per_second mean=1048576.0 median=1048576.0 "
     "sd=1.2 cv=0.0018 min=1048575.0 max=1048577.0 n=2"
 )
-# 019 FR-011: a labelled row carries the trailing label field, and the
+# 019 FR-011: a labeled row carries the trailing label field, and the
 # aggregate carries it only when every repetition shares it.
 LABEL_ROW = STDOUT[1] + "  label=avx2"
 LABEL_AGGREGATE = AGGREGATE + "  label=avx2"
@@ -130,7 +130,7 @@ def golden_pairs() -> None:
           mask(LABEL_AGGREGATE) != mask(AGGREGATE),
           f"{mask(LABEL_AGGREGATE)!r} against {mask(AGGREGATE)!r}")
 
-    check("a labelled row still classifies as a row line",
+    check("a labeled row still classifies as a row line",
           "row line differs" in " ".join(compare([LABEL_ROW], [STDOUT[1]])),
           " ".join(compare([LABEL_ROW], [STDOUT[1]]))[:1])
 
