@@ -101,5 +101,5 @@ and the version footer and sync impact line state 2.20.0.
 ## 8. What is out of scope
 
 Threads, JSON and CSV reports, the raw-data report, the full command
-line, percentile histograms, and reloaded pass-or-fail judgements each
+line, percentile histograms, and reloaded pass-or-fail judgments each
 stand as a roadmap spec; `grep -rjn json source/harness` stays empty.

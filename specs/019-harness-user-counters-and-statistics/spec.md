@@ -258,7 +258,7 @@ modes) and the part of F-6 that needs no raw-data capture (complexity
 fitting). It gives speedgun the reporting features of Google Benchmark
 except JSON output and histograms: JSON export and raw-sample capture
 are the next roadmap spec, percentile histograms and reloaded pass or
-fail judgements follow it. The spec needs no hardware: every test runs
+fail judgments follow it. The spec needs no hardware: every test runs
 on the fake provider. The roadmap document sits outside this
 repository and is absent from this machine at the audit point; the
 scope boundary below comes from the request.
@@ -827,7 +827,8 @@ page.
   example with one documented command named in the docs.
 - **FR-036**: Constitution IV.1 shall be amended at the next minor
   version so a main-page snippet must come from an example CI builds
-  and runs, not only compiles (IV.1 of the constitution), and
+  and runs, upgrading the rule from its compile-only form (IV.1 of
+  the constitution), and
   Principle VIII's example gate shall name the new run check beside
   the compile checks (Principle VIII of the constitution).
 
@@ -1030,7 +1031,7 @@ Out, each owned by a later roadmap spec:
 - threads and the cross-thread aggregation of counter values;
 - JSON reports, the raw-data report, and the full command line;
 - percentiles over per-chunk samples, the percentile histograms, and
-  reloaded pass-or-fail judgements.
+  reloaded pass-or-fail judgments.
 
 The commit-lint findings of the H3 history sit in merged history; the
 commit gate of this spec does not cover them (Q-7).
@@ -1164,7 +1165,7 @@ default. `/speckit-clarify` may confirm each as written or replace it.
   travel with them (FR-039, FR-041).
 - **Q-8 Line cap**: Recommendation: raise the cap to 550 lines and
   keep the 25-line cap per section, recording the budget update in
-  this spec instead of editing the 018 text. Adopted at FR-044. The
+  this spec; the 018 text stays as written. Adopted at FR-044. The
   README stands at 394 of 400 lines
   at the audit point; the six sections plus the C-8 additions do not
   fit below 550 with the snippets intact.
