@@ -48,9 +48,14 @@ among the built-in time statistic fields.
 ## Consumers
 
 `tools/docs/report_shape.py` compares the README sample report block
-against the quick-start binary by shape and
+against the quick-start binary by shape,
+and the block itself stands unchanged through this feature: the
+quick-start binary registers no counter, no label, no statistic, and
+no fit, so the shipped shape keeps matching.
 `test/example-drift-fixture/run_report_shape_fixtures.py` pins that
 comparator's fixture;
 `test/source/harness_aggregates_only_test.cpp` pins the filter;
-`test/example_run.sh` runs every docs example and fails on a `FAILED` or
-`SKIPPED` row, so a broken shape fails CI on a real run (SC-02, SC-09).
+`test/example_run.sh` runs every docs example and fails on a `FAILED`
+row or a `SKIPPED` row without a matching expect-skip marker
+(research D-15), so a broken shape fails CI on a real run
+(SC-02, SC-09).
