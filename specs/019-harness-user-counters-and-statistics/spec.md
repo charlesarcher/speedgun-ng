@@ -873,9 +873,10 @@ page.
 
 - **FR-044**: The page cap of the drift gate shall move from 400 to
   550 lines (the `PAGE_LINE_CAP` constant in
-  `tools/docs/example_drift.py`) through a recorded
-  update of the D1 budget (SC-011 and the Q-4 decision of the 018
-  spec), and the fixed
+  `tools/docs/example_drift.py`). The D1 budget that cap belongs to
+  (SC-011 and the Q-4 decision of the 018 spec) is updated by the
+  record in this spec; no file under `specs/018-docs-main-page/`
+  is edited. The fixed
   feature-section list (the `SECTIONS` constant of
   `example_drift.py`) shall gain the six
   new section titles. The 25-line cap per section
@@ -1162,8 +1163,9 @@ default. `/speckit-clarify` may confirm each as written or replace it.
   spec carries the fixes as FR-024 to FR-027 with the docs that must
   travel with them (FR-039, FR-041).
 - **Q-8 Line cap**: Recommendation: raise the cap to 550 lines and
-  keep the 25-line cap per section, through a recorded update of the
-  D1 budget. Adopted at FR-044. The README stands at 394 of 400 lines
+  keep the 25-line cap per section, recording the budget update in
+  this spec instead of editing the 018 text. Adopted at FR-044. The
+  README stands at 394 of 400 lines
   at the audit point; the six sections plus the C-8 additions do not
   fit below 550 with the snippets intact.
 - **Q-9 Example layout**: Recommendation: one example file for each

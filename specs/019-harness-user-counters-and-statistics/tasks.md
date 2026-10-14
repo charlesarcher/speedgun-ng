@@ -264,7 +264,7 @@ page" (spec.md US8).
 
 - [ ] T037 [P] [US8] In `docs/pages/harness.md`, add the detail section per new capability, and rewrite the internal "Coverage:" paragraphs under the "Two time columns", "Real time as the primary time", "Manual time", "Pause and resume", and "Time units" sections as reader-facing sentences (FR-028, FR-031, Q-11)
 
-- [ ] T038 [US8] In `tools/docs/example_drift.py`, add the six new titles to `SECTIONS`, raise `PAGE_LINE_CAP` from 400 to 550 while `SECTION_LINE_CAP` holds at 25, and add the check that each page snippet region is a marked region of the example file named for its section; update the fixtures under `test/` for the drift tool; annotate the D1 budget note in `specs/018-docs-main-page/spec.md` as superseded (FR-044, SC-10, research D-13; depends on T032..T037)
+- [ ] T038 [US8] In `tools/docs/example_drift.py`, add the six new titles to `SECTIONS`, raise `PAGE_LINE_CAP` from 400 to 550 while `SECTION_LINE_CAP` holds at 25, and add the check that each page snippet region is a marked region of the example file named for its section; update the fixtures under `test/` for the drift tool; the budget change stands recorded by FR-044 in this spec, and no file under `specs/018-docs-main-page/` is edited (FR-044, SC-10, research D-13; depends on T032..T037)
 
 **Checkpoint**: `ctest -R example_run` passes and the drift gate covers
 the eighteen owners.

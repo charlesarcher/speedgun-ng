@@ -292,8 +292,9 @@ code, rejected because a `FAILED` row still exits clean today.
 titles to `SECTIONS`, raises `PAGE_LINE_CAP` from 400 to 550 while the
 25-line `SECTION_LINE_CAP` holds, and checks that each page snippet
 region is a marked region of the example file named for its section
-(FR-028, FR-044). The D1 budget note in `specs/018-docs-main-page/spec.md`
-is annotated superseded in the same commit as the constant.
+(FR-028, FR-044). The 018 spec keeps the 400-line budget it
+recorded; FR-044 in this spec is the record that moves the cap,
+and no file under `specs/018-docs-main-page/` is touched.
 
 **Rationale**: the README stands at 394 lines against the 400 cap, and
 six new sections plus the C-8 additions cannot fit below 550 with the
