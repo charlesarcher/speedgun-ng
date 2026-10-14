@@ -55,7 +55,8 @@ ctest --test-dir build --output-on-failure -R example_run
 ```
 
 The script runs every `docs_` binary through its `run_docs_` target
-and fails when a registered
+with `--min-time=0.01`, one hundredth of a second stated in
+seconds, and fails when a registered
 benchmark of a file prints no result row or prints `FAILED`; the
 "Skips" example registers one instance that prints a row and declares
 its intentional skip with an
