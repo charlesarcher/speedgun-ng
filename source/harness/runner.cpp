@@ -100,12 +100,12 @@ constexpr const char* kInterruptReason = "interrupted by the user (SIGINT)";
 // Q-3), so that flag carries no divisor here. A divisor of zero leaves the
 // flag-neutral value, the case FR-005 discloses, and a value of zero carries
 // no reciprocal the row could print, so its flag-neutral value stands as well.
-auto counterColumns(const std::vector<std::string>& names,
-                    const std::vector<sg::Counter>& store,
-                    const double primarySeconds,
-                    const std::uint64_t iterations) -> std::vector<double>
+auto appendCounterColumns(std::vector<double>& printed,
+                          const std::vector<std::string>& names,
+                          const std::vector<sg::Counter>& store,
+                          const double primarySeconds,
+                          const std::uint64_t iterations) -> void
 {
-  std::vector<double> printed;
   printed.reserve(names.size());
   const double count = static_cast<double>(iterations);
   for (std::size_t index = 0; index < names.size(); ++index) {
@@ -125,9 +125,16 @@ auto counterColumns(const std::vector<std::string>& names,
       value *= count;
     }
     if ((counter.flags & sg::CounterFlag::AVG_ITERATIONS)
-            != sg::CounterFlag::NONE
-        && count > 0.0)
+        != sg::CounterFlag::NONE)
     {
+      // A measured row is built by a run loop that refuses a non-positive
+      // iteration floor, so this divisor is never the zero FR-005 discloses
+      // for a rate: the floor of one iteration is the postcondition the row
+      // arrives with, not a value this pass has to survive (FR-025).
+      SG_REQUIRE(count > 0.0,
+                 "the average over iterations divides by the iteration count "
+                 "of a measured row, which the run loop leaves at one at the "
+                 "least (FR-025)");
       value /= count;
     }
     // The two-sided test reads the same value of zero as a comparison
@@ -142,7 +149,6 @@ auto counterColumns(const std::vector<std::string>& names,
     // divides nothing, so the column prints the flag-applied value.
     printed.push_back(value);
   }
-  return printed;
 }
 
 auto markInterrupted(sg::BenchmarkResult& result) noexcept -> void
@@ -265,10 +271,11 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
   } else if (record.decisionNs == 0) {
     row.counterDisclosure = "zero-divisor";
   }
-  row.counters = counterColumns(record.counterNames,
-                                record.counterStore,
-                                primarySeconds,
-                                record.iterations);
+  appendCounterColumns(row.counters,
+                       record.counterNames,
+                       record.counterStore,
+                       primarySeconds,
+                       record.iterations);
 }
 
 }  // namespace
@@ -1077,9 +1084,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       if (!row.counterDisclosure.empty()) {
         continue;
       }
-      while (counterValues.size() < row.counters.size()) {
-        counterValues.emplace_back();
-      }
+      // FR-006: the labels of a result are read from the widest row of the
+      // run as its rows are built, so the value list is at least as wide as
+      // any row that joins it.
+      SG_ASSERT(row.counters.size() <= counterValues.size(),
+                "the counter labels of a result come from its widest row, so "
+                "no row carries a column the value list lacks (FR-006, FR-022)");
       for (std::size_t column = 0; column < row.counters.size(); ++column) {
         counterValues[column].push_back(row.counters[column]);
       }
@@ -1118,10 +1128,8 @@ auto appendQuantities(std::vector<std::string>& labels,
                       std::size_t instances) -> void
 {
   for (std::size_t column = 0; column < columns.size(); ++column) {
-    std::size_t index = 0;
-    while (index < labels.size() && labels[index] != names.at(column)) {
-      ++index;
-    }
+    const std::size_t index = static_cast<std::size_t>(
+        std::ranges::find(labels, names.at(column)) - labels.begin());
     if (index == labels.size()) {
       labels.push_back(names.at(column));
       values.emplace_back(instances - 1,

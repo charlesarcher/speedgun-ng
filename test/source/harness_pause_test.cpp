@@ -598,6 +598,53 @@ auto modeCallbackPause() -> int
   return 0;
 }
 
+// FR-052, D-13: the folded pair whose own two points read a gap. The window
+// keeps its two measured end points, so the value of the column stays the
+// window fold, while the availability the fold reported is the worse of the
+// two folds and stands as the row's.
+auto scenarioFoldedGap() -> int
+{
+  scriptProvider();
+  // A probe family measures what one window spends, so the family the script
+  // runs starts with no pause history and folds every pair it closes.
+  auto probe = sg::registerBenchmark(&bmPauseEachIteration, "bmFoldProbe");
+  attachOps(probe);
+  auto handle = sg::registerBenchmark(&bmPauseEachIteration, "bmFoldGap");
+  attachOps(handle);
+
+  const std::uint64_t before = fake->readActions();
+  captureRun({"--filter", "^bmFoldProbe$", "--iterations=4"});
+  const std::uint64_t span = fake->readActions() - before;
+  // The script names the actions of the window that samples the leaf, and a
+  // fresh window opens with the actions the plan calibrates itself with, so
+  // the actions between the open and the close point of the span the probe
+  // measured are the interior a pair folds on.
+  std::vector<std::uint64_t> interior;
+  for (std::uint64_t action = 2; action + 2 < span; ++action) {
+    interior.push_back(action);
+  }
+  fake->setGapActions("pause", "ops", interior);
+  const std::string report =
+      captureRun({"--filter", "^bmFoldGap$", "--iterations=4"});
+
+  const std::vector<std::string> rows = linesOf(report, "bmFoldGap");
+  check(rows.size() == 1, "the folded run prints its one measured row");
+  check(rows[0].contains("pause=folded"),
+        "the no-history attempt folds the pair it closes (FR-054)");
+  check(rows[0].contains("gap=1"),
+        "the fold of the gapped pair discloses the gap the row reports "
+        "(FR-052, D-13)");
+  check(!closeTo(doubleFieldOf(rows[0], "ops="), kEveryOpsPerIteration),
+        "a fold that reports no value subtracts nothing, so the column keeps "
+        "the window fold alone (D-13)");
+  check(!closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
+                 kEveryRealPerIteration),
+        "a row whose fold disclosed a gap does not print the value the clean "
+        "fold would have netted out (D-13)");
+  std::puts("harness_pause_test foldedGap: ok");
+  return 0;
+}
+
 // FR-026, SC-11: the run that closes an interval in every iteration.
 // Calibration sees no pause history when the family starts, so every pair of
 // the attempt folds at its commit and the run reports the netted columns of
@@ -767,6 +814,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "everyIteration") {
     return scenarioEveryIteration();
   }
+  if (mode == "foldedGap") {
+    return scenarioFoldedGap();
+  }
   if (mode == "pauseHeavy") {
     return scenarioPauseHeavy();
   }
@@ -797,6 +847,7 @@ auto main(const int argc, char** argv) -> int
            "scopedSkip",
            "gapInPause",
            "everyIteration",
+           "foldedGap",
            "pauseHeavy",
            "nonPauseReserve",
            "rawAfterHistory",
