@@ -245,6 +245,19 @@ auto bmZeroDivisor(sg::State& state) -> void
   }
 }
 
+// FR-005: a zero primary divisor stands aside for the time divisor alone, so
+// the two iteration flags still scale their values on the same row.
+auto bmZeroDivisorFlags(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("cells", {1024.0, sg::CounterFlag::ITERATION_INVARIANT});
+      state.setCounter("shared", {1024.0, sg::CounterFlag::AVG_ITERATIONS});
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
 // FR-005: `INVERT` of a value of zero has no reciprocal the row could print,
 // so the flag-neutral value stands and the column stays finite.
 auto bmInvertZero(sg::State& state) -> void
@@ -716,6 +729,37 @@ auto scenarioZeroDivisor() -> int
   return 0;
 }
 
+// FR-005: with the primary divisor at zero the iteration flags still bind, so
+// one column shows the value times the iterations and the other the value over
+// them, and neither turns into an infinity.
+auto scenarioZeroDivisorFlags() -> int
+{
+  scriptProvider(0);
+  auto handle =
+      sg::registerBenchmark(&bmZeroDivisorFlags, "bmZeroDivisorFlags");
+  check(handle.name() == "bmZeroDivisorFlags",
+        "the zero divisor flag benchmark registers");
+
+  const std::string report = captureGoodRun("^bmZeroDivisorFlags$");
+  const std::vector<std::string> lines = linesOf(report, "bmZeroDivisorFlags");
+  const std::vector<std::string> rows = measuredRowsOf(lines);
+  check(rows.size() == kRepetitions,
+        "the batch prints one measured row per repetition (FR-005)");
+  checkFinite(rows);
+
+  for (const auto& row : rows) {
+    const double iterations = fieldOf(row, "iterations=");
+    check(iterations > 0.0, "the row states the iterations it ran (FR-005)");
+    check(closeTo(fieldOf(row, "cells="), 1024.0 * iterations),
+          "the invariant column scales by the iterations (FR-005)");
+    check(closeTo(fieldOf(row, "shared="), 1024.0 / iterations),
+          "the average column divides by the iterations (FR-005)");
+    check(row.contains("zero-divisor"),
+          "the row still discloses the zero divisor (FR-005)");
+  }
+  return 0;
+}
+
 // FR-005: an inverted zero prints the flag-neutral value and stays finite.
 auto scenarioInvertZero() -> int
 {
@@ -967,6 +1011,9 @@ auto main(int argc, char** argv) -> int
     if (mode == "invertZero") {
       return scenarioInvertZero();
     }
+    if (mode == "zeroDivisorFlags") {
+      return scenarioZeroDivisorFlags();
+    }
     if (mode == "foldDisclosed") {
       return scenarioFoldDisclosed();
     }
@@ -1016,6 +1063,7 @@ auto main(int argc, char** argv) -> int
                                "invertZero",
                                "foldDisclosed",
                                "zeroDivisor",
+                               "zeroDivisorFlags",
                                "lastWrite",
                                "flagChange",
                                "baseChange",
