@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -62,46 +63,59 @@ constexpr std::string_view
         "the quantity does not stand in every instance of the family, so it "
         "holds " "no fit pair (FR-023)";
 
-// The relative-error sums of one curve over the instances: `first` holds
-// sum(f(N) / y), which is the numerator of the closed form, and `second` holds
-// sum((f(N) / y)^2), its denominator (FR-021, research D-08).
-auto relativeSums(const std::vector<std::int64_t>& sizes,
-                  const std::vector<double>& values,
-                  const std::function<double(double)>& curve)
+// The least-squares sums of one curve over the instances: `first` holds
+// sum(t * f(N)), the numerator of the closed form, and `second` holds
+// sum(f(N)^2), its denominator (FR-021, research D-08).
+auto leastSquaresSums(const std::vector<std::int64_t>& sizes,
+                      const std::vector<double>& values,
+                      const std::function<double(double)>& curve)
     -> std::pair<double, double>
 {
-  double numerator = 0.0;
-  double denominator = 0.0;
+  double cross = 0.0;
+  double square = 0.0;
   for (std::size_t index = 0; index < values.size(); ++index) {
-    const double ratio =
-        curve(static_cast<double>(sizes[index])) / values[index];
-    numerator += ratio;
-    denominator += ratio * ratio;
+    const double shape = curve(static_cast<double>(sizes[index]));
+    cross += values[index] * shape;
+    square += shape * shape;
   }
-  return {numerator, denominator};
+  return {cross, square};
 }
 
-// The coefficient and the root-mean relative error of one curve: the
-// coefficient is the closed form of the least-squares minimum, and the RMS is
-// the root-mean of (k * f(N) - y) / y as a percentage (FR-021, FR-022).
+// The coefficient and the relative root-mean-square error of one curve: the
+// coefficient is the least-squares solution sum(t * f(N)) / sum(f(N)^2), and
+// the RMS is the root-mean of the residuals t - coefficient * f(N) divided by
+// the mean of the values, printed as a percentage (FR-021, FR-022). A curve
+// that is zero at every size has no solution and reports an infinite error, so
+// it stands no fit; a family whose values average zero reports a zero error
+// when the fit reproduces them and an infinite error when it does not.
 auto fitCurve(const std::vector<std::int64_t>& sizes,
               const std::vector<double>& values,
               const std::function<double(double)>& curve)
     -> std::pair<double, double>
 {
-  const auto [numerator, denominator] = relativeSums(sizes, values, curve);
-  const double coefficient = numerator / denominator;
+  const auto [cross, square] = leastSquaresSums(sizes, values, curve);
+  if (square <= 0.0) {
+    return {0.0, std::numeric_limits<double>::infinity()};
+  }
+  const double coefficient = cross / square;
 
   double squared = 0.0;
+  double total = 0.0;
   for (std::size_t index = 0; index < values.size(); ++index) {
+    const double residual =
+        values[index] - coefficient * curve(static_cast<double>(sizes[index]));
+    squared += residual * residual;
+    total += values[index];
+  }
+  const double mean = total / static_cast<double>(values.size());
+  if (std::abs(mean) <= std::numeric_limits<double>::min()) {
     const double error =
-        coefficient * curve(static_cast<double>(sizes[index])) / values[index]
-        - 1.0;
-    squared += error * error;
+        squared <= 0.0 ? 0.0 : std::numeric_limits<double>::infinity();
+    return {coefficient, error};
   }
   const double rootMean =
       std::sqrt(squared / static_cast<double>(values.size()));
-  return {coefficient, rootMean * 100.0};
+  return {coefficient, rootMean / mean * 100.0};
 }
 
 // Whether every instance of the family carries a value of one quantity: a NaN

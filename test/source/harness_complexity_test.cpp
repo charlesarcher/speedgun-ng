@@ -4,19 +4,24 @@
 // `BenchmarkHandle::complexity` asks for one least-squares fit per family over
 // its instances, and the fit reports one pair of rows per fitted quantity: the
 // primary time, each named user counter, and each attached metric (FR-022).
-// The coefficient minimizes the relative-error least squares with the closed
-// form k = sum(f(N)/y) / sum((f(N)/y)^2), and the RMS is the root-mean relative
-// error times 100, printed unscaled by the unit (FR-021, FR-022).
+// The coefficient is the least-squares solution k = sum(t * f(N)) /
+// sum(f(N)^2), and the RMS is the root-mean of the residuals t - k * f(N)
+// divided by the mean of the values, times 100, printed unscaled by the unit
+// (FR-021, FR-022).
 //
 // Every family here runs on manual time with one iteration, so the primary
 // value of an instance is exactly what its body reports and the fit has an
 // expected figure with no tolerance band:
 //
 //   bmQuad     y = 12 N^2 ns      ->  N^2, k = 12.000, rms 0.000
-//            counter cells 4000 N^2 (the K1000 base leaves 4 N^2 in the row)
-//                                 ->  N^2, k =  4.000, rms 0.000
+//            counter cells 4000 N^2 (the base never divides the value)
+//                                 ->  N^2, k = 4000.000, rms 0.000
 //            metric work = 200     ->  1,   k =  200.000, rms 0.000
-//   bmCubed  the same y, fixed N^3 ->  N^3, k =  2.000, rms 47.140
+//   bmCubed  the same y, fixed N^3 ->  N^3, k =  1.524, rms 17.487
+//   bmFlat   the same y, fixed 1   ->  1,   k =  336.000, rms 92.582
+//   bmNlgN   y = 5 N lgN ns        ->  NlgN, k =  5.000, rms 0.000
+//   bmNoisy  y = 10, 40, 90, fixed N
+//                                 ->  N,   k = 10.714, rms 15.509
 //   bmUser   y = 12 N^2, f = N^2/2 ->  f(N), k = 24.000, rms 0.000
 //   bmSingle one instance          ->  the reason naming the two-instance floor
 //   bmBadN   an instance with N=0  ->  the reason naming the positive bound
@@ -52,21 +57,35 @@ namespace
 // The planted per-iteration time of the quadratic families, in nanoseconds per
 // square of the instance size.
 constexpr std::int64_t kTimeCoefficientNs = 12;
-// The planted per-iteration counter value before the K1000 base of its column,
-// in units of the square of the instance size, so the row holds 4 N^2.
+// The planted per-iteration counter value, in units of the square of the
+// instance size, so the row holds 4000 N^2 and the base leaves it as it stands.
 constexpr std::int64_t kCellCoefficient = 4000;
 // The scripted metric leaf steps by this much per sampling action, and one
 // action belongs to each iteration, so its per-iteration value is constant.
 constexpr std::uint64_t kWorkStep = 200;
-// The RMS the fixed N-cubed curve earns on quadratic data, computed by hand
-// from the same closed form the harness states: the relative errors of N = 2,
-// 4 and 8 are -2/3, -1/3 and 1/3.
-constexpr double kCubedRmsPercent = 47.1404520791036;
-// The coefficient and RMS the constant curve earns on the same quadratic data,
-// from the same closed form: the relative errors of N = 2, 4 and 8 are 3/13,
-// -9/13 and -12/13.
-constexpr double kFlatCoefficient = 5376.0 / 91.0;
-constexpr double kFlatRmsPercent = 67.9366220486758;
+// The coefficient and RMS the fixed N-cubed curve earns on quadratic data,
+// computed by hand from the closed form the harness states: over N = 2, 4, 8
+// the times are 48, 192, 768, so sum(t * N^3) = 405888 and sum(N^6) = 266304,
+// and the residuals of k = 405888 / 266304 root-mean to 17.487 % of the mean
+// time 336.
+constexpr double kCubedCoefficient = 405888.0 / 266304.0;
+constexpr double kCubedRmsPercent = 17.486774983;
+// The coefficient and RMS the constant curve earns on the same data: k is the
+// mean time 336, and the residuals -288, -144 and 432 root-mean to 311.0755,
+// which is 92.582 % of that mean.
+constexpr double kFlatCoefficient = 336.0;
+constexpr double kFlatRmsPercent = 92.582009977;
+// The planted times of the noisy family at N = 2, 4, 8. Over them
+// sum(t * N) = 20 + 160 + 720 = 900 and sum(N^2) = 84, so the fixed N curve
+// earns k = 900 / 84 = 75 / 7 with residuals -80/7, -20/7 and 30/7, whose
+// root-mean is 7.2375 ns of the mean time 140/3, that is 15.509 %.
+constexpr std::int64_t kNoisyTimeSmall = 10;
+constexpr std::int64_t kNoisyTimeMiddle = 40;
+constexpr std::int64_t kNoisyTimeLarge = 90;
+constexpr double kNoisyCoefficient = 75.0 / 7.0;
+constexpr double kNoisyRmsPercent = 15.508861381;
+// The planted coefficient of the linearithmic family, y = 5 N lgN.
+constexpr double kLinearithmicCoefficient = 5.0;
 
 auto fail(const char* what) -> void
 {
@@ -126,6 +145,41 @@ auto bmCells(sg::State& state) -> void
         static_cast<std::int64_t>(kTimeCoefficientNs * size * size));
     state.setCounter("cells",
                      {static_cast<double>(kCellCoefficient) * size * size});
+    sg::doNotOptimize(index);
+  }
+}
+
+// The body of the linearithmic family: the manual time is exactly the planted
+// coefficient times N lg N, so the fit has a known answer (FR-019, FR-021).
+auto bmLinearithmic(sg::State& state) -> void
+{
+  const double size = static_cast<double>(state.range(0));
+  for (auto index : state) {
+    state.setIterationTime(static_cast<std::int64_t>(kLinearithmicCoefficient
+                                                     * size * std::log2(size)));
+    sg::doNotOptimize(index);
+  }
+}
+
+// The planted time of the noisy family at one instance size.
+auto noisyTime(const std::int64_t argument) -> std::int64_t
+{
+  if (argument <= 2) {
+    return kNoisyTimeSmall;
+  }
+  if (argument <= 4) {
+    return kNoisyTimeMiddle;
+  }
+  return kNoisyTimeLarge;
+}
+
+// The body of the noisy family: three planted times no curve reproduces, so the
+// coefficient and the RMS of the fixed curve are the hand-computed pair.
+auto bmNoisy(sg::State& state) -> void
+{
+  const std::int64_t planted = noisyTime(state.range(0));
+  for (auto index : state) {
+    state.setIterationTime(planted);
     sg::doNotOptimize(index);
   }
 }
@@ -264,7 +318,7 @@ auto checkAutomatic(const std::vector<std::string>& lines) -> void
         "the automatic fit keeps the least-RMS curve (FR-021)");
   check(
       closeTo(coefficientOf(timeRow), static_cast<double>(kTimeCoefficientNs)),
-      "the coefficient minimizes the relative-error least squares (FR-021)");
+      "the least-squares closed form gives the planted coefficient (FR-021)");
   const std::string timeRms = fitRowOf(lines, "RMS", "time/iter");
   check(!timeRms.empty() && rmsOf(timeRms) <= 0.0005,
         "an exact planted curve earns a zero RMS (FR-022)");
@@ -273,8 +327,7 @@ auto checkAutomatic(const std::vector<std::string>& lines) -> void
   check(!cellRow.empty(), "a named user counter is a fitted quantity (FR-022)");
   check(curveOf(cellRow, "cells") == "N^2",
         "the counter pair names the class of the counter values (FR-022)");
-  check(closeTo(coefficientOf(cellRow),
-                static_cast<double>(kCellCoefficient) / 1000.0),
+  check(closeTo(coefficientOf(cellRow), static_cast<double>(kCellCoefficient)),
         "a counter coefficient stands in that quantity's value (FR-022)");
   check(rmsOf(fitRowOf(lines, "RMS", "cells")) <= 0.0005,
         "the counter RMS stands unscaled by the unit (FR-022)");
@@ -285,6 +338,34 @@ auto checkAutomatic(const std::vector<std::string>& lines) -> void
         "a constant quantity falls to the constant curve (FR-021)");
   check(closeTo(coefficientOf(workRow), static_cast<double>(kWorkStep)),
         "the constant curve carries the constant value (FR-021)");
+}
+
+// FR-021, FR-022: an exact linearithmic planting names NlgN, carries its
+// planted factor and earns no residual.
+auto checkLinearithmic(const std::vector<std::string>& lines) -> void
+{
+  const std::string row = fitRowOf(lines, "BIG_O", "time/iter");
+  check(!row.empty(), "the linearithmic family is fitted (FR-019)");
+  check(curveOf(row, "time/iter") == "NlgN",
+        "the automatic fit keeps the linearithmic curve (FR-021)");
+  check(closeTo(coefficientOf(row), kLinearithmicCoefficient),
+        "the closed form gives the factor of an exact planting (FR-021)");
+  check(rmsOf(fitRowOf(lines, "RMS", "time/iter")) <= 0.0005,
+        "an exact linearithmic planting earns a zero RMS (FR-022)");
+}
+
+// FR-020, FR-021, FR-022: the hand-computed noisy vector over the times 10,
+// 40 and 90, where k = 900 / 84 and the RMS is 15.509 % of the mean.
+auto checkNoisy(const std::vector<std::string>& lines) -> void
+{
+  const std::string row = fitRowOf(lines, "BIG_O", "time/iter");
+  check(!row.empty(), "the noisy family is fitted (FR-019)");
+  check(curveOf(row, "time/iter") == "N",
+        "a family fixed to N keeps that curve on noisy data (FR-020)");
+  check(closeTo(coefficientOf(row), kNoisyCoefficient),
+        "the hand-computed sums give the coefficient (FR-021)");
+  check(closeTo(rmsOf(fitRowOf(lines, "RMS", "time/iter")), kNoisyRmsPercent),
+        "the hand-computed residuals give the RMS (FR-022)");
 }
 
 // The row index of the first fit row of one quantity, the largest value when it
@@ -330,7 +411,7 @@ auto checkFixedCurve(const std::vector<std::string>& lines) -> void
   check(!row.empty(), "the fixed family is fitted (FR-020)");
   check(curveOf(row, "time/iter") == "N^3",
         "a family fixed to a curve keeps it (FR-020)");
-  check(closeTo(coefficientOf(row), 2.0),
+  check(closeTo(coefficientOf(row), kCubedCoefficient),
         "the closed form gives the coefficient of the fixed curve (FR-021)");
   check(closeTo(rmsOf(fitRowOf(lines, "RMS", "time/iter")), kCubedRmsPercent),
         "the RMS is the root-mean relative error times 100 (FR-022)");
@@ -401,6 +482,12 @@ auto main() -> int
 
   registerQuadratic("bmCubed", sg::BigO::N_CUBED, {2, 4, 8});
   registerQuadratic("bmFlat", sg::BigO::ONE, {2, 4, 8});
+  auto nlg = sg::registerBenchmark(&bmLinearithmic, "bmNlgN");
+  check(nlg.name() == "bmNlgN", "the linearithmic family registers");
+  nlg.useManualTime().arg(2).arg(4).arg(8).complexity(sg::BigO::AUTOMATIC);
+  auto noisy = sg::registerBenchmark(&bmNoisy, "bmNoisy");
+  check(noisy.name() == "bmNoisy", "the noisy family registers");
+  noisy.useManualTime().arg(2).arg(4).arg(8).complexity(sg::BigO::N);
   auto sized = sg::registerBenchmark(&bmSized, "bmSized");
   check(sized.name() == "bmSized", "the sized family registers");
   // Two repetitions give this family an aggregate row, so the fit reads the
@@ -437,6 +524,8 @@ auto main() -> int
   checkFixedConstant(linesOf(report, "bmFlat"));
   checkStatedSize(linesOf(report, "bmSized"));
   checkUserCurve(linesOf(report, "bmUser"));
+  checkLinearithmic(linesOf(report, "bmNlgN"));
+  checkNoisy(linesOf(report, "bmNoisy"));
 
   const std::vector<std::string> singleLines = linesOf(report, "bmSingle");
   check(fitRowOf(singleLines, "BIG_O", "time/iter").empty(),

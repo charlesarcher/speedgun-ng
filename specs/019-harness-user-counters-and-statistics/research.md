@@ -129,25 +129,31 @@ rejected because the future raw-data output must keep them (Out list of
 the spec Scope); a run-level option, rejected by Q-5's handle-only
 decision.
 
-## D-07: One closed-form relative-error fit per family
+## D-07: One closed-form least-squares fit per family
 
 **Decision**: `complexity.cpp` computes, per family with a fit selected
 and at least two usable instances, one least-squares coefficient per
-curve by the closed form `k = sum(f(N)/y) / sum((f(N)/y)^2)` over the
-instances, and the RMS as the root-mean relative error times 100.
-`AUTOMATIC` tries every curve, keeps the least RMS, and falls back to
-the constant curve (FR-021; `LeastSquaresComplexity` and the
-`MinimalLeastSq` auto path in `src/complexity.cc`).
+curve by the closed form `k = sum(t * f(N)) / sum(f(N)^2)` over the
+instances, where `t` is the value of one instance, and the RMS as
+`sqrt(sum((t - k * f(N))^2) / n) / mean(t)` times 100. `AUTOMATIC`
+tries every curve, keeps the least RMS, and falls back to the constant
+curve (FR-021; `LeastSquaresComplexity` and the `MinimalLeastSq` auto
+path in `src/complexity.cc`). A curve that is zero at every size has no
+solution and reports an infinite error, so it stands no fit.
 
-**Rationale**: minimizing relative error is the cited rule, and the
-closed form needs no matrix solver: each curve fits by one scalar.
-Scripted test values reproduce the coefficient exactly, which is what
-SC-05 asserts.
+**Rationale**: the cited `MinimalLeastSq` solves the normal equations of
+the absolute residuals, and one basis function per candidate reduces
+that solution to the single scalar above. The coefficient is then the
+one a reader reproduces from the printed times, which is what the
+known-answer vectors of SC-05 assert. Relative weighting lets the
+smallest instance set the scale, so a curve can earn the least relative
+error while missing every larger time by a wide margin.
 
-**Alternatives considered**: absolute-error least squares, rejected
-because the cited fit and the RMS percentage of FR-022 are relative;
-the cited `Vector` matrix solver, rejected as machinery a scalar
-equation does not need (X.1).
+**Alternatives considered**: the relative-error closed form
+`k = sum(f(N)/y) / sum((f(N)/y)^2)` with a root-mean relative error,
+which stood here first and which the convergence pass superseded, the
+finding recorded as D-5 in `tasks.md`; the cited `Vector` matrix solver,
+rejected as machinery a scalar equation does not need (X.1).
 
 ## D-08: Instance N is the complexity-n value, falling back to the range value
 
