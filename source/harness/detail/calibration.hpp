@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
 namespace sg::detail
@@ -20,6 +21,12 @@ namespace sg::detail
 // FR-016 bounds the iteration count; FR-010 bounds the runs of one phase.
 inline constexpr std::uint64_t kIterationCap = 1'000'000'000'000ULL;
 inline constexpr std::uint64_t kRunBound = 96;
+
+// FR-025, Q-10, T004: the ceiling of one reservation's pause room, raw points
+// per leaf column. The recorder reserves pause room only where the family's
+// previous attempt observed closed pairs, and an attempt over the ceiling
+// folds instead (FR-051, FR-052).
+inline constexpr std::size_t kMaxPauseSamplesPerLeaf = 32'768;
 
 // One sampled run: the sample span the run owns, the fold of each clock
 // over that span, the paused intervals to net out, and the iteration
@@ -38,6 +45,13 @@ struct RunRecord
   std::vector<std::pair<std::uint64_t, std::uint64_t>> pausePairs;
   std::int64_t cpuNs = 0;
   bool manual = false;
+  // The fold path of FR-052: the points the run's recorder holds, the
+  // running totals of the pause pairs that folded at their commit, and
+  // whether that run folded one. The raw path folds none, so these
+  // stand at their defaults and the columns keep their bytes.
+  std::uint64_t foldPoints = 0;
+  PauseFoldSink pauseFold;
+  bool pauseSamplesFolded = false;
 };
 
 // R-012: the growth factor is integer arithmetic on nanoseconds, and a

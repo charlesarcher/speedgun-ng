@@ -157,6 +157,11 @@ auto printResult(const BenchmarkResult& result) -> void
         std::printf(" refusal=%s", availabilityName(metric.availability));
       }
     }
+    if (row.pauseSamplesFolded) {
+      // FR-054: a folded run discloses the fold beside the row; a raw
+      // row keeps the exact bytes it prints today.
+      std::printf("  pause=folded");
+    }
     std::printf("\n");
   }
 }

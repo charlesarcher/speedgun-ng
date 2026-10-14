@@ -246,7 +246,9 @@ list, and `consoleRowScenario` checks the single name column.
 
 Every measured row prints two time columns, `real time/iter (ns)=` and
 `cpu time/iter (ns)=`. Each value is a fold over the raw point pair of
-that run, and the counters library supplies the fold. The CPU column
+that run, and the counters library supplies the fold. A pause whose pair
+the recorder has no room for closes through a running fold over the same
+leaf, and the column reads the same value in both paths. The CPU column
 follows `machine/thread_cpu` until `measureProcessCpuTime` moves it.
 The row keeps its other fields around the pair:
 
@@ -356,23 +358,29 @@ the destructor resumes, and the destructor skips the resume when the
 run was skipped.
 
 The calls stand inside the timed loop, where the run's sampling window is
-open, and the loop keeps its shape. The preconditions bound
-one open pause per run. `pauseTiming` needs a run state whose sampling
-window stands open, no pause already open, and a pause count below
-`kMaxPausePerRun` (8 intervals); `resumeTiming` needs one open pause. A
-pause still open at loop exit is an `SG_ASSERT` breach in `closeWindow`,
-and the skip and exception path closes an open pair in `topUpWindow`
-before the exit sample, so every fold reads a complete pair. A pause in
-a callback state is a precondition violation, the callback-state rule
-extended to the pause calls.
+open, and the loop keeps its shape. The preconditions bound one open
+pause per run. `pauseTiming` needs a run state whose sampling window
+stands open and no pause already open, and `resumeTiming` needs one open
+pause. A run carries no fixed allowance of closed intervals: a loop may
+close a pair in every iteration. A pause still open at loop exit is an
+`SG_ASSERT` breach in `closeWindow`, and the skip and exception path
+closes an open pair in `topUpWindow` before the exit sample, so every
+fold reads a complete pair. A pause in a callback state is a precondition
+violation, the callback-state rule extended to the pause calls.
 
 Each call costs one sampling action, and the row discloses the cost:
 `endpoint samples=<S>` prints the count that run took, so a run with
-one paused interval prints `endpoint samples=4`. The recorder capacity
-rule reserves the room, at
-`2 * (1 + kMaxPausePerRun) * (kRunBound + kRunBound + repetitions)`
-points with `kRunBound` 96 iterations, and a run past the allowance is
-a precondition violation named before the recorder loses a point.
+one paused interval prints `endpoint samples=4`. The room for those
+points follows the loop, and no fixed allowance bounds it. Before an
+attempt starts, the recorder reserves the two points of the window plus,
+from a family's second attempt, two points for each closed pair its
+previous attempt observed per iteration, capped at 32768 raw points per
+leaf column. An attempt over the cap reserves no pause room: each of its
+pairs closes through a running fold at the commit, the columns of the row
+read the same values as the recorded points produce, and the row ends
+with `pause=folded` so the fold is disclosed. A first attempt of a family
+has no history to size the room by, so its pairs fold and its row carries
+the token too.
 `bmPaused` in `example/benchmark_example.cpp` holds a
 `ScopedPauseTiming` region inside the loop, and a dry run of
 `build/example/benchmark_example` prints `endpoint samples=4` for it.
@@ -380,9 +388,15 @@ a precondition violation named before the recorder loses a point.
 Coverage: `test/source/harness_pause_test.cpp`. `scenarioExact` checks
 every time column and an attached metric against the window fold minus
 the scripted pause fold to the nanosecond, `scenarioScoped` reports the
-same value through the guard, and the `doublePause`, `resumeFirst`,
-`openAtExit`, `callbackPause`, and `ninthPause` re-exec modes assert
-each precondition breach.
+same value through the guard, `scenarioEveryIteration` closes a guard in
+every iteration and reads the netted columns of the folded path,
+`scenarioPauseHeavy` grows a two-pair loop past the cap and completes
+with the reservation at or below the ceiling, `scenarioNonPauseReserve`
+shows a run that pauses nothing reserving no pause room, and
+`scenarioRawAfterHistory` compares a folded repetition against the raw
+repetition that follows it. The `doublePause`, `resumeFirst`,
+`openAtExit`, and `callbackPause` re-exec modes assert each precondition
+breach.
 
 ## Time units
 
@@ -392,17 +406,21 @@ each precondition breach.
 and returns the handle:
 `SG_BENCHMARK(bmMillis).unit(sg::TimeUnit::MILLISECONDS);`.
 `sg::setDefaultTimeUnit(TimeUnit)` sets the process default that a
-later registration captures, and `sg::getDefaultTimeUnit()` reads it
-back. The default starts at `TimeUnit::NANOSECONDS`.
+benchmark calling no `unit` resolves to when its run starts, and
+`sg::getDefaultTimeUnit()` reads it back. The default starts at
+`TimeUnit::NANOSECONDS`.
 
 A stored value stays nanoseconds, so the C++ value keeps one unit, and
 the report applies the divisor at print time: `ns` 1 ns, `us` 1000 ns,
 `ms` 1000000 ns, `s` 1000000000 ns. The scaling reaches both time
 columns, the overhead floor, and the aggregate line, so one line
-carries one scale, and the metric columns keep their form. A
-registration captures the default of its own moment, so a
-`setDefaultTimeUnit` call after a registration leaves that benchmark at
-the unit it captured, and a `unit` call overwrites the captured unit.
+carries one scale, and the metric columns keep their form. The unit
+resolves when a run starts: the `unit` call of the family wins, then the
+default the entry point snapshots at its own start, then the process
+default at the moment the run starts. A
+`setDefaultTimeUnit` call in `main` before the entry point therefore
+reaches a benchmark the macros registered during static initialization,
+and a `unit` call overrides all three.
 `bmMillis` in `example/benchmark_example.cpp` sets the millisecond unit,
 and a dry run of `build/example/benchmark_example` prints its row under
 the `ms` label. A command-line unit option belongs to a future
@@ -410,7 +428,9 @@ command-line specification.
 
 Coverage: `test/source/harness_time_unit_test.cpp`. The `unitCall`
 re-exec mode checks the two columns, the overhead floor, and the
-aggregate line under the `ms` label through `checkMillisecondRow` and
+aggregate line under the `ms` label through `checkScaledRow` and
 `checkMillisecondAggregate`, the `default` mode scales a benchmark that
-sets no unit, and the `captured` mode keeps a benchmark at the unit its
-own registration captured.
+sets no unit, the `captured` mode moves the unit of a benchmark the
+macros registered before any mode could set a default, and the
+`testHook` mode resolves the unit through the runner that a test drives
+without the entry point.

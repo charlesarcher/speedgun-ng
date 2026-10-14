@@ -124,6 +124,15 @@ auto interruptFlag() -> std::atomic<bool>&
   return interruptFlagValue;
 }
 
+// FR-027: one batch snapshot for the process. `speedgunMain` writes it
+// at its entry, and a run outside `speedgunMain` reads it empty and
+// falls back to the process default of its own start.
+auto batchDefaultTimeUnit() -> std::optional<TimeUnit>&
+{
+  static std::optional<TimeUnit> batch;
+  return batch;
+}
+
 // FR-042: the entry point needs a time source. The counters system opens
 // the host provider, and that provider publishes the machine object, so
 // only the monotonic leaf can be missing (FR-002).
@@ -142,11 +151,17 @@ auto timeSourcePresent(counters::System& sys) -> bool
  * @brief Run the benchmark suite the command line names (FR-040).
  *
  * @pre none
- * @post none
+ * @post the batch snapshot of the process default unit stands taken at
+ *       this entry, the suite ran, and the report printed (FR-027)
  */
 auto speedgunMain(int argc, char** argv) -> int
 {
   auto& sys = counters::System::local();
+
+  // FR-027: the entry point snapshots the process default once per
+  // batch, so a setDefaultTimeUnit call in `main` reaches every
+  // registration that names no unit, the macro registrations included.
+  detail::batchDefaultTimeUnit() = getDefaultTimeUnit();
 
   // R-03: the entry point registers the clock provider; a test that
   // scripted the machine leaves through the fake provider owns that

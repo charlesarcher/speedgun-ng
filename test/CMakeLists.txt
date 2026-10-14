@@ -703,6 +703,18 @@ target_include_directories(harness_pause_test PRIVATE ${CMAKE_SOURCE_DIR}/source
 target_compile_features(harness_pause_test PRIVATE cxx_std_23)
 add_test(NAME harness_pause_test COMMAND harness_pause_test)
 
+# FR-024, T002: the fixed pause allowance leaves the tree, library, tests and
+# guide alike. A namespace-scope name that does not exist cannot be probed by
+# a `requires` clause, where the failed lookup is a hard error and not a
+# substitution failure, so the removal is asserted textually over the three
+# trees it could be spelled in (run-fixes contract, quickstart 2). The
+# bracket in the pattern keeps the gate from matching its own spelling of the
+# name, which would make the check unsatisfiable.
+add_test(
+    NAME pause_bound_removed
+    COMMAND bash -c "! grep -rn 'kMaxPause[P]erRun' ${CMAKE_SOURCE_DIR}/source ${CMAKE_SOURCE_DIR}/test ${CMAKE_SOURCE_DIR}/docs"
+)
+
 # The printed time unit of a run (T023; US5, C-6, FR-015, FR-016, SC-005).
 # One scripted provider steps every machine time leaf by a constant per
 # sampling action, so each printed figure is that step divided by the fixed
@@ -711,6 +723,7 @@ add_test(NAME harness_pause_test COMMAND harness_pause_test)
 # runs in a re-exec of this binary and the parent reads its wait status.
 add_executable(harness_time_unit_test source/harness_time_unit_test.cpp)
 target_link_libraries(harness_time_unit_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_time_unit_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_time_unit_test PRIVATE cxx_std_23)
 add_test(NAME harness_time_unit_test COMMAND harness_time_unit_test)
 
