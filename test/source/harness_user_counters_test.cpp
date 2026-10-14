@@ -232,6 +232,22 @@ auto bmInvertRate(sg::State& state) -> void
   }
 }
 
+// FR-002: two flag sets combined while the row runs. Both operands of the join
+// are loads here, so `operator|` executes on this path, and the column prints
+// the reciprocal of its own rate as the constant spelling does.
+auto bmInvertRateRuntime(sg::State& state) -> void
+{
+  volatile const sg::CounterFlag rate = sg::CounterFlag::RATE;
+  volatile const sg::CounterFlag invert = sg::CounterFlag::INVERT;
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter(
+          "invrun", {kCpuFoldSeconds, rate | invert, sg::CounterBase::K1024});
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
 // FR-005: the primary divisor of the row is zero, so the column carries the
 // flag-neutral value and a disclosure naming the zero divisor.
 auto bmZeroDivisor(sg::State& state) -> void
@@ -696,6 +712,31 @@ auto scenarioInvertRate() -> int
   return 0;
 }
 
+// FR-002, FR-003: a flag set the row builds at run time reaches the same
+// order: the rate division first, the reciprocal last, one printed column.
+auto scenarioInvertRateRuntime() -> int
+{
+  scriptProvider(kThreadCpuStep);
+  auto handle =
+      sg::registerBenchmark(&bmInvertRateRuntime, "bmInvertRateRuntime");
+  check(handle.name() == "bmInvertRateRuntime",
+        "the run-time join benchmark registers");
+
+  const std::string report = captureGoodRun("^bmInvertRateRuntime$");
+  const std::vector<std::string> rows =
+      measuredRowsOf(linesOf(report, "bmInvertRateRuntime"));
+  check(rows.size() == kRepetitions,
+        "the batch prints one measured row per repetition (FR-006)");
+  checkFinite(rows);
+
+  for (const auto& row : rows) {
+    check(closeTo(fieldOf(row, "invrun="), 1.0),
+          "the joined flags scale the column in the order of the flags "
+          "(FR-002, FR-003)");
+  }
+  return 0;
+}
+
 // FR-005: a zero primary divisor leaves the flag-neutral value with a
 // disclosure, and the row stands aside from the counter's statistics.
 auto scenarioZeroDivisor() -> int
@@ -1005,6 +1046,9 @@ auto main(int argc, char** argv) -> int
     if (mode == "invertRate") {
       return scenarioInvertRate();
     }
+    if (mode == "invertRateRuntime") {
+      return scenarioInvertRateRuntime();
+    }
     if (mode == "zeroDivisor") {
       return scenarioZeroDivisor();
     }
@@ -1060,6 +1104,7 @@ auto main(int argc, char** argv) -> int
                                "invariant",
                                "invert",
                                "invertRate",
+                               "invertRateRuntime",
                                "invertZero",
                                "foldDisclosed",
                                "zeroDivisor",
