@@ -365,7 +365,7 @@ auto bmEncode(sg::State& state) -> void
 
 SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
 ```
-The row gains `items_per_second=` and `bytes_per_second=` columns that follow the real time of the instance, so a larger argument shows the throughput the loop actually held rather than a count. See [throughput](docs/pages/harness.md#throughput).
+The row gains `items_per_second=` and `bytes_per_second=` columns, each one the count over the primary time of the run, so a larger argument shows the throughput the loop held. See [throughput](docs/pages/harness.md#throughput).
 
 ### Labels
 
@@ -459,7 +459,7 @@ SG_BENCHMARK(bmSwapPasses)
     .argsProduct({{8, 16, 32}})
     .complexity(sg::BigO::AUTOMATIC);
 ```
-The family ends with a `BIG_O` row naming the curve and its coefficient, an `RMS` row with the fit error as a percentage, one pair for every quantity the family carries, and a `SKIPPED` row naming the quantity a member never set. See [complexity fit](docs/pages/harness.md#complexity-fit).
+The family ends with a `BIG_O` row naming the curve and its coefficient, an `RMS` row with the fit error as a percentage, one pair for every quantity the family carries, and a `SKIPPED` row naming a quantity a member never set together with its reason. See [complexity fit](docs/pages/harness.md#complexity-fit).
 
 ## Quick reference
 
@@ -520,7 +520,7 @@ The family ends with a `BIG_O` row naming the curve and its coefficient, an `RMS
 | `BigOFun` | type | The curve shape a fit of your own supplies | [complexity fit](#complexity-fit) |
 | `addStatistic` | BenchmarkHandle | Adds a named aggregate statistic to the report | [custom statistics](#custom-statistics) |
 | `reportAggregatesOnly` | BenchmarkHandle | Keeps the repetition rows of this family out | [aggregate only reporting](#aggregate-only-reporting) |
-| `displayAggregatesOnly` | free function | Keeps every repetition row out of the report | [aggregate only reporting](#aggregate-only-reporting) |
+| `displayAggregatesOnly` | BenchmarkHandle | Trims the console of this family to its aggregate rows | [aggregate only reporting](#aggregate-only-reporting) |
 | `complexity` | BenchmarkHandle | Chooses the curve the fit searches | [complexity fit](#complexity-fit) |
 
 | Option | What it does |

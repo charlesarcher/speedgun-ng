@@ -271,11 +271,10 @@ selection is that primary time by default. The aggregate line names it:
 a gap disclosure stays out of those statistics, and
 `ResultRow::timeAvailability` carries the disclosure.
 
-Coverage: `test/source/harness_time_columns_test.cpp`. `columnsScenario`
-reads each column against its scripted delta over the iteration count,
-`metricScenario` keeps the core metric fold beside the two
-columns, and `aggregateScenario` compares the aggregate line against
-the CPU selection.
+Coverage: `test/source/harness_time_columns_test.cpp`. Each column is
+read against a scripted delta over the iteration count, a core metric
+keeps its fold beside the two columns, and the aggregate line is
+compared against the selection the run asked for.
 
 ## The process CPU leaf
 
@@ -309,12 +308,11 @@ excludes `useManualTime`: the second of the two calls is the
 `SG_REQUIRE` precondition violation, in either order. `bmRealTime` in
 `example/benchmark_example.cpp` carries the call.
 
-Coverage: `test/source/harness_real_time_test.cpp`. `scenarioRealWalk`
-and `scenarioCpuWalk` run one scripted growth sequence under each
-selection and compare the iteration counts the walk reaches, and
-`scenarioAggregate` checks the aggregate line against the real column.
-The three stand behind the `real-walk`, `cpu-walk`, and `aggregate`
-re-exec modes.
+Coverage: `test/source/harness_real_time_test.cpp`. One scripted growth
+sequence runs under each selection, the iteration counts each walk
+reaches are compared, and the aggregate line is read against the column
+that selection prints, so the primary time stays the time the report
+shows.
 
 ## Manual time
 
@@ -332,12 +330,10 @@ is a precondition violation, because that state owns no run to
 accumulate for. `bmManual` in `example/benchmark_example.cpp` pairs the
 selection with one `setIterationTime` call per iteration.
 
-Coverage: `test/source/harness_manual_time_test.cpp`. `scenarioReport`
-checks the accepted sum over N in the real column, `scenarioGrowth`
-reads that sum through the growth rule, `scenarioFivefold` shows the
-exemption, `scenarioEmpty` reports the empty sum at the cap, and
-`scenarioRule` with the `real-then-manual` and `manual-then-real`
-re-exec modes asserts each order of the conflicting pair.
+Coverage: `test/source/harness_manual_time_test.cpp`. The accepted sum is
+read through the growth rule, the empty sum at the cap is reported, and
+both orders of the conflicting pair are asserted, so a manual time reads
+the same whichever side of a timed loop it arrives on.
 
 ## Pause and resume
 
@@ -385,18 +381,12 @@ the token too.
 `ScopedPauseTiming` region inside the loop, and a dry run of
 `build/example/benchmark_example` prints `endpoint samples=4` for it.
 
-Coverage: `test/source/harness_pause_test.cpp`. `scenarioExact` checks
-every time column and an attached metric against the window fold minus
-the scripted pause fold to the nanosecond, `scenarioScoped` reports the
-same value through the guard, `scenarioEveryIteration` closes a guard in
-every iteration and reads the netted columns of the folded path,
-`scenarioPauseHeavy` grows a two-pair loop past the cap and completes
-with the reservation at or below the ceiling, `scenarioNonPauseReserve`
-shows a run that pauses nothing reserving no pause room, and
-`scenarioRawAfterHistory` compares a folded repetition against the raw
-repetition that follows it. The `doublePause`, `resumeFirst`,
-`openAtExit`, and `callbackPause` re-exec modes assert each precondition
-breach.
+Coverage: `test/source/harness_pause_test.cpp`. Every time column and an
+attached metric are read against the window fold minus the scripted pause
+fold to the nanosecond, the guard reports the value the explicit calls
+report, a loop that pauses in every iteration still completes, a run that
+pauses nothing reserves no pause room, and each precondition is tripped at
+its call, so a pause removes the time it names.
 
 ## Time units
 
@@ -426,11 +416,127 @@ and a dry run of `build/example/benchmark_example` prints its row under
 the `ms` label. A command-line unit option belongs to a future
 command-line specification.
 
-Coverage: `test/source/harness_time_unit_test.cpp`. The `unitCall`
-re-exec mode checks the two columns, the overhead floor, and the
-aggregate line under the `ms` label through `checkScaledRow` and
-`checkMillisecondAggregate`, the `default` mode scales a benchmark that
-sets no unit, the `captured` mode moves the unit of a benchmark the
-macros registered before any mode could set a default, and the
-`testHook` mode resolves the unit through the runner that a test drives
-without the entry point.
+Coverage: `test/source/harness_time_unit_test.cpp`. Both columns, the overhead
+floor and the aggregate line are read under a moved unit, under a default
+no call set, and through a runner a test drives without the entry point,
+so every field of a line scales the same way.
+
+## User counters
+
+`State::setCounter(name, counter)` reports a named number for the row the
+loop is running. The `Counter` it takes carries a `double` value, a
+`CounterFlag` set and a `CounterBase`. `CounterFlag::RATE` divides the
+value by the primary time of the run in seconds,
+`CounterFlag::ITERATION_INVARIANT` multiplies it by the iteration count,
+`CounterFlag::AVG_ITERATIONS` divides by that count,
+`CounterFlag::AVG_THREADS` divides by the thread count of the run, and
+`CounterFlag::INVERT` takes the reciprocal last, after every other flag.
+`CounterBase::K1000` and `CounterBase::K1024` are the divisors the
+column steps by at print time, so a byte counter reads in kB-style or
+KiB-style units. `CounterFlag::NONE` with `CounterBase::K1000` prints
+the value as it stands.
+
+One benchmark carries at most `kMaxUserCounters` names, sixteen of them,
+and a name holds at most `kMaxCounterNameBytes` minus one bytes, so 31
+characters. Both bounds are `SG_REQUIRE` preconditions of `setCounter`:
+a seventeenth name, or a name of 32 bytes, ends the run with the bound
+named in the message. A name a run opens keeps the flags and base of that
+call, and a later call for the same name carrying a different pair
+breaches the same precondition.
+
+The counter columns print after the two time columns, in the order the run
+opened the names, and the aggregate row carries one statistic line for
+each counter beside the built-in ones. `example/docs/user_counters.cpp`
+runs one family with a counter and a byte rate, and its aggregate lines
+print under the built-in ones.
+
+Coverage: `test/source/harness_user_counters_test.cpp`. Each bound is
+tripped at its call, one name keeps the flags and base of the call that
+opened it, and the printed column and its aggregate line are read against
+the value the body set.
+
+## Throughput
+
+`State::setBytesProcessed(bytes)` and `State::setItemsProcessed(items)`
+report the work one run did and open a rate column for it. Each call sets
+a counter of its own name carrying `CounterFlag::RATE`, so the value
+divides by the primary time of the run in seconds. The byte column steps
+by `CounterBase::K1024` and the item column by `CounterBase::K1000`, so
+`bytes_per_second=` reads in KiB per second and `items_per_second=` in
+units of 1000. Both are counters of the row like any other: they print in
+the same fields and carry the same aggregate line.
+
+Coverage: `test/source/harness_throughput_test.cpp`. Each rate is read
+against the count over the primary time of the scripted run, and a run
+that calls neither prints neither column.
+
+## Labels
+
+`State::setLabel(label)` attaches a word to the row the loop is running.
+A repetition keeps one label, the last call of that repetition wins, and
+the report prints it as the trailing field, `label=<text>`, after the
+counter columns. A label holding a newline would break the one line per
+row shape of the report, so the newline is a `SG_REQUIRE` precondition of
+the call. The aggregate row carries the label every repetition ended with,
+and prints no label where the repetitions ended apart.
+
+Coverage: `test/source/harness_label_test.cpp`. The trailing field is
+read on each row of a family and on its aggregate, the last call of a
+repetition is the one the row prints, and a newline in the label is
+tripped at the call.
+
+## Custom statistics
+
+`BenchmarkHandle::addStatistic(name, unit, function)` adds one named
+number to the aggregate row of the family. The `StatisticFunc` takes the
+primary time per iteration of the clean repetitions, the same list the
+built-in statistics summarize, and writes its result through a `double`
+reference; a callback that returns false leaves its value out of the row.
+`StatUnit::TIME` prints the value in the unit of the row,
+`StatUnit::PERCENTAGE` prints it unscaled by the unit. The value prints
+among the built-in fields in the order the calls came in. The names
+`mean`, `median`, `sd`, `cv`, `min`, `max` and `n` belong to the
+built-in statistics, and a call naming one of them breaches the
+precondition of `addStatistic`.
+
+Coverage: `test/source/harness_custom_stats_test.cpp`. A statistic of
+each unit is read on the aggregate row, a callback that returns false
+leaves its value out, and a reserved name is tripped at the call.
+
+## Aggregate-only reporting
+
+`BenchmarkHandle::reportAggregatesOnly()` restricts the report of one
+family to its aggregate rows: the repetition rows stay measured and stored
+and never print. `BenchmarkHandle::displayAggregatesOnly()` trims the
+console display of one family the same way while the stored result keeps
+every repetition row, the difference a second output channel reads back. A
+family with no aggregate row keeps its rows, so neither mode empties a run
+of output.
+
+Coverage: `test/source/harness_aggregates_only_test.cpp`. Each mode is
+read against the console of the same family, the stored rows of the
+display mode are counted, and a family with no aggregate keeps its row.
+
+## Complexity fit
+
+`BenchmarkHandle::complexity(BigO)` fits the family against the problem
+size of its instances. `BigO::ONE`, `BigO::N`, `BigO::N_SQUARED`,
+`BigO::N_CUBED`, `BigO::LOG_N` and `BigO::N_LOG_N` each try one curve,
+and `BigO::AUTOMATIC` tries them and keeps the closest.
+`complexity(BigOFun)` takes a curve of your own: a `double(double)` of
+the size. `State::setComplexityN(problemSize)` sets the size a run
+reports, which the fit reads in place of the argument the instance
+carries.
+
+The fit runs over the instances of the family and reports one pair of rows
+per fitted quantity: the primary time as `time/iter`, then each named
+user counter and each attached metric. The first row of the pair reads
+`BIG_O` with the curve and its coefficient, the second reads `RMS` with
+the fit error as a percentage. A quantity a member never set gets a
+`SKIPPED` row naming the quantity and the reason, and a family with
+fewer than two instances, or an instance without a positive size, states
+the reason in place of the rows.
+
+Coverage: `test/source/harness_complexity_test.cpp`. A family of each
+curve is fitted, the coefficient and the error of every quantity are read
+against a scripted series, and each short family states its reason.
