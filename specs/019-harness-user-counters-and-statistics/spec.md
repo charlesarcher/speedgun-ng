@@ -815,8 +815,9 @@ page.
   exclusion, the `add_executable` block that builds `docs_snippets`
   without a run target, retires as its regions move into runnable
   files.
-- **FR-034**: A CTest check shall run each section example with a
-  short minimum time, pass only when every registered benchmark of
+- **FR-034**: A CTest check shall run each section example with the
+  `--min-time` option set short (`--min-time=0.01`, seconds on the
+  command line), pass only when every registered benchmark of
   the example prints a result row, and fail on any row that reads
   `FAILED`. A `SKIPPED` row shall pass only when the example file
   carries an expected-skip marker naming that instance and that
