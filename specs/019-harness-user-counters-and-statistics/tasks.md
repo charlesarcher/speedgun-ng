@@ -277,7 +277,7 @@ the eighteen owners.
 
 - [X] T041 [P] Run quickstart.md sections 1 through 4 from the repository root (build, the two fixes, the six new executables, `example_run`) and record the results (FR-034, FR-035, SC-01..SC-05, SC-08, SC-09)
 
-- [ ] T042 [P] Run quickstart.md sections 5 through 7 (the full CTest suite, which carries the name check behind FR-045, `example_drift.py`, the prose gate, the constitution grep) and record the results (SC-06, SC-07)
+- [X] T042 [P] Run quickstart.md sections 5 through 7 (the full CTest suite, which carries the name check behind FR-045, `example_drift.py`, the prose gate, the constitution grep) and record the results (SC-06, SC-07)
 
 - [X] T043 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (FR-050, SC-06, Principle VIII)
 
@@ -499,3 +499,22 @@ command that showed it.
   counterIndexOf in source/harness/runner.cpp, fixed in 15de151, which brings
   the file to zero findings. The constitution carries 2.20.0 in the impact
   report, in the version-history row and in the footer.
+- T042 (`fe46d9d`): quickstart sections 5 to 7 ran on this branch head.
+  `ctest --test-dir build --output-on-failure` prints
+  `100% tests passed out of 89` in 707 seconds, `counters_pmu_test`
+  among them, so the PMU denial of the T067 note no longer stands.
+  `python3 tools/docs/example_drift.py .` prints nothing and exits 0.
+  `bash test/example_run.sh build` passes every example target with its
+  instance counts, and `bash test/example-run-fixture/run_example_run_fixtures.sh`
+  passes its three cases. `python3 tools/prose/prose_gate.py --check
+  prose --mode range --base master --head HEAD` prints `prose-lint: 80
+  sources, 7978 units examined, 0 findings, 0 skipped`. The shape and
+  docs gate set is `ctest --test-dir build -R` over `example_drift`,
+  `example_drift_fixtures`, `example_run`, `example_run_fixtures`,
+  `report_shape`, `report_shape_fixtures`, `snippet_compile`,
+  `prose_gate_fixtures`, `loop_shape`, `barrier_shape`,
+  `time_source_gate`, `name_check`, which prints
+  `100% tests passed out of 12`. `grep -n '2.20.0'
+  .specify/memory/constitution.md` reports the sync impact line, the
+  version-history row and the footer. T067 makes the check of this box
+  depend on its own pass, and that pass is the record above.
