@@ -172,14 +172,24 @@ auto namesUnder(const std::string& report,
   return found;
 }
 
+// A coverage build adds profiler notes to the standard error of every
+// process, so only the lines the harness itself wrote are counted.
+// The coverage runtime writes its own diagnostics to the standard error of
+// every process it instruments, under two prefixes.
+auto isProfilerNote(const std::string& line) -> bool
+{
+  return line.rfind("libgcov ", 0) == 0 || line.rfind("profiling:", 0) == 0;
+}
+
 auto nonEmptyLineCount(const std::string& text) -> int
 {
   int lines = 0;
   std::istringstream stream(text);
   for (std::string line; std::getline(stream, line);) {
-    if (!line.empty()) {
-      ++lines;
+    if (line.empty() || isProfilerNote(line)) {
+      continue;
     }
+    ++lines;
   }
   return lines;
 }
