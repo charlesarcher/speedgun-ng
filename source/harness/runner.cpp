@@ -1,8 +1,10 @@
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <expected>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -34,6 +36,9 @@ struct MetricColumn
   sg::counters::Availability availability =
       sg::counters::Availability::COUNTABLE;
   sg::counters::detail::ExprCore core;
+  // The sink column of this leaf: its index among the run's cores,
+  // which is the order of the fold totals (FR-052).
+  std::size_t foldColumn = 0;
 };
 
 auto splitAddress(std::string_view address)
@@ -92,15 +97,17 @@ auto markInterrupted(sg::BenchmarkResult& result) noexcept -> void
   result.reason = kInterruptReason;
 }
 
-// D-08, FR-010: one rule for every column: the fold over the run's
-// sample span minus the fold of each paused interval. The availability
-// of the netted value is the worst availability of the folds it reads,
-// so a gap on a pause interval reaches the row. With no pause pairs the
-// helper is the H1 two-point fold.
+// The availability of the netted value is the worst availability of the
+// folds it reads, so a gap on a pause interval reaches the row. With no
+// pause pairs the helper is the H1 two-point fold. FR-052: a pair the
+// reservation held no room for folded into the run's running totals at
+// its commit, and the helper takes those totals out of the window too,
+// column by column.
 template<class Recorder>
 auto nettedFold(const sg::counters::detail::ExprCore& core,
                 const Recorder& recorder,
-                const sg::detail::RunRecord& record)
+                const sg::detail::RunRecord& record,
+                const std::size_t foldColumn)
     -> sg::counters::MetricResult
 {
   const auto view = recorder.view();
@@ -108,7 +115,7 @@ auto nettedFold(const sg::counters::detail::ExprCore& core,
       core,
       view,
       record.basePoint,
-      static_cast<std::size_t>(record.basePoint + record.samples - 1));
+      static_cast<std::size_t>(record.basePoint + record.foldPoints - 1));
   for (const auto& pause : record.pausePairs) {
     const auto paused = sg::counters::detail::foldCore(
         core,
@@ -118,6 +125,15 @@ auto nettedFold(const sg::counters::detail::ExprCore& core,
     net.value -= paused.value;
     if (paused.availability > net.availability) {
       net.availability = paused.availability;
+    }
+  }
+  if (record.pauseFold.foldedPairs > 0) {
+    SG_ASSERT(foldColumn < record.pauseFold.values.size(),
+              "the sink carries one running total per column of the run, and "
+              "every fold reads one column of that set (FR-052)");
+    net.value -= record.pauseFold.values[foldColumn];
+    if (record.pauseFold.availability[foldColumn] > net.availability) {
+      net.availability = record.pauseFold.availability[foldColumn];
     }
   }
   return net;
@@ -136,7 +152,8 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
                        const std::vector<MetricColumn>& columns,
                        double overheadFloorNs,
                        const sg::counters::detail::ExprCore* primaryCore,
-                       const Recorder& recorder) -> void
+                       const Recorder& recorder,
+                       std::size_t primaryFoldColumn) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
   row.kind = sg::RowKind::REPETITION;
@@ -146,8 +163,13 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
   row.cpuTimePerIterationNs = static_cast<double>(record.cpuNs)
       / static_cast<double>(record.iterations);
   row.endpointSamples = record.samples;
+  // FR-054: a folded run is disclosed beside its row; a raw row keeps
+  // the bytes it prints today.
+  row.pauseSamplesFolded = record.pauseSamplesFolded;
   row.timeAvailability = primaryCore != nullptr
-      ? nettedFold(*primaryCore, recorder, record).availability
+      ? nettedFold(
+            *primaryCore, recorder, record, primaryFoldColumn)
+            .availability
       : sg::counters::Availability::COUNTABLE;
   row.overheadFloorNs = overheadFloorNs;
   for (const auto& column : columns) {
@@ -157,7 +179,8 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
       row.metrics.push_back(value);
       continue;
     }
-    const auto folded = nettedFold(column.core, recorder, record);
+    const auto folded =
+        nettedFold(column.core, recorder, record, column.foldColumn);
     value.value = folded.value;
     value.runningRatio = folded.runningRatio;
     value.scaled = folded.scaled;
@@ -178,6 +201,41 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
 namespace sg::detail
 {
 
+// FR-051, FR-053: the two reservation seams the pause suite reads.
+// `Runner::run` writes the first before every attempt samples and keeps
+// the second at the largest room any of those reservations held.
+auto lastRecorderReservation() -> RecorderReservation&
+{
+  static RecorderReservation last;
+  return last;
+}
+
+auto maxRecorderPauseRoom() -> std::size_t&
+{
+  static std::size_t maximum = 0;
+  return maximum;
+}
+
+// FR-052: the commit of one folded pair. The slot holds exactly the
+// pair's two points, so the fold spans points zero and one, and the
+// same two raw counter points the raw path would have retained answer
+// it through the counters library alone. The totals a run accumulates
+// this way reproduce the netted columns of the raw path (SC-13).
+auto commitPauseFoldPair(PauseFoldSink& sink,
+                         const sg::counters::RecorderApi& slot) noexcept
+    -> void
+{
+  for (std::size_t column = 0; column < sink.columns.size(); ++column) {
+    const auto folded =
+        sg::counters::detail::foldCore(*sink.columns[column], slot, 0, 1);
+    sink.values[column] += folded.value;
+    if (folded.availability > sink.availability[column]) {
+      sink.availability[column] = folded.availability;
+    }
+  }
+  ++sink.foldedPairs;
+}
+
 auto Runner::run(Instance& instance) -> BenchmarkResult
 {
   // The callable, the run control, and the metrics ride the family
@@ -192,9 +250,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // fields; the console row keeps the single H1 name column.
   result.suite = instance.suite;
   result.caseName = instance.caseName;
-  // FR-015: the report scales every printed time value of this result by
-  // the unit the family carries.
-  result.timeUnit = entry.timeUnit;
+  // FR-015, FR-027: the report scales every printed time value of this
+  // result by the resolved unit: the family's `unit` call, else the
+  // batch snapshot `speedgunMain` took at its entry, else the process
+  // default read at this run's start.
+  result.timeUnit = entry.timeUnit.value_or(
+      batchDefaultTimeUnit().value_or(getDefaultTimeUnit()));
 
   auto& sys = sg::counters::System::local();
   const std::int64_t minTimeNs =
@@ -326,6 +387,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   for (auto& column : columns) {
     result.metricLabels.push_back(column.label);
     if (!column.unavailable) {
+      // FR-052: the sink's totals stand in the order of these cores.
+      column.foldColumn = cores.size();
       cores.push_back(&column.core);
     }
   }
@@ -351,19 +414,20 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
   }
 
-  // R-02, FR-019, FR-014: one hardStop recorder for the whole
-  // benchmark, sized for the warm-up bound, the calibration bound, and
-  // the measured repetitions, with room for the endpoint pair plus
-  // kMaxPausePerRun pause pairs in every run the phase rule can start.
-  auto recorder = plan->recorder(static_cast<std::size_t>(
-      2 * (1 + sg::kMaxPausePerRun) * (kRunBound + kRunBound + repetitions)));
+  // R-02, FR-014, FR-051: one recorder per attempt, reserved at the
+  // attempt's start: the endpoint shape, the two window points of the
+  // one run the attempt starts, beside the pause room the family's
+  // history earns. FR-053: a family without pause history reserves the
+  // endpoint shape alone. FR-026: a pair that outruns the room folds
+  // through the run's two-point slot, minted once beside the plan, so
+  // a run that pauses in every iteration completes.
+  auto slotReset = plan->recorder(2);
   const double overheadFloorNs = plan->sampleOverheadNsMedian();
 
-  // D-07: a point cursor in place of the H1 pair counter. A run owns
-  // the points from its base to the recorder's count when the run
-  // ends, so the next run's base stays aligned whatever samples that
-  // run took.
-  std::size_t nextPoint = 0;
+  // The attempt's recorder, set anew when every attempt reserves, and
+  // read once more when the measured row folds its columns.
+  std::optional<sg::counters::RecorderHandle<sg::counters::HardStop>>
+      attemptRecorder;
 
   // R-06: one flag read after each run ends the benchmark with this
   // reason, and the process exits nonzero.
@@ -373,7 +437,23 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   {
     RunRecord record;
     record.iterations = iterations;
-    record.basePoint = nextPoint;
+
+    // E-08, FR-051: two points per closed pause pair the previous
+    // attempt observed per iteration, times this attempt's iteration
+    // count, and no more: FR-025 and Q-10 cap the room, and an attempt
+    // over the cap reserves no room and folds instead.
+    const std::uint64_t history = entry.pausePairsPerIteration;
+    std::size_t pauseRoom = 0;
+    if (history > 0 && 2 * history <= kMaxPauseSamplesPerLeaf
+        && iterations <= kMaxPauseSamplesPerLeaf / (2 * history))
+    {
+      pauseRoom = static_cast<std::size_t>(2 * history * iterations);
+    }
+    lastRecorderReservation() = RecorderReservation {2, pauseRoom};
+    if (pauseRoom > maxRecorderPauseRoom()) {
+      maxRecorderPauseRoom() = pauseRoom;
+    }
+    attemptRecorder = plan->recorder(static_cast<std::size_t>(2) + pauseRoom);
 
     // R-05, E-07: the callback state carries the arguments this
     // instance owns and holds no recorder, so it opens no sampling
@@ -384,7 +464,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // R-04: the state reads the arguments this instance owns. The
     // instance outlives every run of itself, so the span needs no copy,
     // and the timed loop keeps its H1 shape (FR-009).
-    State state(iterations, &recorder, instance.arguments);
+    State state(iterations, &*attemptRecorder, instance.arguments);
+    // FR-052: the run's fold sink carries one running total per column
+    // of the run, fed at the commit of every pair the room cannot hold.
+    state.m_slotReset = slotReset;
+    state.m_pauseFold = &record.pauseFold;
+    for (const auto* core : cores) {
+      record.pauseFold.addColumn(*core);
+    }
     // R-09: one fixture object per run, built inside this scope before
     // `setUp` and destroyed after `tearDown` when the scope ends, the
     // catch paths included. The pair runs in the untimed region, before
@@ -415,15 +502,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
     } catch (const std::exception& error) {
       state.topUpWindow();
-      nextPoint = recorder.count();
       return std::unexpected(error.what());
     } catch (...) {
       state.topUpWindow();
-      nextPoint = recorder.count();
       return std::unexpected("the benchmark threw an unknown exception");
     }
     state.topUpWindow();
-    nextPoint = recorder.count();
 
     // FR-017: a measured run owns one complete timed loop. A function
     // that never entered it, entered it twice, or left it early without
@@ -445,13 +529,29 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
 
     // E-07, FR-013: the span is the run's own sample count, read from
     // the state after the run, and the pause intervals are the state's
-    // ordinals inside that span.
+    // ordinals inside that span. FR-052: the fold span is the state's
+    // recorder points, the slot's two standing outside it, and the
+    // pairs that folded stand in the sink's totals.
     record.samples = state.m_samplesTaken;
+    record.foldPoints = state.m_foldPoints;
+    record.pauseSamplesFolded = state.m_foldedPairs > 0;
     record.pausePairs = state.m_pausePairs;
-    record.realNs = static_cast<std::int64_t>(
-        std::llround(nettedFold(realTime.core, recorder, record).value));
-    record.cpuNs = static_cast<std::int64_t>(
-        std::llround(nettedFold(cpuTime.core, recorder, record).value));
+    record.realNs = static_cast<std::int64_t>(std::llround(
+        nettedFold(realTime.core, *attemptRecorder, record, 0).value));
+    record.cpuNs = static_cast<std::int64_t>(std::llround(
+        nettedFold(cpuTime.core, *attemptRecorder, record, 1).value));
+
+    // E-08, FR-051: the pairs this attempt closed stand as the
+    // family's history, and the next attempt reserves from it. A body
+    // that pauses more per iteration than the history saw folds from
+    // that pair on, so no closed pair is lost (FR-025).
+    if (state.m_pauseCount > 0) {
+      const std::uint64_t perIteration =
+          (state.m_pauseCount + iterations - 1) / iterations;
+      if (perIteration > entry.pausePairsPerIteration) {
+        entry.pausePairsPerIteration = perIteration;
+      }
+    }
     // FR-002, D-05: the primary time is the CPU fold by default and the
     // real fold when the family asked for it. A manual run reports the
     // sum the benchmark supplied: the real column and the value the
@@ -557,8 +657,13 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     const sg::counters::detail::ExprCore* primaryCore = entry.manualTime
         ? nullptr
         : (entry.realTime ? &realTime.core : &cpuTime.core);
-    appendMeasuredRow(
-        result.rows, *chosen, columns, overheadFloorNs, primaryCore, recorder);
+    appendMeasuredRow(result.rows,
+                      *chosen,
+                      columns,
+                      overheadFloorNs,
+                      primaryCore,
+                      *attemptRecorder,
+                      entry.realTime ? 0 : 1);
 
     if (interruptFlag().load()) {
       result.outcome = RunOutcome::SKIPPED;
@@ -566,6 +671,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       break;
     }
   }
+
+  // FR-054: the result records the fold when a measured repetition's
+  // run netted a pause pair through the fold path.
+  result.pauseSamplesFolded =
+      std::any_of(result.rows.begin(),
+                  result.rows.end(),
+                  [](const sg::ResultRow& row) noexcept -> bool
+                  { return row.pauseSamplesFolded; });
 
   if (result.outcome == RunOutcome::MEASURED && repetitionsOfRun > 1) {
     ResultRow aggregate;

@@ -68,7 +68,15 @@ public:
   bool processCpuTime = false;
   bool realTime = false;
   bool manualTime = false;
-  TimeUnit timeUnit = TimeUnit::NANOSECONDS;
+  // FR-027: the registration stores no unit; the record holds the
+  // `unit` call alone, and a run resolves the unit it prints.
+  std::optional<TimeUnit> timeUnit;
+
+  // E-08, FR-051: the family's pause history, the largest count of
+  // closed pause pairs one iteration of the family closed in an
+  // earlier attempt. Zero is no history: the recorder then reserves
+  // the endpoint shape alone and the run folds (D-10).
+  std::uint64_t pausePairsPerIteration = 0;
 };
 
 /**
@@ -111,6 +119,60 @@ public:
 
 namespace detail
 {
+
+/**
+ * @brief The fold-path sink of one run (E-03, FR-052): one running
+ * total per leaf column, fed at the commit of every folded pause pair
+ * and read when the runner folds the row.
+ *
+ * \invariant `columns` names the run's cores in fold order, so column
+ *            `i` of the totals stands beside core `i` of the plan.
+ */
+struct PauseFoldSink
+{
+  std::vector<const counters::detail::ExprCore*> columns;
+  std::vector<double> values;
+  std::vector<sg::counters::Availability> availability;
+  std::uint64_t foldedPairs = 0;
+
+  /// @brief Append one column, reading the core the caller keeps alive
+  /// for the run (FR-052).
+  ///
+  /// \pre `core` outlives this sink's run.
+  auto addColumn(const counters::detail::ExprCore& core) noexcept -> void
+  {
+    columns.push_back(&core);
+    values.push_back(0.0);
+    availability.push_back(sg::counters::Availability::COUNTABLE);
+  }
+};
+
+/**
+ * @brief The recorder reservation of the most recent sampled attempt
+ * (E-08): the endpoint points and the pause room the recorder that
+ * attempt reserved held. The pause suite reads these two seams to pin
+ * the reservation rule (FR-051, FR-053).
+ */
+struct RecorderReservation
+{
+  std::size_t endpointPoints = 0;
+  std::size_t pauseRoomPoints = 0;
+};
+
+/// @brief The reservation of the most recent attempt of this process
+/// (FR-051).
+[[nodiscard]] auto lastRecorderReservation() -> RecorderReservation&;
+
+/// @brief The largest pause room any reservation of this process held
+/// (FR-051).
+[[nodiscard]] auto maxRecorderPauseRoom() -> std::size_t&;
+
+/**
+ * @brief The batch snapshot `speedgunMain` takes of the process default
+ * at its entry (FR-027). Empty outside `speedgunMain`, the case of the
+ * run that reads the process default at its own start.
+ */
+[[nodiscard]] auto batchDefaultTimeUnit() -> std::optional<TimeUnit>&;
 
 /**
  * @brief Expand every family record in the registry into its instance

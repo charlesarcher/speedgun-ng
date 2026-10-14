@@ -35,6 +35,16 @@ namespace sg
 namespace detail
 {
 class Runner;
+struct PauseFoldSink;
+
+// FR-052: the fold path's commit. A pause pair the run's recorder
+// holds no room for stands in the run's two-point slot instead, and
+// this core folds the slot's pair once, at the commit of the pair's
+// second point, adding each column's fold to that column's running
+// total. The sink's definition and this core's stand in
+// source/harness.
+SPEEDGUN_NG_EXPORT auto commitPauseFoldPair(
+    PauseFoldSink& sink, const counters::RecorderApi& slot) noexcept -> void;
 }  // namespace detail
 
 // FR-004 sets the multiplier a range call grows by when the family
@@ -57,16 +67,6 @@ enum class TimeUnit : std::uint8_t
   MILLISECONDS,
   SECONDS
 };
-
-/**
- * @brief The largest number of pause intervals one run opens, the
- * bound the recorder capacity rule reserves room for (FR-014).
- *
- * A run holds its two endpoint samples plus two samples per interval,
- * so the allowance bounds one run at 18 points and the pause guard can
- * name the breach before the recorder loses a point.
- */
-inline constexpr std::size_t kMaxPausePerRun = 8;
 
 /**
  * @brief The outcome of one benchmark within a run (E-07).
@@ -146,8 +146,12 @@ struct ResultRow
   // `machine/thread_cpu` unless the family switched it (FR-001, FR-004).
   double cpuTimePerIterationNs = 0.0;
   // The endpoint samples that run took: two when it paused nothing, two
-  // more per pause interval (FR-013).
+  // more per pause interval, the folded pairs included (FR-013, FR-052).
   std::uint64_t endpointSamples = 0;
+  // True when the run netted any pause pair through the fold path: the
+  // report discloses such a row with a token, and a raw row keeps the
+  // bytes it prints today (FR-054).
+  bool pauseSamplesFolded = false;
   // The availability of the primary fold of this row. The aggregate
   // statistics skip a row whose primary fold reported a gap (FR-002,
   // research D-13).
@@ -185,12 +189,16 @@ struct BenchmarkResult
   // the metrics were attached. The report prints a metric column under
   // this label (FR-026); the values stay in MetricValue (E-05).
   std::vector<std::string> metricLabels;
-  // The unit the report scales this result's printed time values to: the
-  // unit of the family, captured from the process default at
-  // registration and replaced by a `unit` call (E-02, FR-015, FR-016).
+  // The unit the report scales this result's printed time values to:
+  // the `unit` call when the family made one, else the batch snapshot
+  // `speedgunMain` took of the process default at its entry, else the
+  // process default read at this run's start (E-02, FR-015, FR-027).
   // The stored row values stay nanoseconds; only the printed scale
   // follows this field.
   TimeUnit timeUnit = TimeUnit::NANOSECONDS;
+  // True when a measured repetition's run folded a pause pair (E-06,
+  // FR-054).
+  bool pauseSamplesFolded = false;
 };
 
 /**
@@ -429,14 +437,16 @@ public:
    * the same action the endpoint pair takes, and opens one pause
    * interval that `resumeTiming` closes (FR-009). The runner folds every
    * closed interval and subtracts it from each column of the row
-   * (FR-010). The allowance guard runs before the sample, so the breach
-   * is named while the recorder still holds its points (FR-014).
+   * (FR-010). When the run's recorder holds no room for the pair, the
+   * pair stands on the fold path instead: the run's two-point slot
+   * takes the points and the commit folds them into the row's running
+   * totals, so no closed pair is lost and no fixed allowance bounds
+   * the run (FR-025, FR-052, Q-10).
    *
    * \pre this state belongs to a run, its sampling window stands open
-   *      and unclosed, no pause stands open on it, and its pause count
-   *      stands below `kMaxPausePerRun` (FR-011, FR-014, D-15)
-   * \post one further sample stands in the run's span and one pause is
-   *       open (FR-009)
+   *      and unclosed, and no pause stands open on it (FR-011, D-15)
+   * \post one pause stands open, and one sampling action stands in the
+   *       run's recorder or in the run's fold slot (FR-009, FR-052)
    */
   auto pauseTiming() -> void
   {
@@ -449,11 +459,23 @@ public:
     SG_REQUIRE(m_pauseDepth == 0,
                "a second pauseTiming beside an open pause violates the bound "
                "of one open pause per run (FR-011)");
-    SG_REQUIRE(m_pauseCount < kMaxPausePerRun,
-               "a pause past kMaxPausePerRun exceeds the recorder room the "
-               "capacity rule reserves (FR-014)");
-    m_recorder->sample();
-    ++m_samplesTaken;
+    if (m_pauseFold != nullptr
+        && m_recorder->count() + 2 > m_recorder->capacity())
+    {
+      // The recorder keeps its room for the window's own points, and
+      // the pair closes through the slot (FR-052).
+      m_pauseFoldPair = true;
+      m_slot = m_slotReset;
+      m_slot.sample();
+      ++m_samplesTaken;
+    }
+    else
+    {
+      m_pauseFoldPair = false;
+      m_recorder->sample();
+      ++m_samplesTaken;
+      ++m_foldPoints;
+    }
     m_pauseDepth = 1;
     SG_ENSURE(m_pauseDepth == 1,
               "one pause stands open after the pause sample (FR-009)");
@@ -464,8 +486,10 @@ public:
    * (FR-009).
    *
    * The call takes the sample that closes the open pause, records the
-   * pair of sample ordinals of that interval inside the run's span, and
-   * counts one interval against the run's allowance (E-03, FR-018).
+   * pair of sample ordinals of that interval inside the run's span, or,
+   * on the fold path, folds the pair into the row's running totals at
+   * this commit, and counts one interval for the run (E-03, FR-018,
+   * FR-052).
    *
    * \pre this state belongs to a run and one pause stands open on it
    *      (FR-011, D-15)
@@ -568,6 +592,7 @@ private:
     if (!m_windowOpened) {
       m_recorder->sample();
       ++m_samplesTaken;
+      ++m_foldPoints;
       m_windowOpened = true;
     }
   }
@@ -580,6 +605,7 @@ private:
     if (m_windowOpened && !m_windowClosed) {
       m_recorder->sample();
       ++m_samplesTaken;
+      ++m_foldPoints;
       m_windowClosed = true;
     }
   }
@@ -588,11 +614,23 @@ private:
   // and the interval count (FR-009). The pause sample is the last one
   // taken, so its ordinal stands one below the sample this call takes
   // (E-03). `resumeTiming` and the throw and skip path below share it.
+  // A pair the pause routed to the fold path commits through the slot:
+  // the fold runs at this commit, on the same two raw counter points,
+  // and lands in the row's running totals; the recorder holds no point
+  // of that pair (FR-052).
   auto closePausePair() noexcept -> void
   {
-    m_recorder->sample();
-    m_pausePairs.emplace_back(m_samplesTaken - 1, m_samplesTaken);
-    ++m_samplesTaken;
+    if (m_pauseFoldPair) {
+      m_slot.sample();
+      detail::commitPauseFoldPair(*m_pauseFold, m_slot.view());
+      ++m_samplesTaken;
+      ++m_foldedPairs;
+    } else {
+      m_recorder->sample();
+      m_pausePairs.emplace_back(m_foldPoints - 1, m_foldPoints);
+      ++m_foldPoints;
+      ++m_samplesTaken;
+    }
     m_pauseDepth = 0;
     ++m_pauseCount;
   }
@@ -651,7 +689,22 @@ private:
   std::uint8_t m_pauseDepth = 0;
   std::vector<std::pair<std::uint64_t, std::uint64_t>> m_pausePairs;
   std::uint64_t m_pauseCount = 0;
+  // Every sampling action of the run, the slot's points included: the
+  // count the row prints (FR-013, FR-052).
   std::uint64_t m_samplesTaken = 0;
+  // The points the run's recorder holds: the span every fold reads
+  // (E-06). The slot's points stand outside it, so the raw ordinals
+  // stay in span when a later pair folds (FR-052).
+  std::uint64_t m_foldPoints = 0;
+  // The fold path of one run (FR-052, Q-10): the reset copy of the
+  // run's two-point slot, the working cursor, the sink holding each
+  // column's running total, and the count of pairs that folded. The
+  // runner owns the buffer and the sink behind these members.
+  counters::RecorderHandle<counters::HardStop> m_slotReset {};
+  counters::RecorderHandle<counters::HardStop> m_slot {};
+  detail::PauseFoldSink* m_pauseFold = nullptr;
+  std::uint64_t m_foldedPairs = 0;
+  bool m_pauseFoldPair = false;
   // The manual accumulator: the sum of the iteration times a manual
   // benchmark supplies, in nanoseconds (E-04, FR-007).
   std::int64_t m_manualNs = 0;
@@ -937,8 +990,8 @@ public:
    *
    * A stored time value stays nanoseconds; the report divides each
    * printed time value of that family by the unit's divisor and prints
-   * the unit's label. The call overwrites the unit the registration
-   * captured from the process default (FR-015, FR-016, D-12).
+   * the unit's label. The call wins over the default every run of this
+   * family resolves to (FR-015, FR-016, FR-027, D-12).
    *
    * \pre the handle names a registered entry and the run has not
    *      started for this benchmark (E-02)
@@ -1276,17 +1329,18 @@ private:
  * command-line spec of the roadmap (FR-016).
  *
  * \pre none
- * \post `getDefaultTimeUnit` reads back `timeUnit`, and every earlier
- *       registration keeps the unit it captured (FR-016)
+ * \post `getDefaultTimeUnit` reads back `timeUnit`, and the entry point
+ *       of `speedgunMain` snapshots it at its entry, so the call
+ *       reaches every registration that names no `unit` (FR-016, FR-027)
  */
 SPEEDGUN_NG_EXPORT auto setDefaultTimeUnit(TimeUnit timeUnit) -> void;
 
 /**
  * @brief Read the process default unit of this moment (FR-016).
  *
- * The default starts at `TimeUnit::NANOSECONDS`, so a benchmark
- * registered during static initialization captures nanoseconds under
- * the default (FR-016).
+ * The default starts at `TimeUnit::NANOSECONDS`, the unit a run falls
+ * back to when neither a `unit` call nor the entry point's batch
+ * snapshot names one (FR-016, FR-027).
  *
  * \pre none
  * \post the returned unit is the value of the last

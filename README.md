@@ -239,7 +239,7 @@ auto bmPaused(sg::State& state) -> void
 
 SG_BENCHMARK(bmPaused).iterations(3);
 ```
-A closed pause is subtracted from every time column of the row. The calls stand inside the loop, where the run's sampling window is open, one pause may stand open at a time, a run carries at most eight closed pauses, and each pause costs one more sample pair. See [pause and resume](docs/pages/harness.md#pause-and-resume).
+A closed pause is subtracted from every time column of the row. The calls stand inside the loop, where the run's sampling window is open, one pause may stand open at a time, and each pause costs one more sample pair. The room for those samples follows the loop: the recorder reserves the pause room the family's previous attempt used, and a pair it cannot hold closes through a running fold that leaves the columns unchanged, with `pause=folded` beside the row. See [pause and resume](docs/pages/harness.md#pause-and-resume).
 ### The time unit
 
 `unit` sets the unit of one family, and `setDefaultTimeUnit` sets the unit for the families that call no `unit`.

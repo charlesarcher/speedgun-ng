@@ -50,10 +50,6 @@ auto addRegistryEntry(std::function<void(State&)> fn, std::string_view name)
   auto entry = std::make_unique<RegistryEntry>();
   entry->name = name;
   entry->callable = std::move(fn);
-  // FR-016, D-12: the family record captures the process default of
-  // this moment, so a later setDefaultTimeUnit reaches no earlier
-  // registration.
-  entry->timeUnit = getDefaultTimeUnit();
   auto* stored = entry.get();
   registry().push_back(std::move(entry));
   return stored;

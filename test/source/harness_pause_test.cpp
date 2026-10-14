@@ -61,6 +61,16 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 
+#include "detail/calibration.hpp"
+#include "detail/internal.hpp"
+
+// FR-024 removes the fixed pause allowance, so no spelling of that constant
+// may stand in the library, the tests, or the guide. A namespace-scope name
+// that does not exist is a hard error inside a `requires` clause: the clause
+// yields no substitution failure, so the absence check cannot be a
+// compile-time one. It stands as the textual CTest entry
+// `pause_bound_removed` in test/CMakeLists.txt.
+
 namespace
 {
 
@@ -95,6 +105,27 @@ constexpr std::uint64_t kPausedRunSamples = 4;
 // window fold of three steps stands unsubtracted over the iteration count.
 constexpr double kGapRowRealPerIteration = 3.0
     * static_cast<double>(kMonotonicStep) / static_cast<double>(kIterations);
+
+// `bmPauseEachIteration` and `bmPairEachIteration` close one interval in
+// every iteration of a four-iteration run. A folded pair costs the two
+// sampling actions of its own points, so the window of the run spans nine
+// steps and the four intervals net four of them out of it.
+constexpr std::uint64_t kEveryActions = 2 + 2 * kIterations;
+constexpr double kEveryNetSteps = static_cast<double>(kEveryActions - 1)
+    - static_cast<double>(kIterations);
+constexpr double kEveryRealPerIteration =
+    kEveryNetSteps * static_cast<double>(kMonotonicStep)
+    / static_cast<double>(kIterations);
+constexpr double kEveryCpuPerIteration =
+    kEveryNetSteps * static_cast<double>(kThreadCpuStep)
+    / static_cast<double>(kIterations);
+constexpr double kEveryOpsPerIteration =
+    kEveryNetSteps * static_cast<double>(kOpsStep)
+    / static_cast<double>(kIterations);
+
+// The window points a raw run of the same shape keeps: the two endpoints
+// beside the two points of each of the four intervals.
+constexpr std::uint64_t kEveryRawSamples = 2 + 2 * kIterations;
 
 sg::counters::FakeProvider* fake = nullptr;
 
@@ -217,14 +248,40 @@ auto bmScopedSkip(sg::State& state) -> void
   }
 }
 
-// FR-014: one run holds at most `kMaxPausePerRun` intervals, so the call one
-// past the allowance is named before the recorder loses a point.
-auto bmNinePauses(sg::State& state) -> void
+// FR-026: a `ScopedPauseTiming` closed in every iteration of the run. The
+// first attempt of a family holds no pause history, so every pair folds at
+// its commit and the run still completes with every column netted.
+auto bmPauseEachIteration(sg::State& state) -> void
 {
   for (auto _ : state) {
-    for (std::size_t index = 0; index <= sg::kMaxPausePerRun; ++index) {
-      state.pauseTiming();
-      state.resumeTiming();
+    const sg::ScopedPauseTiming guard {state};
+    sg::doNotOptimize(_);
+  }
+}
+
+// FR-052: the same shape written with the explicit pair, so one batch can
+// put the first repetition on the fold path and the next on the raw path.
+auto bmPairEachIteration(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    state.pauseTiming();
+    sg::doNotOptimize(_);
+    state.resumeTiming();
+  }
+}
+
+// FR-051: two closed pairs in every iteration, the shape whose reservation
+// the cap of `kMaxPauseSamplesPerLeaf` bounds.
+auto bmTwoPairsEachIteration(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    {
+      const sg::ScopedPauseTiming first {state};
+      sg::doNotOptimize(_);
+    }
+    {
+      const sg::ScopedPauseTiming second {state};
+      sg::doNotOptimize(_);
     }
   }
 }
@@ -362,8 +419,14 @@ auto scenarioExact() -> int
 
   const std::vector<std::string> rows = linesOf(report, "bmPause");
   check(rows.size() == 1, "the paused run prints one measured row (FR-012)");
+  // The family holds no pause history when its first attempt starts, so the
+  // pair folds at its commit: the window keeps its two endpoint points and
+  // the run discloses the fold (FR-051, FR-054).
   check(rows[0].contains("endpoint samples=4"),
-        "one pause interval prints four endpoint samples (FR-013)");
+        "the folded row prints the endpoint count the raw path prints "
+        "(FR-052)");
+  check(rows[0].contains("pause=folded"),
+        "the folded run carries the disclosure token (FR-054)");
   check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
                 kPausedRealPerIteration),
         "the real column is the window fold minus the interval fold "
@@ -395,7 +458,8 @@ auto scenarioScoped() -> int
   check(explicitRows.size() == 1 && guardRows.size() == 1,
         "both benchmarks print one measured row (FR-012)");
   check(guardRows[0].contains("endpoint samples=4"),
-        "the guard owns the same four endpoint samples (FR-012, FR-013)");
+        "the guard owns the same four endpoint samples the explicit pair "
+        "prints (FR-012, FR-052)");
   for (const char* field :
        {"real time/iter (ns)=", "cpu time/iter (ns)=", "ops="})
   {
@@ -538,13 +602,150 @@ auto modeCallbackPause() -> int
   return 0;
 }
 
-// FR-014: the ninth interval of one run ends the process before the recorder
-// loses a point.
-auto modeNinthPause() -> int
+// FR-026, SC-11: the run that closes an interval in every iteration.
+// Calibration sees no pause history when the family starts, so every pair of
+// the attempt folds at its commit and the run reports the netted columns of
+// the same arithmetic the raw path would report.
+auto scenarioEveryIteration() -> int
 {
   scriptProvider();
-  registerNamed(&bmNinePauses, "bmNinePauses");
-  captureRun({"--filter", "^bmNinePauses$", "--iterations=1"});
+  auto handle = sg::registerBenchmark(&bmPauseEachIteration, "bmEvery");
+  attachOps(handle);
+  const std::string report =
+      captureRun({"--filter", "^bmEvery$", "--iterations=4"});
+  const std::vector<std::string> rows = linesOf(report, "bmEvery");
+  check(rows.size() == 1,
+        "the run that pauses in every iteration prints one measured row "
+        "(FR-026)");
+  check(rows[0].contains("pause=folded"),
+        "every pair of a no-history attempt folds at its commit (FR-026, "
+        "FR-054)");
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
+                kEveryRealPerIteration),
+        "the real column nets every folded interval out of the window fold "
+        "(FR-026, SC-11)");
+  check(closeTo(doubleFieldOf(rows[0], "cpu time/iter (ns)="),
+                kEveryCpuPerIteration),
+        "the CPU column carries the same subtraction (FR-026)");
+  check(closeTo(doubleFieldOf(rows[0], "ops="), kEveryOpsPerIteration),
+        "the attached metric nets the folded intervals too (FR-026, Q-4)");
+  check(sg::detail::lastRecorderReservation().pauseRoomPoints == 0,
+        "the no-history attempt reserves no pause room (FR-051)");
+  std::puts("harness_pause_test everyIteration: ok");
+  return 0;
+}
+
+// FR-026, FR-051, SC-11: two closed pairs in every iteration of a calibrated
+// run. The reservation the earned history would ask for passes the cap of
+// `kMaxPauseSamplesPerLeaf`, so that attempt folds and keeps every point,
+// and no reservation the run makes passes the cap.
+auto scenarioPauseHeavy() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmTwoPairsEachIteration, "bmHeavy");
+  attachOps(handle);
+  const std::uint64_t before = fake->readActions();
+  const std::string report = captureRun({"--filter", "^bmHeavy$"});
+  check(fake->readActions() > before,
+        "the calibrated run sampled the scripted leaves");
+  check(!report.contains("FAILED"),
+        "the run whose pause room passes the cap no longer ends the process "
+        "(FR-026, SC-11)");
+  const std::vector<std::string> rows = linesOf(report, "bmHeavy");
+  check(rows.size() == 1,
+        "the calibrated heavy run prints one measured row (FR-026)");
+  check(rows[0].contains("pause=folded"),
+        "the attempt whose reservation would pass the cap folds (FR-051)");
+  const std::size_t room = sg::detail::maxRecorderPauseRoom();
+  check(room > 0, "an attempt of the family earned pause room (FR-051)");
+  check(room <= sg::detail::kMaxPauseSamplesPerLeaf,
+        "no reservation of the run passes the per-leaf cap (FR-051)");
+  std::puts("harness_pause_test pauseHeavy: ok");
+  return 0;
+}
+
+// FR-051, SC-12: the run that pauses nothing reserves the two points of the
+// window alone, so the recorder shape of the fold path costs it nothing.
+auto scenarioNonPauseReserve() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmPlain, "bmPlain");
+  attachOps(handle);
+  const std::string report =
+      captureRun({"--filter", "^bmPlain$", "--iterations=4"});
+  const std::vector<std::string> rows = linesOf(report, "bmPlain");
+  check(rows.size() == 1, "the run with no pause prints one measured row");
+  check(!rows[0].contains("pause=folded"),
+        "a run that folds nothing carries no disclosure token (FR-054)");
+  const sg::detail::RecorderReservation& reservation =
+      sg::detail::lastRecorderReservation();
+  check(reservation.pauseRoomPoints == 0,
+        "the run with no pause reserves no pause room (FR-051, SC-12)");
+  check(reservation.endpointPoints == 2,
+        "the run with no pause reserves the one pair it owns (FR-051, "
+        "SC-12)");
+  check(sg::detail::maxRecorderPauseRoom() == 0,
+        "no attempt of the family earned pause room (FR-051, SC-12)");
+  std::puts("harness_pause_test nonPauseReserve: ok");
+  return 0;
+}
+
+// FR-052, SC-13: two repetitions of one fixed-iterations family. The first
+// folds on the no-history attempt; the second earns the room its own history
+// asks for and keeps every point. The columns of the two rows are equal
+// field for field, the token apart.
+auto scenarioRawAfterHistory() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmPairEachIteration, "bmPair");
+  attachOps(handle);
+  const std::string report = captureRun(
+      {"--filter", "^bmPair$", "--iterations=4", "--repetitions=2"});
+  const std::vector<std::string> rows = linesOf(report, "bmPair");
+  check(rows.size() == 4,
+        "two repetitions print two rows, the time aggregate and the metric "
+        "aggregate (FR-035)");
+  check(rows[0].contains("pause=folded"),
+        "the first repetition of the family folds (FR-051, FR-054)");
+  check(!rows[1].contains("pause=folded"),
+        "the repetition that earned its room takes the raw path (FR-052)");
+  const std::string samples =
+      "endpoint samples=" + std::to_string(kEveryRawSamples);
+  check(rows[0].contains(samples) && rows[1].contains(samples),
+        "both rows print the two points of every interval they own, the "
+        "fold path and the raw path alike (FR-013, FR-052, SC-13)");
+  for (const char* field : {
+           "real time/iter (ns)=", "cpu time/iter (ns)=", "ops="})
+  {
+    const std::string message =
+        std::string("the folded row and the raw row print the same value ")
+        + "(FR-052, SC-13): " + field;
+    check(closeTo(doubleFieldOf(rows[0], field),
+                  doubleFieldOf(rows[1], field)),
+          message.c_str());
+  }
+  check(closeTo(doubleFieldOf(rows[1], "real time/iter (ns)="),
+                kEveryRealPerIteration),
+        "the raw row carries the netted real value (FR-052, SC-13)");
+  check(closeTo(doubleFieldOf(rows[1], "cpu time/iter (ns)="),
+                kEveryCpuPerIteration),
+        "the raw row carries the netted CPU value (FR-052, SC-13)");
+  check(closeTo(doubleFieldOf(rows[1], "ops="), kEveryOpsPerIteration),
+        "the raw row carries the netted metric value (FR-052, SC-13)");
+  check(sg::detail::lastRecorderReservation().pauseRoomPoints
+            == 2 * kIterations,
+        "the raw reservation is two points for each interval the history "
+        "earned (FR-051, SC-13)");
+  // D-13, FR-002: the aggregate summarizes the primary time, the CPU fold
+  // under the default selection, and both repetitions are countedable.
+  check(closeTo(doubleFieldOf(rows[2], "mean="), kEveryCpuPerIteration)
+            && rows[2].contains(" n=2"),
+        "the folded repetition enters the aggregate with the value the raw "
+        "one has (FR-052, SC-13)");
+  check(closeTo(doubleFieldOf(rows[3], "mean="), kEveryOpsPerIteration),
+        "the metric aggregate carries the netted value of both paths "
+        "(FR-052, SC-13)");
+  std::puts("harness_pause_test rawAfterHistory: ok");
   return 0;
 }
 
@@ -568,6 +769,18 @@ auto main(const int argc, char** argv) -> int
   if (mode == "gapInPause") {
     return scenarioGapInPause();
   }
+  if (mode == "everyIteration") {
+    return scenarioEveryIteration();
+  }
+  if (mode == "pauseHeavy") {
+    return scenarioPauseHeavy();
+  }
+  if (mode == "nonPauseReserve") {
+    return scenarioNonPauseReserve();
+  }
+  if (mode == "rawAfterHistory") {
+    return scenarioRawAfterHistory();
+  }
   if (mode == "doublePause") {
     return modeDoublePause();
   }
@@ -580,9 +793,6 @@ auto main(const int argc, char** argv) -> int
   if (mode == "callbackPause") {
     return modeCallbackPause();
   }
-  if (mode == "ninthPause") {
-    return modeNinthPause();
-  }
 
   const std::string self = argv[0];
   for (const auto& scenario : {
@@ -591,6 +801,10 @@ auto main(const int argc, char** argv) -> int
            "skipOpenPause",
            "scopedSkip",
            "gapInPause",
+           "everyIteration",
+           "pauseHeavy",
+           "nonPauseReserve",
+           "rawAfterHistory",
        })
   {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
@@ -606,8 +820,7 @@ auto main(const int argc, char** argv) -> int
   for (const auto& breach : {"doublePause",
                              "resumeFirst",
                              "openAtExit",
-                             "callbackPause",
-                             "ninthPause"})
+                             "callbackPause"})
   {
     const pid_t pid = fork();
     if (pid < 0) {
