@@ -402,7 +402,7 @@ spec entry stays a decision for Charles.
 - [ ] T056 Make the command line section of README.md quote example/docs/command_line.cpp, keep the commands in a shell block marked from a region that runs that example binary, and remove the exemption in tools/docs/example_drift.py per D-8 (partial)
 - [ ] T057 Make the reading the report section quote example/docs/reading_the_report.cpp, extend that example to print a counter column, a label, one custom statistic and a BIG_O and RMS pair, add a sample output block checked by report_shape as a second sample check, name each new field in the result sentence, and remove the exemption per D-8, FR-030 (partial)
 - [ ] T058 Apply ITERATION_INVARIANT and AVG_ITERATIONS even when the primary time is zero, skipping only the time divisor, and add the test that shows it per N-3, FR-005 (contradicts)
-- [ ] T059 Compare the skip message as well as the instance name in test/example_run.sh and add the mismatching-message case to test/run_example_run_fixtures.sh per N-1 (partial)
+- [X] T059 Compare the skip message as well as the instance name in test/example_run.sh and add the mismatching-message case to test/run_example_run_fixtures.sh per N-1 (partial)
 - [ ] T060 Show the SG_BENCHMARK_F and the SG_BENCHMARK_DEFINE_F with SG_BENCHMARK_REGISTER_F methods, with their timed loops, beside the fixture class in README.md, and remove the empty body and FAILED sentence per D-6 (partial)
 - [ ] T061 Add the capture and template regions of example/docs/registration.cpp to README.md as marked blocks and drop the link wording that replaced them per D-7 (missing)
 - [X] T062 Rewrite each of the 21 Coverage paragraphs in docs/pages/harness.md as one reader-facing behaviour sentence or delete it, leaving no test file name, scenario name or re-exec mode on the page per D-9, Q-11, T037 (contradicts)
@@ -472,3 +472,8 @@ command that showed it.
   the commit lint with its old subject, its new subject and the footer
   it gains. No rebase was run and nothing was force-pushed: the plan
   waits on Charles.
+- T059: the gate compares the declared instance and its message as one
+  pair and names the half that disagreed; example/docs/skips.cpp registers
+  a fixture method that skips its zero argument, so a name the fixture
+  macros build is covered as well. Corrupting the declared phrase fails the
+  gate and restoring it passes both example-run tests.
