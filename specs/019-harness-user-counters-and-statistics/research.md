@@ -211,7 +211,12 @@ and no per-pause array exists. The fold is the documented exception to
 the rule that every printed value is a fold over retained raw points,
 and it reads counters-library points alone. The result carries
 `pauseSamplesFolded` and the report discloses a folded run (FR-025,
-FR-051 to FR-054, Q-10).
+FR-051 to FR-054, Q-10). The count that sizes the room is per family:
+`RegistryEntry::pausePairsPerIteration` in
+`source/harness/detail/internal.hpp` holds the largest number of closed
+pairs one iteration of that family's attempts has seen, `sampleRun`
+raises it when an attempt closes more, and the next attempt reads it,
+so a pausing family never inflates another family's reservation.
 
 **Rationale**: a pause-per-iteration body at `kIterationCap` makes an
 iterations-proportional reservation unbounded; history sizing

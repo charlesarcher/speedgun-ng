@@ -401,7 +401,15 @@ value by the primary time of the run in seconds,
 `CounterFlag::ITERATION_INVARIANT` multiplies it by the iteration count,
 `CounterFlag::AVG_ITERATIONS` divides by that count,
 `CounterFlag::AVG_THREADS` divides by the thread count of the run, and
-`CounterFlag::INVERT` takes the reciprocal last, after every other flag.
+`CounterFlag::INVERT` takes the reciprocal last, after every other flag,
+of a value that differs from zero: the reciprocal of zero is reported as
+zero, because a rate of nothing has no reciprocal to print. Flags
+combine through `operator|` on the set, so `RATE | AVG_THREADS` reads as
+the average per-thread rate; a combined set is how this library spells
+the single combined flags a Google Benchmark port names
+`kAvgThreadsRate`, `kIsIterationInvariantRate` and `kAvgIterationsRate`.
+Each divisor applies on its own, so a run whose primary time is zero
+skips the rate divisor alone and the iteration flags still apply.
 `CounterBase::K1000` and `CounterBase::K1024` choose the suffix, `k` or
 `Ki`, that a human-readable rendering of the column carries. The
 console prints raw numbers, so the base never divides the value: a
