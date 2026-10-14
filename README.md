@@ -515,7 +515,7 @@ The family ends with a `BIG_O` row naming the curve and its coefficient, an `RMS
 | `setComplexityN` | State | Sets the size the complexity fit scales against | [complexity fit](#complexity-fit) |
 | `Counter` | type | The named number one call reports | [user counters](#user-counters) |
 | `CounterFlag` | type | How a counter value scales into its column | [user counters](#user-counters) |
-| `CounterBase` | type | The divisor a counter column prints in | [user counters](#user-counters) |
+| `CounterBase` | type | The `k` or `Ki` suffix a rendered counter carries | [user counters](#user-counters) |
 | `StatUnit` | type | The unit a custom statistic prints in | [custom statistics](#custom-statistics) |
 | `BigO` | type | The curves a complexity fit searches | [complexity fit](#complexity-fit) |
 | `BigOFun` | type | The curve shape a fit of your own supplies | [complexity fit](#complexity-fit) |

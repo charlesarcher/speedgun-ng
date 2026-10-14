@@ -48,7 +48,7 @@ flags, its base, or its name, and never frees during the run.
 | Piece | Values | Source |
 | --- | --- | --- |
 | `CounterFlag` | `NONE`, `RATE`, `AVG_THREADS`, `ITERATION_INVARIANT`, `AVG_ITERATIONS`, `INVERT`, composable by `operator|` | + mirrors the cited `Counter::Flags` (`counter.h`, the `Counter::Flags` enum) |
-| `CounterBase` | `K1000`, `K1024` | + mirrors the cited `OneK` (`counter.h`) |
+| `CounterBase` | `K1000`, `K1024` | + mirrors the cited `OneK` (`counter.h`); selects the suffix a rendered value carries, never a divisor of the printed column (FR-006) |
 | `Counter` | value, flags, base, constructor defaults `0.0`, `NONE`, `K1000` | + (FR-002) |
 
 The flag pass is the runner's cold path after the loop; it is an
@@ -80,7 +80,8 @@ Two preset counter shapes opened through state calls
 
 Relationships: both are ordinary E-01 slots, so the flag pass, the
 disclosure rule, and the statistics of any named counter apply to them;
-their printed value scales by their base like any counter (FR-006).
+their printed value is the flag-applied value under either base
+(FR-006).
 
 Validation: repeated calls per iteration accumulate by the body's own
 arithmetic: the call sets the value the body passes, matching the cited

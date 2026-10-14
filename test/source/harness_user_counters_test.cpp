@@ -17,8 +17,9 @@
 //
 // The flag pass applies the flags once per repetition after the loop in the
 // order rate, thread average, iteration-invariant, average-over-iterations,
-// invert, and the printed column carries that result divided by the declared
-// base, so `K1000` divides by 1000 and `K1024` by 1024 (FR-003, FR-006). The
+// invert, and the printed column carries that result as it stands: the declared
+// base carries the suffix a rendered value shows and divides nothing
+// (FR-003, FR-006). The
 // expected numbers below follow that order; the two invert modes are the ones
 // that fix the position of `INVERT` at the end, since an earlier invert
 // shifts the printed value by orders of magnitude.
@@ -71,8 +72,6 @@ constexpr std::uint64_t kRepetitions = 3;
 // The primary of a default run is the CPU column, so the divisor of a `RATE`
 // counter is the CPU fold of the row in seconds (FR-004).
 constexpr double kCpuFoldSeconds = static_cast<double>(kThreadCpuStep) * 1e-9;
-constexpr double kK1000 = 1000.0;
-constexpr double kK1024 = 1024.0;
 
 // One step of each leaf over the iteration count.
 constexpr double kCpuPerIteration =
@@ -139,9 +138,9 @@ auto bmNeutral(sg::State& state) -> void
 {
   for (auto index : state) {
     if (index == 0) {
-      state.setCounter("widgets", {5000.0});
+      state.setCounter("widgets", {64.0});
       state.setCounter("kib",
-                       {2048.0, sg::CounterFlag::NONE, sg::CounterBase::K1024});
+                       {64.0, sg::CounterFlag::NONE, sg::CounterBase::K1024});
       state.setCounter("thr", {3000.0, sg::CounterFlag::AVG_THREADS});
     }
     sg::doNotOptimize(index);
@@ -202,9 +201,9 @@ auto bmInvariant(sg::State& state) -> void
   }
 }
 
-// FR-003: the invert reciprocal runs last, before the base scaling. A value of
-// 0.001 inverts to 1000 and the base leaves 1.000, while the same value with
-// no flag leaves the column at zero to three decimals.
+// FR-003: the invert reciprocal runs last, and nothing scales after it. A
+// value of 0.001 inverts to 1000 under the K1024 base, while the same
+// value with no flag leaves the column at zero to three decimals.
 auto bmInvert(sg::State& state) -> void
 {
   for (auto index : state) {
@@ -217,11 +216,11 @@ auto bmInvert(sg::State& state) -> void
 }
 
 // FR-003: `INVERT` stands after the rate. The value is the primary fold over
-// 1024, so rate then invert prints exactly 1.000. An invert applied ahead of
-// the rate would print 1.6e15 before the base and about 1.56e12 after it.
+// 1024, so rate then invert prints exactly 1.000. An invert applied ahead
+// of the rate would print 1.6e15 instead.
 auto bmInvertRate(sg::State& state) -> void
 {
-  constexpr double kValue = kCpuFoldSeconds / kK1024;
+  constexpr double kValue = kCpuFoldSeconds;
   for (auto index : state) {
     if (index == 0) {
       state.setCounter("invrate",
@@ -315,7 +314,7 @@ auto bmCollision(sg::State& state) -> void
 {
   for (auto index : state) {
     if (index == 0) {
-      state.setCounter("widgets", {5000.0});
+      state.setCounter("widgets", {64.0});
     }
     sg::doNotOptimize(index);
   }
@@ -504,12 +503,12 @@ auto scenarioNeutral() -> int
   checkFinite(rows);
 
   for (const auto& row : rows) {
-    check(closeTo(fieldOf(row, "widgets="), 5.0),
-          "a flag-neutral counter prints its value over the base of 1000 "
+    check(closeTo(fieldOf(row, "widgets="), 64.0),
+          "a flag-neutral counter prints its value under the K1000 base "
           "(FR-006)");
-    check(closeTo(fieldOf(row, "kib="), 2.0),
-          "a K1024 counter prints its value over 1024 (FR-006)");
-    check(closeTo(fieldOf(row, "thr="), 3.0),
+    check(closeTo(fieldOf(row, "kib="), 64.0),
+          "a K1024 counter prints the same value as it stands (FR-006)");
+    check(closeTo(fieldOf(row, "thr="), 3000.0),
           "the thread average divides by one while threads stand out of scope "
           "(FR-004, Q-3)");
     const std::size_t samples = indexOf(row, "endpoint samples=");
@@ -524,9 +523,9 @@ auto scenarioNeutral() -> int
   const std::string widgetsLine = statisticLineOf(lines, "widgets");
   const std::string kibLine = statisticLineOf(lines, "kib");
   const std::string thrLine = statisticLineOf(lines, "thr");
-  check(closeTo(fieldOf(widgetsLine, "mean="), 5.0)
-            && closeTo(fieldOf(kibLine, "mean="), 2.0)
-            && closeTo(fieldOf(thrLine, "mean="), 3.0),
+  check(closeTo(fieldOf(widgetsLine, "mean="), 64.0)
+            && closeTo(fieldOf(kibLine, "mean="), 64.0)
+            && closeTo(fieldOf(thrLine, "mean="), 3000.0),
         "each named counter carries the statistic set over the clean "
         "repetitions (FR-006)");
   check(indexOf(widgetsLine, "n=3") < widgetsLine.size(),
@@ -552,7 +551,7 @@ auto scenarioRate() -> int
         "the batch prints one measured row per repetition (FR-006)");
   checkFinite(rows);
 
-  const double expected = 4096.0 / kCpuFoldSeconds / kK1024;
+  const double expected = 4096.0 / kCpuFoldSeconds;
   for (const auto& row : rows) {
     check(closeTo(fieldOf(row, "bytes="), expected),
           "the rate column divides by the primary time of the row in seconds "
@@ -579,7 +578,7 @@ auto scenarioRateInvariant() -> int
   checkFinite(rows);
 
   const double expected =
-      4096.0 / kCpuFoldSeconds * static_cast<double>(kIterations) / kK1024;
+      4096.0 / kCpuFoldSeconds * static_cast<double>(kIterations);
   for (const auto& row : rows) {
     check(closeTo(fieldOf(row, "bytes="), expected),
           "the iteration-invariant factor multiplies by the iteration count "
@@ -603,8 +602,8 @@ auto scenarioAvgIterations() -> int
   checkFinite(rows);
 
   const double rate =
-      4096.0 / kCpuFoldSeconds / static_cast<double>(kIterations) / kK1024;
-  const double plain = 400.0 / static_cast<double>(kIterations) / kK1000;
+      4096.0 / kCpuFoldSeconds / static_cast<double>(kIterations);
+  const double plain = 400.0 / static_cast<double>(kIterations);
   for (const auto& row : rows) {
     check(closeTo(fieldOf(row, "bytes="), rate),
           "the average-over-iterations divisor runs after the rate (FR-003)");
@@ -628,7 +627,7 @@ auto scenarioInvariant() -> int
         "the batch prints one measured row per repetition (FR-006)");
   checkFinite(rows);
 
-  const double expected = 5000.0 * static_cast<double>(kIterations) / kK1000;
+  const double expected = 5000.0 * static_cast<double>(kIterations);
   for (const auto& row : rows) {
     check(closeTo(fieldOf(row, "total="), expected),
           "the iteration-invariant factor multiplies by the iteration count "
@@ -652,11 +651,12 @@ auto scenarioInvert() -> int
   checkFinite(rows);
 
   for (const auto& row : rows) {
-    check(closeTo(fieldOf(row, "inv="), 1.0),
-          "the invert column is the reciprocal of the value over the base "
-          "(FR-003)");
-    check(closeTo(fieldOf(row, "thousand="), 1.0),
-          "a flag-neutral counter of the same run prints over the base "
+    check(
+        closeTo(fieldOf(row, "inv="), 1000.0),
+        "the invert column is the reciprocal of the value it holds " "(FR-"
+                                                                     "003)");
+    check(closeTo(fieldOf(row, "thousand="), 1000.0),
+          "a flag-neutral counter of the same run prints the same value "
           "(FR-006)");
   }
   return 0;
@@ -704,7 +704,7 @@ auto scenarioZeroDivisor() -> int
           "the script leaves the CPU fold at zero (FR-005)");
     check(closeTo(fieldOf(row, "real time/iter (ns)="), kRealPerIteration),
           "the real column keeps its measurement (FR-005)");
-    check(closeTo(fieldOf(row, "bytes="), 4096.0 / kK1024),
+    check(closeTo(fieldOf(row, "bytes="), 4096.0),
           "the column carries the flag-neutral value over the base (FR-005)");
     check(row.contains("zero-divisor"),
           "the row discloses the zero divisor (FR-005)");
@@ -756,7 +756,7 @@ auto scenarioFoldDisclosed() -> int
   check(handle.name() == "bmDisclosedRate",
         "the disclosed benchmark registers");
 
-  const double rate = 4096.0 / kCpuFoldSeconds / kK1024;
+  const double rate = 4096.0 / kCpuFoldSeconds;
   const std::uint64_t before = fake->readActions();
   const std::vector<std::string> clean = measuredRowsOf(
       linesOf(captureGoodRun("^bmDisclosedRate$"), "bmDisclosedRate"));
@@ -787,11 +787,11 @@ auto scenarioFoldDisclosed() -> int
   check(disclosed == 1, "the gapped repetition discloses its fold (FR-005)");
   for (const auto& row : rows) {
     const double value = fieldOf(row, "bytes=");
-    check(closeTo(value, rate) || closeTo(value, 4096.0 / kK1024),
+    check(closeTo(value, rate) || closeTo(value, 4096.0),
           "every row prints either the rate or the flag-neutral value "
           "(FR-003, FR-005)");
     if (row.contains("fold-disclosed")) {
-      check(closeTo(value, 4096.0 / kK1024),
+      check(closeTo(value, 4096.0),
             "the disclosed row prints the flag-neutral value (FR-005)");
     }
   }
@@ -821,7 +821,7 @@ auto scenarioLastWrite() -> int
         "the batch prints one measured row per repetition (FR-006)");
   checkFinite(rows);
 
-  const double expected = static_cast<double>(kIterations) / kK1000;
+  const double expected = static_cast<double>(kIterations);
   for (const auto& row : rows) {
     check(closeTo(fieldOf(row, "ticks="), expected),
           "the column carries the last value written to the name (FR-001)");

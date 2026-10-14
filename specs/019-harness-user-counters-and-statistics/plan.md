@@ -423,7 +423,7 @@ wall-clock bound.
 | Capability | Scenario | Check |
 | --- | --- | --- |
 | C-1 user counters | each flag and combination prints the value the cited `Finish` order gives on scripted numbers; the cap aborts at the seventeenth name; a flag change on a name and a name colliding with a metric label each fail the run; the loop-shape gate stays green with counters set in the body | `test/source/harness_user_counters_test.cpp`, `test/loop_shape.sh` |
-| C-2 throughput | bytes and items print exact rates over the primary time in all three timing modes, scaled by 1024 and 1000 | `test/source/harness_throughput_test.cpp` |
+| C-2 throughput | bytes and items print exact rates over the primary time in all three timing modes, the base carrying only the rendered suffix | `test/source/harness_throughput_test.cpp` |
 | C-3 leftovers | a calibrated run pauses in every iteration and completes; a pause-heavy scripted run reserves at most `kMaxPauseSamplesPerLeaf` points per leaf column, a non-pausing run reserves no pause room, and the fold path prints the raw path's net columns on the scripted provider; `setDefaultTimeUnit` in `main` reaches macro registrations while `unit` still wins; the old bound, guard, and tests are gone from the tree | `test/source/harness_pause_test.cpp`, `test/source/harness_time_unit_test.cpp` |
 | C-4 labels | the row ends with ` label=<text>`; differing repetition labels leave the aggregate unlabeled; a newline label aborts the re-exec | `test/source/harness_label_test.cpp` |
 | C-5 custom statistics | a time-unit statistic prints in the row unit, a percentage statistic prints unscaled, a refusing function prints no value while the run still reports, a built-in name aborts at the call | `test/source/harness_custom_stats_test.cpp` |

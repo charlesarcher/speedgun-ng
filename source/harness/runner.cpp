@@ -111,30 +111,35 @@ auto counterColumns(const std::vector<std::string>& names,
   for (std::size_t index = 0; index < names.size(); ++index) {
     const sg::Counter& counter = store[index];
     double value = counter.value;
-    if (primarySeconds > 0.0) {
-      if ((counter.flags & sg::CounterFlag::RATE) != sg::CounterFlag::NONE) {
-        value /= primarySeconds;
-      }
-      if ((counter.flags & sg::CounterFlag::ITERATION_INVARIANT)
-          != sg::CounterFlag::NONE)
-      {
-        value *= count;
-      }
-      if ((counter.flags & sg::CounterFlag::AVG_ITERATIONS)
-          != sg::CounterFlag::NONE)
-      {
-        value /= count;
-      }
-      // The two-sided test reads the same value of zero as a comparison
-      // against zero and leaves the floating-point equality warning aside
-      // from a rule that has to name zero exactly (FR-005).
-      if ((counter.flags & sg::CounterFlag::INVERT) != sg::CounterFlag::NONE
-          && (value < 0.0 || value > 0.0))
-      {
-        value = 1.0 / value;
-      }
+    // FR-005, N-3: a divisor that settled at zero is skipped and the
+    // flag-neutral value stands, so each divisor carries its own test and
+    // the flags the divisor cannot reach still apply.
+    if ((counter.flags & sg::CounterFlag::RATE) != sg::CounterFlag::NONE
+        && primarySeconds > 0.0)
+    {
+      value /= primarySeconds;
     }
-    value /= counter.base == sg::CounterBase::K1024 ? 1024.0 : 1000.0;
+    if ((counter.flags & sg::CounterFlag::ITERATION_INVARIANT)
+        != sg::CounterFlag::NONE)
+    {
+      value *= count;
+    }
+    if ((counter.flags & sg::CounterFlag::AVG_ITERATIONS)
+            != sg::CounterFlag::NONE
+        && count > 0.0)
+    {
+      value /= count;
+    }
+    // The two-sided test reads the same value of zero as a comparison
+    // against zero and leaves the floating-point equality warning aside
+    // from a rule that has to name zero exactly (FR-005).
+    if ((counter.flags & sg::CounterFlag::INVERT) != sg::CounterFlag::NONE
+        && (value < 0.0 || value > 0.0))
+    {
+      value = 1.0 / value;
+    }
+    // FR-006, N-2: the base carries the suffix a rendered value shows and
+    // divides nothing, so the column prints the flag-applied value.
     printed.push_back(value);
   }
   return printed;
@@ -341,13 +346,13 @@ namespace
 // and whether the store can still carry the call. A template over the
 // container keeps the slot type out of the exported header.
 template<class Store>
-auto counterIndexOf(const Store& counters, const std::string_view name)
-    -> std::size_t
+auto counterIndexOf(const Store& counters,
+                    const std::string_view name) -> std::size_t
 {
   for (std::size_t index = 0; index < counters.size(); ++index) {
     const auto& slot = counters[index];
-    if (slot.used
-        && std::string_view(slot.name.data(), slot.nameSize) == name) {
+    if (slot.used && std::string_view(slot.name.data(), slot.nameSize) == name)
+    {
       return index;
     }
   }
@@ -370,7 +375,7 @@ auto counterRoom(const Store& counters, const std::size_t own) -> bool
   return false;
 }
 
-} // namespace
+}  // namespace
 
 // FR-009, E-03: the throughput setters open their one fixed name on the same
 // store as any user name, so a body reports throughput without naming a
@@ -387,15 +392,13 @@ auto State::setBytesProcessed(const std::int64_t bytes) -> void
   // A user name that opened this text with another pair keeps it, and the
   // run ends with that reason (FR-008): the write, and with it the
   // postcondition, belongs to the call only on the path it owns.
-  const bool writes =
-      before == m_counters.size()
+  const bool writes = before == m_counters.size()
       || (m_counters[before].counter.flags == CounterFlag::RATE
           && m_counters[before].counter.base == CounterBase::K1024);
-  setCounter(kName,
-             Counter {
-                 static_cast<double>(bytes),
-                 CounterFlag::RATE,
-                 CounterBase::K1024});
+  setCounter(
+      kName,
+      Counter {
+          static_cast<double>(bytes), CounterFlag::RATE, CounterBase::K1024});
   const std::size_t after = counterIndexOf(m_counters, kName);
   SG_ENSURE(!writes
                 || (after < m_counters.size()
@@ -420,15 +423,13 @@ auto State::setItemsProcessed(const std::int64_t items) -> void
              "the two throughput columns share the cap of sixteen counter "
              "names, so this call needs its name open or one slot free "
              "(FR-001, FR-009)");
-  const bool writes =
-      before == m_counters.size()
+  const bool writes = before == m_counters.size()
       || (m_counters[before].counter.flags == CounterFlag::RATE
           && m_counters[before].counter.base == CounterBase::K1000);
-  setCounter(kName,
-             Counter {
-                 static_cast<double>(items),
-                 CounterFlag::RATE,
-                 CounterBase::K1000});
+  setCounter(
+      kName,
+      Counter {
+          static_cast<double>(items), CounterFlag::RATE, CounterBase::K1000});
   const std::size_t after = counterIndexOf(m_counters, kName);
   SG_ENSURE(!writes
                 || (after < m_counters.size()

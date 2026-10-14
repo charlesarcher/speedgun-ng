@@ -62,8 +62,6 @@ constexpr std::int64_t kManualIterationNs = 2000;
 constexpr double kManualFoldSeconds = static_cast<double>(kManualIterationNs)
     * static_cast<double>(kIterations) * 1e-9;
 
-constexpr double kK1000 = 1000.0;
-constexpr double kK1024 = 1024.0;
 constexpr std::int64_t kProcessed = 4096;
 constexpr std::int64_t kRealBytes = 8192;
 constexpr std::int64_t kItems = 500;
@@ -95,8 +93,9 @@ auto scriptProvider() -> void
   check(registered.has_value(), "the fake provider registers");
 }
 
-// FR-009, FR-006: one value opened twice, once as bytes on the 1024 base and
-// once as items on the 1000 base, over the CPU fold of the default family.
+// FR-009, FR-006: one value opened twice, once as bytes on the K1024 base
+// and once as items on the K1000 base, over the CPU fold of the default
+// family. Neither base divides: both columns print the rate as it stands.
 auto bmBases(sg::State& state) -> void
 {
   for (auto index : state) {
@@ -252,8 +251,9 @@ auto statisticLineOf(const std::vector<std::string>& lines,
   return {};
 }
 
-// FR-009, FR-006, FR-010: the same value on the two bases prints two numbers
-// over the CPU fold, in the order the columns opened, after the metric fields.
+// FR-009, FR-006, FR-010: the same value under the two bases prints one
+// number twice over the CPU fold, in the order the columns opened, after
+// the metric fields.
 auto scenarioBases() -> int
 {
   scriptProvider();
@@ -267,19 +267,19 @@ auto scenarioBases() -> int
         "the batch prints one measured row per repetition (FR-006)");
   checkFinite(rows);
 
-  const double bytes = kProcessed / kCpuFoldSeconds / kK1024;
-  const double items = kProcessed / kCpuFoldSeconds / kK1000;
+  const double bytes = kProcessed / kCpuFoldSeconds;
+  const double items = kProcessed / kCpuFoldSeconds;
   for (const auto& row : rows) {
     check(indexOf(row, "endpoint samples") < indexOf(row, "bytes_per_second="),
           "the throughput columns follow the metric fields (FR-006)");
     check(indexOf(row, "bytes_per_second=") < indexOf(row, "items_per_second="),
           "the columns stand in the order they opened (FR-006)");
     check(closeTo(fieldOf(row, "bytes_per_second="), bytes),
-          "the bytes column is the value over the primary time and 1024 "
-          "(FR-009, FR-006)");
+          "the bytes column is the value over the primary time (FR-009, "
+          "FR-006)");
     check(closeTo(fieldOf(row, "items_per_second="), items),
-          "the items column is the value over the primary time and 1000 "
-          "(FR-009, FR-006)");
+          "the items column is the value over the primary time (FR-009, "
+          "FR-006)");
   }
 
   const std::vector<std::string> lines = linesOf(report, "bmBases");
@@ -308,7 +308,7 @@ auto scenarioRealTime() -> int
         "the batch prints one measured row per repetition (FR-006)");
   checkFinite(rows);
 
-  const double expected = kRealBytes / kRealFoldSeconds / kK1024;
+  const double expected = kRealBytes / kRealFoldSeconds;
   for (auto& row : rows) {
     check(closeTo(fieldOf(row, "bytes_per_second="), expected),
           "the real-time family divides the byte rate by the real column "
@@ -334,7 +334,7 @@ auto scenarioManualTime() -> int
         "the batch prints one measured row per repetition (FR-006)");
   checkFinite(rows);
 
-  const double expected = kItems / kManualFoldSeconds / kK1000;
+  const double expected = kItems / kManualFoldSeconds;
   for (auto& row : rows) {
     check(closeTo(fieldOf(row, "items_per_second="), expected),
           "the manual family divides the item rate by the manual sum "
