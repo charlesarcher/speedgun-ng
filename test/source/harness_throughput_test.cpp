@@ -119,6 +119,20 @@ auto bmRealBytes(sg::State& state) -> void
   }
 }
 
+// FR-008: a body that opened the byte name with the pair the throughput call
+// itself uses leaves the name taken, and the throughput call writes over it.
+auto bmTakenBytesName(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("bytes_per_second",
+                       {1.0, sg::CounterFlag::RATE, sg::CounterBase::K1024});
+      state.setBytesProcessed(kRealBytes);
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
 // FR-006, FR-009: the body reports 2000 ns per iteration, so the primary is
 // the manual sum of the four values and the rate divides by that sum.
 auto bmManualItems(sg::State& state) -> void
@@ -334,6 +348,36 @@ auto scenarioRealTime() -> int
   return 0;
 }
 
+// FR-008: a name the body opened with the rate pair is still written by the
+// throughput call, so the column carries the byte total over the real column.
+auto scenarioTakenBytesName() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmTakenBytesName, "bmTakenBytesName");
+  check(handle.name() == "bmTakenBytesName",
+        "the benchmark that takes the byte name registers");
+  handle.useRealTime();
+
+  const std::string report = captureGoodRun("^bmTakenBytesName$");
+  const std::vector<std::string> rows =
+      measuredRowsOf(linesOf(report, "bmTakenBytesName"));
+  check(rows.size() == kRepetitions,
+        "the batch prints one measured row per repetition (FR-006)");
+  checkFinite(rows);
+
+  const double expected = kRealBytes / kRealFoldSeconds;
+  const double planted = 1.0 / kRealFoldSeconds;
+  for (auto& row : rows) {
+    const double printed = fieldOf(row, "bytes_per_second=");
+    check(closeTo(printed, expected),
+          "the throughput call writes over the value the body planted under "
+          "the same name (FR-008)");
+    check(!closeTo(printed, planted),
+          "the planted value is not the value that prints (FR-008)");
+  }
+  return 0;
+}
+
 // FR-006, FR-009: the primary of the family is the sum of the times the body
 // reports, so the item rate divides by 8000 ns and not by either machine
 // column.
@@ -410,12 +454,15 @@ auto main(int argc, char** argv) -> int
     if (mode == "totalAfterLoop") {
       return scenarioTotalAfterLoop();
     }
+    if (mode == "takenBytesName") {
+      return scenarioTakenBytesName();
+    }
     fail("unknown mode");
   }
 
   const std::string self = argv[0];
   for (const auto& scenario :
-       {"bases", "realTime", "manualTime", "totalAfterLoop"})
+       {"bases", "realTime", "manualTime", "totalAfterLoop", "takenBytesName"})
   {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
     check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
