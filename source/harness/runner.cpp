@@ -93,64 +93,6 @@ constexpr const char* kInterruptReason = "interrupted by the user (SIGINT)";
 
 // The run a signal stopped keeps the skip outcome and the one reason,
 // whichever phase it stopped in.
-// E-01, FR-003: the flag pass of the counters of one repetition. The flags
-// apply in the order rate, thread average, iteration-invariant, average over
-// iterations, invert, and the declared base scales the result (FR-003, FR-006).
-// The thread average divides by one while threads stand out of scope (FR-004,
-// Q-3), so that flag carries no divisor here. A divisor of zero leaves the
-// flag-neutral value, the case FR-005 discloses, and a value of zero carries
-// no reciprocal the row could print, so its flag-neutral value stands as well.
-auto appendCounterColumns(std::vector<double>& printed,
-                          const std::vector<std::string>& names,
-                          const std::vector<sg::Counter>& store,
-                          const double primarySeconds,
-                          const std::uint64_t iterations) -> void
-{
-  printed.reserve(names.size());
-  const double count = static_cast<double>(iterations);
-  for (std::size_t index = 0; index < names.size(); ++index) {
-    const sg::Counter& counter = store[index];
-    double value = counter.value;
-    // FR-005, N-3: a divisor that settled at zero is skipped and the
-    // flag-neutral value stands, so each divisor carries its own test and
-    // the flags the divisor cannot reach still apply.
-    if ((counter.flags & sg::CounterFlag::RATE) != sg::CounterFlag::NONE
-        && primarySeconds > 0.0)
-    {
-      value /= primarySeconds;
-    }
-    if ((counter.flags & sg::CounterFlag::ITERATION_INVARIANT)
-        != sg::CounterFlag::NONE)
-    {
-      value *= count;
-    }
-    if ((counter.flags & sg::CounterFlag::AVG_ITERATIONS)
-        != sg::CounterFlag::NONE)
-    {
-      // A measured row is built by a run loop that refuses a non-positive
-      // iteration floor, so this divisor is never the zero FR-005 discloses
-      // for a rate: the floor of one iteration is the postcondition the row
-      // arrives with (FR-025). The pass sees the disclosed case nowhere.
-      SG_REQUIRE(count > 0.0,
-                 "the average over iterations divides by the iteration count "
-                 "of a measured row, which the run loop leaves at one at the "
-                 "least (FR-025)");
-      value /= count;
-    }
-    // The two-sided test reads the same value of zero as a comparison
-    // against zero and leaves the floating-point equality warning aside
-    // from a rule that has to name zero exactly (FR-005).
-    if ((counter.flags & sg::CounterFlag::INVERT) != sg::CounterFlag::NONE
-        && (value < 0.0 || value > 0.0))
-    {
-      value = 1.0 / value;
-    }
-    // FR-006, N-2: the base carries the suffix a rendered value shows and
-    // divides nothing, so the column prints the flag-applied value.
-    printed.push_back(value);
-  }
-}
-
 auto markInterrupted(sg::BenchmarkResult& result) noexcept -> void
 {
   result.outcome = sg::RunOutcome::SKIPPED;
@@ -271,14 +213,74 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
   } else if (record.decisionNs == 0) {
     row.counterDisclosure = "zero-divisor";
   }
-  appendCounterColumns(row.counters,
-                       record.counterNames,
-                       record.counterStore,
-                       primarySeconds,
-                       record.iterations);
+  sg::detail::appendCounterColumns(row.counters,
+                                   record.counterNames,
+                                   record.counterStore,
+                                   primarySeconds,
+                                   record.iterations);
 }
 
 }  // namespace
+
+namespace sg::detail
+{
+
+// E-01, FR-003: the flag pass of the counters of one repetition. The flags
+// apply in the order rate, thread average, iteration-invariant, average over
+// iterations, invert, and the declared base scales the result (FR-003, FR-006).
+// The thread average divides by one while threads stand out of scope (FR-004,
+// Q-3), so that flag carries no divisor here. A divisor of zero leaves the
+// flag-neutral value, the case FR-005 discloses, and a value of zero carries
+// no reciprocal the row could print, so its flag-neutral value stands as well.
+// The declaration stands in detail/internal.hpp, the seam the counter test
+// calls through to reach a divisor no run hands the harness.
+auto appendCounterColumns(std::vector<double>& printed,
+                          const std::vector<std::string>& names,
+                          const std::vector<Counter>& store,
+                          const double primarySeconds,
+                          const std::uint64_t iterations) -> void
+{
+  printed.reserve(names.size());
+  const double count = static_cast<double>(iterations);
+  for (std::size_t index = 0; index < names.size(); ++index) {
+    const Counter& counter = store[index];
+    double value = counter.value;
+    // FR-005, N-3: a divisor that settled at zero is skipped and the
+    // flag-neutral value stands, so each divisor carries its own test and
+    // the flags the divisor cannot reach still apply.
+    if ((counter.flags & CounterFlag::RATE) != CounterFlag::NONE
+        && primarySeconds > 0.0)
+    {
+      value /= primarySeconds;
+    }
+    if ((counter.flags & CounterFlag::ITERATION_INVARIANT) != CounterFlag::NONE)
+    {
+      value *= count;
+    }
+    // A measured row arrives with an iteration count of one at the least,
+    // because the run loop refuses a row below it (FR-025), so the zero
+    // count stands only where a caller hands this pass one directly: a run
+    // of the flag pass alone, which the counter test drives (FR-005).
+    if ((counter.flags & CounterFlag::AVG_ITERATIONS) != CounterFlag::NONE
+        && count > 0.0)
+    {
+      value /= count;
+    }
+    // The two-sided test reads the same value of zero as a comparison
+    // against zero and leaves the floating-point equality warning aside
+    // from a rule that has to name zero exactly (FR-005).
+    if ((counter.flags & CounterFlag::INVERT) != CounterFlag::NONE
+        && (value < 0.0 || value > 0.0))
+    {
+      value = 1.0 / value;
+    }
+    // FR-006, N-2: the base carries the suffix a rendered value shows and
+    // divides nothing, so the column prints the flag-applied value.
+    printed.push_back(value);
+  }
+}
+
+}  // namespace sg::detail
 
 namespace sg
 {
@@ -1084,9 +1086,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       if (!row.counterDisclosure.empty()) {
         continue;
       }
-      // FR-006: the labels of a result are read from the widest row of the
-      // run as its rows are built, so the value list is at least as wide as
-      // any row that joins it.
+      // FR-006, FR-022: the width of the label list is the caller's
+      // guarantee, read at every site that indexes a label by a counter
+      // column. The list is widened at the row site of this function, where
+      // a row's names replace the list whenever they are wider, and
+      // appendCounterColumns appends one column per name, so a row stands no
+      // wider than the list. The aggregate row keeps an empty value list, so
+      // it reads no label either. The report reads labels twice: once over
+      // the columns of a row and once over the statistic sets, and the sets
+      // are built one per label here. Each stands under this guarantee.
       SG_ASSERT(row.counters.size() <= counterValues.size(),
                 "the counter labels of a result come from its widest row, so "
                 "no row carries a column the value list lacks (FR-006, FR-022)");

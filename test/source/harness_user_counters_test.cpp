@@ -58,6 +58,7 @@
 #include <unistd.h>
 
 #include "detail/gcov_flush.hpp"
+#include "detail/internal.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
@@ -695,6 +696,41 @@ auto scenarioAvgIterations() -> int
   return 0;
 }
 
+// FR-005, FR-025: the zero divisor of the average-over-iterations flag. A
+// measured row arrives at one iteration at the least, because the run loop
+// refuses a row below it, so the flag pass takes a count of zero only from a
+// caller that hands it one. The harness seam of detail/internal.hpp is that
+// caller: the call below is the zero-iteration path itself.
+auto scenarioZeroIterationDivisor() -> int
+{
+  const std::vector<std::string> names = {"perIteration", "rate"};
+  const std::vector<sg::Counter> store = {
+      sg::Counter {
+          12.0, sg::CounterFlag::AVG_ITERATIONS, sg::CounterBase::K1000},
+      sg::Counter {12.0, sg::CounterFlag::RATE, sg::CounterBase::K1000},
+  };
+
+  std::vector<double> atZeroCount;
+  sg::detail::appendCounterColumns(atZeroCount, names, store, 0.0, 0);
+  check(atZeroCount.size() == names.size(),
+        "the flag pass prints one column per name at a count of zero (FR-006)");
+  check(closeTo(atZeroCount[0], 12.0),
+        "a count of zero leaves the average column flag-neutral (FR-005)");
+  check(closeTo(atZeroCount[1], 12.0),
+        "a primary time of zero leaves the rate column flag-neutral (FR-005)");
+
+  std::vector<double> measured;
+  sg::detail::appendCounterColumns(
+      measured, names, store, kCpuFoldSeconds, kIterations);
+  check(closeTo(measured[0], 12.0 / static_cast<double>(kIterations)),
+        "the iteration count divides the average column of a measured row "
+        "(FR-003)");
+  check(closeTo(measured[1], 12.0 / kCpuFoldSeconds),
+        "the primary seconds divide the rate column of a measured row "
+        "(FR-003)");
+  return 0;
+}
+
 // FR-003: the iteration-invariant factor on a counter of no other flag.
 auto scenarioInvariant() -> int
 {
@@ -1119,6 +1155,9 @@ auto main(int argc, char** argv) -> int
     if (mode == "avgIterations") {
       return scenarioAvgIterations();
     }
+    if (mode == "zeroIterationDivisor") {
+      return scenarioZeroIterationDivisor();
+    }
     if (mode == "invariant") {
       return scenarioInvariant();
     }
@@ -1200,6 +1239,7 @@ auto main(int argc, char** argv) -> int
                                "rate",
                                "rateInvariant",
                                "avgIterations",
+                               "zeroIterationDivisor",
                                "invariant",
                                "invert",
                                "invertNegative",
