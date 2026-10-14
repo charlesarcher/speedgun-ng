@@ -130,7 +130,7 @@ auto appendCounterColumns(std::vector<double>& printed,
       // A measured row is built by a run loop that refuses a non-positive
       // iteration floor, so this divisor is never the zero FR-005 discloses
       // for a rate: the floor of one iteration is the postcondition the row
-      // arrives with, not a value this pass has to survive (FR-025).
+      // arrives with (FR-025). The pass sees the disclosed case nowhere.
       SG_REQUIRE(count > 0.0,
                  "the average over iterations divides by the iteration count "
                  "of a measured row, which the run loop leaves at one at the "

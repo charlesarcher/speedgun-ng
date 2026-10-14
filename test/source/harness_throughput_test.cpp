@@ -457,7 +457,7 @@ auto scenarioManualTime() -> int
 
 // FR-008, FR-009: a throughput call whose fixed name already stands under
 // another flag or another base fails the run naming that name, and the row
-// keeps the pair the name opened with instead of a written column.
+// keeps the pair the name opened with. The second column stays unwritten.
 auto scenarioTakenName(std::function<void(sg::State&)> body,
                        const std::string& name,
                        const std::string& counter) -> int
