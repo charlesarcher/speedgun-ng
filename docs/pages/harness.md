@@ -459,7 +459,10 @@ the value the body set.
 ## Throughput
 
 `State::setBytesProcessed(bytes)` and `State::setItemsProcessed(items)`
-report the work one run did and open a rate column for it. Each call sets
+report the work one run did and open a rate column for it. Each call takes
+the total work of the whole run, so a body that works a known amount per
+iteration passes that amount times `state.iterations()` after the loop.
+Each call sets
 a counter of its own name carrying `CounterFlag::RATE`, so the value
 divides by the primary time of the run in seconds. The byte column opens
 with `CounterBase::K1024` and the item column with `CounterBase::K1000`:

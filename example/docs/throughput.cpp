@@ -14,10 +14,12 @@ auto bmEncode(sg::State& state) -> void
     for (std::size_t item = 0; item < items; ++item) {
       buffer[item] = static_cast<std::uint8_t>(item * 7);
     }
-    state.setItemsProcessed(static_cast<std::int64_t>(items));
-    state.setBytesProcessed(static_cast<std::int64_t>(items));
     sg::doNotOptimize(buffer);
   }
+  const auto total = static_cast<std::int64_t>(state.iterations())
+      * static_cast<std::int64_t>(items);
+  state.setItemsProcessed(total);
+  state.setBytesProcessed(total);
 }
 
 SG_BENCHMARK(bmEncode).argNames({"items"}).argsProduct({{1024, 65536}});
