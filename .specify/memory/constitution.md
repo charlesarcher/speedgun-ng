@@ -1,4 +1,28 @@
 <!--
+Sync Impact Report (2.20.0, MINOR): Principle IV.1 gains the run
+obligation, and Principle VIII names the run gate.
+
+specs/019-harness-user-counters-and-statistics gives every main-page
+section an example program with its own `main`. IV.1 already required that
+a snippet compile as the page shows it; a block that compiles and never
+runs leaves the printed report unproven, so IV.1 states that a main-page
+snippet comes from an example CI builds and runs. The gate is
+`example_run`, which runs each docs example and fails on a row that never
+prints, and `example_run_fixtures` proves the check inspects something. An
+entry with no gate is a preference and a gate with no entry in the law is a
+preference, so the sub-rule wording and the hard gate name land in one
+amendment (FR-036).
+
+The amendment widens one sub-rule and names one gate. It removes no
+constraint, weakens none, changes no public signature, and adds no Open
+deferrals entry. The version moves MINOR under Governance: materially
+expanded guidance and a new gate name.
+
+The insertion shifts every line below line 1. A citation naming a line
+number in this file needs re-anchoring; search for the named token.
+-->
+
+<!--
 Sync Impact Report (2.19.0, MINOR): Principle IV gains IV.1, and
 Principle VIII gains the example compile gate.
 
@@ -560,8 +584,12 @@ purpose sentence, one marked snippet, and one result sentence, with its
 quick-reference rows, and the spec is incomplete until it does. A working
 example compiles as the page shows it: the region is part of a
 translation unit an example target builds, so a reader who copies the
-block over the canonical includes gets a program that builds. The main
-page is the root `README.md`, and its code blocks live in marked regions
+block over the canonical includes gets a program that builds. A main-page
+snippet comes from an example CI builds and runs: the run gate
+`example_run` executes the program that carries the region and fails on a
+registered benchmark whose row never prints, so the block the page quotes
+is a block that printed the rows its result sentence names. The main page
+is the root `README.md`, and its code blocks live in marked regions
 of files under `example/`: a page block and its region are one fact with
 two spellings, and a change that moves one without the other is a defect
 the drift gate names. The checklist line "Main-page impact check (IV.1)"
@@ -751,7 +779,10 @@ Every change passes all of the following; each is hard.
   reaches;
   `example_drift_fixtures` proves the scans inspect something; `snippet_compile`
   compiles each emitted C++ block over the canonical includes after rejecting
-  a planted broken snippet; `report_shape` runs the built quick start binary
+  a planted broken snippet; `example_run` runs every docs example through
+  its own binary and fails on a row that never prints, on a failed row, and
+  on a skip the file never declared, and `example_run_fixtures` plants each
+  of those outcomes; `report_shape` runs the built quick start binary
   and compares its report with the sample block by shape, so a digit
   difference passes and a renamed or missing column fails;
   `report_shape_fixtures` carries the mask golden pairs and the planted
@@ -1186,6 +1217,7 @@ conflicts, the constitution wins.
 
 | Version | Date | Change |
 | ------- | ---- | ------ |
+| 2.20.0 | 2026-10-14 | IV.1 gains the run obligation: a main-page snippet comes from an example CI builds and runs, so a block the page quotes printed the rows its result sentence names; Principle VIII's page-drift-clean gate names `example_run` and `example_run_fixtures` beside `snippet_compile` and `report_shape`; specs/019-harness-user-counters-and-statistics FR-033, FR-036, research D-14 |
 | 2.19.0 | 2026-10-13 | IV.1 Main-page documentation per feature makes the root `README.md` section, its `example/` region, and its quick-reference rows part of every feature that changes user-visible behavior; the spec and tasks templates gain the "Main-page impact check (IV.1)" checklist line; Principle VIII gains the example compile gate as one hard gate, naming `example_drift`, `example_drift_fixtures`, `snippet_compile`, `report_shape`, `report_shape_fixtures`, the `lint`-job direct step, and the example build obligation; IV.1 states that a main-page example compiles as the page shows it; the drift gate splits an `Owner::member` quick-reference row at `::` and runs the substance scan over the two User-guide pages; specs/018-docs-main-page FR-027 to FR-030 |
 | 2.18.0 | 2026-10-08 | Additional Constraints gains the counters-only rule: every time and counter value outside the counters library comes from `sg::counters`, the bound scope, the counters library, the forbidden time sources, and the single `tools/dbc/overhead.cpp` exception are named, and Principle VIII gains `test/time_source_gate.sh` as a hard gate; specs/015-benchmark-harness-core D-6, FR-038 to FR-043 |
 | 2.17.0 | 2026-10-08 | V.2 gains the tag-object entry `hardStop` and `ring` that `.clang-tidy` already exempted, names the export-header macro family and `SPEEDGUN_NG_SUPPRESS_C4251` in place of the single export macro, and states that the kernel-field entry reaches the member spelling a mirror copies; specs/014 post-merge repair |
@@ -1211,4 +1243,4 @@ conflicts, the constitution wins.
 | 2.0.0 | 2026-09-06 | redefinition on DBC, R-DCUT, coverage, CI gates |
 | 1.0.0 | 2026-09-06 | initial ratification from repository conventions |
 
-**Version**: 2.19.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-13
+**Version**: 2.20.0 | **Ratified**: 2026-09-06 | **Last Amended**: 2026-10-14
