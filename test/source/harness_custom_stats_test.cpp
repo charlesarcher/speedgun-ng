@@ -53,6 +53,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "detail/gcov_flush.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
@@ -407,6 +408,7 @@ auto main(int argc, char** argv) -> int
 {
   const std::vector<std::string> arguments(argv, argv + argc);
   if (arguments.size() == 2) {
+    sg::test::flushCountersOnAbort();
     const std::string& mode = arguments[1];
     if (mode == "printed") {
       return scenarioPrinted();
