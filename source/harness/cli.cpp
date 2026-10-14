@@ -307,6 +307,12 @@ auto speedgunMain(int argc, char** argv) -> int
   // locates this loop by the `runner.run(*entry)` line and reads the
   // flag exactly once inside it.
   for (auto* entry : selected) {
+    // FR-022, FR-023: the complexity fit of the family that ended prints
+    // between the rows of two families, after every row of the family it
+    // summarizes.
+    if (const auto fit = runner.fitForFamilyEnd(entry)) {
+      detail::printResult(*fit);
+    }
     const auto result = runner.run(*entry);
     detail::printResult(result);
     // FR-036: the flag is read once per pass, so the status update, the
@@ -327,6 +333,12 @@ auto speedgunMain(int argc, char** argv) -> int
     if (interrupted) {
       break;
     }
+  }
+
+  // FR-022: the run is over, so the fit of the last family prints after its
+  // rows.
+  if (const auto fit = runner.fitForFamilyEnd(nullptr)) {
+    detail::printResult(*fit);
   }
 
   SG_ENSURE((status != 0) == (anyFailed || anyInterrupted),

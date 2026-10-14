@@ -71,6 +71,41 @@ auto unitScale(const sg::TimeUnit timeUnit) -> const UnitScale&
   return kUnitScales[index];
 }
 
+// FR-022, FR-023: the three rows one fitted quantity prints. The coefficient of
+// the primary time follows the unit the family printed under, as every other
+// time value of the report does; a counter or metric coefficient stands in that
+// quantity's value, and the RMS is a percentage, so the unit scales neither.
+auto printFitRow(const BenchmarkResult& result,
+                 const ResultRow& row,
+                 const UnitScale& scale) -> void
+{
+  const double coefficient = row.fit.scalesWithUnit
+      ? row.fit.coefficient / scale.divisor
+      : row.fit.coefficient;
+  if (row.kind == RowKind::BIG_O) {
+    std::printf("%-24s %10s  %s %s (%9.3f)\n",
+                result.name.c_str(),
+                "BIG_O",
+                row.fit.quantity.c_str(),
+                row.fit.curve.c_str(),
+                coefficient);
+    return;
+  }
+  if (row.kind == RowKind::RMS) {
+    std::printf("%-24s %10s  %s %9.3f%%\n",
+                result.name.c_str(),
+                "RMS",
+                row.fit.quantity.c_str(),
+                row.fit.rmsPercent);
+    return;
+  }
+  std::printf("%-24s %10s  %s: %s\n",
+              result.name.c_str(),
+              "SKIPPED",
+              row.fit.quantity.c_str(),
+              row.fit.reason.c_str());
+}
+
 }  // namespace
 
 auto printContext() -> void
@@ -95,11 +130,30 @@ auto printResult(const BenchmarkResult& result) -> void
   }
 
   const auto& scale = unitScale(result.timeUnit);
+  // FR-016, FR-017, FR-018: a family that asked to see its aggregates alone
+  // shows no repetition row, and a family with no aggregate row at all shows
+  // the rows it has: the mode hides no row that stands without an aggregate.
+  bool holdsAggregate = false;
   for (const auto& row : result.rows) {
+    holdsAggregate = holdsAggregate || row.kind == RowKind::AGGREGATE;
+  }
+  const bool trimRepetitionRows = result.hideRepetitionRows && holdsAggregate;
+  for (const auto& row : result.rows) {
+    if (trimRepetitionRows && row.kind == RowKind::REPETITION) {
+      continue;
+    }
+    // FR-022, FR-023: the rows of a complexity fit print as a family's own
+    // report, after its aggregate row; the fit result carries nothing else.
+    if (row.kind == RowKind::BIG_O || row.kind == RowKind::RMS
+        || row.kind == RowKind::SKIPPED)
+    {
+      printFitRow(result, row, scale);
+      continue;
+    }
     if (row.kind == RowKind::AGGREGATE) {
       std::printf("%-24s %10s  primary time/iter (%s) mean=%9.3f "
                   "median=%9.3f sd=%9.3f cv=%8.4f min=%9.3f max=%9.3f "
-                  "n=%llu\n",
+                  "n=%llu",
                   result.name.c_str(),
                   "AGGREGATE",
                   scale.label,
@@ -110,9 +164,44 @@ auto printResult(const BenchmarkResult& result) -> void
                   row.timeStats.min / scale.divisor,
                   row.timeStats.max / scale.divisor,
                   static_cast<unsigned long long>(row.timeStats.samples));
+      // FR-013, FR-014: the statistics the family attached print among the
+      // built-in fields in the order of the calls, a time value in the unit
+      // of the row and a percentage unscaled by it. They stand before the
+      // trailing label, so the label stays the last field of the row.
+      for (const auto& statistic : result.statisticValues) {
+        const double printed = statistic.unit == sg::StatUnit::TIME
+            ? statistic.value / scale.divisor
+            : statistic.value;
+        std::printf("  %s=%9.3f", statistic.name.c_str(), printed);
+      }
+      if (!row.label.empty()) {
+        // FR-012: the shared label prints in the same trailing field.
+        std::printf("  label=%s", row.label.c_str());
+      }
+      std::printf("\n");
       for (std::size_t column = 0; column < row.metricStats.size(); ++column) {
         const auto& stats = row.metricStats[column];
         const char* label = result.metricLabels[column].c_str();
+        std::printf("%-24s %10s  %s mean=%9.3f median=%9.3f sd=%9.3f "
+                    "cv=%8.4f min=%9.3f max=%9.3f n=%llu\n",
+                    result.name.c_str(),
+                    "",
+                    label,
+                    stats.mean,
+                    stats.median,
+                    stats.sampleStdDev,
+                    stats.coefficientOfVariation,
+                    stats.min,
+                    stats.max,
+                    static_cast<unsigned long long>(stats.samples));
+      }
+      // FR-006: one statistic line per named counter, in the order the names
+      // opened, over the clean repetitions.
+      for (std::size_t column = 0; column < result.counterStats.size();
+           ++column)
+      {
+        const auto& stats = result.counterStats[column];
+        const char* label = result.counterLabels[column].c_str();
         std::printf("%-24s %10s  %s mean=%9.3f median=%9.3f sd=%9.3f "
                     "cv=%8.4f min=%9.3f max=%9.3f n=%llu\n",
                     result.name.c_str(),
@@ -157,10 +246,27 @@ auto printResult(const BenchmarkResult& result) -> void
         std::printf(" refusal=%s", availabilityName(metric.availability));
       }
     }
+    // FR-006: one labeled column per user counter after the metric fields,
+    // in the order the names opened, each carrying the flag-applied value
+    // divided by its base. FR-005: a row whose counters could not take their
+    // flags prints the disclosure beside every one of its counter columns.
+    for (std::size_t column = 0; column < row.counters.size(); ++column) {
+      std::printf("  %s=%9.3f",
+                  result.counterLabels[column].c_str(),
+                  row.counters[column]);
+      if (!row.counterDisclosure.empty()) {
+        std::printf(" %s", row.counterDisclosure.c_str());
+      }
+    }
     if (row.pauseSamplesFolded) {
       // FR-054: a folded run discloses the fold beside the row; a raw
       // row keeps the exact bytes it prints today.
       std::printf("  pause=folded");
+    }
+    if (!row.label.empty()) {
+      // FR-011: the label is the trailing field of the row, separated by
+      // two spaces, so an unlabelled row keeps its bytes whole.
+      std::printf("  label=%s", row.label.c_str());
     }
     std::printf("\n");
   }

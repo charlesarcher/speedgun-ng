@@ -8,13 +8,13 @@ fields print today keeps its bytes (FR-006, FR-011, FR-013, FR-022).
 ## The repetition row
 
 ```text
-<name>[ label=<text>]  iterations=N  real=...  cpu=...  overhead=...  \
-  endpoint samples=S  <metric fields>  <counter name>=<scaled value>...
+<name>  iterations=N  real=...  cpu=...  overhead=...  endpoint samples=S  \
+  <metric fields>  <counter name>=<scaled value>...  [ label=<text>]
 ```
 
 | Rule | Requirement |
 | --- | --- |
-| The label field shall follow the name, separated by two spaces, present only when the row carries a label. | FR-011 |
+| The label field shall stand last on the row, separated from the field before it by two spaces, present only when the row carries a label (clarified 2026-10-14). | FR-011 |
 | The metric fields shall keep their H3 bytes and positions. | FR-046 |
 | Counter columns shall follow the metric fields in `counterLabels` order, each printed as the flag-applied value divided by its base. | FR-006; the counter print with `oneK` in `src/console_reporter.cc` |
 | A disclosed row shall print the disclosure token beside each counter column of that row. | FR-005 |
@@ -38,11 +38,18 @@ among the built-in time statistic fields.
 ```text
 <family>  BIG_O  <quantity> <curve> (<coefficient>)
 <family>  RMS    <quantity> <rms-percentage>%
+<family>  SKIPPED  <quantity>: <reason>
+<family>  SKIPPED: <reason>
 ```
 
 | Rule | Requirement |
 | --- | --- |
 | The fit pair shall print per fitted quantity after the family's aggregate row, in the order time, counters in open order, metrics in attach order. | FR-022 |
+| The quantity of the primary time shall be the token `time/iter`; a counter or a metric shall carry the label its column printed under. | FR-022 |
+| The curve shall be one of `1`, `N`, `N^2`, `N^3`, `lgN`, `NlgN`, or `f(N)` for a curve the family supplied. | FR-020, FR-021 |
+| The coefficient of the primary time shall print in the unit the family's own rows printed under; a counter coefficient, a metric coefficient and every RMS shall print unscaled. | FR-015, FR-022 |
+| A quantity that does not stand in every instance shall print the row form naming it, in place of its pair, beside the pairs of the quantities that do stand. | FR-023, spec Edge Cases |
+| A family that holds no fit shall print the outcome form of FR-031 as one synthetic result named after the family, after the rows of its last instance; the rows of its instances shall print unchanged. | FR-023 |
 | The aggregate row of a restricted family shall print; its repetition rows shall not, unless no aggregate row exists. | FR-016, FR-018 |
 
 ## Consumers

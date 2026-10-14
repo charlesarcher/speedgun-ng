@@ -52,6 +52,14 @@ struct RunRecord
   std::uint64_t foldPoints = 0;
   PauseFoldSink pauseFold;
   bool pauseSamplesFolded = false;
+  // E-01, FR-001: the counter store the run opened, in the order the names
+  // opened. The name copies out of the fixed slot, so the record owns its
+  // text and the flag pass runs after the loop on this snapshot (FR-003).
+  std::vector<std::string> counterNames;
+  std::vector<Counter> counterStore;
+  // D-04, FR-011: the label the repetition ended with, copied out of the
+  // state after the loop, one copy per repetition.
+  std::string label;
 };
 
 // R-012: the growth factor is integer arithmetic on nanoseconds, and a

@@ -34,6 +34,17 @@ AGGREGATE = (
     "bmSum     AGGREGATE  primary time/iter (ns) mean=660.1 median=660.1 "
     "sd=1.2 cv=0.0018 min=659.4 max=660.5 n=2"
 )
+# 019 FR-006: a program that opens counters prints one column per name after
+# the metric fields and one statistic line per name in the aggregate family.
+COUNTER_ROW = STDOUT[1] + "  bytes_per_second=1048576.0"
+COUNTER_STAT = (
+    "bmSum            bytes_per_second mean=1048576.0 median=1048576.0 "
+    "sd=1.2 cv=0.0018 min=1048575.0 max=1048577.0 n=2"
+)
+# 019 FR-011: a labelled row carries the trailing label field, and the
+# aggregate carries it only when every repetition shares it.
+LABEL_ROW = STDOUT[1] + "  label=avx2"
+LABEL_AGGREGATE = AGGREGATE + "  label=avx2"
 
 FAILURES: list[str] = []
 
@@ -88,6 +99,41 @@ def golden_pairs() -> None:
                                                         AGGREGATE, STDOUT[2]])),
           "the comparator saw no difference")
 
+    wider_counter = COUNTER_ROW.replace("bytes_per_second=1048576.0",
+                                       "bytes_per_second=    1048576.02")
+    check("a counter column whose value eats the field padding folds equal",
+          mask(COUNTER_ROW) == mask(wider_counter),
+          f"{mask(COUNTER_ROW)!r} against {mask(wider_counter)!r}")
+
+    renamed_counter = COUNTER_ROW.replace("bytes_per_second", "items_per_second")
+    check("a renamed counter column folds different",
+          mask(COUNTER_ROW) != mask(renamed_counter),
+          "both folded to the same shape")
+
+    check("a counter statistic line classifies as a statistic line",
+          "omits this statistic line" in " ".join(
+              compare(list(STDOUT), [*STDOUT, COUNTER_STAT])),
+          compare(list(STDOUT), [*STDOUT, COUNTER_STAT])[:1])
+
+    # FR-011: the label is a field of the row shape, so the fold keeps it and
+    # a block that leaves it out cannot describe a run that prints it.
+    check("a row that carries a label folds different from one that does not",
+          mask(LABEL_ROW) != mask(STDOUT[1]),
+          f"{mask(LABEL_ROW)!r} against {mask(STDOUT[1])!r}")
+
+    other_label = LABEL_ROW.replace("label=avx2", "label=sse")
+    check("another label text folds different",
+          mask(LABEL_ROW) != mask(other_label),
+          f"{mask(LABEL_ROW)!r} against {mask(other_label)!r}")
+
+    check("an aggregate that carries the shared label folds different",
+          mask(LABEL_AGGREGATE) != mask(AGGREGATE),
+          f"{mask(LABEL_AGGREGATE)!r} against {mask(AGGREGATE)!r}")
+
+    check("a labelled row still classifies as a row line",
+          "row line differs" in " ".join(compare([LABEL_ROW], [STDOUT[1]])),
+          " ".join(compare([LABEL_ROW], [STDOUT[1]]))[:1])
+
 
 def page_text(block: list[str]) -> str:
     body = "\n".join(block)
@@ -117,20 +163,50 @@ def end_to_end(tool: Path) -> None:
     with tempfile.TemporaryDirectory() as name:
         root = Path(name)
 
+        # Each case names the block it plants and the stdout the fake binary
+        # prints, so the pair the comparator sees stands in one line.
+        counter_run = (STDOUT[0], COUNTER_ROW, STDOUT[2], COUNTER_STAT)
+        label_run = (STDOUT[0], LABEL_ROW, LABEL_AGGREGATE, STDOUT[2])
         cases = (
-            ("a block that matches the run in shape", True, list(STDOUT)),
+            ("a block that matches the run in shape", True, list(STDOUT), STDOUT),
             ("a planted renamed column header", False,
              [STDOUT[0], STDOUT[1].replace("real time/iter", "wall time/iter"),
-              STDOUT[2]]),
-            ("a planted missing row line", False, list(STDOUT[:2])),
+              STDOUT[2]], STDOUT),
+            ("a planted missing row line", False, list(STDOUT[:2]), STDOUT),
             ("a planted extra aggregate line", False,
-             [STDOUT[0], STDOUT[1], AGGREGATE, STDOUT[2]]),
+             [STDOUT[0], STDOUT[1], AGGREGATE, STDOUT[2]], STDOUT),
+            ("a block that carries the counter columns of the run", True,
+             [STDOUT[0], COUNTER_ROW, STDOUT[2], COUNTER_STAT], counter_run),
+            # FR-006, SC-02: a run that opens counters cannot be described by
+            # a block that omits them, so the built-in sample keeps its exact
+            # bytes only for a program that opens none.
+            ("a run with counters against a block without them", False,
+             list(STDOUT), counter_run),
+            # FR-011: the trailing label field belongs to the row shape on both
+            # sides, so a block that carries it matches the run that prints it
+            # and fails a run that prints none.
+            ("a block that carries the label the run prints", True,
+             [STDOUT[0], LABEL_ROW, LABEL_AGGREGATE, STDOUT[2]], label_run),
+            ("a run that prints a label the block omits", False,
+             [STDOUT[0], STDOUT[1], AGGREGATE, STDOUT[2]], label_run),
+            ("a block that carries a label the run does not print", False,
+             [STDOUT[0], LABEL_ROW, LABEL_AGGREGATE, STDOUT[2]],
+             list(STDOUT)),
         )
-        for case, want_pass, block in cases:
+        for case, want_pass, block, stdout in cases:
             root.joinpath("README.md").write_text(page_text(block))
-            code, output = run_tool(root, tool)
+            code, output = run_tool(root, tool, stdout)
             check(case, (code == 0) == want_pass,
                   f"exit {code}: {output.strip().splitlines()[:1]}")
+
+        root.joinpath("README.md").write_text(
+            page_text([STDOUT[0], COUNTER_ROW.replace("bytes_per_second",
+                                                     "items_per_second"),
+                       STDOUT[2], COUNTER_STAT]))
+        code, output = run_tool(
+            root, tool, (STDOUT[0], COUNTER_ROW, STDOUT[2], COUNTER_STAT))
+        check("a block naming another counter name fails",
+              code != 0, f"exit {code}: {output.strip().splitlines()[:1]}")
 
         sanitizer = (STDOUT[0].replace("build=Release", "build=Sanitize"),
                      *STDOUT[1:])

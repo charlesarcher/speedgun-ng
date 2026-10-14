@@ -726,6 +726,66 @@ target_include_directories(harness_user_counters_test PRIVATE ${CMAKE_SOURCE_DIR
 target_compile_features(harness_user_counters_test PRIVATE cxx_std_23)
 add_test(NAME harness_user_counters_test COMMAND harness_user_counters_test)
 
+# The throughput columns of a run (T016; US2, FR-009, FR-010). One scripted
+# provider steps every machine time leaf by a constant per sampling action, so
+# each printed rate is the value the body passes divided by that scripted fold
+# and by the declared base. The three families divide by the CPU column, the
+# real column and the manual sum, so each mode owns one provider script and
+# runs in a re-exec of this binary.
+add_executable(harness_throughput_test source/harness_throughput_test.cpp)
+target_link_libraries(harness_throughput_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_throughput_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_throughput_test PRIVATE cxx_std_23)
+add_test(NAME harness_throughput_test COMMAND harness_throughput_test)
+
+# The trailing label field of a row (T018; US4, FR-011, FR-012). One scripted
+# provider steps every machine time leaf by a constant per sampling action, so
+# the rows are the ones the label field joins or leaves untouched. Each mode
+# owns one provider script, so it runs in a re-exec of this binary and the
+# parent reads the wait status of the child that breaches the newline bound.
+add_executable(harness_label_test source/harness_label_test.cpp)
+target_link_libraries(harness_label_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_label_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_label_test PRIVATE cxx_std_23)
+add_test(NAME harness_label_test COMMAND harness_label_test)
+
+# Custom aggregate statistics (T021; US5, FR-013 to FR-015, SC-03). The
+# scripted CPU leaf gives the three repetitions primary folds of 800, 1600 and
+# 2400 ns over four iterations, so the primary list the statistic functions
+# receive is 200, 400 and 600 ns per iteration and the printed range and
+# percentage have exact expected values. Each mode owns one provider script, so
+# it runs in a re-exec of this binary and the parent reads the wait status of
+# the child that breaches the reserved built-in name.
+add_executable(harness_custom_stats_test source/harness_custom_stats_test.cpp)
+target_link_libraries(harness_custom_stats_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_custom_stats_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_custom_stats_test PRIVATE cxx_std_23)
+add_test(NAME harness_custom_stats_test COMMAND harness_custom_stats_test)
+
+# The aggregate-only modes (T024; US6, FR-016 to FR-018). One scripted provider
+# steps both machine time leaves by a constant per sampling action, so a
+# three-repetition family holds three measured rows beside its aggregate and a
+# one-repetition family holds one row and no aggregate. Each mode owns one
+# provider script, so it runs in a re-exec of this binary.
+add_executable(harness_aggregates_only_test source/harness_aggregates_only_test.cpp)
+target_link_libraries(harness_aggregates_only_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_aggregates_only_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_aggregates_only_test PRIVATE cxx_std_23)
+add_test(NAME harness_aggregates_only_test COMMAND harness_aggregates_only_test)
+
+# The complexity fit of a family (T027; US7, FR-019 to FR-023, SC-04). Every
+# family of the scenario runs on manual time with one iteration, so the value
+# the fit reads is the value the body states, and each planted curve has an
+# expected coefficient and RMS instead of a tolerance band: the automatic fit of
+# a quadratic family with a counter and a metric, a fixed curve over the same
+# data, a user curve, a family that states its own problem size, and the three
+# shapes that hold no fit.
+add_executable(harness_complexity_test source/harness_complexity_test.cpp)
+target_link_libraries(harness_complexity_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_complexity_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_complexity_test PRIVATE cxx_std_23)
+add_test(NAME harness_complexity_test COMMAND harness_complexity_test)
+
 # The printed time unit of a run (T023; US5, C-6, FR-015, FR-016, SC-005).
 # One scripted provider steps every machine time leaf by a constant per
 # sampling action, so each printed figure is that step divided by the fixed
@@ -806,6 +866,33 @@ if(TARGET first_benchmark)
   )
   set_tests_properties(report_shape PROPERTIES TIMEOUT 120)
 endif()
+
+# Each docs example is a complete program whose regions the page quotes, so the
+# gate runs every one of them and requires a row for each registered benchmark,
+# with no FAILED row and with every skip declared in the source (T035; FR-034,
+# FR-035, SC-14, D-12, D-15). Only a tree that builds the examples holds the
+# binaries the gate runs, so this registration is conditional the way
+# `report_shape` is.
+if(TARGET docs_run_loop)
+  add_test(
+      NAME example_run
+      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/example_run.sh ${CMAKE_BINARY_DIR}
+  )
+  set_tests_properties(example_run PROPERTIES TIMEOUT 300)
+endif()
+
+# The run gate is proven live. Each fixture run builds a scratch tree of fake
+# docs_ binaries, plants one outcome of the four the gate tells apart, and
+# requires the gate to name it, so a clean verdict cannot come from a scan that
+# inspects nothing (FR-035, SC-14). The scratch trees hold their own binaries,
+# so this registration is unconditional.
+add_test(
+    NAME example_run_fixtures
+    COMMAND
+      bash
+      ${CMAKE_CURRENT_SOURCE_DIR}/example-run-fixture/run_example_run_fixtures.sh
+      ${CMAKE_SOURCE_DIR}
+)
 
 # ---- End-of-file commands ----
 

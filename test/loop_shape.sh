@@ -48,7 +48,13 @@ if [ -z "$EXPORT_DIR" ]; then
 fi
 
 dump_function() {
-  objdump -d --no-show-raw-insn -C "$1" 2>/dev/null | awk -v rx="$2" '
+  local flags="-d --no-show-raw-insn -C"
+  if [ "${3:-}" = "relocs" ]; then
+    # A relocatable object names the callee of a call only in its relocation
+    # entries, so the counter rule reads the dump with them.
+    flags="-dr --no-show-raw-insn -C"
+  fi
+  objdump $flags "$1" 2>/dev/null | awk -v rx="$2" '
     /^[[:space:]]*[0-9a-f]+ <.*>:/ {
       if (p) { exit }
       if ($0 ~ rx && $0 !~ /\[clone/) { p = 1 }
@@ -62,7 +68,8 @@ dump_function() {
       gsub(/^[[:space:]]+/, "", rest)
       gsub(/[[:space:]]*$/, "", rest)
       n = split(rest, parts, /[[:space:]]+/)
-      printf "%s\t%s\t%s\n", tolower(addr), parts[1], (n > 1 ? parts[2] : "")
+      printf "%s\t%s\t%s\t%s\n", tolower(addr), parts[1], (n > 1 ? parts[2] : ""),
+             (n > 2 ? parts[3] : "")
       next
     }
     p && /^Disassembly of section/ { exit }
@@ -80,6 +87,7 @@ printf '%s\n' "$1" | awk '
 addr[NR] = $1
 ins[NR] = $2
 op[NR] = $3
+tgt[NR] = $4
 n = NR
 }
 END {
@@ -119,7 +127,7 @@ if (best == 0) {
 exit
 }
 for (m = bestk; m <= best; ++m) {
-printf "%s\t%s\t%s\n", addr[m], ins[m], op[m]
+printf "%s\t%s\t%s\t%s\n", addr[m], ins[m], op[m], tgt[m]
 }
 }
 '
@@ -127,6 +135,7 @@ printf "%s\t%s\t%s\n", addr[m], ins[m], op[m]
 
 shape_source() {
   cat <<'SOURCE'
+#include <cstddef>
 #include <cstdint>
 
 #include "speedgun-ng/barrier.hpp"
@@ -160,13 +169,42 @@ __attribute__((noinline)) auto plantedLoop(sg::State& state, std::uint64_t value
     sg::doNotOptimize(extra);
   }
 }
+
+// FR-007: the body of a benchmark that counts its own work. The counter store
+// stands in fixed storage with inline name buffers, so the one out-of-line call
+// the loop holds is the body's own call into `setCounter`.
+__attribute__((noinline)) auto counterLoop(sg::State& state, std::uint64_t value)
+    -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(value);
+    state.setCounter("loop", {1.0});
+  }
+}
+
+// The liveness shape of the rule below: a body that allocates on every
+// iteration, so the detector has to reject it.
+__attribute__((noinline)) auto plantedCounterLoop(sg::State& state,
+                                                  std::uint64_t value) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(value);
+    state.setCounter("loop", {1.0});
+    sg::doNotOptimize(*new std::uint64_t[1]);
+  }
+}
 SOURCE
 }
 
 compile_shapes() {
   local cxx=$1
   printf '%s\n' "$(shape_source)" > "$WORKDIR/shape.cpp"
-  "$cxx" -O2 -std=c++23 -I "$ROOT/include" -I "$EXPORT_DIR" \
+  # A hardening build wraps a function whose frame holds an address-taken
+  # temporary in a stack canary, and the cold block of that check sits between
+  # the blocks of the loop with a back edge shorter than the loop's own. The
+  # canary costs one compare per call, so it is not the cost per iteration the
+  # gate reads, and the gate reads the loop without it.
+  "$cxx" -O2 -fno-stack-protector -std=c++23 -I "$ROOT/include" -I "$EXPORT_DIR" \
     -c "$WORKDIR/shape.cpp" -o "$WORKDIR/shape-$cxx.o" 2> "$WORKDIR/err.txt"
 }
 
@@ -216,6 +254,56 @@ analyze() {
   return 0
 }
 
+# The counter loop of FR-007: the body owns one out-of-line call, the call into
+# `State::setCounter`, and nothing else. An allocation would add a second call
+# and would name the allocation symbol in the function, so both readings are
+# checked.
+analyze_counter() {
+  local obj=$1 cxx=$2 label=$3
+  local all body call_n
+
+  all=$(dump_function "$obj" "$label" relocs)
+  if [ -z "$all" ]; then
+    echo "FAIL $cxx: could not locate $label in the object" >&2
+    return 1
+  fi
+  body=$(loop_body "$all")
+  if [ -z "$body" ]; then
+    echo "FAIL $cxx: $label holds no loop" >&2
+    return 1
+  fi
+
+  call_n=$(printf '%s\n' "$body" | awk -F'\t' '$2 ~ /^call/' | wc -l)
+  if [ "$call_n" -ne 1 ]; then
+    echo "FAIL $cxx: the $label loop holds $call_n out-of-line calls; the body's" \
+      >&2
+    echo "      own call into setCounter is the one it may hold (FR-007)" >&2
+    printf '%s\n' "$body" | sed 's/^/  /' >&2
+    return 1
+  fi
+
+  # The function reaches the counter store exactly once and reaches no
+  # allocation. A relocatable object names the callee of a call in its
+  # relocation entries, and a compiler is free to rotate the loop, so these
+  # two readings cover the whole function while the count above reads the
+  # cycle the iterations travel.
+  if [ "$(printf '%s\n' "$all" | grep -c 'R_X86_64_PLT32.*setCounter')" -ne 1 ]; then
+    echo "FAIL $cxx: $label does not reach State::setCounter exactly once" >&2
+    printf '%s\n' "$all" | sed 's/^/  /' >&2
+    return 1
+  fi
+
+  if printf '%s\n' "$all" | grep -qE '_Znwm|_ZnaYm|operator[[:space:]]+new|malloc|calloc|memcpy|memmove'; then
+    echo "FAIL $cxx: the $label function reaches an allocation, so the counter" \
+      >&2
+    echo "      store would allocate inside the timed loop (FR-007)" >&2
+    return 1
+  fi
+
+  echo "  $cxx $label: the loop holds the body's own call and allocates nothing"
+  return 0
+}
+
 # Liveness: the detector must fail on a loop that loads one extra value per
 # iteration, or a clean run below proves nothing.
 liveness_probe() {
@@ -255,6 +343,22 @@ for cxx in g++ clang++; do
   if ! analyze "$WORKDIR/shape-$cxx.o" "$cxx" 'shapeLoop'; then
     echo "      FR-004: the timed loop pays for more than the loop" >&2
     status=1
+  fi
+
+  if ! analyze_counter "$WORKDIR/shape-$cxx.o" "$cxx" 'counterLoop'; then
+    echo "      FR-007: the counter loop pays for more than its own call" >&2
+    status=1
+  fi
+
+  # The counter rule is live: a body that allocates per iteration has to be
+  # rejected, or the clean reading above proves nothing.
+  if analyze_counter "$WORKDIR/shape-$cxx.o" "$cxx" 'plantedCounterLoop'; then
+    echo "FAIL $cxx: a loop that allocates per iteration passed the counter" \
+      >&2
+    echo "      check, so that check proves nothing" >&2
+    status=1
+  else
+    echo "  $cxx: counter check rejects a loop that allocates (live)"
   fi
 done
 

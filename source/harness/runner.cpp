@@ -4,11 +4,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <expected>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "detail/calibration.hpp"
+#include "detail/complexity.hpp"
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
@@ -91,6 +93,53 @@ constexpr const char* kInterruptReason = "interrupted by the user (SIGINT)";
 
 // The run a signal stopped keeps the skip outcome and the one reason,
 // whichever phase it stopped in.
+// E-01, FR-003: the flag pass of the counters of one repetition. The flags
+// apply in the order rate, thread average, iteration-invariant, average over
+// iterations, invert, and the declared base scales the result (FR-003, FR-006).
+// The thread average divides by one while threads stand out of scope (FR-004,
+// Q-3), so that flag carries no divisor here. A divisor of zero leaves the
+// flag-neutral value, the case FR-005 discloses, and a value of zero carries
+// no reciprocal the row could print, so its flag-neutral value stands as well.
+auto counterColumns(const std::vector<std::string>& names,
+                    const std::vector<sg::Counter>& store,
+                    const double primarySeconds,
+                    const std::uint64_t iterations) -> std::vector<double>
+{
+  std::vector<double> printed;
+  printed.reserve(names.size());
+  const double count = static_cast<double>(iterations);
+  for (std::size_t index = 0; index < names.size(); ++index) {
+    const sg::Counter& counter = store[index];
+    double value = counter.value;
+    if (primarySeconds > 0.0) {
+      if ((counter.flags & sg::CounterFlag::RATE) != sg::CounterFlag::NONE) {
+        value /= primarySeconds;
+      }
+      if ((counter.flags & sg::CounterFlag::ITERATION_INVARIANT)
+          != sg::CounterFlag::NONE)
+      {
+        value *= count;
+      }
+      if ((counter.flags & sg::CounterFlag::AVG_ITERATIONS)
+          != sg::CounterFlag::NONE)
+      {
+        value /= count;
+      }
+      // The two-sided test reads the same value of zero as a comparison
+      // against zero and leaves the floating-point equality warning aside
+      // from a rule that has to name zero exactly (FR-005).
+      if ((counter.flags & sg::CounterFlag::INVERT) != sg::CounterFlag::NONE
+          && (value < 0.0 || value > 0.0))
+      {
+        value = 1.0 / value;
+      }
+    }
+    value /= counter.base == sg::CounterBase::K1024 ? 1024.0 : 1000.0;
+    printed.push_back(value);
+  }
+  return printed;
+}
+
 auto markInterrupted(sg::BenchmarkResult& result) noexcept -> void
 {
   result.outcome = sg::RunOutcome::SKIPPED;
@@ -165,6 +214,8 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
   // FR-054: a folded run is disclosed beside its row; a raw row keeps
   // the bytes it prints today.
   row.pauseSamplesFolded = record.pauseSamplesFolded;
+  // D-04, FR-011: the row carries the label its repetition ended with.
+  row.label = record.label;
   row.timeAvailability = primaryCore != nullptr
       ? nettedFold(*primaryCore, recorder, record, primaryFoldColumn)
             .availability
@@ -192,6 +243,27 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
     }
     row.metrics.push_back(value);
   }
+
+  // FR-003, FR-004, FR-005: the flags apply now that the repetition is over,
+  // and the primary time of the row is the divisor of a rate. A primary fold
+  // that carries a disclosure keeps that disclosure, and the zero divisor is
+  // named only when the fold itself is countable and still holds no time:
+  // the two causes are distinct and each row names its own. Both leave the
+  // flag-neutral value with a disclosure beside every counter column.
+  const bool primaryCountable =
+      row.timeAvailability == sg::counters::Availability::COUNTABLE;
+  const double primarySeconds = record.decisionNs > 0 && primaryCountable
+      ? static_cast<double>(record.decisionNs) * 1e-9
+      : 0.0;
+  if (!primaryCountable) {
+    row.counterDisclosure = "fold-disclosed";
+  } else if (record.decisionNs == 0) {
+    row.counterDisclosure = "zero-divisor";
+  }
+  row.counters = counterColumns(record.counterNames,
+                                record.counterStore,
+                                primarySeconds,
+                                record.iterations);
 }
 
 }  // namespace
@@ -260,6 +332,40 @@ auto State::setCounter(const std::string_view name,
             "the call (FR-001)");
 }
 
+// FR-009, E-03: the throughput setters open their one fixed name on the same
+// store as any user name, so a body reports throughput without naming a
+// column and the two columns share the cap, the flag pass, and the last-write
+// rule of the named counters.
+auto State::setBytesProcessed(const std::int64_t bytes) -> void
+{
+  setCounter(
+      "bytes_per_second",
+      Counter {
+          static_cast<double>(bytes), CounterFlag::RATE, CounterBase::K1024});
+}
+
+auto State::setItemsProcessed(const std::int64_t items) -> void
+{
+  setCounter(
+      "items_per_second",
+      Counter {
+          static_cast<double>(items), CounterFlag::RATE, CounterBase::K1000});
+}
+
+// D-04, FR-011: one string per repetition, and the newline bound is the
+// one-line-per-row shape the report-shape checks assert. The rule that names
+// the breach needs no runtime text, so the precondition carries the literal.
+auto State::setLabel(const std::string_view label) -> void
+{
+  SG_REQUIRE(label.find('\n') == std::string_view::npos,
+             "a label containing a newline character breaks the one line per "
+             "row of the report, so the call violates its precondition "
+             "(FR-011, spec Edge Cases)");
+  m_label.assign(label);
+  SG_ENSURE(m_label == label,
+            "the repetition carries the label of the call " "(FR-011)");
+}
+
 }  // namespace sg
 
 namespace sg::detail
@@ -319,6 +425,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // default read at this run's start.
   result.timeUnit = entry.timeUnit.value_or(
       batchDefaultTimeUnit().value_or(getDefaultTimeUnit()));
+  // FR-016, FR-017: either mode of the family trims its report; whether an
+  // aggregate row exists to show instead is the report's decision, because
+  // a family with no aggregate keeps its rows (FR-018).
+  result.hideRepetitionRows =
+      entry.reportAggregatesOnly || entry.displayAggregatesOnly;
 
   auto& sys = sg::counters::System::local();
   const std::int64_t minTimeNs =
@@ -492,6 +603,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   std::optional<sg::counters::RecorderHandle<sg::counters::HardStop>>
       attemptRecorder;
 
+  // FR-019: the problem size a body stated with `setComplexityN`, the N the
+  // complexity fit of the family reads for this instance. The value leaves the
+  // sampling run here and reaches the samples at the foot of the run.
+  std::optional<std::int64_t> complexityN;
+
   // R-06: one flag read after each run ends the benchmark with this
   // reason, and the process exits nonzero.
 
@@ -636,6 +752,19 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     } else {
       record.decisionNs = entry.realTime ? record.realNs : record.cpuNs;
     }
+    // E-01, FR-001: the counter store leaves the run with the record. The
+    // names copy out of the fixed slots, so the flag pass and the row build
+    // read them after the loop (FR-003).
+    for (const auto& slot : state.m_counters) {
+      if (slot.used) {
+        record.counterNames.emplace_back(slot.name.data(), slot.nameSize);
+        record.counterStore.push_back(slot.counter);
+      }
+    }
+    // D-04, FR-011: the label leaves the run with the record, one copy for
+    // the repetition the record describes.
+    record.label = state.m_label;
+    complexityN = state.m_complexityN;
     if (state.outcome() == RunOutcome::SKIPPED) {
       record.skipped = true;
       record.reason = state.reason();
@@ -736,6 +865,25 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
                       *attemptRecorder,
                       entry.realTime ? 0 : 1);
 
+    // FR-006: the labels of the run's counters are its names in the order
+    // they opened, read from the rows as they are built.
+    if (chosen->counterNames.size() > result.counterLabels.size()) {
+      result.counterLabels = chosen->counterNames;
+    }
+
+    // FR-008: a counter name equal to the label of an attached metric fails
+    // the run naming the collision, and the check runs when the first row of
+    // the run stands.
+    for (const auto& label : result.metricLabels) {
+      for (const auto& name : chosen->counterNames) {
+        if (label == name) {
+          return fail("the counter name '" + name
+                      + "' equals the label of an attached metric, and one "
+                        "row carries that name once (FR-008)");
+        }
+      }
+    }
+
     if (interruptFlag().load()) {
       result.outcome = RunOutcome::SKIPPED;
       result.reason = kInterruptReason;
@@ -754,6 +902,16 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   if (result.outcome == RunOutcome::MEASURED && repetitionsOfRun > 1) {
     ResultRow aggregate;
     aggregate.kind = RowKind::AGGREGATE;
+
+    // FR-012: the aggregate carries the label only when every repetition
+    // shares it, the shared-label rule of the cited ComputeStats.
+    aggregate.label = result.rows.front().label;
+    for (const auto& row : result.rows) {
+      if (row.label != aggregate.label) {
+        aggregate.label.clear();
+        break;
+      }
+    }
 
     // D-13, FR-002: one aggregate summarizes the primary time, and the
     // gap rule of the Edge Cases keeps a repetition whose primary fold
@@ -774,7 +932,20 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // aggregate keeps the default record, zero in every field beside
     // a zero sample count, and statisticsOf keeps its non-empty input.
     aggregate.timeStats =
-        times.empty() ? sg::Statistics {} : statisticsOf(std::move(times));
+        times.empty() ? sg::Statistics {} : statisticsOf(times);
+
+    // FR-013, FR-014, FR-015: every attached statistic computes over the
+    // same clean primary values the built-in set just summarized, in the
+    // order the calls came in. A function that refuses its input leaves no
+    // value, so the row holds no field for it and the run still reports.
+    for (const auto& statistic : entry.statistics) {
+      sg::StatisticValue value;
+      value.name = statistic.name;
+      value.unit = statistic.unit;
+      if (statistic.function(times, value.value)) {
+        result.statisticValues.push_back(std::move(value));
+      }
+    }
 
     for (std::size_t column = 0; column < columns.size(); ++column) {
       std::vector<double> values;
@@ -797,10 +968,229 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       aggregate.metricStats.push_back(columnStats);
     }
 
+    // FR-006, FR-005: one statistic set per named counter over the clean
+    // repetitions. A row that disclosed one of its counters stands aside from
+    // the statistics of that counter, and a counter every repetition disclosed
+    // summarizes to the zero record beside a zero sample count.
+    std::vector<std::vector<double>> counterValues(result.counterLabels.size());
+    for (const auto& row : result.rows) {
+      if (!row.counterDisclosure.empty()) {
+        continue;
+      }
+      while (counterValues.size() < row.counters.size()) {
+        counterValues.emplace_back();
+      }
+      for (std::size_t column = 0; column < row.counters.size(); ++column) {
+        counterValues[column].push_back(row.counters[column]);
+      }
+    }
+    for (auto& values : counterValues) {
+      result.counterStats.push_back(
+          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values)));
+    }
+
     result.rows.push_back(aggregate);
   }
 
+  // FR-019, FR-022: a family that asked for a complexity fit collects one value
+  // per instance, and the fit itself waits for the family to end. A run that
+  // measured nothing hands the fit no value, so it stands out of the samples.
+  if ((entry.bigO != BigO::NONE || static_cast<bool>(entry.bigOFun))
+      && result.outcome == RunOutcome::MEASURED)
+  {
+    noteFitSample(instance, result, complexityN);
+  }
+
   return result;
+}
+
+namespace
+{
+
+// FR-022: one instance's values of one family of quantities join the samples
+// the fit reads. A name a later instance opens joins the label list, and the
+// instances before it carry no value of it, which is the one shape that leaves
+// that quantity without its pair (FR-023, spec Edge Cases).
+auto appendQuantities(std::vector<std::string>& labels,
+                      std::vector<std::vector<double>>& values,
+                      const std::vector<std::string>& names,
+                      const std::vector<double>& columns,
+                      std::size_t instances) -> void
+{
+  for (std::size_t column = 0; column < columns.size(); ++column) {
+    std::size_t index = 0;
+    while (index < labels.size() && labels[index] != names.at(column)) {
+      ++index;
+    }
+    if (index == labels.size()) {
+      labels.push_back(names.at(column));
+      values.emplace_back(instances - 1,
+                          std::numeric_limits<double>::quiet_NaN());
+    }
+    values.at(index).push_back(columns.at(column));
+  }
+}
+
+}  // namespace
+
+auto Runner::noteFitSample(const Instance& instance,
+                           const BenchmarkResult& result,
+                           const std::optional<std::int64_t> statedSize) -> void
+{
+  // FR-019: the size of an instance is the value its body stated, else the
+  // range value it runs under, and zero when it carries neither, which leaves
+  // the family without a fit (FR-023).
+  const std::int64_t size = statedSize.value_or(
+      instance.arguments.empty() ? 0 : instance.arguments.front());
+
+  // FR-022: the aggregate summarizes the instance when one stands; a family of
+  // one repetition keeps its single row, and that row carries the value.
+  const auto* chosen = &result.rows.back();
+  for (const auto& row : result.rows) {
+    if (row.kind == RowKind::AGGREGATE) {
+      chosen = &row;
+    }
+  }
+  const bool aggregate = chosen->kind == RowKind::AGGREGATE;
+  const RegistryEntry& entry = *instance.family;
+
+  m_pendingFamily = instance.family;
+  m_pendingUnit = result.timeUnit;
+  m_sizes.push_back(size);
+  m_times.push_back(aggregate ? chosen->timeStats.mean
+                              : (entry.manualTime || entry.realTime
+                                     ? chosen->timePerIterationNs
+                                     : chosen->cpuTimePerIterationNs));
+
+  auto counters = std::vector<double> {};
+  if (aggregate) {
+    for (const auto& stats : result.counterStats) {
+      counters.push_back(stats.mean);
+    }
+  } else {
+    counters = chosen->counters;
+  }
+  auto metrics = std::vector<double> {};
+  if (aggregate) {
+    for (const auto& stats : chosen->metricStats) {
+      metrics.push_back(stats.mean);
+    }
+  } else {
+    for (const auto& metric : chosen->metrics) {
+      metrics.push_back(metric.value);
+    }
+  }
+
+  appendQuantities(m_counterLabels,
+                   m_counterValues,
+                   result.counterLabels,
+                   counters,
+                   m_sizes.size());
+  appendQuantities(m_metricLabels,
+                   m_metricValues,
+                   result.metricLabels,
+                   metrics,
+                   m_sizes.size());
+}
+
+auto Runner::clearPending() noexcept -> void
+{
+  m_pendingFamily = nullptr;
+  m_pendingUnit = std::nullopt;
+  m_sizes = {};
+  m_times = {};
+  m_counterLabels = {};
+  m_counterValues = {};
+  m_metricLabels = {};
+  m_metricValues = {};
+}
+
+auto Runner::fitForFamilyEnd(const Instance* next)
+    -> std::optional<BenchmarkResult>
+{
+  if (m_pendingFamily == nullptr
+      || (next != nullptr && next->family == m_pendingFamily))
+  {
+    return std::nullopt;
+  }
+
+  // FR-022: the quantities of the fit in the order the report prints them: the
+  // primary time first, then the named counters and the attached metrics in the
+  // order their names and expressions opened.
+  auto quantities = std::vector<FitQuantity> {};
+  quantities.push_back(FitQuantity {
+      .label = "time/iter",
+      .scalesWithUnit = true,
+      .values = m_times,
+      .curve = {},
+      .coefficient = 0.0,
+      .rmsPercent = 0.0,
+      .reason = {},
+  });
+  for (std::size_t column = 0; column < m_counterLabels.size(); ++column) {
+    quantities.push_back(FitQuantity {.label = m_counterLabels.at(column),
+                                      .scalesWithUnit = false,
+                                      .values = m_counterValues.at(column),
+                                      .curve = {},
+                                      .coefficient = 0.0,
+                                      .rmsPercent = 0.0,
+                                      .reason = {}});
+  }
+  for (std::size_t column = 0; column < m_metricLabels.size(); ++column) {
+    quantities.push_back(FitQuantity {.label = m_metricLabels.at(column),
+                                      .scalesWithUnit = false,
+                                      .values = m_metricValues.at(column),
+                                      .curve = {},
+                                      .coefficient = 0.0,
+                                      .rmsPercent = 0.0,
+                                      .reason = {}});
+  }
+
+  const auto fit = fitFamily(m_sizes,
+                             std::move(quantities),
+                             m_pendingFamily->bigO,
+                             m_pendingFamily->bigOFun);
+  const std::string familyName = m_pendingFamily->name;
+  const auto timeUnit = m_pendingUnit.value_or(TimeUnit::NANOSECONDS);
+  clearPending();
+
+  auto outcome = BenchmarkResult {};
+  // FR-022: the fit reports for the family, not for one instance, so the three
+  // name fields carry the family name the rows print. The unit is the one the
+  // rows of the family printed under, because the coefficient of the primary
+  // time stands in it (FR-015).
+  outcome.name = familyName;
+  outcome.suite = familyName;
+  outcome.caseName = familyName;
+  outcome.timeUnit = timeUnit;
+  if (!fit.reason.empty()) {
+    // FR-023: the family states its reason in place of every pair.
+    outcome.outcome = RunOutcome::SKIPPED;
+    outcome.reason = fit.reason;
+    return outcome;
+  }
+  for (const auto& quantity : fit.quantities) {
+    if (!quantity.reason.empty()) {
+      // FR-023, spec Edge Cases: the quantity that does not stand in every
+      // instance holds no pair and states its own reason.
+      auto& row = outcome.rows.emplace_back();
+      row.kind = RowKind::SKIPPED;
+      row.fit.quantity = quantity.label;
+      row.fit.reason = quantity.reason;
+      continue;
+    }
+    auto& bigO = outcome.rows.emplace_back();
+    bigO.kind = RowKind::BIG_O;
+    bigO.fit.quantity = quantity.label;
+    bigO.fit.curve = quantity.curve;
+    bigO.fit.coefficient = quantity.coefficient;
+    bigO.fit.scalesWithUnit = quantity.scalesWithUnit;
+    auto& rms = outcome.rows.emplace_back();
+    rms.kind = RowKind::RMS;
+    rms.fit.quantity = quantity.label;
+    rms.fit.rmsPercent = quantity.rmsPercent;
+  }
+  return outcome;
 }
 
 }  // namespace sg::detail
