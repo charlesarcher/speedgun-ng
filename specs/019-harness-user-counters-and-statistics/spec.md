@@ -878,10 +878,12 @@ page.
   Q-11).
 - **FR-052**: An attempt that reserves no pause room, a family's
   first attempt included, or whose room cannot cover its closed
-  pairs, shall fold each closed pause pair into its row's running
-  pause totals at the commit of the pair's second point, from the
-  same two raw counter points and through the counters library
-  alone, and the netted columns shall equal the raw path's (FR-026,
+  pairs, shall fold each closed pause pair into the row's running
+  pause totals, one accumulator per leaf, at the commit of the pair's
+  second point, from the same two raw counter points and through the
+  counters library alone; the fold is the documented exception to the
+  rule that every printed value is a fold over retained raw points,
+  and the netted columns shall equal the raw path's (FR-026,
   FR-050).
 - **FR-053**: A run whose body closes no pause shall reserve no pause
   room beyond the endpoint points of each run it starts (FR-051).
