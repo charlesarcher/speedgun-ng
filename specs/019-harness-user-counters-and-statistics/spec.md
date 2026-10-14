@@ -286,7 +286,7 @@ revision, read from the fetched files at the audit date:
 | `ReportAggregatesOnly` restricts every report output to the aggregate rows; `DisplayAggregatesOnly` restricts the display alone | `include/benchmark/benchmark_api.h` (`ReportAggregatesOnly`, `DisplayAggregatesOnly`); `include/benchmark/statistics.h` (`AggregationReportMode`); `src/benchmark_runner.cc` (the mode consumption); `src/benchmark.cc` (`report_one` per output) |
 | `SetComplexityN` records the problem size of a run | `include/benchmark/state.h` (`SetComplexityN`); `include/benchmark/statistics.h` (`ComplexityN`) |
 | `Complexity` selects a fitted class or a user function; the classes are constant, N, N², N³, log N, N log N, and auto | `include/benchmark/benchmark_api.h` (the `Complexity` overloads); `include/benchmark/statistics.h` (`BigO`, `BigOFunc`) |
-| The fit minimizes the sum of squared relative errors by least squares; auto tries each curve and keeps the least RMS, with the constant as the fallback | `src/complexity.cc` (`LeastSquaresComplexity`; the `MinimalLeastSq` auto path) |
+| The fit minimizes the sum of squared absolute errors by least squares; auto tries each curve and keeps the least RMS, with the constant as the fallback | `src/complexity.cc` (`LeastSquaresComplexity`; the `MinimalLeastSq` auto path) |
 | Per fitted quantity the fit reports two aggregate rows: the class with its coefficient, in that quantity's unit, and the RMS as a percentage, unscaled by the unit multiplier | `src/complexity.cc` (`ComputeBigO`, its BigO row and its RMS row) |
 | A family with fewer than two instances gets no fit; an instance with no positive N cannot be fitted | `src/complexity.cc` (`ComputeBigO` guards) |
 | The aggregate summarizes each named counter across the successful repetitions; the flags of one name must agree across runs; custom counters are not rescaled into the aggregate | `src/statistics.cc` (`ComputeStats` counter collection and its no-rescale note) |
@@ -739,10 +739,12 @@ page.
   as `Complexity` does (the `Complexity` overloads in
   `benchmark_api.h`; `BigO` and `BigOFunc` in
   `statistics.h`).
-- **FR-021**: The runner shall fit the coefficient by least squares
-  of the relative error over the family's instances, and auto shall
-  try each curve of the cited list and keep the least RMS, with the
-  constant curve as the fallback (`LeastSquaresComplexity` and the
+- **FR-021**: The runner shall fit the coefficient by least squares of
+  the absolute error over the family's instances, by the closed form
+  `k = sum(t * f(N)) / sum(f(N)^2)`, and shall report the RMS as
+  `sqrt(sum((t - k * f(N))^2) / n) / mean(t)` as a percentage. Auto
+  shall try each curve of the cited list and keep the least RMS, with
+  the constant curve as the fallback (`LeastSquaresComplexity` and the
   `MinimalLeastSq` auto path in `src/complexity.cc`).
 - **FR-022**: The fit shall be one per family over its instances and
   shall report, for each fitted quantity, two extra aggregate rows:

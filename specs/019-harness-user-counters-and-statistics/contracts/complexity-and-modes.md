@@ -30,8 +30,8 @@ auto complexity(BigOFun function) -> BenchmarkHandle&;
 | Rule | Requirement |
 | --- | --- |
 | One fit per family over its instances, per fitted quantity: the primary time, each named user counter, each attached metric. | FR-022, clarification 2026-10-14 |
-| The coefficient shall minimize the relative-error least squares with the closed form `k = sum(f(N)/y) / sum((f(N)/y)^2)`. | FR-021; `LeastSquaresComplexity` in `src/complexity.cc` |
-| The RMS shall be the root-mean relative error times 100, printed unscaled by the unit multiplier. | FR-022 |
+| The coefficient shall be the least-squares solution of the absolute residuals, the closed form `k = sum(t * f(N)) / sum(f(N)^2)`. | FR-021; `LeastSquaresComplexity` in `src/complexity.cc` |
+| The RMS shall be `sqrt(sum((t - k * f(N))^2) / n) / mean(t)` times 100, printed unscaled by the unit multiplier. | FR-022 |
 | The instance N shall be the `setComplexityN` value when set, else the instance's range value. | FR-019, research D-08 |
 | A family with fewer than two instances shall state the named reason in place of rows. | FR-023 |
 | An instance without a positive N shall state the named reason in place of rows. | FR-023; the `ComputeBigO` guards in `src/complexity.cc` |

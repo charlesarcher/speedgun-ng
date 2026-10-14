@@ -521,6 +521,11 @@ the fit error as a percentage. A quantity a member never set gets a
 fewer than two instances, or an instance without a positive size, states
 the reason in place of the rows.
 
-A curve is fitted from the series of the family, and the printed coefficient
-and error are those of that fit. A family with too few points to fit states
-the reason and prints no coefficient.
+Each curve is fitted by the least-squares closed form
+`k = sum(t * f(N)) / sum(f(N)^2)` over the series of the family, where `t`
+is the value of one instance and `f(N)` the shape of the curve at its
+size. The error row is the root-mean residual `t - k * f(N)` over the
+mean of the values, as a percentage. `AUTOMATIC` fits every curve and
+keeps the one with the least error, with the constant curve standing
+when none earns less. A family with too few points to fit states the
+reason and prints no coefficient.
