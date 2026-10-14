@@ -59,6 +59,15 @@ against the quick-start binary by shape,
 and the block itself stands unchanged through this feature: the
 quick-start binary registers no counter, no label, no statistic, and
 no fit, so the shipped shape keeps matching.
+The user guide block of `docs/pages/harness.md` does hold a fit row, and
+its run prints the curve the fit chose for the timings of the build that
+ran: an instrumented build can fit a linear benchmark onto `NlgN`. The
+comparator therefore folds the curve token and the coefficient inside
+the parentheses, the same way it folds a digit run and the build field,
+and it compares the quantity label and the column set in full.
+`test/example-drift-fixture/run_report_shape_fixtures.py` pins both
+directions of that fold: another curve folds equal on a line carrying
+the fit column, and a curve word on a line without it folds different.
 `test/example-drift-fixture/run_report_shape_fixtures.py` pins that
 comparator's fixture;
 `test/source/harness_aggregates_only_test.cpp` pins the filter;
