@@ -17,8 +17,10 @@ The counter store is a fixed sixteen-slot array inside the state, so a
 body that opens names inside the timed loop allocates nothing (R-01).
 The runner applies the flags in the cited `Finish` order with the row's
 primary time as the rate divisor (R-02). Two H3 leftovers land as the
-first tasks: the per-run pause allowance dies and the run's point bound
-follows the plan (R-10), and the default time unit resolves when
+first tasks: the per-run pause allowance dies and its recorder keeps
+bounded memory, reserving pause room from the family's observed
+history and folding closed pairs beyond the cap (R-10), and the
+default time unit resolves when
 `speedgunMain` starts so the shipped main-page promise becomes true
 (R-11). The fit is one least-squares curve per family over its
 instances, printed per fitted quantity (R-07). Every section of the
@@ -215,7 +217,7 @@ the existing `add_example` mechanism.
 | R-07 | One closed-form relative-error least-squares fit per family, in one new source file, printed as synthetic fit rows | D-07 |
 | R-08 | Instance N is the `setComplexityN` value, falling back to the family's range value, and a non-positive N ends the fit with a reason | D-08 |
 | R-09 | Every fitted quantity (time, counters, metrics) prints one BigO row and one RMS row through one synthetic fit result per family | D-09 |
-| R-10 | The per-run point bound is 2 + 2 × iterations, reserved between attempts, so any number of closed pauses fits and the fixed allowance dies | D-10 |
+| R-10 | Pause room is reserved from the family's observed pauses per iteration, capped at `kMaxPauseSamplesPerLeaf` points per leaf column; a first attempt or an over-cap run folds closed pairs into running totals, so memory stays bounded and the fixed allowance dies | D-10, Q-11 |
 | R-11 | The family record stores `std::optional<TimeUnit>`; the run resolves it at run start against the process default | D-11 |
 | R-12 | One example file per main-page section under `example/docs/`, with a new `example_run` CTest gate | D-12 |
 | R-13 | The drift tool gains the six titles, the 550-line cap, and the region ownership check | D-13 |
@@ -291,9 +293,12 @@ family's instances have reported.
 ### Logical view: the two fixes
 
 ```text
-pause (FR-024 to FR-026):
-  points per run <= 2 + 2 * iterations                   (R-10)
-  recorder reserved per leaf at plan build between attempts
+pause (FR-024 to FR-026, FR-051 to FR-054):
+  room = endpoints + 2 * pairsPerIteration(prev attempt)
+         * iterations, per leaf column
+  room <= kMaxPauseSamplesPerLeaf                        (R-10)
+  no history, or over the cap: fold closed pairs into
+  running totals at commit, from the same two raw points
   kMaxPausePerRun, its guard, its bound tests, and the
   ninthPause re-exec mode die
 
@@ -411,7 +416,7 @@ wall-clock bound.
 | --- | --- | --- |
 | C-1 user counters | each flag and combination prints the value the cited `Finish` order gives on scripted numbers; the cap aborts at the seventeenth name; a flag change on a name and a name colliding with a metric label each fail the run; the loop-shape gate stays green with counters set in the body | `test/source/harness_user_counters_test.cpp`, `test/loop_shape.sh` |
 | C-2 throughput | bytes and items print exact rates over the primary time in all three timing modes, scaled by 1024 and 1000 | `test/source/harness_throughput_test.cpp` |
-| C-3 leftovers | a calibrated run pauses in every iteration and completes; the recorder bound 2 + 2 × iterations holds; `setDefaultTimeUnit` in `main` reaches macro registrations while `unit` still wins; the old bound, guard, and tests are gone from the tree | `test/source/harness_pause_test.cpp`, `test/source/harness_time_unit_test.cpp` |
+| C-3 leftovers | a calibrated run pauses in every iteration and completes; a pause-heavy scripted run reserves at most `kMaxPauseSamplesPerLeaf` points per leaf column, a non-pausing run reserves no pause room, and the fold path prints the raw path's net columns on the scripted provider; `setDefaultTimeUnit` in `main` reaches macro registrations while `unit` still wins; the old bound, guard, and tests are gone from the tree | `test/source/harness_pause_test.cpp`, `test/source/harness_time_unit_test.cpp` |
 | C-4 labels | the row ends with ` label=<text>`; differing repetition labels leave the aggregate unlabeled; a newline label aborts the re-exec | `test/source/harness_label_test.cpp` |
 | C-5 custom statistics | a time-unit statistic prints in the row unit, a percentage statistic prints unscaled, a refusing function prints no value while the run still reports, a built-in name aborts at the call | `test/source/harness_custom_stats_test.cpp` |
 | C-6 aggregate-only | each mode hides repetition rows from the console and keeps the aggregate; a single-run row never disappears | `test/source/harness_aggregates_only_test.cpp` |
@@ -485,6 +490,6 @@ in the spec Out list, and X.2 keeps it out.
 | Item | Principle | Why it is needed | Simpler alternative rejected |
 | --- | --- | --- | --- |
 | The counter store is a fixed sixteen-slot array with 32-byte name buffers | X.1 | FR-001 and Q-2 require a bounded store that opens names inside the timed loop without allocation; a fixed array with inline name bytes is the only shape where `setCounter` inside the loop is two stores and a scan. | A heap map keyed by name, the cited revision's shape: rejected because every new name allocates on the timed path, which the loop discipline of FR-007 forbids. |
-| The per-run point bound is 2 + 2 × iterations, reserved between attempts | X.1 | FR-025 requires any number of closed pause intervals to fit one run; the bound follows from the loop shape (at most one pause pair per iteration), keeps the recorder reservation static per attempt, and stays computable at plan build. | A recorder that grows when a run overruns: rejected because the growth would allocate while the timed loop is open, exactly the pause-removal's own hazard. |
+| Pause room reserved from observed history, capped per leaf column, folded beyond the cap | X.1 | FR-025 and FR-051 to FR-052: an iterations-proportional reservation is unbounded memory at `kIterationCap`; history sizing reserves what the body takes, the cap costs at most 256 KiB per leaf column, and the fold nets identical columns with no retention. | A recorder that grows when a run overruns: rejected because the growth would allocate while the timed loop is open, exactly the pause-removal's own hazard; an unbounded `2 + 2 × iterations` reservation: rejected at plan review for the same memory bound. |
 | Fit rows travel as one synthetic fit result per family | X.2 | FR-022 reports a family-level fit, while the report consumes per-instance results; one synthetic `BenchmarkResult` reuses the whole row pipeline for the two rows per quantity. | A second collection of fit objects beside the results: rejected because report, filter, and future file output would each need a second consumer path for one row type. |
 | One example binary per main-page section (eighteen targets) | VIII | FR-032 to FR-035 require every section's snippet to build and run in CI; a file per section keeps each region in the exact shape the page copies. | A single snippets binary: kept as the Q-9 fallback and rejected here because a pasted fragment from a merged file cannot show the canonical includes and `main` the reader must add. |
