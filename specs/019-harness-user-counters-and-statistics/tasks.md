@@ -391,11 +391,11 @@ spec entry stays a decision for Charles.
 
 - [X] T046 Enforce the documented pre and post clauses of State::setBytesProcessed and State::setItemsProcessed with SG_REQUIRE and SG_ENSURE in the definitions in source/harness/runner.cpp, and report 0 drifted interfaces from the pair gate per D-1, Constitution II (contradicts)
 - [X] T047 Stop dividing counter values by the counter base in counterColumns in source/harness/runner.cpp, so a stored value prints as stored and CounterBase selects only the human-readable suffix per D-3, FR-006 (contradicts)
-- [ ] T048 Replace the relative fit in fitCurve and relativeSums in source/harness/complexity.cpp with the least-squares form: coefficient equal to the sum of t times f(N) over the sum of f(N) squared, and RMS equal to the root of the mean squared residual over the mean of t, with the least-RMS curve kept and the constant curve as the fallback per D-5, FR-021 (contradicts)
-- [ ] T049 Rewrite FR-006, data-model.md, contracts/user-counters.md, the CounterBase doxygen, the README quick reference row, and the harness.md User counters and Throughput sections to the suffix-only base, removing the KiB per second claim per D-3 (partial)
-- [ ] T050 Rewrite FR-021, research D-08, contracts/complexity-and-modes.md, and the harness.md complexity text for the least-squares coefficient and the RMS percentage per D-5 (partial)
-- [ ] T051 Replace the complexity tests with known-answer vectors: planted N, N squared, and N log N families with exact coefficients, plus one noisy vector whose coefficient and RMS are computed by hand from the formulas and recorded in the test per D-5 (partial)
-- [ ] T052 Move the setBytesProcessed and setItemsProcessed calls after the timed loop in example/docs/user_counters.cpp and example/docs/throughput.cpp, scale them by state.iterations(), copy the regions to README.md unchanged, and state that the calls take the total work of the run per D-4 (partial)
+- [X] T048 Replace the relative fit in fitCurve and relativeSums in source/harness/complexity.cpp with the least-squares form: coefficient equal to the sum of t times f(N) over the sum of f(N) squared, and RMS equal to the root of the mean squared residual over the mean of t, with the least-RMS curve kept and the constant curve as the fallback per D-5, FR-021 (contradicts)
+- [X] T049 Rewrite FR-006, data-model.md, contracts/user-counters.md, the CounterBase doxygen, the README quick reference row, and the harness.md User counters and Throughput sections to the suffix-only base, removing the KiB per second claim per D-3 (partial)
+- [X] T050 Rewrite FR-021, research D-08, contracts/complexity-and-modes.md, and the harness.md complexity text for the least-squares coefficient and the RMS percentage per D-5 (partial)
+- [X] T051 Replace the complexity tests with known-answer vectors: planted N, N squared, and N log N families with exact coefficients, plus one noisy vector whose coefficient and RMS are computed by hand from the formulas and recorded in the test per D-5 (partial)
+- [X] T052 Move the setBytesProcessed and setItemsProcessed calls after the timed loop in example/docs/user_counters.cpp and example/docs/throughput.cpp, scale them by state.iterations(), copy the regions to README.md unchanged, and state that the calls take the total work of the run per D-4 (partial)
 - [ ] T053 Add a test with a real timed loop of a known per-iteration count that checks the printed rate within a stated factor of count times iterations over the primary time, so a per-iteration value fails per D-4 (missing)
 - [X] T054 Reserve state.m_pausePairs to half the pause room before the timed loop opens in the sampleRun lambda in source/harness/runner.cpp, so State::closePausePair never reallocates on the raw path per D-10 (partial)
 - [ ] T055 Add the proof that no allocation happens inside the timed loop on both pause paths, as a test/loop_shape.sh case or an allocation-counting hook, and record that the fold-path slot reset copies a plain recorder view per D-10 (missing)
@@ -405,14 +405,14 @@ spec entry stays a decision for Charles.
 - [ ] T059 Compare the skip message as well as the instance name in test/example_run.sh and add the mismatching-message case to test/run_example_run_fixtures.sh per N-1 (partial)
 - [ ] T060 Show the SG_BENCHMARK_F and the SG_BENCHMARK_DEFINE_F with SG_BENCHMARK_REGISTER_F methods, with their timed loops, beside the fixture class in README.md, and remove the empty body and FAILED sentence per D-6 (partial)
 - [ ] T061 Add the capture and template regions of example/docs/registration.cpp to README.md as marked blocks and drop the link wording that replaced them per D-7 (missing)
-- [ ] T062 Rewrite each of the 21 Coverage paragraphs in docs/pages/harness.md as one reader-facing behaviour sentence or delete it, leaving no test file name, scenario name or re-exec mode on the page per D-9, Q-11, T037 (contradicts)
-- [ ] T063 Document combined flags built with the bitwise or operator in the CounterFlag doxygen and the harness.md User counters section, standing in for the rate and thread flag names, and add one test per N-2 (missing)
-- [ ] T064 Document that inverting a zero value keeps zero, where the reference implementation gives infinity, in the CounterFlag doxygen, FR-005 and harness.md per N-4 (missing)
-- [ ] T065 Record in research D-10 that pause history is held per family through RegistryEntry::pausePairsPerIteration, so a family whose instances pause differently reserves the largest observed room per N-5 (missing)
+- [X] T062 Rewrite each of the 21 Coverage paragraphs in docs/pages/harness.md as one reader-facing behaviour sentence or delete it, leaving no test file name, scenario name or re-exec mode on the page per D-9, Q-11, T037 (contradicts)
+- [X] T063 Document combined flags built with the bitwise or operator in the CounterFlag doxygen and the harness.md User counters section, standing in for the rate and thread flag names, and add one test per N-2 (missing)
+- [X] T064 Document that inverting a zero value keeps zero, where the reference implementation gives infinity, in the CounterFlag doxygen, FR-005 and harness.md per N-4 (missing)
+- [X] T065 Record in research D-10 that pause history is held per family through RegistryEntry::pausePairsPerIteration, so a family whose instances pause differently reserves the largest observed room per N-5 (missing)
 - [ ] T066 Keep README.md at 550 lines or fewer after the section fixes, trimming prose and never a snippet, and report the final count per N-6, FR-044 (partial)
 - [ ] T067 Run quickstart.md sections 5 through 7, record the evidence, and check T042 only when it passes per D-2 (partial)
 - [ ] T068 Build the ci-coverage preset, hold 100 percent line and branch coverage, keep zero LCOV_EXCL markers under source/harness, record the evidence, and check T044 only when it passes per D-2 (partial)
-- [ ] T069 Write /tmp/019-rebase-plan.txt listing every pushed commit that fails the commit lint with its hash, old subject, new subject and the footer it gains, without running the rebase or force-pushing, and hold it for Charles to approve per D-1 (contradicts)
+- [X] T069 Write /tmp/019-rebase-plan.txt listing every pushed commit that fails the commit lint with its hash, old subject, new subject and the footer it gains, without running the rebase or force-pushing, and hold it for Charles to approve per D-1 (contradicts)
 - [ ] T070 Run the verification set on the new head: developer build with the full suite, the pair gate at 0 drift, the prose gate and codespell at 0 findings on changed files, the commit lint on new commits, the coverage, sanitize and tsan presets, the two hand spot checks on cells=64 and the throughput rate, and the CI result per item (missing)
 
 ## Convergence Evidence
@@ -440,3 +440,35 @@ command that showed it.
 - T058: the flag pass applies the iteration flags when the primary time
   is zero and skips only the time divisor; the test that pins that
   behaviour is still owed, so the box stays open.
+- T048, T050, T051 (`1d1f7f8`): `leastSquaresSums` and `fitCurve` in
+  `source/harness/complexity.cpp` now state `k = sum(t * f(N)) /
+  sum(f(N)^2)` and the root-mean residual over the mean of the values;
+  `harness_complexity_test` carries the planted `N^2`, `N lg N` and
+  constant vectors, the fixed `N^3` and constant curves over the
+  quadratic series, and the noisy family over 10, 40 and 90 whose
+  `k = 75/7` and RMS 15.509 % are computed by hand in the file. FR-021,
+  the assumption row, the two contract rows, research D-07 and the
+  harness page state the same closed form. The suite on that tree
+  passes 86 of 88, the exceptions being the host `counters_pmu_test`
+  PMU denial and the doc gate the reverted T060 change caused.
+- T049 (`b37a55b`): FR-006, `data-model.md`, `contracts/user-counters.md`,
+  the plan row and the doxygen of `CounterBase` and both throughput
+  setters say the base selects a suffix and never divides.
+- T052 (`6596f90`): `example/docs/user_counters.cpp` and
+  `example/docs/throughput.cpp` total after the loop with
+  `state.iterations()`; the README blocks are restated from the
+  regions, the throughput page states the totals rule, and
+  `example_drift`, `snippet_compile`, `example_run` and
+  `example_run_fixtures` pass on the new text.
+- T062 (`09abb07`): no `Coverage:` paragraph remains in
+  `docs/pages/harness.md` (twenty-one rewritten as behaviour prose,
+  the page down 29 lines), with the prose gate at 0 findings.
+- T063, T064, T065 (`120ee96`): FR-005 carries the combined flag set and
+  the zero reciprocal, the harness page spells `operator|` combinations
+  against the combined names a Google Benchmark port uses, and research
+  D-10 names `RegistryEntry::pausePairsPerIteration` with the function
+  that raises it.
+- T069: `/tmp/019-rebase-plan.txt` lists every pushed commit that fails
+  the commit lint with its old subject, its new subject and the footer
+  it gains. No rebase was run and nothing was force-pushed: the plan
+  waits on Charles.
