@@ -398,7 +398,7 @@ spec entry stays a decision for Charles.
 - [X] T052 Move the setBytesProcessed and setItemsProcessed calls after the timed loop in example/docs/user_counters.cpp and example/docs/throughput.cpp, scale them by state.iterations(), copy the regions to README.md unchanged, and state that the calls take the total work of the run per D-4 (partial)
 - [X] T053 Add a test with a real timed loop of a known per-iteration count that checks the printed rate within a stated factor of count times iterations over the primary time, so a per-iteration value fails per D-4 (missing)
 - [X] T054 Reserve state.m_pausePairs to half the pause room before the timed loop opens in the sampleRun lambda in source/harness/runner.cpp, so State::closePausePair never reallocates on the raw path per D-10 (partial)
-- [ ] T055 Add the proof that no allocation happens inside the timed loop on both pause paths, as a test/loop_shape.sh case or an allocation-counting hook, and record that the fold-path slot reset copies a plain recorder view per D-10 (missing)
+- [X] T055 Add the proof that no allocation happens inside the timed loop on both pause paths, as a test/loop_shape.sh case or an allocation-counting hook, and record that the fold-path slot reset copies a plain recorder view per D-10 (missing)
 - [ ] T056 Make the command line section of README.md quote example/docs/command_line.cpp, keep the commands in a shell block marked from a region that runs that example binary, and remove the exemption in tools/docs/example_drift.py per D-8 (partial)
 - [ ] T057 Make the reading the report section quote example/docs/reading_the_report.cpp, extend that example to print a counter column, a label, one custom statistic and a BIG_O and RMS pair, add a sample output block checked by report_shape as a second sample check, name each new field in the result sentence, and remove the exemption per D-8, FR-030 (partial)
 - [X] T058 Apply ITERATION_INVARIANT and AVG_ITERATIONS even when the primary time is zero, skipping only the time divisor, and add the test that shows it per N-3, FR-005 (contradicts)
@@ -487,3 +487,7 @@ command that showed it.
   percent of the one-iteration units over the one-iteration time read off the
   same row. Dropping the iteration count from the total fails it; restoring
   passes the scenario and the binary.
+- T055: loop_shape.sh weighs both pause paths, the explicit pair and the scope
+  guard, on the allocation reading, with a planted allocating loop beside them
+  as liveness. Both pass on g++ and clang++; the fold path resets its slot
+  through closePausePair, which copies m_slot.view(), a plain recorder view.
