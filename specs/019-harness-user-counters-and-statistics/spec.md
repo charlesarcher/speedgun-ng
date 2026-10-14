@@ -733,7 +733,7 @@ page.
   call in `Runner::run`; a run whose closed pairs outrun the
   reservation shall net them by folding, so no closed pair is lost
   and any number of closed pause intervals reports correct columns
-  with bounded memory (Q-11, FR-051 to FR-054).
+  with bounded memory (Q-10, FR-051 to FR-054).
 - **FR-026**: A calibrated run that pauses in every iteration shall
   complete, and every pause shall net out of every time column and
   metric fold of its row as it does today.
@@ -875,7 +875,7 @@ page.
   attempt's iteration count, plus the endpoint points of each run it
   starts; the pause room of any reservation shall not exceed
   `kMaxPauseSamplesPerLeaf` raw points per leaf column (FR-025,
-  Q-11).
+  Q-10).
 - **FR-052**: An attempt that reserves no pause room, a family's
   first attempt included, or whose room cannot cover its closed
   pairs, shall fold each closed pause pair into the row's running
@@ -1120,30 +1120,31 @@ default. `/speckit-clarify` may confirm each as written or replace it.
   main-page section, each with its own `main`; a single runnable
   snippets binary is the fallback. Adopted at FR-032 to FR-035 and
   Assumptions.
-- **Q-10 Harness guide internal notes** (raised with the request,
-  outside the nine): the "Coverage:" paragraphs of
-  `docs/pages/harness.md` name test scenario functions and re-exec
-  modes of the suite (`docs/pages/harness.md:275-278,313-315,335-338,383-386,410-416`),
-  which is suite-internal material inside the user guide.
-  Recommendation: fold the cleanup into this feature's guide work
-  (FR-031, FR-039): rewrite each paragraph as one reader-facing
-  sentence, since C-7 and C-8 rewrite that page's neighborhoods
-  anyway and Principle XI keeps the page to the reader's vocabulary.
-- **Q-11 Pause sample memory** (raised at plan review as the memory
-  question behind FR-025; the review's entry number Q-10 is already
-  held above, so this lands as Q-11): reserving pause room of
+- **Q-10 Pause sample memory** (raised at plan review as the memory
+  question behind FR-025): reserving pause room of
   `2 + 2 × iterations` raw points per leaf is unbounded memory at the
   iteration cap of `kIterationCap`. **Decision for Charles.
   Recommendation as below; the plan follows the recommendation unless
-  Charles changes it.** From a family's second attempt, reserve two
-  points per closed pause pair observed per iteration of the previous
-  attempt, times the attempt's iteration count; cap the pause room at
-  `kMaxPauseSamplesPerLeaf` (32'768 raw points per leaf column; one
-  `std::uint64_t` per point, 256 KiB per leaf column at the cap); a
-  family's first attempt and any over-cap run fold each closed pair
-  into the row's running totals from the same two raw points, and the
-  report discloses the fold. Recorded at FR-025 and FR-051 to FR-054,
-  SC-11 to SC-13, and research D-10.
+  Charles changes it.** A family reserves pause-sample capacity only
+  where an earlier attempt paused, sized from the pauses per
+  iteration that attempt observed times the next attempt's iteration
+  count, plus the endpoint points of each run. A fixed per-leaf
+  bound, `kMaxPauseSamplesPerLeaf` (32'768 raw points per leaf
+  column; one `std::uint64_t` per point, 256 KiB per leaf column at
+  the cap), caps every reservation; a family's first attempt and any
+  over-cap run fold each closed pair into the row's running totals
+  from the same two raw points, and the report discloses the fold.
+  Recorded at FR-025 and FR-051 to FR-054, SC-11 to SC-13, and
+  research D-10.
+- **Q-11 Harness guide internal notes** (raised with the request,
+  outside the nine): the "Coverage:" paragraphs of
+  `docs/pages/harness.md` name test scenario functions and re-exec
+  modes of the suite, which is suite-internal material inside the
+  user guide. Recommendation: fold the cleanup into this feature's
+  guide work (FR-031, FR-039): rewrite each paragraph as one
+  reader-facing sentence, since C-7 and C-8 rewrite that page's
+  neighborhoods anyway and Principle XI keeps the page to the
+  reader's vocabulary.
 
 ## Constitution Checklist
 

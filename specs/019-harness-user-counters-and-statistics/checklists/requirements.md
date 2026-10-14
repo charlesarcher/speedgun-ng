@@ -55,13 +55,16 @@
   to the shipped main page. The request's Q-7 decision admits them as
   this spec's own early work, carried as FR-024 to FR-027 with the
   page texts that travel with them (FR-039, FR-041, FR-042).
-- The ten decisions Q-1 to Q-10 carry the recommendation the spec
+- The eleven decisions Q-1 to Q-11 carry the recommendation the spec
   adopts as its working default, each with the requirement that
   adopts it. `/speckit-clarify` may confirm each as written or
   replace it. No `[NEEDS CLARIFICATION]` marker was needed: every
   open choice arrived with a recommendation and a stated consequence,
   so each one is a decision record ready for confirmation. Q-10 is
-  the recommendation raised with the request about the internal
+  the pause-sample-memory decision raised at plan review, marked
+  there as Charles's decision with the plan following the
+  recommendation unless Charles changes it. Q-11 is the
+  recommendation raised with the request about the internal
   coverage notes of `docs/pages/harness.md`; the spec folds that
   cleanup into the guide work.
 - Validation ran two passes over the drafted spec. The first pass
