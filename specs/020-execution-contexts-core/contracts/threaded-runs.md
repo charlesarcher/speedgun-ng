@@ -1,36 +1,39 @@
 # Contract: Threaded runs on contexts
 
 The Google Benchmark thread calls ride the context core: the harness
-creates N contexts, hands each thread's body to its context through
-the context surface and the barrier, and publishes one merged row
-(FR-016 to FR-023).
+creates N contexts once per instance, hands each thread's body to its
+context through the context surface and the barrier, and publishes one
+merged row (FR-016 to FR-023).
 
 ## The handle surface (FR-016, FR-017, FR-021)
 
+Thread counts, context counts, and their indexes take plain `int`, the
+single count type declared in `contracts/execution-context.md`.
+
 ```cpp
 // BenchmarkHandle, behind the standing setter precondition (FR-024)
-auto threads(std::int32_t count) -> BenchmarkHandle&;
-auto threadRange(std::int32_t minCount, std::int32_t maxCount)
+auto threads(int count) -> BenchmarkHandle&;
+auto threadRange(int minCount, int maxCount)
     -> BenchmarkHandle&;                            // doubling counts
-auto denseThreadRange(std::int32_t minCount, std::int32_t maxCount,
-                      std::int32_t step) -> BenchmarkHandle&;
+auto denseThreadRange(int minCount, int maxCount,
+                      int step) -> BenchmarkHandle&;
 auto threadRunner(ThreadRunnerFn runner) -> BenchmarkHandle&;
 
 class ThreadRun                       // FR-021: the harness-owned view
-{                                     // of one threaded attempt
-public:
-  [[nodiscard]] auto contextCount() const noexcept -> std::int32_t;
-  [[nodiscard]] auto context(std::int32_t index) const noexcept
+{                                     // of one threaded attempt over
+public:                               // the instance's contexts
+  [[nodiscard]] auto contextCount() const noexcept -> int;
+  [[nodiscard]] auto context(int index) const noexcept
       -> const ExecutionContext&;
-  auto dispatch(std::int32_t index) -> void;  // body index to context index
+  auto dispatch(int index) -> void;  // body index to context index
 };
 using ThreadRunnerFn = std::function<void (ThreadRun&)>;
 // FR-021: the runner receives the run's contexts through ThreadRun and
 // dispatches the per-thread body nodes itself, one dispatch per index.
 
 // State
-[[nodiscard]] auto threadIndex() const noexcept -> std::int32_t;
-[[nodiscard]] auto threads() const noexcept -> std::int32_t;
+[[nodiscard]] auto threadIndex() const noexcept -> int;
+[[nodiscard]] auto threads() const noexcept -> int;
 ```
 
 | Rule | Requirement |
@@ -39,7 +42,7 @@ using ThreadRunnerFn = std::function<void (ThreadRun&)>;
 | The body shall see its thread index and the thread count through `State`; a single-context run reports index `0` and count `1`. | FR-017 |
 | Each context of a threaded run shall open its own thread-target plan on its own thread; no fold shall read another context's plan; the fake provider shall script each context's leaves. | FR-018 |
 | The run's start barrier and stop barrier shall stand outside the timed window of every context; no barrier wait shall fall inside a window. | FR-019 |
-| The published row shall aggregate as: real time the slowest context, cpu time the sum, iterations the per-context count times N, user counters summed before the flag pass, and the flag pass with the real N (research D-06). | FR-020 |
+| The published row shall aggregate by summing: the real column carries the summed manual time under manual timing and the summed real time otherwise, the cpu column the summed cpu time, the iterations the summed per-context counts, and the user counters are summed before the flag pass; the flag pass runs with the real N, `RATE` over the timing mode's summed decision seconds divided by N (cpu by default, manual under manual timing, real under real-time timing) and `AVG_THREADS` over N (research D-06). | FR-020 |
 | A function the user supplies may receive the run's `ThreadRun` view and dispatch the per-thread bodies themselves; the harness builds the body nodes, keeps them alive across the runner call, and requires one dispatch per body index before the runner returns, a gap or a duplicate ending the run with an `SG_REQUIRE` violation at that point; the barriers, the plans, and the merge stay the harness's. | FR-021 |
 | A benchmark that calls no thread method shall keep its single-context behavior and its printed bytes. | FR-022 |
 | `setUp` and `tearDown` shall run once per run on context 0, outside both barriers. | FR-023 |
@@ -64,7 +67,9 @@ with its citations, and each difference beside it:
 `source/harness/registry.cpp` carries the handle calls;
 `source/harness/detail/internal.hpp` carries the family-record
 selection; `source/harness/family.cpp` composes the `/threads:N` name;
-`source/harness/runner.cpp` runs the threaded attempt and the merge;
+`source/harness/runner.cpp` runs the threaded instance: it creates the
+N contexts once, runs every attempt over them, joins them when the
+instance finishes, and merges;
 `test/source/harness_threads_test.cpp` asserts each rule on scripted
 per-context leaves, the `/threads:4` row against the cited aggregation
 values, the abort at zero, the barrier-outside-window property, and the

@@ -30,7 +30,12 @@ placement function records one call per thread at thread start and an
 invalid cpu index aborts its re-exec (SC-05); the compile-fixture shows
 an unapproved item type refused before the program builds (FR-008);
 the order rows show single-dispatcher FIFO and per-dispatcher order
-(FR-013).
+(FR-013); accepted nodes drain after a stop request while a dispatch
+whose enqueue observed the stop reads `STOPPED` and never runs
+(FR-050); a `drain()` with no prior stop request flushes and the loop
+keeps running, and own-thread `drain()` trips the debug precondition
+(FR-050); under the `ci-tsan` run a node destroyed immediately after
+its state reads `DONE` reports no finding (FR-049).
 
 ## C-4: the context barrier
 
@@ -52,16 +57,20 @@ ctest --test-dir build --output-on-failure -R harness_threads_test
 
 Expect: `threads(4)` reports `threadIndex()` values 0 to 3, `threads()`
 4, and a row named with the `/threads:4` suffix (SC-06); with scripted
-per-context leaves the merged row equals real-max, cpu-sum,
-iterations-times-N, and every counter flag equals the cited `Finish`
-result at `N = 4` (SC-07, contracts/threaded-runs.md); `threads(0)`
-aborts at the call (FR-024); the window bounds recorded around the
-barrier arrives show no barrier wait inside a window (SC-08); the noise
-load on one context leaves the other context's plan the only one its
-row folds (SC-09); the custom runner's dispatches carry the bodies and
-the merged row still stands, and a runner that returns with a body
-undispatched aborts its re-exec (FR-021); a benchmark with no thread
-call prints today's bytes (FR-022).
+per-context leaves the merged row equals the summed real time (manual
+under manual timing), the summed cpu time, and the summed iterations,
+and every counter flag equals the cited `Finish` result at `N = 4`
+(SC-07, contracts/threaded-runs.md); the cpu, real, and manual timing
+modes each pin the rate divisor at the summed decision seconds divided
+by `N` with `N > 1` (FR-020, research D-06); the instance's contexts
+are created once and reused across its attempts (research D-05);
+`threads(0)` aborts at the call (FR-024); the window bounds recorded
+around the barrier arrives show no barrier wait inside a window
+(SC-08); the noise load on one context leaves the other context's plan
+the only one its row folds (SC-09); the custom runner's dispatches
+carry the bodies and the merged row still stands, and a runner that
+returns with a body undispatched aborts its re-exec (FR-021); a
+benchmark with no thread call prints today's bytes (FR-022).
 
 ## C-7: disclosure and noise warning
 

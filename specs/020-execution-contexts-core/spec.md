@@ -267,7 +267,7 @@ plan must pin:
 | Semantic taken | Named by |
 | --- | --- |
 | A benchmark instance runs its body on N threads, one runner per instance, with the thread count and the thread index visible to the body | `ThreadManager` |
-| The per-run thread runner starts each thread, holds the start signal outside the timed region, joins the threads, and hands the per-thread results to the aggregation step | `ThreadRunnerBase` |
+| The per-run thread runner starts each thread, holds the start signal outside the timed region, joins the threads, and hands the per-thread results to the aggregation step, which sums each thread's times and iterations into one merged result | `ThreadRunnerBase`; the sum is `RunInThread`, the merged report is `CreateRunReport` |
 | The counter flag pass divides `AVG_THREADS` by the real thread count after the per-thread counter values are merged | `internal::Finish` |
 
 This spec records no revision hash: the plan pins the revision read and
@@ -324,9 +324,9 @@ A developer measures a routine that a real program would run on several
 threads at once. They call `threads(4)` on the handle, or state a range
 with `threadRange` or `denseThreadRange`, and read one row whose name
 ends in `/threads:4`. Inside the body they read `threadIndex()` and
-`threads()`. The row's real time is the slowest context, its CPU time is
-the sum over the contexts, and its iteration count is the per-context
-count times the context count. A counter marked `AVG_THREADS` divides by
+`threads()`. The row's real time is the sum of the contexts' real times,
+its CPU time is the sum over the contexts, and its iteration count is
+the summed per-context counts. A counter marked `AVG_THREADS` divides by
 the real count.
 
 **Why this priority**: this is the threads feature the roadmap names as
@@ -346,10 +346,9 @@ window, so each scripted window holds only the body's work.
    the four contexts, `threads()` reads 4 on each, and the row name ends
    in `/threads:4`.
 2. **Given** four contexts with scripted per-context leaves, **When**
-   the run reports, **Then** real time equals the slowest context, CPU
-   time equals the sum over the four, iterations equal the per-context
-   count times 4, and each counter flag matches the cited `Finish`
-   result for N = 4.
+   the run reports, **Then** real time and CPU time each equal the sum
+   over the four, iterations equal the summed per-context counts, and
+   each counter flag matches the cited `Finish` result for N = 4.
 3. **Given** a benchmark that calls no thread method, **When** it runs,
    **Then** it runs on the calling thread as it does today,
    `currentContext()` reports no context inside the body, and it prints
@@ -448,18 +447,19 @@ translation unit of your own.
 
 ### Edge Cases
 
-- A dispatch to a context that has been asked to stop: the node's
-  completion state reads `stopped` and the item never runs, so no queued
-  work is lost silently.
-- A node a caller destroys before its completion state reads `done` or
-  `stopped`: the enforce semantic of the build aborts with an
+- A dispatch that races `requestStop()`: FR-050 is the rule, and the
+  node reads `STOPPED` only when its enqueue fell on the stopped side
+  of the linearization point, so no queued work is lost silently.
+- A node a caller destroys before its completion state reads `DONE` or
+  `STOPPED`: the enforce semantic of the build aborts with an
   `SG_REQUIRE` violation, because the caller owns the node until it
-  completes.
+  completes; after a reader observes `DONE` or `STOPPED` the caller may
+  destroy or reuse the node (FR-049).
 - Work dispatched from inside a running item: it runs after that item
   ends, on the same context.
 - A `BLOCK` context woken by a dispatch while a stop request stands: the
-  lifecycle rules decide, and the item either drains or reads `stopped`.
-  No item runs twice.
+  linearization of FR-050 decides, and the item either drains or reads
+  `STOPPED`. No item runs twice.
 - A `join()` call from the context's own thread: an `SG_REQUIRE`
   violation, because a context cannot wait for itself.
 - A cpu index the host does not have, or a thread count of zero: an
@@ -517,7 +517,8 @@ translation unit of your own.
   `join()`. The three together shall run every queued node exactly once:
   a node enqueued before `requestStop()` runs during `drain()`, and no
   node runs after `join()` returns. The destructor shall require a joined
-  context through `SG_REQUIRE`.
+  context through `SG_REQUIRE`. The enqueue rule that decides a dispatch
+  racing the stop request stands in FR-050.
 - **FR-007**: The policy of a context shall be fixed when the context is
   created and shall be readable for the report of FR-025.
 
@@ -529,9 +530,11 @@ translation unit of your own.
   program builds (D-2).
 - **FR-009**: A work node of type `T` shall hold the item, its queue
   link, one erased run path for the item, and a completion state that
-  reads `pending`, `done`, or `stopped`. The completion state is a hook
-  H16 builds continuations on, so its meaning and readability shall not
-  change later (Hooks for H16).
+  reads `PENDING` before the loop takes the node, `RUNNING` while the
+  item runs, `DONE` once the item ran, or `STOPPED` once a refused
+  dispatch completed it (FR-050). The completion state is a hook H16
+  builds continuations on, so its meaning and readability shall not
+  change later (Hooks for H16, FR-049).
 - **FR-010**: `dispatch(context, node)` shall link a caller-owned node
   into the inbox of the named context and shall return without waiting
   for the item to run. It shall allocate nothing, and it shall be legal
@@ -541,7 +544,7 @@ translation unit of your own.
   context that runs it and a stop token that reads true once the context
   has been asked to stop.
 - **FR-012**: The caller shall keep a node it dispatches alive until
-  its completion state reads `done` or `stopped`; the body nodes a
+  its completion state reads `DONE` or `STOPPED`; the body nodes a
   threaded run constructs are harness-owned and stand outside this rule
   (FR-021). The enforce semantic of the build shall abort with an
   `SG_REQUIRE` violation when a node is destroyed early.
@@ -586,13 +589,18 @@ translation unit of your own.
   every measured window of a threaded run: no barrier wait shall fall
   inside a window the harness folds (SC-08).
 - **FR-020**: The merged row of a threaded run shall combine the
-  per-context results in one way, following the cited `Finish`: real time
-  is the slowest context, CPU time is the sum over the contexts,
-  iterations are the per-context count times `N`, and the user counters
-  of the contexts are summed before the flag pass. The flag pass shall
-  run with the real `N`: `CounterFlag::AVG_THREADS` divides by `N`, and
-  the `RATE` flag divides by the decision seconds divided by `N`, the
-  cited thread-seconds divisor (PC-2, research D-06).
+  per-context results by summing, as the cited `RunInThread` and
+  `CreateRunReport` do: the real column carries the summed manual time
+  under manual timing and the summed real time otherwise, the CPU column
+  carries the summed CPU time, the iterations are the summed per-context
+  counts, and the user counters of the contexts are summed before the
+  flag pass. The flag pass shall follow the cited `Finish`, the counters
+  path the cited code enters through `CreateRunReport`, and run with the
+  real `N`: `CounterFlag::AVG_THREADS` divides by `N`, and the `RATE`
+  flag divides by the summed decision seconds of the run's timing mode
+  divided by `N` — that sum is the CPU-time sum by default, the manual
+  sum under manual timing, and the real-time sum under real-time timing,
+  the cited thread-seconds divisor (PC-2, research D-06).
 - **FR-021**: A custom thread runner shall be a function the user
   supplies that receives the `N` contexts of the run and dispatches the
   per-thread body itself. The harness shall construct the body nodes,
@@ -720,6 +728,29 @@ translation unit of your own.
   the code comments, the page, and the commits, shall obey Principle XI,
   XI.7 included, and the prose and commit gates shall report zero
   findings.
+- **FR-049**: The thread that completes a node shall write its
+  completion state with release order, and a reader that observes the
+  state shall read it with acquire order, so everything the work did
+  happens-before that read. The loop writes `DONE` as its last access to
+  the node: it shall read the next queue link and perform any notify
+  before that write, and after it the loop shall touch only its own
+  data, never the node; the dispatcher writes `STOPPED` for a refused
+  node (FR-050). After a reader observes `DONE` or `STOPPED`, the caller
+  may destroy or reuse the node (FR-009, FR-012, FR-045).
+- **FR-050**: The enqueue in `dispatch()` and the stop request of FR-006
+  shall linearize against each other, and the enqueue is the single
+  linearization point: a `dispatch()` that observes the not-stopped
+  state shall append the node and own its delivery, and a `dispatch()`
+  that observes the stopped state shall refuse the node and itself
+  complete it with `STOPPED`. It is the dispatcher that sets `STOPPED`
+  for a refused node, because the node never reaches the loop and the
+  loop shall never touch a node it never accepted. Nodes accepted before
+  `requestStop()` run during `drain()`; refused nodes read `STOPPED` and
+  never run. `drain()` shall block the caller until the inbox is empty
+  and the loop is idle; a `drain()` without a prior `requestStop()`
+  shall not stop the loop but block the same way, a flush; `drain()`
+  from the context's own thread is a contract violation that a debug
+  build catches as an `SG_REQUIRE` precondition (FR-006, FR-010).
 
 ## Key Entities *(include if feature involves data)*
 
@@ -734,7 +765,7 @@ translation unit of your own.
   a `WorkContext&`. Any type that satisfies the concept is dispatchable.
 - **Work Node**: the caller-owned carrier of one work item. It holds the
   item, the inbox link, the erased run path, and the completion state:
-  `pending`, `done`, or `stopped`.
+  `PENDING`, `RUNNING`, `DONE`, or `STOPPED`.
 - **Work Context**: what a running item is handed: the id of the context
   that runs it and a stop token.
 - **Context Barrier**: a rendezvous for a fixed number of contexts, with
@@ -743,9 +774,10 @@ translation unit of your own.
   and one for its stop round.
 - **Threaded Instance**: one benchmark instance paired with one context
   count. Its reported name carries `/threads:N`.
-- **Merged Row**: the one row of a threaded instance: the slowest real
-  time, the summed CPU time, the per-context iteration count times `N`,
-  and the summed counters after the flag pass with the real `N`.
+- **Merged Row**: the one row of a threaded instance: the summed real
+  time (the summed manual time under manual timing), the summed CPU
+  time, the summed per-context iteration count, and the summed counters
+  after the flag pass with the real `N`.
 - **Policy Disclosure**: the report fields that name the context count
   and each context's wait mode and placement.
 - **Noise Warning**: the one report line that states that a spinning
@@ -769,7 +801,9 @@ translation unit of your own.
 - **SC-04**: `dispatch()` performs zero allocations, measured by a test
   with an allocation hook.
 - **SC-05**: The placement slot applies one cpu index once at thread
-  start, and a replaced placement function is called in its place.
+  start through the `PlacementFn` signature, and the function installed
+  through `setPlacementFunction` before any context starts is what runs
+  in its place (contracts/execution-context.md).
 - **SC-06**: `threads(4)` gives `threadIndex()` values 0 to 3,
   `threads()` 4, and a row name ending in `/threads:4`.
 - **SC-07**: With scripted per-context leaves, the merged row matches
@@ -836,7 +870,7 @@ lacks (Principle X.2).
 
 ## Scope
 
-In: FR-001 to FR-048: the context, its policy, typed work and dispatch,
+In: FR-001 to FR-050: the context, its policy, typed work and dispatch,
 the context barrier, the Google Benchmark thread calls on contexts, the
 report disclosure, the two main-page sections and their examples, a test
 for each capability, ThreadSanitizer coverage of every new path, and the
@@ -889,7 +923,7 @@ Out, each owned by a later roadmap spec:
 The measured page-cap move of FR-034 and Q-5 lands in this section at
 implementation time: the measured size of the two new sections and
 their quick-reference rows, and the `PAGE_LINE_CAP` value that follows.
-T022 of tasks.md records the measured amount here.
+T030 of tasks.md records the measured amount here.
 
 ## Dependencies
 
