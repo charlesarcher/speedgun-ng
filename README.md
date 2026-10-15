@@ -185,6 +185,7 @@ protected:
 };
 ```
 `SG_BENCHMARK_F` defines and registers in one step; `SG_BENCHMARK_DEFINE_F` only defines and `SG_BENCHMARK_REGISTER_F` registers it, printing `TableFixture/bmTableRead` and `TableFixture/bmTableSize/1`.
+<!-- sg-requires: example/docs/fixtures.cpp#fixture -->
 <!-- sg-example: example/docs/fixtures.cpp#fixture-methods -->
 ```cpp
 SG_BENCHMARK_F(TableFixture, bmTableRead)(sg::State& state)

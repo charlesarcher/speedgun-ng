@@ -20,6 +20,7 @@ END = "sg-example:end"
 MARKER = re.compile(r"^\s*(?://|#)\s*sg-example:(begin|end)\s+([a-z0-9][a-z0-9-]*)\s*$")
 FENCE = re.compile(r"^\s{0,3}(?P<run>`{3,}|~{3,})(?P<info>[^`]*)$")
 PREMARK = re.compile(r"^\s*<!--\s*(sg-example|sg-sample-output):\s*(\S+)\s*-->\s*$")
+REQUIRES = re.compile(r"^\s*<!--\s*sg-requires:\s*(\S+)\s*-->\s*$")
 INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 
 # The eighteen capabilities of the main page as the H3 titles of "How you do
@@ -88,15 +89,16 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # section rather than a second page.
 # D-A of the PR #37 final pass (Charles, 2026-10-15): Registration teaches
 # all three registration forms and Fixtures all three fixture macros, which
-# adds 31 lines (25 to 38 and 24 to 42). No prose elsewhere on the page can
-# give back 19 lines without gutting a result sentence, so the page cap rose
-# by the smallest fitting amount, 550 to 569.
-PAGE_LINE_CAP = 569
+# adds 32 lines (25 to 38 and 24 to 43). No prose elsewhere on the page can
+# give back 20 lines without gutting a result sentence, so the page cap rose
+# by the smallest fitting amount, 550 to 570.
+PAGE_LINE_CAP = 570
 SECTION_LINE_CAP = 25
 
 # Only these two sections carry a higher cap, each at the smallest span that
-# holds its copied regions (D-A, Charles, 2026-10-15).
-SECTION_LINE_CAPS = {"Registration": 38, "Fixtures": 42}
+# holds its copied regions (D-A, Charles, 2026-10-15). Fixtures counts the
+# sg-requires line the snippet gate reads beside the macro block.
+SECTION_LINE_CAPS = {"Registration": 38, "Fixtures": 43}
 
 
 class Finding(Exception):
@@ -174,6 +176,7 @@ class Block:
         self.body = body
         self.region = region
         self.sample = sample
+        self.requires: list[str] = []
 
     @property
     def label(self) -> str:
@@ -212,12 +215,29 @@ def scan_blocks(page: Path, root: Path) -> list[Block]:
                 if pre is not None:
                     region = pre.group(2)
                     sample = pre.group(1) == "sg-sample-output"
+                    probe = behind - 1
+                else:
+                    probe = behind
+            else:
+                probe = behind
+        else:
+            probe = index - 1
+        block_requires: list[str] = []
+        while probe >= 0:
+            while probe >= 0 and not lines[probe].strip():
+                probe -= 1
+            mark = REQUIRES.match(lines[probe]) if probe >= 0 else None
+            if mark is None:
+                break
+            block_requires.append(mark.group(1))
+            probe -= 1
         body: list[str] = []
         index += 1
         while index < len(lines) and not lines[index].startswith(found.group("run")):
             body.append(lines[index])
             index += 1
         blocks.append(Block(page, root, fence_line, language, body, region, sample))
+        blocks[-1].requires = list(reversed(block_requires))
         index += 1
     return blocks
 
@@ -435,6 +455,12 @@ def check_page(page: Path, root: Path, is_main: bool) -> list[str]:
             findings.extend(compare(block, region_lines(block, cache)))
         except Finding as error:
             findings.append(str(error))
+        for ref in block.requires:
+            dep = Block(page, root, block.fence_line, block.language, [], ref, False)
+            try:
+                region_lines(dep, cache)
+            except Finding as error:
+                findings.append(str(error).replace("names region", "requires region"))
         if block.sample:
             samples += 1
             if is_main and block.region.split("#")[-1] != "report":
@@ -539,6 +565,7 @@ def emit_blocks(main_page: Path, directory: Path) -> int:
     directory.mkdir(parents=True, exist_ok=True)
     cpp = 0
     written = 0
+    cache: dict[Path, dict[str, list[str]]] = {}
     for block in scan_blocks(main_page, main_page.parent):
         if block.region is None or block.sample:
             continue
@@ -546,8 +573,13 @@ def emit_blocks(main_page: Path, directory: Path) -> int:
             continue
         cpp += 1
         name = block.region.split("#", 1)[-1]
+        body = list(block.body)
+        for ref in block.requires:
+            dep = Block(main_page, main_page.parent, block.fence_line, "cpp", [], ref,
+                        False)
+            body = region_lines(dep, cache) + [""] + body
         path = directory / f"{cpp:02d}_{name}.snippet"
-        path.write_text("\n".join(block.body) + "\n")
+        path.write_text("\n".join(body) + "\n")
         written += 1
     print(f"emitted {written} cpp snippet of {cpp} cpp fence")
     return 0

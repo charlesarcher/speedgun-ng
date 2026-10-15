@@ -897,10 +897,16 @@ page.
   `example_drift.py` shall gain a `SECTION_LINE_CAPS` table that caps
   those two sections and no other, `SECTION_LINE_CAP` shall stay 25 as
   the default for every other section, and the page cap shall move to
-  569 lines, the smallest that holds the page: at 569 lines the page
+  570 lines, the smallest that holds the page: at 570 lines the page
   does not fit under 550, and prose elsewhere gives back less than the
-  19 lines the two sections add. The drift gate fixture shall show a
+  32 lines the two sections add. The drift gate fixture shall show a
   section at its own override cap passing and one line over failing.
+  The macro block of `Fixtures` stands on its own only beside the
+  class it registers, so a marked block may name such a companion in
+  an `sg-requires` comment; the drift gate shall check that each named
+  region exists, `--emit-blocks` shall prepend it to the emitted
+  snippet, and the snippet compile gate shall thereby keep compiling
+  every emitted block over the canonical prelude alone.
 
 ### Surface, version, and discipline
 
@@ -1084,8 +1090,8 @@ commit gate of this spec does not cover them (Q-7).
 - The page cap moves to 550 and the per-section cap stays 25 (Q-8).
   The README stands at 394 lines against the current 400 cap; the
   six new sections plus the C-8 additions do not fit under 400.
-- The page cap moves again to 569, and the `Registration` and
-  `Fixtures` sections take per-section caps of 38 and 42 lines from
+- The page cap moves again to 570, and the `Registration` and
+  `Fixtures` sections take per-section caps of 38 and 43 lines from
   the `SECTION_LINE_CAPS` table of `example_drift.py`; every other
   section keeps the 25-line default (D-A, recorded 2026-10-15).
 - One example file per main-page section under `example/` is the
@@ -1192,8 +1198,8 @@ default. `/speckit-clarify` may confirm each as written or replace it.
   at the audit point; the six sections plus the C-8 additions do not
   fit below 550 with the snippets intact.
   Second record (2026-10-15, D-A adopted): Registration and Fixtures
-  teach every form on the main page, and the page lands at 569 lines
-  with those sections at 38 and 42 lines. The page cap moves to 569,
+  teach every form on the main page, and the page lands at 570 lines
+  with those sections at 38 and 43 lines. The page cap moves to 570,
   the smallest fitting amount, and the two sections take caps of
   their measured spans through `SECTION_LINE_CAPS`; no other section
   moves off the 25-line default.
