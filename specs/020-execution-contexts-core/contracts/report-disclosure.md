@@ -14,7 +14,7 @@ result rows of a threaded instance, unchanged fields ...
 
 | Rule | Requirement |
 | --- | --- |
-| For a result run on more than one context, the console report shall print the number of contexts and the policy of each context: its wait mode (`SPIN`, `YIELD`, `BLOCK`) and its placement slot (`NO_PIN` or its cpu index). | FR-025 |
+| For a result run on more than one context, exactly a result whose `contexts` vector is non-empty, the console report shall print the number of contexts and the policy of each context: its wait mode (`SPIN`, `YIELD`, `BLOCK`) and its placement slot (`NO_PIN` or its cpu index). | FR-025, FR-021 |
 | A result run on one context shall keep the bytes it prints today; no disclosure line appears. | FR-025, Assumptions |
 | The disclosure data shall ride the result (`BenchmarkResult::contexts`) and the printer shall add nothing to it, the standing report separation. | FR-025, D-08 |
 
@@ -22,7 +22,7 @@ result rows of a threaded instance, unchanged fields ...
 
 | Rule | Requirement |
 | --- | --- |
-| When two spinning contexts of the report share a cpu, or the report has more spinning contexts than the host has online cpus, the report shall print one noise warning line. | FR-026 |
+| When two spinning contexts of one result name the same cpu index, or one result has more spinning contexts than the host has online cpus, the report shall print one noise warning line after that result, one line for each such result. | FR-026 |
 | A run with one context per cpu, pinned, shall print no warning. | FR-026, FR-028 |
 | A run whose contexts block shall print no warning. | FR-026, FR-028 |
 | The online cpu count shall be one host fact the report reads once, through the counters library's `System` host topology; the disclosure and the warning shall read no clock and add no sampling action to any run. | FR-026, FR-027, D-08 |

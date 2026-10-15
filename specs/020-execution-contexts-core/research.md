@@ -239,8 +239,8 @@ the macro machinery in `include/speedgun-ng/benchmark.hpp` ("the
 threads spec of the roadmap moves the slot when that spec lands") is
 replaced with the stated rule in this change.
 
-**Rationale**: A thread-local slot would hide the object from the very
-threads meant to read it, and a per-context object would contradict
+**Rationale**: A thread-local slot would hide the object from the threads
+meant to read it, and a per-context object would contradict
 FR-023's one pair per run. The write-once-then-read shape is the same
 edge the runner already relies on when it writes instance data before
 starting work. ThreadSanitizer sees a write ordered before every read.
@@ -261,10 +261,11 @@ empty for a single-context run. `printResult` prints, after the rows
 of a result whose vector is non-empty, one disclosure line naming the
 count and each context's mode and placement, and keeps every byte of a
 single-context result as it prints today (FR-025, Assumptions). The
-noise warning computes from that vector plus the online cpu count:
-when two spinning contexts of the report name one cpu index, or the
-spinning count of the report exceeds the online count, `printResult`
-prints one warning line and otherwise prints none (FR-026, FR-028).
+noise warning computes from that vector plus the online cpu count: when
+two spinning contexts of one result name one cpu index, or one result
+has more spinning contexts than the online count, `printResult` prints
+one warning line after that result, and prints none when neither holds
+(FR-026, FR-028).
 The online cpu count comes from the counters library's `System` host
 topology (`sg::counters::System::local()`, the object the runner
 already holds), read once per report; a topology count is a host fact
@@ -295,7 +296,7 @@ selects the counts `min, min * 2, ...` up to `max` and
 `denseThreadRange(min, max, step)` selects `min, min + step, ...` up
 to `max`, mirroring the cited `ThreadRange` (multiplier 2) and
 `DenseThreadRange` (stride) of `include/benchmark/benchmark_api.h`.
-The registry stores a `std::vector<int> threadCounts` (default `{1}`)
+The registry stores a `std::vector<std::int32_t> threadCounts` (default `{1}`)
 on the family record; instance expansion runs over the argument set
 crossed with the thread counts, and `instanceName` (`source/harness/family.cpp`)
 appends the `/threads:N` segment for a count above one, in the shape

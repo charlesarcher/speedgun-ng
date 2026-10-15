@@ -25,7 +25,7 @@ and the flag pass at the real `N`. The report discloses each threaded
 run's context count and policies and warns once when spinning contexts
 are oversubscribed. No graph engine ships: the four H16 hooks are the
 four names FR-045 lists, kept exactly as the spec states them. The
-owner's note of 2026-10-15, that this should be very simple for now,
+owner's note of 2026-10-15, that this should stay simple for now,
 binds the design: one research entry per open question, no graph
 machinery, no speculative alternatives.
 
@@ -79,8 +79,8 @@ calls no thread method keeps today's bytes and behavior (FR-022,
 FR-025); no command-line option lands (FR-044).
 
 **Scale/Scope**: 48 requirements, 7 capabilities, one new public
-header, one new harness source, six edited harness sources and two
-edited public headers, four new test executables, two new example
+header, one new harness source, five edited harness sources and one
+edited public header, four new test executables, two new example
 files and one edited example, two new main-page sections plus two
 edited ones, one measured page-cap move, and one version-table entry.
 
@@ -94,9 +94,9 @@ justification, P3 defaults hold wherever no exception is recorded. Any
 
 | Principle | Verdict and note |
 | --- | --- |
-| I | PASS with one recorded exception. C++23 throughout; `std::thread`, `std::atomic` with its wait, and `std::barrier` carry the new machinery. The spin's pause hint is one `asm volatile("pause" ::: "memory")` site, the shape the shipped `barrier.hpp` and the 011 SSC marker already document; it stands in Complexity Tracking as the P2 exception the model requires. The P0 paths (timed loop, dispatch, wait, barrier) stay inside their budgets (research D-01, D-03). |
-| II | PASS. Every new public interface documents `\pre`, `\post`, and `\invariant`, and the source enforces each clause through `SG_REQUIRE`: the destructor on an unjoined context, `join()` from the context's own thread, the invalid cpu index, the early-destroyed node in a debug build, the barrier participant that leaves a round early, and the unhonorable thread count (FR-005, FR-006, FR-012, FR-015, FR-024, FR-037). |
-| III | PASS. Each capability carries its requirement, design view, source file, and test executable, and this plan records TDD mode on the fake provider with every test seen failing first (FR-042). |
+| I | PASS with one recorded exception. C++23 throughout; `std::thread`, `std::atomic` with its wait, and `std::barrier` carry the new machinery. The spin's pause hint is one `asm volatile("pause" ::: "memory")` site, the shape the shipped `barrier.hpp` and the 011 SSC marker already document; it stands in Complexity Tracking with the site-level justification, registered under Principle I in spec.md's Constraints as this feature's P2 exception. The P0 paths (timed loop, dispatch, wait, barrier) stay inside their budgets (research D-01, D-03). |
+| II | PASS. Every new public interface documents `\pre`, `\post`, and `\invariant`, and the source enforces each clause through `SG_REQUIRE`: the destructor on an unjoined context, `join()` from the context's own thread, the invalid cpu index, the early-destroyed node under the enforce semantic, the barrier participant that leaves a round early, and the unhonorable thread count (FR-005, FR-006, FR-012, FR-015, FR-024, FR-037). |
+| III | PASS. Each capability carries its requirement, design view, source file, and test executable, and this plan records TDD mode on the fake provider with every test seen failing first (FR-042). The logical and physical views are ASCII diagrams and a table, the recorded design-view shape the harness series has carried since 015. |
 | IV | PASS. The new public declarations carry doxygen blocks, the main page gains its two sections from marked regions of files CI runs, and `docs/pages/harness.md` gains the aggregation table and the lifecycle rules (FR-029, FR-030, FR-033). |
 | V | PASS. N-1 covers `ExecutionContext`, `ContextId`, `ContextPolicy`, `WaitMode`, `PlacementSlot`, `WorkNode`, `WorkContext`, `WorkItem`, and `ContextBarrier`; the enumerators `SPIN`, `YIELD`, `BLOCK`, and `NO_PIN` follow N-4; `dispatch`, `currentContext`, `requestStop`, `drain`, `join`, `arriveAndWait`, `threadIndex`, `threads`, `threadRange`, and `denseThreadRange` follow N-2; struct members follow N-12. No new macro enters, so the `SG_` rule of FR-036 stands satisfied by absence. |
 | VI | PASS. Four new executables cover the lifecycle branches, the wait modes, the barrier rounds, the merge arms, the disclosure line, and the four warning cases; the 100% line and branch gates stay measured on the same paths with no `LCOV_EXCL` marker (FR-028, FR-038). |
@@ -250,7 +250,7 @@ two barrier rounds, and the merge.
 ```text
 create C[0..N-1]            policy {SPIN, NO_PIN}        (FR-004, Q-2)
 fixture + setUp on C[0]     once per run, outside both   (FR-023, D-07)
-start.arriveAndWait(), stop.arriveAndWait() : ContextBarrier(N)
+start.arriveAndWait(), stop.arriveAndWait() : two ContextBarrier(N) objects
 
 body(i) dispatched to C[i], as ONE erased node           (FR-010, D-02):
   open plan(thread target) + recorder   on this thread   (FR-018, PC-1)
@@ -266,11 +266,14 @@ merge -> one ResultRow; flag pass at N -> appendCounterColumns (FR-020)
 ```
 
 With a custom thread runner (FR-021), the runner function performs the
-dispatches of the N body nodes onto the N contexts; the barriers sit
+dispatches of the N body nodes onto the N contexts through the
+`ThreadRun` surface, one dispatch per body index; the harness builds
+the body nodes and keeps them alive across the call. The barriers sit
 inside the body nodes, so they stand around a runner the harness did
-not write, and the merge is unchanged. A runner that dispatches to
-fewer contexts leaves the run reporting the contexts it ran and the
-disclosure naming that count (Edge Cases). Calibration and the
+not write, and the merge is unchanged. A runner that returns with a
+body undispatched or dispatched twice trips the `SG_REQUIRE` contract
+at that point, because the rounds expect every body (Edge Cases).
+Calibration and the
 warm-up structure are unchanged: every context of an attempt runs the
 same body with the same calibrated count, and calibration reads the
 merged decision value.
@@ -289,7 +292,8 @@ report (research D-08, FR-025, FR-026):
   <rows, bytes unchanged>
   contexts=4  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN ...   (threaded only)
   warning: spinning contexts oversubscribed (5 spin, 4 cpus)
-      printed iff two spinners share a cpu, or spin count > online count
+      printed after a result iff that result shows two pinned spinners
+      on one cpu or more spinners than the online count
 ```
 
 The single-thread flag pass of H4 reduces to itself at `N == 1`, so an
@@ -317,11 +321,12 @@ The full contract with signatures and rules stands in
 `currentContext()`, `ContextPolicy`, `WaitMode`, `PlacementSlot`,
 `WorkItem`, `WorkNode`, `WorkContext`, `dispatch()`, and
 `ContextBarrier`; `BenchmarkHandle` gains `threads`, `threadRange`,
-`denseThreadRange`, and `threadRunner`; `State` gains `threadIndex()`
+`denseThreadRange`, and `threadRunner` over `ThreadRunnerFn` with its
+`ThreadRun` argument; `State` gains `threadIndex()`
 and `threads()` over two fields that default to the single-context
 values; `BenchmarkResult` gains the `contexts` disclosure vector. Every
-existing signature stands unchanged (FR-046's compatibility rule for
-the shipped surface).
+existing signature stands unchanged (PC-0's rule that this spec
+replaces no shipped signature).
 
 ### Version and `SOVERSION`
 
@@ -352,7 +357,7 @@ tests use, so the merge and the flag pass assert exact doubles.
 | Capability | Scenario | Check |
 | --- | --- | --- |
 | C-1, C-2 context and policy | work runs on the context's thread and `currentContext()` names it inside the item (SC-01); each wait mode passes the same dispatch test and `BLOCK` wakes on a dispatch (SC-02); the lifecycle trio runs every queued node exactly once and the destructor requirement aborts (SC-03); the harness-created context reports `SPIN` and the caller-created default reports `BLOCK`, through the disclosure and `policy()`; the replaced placement function runs once per thread and an invalid cpu index aborts the re-exec (SC-05) | `test/source/harness_execution_context_test.cpp`, re-exec pattern |
-| C-3 typed work | an unapproved item type fails to compile in the compile-fixture pattern of `test/source/dbc_standalone.cpp`; `dispatch()` records zero allocations through the allocation hook (SC-04); the order rows show single-dispatcher FIFO and per-dispatcher order (FR-013); a node destroyed early aborts in a debug build; work dispatched to a stopped context reads `stopped` | same executable |
+| C-3 typed work | an unapproved item type fails to compile in the compile-fixture pattern of `test/source/dbc_standalone.cpp`; `dispatch()` records zero allocations through the allocation hook (SC-04); the order rows show single-dispatcher FIFO and per-dispatcher order (FR-013); a node destroyed early aborts under the enforce semantic; work dispatched to a stopped context reads `stopped` | same executable |
 | C-4 barrier | one round releases every participant; a spinning context waits without sleeping (the mode's own counter proves the path); a participant that leaves a round early aborts the re-exec | `test/source/harness_context_barrier_test.cpp` |
 | C-5 threads on contexts | `threads(4)` gives indices 0 to 3, count 4, and a `/threads:4` name (SC-06); with scripted per-context leaves the merged row matches FR-020 and every flag matches the cited `Finish` result at `N = 4` (SC-07); `threads(0)` aborts at the call; no barrier wait falls inside a window (SC-08); a noise load on one context leaves the other context's plan the only one its row folds (SC-09); the custom runner's dispatches carry the bodies and the merged row still stands | `test/source/harness_threads_test.cpp` |
 | C-6 docs and examples | the two sections in the D1 shape, the quick-reference rows, the `harness.md` detail, the `/threads:N` row in "Reading the report" | `tools/docs/example_drift.py`, `test/example_run.sh`, prose gate |
@@ -404,7 +409,7 @@ roadmap spec in the spec Out list, and X.2 keeps it out.
 | Principle | Verdict and note |
 | --- | --- |
 | I | PASS with the one recorded exception: the pause-hint site (Complexity Tracking). Every other construct is standard C++23; the wait, the barrier, and the inbox use `std::atomic` operations alone. |
-| II | PASS. Each `\pre` and `\post` on the new surface has its enforcement kind at the named call: the lifecycle trio, the cpu index, the early node destruction (debug), the early barrier departure, and the thread count (D-01, D-03, data-model E-01 to E-05). |
+| II | PASS. Each `\pre` and `\post` on the new surface has its enforcement kind at the named call: the lifecycle trio, the cpu index, the early node destruction (enforce semantic), the early barrier departure, and the thread count (D-01, D-03, data-model E-01 to E-05). |
 | III | PASS. The logical views carry the contracts, the physical view names the file, namespace, and target of each piece, and TDD mode stands recorded. |
 | IV | PASS. The header blocks state each contract once; the two sections teach the surface and the detail page carries the table and the lifecycle rules (FR-029 to FR-033). |
 | V | PASS. N-1, N-2, N-4, and N-12 cover every new name as the pre-design row lists; the name check sees no new macro and no unexpanded acronym. |
