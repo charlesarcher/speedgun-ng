@@ -86,8 +86,17 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # The page carries six more capability sections and their snippets (FR-044);
 # the per-section budget of FR-024 holds, which is what keeps a section a
 # section rather than a second page.
-PAGE_LINE_CAP = 550
+# D-A of the PR #37 final pass (Charles, 2026-10-15): Registration teaches
+# all three registration forms and Fixtures all three fixture macros, which
+# adds 31 lines (25 to 38 and 24 to 42). No prose elsewhere on the page can
+# give back 19 lines without gutting a result sentence, so the page cap rose
+# by the smallest fitting amount, 550 to 569.
+PAGE_LINE_CAP = 569
 SECTION_LINE_CAP = 25
+
+# Only these two sections carry a higher cap, each at the smallest span that
+# holds its copied regions (D-A, Charles, 2026-10-15).
+SECTION_LINE_CAPS = {"Registration": 38, "Fixtures": 42}
 
 
 class Finding(Exception):
@@ -462,10 +471,11 @@ def check_sections(page: Path, root: Path) -> list[str]:
             findings.append(f"{rel(page)}: no '### {title}' section")
             continue
         start, end = spans[title]
-        if end - start + 1 > SECTION_LINE_CAP:
+        cap = SECTION_LINE_CAPS.get(title, SECTION_LINE_CAP)
+        if end - start + 1 > cap:
             findings.append(
                 f"{rel(page)}: section '{title}' runs {end - start + 1} lines, "
-                f"the cap is {SECTION_LINE_CAP}"
+                f"the cap is {cap}"
             )
         if not any(
             start <= block.fence_line <= end and block.region is not None
