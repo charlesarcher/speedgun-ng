@@ -100,7 +100,7 @@ audit point. The result and its evidence follow.
 ### PC-0: H4 has merged. PASS.
 
 - H4 is `specs/019-harness-user-counters-and-statistics`, and the audit
-  point is the very commit the request records as its merge: `64f2ab5`
+  point is the exact commit the request records as its merge: `64f2ab5`
   ("Harness: Drop the fold-sink assertion") is both the audit point and
   an ancestor of it, so the check passes at the head of `master` and of
   `origin/master`.
@@ -351,8 +351,9 @@ window, so each scripted window holds only the body's work.
    count times 4, and each counter flag matches the cited `Finish`
    result for N = 4.
 3. **Given** a benchmark that calls no thread method, **When** it runs,
-   **Then** it runs on one context and prints the row bytes it prints
-   today.
+   **Then** it runs on the calling thread as it does today,
+   `currentContext()` reports no context inside the body, and it prints
+   the row bytes it prints today.
 4. **Given** a user thread runner that receives the four contexts,
    **When** the run starts, **Then** that function dispatches the
    per-thread body and the harness still holds the barriers and the
@@ -399,23 +400,26 @@ setup is oversubscribed, the report says so in one line.
 interpretable, and a noisy setup is a measurement problem the reader
 must see (Principle VII).
 
-**Independent Test**: run benchmarks under a scripted policy set and
-compare the printed disclosure for each case: two spinning contexts on
-one cpu, more spinning contexts than online cpus, one pinned context per
-cpu, and a blocking context. The warning appears in the first two cases
-and in no others.
+**Independent Test**: build the disclosure record sets of four policy
+cases directly, as `contracts/report-disclosure.md` states, print each
+through the report path, and compare the printed disclosure: two
+spinning contexts on one cpu, more spinning contexts than online cpus,
+one pinned context per cpu, and a blocking context. The warning appears
+in the first two cases and in no others.
 
 **Acceptance Scenarios**:
 
-1. **Given** a benchmark that runs on four contexts with mixed policies,
-   **When** the report prints the row, **Then** the count and each
-   context's wait mode and placement are printed with it.
-2. **Given** two spinning contexts pinned to one cpu, **When** the
-   report prints, **Then** it carries one noise warning line.
-3. **Given** more spinning contexts than the host has online cpus,
+1. **Given** a threaded result carrying four disclosure records with
+   mixed policies, **When** the report prints the row, **Then** the
+   count and each context's wait mode and placement are printed with
+   it.
+2. **Given** a result with two spinning contexts pinned to one cpu,
    **When** the report prints, **Then** it carries one noise warning
-   line.
-4. **Given** a setup that meets neither condition, **When** the report
+   line after that result.
+3. **Given** a result with more spinning contexts than the host has
+   online cpus, **When** the report prints, **Then** it carries one
+   noise warning line after that result.
+4. **Given** a result that meets neither condition, **When** the report
    prints, **Then** no noise warning line appears.
 
 ### User Story 5 - Read the page, copy the block, run the example (Priority: P3)
@@ -448,8 +452,9 @@ translation unit of your own.
   completion state reads `stopped` and the item never runs, so no queued
   work is lost silently.
 - A node a caller destroys before its completion state reads `done` or
-  `stopped`: a debug build aborts with an `SG_REQUIRE` violation, because
-  the caller owns the node until it completes.
+  `stopped`: the enforce semantic of the build aborts with an
+  `SG_REQUIRE` violation, because the caller owns the node until it
+  completes.
 - Work dispatched from inside a running item: it runs after that item
   ends, on the same context.
 - A `BLOCK` context woken by a dispatch while a stop request stands: the
@@ -466,9 +471,10 @@ translation unit of your own.
   other contexts of that instance.
 - A benchmark that runs on the default single context: the row keeps the
   bytes it prints today (FR-025, Assumptions).
-- A custom thread runner that dispatches the body to fewer contexts than
-  the count the instance asked for: the run reports the contexts it ran
-  and the disclosure names the count.
+- A custom thread runner that returns with a body node undispatched or
+  dispatched twice: the run aborts with an `SG_REQUIRE` violation at
+  that point, because the barrier rounds of FR-019 expect every body of
+  the run and read no clock (FR-021).
 - A threaded run whose per-context iteration count is zero: calibration
   bounds decide, as they do today, and no division by zero reaches the
   flag pass.
@@ -497,8 +503,8 @@ translation unit of your own.
   of the inbox flag. No wait mode shall read a clock or take a timeout.
   Every wait mode shall pass the same dispatch test, and `BLOCK` shall
   sleep while idle and wake on a dispatch. A context the harness creates to
-  run a benchmark shall default to `SPIN`, and a context a caller
-  creates with no policy shall default to `BLOCK`.
+  run a benchmark shall use `SPIN`, and a context a caller creates with
+  no policy shall default to `BLOCK`.
 
 - **FR-005**: A context policy shall select a placement slot: `NO_PIN`,
   which is the default, or one cpu index. The placement shall apply once,
@@ -534,9 +540,11 @@ translation unit of your own.
 - **FR-011**: `WorkContext` shall give the running item the id of the
   context that runs it and a stop token that reads true once the context
   has been asked to stop.
-- **FR-012**: The caller shall keep a node alive until its completion
-  state reads `done` or `stopped`. A debug build shall enforce that
-  ownership through `SG_REQUIRE` when a node is destroyed early.
+- **FR-012**: The caller shall keep a node it dispatches alive until
+  its completion state reads `done` or `stopped`; the body nodes a
+  threaded run constructs are harness-owned and stand outside this rule
+  (FR-021). The enforce semantic of the build shall abort with an
+  `SG_REQUIRE` violation when a node is destroyed early.
 - **FR-013**: Work dispatched to a context shall run on that context's
   thread. Nodes a thread dispatches one after another shall run in that
   order. Nodes two threads dispatch at the same time shall run in the
@@ -548,10 +556,12 @@ translation unit of your own.
   context that arrives shall wait until every expected context has
   arrived, and one round shall release all of them. A waiting context
   shall wait in the wait mode of its own policy, so a spinning context
-  never sleeps inside a barrier. The barrier shall read no clock, so no
-  round can time out. Its waiting mechanism shall be a small
-  atomic counter, and `std::barrier` shall serve as the fallback for
-  `BLOCK`.
+  never sleeps inside a barrier; a participant that runs on no context
+  shall wait in `BLOCK`. The barrier shall read no clock, so no round
+  can time out. A participant count a construction cannot honor, zero
+  included, shall be an `SG_REQUIRE` violation at that call. Its
+  waiting mechanism shall be a small atomic counter, and `std::barrier`
+  shall serve as the fallback for `BLOCK`.
 - **FR-015**: A barrier shall be legal to use from inside running work
   and outside it, and a participant that leaves a round early shall be a
   contract violation.
@@ -580,15 +590,23 @@ translation unit of your own.
   is the slowest context, CPU time is the sum over the contexts,
   iterations are the per-context count times `N`, and the user counters
   of the contexts are summed before the flag pass. The flag pass shall
-  run with the real `N`, so `CounterFlag::AVG_THREADS` divides by `N`
-  (PC-2).
+  run with the real `N`: `CounterFlag::AVG_THREADS` divides by `N`, and
+  the `RATE` flag divides by the decision seconds divided by `N`, the
+  cited thread-seconds divisor (PC-2, research D-06).
 - **FR-021**: A custom thread runner shall be a function the user
   supplies that receives the `N` contexts of the run and dispatches the
-  per-thread body itself. The harness shall keep the barriers of FR-019
-  and the samples of FR-020 around a runner it did not write.
+  per-thread body itself. The harness shall construct the body nodes,
+  keep them alive across the runner call, and check the dispatch ledger
+  when the runner returns: the runner shall have dispatched every body
+  exactly once, and a body left undispatched or dispatched twice shall
+  be an `SG_REQUIRE` violation at that point. The harness shall keep
+  the barriers of FR-019 and the samples of FR-020 around a runner it
+  did not write.
 - **FR-022**: The default shall be one context per instance. A benchmark
   that calls no thread method shall keep today's single-thread behavior
-  and today's row bytes.
+  and today's row bytes: the run keeps the calling thread, creates no
+  execution context, and `currentContext()` reports no context inside
+  the body (FR-002).
 - **FR-023**: `setUp` and `tearDown` of a threaded run shall run once per
   run, on context 0, outside both barriers. Each difference from the
   fixture rule of the cited revision shall be recorded in this feature's
@@ -598,16 +616,18 @@ translation unit of your own.
 
 ### Policy disclosure in the report (C-7)
 
-- **FR-025**: For every benchmark that runs on more than one context, the
-  console report shall print the context count and each context's policy:
-  the wait mode and the placement, which reads `NO_PIN` or one cpu index.
-  A benchmark that runs on one context shall keep the bytes it prints
-  today (Assumptions).
-- **FR-026**: When a spinning context shares a cpu with another context of
-  the same report, or the host has fewer online cpus than the report has
-  spinning contexts, the report shall print one noise warning line. The
-  line shall appear when that condition holds and shall not appear when it
-  does not (SC-12).
+- **FR-025**: For every benchmark that runs on more than one context,
+  equivalently for every result whose policy-disclosure record set is
+  non-empty, the console report shall print the context count and each
+  context's policy: the wait mode and the placement, which reads
+  `NO_PIN` or one cpu index. A threaded run fills that set with one
+  record per context it ran (FR-021), and a benchmark that runs on one
+  context shall keep the bytes it prints today (Assumptions).
+- **FR-026**: When two spinning contexts of one result name the same cpu
+  index, or one result has more spinning contexts than the host has
+  online cpus, the report shall print one noise warning line after that
+  result, one line for each such result. The line shall appear when
+  that condition holds and shall not appear when it does not (SC-12).
 - **FR-027**: The disclosure and the warning shall read no clock, and
   neither shall add a sampling action to any run.
 - **FR-028**: A test shall cover each case of FR-026: a shared-cpu spin
@@ -659,10 +679,10 @@ translation unit of your own.
   head (Principle II, PC-3).
 - **FR-038**: No `LCOV_EXCL` marker shall enter `source/harness/`, and
   coverage shall stay 100% line and 100% branch (Principle VI, PC-3).
-- **FR-039**: Every time and counter value of this feature shall come from
-  `sg::counters`: no `std::chrono`, no `clock_gettime`, no `rdtsc`, and no
-  `getrusage` shall enter the harness, and the time-source gate shall
-  report no hit at the feature head (Additional Constraints, PC-3).
+- **FR-039**: Every time and counter value of this feature shall come
+  from `sg::counters`, by the counters-only clause of the Additional
+  Constraints, and the time-source gate shall report no hit at the
+  feature head (PC-3).
 - **FR-040**: Neither a timed loop nor `dispatch()` shall allocate. A test
   with an allocation hook shall prove the dispatch path, and the
   loop-shape gate shall stay green.
@@ -719,8 +739,8 @@ translation unit of your own.
   that runs it and a stop token.
 - **Context Barrier**: a rendezvous for a fixed number of contexts, with
   each waiting context waiting in its own wait mode and no clock
-  involved. The start barrier and the stop barrier of a threaded run are
-  two rounds of it.
+  involved. A threaded run uses two of them, one for its start round
+  and one for its stop round.
 - **Threaded Instance**: one benchmark instance paired with one context
   count. Its reported name carries `/threads:N`.
 - **Merged Row**: the one row of a threaded instance: the slowest real
@@ -768,9 +788,17 @@ translation unit of your own.
 ## Constraints
 
 - **Time and counters.** Every time and counter value comes from
-  `sg::counters`. No `std::chrono`, `clock_gettime`, `rdtsc`, or
-  `getrusage` enters the harness. The time-source gate stays clean
-  (Additional Constraints of the constitution).
+  `sg::counters`, and the time-source gate stays clean (the
+  counters-only clause of the Additional Constraints of the
+  constitution).
+- **Pause hint: the P2 exception of this feature.** The idle-spin pause
+  hint of FR-004 is one documented `asm volatile("pause" :::
+  "memory")` site, registered here as this feature's only P2 exception
+  under Principle I, on the shipped `barrier.hpp` precedent. FR-004
+  names the pause hint, a bare spin starves the sibling hyperthread the
+  noise scenarios of SC-09 lean on, and the counters-only clause bans
+  the intrinsic headers. plan.md's Complexity Tracking carries the
+  site-level justification.
 - **No fold crosses contexts.** One context folds its own plan
   (PC-1). A threaded run publishes one merged row built from
   per-context values, and no fold reads another context's plan.
@@ -832,7 +860,9 @@ Out, each owned by a later roadmap spec:
 - A benchmark that runs on one context keeps the bytes it prints today,
   because FR-022 requires today's behavior for that case, the shape gate
   pins the quick-start row, and a count of one and a default policy state
-  what the reader already knows. FR-025 states the rule.
+  what the reader already knows. FR-025 states the rule. The run keeps
+  the calling thread, creates no context, and `currentContext()` reports
+  no context inside the body (FR-022).
 - `currentContext()` reports no context on a thread the library owns no
   context for; the request states the positive case only (FR-002).
 - A context is created with its policy and keeps it for its life; a
@@ -853,6 +883,13 @@ Out, each owned by a later roadmap spec:
   with their quick-reference rows cannot fit: the cap moves by the
   measured amount (FR-034, Q-5).
 - All tests run on the fake provider, as H4's do: no hardware and no PMU.
+
+## Budget note
+
+The measured page-cap move of FR-034 and Q-5 lands in this section at
+implementation time: the measured size of the two new sections and
+their quick-reference rows, and the `PAGE_LINE_CAP` value that follows.
+T022 of tasks.md records the measured amount here.
 
 ## Dependencies
 

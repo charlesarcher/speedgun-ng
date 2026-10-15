@@ -31,12 +31,15 @@
 
 ## Notes
 
-- The six [NEEDS CLARIFICATION] markers are open on purpose, one for each
-  of Q-1 to Q-6 of the request, at FR-004, FR-014, FR-023, FR-034,
-  FR-043, and FR-044. Charles recorded a recommendation for each under
-  Open questions of the spec, and `/speckit-clarify` records the answer as
-  written or replaces it. This pass answered none of them. No further
-  open item was raised.
+- This checklist ran before `/speckit-clarify`. At that pass the six
+  open items of the request (Q-1 to Q-6, landing at FR-004, FR-014,
+  FR-023, FR-034, FR-043, and FR-044) each carried a recorded
+  recommendation under Open questions of the spec, and no answer had
+  landed; this pass answered none of them and raised no further open
+  item. The clarify session of 2026-10-15 recorded all six answers: the
+  spec's Clarifications section and its Open questions records carry
+  them, the spec carries no [NEEDS CLARIFICATION] marker, and the box
+  above reads true against the current spec.
 - The subject of this feature is a threading surface, so the requirement
   text names the API the request itself names: `ExecutionContext`,
   `dispatch()`, `ContextId`, `ContextPolicy`, `WorkItem`, `WorkNode`,
@@ -48,8 +51,8 @@
 - The audit point, Preconditions, and Citations sections name files and
   symbols. That is the house spec style of 015 to 019 and the evidence
   Principle VIII and IX ask for: each anchor was read at the audit point
-  `64f2ab5`, and each is named by file and symbol rather than by line
-  number. Those sections record what exists. They prescribe no
+  `64f2ab5`, and each is named by file and symbol, with the line number
+  left out. Those sections record what exists. They prescribe no
   implementation.
 - PC-0 to PC-4 all pass at the audit point, each with the evidence beside
   it. PC-4 passes with a warning the spec acts on: `README.md` stands at

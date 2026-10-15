@@ -72,8 +72,9 @@ The typed work surface (FR-008 to FR-013, D-02).
 
 Validation: the caller keeps a node alive until its state reads `done`
 or `stopped`; destroying a live node aborts with an `SG_REQUIRE`
-violation in a debug build (FR-012, Edge Cases). Work dispatched to a
-stopped context takes the `stopped` state and never runs (Edge Cases).
+violation under the enforce semantic (FR-012, Edge Cases). Work
+dispatched to a stopped context takes the `stopped` state and never
+runs (Edge Cases).
 
 Order (FR-013): nodes one thread dispatches run in that order; nodes
 two threads dispatch at once run in the order the inbox accepted them.
@@ -93,15 +94,16 @@ on the same context (Edge Cases).
 
 Relationships: legal from inside running work and outside it (FR-015).
 A waiting participant waits in the wait mode of its own policy on the
-generation word, so a spinning context never sleeps inside the
-barrier. `std::barrier` stands as the fallback for the `BLOCK` path
-(Q-3). The start barrier and the stop barrier of a threaded run are two
-rounds (Key Entities).
+generation word, so a spinning context never sleeps inside the barrier;
+a participant that runs on no context waits in `BLOCK` (FR-014).
+`std::barrier` stands as the fallback for the `BLOCK` path (Q-3). A
+threaded run uses two barrier objects, one for its start round and one
+for its stop round (E-08).
 
 Validation: the barrier reads no clock, so no round times out
 (FR-014). A participant that leaves a round early is a contract
-violation (FR-015). A zero participant count at construction trips the
-FR-024 contract at the call.
+violation (FR-015). A zero participant count at construction trips the FR-014
+participant-count contract at the call.
 
 ## E-05: Threaded instance and the extended state
 
@@ -110,8 +112,8 @@ One benchmark instance paired with one context count (Key Entities).
 | Piece | Change | Source |
 | --- | --- | --- |
 | `BenchmarkHandle::threads(n)` / `threadRange(min, max)` / `denseThreadRange(min, max, step)` | store the count set `{n}` / `{min, min*2, ...}` / `{min, min+step, ...}` on the family record | + (FR-016, D-09) |
-| `RegistryEntry::threadCounts` | `std::vector<int>`, default `{1}` (`source/harness/detail/internal.hpp`) | + (D-09) |
-| `RegistryEntry::threadRunner` | optional user callable receiving the run's contexts and dispatching the per-thread bodies itself (E-08) | + (FR-021) |
+| `RegistryEntry::threadCounts` | `std::vector<std::int32_t>`, default `{1}` (`source/harness/detail/internal.hpp`) | + (D-09) |
+| `RegistryEntry::threadRunner` | optional `ThreadRunnerFn` taking the `ThreadRun` surface of one attempt (E-08, contracts/threaded-runs.md) | + (FR-021) |
 | instance expansion | arguments crossed with thread counts; `instanceName` appends the `/threads:N` segment for a count above one (`source/harness/family.cpp`) | + (FR-016) |
 | `State::threadIndex()` | the index of the context running the body, `0` to `N - 1`; `0` for a single-context run | + (FR-017) |
 | `State::threads()` | the count `N` of the run; `1` for a single-context run | + (FR-017) |
@@ -153,7 +155,7 @@ Report-side records (FR-025 to FR-028, D-08).
 | disclosure record | `{waitMode, placement}` per context | + (FR-025) |
 | `BenchmarkResult::contexts` | vector of disclosure records, one per context of a threaded run, empty for a single-context run | + (FR-025) |
 | disclosure line | printed after the rows of a result whose vector is non-empty: the count and each context's mode and placement (`NO_PIN` or one cpu index) | + (FR-025) |
-| noise warning | one line, printed when two spinning contexts of the report name one cpu index or the spinning count exceeds the online cpu count; absent otherwise | + (FR-026, FR-028) |
+| noise warning | one line after a result, printed when two spinning contexts of that result name one cpu index or that result has more spinning contexts than the online cpu count, and absent when neither condition holds | + (FR-026, FR-028) |
 | online cpu count | one host fact read once per report through `sg::counters::System::local()` | + (FR-027, Assumptions, D-08) |
 
 Validation: neither the disclosure nor the warning reads a clock or
@@ -171,7 +173,7 @@ The runner-side records of one threaded attempt (D-05).
 | barriers | two `ContextBarrier(N)` objects, start and stop | FR-014, FR-019 |
 | fixture slot | the macro site's static pointer, written once before dispatch, read by every context after that edge | FR-023, D-07 |
 | completion wait | the caller waits on the `N` completion states | FR-009, FR-010 |
-| custom runner | the E-05 `RegistryEntry::threadRunner` callable, when set, performs the dispatches; the barriers and the merge stand around it unchanged | FR-021 |
+| custom runner | the E-05 `RegistryEntry::threadRunner` callable, when set, performs the dispatches through `ThreadRun`, one per body index; the harness builds the body nodes and keeps them alive across the call; the barriers and the merge stand around it unchanged | FR-021 |
 
 Relationships: `setUp` and `tearDown` run once per run on context 0,
 outside both barriers (FR-023); every difference from the cited
@@ -179,9 +181,8 @@ revision stands in research D-10's list (FR-046).
 
 Consumers: the merged row (E-06) reads the per-context values; the
 disclosure (E-07) reads the policies of the contexts the run made; a
-custom runner that dispatches to fewer contexts leaves the run
-reporting the contexts it ran and the disclosure naming that count
-(Edge Cases).
+custom runner that returns with a body undispatched or dispatched
+twice trips the contract at that point (FR-021, Edge Cases).
 
 ## E-09: Existing entities extended, identity kept
 
