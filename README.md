@@ -102,7 +102,7 @@ SG_BENCHMARK(bmLoop);
 ```
 `doNotOptimize` keeps a value live across the barrier and `clobberMemory` pushes cached values back to memory; `speedgun-ng/barrier.hpp` declares both beside `speedgun-ng/benchmark.hpp`, the pair every snippet below includes.
 ### Registration
-`SG_BENCHMARK` registers a plain function, `SG_BENCHMARK_CAPTURE` registers one with a captured argument, and `registerBenchmark` is the runtime form, naming the family itself and returning the `BenchmarkHandle` the family calls chain onto; `SG_BENCHMARK_TEMPLATE` registers one instantiation of a function template, shown in [template registrations](docs/pages/harness.md#template-registrations).
+`SG_BENCHMARK` registers a plain function, and its row carries the function name.
 <!-- sg-example: example/docs/registration.cpp#registration-macro -->
 ```cpp
 auto bmCells(sg::State& state) -> void
@@ -114,6 +114,7 @@ auto bmCells(sg::State& state) -> void
 
 SG_BENCHMARK(bmCells);
 ```
+`SG_BENCHMARK_CAPTURE` binds the arguments at registration, and the row names the capture label, `bmAdd/pair`.
 <!-- sg-example: example/docs/registration.cpp#capture -->
 ```cpp
 auto bmAdd(sg::State& state, int left, int right) -> void
@@ -125,7 +126,19 @@ auto bmAdd(sg::State& state, int left, int right) -> void
 
 SG_BENCHMARK_CAPTURE(bmAdd, pair, 2, 3);
 ```
-A family the macro registers takes the function name, so the block above prints a row named `bmCells`. A name that carries a `/` splits at the first one into suite and case, the rule `registerBenchmark` and the capture form both follow. See [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
+`SG_BENCHMARK_TEMPLATE` registers one instantiation, and the row names it, `bmWidth<std::uint32_t>`.
+<!-- sg-example: example/docs/registration.cpp#template -->
+```cpp
+template<typename Type>
+auto bmWidth(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK_TEMPLATE(bmWidth, std::uint32_t);
+```
 ### Argument families and ranges
 `arg`, `args`, `range`, `ranges`, `denseRange`, and `argsProduct` build the instance list, `argName` and `argNames` label the positions, and the body reads a position with `state.range(i)`.
 <!-- sg-example: example/docs/argument_families.cpp#ranges -->
@@ -149,7 +162,7 @@ SG_BENCHMARK(bmSquares)
 ```
 `argsProduct` takes the product of the lists it carries, `rangeMultiplier(k)` settles the growth factor for the `range` and `ranges` calls that follow it on that family, and every instance prints as its own row, named by its labels. See [argument families](docs/pages/harness.md#argument-families) and [argument access](docs/pages/harness.md#argument-access).
 ### Fixtures
-A `Fixture` subclass holds the state its methods measure, and three macros turn its methods into benchmark families.
+A `Fixture` subclass holds the state its methods measure, and `setUp` and `tearDown` run around the timed loop.
 <!-- sg-example: example/docs/fixtures.cpp#fixture -->
 ```cpp
 class TableFixture : public sg::Fixture
@@ -171,7 +184,25 @@ protected:
   std::vector<std::uint64_t> m_values {1, 2, 3};
 };
 ```
-`SG_BENCHMARK_F` defines a method and registers it in one step; `SG_BENCHMARK_DEFINE_F` defines one to register later, and `SG_BENCHMARK_REGISTER_F` registers it and carries the `setup` and `teardown` callbacks, which the runner runs in the untimed region of each run, with the fixture's own `setUp` and `tearDown` between those callbacks and the loop. A fixture instance is named `FixtureClass/Method`, so the fixture class is its suite. The three spellings sit beside the class in [longer forms of the same calls](docs/pages/harness.md#longer-forms-of-the-same-calls). See [fixtures](docs/pages/harness.md#fixtures) and [setup and teardown callbacks](docs/pages/harness.md#setup-and-teardown-callbacks).
+`SG_BENCHMARK_F` defines and registers in one step; `SG_BENCHMARK_DEFINE_F` only defines and `SG_BENCHMARK_REGISTER_F` registers it, printing `TableFixture/bmTableRead` and `TableFixture/bmTableSize/1`.
+<!-- sg-example: example/docs/fixtures.cpp#fixture-methods -->
+```cpp
+SG_BENCHMARK_F(TableFixture, bmTableRead)(sg::State& state)
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(m_values.front());
+  }
+}
+
+SG_BENCHMARK_DEFINE_F(TableFixture, bmTableSize)(sg::State& state)
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(m_values.size());
+  }
+}
+
+SG_BENCHMARK_REGISTER_F(TableFixture, bmTableSize).argsProduct({{1}});
+```
 ### Run control
 `minTime`, `warmupTime`, `iterations`, and `repetitions` bound the measuring window and repeat it.
 <!-- sg-example: example/docs/run_control.cpp#run-control -->
