@@ -85,7 +85,6 @@ bmSum                    iterations=   1066261  real time/iter (ns)=  657.575  c
 
 ## How you do it
 ### The run loop
-
 A benchmark is a function over `State`: the loop body runs once per iteration, and the harness settles how many iterations the run needs.
 <!-- sg-example: example/docs/run_loop.cpp#run-loop -->
 ```cpp
@@ -103,7 +102,6 @@ SG_BENCHMARK(bmLoop);
 ```
 `doNotOptimize` keeps a value live across the barrier and `clobberMemory` pushes cached values back to memory; `speedgun-ng/barrier.hpp` declares both beside `speedgun-ng/benchmark.hpp`, the pair every snippet below includes.
 ### Registration
-
 `SG_BENCHMARK` registers a plain function, `SG_BENCHMARK_CAPTURE` registers one with a captured argument, and `registerBenchmark` is the runtime form, naming the family itself and returning the `BenchmarkHandle` the family calls chain onto; `SG_BENCHMARK_TEMPLATE` registers one instantiation of a function template, shown in [template registrations](docs/pages/harness.md#template-registrations).
 <!-- sg-example: example/docs/registration.cpp#registration-macro -->
 ```cpp
@@ -116,9 +114,19 @@ auto bmCells(sg::State& state) -> void
 
 SG_BENCHMARK(bmCells);
 ```
-A family the macro registers takes the function name, so the block above prints a row named `bmCells`. A name that carries a `/` splits at the first one into suite and case, the rule `registerBenchmark` and the capture form both follow. See [captured arguments](docs/pages/harness.md#captured-arguments) and [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
-### Argument families and ranges
+<!-- sg-example: example/docs/registration.cpp#capture -->
+```cpp
+auto bmAdd(sg::State& state, int left, int right) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(left + right);
+  }
+}
 
+SG_BENCHMARK_CAPTURE(bmAdd, pair, 2, 3);
+```
+A family the macro registers takes the function name, so the block above prints a row named `bmCells`. A name that carries a `/` splits at the first one into suite and case, the rule `registerBenchmark` and the capture form both follow. See [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
+### Argument families and ranges
 `arg`, `args`, `range`, `ranges`, `denseRange`, and `argsProduct` build the instance list, `argName` and `argNames` label the positions, and the body reads a position with `state.range(i)`.
 <!-- sg-example: example/docs/argument_families.cpp#ranges -->
 ```cpp
@@ -141,7 +149,6 @@ SG_BENCHMARK(bmSquares)
 ```
 `argsProduct` takes the product of the lists it carries, `rangeMultiplier(k)` settles the growth factor for the `range` and `ranges` calls that follow it on that family, and every instance prints as its own row, named by its labels. See [argument families](docs/pages/harness.md#argument-families) and [argument access](docs/pages/harness.md#argument-access).
 ### Fixtures
-
 A `Fixture` subclass holds the state its methods measure, and three macros turn its methods into benchmark families.
 <!-- sg-example: example/docs/fixtures.cpp#fixture -->
 ```cpp
@@ -166,7 +173,6 @@ protected:
 ```
 `SG_BENCHMARK_F` defines a method and registers it in one step; `SG_BENCHMARK_DEFINE_F` defines one to register later, and `SG_BENCHMARK_REGISTER_F` registers it and carries the `setup` and `teardown` callbacks, which the runner runs in the untimed region of each run, with the fixture's own `setUp` and `tearDown` between those callbacks and the loop. A fixture instance is named `FixtureClass/Method`, so the fixture class is its suite. The three spellings sit beside the class in [longer forms of the same calls](docs/pages/harness.md#longer-forms-of-the-same-calls). See [fixtures](docs/pages/harness.md#fixtures) and [setup and teardown callbacks](docs/pages/harness.md#setup-and-teardown-callbacks).
 ### Run control
-
 `minTime`, `warmupTime`, `iterations`, and `repetitions` bound the measuring window and repeat it.
 <!-- sg-example: example/docs/run_control.cpp#run-control -->
 ```cpp
@@ -185,7 +191,6 @@ SG_BENCHMARK(bmFixed)
 ```
 `minTime` and `warmupTime` take nanoseconds in the handle chain, while `--min-time` and `--warmup-time` take seconds on the command line, and each repetition prints a row with an aggregate row at the end of more than one.
 ### Timing modes
-
 CPU time is the primary time of a run by default, `useRealTime` makes real time the primary time, and `useManualTime` lets the body report each iteration's own time.
 <!-- sg-example: example/docs/timing_modes.cpp#timing-modes -->
 ```cpp
@@ -209,7 +214,6 @@ SG_BENCHMARK(bmHand).useManualTime();
 ```
 The primary time is the column the qualification test, the growth rule, and the aggregate statistics read: the CPU column by default, the real column under `useRealTime`, and the sum of the values the body reports through `setIterationTime` under `useManualTime`, which states that time in nanoseconds. `measureProcessCpuTime` leaves the primary time alone and selects the process CPU leaf for the CPU column. See [two time columns](docs/pages/harness.md#two-time-columns), [real time as the primary time](docs/pages/harness.md#real-time-as-the-primary-time), [manual time](docs/pages/harness.md#manual-time), and [the process CPU leaf](docs/pages/harness.md#the-process-cpu-leaf).
 ### Pause and resume
-
 `pauseTiming` and `resumeTiming` take work out of the timed window, and `ScopedPauseTiming` is the guard that pairs them.
 <!-- sg-example: example/docs/pause_and_resume.cpp#paused -->
 ```cpp
@@ -232,7 +236,6 @@ SG_BENCHMARK(bmPaused).iterations(3);
 ```
 A closed pause is subtracted from every time column of the row. The calls stand inside the loop, where the run's sampling window is open, one pause may stand open at a time, and each pause costs one more sample pair. The room for those samples follows the loop: the recorder reserves the pause room the family's previous attempt used, and a pair it cannot hold closes through a running fold that leaves the columns unchanged, with `pause=folded` beside the row. See [pause and resume](docs/pages/harness.md#pause-and-resume).
 ### The time unit
-
 `unit` sets the unit of one family, and `setDefaultTimeUnit` sets the unit for the families that call no `unit`.
 <!-- sg-example: example/docs/time_unit.cpp#time-unit -->
 ```cpp
@@ -253,7 +256,6 @@ auto configureUnits() -> void
 ```
 Call `setDefaultTimeUnit` in `main` before `speedgunMain`, and `TimeUnit` names the four scales a column can print in. See [time units](docs/pages/harness.md#time-units).
 ### Hardware counter metrics
-
 `addMetric` attaches a counter expression to a family, behind the availability check the counter lookup returns.
 <!-- sg-example: example/docs/counter_metrics.cpp#metrics -->
 ```cpp
@@ -274,7 +276,6 @@ auto attachMetric(sg::BenchmarkHandle& handle) -> void
 ```
 The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields, and on a host where the leaf is unavailable the row prints the refusal kind in place of the number and the run continues. This block is the one snippet that adds a header to the pair: `speedgun-ng/counters.hpp`.
 ### Skips
-
 `skipWithMessage` ends a run early when the work cannot be done, and `skipWithError` ends it as a failure.
 <!-- sg-example: example/docs/skips.cpp#skips -->
 ```cpp
@@ -293,7 +294,6 @@ SG_BENCHMARK(bmGuard).denseRange(0, 4, 4);
 ```
 The report prints `SKIPPED: <reason>` for the first kind and `FAILED: <reason>` for the second, and `DISABLED_` at the front of an instance name keeps it registered while the run, the `--list` output, and every `--filter` match skip it. See [the `DISABLED_` prefix](docs/pages/harness.md#the-disabled_-prefix).
 ### The command line
-
 One entry point, `speedgunMain`, reads the command line, and the options are long options alone.
 <!-- sg-example: example/docs/command_line.cpp#command-line-read -->
 ```cpp
@@ -308,7 +308,6 @@ SG_BENCHMARK(bmRead).argNames({"cells"}).arg(256);
 ```
 `--min-time` and `--warmup-time` take seconds, and a usage error reports one line and exits with status 2.
 ### Reading the report
-
 A run prints a version line, then one row per instance and repetition.
 
 <!-- sg-example: example/docs/reading_the_report.cpp#report-fields -->
@@ -331,7 +330,6 @@ The row carries `bytes_per_second=` from the byte setter and the `label=` field 
 A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`.
 
 ### User counters
-
 <!-- sg-example: example/docs/user_counters.cpp#counter-column -->
 ```cpp
 auto bmCount(sg::State& state) -> void
@@ -350,7 +348,6 @@ SG_BENCHMARK(bmCount).argsProduct({{64}}).repetitions(3);
 A counter is a named number the loop reports beside the times, and its flags say how the value scales. A run of `bmCopyCells` prints `cells=` and the `bytes_per_second=` rate beside the two time columns, and its `AGGREGATE` row carries one statistic line for each counter, so `cells mean=` and `bytes_per_second mean=` stand under the built-in ones. Names are capped at `kMaxUserCounters`, sixteen for one benchmark, and a name must be shorter than `kMaxCounterNameBytes`, so 31 characters; both bounds are `SG_REQUIRE` preconditions on `State::setCounter`, and a breach ends the run with the bound in its message. See [user counters](docs/pages/harness.md#user-counters).
 
 ### Throughput
-
 <!-- sg-example: example/docs/throughput.cpp#throughput-call -->
 ```cpp
 auto bmScale(sg::State& state) -> void
@@ -369,7 +366,6 @@ SG_BENCHMARK(bmScale).argsProduct({{1}}).repetitions(3);
 `setBytesProcessed` and `setItemsProcessed` open the two rate counters the harness derives from the time it measured. The row gains `items_per_second=` and `bytes_per_second=` columns, each one the total the call passed divided by the primary time of the run, so a larger argument shows the throughput the loop held. Both calls take the total work of the whole run: a body that works a known amount per iteration passes that amount times `state.iterations()` after the loop, as the example does. See [throughput](docs/pages/harness.md#throughput).
 
 ### Labels
-
 A label is a trailing word a run prints after its numbers, so a row says which variant it measured.
 <!-- sg-example: example/docs/labels.cpp#labels -->
 ```cpp
@@ -392,7 +388,6 @@ SG_BENCHMARK(bmScanBlocks).argNames({"cells"}).range(256, 4096).repetitions(3);
 `label=summed` stands last on every row of the family, after the counters, and the `AGGREGATE` row carries the label the repetitions agreed on. See [labels](docs/pages/harness.md#labels).
 
 ### Custom statistics
-
 A custom statistic turns the repetition times of one instance into one more named number on its aggregate row.
 <!-- sg-example: example/docs/custom_statistics.cpp#custom-statistics -->
 ```cpp
@@ -417,7 +412,6 @@ auto spreadOf(const std::vector<double>& times, double& spread) -> bool
 `BenchmarkHandle::addStatistic("spread", sg::StatUnit::PERCENTAGE, &spreadOf)` attaches the callback to the family. `spread=    0.110` then prints beside the built-in statistics with the percentage unit the registration declared, and the names `mean`, `median`, `sd`, `cv`, `min`, `max` and `n` stay reserved: a callback registered under one of them breaches its precondition at the call. See [custom statistics](docs/pages/harness.md#custom-statistics).
 
 ### Aggregate-only reporting
-
 `reportAggregatesOnly` keeps the repetition rows out of the report and leaves the aggregate.
 <!-- sg-example: example/docs/aggregates_only.cpp#aggregates-only -->
 ```cpp
@@ -439,7 +433,6 @@ SG_BENCHMARK(bmCountWords).repetitions(5).reportAggregatesOnly();
 The family prints its single `AGGREGATE` row for the five repetitions and nothing above it; `displayAggregatesOnly` applies the same rule to every family from the command line. See [aggregate-only reporting](docs/pages/harness.md#aggregate-only-reporting).
 
 ### Complexity fit
-
 A family fitted over its complexity sizes reports the curve each of its quantities follows.
 <!-- sg-example: example/docs/complexity_fit.cpp#complexity-fit -->
 ```cpp
