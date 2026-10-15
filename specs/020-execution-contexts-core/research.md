@@ -47,7 +47,7 @@ rejected by FR-003 (the link lives in the node and enqueue allocates
 nothing: a lockword per context would hold, but the wake path needs the
 CV the `BLOCK` mode already gets from `std::atomic` wait, so the mutex
 would buy nothing); a bounded array ring, rejected because a ring with
-a MPSC head needs either tags or CAS loops over slots, more machinery
+a MPSC head needs either tags or compare-and-swap loops over slots, more machinery
 than the linked shape (X.2); `__builtin_ia32_pause`, the GCC and Clang
 builtin spelling of the same instruction, kept as the fallback if a
 CI compiler rejects the asm operand form; the intrinsic headers
@@ -58,8 +58,8 @@ header list of Additional Constraints.
 
 **Decision**: `WorkItem` is a concept: `noexcept` invocable with a
 `WorkContext&` (FR-008). `WorkNode<Item>` is the caller-owned template:
-it holds the item, the inbox link, the completion state
-(`pending`, `done`, `stopped`), and one function-pointer slot written
+it holds the item, the inbox link, the completion state (`PENDING`,
+`RUNNING`, `DONE`, `STOPPED`), and one function-pointer slot written
 at construction from `Item`, the erased run path the loop calls as
 `fn(void*)`-style with the node address (FR-009, FR-011). The loop
 calls the stored slot; it runs no run-time type test (D-2).
@@ -72,8 +72,11 @@ erasure happens at the typed construction the concept already
 validates, so an unapproved type is a compile error at the
 `WorkNode<Item>` or `dispatch()` line, refused before the program
 builds (FR-008). The completion state is one atomic word the loop
-writes after the erased call returns, which is the shape H16 reads for
-continuations (FR-045).
+marks `RUNNING` when it takes the node and writes `DONE` with release
+order as its last access to the node after the erased call returns; a
+reader of `state()` acquires, so the caller may destroy the node the
+moment it observes completion (FR-049), which is the shape H16 reads
+for continuations (FR-045).
 
 **Alternatives considered**: a `std::function` in the node, rejected
 because its non-empty construction allocates and FR-040 forbids
@@ -113,19 +116,25 @@ rule.
 
 **Decision**: The policy's placement slot is `NO_PIN` or one cpu
 index. A context applies its slot once, at thread start, by calling
-one replaceable placement function: a `std::function` (or function
-pointer) the context holds, defaulting to a small Linux pin
-implementation (`pthread_setaffinity_np` on the started thread with a
-one-cpu set). A test replaces the function at context creation and
-records the calls, so the pinning tests need no privileges (FR-005,
-Assumptions). The signature is the seam H10 later replaces with
-topology placement; nothing else reads it (SC-05).
+the placement function of one harness-level function-pointer slot: a
+`PlacementFn` installed by `setPlacementFunction` before any context
+starts, defaulting to a small Linux pin implementation
+(`pthread_setaffinity_np` on the started thread with a one-cpu set);
+changing the slot while any context runs is not thread-safe, and the
+install-before-any-start rule is what makes that acceptable (FR-005).
+The function takes the policy's placement slot and the context's
+native thread and returns a small printable `PlacementResult` the
+report discloses through the placement field of
+`contracts/report-disclosure.md`. A test installs a replacement before
+any context starts and records the calls, so the pinning tests need no
+privileges (FR-005, SC-05, Assumptions). The signature is the seam H10
+later replaces with topology placement; nothing else reads it (SC-05).
 
 **Rationale**: One call, once, at thread start, keeps placement out of
 the loop and out of `dispatch()` entirely. The default calls the
 platform only through one named function, so the H10 swap touches one
 line per construction site, and the FR-005 test ("the replacement is
-what ran, once per thread") is an injected function and a counter.
+what ran, once per thread") is an installed function and a counter.
 
 **Alternatives considered**: calling `sched_setaffinity` inline in the
 loop's thread start, rejected by FR-005's one replaceable function;
@@ -133,26 +142,29 @@ hwloc-based placement now, rejected: H10 owns topology placement (the
 spec Out list); `std::thread::native_handle` juggling exposed to the
 caller, rejected by D-1's ownership (the library owns the thread).
 
-## D-05: A threaded attempt runs N contexts with the barriers outside every window
+## D-05: A threaded instance creates its N contexts once and reuses them across attempts, the barriers outside every window
 
 **Decision**: For an instance whose thread count stands above one, the
-runner builds one threaded attempt shaped as follows, per attempt and
-beside the existing single-context path (FR-022 keeps that path's
-bytes).
+runner creates the `N` contexts once, at the start of the instance's
+threaded run, reuses them for every calibration attempt and repetition
+of that instance, and joins them when the instance finishes; thread
+start and join stand outside every measured window (FR-022 keeps the
+single-context path's bytes).
 
 ```text
-create contexts C[0..N-1] with policy {SPIN, NO_PIN}   (FR-004, Q-2)
-fixture object + setUp run once on context 0            (FR-023)
-ContextBarrier start(N) and stop(N)                     (FR-014)
-per context i, as one caller-erased body node:
-  open plan and recorder on this context's thread       (FR-018)
-  start.arrive-and-wait          outside the window     (FR-019)
-  open window; timed loop; close window                 (unchanged cursor)
-  stop.arrive-and-wait           outside the window     (FR-019)
-  fold this context's own plan and publish per-context values
-tearDown on context 0                                   (FR-023)
-requestStop, drain, join every context                  (FR-006)
-merge the N per-context values into the row             (D-06)
+create contexts C[0..N-1] once per instance, policy {SPIN, NO_PIN}  (FR-004, Q-2)
+per attempt and repetition:
+  fixture object + setUp run once on context 0                       (FR-023)
+  ContextBarrier start(N) and stop(N)                                (FR-014)
+  per context i, as one caller-erased body node:
+    plan opened once on this context's thread, recorder per attempt  (FR-018, PC-2)
+    start.arrive-and-wait          outside the window                (FR-019)
+    open window; timed loop; close window                            (unchanged cursor)
+    stop.arrive-and-wait           outside the window                (FR-019)
+    fold this context's own plan and publish per-context values
+  tearDown on context 0                                              (FR-023)
+  merge the N per-context values into the row                        (D-06)
+requestStop, drain, join every context when the instance finishes    (FR-006)
 ```
 
 Every context opens its own thread-target plan on its own thread, so
@@ -168,50 +180,74 @@ differs from the cited revision by design; D-07 and D-10 record it.
 path already takes (plan open, recorder reservation, window, fold) and
 adds only the contexts, the two barrier rounds, and the merge. The
 barriers sit at the body node's first and last step, so no barrier
-wait can land inside a folded window (FR-019, SC-08). One thread
-creation per context per attempt sits outside every window; thread
-start costs nothing the row measures.
+wait can land inside a folded window (FR-019, SC-08). Thread creation
+and join stand at the instance boundary, outside every window and
+every attempt, so no repetition pays a start; the lifecycle stays one
+create and one join per instance.
 
-**Alternatives considered**: contexts that live for the whole
-instance run across attempts, rejected for now: per-attempt contexts
-keep lifecycle trivial (create, join, destroy) and thread creation is
-cold, an upgrade to long-lived contexts belongs to H16's graph, where
-reuse has a caller; pinned contexts for threaded runs, rejected: the
-policy's default slot is `NO_PIN` (FR-005) and oversubscription is the
-report's warning case (FR-026); running thread 0's body on the runner
-thread, the cited `ThreadRunnerDefault::RunThreads` shape, rejected:
-the runner thread must stay free to hold the barriers' caller side and
-wait on the completion states (FR-021 keeps dispatch the only entry).
+**Alternatives considered**: contexts created and joined per attempt,
+rejected: the calibration loop would pay one thread start per context
+per attempt, and the per-instance shape matches how the plan is
+already held once per instance (PC-2); thread start and join stay
+cold either way, and an upgrade to contexts pooled across instances
+belongs to H16's graph, where reuse has a caller; pinned contexts for
+threaded runs, rejected: the policy's default slot is `NO_PIN`
+(FR-005) and oversubscription is the report's warning case (FR-026);
+running thread 0's body on the runner thread, the cited
+`ThreadRunnerDefault::RunThreads` shape, rejected: the runner thread
+must stay free to hold the barriers' caller side and wait on the
+completion states (FR-021 keeps dispatch the only entry).
 
 ## D-06: The merged row and the flag pass with the real N
 
 **Decision**: The merge is cold code after the stop barrier and builds
-the published row from the per-context values in one way (FR-020):
+the published row from the per-context values by summing (FR-020):
 
 ```text
-real       = max over contexts            (the slowest context)
-cpu        = sum over contexts
-iterations = per-context iterations * N
-counters   = per name, sum over contexts, before the flag pass
-flag pass (cited order, internal::Finish of src/counter.cc):
-  RATE                 v /= (primaryNs / 1e9) / N
+real column  = manual-time sum under manual timing, else the real-time
+               sum over the contexts        (the cited CreateRunReport)
+cpu column   = cpu-time sum over the contexts
+iterations   = sum of the per-context iteration counts
+counters     = per name, sum over contexts, before the flag pass
+decision seconds = the summed time of the run's timing mode: the
+               cpu-time sum by default, the manual-time sum under
+               manual timing, the real-time sum under real-time
+               timing                       (the cited DoNIterations)
+flag pass (cited order, internal::Finish of src/counter.cc, fed the
+cited decision seconds / N):
+  RATE                 v /= decision seconds / N
   AVG_THREADS          v /= N
   ITERATION_INVARIANT  v *= iterations        (the merged total)
   AVG_ITERATIONS       v /= iterations
   INVERT               v = 1 / v              (last, always)
 ```
 
-The merged `iterations` equals the cited `results.iterations`, the
-total across the thread group, and the rate divisor repeats the cited
-`CreateRunReport`'s `seconds / b.threads()` (D-10). The single-thread
-pass of H4 stands: with `N == 1` the formulas reduce to H4's
-(`v /= N` by one, the divided rate by itself). The flag pass runs once
-per merged row inside the existing `appendCounterColumns`, which gains
-the thread-count divisor H4 left at one (PC-2, FR-020). When any
+The merge rule is the cited one, read at the pinned revision of
+`src/benchmark_runner.cc`, `src/counter.cc`, and `src/reporter.cc`:
+`RunInThread` sums each thread's real, cpu, manual, and iteration
+numbers into one merged `Result` under the `ThreadManager` mutex and
+merges counters through `internal::Increment`; `BenchmarkRunner::DoNIterations`
+picks the decision seconds from those sums and takes the per-context
+iteration count as the summed count divided by `N`; `CreateRunReport`
+puts the summed manual-or-real time in the real column and the summed
+cpu time in the cpu column, sums the iterations, and runs the counters
+flag path through `internal::Finish` of `src/counter.cc`, which
+divides `kAvgThreads` by the thread count there. The displayed
+per-iteration time is the accumulated sum divided by the summed
+iterations, `BenchmarkReporter::Run::GetAdjustedRealTime` and
+`GetAdjustedCPUTime` of `src/reporter.cc`: the per-context average is
+implicit in the summed iterations, and no max appears in any of those
+functions. The merged `iterations` equals the cited `results.iterations`,
+the total across the thread group, and the rate divisor repeats the
+cited `CreateRunReport`'s `seconds / b.threads()` (D-10). The
+single-thread pass of H4 stands: with `N == 1` the formulas reduce to
+H4's (`v /= N` by one, the divided rate by itself). The flag pass runs
+once per merged row inside the existing `appendCounterColumns`, which
+gains the thread-count divisor H4 left at one (PC-2, FR-020). When any
 context's body skipped, the merged row carries the skip outcome and
 reason, and the instance publishes no partial row (Edge Cases).
 
-**Rationale**: The four aggregation rules are FR-020's list, and the
+**Rationale**: The aggregation rules are FR-020's sum rule, and the
 flag-pass divisors are what makes SC-07's "matches the cited `Finish`
 result for the real `N`" true: the cited call divides rate by
 thread-seconds (`seconds / threads`) and `kAvgThreads` by the thread
@@ -219,12 +255,17 @@ count, read at `src/benchmark_runner.cc` and `src/counter.cc`.
 Summing user counters before the pass matches the cited
 `internal::Increment`, which adds values as threads finish.
 
-**Alternatives considered**: dividing rate by the merged decision time
-alone (no `/ N`), rejected: it would miss the cited result the
-scenario pins; merging counters after the flag pass, rejected because
-the per-context pass would divide each context by `N` that the sum
-should take once (the cited order merges, then finishes); max-ing cpu
-time, rejected by FR-020's own words (the cited merge sums cpu).
+**Alternatives considered**: taking the slowest context's real time
+for the real column, rejected: the cited `RunInThread` sums the
+per-thread times and `CreateRunReport` prints those sums, and the
+printed per-iteration time divides the sum by the summed iterations
+back to the per-context average (`src/reporter.cc`), a division a max
+would falsify; dividing rate by the merged decision time alone (no
+`/ N`), rejected: it would miss the cited result the scenario pins;
+merging counters after the flag pass, rejected because the
+per-context pass would divide each context by `N` that the sum should
+take once (the cited order merges, then finishes); max-ing cpu time,
+rejected by FR-020's own words (the cited merge sums cpu).
 
 ## D-07: One fixture object per threaded run through the existing macro slot
 
@@ -296,7 +337,7 @@ selects the counts `min, min * 2, ...` up to `max` and
 `denseThreadRange(min, max, step)` selects `min, min + step, ...` up
 to `max`, mirroring the cited `ThreadRange` (multiplier 2) and
 `DenseThreadRange` (stride) of `include/benchmark/benchmark_api.h`.
-The registry stores a `std::vector<std::int32_t> threadCounts` (default `{1}`)
+The registry stores a `std::vector<int> threadCounts` (default `{1}`)
 on the family record; instance expansion runs over the argument set
 crossed with the thread counts, and `instanceName` (`source/harness/family.cpp`)
 appends the `/threads:N` segment for a count above one, in the shape

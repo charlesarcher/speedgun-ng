@@ -21,18 +21,22 @@ FR-007, research D-01).
 
 Relationships: `dispatch()` (E-03) links nodes into the inbox; the loop
 takes the oldest node, runs its erased path with the E-03 work context,
-writes the completion state, and looks again; the barrier (E-04) waits
-in the policy's mode. `currentContext()` reads the thread-current
+marks it `RUNNING` then `DONE`, and looks again; the barrier (E-04)
+waits in the policy's mode. `currentContext()` reads the thread-current
 context id the loop installs for the node's run and clears after.
 
-Validation and lifecycle (FR-006): the constructor starts the thread
-and applies the placement once through the replaceable function
-(FR-005). The legal sequence is `requestStop()`, `drain()`, `join()`:
-a node enqueued before the stop request runs during `drain()`, a node
-dispatched after it takes the `stopped` state, and no node runs after
-`join()` returns. The destructor requires a joined context through
-`SG_REQUIRE`; `join()` from the context's own thread is an
-`SG_REQUIRE` violation (Edge Cases).
+Validation and lifecycle (FR-006, FR-050): the constructor starts the
+thread and applies the placement once through the installed placement
+function (FR-005). The legal sequence is `requestStop()`, `drain()`,
+`join()`: a node whose dispatch observed the not-stopped state runs
+during `drain()`; a node whose dispatch observed the stop request is
+completed `STOPPED` by its dispatcher and never runs; no node runs
+after `join()` returns. `drain()` blocks the caller until the inbox is
+empty and the loop is idle, and without a prior `requestStop()` it is a
+flush that leaves the loop running. The destructor requires a joined
+context through `SG_REQUIRE`; `join()` from the context's own thread is
+an `SG_REQUIRE` violation and `drain()` from it is a debug-precondition
+violation (FR-050, Edge Cases).
 
 State transitions: `running`, to `stop-requested` (`requestStop()`),
 to `drained` (`drain()` completes: every queued node ran exactly once),
@@ -51,8 +55,8 @@ context's life (FR-005, FR-007; Assumptions).
 
 Relationships: the report discloses both fields (E-07); the barrier
 (E-04) waits in `waitMode`; the placement applies once at thread start
-through one replaceable function whose signature is the seam H10
-replaces (FR-005, SC-05).
+through the installed `PlacementFn`, whose signature is the seam H10
+replaces (FR-005, SC-05, research D-04).
 
 Validation: a cpu index the host does not have is an `SG_REQUIRE`
 violation at the call (FR-005, Edge Cases). No wait mode reads a clock
@@ -65,16 +69,18 @@ The typed work surface (FR-008 to FR-013, D-02).
 | Piece | Shape | Source |
 | --- | --- | --- |
 | `WorkItem` | concept: `noexcept` invocable with `WorkContext&`; an unapproved type cannot reach `dispatch()` and is refused before the program builds | + (FR-008) |
-| `WorkNode<Item>` | caller-owned carrier: the item, the inbox link, one erased run path written at construction from `Item`, and the completion state | + (FR-009) |
-| completion state | `pending`, then `done` (ran) or `stopped` (the context stood in stop-requested when the loop took it); one atomic word; H16 reads it for continuations, its meaning and readability fixed (FR-045) | + (FR-009) |
+| `WorkNode<Item>` | caller-owned carrier: the item, the inbox link, one erased run path written at construction from `Item`, and the completion state, read through a `noexcept` `state()` accessor with acquire order | + (FR-009, FR-049, contracts/execution-context.md) |
+| completion state | `PENDING`, `RUNNING` (the loop has taken the node), then `DONE` (the item ran) or `STOPPED` (a dispatch that observed the stop request refused the node and its dispatcher completed it); one atomic word, release-written by the completing thread as its last access to the node (FR-049); H16 reads it for continuations, its meaning and readability fixed (FR-045) | + (FR-009, FR-049, FR-050) |
 | `dispatch(context, node)` | links the node into that context's inbox and returns without waiting; allocates nothing; legal from any thread and from work already running on that context | + (FR-010) |
-| `WorkContext` | what a running item receives: the id of the context running it and a stop token reading true once `requestStop()` stood | + (FR-011) |
+| `WorkContext` | what a running item receives: the id of the context running it and a `StopToken` reading true once `requestStop()` stood | + (FR-011, contracts/execution-context.md) |
 
-Validation: the caller keeps a node alive until its state reads `done`
-or `stopped`; destroying a live node aborts with an `SG_REQUIRE`
-violation under the enforce semantic (FR-012, Edge Cases). Work
-dispatched to a stopped context takes the `stopped` state and never
-runs (Edge Cases).
+Validation: the caller keeps a node alive until its state reads `DONE`
+or `STOPPED`; destroying a live node aborts with an `SG_REQUIRE`
+violation under the enforce semantic, and once a reader observes
+completion the caller may destroy or reuse the node (FR-012, FR-049,
+Edge Cases). A dispatch that observes the stopped state refuses its
+node and completes it `STOPPED`; the loop never touches a node it never
+accepted (FR-050).
 
 Order (FR-013): nodes one thread dispatches run in that order; nodes
 two threads dispatch at once run in the order the inbox accepted them.
@@ -112,7 +118,7 @@ One benchmark instance paired with one context count (Key Entities).
 | Piece | Change | Source |
 | --- | --- | --- |
 | `BenchmarkHandle::threads(n)` / `threadRange(min, max)` / `denseThreadRange(min, max, step)` | store the count set `{n}` / `{min, min*2, ...}` / `{min, min+step, ...}` on the family record | + (FR-016, D-09) |
-| `RegistryEntry::threadCounts` | `std::vector<std::int32_t>`, default `{1}` (`source/harness/detail/internal.hpp`) | + (D-09) |
+| `RegistryEntry::threadCounts` | `std::vector<int>`, default `{1}` (`source/harness/detail/internal.hpp`) | + (D-09) |
 | `RegistryEntry::threadRunner` | optional `ThreadRunnerFn` taking the `ThreadRun` surface of one attempt (E-08, contracts/threaded-runs.md) | + (FR-021) |
 | instance expansion | arguments crossed with thread counts; `instanceName` appends the `/threads:N` segment for a count above one (`source/harness/family.cpp`) | + (FR-016) |
 | `State::threadIndex()` | the index of the context running the body, `0` to `N - 1`; `0` for a single-context run | + (FR-017) |
@@ -134,17 +140,23 @@ PC-1).
 
 | Field of the published `ResultRow` | Rule | Source |
 | --- | --- | --- |
-| real time | the slowest context | FR-020 |
+| real time | the summed manual time under manual timing, else the summed real time over the contexts | FR-020 |
 | cpu time | the sum over the contexts | FR-020 |
-| iterations | the per-context count times `N` | FR-020 |
+| iterations | the sum of the per-context counts (the per-context count times `N` when the bodies ran equal counts) | FR-020 |
 | counters | per name, summed over the contexts before the flag pass | FR-020 |
-| flag pass | the cited order with the real `N`: rate over the decision seconds divided by `N`, `AVG_THREADS` divided by `N`, invariant times the merged iteration total, average over it, invert last | FR-020, D-06 (cited `internal::Finish` of `src/counter.cc` and `CreateRunReport` of `src/benchmark_runner.cc`) |
+| flag pass | the cited order with the real `N`: rate over the timing mode's summed decision seconds divided by `N` (cpu by default, manual under manual timing, real under real-time timing), `AVG_THREADS` divided by `N`, invariant times the merged iteration total, average over it, invert last | FR-020, D-06 (cited `internal::Finish` of `src/counter.cc`; `RunInThread`, `DoNIterations`, and `CreateRunReport` of `src/benchmark_runner.cc`) |
 | skip | when any context's body skipped, the row carries the skip outcome and reason and the instance publishes no partial row | Edge Cases |
 
 Relationships: the merge runs after the stop barrier, cold code; the
-flag pass runs inside the existing `appendCounterColumns`, which gains
-the thread divisor H4 left at one (PC-2). The merged row feeds the
-aggregation, statistics, fit, and report paths unchanged.
+per-context times and iterations are summed, as the cited `RunInThread`
+sums each thread's numbers into one merged `Result`. The printed
+per-iteration time is the summed time divided by the summed iterations,
+the cited `GetAdjustedRealTime` and `GetAdjustedCPUTime` division of
+`src/reporter.cc`, so the per-context average is implicit in the summed
+iterations. The flag pass runs inside the existing
+`appendCounterColumns`, which gains the thread divisor H4 left at one
+(PC-2). The merged row feeds the aggregation, statistics, fit, and
+report paths unchanged.
 
 ## E-07: Policy disclosure and noise warning
 
@@ -168,11 +180,11 @@ The runner-side records of one threaded attempt (D-05).
 
 | Piece | Shape | Source |
 | --- | --- | --- |
-| contexts | `N` contexts with policy `{SPIN, NO_PIN}`, created at attempt start and joined before the row publishes | FR-004, D-05 |
+| contexts | `N` contexts with policy `{SPIN, NO_PIN}`, created once when the instance's threaded run starts, reused for every calibration attempt and repetition, and joined when the instance finishes, thread start and join outside every window | FR-004, D-05 |
 | body node | one erased work item per context index: plan open, start-barrier arrive, window open, loop, window close, stop-barrier arrive, fold own plan | FR-018, FR-019 |
 | barriers | two `ContextBarrier(N)` objects, start and stop | FR-014, FR-019 |
 | fixture slot | the macro site's static pointer, written once before dispatch, read by every context after that edge | FR-023, D-07 |
-| completion wait | the caller waits on the `N` completion states | FR-009, FR-010 |
+| completion wait | the caller waits on the `N` completion states, reading them with acquire order | FR-009, FR-010, FR-049 |
 | custom runner | the E-05 `RegistryEntry::threadRunner` callable, when set, performs the dispatches through `ThreadRun`, one per body index; the harness builds the body nodes and keeps them alive across the call; the barriers and the merge stand around it unchanged | FR-021 |
 
 Relationships: `setUp` and `tearDown` run once per run on context 0,
