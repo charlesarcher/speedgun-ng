@@ -27,6 +27,7 @@
 //   bmBadN   an instance with N=0  ->  the reason naming the positive bound
 //   bmHalf   a counter some instances never open
 //                                    ->  the reason for that quantity's pair
+//   bmSkip   one instance skipped    ->  the reason naming the measured floor
 //
 // `AUTOMATIC` tries each curve and keeps the least RMS with the constant curve
 // as the fallback (FR-021); a fixed curve stands whatever its RMS (FR-020); a
@@ -267,6 +268,23 @@ auto bmSizeless(sg::State& state) -> void
 auto bmRealFit(sg::State& state) -> void
 {
   for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+}
+
+// The body of the family that skips one instance: the instance that measures
+// plants the quadratic time, the other leaves the loop before it plants
+// anything, so the family holds one measured value (FR-019, FR-022).
+auto bmSkipped(sg::State& state) -> void
+{
+  if (state.range(0) == 4) {
+    state.skipWithMessage("the scripted gap");
+    return;
+  }
+  const double size = static_cast<double>(state.range(0));
+  for (auto index : state) {
+    state.setIterationTime(
+        static_cast<std::int64_t>(kTimeCoefficientNs * size * size));
     sg::doNotOptimize(index);
   }
 }
@@ -650,6 +668,13 @@ auto main() -> int
   // family's quantity list after an instance that carries no value of it.
   half.useManualTime().arg(4).arg(2).complexity(sg::BigO::AUTOMATIC);
 
+  auto skipped = sg::registerBenchmark(&bmSkipped, "bmSkip");
+  check(skipped.name() == "bmSkip", "the family with a skip registers");
+  // The skipped instance reaches the report with a result and the family asks
+  // for a fit, so its values stand out of the samples the fit reads and one
+  // measured value is left below the floor (FR-022, FR-023).
+  skipped.useManualTime().arg(2).arg(4).complexity(sg::BigO::N);
+
   int status = 0;
   const std::string report = captureRun(
       {"--filter", "^bm", "--iterations=1", "--repetitions=1"}, status);
@@ -682,6 +707,13 @@ auto main() -> int
         "an instance without a positive N holds no fit row (FR-023)");
   check(fitRowOf(badLines, "SKIPPED", "bmBadN").contains("positive"),
         "the family states the reason naming the positive bound (FR-023)");
+
+  const std::vector<std::string> skipLines = linesOf(report, "bmSkip");
+  check(fitRowOf(skipLines, "BIG_O", "time/iter").empty(),
+        "a family whose instance skipped holds no fit row (FR-022, FR-023)");
+  check(fitRowOf(skipLines, "SKIPPED", "holds no fit").contains("measured"),
+        "the family states the reason naming the measured values it lacks "
+        "(FR-023)");
 
   const std::vector<std::string> halfLines = linesOf(report, "bmHalf");
   check(!fitRowOf(halfLines, "BIG_O", "time/iter").empty(),
