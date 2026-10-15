@@ -17,7 +17,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "docs"))
 
-from example_drift import SECTIONS, SECTION_OWNERS  # noqa: E402
+from example_drift import (  # noqa: E402
+    SECTION_LINE_CAPS,
+    SECTIONS,
+    SECTION_OWNERS,
+)
 
 
 def owner(title: str) -> str:
@@ -342,6 +346,23 @@ def main() -> int:
             "--sections",
         )
         case(
+            "Registration at its own override cap passes",
+            lambda root: pad_registration(root, SECTION_LINE_CAPS["Registration"]),
+            True,
+            (),
+            "--sections",
+        )
+        case(
+            "Registration one line over its own override cap fails",
+            lambda root: pad_registration(root, SECTION_LINE_CAPS["Registration"] + 1),
+            False,
+            (
+                f"section 'Registration' runs {SECTION_LINE_CAPS['Registration'] + 1} lines",
+                f"the cap is {SECTION_LINE_CAPS['Registration']}",
+            ),
+            "--sections",
+        )
+        case(
             "relative documentation link",
             lambda root: None,
             True,
@@ -349,6 +370,20 @@ def main() -> int:
         )
         emit_case()
     return 1 if FAILURES else 0
+
+
+def pad_registration(root: Path, span: int) -> None:
+    text = page(root).read_text()
+    start = text.index("### Registration\n")
+    stop = text.index("\n### ", start)
+    filler = "".join(f"Filler sentence {n}.\n" for n in range(span - 6))
+    replacement = (
+        "### Registration\n"
+        f"<!-- sg-example: {owner('Registration')}#{slug('Registration')} -->\n"
+        f"```cpp\n{snippet('Registration')}\n```\n"
+        + filler
+    )
+    page(root).write_text(text[:start] + replacement + text[stop:])
 
 
 def add_api_row(root: Path, name: str, declared: bool) -> None:
