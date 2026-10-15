@@ -116,7 +116,7 @@ auto bmCells(sg::State& state) -> void
 
 SG_BENCHMARK(bmCells);
 ```
-A name splits at its first `/` into suite and case, so `Table/cells` is the case `cells` of the suite `Table`, and the runtime form hands back the handle the family calls chain onto. See [captured arguments](docs/pages/harness.md#captured-arguments) and [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
+A family the macro registers takes the function name, so the block above prints a row named `bmCells`. A name that carries a `/` splits at the first one into suite and case, the rule `registerBenchmark` and the capture form both follow. See [captured arguments](docs/pages/harness.md#captured-arguments) and [suite and case naming](docs/pages/harness.md#suite-and-case-naming).
 ### Argument families and ranges
 
 `arg`, `args`, `range`, `ranges`, `denseRange`, and `argsProduct` build the instance list, `argName` and `argNames` label the positions, and the body reads a position with `state.range(i)`.
