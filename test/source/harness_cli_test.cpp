@@ -458,9 +458,19 @@ auto main(const int argc, char** argv) -> int
         "the failure reports the exception text (FR-032)");
 
   captureRun(failing, 1);
+  // A first window pays the costs that belong to the process rather than
+  // to a run: the lazy symbols of the loader, the locale data, and the
+  // first extra chunk of the allocator under a sanitizer. The baseline is
+  // read after it, so the measured window still has to hand back every
+  // descriptor and mapping it took, which is what a leak of one per run
+  // would break.
+  constexpr int kFailedRunWindow = 1000;
+  for (int run = 0; run < kFailedRunWindow; ++run) {
+    captureRun(failing, 1);
+  }
   const std::size_t descriptors = openDescriptorCount();
   const std::size_t mappings = mappingCount();
-  for (int run = 0; run < 1000; ++run) {
+  for (int run = 0; run < kFailedRunWindow; ++run) {
     captureRun(failing, 1);
   }
   check(openDescriptorCount() == descriptors,
