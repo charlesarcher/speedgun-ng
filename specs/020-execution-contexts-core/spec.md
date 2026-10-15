@@ -26,6 +26,33 @@ and the policy disclosure in the report. Hooks kept for later execution
 graphs (H16). Scope, constraints, and success criteria SC-01 to SC-12.
 [...]"
 
+## Clarifications
+
+### Session 2026-10-15
+
+- Q: Which library target, project version, and harness `SOVERSION` does
+  the context core ship under? → A: the harness archive carries the
+  context core, with no new target; version 0.10.0; harness `SOVERSION`
+  from 5 to 6; a separate `speedgun-ng::exec` target can come with H16.
+- Q: Which wait mode is the default? → A: `SPIN` for a context that runs
+  a benchmark; `BLOCK` for a context a caller creates with no policy.
+- Q: What waiting mechanism does `ContextBarrier` use? → A: a small
+  atomic counter that waits in the context's own wait mode, so a
+  spinning context never sleeps inside a barrier; `std::barrier` is the
+  fallback for `BLOCK`.
+- Q: Where do `setUp` and `tearDown` run for a threaded run? → A: once
+  per run on context 0, outside both barriers; every difference from the
+  cited Google Benchmark revision is recorded in the feature's records.
+- Q: How does the page line budget absorb the two new sections? → A:
+  `PAGE_LINE_CAP` rises by the measured size of the two new sections and
+  their quick-reference rows, recorded in this spec's budget note at
+  implementation time; `SECTION_LINE_CAP` stays 25; prose is trimmed
+  first; no snippet is dropped; no earlier spec is edited. The decision
+  is the rule and its measurement point; the number itself is measured
+  when the sections land.
+- Q: Does any command-line option land in this feature? → A: none; a
+  `--threads` override waits for H9.
+
 ## Decisions
 
 Charles recorded these three on 2026-10-15 as decided. They are
@@ -469,10 +496,9 @@ translation unit of your own.
   to the scheduler, and `BLOCK`, which waits on the standard atomic wait
   of the inbox flag. No wait mode shall read a clock or take a timeout.
   Every wait mode shall pass the same dispatch test, and `BLOCK` shall
-  sleep while idle and wake on a dispatch. The default wait mode a caller
-  gets for a context created with no policy is [NEEDS CLARIFICATION: Q-2
-  the default wait mode; the recommendation stands under Q-2 in Open
-  questions].
+  sleep while idle and wake on a dispatch. A context the harness creates to
+  run a benchmark shall default to `SPIN`, and a context a caller
+  creates with no policy shall default to `BLOCK`.
 
 - **FR-005**: A context policy shall select a placement slot: `NO_PIN`,
   which is the default, or one cpu index. The placement shall apply once,
@@ -523,9 +549,9 @@ translation unit of your own.
   arrived, and one round shall release all of them. A waiting context
   shall wait in the wait mode of its own policy, so a spinning context
   never sleeps inside a barrier. The barrier shall read no clock, so no
-  round can time out. Its waiting mechanism shall be
-  [NEEDS CLARIFICATION: Q-3 the barrier waiting mechanism; the
-  recommendation stands under Q-3 in Open questions].
+  round can time out. Its waiting mechanism shall be a small
+  atomic counter, and `std::barrier` shall serve as the fallback for
+  `BLOCK`.
 - **FR-015**: A barrier shall be legal to use from inside running work
   and outside it, and a participant that leaves a round early shall be a
   contract violation.
@@ -566,9 +592,7 @@ translation unit of your own.
 - **FR-023**: `setUp` and `tearDown` of a threaded run shall run once per
   run, on context 0, outside both barriers. Each difference from the
   fixture rule of the cited revision shall be recorded in this feature's
-  records (FR-046). The rule for fixtures of a threaded run shall be
-  [NEEDS CLARIFICATION: Q-4 where `setUp` and `tearDown` run for a
-  threaded run; the recommendation stands under Q-4 in Open questions].
+  records (FR-046).
 - **FR-024**: A thread count a call cannot honor, zero included, shall be
   an `SG_REQUIRE` violation at that call.
 
@@ -617,9 +641,9 @@ translation unit of your own.
   quick-reference rows, recorded in this spec's own budget note, and no
   file under `specs/019-harness-user-counters-and-statistics/` shall be
   edited. Prose shall be trimmed first, and no snippet shall be dropped
-  to fit. The amount the cap moves shall be [NEEDS CLARIFICATION: Q-5
-  the line budget of the two new sections; the recommendation stands
-  under Q-5 in Open questions].
+  to fit. The decision is the rule and its
+  measurement point; the number itself is measured when the two
+  sections land.
 - **FR-035**: The `example_run` gate shall cover both new examples: an
   undeclared skip, a `FAILED` row, and a registered benchmark whose row
   never prints shall each fail the gate.
@@ -650,13 +674,13 @@ translation unit of your own.
   and `plan.md` shall record TDD mode (Principle III).
 - **FR-043**: The change shall name its library target, its project
   version, and its harness `SOVERSION` in the plan's version table, on the
-  hand-kept version rule of the constitution, and the numbers shall be
-  [NEEDS CLARIFICATION: Q-1 the library target and the version and
-  `SOVERSION` numbers; the recommendation stands under Q-1 in Open
-  questions].
-- **FR-044**: This feature shall add no command-line option except one
-  that [NEEDS CLARIFICATION: Q-6 whether any command-line option lands in
-  this feature; the recommendation stands under Q-6 in Open questions].
+  hand-kept version rule of the constitution, at the decided values: the
+  context core lives in the harness archive with no new target, the
+  project version moves from 0.9.0 to 0.10.0, and the harness
+  `SOVERSION` moves from 5 to 6. A separate `speedgun-ng::exec` target
+  can come with H16.
+- **FR-044**: This feature shall add no command-line option; a
+  `--threads` override waits for H9.
   Any option that does land shall fail closed on an invalid value: one
   line and exit status 2.
 - **FR-045**: The four hooks of Hooks for H16 shall ship as part of the
@@ -889,32 +913,34 @@ Symbol and section anchors, each read at the audit point `64f2ab5`.
 
 ## Open questions
 
-The request carries six open items. Charles recorded a recommendation for
-each, and `/speckit-clarify` records the answer as written or replaces it.
-This spec keeps each point open where it bites, at the FR carrying the
-matching marker.
+The request carried six open items. Charles approved each recorded
+recommendation on 2026-10-15, and `/speckit-clarify` recorded every
+answer as written. No open item remains; each point is decided where it
+bites, at the FR carrying the matching record.
 
-- **Q-1 Library target and version**: Recommendation: the context core
-  lives in the harness archive, with no new target; version 0.10.0 and the
-  harness `SOVERSION` from 5 to 6. A separate `speedgun-ng::exec` target
-  can come with H16, where a graph engine may need it. Open at FR-043.
-- **Q-2 Default wait mode**: Recommendation: `SPIN` for a context that
-  runs a benchmark, and `BLOCK` for a context a caller creates with no
-  policy. Open at FR-004.
-- **Q-3 Barrier mechanism**: Recommendation: a small atomic counter that
-  waits in the context's own wait mode, so a spinning context never sleeps
-  inside a barrier; `std::barrier` is the fallback for `BLOCK`. Open at
-  FR-014.
-- **Q-4 Fixtures with threads**: Recommendation: `setUp` and `tearDown`
-  run once per run on context 0, outside the barriers, with each
-  difference from the cited revision recorded. Open at FR-023.
-- **Q-5 README budget**: Recommendation: raise `PAGE_LINE_CAP` by the
-  measured size of the two new sections and their rows, through FR-034 and
-  this spec's budget note; keep `SECTION_LINE_CAP` at 25; trim prose
-  first; edit no earlier spec. The page sits at 570 of 570 today (PC-4).
-  Open at FR-034.
-- **Q-6 Command line**: Recommendation: no new option in this feature; a
-  `--threads` override waits for H9. Open at FR-044.
+- **Q-1 Library target and version**: Clarified 2026-10-15: the context
+  core lives in the harness archive, with no new target; version 0.10.0
+  and the harness `SOVERSION` from 5 to 6. A separate
+  `speedgun-ng::exec` target can come with H16, where a graph engine may
+  need it. Recorded at FR-043.
+- **Q-2 Default wait mode**: Clarified 2026-10-15: `SPIN` for a context
+  that runs a benchmark, and `BLOCK` for a context a caller creates with
+  no policy. Recorded at FR-004.
+- **Q-3 Barrier mechanism**: Clarified 2026-10-15: a small atomic
+  counter that waits in the context's own wait mode, so a spinning
+  context never sleeps inside a barrier; `std::barrier` is the fallback
+  for `BLOCK`. Recorded at FR-014.
+- **Q-4 Fixtures with threads**: Clarified 2026-10-15: `setUp` and
+  `tearDown` run once per run on context 0, outside the barriers, with
+  each difference from the cited revision recorded. Recorded at FR-023.
+- **Q-5 README budget**: Clarified 2026-10-15: raise `PAGE_LINE_CAP` by
+  the measured size of the two new sections and their rows, through
+  FR-034 and this spec's budget note; keep `SECTION_LINE_CAP` at 25;
+  trim prose first; edit no earlier spec. The number is measured when
+  the two sections land. The page sits at 570 of 570 today (PC-4).
+  Recorded at FR-034.
+- **Q-6 Command line**: Clarified 2026-10-15: no new option in this
+  feature; a `--threads` override waits for H9. Recorded at FR-044.
 
 ## Constitution Checklist
 
