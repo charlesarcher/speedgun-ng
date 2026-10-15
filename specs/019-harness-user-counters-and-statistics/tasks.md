@@ -518,3 +518,17 @@ command that showed it.
   .specify/memory/constitution.md` reports the sync impact line, the
   version-history row and the footer. T067 makes the check of this box
   depend on its own pass, and that pass is the record above.
+- T061, T066 (`c7648f5`): Charles chose to hold both budgets, so the main
+  page keeps the 550-line page cap and the 25-line section cap that
+  `tools/docs/example_drift.py` enforces. A section counts its fenced
+  blocks, and the tool rejects any `### ` section outside the eighteen
+  capability titles, so two regions is the most one section can carry:
+  Registration holds the macro region and the capture region at 25
+  lines, the template region and the `registerBenchmark` region stay
+  with `docs/pages/harness.md`, and Fixtures keeps the fixture class
+  alone, because the class region beside the three-macro region would
+  run 42 lines. The page pays with the blank line after each capability
+  heading, 18 lines of whitespace, and lands at 538 lines with
+  Registration at 25, no sentence and no snippet removed. The sentence
+  that explained `Table/cells` now names the family the macro prints
+  and the split a slash performs.
