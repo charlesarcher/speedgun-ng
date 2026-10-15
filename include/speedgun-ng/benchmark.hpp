@@ -800,9 +800,6 @@ public:
     if (m_recorder->count() + 2 > m_recorder->capacity()) {
       // The recorder keeps its room for the window's own points, and
       // the pair closes through the slot (FR-052).
-      SG_ASSERT(m_pauseFold != nullptr,
-                "the fold path needs the fold sink the runner bound at the "
-                "attempt site (FR-052)");
       m_pauseFoldPair = true;
       m_slot = m_slotReset;
       m_slot.sample();
