@@ -134,6 +134,28 @@
             </dt>
             <dd>Attach a counter expression built with the 007 arithmetic (FR-021).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a7b90d918acf5245ec4fd1087f2a0744e" class="m-doc">addStatistic</a>(</span><span class="m-doc-wrap">std::string_view name,
+              <a href="namespacesg.html#abbd8f7ff85995b8aa370ea04cff6b3ac" class="m-doc">StatUnit</a> unit,
+              const <a href="namespacesg.html#a202c920c16eeba9a7566e499311399d3" class="m-doc">StatisticFunc</a>&amp; function) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Attach one custom statistic to the aggregate of this family (FR-013, FR-014, FR-015).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#addc093c0cc3295f37d44e0d3e9ec526c" class="m-doc">complexity</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#af5b0524687a31698bda57e22cf2af331" class="m-doc">BigO</a> bigO) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Fit the family&#x27;s values against the problem size of its instances (FR-019, FR-020, FR-021).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a0f94c58e09e743183eaa4f87e0c53bc8" class="m-doc">complexity</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#adf1778775ad465583cb7f83358ee9a28" class="m-doc">BigOFun</a> function) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Fit the family&#x27;s values against a curve the caller supplies (FR-020).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a71d51b9b6a11a456904edb04524273eb" class="m-doc">reportAggregatesOnly</a>(</span><span class="m-doc-wrap">) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Restrict the report of this family to its aggregate rows (FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#abb34da9e1783f2172d9c6137215610e8" class="m-doc">displayAggregatesOnly</a>(</span><span class="m-doc-wrap">) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Restrict the console display of this family to its aggregate rows (FR-017).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a142db17b282415dd63d90ef145521947" class="m-doc">arg</a>(</span><span class="m-doc-wrap">std::int64_t value) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
             </dt>
             <dd>Append one instance carrying the single argument <code>value</code> (FR-001).</dd>
@@ -277,7 +299,7 @@
               <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9949ff601bfc6fe242ef4a9edaab5025" class="m-doc-self">unit</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#ad1596a132e4c08a8d4e4aad33bb52cb2" class="m-doc">TimeUnit</a> timeUnit)</span></span>
             </h3>
             <p>Set the unit the report scales the printed time values of this family to (FR-015).</p>
-<p>A stored time value stays nanoseconds; the report divides each printed time value of that family by the unit&#x27;s divisor and prints the unit&#x27;s label. The call overwrites the unit the registration captured from the process default (FR-015, FR-016, D-12).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries <code>timeUnit</code> as the unit of that family, and the returned handle is this handle (FR-015)</p></aside>
+<p>A stored time value stays nanoseconds; the report divides each printed time value of that family by the unit&#x27;s divisor and prints the unit&#x27;s label. The call wins over the default every run of this family resolves to (FR-015, FR-016, FR-027, D-12).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries <code>timeUnit</code> as the unit of that family, and the returned handle is this handle (FR-015)</p></aside>
           </div></section>
           <section class="m-doc-details" id="a64bf3a4f3fc143838c800fb6d661ef3a"><div>
             <h3>
@@ -289,6 +311,43 @@
             </h3>
             <p>Attach a counter expression built with the 007 arithmetic (FR-021).</p>
 <p>A leaf the catalog lacks is not a rejected call here: the plan compile of the run reports it as a recoverable error naming the leaf, and that benchmark fails (FR-023).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned handle is this handle, and the entry carries the metric under <code>label</code> (FR-021)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a7b90d918acf5245ec4fd1087f2a0744e"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a7b90d918acf5245ec4fd1087f2a0744e" class="m-doc-self">addStatistic</a>(</span><span class="m-doc-wrap">std::string_view name,
+              <a href="namespacesg.html#abbd8f7ff85995b8aa370ea04cff6b3ac" class="m-doc">StatUnit</a> unit,
+              const <a href="namespacesg.html#a202c920c16eeba9a7566e499311399d3" class="m-doc">StatisticFunc</a>&amp; function)</span></span>
+            </h3>
+            <p>Attach one custom statistic to the aggregate of this family (FR-013, FR-014, FR-015).</p>
+<p>The function computes over the primary time per iteration of the clean repetitions, the same list the built-in statistics summarize, and its value prints among the built-in fields of the aggregate row in the order the calls came in. A <code>TIME</code> statistic prints in the unit of the row, a <code>PERCENTAGE</code> statistic unscaled by it.</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and <code><a href="#a3a07923ec5e446513e42da17a8f638da" class="m-doc">name</a></code> holds none of the reserved built-in aggregate names <code>mean</code>, <code>median</code>, <code>sd</code>, <code>cv</code>, <code>min</code>, <code>max</code>, <code>n</code> (E-02, FR-013)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries the name, unit and function of that statistic, and the returned handle is this handle (FR-013)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="addc093c0cc3295f37d44e0d3e9ec526c"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#addc093c0cc3295f37d44e0d3e9ec526c" class="m-doc-self">complexity</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#af5b0524687a31698bda57e22cf2af331" class="m-doc">BigO</a> bigO)</span></span>
+            </h3>
+            <p>Fit the family&#x27;s values against the problem size of its instances (FR-019, FR-020, FR-021).</p>
+<p>The fit runs over the instances of the family and reports one pair of rows per fitted quantity: the primary time, each named user counter and each attached metric. A family with fewer than two instances, or with an instance that holds no positive size, states the reason in place of the rows (FR-023).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries that curve selection, and the returned handle is this handle (FR-019, FR-020)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a0f94c58e09e743183eaa4f87e0c53bc8"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a0f94c58e09e743183eaa4f87e0c53bc8" class="m-doc-self">complexity</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#adf1778775ad465583cb7f83358ee9a28" class="m-doc">BigOFun</a> function)</span></span>
+            </h3>
+            <p>Fit the family&#x27;s values against a curve the caller supplies (FR-020).</p>
+<p>The function is the curve of the fit: its coefficient and root-mean relative error come from the same closed form the built-in curves use.</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and the callable is callable (E-02, FR-020)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries that curve function as the selection of the fit, and the returned handle is this handle (FR-020)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a71d51b9b6a11a456904edb04524273eb"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a71d51b9b6a11a456904edb04524273eb" class="m-doc-self">reportAggregatesOnly</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Restrict the report of this family to its aggregate rows (FR-016).</p>
+<p>The console is the only report output today, so the restriction reaches it; a later file output inherits the mode (FR-016). A family with no aggregate row keeps its rows: the mode hides no row that has no aggregate beside it (FR-018).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries the report mode of that family, and the returned handle is this handle (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="abb34da9e1783f2172d9c6137215610e8"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#abb34da9e1783f2172d9c6137215610e8" class="m-doc-self">displayAggregatesOnly</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Restrict the console display of this family to its aggregate rows (FR-017).</p>
+<p>The stored result keeps every repetition row; the mode trims the display alone, and while the console is the only channel the two modes print the same trimmed console (FR-017, FR-018).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries the display mode of that family, and the returned handle is this handle (FR-017)</p></aside>
           </div></section>
           <section class="m-doc-details" id="a142db17b282415dd63d90ef145521947"><div>
             <h3>

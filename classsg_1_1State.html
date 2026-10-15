@@ -121,6 +121,27 @@
             </dt>
             <dd>Add one iteration time to the manual accumulator (FR-007).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#acefaa60482931f241fc83f52a39a9358" class="m-doc">setCounter</a>(</span><span class="m-doc-wrap">std::string_view name,
+              const <a href="structsg_1_1Counter.html" class="m-doc">Counter</a>&amp; counter)</span>
+            </dt>
+            <dd>Set the value, flags, and base of one named counter (FR-001, FR-002).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#a251283d9b2b3d221f911768df287bb86" class="m-doc">setBytesProcessed</a>(</span><span class="m-doc-wrap">std::int64_t bytes)</span>
+            </dt>
+            <dd>Set the byte-throughput column to the count this call passes (FR-009).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#adc29016cdb18a32a5d64338e2141bdc8" class="m-doc">setItemsProcessed</a>(</span><span class="m-doc-wrap">std::int64_t items)</span>
+            </dt>
+            <dd>Set the item-throughput column to the count this call passes (FR-009).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#af12e62358dea79e137adc69d0d905d2a" class="m-doc">setComplexityN</a>(</span><span class="m-doc-wrap">std::int64_t problemSize)</span>
+            </dt>
+            <dd><a href="classsg_1_1State.html" class="m-doc">State</a> the problem size this instance measures (FR-019).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#aef4d3cd2e725a12b75df4cfa4e85a19b" class="m-doc">setLabel</a>(</span><span class="m-doc-wrap">std::string_view label)</span>
+            </dt>
+            <dd>Set the label of this repetition (FR-011).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">void <a href="#acafb3f266eb1620fe286346fb333a3ee" class="m-doc">pauseTiming</a>(</span><span class="m-doc-wrap">)</span>
             </dt>
             <dd>Stop the timed window from this point (FR-009).</dd>
@@ -190,19 +211,55 @@
             <p>Add one iteration time to the manual accumulator (FR-007).</p>
 <p>A manual benchmark supplies its own time: this call takes one nanosecond count per iteration and the harness records the sum of the accepted values by summation alone, with no clock behind it. The real column of the run shows that sum divided by the iteration count (FR-006, FR-007, D-05). The call stands in the benchmark body, inside the timed loop or outside it, and the run state owns the accumulator.</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run: a callback state owns no run to accumulate for, so accepting a value there is a precondition violation (R-05, D-15)</p><p>the count is at least zero: a duration has no negative nanoseconds, and a negative value is accepted nowhere without naming its caller (FR-007)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the manual accumulator carries the sum of every accepted value, this one included (FR-007)</p></aside>
           </div></section>
+          <section class="m-doc-details" id="acefaa60482931f241fc83f52a39a9358"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acefaa60482931f241fc83f52a39a9358" class="m-doc-self">setCounter</a>(</span><span class="m-doc-wrap">std::string_view name,
+              const <a href="structsg_1_1Counter.html" class="m-doc">Counter</a>&amp; counter)</span></span>
+            </h3>
+            <p>Set the value, flags, and base of one named counter (FR-001, FR-002).</p>
+<p>The call stands in the timed loop or in a body callback state of the run (FR-001). A name the run has not opened takes the flags and the base of this call and keeps them for the run&#x27;s life, and a later call for that name writes the value alone (FR-001, FR-008). The runner applies the flags once per repetition after the loop, and the report prints one column per name in the order the names opened (FR-003, FR-006). The name copies into fixed storage, so opening a name allocates nothing (FR-007).</p><p>A second call for a used name with another flags value or another base fails the run with a reason naming that name: the reason is a runtime text, and an <code><a href="dbc_8hpp.html#aae2bcf476d4ea0ae734ee3caf01b0c8e" class="m-doc">SG_<wbr />REQUIRE</a></code> message is a literal, so the state records the failure and the run ends with it (FR-008).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>name</code> holds at most <code><a href="namespacesg.html#a3823e5b619cb7813d3f6436d0040aa50" class="m-doc">kMaxCounterNameBytes</a></code> minus one bytes, a free slot stands when <code>name</code> is new, and a used <code>name</code> carries the flags and the base it opened with (FR-001, FR-002, FR-008)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the run carries <code>name</code> with the value of the argument, and a used name keeps the flags and base it opened with (FR-001)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a251283d9b2b3d221f911768df287bb86"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a251283d9b2b3d221f911768df287bb86" class="m-doc-self">setBytesProcessed</a>(</span><span class="m-doc-wrap">std::int64_t bytes)</span></span>
+            </h3>
+            <p>Set the byte-throughput column to the count this call passes (FR-009).</p>
+<p>The call takes the total bytes the run did, so a body that works a known amount per iteration passes that amount times the iteration count after the loop (FR-009). The call opens <code>bytes_per_second</code> with the <code>RATE</code> flag and the <code>K1024</code> base, so the printed column is this count divided by the primary time of the row in seconds; the base carries the <code>Ki</code> suffix a rendered value would show and divides nothing further (FR-003, FR-006, FR-009). A later call writes the count alone, as for any used name (FR-001).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the run has opened at least one free counter name besides the throughput columns it already opened, as the two throughput setters share the cap of sixteen names (FR-001)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the run carries <code>bytes_per_second</code> with the value of the argument, the <code>RATE</code> flag and the <code>K1024</code> base (FR-009)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="adc29016cdb18a32a5d64338e2141bdc8"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#adc29016cdb18a32a5d64338e2141bdc8" class="m-doc-self">setItemsProcessed</a>(</span><span class="m-doc-wrap">std::int64_t items)</span></span>
+            </h3>
+            <p>Set the item-throughput column to the count this call passes (FR-009).</p>
+<p>The call takes the total items the run did, so a body that works a known number per iteration passes that number times the iteration count after the loop (FR-009). The call opens <code>items_per_second</code> with the <code>RATE</code> flag and the <code>K1000</code> base, so the printed column is this count divided by the primary time of the row in seconds; the base carries the <code>k</code> suffix a rendered value would show and divides nothing further (FR-003, FR-006, FR-009). A later call writes the count alone, as for any used name (FR-001).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the run has opened at least one free counter name besides the throughput columns it already opened, as the two throughput setters share the cap of sixteen names (FR-001)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the run carries <code>items_per_second</code> with the value of the argument, the <code>RATE</code> flag and the <code>K1000</code> base (FR-009)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="af12e62358dea79e137adc69d0d905d2a"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#af12e62358dea79e137adc69d0d905d2a" class="m-doc-self">setComplexityN</a>(</span><span class="m-doc-wrap">std::int64_t problemSize)</span></span>
+            </h3>
+            <p><a href="classsg_1_1State.html" class="m-doc">State</a> the problem size this instance measures (FR-019).</p>
+<p>The complexity fit of the family reads this value as its N; an instance that states none falls back to its range value, and an instance with no positive size of either kind leaves the family without a fit (FR-019, FR-023).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the run carries <code>problemSize</code> as the complexity size of this instance (FR-019)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aef4d3cd2e725a12b75df4cfa4e85a19b"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aef4d3cd2e725a12b75df4cfa4e85a19b" class="m-doc-self">setLabel</a>(</span><span class="m-doc-wrap">std::string_view label)</span></span>
+            </h3>
+            <p>Set the label of this repetition (FR-011).</p>
+<p>The runner copies the string to the row after the loop, and the report prints it as the trailing <code>label=&lt;text&gt;</code> field of that row, present only when the row carries a label (FR-011, the clarification of 2026-10-14). The last call of a repetition wins, and the aggregate row takes the label only when every repetition shares it (FR-012, D-04).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>label</code> holds no newline character: the report prints one line per row, so a label that breaks the line is a violation at the call (spec Edge Cases, FR-011)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>this repetition carries <code>label</code> in place of any label an earlier call of it set (FR-011, D-04)</p></aside>
+          </div></section>
           <section class="m-doc-details" id="acafb3f266eb1620fe286346fb333a3ee"><div>
             <h3>
               <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acafb3f266eb1620fe286346fb333a3ee" class="m-doc-self">pauseTiming</a>(</span><span class="m-doc-wrap">)</span></span>
             </h3>
             <p>Stop the timed window from this point (FR-009).</p>
-<p>The call stands in the benchmark body. It takes one sampling action, the same action the endpoint pair takes, and opens one pause interval that <code><a href="#a6a50a13c7e4229b8332f9664cccbcd6e" class="m-doc">resumeTiming</a></code> closes (FR-009). The runner folds every closed interval and subtracts it from each column of the row (FR-010). The allowance guard runs before the sample, so the breach is named while the recorder still holds its points (FR-014).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run, its sampling window stands open and unclosed, no pause stands open on it, and its pause count stands below <code><a href="namespacesg.html#a2fed8029bffc3b318da7fd8b57ec4761" class="m-doc">kMaxPausePerRun</a></code> (FR-011, FR-014, D-15)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>one further sample stands in the run&#x27;s span and one pause is open (FR-009)</p></aside>
+<p>The call stands in the benchmark body. It takes one sampling action, the same action the endpoint pair takes, and opens one pause interval that <code><a href="#a6a50a13c7e4229b8332f9664cccbcd6e" class="m-doc">resumeTiming</a></code> closes (FR-009). The runner folds every closed interval and subtracts it from each column of the row (FR-010). When the run&#x27;s recorder holds no room for the pair, the pair stands on the fold path instead: the run&#x27;s two-point slot takes the points and the commit folds them into the row&#x27;s running totals, so no closed pair is lost and no fixed allowance bounds the run (FR-025, FR-052, Q-10).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run, its sampling window stands open and unclosed, and no pause stands open on it (FR-011, D-15)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>one pause stands open, and one sampling action stands in the run&#x27;s recorder or in the run&#x27;s fold slot (FR-009, FR-052)</p></aside>
           </div></section>
           <section class="m-doc-details" id="a6a50a13c7e4229b8332f9664cccbcd6e"><div>
             <h3>
               <span class="m-doc-wrap-bumper">void sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a6a50a13c7e4229b8332f9664cccbcd6e" class="m-doc-self">resumeTiming</a>(</span><span class="m-doc-wrap">)</span></span>
             </h3>
             <p>Restart the timed window and record the interval it paused (FR-009).</p>
-<p>The call takes the sample that closes the open pause, records the pair of sample ordinals of that interval inside the run&#x27;s span, and counts one interval against the run&#x27;s allowance (E-03, FR-018).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run and one pause stands open on it (FR-011, D-15)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>one further sample stands in the run&#x27;s span, the ordinal pair of the closed interval stands in the run&#x27;s pause list, and no pause is open (FR-009, E-03)</p></aside>
+<p>The call takes the sample that closes the open pause, records the pair of sample ordinals of that interval inside the run&#x27;s span, or, on the fold path, folds the pair into the row&#x27;s running totals at this commit, and counts one interval for the run (E-03, FR-018, FR-052).</p><aside class="m-note m-success"><h4>Precondition</h4><p>this state belongs to a run and one pause stands open on it (FR-011, D-15)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>one further sample stands in the run&#x27;s span, the ordinal pair of the closed interval stands in the run&#x27;s pause list, and no pause is open (FR-009, E-03)</p></aside>
           </div></section>
           <section class="m-doc-details" id="ac79bab778ba1f5ccac7973a4a792e4b3"><div>
             <h3>

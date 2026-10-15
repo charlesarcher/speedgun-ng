@@ -73,6 +73,7 @@
                 <li><a href="#namespaces">Namespaces</a></li>
                 <li><a href="#nested-classes">Classes</a></li>
                 <li><a href="#enum-members">Enums</a></li>
+                <li><a href="#typedef-members">Typedefs</a></li>
                 <li><a href="#func-members">Functions</a></li>
                 <li><a href="#var-members">Variables</a></li>
               </ul>
@@ -94,6 +95,10 @@
           <h2><a href="#nested-classes">Classes</a></h2>
           <dl class="m-doc">
             <dt>
+              struct <a href="structsg_1_1Counter.html" class="m-doc">Counter</a>
+            </dt>
+            <dd>One named counter: the value the body set, its flags, and the base its column scales by (E-02, FR-001, FR-002).</dd>
+            <dt>
               struct <a href="structsg_1_1MetricValue.html" class="m-doc">MetricValue</a>
             </dt>
             <dd>One metric of one row, with the disclosure beside the value (FR-024).</dd>
@@ -101,6 +106,14 @@
               struct <a href="structsg_1_1Statistics.html" class="m-doc">Statistics</a>
             </dt>
             <dd>The aggregate form of Principle VII over the repetitions that produced a measured value (FR-027, R-05).</dd>
+            <dt>
+              struct <a href="structsg_1_1StatisticValue.html" class="m-doc">StatisticValue</a>
+            </dt>
+            <dd>One custom statistic of an aggregate row, with the value its function produced (FR-013, FR-014, FR-015).</dd>
+            <dt>
+              struct <a href="structsg_1_1FitRow.html" class="m-doc">FitRow</a>
+            </dt>
+            <dd>One row of a family&#x27;s complexity fit (FR-022, FR-023).</dd>
             <dt>
               struct <a href="structsg_1_1ResultRow.html" class="m-doc">ResultRow</a>
             </dt>
@@ -145,9 +158,55 @@
             <dd>The outcome of one benchmark within a run (E-07).</dd>
             <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#a1c36c8c7e4c0862e2c04cfa59ccba993" class="m-doc">RowKind</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a1c36c8c7e4c0862e2c04cfa59ccba993a4937d446de173dd3e1248cbb27d4c297" class="m-doc">REPETITION</a>,
-              <a href="#a1c36c8c7e4c0862e2c04cfa59ccba993a361d91ce0f028b6708f607b76b12a318" class="m-doc">AGGREGATE</a> }</span>
+              <a href="#a1c36c8c7e4c0862e2c04cfa59ccba993a361d91ce0f028b6708f607b76b12a318" class="m-doc">AGGREGATE</a>,
+              <a href="#a1c36c8c7e4c0862e2c04cfa59ccba993a91c737fcbbec3902e2f069130fea54e7" class="m-doc">BIG_O</a>,
+              <a href="#a1c36c8c7e4c0862e2c04cfa59ccba993a6a04f9e9b7a0c60c00fe0daa2e12eca0" class="m-doc">RMS</a>,
+              <a href="#a1c36c8c7e4c0862e2c04cfa59ccba993a203ec08f57cb105eeb2b121ba6503b52" class="m-doc">SKIPPED</a> }</span>
             </dt>
             <dd>Whether a result row carries one repetition or one aggregate (E-06).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a>: std::uint32_t { </span><span class="m-doc-wrap"><a href="#aba75473384080eaf8a10a2f10bd1d14cab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a> = 0,
+              <a href="#aba75473384080eaf8a10a2f10bd1d14ca79521cdea3eff83f517d31c49f9082f5" class="m-doc">RATE</a> = 1u &lt;&lt; 0,
+              <a href="#aba75473384080eaf8a10a2f10bd1d14ca99cd7b54b349bdd23ccdf1887021b074" class="m-doc">AVG_THREADS</a> = 1u &lt;&lt; 1,
+              <a href="#aba75473384080eaf8a10a2f10bd1d14cae98143e0f35b0684f5c737816a1aabde" class="m-doc">ITERATION_INVARIANT</a> = 1u &lt;&lt; 2,
+              <a href="#aba75473384080eaf8a10a2f10bd1d14cac9a790c849740af1af6cf4aba52a4b69" class="m-doc">AVG_ITERATIONS</a> = 1u &lt;&lt; 3,
+              <a href="#aba75473384080eaf8a10a2f10bd1d14caa2727ae72447eea06d4cc0ef67187280" class="m-doc">INVERT</a> = 1u &lt;&lt; 31 }</span>
+            </dt>
+            <dd>The flag bits that turn a counter&#x27;s stored value into the value its column prints (E-02, FR-002).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#aeb24848b476090822397c9224222c19c" class="m-doc">CounterBase</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#aeb24848b476090822397c9224222c19ca6f5fffe5d5ed1c517952cc140053db40" class="m-doc">K1000</a>,
+              <a href="#aeb24848b476090822397c9224222c19ca509f34ed01eedd6214e026dc8b8828de" class="m-doc">K1024</a> }</span>
+            </dt>
+            <dd>The suffix a rendered counter value carries (FR-006).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#abbd8f7ff85995b8aa370ea04cff6b3ac" class="m-doc">StatUnit</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#abbd8f7ff85995b8aa370ea04cff6b3aca346ff32eaa3c09983fb2ec057816d352" class="m-doc">TIME</a>,
+              <a href="#abbd8f7ff85995b8aa370ea04cff6b3aca21ee69ba26b6e644d4dddce593855d84" class="m-doc">PERCENTAGE</a> }</span>
+            </dt>
+            <dd>The unit a custom statistic declares (FR-014).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#af5b0524687a31698bda57e22cf2af331" class="m-doc">BigO</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#af5b0524687a31698bda57e22cf2af331ab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a>,
+              <a href="#af5b0524687a31698bda57e22cf2af331abc21e6484530fc9d0313cb816b733396" class="m-doc">ONE</a>,
+              <a href="#af5b0524687a31698bda57e22cf2af331a8d9c307cb7f3c4a32822a51922d1ceaa" class="m-doc">N</a>,
+              <a href="#af5b0524687a31698bda57e22cf2af331ab6d786eae0a0293039a405963cd01f29" class="m-doc">N_SQUARED</a>,
+              <a href="#af5b0524687a31698bda57e22cf2af331a7fe163694528925a2a92566c8e79ae1d" class="m-doc">N_CUBED</a>,
+              <a href="#af5b0524687a31698bda57e22cf2af331a38d5f84b334628f16b6aac7111040855" class="m-doc">LOG_N</a>,
+              <a href="#af5b0524687a31698bda57e22cf2af331a2f1aa61644e47874a40e3f07f9ea0392" class="m-doc">N_LOG_N</a>,
+              <a href="#af5b0524687a31698bda57e22cf2af331a008f6cdd0c190839e9885cf9f9e2a652" class="m-doc">AUTOMATIC</a> }</span>
+            </dt>
+            <dd>The curve class a complexity fit tries or keeps (FR-019, FR-020).</dd>
+          </dl>
+        </section>
+        <section id="typedef-members">
+          <h2><a href="#typedef-members">Typedefs</a></h2>
+          <dl class="m-doc">
+            <dt>
+              using <a href="#a202c920c16eeba9a7566e499311399d3" class="m-doc">StatisticFunc</a> = std::function&lt;bool(const std::vector&lt;double&gt;&amp;values, double&amp;result)&gt;
+            </dt>
+            <dd>The function of a custom statistic (FR-013, FR-015).</dd>
+            <dt>
+              using <a href="#adf1778775ad465583cb7f83358ee9a28" class="m-doc">BigOFun</a> = std::function&lt;double(double n)&gt;
+            </dt>
+            <dd>The curve function a family supplies for its complexity fit (FR-020).</dd>
           </dl>
         </section>
         <section id="func-members">
@@ -167,6 +226,16 @@
               <span class="m-doc-wrap-bumper">void <a href="#a04c6ad4387cfc6d0a3485f4f3cdfb41b" class="m-doc">clobberMemory</a>(</span><span class="m-doc-wrap">) <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>Forbid the reordering of memory accesses across this point (FR-029, D-4).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a304676d2398e4f2fac2480370aa9d228" class="m-doc">operator&amp;</a>(</span><span class="m-doc-wrap">const <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> left,
+              const <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> right) -&gt; <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> <span class="m-label m-flat m-primary">constexpr</span> <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>Test whether a counter flag set carries a flag (FR-002).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a4372bc681275b789b7f200d1b5d0dd76" class="m-doc">operator|</a>(</span><span class="m-doc-wrap">const <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> left,
+              const <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> right) -&gt; <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> <span class="m-label m-flat m-primary">constexpr</span> <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>Combine two counter flag sets (FR-002).</dd>
             <dt>
               <div class="m-doc-template">template&lt;class D&gt;</div>
               <span class="m-doc-wrap-bumper">auto <a href="#ac97304eea56cfacdf135350bf2e0835e" class="m-doc">reportsPerIteration</a>(</span><span class="m-doc-wrap">) -&gt; bool <span class="m-label m-flat m-primary">constexpr</span> <span class="m-label m-flat m-success">noexcept</span></span>
@@ -222,9 +291,13 @@
             </dt>
             <dd><span></span></dd>
             <dt>
-              std::size_t <a href="#a2fed8029bffc3b318da7fd8b57ec4761" class="m-doc">kMaxPausePerRun</a> <span class="m-label m-flat m-primary">constexpr</span>
+              std::size_t <a href="#ae8da35c922e559bdee04533b985e9726" class="m-doc">kMaxUserCounters</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
-            <dd>The largest number of pause intervals one run opens, the bound the recorder capacity rule reserves room for (FR-014).</dd>
+            <dd><span></span></dd>
+            <dt>
+              std::size_t <a href="#a3823e5b619cb7813d3f6436d0040aa50" class="m-doc">kMaxCounterNameBytes</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
             <dt>
               std::uint32_t <a href="#ae0176430391232fe1fdf558116fc0ceb" class="m-doc">kSimulationStartTag</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
@@ -254,6 +327,57 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p>Whether a result row carries one repetition or one aggregate (E-06).</p>
+          </div></section>
+          <section class="m-doc-details" id="aba75473384080eaf8a10a2f10bd1d14c"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc-self">CounterFlag</a>: std::uint32_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The flag bits that turn a counter&#x27;s stored value into the value its column prints (E-02, FR-002).</p>
+<p><code>NONE</code> prints the value the body set. <code>RATE</code> divides that value by the row&#x27;s primary time in seconds. <code>AVG_THREADS</code> divides by the thread count of the run, one while threads stay out of scope. <code>ITERATION_INVARIANT</code> multiplies by the iteration count ahead of a rate division, and <code>AVG_ITERATIONS</code> divides by the iteration count. <code>INVERT</code> takes the reciprocal last, after every other flag (FR-003, FR-004, research D-02).</p><p>The bits combine through <code>operator|</code>, so a rate that averages over the threads of the run is <code><a href="#aba75473384080eaf8a10a2f10bd1d14ca79521cdea3eff83f517d31c49f9082f5" class="m-doc">CounterFlag::<wbr />RATE</a> | <a href="#aba75473384080eaf8a10a2f10bd1d14ca99cd7b54b349bdd23ccdf1887021b074" class="m-doc">CounterFlag::<wbr />AVG_THREADS</a></code>, a rate over a per-iteration measure is <code><a href="#aba75473384080eaf8a10a2f10bd1d14ca79521cdea3eff83f517d31c49f9082f5" class="m-doc">CounterFlag::<wbr />RATE</a> | <a href="#aba75473384080eaf8a10a2f10bd1d14cae98143e0f35b0684f5c737816a1aabde" class="m-doc">CounterFlag::<wbr />ITERATION_INVARIANT</a></code>, and the mean of a per-iteration measure is <code><a href="#aba75473384080eaf8a10a2f10bd1d14cac9a790c849740af1af6cf4aba52a4b69" class="m-doc">CounterFlag::<wbr />AVG_ITERATIONS</a></code>. A combined set is one value and the flags apply in the order above; the reference implementation spellings <code>kAvgThreadsRate</code>, <code>kIsIterationInvariantRate</code> and <code>kAvgIterationsRate</code> have no single-name counterpart here (FR-003, FR-004).</p><p><code>INVERT</code> of a value that settled at zero keeps zero. The reference implementation prints an infinity at that point; a counter column that never prints an infinity is the contract, so the reciprocal is taken only where the value stands apart from zero (FR-005).</p>
+          </div></section>
+          <section class="m-doc-details" id="aeb24848b476090822397c9224222c19c"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#aeb24848b476090822397c9224222c19c" class="m-doc-self">CounterBase</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The suffix a rendered counter value carries (FR-006).</p>
+<p><code>K1000</code> renders with <code>k</code> and <code>K1024</code> with <code>Ki</code>. The console report prints raw numbers, so the base never divides the value a column prints: a counter that holds 64 prints 64 under either base, and the base is the suffix a human-readable renderer would carry (FR-009, FR-010).</p>
+          </div></section>
+          <section class="m-doc-details" id="abbd8f7ff85995b8aa370ea04cff6b3ac"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#abbd8f7ff85995b8aa370ea04cff6b3ac" class="m-doc-self">StatUnit</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The unit a custom statistic declares (FR-014).</p>
+<p>A <code>TIME</code> statistic holds nanoseconds like every other stored time value and prints in the unit the row prints in; a <code>PERCENTAGE</code> statistic prints unscaled by the unit (FR-014).</p>
+          </div></section>
+          <section class="m-doc-details" id="af5b0524687a31698bda57e22cf2af331"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#af5b0524687a31698bda57e22cf2af331" class="m-doc-self">BigO</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The curve class a complexity fit tries or keeps (FR-019, FR-020).</p>
+<p><code>NONE</code> asks for no fit and stands as the default, so a family that never calls <code>complexity</code> prints no fit rows. <code>AUTOMATIC</code> tries each curve and keeps the least root-mean relative error, with the constant curve as the fallback (FR-021).</p>
+          </div></section>
+        </section>
+        <section>
+          <h2>Typedef documentation</h2>
+          <section class="m-doc-details" id="a202c920c16eeba9a7566e499311399d3"><div>
+            <h3>
+              using sg::<wbr /><a href="#a202c920c16eeba9a7566e499311399d3" class="m-doc-self">StatisticFunc</a> = std::function&lt;bool(const std::vector&lt;double&gt;&amp;values, double&amp;result)&gt;
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The function of a custom statistic (FR-013, FR-015).</p>
+<p>It receives the primary time per iteration of every clean repetition, the same list the built-in <code><a href="structsg_1_1Statistics.html" class="m-doc">Statistics</a></code> summarizes, in nanoseconds, and writes its value to <code>result</code>. Returning true prints that value among the built-in fields of the aggregate row; returning false leaves the statistic out of the row while the run still reports (FR-015).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the callable is callable: the list it receives can be empty when every repetition carried a disclosure (FR-025)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="adf1778775ad465583cb7f83358ee9a28"><div>
+            <h3>
+              using sg::<wbr /><a href="#adf1778775ad465583cb7f83358ee9a28" class="m-doc-self">BigOFun</a> = std::function&lt;double(double n)&gt;
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The curve function a family supplies for its complexity fit (FR-020).</p>
+<p>The harness fits its coefficient over the instances by the same closed form it uses for the built-in curves and prints the row under the name <code>f(N)</code>.</p>
           </div></section>
         </section>
         <section>
@@ -287,6 +411,24 @@
             </h3>
             <p>Forbid the reordering of memory accesses across this point (FR-029, D-4).</p>
 <p>The same recorded deviation applies: the property lives in the generated code, and <code>test/barrier_shape.sh</code> enforces it.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a304676d2398e4f2fac2480370aa9d228"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a304676d2398e4f2fac2480370aa9d228" class="m-doc-self">operator&amp;</a>(</span><span class="m-doc-wrap">const <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> left,
+              const <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> right) <span class="m-label m-primary">constexpr</span> <span class="m-label m-success">noexcept</span></span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Test whether a counter flag set carries a flag (FR-002).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a4372bc681275b789b7f200d1b5d0dd76"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a4372bc681275b789b7f200d1b5d0dd76" class="m-doc-self">operator|</a>(</span><span class="m-doc-wrap">const <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> left,
+              const <a href="#aba75473384080eaf8a10a2f10bd1d14c" class="m-doc">CounterFlag</a> right) <span class="m-label m-primary">constexpr</span> <span class="m-label m-success">noexcept</span></span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Combine two counter flag sets (FR-002).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
           <section class="m-doc-details" id="ac97304eea56cfacdf135350bf2e0835e"><div>
             <h3>
@@ -344,7 +486,7 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p>Set the process default unit that a later registration captures (FR-016).</p>
-<p>The default reaches the registrations that follow it; a benchmark registered earlier keeps the unit it captured at its own moment (FR-016, D-12). The command-line unit option stays with the full command-line spec of the roadmap (FR-016).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code><a href="#a727921fbac1971afcaa457fa572ac824" class="m-doc">getDefaultTimeUnit</a></code> reads back <code>timeUnit</code>, and every earlier registration keeps the unit it captured (FR-016)</p></aside>
+<p>The default reaches the registrations that follow it; a benchmark registered earlier keeps the unit it captured at its own moment (FR-016, D-12). The command-line unit option stays with the full command-line spec of the roadmap (FR-016).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code><a href="#a727921fbac1971afcaa457fa572ac824" class="m-doc">getDefaultTimeUnit</a></code> reads back <code>timeUnit</code>, and the entry point of <code><a href="#ac29b781b85d46d6887a027c02897d33a" class="m-doc">speedgunMain</a></code> snapshots it at its entry, so the call reaches every registration that names no <code>unit</code> (FR-016, FR-027)</p></aside>
           </div></section>
           <section class="m-doc-details" id="a727921fbac1971afcaa457fa572ac824"><div>
             <h3>
@@ -352,7 +494,7 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p>Read the process default unit of this moment (FR-016).</p>
-<p>The default starts at <code><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2a5b3b43ddfdecac6712fd1dbc20798e6b" class="m-doc">TimeUnit::<wbr />NANOSECONDS</a></code>, so a benchmark registered during static initialization captures nanoseconds under the default (FR-016).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned unit is the value of the last <code><a href="#a1bff82fa0bfdd41307f8e086280bb736" class="m-doc">setDefaultTimeUnit</a></code> call, or <code><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2a5b3b43ddfdecac6712fd1dbc20798e6b" class="m-doc">TimeUnit::<wbr />NANOSECONDS</a></code> when no such call has run (FR-016)</p></aside>
+<p>The default starts at <code><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2a5b3b43ddfdecac6712fd1dbc20798e6b" class="m-doc">TimeUnit::<wbr />NANOSECONDS</a></code>, the unit a run falls back to when neither a <code>unit</code> call nor the entry point&#x27;s batch snapshot names one (FR-016, FR-027).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned unit is the value of the last <code><a href="#a1bff82fa0bfdd41307f8e086280bb736" class="m-doc">setDefaultTimeUnit</a></code> call, or <code><a href="#ad1596a132e4c08a8d4e4aad33bb52cb2a5b3b43ddfdecac6712fd1dbc20798e6b" class="m-doc">TimeUnit::<wbr />NANOSECONDS</a></code> when no such call has run (FR-016)</p></aside>
           </div></section>
           <section class="m-doc-details" id="ac29b781b85d46d6887a027c02897d33a"><div>
             <h3>
@@ -381,13 +523,19 @@
             </h3>
             <p><span></span></p>
           </div></section>
-          <section class="m-doc-details" id="a2fed8029bffc3b318da7fd8b57ec4761"><div>
+          <section class="m-doc-details" id="ae8da35c922e559bdee04533b985e9726"><div>
             <h3>
-              std::size_t sg::<wbr /><a href="#a2fed8029bffc3b318da7fd8b57ec4761" class="m-doc-self">kMaxPausePerRun</a> <span class="m-label m-primary">constexpr</span>
+              std::size_t sg::<wbr /><a href="#ae8da35c922e559bdee04533b985e9726" class="m-doc-self">kMaxUserCounters</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
-            <p>The largest number of pause intervals one run opens, the bound the recorder capacity rule reserves room for (FR-014).</p>
-<p>A run holds its two endpoint samples plus two samples per interval, so the allowance bounds one run at 18 points and the pause guard can name the breach before the recorder loses a point.</p>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a3823e5b619cb7813d3f6436d0040aa50"><div>
+            <h3>
+              std::size_t sg::<wbr /><a href="#a3823e5b619cb7813d3f6436d0040aa50" class="m-doc-self">kMaxCounterNameBytes</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
           </div></section>
           <section class="m-doc-details" id="ae0176430391232fe1fdf558116fc0ceb"><div>
             <h3>
