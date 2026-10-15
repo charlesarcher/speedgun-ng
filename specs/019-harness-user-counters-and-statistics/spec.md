@@ -891,6 +891,17 @@ page.
   (the `SECTION_LINE_CAP` constant) shall not move. Prose shall be trimmed
   first; no snippet shall be dropped to fit.
 
+  Amendment (D-A of the PR #37 final pass, 2026-10-15): the main page
+  shall teach every registration form in `Registration` and every
+  fixture macro in `Fixtures`, each region copied from its example.
+  `example_drift.py` shall gain a `SECTION_LINE_CAPS` table that caps
+  those two sections and no other, `SECTION_LINE_CAP` shall stay 25 as
+  the default for every other section, and the page cap shall move to
+  569 lines, the smallest that holds the page: at 569 lines the page
+  does not fit under 550, and prose elsewhere gives back less than the
+  19 lines the two sections add. The drift gate fixture shall show a
+  section at its own override cap passing and one line over failing.
+
 ### Surface, version, and discipline
 
 - **FR-045**: Every new identifier shall follow the constitution's
@@ -1073,6 +1084,10 @@ commit gate of this spec does not cover them (Q-7).
 - The page cap moves to 550 and the per-section cap stays 25 (Q-8).
   The README stands at 394 lines against the current 400 cap; the
   six new sections plus the C-8 additions do not fit under 400.
+- The page cap moves again to 569, and the `Registration` and
+  `Fixtures` sections take per-section caps of 38 and 42 lines from
+  the `SECTION_LINE_CAPS` table of `example_drift.py`; every other
+  section keeps the 25-line default (D-A, recorded 2026-10-15).
 - One example file per main-page section under `example/` is the
   working layout; one runnable snippets binary is the fallback if the
   build-time cost is too high (Q-9).
@@ -1176,6 +1191,12 @@ default. `/speckit-clarify` may confirm each as written or replace it.
   README stands at 394 of 400 lines
   at the audit point; the six sections plus the C-8 additions do not
   fit below 550 with the snippets intact.
+  Second record (2026-10-15, D-A adopted): Registration and Fixtures
+  teach every form on the main page, and the page lands at 569 lines
+  with those sections at 38 and 42 lines. The page cap moves to 569,
+  the smallest fitting amount, and the two sections take caps of
+  their measured spans through `SECTION_LINE_CAPS`; no other section
+  moves off the 25-line default.
 - **Q-9 Example layout**: Recommendation: one example file for each
   main-page section, each with its own `main`; a single runnable
   snippets binary is the fallback. Adopted at FR-032 to FR-035 and
