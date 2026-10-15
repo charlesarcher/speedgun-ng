@@ -281,7 +281,7 @@ the eighteen owners.
 
 - [X] T043 Build the `ci-sanitize` and `ci-tsan` presets from `CMakePresets.json` (`cmake --preset=ci-sanitize`, `cmake --preset=ci-tsan`), run `ctest --test-dir build` on each, and record the results (FR-050, SC-06, Principle VIII)
 
-- [ ] T044 Build the `ci-coverage` preset from `CMakePresets.json`, run `ctest --test-dir build`, and confirm from the `cmake/coverage.cmake` report that "The coverage report keeps 100% line and branch over `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under `source/harness/`" (FR-047, SC-06)
+- [X] T044 Build the `ci-coverage` preset from `CMakePresets.json`, run `ctest --test-dir build`, and confirm from the `cmake/coverage.cmake` report that "The coverage report keeps 100% line and branch over `include/speedgun-ng/*` and `source/*` with no `LCOV_EXCL` marker under `source/harness/`" (FR-047, SC-06)
 
 - [X] T045 Main-page impact check (IV.1): confirm the six new README sections, their owning example files, and the region-ownership gate all shipped in the same change as the code they teach (FR-028, FR-036)
 
@@ -411,9 +411,9 @@ recommendation, and the spec entry records that decision.
 - [X] T065 Record in research D-10 that pause history is held per family through RegistryEntry::pausePairsPerIteration, so a family whose instances pause differently reserves the largest observed room per N-5 (missing)
 - [X] T066 Keep README.md at 550 lines or fewer after the section fixes, trimming prose and never a snippet, and report the final count per N-6, FR-044 (partial)
 - [X] T067 Run quickstart.md sections 5 through 7, record the evidence, and check T042 only when it passes per D-2 (partial)
-- [ ] T068 Build the ci-coverage preset, hold 100 percent line and branch coverage, keep zero LCOV_EXCL markers under source/harness, record the evidence, and check T044 only when it passes per D-2 (partial)
+- [X] T068 Build the ci-coverage preset, hold 100 percent line and branch coverage, keep zero LCOV_EXCL markers under source/harness, record the evidence, and check T044 only when it passes per D-2 (partial)
 - [X] T069 Write /tmp/019-rebase-plan.txt listing every pushed commit that fails the commit lint with its hash, old subject, new subject and the footer it gains, without running the rebase or force-pushing, and hold it for Charles to approve per D-1 (contradicts)
-- [ ] T070 Run the verification set on the new head: developer build with the full suite, the pair gate at 0 drift, the prose gate and codespell at 0 findings on changed files, the commit lint on new commits, the coverage, sanitize and tsan presets, the two hand spot checks on cells=64 and the throughput rate, and the CI result per item (missing)
+- [X] T070 Run the verification set on the new head: developer build with the full suite, the pair gate at 0 drift, the prose gate and codespell at 0 findings on changed files, the commit lint on new commits, the coverage, sanitize and tsan presets, the two hand spot checks on cells=64 and the throughput rate, and the CI result per item (missing)
 
 ## Convergence Evidence
 
@@ -532,3 +532,38 @@ command that showed it.
   Registration at 25, no sentence and no snippet removed. The sentence
   that explained `Table/cells` now names the family the macro prints
   and the split a slash performs.
+- T044 (`e3a0fc8`): `cmake --preset=ci-coverage`, `cmake --build
+  build/coverage`, `ctest --output-on-failure --no-tests=error` in that tree,
+  then `cmake --build build/coverage -t coverage`, the four commands of the
+  `coverage` job in `.github/workflows/ci.yml`. CI run 38665197575 passed that
+  job and retained `build/coverage/coverage.info`, which records zero untaken
+  branch arms. Computed from that trace the report holds lines 100.000 percent
+  (3661 of 3661) and branches 100.000 percent (1510 of 1510), with no file
+  below 100 percent anywhere in it. `grep -rn LCOV_EXCL source/harness` prints
+  `0`.
+- T068 (`e3a0fc8`): the same preset and the same report at this head, 100.000
+  percent line and branch, zero `LCOV_EXCL` markers under `source/harness/`, and
+  the branch reached that figure with no `LCOV_EXCL` marker, no skip list and no
+  range exclusion anywhere in `source/harness/`. The last untaken arm stood at
+  the fit guard of `Runner::run`; `e3a0fc8` weighs the measured outcome before
+  the fit ask, one condition per line, and the trace at that head lists no
+  untaken arm. T044 is checked on this evidence.
+- T070 (`e3a0fc8`): `cmake --preset=ci-rocky`, `cmake --build build`, then
+  `ctest --test-dir build --output-on-failure` prints `100% tests passed, 0
+  tests failed out of 89`, against the 79-test baseline that `master` reports.
+  `cmake --build build -t dbc-gate` prints `doc-gate: 211 interfaces, 0 gaps`
+  and `pair-gate: 211 interfaces, 0 gaps`. The prose gate in range mode prints
+  `prose-lint: 2 sources, 14 units examined, 0 findings` and
+  `cmake -P cmake/spell.cmake` exits 0. Commit lint on the new commits prints 0
+  findings. The coverage, sanitize and tsan presets pass in CI run 38665197575
+  (`coverage`, `sanitize` job 116195556499, `tsan` job 116195556463, `test`,
+  `test-rocky`). Hand spot checks: the pty capture of
+  `./build/example/docs_user_counters --min-time=0.01` prints
+  `cells mean=   64.000` over `n=3` for the family at cells 64 and a
+  `bytes_per_second` statistic line with mean 31752166342.169, with zero `inf`
+  or `nan` words in the capture; recomputing the throughput rate from
+  per-iteration units over cpu time per iteration gives ratio 1.0000 for both
+  `bmEncode` families and 0.9981 for the three `bmScale` rows, inside 2 percent.
+  CI per item: every job green except `prose-lint`, whose findings sit on
+  commits pushed before this pass and are covered by the rebase plan at
+  `/tmp/019-rebase-plan.txt`.
