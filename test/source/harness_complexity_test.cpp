@@ -585,6 +585,24 @@ auto checkAggregateQuantities(const std::vector<std::string>& lines) -> void
         "the aggregate mean of a constant metric keeps the constant curve");
 }
 
+// FR-019, FR-022: a skip inside the loop still hands the runner a result, so a
+// family that asked for a fit reads that result and finds a run that measured
+// nothing. The sizes that ran keep their samples, so the family stands with its
+// curve while the skipping instance contributes no pair.
+auto bmMidSkip(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (state.range(0) == 4) {
+      state.skipWithMessage("the scripted gap inside the loop");
+      break;
+    }
+    const double size = static_cast<double>(state.range(0));
+    state.setIterationTime(
+        static_cast<std::int64_t>(kTimeCoefficientNs * size * size));
+    sg::doNotOptimize(index);
+  }
+}
+
 }  // namespace
 
 auto main() -> int
@@ -675,6 +693,12 @@ auto main() -> int
   // measured value is left below the floor (FR-022, FR-023).
   skipped.useManualTime().arg(2).arg(4).complexity(sg::BigO::N);
 
+  auto midSkip = sg::registerBenchmark(&bmMidSkip, "bmMidSkip");
+  check(midSkip.name() == "bmMidSkip", "the mid-loop skip family registers");
+  // Two sizes run and one skips, so the family stands above the floor of two
+  // samples even though its third instance carries no value (FR-022).
+  midSkip.useManualTime().arg(2).arg(3).arg(4).complexity(sg::BigO::N);
+
   int status = 0;
   const std::string report = captureRun(
       {"--filter", "^bm", "--iterations=1", "--repetitions=1"}, status);
@@ -714,6 +738,15 @@ auto main() -> int
   check(fitRowOf(skipLines, "SKIPPED", "holds no fit").contains("measured"),
         "the family states the reason naming the measured values it lacks "
         "(FR-023)");
+
+  const std::vector<std::string> midLines = linesOf(report, "bmMidSkip");
+  const std::string midFit = fitRowOf(midLines, "BIG_O", "time/iter");
+  check(!midFit.empty(),
+        "a family keeps its fit when one instance skips inside the loop "
+        "(FR-019, FR-022)");
+  check(curveOf(midFit, "time/iter") == "N",
+        "the fit of the sizes that ran names the class the family asked for "
+        "(FR-021)");
 
   const std::vector<std::string> halfLines = linesOf(report, "bmHalf");
   check(!fitRowOf(halfLines, "BIG_O", "time/iter").empty(),
