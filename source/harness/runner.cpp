@@ -1116,8 +1116,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // FR-019, FR-022: a family that asked for a complexity fit collects one value
   // per instance, and the fit itself waits for the family to end. A run that
   // measured nothing hands the fit no value, so it stands out of the samples.
-  if ((entry.bigO != BigO::NONE || static_cast<bool>(entry.bigOFun))
-      && result.outcome == RunOutcome::MEASURED)
+  if (result.outcome == RunOutcome::MEASURED
+      && (entry.bigO != BigO::NONE || static_cast<bool>(entry.bigOFun)))
   {
     noteFitSample(instance, result, complexityN);
   }
