@@ -1102,9 +1102,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         counterValues[column].push_back(row.counters[column]);
       }
     }
+    // The same two-step shape as the metric fold above, so both folds of one
+    // aggregate row compute the summary into the slot before the push.
     for (auto& values : counterValues) {
-      result.counterStats.push_back(
-          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values)));
+      sg::Statistics columnStats =
+          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values));
+      result.counterStats.push_back(columnStats);
     }
 
     result.rows.push_back(aggregate);
