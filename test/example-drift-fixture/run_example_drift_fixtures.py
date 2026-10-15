@@ -346,6 +346,32 @@ def main() -> int:
             "--sections",
         )
         case(
+            "block whose sg-requires names no region",
+            lambda root: page(root).write_text(
+                page(root).read_text().replace(
+                    f"<!-- sg-example: {owner(SECTIONS[0])}#{slug(SECTIONS[0])} -->\n",
+                    f"<!-- sg-requires: {owner(SECTIONS[0])}#nosuch -->\n"
+                    f"<!-- sg-example: {owner(SECTIONS[0])}#{slug(SECTIONS[0])} -->\n",
+                    1,
+                )
+            ),
+            False,
+            ("requires region 'nosuch'",),
+        )
+        case(
+            "block whose sg-requires names a real region",
+            lambda root: page(root).write_text(
+                page(root).read_text().replace(
+                    f"<!-- sg-example: {owner(SECTIONS[0])}#{slug(SECTIONS[0])} -->\n",
+                    f"<!-- sg-requires: {owner(SECTIONS[0])}#{slug(SECTIONS[0])} -->\n"
+                    f"<!-- sg-example: {owner(SECTIONS[0])}#{slug(SECTIONS[0])} -->\n",
+                    1,
+                )
+            ),
+            True,
+            (),
+        )
+        case(
             "Registration at its own override cap passes",
             lambda root: pad_registration(root, SECTION_LINE_CAPS["Registration"]),
             True,
