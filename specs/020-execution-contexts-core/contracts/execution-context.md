@@ -7,7 +7,7 @@ context core. All names live in namespace `sg` (FR-001).
 ## The surface (FR-001 to FR-015, FR-045)
 
 ```cpp
-struct ContextId;                                   // FR-002
+struct ContextId;   // opaque identity: copyable, equality-comparable (FR-002, FR-045)
 [[nodiscard]] auto currentContext()
     -> std::optional<ContextId>;                    // FR-002
 
@@ -26,7 +26,6 @@ class ExecutionContext                              // FR-001
 public:
   ExecutionContext();                               // default policy
   explicit ExecutionContext(ContextPolicy policy);
-  ExecutionContext(ExecutionContext&&) noexcept;    // movable
   // destructor: SG_REQUIRE the context is joined (FR-006)
   [[nodiscard]] auto id() const noexcept -> ContextId;
   [[nodiscard]] auto policy() const noexcept -> ContextPolicy;  // FR-007
@@ -46,7 +45,7 @@ auto dispatch(ExecutionContext& context, WorkNode<Item>& node)
 class ContextBarrier                                // FR-014
 {
 public:
-  explicit ContextBarrier(int participants);
+  explicit ContextBarrier(std::int32_t participants);
   auto arriveAndWait() -> void;                     // FR-014, FR-015
 };
 ```
@@ -58,6 +57,7 @@ public:
 | Constructing an `ExecutionContext` shall start one thread running one event loop that takes work only through that context's inbox. | FR-001 |
 | The inbox shall be an intrusive multi-producer single-consumer queue whose link lives in the work node; enqueueing shall allocate nothing. | FR-003 |
 | `currentContext()` shall report the identity of the context the calling thread runs and report no context on any other thread. | FR-002 |
+| `ContextId` shall be copyable and equality-comparable, so a caller can compare the id a work item read against the id of its context; no report field prints it. | FR-002, FR-025 |
 | A context the harness creates to run a benchmark shall default to `SPIN`; a caller-created context with no policy shall default to `BLOCK`. | FR-004, Q-2 |
 | A wait mode shall wait without reading a clock or taking a timeout; `BLOCK` waits in the standard atomic wait and `dispatch()` wakes it. | FR-004, FR-039 |
 | A context shall apply its placement once at thread start through one replaceable placement function; the default applies the cpu index and the tests replace the function. | FR-005 |
@@ -67,11 +67,11 @@ public:
 | A work node shall live in caller storage, hold its completion state (`pending`, then `done` or `stopped`), and carry its typed work to the loop through one erased run path; the loop shall run no run-time type test. | FR-009, D-2 |
 | `dispatch()` shall hand the node to the named context, allocate nothing, and return without waiting; it shall be legal from any thread and from work already running on that context. | FR-010 |
 | A running work item shall receive the identity of the context running it and a stop token reading true once `requestStop()` stood. | FR-011 |
-| The caller shall keep a node alive until its state settles; destroying a live node aborts with an `SG_REQUIRE` violation in a debug build; work dispatched to a stopped context takes the `stopped` state and never runs. | FR-012 |
+| The caller shall keep a node it dispatches alive until its state settles (the body nodes a threaded run builds are harness-owned, FR-021); destroying a live node aborts with an `SG_REQUIRE` violation under the enforce semantic; work dispatched to a stopped context takes the `stopped` state and never runs. | FR-012 |
 | Nodes one thread dispatches shall run in that order; nodes two threads dispatch at once shall run in the order the inbox accepted them; work dispatched from inside a running item shall run after that item ends, on the same context. | FR-013 |
-| `ContextBarrier` shall join its fixed participant count in rounds where all participants arrive before any proceeds; one round shall release all participants at once; a participant shall wait in the wait mode of its own policy; `std::barrier` stands as the fallback for `BLOCK`. | FR-014, Q-3 |
+| `ContextBarrier` shall join its fixed participant count in rounds where all participants arrive before any proceeds; one round shall release all participants at once; a participant shall wait in the wait mode of its own policy, or in `BLOCK` when it runs on no context; `std::barrier` stands as the fallback for `BLOCK`; a participant count of zero is an `SG_REQUIRE` violation at the construction call. | FR-014, Q-3 |
 | The barrier shall be legal from inside running work and outside it; the barrier shall read no clock and no round shall time out; a participant that leaves a round early is a contract violation. | FR-014, FR-015 |
-| The completion state, the barrier, the stop request, and the placement slot shall ship with the fixed names and meanings H16 reads. | FR-045 |
+| The node completion state, `dispatch()` from inside running work, `ContextId`, and the placement slot shall ship with the fixed names and meanings H16 reads. | FR-045 |
 
 ## Consumers
 

@@ -15,9 +15,18 @@ auto threadRange(std::int32_t minCount, std::int32_t maxCount)
 auto denseThreadRange(std::int32_t minCount, std::int32_t maxCount,
                       std::int32_t step) -> BenchmarkHandle&;
 auto threadRunner(ThreadRunnerFn runner) -> BenchmarkHandle&;
-// FR-021: a callable that receives the run's contexts and the
-// per-thread body nodes and dispatches them itself; planning-level
-// signature, refined by the implementation task.
+
+class ThreadRun                       // FR-021: the harness-owned view
+{                                     // of one threaded attempt
+public:
+  [[nodiscard]] auto contextCount() const noexcept -> std::int32_t;
+  [[nodiscard]] auto context(std::int32_t index) const noexcept
+      -> const ExecutionContext&;
+  auto dispatch(std::int32_t index) -> void;  // body index to context index
+};
+using ThreadRunnerFn = std::function<void (ThreadRun&)>;
+// FR-021: the runner receives the run's contexts through ThreadRun and
+// dispatches the per-thread body nodes itself, one dispatch per index.
 
 // State
 [[nodiscard]] auto threadIndex() const noexcept -> std::int32_t;
@@ -31,7 +40,7 @@ auto threadRunner(ThreadRunnerFn runner) -> BenchmarkHandle&;
 | Each context of a threaded run shall open its own thread-target plan on its own thread; no fold shall read another context's plan; the fake provider shall script each context's leaves. | FR-018 |
 | The run's start barrier and stop barrier shall stand outside the timed window of every context; no barrier wait shall fall inside a window. | FR-019 |
 | The published row shall aggregate as: real time the slowest context, cpu time the sum, iterations the per-context count times N, user counters summed before the flag pass, and the flag pass with the real N (research D-06). | FR-020 |
-| A function the user supplies may receive the run's N contexts and dispatch the per-thread bodies itself; the barriers, the plans, and the merge stay the harness's. | FR-021 |
+| A function the user supplies may receive the run's `ThreadRun` view and dispatch the per-thread bodies themselves; the harness builds the body nodes, keeps them alive across the runner call, and requires one dispatch per body index before the runner returns, a gap or a duplicate ending the run with an `SG_REQUIRE` violation at that point; the barriers, the plans, and the merge stay the harness's. | FR-021 |
 | A benchmark that calls no thread method shall keep its single-context behavior and its printed bytes. | FR-022 |
 | `setUp` and `tearDown` shall run once per run on context 0, outside both barriers. | FR-023 |
 | A thread count a call cannot honor, zero included, shall end in a contract violation at that call, beside the standing setter precondition. | FR-024 |

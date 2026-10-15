@@ -39,7 +39,8 @@ ctest --test-dir build --output-on-failure -R harness_context_barrier_test
 ```
 
 Expect: one round releases every participant at once; a spinning
-participant waits in its own mode (SC-08's mechanism); a participant
+participant waits in its own mode (SC-08's mechanism); a barrier used
+outside running work waits in `BLOCK` (FR-014, FR-015); a participant
 that leaves a round early aborts its re-exec (FR-015); the barrier
 reads no clock, so no round times out (FR-014).
 
@@ -58,8 +59,9 @@ aborts at the call (FR-024); the window bounds recorded around the
 barrier arrives show no barrier wait inside a window (SC-08); the noise
 load on one context leaves the other context's plan the only one its
 row folds (SC-09); the custom runner's dispatches carry the bodies and
-the merged row still stands (FR-021); a benchmark with no thread call
-prints today's bytes (FR-022).
+the merged row still stands, and a runner that returns with a body
+undispatched aborts its re-exec (FR-021); a benchmark with no thread
+call prints today's bytes (FR-022).
 
 ## C-7: disclosure and noise warning
 
@@ -70,8 +72,9 @@ ctest --test-dir build --output-on-failure -R report_shape
 
 Expect: threaded results print the context count and each context's
 wait mode and placement; single-context results print no disclosure
-line; the warning appears for the shared-cpu spinner pair and the
-spinner count above the online count, and stands absent for the pinned
+line; the warning appears after the result whose condition holds, one
+line per such result, for the shared-cpu spinner pair and the spinner
+count above the online count, and stands absent for the pinned
 one-per-cpu run and the all-blocking run (SC-12, FR-026 to FR-028); the
 report-shape checks carry the disclosure line in the same commit as
 the printer.
@@ -102,9 +105,18 @@ ctest --test-dir build --output-on-failure   # the full suite
 
 Expect, with the new paths included: `loop_shape`, `cli_shape`,
 `barrier_shape`, and `time_source_gate` green (no clock entered any
-new path, FR-039; no option landed, FR-044); the prose gate, the spell
-check, and the name check report zero findings (FR-036, FR-048); the
-dbc pair gate shows zero drifted interfaces.
+new path, FR-039; no option landed, FR-044); the prose gate and the
+spell check report zero findings (FR-048); the dbc pair gate shows zero
+drifted interfaces. Then the analyzer-bearing release build:
+
+```bash
+cmake --preset=ci-ubuntu && cmake --build build
+```
+
+Expect: the build completes with clang-tidy and cppcheck wired in, and
+`readability-identifier-naming` reports zero findings (FR-036);
+Principle IX calls for this release build once per feature before the
+tasks are called done.
 
 ## Sanitizers and coverage
 
