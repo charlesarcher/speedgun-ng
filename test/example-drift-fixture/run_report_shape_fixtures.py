@@ -45,6 +45,12 @@ COUNTER_STAT = (
 # aggregate carries it only when every repetition shares it.
 LABEL_ROW = STDOUT[1] + "  label=avx2"
 LABEL_AGGREGATE = AGGREGATE + "  label=avx2"
+# 020 FR-025, FR-026: a threaded result prints one disclosure line after its
+# rows, and one noise warning line after that result when its spinning
+# contexts share one cpu or outnumber the cpus the host has online.
+DISCLOSURE = "  contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN"
+WARNING = "warning: spinning contexts oversubscribed (2 spin, 8 cpus)"
+THREAD_RUN = (STDOUT[0], STDOUT[1], DISCLOSURE, WARNING)
 
 FAILURES: list[str] = []
 
@@ -167,6 +173,49 @@ def golden_pairs() -> None:
           "row line differs" in " ".join(compare([LABEL_ROW], [STDOUT[1]])),
           " ".join(compare([LABEL_ROW], [STDOUT[1]]))[:1])
 
+    # 020 FR-025, FR-026: the counts of the disclosure line and of the noise
+    # warning belong to the run, the mode words and the fixed wording do not.
+    other_counts = "  contexts=4  ctx1=SPIN/NO_PIN  ctx3=SPIN/NO_PIN"
+    check("another context count and index fold equal",
+          mask(DISCLOSURE) == mask(other_counts),
+          f"{mask(DISCLOSURE)!r} against {mask(other_counts)!r}")
+
+    other_cpus = "  contexts=2  ctx0=SPIN/3  ctx1=SPIN/7"
+    check("another pinned cpu index folds equal",
+          mask(DISCLOSURE.replace("NO_PIN", "0")) == mask(other_cpus),
+          f"{mask(DISCLOSURE.replace('NO_PIN', '0'))!r} against {mask(other_cpus)!r}")
+
+    other_mode = DISCLOSURE.replace("SPIN", "BLOCK")
+    check("another wait mode folds different",
+          mask(DISCLOSURE) != mask(other_mode), "both folded to the same shape")
+
+    renamed_placement = DISCLOSURE.replace("NO_PIN", "NONE")
+    check("a renamed placement token folds different",
+          mask(DISCLOSURE) != mask(renamed_placement),
+          "both folded to the same shape")
+
+    renamed_field = DISCLOSURE.replace("ctx0", "context0")
+    check("a renamed context field folds different",
+          mask(DISCLOSURE) != mask(renamed_field), "both folded to the same shape")
+
+    other_warning = "warning: spinning contexts oversubscribed (5 spin, 24 cpus)"
+    check("another spin and cpu count fold equal",
+          mask(WARNING) == mask(other_warning),
+          f"{mask(WARNING)!r} against {mask(other_warning)!r}")
+
+    renamed_warning = WARNING.replace("oversubscribed", "over subscribed")
+    check("a renamed noise warning token folds different",
+          mask(WARNING) != mask(renamed_warning), "both folded to the same shape")
+
+    check("a disclosure line classifies as a disclosure line",
+          "disclosure line differs" in " ".join(compare([DISCLOSURE], [WARNING])),
+          " ".join(compare([DISCLOSURE], [WARNING]))[:1])
+
+    check("a noise warning classifies as a noise warning line",
+          "noise warning line differs"
+          in " ".join(compare([WARNING], [DISCLOSURE])),
+          " ".join(compare([WARNING], [DISCLOSURE]))[:1])
+
 
 def page_text(block: list[str]) -> str:
     body = "\n".join(block)
@@ -225,6 +274,25 @@ def end_to_end(tool: Path) -> None:
             ("a block that carries a label the run does not print", False,
              [STDOUT[0], LABEL_ROW, LABEL_AGGREGATE, STDOUT[2]],
              list(STDOUT)),
+            # 020 FR-025, FR-026, SC-11: the disclosure line and the noise
+            # warning ride the same line-for-line comparison, and a built-in
+            # token planted wrong beside them still fails by its own name.
+            ("a block that carries the disclosure line and the warning", True,
+             list(THREAD_RUN), THREAD_RUN),
+            ("a planted disclosure wait mode", False,
+             [STDOUT[0], STDOUT[1], DISCLOSURE.replace("SPIN", "BLOCK"), WARNING],
+             THREAD_RUN),
+            ("a planted noise warning token", False,
+             [STDOUT[0], STDOUT[1], DISCLOSURE,
+              WARNING.replace("spinning contexts", "spinning threads")],
+             THREAD_RUN),
+            ("a run that prints a disclosure line the block omits", False,
+             [STDOUT[0], STDOUT[1], WARNING], THREAD_RUN),
+            ("a block that carries a warning the run does not print", False,
+             list(THREAD_RUN), (STDOUT[0], STDOUT[1], DISCLOSURE)),
+            ("a planted renamed column header beside the disclosure line", False,
+             [STDOUT[0], STDOUT[1].replace("real time/iter", "wall time/iter"),
+              DISCLOSURE, WARNING], THREAD_RUN),
         )
         for case, want_pass, block, stdout in cases:
             root.joinpath("README.md").write_text(page_text(block))

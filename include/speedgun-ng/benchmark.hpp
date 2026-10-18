@@ -16,6 +16,7 @@
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/dbc.hpp"
+#include "speedgun-ng/execution_context.hpp"
 #include "speedgun-ng/speedgun-ng_export.hpp"
 
 /**
@@ -379,6 +380,26 @@ struct ResultRow
 };
 
 /**
+ * @brief The policy disclosure of one context of a threaded run (E-07,
+ * FR-025).
+ *
+ * The runner fills one record per context of a threaded instance from
+ * that context's fixed policy when the instance joins its contexts, and
+ * the report prints the pair after the rows of the result (FR-025). A
+ * record is the policy the context was created with: a policy is fixed
+ * at creation and readable for the context's life (FR-007), so the pair
+ * names what that context ran under. `placement` holds the printable
+ * placement, `NO_PIN` or one cpu index, the description the installed
+ * placement function returned for that context's thread (FR-005,
+ * FR-025).
+ */
+struct ContextDisclosure
+{
+  WaitMode waitMode = WaitMode::BLOCK;
+  std::string placement;
+};
+
+/**
  * @brief The C++ value the harness exposes for one benchmark; the
  * console report formats it and adds nothing to it (FR-036, E-07).
  *
@@ -431,6 +452,11 @@ struct BenchmarkResult
   // True when a measured repetition's run folded a pause pair (E-06,
   // FR-054).
   bool pauseSamplesFolded = false;
+  // The policy disclosure of the run: one record per context a threaded
+  // instance ran, empty for a single-context run, so a non-empty vector
+  // names exactly a threaded result and the report prints its disclosure
+  // line (FR-021, FR-025, E-07).
+  std::vector<ContextDisclosure> contexts;
 };
 
 /**
@@ -898,6 +924,35 @@ public:
     return m_arguments.size();
   }
 
+  /**
+   * @brief The index of the context that runs this body (FR-017).
+   *
+   * A threaded instance dispatches one body to each of its contexts and
+   * the index names the one this state belongs to, from `0` to
+   * `threads() - 1`. A run on a single context reports `0` (FR-017,
+   * E-05).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto threadIndex() const noexcept -> int
+  {
+    return m_threadIndex;
+  }
+
+  /**
+   * @brief The thread count of the running instance (FR-017).
+   *
+   * The count is the context count of the attempt: the number of bodies
+   * the harness dispatched, each on its own context. A benchmark that
+   * called no thread method runs on one context and reads 1 (FR-017,
+   * FR-022). No count of a running instance stands below 1 (FR-024).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto threads() const noexcept -> int { return m_threads; }
+
 private:
   friend class detail::Runner;
   // The guard reads the skip flag of the run so its destructor can skip
@@ -1015,6 +1070,13 @@ private:
   // The arguments of the running instance, owned by that instance
   // (E-03, R-04).
   std::span<const std::int64_t> m_arguments;
+  // E-05, FR-017: the threaded run this state belongs to, the index of
+  // the context running the body and the count of contexts of the
+  // attempt. The runner writes both for a threaded body and leaves the
+  // defaults on a single-context run, whose row keeps today's bytes
+  // (FR-022).
+  int m_threadIndex = 0;
+  int m_threads = 1;
 
   // E-01: one counter name of the run's store. The name stands in a
   // fixed buffer, so opening a name allocates nothing inside the timed
@@ -1233,6 +1295,108 @@ struct StatisticSeed
 
 }  // namespace detail
 
+namespace detail
+{
+
+class ThreadRunCore;
+
+}  // namespace detail
+
+/**
+ * @brief The harness-owned view of one threaded attempt and the
+ * contexts it runs on (FR-021, E-08).
+ *
+ * The harness builds the attempt, its body nodes and its two barrier
+ * rounds, and hands this view to the `threadRunner` callable of a family
+ * that attached one. The callable dispatches each body index onto the
+ * context of that index; the barriers, the per-context plans and the
+ * merge stay the harness's, so a runner the harness did not write cannot
+ * move a barrier wait inside a measured window (FR-019, FR-021).
+ *
+ * \invariant the context count stands at 1 or above, and every index of
+ *            the half-open range from 0 to `contextCount()` names one
+ *            body node of the attempt and the context that runs it, for
+ *            the whole of the runner call (FR-021, FR-024)
+ */
+class SPEEDGUN_NG_EXPORT ThreadRun
+{
+public:
+  /**
+   * @brief The context count of the attempt, the thread count of its
+   * instance (FR-021).
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto contextCount() const noexcept -> int;
+
+  /**
+   * @brief The context that runs body `index` (FR-021).
+   *
+   * The harness owns that context: it created it when the instance
+   * started and joins it when the instance finishes (D-05).
+   *
+   * \pre `index` stands in the half-open range from 0 to
+   *      `contextCount()` (FR-021)
+   * \post none
+   */
+  [[nodiscard]] auto context(int index) const noexcept
+      -> const ExecutionContext&;
+
+  /**
+   * @brief Hand body `index` to the context of that index (FR-021).
+   *
+   * The body node is the harness's: it opens that context's own
+   * thread-target plan, arrives at the start barrier, runs the timed
+   * loop, arrives at the stop barrier and folds that plan (FR-018,
+   * FR-019). The call returns without waiting, the way `dispatch()` of
+   * the context surface does (FR-010).
+   *
+   * \pre `index` stands in the half-open range from 0 to
+   *      `contextCount()` and no earlier call of this attempt dispatched
+   *      that index, so an undispatched or twice-dispatched index ends
+   *      the run with a violation at this point (FR-021, FR-024)
+   * and the two barrier rounds of the attempt hold every body of the run
+   * (FR-019, FR-021). No postcondition of this call can re-read that
+   * hand-off: the loop of the context takes the node as soon as it stands
+   * idle, so an inbox read here is not a stable observation (FR-010).
+   *
+   * \post none
+   */
+  auto dispatch(int index) -> void;
+
+private:
+  friend class detail::Runner;
+
+  // E-08, FR-021: the view reads the harness-owned attempt record it
+  // stands on. The runner builds that record with the attempt, so it
+  // outlives the view for the whole of the runner call.
+  explicit ThreadRun(detail::ThreadRunCore& core) noexcept
+      : m_core(&core)
+  {
+  }
+
+  detail::ThreadRunCore* m_core;
+};
+
+/**
+ * @brief The dispatch function a family supplies for its threaded runs
+ * (FR-021).
+ *
+ * The callable receives the run's `ThreadRun` view and dispatches the
+ * per-thread bodies itself, one dispatch per body index; the harness
+ * keeps the body nodes alive across the call (FR-021, E-08).
+ *
+ * \pre the callable is callable with a `ThreadRun&` and dispatches every
+ *      body index of the run before it returns (FR-021)
+ * \post every body of the attempt stands dispatched once, so the barrier
+ *       rounds complete and the run publishes its merged row (FR-020,
+ *       FR-021)
+ * \invariant the harness owns the `ThreadRun` the callable receives for
+ *            the whole of the call (FR-021)
+ */
+using ThreadRunnerFn = std::function<void(ThreadRun&)>;
+
 /**
  * @brief The registration result: the caller's view of one registry
  * entry (E-02).
@@ -1241,7 +1405,11 @@ struct StatisticSeed
  * A handle copied or moved names the same entry.
  *
  * \invariant a label call leaves the entry carrying exactly the labels
- *            that call set, whatever label list stood before (FR-006)
+ *            that call set, whatever label list stood before (FR-006);
+ *            every thread count of the entry stands at 1 or above, and
+ *            the entry holds at most one thread runner, so the last
+ *            thread call wins the set and the last runner call wins the
+ *            slot (FR-021, FR-024, R-10)
  */
 class SPEEDGUN_NG_EXPORT BenchmarkHandle
 {
@@ -1672,6 +1840,87 @@ public:
    */
   auto teardown(std::function<void(State&)> callback) -> BenchmarkHandle&;
 
+  /**
+   * @brief Run every instance of this family on `count` contexts
+   * (FR-016).
+   *
+   * The call states the thread count set of the family as the single
+   * count, the way `ThreadRange` of the cited revision states one count
+   * (research D-09). Each instance then runs on that many contexts, the
+   * harness creating them once for the instance and reusing them for
+   * every attempt, and the instance name carries a `/threads:N` segment
+   * for a count above 1 (FR-016, D-05).
+   *
+   * \pre the handle names a registered entry, the run has not started
+   *      for this benchmark, and `count` stands at 1 or above: a count a
+   *      call cannot honor, zero included, is a violation at the call
+   *      (E-02, FR-024)
+   * \post the entry carries `{count}` as the thread count set of that
+   *       family, in place of any set an earlier thread call stated, and
+   *       the returned handle is this handle (FR-016)
+   */
+  auto threads(int count) -> BenchmarkHandle&;
+
+  /**
+   * @brief State one thread count per doubling from `minCount` up to
+   * `maxCount` (FR-016).
+   *
+   * The counts are `minCount`, `minCount * 2` and each further doubling
+   * that stays at or below `maxCount`, the growth of `ThreadRange` at
+   * the cited revision; the expansion adds one instance per count (FR-016,
+   * research D-09).
+   *
+   * \pre the handle names a registered entry, the run has not started
+   *      for this benchmark, and both bounds stand at 1 or above with
+   *      `minCount` at or below `maxCount` (E-02, FR-024)
+   * \post the entry carries one thread count per doubling in the bounds,
+   *       in place of any set an earlier thread call stated, and the
+   *       returned handle is this handle (FR-016)
+   */
+  auto threadRange(int minCount, int maxCount) -> BenchmarkHandle&;
+
+  /**
+   * @brief State one thread count per step from `minCount` up to
+   * `maxCount` (FR-016).
+   *
+   * The counts are `minCount`, `minCount + step` and each further step
+   * that stays at or below `maxCount`, the shape of `DenseThreadRange`
+   * at the cited revision; the expansion adds one instance per count
+   * (FR-016, research D-09).
+   *
+   * \pre the handle names a registered entry, the run has not started
+   *      for this benchmark, both bounds stand at 1 or above with
+   *      `minCount` at or below `maxCount`, and `step` stands at 1 or
+   *      above (E-02, FR-024)
+   * \post the entry carries one thread count per step in the bounds, in
+   *       place of any set an earlier thread call stated, and the
+   *       returned handle is this handle (FR-016)
+   */
+  auto denseThreadRange(int minCount,
+                        int maxCount,
+                        int step) -> BenchmarkHandle&;
+
+  /**
+   * @brief Attach the dispatch function of this family's threaded runs
+   * (FR-021).
+   *
+   * The callable receives the run's `ThreadRun` view and dispatches the
+   * per-thread bodies itself, one dispatch per body index before it
+   * returns. The harness builds the body nodes and keeps them alive
+   * across the call, and the two barrier rounds, the per-context plans
+   * and the merged row stay the harness's (FR-021, E-08). One runner
+   * stands per family and the last attachment wins the slot, the way the
+   * setup callback does (R-10).
+   *
+   * \pre the handle names a registered entry, the run has not started
+   *      for this benchmark, and `runner` is callable with a `ThreadRun&`
+   *      (E-02, FR-021)
+   * \post the entry's runner slot carries `runner` in place of any runner
+   *       an earlier call attached, and the returned handle is this
+   *       handle (FR-021)
+   */
+  auto threadRunner(ThreadRunnerFn runner) -> BenchmarkHandle&;
+
 private:
   friend class RegistryEntry;
   friend auto registerBenchmark(std::function<void(State&)> fn,
@@ -1935,9 +2184,10 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
 // and the one slot naming the fixture object of the run in progress:
 // the registered factory stores the object it builds into that slot,
 // and the registered callable reads it, so the method runs on the
-// object the run owns (R-09). The harness runs one thread (FR-019), so
-// one slot per macro site stands; the threads spec of the roadmap
-// moves the slot when that spec lands.
+// object the run owns (R-09). A threaded run writes the slot once
+// before any dispatch, and every context reads it after that edge;
+// the fixture pair of the run stands once, on context 0, outside both
+// barriers (FR-023, D-07).
 
 #define SG_BENCHMARK_FIXTURE_DECLARE(FixtureClass, Method) \
   class SgBenchmarkFixture_##FixtureClass##_##Method : public FixtureClass \

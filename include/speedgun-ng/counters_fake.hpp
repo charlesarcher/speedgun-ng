@@ -53,8 +53,8 @@ struct FakeWindow;
 }
 
 /**
- * @brief One scripted counter: catalog metadata, script, and playback
- * position.
+ * @brief One scripted counter: catalog metadata, script, and the playback
+ * position a window starts from.
  */
 struct FakeCounterData
 {
@@ -66,8 +66,9 @@ struct FakeCounterData
   FakeScript script;
   std::size_t position = 0;
   std::uint64_t last = 0;
-  // The seeded tail's running state, held across sampling actions so
-  // the sequence resumes where the previous one stopped.
+  // The seeded tail's running state a window's playback starts from. Each
+  // window carries one of its own from here on, so the fold of a context
+  // advances only its own playback (FR-018).
   std::uint64_t deltaState = 0;
   // The one-based sampling actions this leaf measures nothing on. The
   // window reads them per leaf, so a leaf that gaps marks only the plans

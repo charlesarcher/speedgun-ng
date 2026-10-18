@@ -509,6 +509,93 @@ auto BenchmarkHandle::teardown(std::function<void(State&)> callback)
   return *this;
 }
 
+auto BenchmarkHandle::threads(const int count) -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "a thread call runs before the run starts (E-02)");
+  SG_REQUIRE(count >= 1,
+             "a thread count below one violates the bound that every thread "
+             "count stands at 1 or above (FR-016, FR-024)");
+  m_entry->threadCounts = {count};
+  SG_ENSURE(m_entry->threadCounts.size() == 1 &&
+                m_entry->threadCounts.front() == count,
+            "the entry carries the single count in place of any set an "
+            "earlier thread call stated (FR-016)");
+  return *this;
+}
+
+auto BenchmarkHandle::threadRange(const int minCount,
+                                  const int maxCount) -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "a thread call runs before the run starts (E-02)");
+  SG_REQUIRE(minCount >= 1 && minCount <= maxCount,
+             "a thread range whose bounds stand below one or whose lower "
+             "bound stands above the upper violates the bounds of FR-024 "
+             "(FR-016, FR-024)");
+  // The doubling of the cited ThreadRange: one count per doubling that
+  // stays at or below the upper bound. The break before the multiply
+  // keeps the count out of int overflow, where no further doubling fits
+  // the bound anyway (FR-016).
+  std::vector<int> counts;
+  for (int count = minCount; count <= maxCount;) {
+    counts.push_back(count);
+    if (count > maxCount / 2) {
+      break;
+    }
+    count *= 2;
+  }
+  m_entry->threadCounts = std::move(counts);
+  SG_ENSURE(!m_entry->threadCounts.empty() &&
+                m_entry->threadCounts.front() == minCount,
+            "the entry carries one thread count per doubling in the bounds, "
+            "in place of any set an earlier thread call stated (FR-016)");
+  return *this;
+}
+
+auto BenchmarkHandle::denseThreadRange(const int minCount,
+                                       const int maxCount,
+                                       const int step) -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "a thread call runs before the run starts (E-02)");
+  SG_REQUIRE(minCount >= 1 && minCount <= maxCount && step >= 1,
+             "a dense thread range whose bounds stand below one, whose "
+             "lower bound stands above the upper, or whose step stands "
+             "below one violates the bounds of FR-024 (FR-016, FR-024)");
+  // The stride of the cited DenseThreadRange: one count per step that
+  // stays at or below the upper bound; the break before the add keeps
+  // the count out of int overflow (FR-016).
+  std::vector<int> counts;
+  for (int count = minCount; count <= maxCount;) {
+    counts.push_back(count);
+    if (count > maxCount - step) {
+      break;
+    }
+    count += step;
+  }
+  m_entry->threadCounts = std::move(counts);
+  SG_ENSURE(!m_entry->threadCounts.empty() &&
+                m_entry->threadCounts.front() == minCount,
+            "the entry carries one thread count per step in the bounds, in "
+            "place of any set an earlier thread call stated (FR-016)");
+  return *this;
+}
+
+auto BenchmarkHandle::threadRunner(ThreadRunnerFn runner) -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "a thread call runs before the run starts (E-02)");
+  SG_REQUIRE(static_cast<bool>(runner),
+             "an empty runner is not callable with a ThreadRun, violating "
+             "the callable rule of the thread runner (FR-021)");
+  m_entry->threadRunner = std::move(runner);
+  SG_ENSURE(static_cast<bool>(m_entry->threadRunner),
+            "the entry's runner slot carries the attached runner in place "
+            "of any runner an earlier call attached (FR-021, R-10)");
+  return *this;
+}
+
 auto registerBenchmark(std::function<void(State&)> fn,
                        std::string_view name) -> BenchmarkHandle
 {

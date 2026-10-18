@@ -3,10 +3,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <deque>
 #include <expected>
+#include <functional>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "detail/calibration.hpp"
@@ -220,10 +224,201 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
                                    record.iterations);
 }
 
+// E-06, FR-020: the folded values of one context of a threaded attempt.
+// Each value is the fold of that context's own plan, taken on that
+// context's own thread (FR-018, PC-1). The merged-row build reads these
+// values and no recorder, so no fold crosses contexts.
+struct ContextFolds
+{
+  // The primary fold of the context: absent for a manual run, whose
+  // primary time carries no fold (FR-006).
+  std::optional<sg::counters::MetricResult> primary;
+  // One fold per column of the run, in the order of MetricColumn; the
+  // slot of an unavailable column carries no fold.
+  std::vector<sg::counters::MetricResult> columns;
+};
+
+// The primary availability of a merged row (FR-018): the worst
+// availability the contexts' own folds disclose. A manual run carries
+// no primary fold and so no primary gap (FR-006).
+auto worstPrimaryAvailability(const std::vector<ContextFolds>& folds,
+                              const sg::counters::detail::ExprCore* primaryCore)
+    -> sg::counters::Availability
+{
+  auto worst = sg::counters::Availability::COUNTABLE;
+  if (primaryCore == nullptr) {
+    return worst;
+  }
+  for (const ContextFolds& fold : folds) {
+    // The manual switch is one family property, so every context of
+    // one attempt carries the same primary shape.
+    SG_ASSERT(fold.primary.has_value(),
+              "a non-manual attempt leaves one primary fold per context, "
+              "and the row reads the worst availability of that set "
+              "(FR-006, FR-018)");
+    if (fold.primary->availability > worst) {
+      worst = fold.primary->availability;
+    }
+  }
+  return worst;
+}
+
+// One metric column of a merged row (FR-020): the values of that column
+// summed over the folds the contexts each did on its own plan, and the
+// worst availability that set discloses; the first fold's ratio and
+// scale stand as the column's. FR-022 over the summed values: the
+// divisor is the summed iteration count, and the disclosure rule is the
+// one the single-threaded row already applies. The slot of an
+// unavailable column carries no fold.
+auto mergedMetricValue(const MetricColumn& column,
+                       const std::vector<ContextFolds>& folds,
+                       const std::size_t position,
+                       const std::uint64_t iterations) -> sg::MetricValue
+{
+  sg::MetricValue value;
+  if (column.unavailable) {
+    value.availability = column.availability;
+    return value;
+  }
+  double sum = 0.0;
+  value.availability = sg::counters::Availability::COUNTABLE;
+  for (const ContextFolds& fold : folds) {
+    const sg::counters::MetricResult& folded = fold.columns[position];
+    sum += folded.value;
+    if (folded.availability > value.availability) {
+      value.availability = folded.availability;
+    }
+  }
+  value.value = sum;
+  value.runningRatio = folds.front().columns[position].runningRatio;
+  value.scaled = folds.front().columns[position].scaled;
+  SG_ASSERT(iterations > 0,
+            "a measured run counts at least one iteration (FR-016)");
+  if (column.perIteration
+      && value.availability == sg::counters::Availability::COUNTABLE)
+  {
+    value.value /= static_cast<double>(iterations);
+  }
+  return value;
+}
+
+// The merged row of one threaded attempt (E-06, FR-020): the real column
+// carries the summed manual time under manual timing and the summed real
+// time otherwise, the CPU column the summed CPU time, the iterations the
+// summed per-context counts, and every counter the sum over the contexts
+// before the flag pass (FR-020). The printed per-iteration time divides
+// the summed time by the summed iterations.
+//
+// FR-020, D-06: the flag pass of a merged row runs at the real N. The
+// shared pass divides a RATE by the primary seconds it is handed, so the
+// merged row hands it the summed decision seconds of the run's timing
+// mode divided by the context count: the thread-seconds the cited
+// `Finish` divides a rate by. Every flag of that pass scales the value
+// it is given and `INVERT` applies last, so the divisor of AVG_THREADS
+// rides in as the same factor on the summed value of the names that
+// carry the flag, which leaves the order of the cited pass. Handed the
+// same two divisors at a count of one, the shared pass is the shipped
+// single-context pass and its bytes (FR-022, PC-2).
+auto appendMergedRow(std::vector<sg::ResultRow>& rows,
+                     const sg::detail::RunRecord& record,
+                     const std::vector<MetricColumn>& columns,
+                     double overheadFloorNs,
+                     const sg::counters::detail::ExprCore* primaryCore,
+                     const std::vector<ContextFolds>& folds,
+                     const std::uint64_t threadCount) -> void
+{
+  sg::ResultRow& row = rows.emplace_back();
+  row.kind = sg::RowKind::REPETITION;
+  row.iterations = record.iterations;
+  row.timePerIterationNs = static_cast<double>(record.realNs)
+      / static_cast<double>(record.iterations);
+  row.cpuTimePerIterationNs = static_cast<double>(record.cpuNs)
+      / static_cast<double>(record.iterations);
+  row.endpointSamples = record.samples;
+  row.pauseSamplesFolded = record.pauseSamplesFolded;
+  // D-04, FR-011: the merged row carries the first label any context
+  // of the attempt ended with; the merge wrote it into the record.
+  row.label = record.label;
+  row.overheadFloorNs = overheadFloorNs;
+  row.timeAvailability = worstPrimaryAvailability(folds, primaryCore);
+  for (std::size_t position = 0; position < columns.size(); ++position) {
+    row.metrics.push_back(mergedMetricValue(
+        columns[position], folds, position, record.iterations));
+  }
+
+  // FR-003, FR-004, FR-005: the same two disclosures the single-context
+  // row names, read on the summed decision seconds of the merged row.
+  const bool primaryCountable =
+      row.timeAvailability == sg::counters::Availability::COUNTABLE;
+  const double primarySeconds = record.decisionNs > 0 && primaryCountable
+      ? static_cast<double>(record.decisionNs) * 1e-9
+          / static_cast<double>(threadCount)
+      : 0.0;
+  if (!primaryCountable) {
+    row.counterDisclosure = "fold-disclosed";
+  } else if (record.decisionNs == 0) {
+    row.counterDisclosure = "zero-divisor";
+  }
+  // FR-020, D-06: AVG_THREADS divides the summed value by the real N.
+  // The shared pass carries no thread count and divides that flag by
+  // one, which is the whole of a single-context row; the merged row
+  // scales the flagged names here, ahead of the pass, so the flag keeps
+  // its place in the cited order.
+  auto store = record.counterStore;
+  for (auto& counter : store) {
+    if ((counter.flags & sg::CounterFlag::AVG_THREADS) != sg::CounterFlag::NONE)
+    {
+      counter.value /= static_cast<double>(threadCount);
+    }
+  }
+  sg::detail::appendCounterColumns(row.counters,
+                                   record.counterNames,
+                                   store,
+                                   primarySeconds,
+                                   record.iterations);
+}
+
 }  // namespace
 
 namespace sg::detail
 {
+
+// E-08, FR-021: the harness-owned record of one threaded attempt behind
+// the public ThreadRun view. The harness builds the body nodes, keeps
+// them alive across the runner call, and reads the ledger when the
+// runner returns: a body left undispatched trips the ledger at that
+// point, and a body dispatched twice trips at the dispatch call
+// (FR-021).
+class ThreadRunCore
+{
+public:
+  int contextCount = 0;
+  // The contexts of the instance, owned by the run and alive for the
+  // whole of the runner call (D-05).
+  std::vector<std::unique_ptr<sg::ExecutionContext>>* contexts = nullptr;
+  // The harness's dispatch of one body index onto its context.
+  std::function<void(int)> dispatchBody;
+  // The dispatch ledger of the attempt, one slot per body index.
+  std::vector<char> dispatched;
+};
+
+// FR-018, E-08: the one erased work item of one body of a threaded
+// attempt. The type stands at namespace scope because a work node whose
+// item type carries internal linkage trips the subobject-linkage rule
+// this build holds (-Wall, -Werror), the same rule that keeps the
+// counter seam's node types out of the test's anonymous namespaces.
+// NOLINTNEXTLINE(misc-use-internal-linkage) the item type the work node
+// instantiation names; internal linkage is what the build refuses
+struct ThreadedBodyItem
+{
+  std::function<void(int)>* body = nullptr;
+  int index = 0;
+
+  auto operator()(sg::WorkContext& /*context*/) noexcept -> void
+  {
+    (*body)(index);
+  }
+};
 
 // E-01, FR-003: the flag pass of the counters of one repetition. The flags
 // apply in the order rate, thread average, iteration-invariant, average over
@@ -284,6 +479,43 @@ auto appendCounterColumns(std::vector<double>& printed,
 
 namespace sg
 {
+
+// E-08, FR-021: the three members of the attempt view read the
+// harness-owned record it stands on. The dispatch member is the ledger
+// gate of FR-021: the bound of the index and the twice-dispatched index
+// trip here, and the runner reads the ledger for an undispatched body
+// when the callable returns.
+auto ThreadRun::contextCount() const noexcept -> int
+{
+  // FR-021, FR-024: the class invariant of the view. The harness fills the
+  // count when it builds the attempt, before the callable ever sees the
+  // view, so the bound stands for the whole of the runner call.
+  SG_INVARIANT(
+      m_core != nullptr && m_core->contextCount >= 1,
+      "a thread view whose context count stands below 1 " "(FR-021, FR-024)");
+  return m_core->contextCount;
+}
+
+auto ThreadRun::context(const int index) const noexcept
+    -> const ExecutionContext&
+{
+  SG_REQUIRE(index >= 0 && index < m_core->contextCount,
+             "a context index outside the bodies of the attempt violates "
+             "the bound 0 <= index < contextCount() (FR-021, FR-024)");
+  return *(*m_core->contexts)[static_cast<std::size_t>(index)];
+}
+
+auto ThreadRun::dispatch(const int index) -> void
+{
+  SG_REQUIRE(index >= 0 && index < m_core->contextCount,
+             "a dispatch outside the bodies of the attempt violates the "
+             "bound 0 <= index < contextCount() (FR-021, FR-024)");
+  SG_REQUIRE(m_core->dispatched[static_cast<std::size_t>(index)] == 0,
+             "a second dispatch of one body index violates the bound that "
+             "every body index of the attempt is dispatched once (FR-021)");
+  m_core->dispatched[static_cast<std::size_t>(index)] = 1;
+  m_core->dispatchBody(index);
+}
 
 // E-01, FR-001: the counter store of one run. The name bound and the
 // sixteen-name cap trip as `SG_REQUIRE` preconditions at the call. The
@@ -545,6 +777,41 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       entry.fixedIterations ? entry.fixedIterations : m_options.fixedIterations;
   const bool dryRun = m_options.dryRun;
 
+  // D-05, FR-006: the threaded instance's contexts, created when a
+  // threaded instance's sampling begins and joined when this run
+  // returns. The holder ends every context with the legal triple: the
+  // stop request, the drain of every accepted node, and the join, and
+  // it runs on every exit of this run, the early returns included
+  // (FR-006). Each context stands null after its join, so the vector's
+  // own destruction stays a no-op over joined slots.
+  std::vector<std::unique_ptr<sg::ExecutionContext>> contexts;
+
+  struct ContextJoiner
+  {
+    std::vector<std::unique_ptr<sg::ExecutionContext>>* owned;
+
+    explicit ContextJoiner(
+        std::vector<std::unique_ptr<sg::ExecutionContext>>* owner)
+        : owned {owner}
+    {
+    }
+
+    ContextJoiner(const ContextJoiner&) = delete;
+    auto operator=(const ContextJoiner&) -> ContextJoiner& = delete;
+
+    ~ContextJoiner()
+    {
+      for (auto& context : *owned) {
+        if (context != nullptr) {
+          context->requestStop();
+          context->drain();
+          context->join();
+          context.reset();
+        }
+      }
+    }
+  } contextJoiner {&contexts};
+
   auto fail = [&](const std::string& reason) -> BenchmarkResult
   {
     result.outcome = RunOutcome::FAILED;
@@ -714,23 +981,514 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // R-06: one flag read after each run ends the benchmark with this
   // reason, and the process exits nonzero.
 
-  auto sampleRun = [&](const std::uint64_t iterations)
-      -> std::expected<RunRecord, std::string>
-  {
-    RunRecord record;
-    record.iterations = iterations;
+  // FR-020: the folds of the last threaded attempt in context-index
+  // order. The merged row build reads these folds and no recorder, so
+  // the row carries each context's own fold of its own plan (FR-018,
+  // PC-1).
+  std::vector<ContextFolds> threadedFolds;
 
-    // E-08, FR-051: two points per closed pause pair the previous
-    // attempt observed per iteration, times this attempt's iteration
-    // count, and no more: FR-025 and Q-10 cap the room, and an attempt
-    // over the cap reserves no room and folds instead.
+  // D-05, FR-004, Q-2: the threaded instance's contexts stand once for
+  // the instance's whole run: they are created here, they serve the
+  // warm-up, the calibration, and every repetition, and the holder
+  // joined beside the run result ends each of them when this run
+  // returns (FR-006). The threaded policy is the harness default: SPIN
+  // waits and no pin.
+  if (instance.threadCount > 1) {
+    const sg::ContextPolicy policy {sg::WaitMode::SPIN,
+                                    sg::PlacementSlot::noPin()};
+    for (int position = 0; position < instance.threadCount; ++position) {
+      contexts.push_back(std::make_unique<sg::ExecutionContext>(policy));
+    }
+    // FR-021, FR-025: the disclosure records each context's own
+    // policy, read from the context itself, and an unpinned slot
+    // carries the standing NO_PIN word the report prints for it. The
+    // vector stays empty for a single-context run (FR-022).
+    for (const auto& context : contexts) {
+      const auto contextPolicy = context->policy();
+      result.contexts.push_back(sg::ContextDisclosure {
+          contextPolicy.waitMode,
+          contextPolicy.placement.cpuIndex
+                  == sg::PlacementSlot::noPin().cpuIndex
+              ? std::string("NO_PIN")
+              : std::to_string(contextPolicy.placement.cpuIndex)});
+    }
+  }
+
+  // What one context of a threaded attempt leaves in its slot. The slot
+  // stands in memory no other thread touches, and the attempt thread
+  // acquires it through the DONE state of the context's node, the write
+  // that happens-before that read (FR-049).
+  struct ThreadedOutcome
+  {
+    std::string error;
+    RunRecord record;
+    ContextFolds folds;
+    std::uint64_t pauseCount = 0;
+    std::optional<std::int64_t> statedSize;
+  };
+
+  // E-08, FR-051: two points per closed pause pair the previous
+  // attempt observed per iteration, times this attempt's iteration
+  // count, and no more: FR-025 and Q-10 cap the room, and an attempt
+  // over the cap reserves no room and folds instead.
+  auto pauseRoomFor =
+      [&](const std::uint64_t iterations) noexcept -> std::size_t
+  {
     const std::uint64_t history = entry.pausePairsPerIteration;
-    std::size_t pauseRoom = 0;
     if (history > 0 && 2 * history <= kMaxPauseSamplesPerLeaf
         && iterations <= kMaxPauseSamplesPerLeaf / (2 * history))
     {
-      pauseRoom = static_cast<std::size_t>(2 * history * iterations);
+      return static_cast<std::size_t>(2 * history * iterations);
     }
+    return 0;
+  };
+
+  // The record tail of one sampled run, shared by the single-context
+  // sampler and by every context of a threaded attempt: the FR-008
+  // failure, the loop-shape rules of FR-017, the span and the folds of
+  // the run's own recorder, the decision rule of FR-002 and D-05, the
+  // counter store of FR-001, and the label and skip of the run. Each
+  // attempt hands in its own state, its own recorder, and its own
+  // record, so no fold ever reads another context's plan (FR-018,
+  // PC-1).
+  auto buildRecord =
+      [&](State& state,
+          const sg::counters::RecorderHandle<sg::counters::HardStop>& recorder,
+          RunRecord& record) -> std::expected<void, std::string>
+  {
+    // FR-008: a second setCounter for a used name with another flags
+    // value or another base fails the run naming that name. The reason
+    // is a runtime text the state holds, so the run ends here, ahead of
+    // the loop-shape rules that read the state (E-01).
+    if (state.outcome() == RunOutcome::FAILED) {
+      return std::unexpected(state.reason());
+    }
+
+    // FR-017: a measured run owns one complete timed loop. A function
+    // that never entered it, entered it twice, or left it early without
+    // a skip has no single measured window to report.
+    if (state.outcome() != RunOutcome::SKIPPED) {
+      if (state.loopsStarted() == 0) {
+        return std::unexpected(
+            "the benchmark never entered the timed loop (FR-017)");
+      }
+      if (state.loopsStarted() > 1) {
+        return std::unexpected(
+            "the benchmark entered the timed loop twice (FR-017)");
+      }
+      if (!state.loopCompleted()) {
+        return std::unexpected(
+            "the benchmark left the timed loop without a skip (FR-017)");
+      }
+    }
+
+    // E-07, FR-013: the span is the run's own sample count, read from
+    // the state after the run, and the pause intervals are the state's
+    // ordinals inside that span. FR-052: the fold span is the state's
+    // recorder points, the slot's two standing outside it, and the
+    // pairs that folded stand in the sink's totals. The fold's pause
+    // pair is subtracted from the span, so the printed time excludes
+    // the windows the body handed over, and the fold runs once after
+    // the run's final top-up, outside the timed region (FR-014,
+    // FR-015).
+    record.samples = state.m_samplesTaken;
+    record.foldPoints = state.m_foldPoints;
+    record.pauseSamplesFolded = state.m_foldedPairs > 0;
+    record.pausePairs = state.m_pausePairs;
+    record.realNs = static_cast<std::int64_t>(
+        std::llround(nettedFold(realTime.core, recorder, record, 0).value));
+    record.cpuNs = static_cast<std::int64_t>(
+        std::llround(nettedFold(cpuTime.core, recorder, record, 1).value));
+
+    // FR-002, D-05: the primary time is the CPU fold by default and the
+    // real fold when the family asked for it. A manual run reports the
+    // sum the benchmark supplied: the real column and the value the
+    // growth rule reads are that sum, read from the state after the run,
+    // and the manual flag stands so the fivefold stop leaves the run
+    // alone (FR-006, FR-007).
+    if (entry.manualTime) {
+      record.realNs = state.m_manualNs;
+      record.decisionNs = state.m_manualNs;
+      record.manual = true;
+    } else {
+      record.decisionNs = entry.realTime ? record.realNs : record.cpuNs;
+    }
+    // E-01, FR-001: the counter store leaves the run with the record.
+    // The names copy out of the fixed slots, so the flag pass and the
+    // row build read them after the loop (FR-003).
+    for (const auto& slot : state.m_counters) {
+      if (slot.used) {
+        record.counterNames.emplace_back(slot.name.data(), slot.nameSize);
+        record.counterStore.push_back(slot.counter);
+      }
+    }
+    // D-04, FR-011: the label leaves the run with the record, one copy
+    // for the repetition the record describes.
+    record.label = state.m_label;
+    if (state.outcome() == RunOutcome::SKIPPED) {
+      record.skipped = true;
+      record.reason = state.reason();
+    }
+    return {};
+  };
+
+  // FR-023, D-07: one half of the context 0 fixture pair of a
+  // threaded attempt, named so each body keeps its own complexity.
+  auto fixtureHalf = [&](bool setupHalf,
+                         State& callbackState,
+                         std::unique_ptr<Fixture>& fixture,
+                         std::string& error)
+  {
+    try {
+      if (setupHalf) {
+        if (entry.setup) {
+          entry.setup(callbackState);
+        }
+        if (entry.fixtureFactory) {
+          fixture = entry.fixtureFactory();
+          fixture->setUp(callbackState);
+        }
+      } else {
+        if (fixture) {
+          fixture->tearDown(callbackState);
+        }
+        if (entry.teardown) {
+          entry.teardown(callbackState);
+        }
+      }
+    } catch (const std::exception& thrown) {
+      error = thrown.what();
+    } catch (...) {
+      error = "the benchmark threw an unknown exception";
+    }
+  };
+
+  // FR-018: one context folds its own plan on its own thread into the
+  // folds it owns; the slot of an unavailable column carries no fold.
+  auto foldThreadedContext =
+      [&](auto& recorderHere, RunRecord& record, ContextFolds& folds)
+  {
+    const sg::counters::detail::ExprCore* primaryCore = entry.manualTime
+        ? nullptr
+        : (entry.realTime ? &realTime.core : &cpuTime.core);
+    if (primaryCore != nullptr) {
+      folds.primary =
+          nettedFold(*primaryCore,
+                     recorderHere,
+                     record,
+                     static_cast<std::size_t>(entry.realTime ? 0 : 1));
+    }
+    for (const auto& column : columns) {
+      if (column.unavailable) {
+        folds.columns.push_back(sg::counters::MetricResult {});
+        continue;
+      }
+      folds.columns.push_back(
+          nettedFold(column.core, recorderHere, record, column.foldColumn));
+    }
+  };
+
+  // E-06, FR-020: the attempt is one record: the times, the
+  // iterations, and the samples are summed, the counter store is
+  // summed ahead of the flag pass, and the label is the one context 0
+  // ended with (D-04, FR-011).
+  auto mergeThreadedRecords = [&](const std::vector<ThreadedOutcome>& outcomes,
+                                  const std::size_t count) -> RunRecord
+  {
+    RunRecord merged;
+    for (std::size_t position = 0; position < count; ++position) {
+      const RunRecord& record = outcomes[position].record;
+      merged.iterations += record.iterations;
+      merged.realNs += record.realNs;
+      merged.cpuNs += record.cpuNs;
+      merged.decisionNs += record.decisionNs;
+      merged.samples += record.samples;
+      merged.manual = merged.manual || record.manual;
+      merged.pauseSamplesFolded =
+          merged.pauseSamplesFolded || record.pauseSamplesFolded;
+      if (record.skipped && !merged.skipped) {
+        merged.skipped = true;
+        merged.reason = record.reason;
+      }
+      // FR-020: every name is summed ahead of the flag pass, and the
+      // flags and the base of a name are the first opener's (FR-001).
+      for (std::size_t at = 0; at < record.counterNames.size(); ++at) {
+        const std::string& counterName = record.counterNames[at];
+        const auto found = std::ranges::find(merged.counterNames, counterName);
+        if (found == merged.counterNames.end()) {
+          merged.counterNames.push_back(counterName);
+          merged.counterStore.push_back(record.counterStore[at]);
+        } else {
+          merged
+              .counterStore[static_cast<std::size_t>(
+                  found - merged.counterNames.begin())]
+              .value += record.counterStore[at].value;
+        }
+      }
+    }
+    merged.label = outcomes.front().record.label;
+    return merged;
+  };
+
+  // FR-012, FR-017, FR-049: one heap node per body index, the
+  // default dispatch to the context of that index, and the wait that
+  // ends when every body has settled.
+  auto launchBodies =
+      [&](std::function<void(int)>& body, const std::size_t count)
+  {
+    // One node per body index, the item erased through
+    // ThreadedBodyItem. Every node stands on the heap before the first
+    // dispatch, so no node moves while a context holds its address
+    // (FR-012).
+    std::vector<std::unique_ptr<sg::WorkNode<ThreadedBodyItem>>> nodes;
+    nodes.reserve(count);
+    for (std::size_t position = 0; position < count; ++position) {
+      nodes.push_back(std::make_unique<sg::WorkNode<ThreadedBodyItem>>(
+          ThreadedBodyItem {&body, static_cast<int>(position)}));
+    }
+
+    if (entry.threadRunner) {
+      // FR-021, E-08: the family's own callable performs the
+      // dispatches. The harness still owns the contexts, the body
+      // nodes, the two barrier rounds and the merge: the view hands out
+      // the context of an index and the dispatch of that index's body
+      // node, and the ledger under it records what the call dispatched.
+      // The call runs here, on the thread running the attempt, which
+      // dispatches the bodies and runs no body of its own (FR-046,
+      // D-05). The nodes and the contexts stand in this scope until
+      // every body has settled below, so they outlive the call (FR-012,
+      // FR-021, D-05).
+      ThreadRunCore core;
+      core.contextCount = static_cast<int>(count);
+      core.contexts = &contexts;
+      core.dispatched.assign(count, 0);
+      core.dispatchBody = [&](const int index) noexcept -> void
+      {
+        sg::dispatch(*contexts[static_cast<std::size_t>(index)],
+                     *nodes[static_cast<std::size_t>(index)]);
+      };
+      ThreadRun view(core);
+      entry.threadRunner(view);
+      // FR-021: a body index the call left undispatched trips the
+      // ledger here, at the point the callable returned; a twice
+      // dispatched index tripped at the dispatch call itself.
+      for (std::size_t position = 0; position < count; ++position) {
+        SG_REQUIRE(core.dispatched[position] != 0,
+                   "the runner callable returned with a body index of the "
+                   "attempt undispatched, which violates the bound that "
+                   "every body index stands dispatched once before the "
+                   "runner returns (FR-021)");
+      }
+    } else {
+      // The default dispatch (FR-017): the harness hands every body
+      // index to the context of that index, on the thread running the
+      // attempt, which runs no body of its own (FR-046, D-05).
+      for (std::size_t position = 0; position < count; ++position) {
+        sg::dispatch(*contexts[position], *nodes[position]);
+      }
+    }
+    // The attempt ends when every body has settled. Each context
+    // writes its node's state with release order after its item, so
+    // the reads below acquire every slot of outcomes (FR-049). A round
+    // never times out, so this wait carries no bound and needs none
+    // (FR-014).
+    for (const auto& node : nodes) {
+      while (node->state() != sg::WorkNodeState::DONE) {
+        std::this_thread::yield();
+      }
+    }
+  };
+
+  // The attempt answers with the first body's error, if any context
+  // closed its slot with one.
+  auto firstThreadedError = [&](const std::vector<ThreadedOutcome>& outcomes)
+      -> std::optional<std::string>
+  {
+    for (const ThreadedOutcome& outcome : outcomes) {
+      if (!outcome.error.empty()) {
+        return outcome.error;
+      }
+    }
+    return std::nullopt;
+  };
+
+  // E-08, FR-051: the history rises to the context that closed the
+  // most pause pairs, the same rule the single-context sampler
+  // applies.
+  auto risePauseHistory = [&](const std::vector<ThreadedOutcome>& outcomes,
+                              const std::uint64_t iterations)
+  {
+    std::uint64_t mostPaused = 0;
+    for (const ThreadedOutcome& outcome : outcomes) {
+      mostPaused = std::max(mostPaused, outcome.pauseCount);
+    }
+    if (mostPaused > 0) {
+      const std::uint64_t perIteration =
+          (mostPaused + iterations - 1) / iterations;
+      if (perIteration > entry.pausePairsPerIteration) {
+        entry.pausePairsPerIteration = perIteration;
+      }
+    }
+  };
+
+  // The threaded attempt (E-05, D-05, FR-018, FR-020, FR-023, D-07):
+  // one body per body index, each dispatched to the context that owns
+  // that index, so every timed loop runs on its own context's thread
+  // over its own plan; the two barrier rounds stand outside every
+  // measured window; the fixture pair runs once, on context 0, outside
+  // both rounds; and the attempt answers with one merged record and the
+  // per-context folds the merged row reads.
+  auto threadedSampleRun = [&](const std::uint64_t iterations)
+      -> std::expected<RunRecord, std::string>
+  {
+    const std::size_t count = static_cast<std::size_t>(instance.threadCount);
+    const std::size_t pauseRoom = pauseRoomFor(iterations);
+    // FR-051: the seam records what this attempt reserved, written
+    // once on the thread that runs the attempt.
+    lastRecorderReservation() = RecorderReservation {2, pauseRoom};
+    if (pauseRoom > maxRecorderPauseRoom()) {
+      maxRecorderPauseRoom() = pauseRoom;
+    }
+
+    // FR-019: the two rounds of the attempt, one before any context
+    // opens its window and one after every context has closed its
+    // window. Nothing dispatches, arrives, or waits inside a measured
+    // window (FR-015, Q-3).
+    sg::ContextBarrier startBarrier(instance.threadCount);
+    sg::ContextBarrier stopBarrier(instance.threadCount);
+    std::vector<ThreadedOutcome> outcomes(count);
+
+    // FR-018, PC-1: the body of one body index, running on that
+    // context's own thread. Plan, recorder, state, and window are the
+    // thread's own objects, and this context's fold lands in its own
+    // slot, so no fold reads another context's plan.
+    std::function<void(int)> body = [&](const int index)
+    {
+      ThreadedOutcome& outcome = outcomes[static_cast<std::size_t>(index)];
+
+      // Plans are per-thread objects (FR-018): this context compiles
+      // the instance's spine on its own thread. The instance compiled
+      // the same spine above, so this compile stands; the assert is
+      // the contract's answer, because a refused plan with the
+      // assertions disabled would leave this body's barrier round
+      // stranded, and a stranded round is a hung run.
+      auto contextPlan = sg::counters::detail::compileCore(
+          sys, sg::counters::Target {}, cores);
+      SG_ASSERT(contextPlan.has_value(),
+                "the instance compiled this spine once, and a plan is a "
+                "per-thread object over the same spine, so every context "
+                "compiles the same cores on its own thread (FR-018)");
+
+      auto slotResetHere = contextPlan->recorder(2);
+      auto recorderHere =
+          contextPlan->recorder(static_cast<std::size_t>(2) + pauseRoom);
+
+      RunRecord record;
+      record.iterations = iterations;
+      State state(iterations, &recorderHere, instance.arguments);
+      // FR-017: the body reads which context of the attempt runs it
+      // and how many the attempt carries.
+      state.m_threadIndex = index;
+      state.m_threads = instance.threadCount;
+      state.m_slotReset = slotResetHere;
+      state.m_pauseFold = &record.pauseFold;
+      state.m_pausePairs.reserve(pauseRoom / 2);
+      for (const auto* core : cores) {
+        record.pauseFold.addColumn(*core);
+      }
+
+      // R-05: the callback state is context 0's own, and the pair it
+      // serves carries the arguments this instance owns.
+      State callbackState(iterations, nullptr, instance.arguments, true);
+      std::unique_ptr<Fixture> fixture;
+      if (index == 0) {
+        // FR-023, D-07: the pair wraps the attempt once, on context 0,
+        // and the setup half runs before the start barrier, so it
+        // stands outside every window of the attempt.
+        fixtureHalf(true, callbackState, fixture, outcome.error);
+      }
+
+      startBarrier.arriveAndWait();
+
+      if (outcome.error.empty()) {
+        try {
+          entry.callable(state);
+        } catch (const std::exception& error) {
+          state.topUpWindow();
+          outcome.error = error.what();
+        } catch (...) {
+          state.topUpWindow();
+          outcome.error = "the benchmark threw an unknown exception";
+        }
+        state.topUpWindow();
+      }
+
+      stopBarrier.arriveAndWait();
+
+      if (index == 0 && outcome.error.empty()) {
+        // FR-023, D-07: the teardown half runs on context 0 after the
+        // stop barrier, outside every window of the attempt, and a
+        // callable that threw leaves the pair, the way the
+        // single-context sampler leaves it.
+        fixtureHalf(false, callbackState, fixture, outcome.error);
+      }
+      if (!outcome.error.empty()) {
+        return;
+      }
+
+      const auto built = buildRecord(state, recorderHere, record);
+      if (!built.has_value()) {
+        outcome.error = built.error();
+        return;
+      }
+      outcome.pauseCount = state.m_pauseCount;
+      outcome.statedSize = state.m_complexityN;
+
+      // FR-018: this context folds its own plan on its own thread, and
+      // the fold lands in this index's slot; the slot of an
+      // unavailable column carries no fold.
+      foldThreadedContext(recorderHere, record, outcome.folds);
+      outcome.record = std::move(record);
+    };
+
+    launchBodies(body, count);
+
+    if (const auto failure = firstThreadedError(outcomes)) {
+      return std::unexpected(*failure);
+    }
+
+    // E-06, FR-020: the merged record; the label is context 0's.
+    RunRecord merged = mergeThreadedRecords(outcomes, count);
+    complexityN = outcomes.front().statedSize;
+
+    risePauseHistory(outcomes, iterations);
+
+    threadedFolds.clear();
+    threadedFolds.reserve(count);
+    for (ThreadedOutcome& outcome : outcomes) {
+      threadedFolds.push_back(std::move(outcome.folds));
+    }
+    return merged;
+  };
+
+  auto sampleRun = [&](const std::uint64_t iterations)
+      -> std::expected<RunRecord, std::string>
+  {
+    if (instance.threadCount > 1) {
+      // FR-016, FR-020: the threaded instance takes the threaded
+      // attempt path. An instance of one context, which is every
+      // family that calls no thread method, never reaches this branch
+      // and keeps today's single-context bytes (FR-022).
+      return threadedSampleRun(iterations);
+    }
+
+    RunRecord record;
+    record.iterations = iterations;
+
+    // E-08, FR-051: the room rule of the shared pause history stands
+    // in pauseRoomFor; the seam keeps the FR-051 record of what this
+    // attempt reserved.
+    const std::size_t pauseRoom = pauseRoomFor(iterations);
     lastRecorderReservation() = RecorderReservation {2, pauseRoom};
     if (pauseRoom > maxRecorderPauseRoom()) {
       maxRecorderPauseRoom() = pauseRoom;
@@ -797,45 +1555,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
     state.topUpWindow();
 
-    // FR-008: a second setCounter for a used name with another flags
-    // value or another base fails the run naming that name. The reason
-    // is a runtime text the state holds, so the run ends here, ahead of
-    // the loop-shape rules that read the state (E-01).
-    if (state.outcome() == RunOutcome::FAILED) {
-      return std::unexpected(state.reason());
+    if (const auto built = buildRecord(state, *attemptRecorder, record);
+        !built.has_value())
+    {
+      return std::unexpected(built.error());
     }
-
-    // FR-017: a measured run owns one complete timed loop. A function
-    // that never entered it, entered it twice, or left it early without
-    // a skip has no single measured window to report.
-    if (state.outcome() != RunOutcome::SKIPPED) {
-      if (state.loopsStarted() == 0) {
-        return std::unexpected(
-            "the benchmark never entered the timed loop (FR-017)");
-      }
-      if (state.loopsStarted() > 1) {
-        return std::unexpected(
-            "the benchmark entered the timed loop twice (FR-017)");
-      }
-      if (!state.loopCompleted()) {
-        return std::unexpected(
-            "the benchmark left the timed loop without a skip (FR-017)");
-      }
-    }
-
-    // E-07, FR-013: the span is the run's own sample count, read from
-    // the state after the run, and the pause intervals are the state's
-    // ordinals inside that span. FR-052: the fold span is the state's
-    // recorder points, the slot's two standing outside it, and the
-    // pairs that folded stand in the sink's totals.
-    record.samples = state.m_samplesTaken;
-    record.foldPoints = state.m_foldPoints;
-    record.pauseSamplesFolded = state.m_foldedPairs > 0;
-    record.pausePairs = state.m_pausePairs;
-    record.realNs = static_cast<std::int64_t>(std::llround(
-        nettedFold(realTime.core, *attemptRecorder, record, 0).value));
-    record.cpuNs = static_cast<std::int64_t>(std::llround(
-        nettedFold(cpuTime.core, *attemptRecorder, record, 1).value));
 
     // E-08, FR-051: the pairs this attempt closed stand as the
     // family's history, and the next attempt reserves from it. A body
@@ -848,36 +1572,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         entry.pausePairsPerIteration = perIteration;
       }
     }
-    // FR-002, D-05: the primary time is the CPU fold by default and the
-    // real fold when the family asked for it. A manual run reports the
-    // sum the benchmark supplied: the real column and the value the
-    // growth rule reads are that sum, read from the state after the run,
-    // and the manual flag stands so the fivefold stop leaves the run
-    // alone (FR-006, FR-007).
-    if (entry.manualTime) {
-      record.realNs = state.m_manualNs;
-      record.decisionNs = state.m_manualNs;
-      record.manual = true;
-    } else {
-      record.decisionNs = entry.realTime ? record.realNs : record.cpuNs;
-    }
-    // E-01, FR-001: the counter store leaves the run with the record. The
-    // names copy out of the fixed slots, so the flag pass and the row build
-    // read them after the loop (FR-003).
-    for (const auto& slot : state.m_counters) {
-      if (slot.used) {
-        record.counterNames.emplace_back(slot.name.data(), slot.nameSize);
-        record.counterStore.push_back(slot.counter);
-      }
-    }
-    // D-04, FR-011: the label leaves the run with the record, one copy for
-    // the repetition the record describes.
-    record.label = state.m_label;
     complexityN = state.m_complexityN;
-    if (state.outcome() == RunOutcome::SKIPPED) {
-      record.skipped = true;
-      record.reason = state.reason();
-    }
     return record;
   };
 
@@ -966,13 +1661,27 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     const sg::counters::detail::ExprCore* primaryCore = entry.manualTime
         ? nullptr
         : (entry.realTime ? &realTime.core : &cpuTime.core);
-    appendMeasuredRow(result.rows,
+    if (instance.threadCount > 1) {
+      // FR-020: exactly one merged row per repetition, carrying the
+      // summed values and the per-iteration division by the summed
+      // iteration count, built from the folds each context did on its
+      // own plan (FR-018).
+      appendMergedRow(result.rows,
                       *chosen,
                       columns,
                       overheadFloorNs,
                       primaryCore,
-                      *attemptRecorder,
-                      entry.realTime ? 0 : 1);
+                      threadedFolds,
+                      static_cast<std::uint64_t>(instance.threadCount));
+    } else {
+      appendMeasuredRow(result.rows,
+                        *chosen,
+                        columns,
+                        overheadFloorNs,
+                        primaryCore,
+                        *attemptRecorder,
+                        entry.realTime ? 0 : 1);
+    }
 
     // FR-006: the labels of the run's counters are its names in the order
     // they opened, read from the rows as they are built.

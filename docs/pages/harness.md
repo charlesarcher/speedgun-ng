@@ -592,7 +592,13 @@ bmRows                          RMS  time/iter     4.932%
 bmRows                        BIG_O  bytes_per_second N (  578.507)
 bmRows                          RMS  bytes_per_second     2.167%
 bmFill/8                 iterations=  31127816  real time/iter (ns)=    0.445  cpu time/iter (ns)=    0.445  overhead floor (ns)=  683.000  endpoint samples=2  bytes_per_second= 4622.274  label=filled
+bmFill/8/threads:2       iterations=  62255632  real time/iter (ns)=    0.447  cpu time/iter (ns)=    0.894  overhead floor (ns)=  683.000  endpoint samples=4  bytes_per_second= 4618.207  label=filled
+  contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN
 ```
+
+A threaded row ends the run above. Its name carries the `/threads:2` segment,
+and the line under it names the wait mode and the placement of each context the
+row merged.
 
 ## The command line of an example
 
@@ -755,3 +761,80 @@ mean of the values, as a percentage. `AUTOMATIC` fits every curve and
 keeps the one with the least error, with the constant curve standing
 when none earns less. A family with too few points to fit states the
 reason and prints no coefficient.
+
+## Execution context lifecycle
+
+An `ExecutionContext` is one thread the library runs, the inbox that thread
+reads, and the policy it was created under. A constructor starts that thread:
+the default one under `BLOCK` with no pin, the other under the policy you pass.
+`policy()` reports that policy for the life of the context.
+
+Three calls close a context, and they close it in this order. `requestStop()`
+stands the one stop request that every `StopToken` of the context reads, and it
+returns without waiting. `drain()` waits until the inbox stands empty and the
+loop stands idle. `join()` ends the loop and joins the thread, and no work item
+of the context runs after that call returns. The destructor asks for a context
+that `join()` has returned for.
+
+The enqueue of a `dispatch()` and the stop request race, and the enqueue
+settles it. A dispatch that finds the inbox open appends its node, and the loop
+runs that node during `drain()`. A dispatch that finds the stop request standing
+refuses its node and completes it `STOPPED` in that call itself. The loop never
+takes such a node, so its item never runs. The three calls in order
+run each accepted node once.
+
+`drain()` with no stop request standing is a flush. It waits the same way, the
+accepted nodes have run when it returns, and the loop keeps running, so a later
+`dispatch()` runs its node. Work that runs until the stop request stands reads
+`stopRequested()` on the token of its `WorkContext` and returns once that token
+reads true.
+
+Two calls share one precondition: the calling thread is not the thread of that
+context's loop. `drain()` from that thread would wait on the work that thread
+must finish, and `join()` from it would wait on itself.
+
+The caller owns its node. `WorkNode` lives in caller storage, and the caller
+keeps it alive until `state()` reads `DONE` or `STOPPED`. A refused node reaches
+`STOPPED` in the dispatch that refused it, and the loop completes a node it
+accepted, so one of the two settles the state.
+
+Work runs on the thread of the context it was dispatched to. The dispatches of
+one thread run in the order that thread made them, and the inbox decides
+between two threads. Work dispatched from inside a running item runs after that
+item returns, on the same context.
+
+Three calls close a context, the destructor asks for the joined state, and each
+accepted node runs once. A node a stopped context refused reads `STOPPED`
+without running. A context you start yourself outlives the benchmark run,
+because `speedgunMain` returns while its work runs, and these three calls
+end it.
+
+## What a threaded row merges
+
+An instance run on N contexts runs its body on each context and publishes one
+merged row for the N runs. The table states the rule behind each summed field
+of that row.
+
+| Row field | The rule for a merged row |
+| --- | --- |
+| Instance name | The family name, the argument suffixes, then `/threads:N` |
+| `iterations=` | The summed per-context counts |
+| `real time/iter (ns)=` | The summed real time, or the summed manual time under manual timing |
+| `cpu time/iter (ns)=` | The summed cpu time |
+| A counter column | The counter values of the contexts, summed |
+| A counter read with `AVG_THREADS` | That sum divided by the context count |
+| A counter read with `RATE` | That sum divided by the summed decision seconds, divided again by the context count |
+
+The flag pass reads the real context count, so the two dividing flags scale by
+the number of contexts that ran. The decision seconds the `RATE` divisor reads
+are the cpu sum by default, the manual sum under manual timing, and the real sum
+under real-time timing. A merged row prints its times per iteration, the way a
+single-context row prints its own.
+
+`BenchmarkResult::contexts` carries one `ContextDisclosure` per context, and the
+report prints those disclosures under the merged row. The first line states
+`contexts=N`, and one field per context states its wait mode and its placement.
+
+A merged row sums the times, the iterations and the counters of its contexts.
+The flag pass then reads the real context count, and the disclosure line under
+the row names the policy of each context that contributed.

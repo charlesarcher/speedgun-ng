@@ -17,7 +17,13 @@ kept (019 report-shape contract, FR-006, SC-02). The trailing label field rides
 it too: the field is text the run owns, so a block that carries a label matches
 a run that prints it and fails a run that prints another or none, while the
 built-in fields of an unlabelled row keep their bytes (019 FR-011, SC-02).
-Exit 0 clean, 1 with any finding, 2 on a usage error.
+The disclosure line and the noise warning of a threaded result ride the same
+fold (020 FR-025, FR-026, SC-11): the context count, the context index, a cpu
+index and the two counts inside the warning are values the run owns, so they
+fold equal, while the mode words, the `contexts=` field and the fixed warning
+wording are letters, so a change folds different. A block that leaves either
+line out cannot describe a threaded run, and a single-context block keeps its
+exact bytes. Exit 0 clean, 1 with any finding, 2 on a usage error.
 """
 
 from __future__ import annotations
@@ -58,6 +64,12 @@ def mask(line: str) -> str:
 
 
 def classify(shape: str) -> str:
+    if shape.startswith("contexts="):
+        # The one line a threaded result prints after its rows, and the line
+        # the noise warning follows (020 FR-025, FR-026).
+        return "disclosure line"
+    if shape.startswith("warning:"):
+        return "noise warning line"
     if "AGGREGATE" in shape:
         return "aggregate line"
     if "iterations=" in shape:

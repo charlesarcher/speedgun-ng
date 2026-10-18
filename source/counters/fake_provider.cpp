@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -31,6 +32,22 @@ namespace
   return (state * 37U + 11U) & 0xFFFFU;
 }
 
+// The playback state a window hands on when it samples: position, last value
+// and seeded-tail state of each leaf, read by the next window that opens over
+// that leaf so a family's later instances resume the script where its earlier
+// ones stopped (FR-030). A window folds from a copy of this state and never
+// from the shared one, so the fold of a threaded context reads that context's
+// plan alone (FR-018). Only the hand-off and the seeding take this lock, and
+// they move the three fields together because a half-updated seed would hand
+// the next window a position and a value from different points of the script.
+// File scope by necessity: FakeProvider is exported with no pimpl, so a
+// member would change the layout of a published type.
+[[nodiscard]] auto scriptLock() noexcept -> std::mutex&
+{
+  static std::mutex lock;
+  return lock;
+}
+
 }  // namespace
 
 struct detail::FakeWindow final : WindowReader
@@ -49,7 +66,27 @@ struct detail::FakeWindow final : WindowReader
   }
 
   FakeProvider* owner = nullptr;
-  std::vector<FakeCounterData*> counters;
+
+  // One scripted playback cursor per sampled leaf of this window. FR-018 of
+  // specs/020 requires every fold of a context's row to read that context's
+  // plan alone, so playback cannot be shared between the windows of a
+  // threaded run: a shared cursor let one context's fold depend on how many
+  // times the other contexts had sampled. A window starts at the position its
+  // leaf carries, which is the playback every single-window run already saw.
+  struct Playback
+  {
+    std::size_t position = 0;
+    std::uint64_t last = 0;
+    std::uint64_t deltaState = 0;
+  };
+
+  struct Sampled
+  {
+    FakeCounterData* data = nullptr;
+    Playback playback;
+  };
+
+  std::vector<Sampled> leaves;
   std::size_t disclosureColumn = LeafSet::kNoDisclosureColumn;
   // This window's own sampling-action count, so a leaf's scripted gaps
   // are counted from the first action of the plan that samples it and not
@@ -61,7 +98,9 @@ struct detail::FakeWindow final : WindowReader
     owner->m_readActions.fetch_add(1, std::memory_order_relaxed);
     ++actions;
     bool gapped = false;
-    for (auto* item : counters) {
+    for (auto& leaf : leaves) {
+      auto* item = leaf.data;
+      auto& played = leaf.playback;
       if (item->gapsAt(actions)) {
         // The scripted action measured nothing, so the column carries a
         // zero and the disclosure beside it names the gap. The script does
@@ -72,16 +111,16 @@ struct detail::FakeWindow final : WindowReader
         continue;
       }
       std::uint64_t value = 0;
-      if (item->position < item->script.points.size()) {
-        value = item->script.points[item->position];
-        ++item->position;
+      if (played.position < item->script.points.size()) {
+        value = item->script.points[played.position];
+        ++played.position;
       } else if (item->script.deltaSeed.has_value()) {
-        item->deltaState = nextDelta(item->deltaState);
-        value = item->last + item->deltaState;
+        played.deltaState = nextDelta(played.deltaState);
+        value = played.last + played.deltaState;
       } else {
-        value = item->last + item->script.tailDelta;
+        value = played.last + item->script.tailDelta;
       }
-      item->last = value;
+      played.last = value;
       sink.put(value);
     }
     if (disclosureColumn != LeafSet::kNoDisclosureColumn) {
@@ -89,6 +128,16 @@ struct detail::FakeWindow final : WindowReader
           disclosureColumn,
           static_cast<std::uint64_t>(gapped ? Availability::GAP
                                             : Availability::COUNTABLE));
+    }
+    // Hand this window's playback on for whichever window opens next
+    // (FR-030). Because the fold above read this window's own cursor, the
+    // windows of a threaded run fold independently and the order in which
+    // their hand-offs land changes nothing a row reports (FR-018).
+    const std::scoped_lock guard {scriptLock()};
+    for (auto& leaf : leaves) {
+      leaf.data->position = leaf.playback.position;
+      leaf.data->last = leaf.playback.last;
+      leaf.data->deltaState = leaf.playback.deltaState;
     }
   }
 };
@@ -230,7 +279,16 @@ std::unique_ptr<WindowReader> FakeProvider::open(const LeafSet& leaves,
     if (item == object->second.counters.end()) {
       return nullptr;
     }
-    window->counters.push_back(&item->second);
+    const std::scoped_lock seedGuard {scriptLock()};
+    window->leaves.push_back(detail::FakeWindow::Sampled {
+        .data = &item->second,
+        .playback =
+            detail::FakeWindow::Playback {
+                .position = item->second.position,
+                .last = item->second.last,
+                .deltaState = item->second.deltaState,
+            },
+    });
   }
   return window;
 }

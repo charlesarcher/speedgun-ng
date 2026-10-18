@@ -23,9 +23,9 @@ PREMARK = re.compile(r"^\s*<!--\s*(sg-example|sg-sample-output):\s*(\S+)\s*-->\s
 REQUIRES = re.compile(r"^\s*<!--\s*sg-requires:\s*(\S+)\s*-->\s*$")
 INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 
-# The eighteen capabilities of the main page as the H3 titles of "How you do
-# it": the twelve of spec FR-009 at the H3 audit point plus the six this spec
-# adds (FR-028, FR-044, research D-13).
+# The twenty capabilities of the main page as the H3 titles of "How you do
+# it": the twelve of spec FR-009 at the H3 audit point, the six specs/018
+# adds (FR-028, FR-044, research D-13), and the two specs/020 adds (FR-029).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -45,6 +45,8 @@ SECTIONS = (
     "Custom statistics",
     "Aggregate-only reporting",
     "Complexity fit",
+    "Execution contexts",
+    "Threads",
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
@@ -69,6 +71,8 @@ SECTION_OWNERS = {
     "Custom statistics": ("custom_statistics.cpp",),
     "Aggregate-only reporting": ("aggregates_only.cpp",),
     "Complexity fit": ("complexity_fit.cpp",),
+    "Execution contexts": ("execution_contexts.cpp",),
+    "Threads": ("threads.cpp",),
 }
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
@@ -92,7 +96,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # adds 32 lines (25 to 38 and 24 to 43). No prose elsewhere on the page can
 # give back 20 lines without gutting a result sentence, so the page cap rose
 # by the smallest fitting amount, 550 to 570.
-PAGE_LINE_CAP = 570
+# specs/020 FR-034 measures its own move as the sections land: "Execution
+# contexts" runs 25 lines and "Threads" 16, their quick-reference rows add
+# 27, and the one disclosure result sentence of "Reading the report" adds 1,
+# so 41 + 27 + 1 = 69 lines move the cap 570 to 639, the page at 639 of 639
+# with no snippet dropped.
+PAGE_LINE_CAP = 639
 SECTION_LINE_CAP = 25
 
 # Only these two sections carry a higher cap, each at the smallest span that
@@ -379,7 +388,7 @@ def table_rows(page: Path, header: str) -> list[str]:
 
 def header_names(root: Path) -> set[str]:
     names: set[str] = set()
-    for header in ("benchmark.hpp", "barrier.hpp"):
+    for header in ("benchmark.hpp", "barrier.hpp", "execution_context.hpp"):
         path = root / "include" / "speedgun-ng" / header
         if path.is_file():
             names.update(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]{2,}\b", path.read_text()))
@@ -605,7 +614,7 @@ def run_all(root: Path, main_page: Path, args: argparse.Namespace) -> list[str]:
         present = header_names(root)
         findings.extend(
             f"{rel(main_page)}: quick-reference name '{name}' is not in "
-            "benchmark.hpp or barrier.hpp"
+            "benchmark.hpp, barrier.hpp, or execution_context.hpp"
             for name in table_rows(main_page, "| Name |")
             if any(part not in present for part in name.split("::") if part)
         )

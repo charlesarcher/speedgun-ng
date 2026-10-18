@@ -56,9 +56,14 @@ auto bmFill(sg::State& state) -> void
   state.setLabel("filled");
 }
 
-SG_BENCHMARK(bmFill).argsProduct({{8}});
+SG_BENCHMARK(bmFill).argsProduct({{8}}).threadRange(1, 2);
 
 // sg-example:end report-fields
+
+// The thread range gives this family two instances: one context, which keeps
+// the printed bytes a single-context run has always printed, and two, whose
+// merged row ends the run with the contexts disclosure under it. The guide
+// page records both.
 
 auto main(int argc, char** argv) -> int
 {

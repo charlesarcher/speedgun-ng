@@ -1,11 +1,16 @@
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cstdio>
+#include <string_view>
+#include <thread>
 #include <utility>
+#include <vector>
 
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
+#include "speedgun-ng/execution_context.hpp"
 
 namespace sg::detail
 {
@@ -105,6 +110,89 @@ auto printFitRow(const BenchmarkResult& result,
               "SKIPPED",
               row.fit.quantity.c_str(),
               row.fit.reason.c_str());
+}
+
+// The placement field a context carries when it pins to no cpu. The
+// disclosure line prints this word where a pinned context prints its cpu
+// index (FR-005, FR-025).
+constexpr std::string_view kNoPinPlacement = "NO_PIN";
+
+// The wait mode names of the disclosure line, indexed by the enumerator,
+// the table shape the availability names above take (FR-025).
+constexpr std::array<const char*, 3> kWaitModeNames {
+    "SPIN",
+    "YIELD",
+    "BLOCK",
+};
+static_assert(kWaitModeNames.size()
+              == std::to_underlying(sg::WaitMode::BLOCK) + 1);
+
+auto waitModeName(const sg::WaitMode waitMode) -> const char*
+{
+  // The static_assert above ties the table to the last enumerator of a
+  // closed enumeration, so the index of a value of that enumeration sits
+  // inside the table (FR-025).
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  return kWaitModeNames[std::to_underlying(waitMode)];
+}
+
+// FR-025: the one line a threaded result prints after its rows. It names
+// the number of contexts and, for each context, the wait mode and the
+// placement that context ran under. The line formats the records of
+// `result.contexts` and adds nothing to them.
+auto printContextDisclosure(const BenchmarkResult& result) -> void
+{
+  std::printf("  contexts=%zu", result.contexts.size());
+  for (std::size_t index = 0; index < result.contexts.size(); ++index) {
+    const auto& context = result.contexts[index];
+    std::printf("  ctx%zu=%s/%s",
+                index,
+                waitModeName(context.waitMode),
+                context.placement.c_str());
+  }
+  std::printf("\n");
+}
+
+// FR-026, FR-028: the noise warning of one result. It prints when two
+// spinning contexts of that result name one cpu index, or when the
+// spinning contexts of that result outnumber the cpus the host has
+// online, and prints nothing at all when neither holds.
+//
+// The online cpu count is the one host fact the check reads, and the
+// check reads it once, where its decision needs it. The counters
+// `System` tree holds one object per countable device and publishes no
+// host cpu count at this head, so the count comes from the standard
+// library call the covering test reads: the printed number and the
+// trigger share that one source (D-08). The read names no clock and
+// samples nothing (FR-027, FR-039).
+auto printNoiseWarning(const BenchmarkResult& result) -> void
+{
+  auto spinning = std::uint64_t {0};
+  auto pinned = std::vector<std::string_view> {};
+  for (const auto& context : result.contexts) {
+    if (context.waitMode != sg::WaitMode::SPIN) {
+      continue;
+    }
+    ++spinning;
+    if (context.placement != kNoPinPlacement) {
+      pinned.push_back(context.placement);
+    }
+  }
+  // Sorting stands equal placement fields side by side, so one adjacent
+  // comparison answers whether two spinning contexts name one cpu index.
+  // shortcut: one index spelled two ways, as with a leading zero, reads
+  // as two indices; the default placement function renders digits with
+  // `std::to_chars`, which spells an index one way.
+  std::ranges::sort(pinned);
+  const bool sharesOneCpu = std::ranges::adjacent_find(pinned) != pinned.end();
+  const auto onlineCpus =
+      static_cast<std::uint64_t>(std::thread::hardware_concurrency());
+  if (sharesOneCpu || spinning > onlineCpus) {
+    std::printf(
+        "warning: spinning contexts oversubscribed (%llu spin, " "%llu cpus)\n",
+        static_cast<unsigned long long>(spinning),
+        static_cast<unsigned long long>(onlineCpus));
+  }
 }
 
 }  // namespace
@@ -272,6 +360,17 @@ auto printResult(const BenchmarkResult& result) -> void
     }
     std::printf("\n");
   }
+
+  // FR-025: a non-empty `contexts` vector names exactly a threaded
+  // result, so a single-context result leaves here holding the bytes its
+  // rows printed, with no line below them.
+  if (result.contexts.empty()) {
+    return;
+  }
+  printContextDisclosure(result);
+  // FR-026: the warning of a result stands after that result's own
+  // disclosure line, one line for each result whose condition holds.
+  printNoiseWarning(result);
 }
 
 }  // namespace sg::detail
