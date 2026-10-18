@@ -402,7 +402,7 @@ must see (Principle VII).
 **Independent Test**: build the disclosure record sets of four policy
 cases directly, as `contracts/report-disclosure.md` states, print each
 through the report path, and compare the printed disclosure: two
-spinning contexts on one cpu, more spinning contexts than online cpus,
+spinning contexts on one cpu, more spinning contexts than runnable cpus,
 one pinned context per cpu, and a blocking context. The warning appears
 in the first two cases and in no others.
 
@@ -415,9 +415,9 @@ in the first two cases and in no others.
 2. **Given** a result with two spinning contexts pinned to one cpu,
    **When** the report prints, **Then** it carries one noise warning
    line after that result.
-3. **Given** a result with more spinning contexts than the host has
-   online cpus, **When** the report prints, **Then** it carries one
-   noise warning line after that result.
+3. **Given** a result with more spinning contexts than the cpus this
+   process may run on, **When** the report prints, **Then** it carries
+   one noise warning line after that result.
 4. **Given** a result that meets neither condition, **When** the report
    prints, **Then** no noise warning line appears.
 
@@ -633,14 +633,14 @@ translation unit of your own.
   record per context it ran (FR-021), and a benchmark that runs on one
   context shall keep the bytes it prints today (Assumptions).
 - **FR-026**: When two spinning contexts of one result name the same cpu
-  index, or one result has more spinning contexts than the host has
-  online cpus, the report shall print one noise warning line after that
-  result, one line for each such result. The line shall appear when
+  index, or one result has more spinning contexts than the cpus this
+  process may run on, the report shall print one noise warning line after
+  that result, one line for each such result. The line shall appear when
   that condition holds and shall not appear when it does not (SC-12).
 - **FR-027**: The disclosure and the warning shall read no clock, and
   neither shall add a sampling action to any run.
 - **FR-028**: A test shall cover each case of FR-026: a shared-cpu spin
-  pair, a spinning count above the online cpu count, a pinned setup with
+  pair, a spinning count above the runnable cpu count, a pinned setup with
   one context per cpu, and a blocking setup.
 
 ### Main-page documentation and runnable examples (C-6)
@@ -912,8 +912,10 @@ Out, each owned by a later roadmap spec:
 - Every context of a threaded run runs the same body with the same
   arguments and the same calibrated iteration count, which is what makes
   the iteration rule of FR-020 hold.
-- The online cpu count is a host fact the report reads once for the
-  warning of FR-026; it is not a clock, and the disclosure reads no clock
+- The runnable cpu count is one host fact the report reads once for the
+  warning of FR-026: the cpus in the process affinity mask, or the
+  hardware concurrency count when that mask cannot be read. It is no
+  clock, and the disclosure reads no clock
   (FR-027).
 - A test replaces the placement function and reads the call the
   replacement recorded, so the pinning tests need no privileges

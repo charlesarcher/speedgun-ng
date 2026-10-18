@@ -22,10 +22,10 @@ result rows of a threaded instance, unchanged fields ...
 
 | Rule | Requirement |
 | --- | --- |
-| When two spinning contexts of one result name the same cpu index, or one result has more spinning contexts than the host has online cpus, the report shall print one noise warning line after that result, one line for each such result. | FR-026 |
+| When two spinning contexts of one result name the same cpu index, or one result has more spinning contexts than the cpus this process may run on, the report shall print one noise warning line after that result, one line for each such result. | FR-026 |
 | A run with one context per cpu, pinned, shall print no warning. | FR-026, FR-028 |
 | A run whose contexts block shall print no warning. | FR-026, FR-028 |
-| The online cpu count shall be one host fact the report reads once, through the counters library's `System` host topology; the disclosure and the warning shall read no clock and add no sampling action to any run. | FR-026, FR-027, D-08 |
+| The runnable cpu count shall be one host fact the report reads once: the cpus in the process affinity mask as `sched_getaffinity` reports them, or `std::thread::hardware_concurrency` when that call fails. The disclosure and the warning shall read no clock and add no sampling action to any run. | FR-026, FR-027, D-08 |
 
 ## Gate extension
 

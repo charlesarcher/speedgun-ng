@@ -168,7 +168,7 @@ Report-side records (FR-025 to FR-028, D-08).
 | `BenchmarkResult::contexts` | vector of disclosure records, one per context of a threaded run, empty for a single-context run | + (FR-025) |
 | disclosure line | printed after the rows of a result whose vector is non-empty: the count and each context's mode and placement (`NO_PIN` or one cpu index) | + (FR-025) |
 | noise warning | one line after a result, printed when two spinning contexts of that result name one cpu index or that result has more spinning contexts than the online cpu count, and absent when neither condition holds | + (FR-026, FR-028) |
-| online cpu count | one host fact read once per report through `sg::counters::System::local()` | + (FR-027, Assumptions, D-08) |
+| runnable cpu count | one host fact read once per report: the cpus in the process affinity mask, or the hardware concurrency count when `sched_getaffinity` fails | + (FR-027, Assumptions, D-08) |
 
 Validation: neither the disclosure nor the warning reads a clock or
 adds a sampling action (FR-027); a single-context result keeps the

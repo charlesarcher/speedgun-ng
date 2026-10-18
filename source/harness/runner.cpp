@@ -999,18 +999,27 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     for (int position = 0; position < instance.threadCount; ++position) {
       contexts.push_back(std::make_unique<sg::ExecutionContext>(policy));
     }
-    // FR-005, FR-021, FR-025: the disclosure records each context's own
-    // wait mode and the record that context's placement function
-    // returned, which names a slot that never landed. The copy of the
-    // field stands here, before the joiner ends any thread (FR-025). The
-    // vector stays empty for a single-context run (FR-022).
+  }
+
+  // FR-005, FR-021, FR-025: the disclosure records each context's own
+  // wait mode and the record that context's placement function returned,
+  // which names a slot that never landed. The fill runs after a sample,
+  // where the run has met every context across a barrier and a node
+  // completion, so the record it reads is one that thread published and
+  // not a read that runs ahead of it (FR-049); it still stands before the
+  // joiner ends any thread (FR-025). The vector stays empty for a
+  // single-context run (FR-022) and for a threaded run that ended before
+  // it sampled, whose contexts placed nothing.
+  const auto fillDisclosures = [&result, &contexts]
+  {
+    result.contexts.clear();
     for (const auto& context : contexts) {
       const sg::PlacementResult placement =
           sg::detail::placementRecordOf(*context);
       result.contexts.push_back(sg::ContextDisclosure {
           context->policy().waitMode, std::string(placement.description)});
     }
-  }
+  };
 
   // What one context of a threaded attempt leaves in its slot. The slot
   // stands in memory no other thread touches, and the attempt thread
@@ -1665,6 +1674,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         result.reason = chosen->reason;
         return result;
       }
+    }
+
+    if (instance.threadCount > 1) {
+      fillDisclosures();
     }
 
     // FR-002, FR-005, FR-006: the fold behind the availability is the
