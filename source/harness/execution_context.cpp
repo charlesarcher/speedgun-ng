@@ -10,6 +10,7 @@
 // `speedgun-ng_harness` archive, which the top-level glob collects with
 // no new target (FR-043).
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <charconv>
@@ -17,6 +18,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <thread>
@@ -76,6 +78,15 @@ auto currentContextSlot() -> std::optional<ContextId>&
 // (FR-005, FR-025, `contracts/report-disclosure.md`).
 constexpr std::string_view kNoPinText = "NO_PIN";
 
+// The printable placement field of a slot the placement function did not
+// land, which a failed pin returns so the disclosure names the miss
+// instead of a cpu the context never ran on (FR-005, FR-025, FR-026).
+constexpr std::string_view kUnappliedText = "UNAPPLIED";
+
+// The width of the word above, one of the two texts the placement record
+// of a context can name (FR-025).
+constexpr std::size_t kUnappliedWidth = kUnappliedText.size();
+
 // The width of the widest `std::uint32_t` in decimal, so the rendered
 // cpu index of the placement record never truncates (FR-005, FR-025).
 constexpr std::size_t kCpuIndexWidth = 10;
@@ -106,13 +117,17 @@ auto pinToPlacementSlot(const PlacementSlot& slot,
   const auto rendered =
       std::to_chars(digits.begin(), digits.end(), slot.cpuIndex);
 
+  // The platform answer picks the field through one selection, so the
+  // failure account needs no branch the unprivileged test run cannot
+  // reach (FR-005, FR-025).
+  const bool landed = pthread_setaffinity_np(thread, sizeof(cpus), &cpus) == 0;
+  const std::size_t width =
+      static_cast<std::size_t>(rendered.ptr - digits.data());
+
   return {
-      .applied = pthread_setaffinity_np(thread, sizeof(cpus), &cpus) == 0,
+      .applied = landed,
       .description =
-          {
-              digits.data(),
-              static_cast<std::size_t>(rendered.ptr - digits.data()),
-          },
+          landed ? std::string_view {digits.data(), width} : kUnappliedText,
   };
 }
 
@@ -126,12 +141,6 @@ auto placementSlot() -> PlacementFn&
   static PlacementFn function = &pinToPlacementSlot;
   return function;
 }
-
-// The live-context bound of the control side table below.
-// shortcut: the table shape dies when `ExecutionContext` carries its
-// control-block member; a context above this bound is a contract
-// violation, and no scenario of this feature lives more than two.
-constexpr std::size_t kContextSlotCount = 64;
 
 }  // namespace
 
@@ -172,9 +181,14 @@ struct ContextControl
   // (FR-002).
   ContextId id;
 
-  // The header object this block stands behind, the identity the control
-  // side table matches (FR-002).
-  const ExecutionContext* owner = nullptr;
+  // What the installed placement function did with the policy's slot,
+  // written by the context's own thread at its start and read by the
+  // threaded run that builds the disclosure record (FR-005, FR-025).
+  PlacementResult placementResult {false, kNoPinText};
+
+  // The bytes the field above points at, held in the block so the record
+  // reads past the end of the thread that rendered them (FR-025).
+  std::array<char, kCpuIndexWidth + kUnappliedWidth> descriptionText {};
 
   // The sentinel of the inbox: the chain anchor both ends walk through,
   // owned by the loop, never run (FR-003, D-01).
@@ -263,61 +277,10 @@ private:
   detail::ContextControl*& m_control;
 };
 
-// The control side table: the header object is one byte, so the live
-// state stands here behind it, claimed at construction and released at
-// the joined destructor, and read lock-free by `dispatch()` from any
-// thread (FR-001, FR-010).
-// shortcut: bound at `kContextSlotCount` live contexts while the header
-// carries no member for the control block; the header's control-block
-// member deletes this table, and the bound is a contract violation long
-// before any scenario reaches it (FR-001).
-auto contextSlotTable()
-    -> std::array<std::atomic<detail::ContextControl*>, kContextSlotCount>&
-{
-  static std::array<std::atomic<detail::ContextControl*>, kContextSlotCount>
-      slots {};
-  return slots;
-}
-
-auto claimControlSlot(detail::ContextControl& control) -> bool
-{
-  for (auto& slot : contextSlotTable()) {
-    auto* expected = static_cast<detail::ContextControl*>(nullptr);
-    if (slot.compare_exchange_strong(
-            expected, &control, std::memory_order_release))
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
-auto releaseControlSlot(const detail::ContextControl& control) -> void
-{
-  for (auto& slot : contextSlotTable()) {
-    if (slot.load(std::memory_order_acquire) == &control) {
-      slot.store(nullptr, std::memory_order_release);
-    }
-  }
-}
-
-auto controlFor(const ExecutionContext& context) -> detail::ContextControl&
-{
-  for (const auto& slot : contextSlotTable()) {
-    detail::ContextControl* const control =
-        slot.load(std::memory_order_acquire);
-    if (control != nullptr && control->owner == &context) {
-      return *control;
-    }
-  }
-  // The construction claims the slot and the joined destructor releases
-  // it, so a live context stands in the table through every member call
-  // of its own life (FR-001, FR-006). The stop below matches the default
-  // response of the contract layer; under the semantic-ignore build the
-  // read here would be undefined behaviour and yields no answer.
-  SG_REQUIRE(false, "the context of this call holds no control block (FR-002)");
-  std::abort();
-}
+// FR-001, FR-024: the control block lives in the context object itself,
+// so the paths that reach it read one member: no side table, no scan on
+// the dispatch path, and no bound on the count of live contexts. The
+// accessor stands in `namespace detail` below, where the block is defined.
 
 // FR-049: the sentinel re-anchor. When the drain walk stands on the
 // newest node of a batch, the loop links the sentinel behind it, so every
@@ -480,15 +443,30 @@ auto runContextLoop(detail::ContextControl& control) -> void
 
 // FR-005, D-04: the placement of the policy's slot lands once, on the
 // context's own thread, at its start, through the installed function,
-// before the loop takes a node. Nothing reads the record it returns: the
-// disclosure of FR-025 names the policy's slot, which the control holds
-// for the context's life.
-auto applyPlacement(const detail::ContextControl& control) -> void
+// before the loop takes a node. The record the function returns stands in
+// the control for the context's life: the disclosure of FR-025 names what
+// the function did, which is the account of a slot that never landed.
+auto applyPlacement(detail::ContextControl& control) -> void
 {
   // The handle of the running thread is the handle of the context's
   // thread, and stands as the type the seam names through no cast.
   const std::thread::native_handle_type self = pthread_self();
-  static_cast<void>(placementSlot()(control.policy.placement, self));
+  const PlacementResult placement =
+      placementSlot()(control.policy.placement, self);
+
+  // The function renders its text wherever it chose, and the default
+  // renders into storage of the thread that pinned. The bytes move into
+  // the block, so the record a run discloses later reads past the end of
+  // that thread (FR-025).
+  const std::size_t width =
+      std::min(placement.description.size(), control.descriptionText.size());
+  std::ranges::copy_n(placement.description.data(),
+                      static_cast<std::ptrdiff_t>(width),
+                      control.descriptionText.begin());
+  control.placementResult = PlacementResult {
+      placement.applied,
+      std::string_view {control.descriptionText.data(), width},
+  };
 }
 
 // FR-001, FR-005: the one thread the context owns: its placement first,
@@ -532,6 +510,28 @@ auto participantWaitMode() -> WaitMode
 namespace detail
 {
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) the accessor the class befriends
+// FR-001, FR-002: the block the object owns. The construction makes it and
+// the joined destructor releases it, so it stands through every member call
+// of the context's life (FR-006). The require answers the semantic the
+// contract layer names; under the semantic-ignore build the read below
+// would be undefined behaviour and yields no answer.
+auto controlOf(const ExecutionContext& context) noexcept -> ContextControl&
+{
+  SG_REQUIRE(context.m_control != nullptr,
+             "the context of this call holds no control block (FR-002)");
+  return *context.m_control;
+}
+
+// FR-005, FR-025: the record the block holds. A threaded run reads the
+// disclosed placement field through here, since the block itself stands
+// out of the header (FR-045).
+auto placementRecordOf(const ExecutionContext& context) noexcept
+    -> PlacementResult
+{
+  return controlOf(context).placementResult;
+}
+
 // FR-010, FR-050: the erased body of `dispatch()`, which the header's
 // template reaches after handing the typed node to its erased base. The
 // link-swap is the two atomics D-01 names: the exchange of the tail and
@@ -541,7 +541,15 @@ namespace detail
 // template calls
 auto dispatchNode(const ExecutionContext& context, WorkNodeBase& node) -> void
 {
-  ContextControl& control = controlFor(context);
+  ContextControl& control = controlOf(context);
+
+  // FR-009, FR-012: a node stands in at most one inbox at a time, so the
+  // dispatch of a node another dispatch still owns is a contract
+  // violation. A caller may reuse a node once it reads DONE or STOPPED.
+  const WorkNodeState prior = node.completion.load(std::memory_order_relaxed);
+  SG_REQUIRE(prior != WorkNodeState::RUNNING
+                 && (prior != WorkNodeState::PENDING || !node.accepted),
+             "dispatch of a node that stands in a queue (FR-009, FR-012)");
 
   // FR-050: the accept stands in the total order before the stop read,
   // and `requestStop()` stands its store before the loop and `drain()`
@@ -558,6 +566,10 @@ auto dispatchNode(const ExecutionContext& context, WorkNodeBase& node) -> void
     return;
   }
 
+  // FR-009, FR-049: the reused node settles PENDING before the link below
+  // makes it visible, so a reader of the state never finds a queued node
+  // still stamped DONE (FR-012).
+  node.completion.store(WorkNodeState::PENDING, std::memory_order_relaxed);
   node.accepted = true;
   node.next.store(nullptr, std::memory_order_relaxed);
   WorkNodeBase* const previous =
@@ -607,48 +619,40 @@ ExecutionContext::ExecutionContext(const ContextPolicy policy)
   // counter; serial zero stands for no context, the value the default
   // `ContextId` carries.
   static std::atomic<std::uint64_t> nextSerial {0};
-  auto* const control = new detail::ContextControl(
+  m_control = std::make_unique<detail::ContextControl>(
       policy,
       ContextId {nextSerial.fetch_add(1, std::memory_order_relaxed) + 1});
-  const bool claimed = claimControlSlot(*control);
-  SG_REQUIRE(claimed, "live contexts beyond the control-table bound (FR-001)");
-  static_cast<void>(claimed);
-  control->owner = this;
 
   // FR-001: the one thread the context owns applies its placement and
   // starts the loop at once (FR-005, D-04).
-  control->worker = std::thread(&runContextThread, std::ref(*control));
-  SG_ENSURE(control->worker.joinable(),
+  m_control->worker = std::thread(&runContextThread, std::ref(*m_control));
+  SG_ENSURE(m_control->worker.joinable(),
             "a context constructed while its loop thread stands not "
             "started (FR-001, FR-002)");
 }
 
 ExecutionContext::~ExecutionContext()
 {
-  detail::ContextControl& control = controlFor(*this);
+  detail::ContextControl& control = detail::controlOf(*this);
   SG_REQUIRE(control.joined,
              "destructor of a context that stands unjoined (FR-006)");
-  releaseControlSlot(control);
-  // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) the side table hands the
-  // raw block back for the joined end
-  delete &control;
 }
 
 auto ExecutionContext::id() const noexcept -> ContextId
 {
-  return controlFor(*this).id;
+  return detail::controlOf(*this).id;
 }
 
 auto ExecutionContext::policy() const noexcept -> ContextPolicy
 {
-  return controlFor(*this).policy;
+  return detail::controlOf(*this).policy;
 }
 
 // NOLINTNEXTLINE(readability-make-member-function-const) the signature stands
 // fixed in the header (FR-036); the state stands behind the control block
 auto ExecutionContext::requestStop() -> void
 {
-  detail::ContextControl& control = controlFor(*this);
+  detail::ContextControl& control = detail::controlOf(*this);
   // FR-006, FR-050: the stop store stands in the total order, and the
   // wake carries it to a loop the empty inbox is waiting in, so the
   // stop-drained loop ends while it stands empty (FR-004). The call
@@ -665,7 +669,7 @@ auto ExecutionContext::requestStop() -> void
 // fixed in the header (FR-036)
 auto ExecutionContext::drain() -> void
 {
-  const detail::ContextControl& control = controlFor(*this);
+  const detail::ContextControl& control = detail::controlOf(*this);
   SG_REQUIRE(std::this_thread::get_id() != control.worker.get_id(),
              "drain() called on the thread of the context's own loop (FR-050)");
   // FR-006, FR-050: the caller waits in the idle generation the loop
@@ -687,7 +691,7 @@ auto ExecutionContext::drain() -> void
 // fixed in the header (FR-036); the state stands behind the control block
 auto ExecutionContext::join() -> void
 {
-  detail::ContextControl& control = controlFor(*this);
+  detail::ContextControl& control = detail::controlOf(*this);
   SG_REQUIRE(std::this_thread::get_id() != control.worker.get_id(),
              "join() called on the thread of the context's own loop (FR-006)");
   // FR-006: the loop ends only with the stop stood and every accepted

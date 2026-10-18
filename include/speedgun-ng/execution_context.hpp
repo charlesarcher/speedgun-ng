@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <thread>
@@ -199,6 +200,56 @@ using PlacementFn = PlacementResult (*)(const PlacementSlot& slot,
  */
 auto setPlacementFunction(PlacementFn function) -> void;
 
+class ExecutionContext;
+
+namespace detail
+{
+
+/**
+ * @brief The whole live state of one context, defined by the archive that
+ *        owns it (E-01, FR-001).
+ *
+ * `ExecutionContext` names this type as the pointee of its one member and
+ * `source/harness/execution_context.cpp` defines it, so the inbox, the
+ * policy, the identity and the thread of a running context stay out of
+ * this header (FR-045).
+ */
+struct ContextControl;
+
+/**
+ * @brief The control block this context owns (FR-001, FR-024).
+ *
+ * The class grants this function access to its member, which is the only
+ * path from a context to its control block: no side table and no scan
+ * stand between the two, and no bound caps the live contexts (FR-001,
+ * FR-024). The harness archive defines it, and no caller reaches it
+ * (FR-045).
+ *
+ * \pre none
+ * \post none
+ */
+auto controlOf(const ExecutionContext& context) noexcept -> ContextControl&;
+
+/**
+ * @brief The placement record the thread of this context kept at its
+ *        start (FR-005, FR-025).
+ *
+ * A threaded run reads the disclosed placement field through this
+ * function, because the control block of FR-001 stands out of this header
+ * (FR-045). The record carries what the installed placement function
+ * returned at the start of that thread, which is the account the
+ * disclosure of FR-025 prints for a slot that never landed.
+ * `source/harness/execution_context.cpp` defines it, and no caller of the
+ * public surface reaches it (FR-045).
+ *
+ * \pre none
+ * \post none
+ */
+auto placementRecordOf(const ExecutionContext& context) noexcept
+    -> PlacementResult;
+
+}  // namespace detail
+
 /**
  * @brief One context: one thread, its event loop, its inbox, and its
  * policy (E-01, FR-001).
@@ -313,6 +364,16 @@ public:
    * \post none
    */
   auto join() -> void;
+
+private:
+  friend auto detail::controlOf(const ExecutionContext& context) noexcept
+      -> detail::ContextControl&;
+
+  // The one member and the whole state of this context: its inbox, policy,
+  // identity, loop phase and thread. The object owns the block for its
+  // life, so a context stands in no table and no count of live contexts
+  // bounds the program (FR-001, FR-024).
+  std::unique_ptr<detail::ContextControl> m_control;
 };
 
 /**
@@ -448,7 +509,8 @@ struct WorkNodeBase
  * `source/harness/execution_context.cpp` defines it; the `dispatch`
  * template is its only caller, and the call allocates nothing (FR-040).
  *
- * \pre none
+ * \pre `node` stands in no inbox: its state is `PENDING` with no prior
+ *      dispatch, `DONE`, or `STOPPED` (FR-009, FR-012)
  * \post none
  */
 SPEEDGUN_NG_EXPORT auto dispatchNode(const ExecutionContext& context,
@@ -559,7 +621,8 @@ private:
  * thread dispatches run in that order; work dispatched from inside a
  * running item runs after that item ends, on the same context (FR-013).
  *
- * \pre none
+ * \pre `node` stands in no inbox: its state is `PENDING` with no prior
+ *      dispatch, `DONE`, or `STOPPED` (FR-009, FR-012)
  * \post none
  */
 template<WorkItem Item>
