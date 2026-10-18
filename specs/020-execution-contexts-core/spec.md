@@ -920,10 +920,14 @@ Out, each owned by a later roadmap spec:
 
 ## Budget note
 
-The measured page-cap move of FR-034 and Q-5 lands in this section at
-implementation time: the measured size of the two new sections and
-their quick-reference rows, and the `PAGE_LINE_CAP` value that follows.
-T030 of tasks.md records the measured amount here.
+The measured page-cap move of FR-034 and Q-5: `README.md` grew by 69 lines
+(`git diff --numstat` gives 69 insertions, 0 deletions), in three hunks — the
+two new sections at 41 lines, their quick-reference rows at 27, and the one
+disclosure result sentence of "Reading the report" at 1. `PAGE_LINE_CAP` in
+`tools/docs/example_drift.py` therefore moves 570 to 639, the smallest fitting
+amount: the page stands at 639 lines of a 639 cap, no snippet was dropped to
+reach it, and `python3 tools/docs/example_drift.py .` reports no finding. T030
+of tasks.md carries the same measurement in the gate's own comment.
 
 ## Dependencies
 
