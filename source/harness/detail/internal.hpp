@@ -87,6 +87,15 @@ public:
   // earlier attempt. Zero is no history: the recorder then reserves
   // the endpoint shape alone and the run folds (D-10).
   std::uint64_t pausePairsPerIteration = 0;
+
+  // E-05, FR-016: the thread counts the thread calls stated, one
+  // instance of the family per count. The default of one count of one
+  // keeps every family that calls no thread method on its single
+  // context and its printed bytes (FR-022).
+  std::vector<int> threadCounts {1};
+  // FR-021: the dispatch function the family attached for its threaded
+  // runs, empty when the harness dispatches the bodies itself.
+  ThreadRunnerFn threadRunner;
 };
 
 /**
@@ -111,6 +120,11 @@ public:
   std::string suite;
   std::string caseName;
   std::vector<std::int64_t> arguments;
+  // E-05, FR-016: the thread count expansion selected for this
+  // instance, the count of contexts its threaded run opens. The count
+  // of 1 a family that called no thread method carries keeps the
+  // single-context path and today's row bytes (FR-022).
+  int threadCount = 1;
   RegistryEntry* family = nullptr;
 };
 

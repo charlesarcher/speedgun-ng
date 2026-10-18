@@ -703,6 +703,70 @@ target_include_directories(harness_pause_test PRIVATE ${CMAKE_SOURCE_DIR}/source
 target_compile_features(harness_pause_test PRIVATE cxx_std_23)
 add_test(NAME harness_pause_test COMMAND harness_pause_test)
 
+# The execution context of feature 020 (T004 to T009; US1, C-1 to C-3): the
+# thread of one context runs typed work, and each scenario runs in a re-exec of
+# this binary so a contract breach arrives as the signal the contract facility
+# gives it. The zero-allocation scenario replaces the global allocation
+# operators, which the thread sanitizer runtime also owns, so the file guards
+# those hooks at the preprocessor level and one target covers both presets.
+add_executable(harness_execution_context_test
+               source/harness_execution_context_test.cpp)
+target_link_libraries(harness_execution_context_test
+                      PRIVATE speedgun-ng::harness)
+target_compile_features(harness_execution_context_test PRIVATE cxx_std_23)
+add_test(NAME harness_execution_context_test
+         COMMAND harness_execution_context_test)
+
+# The context barrier of feature 020 (T012; C-4, FR-014, FR-015, D-03, Q-3): a
+# round releases every participant, a SPIN participant waits without sleeping
+# and a participant on no context waits in BLOCK, each proven by the
+# per-thread counters the kernel keeps, and a participant that leaves a round
+# early aborts its re-exec, so every mode runs in a re-exec of this binary and
+# the parent reads the wait status. The suite carries the internal
+# source/harness include directory the pause suite carries.
+add_executable(harness_context_barrier_test
+               source/harness_context_barrier_test.cpp)
+target_link_libraries(harness_context_barrier_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_context_barrier_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_context_barrier_test PRIVATE cxx_std_23)
+add_test(NAME harness_context_barrier_test
+         COMMAND harness_context_barrier_test)
+
+# The benchmark over N contexts of feature 020 (T014 to T017; US2, C-5, FR-016,
+# FR-017, FR-020, D-06; SC-06, SC-07): the thread index and count a state
+# reads, the name segment of the count, and the merged row of the run with the
+# decision seconds of each timing mode divided by that count. Every time figure
+# stands on scripted leaves of the fake provider, so each scenario runs in a
+# re-exec of this binary and the parent reads the wait status. The suite carries
+# the internal source/harness include directory the pause suite carries. The
+# suite also pins one context with the shipped placement function, runs a body
+# that throws on every context, and counts the fixture pair of one threaded
+# attempt.
+add_executable(harness_threads_test
+               source/harness_threads_test.cpp)
+target_link_libraries(harness_threads_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_threads_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_threads_test PRIVATE cxx_std_23)
+add_test(NAME harness_threads_test
+         COMMAND harness_threads_test)
+
+# The disclosure line and the noise warning of the report (T022 to T024; US4,
+# C-7, FR-025, FR-026, FR-028, E-07, SC-12). Each scenario builds the policy
+# vector a threaded run leaves on its result and prints the result through the
+# report's own printer, so no benchmark runs, no provider registers and no
+# thread starts. The suite reads the printer at the internal seam the way
+# harness_pause_test reads the calibration header.
+add_executable(harness_context_report_test
+               source/harness_context_report_test.cpp)
+target_link_libraries(harness_context_report_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_context_report_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_context_report_test PRIVATE cxx_std_23)
+add_test(NAME harness_context_report_test
+         COMMAND harness_context_report_test)
+
 # FR-024, T002: the fixed pause allowance leaves the tree, library, tests and
 # guide alike. A namespace-scope name that does not exist cannot be probed by
 # a `requires` clause, where the failed lookup is a hard error and not a

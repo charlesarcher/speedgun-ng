@@ -201,21 +201,27 @@ namespace
 
 /**
  * @brief The instance-name builder: the family name with one
- * `/`-joined segment per argument (`instanceName`).
+ * `/`-joined segment per argument (`instanceName`), and the
+ * `/threads:N` segment of a thread count above one (FR-016).
  *
  * A segment carries the label of its position as `label:value` where
- * `argName` set one (E-04, FR-010).
+ * `argName` set one (E-04, FR-010). The default count set `{1}` names
+ * no segment, so a family that called no thread method keeps its
+ * untouched bytes (FR-022).
  *
  * \pre the label count is zero or equal to the argument count, and
  *      that count equals the family arity (FR-006).
  * \post the name starts with the family name and adds one segment per
  *       argument, each segment the argument value in decimal, labeled
- *       where a nonempty label stands at that position (FR-010).
+ *       where a nonempty label stands at that position, and for a
+ *       thread count above one the `/threads:N` segment last (FR-010,
+ *       FR-016).
  * \invariant the family name is a prefix of every instance name of
  *            that family (FR-010).
  */
 auto instanceName(const RegistryEntry& entry,
-                  const std::vector<std::int64_t>& arguments) -> std::string
+                  const std::vector<std::int64_t>& arguments,
+                  const int threadCount) -> std::string
 {
   SG_REQUIRE(entry.argNames.empty() ||
                  entry.argNames.size() == arguments.size(),
@@ -232,6 +238,12 @@ auto instanceName(const RegistryEntry& entry,
       name += ':';
     }
     name += std::to_string(arguments[position]);
+  }
+  // FR-016, FR-022: a count above one names the contexts the instance
+  // runs on; the default count names no segment.
+  if (threadCount > 1) {
+    name += "/threads:";
+    name += std::to_string(threadCount);
   }
   SG_ENSURE(name.rfind(entry.name, 0) == 0,
             "the family name is a prefix of every instance name of that "
@@ -369,32 +381,43 @@ auto expandRegistry() -> void
     const std::size_t start = block.size();
     if (entry->args.empty()) {
       // A family that states no family call has one instance with zero
-      // arguments (FR-008).
-      if (!hasDuplicateInstance(blocks, entry->name)) {
+      // arguments per thread count (FR-008, FR-016): the default set
+      // {1} stands for a family that called no thread method, so the
+      // untouched family keeps its one unnamed instance (FR-022).
+      for (const int threadCount : entry->threadCounts) {
+        const std::string name = instanceName(*entry, {}, threadCount);
+        if (hasDuplicateInstance(blocks, name)) {
+          continue;
+        }
         Instance& instance = block.emplace_back();
-        instance.name = entry->name;
+        instance.name = name;
+        instance.threadCount = threadCount;
         instance.family = entry.get();
         const auto derived = deriveSuiteAndCase(entry->name, instance.name);
         instance.suite = derived.first;
         instance.caseName = derived.second;
       }
     } else {
-      // One instance per argument list of the family record (FR-001,
-      // FR-010): the family calls already grew the lists at
-      // registration, so expansion names each list and hands it to an
-      // instance that owns its storage (R-02, R-04).
+      // One instance per argument list of the family record crossed
+      // with the thread counts (FR-001, FR-010, FR-016): the family
+      // calls already grew the lists at registration, so expansion
+      // names each list times each count and hands the pair to an
+      // instance that owns its arguments (R-02, R-04).
       for (const auto& arguments : entry->args) {
-        const std::string name = instanceName(*entry, arguments);
-        if (hasDuplicateInstance(blocks, name)) {
-          continue;
+        for (const int threadCount : entry->threadCounts) {
+          const std::string name = instanceName(*entry, arguments, threadCount);
+          if (hasDuplicateInstance(blocks, name)) {
+            continue;
+          }
+          Instance& instance = block.emplace_back();
+          instance.name = name;
+          instance.arguments = arguments;
+          instance.threadCount = threadCount;
+          instance.family = entry.get();
+          const auto derived = deriveSuiteAndCase(entry->name, instance.name);
+          instance.suite = derived.first;
+          instance.caseName = derived.second;
         }
-        Instance& instance = block.emplace_back();
-        instance.name = name;
-        instance.arguments = arguments;
-        instance.family = entry.get();
-        const auto derived = deriveSuiteAndCase(entry->name, instance.name);
-        instance.suite = derived.first;
-        instance.caseName = derived.second;
       }
     }
     checkFamilySize(entry->name, block.size() - start);

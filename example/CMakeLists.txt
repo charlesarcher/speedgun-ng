@@ -65,6 +65,8 @@ add_docs_example(labels)
 add_docs_example(custom_statistics)
 add_docs_example(aggregates_only)
 add_docs_example(complexity_fit)
+add_docs_example(execution_contexts)
+add_docs_example(threads)
 
 
 add_folders(Example)

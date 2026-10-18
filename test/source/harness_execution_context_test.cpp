@@ -1,0 +1,1438 @@
+// ============================================================================
+// TDD test for the execution context (T004 to T009; US1, C-1 to C-3, FR-001 to
+// FR-013, FR-040, FR-049, FR-050, SC-01 to SC-05).
+//
+// This file is the test-first half of the pair FR-042 fixes. It reaches the
+// surface of include/speedgun-ng/execution_context.hpp by name only, so it
+// links against definitions T010 and T011 own and stands red until they land.
+//
+// Every scenario runs in a re-exec of this binary, the pattern of
+// harness_pause_test.cpp: one process per scenario keeps a context, the thread
+// it owns, and any contract abort inside one address space, and the parent
+// reads the wait status the kernel gave that child (fork, execv, waitpid). A
+// breach of an `SG_REQUIRE` contract therefore arrives as the SIGABRT the
+// contract facility gives it.
+//
+// No scenario sleeps, reads a clock, or bounds a wait by elapsed time. The
+// waits are the ones the surface names: `drain()`, and a read loop over
+// `state()`, whose acquire order is what makes an item's writes visible to the
+// caller (FR-049). Where two threads must start together, an atomic gate
+// stands open until both arrive: a rendezvous on a flag with no time bound.
+// Each scenario watches the state it depends on before it triggers the next
+// step, so no scenario turns on which thread the scheduler ran first.
+//
+// Scenario map:
+//   identity            the context thread runs the work, `currentContext()`
+//                       names the context inside the item and reports nothing
+//                       on a foreign thread (SC-01, FR-001, FR-002)
+//   waitModes           the one dispatch test under SPIN, YIELD and BLOCK, the
+//                       BLOCK context woken by the dispatch it waits for
+//                       (SC-02, FR-004)
+//   lifecycle           the trio runs every queued node exactly once and
+//                       nothing runs after `join` (SC-03, FR-006)
+//   order               one dispatcher is FIFO exactly; two dispatchers are
+//                       set membership plus per-dispatcher order (FR-013)
+//   nested              work dispatched from inside running work runs after
+//                       that item ends on the same context, and the running
+//                       item reads the id and the stop token (FR-010, FR-011)
+//   noalloc             zero allocations across the dispatch path under the
+//                       counting hooks (SC-04, FR-040)
+//   compileRefusal      an unapproved item type is refused where it names
+//                       `WorkNode` (FR-008); the refusal is the compile of this
+//                       file, and the mode prints the verdict
+//   placement           a replaced placement function records one call per
+//                       thread at thread start (SC-05, FR-005)
+//   stopRace            no item runs twice when a BLOCK wake races the stop
+//                       (FR-050, Edge Cases)
+//   acceptedThenDrained nodes queued before the stop all run during `drain`
+//                       (T006; FR-006, FR-050, SC-03)
+//   refusedAfterStop    a dispatch that observes the stop completes its node
+//                       STOPPED and the loop never touches it (T007; FR-050)
+//   drainWithoutStop    a `drain` with no stop flushes, the loop keeps running,
+//                       and the trio still closes the context (T009; FR-006)
+//   completionOrder     the caller waits on `state`, reads the value the item
+//                       wrote, and destroys the node at once (T005; FR-009,
+//                       FR-012, FR-049)
+// Breaches, each expected to end its child by SIGABRT:
+//   unjoined            the destructor of a context that was never joined
+//                       (SC-03, FR-006)
+//   liveNode            a node destroyed while the loop runs it (FR-012)
+//   joinOwnThread       `join` from the thread of the context itself
+//                       (Edge Cases)
+//   badPlacement        a cpu index the host lacks, at the construction call
+//                       (SC-05, FR-005)
+//   ownThreadDrain      `drain` from the thread of the context itself (T008;
+//                       FR-006, FR-050)
+// ============================================================================
+
+#include <array>
+#include <atomic>
+#include <csignal>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <functional>
+#include <memory>
+#include <new>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <utility>
+
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include "speedgun-ng/execution_context.hpp"
+
+// The zero-allocation proof replaces the global replaceable allocation
+// operators, the pattern of counters_noalloc_test.cpp. The thread sanitizer
+// runtime defines the same operators, so the two definitions cannot link
+// together there; counters_noalloc_test keeps that collision out of the tsan
+// preset at CMake level, and the same condition stands here at the level of the
+// one scenario that needs the hooks, so the target itself still builds under
+// the ci-tsan preset where the destroy-after-DONE proof of FR-049 runs.
+#if defined(__SANITIZE_THREAD__)
+#  define SG_TEST_HAS_TSAN 1
+#else
+#  define SG_TEST_HAS_TSAN 0
+#endif
+
+// A named namespace stands in for the anonymous one: the item types below reach
+// `dispatch` and `WorkNode`, and those templates are defined in the public
+// header. Types with internal linkage would make every instantiation a use no
+// translation unit can define, which is a compile error; external linkage lets
+// the missing definitions show up where a test-first file must meet them, at
+// the link.
+namespace execution_context_test
+{
+
+// Nodes one scenario queues in a batch. Every tag stays inside these bounds,
+// and the run log is indexed by position, so a scenario reads back the order
+// the context ran its nodes in.
+constexpr std::size_t kBatchNodes = 12;
+constexpr std::size_t kDispatcherNodes = 8;
+constexpr std::size_t kRunCapacity = 64;
+
+// Tags at or above this base belong to the second dispatcher of the order
+// scenario and to the nested work.
+constexpr std::size_t kSecondDispatcherBase = 32;
+
+// The value the completion-order item writes into caller storage (FR-049).
+constexpr int kSentinelValue = 0x5E47;
+
+auto fail(const char* what) -> void
+{
+  std::fprintf(stderr, "HARNESS EXECUTION CONTEXT TEST FAIL: %s\n", what);
+  std::exit(1);
+}
+
+auto check(const bool cond, const char* what) -> void
+{
+  if (!cond) {
+    fail(what);
+  }
+}
+
+auto runChild(const char* self, const char* mode, const bool silence) -> int
+{
+  const pid_t pid = fork();
+  if (pid < 0) {
+    fail("cannot fork the child");
+  }
+  if (pid == 0) {
+    if (silence && std::freopen("/dev/null", "w", stderr) == nullptr) {
+      _exit(2);
+    }
+    char* const execArgv[] = {
+        const_cast<char*>(self), const_cast<char*>(mode), nullptr};
+    (void)execv(self, execArgv);
+    _exit(2);
+  }
+  int status = 0;
+  if (waitpid(pid, &status, 0) < 0) {
+    fail("cannot wait for the child");
+  }
+  return status;
+}
+
+// The context of the running scenario, reached from inside running work: an
+// item dispatches from within itself, and drains or joins the context that runs
+// it, which is what the nested scenario and two breach modes drive (FR-010,
+// FR-050).
+sg::ExecutionContext* runningContext = nullptr;
+
+// The contexts an item reaches are owned for the whole scenario, so the pointer
+// a running item follows stands on every exit path of the scenario (FR-010).
+std::unique_ptr<sg::ExecutionContext> contextOwner;
+
+template<typename... Args>
+auto ownedContext(Args&&... args) -> sg::ExecutionContext&
+{
+  contextOwner =
+      std::make_unique<sg::ExecutionContext>(std::forward<Args>(args)...);
+  return *contextOwner;
+}
+
+// The run log the context's own thread fills. Every write stands on that one
+// thread and every read follows that thread's release write of a completion
+// state, so the acquire read of `state()` is the whole synchronization
+// (FR-049).
+std::array<std::size_t, kRunCapacity> runOrder {};
+std::array<std::size_t, kRunCapacity> runCount {};
+std::size_t runPositions = 0;
+
+struct Observation
+{
+  std::thread::id threadId {};
+  std::size_t position = 0;
+  std::uint64_t workContextSerial = 0;
+  std::uint64_t currentSerial = 0;
+  std::optional<sg::ContextId> workId {};
+  std::optional<sg::ContextId> currentId {};
+  int placementCalls = -1;
+  bool sawCurrentContext = false;
+  bool stopRequested = true;
+};
+
+// The placement recorder a scenario installs before its first context starts,
+// so the pinning proof needs no privileges (FR-005, D-04).
+std::atomic<int> placementCalls {0};
+std::array<std::uint32_t, 4> placementSlot {};
+std::array<std::thread::id, 4> placementThread {};
+
+constexpr std::string_view kRecordedPlacement = "RECORDED";
+
+auto recordPlacement(const sg::PlacementSlot& slot,
+                     std::thread::native_handle_type) -> sg::PlacementResult
+{
+  const int index = placementCalls.fetch_add(1);
+  if (index >= 0 && static_cast<std::size_t>(index) < placementSlot.size()) {
+    placementSlot[static_cast<std::size_t>(index)] = slot.cpuIndex;
+    placementThread[static_cast<std::size_t>(index)] =
+        std::this_thread::get_id();
+  }
+  return {.applied = true, .description = kRecordedPlacement};
+}
+
+// The shared body of the items that report where they ran. The identity, the
+// stop token and the placement count are read at the moment the item runs,
+// which is what the contract promises a running item can see (FR-011).
+auto observe(sg::WorkContext& work, std::size_t tag, Observation& out) -> void
+{
+  out.position = runPositions;
+  out.threadId = std::this_thread::get_id();
+  out.workContextSerial = work.id().serial;
+  out.workId = work.id();
+  if (const auto current = sg::currentContext(); current.has_value()) {
+    out.sawCurrentContext = true;
+    out.currentSerial = current->serial;
+    out.currentId = *current;
+  }
+  out.stopRequested = work.stopToken().stopRequested();
+  out.placementCalls = placementCalls.load();
+  runOrder[runPositions] = tag;
+  ++runPositions;
+  ++runCount[tag];
+}
+
+// Reports the identity of the context that ran it (FR-002, FR-011).
+struct ObserveItem
+{
+  std::size_t tag = 0;
+  Observation* out = nullptr;
+
+  auto operator()(sg::WorkContext& work) noexcept -> void
+  {
+    observe(work, tag, *out);
+  }
+};
+
+// The node the nested item hands to its own context. Work dispatched from
+// inside running work runs after that item ends (FR-010), so the node outlives
+// the frame that offered it and stands at namespace scope for the scenario.
+sg::WorkNode<ObserveItem>* nestedNode = nullptr;
+
+// Reports its run and hands a second node to the same context from inside the
+// run (FR-010).
+struct NestedItem
+{
+  std::size_t tag = 0;
+  Observation* out = nullptr;
+  std::atomic<bool>* finished = nullptr;
+
+  auto operator()(sg::WorkContext& work) noexcept -> void
+  {
+    observe(work, tag, *out);
+    sg::dispatch(*runningContext, *nestedNode);
+    finished->store(true, std::memory_order_release);
+  }
+};
+
+// Writes one value into caller storage, the shape whose completion order FR-049
+// holds the loop to (T005).
+struct ValueItem
+{
+  int* slot = nullptr;
+
+  auto operator()(sg::WorkContext&) noexcept -> void { *slot = kSentinelValue; }
+};
+
+// Finishes only once the stop request stands, so a scenario can hold the loop
+// on one node while the rest of its batch stands queued (FR-006).
+struct HoldItem
+{
+  std::size_t tag = 0;
+  Observation* out = nullptr;
+
+  auto operator()(sg::WorkContext& work) noexcept -> void
+  {
+    while (!work.stopToken().stopRequested()) {
+    }
+    observe(work, tag, *out);
+  }
+};
+
+// Finishes only once the scenario releases it, so the caller can catch the node
+// in RUNNING (FR-012). The flag crosses threads, so it stands atomic against
+// the same elided wait: a spin on a plain bool whose value never changes is
+// the undefined behaviour GCC at -O3 elides, and the elided item settled the
+// node DONE before the caller reads RUNNING. An atomic load is a side effect no
+// optimizer may drop, so the hold stands.
+struct ReleaseItem
+{
+  std::atomic<bool>* released = nullptr;
+
+  auto operator()(sg::WorkContext&) noexcept -> void
+  {
+    while (!released->load(std::memory_order_acquire)) {
+    }
+  }
+};
+
+// Drains the context that runs it, the debug-precondition breach of FR-050.
+// The flag records a call that came back, which happens only where the debug
+// precondition is compiled out: under the enforce semantic the process ends
+// inside the call, and the waiting thread never sees the flag.
+struct SelfDrainItem
+{
+  std::atomic<bool>* returned = nullptr;
+
+  auto operator()(sg::WorkContext&) noexcept -> void
+  {
+    runningContext->drain();
+    returned->store(true, std::memory_order_release);
+  }
+};
+
+// Joins the context that runs it, the contract breach of FR-006, recorded the
+// same way as the drain above.
+struct SelfJoinItem
+{
+  std::atomic<bool>* returned = nullptr;
+
+  auto operator()(sg::WorkContext&) noexcept -> void
+  {
+    runningContext->join();
+    returned->store(true, std::memory_order_release);
+  }
+};
+
+// The body of the zero-allocation proof: nothing but the dispatch path runs
+// while the counting hooks are armed (FR-040).
+struct NoAllocItem
+{
+  std::size_t tag = 0;
+
+  auto operator()(sg::WorkContext&) noexcept -> void { ++runCount[tag]; }
+};
+
+// A caller-owned batch of nodes. A node lives in caller storage and moves
+// nowhere (FR-009), so a batch is one aligned block the scenario places each
+// node into and destroys by hand.
+template<sg::WorkItem Item, std::size_t Count>
+class alignas(sg::WorkNode<Item>) NodeBatch
+{
+  std::array<std::byte, Count * sizeof(sg::WorkNode<Item>)> m_bytes {};
+
+  auto addressOf(const std::size_t index) -> sg::WorkNode<Item>*
+  {
+    return reinterpret_cast<sg::WorkNode<Item>*>(
+        m_bytes.data() + index * sizeof(sg::WorkNode<Item>));
+  }
+
+public:
+  auto construct(const std::size_t index, Item item) -> sg::WorkNode<Item>&
+  {
+    return *new (addressOf(index)) sg::WorkNode<Item>(std::move(item));
+  }
+
+  auto at(const std::size_t index) -> sg::WorkNode<Item>&
+  {
+    return *addressOf(index);
+  }
+
+  auto destroyAll() -> void
+  {
+    for (std::size_t index = 0; index < Count; ++index) {
+      std::destroy_at(addressOf(index));
+    }
+  }
+};
+
+// Waits for a node to settle with no clock and no bound: the completing thread
+// writes the state with release order as its last access to the node, so this
+// read loop is the whole wait (FR-049).
+template<sg::WorkItem Item>
+auto settled(sg::WorkNode<Item>& node) -> sg::WorkNodeState
+{
+  for (;;) {
+    const sg::WorkNodeState state = node.state();
+    if (state == sg::WorkNodeState::DONE || state == sg::WorkNodeState::STOPPED)
+    {
+      return state;
+    }
+  }
+}
+
+// Watches a node until the loop has taken it (FR-012). The hold that feeds
+// this watch stands until the caller releases it after the observation, so
+// the running state is read to stay: a settle seen here is the loop having
+// run the node unseen, and the wait fails fast on that check rather than
+// spinning on a state that cannot return.
+template<sg::WorkItem Item>
+auto watchRunning(sg::WorkNode<Item>& node) -> void
+{
+  for (;;) {
+    const sg::WorkNodeState state = node.state();
+    if (state == sg::WorkNodeState::RUNNING) {
+      return;
+    }
+    check(state != sg::WorkNodeState::DONE
+              && state != sg::WorkNodeState::STOPPED,
+          "the loop settled the node before the caller observed its running "
+          "(FR-012)");
+  }
+}
+
+auto blockingPolicy() -> sg::ContextPolicy
+{
+  return {.waitMode = sg::WaitMode::BLOCK,
+          .placement = sg::PlacementSlot::noPin()};
+}
+
+auto spinningPolicy() -> sg::ContextPolicy
+{
+  return {.waitMode = sg::WaitMode::SPIN,
+          .placement = sg::PlacementSlot::noPin()};
+}
+
+// Closes a context through the one legal lifecycle (FR-006).
+auto closeContext(sg::ExecutionContext& context) -> void
+{
+  context.requestStop();
+  context.drain();
+  context.join();
+}
+
+// SC-01, FR-001, FR-002: the work runs on the thread the context owns, names
+// that context from inside itself, and a thread the library runs no context for
+// names none.
+auto scenarioIdentity() -> int
+{
+  sg::ExecutionContext context;
+  check(context.policy().waitMode == sg::WaitMode::BLOCK,
+        "a caller-created context with no policy waits in BLOCK (FR-004)");
+  check(context.policy().placement.cpuIndex == sg::kNoPin,
+        "a caller-created context with no policy names no pin (FR-005)");
+  check(!sg::currentContext().has_value(),
+        "the calling thread names no context (FR-002)");
+
+  bool foreignSawContext = true;
+  {
+    std::thread foreign {[&foreignSawContext] {
+      foreignSawContext = sg::currentContext().has_value();
+    }};
+    foreign.join();
+  }
+  check(!foreignSawContext,
+        "a thread the library runs no context for names no context (FR-002)");
+
+  Observation observed {};
+  const ObserveItem item {0, &observed};
+  sg::WorkNode<ObserveItem> node {item};
+  sg::dispatch(context, node);
+  context.drain();
+
+  check(node.state() == sg::WorkNodeState::DONE,
+        "a node the loop ran reads DONE (FR-009)");
+  check(runCount[0] == 1, "the item ran once (FR-001)");
+  check(observed.sawCurrentContext,
+        "the running item names a context (FR-002)");
+  check(observed.currentSerial == context.id().serial,
+        "currentContext names the context running the item (FR-002)");
+  check(observed.workContextSerial == context.id().serial,
+        "the work context carries the same identity (FR-011)");
+  check(observed.currentId.has_value() && observed.workId.has_value()
+            && *observed.currentId == *observed.workId,
+        "the two identities of one context compare equal (FR-002)");
+  sg::ExecutionContext sibling;
+  sibling.requestStop();
+  sibling.drain();
+  sibling.join();
+  check(observed.workId.has_value() && *observed.workId != sibling.id(),
+        "the identities of two live contexts compare unequal (FR-002)");
+  check(observed.threadId != std::this_thread::get_id(),
+        "the work ran on the thread of the context (FR-001)");
+  check(!observed.stopRequested,
+        "the stop token reads false before any stop request stands (FR-011)");
+
+  closeContext(context);
+  std::puts("harness_execution_context_test identity: ok");
+  return 0;
+}
+
+// SC-02, FR-004: the same dispatch test under each wait mode. A BLOCK context
+// parks on its inbox flag until a dispatch wakes it, and the only waits in this
+// file are the loop's own: no poll interval and no clock stand here, so the
+// item running at all is the wake.
+auto scenarioWaitModes() -> int
+{
+  std::size_t tag = 0;
+  for (const auto mode :
+       {sg::WaitMode::SPIN, sg::WaitMode::YIELD, sg::WaitMode::BLOCK})
+  {
+    const sg::ContextPolicy policy {.waitMode = mode,
+                                    .placement = sg::PlacementSlot::noPin()};
+    sg::ExecutionContext context {policy};
+    check(context.policy().waitMode == mode,
+          "the policy stands fixed and readable for the life of the context "
+          "(FR-007)");
+
+    Observation observed {};
+    const ObserveItem item {tag, &observed};
+    sg::WorkNode<ObserveItem> node {item};
+    sg::dispatch(context, node);
+    context.drain();
+
+    check(node.state() == sg::WorkNodeState::DONE,
+          "the node settles DONE under each wait mode (SC-02, FR-004)");
+    check(runCount[tag] == 1, "the item ran once under each wait mode");
+    check(
+        observed.threadId != std::this_thread::get_id(),
+        "the item ran on the context's thread under each wait mode " "(FR-"
+                                                                     "001)");
+    check(observed.currentSerial == context.id().serial,
+          "the item named its context under each wait mode (FR-002)");
+    closeContext(context);
+    ++tag;
+  }
+  std::puts("harness_execution_context_test waitModes: ok");
+  return 0;
+}
+
+// SC-03, FR-006: the trio runs every queued node exactly once, and nothing runs
+// after join returns.
+auto scenarioLifecycle() -> int
+{
+  sg::ExecutionContext context {blockingPolicy()};
+  NodeBatch<ObserveItem, kBatchNodes> batch;
+  std::array<Observation, kBatchNodes> observed {};
+
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    sg::dispatch(context,
+                 batch.construct(index, ObserveItem {index, &observed[index]}));
+  }
+  closeContext(context);
+
+  const std::size_t positionsAfterJoin = runPositions;
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    check(batch.at(index).state() == sg::WorkNodeState::DONE,
+          "every node queued before the stop request reads DONE (SC-03, "
+          "FR-006)");
+    check(runCount[index] == 1,
+          "every queued node ran exactly once (SC-03, FR-006)");
+    check(observed[index].threadId != std::this_thread::get_id(),
+          "every queued node ran on the context's thread (FR-001)");
+  }
+  check(runPositions == kBatchNodes,
+        "the batch filled the run log once " "(SC-03, FR-006)");
+  check(positionsAfterJoin == runPositions,
+        "no node ran after join returned (FR-006)");
+
+  batch.destroyAll();
+  std::puts("harness_execution_context_test lifecycle: ok");
+  return 0;
+}
+
+// FR-013: nodes one thread dispatches run in that order; two threads
+// dispatching at once give set membership plus order within each dispatcher.
+auto orderChecks() -> void
+{
+  {
+    sg::ExecutionContext context {spinningPolicy()};
+    NodeBatch<ObserveItem, kBatchNodes> batch;
+    std::array<Observation, kBatchNodes> observed {};
+    for (std::size_t index = 0; index < kBatchNodes; ++index) {
+      sg::dispatch(
+          context,
+          batch.construct(index, ObserveItem {index, &observed[index]}));
+    }
+    closeContext(context);
+
+    check(runPositions == kBatchNodes,
+          "the single dispatcher's batch ran in full (FR-013)");
+    for (std::size_t position = 0; position < runPositions; ++position) {
+      check(runOrder[position] == position,
+            "one dispatcher is served first in first out exactly (FR-013)");
+    }
+    batch.destroyAll();
+  }
+
+  runPositions = 0;
+  for (std::size_t index = 0; index < kRunCapacity; ++index) {
+    runCount[index] = 0;
+  }
+
+  auto& context = ownedContext(spinningPolicy());
+  NodeBatch<ObserveItem, kDispatcherNodes> first;
+  NodeBatch<ObserveItem, kDispatcherNodes> second;
+  std::array<Observation, kDispatcherNodes> firstObserved {};
+  std::array<Observation, kDispatcherNodes> secondObserved {};
+  std::array<bool, kDispatcherNodes> seen {};
+
+  // The two dispatchers start together on an atomic gate, so the inbox is what
+  // orders them and no elapsed time stands in the test.
+  std::atomic<int> ready {0};
+  std::atomic<bool> start {false};
+  const auto drive =
+      [&ready, &start](NodeBatch<ObserveItem, kDispatcherNodes>& batch,
+                       std::array<Observation, kDispatcherNodes>& observed,
+                       const std::size_t base)
+  {
+    ++ready;
+    while (!start.load()) {
+    }
+    for (std::size_t index = 0; index < kDispatcherNodes; ++index) {
+      sg::dispatch(
+          *runningContext,
+          batch.construct(index, ObserveItem {base + index, &observed[index]}));
+    }
+  };
+  runningContext = &context;
+  std::thread firstThread {[&] { drive(first, firstObserved, 0); }};
+  std::thread secondThread {
+      [&] { drive(second, secondObserved, kSecondDispatcherBase); }};
+  while (ready.load() < 2) {
+  }
+  start.store(true);
+  firstThread.join();
+  secondThread.join();
+  closeContext(context);
+  runningContext = nullptr;
+
+  check(runPositions == 2 * kDispatcherNodes,
+        "both dispatchers' nodes ran (FR-013)");
+  std::size_t lastFirst = 0;
+  std::size_t lastSecond = 0;
+  std::size_t firstSeen = 0;
+  std::size_t secondSeen = 0;
+  for (std::size_t position = 0; position < runPositions; ++position) {
+    const std::size_t tag = runOrder[position];
+    check(tag < kRunCapacity && runCount[tag] == 1,
+          "every dispatched node ran once and only once (FR-013)");
+    if (tag < kSecondDispatcherBase) {
+      check(tag >= lastFirst,
+            "the first dispatcher's nodes ran in the order it dispatched them "
+            "(FR-013)");
+      lastFirst = tag;
+      ++firstSeen;
+    } else {
+      check(tag >= lastSecond,
+            "the second dispatcher's nodes ran in the order it dispatched them "
+            "(FR-013)");
+      lastSecond = tag;
+      ++secondSeen;
+    }
+    seen[tag % kDispatcherNodes] = true;
+  }
+  check(firstSeen == kDispatcherNodes && secondSeen == kDispatcherNodes,
+        "the run carries every node both dispatchers offered (FR-013)");
+  for (const bool one : seen) {
+    check(one, "every index of each dispatcher appears in the run (FR-013)");
+  }
+  for (std::size_t index = 0; index < kDispatcherNodes; ++index) {
+    check(first.at(index).state() == sg::WorkNodeState::DONE
+              && second.at(index).state() == sg::WorkNodeState::DONE,
+          "every node of both dispatchers settles DONE (FR-009)");
+    check(firstObserved[index].threadId == secondObserved[index].threadId,
+          "both dispatchers' work ran on the one context's thread (FR-001)");
+  }
+  first.destroyAll();
+  second.destroyAll();
+}
+
+auto scenarioOrder() -> int
+{
+  orderChecks();
+  std::puts("harness_execution_context_test order: ok");
+  return 0;
+}
+
+// FR-010, FR-011: work dispatched from inside running work runs after that item
+// ends, on the same context, and the running item reads the identity of its
+// context and a stop token that reads true once the stop request stands.
+auto scenarioNested() -> int
+{
+  auto& context = ownedContext(spinningPolicy());
+  runningContext = &context;
+
+  std::atomic<bool> outerFinished {false};
+  Observation outerObserved {};
+  Observation innerObserved {};
+  Observation holdObserved {};
+  const ObserveItem innerItem {kSecondDispatcherBase, &innerObserved};
+  sg::WorkNode<ObserveItem> innerNode {innerItem};
+  nestedNode = &innerNode;
+
+  const NestedItem outer {0, &outerObserved, &outerFinished};
+  sg::WorkNode<NestedItem> outerNode {outer};
+  const HoldItem hold {1, &holdObserved};
+  sg::WorkNode<HoldItem> holdNode {hold};
+
+  sg::dispatch(context, outerNode);
+  sg::dispatch(context, holdNode);
+  // FR-050: the nested dispatch belongs to the run it comes from, so the stop
+  // request must not stand before it happens. The parent's two enqueues reach
+  // the inbox before the handoff to the context's thread completes, so without
+  // this wait the nested dispatch observes the stopped state and FR-050 refuses
+  // the nested node STOPPED.
+  while (!outerFinished.load(std::memory_order_acquire)) {
+  }
+  // The hold node was accepted before the stop request stood, so the drain runs
+  // it and its token reads true (FR-006, FR-011).
+  context.requestStop();
+  context.drain();
+
+  check(outerNode.state() == sg::WorkNodeState::DONE,
+        "the item that dispatched from inside itself ran (FR-010)");
+  check(innerNode.state() == sg::WorkNodeState::DONE,
+        "work dispatched from inside running work runs (FR-010)");
+  check(
+      holdNode.state() == sg::WorkNodeState::DONE,
+      "the node accepted before the stop request ran during drain " "(FR-006)");
+  check(runCount[kSecondDispatcherBase] == 1,
+        "the inner work ran once " "(FR-010)");
+  check(innerObserved.position > outerObserved.position,
+        "work dispatched from inside running work runs after that item ends "
+        "(FR-010, FR-013)");
+  check(innerObserved.threadId == outerObserved.threadId,
+        "work dispatched from inside running work runs on the same context "
+        "(FR-010)");
+  check(innerObserved.threadId != std::this_thread::get_id(),
+        "the nested work ran on the context's thread (FR-001)");
+  check(innerObserved.currentSerial == context.id().serial
+            && outerObserved.currentSerial == context.id().serial,
+        "both items named the same context (FR-002)");
+  check(outerFinished.load(std::memory_order_acquire),
+        "the outer item reached its last statement (FR-010)");
+  check(holdObserved.stopRequested,
+        "a running item reads its stop token true once requestStop stood "
+        "(FR-011)");
+  check(holdObserved.workContextSerial == context.id().serial,
+        "the work context of the held item names its context (FR-011)");
+
+  context.join();
+  runningContext = nullptr;
+  nestedNode = nullptr;
+  std::puts("harness_execution_context_test nested: ok");
+  return 0;
+}
+
+// The counting hooks of the zero-allocation proof (SC-04, FR-040). The thread
+// sanitizer runtime owns these operators, so the hooks, the replaced forms and
+// the scenario that arms them stand aside there.
+#if !SG_TEST_HAS_TSAN
+std::atomic<bool> countAllocations {false};
+std::atomic<long long> allocations {0};
+
+auto noteAllocation() -> void
+{
+  if (countAllocations.load(std::memory_order_relaxed)) {
+    ++allocations;
+  }
+}
+
+auto allocate(const std::size_t size) -> void*
+{
+  noteAllocation();
+  void* block = std::malloc(size == 0 ? 1 : size);
+  if (block == nullptr) {
+    throw std::bad_alloc();
+  }
+  return block;
+}
+
+auto allocateNothrow(const std::size_t size) noexcept -> void*
+{
+  noteAllocation();
+  return std::malloc(size == 0 ? 1 : size);
+}
+
+auto allocateAligned(const std::size_t size,
+                     const std::size_t alignment) -> void*
+{
+  noteAllocation();
+  const std::size_t request = size == 0 ? 1 : size;
+  const std::size_t rounded = (request + alignment - 1) & ~(alignment - 1);
+  void* block = std::aligned_alloc(alignment, rounded);
+  if (block == nullptr) {
+    throw std::bad_alloc();
+  }
+  return block;
+}
+
+auto allocateAlignedNothrow(const std::size_t size,
+                            const std::size_t alignment) noexcept -> void*
+{
+  noteAllocation();
+  const std::size_t request = size == 0 ? 1 : size;
+  const std::size_t rounded = (request + alignment - 1) & ~(alignment - 1);
+  return std::aligned_alloc(alignment, rounded);
+}
+#endif  // !SG_TEST_HAS_TSAN
+
+// SC-04, FR-040: building the caller's node and dispatching it performs no
+// allocation, on either thread.
+auto scenarioNoAlloc() -> int
+{
+#if SG_TEST_HAS_TSAN
+  std::puts("harness_execution_context_test noalloc: the thread sanitizer "
+            "runtime owns the replaceable allocation operators, so the "
+            "counting hooks stand aside there (SC-04, FR-040)");
+  return 0;
+#else
+  sg::ExecutionContext context {blockingPolicy()};
+  NodeBatch<NoAllocItem, kBatchNodes> batch;
+
+  allocations.store(0);
+  countAllocations.store(true);
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    sg::dispatch(context, batch.construct(index, NoAllocItem {index}));
+  }
+  countAllocations.store(false);
+
+  check(allocations.load() == 0,
+        "the dispatch path allocated nothing (SC-04, FR-040)");
+  closeContext(context);
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    check(batch.at(index).state() == sg::WorkNodeState::DONE,
+          "every node of the counted batch ran (FR-010)");
+    check(runCount[index] == 1, "every node of the counted batch ran once");
+  }
+  batch.destroyAll();
+  std::puts("harness_execution_context_test noalloc: ok");
+  return 0;
+#endif
+}
+
+// FR-008: the refusal of an unapproved item type is a property of the compile
+// of this file, the same proof shape as test/source/dbc_standalone.cpp. An item
+// outside the concept cannot name `WorkNode` and cannot reach `dispatch()`,
+// which is where the program stops building.
+struct NotNoexceptItem
+{
+  auto operator()(sg::WorkContext&) -> void {}
+};
+
+struct WrongArgumentItem
+{
+  auto operator()(int) noexcept -> void {}
+};
+
+struct NotCallableItem
+{
+  int value = 0;
+};
+
+static_assert(sg::WorkItem<ObserveItem>,
+              "a noexcept item taking the work context is approved (FR-008)");
+static_assert(!sg::WorkItem<NotNoexceptItem>,
+              "an item whose call is not noexcept is refused (FR-008)");
+static_assert(!sg::WorkItem<WrongArgumentItem>,
+              "an item that takes no work context is refused (FR-008)");
+static_assert(!sg::WorkItem<NotCallableItem>,
+              "a type that is not invocable is refused (FR-008)");
+static_assert(
+    !sg::WorkItem<std::function<void(sg::WorkContext&)>>,
+    "a type-erased callable is refused: its call is not noexcept " "(FR-008)");
+
+// Naming the node with a refused type is the refusal point FR-008 names.
+template<class Item>
+concept NodeFormable = requires { typename sg::WorkNode<Item>; };
+
+static_assert(NodeFormable<ObserveItem>,
+              "an approved item names a work node (FR-009)");
+static_assert(!NodeFormable<NotNoexceptItem>,
+              "an unapproved item cannot name a work node (FR-008)");
+static_assert(!NodeFormable<WrongArgumentItem>,
+              "an unapproved item cannot name a work node (FR-008)");
+static_assert(!NodeFormable<NotCallableItem>,
+              "an unapproved item cannot name a work node (FR-008)");
+
+auto scenarioCompileRefusal() -> int
+{
+  check(!NodeFormable<NotNoexceptItem> && !NodeFormable<NotCallableItem>,
+        "the unapproved item types were refused where they name WorkNode "
+        "(FR-008)");
+  std::puts("harness_execution_context_test compileRefusal: ok");
+  return 0;
+}
+
+// SC-05, FR-005: the installed placement function is called once per context
+// thread at thread start, with that context's slot, before any of that
+// context's work runs. The install stands before the first context of the
+// process, the rule D-04 states, so no privileges are needed. The contexts run
+// one after the other, so the order of the records names them.
+auto scenarioPlacement() -> int
+{
+  sg::setPlacementFunction(&recordPlacement);
+
+  const std::array<sg::PlacementSlot, 2> slots {sg::PlacementSlot::noPin(),
+                                                sg::PlacementSlot::cpu(0)};
+  std::size_t tag = 0;
+  for (std::size_t index = 0; index < slots.size(); ++index) {
+    const sg::ContextPolicy policy {.waitMode = sg::WaitMode::BLOCK,
+                                    .placement = slots[index]};
+    sg::ExecutionContext context {policy};
+    check(context.policy().placement.cpuIndex == slots[index].cpuIndex,
+          "the placement of the policy reads back (FR-007)");
+
+    Observation observed {};
+    const ObserveItem item {tag, &observed};
+    sg::WorkNode<ObserveItem> node {item};
+    sg::dispatch(context, node);
+    context.drain();
+
+    check(node.state() == sg::WorkNodeState::DONE,
+          "the placed context ran its work (FR-001)");
+    check(observed.placementCalls >= 1,
+          "the placement stands before the context runs any work (SC-05, "
+          "FR-005)");
+    check(placementCalls.load() == static_cast<int>(index) + 1,
+          "one placement call per context, and no more (SC-05, FR-005)");
+    check(placementSlot[index] == slots[index].cpuIndex,
+          "the placement function received that context's slot (SC-05, "
+          "FR-005)");
+    check(placementThread[index] == observed.threadId,
+          "the placement ran on the thread of that context, at its start "
+          "(SC-05, FR-005)");
+    closeContext(context);
+    ++tag;
+  }
+  check(placementCalls.load() == static_cast<int>(slots.size()),
+        "the replacement recorded exactly one call per context thread "
+        "(SC-05, FR-005)");
+  std::puts("harness_execution_context_test placement: ok");
+  return 0;
+}
+
+// FR-050, Edge Cases: a BLOCK wake racing the stop request leaves no item run
+// twice. Each node lands on one side of the linearization at its enqueue, and
+// the checks hold whichever side that is.
+auto scenarioStopRace() -> int
+{
+  sg::ExecutionContext context {blockingPolicy()};
+  NodeBatch<NoAllocItem, kDispatcherNodes> batch;
+
+  // Offered before the stop request can stand, so one node is certain to be
+  // accepted and the drain has something to run.
+  const NoAllocItem earlier {kSecondDispatcherBase};
+  sg::WorkNode<NoAllocItem> earlierNode {earlier};
+  sg::dispatch(context, earlierNode);
+
+  std::atomic<bool> start {false};
+  std::atomic<int> ready {0};
+  std::thread dispatcher {
+      [&]
+      {
+        ++ready;
+        while (!start.load()) {
+        }
+        for (std::size_t index = 0; index < kDispatcherNodes; ++index) {
+          sg::dispatch(context, batch.construct(index, NoAllocItem {index}));
+        }
+      }};
+  while (ready.load() < 1) {
+  }
+  start.store(true);
+  context.requestStop();
+  dispatcher.join();
+  context.drain();
+  context.join();
+
+  check(earlierNode.state() == sg::WorkNodeState::DONE,
+        "the node accepted before the stop request ran (FR-050)");
+  check(runCount[kSecondDispatcherBase] == 1,
+        "the accepted node ran once while the stop request raced the "
+        "dispatches " "(FR-050)");
+  for (std::size_t index = 0; index < kDispatcherNodes; ++index) {
+    const sg::WorkNodeState state = batch.at(index).state();
+    check(
+        state == sg::WorkNodeState::DONE || state == sg::WorkNodeState::STOPPED,
+        "every node settles to one completion state (FR-050)");
+    check(runCount[index] == (state == sg::WorkNodeState::DONE ? 1 : 0),
+          "no item runs twice, and a refused item never runs (FR-050)");
+  }
+  batch.destroyAll();
+  std::puts("harness_execution_context_test stopRace: ok");
+  return 0;
+}
+
+// T006, FR-006, FR-050, SC-03: the nodes accepted before the stop request all
+// run during drain, each exactly once.
+auto scenarioAcceptedThenDrained() -> int
+{
+  sg::ExecutionContext context {blockingPolicy()};
+  NodeBatch<ObserveItem, kBatchNodes> batch;
+  std::array<Observation, kBatchNodes> observed {};
+  Observation holdObserved {};
+  const HoldItem hold {kSecondDispatcherBase, &holdObserved};
+  sg::WorkNode<HoldItem> holdNode {hold};
+
+  // The hold node keeps the loop busy while the batch behind it is queued, so
+  // the whole batch stands in the inbox when requestStop runs.
+  sg::dispatch(context, holdNode);
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    sg::dispatch(context,
+                 batch.construct(index, ObserveItem {index, &observed[index]}));
+  }
+  context.requestStop();
+  context.drain();
+
+  check(holdNode.state() == sg::WorkNodeState::DONE,
+        "the node that held the loop ran (T006, FR-006)");
+  check(holdObserved.stopRequested,
+        "the loop was still running work when the stop request stood "
+        "(T006, FR-006)");
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    check(batch.at(index).state() == sg::WorkNodeState::DONE,
+          "every node accepted before the stop request reads DONE (T006, "
+          "FR-006)");
+    check(runCount[index] == 1,
+          "every node accepted before the stop request ran exactly once "
+          "(T006, SC-03)");
+  }
+  check(
+      runPositions == kBatchNodes + 1,
+      "the drain ran the whole accepted set and nothing else (T006, " "FR-"
+                                                                      "006)");
+  context.join();
+  batch.destroyAll();
+  std::puts("harness_execution_context_test acceptedThenDrained: ok");
+  return 0;
+}
+
+// T007, FR-050: a dispatch that observes the stop request refuses its node and
+// completes it itself, and the loop never touches a node it never accepted.
+auto scenarioRefusedAfterStop() -> int
+{
+  sg::ExecutionContext context {blockingPolicy()};
+  context.requestStop();
+
+  const NoAllocItem item {0};
+  sg::WorkNode<NoAllocItem> node {item};
+  sg::dispatch(context, node);
+
+  check(node.state() == sg::WorkNodeState::STOPPED,
+        "a dispatch that observes the stopped state completes its node "
+        "STOPPED (T007, FR-050)");
+  check(runCount[0] == 0, "the refused item never ran (T007, FR-050)");
+
+  context.drain();
+  check(node.state() == sg::WorkNodeState::STOPPED,
+        "the loop never touches a node it never accepted (T007, FR-050)");
+  check(runCount[0] == 0,
+        "the refused item stayed unrun through the drain (T007, FR-050)");
+  context.join();
+  std::puts("harness_execution_context_test refusedAfterStop: ok");
+  return 0;
+}
+
+// T009, FR-006, FR-050: a drain with no prior stop request flushes the inbox
+// and leaves the loop running, so a later dispatch still runs and the lifecycle
+// still closes the context.
+auto scenarioDrainWithoutStop() -> int
+{
+  constexpr std::size_t kFlushNodes = 4;
+  sg::ExecutionContext context {spinningPolicy()};
+  NodeBatch<ObserveItem, kFlushNodes> batch;
+  std::array<Observation, kFlushNodes> observed {};
+  for (std::size_t index = 0; index < kFlushNodes; ++index) {
+    sg::dispatch(context,
+                 batch.construct(index, ObserveItem {index, &observed[index]}));
+  }
+  context.drain();
+
+  for (std::size_t index = 0; index < kFlushNodes; ++index) {
+    check(batch.at(index).state() == sg::WorkNodeState::DONE,
+          "the drain left every queued node completed (T009, FR-006)");
+    check(runCount[index] == 1,
+          "the flush ran each queued node once (T009, FR-050)");
+  }
+  check(runPositions == kFlushNodes,
+        "the drain returned with the inbox empty and the loop idle (T009, "
+        "FR-050)");
+
+  Observation later {};
+  const ObserveItem laterItem {kSecondDispatcherBase, &later};
+  sg::WorkNode<ObserveItem> laterNode {laterItem};
+  sg::dispatch(context, laterNode);
+  context.drain();
+  check(laterNode.state() == sg::WorkNodeState::DONE,
+        "the loop kept running after the flush, so a later dispatch still ran "
+        "(T009, FR-006)");
+
+  closeContext(context);
+  check(runPositions == kFlushNodes + 1,
+        "the lifecycle closed the context with nothing left to run (T009, "
+        "FR-006)");
+  batch.destroyAll();
+  std::puts("harness_execution_context_test drainWithoutStop: ok");
+  return 0;
+}
+
+// T005, FR-009, FR-012, FR-049: the caller waits on the completion state, reads
+// what the item wrote, and destroys the node at the read that saw it. Under the
+// ci-tsan run (T038) this sequence reports no race, because the release write
+// of DONE is the loop's last access to the node.
+auto scenarioCompletionOrder() -> int
+{
+  sg::ExecutionContext context {blockingPolicy()};
+  int value = 0;
+  alignas(sg::WorkNode<ValueItem>)
+      std::array<std::byte, sizeof(sg::WorkNode<ValueItem>)>
+          bytes {};
+  auto* node = new (bytes.data()) sg::WorkNode<ValueItem> {ValueItem {&value}};
+
+  sg::dispatch(context, *node);
+  check(settled(*node) == sg::WorkNodeState::DONE,
+        "the node settles DONE (T005, FR-009)");
+  check(value == kSentinelValue,
+        "the value the item wrote is visible to the reader that saw DONE "
+        "(T005, FR-049)");
+  node->~WorkNode();
+
+  closeContext(context);
+  std::puts("harness_execution_context_test completionOrder: ok");
+  return 0;
+}
+
+// SC-03, FR-006: the destructor requires a joined context.
+auto breachUnjoined() -> int
+{
+  {
+    // The context starts its thread here and stands unjoined when the scope
+    // ends, so its destructor is the violation.
+    sg::ExecutionContext context {blockingPolicy()};
+    (void)context;
+  }
+  check(false,
+        "the destructor of a context that was never joined is a contract "
+        "violation (SC-03, FR-006)");
+  return 1;
+}
+
+// FR-012: destroying a node while the loop runs it is a contract violation
+// under the enforce semantic.
+auto breachLiveNode() -> int
+{
+  sg::ExecutionContext context {blockingPolicy()};
+  std::atomic<bool> released {false};
+  alignas(sg::WorkNode<ReleaseItem>)
+      std::array<std::byte, sizeof(sg::WorkNode<ReleaseItem>)>
+          bytes {};
+  auto* node =
+      new (bytes.data()) sg::WorkNode<ReleaseItem> {ReleaseItem {&released}};
+
+  // The item holds the node in RUNNING until this flag stands, and the flag
+  // stands only after the destructor below, so on every schedule the loop
+  // stands inside the item while the caller observes RUNNING and destroys
+  // the node: the observation cannot be missed and the destructor reads a
+  // live node.
+  sg::dispatch(context, *node);
+  watchRunning(*node);
+  node->~WorkNode();
+  // The enforce semantic ends the process at the line above. This point is
+  // reached only where the semantic is compiled out: release the item, exit
+  // the child non-zero so the parent reports the missed breach, and leave
+  // the item's thread nothing to spin on.
+  released.store(true, std::memory_order_release);
+  check(false, "destroying a live node is a contract violation (FR-012)");
+  return 1;
+}
+
+// Edge Cases, FR-006: join from the thread of the context itself.
+auto breachJoinOwnThread() -> int
+{
+  auto& context = ownedContext(spinningPolicy());
+  runningContext = &context;
+  // The flag crosses threads for the same reason as the drain breach's, so it
+  // stands atomic against the elided wait.
+  std::atomic<bool> returned {false};
+  const SelfJoinItem item {&returned};
+  sg::WorkNode<SelfJoinItem> node {item};
+  sg::dispatch(context, node);
+  // The breach ends the process on the context's thread. The wait is on the
+  // call coming back, so the abort always arrives first where the contract is
+  // enforced.
+  while (!returned.load(std::memory_order_acquire)) {
+  }
+  runningContext = nullptr;
+  check(
+      false,
+      "join from the thread of the context is a contract violation " "(FR-"
+                                                                     "006)");
+  return 1;
+}
+
+// T008, FR-006, FR-050: drain from the thread of the context itself trips the
+// debug precondition.
+auto breachOwnThreadDrain() -> int
+{
+  auto& context = ownedContext(spinningPolicy());
+  runningContext = &context;
+  // The item sets this flag from the context's thread, so it crosses threads: a
+  // plain bool would make the wait below a loop with no visible side effect,
+  // which is elidable undefined behaviour that GCC at -O3 does elide.
+  std::atomic<bool> returned {false};
+  const SelfDrainItem item {&returned};
+  sg::WorkNode<SelfDrainItem> node {item};
+  sg::dispatch(context, node);
+  while (!returned.load(std::memory_order_acquire)) {
+  }
+  runningContext = nullptr;
+  check(false,
+        "drain from the thread of the context is a contract violation "
+        "(T008, FR-050)");
+  return 1;
+}
+
+// SC-05, FR-005: a cpu index the host lacks is a violation at the call. The
+// default placement function builds a cpu set, so the index stays inside the
+// bound of that set on any host with room for it.
+auto breachBadPlacement() -> int
+{
+  const long online = sysconf(_SC_NPROCESSORS_ONLN);
+  if (online <= 0) {
+    fail("the host reports no online cpus, so no index can name one it lacks");
+  }
+  const auto absent = static_cast<std::uint32_t>(online + 4);
+  const sg::ContextPolicy policy {.waitMode = sg::WaitMode::BLOCK,
+                                  .placement = sg::PlacementSlot::cpu(absent)};
+  const sg::ExecutionContext context {policy};
+  (void)context;
+  check(false, "a cpu index the host lacks ends the process at the "
+               "construction call (SC-05, FR-005)");
+  return 1;
+}
+
+struct Mode
+{
+  const char* name;
+  auto (*run)() -> int;
+};
+
+constexpr std::array<Mode, 13> kScenarios {
+    Mode {.name = "identity", .run = &scenarioIdentity},
+    Mode {.name = "waitModes", .run = &scenarioWaitModes},
+    Mode {.name = "lifecycle", .run = &scenarioLifecycle},
+    Mode {.name = "order", .run = &scenarioOrder},
+    Mode {.name = "nested", .run = &scenarioNested},
+    Mode {.name = "noalloc", .run = &scenarioNoAlloc},
+    Mode {.name = "compileRefusal", .run = &scenarioCompileRefusal},
+    Mode {.name = "placement", .run = &scenarioPlacement},
+    Mode {.name = "stopRace", .run = &scenarioStopRace},
+    Mode {.name = "acceptedThenDrained", .run = &scenarioAcceptedThenDrained},
+    Mode {.name = "refusedAfterStop", .run = &scenarioRefusedAfterStop},
+    Mode {.name = "drainWithoutStop", .run = &scenarioDrainWithoutStop},
+    Mode {.name = "completionOrder", .run = &scenarioCompletionOrder},
+};
+
+constexpr std::array<Mode, 5> kBreaches {
+    Mode {.name = "unjoined", .run = &breachUnjoined},
+    Mode {.name = "liveNode", .run = &breachLiveNode},
+    Mode {.name = "joinOwnThread", .run = &breachJoinOwnThread},
+    Mode {.name = "ownThreadDrain", .run = &breachOwnThreadDrain},
+    Mode {.name = "badPlacement", .run = &breachBadPlacement},
+};
+
+}  // namespace execution_context_test
+
+#if !SG_TEST_HAS_TSAN
+using execution_context_test::allocate;
+using execution_context_test::allocateAligned;
+using execution_context_test::allocateAlignedNothrow;
+using execution_context_test::allocateNothrow;
+
+// Every replaceable form is replaced, so no shape of allocation reaches the
+// heap uncounted while the hooks are armed (SC-04, FR-040). Each new pairs with
+// a delete that returns the same storage.
+auto operator new(std::size_t size) -> void*
+{
+  return allocate(size);
+}
+
+auto operator new[](std::size_t size) -> void*
+{
+  return allocate(size);
+}
+
+auto operator new(std::size_t size, const std::nothrow_t&) noexcept -> void*
+{
+  return allocateNothrow(size);
+}
+
+auto operator new[](std::size_t size, const std::nothrow_t&) noexcept -> void*
+{
+  return allocateNothrow(size);
+}
+
+auto operator new(std::size_t size, std::align_val_t align) -> void*
+{
+  return allocateAligned(size, static_cast<std::size_t>(align));
+}
+
+auto operator new[](std::size_t size, std::align_val_t align) -> void*
+{
+  return allocateAligned(size, static_cast<std::size_t>(align));
+}
+
+auto operator new(std::size_t size,
+                  std::align_val_t align,
+                  const std::nothrow_t&) noexcept -> void*
+{
+  return allocateAlignedNothrow(size, static_cast<std::size_t>(align));
+}
+
+auto operator new[](std::size_t size,
+                    std::align_val_t align,
+                    const std::nothrow_t&) noexcept -> void*
+{
+  return allocateAlignedNothrow(size, static_cast<std::size_t>(align));
+}
+
+auto operator delete(void* block) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete[](void* block) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete(void* block, std::size_t) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete[](void* block, std::size_t) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete(void* block, const std::nothrow_t&) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete[](void* block, const std::nothrow_t&) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete(void* block, std::align_val_t) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete[](void* block, std::align_val_t) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete(void* block,
+                     std::size_t,
+                     std::align_val_t) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete[](void* block,
+                       std::size_t,
+                       std::align_val_t) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete(void* block,
+                     std::align_val_t,
+                     const std::nothrow_t&) noexcept -> void
+{
+  std::free(block);
+}
+
+auto operator delete[](void* block,
+                       std::align_val_t,
+                       const std::nothrow_t&) noexcept -> void
+{
+  std::free(block);
+}
+#endif  // !SG_TEST_HAS_TSAN
+
+auto main(const int argc, char** argv) -> int
+{
+  using execution_context_test::check;
+  using execution_context_test::kBreaches;
+  using execution_context_test::kScenarios;
+  using execution_context_test::runChild;
+
+  const std::string argument = argc > 1 ? argv[1] : "";
+  for (const auto& scenario : kScenarios) {
+    if (argument == scenario.name) {
+      return scenario.run();
+    }
+  }
+  for (const auto& breach : kBreaches) {
+    if (argument == breach.name) {
+      return breach.run();
+    }
+  }
+  if (!argument.empty()) {
+    (void)std::fprintf(stderr, "unknown mode: %s\n", argument.c_str());
+    return 2;
+  }
+
+  const char* const self = argv[0];
+  for (const auto& scenario : kScenarios) {
+    const int status = runChild(self, scenario.name, false);
+    const std::string message =
+        std::string("the scenario passes: ") + scenario.name;
+    check(WIFEXITED(status) && WEXITSTATUS(status) == 0, message.c_str());
+  }
+
+  // Each breach ends its child through the contract facility, which aborts. The
+  // parent forks and execs directly and reads the signal from waitpid, the
+  // pattern harness_pause_test.cpp carries for the same reason.
+  for (const auto& breach : kBreaches) {
+    const int status = runChild(self, breach.name, true);
+    const std::string message =
+        std::string("the breach ends its child by SIGABRT: ") + breach.name;
+    check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT, message.c_str());
+  }
+
+  std::puts("harness_execution_context_test: ok");
+  return 0;
+}

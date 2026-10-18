@@ -356,10 +356,11 @@ auto bmFill(sg::State& state) -> void
   state.setLabel("filled");
 }
 
-SG_BENCHMARK(bmFill).argsProduct({{8}});
+SG_BENCHMARK(bmFill).argsProduct({{8}}).threadRange(1, 2);
 ```
 The row carries `bytes_per_second=` from the byte setter and the `label=` field the label setter gave it, and [Reading a report row](docs/pages/harness.md#reading-a-report-row) shows the full run with the `spread=` statistic and the `BIG_O` and `RMS` pair of the fit.
 A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`.
+A threaded result prints its merged row, `bmFill/8/threads:2`, and under it the disclosure of the contexts it merged: `contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN`.
 
 ### User counters
 <!-- sg-example: example/docs/user_counters.cpp#counter-column -->
@@ -488,6 +489,47 @@ SG_BENCHMARK(bmSwapPasses)
 ```
 The family ends with a `BIG_O` row naming the curve and its coefficient, an `RMS` row with the fit error as a percentage, one pair for every quantity the family carries, and a `SKIPPED` row naming a quantity a member never set together with its reason. See [complexity fit](docs/pages/harness.md#complexity-fit).
 
+### Execution contexts
+A context is a thread the library runs, with an inbox of typed work and a policy fixing its wait mode and placement.
+<!-- sg-example: example/docs/execution_contexts.cpp#noise-load -->
+```cpp
+const auto kNoiseLoad = [](sg::WorkContext& work) noexcept
+{
+  while (!work.stopToken().stopRequested()) {
+  }
+};
+
+auto main(int argc, char** argv) -> int
+{
+  const sg::ContextPolicy spin {.waitMode = sg::WaitMode::SPIN};
+  sg::ExecutionContext load {spin};
+  sg::WorkNode<decltype(kNoiseLoad)> node {kNoiseLoad};
+  sg::dispatch(load, node);
+  const int status = sg::speedgunMain(argc, argv);
+  load.requestStop();
+  load.drain();
+  load.join();
+  return status;
+}
+```
+The `bmQuiet` row prints while the load spins on its own context. The three calls after `speedgunMain` stand the stop request, flush the inbox and join the thread. See [execution context lifecycle](docs/pages/harness.md#execution-context-lifecycle).
+
+### Threads
+`threads(4)` runs one benchmark body on four contexts at once and prints one merged row for them.
+<!-- sg-example: example/docs/threads.cpp#threads -->
+```cpp
+auto bmSharded(sg::State& state) -> void
+{
+  const int index = state.threadIndex();
+  for (auto _ : state) {
+    sg::doNotOptimize(index + state.threads());
+  }
+}
+
+SG_BENCHMARK(bmSharded).threads(4);
+```
+`state.threadIndex()` numbers the context running the loop, and `state.threads()` gives the count the instance asked for. See [what a threaded row merges](docs/pages/harness.md#what-a-threaded-row-merges).
+
 ## Quick reference
 
 | Name | Owner | What it does | Teaches |
@@ -549,6 +591,33 @@ The family ends with a `BIG_O` row naming the curve and its coefficient, an `RMS
 | `reportAggregatesOnly` | BenchmarkHandle | Keeps the repetition rows of this family out | [aggregate only reporting](#aggregate-only-reporting) |
 | `displayAggregatesOnly` | BenchmarkHandle | Trims the console of this family to its aggregate rows | [aggregate only reporting](#aggregate-only-reporting) |
 | `complexity` | BenchmarkHandle | Chooses the curve the fit searches | [complexity fit](#complexity-fit) |
+| `ExecutionContext` | type | One thread, its inbox and the policy it runs under | [execution contexts](#execution-contexts) |
+| `ContextPolicy` | type | The wait mode and placement one context starts under | [execution contexts](#execution-contexts) |
+| `WaitMode` | type | The three ways a waiting context gives up its cpu | [execution contexts](#execution-contexts) |
+| `PlacementSlot` | type | The cpu one context asks to be pinned to | [execution contexts](#execution-contexts) |
+| `kNoPin` | constant | The slot value that asks for no pin | [execution contexts](#execution-contexts) |
+| `ContextId` | type | The identity one context reports | [execution contexts](#execution-contexts) |
+| `currentContext` | free function | Names the context running the calling code | [execution contexts](#execution-contexts) |
+| `setPlacementFunction` | free function | Installs the function that places a pinned context | [execution contexts](#execution-contexts) |
+| `PlacementResult` | type | The outcome a placement function reports | [execution contexts](#execution-contexts) |
+| `PlacementFn` | type | The callback the library calls to place a context | [execution contexts](#execution-contexts) |
+| `WorkItem` | concept | The callable shape a context accepts as work | [execution contexts](#execution-contexts) |
+| `WorkNode` | type | Caller storage for one dispatched work item | [execution contexts](#execution-contexts) |
+| `WorkNodeState` | type | The state a dispatched node reports | [execution contexts](#execution-contexts) |
+| `dispatch` | free function | Offers one node to a context and returns | [execution contexts](#execution-contexts) |
+| `WorkContext` | type | The running work item's view of its context | [execution contexts](#execution-contexts) |
+| `StopToken` | type | The read side of the stop request of a context | [execution contexts](#execution-contexts) |
+| `ContextBarrier` | type | The point several contexts wait at together | [execution contexts](#execution-contexts) |
+| `threads` | BenchmarkHandle | Runs every instance of the family on a context count | [threads](#threads) |
+| `threadRange` | BenchmarkHandle | Appends one instance per doubling of a thread sweep | [threads](#threads) |
+| `denseThreadRange` | BenchmarkHandle | Appends one instance per step of a thread sweep | [threads](#threads) |
+| `threadRunner` | BenchmarkHandle | Attaches the dispatcher of this family's threaded runs | [threads](#threads) |
+| `ThreadRun` | type | The view of one threaded attempt its dispatcher receives | [threads](#threads) |
+| `ThreadRunnerFn` | type | The callback shape a threaded dispatcher takes | [threads](#threads) |
+| `State::threadIndex` | State | Numbers the context running the loop | [threads](#threads) |
+| `State::threads` | State | Gives the context count the instance was run with | [threads](#threads) |
+| `ContextDisclosure` | type | The wait mode and placement one context disclosed | [reading the report](#reading-the-report) |
+| `BenchmarkResult::contexts` | BenchmarkResult | The disclosures one run recorded for its contexts | [reading the report](#reading-the-report) |
 
 | Option | What it does |
 | --- | --- |

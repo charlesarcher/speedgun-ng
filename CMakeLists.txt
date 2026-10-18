@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.9.0
+    VERSION 0.10.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -213,12 +213,12 @@ set_target_properties(
     VISIBILITY_INLINES_HIDDEN YES
     VERSION "${PROJECT_VERSION}"
     # The 0.x rule of the counters archive applies unchanged here. This
-    # minor moves the number to 5 for the same reason: State gains the
-    # counter store, the label, and the pause fold path; ResultRow and
-    # BenchmarkResult gain the counter columns, the label, the fold
-    # disclosure, and the fit fields, so the exported layouts change and
-    # the hand-kept number moves (FR-048).
-    SOVERSION 5
+    # minor moves the number to 6 for the same reason: State gains the
+    # thread index and the context count, BenchmarkHandle gains the thread
+    # surface, BenchmarkResult gains the contexts disclosure, and the
+    # execution context ships in this archive with no new target, so the
+    # exported layouts change and the hand-kept number moves (FR-043).
+    SOVERSION 6
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
