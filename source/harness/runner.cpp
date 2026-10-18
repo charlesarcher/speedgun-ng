@@ -999,18 +999,16 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     for (int position = 0; position < instance.threadCount; ++position) {
       contexts.push_back(std::make_unique<sg::ExecutionContext>(policy));
     }
-    // FR-021, FR-025: the disclosure records each context's own
-    // policy, read from the context itself, and an unpinned slot
-    // carries the standing NO_PIN word the report prints for it. The
+    // FR-005, FR-021, FR-025: the disclosure records each context's own
+    // wait mode and the record that context's placement function
+    // returned, which names a slot that never landed. The copy of the
+    // field stands here, before the joiner ends any thread (FR-025). The
     // vector stays empty for a single-context run (FR-022).
     for (const auto& context : contexts) {
-      const auto contextPolicy = context->policy();
+      const sg::PlacementResult placement =
+          sg::detail::placementRecordOf(*context);
       result.contexts.push_back(sg::ContextDisclosure {
-          contextPolicy.waitMode,
-          contextPolicy.placement.cpuIndex
-                  == sg::PlacementSlot::noPin().cpuIndex
-              ? std::string("NO_PIN")
-              : std::to_string(contextPolicy.placement.cpuIndex)});
+          context->policy().waitMode, std::string(placement.description)});
     }
   }
 
@@ -1021,6 +1019,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   struct ThreadedOutcome
   {
     std::string error;
+    // FR-023, D-07: the failure of the setup half, which the start
+    // barrier publishes to every context; the slot above gains a writer
+    // after that round, so the two stay apart.
+    std::string setupError;
     RunRecord record;
     ContextFolds folds;
     std::uint64_t pauseCount = 0;
@@ -1405,10 +1407,17 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         // FR-023, D-07: the pair wraps the attempt once, on context 0,
         // and the setup half runs before the start barrier, so it
         // stands outside every window of the attempt.
-        fixtureHalf(true, callbackState, fixture, outcome.error);
+        fixtureHalf(true, callbackState, fixture, outcome.setupError);
       }
 
       startBarrier.arriveAndWait();
+
+      // FR-023, D-07: this round publishes the setup slot of context 0 to
+      // every context. A setup that failed leaves every context out of
+      // the body.
+      if (outcome.error.empty() && !outcomes.front().setupError.empty()) {
+        outcome.error = outcomes.front().setupError;
+      }
 
       if (outcome.error.empty()) {
         try {
@@ -1640,7 +1649,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         return result;
       }
       chosen = std::move(grown.record);
-      iterations = chosen->iterations;
+      // FR-012, FR-020: the qualified record sums the count of every
+      // context. The count a later repetition hands each context is one
+      // share of that sum.
+      iterations =
+          chosen->iterations / static_cast<std::uint64_t>(instance.threadCount);
       settled = iterations;
     } else {
       chosen = sampleRun(iterations);

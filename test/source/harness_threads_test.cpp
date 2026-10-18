@@ -251,6 +251,15 @@ auto bmMergedManual(sg::State& state) -> void
   }
 }
 
+// The body of the repetition scenario: the iteration count of the row is all
+// that scenario reads, so the body opens no counter and joins no round.
+auto bmRepetitionRow(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+}
+
 auto captureRun(const std::vector<std::string>& arguments,
                 int& exitStatus) -> std::string
 {
@@ -303,6 +312,22 @@ auto lineOf(const std::string& report, const std::string& name) -> std::string
     }
   }
   return {};
+}
+
+// The repetition rows of one instance: a repetition row is the only row of
+// the report that names the iteration count of its run.
+auto rowsOf(const std::string& report,
+            const std::string& name) -> std::vector<std::string>
+{
+  std::vector<std::string> rows;
+  std::istringstream stream(report);
+  std::string line;
+  while (std::getline(stream, line)) {
+    if (line.starts_with(name) && line.contains("iterations=")) {
+      rows.push_back(line);
+    }
+  }
+  return rows;
 }
 
 auto fieldOf(const std::string& line, const std::string& key) -> double
@@ -430,6 +455,39 @@ auto scenarioMergedRow() -> int
         "D-06)");
 
   std::puts("harness_threads_test merged-row: ok");
+  return 0;
+}
+
+// FR-012, FR-020: the count the first repetition settled is the count every
+// later repetition hands each context, so the merged rows of one run all sum
+// the same iteration count.
+auto scenarioRepetitionCount() -> int
+{
+  constexpr std::size_t kRepetitions = 3;
+  // The target stands under the decision time one iteration of four contexts
+  // folds, so calibration settles at its first run (FR-016).
+  constexpr std::int64_t kCalibrationNs = 1000;
+
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmRepetitionRow, "bmThreadsRepeat");
+  handle.threads(kThreadCount)
+      .repetitions(kRepetitions)
+      .minTime(kCalibrationNs);
+
+  const std::vector<std::string> rows =
+      rowsOf(captureRun({"--filter", "^bmThreadsRepeat"}), "bmThreadsRepeat");
+  check(rows.size() == kRepetitions,
+        "every repetition of the threaded instance prints its merged row "
+        "(FR-012)");
+  const std::int64_t summed = countFieldOf(rows.front(), "iterations=");
+  check(summed > 0, "a calibrated repetition counts its iterations (FR-016)");
+  for (const std::string& row : rows) {
+    check(countFieldOf(row, "iterations=") == summed,
+          "every repetition sums the iteration count the first repetition "
+          "settled (FR-012, FR-020)");
+  }
+
+  std::puts("harness_threads_test repetition-count: ok");
   return 0;
 }
 
@@ -1387,6 +1445,58 @@ auto scenarioDefaultPin() -> int
   return 0;
 }
 
+// The calls the replacement placement function below took, and how many of
+// them received a slot other than the one the threaded run carries.
+std::atomic<int> placementCalls {0};
+std::atomic<int> placementSlotMiss {0};
+
+// A placement function that lands no slot and answers with a word of its own,
+// so the record it returns says what the function did (FR-005, D-04).
+auto decliningPlacement(const sg::PlacementSlot& slot,
+                        std::thread::native_handle_type /*thread*/)
+    -> sg::PlacementResult
+{
+  ++placementCalls;
+  if (slot.cpuIndex != sg::PlacementSlot::noPin().cpuIndex) {
+    ++placementSlotMiss;
+  }
+  return {.applied = false, .description = "DECLINED"};
+}
+
+// FR-005, FR-025, contracts/report-disclosure.md: each context's placement
+// record reaches the report through that context's own disclosure field. The
+// threaded run's contexts carry no pin, so a field built from the policy reads
+// NO_PIN; DECLINED is a word only the installed function can produce, so the
+// line below carries what the function returned at each context's start. The
+// install stands before this process's first context, and every scenario of
+// this binary runs in a re-exec of its own, so no other scenario sees it.
+auto scenarioPlacementDisclosure() -> int
+{
+  constexpr int kPlacementContexts = 2;
+
+  sg::setPlacementFunction(&decliningPlacement);
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmRepetitionRow, "bmThreadsPlacement");
+  handle.threads(kPlacementContexts);
+
+  const std::string report =
+      captureRun({"--filter", "^bmThreadsPlacement", "--iterations=4"});
+
+  check(lineOf(report, "  contexts=")
+            == "  contexts=2  ctx0=SPIN/DECLINED  ctx1=SPIN/DECLINED",
+        "the disclosure line names the description each context's placement "
+        "function returned (FR-005, FR-025)");
+  check(placementCalls.load() == kPlacementContexts,
+        "the run placed each of its two contexts through the installed "
+        "function (FR-005, D-04)");
+  check(placementSlotMiss.load() == 0,
+        "the installed function received the placement slot of the threaded "
+        "policy on every context (FR-007)");
+
+  std::puts("harness_threads_test placement-disclosure: ok");
+  return 0;
+}
+
 // FR-023, D-07 at the thread count of four: a body that throws leaves its
 // measured window, still arrives at the stop barrier, and the attempt answers
 // with the body's message; the unmet arrival is never waited for.
@@ -1466,6 +1576,60 @@ auto scenarioFixturePair() -> int
   return 0;
 }
 
+std::atomic<int> failedPairBodies {0};
+
+// D-07, FR-023: the setup half of this fixture stands before the start
+// barrier, so that round owes its outcome to every context of the attempt.
+class ThrowingPairFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State& state) -> void override
+  {
+    (void)state;
+    throw std::runtime_error("the scripted fixture setup failure");
+  }
+
+  auto tearDown(sg::State& state) -> void override { (void)state; }
+};
+
+// FR-023, D-07 at the thread count of four: a setup half that throws on
+// context 0 leaves every context out of the body, and the report shows the
+// benchmark as failed.
+auto scenarioSetupFailure() -> int
+{
+  auto handle = sg::registerFixtureBenchmark(
+      [](sg::State& state)
+      {
+        for (auto index : state) {
+          failedPairBodies.fetch_add(1, std::memory_order_relaxed);
+          sg::doNotOptimize(index);
+        }
+      },
+      "bmThreadsSetupFail",
+      [] { return std::make_unique<ThrowingPairFixture>(); });
+  handle.threads(kThreadCount);
+
+  int status = 0;
+  const std::string report =
+      captureRun({"--filter", "^bmThreadsSetupFail", "--iterations=1"}, status);
+
+  check(status != 0,
+        "a threaded attempt whose setup half throws ends with a failure status "
+        "(FR-023)");
+  check(lineOf(report, "bmThreadsSetupFail").contains("FAILED"),
+        "the report shows the benchmark whose setup half threw as failed "
+        "(FR-023)");
+  check(report.contains("the scripted fixture setup failure"),
+        "the reason of the failed benchmark is the message the setup half "
+        "threw (FR-023)");
+  check(failedPairBodies.load() == 0,
+        "no context calls the body of an attempt whose setup half threw "
+        "(D-07, FR-023)");
+
+  std::puts("harness_threads_test setup-failure: ok");
+  return 0;
+}
+
 auto main(const int argc, char** argv) -> int
 {
   const std::string mode = argc > 1 ? argv[1] : "";
@@ -1478,6 +1642,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "merged-row") {
     return scenarioMergedRow();
   }
+  if (mode == "repetition-count") {
+    return scenarioRepetitionCount();
+  }
   if (mode == "merged-metric") {
     return scenarioMergedMetric();
   }
@@ -1487,11 +1654,17 @@ auto main(const int argc, char** argv) -> int
   if (mode == "default-pin") {
     return scenarioDefaultPin();
   }
+  if (mode == "placement-disclosure") {
+    return scenarioPlacementDisclosure();
+  }
   if (mode == "body-throws") {
     return scenarioBodyThrows();
   }
   if (mode == "fixture-pair") {
     return scenarioFixturePair();
+  }
+  if (mode == "setup-failure") {
+    return scenarioSetupFailure();
   }
   if (mode == "cpu-decision") {
     return scenarioCpuDecision();
@@ -1536,11 +1709,14 @@ auto main(const int argc, char** argv) -> int
   for (const auto& scenario : {
            "index-and-name",
            "merged-row",
+           "repetition-count",
            "merged-metric",
            "paused-contexts",
            "default-pin",
+           "placement-disclosure",
            "body-throws",
            "fixture-pair",
+           "setup-failure",
            "cpu-decision",
            "real-decision",
            "manual-decision",
