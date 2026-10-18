@@ -628,6 +628,10 @@ private:
 template<WorkItem Item>
 auto dispatch(ExecutionContext& context, WorkNode<Item>& node) -> void
 {
+  const WorkNodeState handed = node.state();
+  SG_REQUIRE(handed == WorkNodeState::PENDING || handed == WorkNodeState::DONE
+                 || handed == WorkNodeState::STOPPED,
+             "dispatch of a node a context still holds (FR-009, FR-012)");
   // The one erased entry: what the context runs is the stamp the node's
   // own construction wrote, so this path names no item type (D-02).
   detail::dispatchNode(context, node);
