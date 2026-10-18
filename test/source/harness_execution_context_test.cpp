@@ -93,8 +93,15 @@
 // preset at CMake level, and the same condition stands here at the level of the
 // one scenario that needs the hooks, so the target itself still builds under
 // the ci-tsan preset where the destroy-after-DONE proof of FR-049 runs.
+// GCC answers `__SANITIZE_THREAD__`; Clang answers `__has_feature`.
 #if defined(__SANITIZE_THREAD__)
 #  define SG_TEST_HAS_TSAN 1
+#elif defined(__has_feature)
+#  if __has_feature(thread_sanitizer)
+#    define SG_TEST_HAS_TSAN 1
+#  else
+#    define SG_TEST_HAS_TSAN 0
+#  endif
 #else
 #  define SG_TEST_HAS_TSAN 0
 #endif
@@ -1165,6 +1172,98 @@ auto scenarioStopTokenOffContext() -> int
   return 0;
 }
 
+// FR-001, FR-024, FR-002: a context holds its own control block, so no count of
+// live contexts bounds a program. 72 stand alive at once, over the 64 the
+// removed side table held: an aborted construction ends the child before any
+// check runs, and the exit status the parent reads carries that half.
+auto scenarioManyContexts() -> int
+{
+  // One slot and one node per context stand in caller storage: the shared run
+  // log indexes kRunCapacity tags, which 72 nodes would exceed.
+  constexpr std::size_t kManyContexts = 72;
+  std::array<std::optional<sg::ExecutionContext>, kManyContexts> contexts {};
+  std::array<sg::ContextId, kManyContexts> ids {};
+  std::array<int, kManyContexts> slots {};
+  NodeBatch<ValueItem, kManyContexts> batch;
+
+  // The construction loop ends before any context is closed, so all 72 stand
+  // alive together through the dispatch and drain loops below.
+  for (std::size_t index = 0; index < kManyContexts; ++index) {
+    sg::ExecutionContext& context = contexts[index].emplace(blockingPolicy());
+    ids[index] = context.id();
+  }
+  for (std::size_t index = 0; index < kManyContexts; ++index) {
+    sg::dispatch(*contexts[index],
+                 batch.construct(index, ValueItem {&slots[index]}));
+  }
+  for (std::size_t index = 0; index < kManyContexts; ++index) {
+    contexts[index]->drain();
+  }
+  // The lifecycle closes every context before the first check, so a failed
+  // check leaves no context thread running behind it.
+  for (std::size_t index = 0; index < kManyContexts; ++index) {
+    contexts[index]->requestStop();
+    contexts[index]->join();
+    contexts[index].reset();
+  }
+
+  for (std::size_t index = 0; index < kManyContexts; ++index) {
+    check(batch.at(index).state() == sg::WorkNodeState::DONE,
+          "every node dispatched to a live context settles DONE (FR-001)");
+    check(slots[index] == kSentinelValue,
+          "every live context ran the node dispatched to it (FR-001)");
+  }
+  for (std::size_t first = 0; first < kManyContexts; ++first) {
+    for (std::size_t second = first + 1; second < kManyContexts; ++second) {
+      check(ids[first] != ids[second],
+            "two live contexts name distinct ids (FR-002)");
+    }
+  }
+  batch.destroyAll();
+  std::puts("harness_execution_context_test manyContexts: ok");
+  return 0;
+}
+
+// FR-009, FR-012: a node whose run has ended may be dispatched again, and its
+// state is settled PENDING before the inbox link becomes visible, so a node
+// that waits in the inbox never reads DONE while the loop can still take it.
+auto scenarioReuseAfterDone() -> int
+{
+  constexpr std::size_t kReusedTag = 40;
+  sg::ExecutionContext context {blockingPolicy()};
+  std::atomic<bool> released {false};
+  const NoAllocItem item {kReusedTag};
+  sg::WorkNode<NoAllocItem> node {item};
+  const ReleaseItem hold {&released};
+  sg::WorkNode<ReleaseItem> holdNode {hold};
+
+  sg::dispatch(context, node);
+  check(settled(node) == sg::WorkNodeState::DONE,
+        "the node settles DONE on its first run (FR-009)");
+  check(runCount[kReusedTag] == 1,
+        "the item ran once before the node was reused (FR-009)");
+
+  // The loop stands inside the held item, so the reused node stays queued
+  // while the caller reads its state.
+  sg::dispatch(context, holdNode);
+  watchRunning(holdNode);
+
+  sg::dispatch(context, node);
+  check(node.state() == sg::WorkNodeState::PENDING,
+        "a reused node reads PENDING while it stands queued (FR-009, FR-012)");
+
+  released.store(true, std::memory_order_release);
+  context.drain();
+  check(node.state() == sg::WorkNodeState::DONE,
+        "the reused node settles DONE on its second run (FR-009)");
+  check(runCount[kReusedTag] == 2,
+        "the reused item ran a second time (FR-010)");
+
+  closeContext(context);
+  std::puts("harness_execution_context_test reuseAfterDone: ok");
+  return 0;
+}
+
 // SC-03, FR-006: the destructor requires a joined context.
 auto breachUnjoined() -> int
 {
@@ -1280,7 +1379,7 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 15> kScenarios {
+constexpr std::array<Mode, 17> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -1296,6 +1395,8 @@ constexpr std::array<Mode, 15> kScenarios {
     Mode {.name = "completionOrder", .run = &scenarioCompletionOrder},
     Mode {.name = "joinTwice", .run = &scenarioJoinTwice},
     Mode {.name = "stopTokenOffContext", .run = &scenarioStopTokenOffContext},
+    Mode {.name = "manyContexts", .run = &scenarioManyContexts},
+    Mode {.name = "reuseAfterDone", .run = &scenarioReuseAfterDone},
 };
 
 constexpr std::array<Mode, 5> kBreaches {

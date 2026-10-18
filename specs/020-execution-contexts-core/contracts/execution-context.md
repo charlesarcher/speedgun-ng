@@ -25,8 +25,8 @@ struct PlacementResult                              // FR-005, SC-05
 {                                                   // small, printable; the
   bool applied;                                     //   description field is
   std::string_view description;                     //   the disclosure record's
-};                                                  //   placement: "NO_PIN" or
-                                                    //   one cpu index
+};                                                  //   placement: "NO_PIN", one
+                                                    //   cpu index, or "UNAPPLIED"
 using PlacementFn = PlacementResult (*)(const PlacementSlot& slot,
                                         std::thread::native_handle_type thread);
 auto setPlacementFunction(PlacementFn function) -> void;
@@ -116,6 +116,7 @@ matching.
 | `dispatch()` shall hand the node to the named context, allocate nothing, and return without waiting; it shall be legal from any thread and from work already running on that context. | FR-010 |
 | A running work item shall receive the identity of the context running it and a `StopToken` reading true once `requestStop()` stood; `WorkContext::stopToken()` names the type. | FR-011, FR-045 |
 | The caller shall keep a node it dispatches alive until its state settles (the body nodes a threaded run builds are harness-owned, FR-021); destroying a live node aborts with an `SG_REQUIRE` violation under the enforce semantic. The completing thread — the loop for `DONE`, the refusing `dispatch()` for `STOPPED` — shall write the state with release order as its last access to the node: the loop reads the next queue link and performs any notify before that write, and after it touches only its own data, never the node. Once a reader observes `DONE` or `STOPPED`, the caller may destroy or reuse the node. | FR-012, FR-049 |
+| A `dispatch()` of a node that stands in no inbox shall settle that node `PENDING` before its queue link becomes visible, so no reader finds a queued node stamped `DONE`; the dispatch of a node another dispatch still owns, one whose state is `RUNNING`, or `PENDING` while accepted, shall be a contract violation under the enforce semantic. | FR-009, FR-012 |
 | `dispatch()` and `requestStop()` shall linearize at the enqueue: a dispatch observing the not-stopped state appends the node and owns delivery; a dispatch observing the stopped state refuses the node and itself completes it with `STOPPED`; the loop shall never touch a node it never accepted. | FR-010, FR-050 |
 | Nodes one thread dispatches shall run in that order; nodes two threads dispatch at once shall run in the order the inbox accepted them; work dispatched from inside a running item shall run after that item ends, on the same context. | FR-013 |
 | `ContextBarrier` shall join its fixed participant count in rounds where all participants arrive before any proceeds; one round shall release all participants at once; a participant shall wait in the wait mode of its own policy, or in `BLOCK` when it runs on no context; `std::barrier` stands as the fallback for `BLOCK`; a participant count of zero is an `SG_REQUIRE` violation at the construction call. | FR-014, Q-3 |
