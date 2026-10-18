@@ -1598,6 +1598,130 @@ auto scenarioAcceptedNotLinked() -> int
 #endif
 }
 
+// FR-014, Q-3: a participant that runs on a blocked context waits its round
+// in `BLOCK`, on the generation's futex, and every participant proceeds when
+// the last arrival fills the round (FR-004, FR-014).
+auto scenarioBarrierBlockMode() -> int
+{
+  const sg::ContextPolicy policy {.waitMode = sg::WaitMode::BLOCK,
+                                  .placement = sg::PlacementSlot::noPin()};
+  auto& context = ownedContext(policy);
+  check(context.policy().waitMode == sg::WaitMode::BLOCK,
+        "the participant's own policy names the blocking wait mode it waits "
+        "in (FR-007, FR-014)");
+  sg::ContextBarrier barrier {2};
+  std::atomic<bool> arrived {false};
+  std::atomic<bool> released {false};
+  std::atomic<bool> sawContext {false};
+  const LateArriveItem item {&arrived, &released, &sawContext, &barrier};
+  sg::WorkNode<LateArriveItem> node {item};
+  sg::dispatch(context, node);
+
+  while (!arrived.load(std::memory_order_acquire)) {
+  }
+  check(!released.load(std::memory_order_acquire),
+        "the blocked participant stands in its round while the other "
+        "participant stands unarrived (FR-014)");
+  barrier.arriveAndWait();
+  context.requestStop();
+  context.drain();
+  context.join();
+  const bool done = node.state() == sg::WorkNodeState::DONE;
+  check(released.load(std::memory_order_acquire) && done && sawContext.load(
+                                                              std::memory_order_acquire),
+        "the arrival that fills the round releases the blocked participant, "
+        "the item completes, and the wait stood inside running work where the "
+        "policy of its own context names the mode (FR-002, FR-009, FR-014)");
+  std::puts("harness_execution_context_test barrierBlockMode: ok");
+  return 0;
+}
+
+// FR-006, FR-050: the stand of a drain reads the tail of the walk before the
+// phase, so a node that still waits in the inbox keeps the drain standing even
+// while the context stands between two runs (FR-006).
+namespace
+{
+struct GateItem
+{
+  std::atomic<bool>* entered = nullptr;
+  std::atomic<bool>* gate = nullptr;
+  std::atomic<std::size_t>* runs = nullptr;
+
+  auto operator()(sg::WorkContext&) noexcept -> void
+  {
+    entered->store(true, std::memory_order_release);
+    while (!gate->load(std::memory_order_acquire)) {
+    }
+    runs->fetch_add(1, std::memory_order_release);
+  }
+};
+
+struct FollowItem
+{
+  std::atomic<std::size_t>* runs = nullptr;
+
+  auto operator()(sg::WorkContext&) noexcept -> void
+  {
+    runs->fetch_add(1, std::memory_order_release);
+  }
+};
+}  // namespace
+
+auto scenarioDrainPendingInbox() -> int
+{
+  auto& context = ownedContext(blockingPolicy());
+  // The flush stands the loop in its empty-inbox wait (FR-006).
+  context.drain();
+
+  std::atomic<bool> entered {false};
+  std::atomic<bool> gate {false};
+  std::atomic<std::size_t> runs {0};
+  const GateItem held {&entered, &gate, &runs};
+  const FollowItem follow {&runs};
+  sg::WorkNode<GateItem> heldNode {held};
+  sg::WorkNode<FollowItem> followNode {follow};
+
+  // The held item stands the context at work and the follow node waits in the
+  // inbox behind it, so the tail of the walk names no sentinel (FR-006).
+  sg::dispatch(context, heldNode);
+  while (!entered.load(std::memory_order_acquire)) {
+  }
+  sg::dispatch(context, followNode);
+
+  std::atomic<bool> standing {false};
+  std::atomic<bool> returned {false};
+  std::thread waiter {[&]
+                      {
+                        standing.store(true, std::memory_order_release);
+                        context.drain();
+                        returned.store(true, std::memory_order_release);
+                      }};
+  while (!standing.load(std::memory_order_acquire)) {
+  }
+  // No schedule returns from a drain that owes a run: the node the inbox
+  // holds stands until the gate opens, so the stand below is the predicate
+  // reading the tail, not a thread that has yet to arrive (FR-006, FR-050).
+  check(!returned.load(std::memory_order_acquire),
+        "the drain stands while a node still waits in the inbox (FR-006, "
+        "FR-050)");
+
+  gate.store(true, std::memory_order_release);
+  waiter.join();
+  const bool both = heldNode.state() == sg::WorkNodeState::DONE
+      && followNode.state() == sg::WorkNodeState::DONE;
+  check(returned.load(std::memory_order_acquire) && runs.load(
+                                                          std::memory_order_acquire)
+                                                      == 2
+            && both,
+        "the drain returned once both nodes had run, in the order they "
+        "arrived (FR-006, FR-009, FR-015)");
+  context.requestStop();
+  context.drain();
+  context.join();
+  std::puts("harness_execution_context_test drainPendingInbox: ok");
+  return 0;
+}
+
 // FR-009, FR-012: a node whose run has ended may be dispatched again, and its
 // state is settled PENDING before the inbox link becomes visible, so a node
 // that waits in the inbox never reads DONE while the loop can still take it.
@@ -1753,7 +1877,7 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 21> kScenarios {
+constexpr std::array<Mode, 23> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -1774,6 +1898,8 @@ constexpr std::array<Mode, 21> kScenarios {
     Mode {.name = "yieldIdleWake", .run = &scenarioYieldIdleWake},
     Mode {.name = "blockIdleWake", .run = &scenarioBlockIdleWake},
     Mode {.name = "barrierLateArrival", .run = &scenarioBarrierLateArrival},
+    Mode {.name = "barrierBlockMode", .run = &scenarioBarrierBlockMode},
+    Mode {.name = "drainPendingInbox", .run = &scenarioDrainPendingInbox},
     Mode {.name = "acceptedNotLinked", .run = &scenarioAcceptedNotLinked},
 };
 
