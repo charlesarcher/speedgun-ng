@@ -314,7 +314,7 @@ auto controlFor(const ExecutionContext& context) -> detail::ContextControl&
   // it, so a live context stands in the table through every member call
   // of its own life (FR-001, FR-006). The stop below matches the default
   // response of the contract layer; under the semantic-ignore build the
-  // read here would be undefined, not an answer.
+  // read here would be undefined behaviour and yields no answer.
   SG_REQUIRE(false, "the context of this call holds no control block (FR-002)");
   std::abort();
 }
@@ -452,7 +452,7 @@ auto runContextLoop(detail::ContextControl& control) -> void
       }
 
       // Consume the flag after the proof, so an enqueue that set it
-      // during this pass wakes the next one instead of standing unseen.
+      // during this pass wakes the next one, which finds it set.
       if (!control.wakeFlag.exchange(false, std::memory_order_acquire)) {
         waitInboxEmpty(control);
       }
@@ -785,8 +785,8 @@ auto ContextBarrier::arriveAndWait() -> void
     return;
   }
 
-  // The round is the value captured before this arrival, not a value read
-  // here: an arrival that completed the round returned above, and a round
+  // The round is the value captured before this arrival; a read here names
+  // a newer round: an arrival that completed the round returned, and a round
   // that completed between this arrival and this point stands advanced past
   // the captured value already, so the loop is not entered. A generation
   // read here would be taken as the round to wait on, and this barrier never

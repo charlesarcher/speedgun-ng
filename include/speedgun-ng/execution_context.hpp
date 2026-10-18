@@ -61,7 +61,7 @@ struct ContextId
 };
 
 // FR-002, FR-045: the rule names a comparison of the type, so the
-// requirement is checked here rather than only by the tests that read
+// requirement is checked here and by the tests that read
 // `.serial`.
 static_assert(requires(const ContextId left, const ContextId right) {
   left == right;
