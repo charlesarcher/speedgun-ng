@@ -218,6 +218,33 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
 
 - [ ] T039 [P] Build the `ci-coverage` preset, run its suite and coverage target, and confirm 100% line and 100% branch over the new paths with the report's evidence; `grep -rn LCOV_EXCL source/harness` prints no line, "no `LCOV_EXCL` marker shall enter `source/harness/`" (FR-038, SC-10)
 
+  Residual at the feature head, measured on the `ci-coverage` suite with
+  `PERL5LIB` set for `geninfo`, on the pass that follows the two added
+  scenarios; that pass prints `TRACE VALID` and `UNCHANGED`, so every counter
+  is read against the line table it belongs to. The new module stands at
+  98.9% line with three uncovered lines (369 to 371, the sentinel re-anchor
+  window where a producer's link stands unwritten while the tail already names
+  the sentinel) and 85.4% branch with twelve unclosed arcs over ten lines:
+  284, 306, 366, 404, 439, 440 (two arcs), 516, 517 (two arcs), 795, 801.
+  Their classes,
+  each read against the code and the arc counts: 404 and 801 are the
+  compiler's out-of-range arm of a `switch` over the three-value `WaitMode`
+  enum, where SPIN, YIELD and BLOCK carry 97207, 20 and 21 hits, so no legal
+  value reaches them; 284, 306, 439, 440, 516 and 517 stand on a contract
+  violation or on a counter skew the loop's own order forbids, an accepted node
+  the walk refuses to run; 366 and 795 stand on a two-instruction
+  interleaving. The second `join()` and the stop token read off any context
+  stood at 696 and 711, and the `joinTwice` and `stopTokenOffContext`
+  scenarios of `test/source/harness_execution_context_test.cpp` closed both.
+  The
+  `grep -rn LCOV_EXCL source/harness` clause holds: no marker stands there.
+  Closing the twelve arcs left needs an `LCOV_EXCL` marker that FR-038 forbids
+  in that directory, or a seam in production code that stands the link and the
+  skew deterministically, and that choice belongs to the owner. The
+  project-wide gate fails on its own line, printing `coverage-gate: line
+  coverage is not 100%` at 99.0% (4247 of 4289 lines) with 398 pre-existing
+  markers under `source/counters/`, so the 100% bar stands unmet outside this
+  feature as well.
 - [X] T040 Main-page impact check (IV.1): confirm the two new README sections, their owning `example/docs/` files, their quick-reference rows, the `docs/pages/harness.md` detail, and the measured cap move all shipped in the same change as the code they teach, each snippet a region a CI-built example prints (FR-029 to FR-035, SC-11)
 
 - [X] T041 [P] Run the analyzer-bearing release build at the feature head: `cmake --preset=ci-ubuntu && cmake --build build` completes with clang-tidy and cppcheck wired into the build, `readability-identifier-naming` reports zero findings, and no new macro skips the `SG_` rule (FR-036; Principle IX's per-feature release build and Principle VIII's static-analysis gate)
