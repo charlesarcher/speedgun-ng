@@ -1426,11 +1426,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       startBarrier.arriveAndWait();
 
       // FR-023, D-07: this round publishes the setup slot of context 0 to
-      // every context. A setup that failed leaves every context out of
-      // the body.
-      if (outcome.error.empty() && !outcomes.front().setupError.empty()) {
-        outcome.error = outcomes.front().setupError;
-      }
+      // every context, and this copy is the first write of this context's
+      // error: the vector is built for the attempt, and nothing above
+      // writes that field. A setup that failed leaves every context out of
+      // the body; an empty slot leaves the error empty, so the test below
+      // carries the whole decision.
+      outcome.error = outcomes.front().setupError;
 
       if (outcome.error.empty()) {
         try {
