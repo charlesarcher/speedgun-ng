@@ -1455,6 +1455,7 @@ auto scenarioBarrierRepeatedWaits() -> int
   return 0;
 }
 
+#if !SG_TEST_HAS_TSAN
 // FR-006, FR-050: the two empty proofs read the accept and dispatch counts as
 // one account, and a node a dispatch reached but has not yet linked holds that
 // account apart. The node here stands on a page the scenario guards: the first
@@ -1523,6 +1524,7 @@ auto readVoluntarySwitches(const long taskId) -> long
   return switches;
 }
 }  // namespace
+#endif  // !SG_TEST_HAS_TSAN
 
 auto scenarioAcceptedNotLinked() -> int
 {
