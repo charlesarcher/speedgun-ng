@@ -798,11 +798,14 @@ auto ContextBarrier::arriveAndWait() -> void
   // The round is the value captured before this arrival; a read here names
   // a newer round: an arrival that completed the round returned, and a round
   // that completed between this arrival and this point stands advanced past
-  // the captured value already, so the loop is not entered. A generation
-  // read here would be taken as the round to wait on, and this barrier never
-  // advances past it (FR-014, FR-049).
+  // the captured value already. A generation read here would be taken as the
+  // round to wait on, and this barrier never advances past it (FR-014,
+  // FR-049). The wait takes its first step before the round is tested, so a
+  // participant whose round closed during its own arrival spends one hint
+  // and no sleep: the atomic wait returns at once once the generation has
+  // moved, and the other two arms are pure hints (FR-014, FR-049).
   const WaitMode mode = participantWaitMode();
-  while (m_generation.load(std::memory_order_acquire) == enteredRound) {
+  do {
     // FR-014: the same three clock-free paths as the context loop, in the
     // mode of the participant's own policy, so a spinning participant
     // never sleeps inside the barrier. BLOCK stands in the standard
@@ -816,7 +819,7 @@ auto ContextBarrier::arriveAndWait() -> void
     } else {
       m_generation.wait(enteredRound);
     }
-  }
+  } while (m_generation.load(std::memory_order_acquire) == enteredRound);
   SG_ENSURE(
       m_generation.load(std::memory_order_acquire) != enteredRound,
       "a round that released without advancing the generation " "(FR-014)");
