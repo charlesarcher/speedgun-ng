@@ -1808,9 +1808,9 @@ auto scenarioEnqueueWindow() -> int
                           producerDone.store(true, std::memory_order_release);
                         }};
   // The drain walks while the producer enqueues, so the walk meets enqueues
-  // that stand between their exchange and their link. The assertion below holds
-  // whatever the walk meets: the queue, not the schedule, owes one run per node
-  // (FR-001, FR-006).
+  // that stand between their exchange and their link. The assertion below
+  // holds whatever the walk meets. The queue owes one run per node, and the
+  // schedule decides only when each run happens (FR-001, FR-006).
   while (!producerDone.load(std::memory_order_acquire)) {
     context.drain();
   }
