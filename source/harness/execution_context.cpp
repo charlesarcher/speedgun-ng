@@ -364,18 +364,28 @@ auto waitInboxEmpty(const detail::ContextControl& control) -> void
   while (!control.wakeFlag.load(std::memory_order_acquire)
          && !control.stopRequested.load(std::memory_order_acquire))
   {
-    switch (mode) {
-      case WaitMode::SPIN:
-        pauseHint();
-        break;
-      case WaitMode::YIELD:
-        std::this_thread::yield();
-        break;
-      case WaitMode::BLOCK:
-        control.wakeFlag.wait(false);
-        break;
+    // The chain stands in the order the policy names the modes and its
+    // last arm is `BLOCK`, so each of the three modes enters exactly one
+    // arm and no arm stands unentered (FR-004).
+    if (mode == WaitMode::SPIN) {
+      pauseHint();
+    } else if (mode == WaitMode::YIELD) {
+      std::this_thread::yield();
+    } else {
+      control.wakeFlag.wait(false);
     }
   }
+}
+
+// FR-006, FR-050: the one account both empty proofs read: every accept
+// stands matched by its dispatch, either linked into the inbox or refused
+// after the stop. The two count reads close the window between another
+// thread's accept and its exchange, so a proof that finds the pair apart
+// turns away and stands again, and no accepted node is ever left behind.
+auto countsSettled(const detail::ContextControl& control) -> bool
+{
+  return control.acceptCount.load(std::memory_order_seq_cst)
+      == control.dispatchCount.load(std::memory_order_seq_cst);
 }
 
 // The event loop of FR-001 on the one owned thread: take the oldest node
@@ -393,15 +403,12 @@ auto runContextLoop(detail::ContextControl& control) -> void
     if (next == nullptr) {
       // The inbox stands empty to every reached enqueue. With the stop
       // stood and every accepted dispatch linked or refused, the loop has
-      // run every node it accepted and ends (FR-006, FR-050). The two
-      // count reads close the window between another thread's accept and
-      // its exchange: an accept counted before the stop stands in the
-      // counts, and the loop turns again until it stands linked, so no
-      // accepted node is ever left behind.
+      // run every node it accepted and ends (FR-006, FR-050). The counts
+      // are the account both proofs read: an accept counted before the
+      // stop stands in it, and the loop turns again until that accept
+      // stands linked, so no accepted node is ever left behind.
       if (control.stopRequested.load(std::memory_order_seq_cst)) {
-        if (control.acceptCount.load(std::memory_order_seq_cst)
-            == control.dispatchCount.load(std::memory_order_seq_cst))
-        {
+        if (countsSettled(control)) {
           control.phase.store(detail::LoopPhase::EXITED,
                               std::memory_order_release);
           control.idleEpoch.fetch_add(1, std::memory_order_release);
@@ -491,8 +498,7 @@ auto inboxStandIdle(const detail::ContextControl& control) -> bool
   return control.exchangeTail.load(std::memory_order_acquire) == &control.stub
       && control.phase.load(std::memory_order_acquire)
       != detail::LoopPhase::WORKING
-      && control.acceptCount.load(std::memory_order_seq_cst)
-      == control.dispatchCount.load(std::memory_order_seq_cst);
+      && countsSettled(control);
 }
 
 // FR-014, Q-3: the wait mode a barrier participant waits in is the wait
@@ -802,16 +808,13 @@ auto ContextBarrier::arriveAndWait() -> void
     // never sleeps inside the barrier. BLOCK stands in the standard
     // atomic wait, the one path `std::barrier` backs as the fallback of
     // Q-3.
-    switch (mode) {
-      case WaitMode::SPIN:
-        pauseHint();
-        break;
-      case WaitMode::YIELD:
-        std::this_thread::yield();
-        break;
-      case WaitMode::BLOCK:
-        m_generation.wait(enteredRound);
-        break;
+    // The chain of FR-004 again: each mode enters exactly one arm (FR-014).
+    if (mode == WaitMode::SPIN) {
+      pauseHint();
+    } else if (mode == WaitMode::YIELD) {
+      std::this_thread::yield();
+    } else {
+      m_generation.wait(enteredRound);
     }
   }
   SG_ENSURE(
