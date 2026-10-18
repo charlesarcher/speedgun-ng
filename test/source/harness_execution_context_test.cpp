@@ -92,6 +92,7 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#include <vector>
 
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -1665,6 +1666,18 @@ struct FollowItem
     runs->fetch_add(1, std::memory_order_release);
   }
 };
+
+// The item of the enqueue-window run: it counts its own runs and stands no
+// gate, so the walk keeps its pace beside the producer.
+struct WindowItem
+{
+  std::atomic<std::size_t>* runs = nullptr;
+
+  auto operator()(sg::WorkContext&) noexcept -> void
+  {
+    runs->fetch_add(1, std::memory_order_release);
+  }
+};
 }  // namespace
 
 auto scenarioDrainPendingInbox() -> int
@@ -1760,6 +1773,59 @@ auto scenarioReuseAfterDone() -> int
 
   closeContext(context);
   std::puts("harness_execution_context_test reuseAfterDone: ok");
+  return 0;
+}
+
+// FR-001, FR-006: an enqueue that has swapped the tail and has yet to write the
+// link of the sentinel is waited out by the walk with the pause hint. The
+// window spans two adjacent stores of one wait-free enqueue, so no scenario can
+// hold a thread between them: the witness is a drain that walks beside a
+// producer across many enqueues, and the assertion is that every node of every
+// one of them runs once (FR-001, FR-006, FR-009).
+auto scenarioEnqueueWindow() -> int
+{
+  auto& context = ownedContext(spinningPolicy());
+  // The flush stands the loop in its empty-inbox wait (FR-006).
+  context.drain();
+
+  constexpr std::size_t kEnqueues = 4000;
+  std::atomic<std::size_t> runs {0};
+  std::vector<std::unique_ptr<WindowItem>> items;
+  std::vector<std::unique_ptr<sg::WorkNode<WindowItem>>> nodes;
+  items.reserve(kEnqueues);
+  nodes.reserve(kEnqueues);
+  for (std::size_t index = 0; index < kEnqueues; ++index) {
+    items.push_back(std::make_unique<WindowItem>(WindowItem {&runs}));
+    nodes.push_back(std::make_unique<sg::WorkNode<WindowItem>>(*items.back()));
+  }
+
+  std::atomic<bool> producerDone {false};
+  std::thread producer {[&]
+                        {
+                          for (auto& node : nodes) {
+                            sg::dispatch(context, *node);
+                          }
+                          producerDone.store(true, std::memory_order_release);
+                        }};
+  // The drain walks while the producer enqueues, so the walk meets enqueues
+  // that stand between their exchange and their link. The assertion below holds
+  // whatever the walk meets: the queue, not the schedule, owes one run per node
+  // (FR-001, FR-006).
+  while (!producerDone.load(std::memory_order_acquire)) {
+    context.drain();
+  }
+  producer.join();
+  context.drain();
+
+  std::size_t settled = 0;
+  for (const auto& node : nodes) {
+    settled += node->state() == sg::WorkNodeState::DONE ? 1U : 0U;
+  }
+  check(runs.load(std::memory_order_acquire) == kEnqueues,
+        "each node of the run runs once beside the window (FR-001, FR-006)");
+  check(settled == kEnqueues, "every node of the run reads DONE (FR-009)");
+  closeContext(context);
+  std::puts("harness_execution_context_test enqueueWindow: ok");
   return 0;
 }
 
@@ -1878,7 +1944,7 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 23> kScenarios {
+constexpr std::array<Mode, 24> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -1902,6 +1968,7 @@ constexpr std::array<Mode, 23> kScenarios {
     Mode {.name = "barrierBlockMode", .run = &scenarioBarrierBlockMode},
     Mode {.name = "drainPendingInbox", .run = &scenarioDrainPendingInbox},
     Mode {.name = "acceptedNotLinked", .run = &scenarioAcceptedNotLinked},
+    Mode {.name = "enqueueWindow", .run = &scenarioEnqueueWindow},
 };
 
 constexpr std::array<Mode, 5> kBreaches {
