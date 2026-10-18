@@ -628,7 +628,8 @@ translation unit of your own.
   equivalently for every result whose policy-disclosure record set is
   non-empty, the console report shall print the context count and each
   context's policy: the wait mode and the placement, which reads
-  `NO_PIN` or one cpu index. A threaded run fills that set with one
+  `NO_PIN`, one cpu index, or `UNAPPLIED` where the placement function
+  landed no slot. A threaded run fills that set with one
   record per context it ran (FR-021), and a benchmark that runs on one
   context shall keep the bytes it prints today (Assumptions).
 - **FR-026**: When two spinning contexts of one result name the same cpu
@@ -720,7 +721,11 @@ translation unit of your own.
 - **FR-046**: Every difference this feature keeps from the cited Google
   Benchmark revision shall be recorded in the feature's own records
   beside the semantic it belongs to, including the fixture rule of
-  FR-023 and the barrier of FR-014. The plan pins the revision read
+  FR-023, the barrier of FR-014, and the per-thread iteration count of
+  FR-020: a threaded run of this feature gives every context the settled
+  count of the calibration, so the summed count of the merged row is
+  `N` times that count, where the cited revision divides the settled
+  count among the threads it starts. The plan pins the revision read
   (Google Benchmark reference read).
 - **FR-047**: The examples and the documentation shall reach the new
   calls through the public `speedgun-ng` headers alone.

@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include <sched.h>
+
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
@@ -117,6 +119,11 @@ auto printFitRow(const BenchmarkResult& result,
 // index (FR-005, FR-025).
 constexpr std::string_view kNoPinPlacement = "NO_PIN";
 
+// The placement field of a slot the placement function did not land. A
+// spinning context carrying it stands on no cpu, so it joins neither the
+// pinned set nor the shared-cpu pair of the noise condition (FR-026).
+constexpr std::string_view kUnappliedPlacement = "UNAPPLIED";
+
 // The wait mode names of the disclosure line, indexed by the enumerator,
 // the table shape the availability names above take (FR-025).
 constexpr std::array<const char*, 3> kWaitModeNames {
@@ -153,6 +160,24 @@ auto printContextDisclosure(const BenchmarkResult& result) -> void
   std::printf("\n");
 }
 
+// The count of cpus the report compares the spinning contexts against:
+// the affinity mask of the calling thread, which a cpuset, a taskset or a
+// container narrows, and the host count of the standard library where that
+// read answers nothing (FR-026). The two products keep the choice in
+// arithmetic: the mask read of a stack buffer names no failure a test run
+// can produce, and a branch on it would stand uncovered at the gate.
+auto runnableCpuCount() -> std::uint64_t
+{
+  cpu_set_t cpus {};
+  CPU_ZERO(&cpus);
+  const auto answered = static_cast<std::uint64_t>(
+      sched_getaffinity(0, sizeof(cpus), &cpus) == 0);
+  const auto masked = answered * static_cast<std::uint64_t>(CPU_COUNT(&cpus));
+  return masked
+      + (static_cast<std::uint64_t>(1) - answered)
+      * static_cast<std::uint64_t>(std::thread::hardware_concurrency());
+}
+
 // FR-026, FR-028: the noise warning of one result. It prints when two
 // spinning contexts of that result name one cpu index, or when the
 // spinning contexts of that result outnumber the cpus the host has
@@ -174,7 +199,9 @@ auto printNoiseWarning(const BenchmarkResult& result) -> void
       continue;
     }
     ++spinning;
-    if (context.placement != kNoPinPlacement) {
+    if (context.placement != kNoPinPlacement
+        && context.placement != kUnappliedPlacement)
+    {
       pinned.push_back(context.placement);
     }
   }
@@ -185,8 +212,7 @@ auto printNoiseWarning(const BenchmarkResult& result) -> void
   // `std::to_chars`, which spells an index one way.
   std::ranges::sort(pinned);
   const bool sharesOneCpu = std::ranges::adjacent_find(pinned) != pinned.end();
-  const auto onlineCpus =
-      static_cast<std::uint64_t>(std::thread::hardware_concurrency());
+  const auto onlineCpus = runnableCpuCount();
   if (sharesOneCpu || spinning > onlineCpus) {
     std::printf(
         "warning: spinning contexts oversubscribed (%llu spin, " "%llu cpus)\n",
