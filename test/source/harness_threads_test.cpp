@@ -156,14 +156,14 @@ auto check(const bool condition, const char* const what) -> void
   }
 }
 
-auto scriptProvider() -> void
+auto scriptProvider(const std::uint64_t cpuStep = kThreadCpuStep) -> void
 {
   auto owned = std::make_unique<sg::counters::FakeProvider>();
   owned->addCounter("machine", "monotonic", "nanoseconds", "monotonic");
   owned->addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
   owned->addCounter("fake", "work", "ops", "scripted work counter");
   owned->setPoints("machine", "monotonic", {0}, kMonotonicStep);
-  owned->setPoints("machine", "thread_cpu", {0}, kThreadCpuStep);
+  owned->setPoints("machine", "thread_cpu", {0}, cpuStep);
   owned->setPoints("fake", "work", {0}, kWorkStep);
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(owned));
@@ -658,6 +658,374 @@ auto scenarioManualDecision() -> int
         "count of the manual mode (FR-020, D-06; SC-07)");
 
   std::puts("harness_threads_test manual-decision: ok");
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// The availability, callback, failure and interrupt paths of the threaded
+// runner: what a context folds when a column carries no fold, what the row
+// discloses when the decision is not countable or not a divisor, what one
+// skipped context does to the merged row, and what ends an interrupted run.
+
+// The scripted provider whose thread-cpu leaf measures nothing on every
+// sampling action: every window's fold over it, the measuring ones first,
+// carries a gap.
+auto gappedCpuProvider() -> void
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  owned->addCounter("machine", "monotonic", "nanoseconds", "monotonic");
+  owned->addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  owned->addCounter("fake", "work", "ops", "scripted work counter");
+  owned->setPoints("machine", "monotonic", {0}, kMonotonicStep);
+  owned->setPoints("machine", "thread_cpu", {0}, kThreadCpuStep);
+  owned->setPoints("fake", "work", {0}, kWorkStep);
+  owned->setGapActions(
+      "machine",
+      "thread_cpu",
+      {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
+       17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+       33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+       49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64});
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fake provider registers");
+}
+
+auto bmCounterLoop(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter("own", {kCounterValue});
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+// One context of the run claims the skip; the others run the whole loop.
+std::atomic<bool> skipClaimed {false};
+
+auto bmOneContextSkips(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      bool expected = false;
+      if (skipClaimed.compare_exchange_strong(expected, true)) {
+        state.skipWithError("the scripted threaded skip");
+      }
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+std::atomic<int> callbackSetups {0};
+std::atomic<int> callbackTearDowns {0};
+
+// The completed loop followed by an exception the catch-all of the body
+// stands after: the int is not a std::exception.
+auto bmThrowsIntAfterLoop(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+  throw 7;
+}
+
+// The second entry of the timed loop that FR-017 refuses.
+auto bmEntersLoopTwice(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+    break;
+  }
+}
+
+// Context 0 raises the signal the harness stands guard over, so a run that
+// owes more repetitions ends at the interrupt check between them.
+auto bmRaisesOnFirstIteration(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0 && state.threadIndex() == 0) {
+      std::raise(SIGINT);
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-020, FR-024: a metric column whose fold carries a gap and a column of
+// a leaf no provider names each disclose what they carry, while the row
+// still prints beside them.
+auto scenarioUnavailableFold() -> int
+{
+  scriptProvider();
+  const auto object = sg::counters::System::local().object("fake");
+  check(object.has_value(), "the scripted object resolves");
+  const auto work = object->counter<sg::counters::Dim<0, 1>>("work");
+  check(work.has_value(), "the scripted work leaf resolves");
+
+  auto threaded = sg::registerBenchmark(&bmRepetitionRow, "bmThreadsStale");
+  threaded.addMetric(sg::counters::Expression<sg::counters::Dim<0, 1>>(*work),
+                     "work");
+  threaded.threads(2);
+
+  const std::string report = captureRun({"--filter",
+                                         "^bmThreadsStale",
+                                         "--iterations=4",
+                                         "--counter=fake/work",
+                                         "--counter=machine/nosuch"});
+  const std::string merged = lineOf(report, "bmThreadsStale");
+  check(!merged.empty(),
+        "the threaded row prints beside gapped and absent columns (FR-016)");
+  check(merged.contains("work="),
+        "the attached metric keeps its column when its fold carries a gap "
+        "(FR-020, FR-022)");
+  check(closeTo(fieldOf(merged, "machine/nosuch="), 0.0),
+        "the column of the leaf no provider names carries no fold (FR-020, "
+        "FR-024)");
+  check(merged.contains("refusal=absent"),
+        "the row names the refusal of the column that carries no fold "
+        "(FR-024)");
+  std::puts("harness_threads_test unavailable-fold: ok");
+  return 0;
+}
+
+// FR-020: a decision whose folds carry gaps discloses the fold beside the
+// row's counters instead of dividing by it.
+auto scenarioFoldDisclosed() -> int
+{
+  gappedCpuProvider();
+  auto handle = sg::registerBenchmark(&bmCounterLoop, "bmThreadsFoldNote");
+  handle.threads(2);
+
+  const std::string row =
+      lineOf(captureRun({"--filter", "^bmThreadsFoldNote", "--iterations=4"}),
+             "bmThreadsFoldNote");
+  check(!row.empty(),
+        "the threaded row prints beside a gapped " "decision (FR-016)");
+  check(row.contains("fold-disclosed"),
+        "the row discloses the fold when the decision folds a gap "
+        "(FR-020, FR-024)");
+  check(!row.contains("zero-divisor"),
+        "the zero-divisor note stands aside while a decision second "
+        "stands (FR-020)");
+  std::puts("harness_threads_test fold-disclosed: ok");
+  return 0;
+}
+
+// FR-020: a decision of zero measured seconds names the missing divisor
+// instead of dividing by it. The scripted thread-cpu leaf never moves, so the
+// CPU fold that stands as the primary of every context reads zero: the same
+// seam the single-context row already discloses.
+auto scenarioZeroDivisor() -> int
+{
+  scriptProvider(0);
+  auto handle = sg::registerBenchmark(&bmCounterLoop, "bmThreadsZeroNote");
+  handle.threads(2);
+
+  const std::string row =
+      lineOf(captureRun({"--filter", "^bmThreadsZeroNote", "--iterations=4"}),
+             "bmThreadsZeroNote");
+  check(!row.empty(),
+        "the threaded row prints beside a zero decision " "(FR-016)");
+  check(row.contains("zero-divisor"),
+        "the row names the zero divisor the scripted leaf leaves (FR-020)");
+  check(!row.contains("fold-disclosed"),
+        "the fold note stands aside while the decision stays countable "
+        "(FR-020)");
+  std::puts("harness_threads_test zero-divisor: ok");
+  return 0;
+}
+
+auto scenarioSetupTeardown() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmRepetitionRow, "bmThreadsCallbacks");
+  handle.threads(2)
+      .setup(
+          [](sg::State& state)
+          {
+            callbackSetups.fetch_add(1, std::memory_order_relaxed);
+            check(state.threadIndex() >= 0,
+                  "the setup callback receives the context that owns the half");
+          })
+      .teardown(
+          [](sg::State& state)
+          {
+            callbackTearDowns.fetch_add(1, std::memory_order_relaxed);
+            (void)state;
+          });
+
+  const std::string row =
+      lineOf(captureRun({"--filter", "^bmThreadsCallbacks", "--iterations=4"}),
+             "bmThreadsCallbacks");
+  check(!row.empty(), "the threaded fixture family prints its row (FR-016)");
+  check(callbackSetups.load() == 1,
+        "the setup callback runs once for the attempt and not once per "
+        "context (FR-023, D-07)");
+  check(callbackTearDowns.load() == 1,
+        "the teardown callback runs once for the attempt (FR-023, D-07)");
+  std::puts("harness_threads_test setup-teardown: ok");
+  return 0;
+}
+
+// The fixture whose setUp throws an int: the catch-all of the setup half
+// names the failure the report shows.
+class IntThrowFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State& state) -> void override
+  {
+    (void)state;
+    throw 42;
+  }
+
+  auto tearDown(sg::State& state) -> void override { (void)state; }
+};
+
+std::atomic<int> intThrowBodies {0};
+
+// FR-023: a setup half that throws what is not an exception leaves every
+// context out of the body and fails the benchmark.
+auto scenarioSetupThrowsInt() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerFixtureBenchmark(
+      [](sg::State& state)
+      {
+        intThrowBodies.fetch_add(1, std::memory_order_relaxed);
+        for (auto index : state) {
+          sg::doNotOptimize(index);
+        }
+      },
+      "bmThreadsSetupInt",
+      [] { return std::make_unique<IntThrowFixture>(); });
+  handle.threads(2);
+
+  int status = 0;
+  const std::string report =
+      captureRun({"--filter", "^bmThreadsSetupInt", "--iterations=2"}, status);
+  check(status != 0, "the failed setup ends with the failure status (FR-023)");
+  check(report.contains("the benchmark threw an unknown exception"),
+        "the catch-all of the setup half names the int the scripted fixture "
+        "threw (FR-023)");
+  check(
+      intThrowBodies.load() == 0,
+      "no context enters the body when the setup half throws (FR-023, " "D-"
+                                                                        "07)");
+  std::puts("harness_threads_test setup-throws-int: ok");
+  return 0;
+}
+
+// FR-005: one context that skips with a reason ends the run as skipped with
+// that reason; no measured row stands.
+auto scenarioSkipOne() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmOneContextSkips, "bmThreadsSkipOne");
+  handle.threads(2);
+
+  const std::string report =
+      captureRun({"--filter", "^bmThreadsSkipOne", "--iterations=4"});
+  check(report.contains("SKIPPED: the scripted threaded skip"),
+        "the merged run is skipped with the reason the one context gave "
+        "(FR-005, FR-016)");
+  check(rowsOf(report, "bmThreadsSkipOne").empty(),
+        "a skipped run prints no measured row (FR-016)");
+  std::puts("harness_threads_test skip-one: ok");
+  return 0;
+}
+
+// FR-052, FR-054: the room learned from the first attempt lets the second
+// run its pairs raw; only the folded row carries the note.
+auto scenarioPauseOverflow() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmPausedRow, "bmThreadsPauseTwo");
+  handle.threads(2);
+
+  const std::string report = captureRun(
+      {"--filter", "^bmThreadsPauseTwo", "--iterations=4", "--repetitions=2"});
+  const std::vector<std::string> rows = rowsOf(report, "bmThreadsPauseTwo");
+  check(rows.size() == 2,
+        "the run prints one row per repetition (FR-016, FR-054)");
+  if (rows.size() == 2) {
+    check(rows[0].contains("pause=folded"),
+          "the first attempt folds its pairs through the slot because no "
+          "room was learned yet (FR-052, FR-054)");
+    check(!rows[1].contains("pause=folded"),
+          "the second attempt runs its pairs raw inside the room it learned "
+          "(FR-052, FR-054)");
+  }
+  std::puts("harness_threads_test pause-overflow: ok");
+  return 0;
+}
+
+// FR-016: a body that throws what is not an exception fails the benchmark
+// through the catch-all of the body, with no measured row.
+auto scenarioBodyThrowsInt() -> int
+{
+  scriptProvider();
+  auto handle =
+      sg::registerBenchmark(&bmThrowsIntAfterLoop, "bmThreadsThrowInt");
+  handle.threads(2);
+
+  int status = 0;
+  const std::string report =
+      captureRun({"--filter", "^bmThreadsThrowInt", "--iterations=2"}, status);
+  check(status != 0,
+        "the body that throws ends with the failure status " "(FR-016)");
+  check(report.contains("the benchmark threw an unknown exception"),
+        "the catch-all of the body names the int it threw (FR-016)");
+  check(rowsOf(report, "bmThreadsThrowInt").empty(),
+        "a failed run prints no measured row (FR-016)");
+  std::puts("harness_threads_test body-throws-int: ok");
+  return 0;
+}
+
+// FR-017: the second entry of the timed loop fails the record, so the
+// threaded run shows the rule as its failure.
+auto scenarioDoubleLoop() -> int
+{
+  scriptProvider();
+  auto handle =
+      sg::registerBenchmark(&bmEntersLoopTwice, "bmThreadsDoubleLoop");
+  handle.threads(2);
+
+  int status = 0;
+  const std::string report = captureRun(
+      {"--filter", "^bmThreadsDoubleLoop", "--iterations=2"}, status);
+  check(
+      status != 0,
+      "the second entry of the loop ends with the failure " "status (FR-017)");
+  check(
+      report.contains("the benchmark entered the timed loop twice " "(FR-017)"),
+      "the failed record names the rule the body broke (FR-017)");
+  std::puts("harness_threads_test double-loop: ok");
+  return 0;
+}
+
+// FR-008, FR-016: the signal between two repetitions ends the run before
+// the repetition it owes.
+auto scenarioInterruptReps() -> int
+{
+  scriptProvider();
+  auto handle =
+      sg::registerBenchmark(&bmRaisesOnFirstIteration, "bmThreadsInterrupt");
+  handle.threads(2);
+
+  int status = 0;
+  const std::string report = captureRun(
+      {"--filter", "^bmThreadsInterrupt", "--iterations=2", "--repetitions=3"},
+      status);
+  check(status != 0,
+        "the interrupted run ends with the failure status " "(FR-008)");
+  check(report.contains("interrupted by the user (SIGINT)"),
+        "the interrupted run discloses the signal as its reason (FR-008)");
+  check(rowsOf(report, "bmThreadsInterrupt").empty(),
+        "the interrupted run prints no measured row (FR-016)");
+  std::puts("harness_threads_test interrupt-reps: ok");
   return 0;
 }
 
@@ -1693,6 +2061,36 @@ auto main(const int argc, char** argv) -> int
   if (mode == "custom-runner") {
     return scenarioCustomRunner();
   }
+  if (mode == "unavailable-fold") {
+    return scenarioUnavailableFold();
+  }
+  if (mode == "fold-disclosed") {
+    return scenarioFoldDisclosed();
+  }
+  if (mode == "zero-divisor") {
+    return scenarioZeroDivisor();
+  }
+  if (mode == "setup-teardown") {
+    return scenarioSetupTeardown();
+  }
+  if (mode == "setup-throws-int") {
+    return scenarioSetupThrowsInt();
+  }
+  if (mode == "skip-one") {
+    return scenarioSkipOne();
+  }
+  if (mode == "pause-overflow") {
+    return scenarioPauseOverflow();
+  }
+  if (mode == "body-throws-int") {
+    return scenarioBodyThrowsInt();
+  }
+  if (mode == "double-loop") {
+    return scenarioDoubleLoop();
+  }
+  if (mode == "interrupt-reps") {
+    return scenarioInterruptReps();
+  }
   if (mode == "breach-threads-zero") {
     return breachThreadsZero();
   }
@@ -1726,6 +2124,16 @@ auto main(const int argc, char** argv) -> int
            "range-expansion",
            "dense-range-expansion",
            "custom-runner",
+           "unavailable-fold",
+           "fold-disclosed",
+           "zero-divisor",
+           "setup-teardown",
+           "setup-throws-int",
+           "skip-one",
+           "pause-overflow",
+           "body-throws-int",
+           "double-loop",
+           "interrupt-reps",
        })
   {
     const int status =
