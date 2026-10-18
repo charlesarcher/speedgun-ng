@@ -347,10 +347,13 @@ auto appendMergedRow(std::vector<sg::ResultRow>& rows,
   }
 
   // FR-003, FR-004, FR-005: the same two disclosures the single-context
-  // row names, read on the summed decision seconds of the merged row.
+  // row names, read on the summed decision seconds of the merged row. The
+  // availability test alone decides the divisor: a primary whose fold
+  // stands above countable carries no seconds, so the product of an
+  // uncountable primary hands out the same zero (Principle X).
   const bool primaryCountable =
       row.timeAvailability == sg::counters::Availability::COUNTABLE;
-  const double primarySeconds = record.decisionNs > 0 && primaryCountable
+  const double primarySeconds = primaryCountable
       ? static_cast<double>(record.decisionNs) * 1e-9
           / static_cast<double>(threadCount)
       : 0.0;
