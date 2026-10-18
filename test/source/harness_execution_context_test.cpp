@@ -65,6 +65,11 @@
 //                       and dispatch counts apart, and both empty proofs, the
 //                       drain's stand and the loop's exit proof, read the
 //                       pair inside that window (FR-006, FR-050)
+//   enqueueWindow       a producer enqueues while the owner drains, so the
+//                       walk meets nodes between their exchange and their
+//                       link, and every node still runs once (FR-001, FR-006)
+//   barrierRepeatedWaits one participant steps through its round wait while a
+//                       second thread holds its arrival (FR-007, FR-014)
 // Breaches, each expected to end its child by SIGABRT:
 //   unjoined            the destructor of a context that was never joined
 //                       (SC-03, FR-006)
@@ -1403,6 +1408,53 @@ auto scenarioBarrierLateArrival() -> int
   return 0;
 }
 
+// FR-007, FR-014: a participant whose round stays open waits by policy over
+// and over until the arrival that fills the round lands.
+auto scenarioBarrierRepeatedWaits() -> int
+{
+  constexpr unsigned kBusyPasses = 4'000'000U;
+
+  const sg::ContextPolicy policy {.waitMode = sg::WaitMode::YIELD,
+                                  .placement = sg::PlacementSlot::noPin()};
+  auto& context = ownedContext(policy);
+  sg::ContextBarrier barrier {2};
+  std::atomic<bool> arrived {false};
+  std::atomic<bool> released {false};
+  std::atomic<bool> sawContext {false};
+  const LateArriveItem item {&arrived, &released, &sawContext, &barrier};
+  sg::WorkNode<LateArriveItem> node {item};
+  sg::dispatch(context, node);
+
+  while (!arrived.load(std::memory_order_acquire)) {
+  }
+  // The window between the arrival and the release is where the waiting
+  // thread takes its mode step, tests the round, and steps again.
+  volatile unsigned sink = 0;
+  for (unsigned passes = 0; passes < kBusyPasses; ++passes) {
+    sink += passes;
+  }
+  check(sink != 0U,
+        "the window between the arrival and the release ran to its end "
+        "(FR-007, FR-014)");
+  check(!released.load(std::memory_order_acquire),
+        "the participant stands in its round wait across the whole window "
+        "while one arrival is missing (FR-014)");
+  barrier.arriveAndWait();
+  context.requestStop();
+  context.drain();
+  context.join();
+  check(released.load(std::memory_order_acquire),
+        "the arrival that fills the round releases the thread that waited "
+        "through repeated mode steps (FR-007, FR-014)");
+  check(node.state() == sg::WorkNodeState::DONE,
+        "the item that rode the round completed (FR-009, FR-015)");
+  check(sawContext.load(std::memory_order_acquire),
+        "the participant waited from inside running work, where the policy of "
+        "its own context names the mode (FR-002, FR-014)");
+  std::puts("harness_execution_context_test barrierRepeatedWaits: ok");
+  return 0;
+}
+
 // FR-006, FR-050: the two empty proofs read the accept and dispatch counts as
 // one account, and a node a dispatch reached but has not yet linked holds that
 // account apart. The node here stands on a page the scenario guards: the first
@@ -1944,7 +1996,7 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 24> kScenarios {
+constexpr std::array<Mode, 25> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -1966,6 +2018,7 @@ constexpr std::array<Mode, 24> kScenarios {
     Mode {.name = "blockIdleWake", .run = &scenarioBlockIdleWake},
     Mode {.name = "barrierLateArrival", .run = &scenarioBarrierLateArrival},
     Mode {.name = "barrierBlockMode", .run = &scenarioBarrierBlockMode},
+    Mode {.name = "barrierRepeatedWaits", .run = &scenarioBarrierRepeatedWaits},
     Mode {.name = "drainPendingInbox", .run = &scenarioDrainPendingInbox},
     Mode {.name = "acceptedNotLinked", .run = &scenarioAcceptedNotLinked},
     Mode {.name = "enqueueWindow", .run = &scenarioEnqueueWindow},

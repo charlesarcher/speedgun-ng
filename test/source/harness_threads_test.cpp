@@ -1015,6 +1015,57 @@ auto scenarioSetupThrowsInt() -> int
   return 0;
 }
 
+// The fixture whose teardown half throws an int: the catch-all of the
+// teardown half names the failure the report shows.
+class TearThrowFixture : public sg::Fixture
+{
+public:
+  auto setUp(sg::State& state) -> void override { (void)state; }
+
+  auto tearDown(sg::State& state) -> void override
+  {
+    (void)state;
+    throw 7;
+  }
+};
+
+std::atomic<int> tearThrowBodies {0};
+
+// FR-023, D-07: a teardown half that throws after the stop barrier fails the
+// run and leaves no measured row.
+auto scenarioTearDownThrowsInt() -> int
+{
+  scriptProvider();
+  tearThrowBodies.store(0, std::memory_order_relaxed);
+  auto handle = sg::registerFixtureBenchmark(
+      [](sg::State& state)
+      {
+        tearThrowBodies.fetch_add(1, std::memory_order_relaxed);
+        for (auto index : state) {
+          sg::doNotOptimize(index);
+        }
+      },
+      "bmThreadsTearInt",
+      [] { return std::make_unique<TearThrowFixture>(); });
+  handle.threads(2);
+
+  int status = 0;
+  const std::string report =
+      captureRun({"--filter", "^bmThreadsTearInt", "--iterations=2"}, status);
+  check(status != 0,
+        "the failed teardown ends with the failure status (FR-023)");
+  check(report.contains("the benchmark threw an unknown exception"),
+        "the catch-all of the teardown half names the int the scripted "
+        "fixture threw (FR-023)");
+  check(tearThrowBodies.load() == 2,
+        "both contexts ran the body while the setup half stood silent (FR-023, "
+        "D-07)");
+  check(rowsOf(report, "bmThreadsTearInt").empty(),
+        "a run whose teardown half threw prints no measured row (FR-023)");
+  std::puts("harness_threads_test teardown-throws-int: ok");
+  return 0;
+}
+
 // FR-005: one context that skips with a reason ends the run as skipped with
 // that reason; no measured row stands.
 auto scenarioSkipOne() -> int
@@ -2217,6 +2268,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "setup-throws-int") {
     return scenarioSetupThrowsInt();
   }
+  if (mode == "teardown-throws-int") {
+    return scenarioTearDownThrowsInt();
+  }
   if (mode == "skip-one") {
     return scenarioSkipOne();
   }
@@ -2275,6 +2329,7 @@ auto main(const int argc, char** argv) -> int
            "zero-divisor",
            "setup-teardown",
            "setup-throws-int",
+           "teardown-throws-int",
            "skip-one",
            "skip-two",
            "pause-overflow",
