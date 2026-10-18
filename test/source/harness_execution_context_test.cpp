@@ -53,6 +53,18 @@
 //   completionOrder     the caller waits on `state`, reads the value the item
 //                       wrote, and destroys the node at once (T005; FR-009,
 //                       FR-012, FR-049)
+//   yieldIdleWake       a YIELD context stands its empty-inbox wait after an
+//                       empty flush, and each later dispatch is the wake that
+//                       ends it (SC-02, FR-004)
+//   blockIdleWake       a BLOCK context parks on its inbox flag; the dispatch
+//                       notify and the stop request are the wakes that path
+//                       names (FR-004, FR-006)
+//   barrierLateArrival  one thread waits a round that its own arrival cannot
+//                       complete while a second thread arrives later (FR-014)
+//   acceptedNotLinked   a node accepted and not yet linked holds the accept
+//                       and dispatch counts apart, and both empty proofs, the
+//                       drain's stand and the loop's exit proof, read the
+//                       pair inside that window (FR-006, FR-050)
 // Breaches, each expected to end its child by SIGABRT:
 //   unjoined            the destructor of a context that was never joined
 //                       (SC-03, FR-006)
@@ -81,6 +93,8 @@
 #include <thread>
 #include <utility>
 
+#include <sys/mman.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -1224,6 +1238,366 @@ auto scenarioManyContexts() -> int
   return 0;
 }
 
+// SC-02, FR-004: the YIELD wait of the loop. An empty drain stands the loop
+// in its policy's wait with the inbox empty, and each dispatch that follows is
+// the wake that ends it: the item running and the flush returning are the two
+// observable halves of that wait (SC-02, FR-004, FR-006).
+auto scenarioYieldIdleWake() -> int
+{
+  const sg::ContextPolicy policy {.waitMode = sg::WaitMode::YIELD,
+                                  .placement = sg::PlacementSlot::noPin()};
+  sg::ExecutionContext context {policy};
+  check(context.policy().waitMode == sg::WaitMode::YIELD,
+        "the YIELD policy stands fixed and readable for the life of the "
+        "context (FR-007)");
+
+  // The loop reaches its empty-inbox wait through this flush: drain() returns
+  // only once the loop stands IDLE with the inbox empty (FR-006).
+  context.drain();
+
+  Observation observed {};
+  const ObserveItem item {0, &observed};
+  sg::WorkNode<ObserveItem> node {item};
+  sg::dispatch(context, node);
+  context.drain();
+
+  check(
+      node.state() == sg::WorkNodeState::DONE,
+      "the dispatch woke the yielding loop and its node ran (SC-02, " "FR-"
+                                                                      "004)");
+  check(runCount[0] == 1, "the item ran once (FR-001)");
+  check(observed.threadId != std::this_thread::get_id(),
+        "the item ran on the thread of the context (FR-001)");
+  check(observed.currentSerial == context.id().serial,
+        "the item named its context (FR-002)");
+
+  // The woken loop waits again after the flush, and the second dispatch wakes
+  // that wait too (SC-02, FR-004).
+  Observation later {};
+  const ObserveItem laterItem {1, &later};
+  sg::WorkNode<ObserveItem> laterNode {laterItem};
+  context.drain();
+  sg::dispatch(context, laterNode);
+  context.drain();
+  check(laterNode.state() == sg::WorkNodeState::DONE,
+        "the loop stood in its wait again and woke for the next dispatch "
+        "(SC-02, FR-004)");
+
+  closeContext(context);
+  check(runPositions == 2,
+        "the close ran nothing beyond the two dispatched items (FR-006)");
+  std::puts("harness_execution_context_test yieldIdleWake: ok");
+  return 0;
+}
+
+// FR-004, FR-006: the BLOCK wait of the loop. The empty flush stands the loop
+// in the standard atomic wait on its inbox flag, and the two wakes that wait
+// names (a dispatch's notify and the stop request) each end it: the accepted
+// node running and the loop closing are the accounts read back (FR-004,
+// FR-006, FR-050).
+auto scenarioBlockIdleWake() -> int
+{
+  sg::ExecutionContext context {blockingPolicy()};
+  check(
+      context.policy().waitMode == sg::WaitMode::BLOCK,
+      "a caller-created context with no stated mode waits in BLOCK " "(FR-"
+                                                                     "004)");
+  context.drain();
+
+  Observation observed {};
+  const ObserveItem item {0, &observed};
+  sg::WorkNode<ObserveItem> node {item};
+  sg::dispatch(context, node);
+  context.drain();
+  check(
+      node.state() == sg::WorkNodeState::DONE,
+      "the dispatch notify woke the blocked loop and its node ran " "(FR-004)");
+  check(runCount[0] == 1, "the item ran once (FR-001)");
+
+  // The stop request is the other wake of the same wait: the loop leaves it
+  // with the inbox empty and closes (FR-006, FR-050).
+  Observation later {};
+  const ObserveItem laterItem {1, &later};
+  sg::WorkNode<ObserveItem> laterNode {laterItem};
+  context.drain();
+  sg::dispatch(context, laterNode);
+  context.requestStop();
+  context.drain();
+  check(laterNode.state() == sg::WorkNodeState::DONE,
+        "the node accepted before the stop request ran during drain "
+        "(FR-006, FR-050)");
+  context.join();
+  check(runPositions == 2,
+        "the close ran nothing beyond the two dispatched items (FR-006)");
+  std::puts("harness_execution_context_test blockIdleWake: ok");
+  return 0;
+}
+
+// FR-014: one thread waits a round while the second arrival stands behind a
+// flag. The waiter runs the arrival on a YIELD-policy context, so its own
+// policy names the yield path of the round wait, and its arrival cannot
+// complete the round it enters: the round stands full of one participant
+// until the caller arrives. Nothing releasing before that arrival is the
+// wait's observable half, and the item completing after the caller's arrival
+// is the wake's (FR-014, Q-3).
+namespace
+{
+struct LateArriveItem
+{
+  std::atomic<bool>* arrived = nullptr;
+  std::atomic<bool>* released = nullptr;
+  std::atomic<bool>* sawContext = nullptr;
+  sg::ContextBarrier* barrier = nullptr;
+
+  auto operator()(sg::WorkContext&) noexcept -> void
+  {
+    sawContext->store(sg::currentContext().has_value(),
+                      std::memory_order_release);
+    arrived->store(true, std::memory_order_release);
+    barrier->arriveAndWait();
+    released->store(true, std::memory_order_release);
+  }
+};
+}  // namespace
+
+auto scenarioBarrierLateArrival() -> int
+{
+  const sg::ContextPolicy policy {.waitMode = sg::WaitMode::YIELD,
+                                  .placement = sg::PlacementSlot::noPin()};
+  auto& context = ownedContext(policy);
+  check(context.policy().waitMode == sg::WaitMode::YIELD,
+        "the participant's own policy names the yield wait mode it must wait "
+        "in (FR-007, FR-014)");
+  sg::ContextBarrier barrier {2};
+  std::atomic<bool> arrived {false};
+  std::atomic<bool> released {false};
+  std::atomic<bool> sawContext {false};
+  const LateArriveItem item {&arrived, &released, &sawContext, &barrier};
+  sg::WorkNode<LateArriveItem> node {item};
+  sg::dispatch(context, node);
+
+  // The same gate as the stop race's pending gate: the item runs on the
+  // thread of the context, and its arrival stands inside running work.
+  while (!arrived.load(std::memory_order_acquire)) {
+  }
+  // Only the arrival below can complete this round, so the item stands in
+  // its round wait at this point: a participant proceeds only once every
+  // participant has arrived (FR-014).
+  check(!released.load(std::memory_order_acquire),
+        "no participant proceeds while a participant of the round stands "
+        "unarrived (FR-014)");
+  barrier.arriveAndWait();
+  context.requestStop();
+  context.drain();
+  context.join();
+  check(released.load(std::memory_order_acquire),
+        "the arrival that fills the round releases every participant at once "
+        "(FR-014)");
+  check(node.state() == sg::WorkNodeState::DONE,
+        "the item that rode the round completed (FR-009, FR-015)");
+  check(sawContext.load(std::memory_order_acquire),
+        "the participant waited from inside running work, where the policy of "
+        "its own context names the mode (FR-002, FR-014)");
+  std::puts("harness_execution_context_test barrierLateArrival: ok");
+  return 0;
+}
+
+// FR-006, FR-050: the two empty proofs read the accept and dispatch counts as
+// one account, and a node a dispatch reached but has not yet linked holds that
+// account apart. The node here stands on a page the scenario guards: the first
+// write a dispatch makes to the node, the settled PENDING state, faults and
+// the kernel holds the producer at that instruction, past its accept count and
+// before the inbox link, until the scenario lets it go. No sleep and no clock
+// stand in the window: the producer stands where the guard put it, and the
+// drainer's first read of the pair is proven inside the window because the
+// only yield it can have taken before that read is the inbox wait itself.
+namespace
+{
+struct FaultWindow
+{
+  std::atomic<bool> entered {false};  // the guard caught the write
+  std::atomic<bool> release {false};  // the scenario lets the write land
+  std::atomic<bool> restored {false};  // the page stands writable again
+  void* page = nullptr;  // the guarded page, or none
+  std::size_t width = 0;
+};
+
+FaultWindow faultWindow {};
+
+// The guard for the window: a write into the tracked page parks its thread on
+// the release flag, restores the page writable before returning, and lets the
+// faulting store run on the retry. A fault outside the window restores the
+// default action, so a real breach still ends the child.
+// shortcut: mprotect from a handler works as the bare syscall it is, and the
+// thread sanitizer owns SIGSEGV for its own reports; the scenario stands down
+// there.
+void faultWindowHandler(int, siginfo_t* info, void*)
+{
+  const auto* const at = static_cast<const char*>(info->si_addr);
+  const auto* const first = static_cast<const char*>(faultWindow.page);
+  const bool inside = faultWindow.page != nullptr && at >= first
+      && at < first + faultWindow.width
+      && !faultWindow.restored.load(std::memory_order_relaxed);
+  if (!inside) {
+    std::signal(SIGSEGV, SIG_DFL);
+    return;
+  }
+  faultWindow.entered.store(true, std::memory_order_release);
+  while (!faultWindow.release.load(std::memory_order_acquire)) {
+  }
+  ::mprotect(faultWindow.page, faultWindow.width, PROT_READ | PROT_WRITE);
+  faultWindow.restored.store(true, std::memory_order_relaxed);
+}
+
+// The kernel's record of the task named: its voluntary context switches, the
+// yields it chose, never the ones the scheduler forced.
+auto readVoluntarySwitches(const long taskId) -> long
+{
+  char path[64];
+  std::snprintf(path, sizeof path, "/proc/self/task/%ld/status", taskId);
+  FILE* const record = std::fopen(path, "r");
+  check(record != nullptr, "the drainer's kernel record opens (FR-006)");
+  char line[256];
+  long switches = -1;
+  while (std::fgets(line, sizeof line, record) != nullptr) {
+    if (std::sscanf(line, "voluntary_ctxt_switches: %ld", &switches) == 1) {
+      break;
+    }
+  }
+  std::fclose(record);
+  check(switches >= 0,
+        "the voluntary switch count stands in the record (FR-006)");
+  return switches;
+}
+}  // namespace
+
+auto scenarioAcceptedNotLinked() -> int
+{
+#if SG_TEST_HAS_TSAN
+  std::puts("harness_execution_context_test acceptedNotLinked: skipped under "
+            "the thread sanitizer, which owns the signal the guard takes");
+  return 0;
+#else
+  sg::ExecutionContext context {blockingPolicy()};
+  // The flush stands the loop in its empty-inbox wait (FR-006).
+  context.drain();
+
+  const long pageSize = ::sysconf(_SC_PAGESIZE);
+  void* const page = ::mmap(nullptr,
+                            static_cast<std::size_t>(pageSize),
+                            PROT_READ | PROT_WRITE,
+                            MAP_PRIVATE | MAP_ANONYMOUS,
+                            -1,
+                            0);
+  check(page != MAP_FAILED,
+        "the guarded page for the node stands mapped (FR-006)");
+  faultWindow.page = page;
+  faultWindow.width = static_cast<std::size_t>(pageSize);
+
+  struct sigaction guard
+  {
+  };
+
+  sigemptyset(&guard.sa_mask);
+  guard.sa_flags = SA_SIGINFO;
+  guard.sa_sigaction = &faultWindowHandler;
+
+  struct sigaction prior
+  {
+  };
+
+  check(::sigaction(SIGSEGV, &guard, &prior) == 0,
+        "the fault window stands installed (FR-006)");
+
+  Observation observed {};
+  const ObserveItem item {0, &observed};
+  auto* const node = new (page) sg::WorkNode<ObserveItem> {
+      item};  // NOLINT(cppcoreguidelines-pro-type-placement-new) the node lives
+              // on its own guarded page by design
+  ::mprotect(page, static_cast<std::size_t>(pageSize), PROT_READ);
+
+  // The producer faults at the settled PENDING store, past its accept count
+  // and before the exchange that links (FR-050): the counts stand apart with
+  // the inbox still at its sentinel.
+  std::atomic<bool> producerGo {false};
+  std::atomic<bool> producerDone {false};
+  std::thread producer {[&]
+                        {
+                          while (!producerGo.load(std::memory_order_acquire)) {
+                          }
+                          sg::dispatch(context, *node);
+                          producerDone.store(true, std::memory_order_release);
+                        }};
+  producerGo.store(true);
+  while (!faultWindow.entered.load(std::memory_order_acquire)) {
+  }
+  check(!producerDone.load(std::memory_order_acquire),
+        "the producer stands between its accept and the inbox link (FR-050)");
+
+  // The stop request is the wake that puts the loop on its exit proof, and
+  // that proof reads the same pair the parked producer holds apart.
+  context.requestStop();
+
+  // The drainer stands in the same window on its own thread. Its only path to
+  // a voluntary yield before the kernel records one is the inbox wait of
+  // `drain()`, and that wait stands behind its first read of the pair: the
+  // recorded switch is the proof the read ran on apart counts (FR-006).
+  std::atomic<bool> drainerReady {false};
+  std::atomic<bool> drainerGo {false};
+  std::atomic<bool> drainerReturned {false};
+  std::atomic<long> drainerTask {0};
+  std::thread drainer {[&]
+                       {
+                         drainerTask.store(
+                             static_cast<long>(::syscall(SYS_gettid)),
+                             std::memory_order_release);
+                         drainerReady.store(true, std::memory_order_release);
+                         while (!drainerGo.load(std::memory_order_acquire)) {
+                         }
+                         context.drain();
+                         drainerReturned.store(true, std::memory_order_release);
+                       }};
+  while (!drainerReady.load(std::memory_order_acquire)) {
+  }
+  const long switchesBefore = readVoluntarySwitches(drainerTask.load());
+  drainerGo.store(true);
+  long switches = switchesBefore;
+  while (switches == switchesBefore) {
+    switches = readVoluntarySwitches(drainerTask.load());
+  }
+  check(!drainerReturned.load(std::memory_order_acquire),
+        "the drain stands while the accepted node has not linked (FR-006, "
+        "FR-050)");
+
+  // The release lands the PENDING store on the retry, the link follows, and
+  // both proofs close in order: the loop runs the node the stop found
+  // accepted, the counts settle even, and the drain returns (FR-050).
+  faultWindow.release.store(true, std::memory_order_release);
+  producer.join();
+  drainer.join();
+  check(producerDone.load(std::memory_order_acquire)
+            && drainerReturned.load(std::memory_order_acquire),
+        "the release closed the dispatch and the drain together (FR-006, "
+        "FR-050)");
+  check(node->state() == sg::WorkNodeState::DONE,
+        "the node the stop request found accepted ran during the stand "
+        "(FR-006, FR-050)");
+  check(runCount[0] == 1, "the item ran once (FR-001)");
+  context.join();
+  check(runPositions == 1,
+        "the close ran nothing beyond the one accepted item (FR-006)");
+
+  check(::sigaction(SIGSEGV, &prior, nullptr) == 0,
+        "the guard steps down from the signal (FR-006)");
+  // The node's members are atomics over trivial types; unmapping the page it
+  // was placed on needs no destructor beyond that account.
+  ::munmap(page, static_cast<std::size_t>(pageSize));
+  faultWindow.page = nullptr;
+  std::puts("harness_execution_context_test acceptedNotLinked: ok");
+  return 0;
+#endif
+}
+
 // FR-009, FR-012: a node whose run has ended may be dispatched again, and its
 // state is settled PENDING before the inbox link becomes visible, so a node
 // that waits in the inbox never reads DONE while the loop can still take it.
@@ -1379,7 +1753,7 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 17> kScenarios {
+constexpr std::array<Mode, 21> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -1397,6 +1771,10 @@ constexpr std::array<Mode, 17> kScenarios {
     Mode {.name = "stopTokenOffContext", .run = &scenarioStopTokenOffContext},
     Mode {.name = "manyContexts", .run = &scenarioManyContexts},
     Mode {.name = "reuseAfterDone", .run = &scenarioReuseAfterDone},
+    Mode {.name = "yieldIdleWake", .run = &scenarioYieldIdleWake},
+    Mode {.name = "blockIdleWake", .run = &scenarioBlockIdleWake},
+    Mode {.name = "barrierLateArrival", .run = &scenarioBarrierLateArrival},
+    Mode {.name = "acceptedNotLinked", .run = &scenarioAcceptedNotLinked},
 };
 
 constexpr std::array<Mode, 5> kBreaches {
