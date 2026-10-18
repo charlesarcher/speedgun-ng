@@ -308,7 +308,7 @@ report (research D-08, FR-025, FR-026):
   contexts=4  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN ...   (threaded only)
   warning: spinning contexts oversubscribed (5 spin, 4 cpus)
       printed after a result exactly when that result shows two pinned
-      spinners on one cpu or more spinners than the online count
+      spinners on one cpu or more spinners than the runnable count
 ```
 
 The single-thread flag pass of H4 reduces to itself at `N == 1`, so an

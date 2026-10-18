@@ -180,16 +180,17 @@ auto runnableCpuCount() -> std::uint64_t
 
 // FR-026, FR-028: the noise warning of one result. It prints when two
 // spinning contexts of that result name one cpu index, or when the
-// spinning contexts of that result outnumber the cpus the host has
-// online, and prints nothing at all when neither holds.
+// spinning contexts of that result outnumber the cpus this process may
+// run on, and prints nothing at all when neither holds.
 //
-// The online cpu count is the one host fact the check reads, and the
-// check reads it once, where its decision needs it. The counters
-// `System` tree holds one object per countable device and publishes no
-// host cpu count at this head, so the count comes from the standard
-// library call the covering test reads: the printed number and the
-// trigger share that one source (D-08). The read names no clock and
-// samples nothing (FR-027, FR-039).
+// The runnable cpu count is the one host fact the check reads, and the
+// check reads it once, where its decision needs it. The mask
+// `sched_getaffinity` reports is that fact: a process confined to part
+// of the machine has exactly that much room to spin in, and the online
+// count told it nothing. The hardware concurrency count of the standard
+// library stands in when the call fails. The covering test reads the
+// same source, so the printed number and the trigger agree (D-08). The
+// read names no clock and samples nothing (FR-027, FR-039).
 auto printNoiseWarning(const BenchmarkResult& result) -> void
 {
   auto spinning = std::uint64_t {0};
@@ -212,12 +213,12 @@ auto printNoiseWarning(const BenchmarkResult& result) -> void
   // `std::to_chars`, which spells an index one way.
   std::ranges::sort(pinned);
   const bool sharesOneCpu = std::ranges::adjacent_find(pinned) != pinned.end();
-  const auto onlineCpus = runnableCpuCount();
-  if (sharesOneCpu || spinning > onlineCpus) {
+  const auto runnableCpus = runnableCpuCount();
+  if (sharesOneCpu || spinning > runnableCpus) {
     std::printf(
         "warning: spinning contexts oversubscribed (%llu spin, " "%llu cpus)\n",
         static_cast<unsigned long long>(spinning),
-        static_cast<unsigned long long>(onlineCpus));
+        static_cast<unsigned long long>(runnableCpus));
   }
 }
 
