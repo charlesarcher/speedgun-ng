@@ -534,11 +534,12 @@ auto BenchmarkHandle::threadRange(const int minCount,
              "bound stands above the upper violates the bounds of FR-024 "
              "(FR-016, FR-024)");
   // The doubling of the cited ThreadRange: one count per doubling that
-  // stays at or below the upper bound. The break before the multiply
-  // keeps the count out of int overflow, where no further doubling fits
-  // the bound anyway (FR-016).
+  // stays at or below the upper bound. The require above answers that the
+  // first count stands within the bounds, so the break below is the loop's
+  // exit; it also keeps the count out of int overflow, where no further
+  // doubling fits the bound anyway (FR-016).
   std::vector<int> counts;
-  for (int count = minCount; count <= maxCount;) {
+  for (int count = minCount;;) {
     counts.push_back(count);
     if (count > maxCount / 2) {
       break;
@@ -564,10 +565,11 @@ auto BenchmarkHandle::denseThreadRange(const int minCount,
              "lower bound stands above the upper, or whose step stands "
              "below one violates the bounds of FR-024 (FR-016, FR-024)");
   // The stride of the cited DenseThreadRange: one count per step that
-  // stays at or below the upper bound; the break before the add keeps
-  // the count out of int overflow (FR-016).
+  // stays at or below the upper bound. The require above answers that the
+  // first count stands within the bounds, so the break below is the loop's
+  // exit; it also keeps the count out of int overflow (FR-016).
   std::vector<int> counts;
-  for (int count = minCount; count <= maxCount;) {
+  for (int count = minCount;;) {
     counts.push_back(count);
     if (count > maxCount - step) {
       break;
