@@ -381,6 +381,65 @@ auto appendMergedRow(std::vector<sg::ResultRow>& rows,
                                    record.iterations);
 }
 
+// What one context of a threaded attempt leaves in its slot. The slot
+// stands in memory no other thread touches, and the attempt thread
+// acquires it through the DONE state of the context's node, the write
+// that happens-before that read (FR-049).
+struct ThreadedOutcome
+{
+  std::string error;
+  // FR-023, D-07: the failure of the setup half, which the start
+  // barrier publishes to every context; the slot above gains a writer
+  // after that round, so the two stay apart.
+  std::string setupError;
+  sg::detail::RunRecord record;
+  ContextFolds folds;
+  std::uint64_t pauseCount = 0;
+  std::optional<std::int64_t> statedSize;
+};
+
+// E-06, FR-020: the attempt is one record: the times, the
+// iterations, and the samples are summed, the counter store is
+// summed ahead of the flag pass, and the label is the one context 0
+// ended with (D-04, FR-011).
+auto mergeThreadedRecords(const std::vector<ThreadedOutcome>& outcomes,
+                          const std::size_t count) -> sg::detail::RunRecord
+{
+  sg::detail::RunRecord merged;
+  for (std::size_t position = 0; position < count; ++position) {
+    const sg::detail::RunRecord& record = outcomes[position].record;
+    merged.iterations += record.iterations;
+    merged.realNs += record.realNs;
+    merged.cpuNs += record.cpuNs;
+    merged.decisionNs += record.decisionNs;
+    merged.samples += record.samples;
+    merged.manual = merged.manual || record.manual;
+    merged.pauseSamplesFolded =
+        merged.pauseSamplesFolded || record.pauseSamplesFolded;
+    if (record.skipped && !merged.skipped) {
+      merged.skipped = true;
+      merged.reason = record.reason;
+    }
+    // FR-020: every name is summed ahead of the flag pass, and the
+    // flags and the base of a name are the first opener's (FR-001).
+    for (std::size_t at = 0; at < record.counterNames.size(); ++at) {
+      const std::string& counterName = record.counterNames[at];
+      const auto found = std::ranges::find(merged.counterNames, counterName);
+      if (found == merged.counterNames.end()) {
+        merged.counterNames.push_back(counterName);
+        merged.counterStore.push_back(record.counterStore[at]);
+      } else {
+        merged
+            .counterStore[static_cast<std::size_t>(
+                found - merged.counterNames.begin())]
+            .value += record.counterStore[at].value;
+      }
+    }
+  }
+  merged.label = outcomes.front().record.label;
+  return merged;
+}
+
 }  // namespace
 
 namespace sg::detail
@@ -1025,23 +1084,6 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
   };
 
-  // What one context of a threaded attempt leaves in its slot. The slot
-  // stands in memory no other thread touches, and the attempt thread
-  // acquires it through the DONE state of the context's node, the write
-  // that happens-before that read (FR-049).
-  struct ThreadedOutcome
-  {
-    std::string error;
-    // FR-023, D-07: the failure of the setup half, which the start
-    // barrier publishes to every context; the slot above gains a writer
-    // after that round, so the two stay apart.
-    std::string setupError;
-    RunRecord record;
-    ContextFolds folds;
-    std::uint64_t pauseCount = 0;
-    std::optional<std::int64_t> statedSize;
-  };
-
   // E-08, FR-051: two points per closed pause pair the previous
   // attempt observed per iteration, times this attempt's iteration
   // count, and no more: FR-025 and Q-10 cap the room, and an attempt
@@ -1201,48 +1243,6 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       folds.columns.push_back(
           nettedFold(column.core, recorderHere, record, column.foldColumn));
     }
-  };
-
-  // E-06, FR-020: the attempt is one record: the times, the
-  // iterations, and the samples are summed, the counter store is
-  // summed ahead of the flag pass, and the label is the one context 0
-  // ended with (D-04, FR-011).
-  auto mergeThreadedRecords = [&](const std::vector<ThreadedOutcome>& outcomes,
-                                  const std::size_t count) -> RunRecord
-  {
-    RunRecord merged;
-    for (std::size_t position = 0; position < count; ++position) {
-      const RunRecord& record = outcomes[position].record;
-      merged.iterations += record.iterations;
-      merged.realNs += record.realNs;
-      merged.cpuNs += record.cpuNs;
-      merged.decisionNs += record.decisionNs;
-      merged.samples += record.samples;
-      merged.manual = merged.manual || record.manual;
-      merged.pauseSamplesFolded =
-          merged.pauseSamplesFolded || record.pauseSamplesFolded;
-      if (record.skipped && !merged.skipped) {
-        merged.skipped = true;
-        merged.reason = record.reason;
-      }
-      // FR-020: every name is summed ahead of the flag pass, and the
-      // flags and the base of a name are the first opener's (FR-001).
-      for (std::size_t at = 0; at < record.counterNames.size(); ++at) {
-        const std::string& counterName = record.counterNames[at];
-        const auto found = std::ranges::find(merged.counterNames, counterName);
-        if (found == merged.counterNames.end()) {
-          merged.counterNames.push_back(counterName);
-          merged.counterStore.push_back(record.counterStore[at]);
-        } else {
-          merged
-              .counterStore[static_cast<std::size_t>(
-                  found - merged.counterNames.begin())]
-              .value += record.counterStore[at].value;
-        }
-      }
-    }
-    merged.label = outcomes.front().record.label;
-    return merged;
   };
 
   // FR-012, FR-017, FR-049: one heap node per body index, the
