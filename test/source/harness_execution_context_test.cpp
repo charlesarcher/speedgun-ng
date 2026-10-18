@@ -1129,6 +1129,42 @@ auto scenarioCompletionOrder() -> int
   return 0;
 }
 
+// FR-006: the close of a context is idempotent, so the second join() of a
+// joined context returns and runs nothing a second time.
+auto scenarioJoinTwice() -> int
+{
+  constexpr std::size_t kJoinTwiceTag = 48;
+  sg::ExecutionContext context {blockingPolicy()};
+  const NoAllocItem item {kJoinTwiceTag};
+  sg::WorkNode<NoAllocItem> node {item};
+  sg::dispatch(context, node);
+  context.requestStop();
+  context.drain();
+  context.join();
+  context.join();
+
+  check(node.state() == sg::WorkNodeState::DONE,
+        "the node accepted before the close settled DONE (FR-006)");
+  check(runCount[kJoinTwiceTag] == 1,
+        "the item ran once across the second join() (FR-006)");
+  std::puts("harness_execution_context_test joinTwice: ok");
+  return 0;
+}
+
+// FR-011: a stop token used off any context reads no stop request, so a caller
+// outside a running item never reads one, live or joined.
+auto scenarioStopTokenOffContext() -> int
+{
+  sg::ExecutionContext context {blockingPolicy()};
+  check(!sg::StopToken {}.stopRequested(),
+        "a token used off any context reads no stop request (FR-011)");
+  closeContext(context);
+  check(!sg::StopToken {}.stopRequested(),
+        "a token reads no stop request once the context is joined (FR-011)");
+  std::puts("harness_execution_context_test stopTokenOffContext: ok");
+  return 0;
+}
+
 // SC-03, FR-006: the destructor requires a joined context.
 auto breachUnjoined() -> int
 {
@@ -1244,7 +1280,7 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 13> kScenarios {
+constexpr std::array<Mode, 15> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -1258,6 +1294,8 @@ constexpr std::array<Mode, 13> kScenarios {
     Mode {.name = "refusedAfterStop", .run = &scenarioRefusedAfterStop},
     Mode {.name = "drainWithoutStop", .run = &scenarioDrainWithoutStop},
     Mode {.name = "completionOrder", .run = &scenarioCompletionOrder},
+    Mode {.name = "joinTwice", .run = &scenarioJoinTwice},
+    Mode {.name = "stopTokenOffContext", .run = &scenarioStopTokenOffContext},
 };
 
 constexpr std::array<Mode, 5> kBreaches {
