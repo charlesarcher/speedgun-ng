@@ -24,7 +24,7 @@
 // observer-side only: a measured participant never opens its own status file,
 // because an in-thread probe read was measured on this host (Linux
 // 7.2.9-2-cachyos) to cost the reader one voluntary switch of its own, which
-// would poison the very count it takes. The observer also holds a released
+// would poison the count it takes. The observer also holds a released
 // participant on a permit flag, so the participant stays alive until its
 // counter has been read a last time.
 //
@@ -565,8 +565,8 @@ auto scenarioInsideOutside() -> int
 }
 
 // FR-014: the barrier reads no clock and no round times out. One participant
-// arrives; the round stays open across a fixed CPU workload (work, not a
-// sleep - no clock stands anywhere in this scenario) and releases nothing
+// arrives; the round stays open across a fixed CPU workload (a burn loop,
+// no sleep: no clock stands anywhere in this scenario) and releases nothing
 // until the missing arrival lands.
 constexpr unsigned long long kHoldWork = 150'000'000ULL;
 // The exact sum the holding workload must accumulate: 0 + 1 + ... + N - 1.

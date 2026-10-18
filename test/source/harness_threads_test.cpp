@@ -645,7 +645,7 @@ constexpr double kNoiseCpuPerIteration = static_cast<double>(kWindowSteps)
 constexpr std::uint64_t kLoadBurn = 20'000;
 
 // The rounds the scenario waits for before the run begins, so the load stands
-// running rather than merely started (SC-09).
+// running with its plan opened (SC-09).
 constexpr int kRoundsBeforeRun = 2;
 
 // The load's time dimension, the tag the harness resolves its own two leaves
@@ -725,7 +725,7 @@ sg::WorkNode<ProofItem> markerNode {ProofItem {.record = &markerRecord}};
 
 // The load's own plan, opened on the load's thread by its first round. The
 // scenario waits on the state, so the open stands before the harness's run
-// rather than racing it (FR-018, PC-1).
+// with no race between them (FR-018, PC-1).
 auto openOwnPlan() noexcept -> void
 {
   auto& system = sg::counters::System::local();
@@ -812,7 +812,7 @@ auto loadRound(sg::WorkContext& work) noexcept -> void
     // The second dispatch thread waits for this round to stand inside and hands
     // its node to the running context. The round stays inside until that call
     // has returned, so the state read below names a node that waits for this
-    // item to end rather than one that overtook it: FR-010's dispatch returns
+    // item to end; an overtaking one reads done: FR-010's dispatch returns
     // without waiting, observed. The round turns until the thread reaches its
     // dispatch, which it always does; no clock stands in that wait.
     while (markerQueued.load(std::memory_order_acquire) == 0) {
@@ -1389,7 +1389,7 @@ auto scenarioDefaultPin() -> int
 
 // FR-023, D-07 at the thread count of four: a body that throws leaves its
 // measured window, still arrives at the stop barrier, and the attempt answers
-// with the body's message rather than waiting for an arrival that never comes.
+// with the body's message; the unmet arrival is never waited for.
 auto bmThreadedThrow(sg::State& state) -> void
 {
   for (auto index : state) {
