@@ -38,6 +38,7 @@
 #include <thread>
 #include <vector>
 
+#include <sched.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -88,13 +89,19 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-// FR-026, D-08: the one host fact the warning reads, the count of cpus the
-// host has online.
+// FR-026, D-08: the one host fact the warning reads, the count of cpus this
+// process may run on: the affinity mask, which a cpuset or a taskset narrows
+// below the count of cpus the host has online.
 auto onlineCpuCount() -> std::uint64_t
 {
-  const unsigned count = std::thread::hardware_concurrency();
-  check(count > 0, "the host answers its online cpu count (FR-026)");
-  return static_cast<std::uint64_t>(count);
+  cpu_set_t mask {};
+  const int read = sched_getaffinity(0, sizeof(mask), &mask);
+  check(read == 0,
+        "the process reads the affinity mask it runs under (FR-026)");
+  const auto count = static_cast<std::uint64_t>(CPU_COUNT(&mask));
+  check(count > 0,
+        "the affinity mask names a cpu the process may run on (FR-026)");
+  return count;
 }
 
 // One entry of the disclosure vector a scenario builds (E-07).
@@ -373,6 +380,63 @@ auto scenarioOversubscribed() -> void
              "warning after the result (FR-026, FR-028)");
 }
 
+// FR-026, FR-028: the field of a pin that never landed names no cpu, so two
+// spinning contexts carrying it share no cpu and stand under the count of
+// cpus: neither condition of the noise rule holds, and no warning prints.
+auto scenarioUnappliedPair() -> void
+{
+  const auto policies = std::vector<Policy> {
+      {sg::WaitMode::SPIN, "UNAPPLIED"},
+      {sg::WaitMode::SPIN, "UNAPPLIED"},
+  };
+  const auto lines =
+      printCaptured({makeResult("bmUnapplied", policies, false)});
+  checkLines(lines,
+             {repetitionLine("bmUnapplied"), disclosureLine(policies)},
+             "two spinning contexts whose pin never landed print no noise "
+             "warning (FR-026, FR-028)");
+}
+
+// FR-026, FR-028, D-08: the count the warning compares the spinning contexts
+// against is the affinity mask of the process. The scenario narrows its own
+// mask to one cpu, the shape a cpuset or a taskset leaves, and two spinning
+// contexts stand above that count while the host answers more cpus.
+auto scenarioNarrowedAffinity() -> void
+{
+  cpu_set_t wider {};
+  const int read = sched_getaffinity(0, sizeof(wider), &wider);
+  check(read == 0,
+        "the scenario reads the affinity mask it starts under (FR-026)");
+
+  cpu_set_t single {};
+  CPU_ZERO(&single);
+  CPU_SET(0, &single);
+  const int narrowed = sched_setaffinity(0, sizeof(single), &single);
+  check(narrowed == 0,
+        "the scenario narrows its own affinity to one cpu (FR-026)");
+
+  const auto policies = std::vector<Policy> {
+      {sg::WaitMode::SPIN, "NO_PIN"},
+      {sg::WaitMode::SPIN, "NO_PIN"},
+  };
+  // The expected lines stand while the mask holds one cpu, so the count the
+  // warning prints is the narrowed one.
+  const auto expected = std::vector<std::string> {
+      repetitionLine("bmAffinity"),
+      disclosureLine(policies),
+      warningLine(policies),
+  };
+  const auto lines = printCaptured({makeResult("bmAffinity", policies, false)});
+
+  const int restored = sched_setaffinity(0, sizeof(wider), &wider);
+  check(restored == 0, "the scenario puts the affinity mask back (FR-026)");
+
+  checkLines(lines,
+             expected,
+             "two spinning contexts above the cpus this process may run on "
+             "print the noise warning (FR-026, FR-028)");
+}
+
 // FR-026, FR-028, SC-12: the third of the four cases, one pinned spinning
 // context per online cpu. Neither condition holds, so no warning prints.
 auto scenarioPinnedOnePerCpu() -> void
@@ -470,6 +534,8 @@ auto main() -> int
       {"modesAndPlacements", scenarioModesAndPlacements},
       {"sharedCpuSpinPair", scenarioSharedCpuSpinPair},
       {"oversubscribed", scenarioOversubscribed},
+      {"unappliedPair", scenarioUnappliedPair},
+      {"narrowedAffinity", scenarioNarrowedAffinity},
       {"pinnedOnePerCpu", scenarioPinnedOnePerCpu},
       {"blocking", scenarioBlocking},
       {"oneWarningPerResult", scenarioOneWarningPerResult},
