@@ -218,12 +218,13 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
 
 - [ ] T039 [P] Build the `ci-coverage` preset, run its suite and coverage target, and confirm 100% line and 100% branch over the new paths with the report's evidence; `grep -rn LCOV_EXCL source/harness` prints no line, "no `LCOV_EXCL` marker shall enter `source/harness/`" (FR-038, SC-10)
 
-  Residual at the head `f727e3c`, measured on the `ci-coverage` preset with
-  `PERL5LIB` set for `geninfo`: the suite passes 93 of 93, the extracted
-  trace (`/tmp/arc/cov-f727e3c.info`) stands at 99.6% line (4268 of 4284)
-  and 99.4% branch (1639 of 1649), and the gate prints
-  `coverage-gate: line coverage is not 100%`. Five harness arcs and one
-  harness line carry the whole difference, and each was read against its
+  Residual at the head `dda87c9`, measured on the `ci-coverage` preset with
+  `PERL5LIB` set for `geninfo`: the suite passes 93 of 93 (`CAP-ctest rc=0
+  failed=0`), the extracted trace (`build/coverage/coverage.info`, verdict
+  lines in `/tmp/arc/cap6.log` and `/tmp/sg020-cap-cov.log`) stands at 99.6%
+  line (4268 of 4284) and 99.3% branch (1638 of 1649), and the gate prints
+  `coverage-gate: line coverage is not 100%`. Six harness arcs and one
+  harness line carry the difference, and each was read against its
   `BRDA` counts. `runner.cpp:441` is the closing brace of
   `mergeThreadedRecords`; the return above it at 440 counts 51 and the
   brace counts 0, so the function runs and the block gcov expects at the
@@ -237,6 +238,13 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
   `teardown-throws-int` reports `branch 0 taken 100%` on that line, so the
   error arm is exercised there and the zero edge is the duplicate block's
   other arm, whose continuations the trace counts at line 1462 (110).
+  `runner.cpp:419` carries four arcs and the one at zero (`12 -> 14`) is the
+  second skipped record beside an already-skipped merge: the body at 420
+  counts 2 and `12 -> 13` counts 2 in both traces, while this arc counted 1 at
+  the previous head and 0 here, and `git diff` between the two heads touches
+  only a TSan-only guard in the execution-context test, so the `skip-both`
+  scenario reaches its second skip at the pace of the run. On this host the
+  gate verdict for that arc moves with the schedule.
   `execution_context.cpp:822` counts 0 at `28 -> 29` beside 107072 at
   `28 -> 30` and 106913 at `32 -> 23`, so the barrier round does repeat
   its wait and the zero edge belongs to the second copy of the condition.
