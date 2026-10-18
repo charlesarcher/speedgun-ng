@@ -737,6 +737,25 @@ auto gappedCpuProvider() -> void
   check(registered.has_value(), "the fake provider registers");
 }
 
+// The scripted provider whose work leaf carries a gap on the first three
+// sampling actions of the run. A sampling action stands for every leaf it
+// reads, so the folds of the contexts that sample first carry a gap while the
+// rest stand countable.
+auto gappedWorkProvider() -> void
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  owned->addCounter("machine", "monotonic", "nanoseconds", "monotonic");
+  owned->addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  owned->addCounter("fake", "work", "ops", "scripted work counter");
+  owned->setPoints("machine", "monotonic", {0}, kMonotonicStep);
+  owned->setPoints("machine", "thread_cpu", {0}, kThreadCpuStep);
+  owned->setPoints("fake", "work", {0}, kWorkStep);
+  owned->setGapActions("fake", "work", {1, 2, 3});
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the gapped work provider registers");
+}
+
 auto bmCounterLoop(sg::State& state) -> void
 {
   for (auto index : state) {
@@ -881,6 +900,38 @@ auto scenarioZeroDivisor() -> int
         "the fold note stands aside while the decision stays countable "
         "(FR-020)");
   std::puts("harness_threads_test zero-divisor: ok");
+  return 0;
+}
+
+// FR-020, FR-022, FR-024: the merged metric column takes the availability of
+// the worst fold among the contexts. The countable start of the merge stands
+// only while every context folded a countable column: the gap one context
+// folded stands on the merged column of the row.
+auto scenarioWidenedMetric() -> int
+{
+  gappedWorkProvider();
+  const auto object = sg::counters::System::local().object("fake");
+  check(object.has_value(), "the gapped work object resolves");
+  const auto work = object->counter<sg::counters::Dim<0, 1>>("work");
+  check(work.has_value(), "the gapped work leaf resolves");
+
+  auto threaded = sg::registerBenchmark(&bmMergedRow, "bmThreadsWidened");
+  threaded.addMetric(sg::counters::Expression<sg::counters::Dim<0, 1>>(*work),
+                     "gapped");
+  threaded.threads(kThreadCount);
+
+  const std::string merged =
+      lineOf(captureRun({"--filter", "^bmThreadsWidened", "--iterations=4"}),
+             "bmThreadsWidened");
+  check(!merged.empty(),
+        "the threaded row prints beside the gapped fold (FR-016)");
+  check(merged.contains("gapped="),
+        "the merged column of the gapped leaf keeps its column (FR-020, "
+        "FR-022)");
+  check(countFieldOf(merged, "gap=") == 1,
+        "the merged column carries the gap its worst context folded (FR-020, "
+        "FR-024)");
+  std::puts("harness_threads_test widened-metric: ok");
   return 0;
 }
 
@@ -2157,6 +2208,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "zero-divisor") {
     return scenarioZeroDivisor();
   }
+  if (mode == "widened-metric") {
+    return scenarioWidenedMetric();
+  }
   if (mode == "setup-teardown") {
     return scenarioSetupTeardown();
   }
@@ -2200,6 +2254,7 @@ auto main(const int argc, char** argv) -> int
            "repetition-count",
            "merged-metric",
            "merged-rate-metric",
+           "widened-metric",
            "paused-contexts",
            "default-pin",
            "placement-disclosure",
