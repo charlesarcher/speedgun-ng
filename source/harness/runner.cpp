@@ -801,13 +801,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
 
     ~ContextJoiner()
     {
+      // Every element of the vector stands on a constructed context: the run
+      // appends each one with `push_back`, which appends only once the
+      // construction has returned, so no element ever stands null (FR-006).
       for (auto& context : *owned) {
-        if (context != nullptr) {
-          context->requestStop();
-          context->drain();
-          context->join();
-          context.reset();
-        }
+        context->requestStop();
+        context->drain();
+        context->join();
+        context.reset();
       }
     }
   } contextJoiner {&contexts};
