@@ -531,6 +531,52 @@ auto scenarioMergedMetric() -> int
   return 0;
 }
 
+// FR-020, FR-022, D-06: a metric whose dimension names neither time^1 nor
+// events^1 keeps its window value: the rate each context measured sums over the
+// contexts and never divides by the summed iteration count, where the
+// per-iteration column above divides back to the same rate.
+auto scenarioMergedRateMetric() -> int
+{
+  scriptProvider();
+  auto attach = [](sg::BenchmarkHandle& handle)
+  {
+    const auto object = sg::counters::System::local().object("fake");
+    check(object.has_value(), "the scripted work object resolves");
+    const auto work = object->counter<sg::counters::Dim<0, 1>>("work");
+    check(work.has_value(), "the scripted work leaf resolves");
+    const auto machine = sg::counters::System::local().object("machine");
+    check(machine.has_value(), "the scripted machine object resolves");
+    const auto seconds = machine->counter<sg::counters::Dim<1, 0>>("monotonic");
+    check(seconds.has_value(), "the scripted monotonic leaf resolves");
+    handle.addMetric(*work / *seconds, "workrate");
+  };
+
+  auto threaded = sg::registerBenchmark(&bmMergedRow, "bmThreadsRateMetric");
+  attach(threaded);
+  threaded.threads(kThreadCount);
+  auto alone = sg::registerBenchmark(&bmMergedRow, "bmSingleRateMetric");
+  attach(alone);
+
+  const std::string report =
+      captureRun({"--filter",
+                  "^bmThreadsRateMetric|^bmSingleRateMetric",
+                  "--iterations=4"});
+  const std::string merged = lineOf(report, "bmThreadsRateMetric");
+  const std::string single = lineOf(report, "bmSingleRateMetric");
+  check(!merged.empty() && !single.empty(),
+        "both rate instances print their row (FR-016)");
+  const double singleRate = fieldOf(single, "workrate=");
+  check(singleRate > 0.0 && fieldOf(merged, "workrate=") > 0.0,
+        "the merged row carries the attached rate column (FR-020)");
+  check(closeTo(fieldOf(merged, "workrate="),
+                static_cast<double>(kThreadCount) * singleRate),
+        "the merged rate sums the window rate of each context and stands "
+        "undivided by the iteration count (FR-020, FR-022, D-06)");
+
+  std::puts("harness_threads_test merged-rate-metric: ok");
+  return 0;
+}
+
 // A body that pauses inside every iteration, so the recorder of each context
 // must hold the pairs its own body creates (FR-013, FR-052).
 auto bmPausedRow(sg::State& state) -> void
@@ -934,6 +980,44 @@ auto scenarioSkipOne() -> int
   check(rowsOf(report, "bmThreadsSkipOne").empty(),
         "a skipped run prints no measured row (FR-016)");
   std::puts("harness_threads_test skip-one: ok");
+  return 0;
+}
+
+std::atomic<int> twiceSkipClaims {0};
+
+// Both contexts of the run claim the skip, each with the same reason, so the
+// merge sees a skipped second context beside the first (FR-005, FR-016).
+auto bmTwoContextsSkip(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (twiceSkipClaims.fetch_add(1, std::memory_order_relaxed) < 2) {
+      state.skipWithError("the scripted threaded skip twice");
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-005, FR-016: a second context that skips with its own reason leaves the
+// run skipped once, with the reason the merge took first; no measured row
+// stands either way.
+auto scenarioSkipTwo() -> int
+{
+  scriptProvider();
+  auto handle = sg::registerBenchmark(&bmTwoContextsSkip, "bmThreadsSkipTwo");
+  handle.threads(2);
+
+  const std::string report =
+      captureRun({"--filter", "^bmThreadsSkipTwo", "--iterations=4"});
+  check(report.contains("SKIPPED: the scripted threaded skip twice"),
+        "the merged run is skipped once with the reason the contexts gave "
+        "(FR-005, FR-016)");
+  check(rowsOf(report, "bmThreadsSkipTwo").empty(),
+        "a run every context skipped prints no measured row (FR-016)");
+  check(!report.contains("SKIPPED: the scripted threaded skip twice  SKIPPED")
+            && !report.contains("skip twice\" skipped"),
+        "the skip of the second context adds no second note beside the run's "
+        "(FR-005, FR-016)");
+  std::puts("harness_threads_test skip-two: ok");
   return 0;
 }
 
@@ -2016,6 +2100,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "merged-metric") {
     return scenarioMergedMetric();
   }
+  if (mode == "merged-rate-metric") {
+    return scenarioMergedRateMetric();
+  }
   if (mode == "paused-contexts") {
     return scenarioPausedContexts();
   }
@@ -2079,6 +2166,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "skip-one") {
     return scenarioSkipOne();
   }
+  if (mode == "skip-two") {
+    return scenarioSkipTwo();
+  }
   if (mode == "pause-overflow") {
     return scenarioPauseOverflow();
   }
@@ -2109,6 +2199,7 @@ auto main(const int argc, char** argv) -> int
            "merged-row",
            "repetition-count",
            "merged-metric",
+           "merged-rate-metric",
            "paused-contexts",
            "default-pin",
            "placement-disclosure",
@@ -2130,6 +2221,7 @@ auto main(const int argc, char** argv) -> int
            "setup-teardown",
            "setup-throws-int",
            "skip-one",
+           "skip-two",
            "pause-overflow",
            "body-throws-int",
            "double-loop",
