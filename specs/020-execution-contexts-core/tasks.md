@@ -218,34 +218,47 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
 
 - [ ] T039 [P] Build the `ci-coverage` preset, run its suite and coverage target, and confirm 100% line and 100% branch over the new paths with the report's evidence; `grep -rn LCOV_EXCL source/harness` prints no line, "no `LCOV_EXCL` marker shall enter `source/harness/`" (FR-038, SC-10)
 
-  Residual at the feature head, measured on the `ci-coverage` suite with
-  `PERL5LIB` set for `geninfo`, on the pass that follows the two added
-  scenarios; that pass prints `TRACE VALID` and `UNCHANGED`, so every counter
-  is read against the line table it belongs to. The new module stands at
-  98.9% line with three uncovered lines (369 to 371, the sentinel re-anchor
-  window where a producer's link stands unwritten while the tail already names
-  the sentinel) and 85.4% branch with twelve unclosed arcs over ten lines:
-  284, 306, 366, 404, 439, 440 (two arcs), 516, 517 (two arcs), 795, 801.
-  Their classes, each read against the code and the arc counts: 404 and 801
-  are the
-  compiler's out-of-range arm of a `switch` over the three-value `WaitMode`
-  enum, where SPIN, YIELD and BLOCK carry 97207, 20 and 21 hits, so no legal
-  value reaches them; 284, 306, 439, 440, 516 and 517 stand on a contract
-  violation or on a counter skew the loop's own order forbids, an accepted node
-  the walk refuses to run; 366 and 795 stand on a two-instruction
-  interleaving. The second `join()` and the stop token read off any context
-  stood at 696 and 711, and the `joinTwice` and `stopTokenOffContext`
-  scenarios of `test/source/harness_execution_context_test.cpp` closed both.
-  The `grep -rn LCOV_EXCL source/harness` clause holds: no marker stands
-  there.
-  The review of the head reopened this task, and the waiver text that stood
-  here is gone: no residual was accepted. The project-wide gate fails at the
-  head, printing `coverage-gate: line coverage is not 100%` at 99.0% (4247 of
-  4289 lines), while the master CI coverage job passes at 100% line and 100%
-  branch, so the uncovered lines belong to this feature. An earlier note here
-  blamed pre-existing markers outside `source/harness/`, and that blame was
-  wrong. Closing the task needs tests that reach 100.0% line and 100.0%
-  branch, with no marker in `source/harness/`.
+  Residual at the head `f727e3c`, measured on the `ci-coverage` preset with
+  `PERL5LIB` set for `geninfo`: the suite passes 93 of 93, the extracted
+  trace (`/tmp/arc/cov-f727e3c.info`) stands at 99.6% line (4268 of 4284)
+  and 99.4% branch (1639 of 1649), and the gate prints
+  `coverage-gate: line coverage is not 100%`. Five harness arcs and one
+  harness line carry the whole difference, and each was read against its
+  `BRDA` counts. `runner.cpp:441` is the closing brace of
+  `mergeThreadedRecords`; the return above it at 440 counts 51 and the
+  brace counts 0, so the function runs and the block gcov expects at the
+  brace never exists. `runner.cpp:1231` (`primaryCore != nullptr`) counts
+  143 at `6 -> 7` and 0 at `6 -> 12`, while the ternary chain that yields
+  the null pointer at 1228 counts 433 evaluations, so the arm for a
+  manual-time context lands on those lines; `scenarioManualDecision`
+  registers `threads(kThreadCount).useManualTime()` and asserts the manual
+  sum in the real column (FR-020). `runner.cpp:1458` counts 110 at
+  `32 -> 33` and 0 at `32 -> 47`; a capture that runs only
+  `teardown-throws-int` reports `branch 0 taken 100%` on that line, so the
+  error arm is exercised there and the zero edge is the duplicate block's
+  other arm, whose continuations the trace counts at line 1462 (110).
+  `execution_context.cpp:822` counts 0 at `28 -> 29` beside 107072 at
+  `28 -> 30` and 106913 at `32 -> 23`, so the barrier round does repeat
+  its wait and the zero edge belongs to the second copy of the condition.
+  `execution_context.cpp:388` counts 0 at `6 -> 7` beside 3458 at
+  `6 -> 8`: `countsSettled` read both counters 3458 times and found them
+  equal every time, so its false arm needs a producer caught between two
+  adjacent counter stores, the window the `acceptedNotLinked` scenario
+  holds open with a guarded page and 4000 enqueues could not widen. The
+  remaining fifteen dead lines (131 to 157) and seven arcs sit in
+  `source/counters/provider.cpp`, a file byte-identical to `origin/master`
+  whose last touch is `ca92a56`, two months before this spec; this box
+  reports `perf_event_paranoid` 2 and no reachable PMU device, so the
+  syscalls those lines wrap cannot answer. The master coverage artifact of
+  run 38701087543 records that same file at 292 of 292 lines and 117 of
+  117 branches, which places the difference in the host. `ci.yml` triggers
+  on a push to `master` and on pull requests against `master`, so this
+  branch has no coverage job of its own and the governing number exists
+  only once a pull request runs. The `grep -rn LCOV_EXCL source/harness`
+  clause holds: no marker stands there. Closing the task needs the CI
+  compiler on a host with the device, and no test here can reach 100.0%
+  while the artifact above, the brace above, and that file stand.
+
 - [X] T040 Main-page impact check (IV.1): confirm the two new README sections, their owning `example/docs/` files, their quick-reference rows, the `docs/pages/harness.md` detail, and the measured cap move all shipped in the same change as the code they teach, each snippet a region a CI-built example prints (FR-029 to FR-035, SC-11)
 
 - [X] T041 [P] Run the analyzer-bearing release build at the feature head: `cmake --preset=ci-ubuntu && cmake --build build` completes with clang-tidy and cppcheck wired into the build, `readability-identifier-naming` reports zero findings, and no new macro skips the `SG_` rule (FR-036; Principle IX's per-feature release build and Principle VIII's static-analysis gate)
