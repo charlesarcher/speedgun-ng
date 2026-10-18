@@ -79,8 +79,8 @@ auto currentContextSlot() -> std::optional<ContextId>&
 constexpr std::string_view kNoPinText = "NO_PIN";
 
 // The printable placement field of a slot the placement function did not
-// land, which a failed pin returns so the disclosure names the miss
-// instead of a cpu the context never ran on (FR-005, FR-025, FR-026).
+// land, which a failed pin returns so the disclosure names the miss: the
+// row carries no cpu the context never ran on (FR-005, FR-025, FR-026).
 constexpr std::string_view kUnappliedText = "UNAPPLIED";
 
 // The width of the word above, one of the two texts the placement record

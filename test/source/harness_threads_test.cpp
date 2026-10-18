@@ -838,7 +838,7 @@ auto scenarioUnavailableFold() -> int
 }
 
 // FR-020: a decision whose folds carry gaps discloses the fold beside the
-// row's counters instead of dividing by it.
+// row's counters. The gap never reaches the divisor.
 auto scenarioFoldDisclosed() -> int
 {
   gappedCpuProvider();
@@ -860,10 +860,10 @@ auto scenarioFoldDisclosed() -> int
   return 0;
 }
 
-// FR-020: a decision of zero measured seconds names the missing divisor
-// instead of dividing by it. The scripted thread-cpu leaf never moves, so the
-// CPU fold that stands as the primary of every context reads zero: the same
-// seam the single-context row already discloses.
+// FR-020: a decision of zero measured seconds names the missing divisor.
+// The division never happens. The scripted thread-cpu leaf never moves, so
+// the CPU fold that stands as the primary of every context reads zero: the
+// same seam the single-context row already discloses.
 auto scenarioZeroDivisor() -> int
 {
   scriptProvider(0);

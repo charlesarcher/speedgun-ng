@@ -1699,8 +1699,9 @@ auto scenarioDrainPendingInbox() -> int
   while (!standing.load(std::memory_order_acquire)) {
   }
   // No schedule returns from a drain that owes a run: the node the inbox
-  // holds stands until the gate opens, so the stand below is the predicate
-  // reading the tail, not a thread that has yet to arrive (FR-006, FR-050).
+  // holds stands until the gate opens, so the stand below can only be the
+  // predicate reading the tail. A thread still on its way here cannot
+  // produce it (FR-006, FR-050).
   check(!returned.load(std::memory_order_acquire),
         "the drain stands while a node still waits in the inbox (FR-006, "
         "FR-050)");
