@@ -99,9 +99,11 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/020 FR-034 measures its own move as the sections land: "Execution
 # contexts" runs 25 lines and "Threads" 16, their quick-reference rows add
 # 27, and the one disclosure result sentence of "Reading the report" adds 1,
-# so 41 + 27 + 1 = 69 lines move the cap 570 to 639, the page at 639 of 639
-# with no snippet dropped.
-PAGE_LINE_CAP = 639
+# so 41 + 27 + 1 = 69 lines move the cap 570 to 639. The review then asks
+# for prose trimmed before the cap moves: that disclosure sentence shares the
+# paragraph line it annotates, so the page measures 638 lines and the cap
+# sits there, with no snippet dropped.
+PAGE_LINE_CAP = 638
 SECTION_LINE_CAP = 25
 
 # Only these two sections carry a higher cap, each at the smallest span that

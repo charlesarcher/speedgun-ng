@@ -359,8 +359,7 @@ auto bmFill(sg::State& state) -> void
 SG_BENCHMARK(bmFill).argsProduct({{8}}).threadRange(1, 2);
 ```
 The row carries `bytes_per_second=` from the byte setter and the `label=` field the label setter gave it, and [Reading a report row](docs/pages/harness.md#reading-a-report-row) shows the full run with the `spread=` statistic and the `BIG_O` and `RMS` pair of the fit.
-A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`.
-A threaded result prints its merged row, `bmFill/8/threads:2`, and under it the disclosure of the contexts it merged: `contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN`.
+A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`. A threaded result prints its merged row, `bmFill/8/threads:2`, then the disclosure of the contexts it merged: `contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN`.
 
 ### User counters
 <!-- sg-example: example/docs/user_counters.cpp#counter-column -->
@@ -512,7 +511,7 @@ auto main(int argc, char** argv) -> int
   return status;
 }
 ```
-The `bmQuiet` row prints while the load spins on its own context. The three calls after `speedgunMain` stand the stop request, flush the inbox and join the thread. See [execution context lifecycle](docs/pages/harness.md#execution-context-lifecycle).
+The `bmQuiet` row prints while the load spins on its own context; `requestStop`, `drain`, and `join` close the context after the run. See [execution context lifecycle](docs/pages/harness.md#execution-context-lifecycle).
 
 ### Threads
 `threads(4)` runs one benchmark body on four contexts at once and prints one merged row for them.
