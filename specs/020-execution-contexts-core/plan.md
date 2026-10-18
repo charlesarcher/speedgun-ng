@@ -346,9 +346,8 @@ replaces no shipped signature).
 ### Version and `SOVERSION`
 
 The audit-point numbers were read in `CMakeLists.txt` on 2026-10-15
-(`VERSION 0.9.0` at line 7, counters `SOVERSION 2` at line 47, harness
-`SOVERSION 5` at line 221, `SameMinorVersion` in
-`cmake/install-rules.cmake`).
+(`VERSION 0.9.0`, counters `SOVERSION 2`, harness `SOVERSION 5`,
+`SameMinorVersion` in `cmake/install-rules.cmake`).
 
 | Artifact | At audit point | After H5 | Reason |
 | --- | --- | --- | --- |

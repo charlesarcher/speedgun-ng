@@ -2184,10 +2184,10 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
 // and the one slot naming the fixture object of the run in progress:
 // the registered factory stores the object it builds into that slot,
 // and the registered callable reads it, so the method runs on the
-// object the run owns (R-09). A threaded run writes the slot once
-// before any dispatch, and every context reads it after that edge;
-// the fixture pair of the run stands once, on context 0, outside both
-// barriers (FR-023, D-07).
+// object the run owns (R-09). A threaded run writes the slot inside the
+// body of context 0, before the start barrier releases, and every other
+// context reads it after that edge; the fixture pair of the run stands
+// once, on context 0, outside both barriers (FR-023, D-07).
 
 #define SG_BENCHMARK_FIXTURE_DECLARE(FixtureClass, Method) \
   class SgBenchmarkFixture_##FixtureClass##_##Method : public FixtureClass \
