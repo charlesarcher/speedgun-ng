@@ -713,6 +713,7 @@ add_executable(harness_execution_context_test
                source/harness_execution_context_test.cpp)
 target_link_libraries(harness_execution_context_test
                       PRIVATE speedgun-ng::harness)
+target_include_directories(harness_execution_context_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_execution_context_test PRIVATE cxx_std_23)
 add_test(NAME harness_execution_context_test
          COMMAND harness_execution_context_test)

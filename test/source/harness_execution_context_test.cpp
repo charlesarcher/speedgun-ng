@@ -104,6 +104,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "detail/internal.hpp"
 #include "speedgun-ng/execution_context.hpp"
 
 // The zero-allocation proof replaces the global replaceable allocation
@@ -1968,13 +1969,34 @@ auto breachBadPlacement() -> int
   return 1;
 }
 
+// FR-006, FR-050: the end test of a context loop and the dispatch account
+// under it. Each outcome of both tests stands here: a loop that reaches the
+// empty inbox before the stop turned it stands open, a stopped loop with a
+// settled account ends, and a stopped loop with an accept that still owes its
+// link stands open.
+auto scenarioSettleAccount() -> int
+{
+  check(!sg::detail::loopEnds(false, 3, 3),
+        "a loop the stop has not reached has no end to make (FR-006)");
+  check(sg::detail::loopEnds(true, 3, 3),
+        "a stopped loop with a settled account ends it (FR-006, FR-050)");
+  check(!sg::detail::loopEnds(true, 4, 3),
+        "an accept that still owes its link holds the loop open (FR-050)");
+  check(sg::detail::countsSettled(7, 7),
+        "equal counts state a settled account (FR-050)");
+  check(!sg::detail::countsSettled(7, 6),
+        "an accept apart from its dispatch states an open account (FR-050)");
+  std::puts("harness_execution_context_test settle-account: ok");
+  return 0;
+}
+
 struct Mode
 {
   const char* name;
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 25> kScenarios {
+constexpr std::array<Mode, 26> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -1986,6 +2008,7 @@ constexpr std::array<Mode, 25> kScenarios {
     Mode {.name = "stopRace", .run = &scenarioStopRace},
     Mode {.name = "acceptedThenDrained", .run = &scenarioAcceptedThenDrained},
     Mode {.name = "refusedAfterStop", .run = &scenarioRefusedAfterStop},
+    Mode {.name = "settle-account", .run = &scenarioSettleAccount},
     Mode {.name = "drainWithoutStop", .run = &scenarioDrainWithoutStop},
     Mode {.name = "completionOrder", .run = &scenarioCompletionOrder},
     Mode {.name = "joinTwice", .run = &scenarioJoinTwice},

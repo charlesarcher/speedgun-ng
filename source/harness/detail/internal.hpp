@@ -207,6 +207,21 @@ struct RecorderReservation
                                           int maxCount,
                                           int step) -> std::vector<int>;
 
+/// @brief FR-006, FR-050: the dispatch account of one context: every accept
+/// stands matched by its dispatch, either linked into the inbox or refused
+/// after the stop, which is the state of equal counts.
+[[nodiscard]] auto countsSettled(std::uint64_t accepted,
+                                 std::uint64_t dispatched) noexcept -> bool;
+
+/// @brief FR-006, FR-050: the end test of one context loop: the stop stands
+/// and the dispatch account is settled. The two count reads close the window
+/// between another thread's accept and its exchange, so a test that finds the
+/// pair apart turns away and stands again, and no accepted node is left
+/// behind (FR-050).
+[[nodiscard]] auto loopEnds(bool stopRequested,
+                            std::uint64_t accepted,
+                            std::uint64_t dispatched) noexcept -> bool;
+
 /// @brief The cpu count the noise warning compares spinning contexts
 /// against: the count the affinity mask reported where that read answered,
 /// the host count of the standard library where it answered nothing
