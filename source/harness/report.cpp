@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <limits>
 #include <string_view>
 #include <thread>
 #include <utility>
@@ -145,22 +146,29 @@ auto waitModeName(const sg::WaitMode waitMode) -> const char*
 
 // FR-025: the one line a threaded result prints after its rows. It names
 // the number of contexts and, for each context, the wait mode and the
-// placement that context ran under. The line formats the records of
+// placement that context ran under. A context whose slot named no cpu
+// prints those two fields. The line formats the records of
 // `result.contexts` and adds nothing to them.
 // The flag names of the placement account: whether the installed placement
-// function reported its slot as landed (FR-005, FR-025).
+// function reported its slot as landed. The line prints one for a slot
+// that named a cpu, the only slot whose pin can land (FR-005, FR-025).
 constexpr const char* kAppliedFlag = "applied";
 constexpr const char* kUnappliedFlag = "unapplied";
 
 // The mark that stands where the placement field cut a text short.
 constexpr char kTruncationMark = '~';
 
-// FR-025: the placement field is as wide as the longest account the default
-// placement function produces. A replacement function may name itself at any
-// length; the field cuts it to this width and marks the cut, so the line
-// keeps the shape the docs print.
-constexpr std::size_t kPlacementFieldWidth = kUnappliedPlacement.size();
+// FR-025: the width of the placement field. The widest text the default
+// placement function produces is the decimal spelling of the cpu index
+// its slot holds, so the width follows the type of the header's
+// `PlacementSlot::cpuIndex` and every text that function returns stands
+// in the field whole. A replacement function may name itself at any
+// length; the field cuts that text to this width and marks the cut, so
+// the line keeps the shape the docs print.
+constexpr std::size_t kPlacementFieldWidth =
+    std::numeric_limits<decltype(sg::PlacementSlot::cpuIndex)>::digits10 + 1;
 static_assert(kPlacementFieldWidth >= kNoPinPlacement.size());
+static_assert(kPlacementFieldWidth >= kUnappliedPlacement.size());
 
 auto printContextDisclosure(const BenchmarkResult& result) -> void
 {
@@ -168,6 +176,16 @@ auto printContextDisclosure(const BenchmarkResult& result) -> void
   for (std::size_t index = 0; index < result.contexts.size(); ++index) {
     const auto& context = result.contexts[index];
     const std::string field = placementField(context.placement);
+    // FR-025: the flag is the account of a pin that was asked for. The
+    // no-pin slot asked for nothing to land, so its field closes after
+    // the placement name.
+    if (context.placement == kNoPinPlacement) {
+      std::printf("  ctx%zu=%s/%s",
+                  index,
+                  waitModeName(context.waitMode),
+                  field.c_str());
+      continue;
+    }
     std::printf("  ctx%zu=%s/%s/%s",
                 index,
                 waitModeName(context.waitMode),

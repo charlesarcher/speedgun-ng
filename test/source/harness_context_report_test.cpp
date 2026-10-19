@@ -12,6 +12,10 @@
 //
 //   contexts=N  ctx0=<MODE>/<PLACEMENT>  ctx1=<MODE>/<PLACEMENT> ...
 //
+// A slot that named a cpu carries the account flag after its
+// placement, as in `ctx0=SPIN/3/applied`. The no-pin slot names no
+// cpu, so its field ends with the placement word (FR-025).
+//
 // The warning line follows the figure of plan.md,
 // `warning: spinning contexts oversubscribed (<spin> spin, <cpus> cpus)`,
 // counting the spinning contexts of that result and the cpus the host has
@@ -33,6 +37,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -75,6 +80,13 @@ constexpr auto kAggregateTail =
 // The scratch file the captured report lands in, named for this test so a
 // suite run in parallel holds no file in common with it.
 constexpr auto kScratchFile = "harness_context_report_out.txt";
+
+// The widest cpu index text the default placement function can
+// render: the decimal of the largest value the header's
+// `PlacementSlot::cpuIndex` holds, the value the `std::to_chars` call
+// of that function is handed (FR-005). The field must print it whole
+// (FR-025).
+constexpr auto kWidestCpuIndex = "4294967295";
 
 auto fail(const char* what) -> void
 {
@@ -154,16 +166,20 @@ auto aggregateLine(const std::string& name) -> std::string
   return nameField(name) + kAggregateTail;
 }
 
-// The disclosure line of `contracts/report-disclosure.md`, and the warning
-// line of the plan's report figure, as the report owes them.
+// The disclosure line of `contracts/report-disclosure.md`, and the
+// warning line of the plan's report figure, as the report owes them.
+// The account flag stands after the placement of a slot that named a
+// cpu, the slot whose pin can land.
 auto disclosureLine(const std::vector<Policy>& policies) -> std::string
 {
   auto line = std::string("  contexts=") + std::to_string(policies.size());
   for (std::size_t index = 0; index < policies.size(); ++index) {
     line += "  ctx" + std::to_string(index) + "="
         + modeName(policies[index].waitMode) + "/"
-        + sg::detail::placementField(policies[index].placement)
-        + (policies[index].applied ? "/applied" : "/unapplied");
+        + sg::detail::placementField(policies[index].placement);
+    if (policies[index].placement != "NO_PIN") {
+      line += policies[index].applied ? "/applied" : "/unapplied";
+    }
   }
   return line;
 }
@@ -549,17 +565,66 @@ auto scenarioPlacementFlagShows() -> void
              "(FR-005, FR-025)");
 }
 
-// FR-025: the placement field holds a text that fits whole and cuts a longer
-// one, marking the cut where it stands.
+// FR-025: a slot that named no cpu asked for nothing to land, so its
+// field ends with the placement word. The account flag of its record
+// stands in no position of the line, whatever that record says.
+auto scenarioNoPinCarriesNoFlag() -> void
+{
+  const auto policies = std::vector<Policy> {
+      {sg::WaitMode::SPIN, "NO_PIN", true},
+      {sg::WaitMode::BLOCK, "NO_PIN", false},
+  };
+  const auto lines =
+      printCaptured({makeResult("bmNoPinFlag", policies, false)});
+  checkLines(lines,
+             {repetitionLine("bmNoPinFlag"),
+              "  contexts=2  ctx0=SPIN/NO_PIN  ctx1=BLOCK/NO_PIN"},
+             "a context with no pin prints its wait mode and placement with "
+             "no account flag after them (FR-025)");
+}
+
+// FR-025: the field is wide enough for every text the default placement
+// function produces, so the widest cpu index that function can render
+// reads whole in the printed line.
+auto scenarioWidestPlacementWhole() -> void
+{
+  check(std::to_string(std::numeric_limits<std::uint32_t>::max())
+            == kWidestCpuIndex,
+        "the text above is the widest cpu index the slot type of the header "
+        "holds (FR-005)");
+  const auto policies = std::vector<Policy> {
+      {sg::WaitMode::SPIN, kWidestCpuIndex, true},
+      {sg::WaitMode::BLOCK, "NO_PIN", false},
+  };
+  const auto lines =
+      printCaptured({makeResult("bmWideIndex", policies, false)});
+  checkLines(lines,
+             {repetitionLine("bmWideIndex"),
+              "  contexts=2  ctx0=SPIN/4294967295/applied"
+              "  ctx1=BLOCK/NO_PIN"},
+             "the disclosure prints the widest placement text the default "
+             "placement function produces with no cut (FR-025)");
+}
+
+// FR-025: the placement field holds whole every text the default
+// placement function produces, and cuts a longer one, marking the cut
+// in the last position of the field.
 auto scenarioPlacementField() -> void
 {
+  const auto widest = sg::detail::placementField(kWidestCpuIndex);
+  check(widest == kWidestCpuIndex,
+        "the widest text the default placement function produces stands "
+        "whole in the field (FR-025)");
   check(sg::detail::placementField("NO_PIN") == "NO_PIN",
-        "a placement text that fits the field stands whole (FR-025)");
+        "the no-pin word stands whole in the field (FR-025)");
   check(sg::detail::placementField("UNAPPLIED") == "UNAPPLIED",
-        "the longest account of the default function fits the field (FR-025)");
-  check(sg::detail::placementField("topology-node-3") == "topology~",
-        "a longer text stands cut to the field with the mark of the cut "
-        "(FR-025)");
+        "the unapplied word stands whole in the field (FR-025)");
+  const auto cut = sg::detail::placementField("topology-node-3");
+  check(cut == "topology-~",
+        "a text longer than the field stands cut, with the mark of the cut "
+        "in the last position of the field (FR-025)");
+  check(cut.size() == widest.size(),
+        "a cut field fills the width of the field (FR-025)");
 }
 
 // FR-026, FR-035: the two counts the report reads answer twice each, and
@@ -594,6 +659,8 @@ auto main() -> int
       {"blocking", scenarioBlocking},
       {"oneWarningPerResult", scenarioOneWarningPerResult},
       {"placementFlagShows", scenarioPlacementFlagShows},
+      {"noPinCarriesNoFlag", scenarioNoPinCarriesNoFlag},
+      {"widestPlacementWhole", scenarioWidestPlacementWhole},
       {"placementField", scenarioPlacementField},
       {"selectorArms", scenarioSelectorArms},
   };
