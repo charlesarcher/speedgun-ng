@@ -721,11 +721,14 @@ translation unit of your own.
 - **FR-046**: Every difference this feature keeps from the cited Google
   Benchmark revision shall be recorded in the feature's own records
   beside the semantic it belongs to, including the fixture rule of
-  FR-023, the barrier of FR-014, and the per-thread iteration count of
-  FR-020: a threaded run of this feature gives every context the settled
-  count of the calibration, so the summed count of the merged row is
-  `N` times that count, where the cited revision divides the settled
-  count among the threads it starts. The plan pins the revision read
+  FR-023, the barrier of FR-014, and the threading model of FR-020: the
+  cited revision runs the callable on the threads it starts, gives every
+  thread the full settled count, and reports the sum of them; this feature
+  runs the callable on library-owned contexts and gives every context the
+  same settled count, so the summed count of the merged row is `N` times
+  that count. The two agree on the count and its sum, so the iteration
+  count records no difference. Where the cited revision caps that count per
+  thread, this feature caps it per context. The plan pins the revision read
   (Google Benchmark reference read).
 - **FR-047**: The examples and the documentation shall reach the new
   calls through the public `speedgun-ng` headers alone.

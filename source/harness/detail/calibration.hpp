@@ -96,11 +96,16 @@ inline auto fivefoldNs(const std::int64_t targetNs) -> std::int64_t
 // FR-008: the run that meets any one of these conditions is the run the
 // phase stops at. D-05: the fivefold condition compares the wall-clock
 // fold against the target, and a manual run has no clock fold to
-// compare, so the manual flag exempts that one condition.
+// compare, so the manual flag exempts that one condition. FR-020, FR-046:
+// the cap stands on the count one context ran, the quantity the cited
+// revision caps (it compares kMaxIterations against the count each thread
+// runs); `record.iterations` sums every context of a threaded sample, so the
+// caller names the per-context count here and the two units never mix.
 inline auto qualifies(const RunRecord& record,
-                      const std::int64_t targetNs) -> bool
+                      const std::int64_t targetNs,
+                      const std::uint64_t perContextCount) -> bool
 {
-  if (record.iterations >= kIterationCap || record.decisionNs >= targetNs) {
+  if (perContextCount >= kIterationCap || record.decisionNs >= targetNs) {
     return true;
   }
   return !record.manual && record.realNs >= fivefoldNs(targetNs);
@@ -159,7 +164,7 @@ auto growUntilQualified(const std::uint64_t start,
     if (interrupted()) {
       return {GrowOutcome::INTERRUPTED, std::move(*record), {}};
     }
-    if (qualifies(*record, targetNs)) {
+    if (qualifies(*record, targetNs, count)) {
       return {GrowOutcome::QUALIFIED, std::move(*record), {}};
     }
     count = nextIterationCount(count, record->decisionNs, targetNs);
