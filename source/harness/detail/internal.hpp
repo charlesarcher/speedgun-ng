@@ -222,6 +222,12 @@ struct RecorderReservation
                             std::uint64_t accepted,
                             std::uint64_t dispatched) noexcept -> bool;
 
+/// @brief FR-020: the skip rule of the threaded merge: the merged record
+/// takes the skip of a skipped record where it carries no skip of its own,
+/// so the reason of the first skipped context of the attempt stands.
+[[nodiscard]] auto takesSkip(bool recordSkipped,
+                             bool mergedSkipped) noexcept -> bool;
+
 // FR-003, D-01: the outcome of one pass of the private drain head's walk.
 // `NODE` names a successor to take, `EMPTY` the inbox that provably stands
 // empty, `PENDING` the pass that finds a producer between its exchange and

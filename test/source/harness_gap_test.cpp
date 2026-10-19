@@ -445,6 +445,22 @@ auto modeNamesAndListing() -> int
   return 0;
 }
 
+// FR-020: the skip rule of the threaded merge, read on its own. The first
+// skipped context of the attempt leaves its skip and its reason in the
+// merged record; a later skipped record leaves the pair it found.
+auto modeMergeSkipRule() -> int
+{
+  check(sg::detail::takesSkip(true, false),
+        "a skipped record takes the merged skip (FR-020)");
+  check(!sg::detail::takesSkip(true, true),
+        "a skipped record leaves the reason the first skip left (FR-020)");
+  check(!sg::detail::takesSkip(false, false),
+        "a record that ran leaves the merged record unskipped (FR-020)");
+  check(!sg::detail::takesSkip(false, true),
+        "a record that ran leaves the merged skip standing (FR-020)");
+  return 0;
+}
+
 }  // namespace
 
 auto modeCounterAddress() -> int
@@ -541,6 +557,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "namesListing") {
     return modeNamesAndListing();
   }
+  if (mode == "mergeSkipRule") {
+    return modeMergeSkipRule();
+  }
   if (mode == "counterAddress") {
     return modeCounterAddress();
   }
@@ -561,6 +580,7 @@ auto main(const int argc, char** argv) -> int
            "handleOptions",
            "namesListing",
            "counterAddress",
+           "mergeSkipRule",
        })
   {
     const int status = std::system(("\"" + self + "\" " + name).c_str());
