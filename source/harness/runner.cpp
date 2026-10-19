@@ -144,6 +144,24 @@ auto nettedFold(const sg::counters::detail::ExprCore& core,
   return net;
 }
 
+// FR-002, FR-005, FR-006: the core behind the primary time column of a
+// run: the CPU core by default and the real core under the real
+// selection. A manual run answers with a null core: its primary time is
+// the sum the benchmark supplied, and no fold stands between it and the
+// row. The selection stands at namespace scope, so one body answers every
+// recorder instantiation of the fold lambdas that call it.
+auto selectPrimaryCore(const bool manualTime,
+                       const bool realTime,
+                       const sg::counters::detail::ExprCore& realTimeCore,
+                       const sg::counters::detail::ExprCore& cpuTimeCore)
+    -> const sg::counters::detail::ExprCore*
+{
+  if (manualTime) {
+    return nullptr;
+  }
+  return realTime ? &realTimeCore : &cpuTimeCore;
+}
+
 // One measured row: the sample span the run left in the recorder,
 // netted through every column, with the FR-022 division, the FR-019
 // floor, and the two time columns of FR-001 beside the sample count of
@@ -416,7 +434,7 @@ auto mergeThreadedRecords(const std::vector<ThreadedOutcome>& outcomes,
     merged.manual = merged.manual || record.manual;
     merged.pauseSamplesFolded =
         merged.pauseSamplesFolded || record.pauseSamplesFolded;
-    if (record.skipped && !merged.skipped) {
+    if (sg::detail::takesSkip(record.skipped, merged.skipped)) {
       merged.skipped = true;
       merged.reason = record.reason;
     }
@@ -449,6 +467,16 @@ auto mergeThreadedRecords(const std::vector<ThreadedOutcome>& outcomes,
 
 namespace sg::detail
 {
+
+// FR-020: the skip rule of the threaded merge, so the merged record keeps
+// the reason the first skipped context left. The declaration stands in
+// detail/internal.hpp, the seam the gap test calls through to drive every
+// combination of the two inputs.
+auto takesSkip(const bool recordSkipped,
+               const bool mergedSkipped) noexcept -> bool
+{
+  return recordSkipped && !mergedSkipped;
+}
 
 // E-08, FR-021: the harness-owned record of one threaded attempt behind
 // the public ThreadRun view. The harness builds the body nodes, keeps
@@ -1232,9 +1260,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   auto foldThreadedContext =
       [&](auto& recorderHere, RunRecord& record, ContextFolds& folds)
   {
-    const sg::counters::detail::ExprCore* primaryCore = entry.manualTime
-        ? nullptr
-        : (entry.realTime ? &realTime.core : &cpuTime.core);
+    const sg::counters::detail::ExprCore* primaryCore = selectPrimaryCore(
+        entry.manualTime, entry.realTime, realTime.core, cpuTime.core);
     if (primaryCore != nullptr) {
       folds.primary =
           nettedFold(*primaryCore,
@@ -1692,13 +1719,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       fillDisclosures();
     }
 
-    // FR-002, FR-005, FR-006: the fold behind the availability is the
-    // CPU core by default and the real core under the real selection.
-    // A manual run answers with a null core: its primary time is the
-    // sum, and no fold stands between it and the row.
-    const sg::counters::detail::ExprCore* primaryCore = entry.manualTime
-        ? nullptr
-        : (entry.realTime ? &realTime.core : &cpuTime.core);
+    // FR-002, FR-005, FR-006: the fold behind the availability of the
+    // primary column, a null core where the run carries a manual sum.
+    const sg::counters::detail::ExprCore* primaryCore = selectPrimaryCore(
+        entry.manualTime, entry.realTime, realTime.core, cpuTime.core);
     if (instance.threadCount > 1) {
       // FR-020: exactly one merged row per repetition, carrying the
       // summed values and the per-iteration division by the summed
