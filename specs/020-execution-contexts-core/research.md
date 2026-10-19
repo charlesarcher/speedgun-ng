@@ -418,22 +418,44 @@ test can open on purpose from the outside of the enqueue call. The test of the
 pair therefore lives in a function a scenario can call with each pair of
 counts, while the loop keeps one branch whose two arms every run reaches.
 
-## D-12: The barrier's wait reads the round at the head of its body
+## D-12: The barrier's wait stands split by mode
 
-**Decision**: `ContextBarrier::arriveAndWait` releases at its own branch, and
-every other path waits in an endless loop whose body reads the generation first
-and takes one hint of the participant's mode where the round still stands open.
+**Decision**: `ContextBarrier::arriveAndWait` releases at its own branch, then
+waits by the participant's mode, each mode holding its own wait: `BLOCK` parks
+once in the atomic wait on the generation with no test of its own, and `SPIN`
+and `YIELD` take one hint and re-read the round at the foot of a `do`/`while`.
+The wait stands as `detail::waitRoundReleased`, declared in `detail/internal.hpp`
+and defined in the barrier's translation unit, and `arriveAndWait` calls it once
+with the mode its policy names. A participant that comes behind a round that
+closed while it was on its way in leaves `BLOCK` without a turn, because that
+wait returns at once on a value that has left the round it was given, and leaves
+the other two after one hint. That entry stands beyond the barrier's contract,
+which lets the arrival that filled a round release it, so the `released-wait`
+scenario of the execution context test enters the wait by direct call on a
+generation that already left the round it was given.
 
-**Rationale**: the head of the body is the place where the read answers both
-ways under ordinary barrier use: an arrival that comes behind a round that
-closed while it was on its way in leaves before it takes a turn, and a waiting
-participant turns and leaves at the same read once the release reaches it. The
-shape follows from the records the report printed at head 325ef45, where the
-line of a `do`/`while` foot test carried four branch records counting 0,
-11945063, 11944786 and 277: the compiler sets the read ahead of the body, so
-the arm that skips the body once stood at zero. The same zero came back for a
-read feeding the head of a `while` and for a read standing behind the hints of
-a `for(;;)` (FR-014, FR-049, coverage gate FR-038).
+**Rationale**: one loop with a shared head test could not reach its fourth
+branch record. The report of head 240bc59 counted the read 11646952 times
+against 5823476 turns of that loop, so the compiler kept two copies of the
+read: the loop's own test closed on the back edge, where 5823207 turns
+continued and 269 exited against 269 participants entered, and the entry
+copy's still-open arm stood at zero. The assembly of that one function holds
+five compares of the generation against the entered round, the copy ahead of
+the loop standing right after the wait-mode test. Only an arrival behind a
+release answers that arm before a first turn, and the arrival that filled the
+round is that arrival, but the compiler carries the value its own `fetch_add`
+wrote along that edge, so the evaluation folds away and the arm stays
+unreachable. Split by mode the same duplication stands on each spinning arm: the
+capture of the split counted the spin's foot test 73642 times against 36821
+turns, with the entry copy's still-open arm at zero, and the yield arm carried
+the same pair. A `switch` over the mode adds an edge no arrival can answer, the
+out-of-range arm of the enumeration, so the split stands as an `if`/`else` chain
+whose last arm carries the parked mode. The direct call is what answers the entry
+copy: it reaches the wait on a released round, holds it for no turn, and leaves
+the round it found standing. The C++ text allows the atomic wait to return
+spuriously; libstdc++ and libc++ on the supported platforms re-test the value
+inside it, and the call's exit invariant stands after every arm (FR-004, FR-014,
+FR-039, coverage gate FR-038).
 
 ## D-13: The wait-mode proof reads the kernel's per-thread switch counter
 
@@ -470,8 +492,12 @@ possibly one park and one wake ahead of the reload, an amount no benchmark of
 this feature measures (plan risks, Principle VII).
 
 The walk reads the tail before the successor link, in one order on every pass.
-The acquire of the tail's exchange orders out a link the last re-anchor
-cleared, so a link the walk owns from a cleared sentinel cannot be taken as a
-node. The `walk-states` scenario drives every row of the table, and the
+The loop's read of the tail is a seq_cst load, and the producer's enqueue is an
+acquire-release exchange followed by a release store of the link, so that load
+and that exchange stand in one total order: a pass that finds the tail at its
+own position has ordered ahead every link store that exchange was followed by,
+and its acquire read of the link sees those links; a pass that finds the tail
+elsewhere answers `PENDING` and settles nothing about emptiness. The
+`walk-states` scenario drives every row of the table, and the
 `order` scenario runs the walk under two dispatchers that start together on an
 atomic gate (D-01, FR-003).

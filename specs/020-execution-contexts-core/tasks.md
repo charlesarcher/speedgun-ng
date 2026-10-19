@@ -223,9 +223,11 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
     `grep -rn LCOV_EXCL source/harness` prints no line.
   - The coverage job of this branch's pull request prints
     `lines.......: 100.0%` and `branches....: 100.0%`.
-  - D-11 to D-14 carry the account of every site an earlier head counted
-    at zero, each with the test or the shape that reaches it.
-  - The box ticks at those two numbers and at no other state.
+  - D-12 names the cause of the barrier site an earlier head counted at zero
+    and the shape that answers every record there; D-11, D-13 and D-14 carry
+    the account of the other sites.
+  - The box ticks at those two numbers and at no other state, and plan rows VI
+    and VIII stand PASS at the same two numbers.
 
 - [X] T040 Main-page impact check (IV.1): confirm the two new README sections, their owning `example/docs/` files, their quick-reference rows, the `docs/pages/harness.md` detail, and the measured cap move all shipped in the same change as the code they teach, each snippet a region a CI-built example prints (FR-029 to FR-035, SC-11)
 
