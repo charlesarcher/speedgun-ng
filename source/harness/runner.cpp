@@ -437,7 +437,12 @@ auto mergeThreadedRecords(const std::vector<ThreadedOutcome>& outcomes,
     }
   }
   merged.label = outcomes.front().record.label;
-  return merged;
+  // A `return merged;` would make `merged` the return object itself, and
+  // gcov would then attach an unexecutable count-zero record to the closing
+  // brace. Returning a separate object leaves the destructor of `merged` to
+  // run at the brace, which every call executes (the pattern createRange
+  // states in family.cpp).
+  return sg::detail::RunRecord(merged);
 }
 
 }  // namespace
