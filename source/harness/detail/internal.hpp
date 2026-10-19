@@ -395,19 +395,6 @@ auto appendCounterColumns(std::vector<double>& printed,
                           const double primarySeconds,
                           const std::uint64_t iterations) -> void;
 
-/// @brief Wait until `generation` leaves `enteredRound`, one hint per turn in
-/// the order the policy names the modes, with no clock and no timeout
-/// (FR-004, FR-014, FR-039). `BLOCK` parks in the standard atomic wait, which
-/// returns at once on a value that has left the round it was given; `SPIN` and
-/// `YIELD` take one hint and re-read the round at the foot of the turn.
-/// The barrier lets no participant enter this wait behind a round that closed
-/// while it was on its way in, because the arrival that fills a round is the
-/// one that releases it, so a direct call stands as the only entry that starts
-/// on a released round and the execution context test enters it that way.
-auto waitRoundReleased(const std::atomic<std::uint64_t>& generation,
-                       std::uint64_t enteredRound,
-                       sg::WaitMode mode) -> void;
-
 }  // namespace detail
 
 }  // namespace sg
