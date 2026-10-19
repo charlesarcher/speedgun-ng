@@ -15,6 +15,7 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
+#include "speedgun-ng/execution_context.hpp"
 
 /**
  * @file internal.hpp
@@ -190,6 +191,41 @@ struct RecorderReservation
 /// @brief The largest pause room any reservation of this process held
 /// (FR-051).
 [[nodiscard]] auto maxRecorderPauseRoom() -> std::size_t&;
+
+/// @brief The thread counts `threadRange` states for these bounds: one count
+/// per doubling that stays within them (FR-016, FR-024). Bounds that stand
+/// out of order, and a lower bound below one, name no count: the require of
+/// the call answers that mistake where contracts stand, and this account
+/// holds what a build without contracts reaches (FR-024).
+[[nodiscard]] auto buildThreadCounts(int minCount,
+                                     int maxCount) -> std::vector<int>;
+
+/// @brief The thread counts `denseThreadRange` states for these bounds: one
+/// count per step that stays within them (FR-016, FR-024). A step below one
+/// and bounds out of order name no count, for the same reason (FR-024).
+[[nodiscard]] auto buildDenseThreadCounts(int minCount,
+                                          int maxCount,
+                                          int step) -> std::vector<int>;
+
+/// @brief The cpu count the noise warning compares spinning contexts
+/// against: the count the affinity mask reported where that read answered,
+/// the host count of the standard library where it answered nothing
+/// (FR-026).
+[[nodiscard]] auto selectRunnableCpuCount(bool maskAnswered,
+                                          std::uint64_t masked,
+                                          std::uint64_t host) noexcept
+    -> std::uint64_t;
+
+/// @brief The disclosure account of one pin attempt: the slot text the pin
+/// landed on where the platform accepted it, the unapplied text where it
+/// did not (FR-005, FR-025).
+[[nodiscard]] auto selectPlacementAccount(
+    bool landed, std::string_view landedText) -> PlacementResult;
+
+/// @brief The placement field of the disclosure line: the text whole where
+/// it fits the field, cut to the field with a mark of the cut where it does
+/// not (FR-025).
+[[nodiscard]] auto placementField(std::string_view placement) -> std::string;
 
 /**
  * @brief The batch snapshot `speedgunMain` takes of the process default

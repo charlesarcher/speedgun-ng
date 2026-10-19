@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <initializer_list>
 #include <memory>
@@ -524,6 +525,48 @@ auto BenchmarkHandle::threads(const int count) -> BenchmarkHandle&
   return *this;
 }
 
+namespace detail
+{
+
+// FR-016, FR-024: the doubling of the cited ThreadRange. The bound test
+// stands in the loop condition, so bounds that stand out of order, and a
+// lower bound below one, describe the empty set here: where contracts stand
+// the require of the call answers
+// that mistake, and this is the account a build without contracts reaches.
+// `std::int64_t` holds the doubled value past the bound, so no
+// multiplication overflows.
+auto buildThreadCounts(const int minCount,
+                       const int maxCount) -> std::vector<int>
+{
+  std::vector<int> counts;
+  for (std::int64_t count = minCount; count >= 1 && count <= maxCount;
+       count *= 2)
+  {
+    counts.push_back(static_cast<int>(count));
+  }
+  return counts;
+}
+
+// FR-016, FR-024: the stride of the cited DenseThreadRange, with the same
+// bound account as buildThreadCounts. A step below one would repeat one
+// count forever, so it stands in the condition and names the empty set
+// (FR-024).
+auto buildDenseThreadCounts(const int minCount,
+                            const int maxCount,
+                            const int step) -> std::vector<int>
+{
+  std::vector<int> counts;
+  for (std::int64_t count = minCount;
+       step >= 1 && count >= 1 && count <= maxCount;
+       count += step)
+  {
+    counts.push_back(static_cast<int>(count));
+  }
+  return counts;
+}
+
+}  // namespace detail
+
 auto BenchmarkHandle::threadRange(const int minCount,
                                   const int maxCount) -> BenchmarkHandle&
 {
@@ -533,20 +576,7 @@ auto BenchmarkHandle::threadRange(const int minCount,
              "a thread range whose bounds stand below one or whose lower "
              "bound stands above the upper violates the bounds of FR-024 "
              "(FR-016, FR-024)");
-  // The doubling of the cited ThreadRange: one count per doubling that
-  // stays at or below the upper bound. The require above answers that the
-  // first count stands within the bounds, so the break below is the loop's
-  // exit; it also keeps the count out of int overflow, where no further
-  // doubling fits the bound anyway (FR-016).
-  std::vector<int> counts;
-  for (int count = minCount;;) {
-    counts.push_back(count);
-    if (count > maxCount / 2) {
-      break;
-    }
-    count *= 2;
-  }
-  m_entry->threadCounts = std::move(counts);
+  m_entry->threadCounts = detail::buildThreadCounts(minCount, maxCount);
   SG_ENSURE(!m_entry->threadCounts.empty() &&
                 m_entry->threadCounts.front() == minCount,
             "the entry carries one thread count per doubling in the bounds, "
@@ -564,19 +594,8 @@ auto BenchmarkHandle::denseThreadRange(const int minCount,
              "a dense thread range whose bounds stand below one, whose "
              "lower bound stands above the upper, or whose step stands "
              "below one violates the bounds of FR-024 (FR-016, FR-024)");
-  // The stride of the cited DenseThreadRange: one count per step that
-  // stays at or below the upper bound. The require above answers that the
-  // first count stands within the bounds, so the break below is the loop's
-  // exit; it also keeps the count out of int overflow (FR-016).
-  std::vector<int> counts;
-  for (int count = minCount;;) {
-    counts.push_back(count);
-    if (count > maxCount - step) {
-      break;
-    }
-    count += step;
-  }
-  m_entry->threadCounts = std::move(counts);
+  m_entry->threadCounts =
+      detail::buildDenseThreadCounts(minCount, maxCount, step);
   SG_ENSURE(!m_entry->threadCounts.empty() &&
                 m_entry->threadCounts.front() == minCount,
             "the entry carries one thread count per step in the bounds, in "

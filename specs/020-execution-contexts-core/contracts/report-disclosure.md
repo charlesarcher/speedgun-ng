@@ -9,8 +9,14 @@ either (FR-027, FR-039).
 
 ```text
 result rows of a threaded instance, unchanged fields ...
-  contexts=N  ctx0=<MODE>/<PLACEMENT>  ctx1=<MODE>/<PLACEMENT> ...
+  contexts=N  ctx0=<MODE>/<PLACEMENT>/<APPLIED>  ctx1=<MODE>/<PLACEMENT>/<APPLIED> ...
 ```
+
+`<APPLIED>` is `applied` where the installed placement function reported its
+slot as landed and `unapplied` where it did not (FR-005), so a pin that never
+landed shows under whatever text its own function returned. `<PLACEMENT>`
+stands cut to the width of the longest account the default function produces,
+with `~` marking the cut (FR-025).
 
 | Rule | Requirement |
 | --- | --- |

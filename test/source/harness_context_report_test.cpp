@@ -109,6 +109,7 @@ struct Policy
 {
   sg::WaitMode waitMode;
   std::string placement;
+  bool applied = true;
 };
 
 auto spinCount(const std::vector<Policy>& policies) -> std::uint64_t
@@ -160,7 +161,9 @@ auto disclosureLine(const std::vector<Policy>& policies) -> std::string
   auto line = std::string("  contexts=") + std::to_string(policies.size());
   for (std::size_t index = 0; index < policies.size(); ++index) {
     line += "  ctx" + std::to_string(index) + "="
-        + modeName(policies[index].waitMode) + "/" + policies[index].placement;
+        + modeName(policies[index].waitMode) + "/"
+        + sg::detail::placementField(policies[index].placement)
+        + (policies[index].applied ? "/applied" : "/unapplied");
   }
   return line;
 }
@@ -200,8 +203,10 @@ auto makeResult(const std::string& name,
   }
 
   for (const auto& policy : policies) {
-    result.contexts.push_back(sg::ContextDisclosure {
-        .waitMode = policy.waitMode, .placement = policy.placement});
+    result.contexts.push_back(
+        sg::ContextDisclosure {.waitMode = policy.waitMode,
+                               .placement = policy.placement,
+                               .applied = policy.applied});
   }
   return result;
 }
@@ -524,6 +529,55 @@ auto runIsolated(const Scenario& scenario) -> bool
   return passed;
 }
 
+// FR-005, FR-025: the flag of the placement account stands beside the field,
+// so a replacement placement function that returns its own text for a slot it
+// did not land still shows the failure in the report.
+auto scenarioPlacementFlagShows() -> void
+{
+  const auto policies = std::vector<Policy> {
+      {sg::WaitMode::SPIN, "DECLINED", false},
+      {sg::WaitMode::BLOCK, "7", true},
+  };
+  const auto lines =
+      printCaptured({makeResult("bmPlacementFlag", policies, false)});
+  checkLines(lines,
+             {repetitionLine("bmPlacementFlag"),
+              "  contexts=2  ctx0=SPIN/DECLINED/unapplied"
+              "  ctx1=BLOCK/7/applied"},
+             "the disclosure names the flag of each placement account, so a "
+             "pin that did not land shows under the text of its own function "
+             "(FR-005, FR-025)");
+}
+
+// FR-025: the placement field holds a text that fits whole and cuts a longer
+// one, marking the cut where it stands.
+auto scenarioPlacementField() -> void
+{
+  check(sg::detail::placementField("NO_PIN") == "NO_PIN",
+        "a placement text that fits the field stands whole (FR-025)");
+  check(sg::detail::placementField("UNAPPLIED") == "UNAPPLIED",
+        "the longest account of the default function fits the field (FR-025)");
+  check(sg::detail::placementField("topology-node-3") == "topology~",
+        "a longer text stands cut to the field with the mark of the cut "
+        "(FR-025)");
+}
+
+// FR-026, FR-035: the two counts the report reads answer twice each, and
+// both answers drive here at their own call.
+auto scenarioSelectorArms() -> void
+{
+  check(sg::detail::selectRunnableCpuCount(true, 4, 9) == 4,
+        "an affinity mask that answered gives its own cpu count (FR-026)");
+  check(sg::detail::selectRunnableCpuCount(false, 4, 9) == 9,
+        "an affinity mask that stayed unread leaves the host count (FR-026)");
+  const auto landed = sg::detail::selectPlacementAccount(true, "CPU-3");
+  check(landed.applied && landed.description == "CPU-3",
+        "a placement that landed names the slot it landed on (FR-035)");
+  const auto missed = sg::detail::selectPlacementAccount(false, "CPU-3");
+  check(!missed.applied && missed.description == "UNAPPLIED",
+        "a placement that missed says so in its own words (FR-035)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -539,6 +593,9 @@ auto main() -> int
       {"pinnedOnePerCpu", scenarioPinnedOnePerCpu},
       {"blocking", scenarioBlocking},
       {"oneWarningPerResult", scenarioOneWarningPerResult},
+      {"placementFlagShows", scenarioPlacementFlagShows},
+      {"placementField", scenarioPlacementField},
+      {"selectorArms", scenarioSelectorArms},
   };
   std::size_t failed = 0;
   for (const auto& scenario : scenarios) {
