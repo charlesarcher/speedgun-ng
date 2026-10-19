@@ -13,13 +13,14 @@
 // breach of an `SG_REQUIRE` contract therefore arrives as the SIGABRT the
 // contract facility gives it.
 //
-// No scenario sleeps, reads a clock, or bounds a wait by elapsed time. The
-// waits are the ones the surface names: `drain()`, and a read loop over
-// `state()`, whose acquire order is what makes an item's writes visible to the
-// caller (FR-049). Where two threads must start together, an atomic gate
-// stands open until both arrive: a rendezvous on a flag with no time bound.
-// Each scenario watches the state it depends on before it triggers the next
-// step, so no scenario turns on which thread the scheduler ran first.
+// Every wait ends on a state the scenario itself stands: `drain()` returns on
+// the loop's idle proof, a read loop over `state()` ends on the completion
+// state the completing thread writes, whose acquire order is what makes an
+// item's writes visible to the caller (FR-049), and an atomic gate stands open
+// from the moment the last thread it waits on arrives. Each scenario watches
+// the state it depends on before it triggers the next step, so no scenario
+// turns on which thread the scheduler ran first, and a wait carries no clock
+// read and no count of polls.
 //
 // Scenario map:
 //   identity            the context thread runs the work, `currentContext()`
@@ -61,10 +62,11 @@
 //                       names (FR-004, FR-006)
 //   barrierLateArrival  one thread waits a round that its own arrival cannot
 //                       complete while a second thread arrives later (FR-014)
-//   acceptedNotLinked   a node accepted and not yet linked holds the accept
-//                       and dispatch counts apart, and both empty proofs, the
-//                       drain's stand and the loop's exit proof, read the
-//                       pair inside that window (FR-006, FR-050)
+//   acceptedNotLinked   three sets of nodes stand dispatched before, across
+//                       and after one stop request; every node settles to one
+//                       terminal state, the drain runs each node the accept
+//                       counted, and the items the run settled match the
+//                       nodes it took (FR-006, FR-012, FR-050)
 //   enqueueWindow       a producer enqueues while the owner drains, so the
 //                       walk meets nodes between their exchange and their
 //                       link, and every node still runs once (FR-001, FR-006)
@@ -99,10 +101,7 @@
 #include <utility>
 #include <vector>
 
-#include <sys/mman.h>
-#include <sys/syscall.h>
 #include <sys/wait.h>
-#include <time.h>
 #include <unistd.h>
 
 #include "speedgun-ng/execution_context.hpp"
@@ -1456,259 +1455,178 @@ auto scenarioBarrierRepeatedWaits() -> int
   return 0;
 }
 
-#if !SG_TEST_HAS_TSAN
-// FR-006, FR-050: the two empty proofs read the accept and dispatch counts as
-// one account, and a node a dispatch reached but has not yet linked holds that
-// account apart. The node here stands on a page the scenario guards: the first
-// write a dispatch makes to the node, the settled PENDING state, faults and
-// the kernel holds the producer at that instruction, past its accept count and
-// before the inbox link, until the scenario lets it go. No sleep and no clock
-// stand in the window: the producer stands where the guard put it, and the
-// drainer's first read of the pair is proven inside the window because the
-// only yield it can have taken before that read is the inbox wait itself.
-namespace
-{
-struct FaultWindow
-{
-  std::atomic<bool> entered {false};  // the guard caught the write
-  std::atomic<bool> release {false};  // the scenario lets the write land
-  std::atomic<bool> restored {false};  // the page stands writable again
-  void* page = nullptr;  // the guarded page, or none
-  std::size_t width = 0;
-};
-
-FaultWindow faultWindow {};
-
-// The guard for the window: a write into the tracked page parks its thread on
-// the release flag, restores the page writable before returning, and lets the
-// faulting store run on the retry. A fault outside the window restores the
-// default action, so a real breach still ends the child.
-// shortcut: mprotect from a handler works as the bare syscall it is, and the
-// thread sanitizer owns SIGSEGV for its own reports; the scenario stands down
-// there.
-void faultWindowHandler(int, siginfo_t* info, void*)
-{
-  const auto* const at = static_cast<const char*>(info->si_addr);
-  const auto* const first = static_cast<const char*>(faultWindow.page);
-  const bool inside = faultWindow.page != nullptr && at >= first
-      && at < first + faultWindow.width
-      && !faultWindow.restored.load(std::memory_order_relaxed);
-  if (!inside) {
-    std::signal(SIGSEGV, SIG_DFL);
-    return;
-  }
-  faultWindow.entered.store(true, std::memory_order_release);
-  while (!faultWindow.release.load(std::memory_order_acquire)) {
-  }
-  ::mprotect(faultWindow.page, faultWindow.width, PROT_READ | PROT_WRITE);
-  faultWindow.restored.store(true, std::memory_order_relaxed);
-}
-
-// The kernel's record of the task named: its voluntary context switches, the
-// yields it chose, never the ones the scheduler forced.
-auto readVoluntarySwitches(const long taskId) -> long
-{
-  char path[64];
-  std::snprintf(path, sizeof path, "/proc/self/task/%ld/status", taskId);
-  FILE* const record = std::fopen(path, "r");
-  check(record != nullptr, "the drainer's kernel record opens (FR-006)");
-  char line[256];
-  long switches = -1;
-  while (std::fgets(line, sizeof line, record) != nullptr) {
-    if (std::sscanf(line, "voluntary_ctxt_switches: %ld", &switches) == 1) {
-      break;
-    }
-  }
-  std::fclose(record);
-  check(switches >= 0,
-        "the voluntary switch count stands in the record (FR-006)");
-  return switches;
-}
-
-// The room a witness gets before the scenario calls its absence a gap in the
-// host. Both witnesses below come from outside the process, and an
-// instrumented build on a loaded runner can keep either one from arriving.
-// The budget counts one-millisecond sleeps. The time-source gate of D-6 bars
-// every clock from this file, so no deadline can be read here.
-constexpr int kWitnessPollCount = 30000;
-
-// True once the witness stayed false through the whole budget of polls. Each
-// poll hands over the processor, which is what the thread under witness needs.
-template<typename Witness>
-auto ranOut(Witness seen) -> bool
-{
-  const timespec tick {0, 1000000};
-  for (int poll = 0; poll < kWitnessPollCount; ++poll) {
-    if (seen()) {
-      return false;
-    }
-    ::nanosleep(&tick, nullptr);
-  }
-  return true;
-}
-}  // namespace
-#endif  // !SG_TEST_HAS_TSAN
-
+// FR-006, FR-050: the enqueue is the single linearization point, so the window
+// between one dispatch's accept and its inbox link shows in the account a
+// caller can read: every dispatched node reaches one terminal state, the
+// drain's empty proof runs every node the accept counted, and a node the run
+// never took reads `STOPPED` from the hand that refused it. The window spans
+// two adjacent stores of one wait-free enqueue, so no scenario holds a thread
+// inside it. The witness here is three sets of nodes under one stop request,
+// and every check below holds on every schedule. The set dispatched before the
+// request stands on the accepted side and the set dispatched after it returned
+// on this thread stands on the refused side, so both sides of the
+// linearization stand proven by states no schedule decides. The set that races
+// the request lands on one side or the other, and the schedule decides only
+// the second half of that set: the scenario holds the request back until the
+// producer has posted half its batch, so each node of the first half stands
+// accepted before the request enters the order and the drain owes it a run
+// while the request stands and later enqueues are still landing. Each check
+// reads the side back from the node and matches it against the item count the
+// run settled. No read after the close can reach the instant between the two
+// stores of one enqueue, so nothing here claims that witness. What the
+// scenario does prove is the rule FR-050 states: the terminal state and the
+// item count of every node agree with the one side its enqueue took, and the
+// drain's stand let none of them through unrun.
 auto scenarioAcceptedNotLinked() -> int
 {
-#if SG_TEST_HAS_TSAN
-  std::puts("harness_execution_context_test acceptedNotLinked: skipped under "
-            "the thread sanitizer, which owns the signal the guard takes");
-  return 0;
-#else
+  // The three sets keep their tag ranges apart inside `kRunCapacity`, so one
+  // sum over `runCount` is the run's own account of the items it ran.
+  constexpr std::size_t kRacedBase = kBatchNodes;
+  constexpr std::size_t kRefusedBase = 3 * kBatchNodes;
+  // The count the producer posts before the request enters the order.
+  constexpr std::size_t kRacedHalf = kBatchNodes / 2;
+
   sg::ExecutionContext context {blockingPolicy()};
   // The flush stands the loop in its empty-inbox wait (FR-006).
   context.drain();
 
-  const long pageSize = ::sysconf(_SC_PAGESIZE);
-  void* const page = ::mmap(nullptr,
-                            static_cast<std::size_t>(pageSize),
-                            PROT_READ | PROT_WRITE,
-                            MAP_PRIVATE | MAP_ANONYMOUS,
-                            -1,
-                            0);
-  check(page != MAP_FAILED,
-        "the guarded page for the node stands mapped (FR-006)");
-  faultWindow.page = page;
-  faultWindow.width = static_cast<std::size_t>(pageSize);
+  NodeBatch<NoAllocItem, kBatchNodes> accepted;
+  NodeBatch<NoAllocItem, kBatchNodes> raced;
+  NodeBatch<NoAllocItem, kBatchNodes> refused;
 
-  struct sigaction guard
-  {
-  };
-
-  sigemptyset(&guard.sa_mask);
-  guard.sa_flags = SA_SIGINFO;
-  guard.sa_sigaction = &faultWindowHandler;
-
-  struct sigaction prior
-  {
-  };
-
-  check(::sigaction(SIGSEGV, &guard, &prior) == 0,
-        "the fault window stands installed (FR-006)");
-
-  Observation observed {};
-  const ObserveItem item {0, &observed};
-  auto* const node = new (page) sg::WorkNode<ObserveItem> {
-      item};  // NOLINT(cppcoreguidelines-pro-type-placement-new) the node lives
-              // on its own guarded page by design
-  ::mprotect(page, static_cast<std::size_t>(pageSize), PROT_READ);
-
-  // Every exit from this scenario steps down the same way: the context closes
-  // joined, the guard hands the signal back, and the guarded page goes away
-  // (FR-006).
-  const auto stepDown = [&]
-  {
-    context.join();
-    check(::sigaction(SIGSEGV, &prior, nullptr) == 0,
-          "the guard steps down from the signal (FR-006)");
-    // The node's members are atomics over trivial types; unmapping the page it
-    // was placed on needs no destructor beyond that account.
-    ::munmap(page, static_cast<std::size_t>(pageSize));
-    faultWindow.page = nullptr;
-  };
-
-  // The producer faults at the settled PENDING store, past its accept count
-  // and before the exchange that links (FR-050): the counts stand apart with
-  // the inbox still at its sentinel.
-  std::atomic<bool> producerGo {false};
-  std::atomic<bool> producerDone {false};
-  std::thread producer {[&]
-                        {
-                          while (!producerGo.load(std::memory_order_acquire)) {
-                          }
-                          sg::dispatch(context, *node);
-                          producerDone.store(true, std::memory_order_release);
-                        }};
-  producerGo.store(true);
-  // The entry flag comes from the fault handler, and a runtime that takes
-  // SIGSEGV first can keep it down. The wait carries a budget, so a host that
-  // withholds the witness reports a skip in place of a hung test (FR-006).
-  const auto sawEntry = [&]
-  { return faultWindow.entered.load(std::memory_order_acquire); };
-  if (ranOut(sawEntry)) {
-    faultWindow.release.store(true, std::memory_order_release);
-    producer.join();
-    context.requestStop();
-    stepDown();
-    std::puts("harness_execution_context_test acceptedNotLinked: skipped, the "
-              "fault window recorded no entry inside its budget (FR-006)");
-    return 0;
+  // Each dispatch of this set returns before the stop request stands on this
+  // thread, so each node is accepted, linked and counted before the request
+  // enters the order (FR-050).
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    sg::dispatch(context, accepted.construct(index, NoAllocItem {index}));
   }
-  check(!producerDone.load(std::memory_order_acquire),
-        "the producer stands between its accept and the inbox link (FR-050)");
 
-  // The stop request is the wake that puts the loop on its exit proof, and
-  // that proof reads the same pair the parked producer holds apart.
+  // The producer enqueues its set across the request, so each of those
+  // enqueues takes its side of the linearization on its own place in the
+  // order, and two threads stand on one inbox the way FR-013 gives it.
+  std::atomic<bool> start {false};
+  std::atomic<int> ready {0};
+  std::atomic<std::size_t> posted {0};
+  std::thread producer {
+      [&]
+      {
+        ++ready;
+        while (!start.load()) {
+        }
+        for (std::size_t index = 0; index < kBatchNodes; ++index) {
+          sg::dispatch(
+              context,
+              raced.construct(index, NoAllocItem {kRacedBase + index}));
+          posted.fetch_add(1, std::memory_order_release);
+        }
+      }};
+  while (ready.load() < 1) {
+  }
+  start.store(true);
+  // Each post follows its dispatch's return, so the acquire read stands each
+  // of those nodes linked and counted before the request enters the order, and
+  // the request reaches the accept of none of them. The producer posts its
+  // whole batch, so this watch ends on the producer's own progress.
+  while (posted.load(std::memory_order_acquire) < kRacedHalf) {
+  }
   context.requestStop();
 
-  // The drainer stands in the same window on its own thread. Its only path to
-  // a voluntary yield before the kernel records one is the inbox wait of
-  // `drain()`, and that wait stands behind its first read of the pair: the
-  // recorded switch is the proof the read ran on apart counts (FR-006).
-  std::atomic<bool> drainerReady {false};
-  std::atomic<bool> drainerGo {false};
-  std::atomic<bool> drainerReturned {false};
-  std::atomic<long> drainerTask {0};
-  std::thread drainer {[&]
-                       {
-                         drainerTask.store(
-                             static_cast<long>(::syscall(SYS_gettid)),
-                             std::memory_order_release);
-                         drainerReady.store(true, std::memory_order_release);
-                         while (!drainerGo.load(std::memory_order_acquire)) {
-                         }
-                         context.drain();
-                         drainerReturned.store(true, std::memory_order_release);
-                       }};
-  while (!drainerReady.load(std::memory_order_acquire)) {
+  // The request returned on this thread before each dispatch below, so each
+  // one reads the stopped state and completes its own node there (FR-050).
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    sg::dispatch(context,
+                 refused.construct(index, NoAllocItem {kRefusedBase + index}));
   }
-  const long switchesBefore = readVoluntarySwitches(drainerTask.load());
-  drainerGo.store(true);
-  // The second witness is a kernel statistic. An instrumented build can hold
-  // the drainer inside one long slice, so this wait carries the same budget
-  // and states its skip when the record stays flat (FR-006).
-  long switches = switchesBefore;
-  const auto sawSwitch = [&]
-  {
-    switches = readVoluntarySwitches(drainerTask.load());
-    return switches != switchesBefore;
-  };
-  if (ranOut(sawSwitch)) {
-    faultWindow.release.store(true, std::memory_order_release);
-    producer.join();
-    drainer.join();
-    stepDown();
-    std::puts("harness_execution_context_test acceptedNotLinked: skipped, the "
-              "record shows no voluntary switch for the drainer inside its "
-              "budget (FR-006)");
-    return 0;
-  }
-  check(!drainerReturned.load(std::memory_order_acquire),
-        "the drain stands while the accepted node has not linked (FR-006, "
-        "FR-050)");
 
-  // The release lands the PENDING store on the retry, the link follows, and
-  // both proofs close in order: the loop runs the node the stop found
-  // accepted, the counts settle even, and the drain returns (FR-050).
-  faultWindow.release.store(true, std::memory_order_release);
+  // Every dispatch of the racing set has returned here, so each of its nodes
+  // stands linked and counted or refused. The drain below owes a run to each
+  // node the accept counted, and its empty proof reads the accept and the
+  // dispatch as one account, so that stand cannot settle over a node still on
+  // its way into the chain (FR-006, FR-050). The reads that follow stand after
+  // `join`, so the joined loop thread is what carries its every write to them
+  // (FR-049).
   producer.join();
-  drainer.join();
-  check(producerDone.load(std::memory_order_acquire)
-            && drainerReturned.load(std::memory_order_acquire),
-        "the release closed the dispatch and the drain together (FR-006, "
-        "FR-050)");
-  check(node->state() == sg::WorkNodeState::DONE,
-        "the node the stop request found accepted ran during the stand "
-        "(FR-006, FR-050)");
-  check(runCount[0] == 1, "the item ran once (FR-001)");
-  stepDown();
-  check(runPositions == 1,
-        "the close ran nothing beyond the one accepted item (FR-006)");
+  context.drain();
+  context.join();
+
+  std::size_t doneNodes = 0;
+  std::size_t stoppedNodes = 0;
+
+  // The set the request found accepted: FR-050 gives its delivery to the run
+  // and FR-006 says the trio ran each node exactly once.
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    const sg::WorkNodeState state = accepted.at(index).state();
+    check(state == sg::WorkNodeState::DONE,
+          "a node accepted before the stop request settles DONE across the "
+          "race (FR-006, FR-050)");
+    check(runCount[index] == 1,
+          "each node accepted before the stop request ran exactly once "
+          "(FR-006, SC-03)");
+    ++doneNodes;
+  }
+
+  // The set that raced the request: each node reads one side of the
+  // linearization and the item count matches the side it reads. A node that
+  // reads `PENDING` here is a drain that settled its empty proof over an
+  // accept the count had not matched, and a node that reads `RUNNING` is a
+  // loop that ran past its join (FR-009, FR-050).
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    const sg::WorkNodeState state = raced.at(index).state();
+    const bool ran = state == sg::WorkNodeState::DONE;
+    check(ran || state == sg::WorkNodeState::STOPPED,
+          "a node that raced the stop request settles to one terminal state "
+          "(FR-009, FR-050)");
+    check(runCount[kRacedBase + index] == (ran ? 1 : 0),
+          "a node that raced the stop request ran once on the accepted side "
+          "and never on the refused side (FR-050)");
+    if (index < kRacedHalf) {
+      check(ran,
+            "a node posted to the inbox before the request entered the order "
+            "runs during the drain (FR-006, FR-050)");
+    }
+    if (ran) {
+      ++doneNodes;
+    } else {
+      ++stoppedNodes;
+    }
+  }
+
+  // The set the request had already refused: its dispatcher completed each
+  // node itself and the loop never reached it (FR-050).
+  for (std::size_t index = 0; index < kBatchNodes; ++index) {
+    const sg::WorkNodeState state = refused.at(index).state();
+    check(state == sg::WorkNodeState::STOPPED,
+          "a dispatch that observes the stopped state completes its node "
+          "STOPPED (FR-050)");
+    check(runCount[kRefusedBase + index] == 0,
+          "the loop never touches a node it never accepted (FR-050)");
+    ++stoppedNodes;
+  }
+
+  // The two accounts close on each other: one item per node the run took, none
+  // for a node it refused, and the two terminal states over every node the run
+  // was offered (FR-006, FR-050).
+  std::size_t itemsRan = 0;
+  for (std::size_t tag = 0; tag < kRunCapacity; ++tag) {
+    itemsRan += runCount[tag];
+  }
+  check(itemsRan == doneNodes,
+        "the run settled one item for each node it took and none for a node it "
+        "refused (FR-006, FR-050)");
+  check(doneNodes + stoppedNodes == 3 * kBatchNodes,
+        "the two terminal states account for every node the run was offered "
+        "(FR-050)");
+
+  // The checks above read every node at a terminal state, so each destructor
+  // below stands at the point FR-012 allows. A node the run had left queued
+  // trips that contract at this call, which ends the child by SIGABRT and the
+  // parent reads that as the failure of the scenario (FR-012, FR-049).
+  accepted.destroyAll();
+  raced.destroyAll();
+  refused.destroyAll();
 
   std::puts("harness_execution_context_test acceptedNotLinked: ok");
   return 0;
-#endif
 }
 
 // FR-014, Q-3: a participant that runs on a blocked context waits its round

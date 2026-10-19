@@ -12,11 +12,14 @@
 // child (fork, execv, waitpid). A breach of an `SG_REQUIRE` contract therefore
 // arrives as the SIGABRT the contract facility gives it.
 //
-// No scenario sleeps, reads a clock, or bounds a wait by elapsed time. The
-// waits are flag watches on completion states with no bound: where one thread
-// must act after another has reached a state, it watches that state before it
+// Every wait ends on a state the scenario itself stands: a flag watch on a
+// flag its own participant sets, the kernel's records for the task it watches,
+// and the round generation its last arrival advances. Where one thread must
+// act after another has reached a state, it watches that state before it
 // triggers the action, so no scenario turns on which thread the scheduler ran
-// first.
+// first. A scenario that holds a round open across a gap does so with a fixed
+// count of steps whose sum it checks, so the gap stands fixed and every
+// release stays an arrival.
 //
 // The wait-mode proof reads the per-thread counters the kernel keeps at
 // /proc/self/task/<id>/status: `voluntary_ctxt_switches` moves exactly when a
