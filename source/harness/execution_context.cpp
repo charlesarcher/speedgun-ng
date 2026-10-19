@@ -616,7 +616,7 @@ ExecutionContext::ExecutionContext(const ContextPolicy policy)
   // FR-005, SC-05: the host bound of the slot's index stands at the
   // construction call, where the online cpu count stands; the placement
   // itself lands on the context's thread at its start (D-04).
-  const auto onlineCpus =
+  [[maybe_unused]] const auto onlineCpus =
       static_cast<std::uint32_t>(std::thread::hardware_concurrency());
   SG_REQUIRE(policy.placement.cpuIndex == kNoPin
                  || policy.placement.cpuIndex < onlineCpus,
@@ -640,7 +640,7 @@ ExecutionContext::ExecutionContext(const ContextPolicy policy)
 
 ExecutionContext::~ExecutionContext()
 {
-  detail::ContextControl& control = detail::controlOf(*this);
+  [[maybe_unused]] detail::ContextControl& control = detail::controlOf(*this);
   SG_REQUIRE(control.joined,
              "destructor of a context that stands unjoined (FR-006)");
 }
