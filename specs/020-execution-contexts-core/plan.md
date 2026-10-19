@@ -99,9 +99,9 @@ justification, P3 defaults hold wherever no exception is recorded. Any
 | III | PASS. Each capability carries its requirement, design view, source file, and test executable, and this plan records TDD mode on the fake provider with every test seen failing first (FR-042). The logical and physical views are ASCII diagrams and a table, the recorded design-view shape the harness series has carried since 015. |
 | IV | PASS. The new public declarations carry doxygen blocks, the main page gains its two sections from marked regions of files CI runs, and `docs/pages/harness.md` gains the aggregation table and the lifecycle rules (FR-029, FR-030, FR-033). |
 | V | PASS. N-1 covers `ExecutionContext`, `ContextId`, `ContextPolicy`, `WaitMode`, `PlacementSlot`, `WorkNode`, `WorkContext`, `WorkItem`, and `ContextBarrier`; the enumerators `SPIN`, `YIELD`, `BLOCK`, and `NO_PIN` follow N-4; `dispatch`, `currentContext`, `requestStop`, `drain`, `join`, `arriveAndWait`, `threadIndex`, `threads`, `threadRange`, and `denseThreadRange` follow N-2; struct members follow N-12. No new macro enters, so the `SG_` rule of FR-036 stands satisfied by absence. |
-| VI | PASS. Four new executables cover the lifecycle branches, the wait modes, the barrier rounds, the merge arms, the disclosure line, and the four warning cases; the 100% line and branch gates stay measured on the same paths with no `LCOV_EXCL` marker (FR-028, FR-038). |
+| VI | Four new executables cover the lifecycle branches, the wait modes, the barrier rounds, the merge arms, the disclosure line, and the four warning cases; the 100% line and branch gates stay measured on the same paths with no `LCOV_EXCL` marker. The row reads PASS when this branch's coverage job prints 100.0% line and 100.0% branch (FR-028, FR-038). |
 | VII | PASS. The critical paths are the loop, the dispatch, and the wait, each bounded by D-01 and D-03. The context creation, the barrier construction, the merge, the disclosure, and the warning all sit cold. FR-026's warning is FR-VII's measurement-noise concern expressed as a report rule; the default `SPIN` for measured contexts answers it at the policy level (Q-2). |
-| VIII | PASS. No gate weakens. Every new path runs under `ci-tsan` and `ci-sanitize` (FR-041, SC-10), the version and `SOVERSION` table records the rise FR-043 requires, and the docs gates gain two sections within the FR-034 budget rule. |
+| VIII | No gate weakens. Every new path runs under `ci-tsan` and `ci-sanitize` (FR-041, SC-10), the version and `SOVERSION` table records the rise FR-043 requires, and the docs gates gain two sections within the FR-034 budget rule. The row reads PASS when this branch's coverage job prints 100.0% line and 100.0% branch. |
 | IX | PASS. Spec, plan, research, data model, contracts, and quickstart live in `specs/020-execution-contexts-core/`, and this plan records TDD mode. |
 | X | PASS. The design carries no graph machinery, no reserved parameter, and no seam beyond the three the spec itself names: the four H16 hooks of FR-045, the FR-005 placement function, and the FR-021 custom runner. Each stands in Complexity Tracking with its FR as the justification, because X.2 bars hooks the spec does not ask for and these the spec does. |
 | XI | PASS. The artifacts and the code prose obey XI.1 to XI.7 (FR-048); this plan was written to that rule. |
@@ -222,6 +222,12 @@ public header carries every type a caller names (FR-043).
 | R-08 | The disclosure rides `BenchmarkResult`; the report prints the line for threaded results only, and the warning computes from the disclosure plus the online cpu count read once through `sg::counters::System` | D-08 |
 | R-09 | Thread counts join the family expansion; `instanceName` appends `/threads:N`; the default `{1}` keeps every untouched family byte-identical | D-09 |
 | R-10 | The reference revision is `e662de9a...`, read from the four cited files, with the fixture, barrier, and body-placement differences recorded | D-10 |
+
+### Risks
+
+| Id | Risk | Cost | Disposition |
+| --- | --- | --- | --- |
+| K-01 | The pass that holds no node marks the loop idle and parks in the policy wait, so a producer's open window costs an idle signal and, under BLOCK, a park with its wake (D-14) | One phase store, one epoch increment with its notify, and one park with one wake for each open window | Accepted for this feature: the idle signal is the proof `drain()` and the loop's end read wait for. A benchmark of the cost stands outside this feature's scope. |
 
 ### Logical view: the context loop
 

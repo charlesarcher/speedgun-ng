@@ -2,7 +2,7 @@
 
 **Input**: Design documents from `specs/020-execution-contexts-core/`
 
-**Prerequisites**: plan.md, spec.md, research.md (D-01..D-10),
+**Prerequisites**: plan.md, spec.md, research.md (D-01..D-14),
 data-model.md (E-01..E-09), contracts/ (four files), quickstart.md
 
 **Tests**: Included. FR-042 fixes TDD mode on the fake provider: each
@@ -217,42 +217,15 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
 - [X] T038 [P] Build and run the sanitizer presets: `cmake --preset=ci-sanitize` with its `ctest` run reports no ASan or UBSan error, and `cmake --preset=ci-tsan` with its `ctest` run reports no race on the inbox, the barrier, the lifecycle, the threaded paths, and the disclosure reads, the preset staying apart from `ci-sanitize` because the compilers reject the pairing (FR-041, SC-10, Principle VIII)
 
 - [ ] T039 [P] Build the `ci-coverage` preset, run its suite and coverage target, and confirm 100% line and 100% branch over the new paths with the report's evidence; `grep -rn LCOV_EXCL source/harness` prints no line, "no `LCOV_EXCL` marker shall enter `source/harness/`" (FR-038, SC-10)
-
-  The capture compiles the coverage preset with `-fprofile-update=atomic`, so
-  the counters a threaded test updates from several contexts at once
-  accumulate without a data race, and `ctest` runs the suite with `-j 2`. Each
-  site named across the earlier heads of this branch now carries its own
-  account. `source/counters/clock_provider.cpp:60` is the continuation of the
-  parse loop that `counters_clock_push_test` opens with the two addresses no
-  leaf publishes. The skip rule of the threaded merge at
-  `source/harness/runner.cpp:419` stands in `detail::takesSkip`, whose four
-  pairs of inputs the `mergeSkipRule` mode of `harness_gap_test` drives, the
-  pair where the merged record already carries a skip included; the choice of
-  the primary time column moved out of the fold lambda, which the build
-  instantiates once per recorder, into `selectPrimaryCore`, so the answer a
-  manual-time run gives is read where the fold calls it; the error arm at
-  `source/harness/runner.cpp:1465` belongs to `scenarioBodyThrows`, which
-  throws through `threads(kThreadCount)`.
-
-  In `source/harness/execution_context.cpp` the guards stood against events a
-  test cannot schedule from outside the code that makes them: a dispatch
-  standing between the accept store and the link store, and a wake that returns
-  while its own round still stands open. Those states have no branch of their
-  own now. The walk's decision for one pass stands in `detail::walkStep` over
-  the successor link, the tail's position and the walk's position, and the
-  drain proof in `detail::inboxIdle` over the tail, the phase and the dispatch
-  pair, which the `walk-states` scenario drives row by row: a pass that finds a
-  producer mid-enqueue answers `PENDING`, the account holds that accept apart
-  from its dispatch there, so the loop turns again (D-11, D-14). The barrier
-  tests its round at the foot of its wait through `detail::roundOpen`, where
-  both outcomes of that test are ordinary events and the comparison of the
-  generation stands apart from the back edge (D-12).
-
-  `grep -rn LCOV_EXCL source/harness` prints no line. The box stands until the
-  coverage job of this branch's pull request reports `lines.......: 100.0%` and
-  `branches....: 100.0%`, and no marker, threshold or exclusion shapes that
-  verdict.
-
+  - The capture compiles the coverage preset with `-fprofile-update=atomic`
+    and runs `ctest -j 2`.
+  - No marker, threshold or exclusion shapes the verdict:
+    `grep -rn LCOV_EXCL source/harness` prints no line.
+  - The coverage job of this branch's pull request prints
+    `lines.......: 100.0%` and `branches....: 100.0%`.
+  - D-11 to D-14 carry the account of every site an earlier head counted
+    at zero, each with the test or the shape that reaches it.
+  - The box ticks at those two numbers and at no other state.
 
 - [X] T040 Main-page impact check (IV.1): confirm the two new README sections, their owning `example/docs/` files, their quick-reference rows, the `docs/pages/harness.md` detail, and the measured cap move all shipped in the same change as the code they teach, each snippet a region a CI-built example prints (FR-029 to FR-035, SC-11)
 
