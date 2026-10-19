@@ -568,7 +568,7 @@ public:
    */
   ~WorkNode()
   {
-    const WorkNodeState settled = state();
+    [[maybe_unused]] const WorkNodeState settled = state();
     SG_REQUIRE(settled == WorkNodeState::DONE
                    || settled == WorkNodeState::STOPPED || !this->accepted,
                "destructor of a work node a context still holds (FR-012)");
@@ -628,7 +628,7 @@ private:
 template<WorkItem Item>
 auto dispatch(ExecutionContext& context, WorkNode<Item>& node) -> void
 {
-  const WorkNodeState handed = node.state();
+  [[maybe_unused]] const WorkNodeState handed = node.state();
   SG_REQUIRE(handed == WorkNodeState::PENDING || handed == WorkNodeState::DONE
                  || handed == WorkNodeState::STOPPED,
              "dispatch of a node a context still holds (FR-009, FR-012)");
