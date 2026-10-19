@@ -69,9 +69,11 @@ jobs:
     - name: Test
       working-directory: build/coverage
       # Serial on purpose. Every test binary carries its own copy of the
-      # library's counters and flushes into one shared .gcda, and a concurrent
-      # read-modify-write of that file corrupts taken counts, which the capture
-      # then reports as coverage a test did take.
+      # library's counters and flushes them into one shared .gcda, so one
+      # process at a time reads, merges and writes that file. Serializing
+      # removes the overlap between lanes. The counts a forked test child
+      # flushes still merge onto the copy its parent carried, and T039 carries
+      # that residue.
       run: ctest --output-on-failure --no-tests=error
 
     - name: Process coverage info
