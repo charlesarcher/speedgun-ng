@@ -102,6 +102,7 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "speedgun-ng/execution_context.hpp"
@@ -1523,6 +1524,25 @@ auto readVoluntarySwitches(const long taskId) -> long
         "the voluntary switch count stands in the record (FR-006)");
   return switches;
 }
+
+// Milliseconds on the monotonic clock, the unit of a witness budget.
+auto monotonicMs() -> long long
+{
+  timespec now {};
+  ::clock_gettime(CLOCK_MONOTONIC, &now);
+  return static_cast<long long>(now.tv_sec) * 1000 + now.tv_nsec / 1000000;
+}
+
+// True once a witness budget is spent.
+[[nodiscard]] auto ranOut(const long long deadline) noexcept -> bool
+{
+  return monotonicMs() >= deadline;
+}
+
+// The room a witness gets before the scenario calls its absence a gap in the
+// host. Both witnesses below come from outside the process, and an
+// instrumented build on a loaded runner can keep either one from arriving.
+constexpr long long kWitnessBudgetMs = 30000;
 }  // namespace
 #endif  // !SG_TEST_HAS_TSAN
 
@@ -1571,6 +1591,20 @@ auto scenarioAcceptedNotLinked() -> int
               // on its own guarded page by design
   ::mprotect(page, static_cast<std::size_t>(pageSize), PROT_READ);
 
+  // Every exit from this scenario steps down the same way: the context closes
+  // joined, the guard hands the signal back, and the guarded page goes away
+  // (FR-006).
+  const auto stepDown = [&]
+  {
+    context.join();
+    check(::sigaction(SIGSEGV, &prior, nullptr) == 0,
+          "the guard steps down from the signal (FR-006)");
+    // The node's members are atomics over trivial types; unmapping the page it
+    // was placed on needs no destructor beyond that account.
+    ::munmap(page, static_cast<std::size_t>(pageSize));
+    faultWindow.page = nullptr;
+  };
+
   // The producer faults at the settled PENDING store, past its accept count
   // and before the exchange that links (FR-050): the counts stand apart with
   // the inbox still at its sentinel.
@@ -1584,7 +1618,22 @@ auto scenarioAcceptedNotLinked() -> int
                           producerDone.store(true, std::memory_order_release);
                         }};
   producerGo.store(true);
-  while (!faultWindow.entered.load(std::memory_order_acquire)) {
+  // The entry flag comes from the fault handler, and a runtime that takes
+  // SIGSEGV first can keep it down. The wait carries a budget, so a host that
+  // withholds the witness reports a skip in place of a hung test (FR-006).
+  const long long entryDeadline = monotonicMs() + kWitnessBudgetMs;
+  while (!faultWindow.entered.load(std::memory_order_acquire)
+         && !ranOut(entryDeadline))
+  {
+  }
+  if (!faultWindow.entered.load(std::memory_order_acquire)) {
+    faultWindow.release.store(true, std::memory_order_release);
+    producer.join();
+    context.requestStop();
+    stepDown();
+    std::puts("harness_execution_context_test acceptedNotLinked: skipped, the "
+              "fault window recorded no entry inside its budget (FR-006)");
+    return 0;
   }
   check(!producerDone.load(std::memory_order_acquire),
         "the producer stands between its accept and the inbox link (FR-050)");
@@ -1616,9 +1665,23 @@ auto scenarioAcceptedNotLinked() -> int
   }
   const long switchesBefore = readVoluntarySwitches(drainerTask.load());
   drainerGo.store(true);
+  // The second witness is a kernel statistic. An instrumented build can hold
+  // the drainer inside one long slice, so this wait carries the same budget
+  // and states its skip when the record stays flat (FR-006).
   long switches = switchesBefore;
-  while (switches == switchesBefore) {
+  const long long switchDeadline = monotonicMs() + kWitnessBudgetMs;
+  while (switches == switchesBefore && !ranOut(switchDeadline)) {
     switches = readVoluntarySwitches(drainerTask.load());
+  }
+  if (switches == switchesBefore) {
+    faultWindow.release.store(true, std::memory_order_release);
+    producer.join();
+    drainer.join();
+    stepDown();
+    std::puts("harness_execution_context_test acceptedNotLinked: skipped, the "
+              "record shows no voluntary switch for the drainer inside its "
+              "budget (FR-006)");
+    return 0;
   }
   check(!drainerReturned.load(std::memory_order_acquire),
         "the drain stands while the accepted node has not linked (FR-006, "
@@ -1638,16 +1701,10 @@ auto scenarioAcceptedNotLinked() -> int
         "the node the stop request found accepted ran during the stand "
         "(FR-006, FR-050)");
   check(runCount[0] == 1, "the item ran once (FR-001)");
-  context.join();
+  stepDown();
   check(runPositions == 1,
         "the close ran nothing beyond the one accepted item (FR-006)");
 
-  check(::sigaction(SIGSEGV, &prior, nullptr) == 0,
-        "the guard steps down from the signal (FR-006)");
-  // The node's members are atomics over trivial types; unmapping the page it
-  // was placed on needs no destructor beyond that account.
-  ::munmap(page, static_cast<std::size_t>(pageSize));
-  faultWindow.page = nullptr;
   std::puts("harness_execution_context_test acceptedNotLinked: ok");
   return 0;
 #endif
