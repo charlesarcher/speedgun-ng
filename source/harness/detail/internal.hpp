@@ -260,12 +260,6 @@ enum class WalkStep : std::uint8_t
                              std::uint64_t accepted,
                              std::uint64_t dispatched) noexcept -> bool;
 
-/// @brief FR-014: the round a barrier participant stands in: the generation it
-/// read at its own foot test stands at the round that participant captured
-/// when it arrived, the wait turns again, and any other value releases it.
-[[nodiscard]] auto roundOpen(std::uint64_t seenRound,
-                             std::uint64_t enteredRound) noexcept -> bool;
-
 /// @brief The cpu count the noise warning compares spinning contexts
 /// against: the count the affinity mask reported where that read answered,
 /// the host count of the standard library where it answered nothing
