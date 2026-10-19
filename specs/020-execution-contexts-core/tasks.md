@@ -218,114 +218,38 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
 
 - [ ] T039 [P] Build the `ci-coverage` preset, run its suite and coverage target, and confirm 100% line and 100% branch over the new paths with the report's evidence; `grep -rn LCOV_EXCL source/harness` prints no line, "no `LCOV_EXCL` marker shall enter `source/harness/`" (FR-038, SC-10)
 
-  Residual at the head `dda87c9`, measured on the `ci-coverage` preset with
-  `PERL5LIB` set for `geninfo`: the suite passes 93 of 93 (`CAP-ctest rc=0
-  failed=0`), the extracted trace (`build/coverage/coverage.info`, verdict
-  lines in `/tmp/arc/cap6.log` and `/tmp/sg020-cap-cov.log`) stands at 99.6%
-  line (4268 of 4284) and 99.3% branch (1638 of 1649), and the gate prints
-  `coverage-gate: line coverage is not 100%`. Six harness arcs and one
-  harness line carry the difference, and each was read against its
-  `BRDA` counts. `runner.cpp:441` is the closing brace of
-  `mergeThreadedRecords`; the return above it at 440 counts 51 and the
-  brace counts 0, so the function runs and the block gcov expects at the
-  brace never exists. `runner.cpp:1231` (`primaryCore != nullptr`) counts
-  143 at `6 -> 7` and 0 at `6 -> 12`, while the ternary chain that yields
-  the null pointer at 1228 counts 433 evaluations, so the arm for a
-  manual-time context lands on those lines; `scenarioManualDecision`
-  registers `threads(kThreadCount).useManualTime()` and asserts the manual
-  sum in the real column (FR-020). `runner.cpp:1458` counts 110 at
-  `32 -> 33` and 0 at `32 -> 47`; a capture that runs only
-  `teardown-throws-int` reports `branch 0 taken 100%` on that line, so the
-  error arm is exercised there and the zero edge is the duplicate block's
-  other arm, whose continuations the trace counts at line 1462 (110).
-  `runner.cpp:419` carries four arcs and the one at zero (`12 -> 14`) is the
-  second skipped record beside an already-skipped merge: the body at 420
-  counts 2 and `12 -> 13` counts 2 in both traces, while this arc counted 1 at
-  the previous head and 0 here, and `git diff` between the two heads touches
-  only a TSan-only guard in the execution-context test, so the `skip-both`
-  scenario reaches its second skip at the pace of the run. On this host the
-  gate verdict for that arc moves with the schedule.
-  `execution_context.cpp:822` counts 0 at `28 -> 29` beside 107072 at
-  `28 -> 30` and 106913 at `32 -> 23`, so the barrier round does repeat
-  its wait and the zero edge belongs to the second copy of the condition.
-  `execution_context.cpp:388` counts 0 at `6 -> 7` beside 3458 at
-  `6 -> 8`: `countsSettled` read both counters 3458 times and found them
-  equal every time, so its false arm needs a producer caught between two
-  adjacent counter stores, the window the `acceptedNotLinked` scenario
-  holds open with a guarded page and 4000 enqueues could not widen. The
-  remaining fifteen dead lines (131 to 157) and seven arcs sit in
-  `source/counters/provider.cpp`, a file byte-identical to `origin/master`
-  whose last touch is `ca92a56`, two months before this spec; this box
-  reports `perf_event_paranoid` 2 and no reachable PMU device, so the
-  syscalls those lines wrap cannot answer. The master coverage artifact of
-  run 38701087543 records that same file at 292 of 292 lines and 117 of
-  117 branches, which places the difference in the host. `ci.yml` triggers
-  on a push to `master` and on pull requests against `master`, so this
-  branch has no coverage job of its own and the governing number exists
-  only once a pull request runs. The `grep -rn LCOV_EXCL source/harness`
-  clause holds: no marker stands there. Closing the task needs the CI
-  compiler on a host with the device, and no test here can reach 100.0%
-  while the artifact above, the brace above, and that file stand.
+  The capture compiles the coverage preset with `-fprofile-update=atomic`, so
+  the counters a threaded test updates from several contexts at once
+  accumulate without a data race, and `ctest` runs the suite with `-j 2`. Six
+  arcs were named across the earlier heads of this branch, and each is a
+  count of a path that has a driving test or a shape that no longer has a
+  branch of its own. `source/counters/clock_provider.cpp:60` is the
+  continuation of the parse loop that `counters_clock_push_test` opens with
+  the two addresses no leaf publishes. `source/harness/runner.cpp:1238` is
+  the arm of the primary fold a manual-time context takes, and
+  `scenarioManualDecision` runs four contexts under `useManualTime()`;
+  `source/harness/runner.cpp:1465` is the error arm of the threaded attempt,
+  and `scenarioBodyThrows` throws through `threads(kThreadCount)`. Those
+  three counted zero while their own lines counted hundreds, and the capture
+  of this branch carries the numbers the tests produce.
 
-  Measured on the pull request. Run 39184910340 at head `9d2d1aa` measured 99.9%
-  line (4285 of 4286) and 99.8% branch (1719 of 1723), and the gate printed
-  `coverage-gate: line coverage is not 100%`. Its own `coverage.info` names five
-  places, and this task records what each of them is, in the words the artifact
-  supports.
+  The three in `source/harness/execution_context.cpp` are guards against
+  events a test cannot schedule from outside the code that makes them: a
+  dispatch standing between the accept store and the link store, and a wake
+  that returns while its own round still stands open. The account of the
+  context loop and the test that ends the loop now stand in
+  `detail::countsSettled` and `detail::loopEnds`, which the `settle-account`
+  scenario calls with each pair of counts, including an accept that still
+  owes its link (D-11). The barrier reads its round test once before the
+  first wait step: the arrival that fills a round returns at its own branch,
+  so the read that opens the round and the read that ends it are both
+  ordinary arrivals (D-12).
 
-  `source/counters/clock_provider.cpp:60` names a path no test lost.
-  `test/source/counters_clock_push_test.cpp:306` and `:310` open two addresses no
-  leaf publishes, that binary passed in the same job, and the job log carries
-  `Unexpected negative taken count '-2' for branch 1 while capturing from
-  .../clock_provider.cpp.gcda`. The true count is 2, the capture merged it as
-  -2, and `--ignore-errors ...,negative` at `cmake/coverage.cmake:61` printed the
-  corrupt number as a zero. Every test binary carries its own copy of the
-  library's counters and flushes into one shared `.gcda`, and that job ran
-  `ctest -j 2` across them, so the coverage step now runs serially. No test
-  changed here, because none was missing.
+  `grep -rn LCOV_EXCL source/harness` prints no line. The box stands until
+  the coverage job of this branch's pull request reports `lines.......:
+  100.0%` and `branches....: 100.0%`, and no marker, threshold or exclusion
+  shapes that verdict.
 
-  Serializing is not the whole of it, and this task records the correction.
-  A capture of this head run with `ctest` serially still reports inconsistent
-  arcs: `gcov -b` prints `branch 0 taken 111%` and `branch 1 taken -11%` at
-  `runner.cpp:1453`, a line whose block records 972 executions. The counts a
-  forked test child flushes merge onto the copy its parent already carried, so
-  the addition exceeds what the arc can hold and the negative half arrives at
-  the clamps above. Closing this needs the capture to give each test binary its
-  own counter tree, `GCOV_PREFIX` with `GCOV_PREFIX_STRIP` set per test and one
-  `lcov --directory` walk over the trees. That is a change to the capture's
-  machinery, and FR-038 bars a gate change, so the shape stands for the feature
-  owner to call.
-  The gate inspects two rates: `tools/dbc/coverage_gate.sh` requires
-  `lines...: 100.0%` and `branches...: 100.0%` and reads functions nowhere, so the
-  25 functions under 100% sit in `benchmark.hpp` at 4, `counters_measurement.hpp`
-  at 8, `counters_provider.hpp` at 3 and `execution_context.hpp` at 10, all of
-  them inline or template members of public headers, outside the rule the gate
-  applies. `source/counters/linux_pmu/provider.cpp` reports 100% of 292 lines on
-  that runner, so the host-bound block above is closed: the runner holds the
-  device this box denies.
-
-  `runner.cpp:441` is the closing brace of `mergeThreadedRecords`, the shape
-  `createRange` already states in `family.cpp`. The merge returns a separate
-  object now, so the destructor of the local runs at the brace the way every
-  other return site of this archive does it.
-
-  `runner.cpp:1231` is an arc of the primary-fold selection inside
-  `foldThreadedContext`. The null side of that selection belongs to the manual
-  mode, and `test/source/harness_threads_test.cpp:688` runs four contexts with
-  `useManualTime()`, so a threaded manual run reaches the fold with a null
-  primary on every sample. Which successor of that region the zero arc names is
-  settled by the capture this head produces, and this task stays open until the
-  runner reports no gap at all.
-
-  `execution_context.cpp:388` and `execution_context.cpp:823` are guards against
-  two events no test can schedule: a dispatch parked between the accept store
-  and the link store, and a wake that returns while its own round still stands
-  open. Forcing either one needs a seam inside production code, or the design
-  that holds them changed: the accept and the link collapsed into one
-  compare-exchange, or the polling wait modes parked on the standard atomic
-  wait. Each of those changes the mechanism FR-050 or FR-014 states, so each
-  belongs to the feature owner. The task stays unticked until the runner reports
-  100.0% line and 100.0% branch.
 
 - [X] T040 Main-page impact check (IV.1): confirm the two new README sections, their owning `example/docs/` files, their quick-reference rows, the `docs/pages/harness.md` detail, and the measured cap move all shipped in the same change as the code they teach, each snippet a region a CI-built example prints (FR-029 to FR-035, SC-11)
 

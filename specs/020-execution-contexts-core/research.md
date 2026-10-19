@@ -403,3 +403,42 @@ plan's run, rejected: an unread hash is a fabricated citation and a
 moving `main` breaks cross-spec comparability; reading a vendored
 copy, impossible: the spec admits none and this feature links nothing
 from Google Benchmark.
+
+## D-11: The loop end test stands as one predicate over the dispatch pair
+
+**Decision**: `detail::countsSettled(accepted, dispatched)` holds the account
+of one context and `detail::loopEnds(stopRequested, accepted, dispatched)`
+holds the end test the loop reads; `runContextLoop` loads the two counts at
+the call site and reads that one predicate. The `settle-account` scenario of
+`harness_execution_context_test` drives every outcome of both.
+
+**Rationale**: FR-006 and FR-050 need the loop to turn away from its end while
+an accept stands between its count and its link, and that window is a race no
+test can open on purpose from the outside of the enqueue call. The test of the
+pair therefore lives in a function a scenario can call with each pair of
+counts, while the loop keeps one branch whose two arms every run reaches.
+
+## D-12: The barrier reads the round test once before its first wait step
+
+**Decision**: `ContextBarrier::arriveAndWait` reads the test
+`m_generation == enteredRound` once before its first wait step and re-reads
+it after each step, where the round's test used to stand only at the foot of
+the loop body.
+
+**Rationale**: the generation advances at the one arrival that fills the
+round, and that arrival returns at its own branch above the wait, so every
+participant that reaches the wait provably stands inside an open round and
+reads the test true at that first read; the read that ends the round gives the
+other arm (FR-014, FR-049).
+
+## D-13: The wait-mode proof reads the kernel's per-thread switch counter
+
+**Decision**: `harness_context_barrier_test` proves that a BLOCK participant
+parked by reading `voluntary_ctxt_switches` from
+`/proc/self/task/<id>/status` on the observer side, and holds a released
+participant on a permit flag until its counter has been read a last time.
+
+**Rationale**: a park and a spin differ in scheduler state alone, and the two
+observers of that state are a clock and a scheduler counter; the rules of
+these tests bar a clock, a sleep and any wait bounded by elapsed time, so the
+counter carries the proof (FR-014).
