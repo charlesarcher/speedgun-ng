@@ -552,7 +552,8 @@ auto dispatchNode(const ExecutionContext& context, WorkNodeBase& node) -> void
   // FR-009, FR-012: a node stands in at most one inbox at a time, so the
   // dispatch of a node another dispatch still owns is a contract
   // violation. A caller may reuse a node once it reads DONE or STOPPED.
-  const WorkNodeState prior = node.completion.load(std::memory_order_relaxed);
+  [[maybe_unused]] const WorkNodeState prior =
+      node.completion.load(std::memory_order_relaxed);
   SG_REQUIRE(prior != WorkNodeState::RUNNING
                  && (prior != WorkNodeState::PENDING || !node.accepted),
              "dispatch of a node that stands in a queue (FR-009, FR-012)");
