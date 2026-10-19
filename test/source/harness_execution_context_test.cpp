@@ -1990,6 +1990,24 @@ auto scenarioSettleAccount() -> int
   return 0;
 }
 
+// FR-014: the barrier lets no participant enter its wait behind a round that
+// closed while it was on its way in, because the arrival that fills a round is
+// the arrival that releases it. A direct call stands as the one entry that
+// starts on a released round, and each of the three modes leaves that entry
+// without a turn (D-12).
+auto scenarioReleasedWait() -> int
+{
+  std::atomic<std::uint64_t> releasedRound {1};
+  sg::detail::waitRoundReleased(releasedRound, 0, sg::WaitMode::SPIN);
+  sg::detail::waitRoundReleased(releasedRound, 0, sg::WaitMode::YIELD);
+  sg::detail::waitRoundReleased(releasedRound, 0, sg::WaitMode::BLOCK);
+  check(releasedRound.load() == 1,
+        "a wait that starts behind its release leaves the round it found "
+        "(FR-014)");
+  std::puts("harness_execution_context_test released-wait: ok");
+  return 0;
+}
+
 // FR-003, FR-006, FR-050: the two tables the context loop and `drain()` read,
 // held apart from their reads so each outcome stands here. The walk's table
 // decides one pass from the successor link, the tail's position and the
@@ -2033,7 +2051,7 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 27> kScenarios {
+constexpr std::array<Mode, 28> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -2046,6 +2064,7 @@ constexpr std::array<Mode, 27> kScenarios {
     Mode {.name = "acceptedThenDrained", .run = &scenarioAcceptedThenDrained},
     Mode {.name = "refusedAfterStop", .run = &scenarioRefusedAfterStop},
     Mode {.name = "settle-account", .run = &scenarioSettleAccount},
+    Mode {.name = "released-wait", .run = &scenarioReleasedWait},
     Mode {.name = "walk-states", .run = &scenarioWalkStates},
     Mode {.name = "drainWithoutStop", .run = &scenarioDrainWithoutStop},
     Mode {.name = "completionOrder", .run = &scenarioCompletionOrder},
