@@ -354,11 +354,30 @@ auto fivefoldStaysExempt() -> void
   record.realNs = 5000;
   record.decisionNs = 10;
   record.manual = true;
-  check(!sg::detail::qualifies(record, 1000),
+  check(!sg::detail::qualifies(record, 1000, record.iterations),
         "a manual run at five times the target stays unqualified (FR-006)");
   record.manual = false;
-  check(sg::detail::qualifies(record, 1000),
+  check(sg::detail::qualifies(record, 1000, record.iterations),
         "the same record qualifies when the run is not manual (FR-008)");
+}
+
+// FR-020, FR-046: the cap stands on the count one context ran. A threaded
+// sample carries the sum of those counts, and that sum stays out of the test.
+// The record of four contexts that each ran half the cap sums past the cap and
+// sits below it per context, and each answer of the stop test is read here.
+auto capStandsOnTheContextCount() -> void
+{
+  auto record = sg::detail::RunRecord {};
+  record.iterations = 2 * sg::detail::kIterationCap;
+  record.realNs = 0;
+  record.decisionNs = 0;
+  record.manual = true;
+  check(!sg::detail::qualifies(record, 1000, sg::detail::kIterationCap / 2),
+        "a threaded sample whose sum stands past the cap while each context "
+        "sits below it stays unqualified (FR-020, FR-046)");
+  check(sg::detail::qualifies(record, 1000, sg::detail::kIterationCap),
+        "the context count that reaches the cap qualifies the run "
+        "(FR-008, FR-016)");
 }
 
 // The spec edge case, rule half: with a sum of zero the growth rule keeps
@@ -384,6 +403,7 @@ auto emptySumGrowsToTheCap() -> void
 auto scenarioRule() -> int
 {
   fivefoldStaysExempt();
+  capStandsOnTheContextCount();
   emptySumGrowsToTheCap();
   std::puts("harness_manual_time_test rule: ok");
   return 0;
