@@ -427,9 +427,9 @@ roadmap spec in the spec Out list, and X.2 keeps it out.
 | III | PASS. The logical views carry the contracts, the physical view names the file, namespace, and target of each piece, and TDD mode stands recorded. |
 | IV | PASS. The header blocks state each contract once; the two sections teach the surface and the detail page carries the table and the lifecycle rules (FR-029 to FR-033). |
 | V | PASS. N-1, N-2, N-4, and N-12 cover every new name as the pre-design row lists; the name check sees no new macro and no unexpanded acronym. |
-| VI | PARTIAL. The four executables plus the report-shape extension cover the wait-mode branches, the lifecycle and stopped-dispatch branches, the barrier arms, the merge and skip arms, the disclosure line, and the four warning cases; contract lines stay free per the coverage rule. T039 records the measured residual, names where it sits, and keeps the gate open (FR-038). |
+| VI | T039 OPEN. The four executables plus the report-shape extension cover the wait-mode branches, the lifecycle and stopped-dispatch branches, the barrier arms, the merge and skip arms, the disclosure line, and the four warning cases; contract lines stay free per the coverage rule. T039 records the measured residual, names where it sits, and keeps the gate open (FR-038). |
 | VII | PASS. The timed loop's shape is untouched (`loop_shape` green); dispatch is two atomics; the wait reads one word; everything else runs cold after the stop barrier (R-05, R-06). |
-| VIII | PARTIAL. The version table records the `SOVERSION` rise FR-043 requires; `ci-tsan` and `ci-sanitize` carry every new path. The coverage gate stands open at this head, and T039 carries its verdict. |
+| VIII | T039 OPEN for the coverage gate. The version table records the `SOVERSION` rise FR-043 requires; `ci-tsan` and `ci-sanitize` carry every new path. The coverage gate stands open at this head, and T039 carries its verdict. |
 | IX | PASS. Every artifact of R-DCUT lives in the feature directory. |
 | X | PASS. One new source, one new header, three spec-named seams recorded in Complexity Tracking, and nothing for a use case that does not exist yet (the spec's own words, "Hooks for H16"). |
 | XI | PASS. The artifacts pass the prose and spell gates at generation. |

@@ -267,15 +267,23 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
   compiler on a host with the device, and no test here can reach 100.0%
   while the artifact above, the brace above, and that file stand.
 
-  Measured on the pull request. Run 39182805670 at head `0131207` carried the
-  `coverage` job through its test step to the measurement: the summary reports
-  99.9% line (4285 of 4286), 99.8% branch (1719 of 1723) and 96.3% function
-  (657 of 682), and the gate prints `coverage-gate: line coverage is not 100%`.
-  The earlier run of this branch, 39178988806, had died at
-  `counters_linux_pmu_seam_test` with a stack-smashing abort before any
-  measurement; the same job on the same code family reached the target here, and
-  the `test` job passed 93 of 93 at 20m0s, so that abort belongs to the runner.
-  The gate inspects two of the three rates: `tools/dbc/coverage_gate.sh` requires
+  Measured on the pull request. Run 39184910340 at head `9d2d1aa` measured 99.9%
+  line (4285 of 4286) and 99.8% branch (1719 of 1723), and the gate printed
+  `coverage-gate: line coverage is not 100%`. Its own `coverage.info` names five
+  places, and this task records what each of them is, in the words the artifact
+  supports.
+
+  `source/counters/clock_provider.cpp:60` names a path no test lost.
+  `test/source/counters_clock_push_test.cpp:306` and `:310` open two addresses no
+  leaf publishes, that binary passed in the same job, and the job log carries
+  `Unexpected negative taken count '-2' for branch 1 while capturing from
+  .../clock_provider.cpp.gcda`. The true count is 2, the capture merged it as
+  -2, and `--ignore-errors ...,negative` at `cmake/coverage.cmake:61` printed the
+  corrupt number as a zero. Every test binary carries its own copy of the
+  library's counters and flushes into one shared `.gcda`, and that job ran
+  `ctest -j 2` across them. The step now runs serially, which removes the
+  concurrent merge. No test changed here, because none was missing.
+  The gate inspects two rates: `tools/dbc/coverage_gate.sh` requires
   `lines...: 100.0%` and `branches...: 100.0%` and reads functions nowhere, so the
   25 functions under 100% sit in `benchmark.hpp` at 4, `counters_measurement.hpp`
   at 8, `counters_provider.hpp` at 3 and `execution_context.hpp` at 10, all of
@@ -284,19 +292,28 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
   that runner, so the host-bound block above is closed: the runner holds the
   device this box denies.
 
-  What is left is one line and four arcs, each inside this feature's two files.
-  `runner.cpp:441` is the brace named above. `runner.cpp:419` keeps the
-  `12 -> 14` arc, the second skipped record beside an already-skipped merge, and
-  `runner.cpp:1231` keeps the null arm of `primaryCore != nullptr`, the two
-  readings this ledger already carried. `execution_context.cpp:388` keeps its
-  false arm, the producer caught between two adjacent counter stores. The barrier
-  condition now reports at `execution_context.cpp:823` where this host reported
-  `822`, the same `do`-`while` condition at the line gcov attributes it to, and
-  its second-copy arc stays at zero. Three of the four arcs need a race to be
-  lost during the capture, and the line needs a block gcov does not find, so the
-  task stays open at 99.9% and 99.8%: reaching 100.0% on the runner would take a
-  seam that forces the lost race, or a restructure that removes the untaken arm.
-  Both are design changes beyond this feature's plan, and neither is taken here.
+  `runner.cpp:441` is the closing brace of `mergeThreadedRecords`, the shape
+  `createRange` already states in `family.cpp`. The merge returns a separate
+  object now, so the destructor of the local runs at the brace the way every
+  other return site of this archive does it.
+
+  `runner.cpp:1231` is an arc of the primary-fold selection inside
+  `foldThreadedContext`. The null side of that selection belongs to the manual
+  mode, and `test/source/harness_threads_test.cpp:688` runs four contexts with
+  `useManualTime()`, so a threaded manual run reaches the fold with a null
+  primary on every sample. Which successor of that region the zero arc names is
+  settled by the capture this head produces, and this task stays open until the
+  runner reports no gap at all.
+
+  `execution_context.cpp:388` and `execution_context.cpp:823` are guards against
+  two events no test can schedule: a dispatch parked between the accept store
+  and the link store, and a wake that returns while its own round still stands
+  open. Forcing either one needs a seam inside production code, or the design
+  that holds them changed: the accept and the link collapsed into one
+  compare-exchange, or the polling wait modes parked on the standard atomic
+  wait. Each of those changes the mechanism FR-050 or FR-014 states, so each
+  belongs to the feature owner. The task stays unticked until the runner reports
+  100.0% line and 100.0% branch.
 
 - [X] T040 Main-page impact check (IV.1): confirm the two new README sections, their owning `example/docs/` files, their quick-reference rows, the `docs/pages/harness.md` detail, and the measured cap move all shipped in the same change as the code they teach, each snippet a region a CI-built example prints (FR-029 to FR-035, SC-11)
 
