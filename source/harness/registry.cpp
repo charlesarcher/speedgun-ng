@@ -531,10 +531,9 @@ namespace detail
 // FR-016, FR-024: the doubling of the cited ThreadRange. The bound test
 // stands in the loop condition, so bounds that stand out of order, and a
 // lower bound below one, describe the empty set here: where contracts stand
-// the require of the call answers
-// that mistake, and this is the account a build without contracts reaches.
-// `std::int64_t` holds the doubled value past the bound, so no
-// multiplication overflows.
+// the require of the call answers that mistake, and this is the account a
+// build without contracts reaches. `std::int64_t` holds the doubled value past
+// the bound, so no multiplication overflows.
 auto buildThreadCounts(const int minCount,
                        const int maxCount) -> std::vector<int>
 {
@@ -544,7 +543,12 @@ auto buildThreadCounts(const int minCount,
   {
     counts.push_back(static_cast<int>(count));
   }
-  return counts;
+  // A `return counts;` would make `counts` the return object itself, and gcov
+  // would then attach an unexecutable count-zero record to the closing brace.
+  // Returning a separate object leaves the destructor of `counts` to run at the
+  // brace, which every call executes (the pattern createRange states in
+  // family.cpp).
+  return std::vector<int>(counts);
 }
 
 // FR-016, FR-024: the stride of the cited DenseThreadRange, with the same
@@ -562,7 +566,9 @@ auto buildDenseThreadCounts(const int minCount,
   {
     counts.push_back(static_cast<int>(count));
   }
-  return counts;
+  // The separate return object keeps gcov's count-zero record off the brace
+  // below, for the reason stated at buildThreadCounts.
+  return std::vector<int>(counts);
 }
 
 }  // namespace detail
