@@ -10,14 +10,16 @@ PROJECT_NUMBER = "@PROJECT_VERSION@"
 INPUT = "@PROJECT_SOURCE_DIR@/README.md" "@PROJECT_SOURCE_DIR@/include" "@PROJECT_SOURCE_DIR@/docs/pages"
 EXTRACT_ALL = YES
 
-# m.css pinned at 4a1324c has no `concept` compound kind, and its
+# m.css pinned at 4a1324c knows no `concept` compound kind, and its
 # dispatch asserts on any kind it does not know, so a documented C++20
-# concept aborts the whole documentation build. Upstream m.css master
-# has no concept support either, so the pin cannot be bumped past it.
-# The concept is a one-line `std::derived_from` alias over
-# `ProviderIface`, whose own documentation already states the shape a
-# provider implements, so nothing is lost from the rendered docs.
-EXCLUDE_SYMBOLS = provider
+# concept aborts the whole documentation build. Upstream m.css has no
+# concept support to move past either: mosra/m.css#232 was closed
+# without merging. `WorkItem` stands excluded so its contract lives in
+# the README table and in its header comment, a page the generator
+# cannot render never being made for it. `provider` entered the list the
+# same way, for a concept alias over the provider interface since
+# retired from the public headers.
+EXCLUDE_SYMBOLS = provider WorkItem
 RECURSIVE = YES
 OUTPUT_DIRECTORY = "@DOXYGEN_OUTPUT_DIRECTORY@"
 
