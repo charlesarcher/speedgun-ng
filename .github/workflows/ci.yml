@@ -68,7 +68,11 @@ jobs:
 
     - name: Test
       working-directory: build/coverage
-      run: ctest --output-on-failure --no-tests=error -j 2
+      # Serial on purpose. Every test binary carries its own copy of the
+      # library's counters and flushes into one shared .gcda, and a concurrent
+      # read-modify-write of that file corrupts taken counts, which the capture
+      # then reports as coverage a test did take.
+      run: ctest --output-on-failure --no-tests=error
 
     - name: Process coverage info
       run: cmake --build build/coverage -t coverage
