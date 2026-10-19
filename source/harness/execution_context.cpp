@@ -167,8 +167,9 @@ enum class LoopPhase : std::uint8_t
   EXITED,
 };
 
-// E-01, FR-001: the live state of one context, stood behind the header's
-// object, which is its key through the control side table below.
+// E-01, FR-001: the live state of one context. The header's object owns it
+// through a pointer, and the thread-current control slot below names the one
+// whose node this thread runs (FR-011).
 // NOLINTNEXTLINE(misc-use-internal-linkage) the block behind the header's
 // object
 struct ContextControl
@@ -385,15 +386,14 @@ auto waitInboxEmpty(const detail::ContextControl& control) -> void
   }
 }
 
-// FR-006, FR-050: the one account both empty proofs read: every accept
-// stands matched by its dispatch, either linked into the inbox or refused
-// after the stop. The two count reads close the window between another
-// thread's accept and its exchange, so a proof that finds the pair apart
-// turns away and stands again, and no accepted node is ever left behind.
+// FR-006, FR-050: the one account both empty proofs read, in the counts of
+// this control. The test of the pair stands in `detail::countsSettled`, where
+// a scenario drives each outcome of it (FR-050).
 auto countsSettled(const detail::ContextControl& control) -> bool
 {
-  return control.acceptCount.load(std::memory_order_seq_cst)
-      == control.dispatchCount.load(std::memory_order_seq_cst);
+  return detail::countsSettled(
+      control.acceptCount.load(std::memory_order_seq_cst),
+      control.dispatchCount.load(std::memory_order_seq_cst));
 }
 
 // The event loop of FR-001 on the one owned thread: take the oldest node
@@ -415,18 +415,23 @@ auto runContextLoop(detail::ContextControl& control) -> void
       // are the account both proofs read: an accept counted before the
       // stop stands in it, and the loop turns again until that accept
       // stands linked, so no accepted node is ever left behind.
-      if (control.stopRequested.load(std::memory_order_seq_cst)) {
-        if (countsSettled(control)) {
-          control.phase.store(detail::LoopPhase::EXITED,
-                              std::memory_order_release);
-          control.idleEpoch.fetch_add(1, std::memory_order_release);
-          control.idleEpoch.notify_all();
-          return;
-        }
-      } else {
+      const bool stopped =
+          control.stopRequested.load(std::memory_order_seq_cst);
+      if (!stopped) {
         control.phase.store(detail::LoopPhase::IDLE, std::memory_order_release);
         control.idleEpoch.fetch_add(1, std::memory_order_release);
         control.idleEpoch.notify_all();
+      }
+      if (detail::loopEnds(
+              stopped,
+              control.acceptCount.load(std::memory_order_seq_cst),
+              control.dispatchCount.load(std::memory_order_seq_cst)))
+      {
+        control.phase.store(detail::LoopPhase::EXITED,
+                            std::memory_order_release);
+        control.idleEpoch.fetch_add(1, std::memory_order_release);
+        control.idleEpoch.notify_all();
+        return;
       }
 
       // Consume the flag after the proof, so an enqueue that set it
@@ -523,6 +528,26 @@ auto participantWaitMode() -> WaitMode
 
 namespace detail
 {
+
+// FR-006, FR-050: the dispatch account, held apart from the two count reads
+// so each outcome of the test of the pair stands in a test of its own. An
+// accept counted before the stop stands in the account; an accept that reads
+// the stop withdraws before the enqueue call returns (E-03).
+auto countsSettled(const std::uint64_t accepted,
+                   const std::uint64_t dispatched) noexcept -> bool
+{
+  return accepted == dispatched;
+}
+
+// FR-006, FR-050: the end test the context loop reads. A loop with the stop
+// still open has no end to reach, since work still owed it may stand in the
+// inbox on the next pass.
+auto loopEnds(const bool stopRequested,
+              const std::uint64_t accepted,
+              const std::uint64_t dispatched) noexcept -> bool
+{
+  return stopRequested && countsSettled(accepted, dispatched);
+}
 
 // NOLINTNEXTLINE(misc-use-internal-linkage) the accessor the class befriends
 // FR-001, FR-002: the block the object owns. The construction makes it and
@@ -809,12 +834,16 @@ auto ContextBarrier::arriveAndWait() -> void
   // that completed between this arrival and this point stands advanced past
   // the captured value already. A generation read here would be taken as the
   // round to wait on, and this barrier never advances past it (FR-014,
-  // FR-049). The wait takes its first step before the round is tested, so a
-  // participant whose round closed during its own arrival spends one hint
-  // and no sleep: the atomic wait returns at once once the generation has
+  // FR-049). The test of the round this call stands in is read once before
+  // the first hint: only the arrival that fills the round advances the
+  // generation, and that arrival returned at its own branch above, so every
+  // participant that reaches here stands inside an open round and reads the
+  // test true at that first read. The wait reads no clock and takes no
+  // timeout, so the atomic wait returns at once once the generation has
   // moved, and the other two arms are pure hints (FR-014, FR-049).
   const WaitMode mode = participantWaitMode();
-  do {
+  bool roundOpen = m_generation.load(std::memory_order_acquire) == enteredRound;
+  while (roundOpen) {
     // FR-014: the same three clock-free paths as the context loop, in the
     // mode of the participant's own policy, so a spinning participant
     // never sleeps inside the barrier. BLOCK stands in the standard
@@ -828,7 +857,8 @@ auto ContextBarrier::arriveAndWait() -> void
     } else {
       m_generation.wait(enteredRound);
     }
-  } while (m_generation.load(std::memory_order_acquire) == enteredRound);
+    roundOpen = m_generation.load(std::memory_order_acquire) == enteredRound;
+  }
   SG_ENSURE(
       m_generation.load(std::memory_order_acquire) != enteredRound,
       "a round that released without advancing the generation " "(FR-014)");
