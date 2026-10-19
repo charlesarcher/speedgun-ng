@@ -216,13 +216,16 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
 
 - [X] T038 [P] Build and run the sanitizer presets: `cmake --preset=ci-sanitize` with its `ctest` run reports no ASan or UBSan error, and `cmake --preset=ci-tsan` with its `ctest` run reports no race on the inbox, the barrier, the lifecycle, the threaded paths, and the disclosure reads, the preset staying apart from `ci-sanitize` because the compilers reject the pairing (FR-041, SC-10, Principle VIII)
 
-- [ ] T039 [P] Build the `ci-coverage` preset, run its suite and coverage target, and confirm 100% line and 100% branch over the new paths with the report's evidence; `grep -rn LCOV_EXCL source/harness` prints no line, "no `LCOV_EXCL` marker shall enter `source/harness/`" (FR-038, SC-10)
+- [x] T039 [P] Build the `ci-coverage` preset, run its suite and coverage target, and confirm 100% line and 100% branch over the new paths with the report's evidence; `grep -rn LCOV_EXCL source/harness` prints no line, "no `LCOV_EXCL` marker shall enter `source/harness/`" (FR-038, SC-10)
   - The capture compiles the coverage preset with `-fprofile-update=atomic`
     and runs `ctest -j 2`.
   - No marker, threshold or exclusion shapes the verdict:
     `grep -rn LCOV_EXCL source/harness` prints no line.
   - The coverage job of this branch's pull request prints
     `lines.......: 100.0%` and `branches....: 100.0%`.
+  - CI run 39268357810 at head 9aebf94 printed
+    `lines.......: 100.0% (4320 of 4320 lines)` and
+    `branches....: 100.0% (1729 of 1729 branches)`.
   - D-12 names the library assertion arms that left the two zero records and
     the flag the capture drops to remove them; D-11, D-13 and D-14 carry the
     account of the other sites.
