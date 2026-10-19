@@ -1525,24 +1525,27 @@ auto readVoluntarySwitches(const long taskId) -> long
   return switches;
 }
 
-// Milliseconds on the monotonic clock, the unit of a witness budget.
-auto monotonicMs() -> long long
-{
-  timespec now {};
-  ::clock_gettime(CLOCK_MONOTONIC, &now);
-  return static_cast<long long>(now.tv_sec) * 1000 + now.tv_nsec / 1000000;
-}
-
-// True once a witness budget is spent.
-[[nodiscard]] auto ranOut(const long long deadline) noexcept -> bool
-{
-  return monotonicMs() >= deadline;
-}
-
 // The room a witness gets before the scenario calls its absence a gap in the
 // host. Both witnesses below come from outside the process, and an
 // instrumented build on a loaded runner can keep either one from arriving.
-constexpr long long kWitnessBudgetMs = 30000;
+// The budget counts one-millisecond sleeps. The time-source gate of D-6 bars
+// every clock from this file, so no deadline can be read here.
+constexpr int kWitnessPollCount = 30000;
+
+// True once the witness stayed false through the whole budget of polls. Each
+// poll hands over the processor, which is what the thread under witness needs.
+template<typename Witness>
+auto ranOut(Witness seen) -> bool
+{
+  const timespec tick {0, 1000000};
+  for (int poll = 0; poll < kWitnessPollCount; ++poll) {
+    if (seen()) {
+      return false;
+    }
+    ::nanosleep(&tick, nullptr);
+  }
+  return true;
+}
 }  // namespace
 #endif  // !SG_TEST_HAS_TSAN
 
@@ -1621,12 +1624,9 @@ auto scenarioAcceptedNotLinked() -> int
   // The entry flag comes from the fault handler, and a runtime that takes
   // SIGSEGV first can keep it down. The wait carries a budget, so a host that
   // withholds the witness reports a skip in place of a hung test (FR-006).
-  const long long entryDeadline = monotonicMs() + kWitnessBudgetMs;
-  while (!faultWindow.entered.load(std::memory_order_acquire)
-         && !ranOut(entryDeadline))
-  {
-  }
-  if (!faultWindow.entered.load(std::memory_order_acquire)) {
+  const auto sawEntry = [&]
+  { return faultWindow.entered.load(std::memory_order_acquire); };
+  if (ranOut(sawEntry)) {
     faultWindow.release.store(true, std::memory_order_release);
     producer.join();
     context.requestStop();
@@ -1669,11 +1669,12 @@ auto scenarioAcceptedNotLinked() -> int
   // the drainer inside one long slice, so this wait carries the same budget
   // and states its skip when the record stays flat (FR-006).
   long switches = switchesBefore;
-  const long long switchDeadline = monotonicMs() + kWitnessBudgetMs;
-  while (switches == switchesBefore && !ranOut(switchDeadline)) {
+  const auto sawSwitch = [&]
+  {
     switches = readVoluntarySwitches(drainerTask.load());
-  }
-  if (switches == switchesBefore) {
+    return switches != switchesBefore;
+  };
+  if (ranOut(sawSwitch)) {
     faultWindow.release.store(true, std::memory_order_release);
     producer.join();
     drainer.join();
