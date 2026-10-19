@@ -418,24 +418,34 @@ test can open on purpose from the outside of the enqueue call. The test of the
 pair therefore lives in a function a scenario can call with each pair of
 counts, while the loop keeps one branch whose two arms every run reaches.
 
-## D-12: The barrier tests its round at the foot of the wait
+## D-12: The barrier's wait reads the round at the head of its body
 
-**Decision**: `ContextBarrier::arriveAndWait` takes its wait hint first and
-reads the round through `detail::roundOpen` at the foot of the wait, where the
-shape before this change read that test once before the first hint and again at
-the foot of the body.
+**Decision**: `ContextBarrier::arriveAndWait` releases at its own branch, and
+every other path waits in an endless loop whose body reads the generation first
+and takes one hint of the participant's mode where the round still stands open.
 
-**Rationale**: only the arrival that fills a round advances the generation, and
-that arrival returns at its own branch above the wait, so a participant that
-reaches the wait provably stands inside an open round and a test before the
-first hint has one outcome it can never answer; the hint taken at that point is
-a pure hint, and the atomic wait answers at once where the generation already
-moved (FR-014, FR-049). The comparison of the generation against the captured
-round stands in `detail::roundOpen` so the loop carries the two outcomes of the
-round and nothing else: a comparison written in the head or the foot of a loop
-shares its line with the back edge, and gcov counts one fall-through of that
-comparison that the code layout never reaches (coverage gate FR-038). The
-`walk-states` scenario calls `roundOpen` with both pairs.
+**Rationale**: the head of the body is the place where the read answers both
+ways under ordinary barrier use: an arrival that comes behind a round that
+closed while it was on its way in leaves before it takes a turn, and a waiting
+participant turns and leaves at the same read once the release reaches it. The
+shape follows from the records the report printed at head 325ef45, where the
+line of a `do`/`while` foot test carried four branch records counting 0,
+11945063, 11944786 and 277: the compiler sets the read ahead of the body, so
+the arm that skips the body once stood at zero. The same zero came back for a
+read feeding the head of a `while` and for a read standing behind the hints of
+a `for(;;)` (FR-014, FR-049, coverage gate FR-038).
+
+## D-13: The wait-mode proof reads the kernel's per-thread switch counter
+
+**Decision**: `harness_context_barrier_test` proves that a BLOCK participant
+parked by reading `voluntary_ctxt_switches` from
+`/proc/self/task/<id>/status` on the observer side, and holds a released
+participant on a permit flag until its counter has been read a last time.
+
+**Rationale**: a park and a spin differ in scheduler state alone, and the two
+observers of that state are a clock and a scheduler counter; the rules of
+these tests bar a clock, a sleep and any wait bounded by elapsed time, so the
+counter carries the proof (FR-014).
 
 ## D-14: The walk decision and the drain proof stand as tables
 
@@ -452,14 +462,16 @@ is a matter of scheduling; the window needs no test of its own once the table
 carries the outcome, and both tables stand where a scenario drives every row
 (D-01, FR-003, FR-006, FR-050).
 
-## D-13: The wait-mode proof reads the kernel's per-thread switch counter
+The pass that holds no node marks the loop idle and parks in the policy wait,
+so a `PENDING` pass shares the empty inbox's path: one phase store, one epoch
+increment with its notify, and for a BLOCK policy a park until a dispatch or
+the stop wakes the loop. The cost of the open window is one idle signal with
+possibly one park and one wake ahead of the reload, an amount no benchmark of
+this feature measures (plan risks, Principle VII).
 
-**Decision**: `harness_context_barrier_test` proves that a BLOCK participant
-parked by reading `voluntary_ctxt_switches` from
-`/proc/self/task/<id>/status` on the observer side, and holds a released
-participant on a permit flag until its counter has been read a last time.
-
-**Rationale**: a park and a spin differ in scheduler state alone, and the two
-observers of that state are a clock and a scheduler counter; the rules of
-these tests bar a clock, a sleep and any wait bounded by elapsed time, so the
-counter carries the proof (FR-014).
+The walk reads the tail before the successor link, in one order on every pass.
+The acquire of the tail's exchange orders out a link the last re-anchor
+cleared, so a link the walk owns from a cleared sentinel cannot be taken as a
+node. The `walk-states` scenario drives every row of the table, and the
+`order` scenario runs the walk under two dispatchers that start together on an
+atomic gate (D-01, FR-003).
