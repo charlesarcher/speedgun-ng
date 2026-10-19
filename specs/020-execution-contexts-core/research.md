@@ -418,44 +418,50 @@ test can open on purpose from the outside of the enqueue call. The test of the
 pair therefore lives in a function a scenario can call with each pair of
 counts, while the loop keeps one branch whose two arms every run reaches.
 
-## D-12: The barrier's wait stands split by mode
+## D-12: The coverage capture builds without the library's assertion flag
 
-**Decision**: `ContextBarrier::arriveAndWait` releases at its own branch, then
-waits by the participant's mode, each mode holding its own wait: `BLOCK` parks
-once in the atomic wait on the generation with no test of its own, and `SPIN`
-and `YIELD` take one hint and re-read the round at the foot of a `do`/`while`.
-The wait stands as `detail::waitRoundReleased`, declared in `detail/internal.hpp`
-and defined in the barrier's translation unit, and `arriveAndWait` calls it once
-with the mode its policy names. A participant that comes behind a round that
-closed while it was on its way in leaves `BLOCK` without a turn, because that
-wait returns at once on a value that has left the round it was given, and leaves
-the other two after one hint. That entry stands beyond the barrier's contract,
-which lets the arrival that filled a round release it, so the `released-wait`
-scenario of the execution context test enters the wait by direct call on a
-generation that already left the round it was given.
+**Decision**: `ci-coverage` overrides `CMAKE_CXX_FLAGS` so the capture drops
+`-D_GLIBCXX_ASSERTIONS`, the flag the hidden `flags-gcc-clang` preset carries
+into every other build. The test, sanitize, tsan and rocky jobs keep the flag,
+so the library assertions stay live in every run that could trip one. The
+capture gains no marker, no threshold, and no change to its suite or to
+`-fprofile-update=atomic`.
 
-**Rationale**: one loop with a shared head test could not reach its fourth
-branch record. The report of head 240bc59 counted the read 11646952 times
-against 5823476 turns of that loop, so the compiler kept two copies of the
-read: the loop's own test closed on the back edge, where 5823207 turns
-continued and 269 exited against 269 participants entered, and the entry
-copy's still-open arm stood at zero. The assembly of that one function holds
-five compares of the generation against the entered round, the copy ahead of
-the loop standing right after the wait-mode test. Only an arrival behind a
-release answers that arm before a first turn, and the arrival that filled the
-round is that arrival, but the compiler carries the value its own `fetch_add`
-wrote along that edge, so the evaluation folds away and the arm stays
-unreachable. Split by mode the same duplication stands on each spinning arm: the
-capture of the split counted the spin's foot test 73642 times against 36821
-turns, with the entry copy's still-open arm at zero, and the yield arm carried
-the same pair. A `switch` over the mode adds an edge no arrival can answer, the
-out-of-range arm of the enumeration, so the split stands as an `if`/`else` chain
-whose last arm carries the parked mode. The direct call is what answers the entry
-copy: it reaches the wait on a released round, holds it for no turn, and leaves
-the round it found standing. The C++ text allows the atomic wait to return
-spuriously; libstdc++ and libc++ on the supported platforms re-test the value
-inside it, and the call's exit invariant stands after every arm (FR-004, FR-014,
-FR-039, coverage gate FR-038).
+**Rationale**: two branch records stood at zero, one on each spinning arm of the
+barrier's wait, and the pull request's coverage job printed
+`branches....: 99.9% (1732 of 1734 branches)` at head 049bc60 with lines at
+100.0%. The gate's own `coverage.info` named them: a block edge on line 863 of
+`execution_context.cpp` carried a count of zero, and line 867 carried its twin.
+The instrumented object names the owner. Each of those lines calls
+`std::atomic<std::uint64_t>::load`, and with `_GLIBCXX_ASSERTIONS` defined that
+function opens with two library assertions, at lines 866 and 867 of
+`/usr/include/c++/16/bits/atomic_base.h`:
+
+    __glibcxx_assert(__b != memory_order_release);
+    __glibcxx_assert(__b != memory_order_acq_rel);
+
+The disassembly of the wait holds both. The order reaches `%eax`, the code then
+compares it against 3 and against 4, each compare with a cold target that loads
+the assertion text and calls `std::__glibcxx_assert_fail`, and only after them
+stands the load with its comparison against the entered round. Every load of the
+generation in this project carries `acquire`, so both cold arms are unreachable
+by construction: they check the argument a caller passes to a standard library
+operation, and no benchmark, scenario or fixture hands a load an order the
+standard bars there. Dropping the flag from the capture drops those two arms
+with it, and each foot test then holds one comparison whose two answers the
+capture counts. The capture of the same source with the flag
+off leaves this file with no zero record at all, and `gcov -b` gives each foot
+test two arms with both taken.
+
+An earlier draft of this entry read the same records as two copies of the round
+test, because the count of the line stood at twice the count of the turns. Four
+blocks share that line's count, two of them the library's assertions, so the
+line count says nothing about the shape of the loop. The wait keeps one arm per
+wait mode, the parked mode standing as the last arm of the chain, and a
+participant that reaches its wait behind a round that closed while it was on its
+way in leaves `BLOCK` without a turn, because the standard wait returns at once
+on a value that has left the round it was given, and leaves the spinning modes
+after one hint (FR-004, FR-014, FR-039, coverage gate FR-038).
 
 ## D-13: The wait-mode proof reads the kernel's per-thread switch counter
 
