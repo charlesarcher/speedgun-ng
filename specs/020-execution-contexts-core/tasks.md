@@ -281,8 +281,20 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
   -2, and `--ignore-errors ...,negative` at `cmake/coverage.cmake:61` printed the
   corrupt number as a zero. Every test binary carries its own copy of the
   library's counters and flushes into one shared `.gcda`, and that job ran
-  `ctest -j 2` across them. The step now runs serially, which removes the
-  concurrent merge. No test changed here, because none was missing.
+  `ctest -j 2` across them, so the coverage step now runs serially. No test
+  changed here, because none was missing.
+
+  Serializing is not the whole of it, and this task records the correction.
+  A capture of this head run with `ctest` serially still reports inconsistent
+  arcs: `gcov -b` prints `branch 0 taken 111%` and `branch 1 taken -11%` at
+  `runner.cpp:1453`, a line whose block records 972 executions. The counts a
+  forked test child flushes merge onto the copy its parent already carried, so
+  the addition exceeds what the arc can hold and the negative half arrives at
+  the clamps above. Closing this needs the capture to give each test binary its
+  own counter tree, `GCOV_PREFIX` with `GCOV_PREFIX_STRIP` set per test and one
+  `lcov --directory` walk over the trees. That is a change to the capture's
+  machinery, and FR-038 bars a gate change, so the shape stands for the feature
+  owner to call.
   The gate inspects two rates: `tools/dbc/coverage_gate.sh` requires
   `lines...: 100.0%` and `branches...: 100.0%` and reads functions nowhere, so the
   25 functions under 100% sit in `benchmark.hpp` at 4, `counters_measurement.hpp`
