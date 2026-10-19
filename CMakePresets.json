@@ -104,7 +104,11 @@
     },
     {
       "name": "ci-coverage",
-      "inherits": ["coverage-linux", "dev-mode"]
+      "description": "The capture builds without -D_GLIBCXX_ASSERTIONS, because that flag adds standard-library branches inside the inline atomic operations that no project test can reach.",
+      "inherits": ["coverage-linux", "dev-mode"],
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fstack-protector-strong -fcf-protection=full -fstack-clash-protection -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wcast-qual -Wformat=2 -Wundef -Werror=float-equal -Wshadow -Wcast-align -Wunused -Wnull-dereference -Wdouble-promotion -Wimplicit-fallthrough -Wextra-semi -Woverloaded-virtual -Wnon-virtual-dtor -Wold-style-cast -Werror"
+      }
     },
     {
       "name": "ci-sanitize",
