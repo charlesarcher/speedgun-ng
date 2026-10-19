@@ -267,6 +267,37 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
   compiler on a host with the device, and no test here can reach 100.0%
   while the artifact above, the brace above, and that file stand.
 
+  Measured on the pull request. Run 39182805670 at head `0131207` carried the
+  `coverage` job through its test step to the measurement: the summary reports
+  99.9% line (4285 of 4286), 99.8% branch (1719 of 1723) and 96.3% function
+  (657 of 682), and the gate prints `coverage-gate: line coverage is not 100%`.
+  The earlier run of this branch, 39178988806, had died at
+  `counters_linux_pmu_seam_test` with a stack-smashing abort before any
+  measurement; the same job on the same code family reached the target here, and
+  the `test` job passed 93 of 93 at 20m0s, so that abort belongs to the runner.
+  The gate inspects two of the three rates: `tools/dbc/coverage_gate.sh` requires
+  `lines...: 100.0%` and `branches...: 100.0%` and reads functions nowhere, so the
+  25 functions under 100% sit in `benchmark.hpp` at 4, `counters_measurement.hpp`
+  at 8, `counters_provider.hpp` at 3 and `execution_context.hpp` at 10, all of
+  them inline or template members of public headers, outside the rule the gate
+  applies. `source/counters/linux_pmu/provider.cpp` reports 100% of 292 lines on
+  that runner, so the host-bound block above is closed: the runner holds the
+  device this box denies.
+
+  What is left is one line and four arcs, each inside this feature's two files.
+  `runner.cpp:441` is the brace named above. `runner.cpp:419` keeps the
+  `12 -> 14` arc, the second skipped record beside an already-skipped merge, and
+  `runner.cpp:1231` keeps the null arm of `primaryCore != nullptr`, the two
+  readings this ledger already carried. `execution_context.cpp:388` keeps its
+  false arm, the producer caught between two adjacent counter stores. The barrier
+  condition now reports at `execution_context.cpp:823` where this host reported
+  `822`, the same `do`-`while` condition at the line gcov attributes it to, and
+  its second-copy arc stays at zero. Three of the four arcs need a race to be
+  lost during the capture, and the line needs a block gcov does not find, so the
+  task stays open at 99.9% and 99.8%: reaching 100.0% on the runner would take a
+  seam that forces the lost race, or a restructure that removes the untaken arm.
+  Both are design changes beyond this feature's plan, and neither is taken here.
+
 - [X] T040 Main-page impact check (IV.1): confirm the two new README sections, their owning `example/docs/` files, their quick-reference rows, the `docs/pages/harness.md` detail, and the measured cap move all shipped in the same change as the code they teach, each snippet a region a CI-built example prints (FR-029 to FR-035, SC-11)
 
 - [X] T041 [P] Run the analyzer-bearing release build at the feature head: `cmake --preset=ci-ubuntu && cmake --build build` completes with clang-tidy and cppcheck wired into the build, `readability-identifier-naming` reports zero findings, and no new macro skips the `SG_` rule (FR-036; Principle IX's per-feature release build and Principle VIII's static-analysis gate)
