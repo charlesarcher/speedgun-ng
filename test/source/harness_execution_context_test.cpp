@@ -2023,10 +2023,6 @@ auto scenarioWalkStates() -> int
         "a loop standing in its work holds drain open (FR-006)");
   check(!sg::detail::inboxIdle(true, false, 4, 3),
         "an accept that owes its link holds drain open (FR-050)");
-  check(sg::detail::roundOpen(7, 7),
-        "an unchanged generation keeps the barrier round open (FR-014)");
-  check(!sg::detail::roundOpen(8, 7),
-        "an advanced generation releases the barrier wait (FR-014, FR-049)");
   std::puts("harness_execution_context_test walk-states: ok");
   return 0;
 }

@@ -553,15 +553,6 @@ auto inboxIdle(const bool tailAtSentinel,
   return tailAtSentinel && !working && countsSettled(accepted, dispatched);
 }
 
-// FR-014, FR-049: the test of the round a barrier wait reads at its own foot,
-// held apart from the generation read so the wait carries the two outcomes of
-// that one test and nothing else.
-auto roundOpen(const std::uint64_t seenRound,
-               const std::uint64_t enteredRound) noexcept -> bool
-{
-  return seenRound == enteredRound;
-}
-
 // NOLINTNEXTLINE(misc-use-internal-linkage) the accessor the class befriends
 // FR-001, FR-002: the block the object owns. The construction makes it and
 // the joined destructor releases it, so it stands through every member call
@@ -842,27 +833,23 @@ auto ContextBarrier::arriveAndWait() -> void
     return;
   }
 
-  // The round is the value captured before this arrival; a read here names
-  // a newer round: an arrival that completed the round returned, and a round
-  // that completed between this arrival and this point stands advanced past
-  // the captured value already. Only the arrival that fills a round advances
-  // the generation, and that arrival returned at its own branch above, so a
-  // participant that reaches here stands inside an open round: the wait takes
-  // its hint first and tests the round at its foot, where each of the two
-  // outcomes of that one test is an ordinary event of the wait (FR-014,
-  // FR-049). The wait reads no clock and takes no timeout, so the atomic wait
-  // answers at once where the generation has already moved, and the arms are
-  // pure hints (FR-014, FR-049). The test of the round stands in
-  // `detail::roundOpen`, so the loop carries the two outcomes of that one test
-  // and no comparison of its own (FR-014).
+  // The round is the value captured before this arrival, so a participant that
+  // comes behind a round that closed while it was on its way in answers the
+  // read at the head of the body and leaves before it takes a turn. Every
+  // other participant leaves at that same read once the release reaches it.
+  // The mode of the participant's policy stands hoisted ahead of the loop, so
+  // a spin costs one load and one hint (FR-014, Principle VII). The hints carry
+  // no clock and no timeout, so no round times out (FR-039).
   const WaitMode mode = participantWaitMode();
-  do {
-    // FR-014: the same three clock-free paths as the context loop, in the
-    // mode of the participant's own policy, so a spinning participant
-    // never sleeps inside the barrier. BLOCK stands in the standard
-    // atomic wait, the one path `std::barrier` backs as the fallback of
-    // Q-3.
-    // The chain of FR-004 again: each mode enters exactly one arm (FR-014).
+  for (;;) {
+    if (m_generation.load(std::memory_order_acquire) != enteredRound) {
+      break;
+    }
+    // FR-014: the same three clock-free paths as the context loop, so a
+    // spinning participant never sleeps inside the barrier. BLOCK stands in
+    // the standard atomic wait, the one path `std::barrier` backs as the
+    // fallback of Q-3. The chain of FR-004 again: each mode enters exactly one
+    // arm (FR-014).
     if (mode == WaitMode::SPIN) {
       pauseHint();
     } else if (mode == WaitMode::YIELD) {
@@ -870,8 +857,7 @@ auto ContextBarrier::arriveAndWait() -> void
     } else {
       m_generation.wait(enteredRound);
     }
-  } while (detail::roundOpen(m_generation.load(std::memory_order_acquire),
-                             enteredRound));
+  }
   SG_ENSURE(
       m_generation.load(std::memory_order_acquire) != enteredRound,
       "a round that released without advancing the generation " "(FR-014)");
