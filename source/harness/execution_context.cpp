@@ -833,34 +833,43 @@ auto ContextBarrier::arriveAndWait() -> void
     return;
   }
 
-  // The round is the value captured before this arrival, so a participant that
-  // comes behind a round that closed while it was on its way in answers the
-  // read at the head of the body and leaves before it takes a turn. Every
-  // other participant leaves at that same read once the release reaches it.
-  // The mode of the participant's policy stands hoisted ahead of the loop, so
-  // a spin costs one load and one hint (FR-014, Principle VII). The hints carry
-  // no clock and no timeout, so no round times out (FR-039).
-  const WaitMode mode = participantWaitMode();
-  for (;;) {
-    if (m_generation.load(std::memory_order_acquire) != enteredRound) {
-      break;
-    }
-    // FR-014: the same three clock-free paths as the context loop, so a
-    // spinning participant never sleeps inside the barrier. BLOCK stands in
-    // the standard atomic wait, the one path `std::barrier` backs as the
-    // fallback of Q-3. The chain of FR-004 again: each mode enters exactly one
-    // arm (FR-014).
-    if (mode == WaitMode::SPIN) {
-      pauseHint();
-    } else if (mode == WaitMode::YIELD) {
-      std::this_thread::yield();
-    } else {
-      m_generation.wait(enteredRound);
-    }
-  }
+  // The mode of the participant's policy stands read once, so a spin costs one
+  // load and one hint (FR-014, Principle VII). Each mode holds its own wait and
+  // no mode shares a round test with another (FR-004, FR-014). No mode reads a
+  // clock or takes a timeout, so no round times out (FR-039).
+  detail::waitRoundReleased(m_generation, enteredRound, participantWaitMode());
   SG_ENSURE(
       m_generation.load(std::memory_order_acquire) != enteredRound,
       "a round that released without advancing the generation " "(FR-014)");
 }
+
+namespace detail
+{
+
+// The chain stands in the order the policy names the modes and its last arm is
+// `BLOCK`, so each mode enters exactly one arm (FR-004). The foot test of a
+// spin sees an open round on every turn of its wait and the released round
+// last. `BLOCK` carries no test of its own, because the library on the
+// supported platforms re-tests the value inside the atomic wait, so a wait that
+// returns has left the round it was given. A `std::barrier` backs itself with
+// the same standard wait as its fallback (Q-3).
+auto waitRoundReleased(const std::atomic<std::uint64_t>& generation,
+                       const std::uint64_t enteredRound,
+                       const WaitMode mode) -> void
+{
+  if (mode == WaitMode::SPIN) {
+    do {
+      pauseHint();
+    } while (generation.load(std::memory_order_acquire) == enteredRound);
+  } else if (mode == WaitMode::YIELD) {
+    do {
+      std::this_thread::yield();
+    } while (generation.load(std::memory_order_acquire) == enteredRound);
+  } else {
+    generation.wait(enteredRound);
+  }
+}
+
+}  // namespace detail
 
 }  // namespace sg
