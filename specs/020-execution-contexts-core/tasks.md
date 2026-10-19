@@ -223,9 +223,9 @@ feature head (FR-034, FR-041 to FR-048, Principle VIII, SC-10, SC-11).
     `grep -rn LCOV_EXCL source/harness` prints no line.
   - The coverage job of this branch's pull request prints
     `lines.......: 100.0%` and `branches....: 100.0%`.
-  - D-12 names the cause of the barrier site an earlier head counted at zero
-    and the shape that answers every record there; D-11, D-13 and D-14 carry
-    the account of the other sites.
+  - D-12 names the library assertion arms that left the two zero records and
+    the flag the capture drops to remove them; D-11, D-13 and D-14 carry the
+    account of the other sites.
   - The box ticks at those two numbers and at no other state, and plan rows VI
     and VIII stand PASS at the same two numbers.
 
