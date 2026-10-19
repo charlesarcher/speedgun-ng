@@ -418,18 +418,39 @@ test can open on purpose from the outside of the enqueue call. The test of the
 pair therefore lives in a function a scenario can call with each pair of
 counts, while the loop keeps one branch whose two arms every run reaches.
 
-## D-12: The barrier reads the round test once before its first wait step
+## D-12: The barrier tests its round at the foot of the wait
 
-**Decision**: `ContextBarrier::arriveAndWait` reads the test
-`m_generation == enteredRound` once before its first wait step and re-reads
-it after each step, where the round's test used to stand only at the foot of
-the loop body.
+**Decision**: `ContextBarrier::arriveAndWait` takes its wait hint first and
+reads the round through `detail::roundOpen` at the foot of the wait, where the
+shape before this change read that test once before the first hint and again at
+the foot of the body.
 
-**Rationale**: the generation advances at the one arrival that fills the
-round, and that arrival returns at its own branch above the wait, so every
-participant that reaches the wait provably stands inside an open round and
-reads the test true at that first read; the read that ends the round gives the
-other arm (FR-014, FR-049).
+**Rationale**: only the arrival that fills a round advances the generation, and
+that arrival returns at its own branch above the wait, so a participant that
+reaches the wait provably stands inside an open round and a test before the
+first hint has one outcome it can never answer; the hint taken at that point is
+a pure hint, and the atomic wait answers at once where the generation already
+moved (FR-014, FR-049). The comparison of the generation against the captured
+round stands in `detail::roundOpen` so the loop carries the two outcomes of the
+round and nothing else: a comparison written in the head or the foot of a loop
+shares its line with the back edge, and gcov counts one fall-through of that
+comparison that the code layout never reaches (coverage gate FR-038). The
+`walk-states` scenario calls `roundOpen` with both pairs.
+
+## D-14: The walk decision and the drain proof stand as tables
+
+**Decision**: the context loop reads its pass through `detail::walkStep`, a
+table over the successor link, the tail's position and the walk's position,
+and `drain()` reads its proof through `detail::inboxIdle`, a table over the
+tail's position, the phase and the dispatch pair. The pass that finds a
+producer between its exchange and its link answers `PENDING`, and the loop
+reads that outcome together with the empty inbox.
+
+**Rationale**: the window a producer leaves between its exchange and its link
+spans two instructions of one wait-free enqueue, so whether a run lands in it
+is a matter of scheduling; the window needs no test of its own once the table
+carries the outcome, and both tables stand where a scenario drives every row
+(D-01, FR-003, FR-006, FR-050).
 
 ## D-13: The wait-mode proof reads the kernel's per-thread switch counter
 

@@ -311,56 +311,6 @@ auto reAnchorSentinel(detail::ContextControl& control) -> void
   previous->next.store(&control.stub, std::memory_order_release);
 }
 
-// The private drain head's step (FR-003): decide the node behind `walk`,
-// oldest first, as D-01's chain gives it. A link a producer has swapped
-// but not yet published is waited out with the pause hint: the window
-// spans the two instructions of one wait-free enqueue, and it is not one
-// of the three wait modes (FR-004), which wait only on the empty inbox.
-// `nullptr` returns only from the sentinel position with the tail provably
-// at the sentinel: the inbox then stands empty to every enqueue that has
-// reached its exchange, the proof `drain()` and the loop's end read
-// (FR-001, FR-006).
-auto decideNextNode(detail::ContextControl& control,
-                    detail::WorkNodeBase& walk) -> detail::WorkNodeBase*
-{
-  for (;;) {
-    if (&walk == &control.stub) {
-      // The sentinel's link is read after the tail, so the acquire on
-      // the tail orders out a stale link the last re-anchor cleared,
-      // and the read below is fresh or a genuine pending write.
-      const detail::WorkNodeBase* const tail =
-          control.exchangeTail.load(std::memory_order_acquire);
-      detail::WorkNodeBase* const after =
-          control.stub.next.load(std::memory_order_acquire);
-      if (after != nullptr) {
-        return after;
-      }
-      if (tail == &control.stub) {
-        return nullptr;
-      }
-      pauseHint();
-      continue;
-    }
-    detail::WorkNodeBase* const next =
-        walk.next.load(std::memory_order_acquire);
-    if (next != nullptr) {
-      return next;
-    }
-    if (control.exchangeTail.load(std::memory_order_seq_cst) == &walk) {
-      // The re-anchor stands the tail on the sentinel, which is the proof a
-      // waiter reads as an empty inbox. The node under the walk is stood here
-      // and not yet run, so the mark goes first: a waiter that sees the
-      // re-anchored tail sees this store with it, and the empty proof cannot
-      // settle over a node the walk owns but has not run (FR-006, FR-050).
-      control.phase.store(detail::LoopPhase::WORKING,
-                          std::memory_order_release);
-      reAnchorSentinel(control);
-      continue;
-    }
-    pauseHint();
-  }
-}
-
 // FR-004: the three clock-free waits for an empty inbox. `SPIN` watches
 // the one flag through the pause helper, `YIELD` yields to the scheduler,
 // `BLOCK` stands in the standard atomic wait on the same flag until
@@ -386,16 +336,6 @@ auto waitInboxEmpty(const detail::ContextControl& control) -> void
   }
 }
 
-// FR-006, FR-050: the one account both empty proofs read, in the counts of
-// this control. The test of the pair stands in `detail::countsSettled`, where
-// a scenario drives each outcome of it (FR-050).
-auto countsSettled(const detail::ContextControl& control) -> bool
-{
-  return detail::countsSettled(
-      control.acceptCount.load(std::memory_order_seq_cst),
-      control.dispatchCount.load(std::memory_order_seq_cst));
-}
-
 // The event loop of FR-001 on the one owned thread: take the oldest node
 // when the inbox holds one, run it, look again; wait by policy when the
 // inbox stands empty. The walk pointer is this thread's private drain
@@ -406,9 +346,35 @@ auto runContextLoop(detail::ContextControl& control) -> void
 {
   detail::WorkNodeBase* walk = &control.stub;
   for (;;) {
-    detail::WorkNodeBase* const next = decideNextNode(control, *walk);
+    // The private drain head's step (FR-003): the tail the producers swap
+    // is read before the link the walk follows, so the acquire on the tail
+    // orders out a stale link the last re-anchor cleared (D-01). The table
+    // `detail::walkStep` decides the pass from those two words and the
+    // walk's position, so the pass that finds a producer between its
+    // exchange and its link stands in the same outcome as the empty inbox:
+    // this pass holds no node to run, and the loop turns again (FR-003,
+    // FR-006). `EMPTY` answers only from the sentinel position with the tail
+    // provably at the sentinel, the proof `drain()` and the loop's end read
+    // (FR-001, FR-006).
+    detail::WorkNodeBase* const tail =
+        control.exchangeTail.load(std::memory_order_seq_cst);
+    detail::WorkNodeBase* const next =
+        walk->next.load(std::memory_order_acquire);
+    const detail::WalkStep step =
+        detail::walkStep(next != nullptr, tail == walk, walk == &control.stub);
+    if (step == detail::WalkStep::REANCHOR) {
+      // The re-anchor stands the tail on the sentinel, which is the proof a
+      // waiter reads as an empty inbox. The node under the walk is stood here
+      // and not yet run, so the mark goes first: a waiter that sees the
+      // re-anchored tail sees this store with it, and the empty proof cannot
+      // settle over a node the walk owns but has not run (FR-006, FR-050).
+      control.phase.store(detail::LoopPhase::WORKING,
+                          std::memory_order_release);
+      reAnchorSentinel(control);
+      continue;
+    }
 
-    if (next == nullptr) {
+    if (step != detail::WalkStep::NODE) {
       // The inbox stands empty to every reached enqueue. With the stop
       // stood and every accepted dispatch linked or refused, the loop has
       // run every node it accepted and ends (FR-006, FR-050). The counts
@@ -422,11 +388,11 @@ auto runContextLoop(detail::ContextControl& control) -> void
         control.idleEpoch.fetch_add(1, std::memory_order_release);
         control.idleEpoch.notify_all();
       }
-      if (detail::loopEnds(
-              stopped,
-              control.acceptCount.load(std::memory_order_seq_cst),
-              control.dispatchCount.load(std::memory_order_seq_cst)))
-      {
+      const std::uint64_t accepted =
+          control.acceptCount.load(std::memory_order_seq_cst);
+      const std::uint64_t dispatched =
+          control.dispatchCount.load(std::memory_order_seq_cst);
+      if (detail::loopEnds(stopped, accepted, dispatched)) {
         control.phase.store(detail::LoopPhase::EXITED,
                             std::memory_order_release);
         control.idleEpoch.fetch_add(1, std::memory_order_release);
@@ -497,21 +463,24 @@ auto runContextThread(detail::ContextControl& control) -> void
   runContextLoop(control);
 }
 
-// FR-006, FR-050: the state `drain()` waits for: the loop parked or
-// exited, the inbox at its sentinel, and every accepted dispatch linked
-// or refused. A node a dispatch reached but has not yet linked holds the
-// counts apart, so `drain()` stands until the loop has run it.
+// FR-006, FR-050: the state `drain()` waits for, read through the table of
+// `detail::inboxIdle`. The tail is read before the phase here: the loop marks
+// `WORKING` before it re-anchors the sentinel, so a reader that sees the
+// re-anchored tail sees the mark with it; reading the phase first would let a
+// waiter take the new tail together with the idle phase that stood before it,
+// and return from `drain()` while the walked node still owed its run
+// (FR-006, FR-050).
 auto inboxStandIdle(const detail::ContextControl& control) -> bool
 {
-  // The tail stands read before the phase. The loop marks `WORKING` before it
-  // re-anchors the sentinel, so a reader that sees the re-anchored tail sees
-  // the mark with it; reading the phase first would let a waiter take the new
-  // tail together with the idle phase that stood before it, and return from
-  // `drain()` while the walked node still owed its run (FR-006, FR-050).
-  return control.exchangeTail.load(std::memory_order_acquire) == &control.stub
-      && control.phase.load(std::memory_order_acquire)
-      != detail::LoopPhase::WORKING
-      && countsSettled(control);
+  const bool tailAtSentinel =
+      control.exchangeTail.load(std::memory_order_acquire) == &control.stub;
+  const bool working = control.phase.load(std::memory_order_acquire)
+      == detail::LoopPhase::WORKING;
+  return detail::inboxIdle(
+      tailAtSentinel,
+      working,
+      control.acceptCount.load(std::memory_order_seq_cst),
+      control.dispatchCount.load(std::memory_order_seq_cst));
 }
 
 // FR-014, Q-3: the wait mode a barrier participant waits in is the wait
@@ -547,6 +516,50 @@ auto loopEnds(const bool stopRequested,
               const std::uint64_t dispatched) noexcept -> bool
 {
   return stopRequested && countsSettled(accepted, dispatched);
+}
+
+// FR-003, FR-006: the walk's decision for one pass, held apart from the two
+// reads and the walk's position so each outcome stands in a test of its own.
+// The successor link decides first: a published link is a node to take, at
+// either position. A pass with no link and the tail elsewhere stands in
+// `PENDING`: a producer has swapped the tail and owes its link, a window of
+// two instructions in one wait-free enqueue. With the tail at the walked node
+// the walk owns the last node, so the sentinel position states the empty
+// inbox and any other node asks for the re-anchor (D-01, FR-003, FR-006).
+auto walkStep(const bool linkPublished,
+              const bool tailAtWalk,
+              const bool walkAtSentinel) noexcept -> WalkStep
+{
+  if (linkPublished) {
+    return WalkStep::NODE;
+  }
+  if (!tailAtWalk) {
+    return WalkStep::PENDING;
+  }
+  if (walkAtSentinel) {
+    return WalkStep::EMPTY;
+  }
+  return WalkStep::REANCHOR;
+}
+
+// FR-006, FR-050: the drain proof, held apart from its three reads so each
+// term stands in a test of its own. An accept that still owes its link holds
+// the account apart, so drain stands until the loop has run that node.
+auto inboxIdle(const bool tailAtSentinel,
+               const bool working,
+               const std::uint64_t accepted,
+               const std::uint64_t dispatched) noexcept -> bool
+{
+  return tailAtSentinel && !working && countsSettled(accepted, dispatched);
+}
+
+// FR-014, FR-049: the test of the round a barrier wait reads at its own foot,
+// held apart from the generation read so the wait carries the two outcomes of
+// that one test and nothing else.
+auto roundOpen(const std::uint64_t seenRound,
+               const std::uint64_t enteredRound) noexcept -> bool
+{
+  return seenRound == enteredRound;
 }
 
 // NOLINTNEXTLINE(misc-use-internal-linkage) the accessor the class befriends
@@ -832,18 +845,18 @@ auto ContextBarrier::arriveAndWait() -> void
   // The round is the value captured before this arrival; a read here names
   // a newer round: an arrival that completed the round returned, and a round
   // that completed between this arrival and this point stands advanced past
-  // the captured value already. A generation read here would be taken as the
-  // round to wait on, and this barrier never advances past it (FR-014,
-  // FR-049). The test of the round this call stands in is read once before
-  // the first hint: only the arrival that fills the round advances the
-  // generation, and that arrival returned at its own branch above, so every
-  // participant that reaches here stands inside an open round and reads the
-  // test true at that first read. The wait reads no clock and takes no
-  // timeout, so the atomic wait returns at once once the generation has
-  // moved, and the other two arms are pure hints (FR-014, FR-049).
+  // the captured value already. Only the arrival that fills a round advances
+  // the generation, and that arrival returned at its own branch above, so a
+  // participant that reaches here stands inside an open round: the wait takes
+  // its hint first and tests the round at its foot, where each of the two
+  // outcomes of that one test is an ordinary event of the wait (FR-014,
+  // FR-049). The wait reads no clock and takes no timeout, so the atomic wait
+  // answers at once where the generation has already moved, and the arms are
+  // pure hints (FR-014, FR-049). The test of the round stands in
+  // `detail::roundOpen`, so the loop carries the two outcomes of that one test
+  // and no comparison of its own (FR-014).
   const WaitMode mode = participantWaitMode();
-  bool roundOpen = m_generation.load(std::memory_order_acquire) == enteredRound;
-  while (roundOpen) {
+  do {
     // FR-014: the same three clock-free paths as the context loop, in the
     // mode of the participant's own policy, so a spinning participant
     // never sleeps inside the barrier. BLOCK stands in the standard
@@ -857,8 +870,8 @@ auto ContextBarrier::arriveAndWait() -> void
     } else {
       m_generation.wait(enteredRound);
     }
-    roundOpen = m_generation.load(std::memory_order_acquire) == enteredRound;
-  }
+  } while (detail::roundOpen(m_generation.load(std::memory_order_acquire),
+                             enteredRound));
   SG_ENSURE(
       m_generation.load(std::memory_order_acquire) != enteredRound,
       "a round that released without advancing the generation " "(FR-014)");

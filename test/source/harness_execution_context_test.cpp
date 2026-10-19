@@ -1990,13 +1990,54 @@ auto scenarioSettleAccount() -> int
   return 0;
 }
 
+// FR-003, FR-006, FR-050: the two tables the context loop and `drain()` read,
+// held apart from their reads so each outcome stands here. The walk's table
+// decides one pass from the successor link, the tail's position and the
+// walk's position; the pass that finds a producer mid-enqueue answers
+// `PENDING`, which the loop reads together with the empty inbox. The drain
+// table states the three terms a waiter reads, the third of them the dispatch
+// account of FR-050.
+auto scenarioWalkStates() -> int
+{
+  check(sg::detail::walkStep(true, false, false) == sg::detail::WalkStep::NODE,
+        "a published link names the node the walk takes (FR-003)");
+  check(sg::detail::walkStep(true, true, false) == sg::detail::WalkStep::NODE,
+        "a link stands to take at the walked node as well (FR-003)");
+  check(
+      sg::detail::walkStep(false, false, true) == sg::detail::WalkStep::PENDING,
+      "a swapped tail with no link yet holds the sentinel pass open (FR-003)");
+  check(sg::detail::walkStep(false, false, false)
+            == sg::detail::WalkStep::PENDING,
+        "a swapped tail with no link yet holds a node pass open (FR-003)");
+  check(sg::detail::walkStep(false, true, true) == sg::detail::WalkStep::EMPTY,
+        "the sentinel with the tail upon it states the empty inbox (FR-006)");
+  check(sg::detail::walkStep(false, true, false)
+            == sg::detail::WalkStep::REANCHOR,
+        "the walked tail asks for the re-anchor (D-01, FR-003)");
+  check(sg::detail::inboxIdle(true, false, 3, 3),
+        "the sentinel, an idle loop and a settled account idle the inbox "
+        "(FR-006, FR-050)");
+  check(!sg::detail::inboxIdle(false, false, 3, 3),
+        "a tail off the sentinel holds drain open (FR-006)");
+  check(!sg::detail::inboxIdle(true, true, 3, 3),
+        "a loop standing in its work holds drain open (FR-006)");
+  check(!sg::detail::inboxIdle(true, false, 4, 3),
+        "an accept that owes its link holds drain open (FR-050)");
+  check(sg::detail::roundOpen(7, 7),
+        "an unchanged generation keeps the barrier round open (FR-014)");
+  check(!sg::detail::roundOpen(8, 7),
+        "an advanced generation releases the barrier wait (FR-014, FR-049)");
+  std::puts("harness_execution_context_test walk-states: ok");
+  return 0;
+}
+
 struct Mode
 {
   const char* name;
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 26> kScenarios {
+constexpr std::array<Mode, 27> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -2009,6 +2050,7 @@ constexpr std::array<Mode, 26> kScenarios {
     Mode {.name = "acceptedThenDrained", .run = &scenarioAcceptedThenDrained},
     Mode {.name = "refusedAfterStop", .run = &scenarioRefusedAfterStop},
     Mode {.name = "settle-account", .run = &scenarioSettleAccount},
+    Mode {.name = "walk-states", .run = &scenarioWalkStates},
     Mode {.name = "drainWithoutStop", .run = &scenarioDrainWithoutStop},
     Mode {.name = "completionOrder", .run = &scenarioCompletionOrder},
     Mode {.name = "joinTwice", .run = &scenarioJoinTwice},

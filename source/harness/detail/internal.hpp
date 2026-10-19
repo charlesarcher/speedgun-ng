@@ -222,6 +222,44 @@ struct RecorderReservation
                             std::uint64_t accepted,
                             std::uint64_t dispatched) noexcept -> bool;
 
+// FR-003, D-01: the outcome of one pass of the private drain head's walk.
+// `NODE` names a successor to take, `EMPTY` the inbox that provably stands
+// empty, `PENDING` the pass that finds a producer between its exchange and
+// its link, and `REANCHOR` the walked node that stands at the tail.
+// NOLINTNEXTLINE(misc-use-internal-linkage) the step the context loop reads
+enum class WalkStep : std::uint8_t
+{
+  NODE,
+  EMPTY,
+  PENDING,
+  REANCHOR,
+};
+
+/// @brief FR-003, FR-006: the walk's decision for one pass, read on its own
+/// from the three words the pass reads: the successor link of the walked
+/// node, whether the inbox tail stands on that node, and whether the walk
+/// stands on the sentinel. A producer mid-enqueue answers `PENDING`, which
+/// the loop reads together with the empty inbox: the pass holds no node to
+/// run (FR-003, FR-006, FR-050).
+[[nodiscard]] auto walkStep(bool linkPublished,
+                            bool tailAtWalk,
+                            bool walkAtSentinel) noexcept -> WalkStep;
+
+/// @brief FR-006, FR-050: the state `drain()` waits for: the tail at the
+/// sentinel, the loop standing outside its work, and the dispatch account
+/// settled. The caller reads the tail before the phase, the order the proof
+/// of FR-006 names.
+[[nodiscard]] auto inboxIdle(bool tailAtSentinel,
+                             bool working,
+                             std::uint64_t accepted,
+                             std::uint64_t dispatched) noexcept -> bool;
+
+/// @brief FR-014: the round a barrier participant stands in: the generation it
+/// read at its own foot test stands at the round that participant captured
+/// when it arrived, the wait turns again, and any other value releases it.
+[[nodiscard]] auto roundOpen(std::uint64_t seenRound,
+                             std::uint64_t enteredRound) noexcept -> bool;
+
 /// @brief The cpu count the noise warning compares spinning contexts
 /// against: the count the affinity mask reported where that read answered,
 /// the host count of the standard library where it answered nothing
