@@ -474,6 +474,15 @@ auto scenarioRepetitionCount() -> int
   // stands above what the first step of the walk folds and the walk grows
   // before detail/calibration.hpp lets the count settle (FR-016).
   constexpr std::int64_t kCalibrationNs = 20000;
+  // The decision of a step is the fold of every context of the attempt: one
+  // iteration for each of four contexts folds 8000 ns, below
+  // kCalibrationNs, so that step cannot qualify. The growth rule of
+  // detail/calibration.hpp then aims the count at llround(1.4 × 20000 /
+  // 8000) = 4 iterations for each context, where the merged fold reaches
+  // 32000 ns and the walk settles. Every later repetition hands out that
+  // settled count (FR-012, FR-016, FR-020).
+  constexpr std::int64_t kSettledPerContext = 4;
+  constexpr std::int64_t kSummedIterations = kSettledPerContext * kThreadCount;
 
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmRepetitionRow, "bmThreadsRepeat");
@@ -488,14 +497,15 @@ auto scenarioRepetitionCount() -> int
         "every repetition of the threaded instance prints its merged row "
         "(FR-012)");
   const std::int64_t summed = countFieldOf(rows.front(), "iterations=");
-  check(summed > 0, "a calibrated repetition counts its iterations (FR-016)");
-  check(summed > static_cast<std::int64_t>(kThreadCount),
-        "the walk settled above one iteration for each context, so the count "
-        "it settled is a measured one (FR-016)");
+  check(summed == kSummedIterations,
+        "the first repetition sums four iterations for each context: the "
+        "count the step after the first settles at, since one iteration for "
+        "each of four contexts folds 8000 ns below the 20000 ns target "
+        "(FR-012, FR-016)");
   for (const std::string& row : rows) {
-    check(countFieldOf(row, "iterations=") == summed,
-          "every repetition sums the iteration count the first repetition "
-          "settled (FR-012, FR-020)");
+    check(countFieldOf(row, "iterations=") == kSummedIterations,
+          "every repetition sums the settled iteration count for each context "
+          "of the run (FR-012, FR-020)");
   }
 
   std::puts("harness_threads_test repetition-count: ok");
@@ -1097,22 +1107,36 @@ auto scenarioSkipOne() -> int
 }
 
 std::atomic<int> twiceSkipClaims {0};
+std::atomic<bool> firstSkipRecorded {false};
 
-// Both contexts of the run claim the skip, each with the same reason, so the
-// merge sees a skipped second context beside the first (FR-005, FR-016).
+// Both contexts of the run claim the skip, each naming the context that gave
+// it. Context 1 waits for context 0 to have recorded its skip, so the two
+// skipped records stand in the order the handshake set and the reason the
+// merge takes is the one context 0 gave (FR-005, FR-016, FR-020).
 auto bmTwoContextsSkip(sg::State& state) -> void
 {
   for (auto index : state) {
-    if (twiceSkipClaims.fetch_add(1, std::memory_order_relaxed) < 2) {
-      state.skipWithError("the scripted threaded skip twice");
+    if (twiceSkipClaims.fetch_add(1, std::memory_order_relaxed)
+        < state.threads())
+    {
+      if (state.threadIndex() == 0) {
+        state.skipWithError("the first context scripted skip");
+        firstSkipRecorded.store(true, std::memory_order_release);
+      } else {
+        while (!firstSkipRecorded.load(std::memory_order_acquire)) {
+          std::this_thread::yield();
+        }
+        state.skipWithError("the second context scripted skip");
+      }
     }
     sg::doNotOptimize(index);
   }
 }
 
-// FR-005, FR-016: a second context that skips with its own reason leaves the
-// run skipped once, with the reason the merge took first; no measured row
-// stands either way.
+// FR-005, FR-016, FR-020: two contexts that each skip with a reason of their
+// own end the run skipped once, with the reason of the first record of the
+// merge; the later record leaves that reason standing and no measured row
+// stands.
 auto scenarioSkipTwo() -> int
 {
   scriptProvider();
@@ -1121,15 +1145,14 @@ auto scenarioSkipTwo() -> int
 
   const std::string report =
       captureRun({"--filter", "^bmThreadsSkipTwo", "--iterations=4"});
-  check(report.contains("SKIPPED: the scripted threaded skip twice"),
-        "the merged run is skipped once with the reason the contexts gave "
-        "(FR-005, FR-016)");
+  check(report.contains("SKIPPED: the first context scripted skip"),
+        "the merged run carries the reason of context 0, the first record of "
+        "the merge (FR-005, FR-020)");
+  check(!report.contains("the second context scripted skip"),
+        "a later skipped record leaves the merged reason standing and adds no "
+        "note of its own (FR-005, FR-016)");
   check(rowsOf(report, "bmThreadsSkipTwo").empty(),
         "a run every context skipped prints no measured row (FR-016)");
-  check(!report.contains("SKIPPED: the scripted threaded skip twice  SKIPPED")
-            && !report.contains("skip twice\" skipped"),
-        "the skip of the second context adds no second note beside the run's "
-        "(FR-005, FR-016)");
   std::puts("harness_threads_test skip-two: ok");
   return 0;
 }

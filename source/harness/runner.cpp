@@ -148,8 +148,7 @@ auto nettedFold(const sg::counters::detail::ExprCore& core,
 // run: the CPU core by default and the real core under the real
 // selection. A manual run answers with a null core: its primary time is
 // the sum the benchmark supplied, and no fold stands between it and the
-// row. The selection stands at namespace scope, so one body answers every
-// recorder instantiation of the fold lambdas that call it.
+// row.
 auto selectPrimaryCore(const bool manualTime,
                        const bool realTime,
                        const sg::counters::detail::ExprCore& realTimeCore,
@@ -468,10 +467,11 @@ auto mergeThreadedRecords(const std::vector<ThreadedOutcome>& outcomes,
 namespace sg::detail
 {
 
-// FR-020: the skip rule of the threaded merge, so the merged record keeps
-// the reason the first skipped context left. The declaration stands in
-// detail/internal.hpp, the seam the gap test calls through to drive every
-// combination of the two inputs.
+// FR-020: the skip rule of the threaded merge: a skipped context sets the
+// merged flag and leaves its reason standing, so the merged row names the
+// first context that skipped. The declaration stands in
+// detail/internal.hpp, where the gap test drives the rule's whole input
+// table beside the threaded run.
 auto takesSkip(const bool recordSkipped,
                const bool mergedSkipped) noexcept -> bool
 {
