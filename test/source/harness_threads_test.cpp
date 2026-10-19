@@ -1140,6 +1140,10 @@ auto bmTwoContextsSkip(sg::State& state) -> void
 auto scenarioSkipTwo() -> int
 {
   scriptProvider();
+  // The two handshake words stand reset before the run starts, so a benchmark
+  // that runs twice orders its skips from the same state (FR-005, FR-016).
+  twiceSkipClaims.store(0, std::memory_order_relaxed);
+  firstSkipRecorded.store(false, std::memory_order_relaxed);
   auto handle = sg::registerBenchmark(&bmTwoContextsSkip, "bmThreadsSkipTwo");
   handle.threads(2);
 
