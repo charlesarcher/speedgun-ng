@@ -254,9 +254,14 @@ auto bmMergedManual(sg::State& state) -> void
 
 // The body of the repetition scenario: the iteration count of the row is all
 // that scenario reads, so the body opens no counter and joins no round.
+// The walk of the repetition scenario folds manual time, so the decision of
+// each step follows the count that step ran and the walk can grow before it
+// settles (FR-016). A body that folds nothing leaves the walk one step for
+// every target above the first fold.
 auto bmRepetitionRow(sg::State& state) -> void
 {
   for (auto index : state) {
+    state.setIterationTime(kManualIterationNs);
     sg::doNotOptimize(index);
   }
 }
@@ -465,17 +470,17 @@ auto scenarioMergedRow() -> int
 auto scenarioRepetitionCount() -> int
 {
   constexpr std::size_t kRepetitions = 3;
-  // The target stands under the decision time one iteration of four contexts
-  // folds, so calibration settles at its first run (FR-016). Raising it makes
-  // the walk take a second sample, and the arrival gate below counts entries
-  // across samples, so a second sample waits for arrivals that already stood.
-  constexpr std::int64_t kCalibrationNs = 1000;
+  // One iteration of one context folds kManualIterationNs, so the target
+  // stands above what the first step of the walk folds and the walk grows
+  // before detail/calibration.hpp lets the count settle (FR-016).
+  constexpr std::int64_t kCalibrationNs = 20000;
 
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmRepetitionRow, "bmThreadsRepeat");
   handle.threads(kThreadCount)
       .repetitions(kRepetitions)
-      .minTime(kCalibrationNs);
+      .minTime(kCalibrationNs)
+      .useManualTime();
 
   const std::vector<std::string> rows =
       rowsOf(captureRun({"--filter", "^bmThreadsRepeat"}), "bmThreadsRepeat");
@@ -484,6 +489,9 @@ auto scenarioRepetitionCount() -> int
         "(FR-012)");
   const std::int64_t summed = countFieldOf(rows.front(), "iterations=");
   check(summed > 0, "a calibrated repetition counts its iterations (FR-016)");
+  check(summed > static_cast<std::int64_t>(kThreadCount),
+        "the walk settled above one iteration for each context, so the count "
+        "it settled is a measured one (FR-016)");
   for (const std::string& row : rows) {
     check(countFieldOf(row, "iterations=") == summed,
           "every repetition sums the iteration count the first repetition "
