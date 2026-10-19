@@ -397,6 +397,10 @@ struct ContextDisclosure
 {
   WaitMode waitMode = WaitMode::BLOCK;
   std::string placement;
+  /// @brief Whether the installed placement function reported its slot as
+  /// landed (FR-005). The report prints it beside `placement`, so a pin that
+  /// did not land shows whatever text its function returned (FR-025).
+  bool applied = true;
 };
 
 /**

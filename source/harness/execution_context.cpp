@@ -28,6 +28,7 @@
 #include <pthread.h>
 #include <sched.h>
 
+#include "detail/internal.hpp"
 #include "speedgun-ng/dbc.hpp"
 
 namespace sg
@@ -117,18 +118,11 @@ auto pinToPlacementSlot(const PlacementSlot& slot,
   const auto rendered =
       std::to_chars(digits.begin(), digits.end(), slot.cpuIndex);
 
-  // The platform answer picks the field through one selection, so the
-  // failure account needs no branch the unprivileged test run cannot
-  // reach (FR-005, FR-025).
   const bool landed = pthread_setaffinity_np(thread, sizeof(cpus), &cpus) == 0;
   const std::size_t width =
       static_cast<std::size_t>(rendered.ptr - digits.data());
 
-  return {
-      .applied = landed,
-      .description =
-          landed ? std::string_view {digits.data(), width} : kUnappliedText,
-  };
+  return detail::selectPlacementAccount(landed, {digits.data(), width});
 }
 
 // FR-005, research D-04: the one harness-level placement slot. A
@@ -146,6 +140,20 @@ auto placementSlot() -> PlacementFn&
 
 namespace detail
 {
+
+// FR-005, FR-025: the disclosure account of one pin attempt. The platform
+// answer names which text the field carries, and each answer stands in a
+// branch a test drives directly: the replacement function of
+// `setPlacementFunction` replaces the whole pin, so the default pin's own
+// two accounts stand nowhere else (FR-025).
+auto selectPlacementAccount(
+    const bool landed, const std::string_view landedText) -> PlacementResult
+{
+  if (landed) {
+    return {.applied = true, .description = landedText};
+  }
+  return {.applied = false, .description = kUnappliedText};
+}
 
 // Where the loop stands, as `drain()` reads it (FR-006, FR-050):
 // `WORKING` covers taking, running and looking again; `IDLE` stands when

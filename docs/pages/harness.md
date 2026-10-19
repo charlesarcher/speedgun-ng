@@ -593,7 +593,7 @@ bmRows                        BIG_O  bytes_per_second N (  578.507)
 bmRows                          RMS  bytes_per_second     2.167%
 bmFill/8                 iterations=  31127816  real time/iter (ns)=    0.445  cpu time/iter (ns)=    0.445  overhead floor (ns)=  683.000  endpoint samples=2  bytes_per_second= 4622.274  label=filled
 bmFill/8/threads:2       iterations=  62255632  real time/iter (ns)=    0.447  cpu time/iter (ns)=    0.894  overhead floor (ns)=  683.000  endpoint samples=4  bytes_per_second= 4618.207  label=filled
-  contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN
+  contexts=2  ctx0=SPIN/NO_PIN/unapplied  ctx1=SPIN/NO_PIN/unapplied
 ```
 
 A threaded row ends the run above. Its name carries the `/threads:2` segment,

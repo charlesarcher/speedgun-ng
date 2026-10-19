@@ -48,7 +48,9 @@ LABEL_AGGREGATE = AGGREGATE + "  label=avx2"
 # 020 FR-025, FR-026: a threaded result prints one disclosure line after its
 # rows, and one noise warning line after that result when its spinning
 # contexts share one cpu or outnumber the cpus the host has online.
-DISCLOSURE = "  contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN"
+DISCLOSURE = (
+    "  contexts=2  ctx0=SPIN/NO_PIN/unapplied  ctx1=SPIN/NO_PIN/unapplied"
+)
 WARNING = "warning: spinning contexts oversubscribed (2 spin, 8 cpus)"
 THREAD_RUN = (STDOUT[0], STDOUT[1], DISCLOSURE, WARNING)
 
@@ -175,15 +177,23 @@ def golden_pairs() -> None:
 
     # 020 FR-025, FR-026: the counts of the disclosure line and of the noise
     # warning belong to the run, the mode words and the fixed wording do not.
-    other_counts = "  contexts=4  ctx1=SPIN/NO_PIN  ctx3=SPIN/NO_PIN"
+    other_counts = (
+        "  contexts=4  ctx1=SPIN/NO_PIN/unapplied"
+        "  ctx3=SPIN/NO_PIN/unapplied"
+    )
     check("another context count and index fold equal",
           mask(DISCLOSURE) == mask(other_counts),
           f"{mask(DISCLOSURE)!r} against {mask(other_counts)!r}")
 
-    other_cpus = "  contexts=2  ctx0=SPIN/3  ctx1=SPIN/7"
+    other_cpus = "  contexts=2  ctx0=SPIN/3/applied  ctx1=SPIN/7/applied"
+    unpinned = DISCLOSURE.replace("NO_PIN", "0").replace("unapplied", "applied")
     check("another pinned cpu index folds equal",
-          mask(DISCLOSURE.replace("NO_PIN", "0")) == mask(other_cpus),
-          f"{mask(DISCLOSURE.replace('NO_PIN', '0'))!r} against {mask(other_cpus)!r}")
+          mask(unpinned) == mask(other_cpus),
+          f"{mask(unpinned)!r} against {mask(other_cpus)!r}")
+
+    check("a flipped applied flag folds different",
+          mask(DISCLOSURE) != mask(DISCLOSURE.replace("unapplied", "applied")),
+          "both folded to the same shape")
 
     other_mode = DISCLOSURE.replace("SPIN", "BLOCK")
     check("another wait mode folds different",

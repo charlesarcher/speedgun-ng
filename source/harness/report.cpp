@@ -147,15 +147,32 @@ auto waitModeName(const sg::WaitMode waitMode) -> const char*
 // the number of contexts and, for each context, the wait mode and the
 // placement that context ran under. The line formats the records of
 // `result.contexts` and adds nothing to them.
+// The flag names of the placement account: whether the installed placement
+// function reported its slot as landed (FR-005, FR-025).
+constexpr const char* kAppliedFlag = "applied";
+constexpr const char* kUnappliedFlag = "unapplied";
+
+// The mark that stands where the placement field cut a text short.
+constexpr char kTruncationMark = '~';
+
+// FR-025: the placement field is as wide as the longest account the default
+// placement function produces. A replacement function may name itself at any
+// length; the field cuts it to this width and marks the cut, so the line
+// keeps the shape the docs print.
+constexpr std::size_t kPlacementFieldWidth = kUnappliedPlacement.size();
+static_assert(kPlacementFieldWidth >= kNoPinPlacement.size());
+
 auto printContextDisclosure(const BenchmarkResult& result) -> void
 {
   std::printf("  contexts=%zu", result.contexts.size());
   for (std::size_t index = 0; index < result.contexts.size(); ++index) {
     const auto& context = result.contexts[index];
-    std::printf("  ctx%zu=%s/%s",
+    const std::string field = placementField(context.placement);
+    std::printf("  ctx%zu=%s/%s/%s",
                 index,
                 waitModeName(context.waitMode),
-                context.placement.c_str());
+                field.c_str(),
+                context.applied ? kAppliedFlag : kUnappliedFlag);
   }
   std::printf("\n");
 }
@@ -163,19 +180,17 @@ auto printContextDisclosure(const BenchmarkResult& result) -> void
 // The count of cpus the report compares the spinning contexts against:
 // the affinity mask of the calling thread, which a cpuset, a taskset or a
 // container narrows, and the host count of the standard library where that
-// read answers nothing (FR-026). The two products keep the choice in
-// arithmetic: the mask read of a stack buffer names no failure a test run
-// can produce, and a branch on it would stand uncovered at the gate.
+// read answers nothing (FR-026). The read stands here and the choice stands
+// in `selectRunnableCpuCount`, where a test drives each answer (FR-026).
 auto runnableCpuCount() -> std::uint64_t
 {
   cpu_set_t cpus {};
   CPU_ZERO(&cpus);
-  const auto answered = static_cast<std::uint64_t>(
-      sched_getaffinity(0, sizeof(cpus), &cpus) == 0);
-  const auto masked = answered * static_cast<std::uint64_t>(CPU_COUNT(&cpus));
-  return masked
-      + (static_cast<std::uint64_t>(1) - answered)
-      * static_cast<std::uint64_t>(std::thread::hardware_concurrency());
+  const bool answered = sched_getaffinity(0, sizeof(cpus), &cpus) == 0;
+  return detail::selectRunnableCpuCount(
+      answered,
+      static_cast<std::uint64_t>(CPU_COUNT(&cpus)),
+      static_cast<std::uint64_t>(std::thread::hardware_concurrency()));
 }
 
 // FR-026, FR-028: the noise warning of one result. It prints when two
@@ -223,6 +238,33 @@ auto printNoiseWarning(const BenchmarkResult& result) -> void
 }
 
 }  // namespace
+
+// FR-025: the placement field of one context. A text no longer than the
+// field stands whole; a longer one stands cut to the field with the mark of
+// the cut in its last position, so a reader sees that the text ran past the
+// field.
+auto placementField(const std::string_view placement) -> std::string
+{
+  if (placement.size() <= kPlacementFieldWidth) {
+    return std::string(placement);
+  }
+  std::string field(placement.substr(0, kPlacementFieldWidth - 1));
+  field.push_back(kTruncationMark);
+  return field;
+}
+
+// FR-026: the choice the noise warning makes between the two cpu counts.
+// It stands at external linkage so the report test can drive each answer;
+// the affinity read above has no branch of its own.
+auto selectRunnableCpuCount(const bool maskAnswered,
+                            const std::uint64_t masked,
+                            const std::uint64_t host) noexcept -> std::uint64_t
+{
+  if (maskAnswered) {
+    return masked;
+  }
+  return host;
+}
 
 auto printContext() -> void
 {

@@ -1084,8 +1084,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     for (const auto& context : contexts) {
       const sg::PlacementResult placement =
           sg::detail::placementRecordOf(*context);
-      result.contexts.push_back(sg::ContextDisclosure {
-          context->policy().waitMode, std::string(placement.description)});
+      result.contexts.push_back(
+          sg::ContextDisclosure {context->policy().waitMode,
+                                 std::string(placement.description),
+                                 placement.applied});
     }
   };
 

@@ -88,6 +88,7 @@
 #include <unistd.h>
 
 #include "detail/gcov_flush.hpp"
+#include "detail/internal.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
@@ -465,7 +466,9 @@ auto scenarioRepetitionCount() -> int
 {
   constexpr std::size_t kRepetitions = 3;
   // The target stands under the decision time one iteration of four contexts
-  // folds, so calibration settles at its first run (FR-016).
+  // folds, so calibration settles at its first run (FR-016). Raising it makes
+  // the walk take a second sample, and the arrival gate below counts entries
+  // across samples, so a second sample waits for arrivals that already stood.
   constexpr std::int64_t kCalibrationNs = 1000;
 
   scriptProvider();
@@ -1762,6 +1765,17 @@ auto scenarioRangeExpansion() -> int
   auto handle = sg::registerBenchmark(&bmExpansionBody, "bmThreadsRange");
   handle.threadRange(1, 8);
 
+  // FR-024: bounds that stand out of order, and a lower bound below one,
+  // name no count. The require of the call answers either mistake where
+  // contracts stand, so the account both answers share is read here, at the
+  // builder that holds it.
+  check(sg::detail::buildThreadCounts(4, 2).empty(),
+        "bounds that stand out of order name no thread count (FR-024)");
+  check(sg::detail::buildThreadCounts(0, 4).empty(),
+        "a lower bound below one names no thread count (FR-024)");
+  check(sg::detail::buildThreadCounts(5, 8) == std::vector<int> {5},
+        "only the counts that fit the bounds stand in the set (FR-016)");
+
   const std::string report =
       captureRun({"--filter", "^bmThreadsRange", "--iterations=4"});
   checkExpansion(report, "bmThreadsRange", {1, 2, 4, 8});
@@ -1777,6 +1791,16 @@ auto scenarioDenseExpansion() -> int
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmExpansionBody, "bmThreadsDense");
   handle.denseThreadRange(1, 7, 3);
+
+  // FR-024: a step below one repeats one count forever, so it names the
+  // empty set, as inverted bounds do (the reading of P-6).
+  check(sg::detail::buildDenseThreadCounts(1, 10, 0).empty(),
+        "a step below one names no thread count (FR-024)");
+  check(sg::detail::buildDenseThreadCounts(6, 3, 1).empty(),
+        "bounds that stand out of order name no thread count (FR-024)");
+  check(sg::detail::buildDenseThreadCounts(2, 10, 3)
+            == std::vector<int> {2, 5, 8},
+        "one count per step that fits stands in the set (FR-016)");
 
   const std::string report =
       captureRun({"--filter", "^bmThreadsDense", "--iterations=4"});
@@ -2037,9 +2061,11 @@ auto scenarioPlacementDisclosure() -> int
       captureRun({"--filter", "^bmThreadsPlacement", "--iterations=4"});
 
   check(lineOf(report, "  contexts=")
-            == "  contexts=2  ctx0=SPIN/DECLINED  ctx1=SPIN/DECLINED",
+            == "  contexts=2  ctx0=SPIN/DECLINED/unapplied"
+               "  ctx1=SPIN/DECLINED/unapplied",
         "the disclosure line names the description each context's placement "
-        "function returned (FR-005, FR-025)");
+        "function returned and the flag that says it did not land "
+        "(FR-005, FR-025)");
   check(placementCalls.load() == kPlacementContexts,
         "the run placed each of its two contexts through the installed "
         "function (FR-005, D-04)");
