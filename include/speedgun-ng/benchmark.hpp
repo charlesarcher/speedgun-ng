@@ -2028,6 +2028,25 @@ public:
   auto threads(int count) -> BenchmarkHandle&;
 
   /**
+   * @brief State the placement preset of this family's threaded runs
+   * (FR-015).
+   *
+   * The name is one of the five placement presets `none`, `core`, `l3`,
+   * `smt` and `compact`; the last call wins the slot, the way the
+   * thread calls replace an earlier set. Each instance of this family
+   * then runs its contexts on the cpus the preset plans for the
+   * machine, and the run discloses the placement of each context
+   * (FR-008, FR-021).
+   *
+   * \pre the handle names a registered entry and the run has not
+   *      started for this benchmark (E-02)
+   * \post the entry carries `presetName` in place of any name an
+   *       earlier placement call stated, and the returned handle is
+   *       this handle (FR-015)
+   */
+  auto placement(std::string_view presetName) -> BenchmarkHandle&;
+
+  /**
    * @brief State one thread count per doubling from `minCount` up to
    * `maxCount` (FR-016).
    *
