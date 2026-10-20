@@ -17,6 +17,7 @@ fixes.
 | `--dry-run` | none | one iteration, one repetition, no warm-up | FR-014 |
 | `--counter` | catalog address, repeatable | attaches the leaf to every selected benchmark | FR-021 |
 | `--catalog` | none | prints the catalog listing, then exits without running a benchmark | FR-037 |
+| `--placement` | preset name: `none`, `core`, `l3`, `smt` or `compact` | runs the selected threaded benchmarks on the cpus the preset plans; the name is parsed once before the first run, and a name outside the five is a recoverable error that runs no benchmark (specs/022 FR-015, FR-016) | specs/022 FR-015, FR-016 |
 
 - A benchmark value set through the handle shall win over the command
   line (FR-015).
@@ -73,6 +74,8 @@ BM_copy                    18432            311.4                  22.7   ipc=1.
 | the filter matched no benchmark | zero, with a message |
 | list mode | zero |
 | measured or skipped benchmarks | zero |
+| `--placement` names a preset outside the five | 2, with one line naming the rejected text (specs/022 FR-016) |
+| a family's handle `placement` names a preset outside the five | 2, with one line naming the family and the rejected text, before any instance runs (specs/022 FR-015) |
 
 ## Interrupt behavior (clarification, FR-032)
 

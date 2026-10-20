@@ -121,7 +121,9 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # section with its rows, the format gate's canonical printf wrapping adding
 # the one line the first measure hand-set away. The cap sits at that
 # measured figure, below the 698 the metric landing first took.
-PAGE_LINE_CAP = 666
+# specs/022 FR-016 adds the placement quick-reference row: 1 line moves
+# the cap to 667, the measured length as the parser lands.
+PAGE_LINE_CAP = 667
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

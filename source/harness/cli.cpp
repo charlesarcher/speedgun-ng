@@ -302,6 +302,7 @@ auto speedgunMain(int argc, char** argv) -> int
       {"catalog", no_argument, nullptr, 'C'},
       {"percentiles", required_argument, nullptr, 'p'},
       {"no-percentiles", no_argument, nullptr, 'P'},
+      {"placement", required_argument, nullptr, 'A'},
       {nullptr, 0, nullptr, 0},
   };
 
@@ -349,12 +350,32 @@ auto speedgunMain(int argc, char** argv) -> int
       case 'P':
         options.showPercentiles = false;
         break;
+      case 'A':
+        // specs/022 FR-016: the text stands raw here; the parse below
+        // runs it once before the first run.
+        options.placement = std::string(optarg);
+        break;
       default:
         std::fprintf(stderr, "unknown option; see the option table of "
                              "specs/015-benchmark-harness-core/contracts/"
                              "cli.md\n");
         return 2;
     }
+  }
+
+  // specs/022 FR-016, E-05: the process preset name is parsed once here,
+  // before the expansion and before any run, so a rejected text stops
+  // the batch with one line and status 2.
+  std::optional<detail::Preset> processPreset;
+  if (options.placement.has_value()) {
+    const auto parsed = detail::parsePreset(*options.placement);
+    if (!parsed.has_value()) {
+      std::fprintf(stderr,
+                   "--placement: '%s' is not one of the five preset names\n",
+                   options.placement->c_str());
+      return 2;
+    }
+    processPreset = parsed;
   }
 
   if (options.catalogMode) {
@@ -364,7 +385,7 @@ auto speedgunMain(int argc, char** argv) -> int
 
   // FR-003, R-03: expansion completes here, before the filter and
   // before the first run, so a run carries no expansion work.
-  detail::expandRegistry();
+  detail::expandRegistry(processPreset);
 
   std::vector<Instance*> selected;
   std::optional<std::regex> pattern;
@@ -422,7 +443,7 @@ auto speedgunMain(int argc, char** argv) -> int
   SG_ENSURE(!detail::interruptFlag().load(),
             "the entry point starts with no pending interrupt (R-06)");
   std::signal(SIGINT, handleInterrupt);
-  detail::printContext();
+  detail::printContext(false);
 
   int status = 0;
   // The two run-wide flags are read by the postcondition below, which the

@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 #include <string>
@@ -356,7 +357,7 @@ auto hasDuplicateInstance(const std::vector<std::vector<Instance>>& blocks,
  *       from that list (FR-010, FR-012, R-02, R-12).
  * \invariant no run performs expansion work (FR-003).
  */
-auto expandRegistry() -> void
+auto expandRegistry(const std::optional<Preset> processPreset) -> void
 {
   auto& list = instances();
   list.clear();
@@ -367,6 +368,22 @@ auto expandRegistry() -> void
   std::vector<std::string> suites;
   std::vector<std::vector<Instance>> blocks;
   for (const auto& entry : registry()) {
+    // specs/022 FR-015, FR-016: the handle's name wins over the process
+    // default, and a name that parses to nothing stops the expansion
+    // with one line and status 2 before any instance exists.
+    std::optional<Preset> preset = processPreset;
+    if (entry->placement.has_value()) {
+      const auto parsed = parsePreset(*entry->placement);
+      if (!parsed.has_value()) {
+        std::fprintf(stderr,
+                     "placement: family '%s' names the preset '%s', which "
+                     "is not one of the five\n",
+                     entry->name.c_str(), entry->placement->c_str());
+        std::exit(2);
+      }
+      preset = parsed;
+    }
+    const Preset instancePreset = preset.value_or(Preset::NONE);
     const std::string suite = entry->name.substr(0, entry->name.find('/'));
     std::size_t slot = suites.size();
     const auto found = std::find(suites.begin(), suites.end(), suite);
@@ -392,6 +409,7 @@ auto expandRegistry() -> void
         Instance& instance = block.emplace_back();
         instance.name = name;
         instance.threadCount = threadCount;
+        instance.placement = instancePreset;
         instance.family = entry.get();
         const auto derived = deriveSuiteAndCase(entry->name, instance.name);
         instance.suite = derived.first;
@@ -413,6 +431,7 @@ auto expandRegistry() -> void
           instance.name = name;
           instance.arguments = arguments;
           instance.threadCount = threadCount;
+          instance.placement = instancePreset;
           instance.family = entry.get();
           const auto derived = deriveSuiteAndCase(entry->name, instance.name);
           instance.suite = derived.first;
