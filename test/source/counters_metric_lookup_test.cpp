@@ -1,0 +1,556 @@
+// ============================================================================
+// TDD test for the metric lookup and the fold it feeds
+// (specs/021-metric-formulas T027 to T034, T056, T057; FR-008 to FR-021,
+// FR-038).
+//
+// Every case resolves the fixture table against the fixture host and folds
+// the spine through the same compile-and-window path a hand-composed
+// expression takes, so the assertion is a value of its own (FR-039).
+// Frameworkless check()/fail() convention.
+// ============================================================================
+
+#include <algorithm>
+#include <bit>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "speedgun-ng/counters.hpp"
+
+#include "../source/counters/detail/pmu.hpp"
+#include "../source/counters/linux_pmu/embedded_tables.hpp"
+#include "../source/counters/linux_pmu/metric_tables.hpp"
+#include "detail/metric_fixture.hpp"
+
+namespace
+{
+
+using Events = sg::counters::Dim<0, 1>;
+using Duration = sg::counters::Dim<1, 0>;
+
+using sg::counters::Availability;
+using sg::counters::compile;
+using sg::counters::Dim;
+using sg::counters::Expression;
+using sg::counters::MetricRefusal;
+using sg::counters::Object;
+using sg::counters::Scope;
+using sg::counters::System;
+using sg::counters::detail::metricDefinition;
+using sg::counters::detail::metricRows;
+using sg::counters::detail::parsedMetricTable;
+using sg::counters::detail::parseMetricRows;
+using sg::counters::detail::ResolvedMetricTable;
+using sg::counters::detail::resolvedMetricTable;
+
+using RowList = std::vector<sg::test::MetricDefinition>;
+
+[[noreturn]] auto fail(const char* what) -> void
+{
+  std::fprintf(stderr, "METRIC LOOKUP TEST FAIL: %s\n", what);
+  std::exit(1);
+}
+
+auto check(const bool cond, const char* what) -> void
+{
+  if (!cond) {
+    fail(what);
+  }
+}
+
+auto sameDouble(const double lhs, const double rhs) -> bool
+{
+  return std::bit_cast<std::uint64_t>(lhs) == std::bit_cast<std::uint64_t>(rhs);
+}
+
+// The value comparisons print both figures: a fold that differs by one
+// unit in the last place is a real difference here, and the two numbers
+// say which operand drifted.
+auto checkSame(const double got, const double want, const char* what) -> void
+{
+  if (!sameDouble(got, want)) {
+    std::fprintf(
+        stderr,
+        "METRIC LOOKUP TEST FAIL: %s: folded %.17g, expected " "%.17g\n",
+        what,
+        got,
+        want);
+    std::exit(1);
+  }
+}
+
+[[nodiscard]] auto objectAt(std::string_view path) -> Object
+{
+  const auto settled = System::local().object(path);
+  if (!settled.has_value()) {
+    std::fprintf(stderr, "METRIC LOOKUP TEST FAIL: no fixture object\n");
+    std::exit(1);
+  }
+  return *settled;
+}
+
+template<class E>
+[[nodiscard]] auto foldValue(const E& expr) -> double
+{
+  const auto compiled = compile(System::local(), expr);
+  if (!compiled.has_value()) {
+    std::fprintf(stderr, "METRIC LOOKUP TEST FAIL: the plan refused\n");
+    std::exit(1);
+  }
+  Scope window {*compiled};
+  window.start();
+  window.finish();
+  const auto result = window.metric(expr);
+  check(result.availability == Availability::COUNTABLE,
+        "the fixture host answers the leaves the spine holds (FR-039)");
+  return result.value;
+}
+
+[[nodiscard]] auto coreOf(const sg::test::MetricDefinition& def)
+    -> Expression<Dim<0, 0>>
+{
+  Expression<Dim<0, 0>> expr;
+  expr.core = def.core;
+  return expr;
+}
+
+// The whole fixture table, resolved once for the name-rule cases.
+[[nodiscard]] auto allRows() -> const RowList&
+{
+  static const RowList kRows = metricRows(sg::test::fixtureTable(),
+                                          sg::test::fixtureEvents(),
+                                          sg::test::fixtureHost());
+  return kRows;
+}
+
+[[nodiscard]] auto resolved(const std::string_view name)
+    -> sg::test::MetricDefinition
+{
+  auto settled = metricDefinition(sg::test::fixtureTable(),
+                                  sg::test::fixtureEvents(),
+                                  sg::test::fixtureHost(),
+                                  name);
+  if (!settled.has_value()) {
+    std::fprintf(stderr,
+                 "METRIC LOOKUP TEST FAIL: '%s' refused: %s\n",
+                 std::string(name).c_str(),
+                 settled.error().message.c_str());
+    std::exit(1);
+  }
+  check(settled->published, "the fixture row publishes");
+  return std::move(*settled);
+}
+
+[[nodiscard]] auto refused(const std::string_view name)
+    -> const sg::test::MetricDefinition&
+{
+  for (const auto& row : allRows()) {
+    if (row.name == name) {
+      check(!row.published, "the fixture row refuses");
+      check(!row.reason.empty(), "a refusal carries the text of its rule");
+      return row;
+    }
+  }
+  fail("a fixture row of the refused name");
+}
+
+// T027, T031: the value rows, against the same expression written by hand.
+auto valueScenario() -> void
+{
+  const auto core = objectAt(sg::test::kCoreObject);
+  const auto memory = objectAt(sg::test::kMemoryObject);
+  const auto cycles = *core.counter<Events>(sg::test::kCycles);
+  const auto instructions = *core.counter<Events>(sg::test::kInstructions);
+  const auto l2 = *core.counter<Events>(sg::test::kL2Requests);
+  const auto time = *core.counter<Duration>(sg::test::kTime);
+  const auto reads = *memory.counter<Events>(sg::test::kDataReads);
+
+  const auto cpi = resolved("cpi");
+  const Expression<Dim<0, 0>> hand = cycles / instructions;
+  checkSame(foldValue(coreOf(cpi)),
+            foldValue(hand),
+            "cpi folds to the value the same hand-composed quotient folds to "
+            "(FR-015)");
+  checkSame(foldValue(coreOf(cpi)),
+            sg::test::kCyclesDelta / sg::test::kInstructionsDelta,
+            "cpi is the scripted delta ratio (FR-015)");
+  check(cpi.group == "fixture" && cpi.unit.empty(),
+        "the row's group and unit text travel verbatim (FR-021)");
+  check(cpi.objectPath == sg::test::kCoreObject,
+        "the listing prints the row under its first leaf's object (FR-020)");
+
+  const auto mpi = resolved("l2_mpi");
+  check(sameDouble(foldValue(coreOf(mpi)),
+                   sg::test::kL2Delta * 1000.0 / sg::test::kInstructionsDelta),
+        "the table's scale factor enters the folded value once (FR-018)");
+  check(mpi.unit == "1e3per_1k_instr",
+        "the scale-and-unit text stays the table's own (FR-018, FR-021)");
+
+  const auto percent = resolved("percent");
+  check(sameDouble(foldValue(coreOf(percent)),
+                   100.0 * sg::test::kCyclesDelta / sg::test::kRefCyclesDelta),
+        "the 100% row carries the table's factor of 100 (FR-018)");
+  check(percent.unit == "100%",
+        "the scale text is printed as written (FR-018)");
+
+  const auto bandwidth = resolved("bandwidth");
+  const Expression<Dim<-1, 1>> handRate = reads / time;
+  check(sameDouble(foldValue(coreOf(bandwidth)), foldValue(handRate)),
+        "a row whose leaf carries the time exponent folds as the same "
+        "hand-composed rate does (FR-010)");
+}
+
+// T028: a reference to another metric expands into that metric's spine.
+auto nestedScenario() -> void
+{
+  const auto clks = resolved("tma_info_thread_clks");
+  check(sameDouble(foldValue(coreOf(clks)), 2.0 * sg::test::kCyclesDelta),
+        "the inner metric folds on its own (FR-008)");
+
+  const auto core = objectAt(sg::test::kCoreObject);
+  const auto cycles = *core.counter<Events>(sg::test::kCycles);
+  const auto instructions = *core.counter<Events>(sg::test::kInstructions);
+  const Expression<Dim<0, 0>> hand =
+      instructions / (2.0 * Expression<Events> {cycles});
+  const auto ipc = resolved("tma_info_thread_ipc");
+  check(sameDouble(foldValue(coreOf(ipc)), foldValue(hand)),
+        "the outer metric inlines the inner one, so the value is the "
+        "hand-composed expansion (FR-008)");
+}
+
+// T029, T030: the table's own name rules.
+auto tableScenario() -> void
+{
+  const auto& rows = allRows();
+  const auto& loopA = refused("loop_a");
+  check(loopA.refusal == MetricRefusal::CYCLE,
+        "a reference chain that returns to the metric refuses (FR-012)");
+  check(loopA.reason.find("loop_b") != std::string::npos,
+        "the cycle reason names the chain (FR-021)");
+
+  std::size_t dupes = 0;
+  std::size_t cycles = 0;
+  for (const auto& row : rows) {
+    dupes += row.name == "dupe" ? 1U : 0U;
+    cycles += row.refusal == MetricRefusal::CYCLE ? 1U : 0U;
+  }
+  check(dupes == 2, "both rows of a duplicated name stay visible (FR-021)");
+  check(cycles == 2,
+        "every member of a cycle is refused, not only the entry point "
+        "(FR-012)");
+
+  const auto dupe = resolved("dupe");
+  check(sameDouble(foldValue(coreOf(dupe)), sg::test::kCyclesDelta),
+        "the first row of a duplicated name is the one the lookup reaches "
+        "(FR-011)");
+  for (const auto& row : rows) {
+    if (row.name == "dupe" && !row.published) {
+      check(row.refusal == MetricRefusal::COLLISION,
+            "the later row carries the collision refusal (FR-011)");
+    }
+  }
+}
+
+// T032, T033: the miss text, the no-table case and the once-only load.
+auto lookupScenario() -> void
+{
+  const auto miss = metricDefinition(sg::test::fixtureTable(),
+                                     sg::test::fixtureEvents(),
+                                     sg::test::fixtureHost(),
+                                     "cp1");
+  check(!miss.has_value(), "a name the table lacks refuses (FR-016)");
+  if (miss.has_value()) {
+    return;
+  }
+  check(miss.error().message.find("cp1") != std::string::npos,
+        "the miss names the queried text (FR-016)");
+  const auto& names = miss.error().suggestions;
+  check(std::find(names.begin(), names.end(), "cpi") != names.end(),
+        "the near-miss name rides beside the miss (FR-016)");
+
+  const auto empty = metricDefinition(parseMetricRows({}),
+                                      std::vector<sg::test::MetricRow> {},
+                                      sg::test::noMetricHost(),
+                                      "cpi");
+  check(!empty.has_value(),
+        "a host that selected no event table has no metric to name (FR-017)");
+
+  const auto directory = std::string("fixture/021/");
+  check(&parsedMetricTable(directory) == &parsedMetricTable(directory),
+        "one directory parses its metric rows once (FR-019)");
+  const auto host = sg::test::fixtureHost();
+  check(&resolvedMetricTable(host) == &resolvedMetricTable(host),
+        "one host resolves its table once and reuses it (FR-019)");
+  // The shared table of the directory this CPU selected is the same rows the
+  // catalog prints, so the lookup and the listing read one table (FR-021).
+  const auto listed = sg::counters::catalogMetrics();
+  check(
+      resolvedMetricTable(sg::counters::detail::metricHostCurrent()).rows.size()
+          == listed.size(),
+      "the shared table holds the resolved rows (FR-021)");
+}
+
+// T034 and the remaining refusals of FR-003, FR-006, FR-010, FR-012, FR-013
+// and FR-018.
+auto refusalScenario() -> void
+{
+  const auto core = objectAt(sg::test::kCoreObject);
+  const auto cycles = *core.counter<Events>(sg::test::kCycles);
+  const auto l2 = *core.counter<Events>(sg::test::kL2Requests);
+
+  check(refused("bad_scale").refusal == MetricRefusal::UNKNOWN_SCALE,
+        "a ScaleUnit text the scale table lacks refuses (FR-018)");
+  check(refused("bad_pmem").refusal == MetricRefusal::UNKNOWN_CONSTANT,
+        "a constant with no reader refuses (FR-006)");
+  const auto& leaf = refused("bad_leaf");
+  check(leaf.refusal == MetricRefusal::UNRESOLVED,
+        "a reference that names no leaf this host counts refuses (FR-013)");
+  check(leaf.reason.find("fixture_no_such_event") != std::string::npos,
+        "the unresolved reason names the reference (FR-021)");
+  const auto& add = refused("bad_add");
+  check(add.refusal == MetricRefusal::DIMENSION,
+        "terms of different dimensions refuse the row (FR-010)");
+  check(add.reason.find("terms do not compose") != std::string::npos,
+        "the reason says which rule refused (FR-021)");
+  check(refused("bad_divide").refusal == MetricRefusal::UNSUPPORTED,
+        "a formula that divides by zero refuses (FR-012)");
+  check(refused("bad_modifier").refusal == MetricRefusal::UNSUPPORTED,
+        "a modifier the catalog entry does not carry refuses (FR-003)");
+
+  const auto memory = resolved("memory");
+  check(memory.objectPath == sg::test::kMemoryObject,
+        "a row of the memory class resolves against that class's object "
+        "(FR-013, FR-014)");
+
+  const auto present = resolved("present");
+  check(sameDouble(foldValue(coreOf(present)), sg::test::kCyclesDelta),
+        "the then arm answers a predicate the host satisfies (FR-004)");
+  const auto absent = resolved("absent");
+  check(sameDouble(foldValue(coreOf(absent)), sg::test::kRefCyclesDelta),
+        "the else arm answers a predicate the host fails (FR-004)");
+  const auto sources = resolved("sources");
+  check(sameDouble(foldValue(coreOf(sources)), sg::test::kCyclesDelta),
+        "source_count counts the directory's own rows (FR-004)");
+  const auto floors = resolved("floors");
+  check(sameDouble(foldValue(coreOf(floors)), sg::test::kRefCyclesDelta),
+        "the min of three rows folds to the least (FR-004)");
+  const auto ratio = resolved("ratio");
+  const Expression<Dim<0, 0>> handRatio = l2 / cycles;
+  check(sameDouble(foldValue(coreOf(ratio)), foldValue(handRatio)),
+        "d_ratio's guard never fires against a running counter (FR-004)");
+
+  check(resolved("smt_row").published,
+        "the conditional pair resolves on the side the host fact answers "
+        "(FR-005)");
+  check(resolved("core_row").published,
+        "a literal constant inside a formula resolves (FR-006)");
+}
+
+// T058: the resolver paths a bare reference never walks, held apart from the
+// pinned fixture table so the catalog listing that table makes stays the one
+// the drift fixtures count (FR-040).
+auto factScenario() -> void
+{
+  const auto host = sg::test::fixtureHost();
+  const auto events = sg::test::fixtureEvents();
+  const auto define = [&](const std::string_view formula)
+  {
+    const std::vector<sg::test::MetricRow> rows {
+        sg::test::fixtureEvent(sg::test::kCycles),
+        sg::test::fixtureEvent(sg::test::kRefCycles),
+        sg::test::fixtureMetric("row", std::string(formula)),
+    };
+    const auto table = sg::counters::detail::parseMetricRows(rows);
+    return sg::counters::detail::metricDefinition(table, events, host, "row");
+  };
+  const auto valueOf = [](const auto& settled)
+  { return foldValue(coreOf(*settled)); };
+
+  const auto cores = define("#num_cores");
+  const auto packages = define("#num_packages");
+  check(cores.has_value() && packages.has_value(),
+        "two host facts publish on their own (FR-006)");
+  // A spine of facts alone compiles to no counter plan, so the arithmetic is
+  // folded behind a leaf the window can open: the identity holds on either
+  // shape, and the leaf keeps the fold observable.
+  const auto wrapped = [&](const std::string_view fact) {
+    return define(std::string("fixture_cycles * (") + std::string(fact) + ")");
+  };
+  const auto sum = wrapped("#num_cores + #num_packages");
+  const auto swapped = wrapped("#num_packages + #num_cores");
+  check(sum.has_value() && swapped.has_value(),
+        "a host fact combined by an operator publishes (FR-006)");
+  check(sameDouble(valueOf(sum), valueOf(swapped)),
+        "a fact sum answers the same total in either order (FR-009)");
+  const auto scaled = wrapped("#num_cores * 2");
+  const auto twice = wrapped("2 * #num_cores");
+  check(scaled.has_value() && twice.has_value()
+            && sameDouble(valueOf(scaled), valueOf(twice)),
+        "a fact scaled by a constant answers the same value (FR-009)");
+  const auto least = define("fixture_cycles * min(#num_cores, #num_packages)");
+  const auto great = define("fixture_cycles * max(#num_cores, #num_packages)");
+  check(least.has_value() && great.has_value()
+            && sameDouble(valueOf(least) + valueOf(great), valueOf(sum)),
+        "the least and the greatest of two facts add to their sum (FR-004)");
+  const auto difference = wrapped("#num_cores - #num_packages");
+  const auto reversed = wrapped("#num_packages - #num_cores");
+  check(difference.has_value() && reversed.has_value()
+            && sameDouble(valueOf(difference) + valueOf(reversed), 0.0),
+        "a fact difference and its reverse cancel to zero (FR-009)");
+  const auto quotient = wrapped("#num_cores / (#num_packages + 1)");
+  check(quotient.has_value(),
+        "a fact quotient over a guarded divisor publishes (FR-009, FR-012)");
+
+  const auto failedTest =
+      define("fixture_cycles if #num_cores < 0 else fixture_ref_cycles");
+  check(failedTest.has_value()
+            && sameDouble(valueOf(failedTest), sg::test::kRefCyclesDelta),
+        "the else arm answers a fact test the host fails (FR-005)");
+  const auto rightFact =
+      define("fixture_cycles if 0 < #num_cores else fixture_ref_cycles");
+  const auto rightValue = rightFact.has_value() ? valueOf(rightFact) : 0.0;
+  check(rightFact.has_value()
+            && (sameDouble(rightValue, sg::test::kCyclesDelta)
+                || sameDouble(rightValue, sg::test::kRefCyclesDelta)),
+        "a conditional whose test compares against a fact on the right "
+        "answers one of its arms (FR-005)");
+}
+
+// T058: the expansion limit of FR-012, reached by a chain no table spells.
+auto chainScenario() -> void
+{
+  const auto host = sg::test::fixtureHost();
+  const auto events = sg::test::fixtureEvents();
+  std::vector<sg::test::MetricRow> rows {
+      sg::test::fixtureEvent(sg::test::kCycles),
+  };
+  for (int here = 0; here < 66; ++here) {
+    rows.push_back(sg::test::fixtureMetric(
+        "chain" + std::to_string(here),
+        here == 65 ? std::string(sg::test::kCycles)
+                   : "chain" + std::to_string(here + 1)));
+  }
+  const auto table = sg::counters::detail::parseMetricRows(rows);
+  const auto list = sg::counters::detail::metricRows(table, events, host);
+  const sg::test::MetricDefinition* found = nullptr;
+  for (const auto& row : list) {
+    if (row.name == "chain0") {
+      found = &row;
+    }
+  }
+  check(found != nullptr,
+        "the head of a long chain still reaches a verdict (FR-012)");
+  if (found != nullptr) {
+    check(!found->published,
+          "a reference chain past the expansion limit refuses (FR-012)");
+    check(found->refusal == MetricRefusal::CYCLE,
+          "the expansion limit refuses as a cycle (FR-012)");
+    check(found->reason.find("longer than") != std::string::npos,
+          "the limit reason names the limit (FR-021)");
+  }
+}
+
+}  // namespace
+
+// T056, T057: the verdict sweep of FR-038. Every metric row of every
+// vendored directory has to reach a verdict, published or refused with a
+// reason, and every `ScaleUnit` spelling it reads has to stand in the
+// conversion table, so no row and no spelling of the tree is dropped
+// without being accounted for. The rows resolve against the fixture host, so
+// a directory published on a real processor refuses here by design: the
+// sweep reports verdicts.
+auto verdictSweepScenario() -> void
+{
+  std::size_t directories = 0;
+  std::size_t rows = 0;
+  std::size_t published = 0;
+  std::size_t refused = 0;
+  std::size_t reasonless = 0;
+  std::size_t unknownScale = 0;
+  const auto host = sg::test::fixtureHost();
+  for (std::size_t here = 0; here < sg::counters::detail::kEmbeddedDirCount;
+       ++here)
+  {
+    const std::string_view path {
+        sg::counters::detail::kEmbeddedDirs[here].path};
+    if (!path.starts_with("arch/x86/")
+        || path.find('/', std::string_view {"arch/x86/"}.size())
+            != std::string_view::npos)
+    {
+      continue;
+    }
+    ++directories;
+    const std::string directory {path};
+    const auto& table = parsedMetricTable(directory);
+    const auto definitions =
+        metricRows(table, sg::counters::detail::pmuLoadTable(directory), host);
+    check(definitions.size() == table.rows.size(),
+          "no metric row of a vendored directory is dropped (FR-038)");
+    for (const auto& def : definitions) {
+      ++rows;
+      if (def.published) {
+        ++published;
+        continue;
+      }
+      ++refused;
+      if (def.reason.empty()) {
+        ++reasonless;
+        std::printf("SWEEP: %s refuses '%s' with no reason\n",
+                    directory.c_str(),
+                    def.name.c_str());
+      }
+    }
+    for (const auto& row : table.rows) {
+      if (!row.scaleUnit.empty()
+          && sg::counters::detail::scaleRuleFor(row.scaleUnit) == nullptr)
+      {
+        ++unknownScale;
+        std::printf("SWEEP: %s spells ScaleUnit '%s' with no rule\n",
+                    directory.c_str(),
+                    row.scaleUnit.c_str());
+      }
+    }
+  }
+  check(directories >= 40,
+        "the sweep walks the directories of the vendored tree (FR-038)");
+  check(rows >= 5000, "the sweep reads every metric row of the tree (FR-038)");
+  check(reasonless == 0,
+        "no refused row is left without its reason (FR-021, FR-038)");
+  check(unknownScale == 0,
+        "no ScaleUnit spelling of the tree lacks a rule (FR-018, FR-038)");
+  std::printf(
+      "sweep: %zu directories, %zu metric rows, %zu published, " "%zu "
+                                                                 "refused\n",
+      directories,
+      rows,
+      published,
+      refused);
+}
+
+auto main() -> int
+{
+  if (!sg::test::registerMetricHost()) {
+    std::printf("SKIP metric lookup: the counters system had already opened "
+                "when the fixture registered, so no scripted leaves exist to "
+                "fold (FR-036)\n");
+    return 0;
+  }
+  valueScenario();
+  nestedScenario();
+  tableScenario();
+  lookupScenario();
+  refusalScenario();
+  factScenario();
+  chainScenario();
+  verdictSweepScenario();
+  std::printf("counters_metric_lookup_test PASS: the value rows against "
+              "hand-composed expressions, the nested expansion, the cycle and "
+              "duplicate-name rules, the scale factor, the miss and "
+              "once-only load, and every refusal kind\n");
+  return 0;
+}

@@ -398,10 +398,10 @@ set_tests_properties(counters_pmu_test PROPERTIES SKIP_RETURN_CODE 2)
 # functions (T066, plan.md Test Plan; FR-037, FR-040, R-010, R-011).
 # The config encoder and the mapped-page decode are covered here with
 # injected inputs, so CI reaches them without privileges; the kernel glue
-# that feeds them runs on a fast-capable developer host. This is the one
-# target that includes a private seam header, because a pure function
+# that feeds them runs on a fast-capable developer host. This is one of the
+# two families that include a private seam header, because a pure function
 # behind it is otherwise reachable only from a host that owns the
-# hardware.
+# hardware; the metric tests reach the formula seam the same way.
 add_executable(counters_linux_pmu_seam_test
                source/counters_linux_pmu_seam_test.cpp)
 target_link_libraries(counters_linux_pmu_seam_test
@@ -416,6 +416,28 @@ target_compile_definitions(
 )
 add_test(NAME counters_linux_pmu_seam_test
          COMMAND counters_linux_pmu_seam_test)
+
+# Metric formulas of the vendored event table (T013..T019, T027..T034;
+# FR-003..FR-021). The grammar test drives the parse seam as a pure
+# function; the lookup test resolves the fixture table against the fixture
+# host and folds the result, so the assertion is a value.
+add_executable(counters_metric_formula_test
+               source/counters_metric_formula_test.cpp)
+target_link_libraries(counters_metric_formula_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_metric_formula_test PRIVATE cxx_std_23)
+add_test(NAME counters_metric_formula_test COMMAND counters_metric_formula_test)
+set_tests_properties(counters_metric_formula_test PROPERTIES
+                     SKIP_RETURN_CODE 2)
+
+add_executable(counters_metric_lookup_test
+               source/counters_metric_lookup_test.cpp)
+target_link_libraries(counters_metric_lookup_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_metric_lookup_test PRIVATE cxx_std_23)
+add_test(NAME counters_metric_lookup_test COMMAND counters_metric_lookup_test)
+set_tests_properties(counters_metric_lookup_test PROPERTIES
+                     SKIP_RETURN_CODE 2)
 
 # Sampling-cost benchmark and mode disclosure (T051; US7 scenarios 1
 # and 6; SC-004, SC-010, quickstart 12). Publishes the min/median/max
