@@ -403,7 +403,7 @@ auto scenarioNoArgument() -> int
 auto scenarioHandleWins() -> int
 {
   const Captured run =
-      runChild("handleWins", {"--placement=l3", "--filter", "^bmCliHandleSmt$"},
+      runChild("handleWins", {"--placement=l3", "--filter", "^bmCliHandleSmt"},
                &setupHandleWins);
   check(run.status == 2, "the unfittable handle preset exits 2 (FR-015)");
   check(run.err.find("smt") != std::string::npos,
@@ -477,7 +477,7 @@ auto countLines(const std::string& text) -> std::size_t
 auto scenarioFitStop() -> int
 {
   const Captured run =
-      runChild("fitStop", {"--placement=l3", "--filter", "^bmCliFitStop$"},
+      runChild("fitStop", {"--placement=l3", "--filter", "^bmCliFitStop"},
                &setupFitStop);
   check(run.status == 2, "five contexts under four places exit 2 (FR-018)");
   check(lineNaming(run.err, {"l3", "4", "5"}),
@@ -493,7 +493,7 @@ auto scenarioFitStop() -> int
 auto scenarioFitRange() -> int
 {
   const Captured run =
-      runChild("fitRange", {"--placement=l3", "--filter", "^bmCliFitRange$"},
+      runChild("fitRange", {"--placement=l3", "--filter", "^bmCliFitRange"},
                &setupFitRange);
   check(run.status == 2, "the unfittable count stops the whole batch (Q-4)");
   check(run.out.find("bmCliFitRange") == std::string::npos,
@@ -541,7 +541,7 @@ auto scenarioTopoUnreadable() -> int
 auto scenarioNoneSkip() -> int
 {
   const Captured run =
-      runChild("noneSkip", {"--placement=none", "--filter", "^bmCliNoneSkip$"},
+      runChild("noneSkip", {"--placement=none", "--filter", "^bmCliNoneSkip"},
                &setupNoneSkip);
   check(run.status == 0, "the none preset exits 0 (FR-010)");
   check(run.out.find("topology:") == std::string::npos,

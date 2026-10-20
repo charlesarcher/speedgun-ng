@@ -20,8 +20,10 @@
 // undrivable answer (R-04, cmake/coverage.cmake:76).
 // ============================================================================
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <string>
 #include <vector>
@@ -253,6 +255,56 @@ auto layout() -> const MachineLayout&
     return readLayout(installedDescriptionSlot());
   }();
   return kCached;
+}
+
+// FR-036: the comma-joined range spelling of a cpu set, consecutive
+// cpus folded into one `low-high` span. The mask and each group line
+// print through it.
+auto appendRangeText(std::string& text, std::vector<std::uint32_t> cpus)
+    -> void
+{
+  std::ranges::sort(cpus);
+  for (std::size_t at = 0; at < cpus.size();) {
+    std::size_t last = at;
+    while (last + 1 < cpus.size() && cpus[last + 1] == cpus[last] + 1) {
+      ++last;
+    }
+    if (at != 0) {
+      text += ',';
+    }
+    text += std::to_string(cpus[at]);
+    if (last != at) {
+      text += '-' + std::to_string(cpus[last]);
+    }
+    at = last + 1;
+  }
+}
+
+// FR-036, data-model.md E-10: the `--topology` block. The counts line
+// carries the mask the layout was built from, and one line per L3
+// group names that group's cpus inside the mask.
+auto printTopologyListing(const MachineLayout& machine) -> void
+{
+  std::string maskText;
+  appendRangeText(maskText, machine.mask);
+  std::printf(
+      "topology: packages=%u l3-groups=%zu cores=%zu threads=%zu mask=%s\n",
+      machine.packages,
+      machine.groups.size(),
+      machine.cores.size(),
+      machine.threads.size(),
+      maskText.c_str());
+  for (std::size_t group = 0; group < machine.groups.size(); ++group) {
+    std::vector<std::uint32_t> cpus;
+    for (const auto& thread : machine.threads) {
+      if (thread.groupOrdinal == group) {
+        cpus.push_back(thread.cpuIndex);
+      }
+    }
+    std::string groupText;
+    appendRangeText(groupText, std::move(cpus));
+    std::printf("l3 %zu: %s\n", group, groupText.c_str());
+  }
 }
 
 }  // namespace detail
