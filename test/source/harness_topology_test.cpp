@@ -316,14 +316,27 @@ auto childSyntheticOne() -> int
   return 0;
 }
 
-// FR-005, R-13: the same description under a mask holding cpus 4 to 7
-// intersects to nothing, so the walk yields a thread count of 0.
+// FR-005, R-13: the same description under a mask holding every host cpu
+// except cpu 0 intersects to nothing, so the walk yields a thread count
+// of 0. The mask is read from the host because a fixed high range names
+// cpus a four-cpu runner lacks.
 auto childSyntheticNarrowed() -> int
 {
+  cpu_set_t current {};
+  if (sched_getaffinity(0, sizeof(current), &current) != 0) {
+    std::fprintf(stderr, "sched_getaffinity failed\n");
+    return 1;
+  }
   cpu_set_t narrow {};
   CPU_ZERO(&narrow);
-  for (const std::size_t cpu : {4U, 5U, 6U, 7U}) {
-    CPU_SET(cpu, &narrow);
+  for (std::size_t cpu = 1U; cpu < CPU_SETSIZE; ++cpu) {
+    if (CPU_ISSET(cpu, &current)) {
+      CPU_SET(cpu, &narrow);
+    }
+  }
+  if (CPU_COUNT(&narrow) == 0) {
+    std::fprintf(stderr, "the host holds no cpu beside cpu 0\n");
+    return 1;
   }
   if (sched_setaffinity(0, sizeof(narrow), &narrow) != 0) {
     std::fprintf(stderr, "sched_setaffinity failed\n");
@@ -367,16 +380,34 @@ auto childLoadFailed() -> int
 
 // FR-002, E-09: the synthetic description `Package:2 Core:2 PU:2`
 // describes packages, cores and processing units but no cache level, so
-// every core closes with no group and the group list stays empty.
+// every core closes with no group and the group list stays empty. The
+// description scales with the host: eight cpus keep the two-sibling
+// shape, four cpus take the single-sibling shape, two cpus take the
+// one-package shape, because the synthetic cpus intersect with the
+// process affinity like any other read.
 auto childNoGroup() -> int
 {
-  sg::detail::installTestTopologyDescription(
-      std::string("Package:2 Core:2 PU:2"));
+  cpu_set_t host {};
+  if (sched_getaffinity(0, sizeof(host), &host) != 0) {
+    std::fprintf(stderr, "sched_getaffinity failed\n");
+    return 1;
+  }
+  const auto hostCpus = static_cast<std::size_t>(CPU_COUNT(&host));
+  if (hostCpus < 2) {
+    std::fprintf(stderr, "the host holds fewer than two cpus\n");
+    return 1;
+  }
+  const char* const description = hostCpus >= 8
+      ? "Package:2 Core:2 PU:2"
+      : (hostCpus >= 4 ? "Package:2 Core:2 PU:1" : "Package:1 Core:2 PU:1");
+  const auto expectedThreads = hostCpus >= 8 ? 8U : (hostCpus >= 4 ? 4U : 2U);
+  const auto expectedCores = hostCpus >= 4 ? 4U : 2U;
+  sg::detail::installTestTopologyDescription(std::string(description));
   const auto& layout = sg::detail::layout();
-  if (!layout.readable || layout.cores.size() != 4 || !layout.groups.empty()
-      || layout.threads.size() != 8)
+  if (!layout.readable || layout.cores.size() != expectedCores
+      || !layout.groups.empty() || layout.threads.size() != expectedThreads)
   {
-    std::fprintf(stderr, "the groupless synthetic did not yield four cores\n");
+    std::fprintf(stderr, "the groupless synthetic did not yield its cores\n");
     return 1;
   }
   return 0;
