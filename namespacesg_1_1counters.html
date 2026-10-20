@@ -179,6 +179,14 @@
             </dt>
             <dd>A fan-out plan (US3 scenario 5, SC-007): the exemplar expression instantiated per selected object; every instantiated leaf is read inside each shared sampling action (FR-047). Move-only; the plan owns the layout and the recorder arenas.</dd>
             <dt>
+              struct <a href="structsg_1_1counters_1_1MetricView.html" class="m-doc">MetricView</a>
+            </dt>
+            <dd></dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1MetricListing.html" class="m-doc">MetricListing</a>
+            </dt>
+            <dd></dd>
+            <dt>
               class <a href="classsg_1_1counters_1_1PmuProvider.html" class="m-doc">PmuProvider</a>
             </dt>
             <dd>The hardware event provider: the rich catalog and its probed availability (FR-037..FR-041).</dd>
@@ -255,6 +263,18 @@
               <a href="#a35e21455ba0ee51dfac91a6b3f6503d2ad58c2543841f87cd9237366e583f0a69" class="m-doc">PUSH_LOAD</a> }</span>
             </dt>
             <dd>The achieved read mechanism for a leaf, probed during provider enumeration before the catalog freezes at the open boundary, and disclosed per catalog entry (FR-023).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#ab2c74cc2df8d74109d315f3f19e7c170" class="m-doc">MetricRefusal</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ab2c74cc2df8d74109d315f3f19e7c170a57a0e323fc5b066538cf67fdaa367aa8" class="m-doc">MALFORMED</a>,
+              <a href="#ab2c74cc2df8d74109d315f3f19e7c170a40aa75f8e8cfdf7b660c5620e953229f" class="m-doc">UNSUPPORTED</a>,
+              <a href="#ab2c74cc2df8d74109d315f3f19e7c170a11729ccb73dc5f4f62d40435e8a0c078" class="m-doc">CYCLE</a>,
+              <a href="#ab2c74cc2df8d74109d315f3f19e7c170a970266d7d82c3bb758f2dac0bdf4d5f0" class="m-doc">UNKNOWN_SCALE</a>,
+              <a href="#ab2c74cc2df8d74109d315f3f19e7c170a41828706685d071ee38844f2cba70342" class="m-doc">UNKNOWN_CONSTANT</a>,
+              <a href="#ab2c74cc2df8d74109d315f3f19e7c170a7398e1727dc7944c94c699b50b30ab10" class="m-doc">NESTED</a>,
+              <a href="#ab2c74cc2df8d74109d315f3f19e7c170a760c2ca065489089b533fccf2a6d9ba7" class="m-doc">DIMENSION</a>,
+              <a href="#ab2c74cc2df8d74109d315f3f19e7c170a1bc1135786a78aab2926ed56e5f5801c" class="m-doc">UNRESOLVED</a>,
+              <a href="#ab2c74cc2df8d74109d315f3f19e7c170afc3ca10632f0c7aa3aaea07a234377db" class="m-doc">COLLISION</a> }</span>
+            </dt>
+            <dd></dd>
             <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#a56bb795bd3571af03570db84e9e982cb" class="m-doc">TargetKind</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a56bb795bd3571af03570db84e9e982cba57f8b9e1bf05e9058d703c68ac2d53b0" class="m-doc">THREAD</a>,
               <a href="#a56bb795bd3571af03570db84e9e982cba2b55387dd066c5bac646ac61543d152d" class="m-doc">CPU</a> }</span>
@@ -359,6 +379,18 @@
               const std::vector&lt;const <a href="classsg_1_1counters_1_1Object.html" class="m-doc">Object</a>*&gt;&amp; selection) -&gt; std::expected&lt;<a href="classsg_1_1counters_1_1FanoutPlan.html" class="m-doc">FanoutPlan</a>, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">Error</a>&gt;</span>
             </dt>
             <dd>Compiles one fan-out plan: the exemplar expression instantiated at every selected object, all leaves read within one sampling action (FR-047, US3 scenario 5). An empty selection, a duplicate selection entry, or a leaf missing on a selected object is a recoverable construction error (FR-024).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a00d3f874a5edaaf2d542f6769224b7bb" class="m-doc">metricRefusalName</a>(</span><span class="m-doc-wrap"><a href="#ab2c74cc2df8d74109d315f3f19e7c170" class="m-doc">MetricRefusal</a> kind) noexcept -&gt; std::string_view -&gt; SPEEDGUN_NG_EXPORT auto <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a64253f57c64b6b1a21d146039ed8cf31" class="m-doc">metricByName</a>(</span><span class="m-doc-wrap">std::string_view name) -&gt; std::expected&lt; MetricView, Error &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a1135c8c340e3eedf28cd2379fead16f8" class="m-doc">catalogMetrics</a>(</span><span class="m-doc-wrap">) -&gt; std::vector&lt; MetricListing &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd></dd>
           </dl>
         </section>
         <section id="var-members">
@@ -410,6 +442,72 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__core_8hpp.html">&lt;speedgun-ng/counters_core.hpp&gt;</a></div>
             </h3>
             <p>The achieved read mechanism for a leaf, probed during provider enumeration before the catalog freezes at the open boundary, and disclosed per catalog entry (FR-023).</p>
+          </div></section>
+          <section class="m-doc-details" id="ab2c74cc2df8d74109d315f3f19e7c170"><div>
+            <h3>
+              enum class sg::<wbr />counters::<wbr /><a href="#ab2c74cc2df8d74109d315f3f19e7c170" class="m-doc-self">MetricRefusal</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__metrics_8hpp.html">&lt;speedgun-ng/counters_metrics.hpp&gt;</a></div>
+            </h3>
+<p>Why a metric row of the event table will not publish. One per refusal shape of the specification&#x27;s refusal table.</p>
+            <table class="m-table m-fullwidth m-flat m-doc">
+              <thead><tr><th style="width: 1%">Enumerators</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170a57a0e323fc5b066538cf67fdaa367aa8" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170a57a0e323fc5b066538cf67fdaa367aa8">MALFORMED</a></td>
+                  <td>
+                  <p>Text the formula grammar cannot read.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170a40aa75f8e8cfdf7b660c5620e953229f" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170a40aa75f8e8cfdf7b660c5620e953229f">UNSUPPORTED</a></td>
+                  <td>
+                  <p>An operator or construct the grammar excludes.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170a11729ccb73dc5f4f62d40435e8a0c078" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170a11729ccb73dc5f4f62d40435e8a0c078">CYCLE</a></td>
+                  <td>
+                  <p>A reference chain that returns to the metric.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170a970266d7d82c3bb758f2dac0bdf4d5f0" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170a970266d7d82c3bb758f2dac0bdf4d5f0">UNKNOWN_SCALE</a></td>
+                  <td>
+                  <p>A <code>ScaleUnit</code> text the scale table lacks.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170a41828706685d071ee38844f2cba70342" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170a41828706685d071ee38844f2cba70342">UNKNOWN_CONSTANT</a></td>
+                  <td>
+                  <p>A <code>#Name</code> constant this host has no reader for.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170a7398e1727dc7944c94c699b50b30ab10" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170a7398e1727dc7944c94c699b50b30ab10">NESTED</a></td>
+                  <td>
+                  <p>A conditional or predicate nested in an argument.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170a760c2ca065489089b533fccf2a6d9ba7" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170a760c2ca065489089b533fccf2a6d9ba7">DIMENSION</a></td>
+                  <td>
+                  <p>Terms that cannot compose into one expression.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170a1bc1135786a78aab2926ed56e5f5801c" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170a1bc1135786a78aab2926ed56e5f5801c">UNRESOLVED</a></td>
+                  <td>
+                  <p>A reference that names no leaf this host counts.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#ab2c74cc2df8d74109d315f3f19e7c170afc3ca10632f0c7aa3aaea07a234377db" class="m-doc-self" id="ab2c74cc2df8d74109d315f3f19e7c170afc3ca10632f0c7aa3aaea07a234377db">COLLISION</a></td>
+                  <td>
+                  <p>A second row carrying a name the first row took.</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div></section>
           <section class="m-doc-details" id="a56bb795bd3571af03570db84e9e982cb"><div>
             <h3>
@@ -596,6 +694,27 @@
             </h3>
             <p>Compiles one fan-out plan: the exemplar expression instantiated at every selected object, all leaves read within one sampling action (FR-047, US3 scenario 5). An empty selection, a duplicate selection entry, or a leaf missing on a selected object is a recoverable construction error (FR-024).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a00d3f874a5edaaf2d542f6769224b7bb"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a00d3f874a5edaaf2d542f6769224b7bb" class="m-doc-self">metricRefusalName</a>(</span><span class="m-doc-wrap"><a href="#ab2c74cc2df8d74109d315f3f19e7c170" class="m-doc">MetricRefusal</a> kind) noexcept -&gt; std::string_view <span class="m-label m-success">noexcept</span></span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__metrics_8hpp.html">&lt;speedgun-ng/counters_metrics.hpp&gt;</a></div>
+            </h3>
+<p>The refusal kind as the catalog and a test print it, in UPPER SNAKE. The text is static and never empty.</p><aside class="m-note m-success"><h4>Precondition</h4><p>Every value of <code><a href="#ab2c74cc2df8d74109d315f3f19e7c170" class="m-doc">MetricRefusal</a></code> has a name in the table (FR-021).</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a64253f57c64b6b1a21d146039ed8cf31"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a64253f57c64b6b1a21d146039ed8cf31" class="m-doc-self">metricByName</a>(</span><span class="m-doc-wrap">std::string_view name) -&gt; std::expected&lt; MetricView, Error &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__metrics_8hpp.html">&lt;speedgun-ng/counters_metrics.hpp&gt;</a></div>
+            </h3>
+<p>Resolves one metric by name against the event table of the CPU this process runs on.</p><p>The name is the table&#x27;s <code>MetricName</code>, case-sensitive. The first call for a directory parses that directory&#x27;s metric rows and every later call reuses the result, so the call parses no text and reads no counter; the view it returns holds its own spine, and its leaves are catalog leaves of the open system.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a1135c8c340e3eedf28cd2379fead16f8"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a1135c8c340e3eedf28cd2379fead16f8" class="m-doc-self">catalogMetrics</a>(</span><span class="m-doc-wrap">) -&gt; std::vector&lt; MetricListing &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__metrics_8hpp.html">&lt;speedgun-ng/counters_metrics.hpp&gt;</a></div>
+            </h3>
+<p>Every metric row of the table this CPU selected, in table order: the published rows and the refusals alike (FR-020, FR-021). An empty result means this host selected no event table, which is a catalog fact and it states no refusal of a single row.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
         </section>
         <section>
