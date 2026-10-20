@@ -626,6 +626,8 @@ SG_BENCHMARK(bmSharded).threads(4);
 | `--min-time` | Sets the least measuring seconds of one instance |
 | `--iterations` | Fixes the iteration count and skips calibration |
 | `--warmup-time` | Sets the untimed warm-up seconds |
+| `--percentiles` | Sets the percentile points one run reports |
+| `--no-percentiles` | Turns the percentile lines off |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter to the report columns |
 | `--catalog` | Prints the counter catalog and stops |

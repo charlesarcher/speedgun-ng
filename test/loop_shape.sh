@@ -94,34 +94,49 @@ END {
 best = 0
 bestk = 0
 bestspan = -1
+bestdec = 0
 for (i = 1; i <= n; ++i) {
-if (ins[i] !~ /^j/) {
-continue
-}
-target = op[i]
-gsub(/[^0-9a-f]/, "", target)
-if (length(target) == 0) {
-continue
-}
-if (strtonum("0x" target) > strtonum("0x" addr[i])) {
-continue
-}
-k = 0
-for (m = 1; m <= n; ++m) {
-if (addr[m] == target) {
-k = m
-break
-}
-}
-if (k == 0) {
-continue
-}
-span = strtonum("0x" addr[i]) - strtonum("0x" target)
-if (bestspan < 0 || span < bestspan) {
-bestspan = span
-best = i
-bestk = k
-}
+  if (ins[i] !~ /^j/) {
+    continue
+  }
+  target = op[i]
+  gsub(/[^0-9a-f]/, "", target)
+  if (length(target) == 0) {
+    continue
+  }
+  if (strtonum("0x" target) > strtonum("0x" addr[i])) {
+    continue
+  }
+  k = 0
+  for (m = 1; m <= n; ++m) {
+    if (addr[m] == target) {
+      k = m
+      break
+    }
+  }
+  if (k == 0) {
+    continue
+  }
+  span = strtonum("0x" addr[i]) - strtonum("0x" target)
+  # specs/021 FR-001: a chunked cursor leaves a second cycle, the refill the
+  # run count enters once per chunk. The iterations travel the cycle that
+  # holds the count-down by one, so that cycle wins over a shorter one that
+  # does not; among cycles that agree, the shortest still wins.
+  dec = 0
+  for (m = k; m <= i; ++m) {
+    if (ins[m] ~ /^dec/ || (ins[m] ~ /^sub/ && op[m] ~ /^\$0x1/)) {
+      dec = 1
+      break
+    }
+  }
+  if (best == 0 ||
+      (dec > bestdec) ||
+      (dec == bestdec && span < bestspan)) {
+    bestspan = span
+    best = i
+    bestk = k
+    bestdec = dec
+  }
 }
 if (best == 0) {
 exit
@@ -151,6 +166,23 @@ __attribute__((noinline)) auto shapeLoop(sg::State& state, std::uint64_t value)
   }
 }
 
+// specs/021 T010: a cursor that samples every iteration instead of every
+// chunk. The cycle it leaves holds the call into the recorder, which is
+// what the call rule of the shape check is for.
+__attribute__((noinline)) static auto plantedSample() -> void
+{
+  extra = extra + 1;
+}
+
+__attribute__((noinline)) auto plantedSampleLoop(sg::State& state,
+                                                 std::uint64_t value) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(value);
+    plantedSample();
+  }
+}
+
 __attribute__((noinline)) auto referenceLoop(std::uint64_t iterations,
                                              std::uint64_t value) -> void
 {
@@ -160,6 +192,11 @@ __attribute__((noinline)) auto referenceLoop(std::uint64_t iterations,
     --remaining;
   }
 }
+
+// specs/021 FR-001, D-01: the count-down of a run that captures chunks
+// carries one instruction more than the plain count-down: the test the
+// refill re-enters. The gate allows that one instruction and no more, so a
+// per-iteration load or call still fails the shape.
 
 __attribute__((noinline)) auto plantedLoop(sg::State& state, std::uint64_t value)
     -> void
@@ -237,7 +274,7 @@ compile_shapes() {
 # hand-written count-down loop.
 analyze() {
   local obj=$1 cxx=$2 label=$3
-  local all body reference body_n
+  local all body reference body_n call_n
 
   all=$(dump_function "$obj" "$label")
   if [ -z "$all" ]; then
@@ -264,15 +301,28 @@ analyze() {
   fi
   reference_n=$(printf '%s\n' "$reference" | wc -l)
 
-  echo "  $cxx $label: loop body holds $body_n instructions, the count-down" \
-       "reference $reference_n"
+  echo "  $cxx $label: loop body holds $body_n instructions, the count-down"
+  echo "      reference $reference_n plus the one instruction of the chunk"
+  echo "      boundary"
   # The shipped loop counts down the remaining iterations, exactly as the
   # reference does, so the two bodies must match instruction for
   # instruction. A per-iteration check or load makes the shipped loop
-  # longer, which is what the gate is for.
-  if [ "$body_n" -gt "$reference_n" ]; then
-    echo "FAIL $cxx: the $label loop is longer than the count-down reference" \
-      >&2
+  # longer, which is what the gate is for. specs/021 FR-001, D-01: the
+  # cursor counts a chunk down and re-enters the count-down at the refill,
+  # and that re-entry test is the one instruction the shape allows.
+  if [ "$body_n" -gt "$((reference_n + 1))" ]; then
+    echo "FAIL $cxx: the $label loop is longer than the count-down reference"
+    echo "      plus the chunk boundary" >&2
+    printf '%s\n' "$body" | sed 's/^/  /' >&2
+    return 1
+  fi
+  # specs/021 FR-001, D-01: the sample belongs to the chunk boundary, so a
+  # call in the cycle the iterations travel names a cursor that samples per
+  # iteration. The refill stands outside that cycle.
+  call_n=$(printf '%s\n' "$body" | awk -F'\t' '$2 ~ /^call/' | wc -l)
+  if [ "$call_n" -ne 0 ]; then
+    echo "FAIL $cxx: the $label loop holds $call_n out-of-line calls; the timed"
+    echo "      loop may hold none (FR-001)" >&2
     printf '%s\n' "$body" | sed 's/^/  /' >&2
     return 1
   fi
@@ -371,6 +421,13 @@ liveness_probe() {
     return 1
   fi
   echo "  $cxx: detector fails on a loop with an extra load (live)"
+
+  if analyze "$obj" "$cxx" 'plantedSampleLoop'; then
+    echo "FAIL $cxx: a loop that samples every iteration passed, so the call"
+    echo "      rule proves nothing (T010)" >&2
+    return 1
+  fi
+  echo "  $cxx: detector fails on a loop that samples per iteration (live)"
   return 0
 }
 

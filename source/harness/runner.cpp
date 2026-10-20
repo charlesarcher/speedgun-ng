@@ -16,6 +16,7 @@
 #include "detail/calibration.hpp"
 #include "detail/complexity.hpp"
 #include "detail/internal.hpp"
+#include "detail/percentiles.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
@@ -161,6 +162,23 @@ auto selectPrimaryCore(const bool manualTime,
   return realTime ? &realTimeCore : &cpuTimeCore;
 }
 
+// specs/021 FR-002: the per-iteration columns divide their chunk values by
+// the iterations one chunk holds; the rest stand as the fold left them.
+auto divideChunkValues(std::vector<std::vector<double>>& values,
+                       const std::vector<bool>& perIteration,
+                       const std::uint64_t chunkIterations) -> void
+{
+  const double divisor = static_cast<double>(chunkIterations);
+  for (std::size_t at = 0; at < values.size(); ++at) {
+    if (!perIteration[at]) {
+      continue;
+    }
+    for (double& value : values[at]) {
+      value /= divisor;
+    }
+  }
+}
+
 // One measured row: the sample span the run left in the recorder,
 // netted through every column, with the FR-022 division, the FR-019
 // floor, and the two time columns of FR-001 beside the sample count of
@@ -174,8 +192,11 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
                        const std::vector<MetricColumn>& columns,
                        double overheadFloorNs,
                        const sg::counters::detail::ExprCore* primaryCore,
+                       const sg::counters::detail::ExprCore& secondaryCore,
                        const Recorder& recorder,
-                       std::size_t primaryFoldColumn) -> void
+                       std::size_t primaryFoldColumn,
+                       std::size_t secondaryFoldColumn,
+                       const std::vector<double>& points) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
   row.kind = sg::RowKind::REPETITION;
@@ -239,6 +260,66 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
                                    record.counterStore,
                                    primarySeconds,
                                    record.iterations);
+
+  // specs/021 FR-001, FR-010: the chunk values this run captured answer
+  // the percentile columns of the row, in the order the row prints its
+  // columns: the primary time, the time column the primary is not, then
+  // each metric (SC-001). A run captures chunks only where the percentile
+  // output is on, so a nonzero count already carries the points.
+  if (record.chunkCount > 0) {
+    const auto api = recorder.view();
+    std::vector<std::vector<double>> chunkValues;
+    std::vector<bool> countable;
+    std::vector<bool> perIteration;
+    if (primaryCore != nullptr) {
+      chunkValues.push_back(sg::detail::buildChunkValues(*primaryCore,
+                                                         api,
+                                                         record.basePoint,
+                                                         record.chunkCount,
+                                                         record.pausePairs));
+      countable.push_back(row.timeAvailability
+                          == sg::counters::Availability::COUNTABLE);
+      perIteration.push_back(true);
+    } else {
+      // FR-016: a manual run carries no fold behind its primary time, so
+      // no chunk value stands behind its percentile either.
+      chunkValues.emplace_back();
+      countable.push_back(false);
+      perIteration.push_back(false);
+    }
+    chunkValues.push_back(sg::detail::buildChunkValues(secondaryCore,
+                                                       api,
+                                                       record.basePoint,
+                                                       record.chunkCount,
+                                                       record.pausePairs));
+    countable.push_back(
+        nettedFold(secondaryCore, recorder, record, secondaryFoldColumn)
+            .availability
+        == sg::counters::Availability::COUNTABLE);
+    perIteration.push_back(true);
+    for (std::size_t position = 0; position < columns.size(); ++position) {
+      const auto& column = columns[position];
+      if (column.unavailable) {
+        chunkValues.emplace_back();
+        countable.push_back(false);
+        perIteration.push_back(false);
+        continue;
+      }
+      chunkValues.push_back(sg::detail::buildChunkValues(column.core,
+                                                         api,
+                                                         record.basePoint,
+                                                         record.chunkCount,
+                                                         record.pausePairs));
+      countable.push_back(row.metrics[position].availability
+                          == sg::counters::Availability::COUNTABLE);
+      perIteration.push_back(column.perIteration);
+    }
+    divideChunkValues(chunkValues, perIteration, record.chunkIterations);
+    row.percentiles =
+        sg::detail::buildPercentileColumns(chunkValues, points, countable);
+    row.chunkCount = record.chunkCount;
+    row.chunkIterations = record.chunkIterations;
+  }
 }
 
 // E-06, FR-020: the folded values of one context of a threaded attempt.
@@ -253,6 +334,13 @@ struct ContextFolds
   // One fold per column of the run, in the order of MetricColumn; the
   // slot of an unavailable column carries no fold.
   std::vector<sg::counters::MetricResult> columns;
+  // specs/021 FR-004, FR-014: the chunk values this context captured, the
+  // primary time first and then one entry per MetricColumn slot. Empty when
+  // the attempt captured no chunks.
+  std::vector<std::vector<double>> chunkValues;
+  // specs/021 FR-016: the count of those columns whose fold disclosed no
+  // gap, in the same order.
+  std::vector<bool> countable;
 };
 
 // The primary availability of a merged row (FR-018): the worst
@@ -342,7 +430,10 @@ auto appendMergedRow(std::vector<sg::ResultRow>& rows,
                      double overheadFloorNs,
                      const sg::counters::detail::ExprCore* primaryCore,
                      const std::vector<ContextFolds>& folds,
-                     const std::uint64_t threadCount) -> void
+                     const std::uint64_t threadCount,
+                     const std::vector<double>& points,
+                     std::vector<std::vector<std::vector<sg::PercentileValue>>>&
+                         contextPercentiles) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
   row.kind = sg::RowKind::REPETITION;
@@ -396,6 +487,51 @@ auto appendMergedRow(std::vector<sg::ResultRow>& rows,
                                    store,
                                    primarySeconds,
                                    record.iterations);
+
+  // specs/021 FR-014: the merged row answers from the union of the
+  // contexts' chunk values, and each context keeps its own answer.
+  if (record.chunkCount > 0) {
+    std::vector<std::vector<double>> mergedValues;
+    std::vector<bool> countable;
+    const auto addUnionColumn =
+        [&](const std::size_t position, const bool answers)
+    {
+      std::vector<double> unionColumn;
+      for (const ContextFolds& fold : folds) {
+        unionColumn.insert(unionColumn.end(),
+                           fold.chunkValues[position].begin(),
+                           fold.chunkValues[position].end());
+      }
+      mergedValues.push_back(std::move(unionColumn));
+      countable.push_back(answers);
+    };
+    addUnionColumn(
+        0, row.timeAvailability == sg::counters::Availability::COUNTABLE);
+    // The second column answers only where every context's own column of
+    // that position answers (FR-016).
+    bool secondaryAnswers = true;
+    for (const ContextFolds& fold : folds) {
+      if (!fold.countable[1]) {
+        secondaryAnswers = false;
+        break;
+      }
+    }
+    addUnionColumn(1, secondaryAnswers);
+    for (std::size_t position = 0; position < columns.size(); ++position) {
+      addUnionColumn(position + 2,
+                     !columns[position].unavailable
+                         && row.metrics[position].availability
+                             == sg::counters::Availability::COUNTABLE);
+    }
+    row.percentiles =
+        sg::detail::buildPercentileColumns(mergedValues, points, countable);
+    row.chunkCount = record.chunkCount;
+    row.chunkIterations = record.chunkIterations;
+    for (const ContextFolds& fold : folds) {
+      contextPercentiles.push_back(sg::detail::buildPercentileColumns(
+          fold.chunkValues, points, fold.countable));
+    }
+  }
 }
 
 // What one context of a threaded attempt leaves in its slot. The slot
@@ -454,6 +590,13 @@ auto mergeThreadedRecords(const std::vector<ThreadedOutcome>& outcomes,
     }
   }
   merged.label = outcomes.front().record.label;
+  // specs/021 FR-014: the merged run holds the chunks every context
+  // captured, and one chunk holds the same iteration count in every
+  // context of the attempt.
+  for (const ThreadedOutcome& outcome : outcomes) {
+    merged.chunkCount += outcome.record.chunkCount;
+  }
+  merged.chunkIterations = outcomes.front().record.chunkIterations;
   // A `return merged;` would make `merged` the return object itself, and
   // gcov would then attach an unexecutable count-zero record to the closing
   // brace. Returning a separate object leaves the destructor of `merged` to
@@ -855,6 +998,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // default read at this run's start.
   result.timeUnit = entry.timeUnit.value_or(
       batchDefaultTimeUnit().value_or(getDefaultTimeUnit()));
+  // specs/021 FR-001, FR-010: the report labels the second time column of
+  // the percentile lines with the field the primary is not.
+  result.primaryIsCpu = !entry.realTime;
   // FR-016, FR-017: either mode of the family trims its report; whether an
   // aggregate row exists to show instead is the report's decision, because
   // a family with no aggregate keeps its rows (FR-018).
@@ -871,6 +1017,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   const std::optional<std::uint64_t> fixedIterations =
       entry.fixedIterations ? entry.fixedIterations : m_options.fixedIterations;
   const bool dryRun = m_options.dryRun;
+
+  // specs/021 FR-020, FR-023: the command line wins over the family, and a
+  // run that reports no percentile captures no chunk points, so the default
+  // path keeps the bytes and the cost it has today (FR-001, Principle VII).
+  if (m_options.showPercentiles.value_or(entry.showPercentiles)) {
+    result.percentilePoints =
+        normalizePercentilePoints(m_options.percentilePoints);
+  }
 
   // D-05, FR-006: the threaded instance's contexts, created when a
   // threaded instance's sampling begins and joined when this run
@@ -1135,6 +1289,27 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     return 0;
   };
 
+  // specs/021 FR-005, FR-007: the chunk plan of an attempt. The 1% rule
+  // calibrates the chunk size from the sample cost this plan measured and
+  // the per-iteration time the previous attempt of this instance measured;
+  // an attempt that reports no percentile captures no chunks, and the
+  // first attempt of a fixed-count run has no measured iteration time to
+  // calibrate from, so the point ceiling of FR-006 alone sets its size.
+  auto chunkPlanOf =
+      [&](const std::uint64_t iterations,
+          const std::size_t pauseRoom) noexcept -> sg::detail::ChunkPlan
+  {
+    if (result.percentilePoints.empty()) {
+      return sg::detail::ChunkPlan {
+          .chunkIterations = 0,
+          .chunkCount = 0,
+          .pointCapacity = static_cast<std::size_t>(2) + pauseRoom,
+      };
+    }
+    return sg::detail::chunkPlanFor(
+        iterations, entry.iterationNs, overheadFloorNs, pauseRoom);
+  };
+
   // The record tail of one sampled run, shared by the single-context
   // sampler and by every context of a threaded attempt: the FR-008
   // failure, the loop-shape rules of FR-017, the span and the folds of
@@ -1277,6 +1452,64 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       folds.columns.push_back(
           nettedFold(column.core, recorderHere, record, column.foldColumn));
     }
+    // specs/021 FR-004, FR-014: this context's own chunk values, folded on
+    // this thread from this context's recorder and divided by the
+    // iterations one chunk holds before any other thread reads them.
+    if (record.chunkCount == 0) {
+      return;
+    }
+    const auto api = recorderHere.view();
+    std::vector<bool> perIteration;
+    if (primaryCore != nullptr) {
+      folds.chunkValues.push_back(
+          sg::detail::buildChunkValues(*primaryCore,
+                                       api,
+                                       record.basePoint,
+                                       record.chunkCount,
+                                       record.pausePairs));
+      folds.countable.push_back(folds.primary->availability
+                                == sg::counters::Availability::COUNTABLE);
+      perIteration.push_back(true);
+    } else {
+      folds.chunkValues.emplace_back();
+      folds.countable.push_back(false);
+      perIteration.push_back(false);
+    }
+    // specs/021 SC-001: the time column the primary is not answers too.
+    const sg::counters::detail::ExprCore& secondaryCore =
+        entry.realTime ? cpuTime.core : realTime.core;
+    folds.chunkValues.push_back(
+        sg::detail::buildChunkValues(secondaryCore,
+                                     api,
+                                     record.basePoint,
+                                     record.chunkCount,
+                                     record.pausePairs));
+    folds.countable.push_back(
+        nettedFold(secondaryCore,
+                   recorderHere,
+                   record,
+                   static_cast<std::size_t>(entry.realTime ? 1 : 0))
+            .availability
+        == sg::counters::Availability::COUNTABLE);
+    perIteration.push_back(true);
+    for (std::size_t position = 0; position < columns.size(); ++position) {
+      if (columns[position].unavailable) {
+        folds.chunkValues.emplace_back();
+        folds.countable.push_back(false);
+        perIteration.push_back(false);
+        continue;
+      }
+      folds.chunkValues.push_back(
+          sg::detail::buildChunkValues(columns[position].core,
+                                       api,
+                                       record.basePoint,
+                                       record.chunkCount,
+                                       record.pausePairs));
+      folds.countable.push_back(folds.columns[position].availability
+                                == sg::counters::Availability::COUNTABLE);
+      perIteration.push_back(columns[position].perIteration);
+    }
+    divideChunkValues(folds.chunkValues, perIteration, record.chunkIterations);
   };
 
   // FR-012, FR-017, FR-049: one heap node per body index, the
@@ -1392,9 +1625,17 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   {
     const std::size_t count = static_cast<std::size_t>(instance.threadCount);
     const std::size_t pauseRoom = pauseRoomFor(iterations);
+    const sg::detail::ChunkPlan chunk = chunkPlanOf(iterations, pauseRoom);
     // FR-051: the seam records what this attempt reserved, written
-    // once on the thread that runs the attempt.
-    lastRecorderReservation() = RecorderReservation {2, pauseRoom};
+    // once on the thread that runs the attempt. specs/021 FR-008 adds the
+    // chunk points the plan reserved.
+    lastRecorderReservation() = RecorderReservation {
+        .endpointPoints = 2,
+        .pauseRoomPoints = pauseRoom,
+        .chunkPoints = chunk.chunkCount == 0
+            ? 0
+            : static_cast<std::size_t>(chunk.chunkCount) + 1,
+    };
     if (pauseRoom > maxRecorderPauseRoom()) {
       maxRecorderPauseRoom() = pauseRoom;
     }
@@ -1429,17 +1670,23 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
                 "compiles the same cores on its own thread (FR-018)");
 
       auto slotResetHere = contextPlan->recorder(2);
-      auto recorderHere =
-          contextPlan->recorder(static_cast<std::size_t>(2) + pauseRoom);
+      auto recorderHere = contextPlan->recorder(chunk.pointCapacity);
 
       RunRecord record;
       record.iterations = iterations;
+      // specs/021 FR-001, FR-002: this context captures its own chunks, on
+      // its own recorder, and no fold reads another context's points.
+      record.chunkCount = chunk.chunkCount;
+      record.chunkIterations = chunk.chunkIterations;
       State state(iterations, &recorderHere, instance.arguments);
       // FR-017: the body reads which context of the attempt runs it
       // and how many the attempt carries.
       state.m_threadIndex = index;
       state.m_threads = instance.threadCount;
       state.m_slotReset = slotResetHere;
+      if (chunk.chunkCount != 0) {
+        state.setChunking(chunk.chunkIterations);
+      }
       state.m_pauseFold = &record.pauseFold;
       state.m_pausePairs.reserve(pauseRoom / 2);
       for (const auto* core : cores) {
@@ -1516,6 +1763,13 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
 
     // E-06, FR-020: the merged record; the label is context 0's.
     RunRecord merged = mergeThreadedRecords(outcomes, count);
+    // specs/021 FR-005: the summed decision seconds over the summed
+    // iterations is the per-iteration time of one context, and it
+    // calibrates the chunk size of the next attempt.
+    if (merged.decisionNs > 0) {
+      entry.iterationNs = static_cast<double>(merged.decisionNs)
+          / static_cast<double>(merged.iterations);
+    }
     complexityN = outcomes.front().statedSize;
 
     risePauseHistory(outcomes, iterations);
@@ -1544,13 +1798,23 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
 
     // E-08, FR-051: the room rule of the shared pause history stands
     // in pauseRoomFor; the seam keeps the FR-051 record of what this
-    // attempt reserved.
+    // attempt reserved. specs/021 FR-008 adds the chunk points the plan
+    // reserved, and FR-001 opens a window per chunk at that capacity.
     const std::size_t pauseRoom = pauseRoomFor(iterations);
-    lastRecorderReservation() = RecorderReservation {2, pauseRoom};
+    const sg::detail::ChunkPlan chunk = chunkPlanOf(iterations, pauseRoom);
+    lastRecorderReservation() = RecorderReservation {
+        .endpointPoints = 2,
+        .pauseRoomPoints = pauseRoom,
+        .chunkPoints = chunk.chunkCount == 0
+            ? 0
+            : static_cast<std::size_t>(chunk.chunkCount) + 1,
+    };
     if (pauseRoom > maxRecorderPauseRoom()) {
       maxRecorderPauseRoom() = pauseRoom;
     }
-    attemptRecorder = plan->recorder(static_cast<std::size_t>(2) + pauseRoom);
+    attemptRecorder = plan->recorder(chunk.pointCapacity);
+    record.chunkCount = chunk.chunkCount;
+    record.chunkIterations = chunk.chunkIterations;
 
     // R-05, E-07: the callback state carries the arguments this
     // instance owns and holds no recorder, so it opens no sampling
@@ -1562,6 +1826,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // instance outlives every run of itself, so the span needs no copy,
     // and the timed loop keeps its H1 shape (FR-009).
     State state(iterations, &*attemptRecorder, instance.arguments);
+    if (chunk.chunkCount != 0) {
+      state.setChunking(chunk.chunkIterations);
+    }
     // FR-052: the run's fold sink carries one running total per column
     // of the run, fed at the commit of every pair the room cannot hold.
     state.m_slotReset = slotReset;
@@ -1616,6 +1883,13 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         !built.has_value())
     {
       return std::unexpected(built.error());
+    }
+
+    // specs/021 FR-005: the per-iteration time this attempt measured
+    // calibrates the chunk size of the next attempt of this instance.
+    if (record.decisionNs > 0) {
+      entry.iterationNs = static_cast<double>(record.decisionNs)
+          / static_cast<double>(record.iterations);
     }
 
     // E-08, FR-051: the pairs this attempt closed stand as the
@@ -1728,21 +2002,27 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // summed values and the per-iteration division by the summed
       // iteration count, built from the folds each context did on its
       // own plan (FR-018).
+      result.contextPercentiles.clear();
       appendMergedRow(result.rows,
                       *chosen,
                       columns,
                       overheadFloorNs,
                       primaryCore,
                       threadedFolds,
-                      static_cast<std::uint64_t>(instance.threadCount));
+                      static_cast<std::uint64_t>(instance.threadCount),
+                      result.percentilePoints,
+                      result.contextPercentiles);
     } else {
       appendMeasuredRow(result.rows,
                         *chosen,
                         columns,
                         overheadFloorNs,
                         primaryCore,
+                        entry.realTime ? cpuTime.core : realTime.core,
                         *attemptRecorder,
-                        entry.realTime ? 0 : 1);
+                        entry.realTime ? 0 : 1,
+                        entry.realTime ? 1 : 0,
+                        result.percentilePoints);
     }
 
     // FR-006: the labels of the run's counters are its names in the order

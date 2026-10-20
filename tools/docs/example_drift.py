@@ -103,7 +103,10 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # for prose trimmed before the cap moves: that disclosure sentence shares the
 # paragraph line it annotates, so the page measures 638 lines and the cap
 # sits there, with no snippet dropped.
-PAGE_LINE_CAP = 638
+# specs/021 FR-021 adds the two quick-reference option rows, so the page
+# measures 640 lines and the cap sits there until the section lands with
+# the docs commit.
+PAGE_LINE_CAP = 640
 SECTION_LINE_CAP = 25
 
 # Only these two sections carry a higher cap, each at the smallest span that

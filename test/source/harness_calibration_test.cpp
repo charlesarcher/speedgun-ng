@@ -40,6 +40,7 @@
 
 #include <unistd.h>
 
+#include "detail/calibration.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
@@ -447,6 +448,80 @@ auto scenarioFailedPair() -> int
   return 0;
 }
 
+// specs/021 T004: the chunk plan of one attempt (FR-005, FR-006, D-03,
+// D-04): the 1% floor, the point ceiling, and the coverage the chunks hold
+// over the run.
+auto scenarioChunkPlan() -> int
+{
+  // FR-005: a chunk holds the least iterations whose time reaches 100
+  // times the cost of one sample action, so the sample stays under 1% of
+  // the window it bounds.
+  const auto floorPlan = sg::detail::chunkPlanFor(1000, 10.0, 1.0, 0);
+  check(floorPlan.chunkIterations == 10,
+        "a 10 ns body samples every tenth iteration");
+  check(floorPlan.chunkCount == 100,
+        "a thousand iterations leave a hundred chunks");
+  check(floorPlan.pointCapacity == 101,
+        "the recorder holds a point per chunk and the endpoint");
+
+  // A body that costs more than a hundred samples per iteration keeps one
+  // iteration to the chunk.
+  const auto slowPlan = sg::detail::chunkPlanFor(50, 100'000.0, 1.0, 0);
+  check(slowPlan.chunkIterations == 1 && slowPlan.chunkCount == 50,
+        "an expensive body samples every iteration");
+
+  // FR-006: the ceiling raises the chunk size when the run would otherwise
+  // leave more chunks than the ceiling holds.
+  const auto capped = sg::detail::chunkPlanFor(1'000'000, 1.0, 0.0, 0);
+  check(capped.chunkCount <= sg::detail::kMaxChunkPointsPerLeaf,
+        "the chunk count stays inside the ceiling");
+  check(capped.chunkIterations * capped.chunkCount >= 1'000'000,
+        "the raised chunks still cover the run");
+
+  // An attempt with no measured iteration time of its own, the first of a
+  // fixed-count run, takes the ceiling alone.
+  const auto cold = sg::detail::chunkPlanFor(100, 0.0, 1.0, 0);
+  check(cold.chunkIterations == 1 && cold.chunkCount == 100,
+        "the first attempt of a fixed-count run chunks by one");
+
+  // The pause room stands beside the chunk points and the endpoint point,
+  // and it never changes how the run divides.
+  const auto paused = sg::detail::chunkPlanFor(1000, 10.0, 1.0, 8);
+  check(paused.chunkIterations == 10 && paused.chunkCount == 100,
+        "the pause room leaves the division alone");
+  check(paused.pointCapacity == 109, "the capacity carries the pause room");
+
+  // The postcondition over a spread of shapes.
+  const std::vector<std::uint64_t> counts {
+      1, 2, 7, 100, 999, 100'000, 4'000'000};
+  const std::vector<double> iterationTimes {0.0, 0.5, 10.0, 5'000.0};
+  const std::vector<double> sampleCosts {0.0, 1.0, 250.0};
+  const std::vector<std::size_t> rooms {
+      0, 4, sg::detail::kMaxPauseSamplesPerLeaf};
+  for (const std::uint64_t iterations : counts) {
+    for (const double iterationNs : iterationTimes) {
+      for (const double overhead : sampleCosts) {
+        for (const std::size_t room : rooms) {
+          const auto plan =
+              sg::detail::chunkPlanFor(iterations, iterationNs, overhead, room);
+          check(plan.chunkCount >= 1 && plan.chunkIterations >= 1,
+                "the plan leaves at least one chunk");
+          check(plan.chunkCount <= sg::detail::kMaxChunkPointsPerLeaf,
+                "the chunk count stays inside the ceiling");
+          check(
+              plan.pointCapacity == plan.chunkCount + 1 + room,
+              "the capacity holds the chunk points, the endpoint and the room");
+          check((plan.chunkCount - 1) * plan.chunkIterations < iterations
+                    && iterations <= plan.chunkCount * plan.chunkIterations,
+                "the chunks cover the run exactly once");
+        }
+      }
+    }
+  }
+  std::puts("harness_calibration_test chunkPlan: ok");
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmWork);
@@ -478,6 +553,9 @@ auto main(const int argc, char** argv) -> int
   if (mode == "failedPair") {
     return scenarioFailedPair();
   }
+  if (mode == "chunkPlan") {
+    return scenarioChunkPlan();
+  }
 
   // The scripted scenarios own one provider script each, so each runs
   // in a re-exec of this binary; its failure exits nonzero here.
@@ -489,6 +567,7 @@ auto main(const int argc, char** argv) -> int
            "fivefold",
            "window",
            "failedPair",
+           "chunkPlan",
        })
   {
     const int status = std::system(("\"" + self + "\" " + scenario).c_str());
