@@ -220,6 +220,10 @@
             </dt>
             <dd>Run every instance of this family on <code>count</code> contexts (FR-016).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ab87569c90b83008f843601d5fcbdd9ab" class="m-doc">placement</a>(</span><span class="m-doc-wrap">std::string_view presetName) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd><a href="classsg_1_1State.html" class="m-doc">State</a> the placement preset of this family&#x27;s threaded runs (FR-015).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#aa70c44db504e7bdcdd5aa064ae4ee2f3" class="m-doc">threadRange</a>(</span><span class="m-doc-wrap">int minCount,
               int maxCount) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
             </dt>
@@ -482,6 +486,13 @@
             </h3>
             <p>Run every instance of this family on <code>count</code> contexts (FR-016).</p>
 <p>The call states the thread count set of the family as the single count, the way <code>ThreadRange</code> of the cited revision states one count (research D-09). Each instance then runs on that many contexts, the harness creating them once for the instance and reusing them for every attempt, and the instance name carries a <code>/threads:N</code> segment for a count above 1 (FR-016, D-05).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and <code>count</code> stands at 1 or above: a count a call cannot honor, zero included, is a violation at the call (E-02, FR-024)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries <code>{count}</code> as the thread count set of that family, in place of any set an earlier thread call stated, and the returned handle is this handle (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ab87569c90b83008f843601d5fcbdd9ab"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ab87569c90b83008f843601d5fcbdd9ab" class="m-doc-self">placement</a>(</span><span class="m-doc-wrap">std::string_view presetName)</span></span>
+            </h3>
+            <p><a href="classsg_1_1State.html" class="m-doc">State</a> the placement preset of this family&#x27;s threaded runs (FR-015).</p>
+<p>The name is one of the five placement presets <code>none</code>, <code>core</code>, <code>l3</code>, <code>smt</code> and <code>compact</code>; the last call wins the slot, the way the thread calls replace an earlier set. Each instance of this family then runs its contexts on the cpus the preset plans for the machine, and the run discloses the placement of each context (FR-008, FR-021).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries <code>presetName</code> in place of any name an earlier placement call stated, and the returned handle is this handle (FR-015)</p></aside>
           </div></section>
           <section class="m-doc-details" id="aa70c44db504e7bdcdd5aa064ae4ee2f3"><div>
             <h3>
