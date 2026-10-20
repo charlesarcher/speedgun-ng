@@ -19,6 +19,7 @@ auto bmPair(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmPair).threads(2);
+
 // sg-example:end topology-placement
 
 auto main(int argc, char** argv) -> int

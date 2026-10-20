@@ -1,6 +1,7 @@
 // ============================================================================
 // TDD test for the placement option and the handle preset (T019; US3,
-// FR-015, FR-016, FR-017, FR-036, contracts/cli-placement.md). prose-lint: allow reason="verbatim file name"
+// FR-015, FR-016, FR-017, FR-036, contracts/cli-placement.md). prose-lint:
+// allow reason="verbatim file name"
 //
 // A rejected option value exits the process from inside the entry point,
 // the way the usage-error cases of harness_cli_test.cpp do, so every
@@ -214,8 +215,7 @@ auto installFourGroupShape() -> void
         const std::uint32_t cpu = group * 12 + core * 2 + sibling;
         sg::detail::LayoutThread thread;
         thread.cpuIndex = cpu;
-        thread.coreOrdinal =
-            static_cast<std::uint32_t>(installed.cores.size());
+        thread.coreOrdinal = static_cast<std::uint32_t>(installed.cores.size());
         thread.groupOrdinal = group;
         layoutCore.threads.push_back(
             static_cast<std::uint32_t>(installed.threads.size()));
@@ -314,7 +314,8 @@ struct Captured
   std::string err;
 };
 
-auto runChild(const char* mode, const std::vector<std::string>& arguments,
+auto runChild(const char* mode,
+              const std::vector<std::string>& arguments,
               void (*setup)()) -> Captured
 {
   const std::string outPath = std::string("cli-placement-") + mode + "-out.txt";
@@ -326,7 +327,8 @@ auto runChild(const char* mode, const std::vector<std::string>& arguments,
   }
   if (pid == 0) {
     if (std::freopen(outPath.c_str(), "w", stdout) == nullptr
-        || std::freopen(errPath.c_str(), "w", stderr) == nullptr) {
+        || std::freopen(errPath.c_str(), "w", stderr) == nullptr)
+    {
       _exit(3);
     }
     if (setup != nullptr) {
@@ -353,15 +355,16 @@ auto runChild(const char* mode, const std::vector<std::string>& arguments,
   if (!WIFEXITED(waitStatus)) {
     fail("the child did not exit normally");
   }
-  return Captured {WEXITSTATUS(waitStatus), readFile(outPath),
-                   readFile(errPath)};
+  return Captured {
+      WEXITSTATUS(waitStatus), readFile(outPath), readFile(errPath)};
 }
 
 // FR-016: a name outside the five stops the batch before any run.
 auto scenarioBadName() -> int
 {
   const Captured run =
-      runChild("badName", {"--placement=l2", "--filter", "^bmCliBadName$"},
+      runChild("badName",
+               {"--placement=l2", "--filter", "^bmCliBadName$"},
                &setupBadName);
   check(run.status == 2, "a rejected preset name exits 2 (FR-016)");
   check(run.err.find("l2") != std::string::npos,
@@ -375,7 +378,8 @@ auto scenarioBadName() -> int
 auto scenarioCpuList() -> int
 {
   const Captured run =
-      runChild("cpuList", {"--placement=0-3", "--filter", "^bmCliCpuList$"},
+      runChild("cpuList",
+               {"--placement=0-3", "--filter", "^bmCliCpuList$"},
                &setupCpuList);
   check(run.status == 2, "a cpu list exits 2 (FR-017)");
   check(run.err.find("0-3") != std::string::npos,
@@ -389,7 +393,8 @@ auto scenarioCpuList() -> int
 auto scenarioNoArgument() -> int
 {
   const Captured run =
-      runChild("noArgument", {"--placement", "--filter", "^bmCliNoArgument$"},
+      runChild("noArgument",
+               {"--placement", "--filter", "^bmCliNoArgument$"},
                &setupNoArgument);
   check(run.status == 2, "the missing argument exits 2");
   check(run.out.find("bmCliNoArgument") == std::string::npos,
@@ -403,12 +408,13 @@ auto scenarioNoArgument() -> int
 auto scenarioHandleWins() -> int
 {
   const Captured run =
-      runChild("handleWins", {"--placement=l3", "--filter", "^bmCliHandleSmt"},
+      runChild("handleWins",
+               {"--placement=l3", "--filter", "^bmCliHandleSmt"},
                &setupHandleWins);
   check(run.status == 2, "the unfittable handle preset exits 2 (FR-015)");
-  check(run.err.find("smt") != std::string::npos,
-        "the line names the handle's preset, not the command line's "
-        "(FR-015)");
+  check(
+      run.err.find("smt") != std::string::npos,
+      "the line names the handle's preset, not the command line's " "(FR-015)");
   check(run.out.find("bmCliHandleSmt") == std::string::npos,
         "no benchmark ran (FR-015)");
   return 0;
@@ -417,9 +423,8 @@ auto scenarioHandleWins() -> int
 // FR-016: a handle name outside the five stops the expansion.
 auto scenarioHandleBadName() -> int
 {
-  const Captured run =
-      runChild("handleBadName", {"--filter", "^bmCliHandleBad$"},
-               &setupHandleBad);
+  const Captured run = runChild(
+      "handleBadName", {"--filter", "^bmCliHandleBad$"}, &setupHandleBad);
   check(run.status == 2, "a rejected handle name exits 2 (FR-016)");
   check(run.err.find("l2") != std::string::npos,
         "the line names the rejected text (FR-016)");
@@ -432,8 +437,8 @@ auto scenarioHandleBadName() -> int
 auto scenarioUnknownFlag() -> int
 {
   const Captured run =
-      runChild("unknownFlag", {"--placements=l3", "--filter",
-                               "^bmCliUnknownFlag$"},
+      runChild("unknownFlag",
+               {"--placements=l3", "--filter", "^bmCliUnknownFlag$"},
                &setupUnknownFlag);
   check(run.status == 2, "an unknown flag exits 2");
   check(run.err.find("unknown option") != std::string::npos,
@@ -450,9 +455,10 @@ auto lineNaming(const std::string& text,
   std::istringstream stream(text);
   std::string line;
   while (std::getline(stream, line)) {
-    const bool names = std::ranges::all_of(
-        tokens, [&](const std::string& token)
-        { return line.find(token) != std::string::npos; });
+    const bool names =
+        std::ranges::all_of(tokens,
+                            [&](const std::string& token)
+                            { return line.find(token) != std::string::npos; });
     if (names) {
       return true;
     }
@@ -476,9 +482,9 @@ auto countLines(const std::string& text) -> std::size_t
 // FR-018: five contexts under four places stop the batch.
 auto scenarioFitStop() -> int
 {
-  const Captured run =
-      runChild("fitStop", {"--placement=l3", "--filter", "^bmCliFitStop"},
-               &setupFitStop);
+  const Captured run = runChild("fitStop",
+                                {"--placement=l3", "--filter", "^bmCliFitStop"},
+                                &setupFitStop);
   check(run.status == 2, "five contexts under four places exit 2 (FR-018)");
   check(lineNaming(run.err, {"l3", "4", "5"}),
         "one line names the preset, the places and the ask (FR-018)");
@@ -493,7 +499,8 @@ auto scenarioFitStop() -> int
 auto scenarioFitRange() -> int
 {
   const Captured run =
-      runChild("fitRange", {"--placement=l3", "--filter", "^bmCliFitRange"},
+      runChild("fitRange",
+               {"--placement=l3", "--filter", "^bmCliFitRange"},
                &setupFitRange);
   check(run.status == 2, "the unfittable count stops the whole batch (Q-4)");
   check(run.out.find("bmCliFitRange") == std::string::npos,
@@ -505,18 +512,18 @@ auto scenarioFitRange() -> int
 // FR-036: the listing block of data-model.md E-10, then exit 0.
 auto scenarioTopoListing() -> int
 {
-  const Captured run = runChild(
-      "topoListing", {"--topology", "--filter", "^bmCliTopoListing$"},
-      &setupTopoListing);
+  const Captured run =
+      runChild("topoListing",
+               {"--topology", "--filter", "^bmCliTopoListing$"},
+               &setupTopoListing);
   check(run.status == 0, "the listing exits 0 (FR-036)");
-  check(run.out.find(
-            "topology: packages=1 l3-groups=4 cores=24 threads=48") !=
-            std::string::npos,
+  check(run.out.find("topology: packages=1 l3-groups=4 cores=24 threads=48")
+            != std::string::npos,
         "the counts line answers the installed layout (FR-036, SC-12)");
   check(run.out.find("mask=0-47") != std::string::npos,
         "the counts line carries the mask it was built from (FR-036)");
-  check(run.out.find("l3 0: 0-11") != std::string::npos &&
-            run.out.find("l3 3: 36-47") != std::string::npos,
+  check(run.out.find("l3 0: 0-11") != std::string::npos
+            && run.out.find("l3 3: 36-47") != std::string::npos,
         "one line per L3 group names its cpus inside the mask (FR-036)");
   check(run.out.find("bmCliTopoListing") == std::string::npos,
         "no benchmark ran (FR-036)");
@@ -526,11 +533,13 @@ auto scenarioTopoListing() -> int
 // R-07: an unreadable layout makes the listing one line and exit 2.
 auto scenarioTopoUnreadable() -> int
 {
-  const Captured run = runChild(
-      "topoUnreadable", {"--topology", "--filter", "^bmCliTopoUnreadable$"},
-      &setupTopoUnreadable);
+  const Captured run =
+      runChild("topoUnreadable",
+               {"--topology", "--filter", "^bmCliTopoUnreadable$"},
+               &setupTopoUnreadable);
   check(run.status == 2, "the unreadable listing exits 2 (R-07)");
-  check(countLines(run.err) == 1, "the unreadable listing prints one line (R-07)");
+  check(countLines(run.err) == 1,
+        "the unreadable listing prints one line (R-07)");
   check(run.out.find("bmCliTopoUnreadable") == std::string::npos,
         "no benchmark ran (R-07)");
   return 0;
@@ -541,13 +550,13 @@ auto scenarioTopoUnreadable() -> int
 auto scenarioNoneSkip() -> int
 {
   const Captured run =
-      runChild("noneSkip", {"--placement=none", "--filter", "^bmCliNoneSkip"},
+      runChild("noneSkip",
+               {"--placement=none", "--filter", "^bmCliNoneSkip"},
                &setupNoneSkip);
   check(run.status == 0, "the none preset exits 0 (FR-010)");
   check(run.out.find("topology:") == std::string::npos,
         "none prints no topology line (FR-010, FR-019)");
-  check(run.out.find("ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN") !=
-            std::string::npos,
+  check(run.out.find("ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN") != std::string::npos,
         "the block stands as feature 020 ships it (FR-022)");
   return 0;
 }
@@ -557,7 +566,8 @@ auto scenarioNoneSkip() -> int
 auto scenarioSingleCtx() -> int
 {
   const Captured run =
-      runChild("singleCtx", {"--placement=l3", "--filter", "^bmCliSingleCtx$"},
+      runChild("singleCtx",
+               {"--placement=l3", "--filter", "^bmCliSingleCtx$"},
                &setupSingleCtx);
   check(run.status == 0, "a one-context run with a preset exits 0 (FR-019)");
   check(run.out.find("topology:") == std::string::npos,
@@ -587,9 +597,9 @@ auto scenarioSingleCtxUnreadable() -> int
 // FR-036: the listing runs before selection, the way `--catalog` does.
 auto scenarioTopoFilter() -> int
 {
-  const Captured run =
-      runChild("topoFilter", {"--topology", "--filter", "^nothingMatches$"},
-               &setupTopoFilter);
+  const Captured run = runChild("topoFilter",
+                                {"--topology", "--filter", "^nothingMatches$"},
+                                &setupTopoFilter);
   check(run.status == 0, "the listing precedes selection (FR-036)");
   check(run.out.find("topology:") != std::string::npos,
         "the listing prints with a filter that matches nothing (FR-036)");
@@ -607,6 +617,7 @@ auto main() -> int
     const char* name;
     int (*run)();
   };
+
   const std::array<Scenario, 14> scenarios {
       Scenario {"badName", &scenarioBadName},
       Scenario {"cpuList", &scenarioCpuList},

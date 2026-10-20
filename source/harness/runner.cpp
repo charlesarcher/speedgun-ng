@@ -1312,16 +1312,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   if (instance.threadCount > 1) {
     const std::optional<detail::PlacementPlan> placePlan =
         instance.placement != detail::Preset::NONE
-            ? std::optional<detail::PlacementPlan>(detail::resolvePreset(
-                  instance.placement, detail::layout(),
-                  instance.threadCount))
-            : std::nullopt;
+        ? std::optional<detail::PlacementPlan>(detail::resolvePreset(
+              instance.placement, detail::layout(), instance.threadCount))
+        : std::nullopt;
     for (int position = 0; position < instance.threadCount; ++position) {
       const sg::ContextPolicy policy {
           sg::WaitMode::SPIN,
           placePlan.has_value()
-              ? sg::PlacementSlot::cpu(placePlan->cpu[static_cast<
-                    std::size_t>(position)])
+              ? sg::PlacementSlot::cpu(
+                    placePlan->cpu[static_cast<std::size_t>(position)])
               : sg::PlacementSlot::noPin()};
       contexts.push_back(std::make_unique<sg::ExecutionContext>(policy));
     }
