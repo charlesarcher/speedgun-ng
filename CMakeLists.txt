@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.13.0
+    VERSION 0.14.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -205,6 +205,15 @@ target_link_libraries(speedgun-ng_harness PUBLIC speedgun-ng::speedgun-ng)
 target_link_libraries(speedgun-ng_harness
                       PRIVATE $<BUILD_INTERFACE:hwloc_vendor>)
 
+# The report reader and the schema checker parse with the vendored parser,
+# so the harness includes <simdjson.h> (specs/023 D-01). The link is
+# PRIVATE and BUILD_INTERFACE: the public headers name nothing of it, and
+# the purity scan of specs/004 A7/A8 stays clean.
+target_link_libraries(
+    speedgun-ng_harness
+    PRIVATE $<BUILD_INTERFACE:simdjson::simdjson>
+)
+
 # The build type is a build fact the counters library publishes nowhere,
 # so the build writes it and the report reads it as a literal (R-14).
 # The project version travels the same way: the report prints it beside
@@ -231,7 +240,11 @@ set_target_properties(
     # ResultRow gains the percentile columns, and BenchmarkHandle gains the
     # percentile selector, so the exported layouts move again and the number
     # goes to 7 (FR-030, D-15).
-    SOVERSION 7
+    # specs/023 FR-044: BenchmarkResult gains the noise warning and the raw
+    # capture types, and the harness gains the report writer, the loader and
+    # the two report options, so the exported layouts move again and the
+    # number goes to 8 (FR-043, D-16).
+    SOVERSION 8
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
