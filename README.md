@@ -535,6 +535,29 @@ SG_BENCHMARK(bmSharded).threads(4);
 ```
 `state.threadIndex()` numbers the context running the loop, and `state.threads()` gives the count the instance asked for. See [what a threaded row merges](docs/pages/harness.md#what-a-threaded-row-merges).
 
+### Topology placement
+`--placement` picks one of five presets, `none`, `core`, `l3`, `smt` or `compact`, and the harness plans one cpu per context from the machine layout it reads once per process: `core` takes one thread per core, `l3` one cpu per L3 group, `smt` the sibling threads of one core, and `compact` fills each L3 group before the next. A handle names its family's preset with `placement`, and the handle wins over the command line. Asking more contexts than the preset has places stops the batch with one line naming the preset and the counts. `--topology` prints the layout the plans come from. See [topology placement in detail](docs/pages/harness.md#topology-placement).
+<!-- sg-example: example/docs/topology_placement.cpp#topology-placement -->
+```cpp
+auto bmCompact(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmCompact).threads(2).placement("compact");
+
+auto bmPair(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmPair).threads(2);
+```
+
 ### Percentiles
 <!-- sg-example: example/docs/percentiles.cpp#percentiles -->
 ```cpp
@@ -636,6 +659,7 @@ The run divides its iterations into chunks, times each chunk, and reads the near
 | `threadRange` | BenchmarkHandle | Appends one instance per doubling of a thread sweep | [threads](#threads) |
 | `denseThreadRange` | BenchmarkHandle | Appends one instance per step of a thread sweep | [threads](#threads) |
 | `threadRunner` | BenchmarkHandle | Attaches the dispatcher of this family's threaded runs | [threads](#threads) |
+| `placement` | BenchmarkHandle | States the preset that places this family's contexts | [topology placement](#topology-placement) |
 | `ThreadRun` | type | The view of one threaded attempt its dispatcher receives | [threads](#threads) |
 | `ThreadRunnerFn` | type | The callback shape a threaded dispatcher takes | [threads](#threads) |
 | `State::threadIndex` | State | Numbers the context running the loop | [threads](#threads) |
