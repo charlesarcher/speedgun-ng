@@ -137,7 +137,13 @@ auto readLayout(const std::optional<std::string>& description)
   if (rc == 0) {
     rc = hwloc_topology_load(topology);
   }
-  if (rc != 0) {
+  // LCOV_EXCL_BR_LINE : coverage exclusion (T032, recorded with Charles):
+  // the arm taken when the load itself fails needs hwloc to answer a
+  // failed load, and the embedded build answers success for every load
+  // this platform can produce (HWLOC_FSROOT is inert there, and a
+  // malformed description fails at set_synthetic, which takes the other
+  // arm of this test, exercised by the malformed scenario).
+  if (rc != 0) {  // LCOV_EXCL_BR_LINE
     return layout;
   }
 
@@ -152,7 +158,11 @@ auto readLayout(const std::optional<std::string>& description)
   std::vector<hwloc_obj_t> packageObjects;
 
   int cpu = -1;
-  while ((cpu = hwloc_bitmap_next(allowed, cpu)) != -1) {
+  for (;;) {
+    cpu = hwloc_bitmap_next(allowed, cpu);
+    if (cpu == -1) {
+      break;
+    }
     const hwloc_obj_t pu =
         hwloc_get_pu_obj_by_os_index(topology, static_cast<unsigned>(cpu));
 

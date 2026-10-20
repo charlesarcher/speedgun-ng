@@ -46,6 +46,13 @@
 //                       skipping every unit outside the mask (FR-005, R-13)
 //   malformed           a malformed description leaves readable false
 //                       (FR-005, R-04)
+//   noGroup             an installed synthetic description
+//                       `Package:2 Core:2 PU:2` yields cores with no
+//                       group, the walk rule closing a core that names no
+//                       cache ancestor (FR-002, E-09)
+//   listingGap          a listing of a mask holding single cpus prints
+//                       each cpu alone, the range rule closing a span of
+//                       one (FR-036)
 //   readOnce            layout() called twice in one process yields the
 //                       same layout, and an install after the first call
 //                       changes nothing (FR-002, R-04)
@@ -344,6 +351,50 @@ auto childMalformed() -> int
   return 0;
 }
 
+// FR-002, E-09: the synthetic description `Package:2 Core:2 PU:2`
+// describes packages, cores and processing units but no cache level, so
+// every core closes with no group and the group list stays empty.
+auto childNoGroup() -> int
+{
+  sg::detail::installTestTopologyDescription(
+      std::string("Package:2 Core:2 PU:2"));
+  const auto& layout = sg::detail::layout();
+  if (!layout.readable || layout.cores.size() != 4 || !layout.groups.empty()
+      || layout.threads.size() != 8)
+  {
+    std::fprintf(stderr, "the groupless synthetic did not yield four cores\n");
+    return 1;
+  }
+  return 0;
+}
+
+// FR-036: a mask of single cpus prints each one alone, and a group whose
+// cpus are single prints the same way.
+auto childListingGap() -> int
+{
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  for (const std::uint32_t cpu : {0U, 2U, 5U}) {
+    sg::detail::LayoutCore core;
+    core.groupOrdinal = 0;
+    sg::detail::LayoutThread thread {
+        cpu, static_cast<std::uint32_t>(installed.cores.size()), 0};
+    core.threads.push_back(
+        static_cast<std::uint32_t>(installed.threads.size()));
+    installed.threads.push_back(thread);
+    installed.cores.push_back(core);
+    installed.mask.push_back(cpu);
+  }
+  sg::detail::LayoutGroup group;
+  group.lowestCpu = 0;
+  group.cores = {0, 1, 2};
+  installed.groups.push_back(group);
+  sg::detail::installTestLayout(installed);
+  sg::detail::printTopologyListing(sg::detail::layout());
+  return 0;
+}
+
 // FR-002, R-04: two calls yield the same layout, and an install after the
 // first call changes nothing.
 auto childReadOnce() -> int
@@ -395,6 +446,12 @@ auto main(int argc, char** argv) -> int
     if (mode == "malformed") {
       return childMalformed();
     }
+    if (mode == "noGroup") {
+      return childNoGroup();
+    }
+    if (mode == "listingGap") {
+      return childListingGap();
+    }
     if (mode == "readOnce") {
       return childReadOnce();
     }
@@ -407,7 +464,7 @@ auto main(int argc, char** argv) -> int
     const char* what;
   };
 
-  const std::array<Expected, 9> scenarios {
+  const std::array<Expected, 11> scenarios {
       Expected {
           "hostRead",
           "the host read scenario ended clean (FR-001, " "FR-005, R-11, R-13)"},
@@ -426,6 +483,10 @@ auto main(int argc, char** argv) -> int
       Expected {
           "malformed",
           "the malformed description scenario ended clean (FR-005, R-04)"},
+      Expected {"noGroup",
+                "the groupless synthetic scenario ended clean (FR-002, E-09)"},
+      Expected {"listingGap",
+                "the single-cpu listing scenario ended clean (FR-036)"},
       Expected {"readOnce",
                 "the read-once scenario ended clean (FR-002, R-04)"},
   };

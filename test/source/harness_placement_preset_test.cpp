@@ -450,7 +450,8 @@ auto childTextNoGroup() -> int
   installed.mask.push_back(5);
   sg::detail::installTestLayout(installed);
   if (sg::detail::placementText(sg::PlacementSlot::cpu(5)) != "5"
-      || sg::detail::placementText(sg::PlacementSlot::cpu(99)) != "99")
+      || sg::detail::placementText(sg::PlacementSlot::cpu(99)) != "99"
+      || sg::detail::placementText(sg::PlacementSlot::cpu(3)) != "3")
   {
     std::fprintf(stderr, "placementText did not disclose the bare cpu index\n");
     return 1;
