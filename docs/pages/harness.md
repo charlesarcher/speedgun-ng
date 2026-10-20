@@ -854,6 +854,15 @@ line prints for each reported column: the primary time, then the time column the
 primary is not, then each metric. Each line states one value per point, in the
 unit that column prints in.
 
+<!-- sg-sample-output: example/docs/percentiles.expected#report -->
+```text
+speedgun-ng 0.11.0 build=Release
+bmRoll                   iterations=       300  real time/iter (ns)=22376.753  cpu time/iter (ns)=22347.760  overhead floor (ns)=  110.000  endpoint samples=301
+bmRoll                       chunks  chunks=300  iterations/chunk=1
+bmRoll                   percentile  primary time/iter (ns)  p50=22010.000  p90=23240.000  p99=23730.000  p99.9=not available
+bmRoll                   percentile  real time/iter (ns)  p50=22010.000  p90=23240.000  p99=24150.000  p99.9=not available
+```
+
 ### The chunk rule
 
 A chunk holds the least count of iterations whose time reaches 100 times the
