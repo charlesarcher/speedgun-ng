@@ -57,6 +57,10 @@
 #if !SG_TEST_HAS_TSAN
 static std::atomic<std::uint64_t> allocations {0};
 
+// The count one benchmark body takes between the opening of its timed
+// window and the close of its last iteration (SC-004).
+static std::atomic<std::uint64_t> windowAllocations {0};
+
 auto operator new(std::size_t size) -> void*
 {
   ++allocations;
@@ -251,8 +255,19 @@ auto windowPoints(const std::array<std::uint64_t, 4>& deltas)
 
 auto bmWindow(sg::State& state) -> void
 {
+  // SC-004: the first read stands inside the timed window after the
+  // recorder minted its reservation, and the second after the body of the
+  // last iteration returns. What the window takes in between is the cost
+  // of the capture path itself.
+#if !SG_TEST_HAS_TSAN
+  const std::uint64_t opened = allocations.load();
   for (auto _ : state) {
   }
+  windowAllocations.store(allocations.load() - opened);
+#else
+  for (auto _ : state) {
+  }
+#endif
 }
 
 // The expanded instance of one name, or null when the expansion left no
@@ -618,8 +633,20 @@ auto captureReservesItsPointsAndAllocatesNothingPerChunk() -> void
             "the replaceable allocation operators, so the counting hooks stand "
             "aside there and the run itself still runs (SC-004)");
 #else
+  // SC-004: the window answers zero. Every point of the column stands in
+  // the reservation the recorder minted before the window opened, so the
+  // capture path takes no allocation while the run is timed.
+  check(windowAllocations.load() == 0,
+        "the timed window took no allocation at all (SC-004)");
+  // The run outside the window does allocate: the plan, the result and the
+  // report. Storage taken as the chunks arrived would answer at the chunk
+  // count or above it. The count also answers above zero, which is what
+  // makes the window answer of zero a reading and not a dead hook.
+  check(taken > 0,
+        "the counting hooks answer for this run, so the window zero is a "
+        "reading and not a hook that never fired (SC-004)");
   check(taken < row.chunkCount,
-        "the timed window allocated no per-chunk storage (SC-004)");
+        "the run allocated far below one allocation per chunk (FR-008)");
 #endif
 }
 
