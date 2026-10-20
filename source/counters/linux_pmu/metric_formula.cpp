@@ -281,7 +281,10 @@ struct Scanned
   }
   while (end < text.size()) {
     const char c = text[end];
-    const bool exponentSign = (c == '+' || c == '-') && end > pos
+    // A sign only ever follows the exponent letter: the loop begins on a
+    // digit or a dot, so `end` never equals `pos` on a sign and the
+    // `text[end - 1]` read never underflows.
+    const bool exponentSign = (c == '+' || c == '-')
         && (text[end - 1] == 'e' || text[end - 1] == 'E');
     if (std::isdigit(static_cast<unsigned char>(c)) == 0 && c != '.' && c != 'e'
         && c != 'E' && !exponentSign)
@@ -427,7 +430,9 @@ private:
     }
     const auto child = [&](const int part)
     { return part < 0 ? false : holdsConditional(part); };
-    return child(made.left) || child(made.right) || child(made.third);
+    // Only a conditional owns an else-slot and it returned above, so a
+    // third child is never live here.
+    return child(made.left) || child(made.right);
   }
 
   [[nodiscard]] auto additive() -> std::expected<int, MetricFailure>
@@ -642,7 +647,9 @@ private:
     }
     const auto child = [&](const int index)
     { return index < 0 ? false : nested(value(index)); };
-    return child(node.left) || child(node.right) || child(node.third);
+    // A non-predicate node's third slot stays -1: only the conditional
+    // fills it and the predicate test above already settled those.
+    return child(node.left) || child(node.right);
   }
 
   std::vector<Scanned> m_tokens;
