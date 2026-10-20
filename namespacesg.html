@@ -131,6 +131,14 @@
             </dt>
             <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
             <dt>
+              struct <a href="structsg_1_1RowRaw.html" class="m-doc">RowRaw</a>
+            </dt>
+            <dd>The retained chunk columns of one row or one context (specs/023 E-02).</dd>
+            <dt>
+              struct <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>
+            </dt>
+            <dd>The value the harness writes as one JSON report and reads back (specs/023 E-01).</dd>
+            <dt>
               class <a href="classsg_1_1State.html" class="m-doc">State</a>
             </dt>
             <dd>The object the harness hands the benchmark function (E-03).</dd>
@@ -244,6 +252,11 @@
             </dt>
             <dd>The curve class a complexity fit tries or keeps (FR-019, FR-020).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#ad626a5f80441d08b1733d4e34d0e731c" class="m-doc">RawContent</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ad626a5f80441d08b1733d4e34d0e731cab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a>,
+              <a href="#ad626a5f80441d08b1733d4e34d0e731cafa1dcd12e09557b24430608a70572218" class="m-doc">CHUNKS</a> }</span>
+            </dt>
+            <dd>The chunk content a JSON report carries (specs/023 E-01, FR-029).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#aa3fb9e24a0f554081c7ed820b9d71565" class="m-doc">WaitMode</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#aa3fb9e24a0f554081c7ed820b9d71565a01518642fd172918ac4e6fa78bbb3164" class="m-doc">SPIN</a>,
               <a href="#aa3fb9e24a0f554081c7ed820b9d71565a18e25ac6cc28c2b91bce1fbe629b682a" class="m-doc">YIELD</a>,
               <a href="#aa3fb9e24a0f554081c7ed820b9d71565a4d34f53389ed7f28ca91fc31ea360a66" class="m-doc">BLOCK</a> }</span>
@@ -348,6 +361,10 @@
             </dt>
             <dd>Run the registered benchmarks named by the command line and print the report (FR-033).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a>(</span><span class="m-doc-wrap">const std::string&amp; path) -&gt; std::expected&lt; ReportData, std::string &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Read one JSON report document this harness wrote (specs/023 FR-022, D-08).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#ae376244899f5567ea4fbcc99ce7dd8ac" class="m-doc">currentContext</a>(</span><span class="m-doc-wrap">) -&gt; std::optional&lt;<a href="structsg_1_1ContextId.html" class="m-doc">ContextId</a>&gt;</span>
             </dt>
             <dd>The identity of the context the calling thread runs (FR-002).</dd>
@@ -447,6 +464,14 @@
             </h3>
             <p>The curve class a complexity fit tries or keeps (FR-019, FR-020).</p>
 <p><code>NONE</code> asks for no fit and stands as the default, so a family that never calls <code>complexity</code> prints no fit rows. <code>AUTOMATIC</code> tries each curve and keeps the least root-mean relative error, with the constant curve as the fallback (FR-021).</p>
+          </div></section>
+          <section class="m-doc-details" id="ad626a5f80441d08b1733d4e34d0e731c"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#ad626a5f80441d08b1733d4e34d0e731c" class="m-doc-self">RawContent</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The chunk content a JSON report carries (specs/023 E-01, FR-029).</p>
+<p><code>NONE</code> writes the ranks the run computed and no chunk value; <code>CHUNKS</code> writes the chunk values themselves beside them. <code>CHUNKS</code> also turns the chunk capture on for a run whose percentile output stands off, so the file can hold values the console never ranked (FR-020).</p>
           </div></section>
           <section class="m-doc-details" id="aa3fb9e24a0f554081c7ed820b9d71565"><div>
             <h3>
@@ -624,6 +649,14 @@
             </h3>
             <p>Run the registered benchmarks named by the command line and print the report (FR-033).</p>
 <p>A suite links <code>speedgun-ng::harness</code> and calls this from <code>main</code> (D-1).</p><p>A command line that does not follow the option table of <code>specs/015-benchmark-harness-core/contracts/cli.md</code> is a usage error: the entry point reports it and exits with status two from inside the parse (FR-035). That path leaves no status to state a postcondition about, so this function takes no precondition of its own.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned status follows the exit-status table of that contract (FR-036)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a59d2ce0d2cfd165637238e77ee452a4c"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc-self">loadReport</a>(</span><span class="m-doc-wrap">const std::string&amp; path) -&gt; std::expected&lt; ReportData, std::string &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Read one JSON report document this harness wrote (specs/023 FR-022, D-08).</p>
+<p>The call answers the same result types the run produced, so handing the value back to the writer with the raw setting the file carries gives the same bytes the file already holds (FR-026). A field the format allows to stand absent answers the empty value the field documents.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>path</code> is not empty: an empty path is a contract violation. A path the file system refuses is an input error the call answers (specs/023 contracts/report-loader.md)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>when the call answers a value, that value holds one entry per benchmark of the document in document order, with the raw chunk columns of the document in its <code>rowRaw</code> and <code>contextRaw</code> fields</p><p>when the call answers an error, the string names the JSON pointer of the fault and what the reader expected there; no error form throws to the caller or aborts (FR-023, FR-024)</p></aside>
           </div></section>
           <section class="m-doc-details" id="ae376244899f5567ea4fbcc99ce7dd8ac"><div>
             <h3>
