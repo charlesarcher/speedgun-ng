@@ -70,6 +70,7 @@
 #include <thread>
 #include <vector>
 
+#include <sched.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -118,7 +119,8 @@ auto runChild(const char* self, const char* mode) -> int
 // each, spaced 12 cpus apart per group, and installs it (SC-04, Q-5).
 auto installShape(const std::uint32_t groups,
                   const std::uint32_t coresPerGroup,
-                  const std::uint32_t siblings) -> void
+                  const std::uint32_t siblings,
+                  const std::uint32_t spacing = 12) -> void
 {
   sg::detail::MachineLayout installed;
   installed.readable = true;
@@ -128,7 +130,7 @@ auto installShape(const std::uint32_t groups,
       sg::detail::LayoutCore layoutCore;
       layoutCore.groupOrdinal = group;
       for (std::uint32_t sibling = 0; sibling < siblings; ++sibling) {
-        const std::uint32_t cpu = group * 12 + core * 2 + sibling;
+        const std::uint32_t cpu = group * spacing + core * 2 + sibling;
         sg::detail::LayoutThread thread;
         thread.cpuIndex = cpu;
         thread.coreOrdinal = static_cast<std::uint32_t>(installed.cores.size());
@@ -141,7 +143,7 @@ auto installShape(const std::uint32_t groups,
       installed.cores.push_back(layoutCore);
     }
     sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = group * 12;
+    layoutGroup.lowestCpu = group * spacing;
     for (std::uint32_t core = 0; core < coresPerGroup; ++core) {
       layoutGroup.cores.push_back(group * coresPerGroup + core);
     }
@@ -557,19 +559,39 @@ auto installScriptedClock() -> void
 
 // FR-008, FR-010, R-05: a run of four contexts under `l3` calls the
 // installed placement function with slots naming the four planned cpus in
-// context-index order.
+// context-index order. The shape scales with the host because the runner
+// checks every planned cpu against the cpus the host publishes: a host
+// with fewer than 48 cpus takes the one-thread-per-group shape whose
+// planned cpus start at 0, and the context count lowers to the cpus the
+// host holds.
 auto childRunnerL3() -> int
 {
-  installFourGroupShape();
+  cpu_set_t host {};
+  if (sched_getaffinity(0, sizeof(host), &host) != 0) {
+    std::fprintf(stderr, "sched_getaffinity failed\n");
+    return 1;
+  }
+  const auto hostCpus = static_cast<std::size_t>(CPU_COUNT(&host));
+  if (hostCpus < 2) {
+    std::fprintf(stderr, "the host holds fewer than two cpus\n");
+    return 1;
+  }
+  const bool wide = hostCpus >= 48;
+  const std::uint32_t contexts = wide
+      ? 4U
+      : static_cast<std::uint32_t>(std::min<std::size_t>(hostCpus, 4U));
+  installShape(contexts, wide ? 6U : 1U, wide ? 2U : 1U, wide ? 12U : 1U);
   installScriptedClock();
   sg::setPlacementFunction(&recordSlot);
   auto handle = sg::registerBenchmark(&bmPresetBody, "bmPresetL3");
-  handle.threads(4).placement("l3");
+  handle.threads(static_cast<int>(contexts)).placement("l3");
   sg::detail::expandRegistry();
   sg::detail::RunOptions options;
   options.fixedIterations = 8;
   sg::detail::Runner runner(options);
-  sg::Instance* const instance = findInstance("bmPresetL3/threads:4");
+  const std::string instanceName =
+      "bmPresetL3/threads:" + std::to_string(contexts);
+  sg::Instance* const instance = findInstance(instanceName);
   if (instance == nullptr) {
     std::fprintf(stderr, "the expansion produced no instance\n");
     return 1;
@@ -580,9 +602,16 @@ auto childRunnerL3() -> int
     recorded.push_back(slotRecord[static_cast<std::size_t>(index)]);
   }
   std::ranges::sort(recorded);
-  const std::vector<std::uint32_t> expected {0, 12, 24, 36};
+  std::vector<std::uint32_t> expected;
+  if (wide) {
+    expected = {0, 12, 24, 36};
+  } else {
+    for (std::uint32_t cpu = 0; cpu < contexts; ++cpu) {
+      expected.push_back(cpu);
+    }
+  }
   if (recorded != expected) {
-    std::fprintf(stderr, "the run did not place the four planned cpus\n");
+    std::fprintf(stderr, "the run did not place the planned cpus\n");
     return 1;
   }
   return 0;
