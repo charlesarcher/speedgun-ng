@@ -576,6 +576,24 @@ SG_BENCHMARK(bmRoll).iterations(300).showPercentiles(true);
 ```
 The run divides its iterations into chunks, times each chunk, and reads the nearest rank of the chunk times, so `showPercentiles(true)` reports how one run's iterations varied. `--percentiles=50,90` sets the points of the run and `--no-percentiles` turns the lines off; a point the chunk count cannot answer prints `not available`. See [percentiles](docs/pages/harness.md#percentiles).
 
+### JSON reports
+<!-- sg-example: example/docs/json_reports.cpp#json-reports -->
+```cpp
+auto bmDice(sg::State& state) -> void
+{
+  std::uint64_t dice = 0;
+  for (auto _ : state) {
+    for (std::uint64_t i = 0; i < 3'000; ++i) {
+      dice = (dice + i) * 1'099'511'628'211ULL;
+    }
+    sg::doNotOptimize(dice);
+  }
+}
+
+SG_BENCHMARK(bmDice).iterations(120).showPercentiles(true);
+```
+`--json=path` writes the whole run as one JSON document beside the console report: the header, one entry per benchmark, and one row per repetition with its statistics, its percentile cells and its chunk columns. `--json-raw=chunks` carries those columns when the percentile lines stay off, and `loadReport(path)` reads the document back as the same `BenchmarkResult` values the run printed. The file carries no date, so two runs of one build write the same bytes. See [JSON reports](docs/pages/harness.md#json-reports).
+
 ## Quick reference
 
 | Name | Owner | What it does | Teaches |
@@ -594,6 +612,7 @@ The run divides its iterations into chunks, times each chunk, and reads the near
 | `registerBenchmark` | free function | Registers a family under a name you give | [registration](#registration) |
 | `setDefaultTimeUnit` | free function | Sets the unit for families that call no `unit` | [the-time-unit](#the-time-unit) |
 | `speedgunMain` | free function | Runs the registry against the command line | [the-command-line](#the-command-line) |
+| `loadReport` | free function | Reads a report document back as the run's own values | [json-reports](#json-reports) |
 | `doNotOptimize` | free function | Keeps a value live across the barrier | [the-run-loop](#the-run-loop) |
 | `clobberMemory` | free function | Pushes cached values back to memory | [the-run-loop](#the-run-loop) |
 | `arg` | BenchmarkHandle | Appends one argument value to the instance list | [argument-families-and-ranges](#argument-families-and-ranges) |
@@ -677,6 +696,8 @@ The run divides its iterations into chunks, times each chunk, and reads the near
 | `--warmup-time` | Sets the untimed warm-up seconds |
 | `--percentiles` | Sets the percentile points one run reports |
 | `--no-percentiles` | Turns the percentile lines off |
+| `--json` | Writes one JSON report document for the run |
+| `--json-raw` | Selects the chunk columns the document carries |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter to the report columns |
 | `--metric` | Adds one metric of the host's table to the report columns |

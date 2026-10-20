@@ -72,6 +72,7 @@ BM_copy                    18432            311.4                  22.7   ipc=1.
 | Condition | Status |
 | --- | --- |
 | a benchmark failed, the catalog listing failed, or SIGINT interrupted a run | nonzero |
+| the report file named by `--json=` could not be opened or written | 2 (specs/023 FR-050) |
 | the filter matched no benchmark | zero, with a message |
 | list mode | zero |
 | measured or skipped benchmarks | zero |
