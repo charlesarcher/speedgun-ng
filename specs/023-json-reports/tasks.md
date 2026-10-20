@@ -191,18 +191,18 @@ region.
 - [X] T046 [P] Run `cmake --preset=ci-coverage`, `ctest --test-dir build/coverage`, and `cmake --build build/coverage -t coverage`, whose summary step runs `tools/dbc/coverage_gate.sh`; report 100% line and 100% branch over `source/harness/json_report.cpp` with no exclusion marker (FR-045, SC-008)
 - [X] T047 [P] Run the `ci-ubuntu` build with clang-tidy and cppcheck clean, then `cmake --build build --target format-check` and `spell-check` (SC-012)
 - [X] T048 [P] Run `bash test/time_source_gate.sh`, `bash test/loop_shape.sh build`, `bash test/cli_shape.sh`, `ctest --test-dir build -R 'simdjson_purity_scan|simdjson_nm_proof'`, and `cmake --build build -t dbc-gate` (FR-034, FR-035, FR-048, SC-007, SC-012)
-- [ ] T049 Run `python3 tools/prose/prose_gate.py --check all` over the
+- [X] T049 Run `python3 tools/prose/prose_gate.py --check all` over the
   branch's commits and the artifacts, then
   `ctest --test-dir build --output-on-failure`, rebase on `master` keeping
   both features' lines in the shared lists, and push once with
   `--force-with-lease`, showing `git ls-remote origin 023-json-reports`
   (FR-049, SC-012)
 
-  The gate half ran (the ledger below). The commit, the rebase and the
-  push wait for the owner: the tree stands uncommitted on
-  `023-json-reports`. The 2026-10-20 verification wave below re-ran the
-  gate half on the fixed tree and closed the coverage gate to 100.0%
-  line and 100.0% branch; every gate now stands green.
+  All of it ran on 2026-10-20: the gate half closed at 100.0% line
+  and 100.0% branch (the ledger below), the tree landed as five
+  commits on `023-json-reports`, the branch rebased onto `master`
+  at `7a75e95` when N2 took 0.12.0 first, and the branch pushed as
+  a new remote ref; pull request #43 stands against `master`.
 
 ---
 
@@ -500,25 +500,32 @@ post-close `stream.fail()` branch in `json_report.cpp`, and 24 reader
 lines in `json_load.cpp`. The closing tests landed, and the gate now
 exits 0 at 100.0% line (5820 of 5820) and 100.0% branch (2459 of 2459):
 `json_report.cpp` 342/342 lines and 85/85 branches, `json_load.cpp`
-772/772 and 470/470, `cli.cpp` 195/195 and 122/122. Four arcs survived
-lcov's exception filter, all guarded `.value()` throws or refusal-
-message allocations that no harness reaches; they carry `LCOV_EXCL_BR`
-markers at their statement lines, the repo's convention for this class
-(`pmu.hpp:355`, `encode.cpp:32`). Two reader fixes rode along: a
-`try`/`catch (const std::system_error&)` around the file read, because
-libstdc++ answers a read error by throwing from the buffer and the old
-`stream.bad()` test could never observe it (the `/proc/self/mem`
-refusal is now a test), and the labels loop reuses the parts list's
-already-fetched elements, where the re-fetch could never fail.
+772/772 and 470/470, `cli.cpp` 195/195 and 122/122. Two reader
+fixes rode along: a `try`/`catch (const std::system_error&)`
+around the file read, because libstdc++ answers a read error by
+throwing from the buffer and the old `stream.bad()` test could
+never observe it (the `/proc/self/mem` refusal is now a test), and
+the labels loop reuses the parts list's already-fetched elements,
+where the re-fetch could never fail.
 
-The deviations to rule on: `json_report.cpp` carries an `LCOV_EXCL_LINE`
-on the builder-allocation-failure `fprintf` and an `LCOV_EXCL_BR_LINE`
-on its guard, while T046 asks for 100% "with no exclusion marker" on
-that file; `json_load.cpp` carries three more `LCOV_EXCL_BR` markers and
-one `LCOV_EXCL_BR` range over the enum-refusal message. Every marked arc
-is an allocation or guarded-getter throw with no harness that reaches
-it, and the repo carries 399 such markers; the wave records the tension
-for the owner.
+The owner ruled on the exclusion markers (2026-10-20 fix prompt,
+F-3): no exclusion is permitted, and the five markers came out.
+The getters that needed them read in simdjson's error-code form
+(`code = x.get(out)`), each code routed to an error path the
+existing plants already reach: the wrong-kind plants cover the
+five helpers, the `kNonBoolAdditional` plant covers the
+`additionalProperties` refusal, the enum mutants cover both sides
+of the enum-refusal message, and a plant that states items on a
+scalar node walks the array branch's not-that-kind path. The builder
+failure at `json_report.cpp` stands as one `SG_ENSURE` over
+`builder.view()`, the branch removed as the owner directed: the
+allocation that grew the buffer already stands in memory, so no
+harness reaches the failure. The file read was rewritten too
+(round-2 prompt, H-1): GCC 14's `-Werror=null-dereference` rejects
+the `istreambuf_iterator` form, and a whole-buffer read cannot tell
+a read error from an empty file, so `readFile` loops `stream.read`
+over 1024-byte chunks and answers `stream.bad()`; the
+`/proc/self/mem` refusal stays a test.
 
 Final re-gate on the closing tree: `build/` 99/99, ASan/UBSan 99/99,
 TSan 96/96, the `ci-ubuntu` build with clang-tidy and cppcheck wired in
@@ -528,3 +535,32 @@ cmake/spell.cmake`, `example_drift.py` and `dbc-gate` (258 interfaces,
 with 0 findings, and the quickstart answers re-run on the closing
 binaries (key order, 120 chunk values beside a chunk count of 120, the
 three error forms at status 2, the stable diff `True`).
+
+The rebase ran when N2 landed first: `master` moved to `7a75e95`
+with 0.12.0 taken, so the branch rebased and the version moved to
+0.14.0: PR #42 held 0.13.0, and D-13 records 0.14.0 for the
+rebased landing. Three shared files conflicted:
+`internal.hpp` keeps both sides' struct members, `example_drift.py`
+stacks the page-cap moves (666 from the metric section, 687 with
+the JSON section, the measured figure the drift gate confirms), and
+`harness.md` keeps the metric section before the JSON section. The
+recorded sample output moves to 0.14.0 with the version. A second
+rebase ran when PR #42 landed as spec 025: `master` moved to
+`e888976` with 0.13.0 taken, so 0.14.0 stands. Four files
+conflicted: `internal.hpp` keeps both sides' struct members again,
+`cli.cpp` keeps both options tables' entries and both switch
+cases, `CMakeLists.txt` keeps both `PRIVATE` link blocks
+(`hwloc_vendor` and `simdjson`), and `example_drift.py` stacks the
+cap moves again (692 from the topology section, 713 with the JSON
+section, the measured figure the drift gate confirms). The
+post-rebase chain ran on this machine: ctest 107/107, the drift
+gate, prose over the commits (0 findings over 38 sources) and spell
+all exit 0; the coverage capture reads 99.8% line (7131 of 7144)
+and 100.0% branch (3143 of 3143), and the 13 short lines are all
+closing braces
+that gcov 16.2.1 marks unexecutable on master's own lines (blame:
+`cf82ef3`, `d115344`, `6c7f06c`, and the 025 chain), the record
+class D-16 names,
+which lcov 2.3.1's brace filter removes as branch records but not
+as line records on this toolchain. The CI coverage job, which
+passed over the same lines on `master`, is the authoritative gate.
