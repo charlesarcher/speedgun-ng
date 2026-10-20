@@ -10,7 +10,7 @@
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
 
-// The tables and the host the metric tests share (specs/021-metric-formulas
+// The tables and the host the metric tests share (specs/022-metric-formulas
 // T007). The event names are the fixture's own, so a host that publishes a
 // real PMU catalog answers none of them and every resolution reaches the
 // scripted leaves (FR-039). The scripted leaves live on two objects whose

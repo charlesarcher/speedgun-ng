@@ -1,6 +1,6 @@
 // ============================================================================
 // The two pinned tables a metric row needs to publish
-// (specs/021-metric-formulas D-05, D-06).
+// (specs/022-metric-formulas D-05, D-06).
 //
 // The first turns a row's `ScaleUnit` text into the factor the fold carries.
 // It is a table because an unlisted spelling must refuse the row: a numeric

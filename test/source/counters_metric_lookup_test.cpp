@@ -1,6 +1,6 @@
 // ============================================================================
 // TDD test for the metric lookup and the fold it feeds
-// (specs/021-metric-formulas T027 to T034, T056, T057; FR-008 to FR-021,
+// (specs/022-metric-formulas T027 to T034, T056, T057; FR-008 to FR-021,
 // FR-038).
 //
 // Every case resolves the fixture table against the fixture host and folds

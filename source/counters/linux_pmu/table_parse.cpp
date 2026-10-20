@@ -437,7 +437,7 @@ void addEntry(std::vector<PmuTableEntry>& table,
               simdjson::dom::object attributes)
 {
   // Metric definitions are the metric table's data, never countables
-  // (specs/021-metric-formulas FR-002, R-010, US6).
+  // (specs/022-metric-formulas FR-002, R-010, US6).
   if (attributes["MetricExpr"].error() == simdjson::SUCCESS) {
     addMetricEntry(table, name, attributes);
     return;

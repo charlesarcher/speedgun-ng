@@ -1,6 +1,6 @@
 # Feature Specification: Metric Formulas
 
-**Feature Branch**: `021-metric-formulas`
+**Feature Branch**: `022-metric-formulas`
 
 **Created**: 2026-10-19
 

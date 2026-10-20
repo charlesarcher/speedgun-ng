@@ -1997,7 +1997,7 @@ auto mapfileRowScenario() -> void
   check(threw, "a row whose pattern does not compile throws std::regex_error");
 }
 
-// Pre-fix observation of the defect specs/021-metric-formulas fixes: the
+// Pre-fix observation of the defect specs/022-metric-formulas fixes: the
 // two model-55 rows of the pinned mapping file split the model by CPUID
 // stepping, and the key the rows match against carries no stepping, so a
 // model-55 part matches neither row and selects no event table at all.

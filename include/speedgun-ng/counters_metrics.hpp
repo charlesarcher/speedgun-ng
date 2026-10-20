@@ -1,6 +1,6 @@
 // ============================================================================
 // Metric formulas of the vendored event table, read by name
-// (specs/021-metric-formulas; FR-001, FR-002, FR-019, FR-021).
+// (specs/022-metric-formulas; FR-001, FR-002, FR-019, FR-021).
 //
 // A metric is one row of the architecture event table: a name, a formula
 // over event names and other metric names, and the table's own group,

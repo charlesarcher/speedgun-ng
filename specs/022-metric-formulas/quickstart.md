@@ -1,6 +1,6 @@
 # Quickstart: Metric Formulas
 
-**Feature**: `021-metric-formulas` | **Plan**: [plan.md](./plan.md)
+**Feature**: `022-metric-formulas` | **Plan**: [plan.md](./plan.md)
 
 The shortest path from a fresh clone to a metric number, then the two
 surfaces a reader uses after that.
