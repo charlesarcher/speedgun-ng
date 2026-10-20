@@ -303,6 +303,7 @@ auto speedgunMain(int argc, char** argv) -> int
       {"percentiles", required_argument, nullptr, 'p'},
       {"no-percentiles", no_argument, nullptr, 'P'},
       {"placement", required_argument, nullptr, 'A'},
+      {"topology", no_argument, nullptr, 'T'},
       {nullptr, 0, nullptr, 0},
   };
 
@@ -355,6 +356,9 @@ auto speedgunMain(int argc, char** argv) -> int
         // runs it once before the first run.
         options.placement = std::string(optarg);
         break;
+      case 'T':
+        options.topologyMode = true;
+        break;
       default:
         std::fprintf(stderr, "unknown option; see the option table of "
                              "specs/015-benchmark-harness-core/contracts/"
@@ -380,6 +384,22 @@ auto speedgunMain(int argc, char** argv) -> int
 
   if (options.catalogMode) {
     detail::printCatalog();
+    return 0;
+  }
+
+  if (options.topologyMode) {
+    // FR-036, Q-3, R-07: the listing answers the layout read once, runs
+    // no benchmark and exits 0; an unreadable layout prints one line and
+    // exits 2. The listing stands ahead of the expansion and the filter,
+    // the way the catalog block above does.
+    const auto& machine = detail::layout();
+    if (!machine.readable) {
+      std::fprintf(stderr,
+                   "--topology: the harness cannot read the machine "
+                   "layout\n");
+      return 2;
+    }
+    detail::printTopologyListing(machine);
     return 0;
   }
 
@@ -437,13 +457,50 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
+  // specs/022 FR-005, FR-018, Q-6, Q-7: the fit check walks the selected
+  // instances after selection and before the first run. A preset over a
+  // layout the harness cannot read stops the batch whatever the context
+  // count; a plan the places cannot hold stops it with one line naming
+  // the preset, the place count and the requested count. An instance
+  // with no preset stands outside the check, which keeps FR-022 byte
+  // identity for an ordinary threaded run.
+  bool placementInEffect = false;
+  for (auto* instance : selected) {
+    if (instance->placement == detail::Preset::NONE) {
+      continue;
+    }
+    const auto& machine = detail::layout();
+    if (!machine.readable) {
+      std::fprintf(stderr,
+                   "--placement: the harness cannot read the machine "
+                   "layout\n");
+      return 2;
+    }
+    if (instance->threadCount > 1) {
+      placementInEffect = true;
+      const auto plan = detail::resolvePreset(instance->placement, machine,
+                                              instance->threadCount);
+      if (plan.cpu.empty()) {
+        const auto name = detail::presetText(instance->placement);
+        std::fprintf(stderr,
+                     "--placement: '%.*s' places %u of the %d requested "
+                     "contexts\n",
+                     static_cast<int>(name.size()),
+                     name.data(),
+                     plan.places,
+                     instance->threadCount);
+        return 2;
+      }
+    }
+  }
+
   // One entry-point invocation owns one interrupt flag: a suite that
   // calls the entry point again starts with no pending interrupt.
   detail::interruptFlag().store(false);
   SG_ENSURE(!detail::interruptFlag().load(),
             "the entry point starts with no pending interrupt (R-06)");
   std::signal(SIGINT, handleInterrupt);
-  detail::printContext(false);
+  detail::printContext(placementInEffect);
 
   int status = 0;
   // The two run-wide flags are read by the postcondition below, which the

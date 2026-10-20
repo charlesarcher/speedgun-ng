@@ -18,6 +18,7 @@ fixes.
 | `--counter` | catalog address, repeatable | attaches the leaf to every selected benchmark | FR-021 |
 | `--catalog` | none | prints the catalog listing, then exits without running a benchmark | FR-037 |
 | `--placement` | preset name: `none`, `core`, `l3`, `smt` or `compact` | runs the selected threaded benchmarks on the cpus the preset plans; the name is parsed once before the first run, and a name outside the five is a recoverable error that runs no benchmark (specs/022 FR-015, FR-016) | specs/022 FR-015, FR-016 |
+| `--topology` | none | prints the layout listing of data-model.md E-10, then exits without running a benchmark; the listing stands ahead of selection, the way the catalog listing does | specs/022 FR-036 | specs/022 FR-015, FR-016 |
 
 - A benchmark value set through the handle shall win over the command
   line (FR-015).
@@ -76,6 +77,9 @@ BM_copy                    18432            311.4                  22.7   ipc=1.
 | measured or skipped benchmarks | zero |
 | `--placement` names a preset outside the five | 2, with one line naming the rejected text (specs/022 FR-016) |
 | a family's handle `placement` names a preset outside the five | 2, with one line naming the family and the rejected text, before any instance runs (specs/022 FR-015) |
+| a selected instance's preset cannot place its contexts | 2, with one line naming the preset, the place count and the requested count, before any run (specs/022 FR-018, Q-4) |
+| a preset run meets a machine layout the harness cannot read | 2, with one line, whatever the context count (specs/022 FR-005, Q-6) |
+| the `--topology` listing meets a machine layout the harness cannot read | 2, with one line (specs/022 FR-036, plan R-07) |
 
 ## Interrupt behavior (clarification, FR-032)
 
