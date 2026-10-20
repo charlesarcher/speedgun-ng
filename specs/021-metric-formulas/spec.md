@@ -388,7 +388,7 @@ the host cannot express carries a reason.
 
 A developer runs an existing benchmark binary and wants one metric column
 without editing code. They name the metric on the command line beside
-`--counter`, and the report gains one column labelled with the metric name.
+`--counter`, and the report gains one column labeled with the metric name.
 
 **Why this priority**: it turns the library capability into something the
 owner can use on any benchmark in the tree, and it is the surface the

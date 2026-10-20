@@ -5,7 +5,7 @@ check-hidden =
 # node_modules appears in .opencode/ when AI coding agents install plugin
 # dependencies there; never spell-check vendored JS. .omo is OhMyOpenCode
 # agent scratch state (session transcripts), not project content.
-skip = */.git,*/build,*/prefix,*/node_modules,*/.omo,*/external
+skip = */.git,*/build,*/build-tidy,*/prefix,*/node_modules,*/.omo,*/external
 # False positives from Spec Kit's vendored shell scripts
 # (.specify/scripts/bash/common.sh): "unparseable" is valid English and
 # "strat" is a shell variable (short for strategy).

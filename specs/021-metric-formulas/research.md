@@ -6,7 +6,7 @@
 
 Fourteen records follow. Each carries the decision, what drives it, the
 alternatives and why they are rejected, and the consequences the plan and
-`tasks.md` have to honour. Counts come from the inventory read in the spec,
+`tasks.md` have to honor. Counts come from the inventory read in the spec,
 measured over `external/pmu-events/arch/x86` at the audit point.
 
 ## D-01: A closed grammar over the constructs the pinned tree uses
@@ -73,18 +73,18 @@ the parsed spines and the refusal records, which is a one-time memory cost
 per directory used. The refusal records must be reachable from the
 catalog path, so the image keeps them beside the entries.
 
-## D-03: Two passes with a coloured depth-first resolution
+## D-03: Two passes with a colored depth-first resolution
 
 **Decision**: Pass one parses every row into a spine whose metric
 references are placeholder leaves holding a name. Pass two resolves each
 placeholder against the directory's name index, splicing the referenced
-metric's spine in place, and walks the reference graph with white, grey and
-black marks. A back edge to a grey node is a cycle.
+metric's spine in place, and walks the reference graph with white, gray and
+black marks. A back edge to a gray node is a cycle.
 
 **Drivers**: 2973 rows reference another metric of their own directory, so
 reference resolution is the common case and the expensive one. Splicing is
 already the operation `splice` performs on `ExprCore`, so a resolved
-reference costs the same as a hand-composed composition. The colour walk is
+reference costs the same as a hand-composed composition. The color walk is
 the standard linear test and it names every member of the cycle rather than
 one.
 
@@ -367,7 +367,7 @@ CPUID string in 2018 for this split.
 **Alternatives considered**: keep a two-field key and match with a prefix
 rule, rejected because a prefix match makes the first row of a model win
 regardless of stepping, which is the bug in another position; special-case
-model `0x55`, rejected because 45 other rows carry classes a fix must honour
+model `0x55`, rejected because 45 other rows carry classes a fix must honor
 anyway; select by microcode or family model lists, rejected because the
 mapping file is the pinned source of truth.
 

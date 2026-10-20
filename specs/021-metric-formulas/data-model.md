@@ -70,8 +70,11 @@ so the enumeration stays out of the public surface.
 | `ConstantFact` | `name`, `reader` | One entry per `#` constant with a reader, four at first |
 
 `ConstantFact` readers at first: online processor count, core count, package
-count, calibrated reference frequency. `#has_pmem`, `#num_dies` and
-`#core_wide` carry no reader, so they raise `UNKNOWN_CONSTANT`.
+count, SMT state. Four constants of the pinned tree carry no reader and raise
+`UNKNOWN_CONSTANT`: `#has_pmem`, `#num_dies` and `#core_wide` name a host
+property this library publishes no object for, and `#SYSTEM_TSC_FREQ` names a
+rate, which the time-stamp-counter entry publishes as a count asserting no
+rate at all (D-06; specs/008-timestamp-counter FR-011).
 
 ### `SelectionKey` (the mapping-file key)
 
@@ -156,3 +159,41 @@ published to callers
 Each arrow is one load pass, runs once per directory, and never runs again
 for that directory. A row leaves the pipeline at the first refusal and never
 re-enters.
+
+## Recorded real-host run (T060, FR-039, FR-017)
+
+Run on `corsairone`, 2026-10-19: CPUID family 6, model 85 (`0x55`),
+stepping 4, the identity D-7 selects `arch/x86/skylakex/` for. The binary is
+`build/example/docs_command_line`, a Release build of this branch, and the
+listing is its own `--catalog` output. No unit test reads these numbers; the
+row counts they pin are pinned in the test suite by the sweep of T056, which
+resolves the same rows against the scripted host.
+
+| Observation | Figure |
+| --- | --- |
+| Metric lines the listing prints | 279 |
+| Metric rows the spec pins for `skylakex` | 279 |
+| Rows published (`refusal=-`) | 128 |
+| Rows refused | 151 |
+| Refusals naming `UNKNOWN_CONSTANT` | 76 |
+| Refusals naming `UNRESOLVED` | 71 |
+| Refusals naming `UNSUPPORTED` | 3 |
+| Refusals naming `DIMENSION` | 1 |
+| Rows the catalog marks `not-encodable` | 12 |
+
+Each refusal line carries the reason beside its kind, so the 76 constant rows
+name the constant they need (`#has_pmem`, `#num_dies`, `#core_wide`,
+`#SYSTEM_TSC_FREQ`) exactly as D-06 records, and the 71 unresolved lines name the leaf and the scope that
+reaches no object on this host.
+
+The column path was exercised with `--metric=cpi --metric=l2_mpi` and with
+`--metric=cpi --counter=cpu/cpu_clks --counter=cpu/instructions`: the metric
+columns stand in the report in the order named, keyed by the name as typed,
+and an unknown name stops the run with status 2 before any measured row. The
+values themselves are zero on this host at run time, because
+`/proc/sys/kernel/perf_event_paranoid` reads 2: the kernel then refuses CPU
+counting to user space, the leaves of the spine report absent, a counter
+column prints `refusal=absent` with `gap=1`, and a ratio of two absent leaves
+folds to `-nan`. That is the environment, not the metric path: the same
+columns carry values on a host where the knob permits counting, and the value
+equality of FR-029 is gated by `harness_cli_test` on the scripted host.

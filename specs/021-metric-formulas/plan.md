@@ -105,7 +105,7 @@ backslash escape, 250 `max` calls, 190 `min` calls and 74 `d_ratio` calls.
   obligation of IV.1 holds. The section stays within `SECTION_LINE_CAP`.
 - **V, style**: PASS. No new naming scheme: the parser types live in
   `detail` inside the counters library and the public entry point reads
-  like its neighbours in `include/speedgun-ng`.
+  like its neighbors in `include/speedgun-ng`.
 - **VI, coverage**: PASS by construction. Every refusal branch is driven
   by a fixture and every accepted construct is driven by a sweep over the
   pinned rows, so no branch is unreachable. No `LCOV_EXCL` marker, no
@@ -211,7 +211,7 @@ collides with anything, and the archive
 | --- | --- | --- |
 | D-01 | What grammar does the parser accept? | The closed list FR-003 to FR-006 spell out, refuse the rest |
 | D-02 | Where does parsing run? | Once per directory at load, inside the loader |
-| D-03 | How does a metric reference resolve? | Two passes: parse to a placeholder leaf, resolve by name with a coloured DFS |
+| D-03 | How does a metric reference resolve? | Two passes: parse to a placeholder leaf, resolve by name with a colored DFS |
 | D-04 | What happens on a reference cycle? | Every member is refused at load and names the cycle |
 | D-05 | How does `ScaleUnit` become a factor? | One pinned conversion table, swept against the tree |
 | D-06 | Where do `#` literals get values? | From host facts the library already publishes, never guessed |
@@ -255,7 +255,7 @@ embedded table image (JSON text, one directory)
    |                                       |
    |                                 unresolved reference leaves
    |                                       |
-   |                                 resolve pass, coloured DFS ... D-03, D-04
+   |                                 resolve pass, colored DFS ... D-03, D-04
    |                                       |
    |                                 fold literals, conditionals, min/max, helpers  D-06, D-07
    |                                       |
