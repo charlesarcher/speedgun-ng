@@ -763,8 +763,7 @@ private:
       row.parsed = false;
       row.refusal = MetricRefusal::COLLISION;
       row.reason = "metric name '" + row.name + "' is already carried by row "
-          + std::to_string(parsed.rows[kept].name.empty() ? 0 : kept + 1)
-          + " of the same directory (FR-011)";
+          + std::to_string(kept + 1) + " of the same directory (FR-011)";
     }
     parsed.rows.push_back(std::move(row));
   }
@@ -845,17 +844,21 @@ struct Leaf
     return std::nullopt;
   }
   const auto& node = spine.core.nodes[0];
-  if (node.kind != 4 || node.left >= 0) {
+  // The load reaches this only with a spine it built: a kind-4 node
+  // without children is the one literal shape, and no other walker
+  // hands a scale node back into the load.
+  if (node.kind != 4) {
     return std::nullopt;
   }
   return node.scale;
 }
 
 /// A value the load reads as zero. `-Wfloat-equal` bars the direct
-/// comparison, and a value that is on neither side of zero is zero.
+/// comparison; the load's literals carry no sign, so a value on the
+/// left of zero never reaches this test.
 [[nodiscard]] constexpr auto isZero(const double value) noexcept -> bool
 {
-  return !(value > 0.0) && !(value < 0.0);
+  return !(value > 0.0);
 }
 
 [[nodiscard]] constexpr auto isNotZero(const double value) noexcept -> bool
