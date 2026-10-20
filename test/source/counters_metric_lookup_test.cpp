@@ -300,6 +300,8 @@ auto valueScenario() -> void
   const auto guardLeftDim = resolved("guard_left_dim");
   check(sameDouble(foldValue(eventsOf(guardLeftDim)), sg::test::kCyclesDelta),
         "a guard's literal may sit on the helper's left (FR-004)");
+  check(guardLeftDim.events == 1 && guardLeftDim.time == 0,
+        "a left guard takes its sibling's dimension too (FR-004, FR-010)");
   const auto blockedPair = resolved("blocked_pair");
   check(blockedPair.published,
         "a blocked leaf rides a pairing and the row still publishes "

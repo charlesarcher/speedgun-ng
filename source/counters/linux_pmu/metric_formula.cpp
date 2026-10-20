@@ -1130,10 +1130,14 @@ private:
         || node.kind == FormulaKind::MAXIMUM;
     // `max(counter, 1)` and `min(counter, 1)` are the guards the tables
     // spell, where the literal counts in the counter's unit: it takes its
-    // sibling's dimension and the row publishes (FR-004, FR-010).
+    // sibling's dimension and the row publishes (FR-004, FR-010). The
+    // answers are taken before the spine below moves `left`'s core, so a
+    // literal on the left seat reads as one (FR-004).
+    const auto leftLiteral = asLiteral(*left);
+    const auto rightLiteral = asLiteral(*right);
     const bool guarded =
         (node.kind == FormulaKind::MINIMUM || node.kind == FormulaKind::MAXIMUM)
-        && asLiteral(*left).has_value() != asLiteral(*right).has_value();
+        && leftLiteral.has_value() != rightLiteral.has_value();
     if (pairing && !guarded
         && (left->dimension.events != right->dimension.events
             || left->dimension.time != right->dimension.time))
@@ -1154,7 +1158,7 @@ private:
     spineNode.right = rightRoot;
     out.core.addNode(spineNode);
     out.dimension = guarded
-        ? (asLiteral(*left).has_value() ? right->dimension : left->dimension)
+        ? (leftLiteral.has_value() ? right->dimension : left->dimension)
         : combineDimension(node.kind, left->dimension, right->dimension);
     out.avail = worstAvailability(left->avail, right->avail);
     out.objectPath =
