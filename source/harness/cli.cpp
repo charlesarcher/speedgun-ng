@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <atomic>
 #include <cctype>
 #include <cerrno>
@@ -19,6 +20,7 @@
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_clock.hpp"
+#include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/counters_pmu.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/dbc.hpp"
@@ -206,6 +208,40 @@ auto timeSourcePresent(counters::System& sys) -> bool
   return machine->counter<counters::Dim<1, 0>>("monotonic").has_value();
 }
 
+// FR-028, FR-042: a metric name the host's table carries nothing for ends the
+// run before any measurement starts, so a typo costs no measured time. The
+// walk is in option order and states the first failure, with its near-miss
+// names on the same line.
+auto metricNameFailure(const std::vector<std::string>& names) -> int
+{
+  const std::vector<counters::MetricListing> listed =
+      counters::catalogMetrics();
+  for (const auto& name : names) {
+    const bool carried = std::any_of(listed.begin(),
+                                     listed.end(),
+                                     [&](const counters::MetricListing& row)
+                                     { return row.name == name; });
+    if (carried) {
+      continue;
+    }
+    const auto miss = counters::metricByName(name);
+    SG_ASSERT(!miss.has_value(),
+              "a name the catalog lists nothing for is a miss the lookup "
+              "answers with an error (FR-016)");
+    std::string line = "--metric " + name + ": " + miss.error().message;
+    for (std::size_t here = 0; here < miss.error().suggestions.size(); ++here) {
+      line += here == 0 ? " (near: " : ", ";
+      line += miss.error().suggestions[here];
+    }
+    if (!miss.error().suggestions.empty()) {
+      line += ")";
+    }
+    std::fprintf(stderr, "%s\n", line.c_str());
+    return 2;
+  }
+  return 0;
+}
+
 }  // namespace detail
 
 /**
@@ -255,6 +291,7 @@ auto speedgunMain(int argc, char** argv) -> int
       {"warmup-time", required_argument, nullptr, 'w'},
       {"dry-run", no_argument, nullptr, 'd'},
       {"counter", required_argument, nullptr, 'c'},
+      {"metric", required_argument, nullptr, 'M'},
       {"catalog", no_argument, nullptr, 'C'},
       {"percentiles", required_argument, nullptr, 'p'},
       {"no-percentiles", no_argument, nullptr, 'P'},
@@ -290,6 +327,9 @@ auto speedgunMain(int argc, char** argv) -> int
         break;
       case 'c':
         options.counterAddresses.emplace_back(optarg);
+        break;
+      case 'M':
+        options.metricNames.emplace_back(optarg);
         break;
       case 'C':
         options.catalogMode = true;
@@ -358,6 +398,15 @@ auto speedgunMain(int argc, char** argv) -> int
                  "no benchmark matches the filter '%s'\n",
                  options.filter.c_str());
     return 0;
+  }
+
+  // FR-028, FR-042: an unknown metric name ends the run before any
+  // measurement starts, before a lookup of its own (FR-016).
+  if (!options.metricNames.empty()) {
+    const int nameStatus = detail::metricNameFailure(options.metricNames);
+    if (nameStatus != 0) {
+      return nameStatus;
+    }
   }
 
   // One entry-point invocation owns one interrupt flag: a suite that

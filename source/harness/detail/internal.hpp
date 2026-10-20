@@ -338,6 +338,7 @@ struct RunOptions
   // `--percentiles=` stated, empty when the option named none.
   std::optional<bool> showPercentiles;
   std::vector<double> percentilePoints;
+  std::vector<std::string> metricNames;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it

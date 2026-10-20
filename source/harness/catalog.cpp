@@ -1,9 +1,12 @@
 #include <array>
 #include <cstdio>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "detail/internal.hpp"
 #include "speedgun-ng/counters_core.hpp"
+#include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -32,7 +35,11 @@ auto readModeName(const sg::counters::ReadMode mode) -> const char*
   return kReadModeNames[std::to_underlying(mode)];
 }
 
-void printObject(const sg::counters::Object& object)
+// Metric lines follow the counter lines of the same object path, in table
+// order, and `mode=metric` is the field that separates them (FR-021, FR-022,
+// D-11).
+void printObject(const sg::counters::Object& object,
+                 const std::vector<sg::counters::MetricListing>& metrics)
 {
   const std::string path = std::string(object.path());
   for (const auto& entry : object.counters()) {
@@ -48,8 +55,26 @@ void printObject(const sg::counters::Object& object)
         availabilityName(entry.avail),
         countable ? "-" : availabilityName(entry.avail));
   }
+  for (const auto& row : metrics) {
+    if (row.objectPath != path) {
+      continue;
+    }
+    std::printf("catalog: %s/%s group=%s description=%s unit=%s "
+                "mode=metric avail=%s refusal=%s reason=%s\n",
+                path.c_str(),
+                std::string(row.name).c_str(),
+                std::string(row.group).c_str(),
+                std::string(row.description).c_str(),
+                std::string(row.unit).c_str(),
+                availabilityName(row.avail),
+                row.published
+                    ? "-"
+                    : std::string(sg::counters::metricRefusalName(row.refusal))
+                          .c_str(),
+                row.published ? "-" : std::string(row.reason).c_str());
+  }
   for (const auto* child : object.children()) {
-    printObject(*child);
+    printObject(*child, metrics);
   }
 }
 
@@ -61,7 +86,9 @@ auto printCatalog() -> void
   SG_ASSERT(machine.has_value(),
             "the counters system opens the host provider, and that provider "
             "publishes the machine object (FR-002)");
-  printObject(*machine);
+  // An empty listing is a host that selected no event table, which prints
+  // no metric line and reports no error (FR-024).
+  printObject(*machine, sg::counters::catalogMetrics());
 }
 
 }  // namespace sg::detail
