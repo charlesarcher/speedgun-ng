@@ -94,7 +94,7 @@ window, the rule FR-015 inherits from the whole-run netting of 019.
 
 ```cpp
 // source/harness/detail/percentiles.hpp
-// \pre none
+// \pre 0 < p < 100, and `sortedValues` stands sorted ascending
 // \post The value stands available only when the column holds at least
 //       ceil(100 / (100 - p)) values; the read is then the nearest-rank
 //       value at rank ceil(p * n / 100), 1-based.
