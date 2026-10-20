@@ -107,7 +107,9 @@ struct HostFact
                                        double& value) -> bool
 {
   const auto objects = system.objects(kind);
-  if (!objects.has_value() || objects->empty()) {
+  if (!objects.has_value()) {
+    // A kind the tree carries nothing for answers an error, never an
+    // empty list: the selection is the error (FR-003).
     return false;
   }
   value = static_cast<double>(objects->size());
