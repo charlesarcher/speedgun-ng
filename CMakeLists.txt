@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.12.0
+    VERSION 0.13.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
