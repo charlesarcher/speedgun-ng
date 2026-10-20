@@ -21,7 +21,9 @@
 #
 #   D. The harness archive holds UNDEFINED sg_hwloc_* references (its
 #      calls reach the vendored members across the archive boundary) and
-#      zero DEFINED ones (no vendored member merged into it).
+#      zero global DEFINED ones (T: no vendored member merged into it;
+#      the coverage build's -fkeep-inline-functions may emit local (t)
+#      copies of the prefixed header inlines, which export nothing).
 #   E. An executable that links both archives resolves them: the
 #      first_benchmark executable carries DEFINED sg_hwloc_* symbols from
 #      the vendored archive on its link line and no UNDEFINED ones.
@@ -182,7 +184,7 @@ else
       else next
       if (name ~ /^sg_hwloc_/) {
         if (type == "U") hu++
-        if (type == "T" || type == "t") hd++
+        if (type == "T") hd++
       }
       if (name ~ /^hwloc_/ && type ~ /^[TDBW]$/) bad++
     }
@@ -190,7 +192,7 @@ else
   h_u=$(echo "$hfacts" | sed -n 's/^HU=//p')
   h_d=$(echo "$hfacts" | sed -n 's/^HD=//p')
   if [ "$h_u" -gt 0 ] && [ "$h_d" -eq 0 ]; then
-    echo "PASS D: harness archive '$HARCHIVE' carries $h_u UNDEFINED and 0 DEFINED sg_hwloc_*."
+    echo "PASS D: harness archive '$HARCHIVE' carries $h_u UNDEFINED and 0 global DEFINED sg_hwloc_*."
   else
     echo "FAIL D: harness archive carries $h_u UNDEFINED and $h_d DEFINED sg_hwloc_*."
     rc=1
