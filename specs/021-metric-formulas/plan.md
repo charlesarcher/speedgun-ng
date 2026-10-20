@@ -223,6 +223,7 @@ collides with anything, and the archive
 | D-12 | How does the command line name a metric? | A repeatable option, order-preserving, fail-fast at status 2 |
 | D-13 | How does the stepping reach the key? | A private field on `PmuIdent`, appended to the key |
 | D-14 | What is the load and coverage budget? | Parse cost table, corpus plus sweep for every branch |
+| D-15 | Where does the page teach the metric walks? | One 25-line snippet section on the main page (the lookup); attach and fold walks move to `docs/pages/harness.md` (PR #41 review, Charles, 2026-10-19) |
 
 ### Risks
 

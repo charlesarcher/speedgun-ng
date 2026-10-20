@@ -288,27 +288,7 @@ auto configureUnits() -> void
 ```
 Call `setDefaultTimeUnit` in `main` before `speedgunMain`, and `TimeUnit` names the four scales a column can print in. See [time units](docs/pages/harness.md#time-units).
 ### Hardware counter metrics
-`addMetric` attaches a counter expression to a family, behind the availability check the counter lookup returns.
-<!-- sg-example: example/docs/counter_metrics.cpp#metrics -->
-```cpp
-#include "speedgun-ng/counters.hpp"
-
-auto attachMetric(sg::BenchmarkHandle& handle) -> void
-{
-  const auto cpu = sg::counters::System::local().object("cpu");
-  if (!cpu.has_value()) {
-    return;
-  }
-  const auto cycles = cpu->counter<sg::counters::Dim<0, 1>>("cpu-cycles");
-  const auto retired = cpu->counter<sg::counters::Dim<0, 1>>("instructions");
-  if (cycles.has_value() && retired.has_value()) {
-    handle.addMetric(*retired / *cycles, "instructions/cycle");
-  }
-}
-```
-The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields, and on a host where the leaf is unavailable the row prints the refusal kind in place of the number and the run continues. This block and the lookup below are the two snippets that add a header to the pair: `speedgun-ng/counters.hpp` and `speedgun-ng/counters_metrics.hpp`.
-
-<!-- sg-requires: example/docs/counter_metrics.cpp#metrics -->
+`metricByName` hands back a metric the host's table defines, so the reader names `cpi` rather than composing it.
 <!-- sg-example: example/docs/counter_metrics.cpp#metric-lookup -->
 ```cpp
 #include <cstdio>
@@ -317,7 +297,7 @@ The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields, an
 
 #include "speedgun-ng/counters_metrics.hpp"
 
-auto printMetric(std::string_view name) -> void
+auto describeMetric(std::string_view name) -> void
 {
   const auto metric = sg::counters::metricByName(name);
   if (!metric.has_value()) {
@@ -325,25 +305,13 @@ auto printMetric(std::string_view name) -> void
         "%s: %s\n", std::string(name).c_str(), metric.error().message.c_str());
     return;
   }
-  const auto plan =
-      sg::counters::compile(sg::counters::System::local(), metric->expression);
-  if (!plan.has_value()) {
-    std::printf(
-        "%s: %s\n", std::string(name).c_str(), plan.error().message.c_str());
-    return;
-  }
-  sg::counters::Scope window {*plan};
-  window.start();
-  window.finish();
-  std::printf("%s: %g group=%s unit=%s\n",
+  std::printf("%s: group=%s unit=%s\n",
               std::string(name).c_str(),
-              window.metric(metric->expression).value,
               std::string(metric->group).c_str(),
               std::string(metric->unit).c_str());
 }
 ```
-
-`metricByName` hands back a metric the host's table defines, so the reader names `cpi` rather than composing it, and the print carries the table's group and unit text beside the folded value. `--metric` puts the same metric in a report column, one column per name, in the order the names are given.
+`--metric` puts the same metric in a report column, one column per name, in the order the names are given; attaching a composed expression and folding a named metric against a window are at [hardware counter metrics](docs/pages/harness.md#hardware-counter-metrics).
 ### Skips
 `skipWithMessage` ends a run early when the work cannot be done, and `skipWithError` ends it as a failure.
 <!-- sg-example: example/docs/skips.cpp#skips -->
