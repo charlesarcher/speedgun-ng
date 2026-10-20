@@ -6,7 +6,7 @@
 // where the fact stands. This binary opens its own process and registers
 // a tree that carries a thread but no core: the core count is then the
 // missing half of the SMT fact, so the constant answers nothing and the
-// row that asks for it refuses rather than folding a wrong answer.
+// row that asks for it refuses. A wrong answer never reaches the fold.
 // Frameworkless check()/fail() convention.
 // ============================================================================
 
