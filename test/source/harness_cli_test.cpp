@@ -13,6 +13,7 @@
 // ============================================================================
 
 #include <cctype>
+#include <cmath>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -30,6 +31,7 @@
 
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
+#include "speedgun-ng/counters_metrics.hpp"
 
 namespace
 {
@@ -49,7 +51,10 @@ auto check(const bool cond, const char* what) -> void
 
 auto sameDouble(const double lhs, const double rhs) -> bool
 {
-  return std::abs(lhs - rhs) < 1e-9;
+  // A host whose kernel denies CPU counting (`perf_event_paranoid` 2) leaves
+  // every leaf absent, and a ratio of two absent leaves folds to a NaN: the
+  // two columns of FR-029 then agree on that NaN, so it counts as equal.
+  return (std::isnan(lhs) && std::isnan(rhs)) || std::abs(lhs - rhs) < 1e-9;
 }
 
 int alphaRuns = 0;
@@ -68,6 +73,12 @@ auto bmBeta(sg::State& state) -> void
 }
 
 auto bmFixed(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmMetric(sg::State& state) -> void
 {
   for (auto _ : state) {
   }
@@ -310,6 +321,19 @@ auto doubleFieldOf(const std::string& line, const std::string& key) -> double
   return std::strtod(line.c_str() + at + key.size(), nullptr);
 }
 
+// How many times `needle` appears in `line`.
+[[nodiscard]] auto occurrences(const std::string& line,
+                               const std::string& needle) -> std::size_t
+{
+  std::size_t count = 0;
+  for (std::size_t at = line.find(needle); at != std::string::npos;
+       at = line.find(needle, at + needle.size()))
+  {
+    ++count;
+  }
+  return count;
+}
+
 auto subprocessOutput(const std::string& command, std::string& output) -> int
 {
   FILE* const pipe = popen(command.c_str(), "r");
@@ -372,8 +396,11 @@ auto main(const int argc, char** argv) -> int
 
   if (mode == "arg" && argc > 2) {
     scriptedProvider();
-    const std::vector<std::string> arguments = {
+    std::vector<std::string> arguments = {
         "--filter", "^bmAlpha$", "--iterations=1", argv[2]};
+    if (argc > 3) {
+      arguments.push_back(argv[3]);
+    }
     std::vector<char*> inner;
     inner.push_back(argv[0]);
     for (const auto& argument : arguments) {
@@ -439,6 +466,84 @@ auto main(const int argc, char** argv) -> int
   check(sameDouble(doubleFieldOf(counterLine, "fake/events="), 900.0 / 3.0),
         "the events^1 leaf reports per iteration (FR-022)");
 
+  // T044 to T047: the `--metric` option. The names come from the table this
+  // host selected, so a host that carries no metric row skips the family
+  // (FR-025 to FR-029).
+  const auto metrics = sg::counters::catalogMetrics();
+  std::string first;
+  std::string second;
+  std::string refusedName;
+  std::string refusedKind;
+  // A published row can name leaves this host's catalog does not publish,
+  // and a spine with no leaf reaches no run plan (FR-046). The family picks
+  // names whose spine resolves here.
+  const auto resolvable = [](const sg::counters::MetricListing& row)
+  {
+    const auto view = sg::counters::metricByName(row.name);
+    return view.has_value() && !view->expression.core.leaves.empty();
+  };
+  for (const auto& row : metrics) {
+    if (row.published) {
+      if (first.empty() && resolvable(row)) {
+        first = std::string(row.name);
+      } else if (!first.empty() && second.empty() && row.name != first
+                 && resolvable(row))
+      {
+        second = std::string(row.name);
+      }
+    } else if (refusedName.empty()) {
+      refusedName = std::string(row.name);
+      refusedKind = std::string(sg::counters::metricRefusalName(row.refusal));
+    }
+  }
+
+  if (first.empty()) {
+    std::printf("SKIP the metric columns: no metric row of this host's table "
+                "resolves to a leaf its catalog publishes (FR-025, FR-046)\n");
+  } else {
+    const auto view = sg::counters::metricByName(first);
+    check(view.has_value(), "a published metric resolves (FR-019)");
+
+    auto metricHandle = sg::registerBenchmark(&bmMetric, "bmMetric");
+    metricHandle.iterations(3);
+    metricHandle.addMetric(view->expression, "attached");
+
+    auto dedupHandle = sg::registerBenchmark(&bmMetric, "bmDedup");
+    dedupHandle.iterations(3);
+    dedupHandle.addMetric(view->expression, first);
+
+    const std::string columns = captureRun({"--filter",
+                                            "^bm(Metric|Dedup)$",
+                                            "--iterations=3",
+                                            "--metric",
+                                            first,
+                                            "--metric",
+                                            second.empty() ? first : second,
+                                            "--metric",
+                                            first});
+    const std::string namedRow = linesOf(columns, "bmMetric")[0];
+    check(namedRow.find(first + "=") != std::string::npos,
+          "a named metric adds one column (FR-025, FR-026)");
+    check(occurrences(namedRow, first + "=") == 1,
+          "the same name twice yields one column (FR-026)");
+    if (!second.empty()) {
+      check(namedRow.find(second + "=") != std::string::npos,
+            "the second name adds its own column (FR-026)");
+      check(namedRow.find(first + "=") < namedRow.find(second + "="),
+            "the columns stand in command-line order (FR-026)");
+    }
+    // FR-025, FR-029: the option column and the column attached in code
+    // fold the same spine over the same window, so their values agree.
+    check(sameDouble(doubleFieldOf(namedRow, "attached="),
+                     doubleFieldOf(namedRow, first + "=")),
+          "the option column value is the metric the library composes "
+          "(FR-025, FR-029)");
+    const std::string dedupRow = linesOf(columns, "bmDedup")[0];
+    check(occurrences(dedupRow, first + "=") == 1,
+          "a metric attached in code and named again yields one column "
+          "(FR-026)");
+  }
+
   // FR-034, SC-018: every invalid value of every numeric option fails
   // before any benchmark runs, and the report names the option. A zero
   // warm-up time is the valid case of the same table, and the unknown
@@ -477,7 +582,9 @@ auto main(const int argc, char** argv) -> int
         UsageCase {"--filter=(", "invalid regular expression", false},
         UsageCase {"--nonsense=1", "unknown option", false},
         UsageCase {"--warmup-time=0", "", true},
-        UsageCase {"--counter=machine/nosuchleaf", "no such leaf", true}})
+        UsageCase {"--counter=machine/nosuchleaf", "no such leaf", true},
+        UsageCase {"--metric=nosuchmetric", "no metric named", false},
+        UsageCase {"--metric", "unknown option", false}})
   {
     std::string output;
     const int status = subprocessOutput(
@@ -495,6 +602,51 @@ auto main(const int argc, char** argv) -> int
       check(output.find(testCase.needle) != std::string::npos,
             "the report names the rejected option or leaf (FR-034, FR-023)");
     }
+  }
+
+  // FR-042: a metric name the host's table does not carry ends the run with
+  // the usage status and one printed line, before any measured output. The
+  // subprocess reports its own marker behind that line, so the marker bounds
+  // what the command line itself printed.
+  std::string unknownOutput;
+  const int unknownStatus = subprocessOutput(
+      "\"" + self + "\" arg \"--metric=nosuchmetric\" 2>&1", unknownOutput);
+  check(WEXITSTATUS(unknownStatus) == 2,
+        "an unknown metric name exits with the usage status (FR-042)");
+  const auto unknownMarker = unknownOutput.find("BENCHMARK_NO_RUN");
+  const std::string unknownPrinted = unknownOutput.substr(0, unknownMarker);
+  check(!unknownPrinted.empty()
+            && unknownPrinted.find('\n') == unknownPrinted.size() - 1,
+        "the unknown metric name prints a single line (FR-042)");
+  check(unknownMarker != std::string::npos
+            && unknownOutput.find("BENCHMARK_RAN") == std::string::npos,
+        "the unknown metric name runs no benchmark function (FR-028)");
+  std::string bareOutput;
+  const int bareStatus =
+      subprocessOutput("\"" + self + "\" arg \"--metric\" 2>&1", bareOutput);
+  check(WEXITSTATUS(bareStatus) == 2
+            && bareOutput.find("BENCHMARK_RAN") == std::string::npos,
+        "a --metric with no value ends the same way (FR-028, FR-042)");
+
+  // FR-027: a metric the host carries but cannot count prints its refusal
+  // kind, the benchmark still runs, and the exit status is the run's own.
+  if (!refusedName.empty()) {
+    std::string output;
+    // The name is given twice: one column per named metric holds also for a
+    // metric that cannot be counted, so the refusal states itself once
+    // (FR-026, FR-027).
+    const int status =
+        subprocessOutput("\"" + self + "\" arg \"--metric=" + refusedName
+                             + "\" \"--metric=" + refusedName + "\" 2>&1",
+                         output);
+    check(status == 0,
+          "a refused metric column keeps the run's own status (FR-027)");
+    check(output.find("BENCHMARK_RAN") != std::string::npos,
+          "the benchmark runs past a metric it cannot count (FR-027)");
+    check(output.find(refusedKind) != std::string::npos,
+          "the refusal kind of the metric is printed (FR-027)");
+    check(occurrences(output, refusedKind) == 1,
+          "the name repeated on the command line yields one refusal (FR-026)");
   }
 
   // FR-031: a skip prints its reason, and no statistics print.

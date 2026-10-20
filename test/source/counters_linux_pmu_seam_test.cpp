@@ -23,11 +23,13 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <charconv>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -1124,6 +1126,12 @@ auto encodableRows(const std::string& directory,
   const auto& table = sg::counters::detail::pmuLoadTable(directory);
   std::size_t encodable = 0;
   for (const auto& row : table) {
+    // A metric definition carries no config field, so no encoder ever sees
+    // it: counting the empty field list as an encoding would inflate every
+    // pinned figure here (FR-002, FR-004).
+    if (!row.metricName.empty()) {
+      continue;
+    }
     std::vector<std::pair<int, std::uint64_t>> words;
     if (pmuComposeConfig(row.fields, device.formats, words)) {
       ++encodable;
@@ -1989,6 +1997,185 @@ auto mapfileRowScenario() -> void
   check(threw, "a row whose pattern does not compile throws std::regex_error");
 }
 
+// Pre-fix observation of the defect specs/021-metric-formulas fixes: the
+// two model-55 rows of the pinned mapping file split the model by CPUID
+// stepping, and the key the rows match against carries no stepping, so a
+// model-55 part matches neither row and selects no event table at all.
+auto steppingDefectScenario() -> void
+{
+  const PmuIdent boundary {
+      .vendor = "GenuineIntel", .family = 6, .model = 0x55, .stepping = 3};
+  const PmuIdent skylake {
+      .vendor = "GenuineIntel", .family = 6, .model = 0x55, .stepping = 4};
+  const PmuIdent cascade {
+      .vendor = "GenuineIntel", .family = 6, .model = 0x55, .stepping = 5};
+  const auto select = [](const PmuIdent& id)
+  {
+    std::istringstream rows("Family-model,Version,Filename,EventType\n"
+                            "GenuineIntel-6-55-[56789ABCDEF],v1.25,"
+                            "cascadelakex,core\n"
+                            "GenuineIntel-6-55-[01234],v1.37,skylakex,core\n");
+    return pmuSelectDirectory(rows, id);
+  };
+  const auto low = select(skylake);
+  const auto high = select(cascade);
+  const auto edge = select(boundary);
+  std::printf("stepping defect: stepping 3 selects '%s', stepping 4 selects "
+              "'%s', stepping 5 selects '%s'\n",
+              edge.c_str(),
+              low.c_str(),
+              high.c_str());
+  check(edge == "arch/x86/skylakex/",
+        "a stepping-3 model-55 part selects the Skylake X table (FR-035)");
+  check(low == "arch/x86/skylakex/",
+        "a stepping-4 model-55 part selects an event table (FR-034)");
+  check(high == "arch/x86/cascadelakex/",
+        "a stepping-5 model-55 part selects an event table (FR-034)");
+}
+
+// The key one mapping-file row's pattern spells, with every regex form
+// resolved to one concrete value: the first alternative of a group, the
+// first character of a bracket set, `0` for a POSIX class (FR-034, FR-036).
+[[nodiscard]] auto concreteKey(std::string_view pattern) -> std::string
+{
+  std::string key;
+  bool group = false;
+  std::size_t pos = 0;
+  while (pos < pattern.size()) {
+    const char c = pattern[pos];
+    if (c == '(') {
+      group = true;
+      ++pos;
+      continue;
+    }
+    if (c == ')') {
+      group = false;
+      ++pos;
+      continue;
+    }
+    if (group && c == '|') {
+      break;
+    }
+    if (c == '[') {
+      const std::size_t close = pattern.find(']', pos);
+      if (close == std::string_view::npos) {
+        break;
+      }
+      // `[[:xdigit:]]` nests its class inside a second pair of brackets, so
+      // the body read here starts with a bracket; past it the class name
+      // begins with a colon and stands for any hex digit (the five AMD rows
+      // of the pinned mapping file spell the model that way).
+      std::string_view body = pattern.substr(pos + 1, close - pos - 1);
+      while (!body.empty() && body.front() == '[') {
+        body.remove_prefix(1);
+      }
+      key += (body.empty() || body.front() == ':') ? '0' : body.front();
+      pos = close + 1;
+      // A POSIX class nests inside its own brackets: `[[:xdigit:]]+` closes
+      // twice, and the outer bracket is punctuation, never a digit of the
+      // model (the five AMD rows of the pinned mapping file spell it so).
+      while (pos < pattern.size() && pattern[pos] == ']') {
+        ++pos;
+      }
+      continue;
+    }
+    if (c != '+') {
+      key += c;
+    }
+    ++pos;
+  }
+  return key;
+}
+
+// The identification one concrete mapping-file key names, the stepping
+// left negative when the key carries no stepping field (FR-034).
+[[nodiscard]] auto identOf(const std::string& key) -> std::optional<PmuIdent>
+{
+  const std::size_t first = key.find('-');
+  const std::size_t second = key.find('-', first + 1);
+  if (first == std::string::npos || second == std::string::npos) {
+    return std::nullopt;
+  }
+  const std::size_t third = key.find('-', second + 1);
+  const std::string model = key.substr(second + 1, third - second - 1);
+  PmuIdent ident;
+  ident.vendor = key.substr(0, first);
+  const auto family = std::from_chars(
+      key.data() + first + 1, key.data() + second, ident.family);
+  const auto parsed = std::from_chars(
+      model.data(), model.data() + model.size(), ident.model, 16);
+  if (family.ec != std::errc {} || parsed.ec != std::errc {}) {
+    return std::nullopt;
+  }
+  if (third != std::string::npos) {
+    const char digit = key[third + 1];
+    ident.stepping = digit <= '9' ? digit - '0' : digit - 'A' + 10;
+  }
+  return ident;
+}
+
+// Every row of the pinned mapping file, fed to the selector as a one-row
+// mapping file with the identification its own pattern spells: a row that
+// carries a stepping class matches the key carrying the stepping, and a
+// row without one still matches the plain key (T009, T010; FR-034, FR-036).
+auto mapfileSweepScenario() -> void
+{
+  const sg::counters::detail::EmbeddedDir* dir =
+      sg::counters::detail::embeddedFindDir("arch/x86");
+  check(dir != nullptr, "the vendored tree embeds the mapping file");
+  if (dir == nullptr) {
+    return;
+  }
+  const std::string_view text =
+      sg::counters::detail::embeddedFileBytes(*dir, "mapfile.csv");
+  check(!text.empty(), "the embedded mapping file carries bytes");
+  std::istringstream mapfile {std::string(text)};
+  std::string line;
+  bool header = true;
+  std::size_t rows = 0;
+  std::size_t steppingRows = 0;
+  std::size_t unreadable = 0;
+  while (std::getline(mapfile, line)) {
+    if (header) {
+      header = false;
+      continue;
+    }
+    const std::size_t comma = line.find(',');
+    if (comma == std::string::npos) {
+      continue;
+    }
+    ++rows;
+    const auto ident =
+        identOf(concreteKey(std::string_view {line}.substr(0, comma)));
+    if (!ident.has_value()) {
+      ++unreadable;
+      continue;
+    }
+    steppingRows += ident->stepping >= 0 ? 1U : 0U;
+    const std::size_t second = line.find(',', comma + 1);
+    const std::size_t third = line.find(',', second + 1);
+    const std::string directory =
+        "arch/x86/" + line.substr(second + 1, third - second - 1) + "/";
+    std::istringstream oneRow {"Family-model,Version,Filename,EventType\n"
+                               + line + "\n"};
+    check(pmuSelectDirectory(oneRow, *ident) == directory,
+          "every row of the pinned mapping file matches the key it spells "
+          "(FR-034, FR-036)");
+  }
+  std::printf("mapping-file sweep: %zu rows, %zu carrying a stepping class, "
+              "%zu the sweep cannot read\n",
+              rows,
+              steppingRows,
+              unreadable);
+  check(unreadable == 0, "every row of the mapping file spells a key");
+  check(steppingRows >= 2,
+        "the rows that split a model by stepping match a stepping key "
+        "(FR-036)");
+  check(rows - steppingRows >= 40,
+        "the rows that name no stepping class still match the plain key "
+        "(FR-034)");
+}
+
 // Writes one synthetic event-table file into the fixture root and
 // parses it through the seam. Every tree is generated here, so the
 // fixture is not a second source of truth beside `external/pmu-events/`
@@ -2042,8 +2229,9 @@ auto findRow(const std::vector<PmuTableEntry>& table,
 }
 
 // One vendored table row for the description assertions below. The
-// seam type declares four members and the build treats a partial
-// initializer as an error, so the row is built here.
+// seam type declares eight members and the build treats a partial
+// initializer as an error, so the row is built here; the four metric
+// members stay empty, because this row is an event row.
 auto tableRow(std::string name,
               std::string description,
               std::string unit = "",
@@ -2053,7 +2241,11 @@ auto tableRow(std::string name,
   return PmuTableEntry {.name = std::move(name),
                         .description = std::move(description),
                         .unit = std::move(unit),
-                        .fields = std::move(fields)};
+                        .fields = std::move(fields),
+                        .metricName = {},
+                        .metricExpr = {},
+                        .scaleUnit = {},
+                        .group = {}};
 }
 
 // The sysfs event_attr decoder, the hexadecimal event code, and the two
@@ -2249,10 +2441,20 @@ auto tableArrayScenario() -> void
   check(briefNumber != nullptr && briefNumber->description.empty(),
         "a row whose every description candidate is non-string has none");
   check(findRow(table, "metric_expr") == nullptr
-            && findRow(table, "metric_name") == nullptr,
-        "a metric-definition row is catalog data, never a countable");
-  check(table.size() == 19,
-        "only the rows carrying an event name enter the table");
+            && findRow(table, "m") != nullptr
+            && findRow(table, "m")->metricName == "m",
+        "a row carrying a metric formula enters as a definition row (FR-001, "
+        "T025)");
+  const auto* metricNamed = findRow(table, "metric_name");
+  check(metricNamed != nullptr && metricNamed->metricName.empty()
+            && fieldsOf(*metricNamed) == "event=1",
+        "a metric name without a formula stays the encodable event row it "
+        "was: only a row carrying a formula is a definition (FR-001, FR-002, "
+        "T025)");
+  check(table.size() == 21,
+        "every row carrying a name enters the table, the metric definition "
+        "among them: 20 event rows and the one definition row (FR-001, "
+        "FR-002, T025)");
 
   // A file the parser cannot read adds nothing, and says so by leaving
   // the caller's table untouched.
@@ -2285,7 +2487,15 @@ auto tableObjectScenario() -> void
 
   std::vector<PmuTableEntry> table;
   sg::counters::detail::pmuParseTableFile(path, table);
-  check(table.size() == 2, "an object-shaped file yields its countable rows");
+  const auto* objMetric = findRow(table, "obj_metric");
+  check(table.size() == 3,
+        "an object-shaped file yields its rows, the metric name without a "
+        "formula among them as the countable row it is (FR-001, FR-038, "
+        "T025)");
+  check(objMetric != nullptr && objMetric->metricName.empty(),
+        "a metric name without a formula leaves an object-shaped row "
+        "countable: only a row carrying a formula becomes a definition "
+        "(FR-001, T025)");
   const auto* hex = findRow(table, "obj_hex");
   check(hex != nullptr && fieldsOf(*hex) == "event=1"
             && hex->description == "object shape, hex",
@@ -3044,6 +3254,11 @@ auto uncoreDeviceFixtureScenario() -> void
   std::size_t expected = 0;
   std::size_t misplaced = 0;
   for (const auto& row : table) {
+    // A definition row is published as a metric line under its object (FR-020)
+    // and never placed as a counter, so the placement step skips it (FR-002).
+    if (!row.metricName.empty()) {
+      continue;
+    }
     const bool here = carries(*loaded, row.name);
     // The placement step uses scope_reaches. A selected table whose
     // memory rows spell another unit still belongs on this device.
@@ -3123,6 +3338,12 @@ auto vendoredRowPlacementScenario() -> void
   std::size_t landed = 0;
   std::size_t unreached = 0;
   for (const auto& row : table) {
+    // The two definitions of this table carry a Unit scope too. The metric
+    // listing is where they publish, and the device entry list holds the
+    // countable rows (FR-002, FR-020).
+    if (!row.metricName.empty()) {
+      continue;
+    }
     const std::string own = kernelDeviceName(row.unit);
     std::size_t onOwn = 0;
     std::size_t onOther = 0;
@@ -3582,6 +3803,8 @@ auto main() -> int
   mapfileScenario();
   ecmaScenario();
   mapfileRowScenario();
+  steppingDefectScenario();
+  mapfileSweepScenario();
   windowRefusalScenario();
   groupOpenScenario();
   fastBranchScenario();

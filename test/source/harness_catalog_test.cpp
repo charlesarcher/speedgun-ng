@@ -20,6 +20,7 @@
 
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
+#include "speedgun-ng/counters_metrics.hpp"
 
 namespace
 {
@@ -93,6 +94,44 @@ auto lineWith(const std::string& report,
   fail("the listing carries no such line");
 }
 
+// The metric lines of the listing, in the order the listing prints them.
+[[nodiscard]] auto metricLines(const std::string& text)
+    -> std::vector<std::string>
+{
+  std::vector<std::string> out;
+  std::istringstream stream(text);
+  for (std::string line; std::getline(stream, line);) {
+    if (line.find("mode=metric") != std::string::npos) {
+      out.push_back(line);
+    }
+  }
+  return out;
+}
+
+// True when every metric line of `path` stands after the last counter line
+// of the same object (FR-022, D-11).
+[[nodiscard]] auto metricsFollowCounters(const std::string& text,
+                                         const std::string& path) -> bool
+{
+  const std::string head = "catalog: " + path + "/";
+  std::size_t firstMetric = 0;
+  std::size_t lastCounter = 0;
+  std::size_t here = 0;
+  std::istringstream stream(text);
+  for (std::string line; std::getline(stream, line);) {
+    ++here;
+    if (line.rfind(head, 0) != 0) {
+      continue;
+    }
+    if (line.find("mode=metric") != std::string::npos) {
+      firstMetric = firstMetric == 0 ? here : firstMetric;
+    } else {
+      lastCounter = here;
+    }
+  }
+  return firstMetric == 0 || firstMetric > lastCounter;
+}
+
 auto scriptedProvider() -> void
 {
   using sg::counters::Availability;
@@ -158,6 +197,43 @@ auto main() -> int
   check(lineWith(listing, "catalog: machine/monotonic").find("unit=nanoseconds")
             != std::string::npos,
         "the machine leaves join the listing (FR-037)");
+
+  // T039 to T041: every metric row of the host's table joins the listing
+  // under the object its first leaf reaches, after that object's counter
+  // lines, with the table's own texts and, for a refused row, its refusal
+  // kind and reason. An empty listing means the host selected no table
+  // (FR-020 to FR-022, FR-024).
+  const auto metrics = sg::counters::catalogMetrics();
+  check(metricLines(listing).size() == metrics.size(),
+        "one listing line per metric row of the table (FR-020, FR-021)");
+  for (const auto& row : metrics) {
+    const std::string head = "catalog: " + std::string(row.objectPath) + "/"
+        + std::string(row.name) + " group=";
+    const std::string line = lineWith(listing, head);
+    check(line.find("mode=metric") != std::string::npos,
+          "a metric row prints as a metric line (FR-022)");
+    check(line.find("group=" + std::string(row.group)) != std::string::npos,
+          "the group text is the table's own (FR-020)");
+    check(line.find("description=" + std::string(row.description))
+              != std::string::npos,
+          "the description text is the table's own (FR-020)");
+    check(line.find("unit=" + std::string(row.unit)) != std::string::npos,
+          "the scale-and-unit text is the table's own (FR-020)");
+    if (!row.published) {
+      check(line.find(std::string(sg::counters::metricRefusalName(row.refusal)))
+                != std::string::npos,
+            "a refused row prints its refusal kind (FR-021)");
+      check(line.find("reason=" + std::string(row.reason)) != std::string::npos,
+            "a refused row prints its reason (FR-021)");
+    }
+    check(
+        metricsFollowCounters(listing, std::string(row.objectPath)),
+        "the metric lines follow the counter lines of their object " "(FR-"
+                                                                     "022)");
+  }
+  check(lineWith(listing, "catalog: scripted/events").find("mode=metric")
+            == std::string::npos,
+        "a counter line is never printed as a metric (FR-022)");
 
   // FR-036: the listing runs no benchmark function and exits zero.
   check(!benchmarkRan, "the listing runs no benchmark function (FR-036)");
