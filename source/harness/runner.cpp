@@ -1304,11 +1304,25 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // warm-up, the calibration, and every repetition, and the holder
   // joined beside the run result ends each of them when this run
   // returns (FR-006). The threaded policy is the harness default: SPIN
-  // waits and no pin.
+  // waits and no pin. specs/022 FR-008, FR-010, FR-019, D-1: when the
+  // instance carries a preset other than `none`, the plan of that preset
+  // over the machine layout names each context's cpu by position; the
+  // batch fit check has already stopped an unfittable count, so the plan
+  // stands full here.
   if (instance.threadCount > 1) {
-    const sg::ContextPolicy policy {sg::WaitMode::SPIN,
-                                    sg::PlacementSlot::noPin()};
+    const std::optional<detail::PlacementPlan> placePlan =
+        instance.placement != detail::Preset::NONE
+            ? std::optional<detail::PlacementPlan>(detail::resolvePreset(
+                  instance.placement, detail::layout(),
+                  instance.threadCount))
+            : std::nullopt;
     for (int position = 0; position < instance.threadCount; ++position) {
+      const sg::ContextPolicy policy {
+          sg::WaitMode::SPIN,
+          placePlan.has_value()
+              ? sg::PlacementSlot::cpu(placePlan->cpu[static_cast<
+                    std::size_t>(position)])
+              : sg::PlacementSlot::noPin()};
       contexts.push_back(std::make_unique<sg::ExecutionContext>(policy));
     }
   }

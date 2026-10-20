@@ -536,6 +536,21 @@ auto BenchmarkHandle::threads(const int count) -> BenchmarkHandle&
   return *this;
 }
 
+// specs/022 FR-015: the family's preset name, stored as stated and read
+// by the expansion, which parses it as it copies it (T013).
+auto BenchmarkHandle::placement(const std::string_view presetName)
+    -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "a placement call runs before the run starts (E-02)");
+  m_entry->placement = std::string(presetName);
+  SG_ENSURE(m_entry->placement.has_value()
+                && *m_entry->placement == presetName,
+            "the entry carries the stated name in place of any name an "
+            "earlier placement call stated (FR-015)");
+  return *this;
+}
+
 namespace detail
 {
 

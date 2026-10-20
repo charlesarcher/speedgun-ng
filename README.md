@@ -657,6 +657,7 @@ The run divides its iterations into chunks, times each chunk, and reads the near
 | `--counter` | Adds one catalog counter to the report columns |
 | `--metric` | Adds one metric of the host's table to the report columns |
 | `--catalog` | Prints the counter catalog and stops |
+| `--placement` | Selects the preset that plans the run's cpus |
 
 ## Planned work
 
