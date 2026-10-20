@@ -1,5 +1,5 @@
 # sg-example:begin report
-speedgun-ng 0.12.0 build=Release
+speedgun-ng 0.14.0 build=Release
 bmDice                   iterations=       120  real time/iter (ns)= 2188.825  cpu time/iter (ns)= 2188.833  overhead floor (ns)=   90.000  endpoint samples=121
 bmDice                       chunks  chunks=120  iterations/chunk=1
 bmDice                   percentile  primary time/iter (ns)  p50= 2190.000  p90= 2200.000  p99= 2220.000  p99.9=not available
