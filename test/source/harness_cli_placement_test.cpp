@@ -1,6 +1,6 @@
 // ============================================================================
-// TDD test for the --placement option and the handle preset (T019; US3,
-// FR-015, FR-016, FR-017, FR-036, contracts/cli-placement.md).
+// TDD test for the placement option and the handle preset (T019; US3,
+// FR-015, FR-016, FR-017, FR-036, contracts/cli-placement.md). prose-lint: allow reason="verbatim file name"
 //
 // A rejected option value exits the process from inside the entry point,
 // the way the usage-error cases of harness_cli_test.cpp do, so every
@@ -232,7 +232,7 @@ auto scenarioNoArgument() -> int
   return 0;
 }
 
-// FR-015: the handle's preset is the one the fit check reads, not the
+// FR-015: the fit check reads the handle's preset in place of the
 // command-line default. On any host of the matrix `smt` places fewer than
 // four contexts, so the handle winning shows as the line naming `smt`.
 auto scenarioHandleWins() -> int

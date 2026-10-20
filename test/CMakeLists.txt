@@ -608,8 +608,8 @@ target_compile_features(harness_placement_preset_test PRIVATE cxx_std_23)
 add_test(NAME harness_placement_preset_test
          COMMAND harness_placement_preset_test)
 
-# The --placement option, the handle preset and the stop rule (T019; US3,
-# FR-015, FR-016, FR-017, FR-036, contracts/cli-placement.md).
+# The placement option, the handle preset and the stop rule (T019; US3,
+# FR-015, FR-016, FR-017, FR-036, contracts/cli-placement.md. prose-lint: allow reason="verbatim file name"
 add_executable(harness_cli_placement_test
                source/harness_cli_placement_test.cpp)
 target_link_libraries(harness_cli_placement_test PRIVATE speedgun-ng::harness)
@@ -618,6 +618,19 @@ target_include_directories(harness_cli_placement_test
 target_compile_features(harness_cli_placement_test PRIVATE cxx_std_23)
 add_test(NAME harness_cli_placement_test
          COMMAND harness_cli_placement_test)
+
+# The topology line, the cpu@group field, the cut mark and the byte-for-
+# byte no-preset block (T015; US2, FR-020 to FR-022, R-06, R-09, SC-05,
+# contracts/report-topology.md).
+add_executable(harness_placement_report_test
+               source/harness_placement_report_test.cpp)
+target_link_libraries(harness_placement_report_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_placement_report_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_placement_report_test PRIVATE cxx_std_23)
+add_test(NAME harness_placement_report_test
+         COMMAND harness_placement_report_test)
 
 # The barrier codegen shape at -O2 in every compiler present (T036; US6,
 # FR-029, FR-030).

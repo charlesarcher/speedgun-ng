@@ -11,7 +11,8 @@
 // The synthetic descriptions ride the vendored hwloc through
 // installTestTopologyDescription (R-04): the description `1` names one
 // processing unit, and a malformed description must leave the layout
-// unreadable rather than half-built. The installed-layout seam (Q-5) is
+// unreadable, with no partial layout standing. The installed-layout seam
+// (Q-5) is
 // checked in the process that installs it, standing shapes the host read
 // of this machine could not produce.
 //
