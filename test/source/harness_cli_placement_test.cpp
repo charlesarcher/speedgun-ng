@@ -346,7 +346,12 @@ auto runChild(const char* mode,
         sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
     (void)std::fflush(stdout);
     (void)std::fflush(stderr);
-    _exit(status);
+    // std::exit runs the atexit handlers, and the coverage preset writes
+    // its counters from one; the child's walk of the placement paths must
+    // reach that handler (T032, SC-08). The two streams are flushed
+    // first, so the inherited stdio state contributes nothing twice and
+    // the captured files hold exactly the child's bytes.
+    std::exit(status);
   }
   int waitStatus = 0;
   if (waitpid(pid, &waitStatus, 0) < 0) {
