@@ -15,12 +15,13 @@ result rows of a threaded instance, unchanged fields ...
 `<APPLIED>` is `applied` where the installed placement function reported its
 slot as landed and `unapplied` where it did not (FR-005), so a pin that never
 landed shows under whatever text its own function returned. `<PLACEMENT>`
-stands cut to the width of the longest account the default function produces,
-with `~` marking the cut (FR-025).
+stands cut to the width of the longest account the default function
+produces, the `cpu@group` pair of a landed pin, with `~` marking the cut
+(FR-025, feature 022 FR-021).
 
 | Rule | Requirement |
 | --- | --- |
-| For a result run on more than one context, exactly a result whose `contexts` vector is non-empty, the console report shall print the number of contexts and the policy of each context: its wait mode (`SPIN`, `YIELD`, `BLOCK`) and the placement each context ran under, the record its placement function returned (`NO_PIN`, its cpu index, or `UNAPPLIED` where the slot never landed). | FR-025, FR-021 |
+| For a result run on more than one context, exactly a result whose `contexts` vector is non-empty, the console report shall print the number of contexts and the policy of each context: its wait mode (`SPIN`, `YIELD`, `BLOCK`) and the placement each context ran under, the record its placement function returned (`NO_PIN`, the `cpu@group` pair of the slot it landed on, or `UNAPPLIED` where the slot never landed). | FR-025, FR-021, feature 022 FR-021 |
 | A result run on one context shall keep the bytes it prints today; no disclosure line appears. | FR-025, Assumptions |
 | The disclosure data shall ride the result (`BenchmarkResult::contexts`) and the printer shall add nothing to it, the standing report separation. | FR-025, D-08 |
 

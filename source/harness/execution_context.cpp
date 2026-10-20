@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -84,18 +83,23 @@ constexpr std::string_view kNoPinText = "NO_PIN";
 // row carries no cpu the context never ran on (FR-005, FR-025, FR-026).
 constexpr std::string_view kUnappliedText = "UNAPPLIED";
 
-// The width of the word above, one of the two texts the placement record
-// of a context can name (FR-025).
-constexpr std::size_t kUnappliedWidth = kUnappliedText.size();
-
 // The width of the widest `std::uint32_t` in decimal, so the rendered
 // cpu index of the placement record never truncates (FR-005, FR-025).
 constexpr std::size_t kCpuIndexWidth = 10;
+
+// The width of the widest account the placement record can name: the
+// `cpu@group` pair of a landed pin, the longest text the placement
+// function composes from the layout (FR-021, FR-025, specs/022 E-09).
+constexpr std::size_t kAccountTextWidth = kCpuIndexWidth * 2 + 1;
 
 // The default placement function: one Linux pin of the started thread
 // to the slot's cpu (FR-005, D-04). The call is the platform call D-04
 // names for the seam; the installed function replaces the whole call, so
 // a test that replaces it executes no platform pin at all (SC-05).
+//
+// specs/022 FR-021, E-09: the description is the disclosure text of the
+// slot, the `cpu@group` pair the layout composes, and the account of a
+// pin that did not land stays the unapplied word the seam chooses.
 //
 // P2 justification: the native handle reaches the platform as the type
 // the platform call names it, through no cast.
@@ -111,18 +115,8 @@ auto pinToPlacementSlot(const PlacementSlot& slot,
   CPU_ZERO(&cpus);
   CPU_SET(slot.cpuIndex, &cpus);
 
-  // The digits sit in storage the pinned thread owns. A thread pins once,
-  // so they stand for that thread's whole life and the disclosure record
-  // that outlives the thread holds a copy (FR-025).
-  thread_local std::array<char, kCpuIndexWidth> digits {};
-  const auto rendered =
-      std::to_chars(digits.begin(), digits.end(), slot.cpuIndex);
-
   const bool landed = pthread_setaffinity_np(thread, sizeof(cpus), &cpus) == 0;
-  const std::size_t width =
-      static_cast<std::size_t>(rendered.ptr - digits.data());
-
-  return detail::selectPlacementAccount(landed, {digits.data(), width});
+  return detail::selectPlacementAccount(landed, detail::placementText(slot));
 }
 
 // FR-005, research D-04: the one harness-level placement slot. A
@@ -197,7 +191,7 @@ struct ContextControl
 
   // The bytes the field above points at, held in the block so the record
   // reads past the end of the thread that rendered them (FR-025).
-  std::array<char, kCpuIndexWidth + kUnappliedWidth> descriptionText {};
+  std::array<char, kAccountTextWidth> descriptionText {};
 
   // The sentinel of the inbox: the chain anchor both ends walk through,
   // owned by the loop, never run (FR-003, D-01).
