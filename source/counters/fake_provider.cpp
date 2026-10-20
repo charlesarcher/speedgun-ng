@@ -181,6 +181,20 @@ auto FakeProvider::addObject(const std::string_view path,
   return *this;
 }
 
+auto FakeProvider::setProgrammableCounters(
+    const std::string_view objectPath, const std::size_t limit) -> FakeProvider&
+{
+  const std::string path(objectPath);
+  SG_REQUIRE(limit > 0 && m_objects.count(path) > 0,
+             "set_programmable_counters scripts a positive count for an "
+             "object the fake owns (FR-006)");
+  auto& object = m_objects.at(path);
+  object.programmableCounters = limit;
+  SG_ENSURE(object.programmableCounters.value_or(0) == limit,
+            "the scripted limit is the one enumeration publishes (FR-006)");
+  return *this;
+}
+
 auto FakeProvider::addCounter(const std::string_view objectPath,
                               const std::string_view name,
                               const std::string_view unit,
@@ -259,6 +273,7 @@ void FakeProvider::enumerate(ObjectSink& sink) const
         .alias = data.alias,
         .description = data.description,
         .entries = std::move(entries),
+        .programmableCounters = data.programmableCounters,
     });
   }
 }

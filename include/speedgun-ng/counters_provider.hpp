@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -56,7 +57,10 @@ struct CatalogSeed
  * `path` is the canonical structured spelling; `alias` is the optional
  * platform instance name, empty when the object has none (FR-002).
  * String views must stay valid for the duration of the `enumerate`
- * call; the system copies what it keeps.
+ * call; the system copies what it keeps. `programmableCounters` is the
+ * count of programmable counters one context can hold open at once on
+ * this object's event source, published by a source that can answer
+ * (FR-005).
  *
  */
 struct ObjectSeed
@@ -66,6 +70,12 @@ struct ObjectSeed
   std::string_view alias;
   std::string_view description;
   std::vector<CatalogSeed> entries;
+  // How many programmable counters one context can hold open at once on
+  // this object's event source, no value when the source cannot answer
+  // (FR-005). The default initializer is load-bearing: `-Wextra` reports an
+  // omitted member that carries no default, so a seed naming no limit
+  // needs no edit.
+  std::optional<std::size_t> programmableCounters = std::nullopt;
 };
 
 /**

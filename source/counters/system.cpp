@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -178,6 +179,20 @@ auto probedKindTable() -> std::map<std::string, TargetMask>&
   return table;
 }
 
+// The programmable-counter limit each object's event source published at
+// registration, keyed by the object's canonical path (FR-005). A source
+// that cannot answer records nothing, so the table holds only the objects
+// whose source answered, and an object missing from it answers nothing.
+// The tree keeps no field for the fact, so it rides beside the tree as
+// the probe table above does. The table is filled while a provider
+// registers and read only after the catalog opens, so no read races a
+// write (FR-009).
+auto programmableLimitTable() -> std::map<std::string, std::size_t>&
+{
+  static std::map<std::string, std::size_t> table;
+  return table;
+}
+
 }  // namespace
 
 System::System()
@@ -224,6 +239,9 @@ auto System::registerProvider(std::unique_ptr<ProviderIface> provider)
   // lands in one assignment after every seed validates (FR-008).
   auto rootLeaves = m_impl->objects.at("machine")->leaves;
   std::vector<std::pair<std::string, std::string>> stagedAliases;
+  // The limit each seed publishes, staged with the rest of the batch so a
+  // refused provider records nothing (FR-008, FR-005).
+  std::vector<std::pair<std::string, std::size_t>> stagedLimits;
 
   for (const auto& seed : sink.seeds) {
     const std::string path(seed.path);
@@ -246,6 +264,10 @@ auto System::registerProvider(std::unique_ptr<ProviderIface> provider)
     auto leaves = buildLeaves(seed, path, onRoot, rootLeaves, providerIndex);
     if (!leaves.has_value()) {
       return std::unexpected(leaves.error());
+    }
+
+    if (seed.programmableCounters.has_value()) {
+      stagedLimits.emplace_back(path, *seed.programmableCounters);
     }
 
     if (onRoot) {
@@ -281,6 +303,9 @@ auto System::registerProvider(std::unique_ptr<ProviderIface> provider)
   }
   for (auto& [alias, path] : stagedAliases) {
     m_impl->aliases.emplace(std::move(alias), std::move(path));
+  }
+  for (const auto& [path, limit] : stagedLimits) {
+    programmableLimitTable().insert_or_assign(path, limit);
   }
   m_impl->providers.push_back(std::move(provider));
   return {};
@@ -418,6 +443,17 @@ auto Object::kind() const noexcept -> std::string_view
 auto Object::description() const noexcept -> std::string_view
 {
   return static_cast<const TreeNode*>(m_node)->description;
+}
+
+auto Object::programmableCounters() const noexcept -> std::optional<std::size_t>
+{
+  const auto* node = static_cast<const TreeNode*>(m_node);
+  const auto& limits = programmableLimitTable();
+  const auto answered = limits.find(node->path);
+  if (answered == limits.end()) {
+    return std::nullopt;
+  }
+  return answered->second;
 }
 
 auto Object::parent() const noexcept -> const Object*

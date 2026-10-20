@@ -486,6 +486,38 @@ if(TARGET counters_standalone_example)
   add_test(NAME counters_giraffe_example COMMAND counters_giraffe_example)
 endif()
 
+# ---- Programmable-counter limit (feature 024) ----
+
+# The leaf-0AH decode of the published counter count (T006 registers the
+# skeleton so the build stays green ahead of the first assertion; T009 fills
+# it; FR-005, FR-032, research D-01, D-04). The decode is a pure function of
+# synthetic registers, reached through the relative include of a private
+# header the way counters_metric_lookup_test.cpp reaches
+# linux_pmu/metric_tables.hpp, so this binary carries no include directory of
+# its own. Exit 2 skips with the reason printed, the pattern of the metric
+# blocks above.
+add_executable(counters_counter_limits_test
+               source/counters_counter_limits_test.cpp)
+target_link_libraries(counters_counter_limits_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_counter_limits_test PRIVATE cxx_std_23)
+add_test(NAME counters_counter_limits_test
+         COMMAND counters_counter_limits_test)
+set_tests_properties(counters_counter_limits_test PROPERTIES
+                     SKIP_RETURN_CODE 2)
+
+# The same count as a fact an object publishes (T006 registers the skeleton,
+# T010 fills it; FR-005, FR-006, data-model E-02). Every case reads a scripted
+# fake, so no case needs a kernel counter or a privilege.
+add_executable(counters_objects_limit_test
+               source/counters_objects_limit_test.cpp)
+target_link_libraries(counters_objects_limit_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_objects_limit_test PRIVATE cxx_std_23)
+add_test(NAME counters_objects_limit_test COMMAND counters_objects_limit_test)
+set_tests_properties(counters_objects_limit_test PROPERTIES
+                     SKIP_RETURN_CODE 2)
+
 # ---- Nanosecond-rate counter (feature 011) ----
 
 # The nanosecond-rate clock leaf (specs/011 FR-001..FR-008; US2):
@@ -1025,6 +1057,30 @@ target_link_libraries(harness_time_unit_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_time_unit_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_time_unit_test PRIVATE cxx_std_23)
 add_test(NAME harness_time_unit_test COMMAND harness_time_unit_test)
+
+# The pass plan, the pass loop and the pass disclosure (T007 registers the
+# three skeletons so the build stays green ahead of the first assertion;
+# T016 to T021, T022 to T028 and T039 to T046 fill them; FR-001 to FR-024,
+# FR-033). The pass plan header is internal to the harness archive, so each
+# target carries the source/harness include directory the way
+# harness_percentile_test does.
+add_executable(harness_pass_plan_test source/harness_pass_plan_test.cpp)
+target_link_libraries(harness_pass_plan_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_pass_plan_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_pass_plan_test PRIVATE cxx_std_23)
+add_test(NAME harness_pass_plan_test COMMAND harness_pass_plan_test)
+
+add_executable(harness_pass_collect_test source/harness_pass_collect_test.cpp)
+target_link_libraries(harness_pass_collect_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_pass_collect_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_pass_collect_test PRIVATE cxx_std_23)
+add_test(NAME harness_pass_collect_test COMMAND harness_pass_collect_test)
+
+add_executable(harness_pass_report_test source/harness_pass_report_test.cpp)
+target_link_libraries(harness_pass_report_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_pass_report_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_pass_report_test PRIVATE cxx_std_23)
+add_test(NAME harness_pass_report_test COMMAND harness_pass_report_test)
 
 # ---- Main-page documentation gates (feature 018) ----
 

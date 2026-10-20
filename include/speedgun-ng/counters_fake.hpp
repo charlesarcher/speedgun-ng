@@ -149,6 +149,27 @@ public:
                  std::string_view description) -> FakeProvider&;
 
   /**
+   * @brief Scripts the programmable-counter limit one object answers
+   * (FR-006).
+   *
+   * The limit is how many programmable counters one context can hold open
+   * at once on this object's event source, which the catalog cursor
+   * `Object::programmableCounters` answers once the system has opened.
+   * An object nobody scripts answers nothing, the way a source that
+   * cannot answer does. The scripted limit reaches the pass planner and
+   * nothing else: the fake still opens any leaf set it is asked to,
+   * because splitting is the planner's job.
+   *
+   * \pre `limit > 0` and `objectPath` names an object this fake owns, and
+   *      the call precedes `System::open` as every scripted fake fact
+   *      does. A path the fake owns no object for traps: a script that
+   *      names nothing would silently test nothing.
+   * \post Enumeration publishes that limit for the named object.
+   */
+  auto setProgrammableCounters(std::string_view objectPath,
+                               std::size_t limit) -> FakeProvider&;
+
+  /**
    * @brief Declares one named counter on one object.
    *
    * `unit` is the unit token mapped through the closed switch at
@@ -240,6 +261,11 @@ private:
     std::string alias;
     std::string description;
     std::map<std::string, FakeCounterData> counters;
+    // The scripted answer of this object's event source, published at
+    // enumerate; no value means the fake publishes nothing for this
+    // object, which reproduces a source that cannot answer (FR-005,
+    // FR-006).
+    std::optional<std::size_t> programmableCounters = std::nullopt;
   };
 
   std::map<std::string, ObjectSeedData> m_objects;
