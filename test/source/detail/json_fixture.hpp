@@ -1,0 +1,390 @@
+#ifndef SG_TEST_DETAIL_JSON_FIXTURE_HPP
+#define SG_TEST_DETAIL_JSON_FIXTURE_HPP
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <fstream>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "detail/internal.hpp"
+#include "detail/json_report.hpp"
+#include "speedgun-ng/benchmark.hpp"
+#include "speedgun-ng/counters.hpp"
+#include "speedgun-ng/counters_fake.hpp"
+
+// The scripted run and the field-by-field comparison the three report
+// tests share (specs/023 T016, T017, T022, T023). The scripted window is
+// the one of `harness_percentile_test.cpp`: the calibration prefix the
+// plan's sampling-cost read takes, then four chunk deltas whose time,
+// cpu and metric columns answer different values, so a column that
+// travels the document under another name fails a comparison.
+namespace sg::test
+{
+
+inline int failures = 0;
+
+auto fail(const char* what) -> void
+{
+  ++failures;
+  std::printf("FAILED: %s\n", what);
+}
+
+auto check(const bool cond, const char* what) -> void
+{
+  if (!cond) {
+    fail(what);
+  }
+}
+
+// A reported value travels the document as a shortest round-trip decimal,
+// so the loaded value answers the run's value; the tolerance is the house
+// convention, since -Werror=float-equal rules out `==` on a double.
+auto sameValue(const double actual, const double expected) -> bool
+{
+  return std::abs(actual - expected) <= 1e-9 + 1e-9 * std::abs(expected);
+}
+
+constexpr std::uint64_t kCalibrationReads = 321;
+constexpr std::uint64_t kCalibrationStep = 1'000;
+constexpr std::uint64_t kWindowIterations = 4;
+
+constexpr std::array<std::uint64_t, 4> kTimeDeltas {
+    1'000'000, 4'000'000, 2'000'000, 3'000'000};
+constexpr std::array<std::uint64_t, 4> kCpuDeltas {
+    10'000'000, 40'000'000, 20'000'000, 30'000'000};
+constexpr std::array<std::uint64_t, 4> kMetricDeltas {10, 40, 20, 30};
+
+auto windowPoints(const std::array<std::uint64_t, 4>& deltas)
+    -> std::vector<std::uint64_t>
+{
+  std::vector<std::uint64_t> points;
+  points.reserve(kCalibrationReads + kWindowIterations + 1);
+  for (std::uint64_t read = 0; read < kCalibrationReads; ++read) {
+    points.push_back(read * kCalibrationStep);
+  }
+  std::uint64_t running = (kCalibrationReads - 1) * kCalibrationStep;
+  points.push_back(running);
+  for (const std::uint64_t delta : deltas) {
+    running += delta;
+    points.push_back(running);
+  }
+  return points;
+}
+
+auto bmJsonWindow(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+// The scripted run of one option set: the result the run handed back,
+// beside the chunk columns it retained for that result's rows.
+struct ScriptedRun
+{
+  sg::BenchmarkResult result;
+  std::vector<std::vector<sg::RowRaw>> rowRaw;
+  std::vector<std::vector<std::vector<sg::RowRaw>>> contextRaw;
+};
+
+auto scriptedRun(const sg::detail::RunOptions& options) -> ScriptedRun
+{
+  static const bool kScripted = []
+  {
+    auto owned = std::make_unique<sg::counters::FakeProvider>();
+    auto& provider = *owned;
+    provider.addObject("scripted", "scripted", "scripted metric object");
+    provider.addCounter("scripted", "work", "none", "scripted work");
+    provider.setPoints("scripted", "work", windowPoints(kMetricDeltas));
+    provider.addCounter("machine", "monotonic", "nanoseconds", "monotonic");
+    provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+    provider.setPoints("machine", "monotonic", windowPoints(kTimeDeltas));
+    provider.setPoints("machine", "thread_cpu", windowPoints(kCpuDeltas));
+    static_cast<void>(
+        sg::counters::System::local().registerProvider(std::move(owned)));
+    return true;
+  }();
+  static_cast<void>(kScripted);
+  static const sg::BenchmarkHandle kHandle = []
+  {
+    auto registered = sg::registerBenchmark(&bmJsonWindow, "bmJsonWindow");
+    const auto object = sg::counters::System::local().object("scripted");
+    const auto work = object->counter<sg::counters::Dim<0, 1>>("work");
+    registered.addMetric(
+        sg::counters::Expression<sg::counters::Dim<0, 1>>(*work), "work");
+    return registered;
+  }();
+  static_cast<void>(kHandle);
+  static const bool kExpanded = []
+  {
+    sg::detail::expandRegistry();
+    return true;
+  }();
+  static_cast<void>(kExpanded);
+
+  sg::detail::Runner runner(options);
+  ScriptedRun run;
+  for (auto& instance : sg::detail::instances()) {
+    if (instance.name != "bmJsonWindow") {
+      continue;
+    }
+    run.result = runner.run(instance);
+    run.rowRaw.push_back(runner.rowRaw().back());
+    run.contextRaw.push_back(runner.contextRaw().back());
+  }
+  return run;
+}
+
+// The whole file as one string, or the empty string when the file stands
+// unopenable; the tests read back what the writer wrote.
+auto readText(const std::string& path) -> std::string
+{
+  std::ifstream stream(path, std::ios::binary);
+  std::string text;
+  char chunk[1024];
+  do {
+    stream.read(chunk, std::streamsize(sizeof chunk));
+    text.append(chunk, std::size_t(stream.gcount()));
+  } while (stream.gcount() == std::streamsize(sizeof chunk));
+  return text;
+}
+
+auto writeText(const std::string& path, const std::string& text) -> void
+{
+  std::ofstream stream(path, std::ios::binary);
+  stream << text;
+}
+
+auto sameStatistics(const sg::Statistics& actual,
+                    const sg::Statistics& want) -> bool
+{
+  return actual.samples == want.samples && sameValue(actual.mean, want.mean)
+      && sameValue(actual.median, want.median)
+      && sameValue(actual.sampleStdDev, want.sampleStdDev)
+      && sameValue(actual.coefficientOfVariation, want.coefficientOfVariation)
+      && sameValue(actual.min, want.min) && sameValue(actual.max, want.max);
+}
+
+auto sameCell(const sg::PercentileValue& actual,
+              const sg::PercentileValue& want) -> bool
+{
+  return actual.available == want.available
+      && (actual.available ? sameValue(actual.value, want.value) : true);
+}
+
+auto sameColumns(const std::vector<std::vector<sg::PercentileValue>>& actual,
+                 const std::vector<std::vector<sg::PercentileValue>>& want)
+    -> bool
+{
+  if (actual.size() != want.size()) {
+    return false;
+  }
+  for (std::size_t column = 0; column < actual.size(); ++column) {
+    if (actual[column].size() != want[column].size()) {
+      return false;
+    }
+    for (std::size_t point = 0; point < actual[column].size(); ++point) {
+      if (!sameCell(actual[column][point], want[column][point])) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+auto sameMetric(const sg::MetricValue& actual,
+                const sg::MetricValue& want) -> bool
+{
+  return sameValue(actual.value, want.value)
+      && sameValue(actual.runningRatio, want.runningRatio)
+      && actual.scaled == want.scaled
+      && actual.availability == want.availability;
+}
+
+auto sameFit(const sg::FitRow& actual, const sg::FitRow& want) -> bool
+{
+  return actual.quantity == want.quantity && actual.curve == want.curve
+      && sameValue(actual.coefficient, want.coefficient)
+      && sameValue(actual.rmsPercent, want.rmsPercent)
+      && actual.scalesWithUnit == want.scalesWithUnit
+      && actual.reason == want.reason;
+}
+
+auto sameRow(const sg::ResultRow& actual, const sg::ResultRow& want) -> bool
+{
+  return actual.kind == want.kind && actual.label == want.label
+      && actual.iterations == want.iterations
+      && sameValue(actual.timePerIterationNs, want.timePerIterationNs)
+      && sameValue(actual.cpuTimePerIterationNs, want.cpuTimePerIterationNs)
+      && actual.endpointSamples == want.endpointSamples
+      && actual.pauseSamplesFolded == want.pauseSamplesFolded
+      && actual.timeAvailability == want.timeAvailability
+      && actual.metrics.size() == want.metrics.size()
+      && actual.counters.size() == want.counters.size()
+      && actual.counterDisclosure == want.counterDisclosure
+      && sameFit(actual.fit, want.fit)
+      && sameValue(actual.overheadFloorNs, want.overheadFloorNs)
+      && sameColumns(actual.percentiles, want.percentiles)
+      && actual.chunkCount == want.chunkCount
+      && actual.chunkIterations == want.chunkIterations
+      && sameStatistics(actual.timeStats, want.timeStats)
+      && actual.metricStats.size() == want.metricStats.size()
+      && (actual.metrics.size() != want.metrics.size()
+          || std::equal(actual.metrics.begin(),
+                        actual.metrics.end(),
+                        want.metrics.begin(),
+                        sameMetric))
+      && (actual.counters.size() != want.counters.size()
+          || std::equal(actual.counters.begin(),
+                        actual.counters.end(),
+                        want.counters.begin(),
+                        sameValue))
+      && (actual.metricStats.size() != want.metricStats.size()
+          || std::equal(actual.metricStats.begin(),
+                        actual.metricStats.end(),
+                        want.metricStats.begin(),
+                        sameStatistics));
+}
+
+auto sameRowRaw(const std::vector<sg::RowRaw>& actual,
+                const std::vector<sg::RowRaw>& want) -> bool
+{
+  if (actual.size() != want.size()) {
+    return false;
+  }
+  for (std::size_t row = 0; row < actual.size(); ++row) {
+    if (actual[row].columns.size() != want[row].columns.size()) {
+      return false;
+    }
+    for (std::size_t column = 0; column < actual[row].columns.size(); ++column)
+    {
+      if (actual[row].columns[column].size()
+          != want[row].columns[column].size())
+      {
+        return false;
+      }
+      for (std::size_t chunk = 0; chunk < actual[row].columns[column].size();
+           ++chunk)
+      {
+        if (!sameValue(actual[row].columns[column][chunk],
+                       want[row].columns[column][chunk]))
+        {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+auto sameRowRaw(const std::vector<std::vector<sg::RowRaw>>& actual,
+                const std::vector<std::vector<sg::RowRaw>>& want) -> bool
+{
+  if (actual.size() != want.size()) {
+    return false;
+  }
+  for (std::size_t row = 0; row < actual.size(); ++row) {
+    if (!sameRowRaw(actual[row], want[row])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// One result against the run that wrote it, field by field (FR-022,
+// SC-010).
+auto sameResult(const sg::BenchmarkResult& actual,
+                const sg::BenchmarkResult& want) -> bool
+{
+  if (actual.name != want.name || actual.suite != want.suite
+      || actual.caseName != want.caseName || actual.outcome != want.outcome
+      || actual.reason != want.reason
+      || actual.hideRepetitionRows != want.hideRepetitionRows
+      || actual.timeUnit != want.timeUnit
+      || actual.primaryIsCpu != want.primaryIsCpu
+      || actual.pauseSamplesFolded != want.pauseSamplesFolded
+      || actual.percentilePoints.size() != want.percentilePoints.size()
+      || actual.metricLabels != want.metricLabels
+      || actual.counterLabels != want.counterLabels
+      || actual.rows.size() != want.rows.size()
+      || actual.counterStats.size() != want.counterStats.size()
+      || actual.statisticValues.size() != want.statisticValues.size()
+      || actual.contexts.size() != want.contexts.size()
+      || actual.contextPercentiles.size() != want.contextPercentiles.size())
+  {
+    return false;
+  }
+  for (std::size_t point = 0; point < actual.percentilePoints.size(); ++point) {
+    if (!sameValue(actual.percentilePoints[point],
+                   want.percentilePoints[point]))
+    {
+      return false;
+    }
+  }
+  for (std::size_t row = 0; row < actual.rows.size(); ++row) {
+    if (!sameRow(actual.rows[row], want.rows[row])) {
+      return false;
+    }
+  }
+  for (std::size_t stat = 0; stat < actual.counterStats.size(); ++stat) {
+    if (!sameStatistics(actual.counterStats[stat], want.counterStats[stat])) {
+      return false;
+    }
+  }
+  for (std::size_t value = 0; value < actual.statisticValues.size(); ++value) {
+    const auto& got = actual.statisticValues[value];
+    const auto& asked = want.statisticValues[value];
+    if (got.name != asked.name || got.unit != asked.unit
+        || !sameValue(got.value, asked.value))
+    {
+      return false;
+    }
+  }
+  for (std::size_t context = 0; context < actual.contexts.size(); ++context) {
+    const auto& got = actual.contexts[context];
+    const auto& asked = want.contexts[context];
+    if (got.waitMode != asked.waitMode || got.placement != asked.placement
+        || got.applied != asked.applied)
+    {
+      return false;
+    }
+  }
+  for (std::size_t block = 0; block < actual.contextPercentiles.size(); ++block)
+  {
+    if (!sameColumns(actual.contextPercentiles[block],
+                     want.contextPercentiles[block]))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+auto sameReport(const sg::ReportData& actual,
+                const sg::ReportData& want) -> bool
+{
+  if (actual.results.size() != want.results.size()
+      || actual.rowRaw.size() != want.rowRaw.size()
+      || actual.contextRaw.size() != want.contextRaw.size())
+  {
+    return false;
+  }
+  for (std::size_t entry = 0; entry < actual.results.size(); ++entry) {
+    if (!sameResult(actual.results[entry], want.results[entry])
+        || !sameRowRaw(actual.rowRaw[entry], want.rowRaw[entry])
+        || !sameRowRaw(actual.contextRaw[entry], want.contextRaw[entry]))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace sg::test
+
+#endif  // SG_TEST_DETAIL_JSON_FIXTURE_HPP

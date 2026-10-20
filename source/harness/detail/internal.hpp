@@ -450,6 +450,10 @@ struct RunOptions
   // topology listing flag.
   std::optional<std::string> placement;
   bool topologyMode = false;
+  // specs/023 FR-001, FR-029: the path `--json=` named, empty when the run
+  // writes no document, and the chunk content `--json-raw=` asked for.
+  std::string jsonPath;
+  RawContent rawContent = RawContent::NONE;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
@@ -476,6 +480,23 @@ public:
   [[nodiscard]] auto fitForFamilyEnd(const Instance* next)
       -> std::optional<BenchmarkResult>;
 
+  /// @brief The chunk columns the runs of this runner retained, one entry
+  /// per row of the result that run handed back, in the order the rows
+  /// stand (specs/023 E-01, FR-029).
+  [[nodiscard]] auto rowRaw() const noexcept
+      -> const std::vector<std::vector<RowRaw>>&
+  {
+    return m_rowRaw;
+  }
+
+  /// @brief The per-context chunk columns of the merged rows, one entry
+  /// per context of each row that merged (specs/023 E-01, FR-029).
+  [[nodiscard]] auto contextRaw() const noexcept
+      -> const std::vector<std::vector<std::vector<RowRaw>>>&
+  {
+    return m_contextRaw;
+  }
+
 private:
   const RunOptions& m_options;
 
@@ -490,6 +511,12 @@ private:
   std::vector<std::vector<double>> m_counterValues;
   std::vector<std::string> m_metricLabels;
   std::vector<std::vector<double>> m_metricValues;
+
+  // specs/023 E-01: the chunk columns each run retained, one entry per
+  // row of that run's result; the aggregate row and every row of a run
+  // that captured nothing stand for an empty entry.
+  std::vector<std::vector<RowRaw>> m_rowRaw;
+  std::vector<std::vector<std::vector<RowRaw>>> m_contextRaw;
 
   void noteFitSample(const Instance& instance,
                      const BenchmarkResult& result,

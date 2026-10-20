@@ -1,0 +1,452 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://speedgun-ng.dev/schema/report-v1.json",
+  "title": "speedgun-ng benchmark report",
+  "description": "The document the harness writes for one batch (specs/023 FR-008). Key order is normative and stands in x-order; the harness checker reads this file and compares the key set, the key order and the value kinds of every written document against it.",
+  "type": "object",
+  "x-order": ["schemaVersion", "speedgun", "benchmarks"],
+  "required": ["schemaVersion", "speedgun", "benchmarks"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "speedgun": {
+      "type": "object",
+      "x-order": ["version", "buildType"],
+      "required": ["version", "buildType"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "string" },
+        "buildType": { "type": "string" }
+      }
+    },
+    "benchmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "x-order": [
+          "name",
+          "suite",
+          "case",
+          "outcome",
+          "reason",
+          "hideRepetitionRows",
+          "timeUnit",
+          "primaryIsCpu",
+          "pauseSamplesFolded",
+          "percentilePoints",
+          "contexts",
+          "noiseWarning",
+          "rows",
+          "metricLabels",
+          "counterLabels",
+          "counterStats",
+          "statisticValues"
+        ],
+        "required": [
+          "name",
+          "suite",
+          "case",
+          "outcome",
+          "hideRepetitionRows",
+          "timeUnit",
+          "primaryIsCpu",
+          "pauseSamplesFolded",
+          "percentilePoints",
+          "contexts",
+          "rows",
+          "metricLabels",
+          "counterLabels",
+          "counterStats",
+          "statisticValues"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "suite": { "type": "string" },
+          "case": { "type": "string" },
+          "outcome": {
+            "type": "string",
+            "enum": ["MEASURED", "SKIPPED", "FAILED"]
+          },
+          "reason": { "type": ["string", "null"] },
+          "hideRepetitionRows": { "type": "boolean" },
+          "timeUnit": {
+            "type": "string",
+            "enum": ["NANOSECONDS", "MICROSECONDS", "MILLISECONDS", "SECONDS"]
+          },
+          "primaryIsCpu": { "type": "boolean" },
+          "pauseSamplesFolded": { "type": "boolean" },
+          "percentilePoints": {
+            "type": "array",
+            "items": { "type": "number" }
+          },
+          "contexts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "x-order": ["waitMode", "placement", "applied"],
+              "required": ["waitMode", "placement", "applied"],
+              "additionalProperties": false,
+              "properties": {
+                "waitMode": {
+                  "type": "string",
+                  "enum": ["SPIN", "YIELD", "BLOCK"]
+                },
+                "placement": { "type": "string" },
+                "applied": { "type": "boolean" }
+              }
+            }
+          },
+          "noiseWarning": {
+            "type": ["object", "null"],
+            "x-order": ["spinning", "runnableCpus", "sharesOneCpu"],
+            "required": ["spinning", "runnableCpus", "sharesOneCpu"],
+            "additionalProperties": false,
+            "properties": {
+              "spinning": { "type": "integer" },
+              "runnableCpus": { "type": "integer" },
+              "sharesOneCpu": { "type": "boolean" }
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "x-order": [
+                "kind",
+                "label",
+                "iterations",
+                "timePerIterationNs",
+                "cpuTimePerIterationNs",
+                "endpointSamples",
+                "pauseSamplesFolded",
+                "timeAvailability",
+                "metrics",
+                "counters",
+                "counterDisclosure",
+                "fit",
+                "overheadFloorNs",
+                "percentiles",
+                "contextPercentiles",
+                "contextRaw",
+                "chunkCount",
+                "chunkIterations",
+                "timeStats",
+                "metricStats",
+                "raw"
+              ],
+              "required": [
+                "kind",
+                "iterations",
+                "timePerIterationNs",
+                "cpuTimePerIterationNs",
+                "endpointSamples",
+                "pauseSamplesFolded",
+                "timeAvailability",
+                "metrics",
+                "counters",
+                "counterDisclosure",
+                "fit",
+                "overheadFloorNs",
+                "percentiles",
+                "chunkCount",
+                "chunkIterations",
+                "timeStats",
+                "metricStats"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["REPETITION", "AGGREGATE", "BIG_O", "RMS", "SKIPPED"]
+                },
+                "label": { "type": ["string", "null"] },
+                "iterations": { "type": "integer" },
+                "timePerIterationNs": { "type": "number" },
+                "cpuTimePerIterationNs": { "type": "number" },
+                "endpointSamples": { "type": "integer" },
+                "pauseSamplesFolded": { "type": "boolean" },
+                "timeAvailability": {
+                  "type": "string",
+                  "enum": [
+                    "COUNTABLE",
+                    "PERMISSION_BLOCKED",
+                    "NOT_ENCODABLE",
+                    "ABSENT",
+                    "SCOPE_REFUSED",
+                    "GAP"
+                  ]
+                },
+                "metrics": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "x-order": [
+                      "label",
+                      "value",
+                      "runningRatio",
+                      "scaled",
+                      "availability"
+                    ],
+                    "required": [
+                      "label",
+                      "value",
+                      "runningRatio",
+                      "scaled",
+                      "availability"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "label": { "type": "string" },
+                      "value": { "type": "number" },
+                      "runningRatio": { "type": "number" },
+                      "scaled": { "type": "boolean" },
+                      "availability": {
+                        "type": "string",
+                        "enum": [
+                          "COUNTABLE",
+                          "PERMISSION_BLOCKED",
+                          "NOT_ENCODABLE",
+                          "ABSENT",
+                          "SCOPE_REFUSED",
+                          "GAP"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "counters": {
+                  "type": "array",
+                  "items": { "type": "number" }
+                },
+                "counterDisclosure": { "type": ["string", "null"] },
+                "fit": {
+                  "type": ["object", "null"],
+                  "x-order": [
+                    "quantity",
+                    "curve",
+                    "coefficient",
+                    "rmsPercent",
+                    "scalesWithUnit",
+                    "reason"
+                  ],
+                  "required": [
+                    "quantity",
+                    "curve",
+                    "coefficient",
+                    "rmsPercent",
+                    "scalesWithUnit",
+                    "reason"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "quantity": { "type": "string" },
+                    "curve": { "type": "string" },
+                    "coefficient": { "type": "number" },
+                    "rmsPercent": { "type": "number" },
+                    "scalesWithUnit": { "type": "boolean" },
+                    "reason": { "type": ["string", "null"] }
+                  }
+                },
+                "overheadFloorNs": { "type": "number" },
+                "percentiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "x-order": ["available", "value"],
+                      "required": ["available", "value"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "available": { "type": "boolean" },
+                        "value": { "type": ["number", "null"] }
+                      }
+                    }
+                  }
+                },
+                "chunkCount": { "type": "integer" },
+                "chunkIterations": { "type": "integer" },
+                "timeStats": {
+                  "type": ["object", "null"],
+                  "x-order": [
+                    "samples",
+                    "mean",
+                    "median",
+                    "sampleStdDev",
+                    "coefficientOfVariation",
+                    "min",
+                    "max"
+                  ],
+                  "required": [
+                    "samples",
+                    "mean",
+                    "median",
+                    "sampleStdDev",
+                    "coefficientOfVariation",
+                    "min",
+                    "max"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "samples": { "type": "integer" },
+                    "mean": { "type": "number" },
+                    "median": { "type": "number" },
+                    "sampleStdDev": { "type": "number" },
+                    "coefficientOfVariation": { "type": "number" },
+                    "min": { "type": "number" },
+                    "max": { "type": "number" }
+                  }
+                },
+                "metricStats": {
+                  "type": "array",
+                  "items": {
+                    "type": ["object", "null"],
+                    "x-order": [
+                      "samples",
+                      "mean",
+                      "median",
+                      "sampleStdDev",
+                      "coefficientOfVariation",
+                      "min",
+                      "max"
+                    ],
+                    "required": [
+                      "samples",
+                      "mean",
+                      "median",
+                      "sampleStdDev",
+                      "coefficientOfVariation",
+                      "min",
+                      "max"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "samples": { "type": "integer" },
+                      "mean": { "type": "number" },
+                      "median": { "type": "number" },
+                      "sampleStdDev": { "type": "number" },
+                      "coefficientOfVariation": { "type": "number" },
+                      "min": { "type": "number" },
+                      "max": { "type": "number" }
+                    }
+                  }
+                },
+                "contextPercentiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "x-order": ["available", "value"],
+                        "required": ["available", "value"],
+                        "additionalProperties": false,
+                        "properties": {
+                          "available": { "type": "boolean" },
+                          "value": { "type": ["number", "null"] }
+                        }
+                      }
+                    }
+                  }
+                },
+                "contextRaw": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "x-order": ["columns"],
+                    "required": ["columns"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "columns": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": { "type": "number" }
+                        }
+                      }
+                    }
+                  }
+                },
+                "raw": {
+                  "type": "object",
+                  "x-order": ["columns"],
+                  "required": ["columns"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "columns": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "metricLabels": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "counterLabels": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "counterStats": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "x-order": [
+                "samples",
+                "mean",
+                "median",
+                "sampleStdDev",
+                "coefficientOfVariation",
+                "min",
+                "max"
+              ],
+              "required": [
+                "samples",
+                "mean",
+                "median",
+                "sampleStdDev",
+                "coefficientOfVariation",
+                "min",
+                "max"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "samples": { "type": "integer" },
+                "mean": { "type": "number" },
+                "median": { "type": "number" },
+                "sampleStdDev": { "type": "number" },
+                "coefficientOfVariation": { "type": "number" },
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            }
+          },
+          "statisticValues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "x-order": ["name", "unit", "value"],
+              "required": ["name", "unit", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string" },
+                "unit": { "type": "string", "enum": ["TIME", "PERCENTAGE"] },
+                "value": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

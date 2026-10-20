@@ -1,0 +1,571 @@
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "detail/json_report.hpp"
+
+#include <sched.h>
+#include <simdjson.h>
+
+#include "detail/internal.hpp"
+#include "speedgun-ng/benchmark.hpp"
+#include "speedgun-ng/dbc.hpp"
+
+namespace sg::detail
+{
+namespace
+{
+
+using Builder = simdjson::builder::string_builder;
+
+// The schema the writer emits and the checker reads (FR-007).
+constexpr std::string_view kSchemaVersion = "1.0";
+
+// The builder is a low-level writer that emits no separator of its own,
+// so every object and array of the document opens a scope that puts one
+// comma before every entry after the first and closes the bracket the
+// scope opened.
+class JsonObjectWriter
+{
+public:
+  explicit JsonObjectWriter(Builder& builder) noexcept
+      : m_builder(builder)
+  {
+    m_builder.start_object();
+  }
+
+  JsonObjectWriter(const JsonObjectWriter&) = delete;
+  JsonObjectWriter& operator=(const JsonObjectWriter&) = delete;
+
+  ~JsonObjectWriter() noexcept { m_builder.end_object(); }
+
+  auto key(std::string_view name) noexcept -> void
+  {
+    if (!m_first) {
+      m_builder.append_comma();
+    }
+    m_first = false;
+    m_builder.escape_and_append_with_quotes(name);
+    m_builder.append_colon();
+  }
+
+private:
+  Builder& m_builder;
+  bool m_first = true;
+};
+
+class JsonArrayWriter
+{
+public:
+  explicit JsonArrayWriter(Builder& builder) noexcept
+      : m_builder(builder)
+  {
+    m_builder.start_array();
+  }
+
+  JsonArrayWriter(const JsonArrayWriter&) = delete;
+  JsonArrayWriter& operator=(const JsonArrayWriter&) = delete;
+
+  ~JsonArrayWriter() noexcept { m_builder.end_array(); }
+
+  auto item() noexcept -> void
+  {
+    if (!m_first) {
+      m_builder.append_comma();
+    }
+    m_first = false;
+  }
+
+private:
+  Builder& m_builder;
+  bool m_first = true;
+};
+
+// One key and one scalar value. The number path is the builder's, which
+// is `std::to_chars` at the shortest text that reads back the same
+// double, so the round trip of FR-011 rides on the vendored writer and
+// this tree writes no formatter of its own (D-09).
+auto put(Builder& builder,
+         JsonObjectWriter& object,
+         std::string_view key,
+         std::string_view value) noexcept -> void
+{
+  object.key(key);
+  builder.escape_and_append_with_quotes(value);
+}
+
+// A text the build hands over as a literal needs its own overload: the
+// boolean overload below would otherwise win the overload set, and the
+// document would hold `true` where it should hold the text.
+auto put(Builder& builder,
+         JsonObjectWriter& object,
+         std::string_view key,
+         const char* value) noexcept -> void
+{
+  put(builder, object, key, std::string_view {value});
+}
+
+auto put(Builder& builder,
+         JsonObjectWriter& object,
+         std::string_view key,
+         double value) noexcept -> void
+{
+  object.key(key);
+  builder.append(value);
+}
+
+auto put(Builder& builder,
+         JsonObjectWriter& object,
+         std::string_view key,
+         std::uint64_t value) noexcept -> void
+{
+  object.key(key);
+  builder.append(value);
+}
+
+auto put(Builder& builder,
+         JsonObjectWriter& object,
+         std::string_view key,
+         bool value) noexcept -> void
+{
+  object.key(key);
+  builder.append(value);
+}
+
+// A text the run may leave unset stands `null`, the one spelling the
+// reader answers back as the empty text (E-05, FR-025).
+auto putOrNull(Builder& builder,
+               JsonObjectWriter& object,
+               std::string_view key,
+               std::string_view value) noexcept -> void
+{
+  object.key(key);
+  if (value.empty()) {
+    builder.append_null();
+    return;
+  }
+  builder.escape_and_append_with_quotes(value);
+}
+
+void writeStatistics(Builder& builder, const sg::Statistics& stats)
+{
+  JsonObjectWriter object(builder);
+  put(builder, object, "samples", stats.samples);
+  put(builder, object, "mean", stats.mean);
+  put(builder, object, "median", stats.median);
+  put(builder, object, "sampleStdDev", stats.sampleStdDev);
+  put(builder, object, "coefficientOfVariation", stats.coefficientOfVariation);
+  put(builder, object, "min", stats.min);
+  put(builder, object, "max", stats.max);
+}
+
+// A summary the run reached over no sample stands `null`, the one rule
+// that decides the key at the row and at each metric alike (E-05).
+void writeStatisticsOrNull(Builder& builder,
+                           JsonObjectWriter& object,
+                           std::string_view key,
+                           const sg::Statistics& stats)
+{
+  object.key(key);
+  if (stats.samples == 0) {
+    builder.append_null();
+    return;
+  }
+  writeStatistics(builder, stats);
+}
+
+void writeMetricValue(Builder& builder,
+                      const sg::MetricValue& metric,
+                      std::string_view label)
+{
+  JsonObjectWriter object(builder);
+  put(builder, object, "label", label);
+  put(builder, object, "value", metric.value);
+  put(builder, object, "runningRatio", metric.runningRatio);
+  put(builder, object, "scaled", metric.scaled);
+  put(builder,
+      object,
+      "availability",
+      enumWord(kAvailabilityWords, std::to_underlying(metric.availability)));
+}
+
+// One rank of one column: the availability stands beside the value in
+// every case, and a rank the run could not answer carries `null` beside
+// a false flag, which is the pair the reader answers back the same way
+// (E-06, FR-015, FR-021, FR-025).
+void writePercentileCell(Builder& builder, const sg::PercentileValue& cell)
+{
+  JsonObjectWriter object(builder);
+  put(builder, object, "available", cell.available);
+  object.key("value");
+  if (cell.available) {
+    builder.append(cell.value);
+    return;
+  }
+  builder.append_null();
+}
+
+void writeFit(Builder& builder, const sg::FitRow& fit)
+{
+  JsonObjectWriter object(builder);
+  put(builder, object, "quantity", fit.quantity);
+  put(builder, object, "curve", fit.curve);
+  put(builder, object, "coefficient", fit.coefficient);
+  put(builder, object, "rmsPercent", fit.rmsPercent);
+  put(builder, object, "scalesWithUnit", fit.scalesWithUnit);
+  putOrNull(builder, object, "reason", fit.reason);
+}
+
+void writeRawColumns(Builder& builder, const RowRaw& raw)
+{
+  JsonObjectWriter object(builder);
+  object.key("columns");
+  JsonArrayWriter columns(builder);
+  for (const auto& column : raw.columns) {
+    columns.item();
+    JsonArrayWriter values(builder);
+    for (const double value : column) {
+      values.item();
+      builder.append(value);
+    }
+  }
+}
+
+void writeRow(Builder& builder,
+              const BenchmarkResult& result,
+              std::size_t position,
+              const sg::ResultRow& row,
+              const RowRaw& raw,
+              const std::vector<RowRaw>& contextRaw)
+{
+  JsonObjectWriter object(builder);
+  put(builder,
+      object,
+      "kind",
+      enumWord(kRowKindWords, std::to_underlying(row.kind)));
+  putOrNull(builder, object, "label", row.label);
+  put(builder, object, "iterations", row.iterations);
+  put(builder, object, "timePerIterationNs", row.timePerIterationNs);
+  put(builder, object, "cpuTimePerIterationNs", row.cpuTimePerIterationNs);
+  put(builder, object, "endpointSamples", row.endpointSamples);
+  put(builder, object, "pauseSamplesFolded", row.pauseSamplesFolded);
+  put(builder,
+      object,
+      "timeAvailability",
+      enumWord(kAvailabilityWords, std::to_underlying(row.timeAvailability)));
+  object.key("metrics");
+  {
+    JsonArrayWriter metrics(builder);
+    for (std::size_t index = 0; index < row.metrics.size(); ++index) {
+      metrics.item();
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+      writeMetricValue(builder, row.metrics[index], result.metricLabels[index]);
+    }
+  }
+  object.key("counters");
+  {
+    JsonArrayWriter counters(builder);
+    for (const double value : row.counters) {
+      counters.item();
+      builder.append(value);
+    }
+  }
+  putOrNull(builder, object, "counterDisclosure", row.counterDisclosure);
+  object.key("fit");
+  if (row.fit.quantity.empty()) {
+    builder.append_null();
+  } else {
+    writeFit(builder, row.fit);
+  }
+  put(builder, object, "overheadFloorNs", row.overheadFloorNs);
+  object.key("percentiles");
+  {
+    JsonArrayWriter columns(builder);
+    for (const auto& column : row.percentiles) {
+      columns.item();
+      JsonArrayWriter points(builder);
+      for (const auto& cell : column) {
+        points.item();
+        writePercentileCell(builder, cell);
+      }
+    }
+  }
+  // FR-015: the answer of each context of a threaded row stands beside
+  // the merged answer, in context order. The flattened field of the
+  // result holds one block of `contextCount` entries per row that
+  // captured chunks, so a row past the last block captured none.
+  const std::size_t contextCount = result.contexts.size();
+  if (contextCount > 0
+      && (position + 1) * contextCount <= result.contextPercentiles.size())
+  {
+    object.key("contextPercentiles");
+    JsonArrayWriter contexts(builder);
+    for (std::size_t index = 0; index < contextCount; ++index) {
+      contexts.item();
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+      const auto& columnsOfContext =
+          result.contextPercentiles[(position * contextCount) + index];
+      JsonArrayWriter columns(builder);
+      for (const auto& column : columnsOfContext) {
+        columns.item();
+        JsonArrayWriter points(builder);
+        for (const auto& cell : column) {
+          points.item();
+          writePercentileCell(builder, cell);
+        }
+      }
+    }
+  }
+  if (!contextRaw.empty()) {
+    object.key("contextRaw");
+    JsonArrayWriter contexts(builder);
+    for (const auto& context : contextRaw) {
+      contexts.item();
+      writeRawColumns(builder, context);
+    }
+  }
+  put(builder, object, "chunkCount", row.chunkCount);
+  put(builder, object, "chunkIterations", row.chunkIterations);
+  writeStatisticsOrNull(builder, object, "timeStats", row.timeStats);
+  object.key("metricStats");
+  {
+    JsonArrayWriter stats(builder);
+    for (const auto& stat : row.metricStats) {
+      stats.item();
+      if (stat.samples == 0) {
+        builder.append_null();
+        continue;
+      }
+      writeStatistics(builder, stat);
+    }
+  }
+  if (!raw.columns.empty()) {
+    object.key("raw");
+    writeRawColumns(builder, raw);
+  }
+}
+
+void writeEntry(Builder& builder, const ReportData& data, std::size_t index)
+{
+  const BenchmarkResult& result = data.results[index];
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  const std::vector<RowRaw>& rowRaw = data.rowRaw[index];
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  const std::vector<std::vector<RowRaw>>& contextRaw = data.contextRaw[index];
+  JsonObjectWriter object(builder);
+  put(builder, object, "name", result.name);
+  put(builder, object, "suite", result.suite);
+  put(builder, object, "case", result.caseName);
+  put(builder,
+      object,
+      "outcome",
+      enumWord(kOutcomeWords, std::to_underlying(result.outcome)));
+  putOrNull(builder, object, "reason", result.reason);
+  put(builder, object, "hideRepetitionRows", result.hideRepetitionRows);
+  put(builder,
+      object,
+      "timeUnit",
+      enumWord(kTimeUnitWords, std::to_underlying(result.timeUnit)));
+  put(builder, object, "primaryIsCpu", result.primaryIsCpu);
+  put(builder, object, "pauseSamplesFolded", result.pauseSamplesFolded);
+  object.key("percentilePoints");
+  {
+    JsonArrayWriter points(builder);
+    for (const double point : result.percentilePoints) {
+      points.item();
+      builder.append(point);
+    }
+  }
+  object.key("contexts");
+  {
+    JsonArrayWriter contexts(builder);
+    for (const auto& context : result.contexts) {
+      contexts.item();
+      JsonObjectWriter record(builder);
+      put(builder,
+          record,
+          "waitMode",
+          enumWord(kWaitModeWords, std::to_underlying(context.waitMode)));
+      put(builder, record, "placement", context.placement);
+      put(builder, record, "applied", context.applied);
+    }
+  }
+  object.key("noiseWarning");
+  if (const auto warning = noiseWarningOf(result); warning.has_value()) {
+    JsonObjectWriter noise(builder);
+    put(builder, noise, "spinning", warning->spinning);
+    put(builder, noise, "runnableCpus", warning->runnableCpus);
+    put(builder, noise, "sharesOneCpu", warning->sharesOneCpu);
+  } else {
+    builder.append_null();
+  }
+  object.key("rows");
+  {
+    JsonArrayWriter rows(builder);
+    for (std::size_t position = 0; position < result.rows.size(); ++position) {
+      rows.item();
+      // The two empty column sets a row without retained chunk values
+      // reads back as, so the absent key needs no branch of its own.
+      static const RowRaw kNoRaw {};
+      static const std::vector<RowRaw> kNoContextRaw {};
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+      const RowRaw& raw = position < rowRaw.size() ? rowRaw[position] : kNoRaw;
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+      const std::vector<RowRaw>& contexts =
+          position < contextRaw.size() ? contextRaw[position] : kNoContextRaw;
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+      writeRow(builder, result, position, result.rows[position], raw, contexts);
+    }
+  }
+  object.key("metricLabels");
+  {
+    JsonArrayWriter labels(builder);
+    for (const auto& label : result.metricLabels) {
+      labels.item();
+      builder.escape_and_append_with_quotes(label);
+    }
+  }
+  object.key("counterLabels");
+  {
+    JsonArrayWriter labels(builder);
+    for (const auto& label : result.counterLabels) {
+      labels.item();
+      builder.escape_and_append_with_quotes(label);
+    }
+  }
+  object.key("counterStats");
+  {
+    JsonArrayWriter stats(builder);
+    for (const auto& stat : result.counterStats) {
+      stats.item();
+      writeStatistics(builder, stat);
+    }
+  }
+  object.key("statisticValues");
+  {
+    JsonArrayWriter values(builder);
+    for (const auto& value : result.statisticValues) {
+      values.item();
+      JsonObjectWriter record(builder);
+      put(builder, record, "name", value.name);
+      put(builder,
+          record,
+          "unit",
+          enumWord(kStatUnitWords, std::to_underlying(value.unit)));
+      put(builder, record, "value", value.value);
+    }
+  }
+}
+
+// The count of cpus the noise condition compares the spinning contexts
+// against: the affinity mask of this process, which a cpuset, a taskset
+// or a container narrows, and the host count of the standard library
+// where that read answers nothing (FR-026). The read stands here and the
+// choice stands in `selectRunnableCpuCount`, where a test drives each
+// answer. The read names no clock and samples nothing (FR-027).
+auto runnableCpuCount() -> std::uint64_t
+{
+  cpu_set_t cpus {};
+  CPU_ZERO(&cpus);
+  const bool answered = sched_getaffinity(0, sizeof(cpus), &cpus) == 0;
+  return detail::selectRunnableCpuCount(
+      answered,
+      static_cast<std::uint64_t>(CPU_COUNT(&cpus)),
+      static_cast<std::uint64_t>(std::thread::hardware_concurrency()));
+}
+
+}  // namespace
+
+auto noiseWarningOf(const BenchmarkResult& result)
+    -> std::optional<NoiseWarning>
+{
+  auto spinning = std::uint64_t {0};
+  auto pinned = std::vector<std::string_view> {};
+  for (const auto& context : result.contexts) {
+    if (context.waitMode != sg::WaitMode::SPIN) {
+      continue;
+    }
+    ++spinning;
+    if (context.placement != kNoPinPlacement
+        && context.placement != kUnappliedPlacement)
+    {
+      pinned.push_back(context.placement);
+    }
+  }
+  // Sorting stands equal placement fields side by side, so one adjacent
+  // comparison answers whether two spinning contexts name one cpu index.
+  // shortcut: one index spelled two ways, as with a leading zero, reads
+  // as two indices; the default placement function renders digits with
+  // `std::to_chars`, which spells an index one way.
+  std::ranges::sort(pinned);
+  const NoiseWarning warning {
+      .spinning = spinning,
+      .runnableCpus = runnableCpuCount(),
+      .sharesOneCpu = std::ranges::adjacent_find(pinned) != pinned.end(),
+  };
+  if (!warning.sharesOneCpu && warning.spinning <= warning.runnableCpus) {
+    return std::nullopt;
+  }
+  return warning;
+}
+
+auto writeReport(const std::string& path, const ReportData& data) -> bool
+{
+  SG_REQUIRE(!path.empty(),
+             "writeReport takes the path the option scanner settled "
+             "(specs/023 contracts/report-writer.md)");
+  SG_REQUIRE(data.rowRaw.size() == data.results.size()
+                 && data.contextRaw.size() == data.results.size(),
+             "the raw columns of a report stand beside every result of it "
+             "(specs/023 E-01)");
+  Builder builder;
+  {
+    JsonObjectWriter root(builder);
+    root.key("schemaVersion");
+    builder.append(kSchemaVersion);
+    root.key("speedgun");
+    {
+      JsonObjectWriter speedgun(builder);
+      put(builder, speedgun, "version", SG_PROJECT_VERSION);
+      put(builder, speedgun, "buildType", SG_BUILD_TYPE);
+    }
+    root.key("benchmarks");
+    {
+      JsonArrayWriter entries(builder);
+      for (std::size_t index = 0; index < data.results.size(); ++index) {
+        entries.item();
+        writeEntry(builder, data, index);
+      }
+    }
+  }
+
+  const auto text = builder.view();
+  SG_ENSURE(text.has_value(),
+            "the builder's buffer holds the document it wrote");
+  std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+  if (!stream.is_open()) {
+    std::fprintf(stderr,
+                 "error: the report file '%s' cannot be opened: %s\n",
+                 path.c_str(),
+                 std::strerror(errno));
+    return false;
+  }
+  stream.write(text->data(), static_cast<std::streamsize>(text->size()));
+  stream.close();
+  if (stream.fail()) {
+    std::fprintf(stderr,
+                 "error: the report file '%s' could not be written: %s\n",
+                 path.c_str(),
+                 std::strerror(errno));
+    return false;
+  }
+  return true;
+}
+
+}  // namespace sg::detail

@@ -11,6 +11,7 @@
 #include <sched.h>
 
 #include "detail/internal.hpp"
+#include "detail/json_report.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/execution_context.hpp"
@@ -115,16 +116,6 @@ auto printFitRow(const BenchmarkResult& result,
               row.fit.reason.c_str());
 }
 
-// The placement field a context carries when it pins to no cpu. The
-// disclosure line prints this word where a pinned context prints its cpu
-// index (FR-005, FR-025).
-constexpr std::string_view kNoPinPlacement = "NO_PIN";
-
-// The placement field of a slot the placement function did not land. A
-// spinning context carrying it stands on no cpu, so it joins neither the
-// pinned set nor the shared-cpu pair of the noise condition (FR-026).
-constexpr std::string_view kUnappliedPlacement = "UNAPPLIED";
-
 // The wait mode names of the disclosure line, indexed by the enumerator,
 // the table shape the availability names above take (FR-025).
 constexpr std::array<const char*, 3> kWaitModeNames {
@@ -195,64 +186,20 @@ auto printContextDisclosure(const BenchmarkResult& result) -> void
   std::printf("\n");
 }
 
-// The count of cpus the report compares the spinning contexts against:
-// the affinity mask of the calling thread, which a cpuset, a taskset or a
-// container narrows, and the host count of the standard library where that
-// read answers nothing (FR-026). The read stands here and the choice stands
-// in `selectRunnableCpuCount`, where a test drives each answer (FR-026).
-auto runnableCpuCount() -> std::uint64_t
-{
-  cpu_set_t cpus {};
-  CPU_ZERO(&cpus);
-  const bool answered = sched_getaffinity(0, sizeof(cpus), &cpus) == 0;
-  return detail::selectRunnableCpuCount(
-      answered,
-      static_cast<std::uint64_t>(CPU_COUNT(&cpus)),
-      static_cast<std::uint64_t>(std::thread::hardware_concurrency()));
-}
-
-// FR-026, FR-028: the noise warning of one result. It prints when two
-// spinning contexts of that result name one cpu index, or when the
-// spinning contexts of that result outnumber the cpus this process may
-// run on, and prints nothing at all when neither holds.
-//
-// The runnable cpu count is the one host fact the check reads, and the
-// check reads it once, where its decision needs it. The mask
-// `sched_getaffinity` reports is that fact: a process confined to part
-// of the machine has exactly that much room to spin in, and the online
-// count told it nothing. The hardware concurrency count of the standard
-// library stands in when the call fails. The covering test reads the
-// same source, so the printed number and the trigger agree (D-08). The
-// read names no clock and samples nothing (FR-027, FR-039).
+// FR-026, FR-028: the noise warning of one result. The condition and the
+// three fields of its account stand in `noiseWarningOf`, which the
+// document writes beside the same result (specs/023 FR-017, D-11); this
+// line prints the account and adds nothing to it.
 auto printNoiseWarning(const BenchmarkResult& result) -> void
 {
-  auto spinning = std::uint64_t {0};
-  auto pinned = std::vector<std::string_view> {};
-  for (const auto& context : result.contexts) {
-    if (context.waitMode != sg::WaitMode::SPIN) {
-      continue;
-    }
-    ++spinning;
-    if (context.placement != kNoPinPlacement
-        && context.placement != kUnappliedPlacement)
-    {
-      pinned.push_back(context.placement);
-    }
+  const auto warning = noiseWarningOf(result);
+  if (!warning.has_value()) {
+    return;
   }
-  // Sorting stands equal placement fields side by side, so one adjacent
-  // comparison answers whether two spinning contexts name one cpu index.
-  // shortcut: one index spelled two ways, as with a leading zero, reads
-  // as two indices; the default placement function renders digits with
-  // `std::to_chars`, which spells an index one way.
-  std::ranges::sort(pinned);
-  const bool sharesOneCpu = std::ranges::adjacent_find(pinned) != pinned.end();
-  const auto runnableCpus = runnableCpuCount();
-  if (sharesOneCpu || spinning > runnableCpus) {
-    std::printf(
-        "warning: spinning contexts oversubscribed (%llu spin, " "%llu cpus)\n",
-        static_cast<unsigned long long>(spinning),
-        static_cast<unsigned long long>(runnableCpus));
-  }
+  std::printf(
+      "warning: spinning contexts oversubscribed (%llu spin, " "%llu cpus)\n",
+      static_cast<unsigned long long>(warning->spinning),
+      static_cast<unsigned long long>(warning->runnableCpus));
 }
 
 }  // namespace

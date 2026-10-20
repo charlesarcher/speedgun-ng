@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <functional>
 #include <initializer_list>
 #include <memory>
@@ -500,6 +501,60 @@ struct BenchmarkResult
   // context order, each holding that context's own percentiles in the
   // column order of the merged row. Empty for a single-context run.
   std::vector<std::vector<std::vector<PercentileValue>>> contextPercentiles;
+};
+
+/**
+ * @brief The chunk content a JSON report carries (specs/023 E-01,
+ * FR-029).
+ *
+ * `NONE` writes the ranks the run computed and no chunk value; `CHUNKS`
+ * writes the chunk values themselves beside them. `CHUNKS` also turns
+ * the chunk capture on for a run whose percentile output stands off, so
+ * the file can hold values the console never ranked (FR-020).
+ */
+enum class RawContent : std::uint8_t
+{
+  NONE,
+  CHUNKS
+};
+
+/**
+ * @brief The retained chunk columns of one row or one context
+ * (specs/023 E-02).
+ *
+ * One entry per reported column, in the column order the row prints:
+ * the primary time, then the time column the primary is not, then each
+ * metric column, then each user counter column. Each inner vector holds
+ * that column's per-iteration chunk values in chunk order, the same
+ * numbers the percentile ranks are computed from and no further
+ * scaling. A column the run could not fold carries an empty inner
+ * vector, and every non-empty one holds `ResultRow::chunkCount` values
+ * (specs/023 E-02).
+ */
+struct RowRaw
+{
+  std::vector<std::vector<double>> columns;
+};
+
+/**
+ * @brief The value the harness writes as one JSON report and reads back
+ * (specs/023 E-01).
+ *
+ * `results` holds one entry per benchmark in run order, the order the
+ * console prints them. `rowRaw[i][k]` carries the chunk columns of row
+ * `k` of `results[i]`, and `contextRaw[i][k][j]` those of context `j` of
+ * that row, so both answer a threaded run whose every repetition
+ * captured its own chunks. Both stand empty when the run retained no
+ * chunk values, which is what the raw setting at `NONE` leaves behind.
+ * Each carries one outer entry per entry of `results`, so a reader
+ * indexes by result with no search (specs/023 E-01); `loadReport`
+ * answers that pairing as its postcondition.
+ */
+struct ReportData
+{
+  std::vector<BenchmarkResult> results;
+  std::vector<std::vector<RowRaw>> rowRaw;
+  std::vector<std::vector<std::vector<RowRaw>>> contextRaw;
 };
 
 /**
@@ -2251,6 +2306,29 @@ SPEEDGUN_NG_EXPORT auto setDefaultTimeUnit(TimeUnit timeUnit) -> void;
  *       contract (FR-036)
  */
 SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
+
+/**
+ * @brief Read one JSON report document this harness wrote (specs/023
+ * FR-022, D-08).
+ *
+ * The call answers the same result types the run produced, so handing
+ * the value back to the writer with the raw setting the file carries
+ * gives the same bytes the file already holds (FR-026). A field the
+ * format allows to stand absent answers the empty value the field
+ * documents.
+ *
+ * @pre `path` is not empty: an empty path is a contract violation. A
+ *     path the file system refuses is an input error the call answers
+ *     (specs/023 contracts/report-loader.md)
+ * @post when the call answers a value, that value holds one entry per
+ *       benchmark of the document in document order, with the raw chunk
+ *       columns of the document in its `rowRaw` and `contextRaw` fields
+ * @post when the call answers an error, the string names the JSON
+ *       pointer of the fault and what the reader expected there; no
+ *       error form throws to the caller or aborts (FR-023, FR-024)
+ */
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto loadReport(const std::string& path)
+    -> std::expected<ReportData, std::string>;
 
 /**
  * @brief Register `fn` at namespace scope before `main` begins, under

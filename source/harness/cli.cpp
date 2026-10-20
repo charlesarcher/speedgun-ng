@@ -18,6 +18,7 @@
 #include <getopt.h>
 
 #include "detail/internal.hpp"
+#include "detail/json_report.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
@@ -304,6 +305,8 @@ auto speedgunMain(int argc, char** argv) -> int
       {"no-percentiles", no_argument, nullptr, 'P'},
       {"placement", required_argument, nullptr, 'A'},
       {"topology", no_argument, nullptr, 'T'},
+      {"json", required_argument, nullptr, 'j'},
+      {"json-raw", required_argument, nullptr, 'J'},
       {nullptr, 0, nullptr, 0},
   };
 
@@ -358,6 +361,29 @@ auto speedgunMain(int argc, char** argv) -> int
         break;
       case 'T':
         options.topologyMode = true;
+        break;
+      case 'j':
+        // FR-030: an empty path is a usage error, and it reports before
+        // anything runs.
+        if (std::string_view(optarg).empty()) {
+          std::fprintf(stderr,
+                       "--json: the path the option names stands " "empty\n");
+          return 2;
+        }
+        options.jsonPath = optarg;
+        break;
+      case 'J':
+        // FR-029: `chunks` is the one content the option names besides
+        // `none`; any other word is a usage error (FR-034).
+        if (std::string_view(optarg) == "chunks") {
+          options.rawContent = RawContent::CHUNKS;
+        } else if (std::string_view(optarg) == "none") {
+          options.rawContent = RawContent::NONE;
+        } else {
+          std::fprintf(stderr, "--json-raw: 'chunks' and 'none' are the "
+                               "values the option names\n");
+          return 2;
+        }
         break;
       default:
         std::fprintf(stderr, "unknown option; see the option table of "
@@ -472,6 +498,10 @@ auto speedgunMain(int argc, char** argv) -> int
   // default semantic compiles away, so a consumer build needs the marker.
   [[maybe_unused]] bool anyFailed = false;
   [[maybe_unused]] bool anyInterrupted = false;
+  // specs/023 FR-001: the values of the batch gather beside the rows the
+  // console prints, and the document writer reads no clock and samples
+  // nothing on its way to the file (FR-005).
+  ReportData report;
   detail::Runner runner(options);
   // The loop variable keeps the spelling `entry`: `test/cli_shape.sh`
   // locates this loop by the `runner.run(*entry)` line and reads the
@@ -482,9 +512,17 @@ auto speedgunMain(int argc, char** argv) -> int
     // summarizes.
     if (const auto fit = runner.fitForFamilyEnd(entry)) {
       detail::printResult(*fit);
+      // FR-002: a fit stands as its own entry of the document, beside
+      // the entries of the runs it summarizes.
+      report.results.push_back(*fit);
+      report.rowRaw.emplace_back();
+      report.contextRaw.emplace_back();
     }
     const auto result = runner.run(*entry);
     detail::printResult(result);
+    report.results.push_back(result);
+    report.rowRaw.push_back(runner.rowRaw().back());
+    report.contextRaw.push_back(runner.contextRaw().back());
     // FR-036: the flag is read once per pass, so the status update, the
     // per-pass check and the break all see one instant of the flag.
     const bool interrupted = detail::interruptFlag().load();
@@ -509,9 +547,23 @@ auto speedgunMain(int argc, char** argv) -> int
   // rows.
   if (const auto fit = runner.fitForFamilyEnd(nullptr)) {
     detail::printResult(*fit);
+    report.results.push_back(*fit);
+    report.rowRaw.emplace_back();
+    report.contextRaw.emplace_back();
   }
 
-  SG_ENSURE((status != 0) == (anyFailed || anyInterrupted),
+  // FR-030: a document the file system refused reports on stderr and
+  // leaves the exit status at the usage error the table names, which
+  // outranks the 1 a failed benchmark leaves.
+  [[maybe_unused]] bool reportFailed = false;
+  if (!options.jsonPath.empty()) {
+    if (!detail::writeReport(options.jsonPath, report)) {
+      reportFailed = true;
+      status = 2;
+    }
+  }
+
+  SG_ENSURE((status != 0) == (anyFailed || anyInterrupted || reportFailed),
             "the exit status follows the table of contracts/cli.md (FR-036)");
 
   return status;

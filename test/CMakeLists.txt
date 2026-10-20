@@ -564,6 +564,38 @@ target_include_directories(harness_percentile_test PRIVATE ${CMAKE_SOURCE_DIR}/s
 target_compile_features(harness_percentile_test PRIVATE cxx_std_23)
 add_test(NAME harness_percentile_test COMMAND harness_percentile_test)
 
+# The written document against the run it carries (T016, T021; US1,
+# FR-001, FR-003, FR-029, FR-031, SC-001, SC-003).
+add_executable(harness_json_report_test source/harness_json_report_test.cpp)
+target_link_libraries(harness_json_report_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_json_report_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_json_report_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_json_report_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
+add_test(NAME harness_json_report_test COMMAND harness_json_report_test)
+
+# The schema file and its checker over a written document and five planted
+# disagreements (T017; US1, FR-008, FR-010, D-05).
+add_executable(harness_json_schema_test source/harness_json_schema_test.cpp)
+target_link_libraries(harness_json_schema_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_json_schema_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_definitions(
+    harness_json_schema_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
+target_compile_features(harness_json_schema_test PRIVATE cxx_std_23)
+add_test(NAME harness_json_schema_test COMMAND harness_json_schema_test)
+
+# The reader over the writer's own file, and the version rule (T022, T023,
+# T026; US2, FR-010, FR-011, FR-022, FR-023, FR-026, SC-002, SC-010).
+add_executable(harness_json_load_test source/harness_json_load_test.cpp)
+target_link_libraries(harness_json_load_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_json_load_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_json_load_test PRIVATE cxx_std_23)
+add_test(NAME harness_json_load_test COMMAND harness_json_load_test)
+
 # The command line over a scripted provider (T020; US2, FR-009, FR-015,
 # FR-021, FR-022, FR-034, FR-036, SC-007).
 add_executable(harness_cli_test source/harness_cli_test.cpp)
@@ -1076,6 +1108,21 @@ if(TARGET docs_percentiles)
         --example percentiles
   )
   set_tests_properties(report_shape_percentiles_sample PROPERTIES TIMEOUT 120)
+endif()
+
+if(TARGET docs_json_reports)
+  # The guide page carries the recorded run of the JSON report example, so the
+  # selector names which recorded run this invocation owns. The fold checks the
+  # recorded file against a real run of the example (023 FR-038, SC-011).
+  add_test(
+      NAME report_shape_json_reports_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_json_reports>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example json_reports
+  )
+  set_tests_properties(report_shape_json_reports_sample PROPERTIES TIMEOUT 120)
 endif()
 
 # Each docs example is a complete program whose regions the page quotes, so the
