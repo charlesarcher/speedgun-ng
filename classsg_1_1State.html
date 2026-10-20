@@ -165,6 +165,14 @@
               <span class="m-doc-wrap-bumper">auto <a href="#a32d876db2c92720f3c77b449cd38011f" class="m-doc">rangeCount</a>(</span><span class="m-doc-wrap">) const -&gt; std::size_t <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>The argument count of the running instance (FR-008).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a1fdacb3267ebe1a1bb8ae0bb38c42f2f" class="m-doc">threadIndex</a>(</span><span class="m-doc-wrap">) const -&gt; int <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The index of the context that runs this body (FR-017).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a115190f38c8e17076e1b9d4c5296eeba" class="m-doc">threads</a>(</span><span class="m-doc-wrap">) const -&gt; int <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The thread count of the running instance (FR-017).</dd>
           </dl>
         </section>
         <section>
@@ -288,6 +296,20 @@
             </h3>
             <p>The argument count of the running instance (FR-008).</p>
 <p>A family that states no family call has one instance with zero arguments, and this reports that zero.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a1fdacb3267ebe1a1bb8ae0bb38c42f2f"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">int sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a1fdacb3267ebe1a1bb8ae0bb38c42f2f" class="m-doc-self">threadIndex</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The index of the context that runs this body (FR-017).</p>
+<p>A threaded instance dispatches one body to each of its contexts and the index names the one this state belongs to, from <code>0</code> to <code><a href="#a115190f38c8e17076e1b9d4c5296eeba" class="m-doc">threads()</a> - 1</code>. A run on a single context reports <code>0</code> (FR-017, E-05).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a115190f38c8e17076e1b9d4c5296eeba"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">int sg::<wbr />State::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a115190f38c8e17076e1b9d4c5296eeba" class="m-doc-self">threads</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The thread count of the running instance (FR-017).</p>
+<p>The count is the context count of the attempt: the number of bodies the harness dispatched, each on its own context. A benchmark that called no thread method runs on one context and reads 1 (FR-017, FR-022). No count of a running instance stands below 1 (FR-024).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
         </section>
       </div>

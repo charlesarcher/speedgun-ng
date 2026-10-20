@@ -119,6 +119,10 @@
             </dt>
             <dd>One repetition row or one aggregate row (E-06).</dd>
             <dt>
+              struct <a href="structsg_1_1ContextDisclosure.html" class="m-doc">ContextDisclosure</a>
+            </dt>
+            <dd>The policy disclosure of one context of a threaded run (E-07, FR-025).</dd>
+            <dt>
               struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">BenchmarkResult</a>
             </dt>
             <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
@@ -135,9 +139,50 @@
             </dt>
             <dd>The base of a fixture: the <code><a href="classsg_1_1Fixture.html#aae6cacc771f9db0ad29d245cab760dae" class="m-doc">setUp</a></code> and <code><a href="classsg_1_1Fixture.html#a3023d0249454a5afd76b3e28b8126161" class="m-doc">tearDown</a></code> pair around each run (E-06, FR-015).</dd>
             <dt>
+              class <a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a>
+            </dt>
+            <dd>The harness-owned view of one threaded attempt and the contexts it runs on (FR-021, E-08).</dd>
+            <dt>
               class <a href="classsg_1_1BenchmarkHandle.html" class="m-doc">BenchmarkHandle</a>
             </dt>
             <dd>The registration result: the caller&#x27;s view of one registry entry (E-02).</dd>
+            <dt>
+              struct <a href="structsg_1_1ContextId.html" class="m-doc">ContextId</a>
+            </dt>
+            <dd>The identity of one live execution context (FR-002, FR-045).</dd>
+            <dt>
+              struct <a href="structsg_1_1PlacementSlot.html" class="m-doc">PlacementSlot</a>
+            </dt>
+            <dd>Where a context&#x27;s thread runs: no pin, or one cpu index (FR-005, FR-045).</dd>
+            <dt>
+              struct <a href="structsg_1_1ContextPolicy.html" class="m-doc">ContextPolicy</a>
+            </dt>
+            <dd>The two choices one context makes at creation, fixed for its life (E-02, FR-005, FR-007).</dd>
+            <dt>
+              struct <a href="structsg_1_1PlacementResult.html" class="m-doc">PlacementResult</a>
+            </dt>
+            <dd>What the installed placement function did with one slot (FR-005, SC-05).</dd>
+            <dt>
+              class <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>
+            </dt>
+            <dd>One context: one thread, its event loop, its inbox, and its policy (E-01, FR-001).</dd>
+            <dt>
+              class <a href="classsg_1_1StopToken.html" class="m-doc">StopToken</a>
+            </dt>
+            <dd>The running work item&#x27;s view of the stop request (FR-011, FR-045).</dd>
+            <dt>
+              class <a href="classsg_1_1WorkContext.html" class="m-doc">WorkContext</a>
+            </dt>
+            <dd>What a running work item receives (E-03, FR-011).</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;WorkItem Item&gt;</div>
+              class <a href="classsg_1_1WorkNode.html" class="m-doc">WorkNode</a>
+            </dt>
+            <dd>The caller-owned carrier of one typed work item (E-03, FR-009).</dd>
+            <dt>
+              class <a href="classsg_1_1ContextBarrier.html" class="m-doc">ContextBarrier</a>
+            </dt>
+            <dd>The round a fixed set of participants meets on (E-04, FR-014, FR-015).</dd>
           </dl>
         </section>
         <section id="enum-members">
@@ -194,6 +239,19 @@
               <a href="#af5b0524687a31698bda57e22cf2af331a008f6cdd0c190839e9885cf9f9e2a652" class="m-doc">AUTOMATIC</a> }</span>
             </dt>
             <dd>The curve class a complexity fit tries or keeps (FR-019, FR-020).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#aa3fb9e24a0f554081c7ed820b9d71565" class="m-doc">WaitMode</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#aa3fb9e24a0f554081c7ed820b9d71565a01518642fd172918ac4e6fa78bbb3164" class="m-doc">SPIN</a>,
+              <a href="#aa3fb9e24a0f554081c7ed820b9d71565a18e25ac6cc28c2b91bce1fbe629b682a" class="m-doc">YIELD</a>,
+              <a href="#aa3fb9e24a0f554081c7ed820b9d71565a4d34f53389ed7f28ca91fc31ea360a66" class="m-doc">BLOCK</a> }</span>
+            </dt>
+            <dd>How a context waits while its inbox stands empty (FR-004).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a08390e538cfedd2c89404e9a8d3f5351" class="m-doc">WorkNodeState</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a08390e538cfedd2c89404e9a8d3f5351ac69f06e1a9b016d133907b4e5f5864d2" class="m-doc">PENDING</a>,
+              <a href="#a08390e538cfedd2c89404e9a8d3f5351a43491564ebcfd38568918efbd6e840fd" class="m-doc">RUNNING</a>,
+              <a href="#a08390e538cfedd2c89404e9a8d3f5351a2ba22e58ca17bb728d522bba36cf8350" class="m-doc">DONE</a>,
+              <a href="#a08390e538cfedd2c89404e9a8d3f5351a09d4d696b4e935115b9313e3c412509a" class="m-doc">STOPPED</a> }</span>
+            </dt>
+            <dd>The completion state of one work node (FR-009, FR-045, FR-049).</dd>
           </dl>
         </section>
         <section id="typedef-members">
@@ -207,6 +265,14 @@
               using <a href="#adf1778775ad465583cb7f83358ee9a28" class="m-doc">BigOFun</a> = std::function&lt;double(double n)&gt;
             </dt>
             <dd>The curve function a family supplies for its complexity fit (FR-020).</dd>
+            <dt>
+              using <a href="#a15e2db755c2305a76360f5e964257460" class="m-doc">ThreadRunnerFn</a> = std::function&lt;void(<a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a>&amp;)&gt;
+            </dt>
+            <dd>The dispatch function a family supplies for its threaded runs (FR-021).</dd>
+            <dt>
+              using <a href="#ac9b6856e8188b41b991cb19a1741caec" class="m-doc">PlacementFn</a> = <a href="structsg_1_1PlacementResult.html" class="m-doc">PlacementResult</a>(*)(const <a href="structsg_1_1PlacementSlot.html" class="m-doc">PlacementSlot</a>&amp;slot, std::thread::native_handle_type thread)
+            </dt>
+            <dd>The one placement call a context makes at thread start (FR-005, D-04).</dd>
           </dl>
         </section>
         <section id="func-members">
@@ -278,6 +344,20 @@
             </dt>
             <dd>Run the registered benchmarks named by the command line and print the report (FR-033).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ae376244899f5567ea4fbcc99ce7dd8ac" class="m-doc">currentContext</a>(</span><span class="m-doc-wrap">) -&gt; std::optional&lt;<a href="structsg_1_1ContextId.html" class="m-doc">ContextId</a>&gt;</span>
+            </dt>
+            <dd>The identity of the context the calling thread runs (FR-002).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">void <a href="#a06e3cd63600af4da4802855b639976b9" class="m-doc">setPlacementFunction</a>(</span><span class="m-doc-wrap"><a href="#ac9b6856e8188b41b991cb19a1741caec" class="m-doc">PlacementFn</a> function)</span>
+            </dt>
+            <dd>Install the placement function every context calls at thread start (FR-005, D-04).</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;WorkItem Item&gt;</div>
+              <span class="m-doc-wrap-bumper">void <a href="#a63a4e3ff12d02c9ce66ba9b03ab403b2" class="m-doc">dispatch</a>(</span><span class="m-doc-wrap"><a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context,
+              <a href="classsg_1_1WorkNode.html" class="m-doc">WorkNode</a>&lt;Item&gt;&amp; node)</span>
+            </dt>
+            <dd>Hand <code>node</code> to <code>context</code> and return without waiting (FR-010, FR-050).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#ad3d06112deede02f7594c60d0b39dc5f" class="m-doc">simulationStart</a>(</span><span class="m-doc-wrap">) -&gt; SPEEDGUN_NG_EXPORT void <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>Emits the marker sequence an attached tracer watches for, so collection begins at this point in the run.</dd>
@@ -296,6 +376,10 @@
             <dd><span></span></dd>
             <dt>
               std::size_t <a href="#a3823e5b619cb7813d3f6436d0040aa50" class="m-doc">kMaxCounterNameBytes</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#a9eba5764189804281c74c00259bbcbdc" class="m-doc">kNoPin</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd><span></span></dd>
             <dt>
@@ -360,6 +444,22 @@
             <p>The curve class a complexity fit tries or keeps (FR-019, FR-020).</p>
 <p><code>NONE</code> asks for no fit and stands as the default, so a family that never calls <code>complexity</code> prints no fit rows. <code>AUTOMATIC</code> tries each curve and keeps the least root-mean relative error, with the constant curve as the fallback (FR-021).</p>
           </div></section>
+          <section class="m-doc-details" id="aa3fb9e24a0f554081c7ed820b9d71565"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#aa3fb9e24a0f554081c7ed820b9d71565" class="m-doc-self">WaitMode</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+            </h3>
+            <p>How a context waits while its inbox stands empty (FR-004).</p>
+<p><code>SPIN</code> watches the inbox flag through the pause hint, <code>YIELD</code> yields to the scheduler, <code>BLOCK</code> waits in the standard atomic wait and <code><a href="#a63a4e3ff12d02c9ce66ba9b03ab403b2" class="m-doc">dispatch()</a></code> wakes it. No mode reads a clock or takes a timeout (FR-004, FR-039).</p>
+          </div></section>
+          <section class="m-doc-details" id="a08390e538cfedd2c89404e9a8d3f5351"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#a08390e538cfedd2c89404e9a8d3f5351" class="m-doc-self">WorkNodeState</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+            </h3>
+            <p>The completion state of one work node (FR-009, FR-045, FR-049).</p>
+<p><code>PENDING</code> stands from construction until the loop takes the node, <code>RUNNING</code> stands while the loop runs the item, then <code>DONE</code> stands for an item that ran, or <code>STOPPED</code> for a node a <code><a href="#a63a4e3ff12d02c9ce66ba9b03ab403b2" class="m-doc">dispatch()</a></code> that observed the stop request refused and completed itself (FR-009, FR-050). The completing thread writes that state with release order as its last access to the node (FR-049).</p>
+          </div></section>
         </section>
         <section>
           <h2>Typedef documentation</h2>
@@ -378,6 +478,22 @@
             </h3>
             <p>The curve function a family supplies for its complexity fit (FR-020).</p>
 <p>The harness fits its coefficient over the instances by the same closed form it uses for the built-in curves and prints the row under the name <code>f(N)</code>.</p>
+          </div></section>
+          <section class="m-doc-details" id="a15e2db755c2305a76360f5e964257460"><div>
+            <h3>
+              using sg::<wbr /><a href="#a15e2db755c2305a76360f5e964257460" class="m-doc-self">ThreadRunnerFn</a> = std::function&lt;void(<a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a>&amp;)&gt;
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The dispatch function a family supplies for its threaded runs (FR-021).</p>
+<p>The callable receives the run&#x27;s <code><a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a></code> view and dispatches the per-thread bodies itself, one dispatch per body index; the harness keeps the body nodes alive across the call (FR-021, E-08).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the callable is callable with a <code><a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a>&amp;</code> and dispatches every body index of the run before it returns (FR-021)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>every body of the attempt stands dispatched once, so the barrier rounds complete and the run publishes its merged row (FR-020, FR-021)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>the harness owns the <code><a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a></code> the callable receives for the whole of the call (FR-021)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac9b6856e8188b41b991cb19a1741caec"><div>
+            <h3>
+              using sg::<wbr /><a href="#ac9b6856e8188b41b991cb19a1741caec" class="m-doc-self">PlacementFn</a> = <a href="structsg_1_1PlacementResult.html" class="m-doc">PlacementResult</a>(*)(const <a href="structsg_1_1PlacementSlot.html" class="m-doc">PlacementSlot</a>&amp;slot, std::thread::native_handle_type thread)
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+            </h3>
+            <p>The one placement call a context makes at thread start (FR-005, D-04).</p>
+<p>It receives the policy&#x27;s slot and the native handle of the started thread, applies the slot, and returns the record the report discloses. <code>source/harness/execution_context.cpp</code> ships the default: one Linux pin through <code>pthread_setaffinity_np</code> on that thread. This signature is the seam H10 replaces with topology placement, and nothing else reads it (SC-05).</p>
           </div></section>
         </section>
         <section>
@@ -505,6 +621,34 @@
             <p>Run the registered benchmarks named by the command line and print the report (FR-033).</p>
 <p>A suite links <code>speedgun-ng::harness</code> and calls this from <code>main</code> (D-1).</p><p>A command line that does not follow the option table of <code>specs/015-benchmark-harness-core/contracts/cli.md</code> is a usage error: the entry point reports it and exits with status two from inside the parse (FR-035). That path leaves no status to state a postcondition about, so this function takes no precondition of its own.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the returned status follows the exit-status table of that contract (FR-036)</p></aside>
           </div></section>
+          <section class="m-doc-details" id="ae376244899f5567ea4fbcc99ce7dd8ac"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::optional&lt;<a href="structsg_1_1ContextId.html" class="m-doc">ContextId</a>&gt; sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae376244899f5567ea4fbcc99ce7dd8ac" class="m-doc-self">currentContext</a>(</span><span class="m-doc-wrap">)</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+            </h3>
+            <p>The identity of the context the calling thread runs (FR-002).</p>
+<p>The context loop installs this identity for the span of one work item&#x27;s run and clears it after (FR-002). A thread the library runs no context for reports no context.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a06e3cd63600af4da4802855b639976b9"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a06e3cd63600af4da4802855b639976b9" class="m-doc-self">setPlacementFunction</a>(</span><span class="m-doc-wrap"><a href="#ac9b6856e8188b41b991cb19a1741caec" class="m-doc">PlacementFn</a> function)</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+            </h3>
+            <p>Install the placement function every context calls at thread start (FR-005, D-04).</p>
+<p>One harness-level slot holds the function. The install stands before any context starts: the call is thread-safe there, and a call while any context runs has no defined ordering against that context&#x27;s read of the slot (D-04). A test installs a replacement before its first context and records the calls, so the placement tests need no privileges (SC-05).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a63a4e3ff12d02c9ce66ba9b03ab403b2"><div>
+            <h3>
+              <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+              <div class="m-doc-template">
+                template&lt;WorkItem Item&gt;
+              </div>
+              <span class="m-doc-wrap-bumper">void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a63a4e3ff12d02c9ce66ba9b03ab403b2" class="m-doc-self">dispatch</a>(</span><span class="m-doc-wrap"><a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context,
+              <a href="classsg_1_1WorkNode.html" class="m-doc">WorkNode</a>&lt;Item&gt;&amp; node)</span></span>
+            </h3>
+            <p>Hand <code>node</code> to <code>context</code> and return without waiting (FR-010, FR-050).</p>
+<p>The call links the node into that context&#x27;s inbox, allocates nothing, and is legal from any thread and from work already running on that context (FR-003, FR-010, SC-04). <code><a href="#a63a4e3ff12d02c9ce66ba9b03ab403b2" class="m-doc">dispatch()</a></code> and <code>requestStop()</code> linearize at the enqueue: a dispatch that observes the not-stopped state appends the node and owns delivery, and a dispatch that observes the stopped state refuses the node and completes it <code>STOPPED</code> itself, so the loop never touches a node it never accepted (FR-050). Nodes one thread dispatches run in that order; work dispatched from inside a running item runs after that item ends, on the same context (FR-013).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>node</code> stands in no inbox: its state is <code>PENDING</code> with no prior dispatch, <code>DONE</code>, or <code>STOPPED</code> (FR-009, FR-012)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
           <section class="m-doc-details" id="ad3d06112deede02f7594c60d0b39dc5f"><div>
             <h3>
               <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT void sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad3d06112deede02f7594c60d0b39dc5f" class="m-doc-self">simulationStart</a>(</span><span class="m-doc-wrap">) <span class="m-label m-success">noexcept</span></span></span>
@@ -534,6 +678,13 @@
             <h3>
               std::size_t sg::<wbr /><a href="#a3823e5b619cb7813d3f6436d0040aa50" class="m-doc-self">kMaxCounterNameBytes</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a9eba5764189804281c74c00259bbcbdc"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#a9eba5764189804281c74c00259bbcbdc" class="m-doc-self">kNoPin</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
           </div></section>

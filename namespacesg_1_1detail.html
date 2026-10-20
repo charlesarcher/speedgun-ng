@@ -87,6 +87,10 @@
               struct <a href="structsg_1_1detail_1_1StatisticSeed.html" class="m-doc">StatisticSeed</a>
             </dt>
             <dd><span></span></dd>
+            <dt>
+              struct <a href="structsg_1_1detail_1_1WorkNodeBase.html" class="m-doc">WorkNodeBase</a>
+            </dt>
+            <dd>The erased shape one typed work node stands upon (E-03, FR-003, FR-009, D-02).</dd>
           </dl>
         </section>
         <section id="func-members">
@@ -97,6 +101,19 @@
               const <a href="structsg_1_1counters_1_1RecorderApi.html" class="m-doc">counters::<wbr />RecorderApi</a>&amp; slot) noexcept -&gt; void -&gt; SPEEDGUN_NG_EXPORT auto <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd><span></span></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aca95ef4aaf190bacb0ee5615e014b631" class="m-doc">controlOf</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context) -&gt; ContextControl&amp; <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The control block this context owns (FR-001, FR-024).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a20afe2bded2cfcefdc055fb5386c7155" class="m-doc">placementRecordOf</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context) -&gt; <a href="structsg_1_1PlacementResult.html" class="m-doc">PlacementResult</a> <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The placement record the thread of this context kept at its start (FR-005, FR-025).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a43391ed5c591ae7551e018d3f9690fd4" class="m-doc">dispatchNode</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context,
+              <a href="structsg_1_1detail_1_1WorkNodeBase.html" class="m-doc">WorkNodeBase</a>&amp; node) -&gt; void -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>The erased body of <code><a href="namespacesg.html#a63a4e3ff12d02c9ce66ba9b03ab403b2" class="m-doc">dispatch</a></code>: the inbox link-swap of FR-003 and the stop linearization of FR-050 (FR-010, FR-050).</dd>
           </dl>
         </section>
         <section>
@@ -108,6 +125,31 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="aca95ef4aaf190bacb0ee5615e014b631"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">ContextControl&amp; sg::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aca95ef4aaf190bacb0ee5615e014b631" class="m-doc-self">controlOf</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context) <span class="m-label m-success">noexcept</span></span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+            </h3>
+            <p>The control block this context owns (FR-001, FR-024).</p>
+<p>The class grants this function access to its member, which is the only path from a context to its control block: no side table and no scan stand between the two, and no bound caps the live contexts (FR-001, FR-024). The harness archive defines it, and no caller reaches it (FR-045).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a20afe2bded2cfcefdc055fb5386c7155"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="structsg_1_1PlacementResult.html" class="m-doc">PlacementResult</a> sg::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a20afe2bded2cfcefdc055fb5386c7155" class="m-doc-self">placementRecordOf</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context) <span class="m-label m-success">noexcept</span></span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+            </h3>
+            <p>The placement record the thread of this context kept at its start (FR-005, FR-025).</p>
+<p>A threaded run reads the disclosed placement field through this function, because the control block of FR-001 stands out of this header (FR-045). The record carries what the installed placement function returned at the start of that thread, which is the account the disclosure of FR-025 prints for a slot that never landed. <code>source/harness/execution_context.cpp</code> defines it, and no caller of the public surface reaches it (FR-045).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a43391ed5c591ae7551e018d3f9690fd4"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a43391ed5c591ae7551e018d3f9690fd4" class="m-doc-self">dispatchNode</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context,
+              <a href="structsg_1_1detail_1_1WorkNodeBase.html" class="m-doc">WorkNodeBase</a>&amp; node) -&gt; void</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="execution__context_8hpp.html">&lt;speedgun-ng/execution_context.hpp&gt;</a></div>
+            </h3>
+            <p>The erased body of <code><a href="namespacesg.html#a63a4e3ff12d02c9ce66ba9b03ab403b2" class="m-doc">dispatch</a></code>: the inbox link-swap of FR-003 and the stop linearization of FR-050 (FR-010, FR-050).</p>
+<p><code>source/harness/execution_context.cpp</code> defines it; the <code><a href="namespacesg.html#a63a4e3ff12d02c9ce66ba9b03ab403b2" class="m-doc">dispatch</a></code> template is its only caller, and the call allocates nothing (FR-040).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>node</code> stands in no inbox: its state is <code>PENDING</code> with no prior dispatch, <code>DONE</code>, or <code>STOPPED</code> (FR-009, FR-012)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
         </section>
       </div>

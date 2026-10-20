@@ -78,7 +78,7 @@
             </li>
           </ul>
         </nav>
-<p>Every setter writes one option of the entry before the run starts. A handle copied or moved names the same entry.</p><aside class="m-note m-success"><h4>Invariant</h4><p>a label call leaves the entry carrying exactly the labels that call set, whatever label list stood before (FR-006)</p></aside>
+<p>Every setter writes one option of the entry before the run starts. A handle copied or moved names the same entry.</p><aside class="m-note m-success"><h4>Invariant</h4><p>a label call leaves the entry carrying exactly the labels that call set, whatever label list stood before (FR-006); every thread count of the entry stands at 1 or above, and the entry holds at most one thread runner, so the last thread call wins the set and the last runner call wins the slot (FR-021, FR-024, R-10)</p></aside>
         <section id="typeless-methods">
           <h2><a href="#typeless-methods">Constructors, destructors, conversion operators</a></h2>
           <dl class="m-doc">
@@ -211,6 +211,25 @@
               <span class="m-doc-wrap-bumper">auto <a href="#acd19515321928ff66a4995d8cb382123" class="m-doc">teardown</a>(</span><span class="m-doc-wrap">std::function&lt;void(<a href="classsg_1_1State.html" class="m-doc">State</a>&amp;)&gt; callback) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
             </dt>
             <dd>Attach the teardown callback of this family (FR-018).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a9bd4fa871a7e08cee412e62ecbfd6041" class="m-doc">threads</a>(</span><span class="m-doc-wrap">int count) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Run every instance of this family on <code>count</code> contexts (FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aa70c44db504e7bdcdd5aa064ae4ee2f3" class="m-doc">threadRange</a>(</span><span class="m-doc-wrap">int minCount,
+              int maxCount) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd><a href="classsg_1_1State.html" class="m-doc">State</a> one thread count per doubling from <code>minCount</code> up to <code>maxCount</code> (FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#addd059ab4fc09f95108b1f0582e5aff3" class="m-doc">denseThreadRange</a>(</span><span class="m-doc-wrap">int minCount,
+              int maxCount,
+              int step) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd><a href="classsg_1_1State.html" class="m-doc">State</a> one thread count per step from <code>minCount</code> up to <code>maxCount</code> (FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aabf29346e1edb4e060ef6de18c1815fa" class="m-doc">threadRunner</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#a15e2db755c2305a76360f5e964257460" class="m-doc">ThreadRunnerFn</a> runner) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Attach the dispatch function of this family&#x27;s threaded runs (FR-021).</dd>
           </dl>
         </section>
         <section id="friends">
@@ -445,6 +464,37 @@
             </h3>
             <p>Attach the teardown callback of this family (FR-018).</p>
 <p>The callback runs once after each run of every instance of the family, after the timed loop and the fixture <code>tearDown</code>, in the untimed region, and it carries the same restricted state as the setup callback (R-05). One callback stands per slot and the last attachment wins it (E-07, R-10).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry&#x27;s teardown slot carries <code>callback</code>, the callback this call attached wins the slot, and the returned handle is this handle (FR-018, R-10)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a9bd4fa871a7e08cee412e62ecbfd6041"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9bd4fa871a7e08cee412e62ecbfd6041" class="m-doc-self">threads</a>(</span><span class="m-doc-wrap">int count)</span></span>
+            </h3>
+            <p>Run every instance of this family on <code>count</code> contexts (FR-016).</p>
+<p>The call states the thread count set of the family as the single count, the way <code>ThreadRange</code> of the cited revision states one count (research D-09). Each instance then runs on that many contexts, the harness creating them once for the instance and reusing them for every attempt, and the instance name carries a <code>/threads:N</code> segment for a count above 1 (FR-016, D-05).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and <code>count</code> stands at 1 or above: a count a call cannot honor, zero included, is a violation at the call (E-02, FR-024)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries <code>{count}</code> as the thread count set of that family, in place of any set an earlier thread call stated, and the returned handle is this handle (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aa70c44db504e7bdcdd5aa064ae4ee2f3"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aa70c44db504e7bdcdd5aa064ae4ee2f3" class="m-doc-self">threadRange</a>(</span><span class="m-doc-wrap">int minCount,
+              int maxCount)</span></span>
+            </h3>
+            <p><a href="classsg_1_1State.html" class="m-doc">State</a> one thread count per doubling from <code>minCount</code> up to <code>maxCount</code> (FR-016).</p>
+<p>The counts are <code>minCount</code>, <code>minCount * 2</code> and each further doubling that stays at or below <code>maxCount</code>, the growth of <code>ThreadRange</code> at the cited revision; the expansion adds one instance per count (FR-016, research D-09).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and both bounds stand at 1 or above with <code>minCount</code> at or below <code>maxCount</code> (E-02, FR-024)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one thread count per doubling in the bounds, in place of any set an earlier thread call stated, and the returned handle is this handle (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="addd059ab4fc09f95108b1f0582e5aff3"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#addd059ab4fc09f95108b1f0582e5aff3" class="m-doc-self">denseThreadRange</a>(</span><span class="m-doc-wrap">int minCount,
+              int maxCount,
+              int step)</span></span>
+            </h3>
+            <p><a href="classsg_1_1State.html" class="m-doc">State</a> one thread count per step from <code>minCount</code> up to <code>maxCount</code> (FR-016).</p>
+<p>The counts are <code>minCount</code>, <code>minCount + step</code> and each further step that stays at or below <code>maxCount</code>, the shape of <code>DenseThreadRange</code> at the cited revision; the expansion adds one instance per count (FR-016, research D-09).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, both bounds stand at 1 or above with <code>minCount</code> at or below <code>maxCount</code>, and <code>step</code> stands at 1 or above (E-02, FR-024)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries one thread count per step in the bounds, in place of any set an earlier thread call stated, and the returned handle is this handle (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aabf29346e1edb4e060ef6de18c1815fa"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aabf29346e1edb4e060ef6de18c1815fa" class="m-doc-self">threadRunner</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#a15e2db755c2305a76360f5e964257460" class="m-doc">ThreadRunnerFn</a> runner)</span></span>
+            </h3>
+            <p>Attach the dispatch function of this family&#x27;s threaded runs (FR-021).</p>
+<p>The callable receives the run&#x27;s <code><a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a></code> view and dispatches the per-thread bodies itself, one dispatch per body index before it returns. The harness builds the body nodes and keeps them alive across the call, and the two barrier rounds, the per-context plans and the merged row stay the harness&#x27;s (FR-021, E-08). One runner stands per family and the last attachment wins the slot, the way the setup callback does (R-10).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry, the run has not started for this benchmark, and <code>runner</code> is callable with a <code><a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a>&amp;</code> (E-02, FR-021)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry&#x27;s runner slot carries <code>runner</code> in place of any runner an earlier call attached, and the returned handle is this handle (FR-021)</p></aside>
           </div></section>
           <section class="m-doc-details" id="a7c2a718566fb67416a1276902f13b05c"><div>
             <h3>
