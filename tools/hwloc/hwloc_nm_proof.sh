@@ -16,6 +16,19 @@
 #      (nm T) lives in a different member than the U reference, i.e. the
 #      merged vendored member satisfies the wrapper's prefixed reference.
 #
+# Feature 022-topology-placement (T031, R-12, FR-031) adds the harness
+# archive as a second subject with its own assertions:
+#
+#   D. The harness archive holds UNDEFINED sg_hwloc_* references (its
+#      calls reach the vendored members across the archive boundary) and
+#      zero DEFINED ones (no vendored member merged into it).
+#   E. An executable that links both archives resolves them: the
+#      first_benchmark executable carries DEFINED sg_hwloc_* symbols from
+#      the vendored archive on its link line and no UNDEFINED ones.
+#   F. No unprefixed hwloc C symbol is exported from an installed
+#      artifact: no global (uppercase) symbol named hwloc_* appears in
+#      either archive or in the executable.
+#
 # Semantics: merged vendored members satisfy the wrapper's prefixed
 # reference (contract A6 boundary: member list is a build input, legal).
 # RED on a thin archive (no vendored members); GREEN once the ADDLIB
@@ -25,7 +38,10 @@
 #   <binary-dir> given -> <binary-dir>/libspeedgun-ng.a
 #   else <repo-root>/build/dev/libspeedgun-ng.a
 #   else first match <repo-root>/build/*/libspeedgun-ng.a
-# Exit 0 only when A, B and C all hold. Exit 1 otherwise, naming the archive.
+#   The harness archive and the example executable are looked for beside
+#   the library archive, in the same binary directory.
+# Exit 0 only when A, B, C, D, E and F all hold. Exit 1 otherwise, naming
+# the archive.
 #
 # Parsing: GNU nm (ubuntu CI) in bsd output format; per-member headers
 # ("member.o:" or "archive.a[member.o]:") attribute symbols to members.
@@ -66,7 +82,7 @@ if ! ar t "$ARCHIVE" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "hwloc nm proof (FR-007/SC-011, privacy contract A6)"
+echo "hwloc nm proof (FR-007/SC-011, privacy contract A6; FR-031/R-12)"
 echo "Archive: $ARCHIVE"
 echo
 
@@ -150,5 +166,77 @@ if [ "$rc" -eq 0 ]; then
   echo "PASS: $ARCHIVE is self-contained: merged vendored members satisfy the gate reference (A6)."
 else
   echo "FAIL: $ARCHIVE does not satisfy A6."
+fi
+
+# D and E: the harness archive as second subject (T031, R-12, FR-031).
+HARCHIVE="$(dirname "$ARCHIVE")/libspeedgun-ng-harness.a"
+EXE="$(dirname "$ARCHIVE")/example/first_benchmark"
+if [ ! -f "$HARCHIVE" ] || [ ! -f "$EXE" ]; then
+  echo "FAIL D/E: missing second subject: $HARCHIVE and $EXE must both exist."
+  rc=1
+else
+  hfacts=$(nm --format=bsd "$HARCHIVE" 2>/dev/null | awk '
+    {
+      if ($0 ~ /^[[:space:]]/) { type = $1; name = $2 }
+      else if (NF >= 3)        { type = $2; name = $3 }
+      else next
+      if (name ~ /^sg_hwloc_/) {
+        if (type == "U") hu++
+        if (type == "T" || type == "t") hd++
+      }
+      if (name ~ /^hwloc_/ && type ~ /^[TDBW]$/) bad++
+    }
+    END { print "HU=" hu + 0; print "HD=" hd + 0; print "HBAD=" bad + 0 }')
+  h_u=$(echo "$hfacts" | sed -n 's/^HU=//p')
+  h_d=$(echo "$hfacts" | sed -n 's/^HD=//p')
+  if [ "$h_u" -gt 0 ] && [ "$h_d" -eq 0 ]; then
+    echo "PASS D: harness archive '$HARCHIVE' carries $h_u UNDEFINED and 0 DEFINED sg_hwloc_*."
+  else
+    echo "FAIL D: harness archive carries $h_u UNDEFINED and $h_d DEFINED sg_hwloc_*."
+    rc=1
+  fi
+
+  efacts=$(nm "$EXE" 2>/dev/null | awk '
+    {
+      if ($0 ~ /^[[:space:]]/) { type = $1; name = $2 }
+      else if (NF >= 3)        { type = $2; name = $3 }
+      else next
+      if (name ~ /^sg_hwloc_/) {
+        if (type == "U") eu++
+        if (type == "T" || type == "t") ed++
+      }
+      if (name ~ /^hwloc_/ && type ~ /^[TDBW]$/) bad++
+    }
+    END { print "EU=" eu + 0; print "ED=" ed + 0; print "EBAD=" bad + 0 }')
+  e_u=$(echo "$efacts" | sed -n 's/^EU=//p')
+  e_d=$(echo "$efacts" | sed -n 's/^ED=//p')
+  if [ "$e_d" -gt 0 ] && [ "$e_u" -eq 0 ]; then
+    echo "PASS E: executable '$EXE' resolves the names: $e_d DEFINED, 0 UNDEFINED sg_hwloc_*."
+  else
+    echo "FAIL E: executable carries $e_d DEFINED and $e_u UNDEFINED sg_hwloc_*."
+    rc=1
+  fi
+
+  # F: no exported unprefixed hwloc C symbol in any installed artifact.
+  l_bad=$(nm --format=bsd "$ARCHIVE" 2>/dev/null | awk '
+    {
+      if ($0 ~ /^[[:space:]]/) { type = $1; name = $2 }
+      else if (NF >= 3)        { type = $2; name = $3 }
+      else next
+      if (name ~ /^hwloc_/ && type ~ /^[TDBW]$/) bad++
+    }
+    END { print bad + 0 }')
+  h_bad=$(echo "$hfacts" | sed -n 's/^HBAD=//p')
+  e_bad=$(echo "$efacts" | sed -n 's/^EBAD=//p')
+  if [ "$l_bad" -eq 0 ] && [ "$h_bad" -eq 0 ] && [ "$e_bad" -eq 0 ]; then
+    echo "PASS F: no exported unprefixed hwloc_* symbol in the two archives or the executable."
+  else
+    echo "FAIL F: exported unprefixed hwloc_* symbols: library $l_bad, harness $h_bad, executable $e_bad."
+    rc=1
+  fi
+fi
+
+if [ "$rc" -eq 0 ]; then
+  echo "PASS: the harness archive references the vendored members across the archive boundary and the executable resolves them (FR-031)."
 fi
 exit "$rc"
