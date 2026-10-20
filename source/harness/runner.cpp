@@ -183,7 +183,8 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
                        const Recorder& recorder,
                        std::size_t primaryFoldColumn,
                        std::size_t secondaryFoldColumn,
-                       const std::vector<double>& points) -> void
+                       const std::vector<double>& points,
+                       std::vector<std::vector<double>>& retained) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
   row.kind = sg::RowKind::REPETITION;
@@ -302,6 +303,7 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
       perIteration.push_back(column.perIteration);
     }
     divideChunkValues(chunkValues, perIteration, record.chunkIterations);
+    retained = chunkValues;
     row.percentiles =
         sg::detail::buildPercentileColumns(chunkValues, points, countable);
     row.chunkCount = record.chunkCount;
@@ -411,16 +413,18 @@ auto mergedMetricValue(const MetricColumn& column,
 // carry the flag, which leaves the order of the cited pass. Handed the
 // same two divisors at a count of one, the shared pass is the shipped
 // single-context pass and its bytes (FR-022, PC-2).
-auto appendMergedRow(std::vector<sg::ResultRow>& rows,
-                     const sg::detail::RunRecord& record,
-                     const std::vector<MetricColumn>& columns,
-                     double overheadFloorNs,
-                     const sg::counters::detail::ExprCore* primaryCore,
-                     const std::vector<ContextFolds>& folds,
-                     const std::uint64_t threadCount,
-                     const std::vector<double>& points,
-                     std::vector<std::vector<std::vector<sg::PercentileValue>>>&
-                         contextPercentiles) -> void
+auto appendMergedRow(
+    std::vector<sg::ResultRow>& rows,
+    const sg::detail::RunRecord& record,
+    const std::vector<MetricColumn>& columns,
+    double overheadFloorNs,
+    const sg::counters::detail::ExprCore* primaryCore,
+    const std::vector<ContextFolds>& folds,
+    const std::uint64_t threadCount,
+    const std::vector<double>& points,
+    std::vector<std::vector<std::vector<sg::PercentileValue>>>&
+        contextPercentiles,
+    std::vector<std::vector<std::vector<double>>>& contextRetained) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
   row.kind = sg::RowKind::REPETITION;
@@ -515,6 +519,7 @@ auto appendMergedRow(std::vector<sg::ResultRow>& rows,
     row.chunkCount = record.chunkCount;
     row.chunkIterations = record.chunkIterations;
     for (const ContextFolds& fold : folds) {
+      contextRetained.push_back(fold.chunkValues);
       contextPercentiles.push_back(sg::detail::buildPercentileColumns(
           fold.chunkValues, points, fold.countable));
     }
@@ -1049,6 +1054,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // a family with no aggregate keeps its rows (FR-018).
   result.hideRepetitionRows =
       entry.reportAggregatesOnly || entry.displayAggregatesOnly;
+  // specs/023 E-01: the chunk columns this run retains stand beside the
+  // rows they answer, in the order those rows are built.
+  m_rowRaw.emplace_back();
+  m_contextRaw.emplace_back();
 
   auto& sys = sg::counters::System::local();
   const std::int64_t minTimeNs =
@@ -1374,7 +1383,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       [&](const std::uint64_t iterations,
           const std::size_t pauseRoom) noexcept -> sg::detail::ChunkPlan
   {
-    if (result.percentilePoints.empty()) {
+    if (result.percentilePoints.empty()
+        && m_options.rawContent != sg::RawContent::CHUNKS)
+    {
       return sg::detail::ChunkPlan {
           .chunkIterations = 0,
           .chunkCount = 0,
@@ -2078,6 +2089,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // iteration count, built from the folds each context did on its
       // own plan (FR-018).
       result.contextPercentiles.clear();
+      std::vector<std::vector<std::vector<double>>> contextChunks;
+      std::vector<RowRaw> rowContexts;
       appendMergedRow(result.rows,
                       *chosen,
                       columns,
@@ -2086,8 +2099,18 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
                       threadedFolds,
                       static_cast<std::uint64_t>(instance.threadCount),
                       result.percentilePoints,
-                      result.contextPercentiles);
+                      result.contextPercentiles,
+                      contextChunks);
+      for (auto& chunks : contextChunks) {
+        rowContexts.push_back(RowRaw {.columns = std::move(chunks)});
+      }
+      m_contextRaw.back().push_back(std::move(rowContexts));
+      // The merged row answers from the union of the contexts' columns,
+      // which the per-context entries carry whole, so the row itself
+      // retains no copy of that union (specs/023 E-01).
+      m_rowRaw.back().emplace_back();
     } else {
+      std::vector<std::vector<double>> chunks;
       appendMeasuredRow(result.rows,
                         *chosen,
                         columns,
@@ -2097,7 +2120,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
                         *attemptRecorder,
                         entry.realTime ? 0 : 1,
                         entry.realTime ? 1 : 0,
-                        result.percentilePoints);
+                        result.percentilePoints,
+                        chunks);
+      m_rowRaw.back().push_back(RowRaw {.columns = std::move(chunks)});
+      m_contextRaw.back().emplace_back();
     }
 
     // FR-006: the labels of the run's counters are its names in the order
@@ -2237,6 +2263,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
 
     result.rows.push_back(aggregate);
+    m_rowRaw.back().emplace_back();
+    m_contextRaw.back().emplace_back();
   }
 
   // FR-019, FR-022: a family that asked for a complexity fit collects one value

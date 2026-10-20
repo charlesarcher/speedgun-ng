@@ -50,6 +50,7 @@ SECTIONS = (
     "Threads",
     "Topology placement",
     "Percentiles",
+    "JSON reports",
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
@@ -78,6 +79,7 @@ SECTION_OWNERS = {
     "Threads": ("threads.cpp",),
     "Topology placement": ("topology_placement.cpp",),
     "Percentiles": ("percentiles.cpp",),
+    "JSON reports": ("json_reports.cpp",),
 }
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
@@ -111,9 +113,6 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/021 FR-027 measures its own move: the "Percentiles" section runs 19
 # lines and the two quick-reference option rows add 2, so 21 lines move the
 # cap from 638 to 659, the measured length of the page as the feature lands.
-# The metric-lookup region, its prose and its quick-reference and option
-# rows are the 39 added lines that move the cap from 659 to 698, the
-# measured length of the page as the metric section lands.
 # D-15 of the PR #41 owner review (Charles, 2026-10-19): the metric section
 # grew to 59 lines under a recorded raise, and the review keeps one snippet
 # on the main page. The addMetric walk and the fold-and-read flow move to
@@ -126,8 +125,11 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/025 FR-016 and FR-036 add the placement and topology
 # quick-reference rows and the "Topology placement" section: 24 lines
 # move the cap from 668 to 692, the measured length as the section
-# lands.
-PAGE_LINE_CAP = 692
+# lands. specs/023 FR-037 stacks its own move on top: the "JSON
+# reports" section runs 18 lines and the three quick-reference rows
+# add 3, so 21 lines move the cap from 692 to 713, the measured
+# length of the page as the feature lands.
+PAGE_LINE_CAP = 713
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

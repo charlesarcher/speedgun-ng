@@ -33,6 +33,11 @@
 std::uint64_t allocationCount = 0;
 bool countAllocations = false;
 
+// The allocations one timed window takes, read by the body of bmWindow
+// between the opening of its window and the close of its last iteration
+// (specs/023 FR-032, SC-006).
+std::uint64_t windowAllocations = 0;
+
 auto allocate(const std::size_t size) -> void*
 {
   if (countAllocations) {
@@ -129,6 +134,15 @@ auto bmCounted(sg::State& state) -> void
 {
   for (auto _ : state) {
   }
+}
+
+// The empty body whose timed window is the probe of specs/023 FR-032.
+auto bmWindow(sg::State& state) -> void
+{
+  const std::uint64_t opened = allocationCount;
+  for (auto _ : state) {
+  }
+  windowAllocations = allocationCount - opened;
 }
 
 auto captureRun(const std::vector<std::string>& arguments) -> std::string
@@ -453,6 +467,60 @@ auto main() -> int
         "an events column reports the value divided by the iterations "
         "(FR-022)");
   check(!ratioKeepsWindow, "a ratio column keeps its window value (FR-022)");
+
+  // specs/023 T027, T030, SC-006, SC-010: the chunk columns of a finished
+  // run reach the document, and a run whose percentile output is off still
+  // captures once the raw setting asks for it.
+  const std::string rawOnly = captureRun({"--filter",
+                                          "^bmRatio$",
+                                          "--iterations=8",
+                                          "--no-percentiles",
+                                          "--json-raw=chunks",
+                                          "--json=harness_capture_raw.json"});
+  check(!lineOf(rawOnly, "bmRatio").empty(), "the run prints its row");
+  check(rawOnly.find("percentile") == std::string::npos,
+        "the run prints no percentile line and no chunk line (FR-020, FR-035, "
+        "SC-006)");
+  const auto raw = sg::loadReport("harness_capture_raw.json");
+  check(raw.has_value(), "the raw document reads back (FR-018)");
+  if (raw.has_value()) {
+    const sg::ResultRow& row = raw->results[0].rows[0];
+    check(row.chunkCount > 0, "the row keeps its chunk count (FR-018)");
+    const auto& columns = raw->rowRaw[0][0].columns;
+    check(columns.size() == row.metrics.size() + 2,
+          "the document carries one chunk column per reported quantity, the "
+          "two time columns beside it (FR-018)");
+    bool everyColumnAnswers = !columns.empty();
+    for (const auto& column : columns) {
+      everyColumnAnswers =
+          everyColumnAnswers && column.size() == row.chunkCount;
+    }
+    check(everyColumnAnswers,
+          "each chunk column holds chunkCount values in the percentile "
+          "column order (FR-019, SC-010)");
+  }
+
+  // specs/023 T038, FR-032, SC-006: the raw capture takes no allocation
+  // inside the timed window, and the run outside it does allocate, which
+  // is what makes the window answer of zero a reading and not a dead hook.
+  const auto windowHandle = sg::registerBenchmark(&bmWindow, "bmWindow");
+  check(windowHandle.name() == "bmWindow", "the probe entry registers");
+  countAllocations = true;
+  const std::uint64_t beforeWindow = allocationCount;
+  captureRun({"--filter",
+              "^bmWindow$",
+              "--iterations=8",
+              "--json-raw=chunks",
+              "--json=harness_capture_window.json"});
+  const std::uint64_t outsideWindow =
+      allocationCount - beforeWindow - windowAllocations;
+  countAllocations = false;
+  check(windowAllocations == 0,
+        "the timed window took no allocation with the raw setting at chunks "
+        "(FR-032, SC-006)");
+  check(outsideWindow > 0,
+        "the run outside the window allocates, so the window zero is a "
+        "reading (SC-006)");
 
   std::puts("harness_capture_test: ok");
   return 0;
