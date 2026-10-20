@@ -16,6 +16,7 @@
 #include "detail/calibration.hpp"
 #include "detail/complexity.hpp"
 #include "detail/internal.hpp"
+#include "detail/pass_plan.hpp"
 #include "detail/percentiles.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
@@ -177,14 +178,14 @@ template<class Recorder>
 auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
                        const sg::detail::RunRecord& record,
                        const std::vector<MetricColumn>& columns,
+                       const std::vector<bool>& measured,
                        double overheadFloorNs,
                        const sg::counters::detail::ExprCore* primaryCore,
                        const sg::counters::detail::ExprCore& secondaryCore,
                        const Recorder& recorder,
                        std::size_t primaryFoldColumn,
                        std::size_t secondaryFoldColumn,
-                       const std::vector<double>& points,
-                       std::vector<std::vector<double>>& retained) -> void
+                       const std::vector<double>& points) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
   row.kind = sg::RowKind::REPETITION;
@@ -204,10 +205,19 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
             .availability
       : sg::counters::Availability::COUNTABLE;
   row.overheadFloorNs = overheadFloorNs;
-  for (const auto& column : columns) {
+  for (std::size_t position = 0; position < columns.size(); ++position) {
+    const auto& column = columns[position];
     sg::MetricValue value;
     if (column.unavailable) {
       value.availability = column.availability;
+      row.metrics.push_back(value);
+      continue;
+    }
+    // specs/024 FR-009, FR-014: a column this pass does not measure has no
+    // leaf in this pass's plan, so no value of this pass stands in its slot;
+    // the merge brings the value of the pass that measured the column.
+    if (!measured[position]) {
+      value.availability = sg::counters::Availability::GAP;
       row.metrics.push_back(value);
       continue;
     }
@@ -287,7 +297,7 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
     perIteration.push_back(true);
     for (std::size_t position = 0; position < columns.size(); ++position) {
       const auto& column = columns[position];
-      if (column.unavailable) {
+      if (column.unavailable || !measured[position]) {
         chunkValues.emplace_back();
         countable.push_back(false);
         perIteration.push_back(false);
@@ -303,7 +313,6 @@ auto appendMeasuredRow(std::vector<sg::ResultRow>& rows,
       perIteration.push_back(column.perIteration);
     }
     divideChunkValues(chunkValues, perIteration, record.chunkIterations);
-    retained = chunkValues;
     row.percentiles =
         sg::detail::buildPercentileColumns(chunkValues, points, countable);
     row.chunkCount = record.chunkCount;
@@ -367,11 +376,19 @@ auto worstPrimaryAvailability(const std::vector<ContextFolds>& folds,
 auto mergedMetricValue(const MetricColumn& column,
                        const std::vector<ContextFolds>& folds,
                        const std::size_t position,
-                       const std::uint64_t iterations) -> sg::MetricValue
+                       const std::uint64_t iterations,
+                       const bool measured) -> sg::MetricValue
 {
   sg::MetricValue value;
   if (column.unavailable) {
     value.availability = column.availability;
+    return value;
+  }
+  if (!measured) {
+    // specs/024 FR-009, FR-014: a column this pass does not measure folds in
+    // no context of this pass, so no value of this pass stands in its slot;
+    // the merge brings the value of the pass that measured the column.
+    value.availability = sg::counters::Availability::GAP;
     return value;
   }
   double sum = 0.0;
@@ -413,18 +430,17 @@ auto mergedMetricValue(const MetricColumn& column,
 // carry the flag, which leaves the order of the cited pass. Handed the
 // same two divisors at a count of one, the shared pass is the shipped
 // single-context pass and its bytes (FR-022, PC-2).
-auto appendMergedRow(
-    std::vector<sg::ResultRow>& rows,
-    const sg::detail::RunRecord& record,
-    const std::vector<MetricColumn>& columns,
-    double overheadFloorNs,
-    const sg::counters::detail::ExprCore* primaryCore,
-    const std::vector<ContextFolds>& folds,
-    const std::uint64_t threadCount,
-    const std::vector<double>& points,
-    std::vector<std::vector<std::vector<sg::PercentileValue>>>&
-        contextPercentiles,
-    std::vector<std::vector<std::vector<double>>>& contextRetained) -> void
+auto appendMergedRow(std::vector<sg::ResultRow>& rows,
+                     const sg::detail::RunRecord& record,
+                     const std::vector<MetricColumn>& columns,
+                     const std::vector<bool>& measured,
+                     double overheadFloorNs,
+                     const sg::counters::detail::ExprCore* primaryCore,
+                     const std::vector<ContextFolds>& folds,
+                     const std::uint64_t threadCount,
+                     const std::vector<double>& points,
+                     std::vector<std::vector<std::vector<sg::PercentileValue>>>&
+                         contextPercentiles) -> void
 {
   sg::ResultRow& row = rows.emplace_back();
   row.kind = sg::RowKind::REPETITION;
@@ -441,8 +457,11 @@ auto appendMergedRow(
   row.overheadFloorNs = overheadFloorNs;
   row.timeAvailability = worstPrimaryAvailability(folds, primaryCore);
   for (std::size_t position = 0; position < columns.size(); ++position) {
-    row.metrics.push_back(mergedMetricValue(
-        columns[position], folds, position, record.iterations));
+    row.metrics.push_back(mergedMetricValue(columns[position],
+                                            folds,
+                                            position,
+                                            record.iterations,
+                                            measured[position]));
   }
 
   // FR-003, FR-004, FR-005: the same two disclosures the single-context
@@ -519,7 +538,6 @@ auto appendMergedRow(
     row.chunkCount = record.chunkCount;
     row.chunkIterations = record.chunkIterations;
     for (const ContextFolds& fold : folds) {
-      contextRetained.push_back(fold.chunkValues);
       contextPercentiles.push_back(sg::detail::buildPercentileColumns(
           fold.chunkValues, points, fold.countable));
     }
@@ -1054,10 +1072,6 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // a family with no aggregate keeps its rows (FR-018).
   result.hideRepetitionRows =
       entry.reportAggregatesOnly || entry.displayAggregatesOnly;
-  // specs/023 E-01: the chunk columns this run retains stand beside the
-  // rows they answer, in the order those rows are built.
-  m_rowRaw.emplace_back();
-  m_contextRaw.emplace_back();
 
   auto& sys = sg::counters::System::local();
   const std::int64_t minTimeNs =
@@ -1258,10 +1272,122 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
   }
 
-  auto plan =
-      sg::counters::detail::compileCore(sys, sg::counters::Target {}, cores);
-  if (!plan.has_value()) {
-    return fail("the run plan does not compile: " + plan.error().message);
+  // E-03, FR-008 (specs/024-multipass-collection): the pass plan of the
+  // columns this run measures, over the programmable-counter limit the
+  // source of each leaf publishes. A leaf's source is the object its
+  // address names, the object that publishes the fact (E-02): the
+  // addresses come out of the resolved spines above and the limit out of
+  // the catalog entry beside them, so the planner reads no counter and
+  // opens no window (FR-008).
+  std::vector<std::string> sources;
+  std::vector<std::optional<std::size_t>> sourceLimits;
+  std::vector<std::vector<sg::detail::ColumnLeaves>> columnLeaves;
+  columnLeaves.reserve(columns.size());
+  for (const auto& column : columns) {
+    std::vector<sg::detail::ColumnLeaves> groups;
+    for (const auto& leaf : column.core.leaves) {
+      const std::string_view objectPath = splitAddress(leaf.address).first;
+      auto located = std::find(sources.begin(), sources.end(), objectPath);
+      if (located == sources.end()) {
+        const auto object = sys.object(objectPath);
+        SG_ASSERT(object.has_value(),
+                  "every leaf of a metric column resolved against this open "
+                  "tree, so the object its address names is one it "
+                  "publishes");
+        sources.emplace_back(objectPath);
+        sourceLimits.push_back(object->programmableCounters());
+        located = sources.end() - 1;
+      }
+      const auto source = static_cast<std::size_t>(located - sources.begin());
+      auto group =
+          std::find_if(groups.begin(),
+                       groups.end(),
+                       [source](const sg::detail::ColumnLeaves& leafGroup)
+                       { return leafGroup.source == source; });
+      if (group == groups.end()) {
+        // One group per source the column spans: a leaf of a source already
+        // grouped here joins that group, whose addresses the planner counts
+        // once (E-03 rule 2).
+        groups.push_back(
+            sg::detail::ColumnLeaves {.source = source, .addresses = {}});
+        group = groups.end() - 1;
+      }
+      group->addresses.push_back(leaf.address);
+    }
+    columnLeaves.push_back(std::move(groups));
+  }
+  auto planning = sg::detail::planPasses(columnLeaves, sourceLimits);
+
+  // Every column of the run in request order: the spine the audit point
+  // compiled, and the spine a run with no plan of its own measures whole.
+  std::vector<std::size_t> wholeRun;
+  wholeRun.reserve(columns.size());
+  for (std::size_t index = 0; index < columns.size(); ++index) {
+    wholeRun.push_back(index);
+  }
+
+  // E-03 rule 7, E-01: when no source the run needs publishes a limit, no
+  // plan stands and the run keeps the one kernel-multiplexed plan of the
+  // audit point, so the pass list holds that single plan over every
+  // column.
+  std::vector<std::vector<std::size_t>> passColumns = planning.columns;
+  if (passColumns.empty()) {
+    passColumns.push_back(wholeRun);
+  }
+  const std::size_t passCount = passColumns.size();
+
+  // E-04, FR-009, FR-012: the seat of one pass. The two time leaves ride
+  // every pass and consume no programmable counter (E-03 rule 6); the
+  // columns the pass measures join them in request order, and that leaf
+  // list is what this run's `compileCore` call compiles. Seating refreshes
+  // the plan, the fold column of every column of the run, the mark of the
+  // columns this pass measures, the two-point reset slot and the overhead
+  // floor the plan measured. R-02, FR-014, FR-051: the reset handle is a
+  // trivially copyable cursor over the plan's arena, so it is copied into
+  // the attempt bodies at bind and reaches neither a shared pointer nor a
+  // lock; two points stand in the slot between attempts, the reset
+  // restores the pair the netted fold reads, and a value left over from an
+  // earlier attempt can never reach a row.
+  std::optional<sg::counters::Plan> plan;
+  sg::counters::RecorderHandle<sg::counters::HardStop> slotReset {};
+  double overheadFloorNs = 0.0;
+  std::vector<bool> measuredColumn(columns.size(), true);
+  const auto seatPass = [&](const std::vector<std::size_t>& columnsOfPass)
+      -> std::expected<void, std::string>
+  {
+    cores.clear();
+    cores.push_back(&realTime.core);
+    cores.push_back(&cpuTime.core);
+    measuredColumn.assign(columns.size(), false);
+    for (const std::size_t index : columnsOfPass) {
+      measuredColumn[index] = true;
+    }
+    for (std::size_t index = 0; index < columns.size(); ++index) {
+      if (measuredColumn[index] && !columns[index].unavailable) {
+        columns[index].foldColumn = cores.size();
+        cores.push_back(&columns[index].core);
+      }
+    }
+    auto seated =
+        sg::counters::detail::compileCore(sys, sg::counters::Target {}, cores);
+    if (!seated.has_value()) {
+      return std::expected<void, std::string> {
+          std::unexpect,
+          "the run plan does not compile: " + seated.error().message};
+    }
+    plan = std::move(*seated);
+    slotReset = plan->recorder(2);
+    overheadFloorNs = plan->sampleOverheadNsMedian();
+    return {};
+  };
+  // The seat of the first pass stands before the warm-up and the
+  // calibration, so those measured runs sample the same leaf list the pass
+  // itself samples. A run of one pass seats every column, the spine the
+  // audit point compiled; a run the plan split seats its first pass's own
+  // leaf list, because the whole spine is the leaf list that does not fit
+  // the source's programmable-counter limit (FR-004).
+  if (const auto seated = seatPass(passColumns.front()); !seated.has_value()) {
+    return fail(seated.error());
   }
 
   // FR-023: the availability of every leaf a metric needs is read
@@ -1284,10 +1410,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // one run the attempt starts, beside the pause room the family's
   // history earns. FR-053: a family without pause history reserves the
   // endpoint shape alone. FR-026: a pair that outruns the room folds
-  // through the run's two-point slot, minted once beside the plan, so
-  // a run that pauses in every iteration completes.
-  auto slotReset = plan->recorder(2);
-  const double overheadFloorNs = plan->sampleOverheadNsMedian();
+  // through the pass's two-point slot, minted when the pass takes its
+  // seat, so a run that pauses in every iteration completes.
 
   // The attempt's recorder, set anew when every attempt reserves, and
   // read once more when the measured row folds its columns.
@@ -1313,24 +1437,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // warm-up, the calibration, and every repetition, and the holder
   // joined beside the run result ends each of them when this run
   // returns (FR-006). The threaded policy is the harness default: SPIN
-  // waits and no pin. specs/025 FR-008, FR-010, FR-019, D-1: when the
-  // instance carries a preset other than `none`, the plan of that preset
-  // over the machine layout names each context's cpu by position; the
-  // batch fit check has already stopped an unfittable count, so the plan
-  // stands full here.
+  // waits and no pin.
   if (instance.threadCount > 1) {
-    const std::optional<detail::PlacementPlan> placePlan =
-        instance.placement != detail::Preset::NONE
-        ? std::optional<detail::PlacementPlan>(detail::resolvePreset(
-              instance.placement, detail::layout(), instance.threadCount))
-        : std::nullopt;
+    const sg::ContextPolicy policy {sg::WaitMode::SPIN,
+                                    sg::PlacementSlot::noPin()};
     for (int position = 0; position < instance.threadCount; ++position) {
-      const sg::ContextPolicy policy {
-          sg::WaitMode::SPIN,
-          placePlan.has_value()
-              ? sg::PlacementSlot::cpu(
-                    placePlan->cpu[static_cast<std::size_t>(position)])
-              : sg::PlacementSlot::noPin()};
       contexts.push_back(std::make_unique<sg::ExecutionContext>(policy));
     }
   }
@@ -1383,9 +1494,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       [&](const std::uint64_t iterations,
           const std::size_t pauseRoom) noexcept -> sg::detail::ChunkPlan
   {
-    if (result.percentilePoints.empty()
-        && m_options.rawContent != sg::RawContent::CHUNKS)
-    {
+    if (result.percentilePoints.empty()) {
       return sg::detail::ChunkPlan {
           .chunkIterations = 0,
           .chunkCount = 0,
@@ -1530,8 +1639,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
                      record,
                      static_cast<std::size_t>(entry.realTime ? 0 : 1));
     }
-    for (const auto& column : columns) {
-      if (column.unavailable) {
+    for (std::size_t position = 0; position < columns.size(); ++position) {
+      const auto& column = columns[position];
+      // specs/024 FR-009, FR-014: a column this pass does not measure has no
+      // leaf in this pass's plan, so no fold stands in its slot; the merge
+      // brings the value of the pass that measured the column.
+      if (column.unavailable || !measuredColumn[position]) {
         folds.columns.push_back(sg::counters::MetricResult {});
         continue;
       }
@@ -1579,7 +1692,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         == sg::counters::Availability::COUNTABLE);
     perIteration.push_back(true);
     for (std::size_t position = 0; position < columns.size(); ++position) {
-      if (columns[position].unavailable) {
+      if (columns[position].unavailable || !measuredColumn[position]) {
         folds.chunkValues.emplace_back();
         folds.countable.push_back(false);
         perIteration.push_back(false);
@@ -2026,130 +2139,222 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // warm-up, and it qualifies at once.
   const std::uint64_t repetitionsOfRun = dryRun ? 1 : repetitions;
 
-  for (std::uint64_t repetition = 0; repetition < repetitionsOfRun;
-       ++repetition)
-  {
-    std::uint64_t iterations = dryRun ? 1 : settled;
-    std::expected<RunRecord, std::string> chosen = std::unexpected("");
+  // specs/024 FR-010, D-06: a run that splits its columns across passes
+  // calibrates once, ahead of pass 0, and every pass then runs every
+  // repetition at the iteration count that calibration produced, so the
+  // passes measure the same amount of work. A run of one pass keeps the
+  // shape the harness has at the audit point, where the run that qualifies
+  // the first repetition is that repetition's measured row (SC-09).
+  bool calibratedAhead = false;
+  if (passCount > 1 && !fixedIterations.has_value() && !dryRun) {
+    const auto ahead = growUntilQualified(1,
+                                          minTimeNs,
+                                          kRunBound,
+                                          PhaseText {"calibration", "FR-016"},
+                                          sampleRun,
+                                          []() noexcept -> bool
+                                          { return interruptFlag().load(); });
+    if (ahead.outcome == GrowOutcome::FAILED
+        || ahead.outcome == GrowOutcome::BOUND_EXHAUSTED)
+    {
+      return fail(ahead.error);
+    }
+    if (ahead.outcome == GrowOutcome::SKIPPED) {
+      result.outcome = RunOutcome::SKIPPED;
+      result.reason = ahead.record.reason;
+      return result;
+    }
+    if (ahead.outcome == GrowOutcome::INTERRUPTED) {
+      markInterrupted(result);
+      return result;
+    }
+    // FR-012, FR-020: the qualified record sums the count of every context,
+    // and the count a pass hands each context is one share of that sum.
+    settled = ahead.record.iterations
+        / static_cast<std::uint64_t>(instance.threadCount);
+    calibratedAhead = true;
+  }
 
-    if (repetition == 0 && !fixedIterations.has_value() && !dryRun) {
-      // FR-014: the first repetition calibrates from one iteration, and
-      // the run that qualifies is its measured run.
-      const auto grown = growUntilQualified(1,
-                                            minTimeNs,
-                                            kRunBound,
-                                            PhaseText {"calibration", "FR-016"},
-                                            sampleRun,
-                                            []() noexcept -> bool
-                                            { return interruptFlag().load(); });
-      if (grown.outcome == GrowOutcome::FAILED
-          || grown.outcome == GrowOutcome::BOUND_EXHAUSTED)
+  // E-04, FR-009, FR-011, FR-013: the pass loop, outside the threaded
+  // dispatch. The run chose its contexts once above and every pass runs on
+  // that same set, never re-placing one; the wait every attempt already
+  // makes for its body nodes is the join between passes, so no window of a
+  // later pass opens before the last window of this one closed in every
+  // context. Each pass folds the rows of its own measurements into a result
+  // of its own, and the merge after the last pass brings the one result the
+  // run publishes out of them (FR-014).
+  const BenchmarkResult passIdentity = result;
+  std::vector<BenchmarkResult> passResults;
+  passResults.reserve(passCount);
+  bool interrupted = false;
+  for (std::size_t pass = 0; pass < passCount; ++pass) {
+    if (pass > 0) {
+      // E-04, FR-012: the previous pass's seat closes first - the recorder
+      // that stood over it, then the plan - and this pass compiles its own
+      // leaf list before it opens its first timed window.
+      attemptRecorder.reset();
+      plan.reset();
+      if (const auto seated = seatPass(passColumns[pass]); !seated.has_value())
       {
-        return fail(grown.error);
-      }
-      if (grown.outcome == GrowOutcome::SKIPPED) {
-        result.outcome = RunOutcome::SKIPPED;
-        result.reason = grown.record.reason;
-        return result;
-      }
-      if (grown.outcome == GrowOutcome::INTERRUPTED) {
-        markInterrupted(result);
-        return result;
-      }
-      chosen = std::move(grown.record);
-      // FR-012, FR-020: the qualified record sums the count of every
-      // context. The count a later repetition hands each context is one
-      // share of that sum.
-      iterations =
-          chosen->iterations / static_cast<std::uint64_t>(instance.threadCount);
-      settled = iterations;
-    } else {
-      chosen = sampleRun(iterations);
-      if (!chosen.has_value()) {
-        return fail(chosen.error());
-      }
-      if (chosen->skipped) {
-        result.outcome = RunOutcome::SKIPPED;
-        result.reason = chosen->reason;
-        return result;
+        return fail(seated.error());
       }
     }
+    // E-05: one result per pass, each carrying the identity the run
+    // established before the split.
+    result = passIdentity;
 
-    if (instance.threadCount > 1) {
-      fillDisclosures();
-    }
+    for (std::uint64_t repetition = 0; repetition < repetitionsOfRun;
+         ++repetition)
+    {
+      std::uint64_t iterations = dryRun ? 1 : settled;
+      std::expected<RunRecord, std::string> chosen = std::unexpected("");
 
-    // FR-002, FR-005, FR-006: the fold behind the availability of the
-    // primary column, a null core where the run carries a manual sum.
-    const sg::counters::detail::ExprCore* primaryCore = selectPrimaryCore(
-        entry.manualTime, entry.realTime, realTime.core, cpuTime.core);
-    if (instance.threadCount > 1) {
-      // FR-020: exactly one merged row per repetition, carrying the
-      // summed values and the per-iteration division by the summed
-      // iteration count, built from the folds each context did on its
-      // own plan (FR-018).
-      result.contextPercentiles.clear();
-      std::vector<std::vector<std::vector<double>>> contextChunks;
-      std::vector<RowRaw> rowContexts;
-      appendMergedRow(result.rows,
-                      *chosen,
-                      columns,
-                      overheadFloorNs,
-                      primaryCore,
-                      threadedFolds,
-                      static_cast<std::uint64_t>(instance.threadCount),
-                      result.percentilePoints,
-                      result.contextPercentiles,
-                      contextChunks);
-      for (auto& chunks : contextChunks) {
-        rowContexts.push_back(RowRaw {.columns = std::move(chunks)});
+      if (repetition == 0 && !calibratedAhead && !fixedIterations.has_value()
+          && !dryRun)
+      {
+        // FR-014: the first repetition calibrates from one iteration, and
+        // the run that qualifies is its measured run.
+        const auto grown = growUntilQualified(
+            1,
+            minTimeNs,
+            kRunBound,
+            PhaseText {"calibration", "FR-016"},
+            sampleRun,
+            []() noexcept -> bool { return interruptFlag().load(); });
+        if (grown.outcome == GrowOutcome::FAILED
+            || grown.outcome == GrowOutcome::BOUND_EXHAUSTED)
+        {
+          return fail(grown.error);
+        }
+        if (grown.outcome == GrowOutcome::SKIPPED) {
+          result.outcome = RunOutcome::SKIPPED;
+          result.reason = grown.record.reason;
+          return result;
+        }
+        if (grown.outcome == GrowOutcome::INTERRUPTED) {
+          markInterrupted(result);
+          return result;
+        }
+        chosen = std::move(grown.record);
+        // FR-012, FR-020: the qualified record sums the count of every
+        // context. The count a later repetition hands each context is one
+        // share of that sum.
+        iterations = chosen->iterations
+            / static_cast<std::uint64_t>(instance.threadCount);
+        settled = iterations;
+      } else {
+        chosen = sampleRun(iterations);
+        if (!chosen.has_value()) {
+          return fail(chosen.error());
+        }
+        if (chosen->skipped) {
+          result.outcome = RunOutcome::SKIPPED;
+          result.reason = chosen->reason;
+          return result;
+        }
       }
-      m_contextRaw.back().push_back(std::move(rowContexts));
-      // The merged row answers from the union of the contexts' columns,
-      // which the per-context entries carry whole, so the row itself
-      // retains no copy of that union (specs/023 E-01).
-      m_rowRaw.back().emplace_back();
-    } else {
-      std::vector<std::vector<double>> chunks;
-      appendMeasuredRow(result.rows,
+
+      if (instance.threadCount > 1) {
+        fillDisclosures();
+      }
+
+      // FR-002, FR-005, FR-006: the fold behind the availability of the
+      // primary column, a null core where the run carries a manual sum.
+      const sg::counters::detail::ExprCore* primaryCore = selectPrimaryCore(
+          entry.manualTime, entry.realTime, realTime.core, cpuTime.core);
+      if (instance.threadCount > 1) {
+        // FR-020: exactly one merged row per repetition, carrying the
+        // summed values and the per-iteration division by the summed
+        // iteration count, built from the folds each context did on its
+        // own plan (FR-018).
+        result.contextPercentiles.clear();
+        appendMergedRow(result.rows,
                         *chosen,
                         columns,
+                        measuredColumn,
                         overheadFloorNs,
                         primaryCore,
-                        entry.realTime ? cpuTime.core : realTime.core,
-                        *attemptRecorder,
-                        entry.realTime ? 0 : 1,
-                        entry.realTime ? 1 : 0,
+                        threadedFolds,
+                        static_cast<std::uint64_t>(instance.threadCount),
                         result.percentilePoints,
-                        chunks);
-      m_rowRaw.back().push_back(RowRaw {.columns = std::move(chunks)});
-      m_contextRaw.back().emplace_back();
+                        result.contextPercentiles);
+      } else {
+        appendMeasuredRow(result.rows,
+                          *chosen,
+                          columns,
+                          measuredColumn,
+                          overheadFloorNs,
+                          primaryCore,
+                          entry.realTime ? cpuTime.core : realTime.core,
+                          *attemptRecorder,
+                          entry.realTime ? 0 : 1,
+                          entry.realTime ? 1 : 0,
+                          result.percentilePoints);
+      }
+
+      // FR-006: the labels of the run's counters are its names in the order
+      // they opened, read from the rows as they are built.
+      if (chosen->counterNames.size() > result.counterLabels.size()) {
+        result.counterLabels = chosen->counterNames;
+      }
+
+      // FR-008: a counter name equal to the label of an attached metric fails
+      // the run naming the collision, and the check runs when the first row of
+      // the run stands.
+      for (const auto& label : result.metricLabels) {
+        for (const auto& name : chosen->counterNames) {
+          if (label == name) {
+            return fail("the counter name '" + name
+                        + "' equals the label of an attached metric, and one "
+                          "row carries that name once (FR-008)");
+          }
+        }
+      }
+
+      if (interruptFlag().load()) {
+        result.outcome = RunOutcome::SKIPPED;
+        result.reason = kInterruptReason;
+        interrupted = true;
+        break;
+      }
     }
 
-    // FR-006: the labels of the run's counters are its names in the order
-    // they opened, read from the rows as they are built.
-    if (chosen->counterNames.size() > result.counterLabels.size()) {
-      result.counterLabels = chosen->counterNames;
+    // E-04, FR-012: this pass measured its last row, so it closes: the
+    // attempt's recorder first, then the plan that recorder stood over.
+    attemptRecorder.reset();
+    plan.reset();
+    passResults.push_back(std::move(result));
+    if (interrupted) {
+      break;
     }
+  }
 
-    // FR-008: a counter name equal to the label of an attached metric fails
-    // the run naming the collision, and the check runs when the first row of
-    // the run stands.
-    for (const auto& label : result.metricLabels) {
-      for (const auto& name : chosen->counterNames) {
-        if (label == name) {
-          return fail("the counter name '" + name
-                      + "' equals the label of an attached metric, and one "
-                        "row carries that name once (FR-008)");
+  if (passResults.size() > 1 && !interrupted) {
+    // FR-014, FR-016: the merge runs once, after the last pass closed and
+    // outside every timed window, over the fold results of the passes. It
+    // reads no counter and publishes no value a pass did not measure. The
+    // merge indexes the plan by the column of a row, and a row can stand
+    // wider than the columns the planner costed: a body that stores counters
+    // adds one column each, and a run that reports percentiles stands one
+    // column beside every column of the row. Those columns ride every pass
+    // unmeasured by the planner, so the reference pass answers them, and the
+    // padding keeps the merge's index inside the plan it reads.
+    std::size_t widestRow = 0;
+    for (const BenchmarkResult& passResult : passResults) {
+      for (const ResultRow& row : passResult.rows) {
+        widestRow = std::max(
+            widestRow, passIdentity.metricLabels.size() + row.counters.size());
+        if (row.percentiles.size() > 1) {
+          widestRow = std::max(widestRow, row.percentiles.size() - 1);
         }
       }
     }
-
-    if (interruptFlag().load()) {
-      result.outcome = RunOutcome::SKIPPED;
-      result.reason = kInterruptReason;
-      break;
+    if (planning.measuringPass.size() < widestRow) {
+      planning.measuringPass.resize(widestRow, 0);
     }
+    result = sg::detail::mergePasses(planning, passResults);
+  } else {
+    result = std::move(passResults.back());
   }
 
   // FR-054: the result records the fold when a measured repetition's
@@ -2263,8 +2468,6 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
 
     result.rows.push_back(aggregate);
-    m_rowRaw.back().emplace_back();
-    m_contextRaw.back().emplace_back();
   }
 
   // FR-019, FR-022: a family that asked for a complexity fit collects one value
