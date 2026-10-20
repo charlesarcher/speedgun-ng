@@ -350,7 +350,7 @@ passes; the page block prints the row the page names.
 - [X] T063 Bump `PROJECT_VERSION` in `CMakeLists.txt` to the next free minor
   version at merge time, leave both `SOVERSION` numbers unchanged, and record
   in the commit body that no exported layout moved (FR-037)
-- [ ] T064 Rebase onto `master`, run the full `ctest --test-dir build
+- [X] T064 Rebase onto `master`, run the full `ctest --test-dir build
   --output-on-failure` once more, and push with `--force-with-lease`
 
 **Checkpoint**: every gate of Principle VIII is green on the branch and the
