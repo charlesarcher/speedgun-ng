@@ -223,9 +223,7 @@ auto timeSourcePresent(counters::System& sys) -> bool
   if (!error.suggestions.empty()) {
     line += ")";
   }
-  // Separate return object: gcov leaves a count-zero record on the brace
-  // of a function that returns its local directly.
-  return std::string(line);
+  return line;
 }
 
 auto metricNameFailure(const std::vector<std::string>& names) -> int

@@ -584,12 +584,7 @@ auto mergeThreadedRecords(const std::vector<ThreadedOutcome>& outcomes,
     merged.chunkCount += outcome.record.chunkCount;
   }
   merged.chunkIterations = outcomes.front().record.chunkIterations;
-  // A `return merged;` would make `merged` the return object itself, and
-  // gcov would then attach an unexecutable count-zero record to the closing
-  // brace. Returning a separate object leaves the destructor of `merged` to
-  // run at the brace, which every call executes (the pattern createRange
-  // states in family.cpp).
-  return sg::detail::RunRecord(merged);
+  return merged;
 }
 
 }  // namespace
@@ -618,9 +613,7 @@ namespace sg::detail
     note += sg::counters::metricRefusalName(found->refusal);
     note += ")";
   }
-  // Separate return object: gcov leaves a count-zero record on the brace
-  // of a function that returns its local directly.
-  return std::string(note);
+  return note;
 }
 
 // FR-025, FR-026, FR-027: the column one metric-name lookup answers. The
