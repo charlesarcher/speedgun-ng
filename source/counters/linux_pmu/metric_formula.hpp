@@ -1,6 +1,6 @@
 // ============================================================================
 // Metric-formula grammar of the vendored event table
-// (specs/021-metric-formulas D-01, D-02, D-03, D-08, D-09, D-10).
+// (specs/022-metric-formulas D-01, D-02, D-03, D-08, D-09, D-10).
 //
 // Parsing happens once per architecture directory, when that directory's
 // event table is first read, and the trees live beside the table for the

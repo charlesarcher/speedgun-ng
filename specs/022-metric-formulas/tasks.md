@@ -1,6 +1,6 @@
 # Tasks: Metric Formulas
 
-**Input**: Design documents from `specs/021-metric-formulas/`
+**Input**: Design documents from `specs/022-metric-formulas/`
 
 **Prerequisites**: plan.md, spec.md (FR-001 to FR-042, SC-001 to SC-009,
 user stories US1 to US4, clarifications of 2026-10-19), research.md

@@ -1,6 +1,6 @@
 # Implementation Plan: Metric Formulas
 
-**Feature branch**: `021-metric-formulas` | **Spec**: [spec.md](./spec.md)
+**Feature branch**: `022-metric-formulas` | **Spec**: [spec.md](./spec.md)
 
 **Audit point**: `ab32400b86321f98f13b9c66d4488e15831b47f6`
 
@@ -135,7 +135,7 @@ test the matrix already runs.
 ### Documentation (this feature)
 
 ```text
-specs/021-metric-formulas/
+specs/022-metric-formulas/
 ├── spec.md                   # Requirements, clarifications of 2026-10-19
 ├── plan.md                   # This file
 ├── research.md               # Phase 0: D-01 to D-14

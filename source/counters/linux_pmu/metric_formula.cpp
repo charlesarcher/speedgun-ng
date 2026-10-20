@@ -1,6 +1,6 @@
 // ============================================================================
 // Metric rows of the vendored event table, parsed once and resolved against
-// the open system (specs/021-metric-formulas).
+// the open system (specs/022-metric-formulas).
 //
 // Two passes live here. The parse pass reads each row's formula text into a
 // node tree when a directory is first touched: grammar only, no host, so the

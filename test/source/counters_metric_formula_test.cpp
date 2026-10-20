@@ -1,5 +1,5 @@
 // ============================================================================
-// TDD test for the metric formula grammar (specs/021-metric-formulas T013 to
+// TDD test for the metric formula grammar (specs/022-metric-formulas T013 to
 // T019; FR-003 to FR-007).
 //
 // The parse pass is a pure function over a row's text, so the cases are

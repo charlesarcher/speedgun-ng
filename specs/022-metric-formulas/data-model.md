@@ -1,6 +1,6 @@
 # Data Model: Metric Formulas
 
-**Feature**: `021-metric-formulas` | **Plan**: [plan.md](./plan.md)
+**Feature**: `022-metric-formulas` | **Plan**: [plan.md](./plan.md)
 
 **Audit point**: `ab32400b86321f98f13b9c66d4488e15831b47f6`
 

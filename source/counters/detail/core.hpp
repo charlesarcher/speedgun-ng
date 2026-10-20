@@ -261,7 +261,7 @@ struct System::Impl
 
 // The near-miss suggester the catalog and the metric lookup share, so a
 // name that misses publishes the closest names beside its miss
-// (FR-008, specs/021-metric-formulas FR-016).
+// (FR-008, specs/022-metric-formulas FR-016).
 constexpr std::size_t kSuggestionLimit = 5;
 constexpr int kNearMissDistance = 2;
 

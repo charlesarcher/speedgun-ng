@@ -31,7 +31,7 @@ namespace sg::counters::detail
 // encoder composes them with the running kernel's bit layouts
 // (FR-037). A metric-definition row carries the table's formula text
 // beside its name; the counters library publishes it as a composition and
-// the encoder never sees it (specs/021-metric-formulas FR-002, FR-003).
+// the encoder never sees it (specs/022-metric-formulas FR-002, FR-003).
 struct PmuTableEntry
 {
   std::string name;
@@ -47,7 +47,7 @@ struct PmuTableEntry
   // convention-mapped names: "event" (EventCode), "umask" (UMask),
   // plus any other JSON key that names a format field.
   std::vector<std::pair<std::string, std::uint64_t>> fields;
-  // A metric-definition row (specs/021-metric-formulas FR-002): the
+  // A metric-definition row (specs/022-metric-formulas FR-002): the
   // table's MetricName, its formula text, its scale-and-unit text and its
   // group text. A row of an empty `metricName` is an event row, and a
   // metric row carries no config fields and reaches no encoder.

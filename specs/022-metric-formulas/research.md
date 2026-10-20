@@ -1,6 +1,6 @@
 # Research: Metric Formulas
 
-**Feature**: `021-metric-formulas` | **Spec**: [spec.md](./spec.md)
+**Feature**: `022-metric-formulas` | **Spec**: [spec.md](./spec.md)
 
 **Audit point**: `ab32400b86321f98f13b9c66d4488e15831b47f6`
 
