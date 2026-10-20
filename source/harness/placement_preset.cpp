@@ -1,5 +1,5 @@
 // ============================================================================
-// specs/022-topology-placement T011: the preset table, the resolver and the
+// specs/025-topology-placement T011: the preset table, the resolver and the
 // disclosure text (US1, US2, FR-007 to FR-014, FR-018, FR-021, E-09, R-03).
 //
 // The resolver is the pure walk of `contracts/topology-placement.md`: it
@@ -44,6 +44,19 @@ const std::array<PresetName, 5> kPresetNames {{{"none", Preset::NONE},
                                                {"l3", Preset::L3},
                                                {"smt", Preset::SMT},
                                                {"compact", Preset::COMPACT}}};
+
+// FR-008: the resolver's postcondition predicate, the plan's cpus
+// pairwise distinct. The sorted scan reads it off the finished plan.
+// The predicate is consulted only inside SG_ENSURE, which expands to
+// nothing in a Release build, so the attribute keeps it compiling in
+// every build type.
+[[maybe_unused]] auto planCpusDistinct(const std::vector<std::uint32_t>& cpus)
+    -> bool
+{
+  std::vector<std::uint32_t> sorted = cpus;
+  std::ranges::sort(sorted);
+  return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
+}
 
 }  // namespace
 
@@ -123,14 +136,8 @@ auto resolvePreset(const Preset preset,
   }
   plan.cpu.resize(static_cast<std::size_t>(contexts));
   plan.group.resize(static_cast<std::size_t>(contexts));
-  SG_ENSURE(
-      [](const std::vector<std::uint32_t>& cpus)
-      {
-        std::vector<std::uint32_t> sorted = cpus;
-        std::ranges::sort(sorted);
-        return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
-      }(plan.cpu),
-      "the plan's cpus stand pairwise distinct (FR-008)");
+  SG_ENSURE(planCpusDistinct(plan.cpu),
+            "the plan's cpus stand pairwise distinct (FR-008)");
   return plan;
 }
 
@@ -159,7 +166,7 @@ auto placementText(const PlacementSlot& slot) -> std::string_view
                           static_cast<std::size_t>(end - buffer.data()));
 }
 
-// specs/022 FR-005, FR-018, Q-6, Q-7: the fit check walks the selected
+// specs/025 FR-005, FR-018, Q-6, Q-7: the fit check walks the selected
 // instances after selection and before the first run. A preset over a
 // layout the harness cannot read stops the batch whatever the context
 // count; a plan the places cannot hold stops it with one line naming
