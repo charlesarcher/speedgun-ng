@@ -48,12 +48,27 @@ struct FoldContext
       const auto delta = column[ctx.j] - column[ctx.i];
       return static_cast<double>(delta);
     }
+    case 4: {
+      const double factor = node.scale;
+      // One kind 4 node, three shapes: a literal carries no operand, a
+      // product carries a right operand, a scale carries neither.
+      if (node.left < 0) {
+        return factor;
+      }
+      const double left = eval(ctx, core, node.left);
+      if (node.right < 0) {
+        return factor * left;
+      }
+      return factor * left * eval(ctx, core, node.right);
+    }
     case 1:
       return eval(ctx, core, node.left) + eval(ctx, core, node.right);
     case 2:
       return eval(ctx, core, node.left) - eval(ctx, core, node.right);
-    case 4:
-      return eval(ctx, core, node.left) * node.scale;
+    case 5:
+      return std::min(eval(ctx, core, node.left), eval(ctx, core, node.right));
+    case 6:
+      return std::max(eval(ctx, core, node.left), eval(ctx, core, node.right));
     default:
       return eval(ctx, core, node.left) / eval(ctx, core, node.right);
   }
@@ -95,7 +110,16 @@ struct FoldContext
     return node.leaf == targetLeaf ? sign : 0;
   }
   if (node.kind == 4) {
-    return leafSign(core, node.left, targetLeaf, sign);
+    // A literal weighs nothing; a scale passes its operand's weight
+    // through; a product carries the weight of both operands.
+    if (node.left < 0) {
+      return 0;
+    }
+    const int left = leafSign(core, node.left, targetLeaf, sign);
+    if (node.right < 0) {
+      return left;
+    }
+    return left + leafSign(core, node.right, targetLeaf, sign);
   }
   const int left = leafSign(core, node.left, targetLeaf, sign);
   const int right =
