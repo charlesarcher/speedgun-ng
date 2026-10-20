@@ -120,6 +120,25 @@ template<class E>
   return expr;
 }
 
+// The rows whose spine keeps a counted dimension fold through an
+// expression of that dimension: the helper-scaled cycle row and the
+// product of two leaves.
+[[nodiscard]] auto eventsOf(const sg::test::MetricDefinition& def)
+    -> Expression<Dim<0, 1>>
+{
+  Expression<Dim<0, 1>> expr;
+  expr.core = def.core;
+  return expr;
+}
+
+[[nodiscard]] auto productOf(const sg::test::MetricDefinition& def)
+    -> Expression<Dim<0, 2>>
+{
+  Expression<Dim<0, 2>> expr;
+  expr.core = def.core;
+  return expr;
+}
+
 // The whole fixture table, resolved once for the name-rule cases.
 [[nodiscard]] auto allRows() -> const RowList&
 {
@@ -198,6 +217,29 @@ auto valueScenario() -> void
         "the 100% row carries the table's factor of 100 (FR-018)");
   check(percent.unit == "100%",
         "the scale text is printed as written (FR-018)");
+
+  const auto operand = resolved("helper_operand");
+  check(sameDouble(foldValue(eventsOf(operand)), sg::test::kCyclesDelta),
+        "a helper settled to one scales its operand spine (FR-004)");
+  const auto product = resolved("prod_row");
+  check(sameDouble(foldValue(productOf(product)),
+                   sg::test::kCyclesDelta * sg::test::kInstructionsDelta),
+        "a product of two leaves folds on both operands (FR-010)");
+  const auto paren = resolved("cond_paren");
+  check(sameDouble(foldValue(eventsOf(paren)), sg::test::kCyclesDelta),
+        "a settled conditional in a parenthesized arm walks as its taken "
+        "literal (FR-005)");
+  const auto guard = resolved("guard_div");
+  check(sameDouble(foldValue(eventsOf(guard)), sg::test::kInstructionsDelta),
+        "a guarded division of a counted left keeps the counted dimension "
+        "(FR-008)");
+  const auto hex = resolved("hex_row");
+  check(sameDouble(foldValue(eventsOf(hex)), 2.0 * sg::test::kCyclesDelta),
+        "a hexadecimal literal loads like its decimal spelling (FR-003)");
+  const auto escaped = resolved("esc_ref");
+  check(sameDouble(foldValue(eventsOf(escaped)), sg::test::kCyclesDelta),
+        "an escaped name in a bare reference decodes to the row it names "
+        "(FR-003)");
 
   const auto bandwidth = resolved("bandwidth");
   const Expression<Dim<-1, 1>> handRate = reads / time;
@@ -322,6 +364,26 @@ auto refusalScenario() -> void
         "a formula that divides by zero refuses (FR-012)");
   check(refused("bad_modifier").refusal == MetricRefusal::UNSUPPORTED,
         "a modifier the catalog entry does not carry refuses (FR-003)");
+  check(refused("bare_cmp").refusal == MetricRefusal::MALFORMED,
+        "a comparison outside a conditional strands text the root refuses "
+        "malformed (FR-002, FR-005)");
+  check(refused("bad_test_close").refusal == MetricRefusal::MALFORMED,
+        "a test that fails its nested parse refuses malformed (FR-002)");
+  check(refused("bad_test_star").refusal == MetricRefusal::MALFORMED,
+        "a comparison whose right operand fails its parse refuses malformed "
+        "(FR-002)");
+  check(
+      refused("unterminated").refusal == MetricRefusal::UNSUPPORTED,
+      "a character the grammar does not seat refuses unsupported " "(FR-005)");
+  check(refused("bad_arity").refusal == MetricRefusal::MALFORMED,
+        "a helper called with two arguments refuses malformed (FR-002)");
+  const auto& nofact = refused("test_missing_right");
+  check(
+      nofact.refusal == MetricRefusal::UNKNOWN_CONSTANT,
+      "a settled test whose right constant this host lacks refuses " "(FR-"
+                                                                     "006)");
+  check(resolved("test_source").published,
+        "a source_count test settles on the table's own rows (FR-004)");
 
   const auto memory = resolved("memory");
   check(memory.objectPath == sg::test::kMemoryObject,
@@ -635,13 +697,15 @@ auto verdictSweepScenario() -> void
 
 auto main() -> int
 {
-  (void)sg::counters::System::local().object("machine");
   // The scripted leaves are what a folded value or a stated refusal reads,
   // so only those scenarios need the fixture provider. The sweep over the
   // vendored directories and the host-parameterised lookup answer from the
   // fixture rows and the host's own table wherever the process stands
-  // (FR-036).
+  // (FR-036). Registration must precede the system's first use, which is
+  // what `registerMetricHost` states; opening `machine` before it would
+  // lock the fixture out and silently skip every scripted scenario.
   const bool scripted = sg::test::registerMetricHost();
+  (void)sg::counters::System::local().object("machine");
   if (!scripted) {
     std::printf("SKIP metric lookup: the counters system had already opened "
                 "when the fixture registered, so no scripted leaves exist to "

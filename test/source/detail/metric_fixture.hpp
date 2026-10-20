@@ -127,6 +127,39 @@ inline constexpr double kDataReadsDelta = 4096.0;
       fixtureMetric("test_less", "1 if #num_cores < 999999 else 2"),
       fixtureMetric("test_event", "1 if fixture_cycles else 2"),
       fixtureMetric("test_bad", "1 if #has_pmem else 2"),
+      // A comparison outside a conditional strands text the root refuses
+      // malformed (FR-002, FR-005), and a test whose nested parse fails
+      // refuses malformed at the propagation edge of the comparison.
+      fixtureMetric("bare_cmp", "fixture_cycles > fixture_ref_cycles"),
+      fixtureMetric("bad_test_close", "1 if ( < 1) else 2"),
+      fixtureMetric("bad_test_star", "1 if 1 < * 2 else 2"),
+      // A helper that settles to one scales its operand spine (FR-004), a
+      // `source_count` test settles on the table's own rows (FR-004), a
+      // settled test whose right constant this host lacks refuses (FR-006),
+      // and a product of two leaves folds on both operands (FR-010).
+      fixtureMetric("helper_operand",
+                    "fixture_cycles * has_event(fixture_instructions)"),
+      fixtureMetric("test_source",
+                    "1 if source_count(fixture_instructions) else 2"),
+      fixtureMetric("test_missing_right", "1 if #num_cores < #has_pmem else 2"),
+      fixtureMetric("prod_row", "fixture_cycles * fixture_instructions"),
+      // A conditional seated in a parenthesized arm walks through the
+      // spine (FR-005), and a guarded division with a counted left
+      // operand keeps the left dimension (FR-008).
+      fixtureMetric("cond_paren",
+                    "(1 if #num_cores > 0 else 2) * fixture_cycles"),
+      fixtureMetric("guard_div",
+                    "fixture_cycles / (fixture_cycles / fixture_instructions)"),
+      // A hexadecimal literal loads like its decimal spelling (FR-003),
+      // a character the grammar does not seat refuses, and a two-argument
+      // helper refuses malformed (FR-002).
+      fixtureMetric("hex_row", "fixture_cycles * 0x2"),
+      // An escaped name in a bare reference decodes to the row it names
+      // (FR-003).
+      fixtureMetric("esc_ref", "fixture\\_cycles"),
+      fixtureMetric("unterminated", "[open_cycles + 1"),
+      fixtureMetric("bad_arity",
+                    "has_event(fixture_cycles, fixture_instructions)"),
       // The helpers, each on the side this host answers (FR-004).
       fixtureMetric(
           "present",
@@ -164,25 +197,43 @@ inline constexpr double kDataReadsDelta = 4096.0;
 // which is how every test of this suite opens the tree (FR-036); a system
 // that opened before the fixture registered answers false, and the caller
 // names that reason and skips.
-[[nodiscard]] inline auto registerMetricHost() -> bool
+// The object tree the fixture provider publishes. The default is the
+// simultaneous-multithreading tree: two threads on one core, so a host
+// fact reads SMT on. The other shapes let another binary read the same
+// facts off a tree that answers differently: equal thread and core
+// counts, or a tree that carries threads but no cores.
+enum class MetricTree
 {
-  static const bool kAccepted = []
+  SMT_ON,
+  SMT_OFF,
+  CORELESS,
+};
+
+[[nodiscard]] inline auto registerMetricHost(
+    const MetricTree tree = MetricTree::SMT_ON) -> bool
+{
+  static const bool kAccepted = [&tree]
   {
     auto provider = std::make_unique<sg::counters::FakeProvider>();
     provider->addObject(
         kCoreObject, "pmu", "core counting device of the metric fixture");
     provider->addObject(
         kMemoryObject, "pmu", "uncore memory device of the metric fixture");
-    provider->addObject(
-        "metric-package-0", "package", "package of the metric fixture");
-    provider->addObject(
-        "metric-package-0/metric-core-0", "core", "core of the metric fixture");
+    if (tree != MetricTree::CORELESS) {
+      provider->addObject(
+          "metric-package-0", "package", "package of the metric fixture");
+      provider->addObject("metric-package-0/metric-core-0",
+                          "core",
+                          "core of the metric fixture");
+    }
     provider->addObject("metric-package-0/metric-core-0/metric-thread-0",
                         "thread",
                         "thread of the metric fixture");
-    provider->addObject("metric-package-0/metric-core-0/metric-thread-1",
-                        "thread",
-                        "thread of the metric fixture");
+    if (tree == MetricTree::SMT_ON) {
+      provider->addObject("metric-package-0/metric-core-0/metric-thread-1",
+                          "thread",
+                          "thread of the metric fixture");
+    }
     provider->addCounter(kCoreObject, kCycles, "none", "fixture cycles");
     provider->addCounter(
         kCoreObject, kInstructions, "none", "fixture instructions");

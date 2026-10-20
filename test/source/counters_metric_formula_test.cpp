@@ -356,7 +356,7 @@ auto refusalCorpusScenario() -> void
 // T018: the literal constants, against the host the constants count.
 auto constantScenario() -> void
 {
-  if (!sg::test::registerMetricHost()) {
+  if (!sg::test::registerMetricHost(sg::test::MetricTree::SMT_OFF)) {
     std::printf("SKIP literal constants: the counters system had already "
                 "opened when the fixture registered, so no scripted object "
                 "tree exists to count (FR-036)\n");
@@ -371,14 +371,25 @@ auto constantScenario() -> void
            "num_cpus_online",
        })
   {
+    // `#SMT_on` is zero on this equal-count tree and a guarded division
+    // by zero refuses by contract (FR-012), so every constant enters the
+    // divisor beside a two that keeps it away from zero.
+    const std::string formula =
+        std::string("fixture_cycles / (#") + name + " + 2)";
     const auto rows = std::vector<sg::test::MetricRow> {
         sg::test::fixtureEvent(sg::test::kCycles),
-        sg::test::fixtureMetric("row",
-                                std::string("fixture_cycles / #") + name),
+        sg::test::fixtureMetric("row", formula),
     };
     const auto table = sg::counters::detail::parseMetricRows(rows);
     const auto settled =
         sg::counters::detail::metricDefinition(table, events, host, "row");
+    if (!settled.has_value()) {
+      std::fprintf(stderr,
+                   "METRIC FORMULA TEST FAIL: '#%s' refused: %s\n",
+                   name,
+                   settled.error().message.c_str());
+      std::exit(1);
+    }
     check(settled.has_value(),
           "a constant the object tree answers resolves the row (FR-006)");
   }
@@ -415,7 +426,7 @@ auto constantScenario() -> void
 // T024: the load keeps going over the rest of the table (FR-007).
 auto loaderContinuesScenario() -> void
 {
-  if (!sg::test::registerMetricHost()) {
+  if (!sg::test::registerMetricHost(sg::test::MetricTree::SMT_OFF)) {
     std::printf("SKIP the continuing load: the counters system had already "
                 "opened when the fixture registered (FR-036)\n");
     return;

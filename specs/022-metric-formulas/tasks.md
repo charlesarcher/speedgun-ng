@@ -335,7 +335,7 @@ passes; the page block prints the row the page names.
 - [X] T057 [C-1] Fill the `ScaleUnit` conversion table and the literal-constant
   fact table from the sweep's distinct-spelling report, so no spelling in the
   tree is unaccounted for (FR-018, D-05, D-06)
-- [ ] T058 [P] Run the coverage capture, read `gcov -b` over the new files and
+- [X] T058 [P] Run the coverage capture, read `gcov -b` over the new files and
   close every branch gap with a fixture; a gap that cannot close stops the
   work and is reported with the `gcov -b` evidence (FR-040)
 - [X] T059 [P] Run the fake-provider value tests and the no-sleep, no-clock

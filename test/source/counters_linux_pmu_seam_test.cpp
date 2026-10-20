@@ -1986,6 +1986,17 @@ auto mapfileRowScenario() -> void
   check(pmuSelectDirectory(unmatched, ident).empty(),
         "a mapping file whose rows name no match selects no directory");
 
+  const PmuIdent stepped {
+      .vendor = "GenuineIntel", .family = 6, .model = 0x8f, .stepping = 0xf};
+  std::istringstream modelOnly("Family-model,Version,Filename,EventType\n"
+                               "GenuineIntel-6-8F,v1,synthetic,core\n");
+  check(pmuSelectDirectory(modelOnly, stepped) == "arch/x86/synthetic/",
+        "a row naming no stepping selects the part by its model key (FR-034)");
+
+  std::istringstream nothing {""};
+  check(pmuSelectDirectory(nothing, ident).empty(),
+        "an empty mapping file selects no directory (FR-038)");
+
   std::istringstream corrupt("Family-model,Version,Filename,EventType\n"
                              "GenuineIntel-6-[,v1,synthetic,core\n");
   bool threw = false;
@@ -2378,6 +2389,10 @@ auto tableArrayScenario() -> void
    "MetricExpr":"a+b","BriefDescription":"a metric row"},
   {"EventName":"metric_name","EventCode":"0x01","MetricName":"m2",
    "BriefDescription":"a metric row"},
+  {"EventName":"metric_short","EventCode":"0x01","MetricExpr":"a*b",
+   "BriefDescription":"a formula spelled under the event name"},
+  {"EventName":9,"MetricName":"nine_spelled","MetricExpr":"a*b",
+   "BriefDescription":"a definition named past a numeric event name"},
   "not an object",
   {"NoEventName":1}
 ])");
@@ -2451,9 +2466,17 @@ auto tableArrayScenario() -> void
         "a metric name without a formula stays the encodable event row it "
         "was: only a row carrying a formula is a definition (FR-001, FR-002, "
         "T025)");
-  check(table.size() == 21,
-        "every row carrying a name enters the table, the metric definition "
-        "among them: 20 event rows and the one definition row (FR-001, "
+  const auto* metricShort = findRow(table, "metric_short");
+  check(metricShort != nullptr && metricShort->metricName == "metric_short",
+        "a formula under the event name is the kernel's shorter spelling of "
+        "the same definition (FR-001)");
+  const auto* nine = findRow(table, "nine_spelled");
+  check(nine != nullptr && nine->metricName == "nine_spelled",
+        "a row whose event name is no string is named by its metric name "
+        "(FR-001)");
+  check(table.size() == 23,
+        "every row carrying a name enters the table, the metric definitions "
+        "among them: 20 event rows and the three definition rows (FR-001, "
         "FR-002, T025)");
 
   // A file the parser cannot read adds nothing, and says so by leaving
