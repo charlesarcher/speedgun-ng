@@ -403,6 +403,31 @@ auto printObject(const sg::counters::Object& object,
                  const std::vector<sg::counters::MetricListing>& metrics)
     -> void;
 
+/// @brief A metric column of one run: the label, the FR-022 per-iteration
+/// decision, the erased spine, and the availability the catalog disclosed
+/// before the run (FR-023).
+struct MetricColumn
+{
+  std::string label;
+  bool perIteration = false;
+  bool unavailable = false;
+  sg::counters::Availability availability =
+      sg::counters::Availability::COUNTABLE;
+  sg::counters::detail::ExprCore core;
+  // The sink column of this leaf: its index among the run's cores,
+  // which is the order of the fold totals (FR-052).
+  std::size_t foldColumn = 0;
+};
+
+/// @brief The column one metric-name lookup answers: a resolved view
+/// carries its spine across untouched, and a refusal prints its note and
+/// stands the column unavailable while the benchmark runs (FR-025,
+/// FR-026, FR-027).
+[[nodiscard]] auto metricColumnFor(
+    const std::string& name,
+    const std::expected<sg::counters::MetricView, sg::counters::Error>& view,
+    const std::vector<sg::counters::MetricListing>& listed) -> MetricColumn;
+
 /// @brief The note one unavailable metric column prints: the lookup's message
 /// with the refusal kind of its row in parentheses, when the listing carries
 /// the name as a refusal (FR-027).

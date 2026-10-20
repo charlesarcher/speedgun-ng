@@ -394,6 +394,44 @@ auto metricFailureTextScenario() -> void
   check(sg::detail::metricColumnNote("other", bare, listed) == bare.message,
         "a name the listing carries nothing for states no kind (FR-027)");
 
+  // The listing's published side and the column builder of the run's loop,
+  // driven beside the run: the runner reaches them only through a name this
+  // machine's table resolves, which no matrix host answers (FR-025, FR-027).
+  sg::counters::MetricListing published;
+  published.name = "cpi";
+  published.published = true;
+  const std::vector<sg::counters::MetricListing> both {refused, published};
+  check(sg::detail::metricColumnNote("cpi", bare, both) == bare.message,
+        "a row the table published carries no refusal kind (FR-027)");
+
+  const std::expected<sg::counters::MetricView, sg::counters::Error> good {
+      sg::counters::MetricView {}};
+  const auto taken = sg::detail::metricColumnFor("cpi", good, both);
+  check(!taken.unavailable && taken.label == "cpi",
+        "a resolved view builds an available column of its name (FR-025)");
+
+  const std::expected<sg::counters::MetricView, sg::counters::Error> missing {
+      std::unexpected(bare)};
+  const char* const notePath = "harness_cli_column_note.txt";
+  const int savedNote = dup(STDERR_FILENO);
+  if (savedNote < 0 || std::freopen(notePath, "w", stderr) == nullptr) {
+    fail("cannot redirect the column note");
+  }
+  const auto dropped = sg::detail::metricColumnFor("slots", missing, listed);
+  std::fflush(stderr);
+  if (dup2(savedNote, STDERR_FILENO) < 0) {
+    fail("cannot restore stderr for the column note");
+  }
+  close(savedNote);
+  std::ifstream noteFile(notePath);
+  std::stringstream noteBuffer;
+  noteBuffer << noteFile.rdbuf();
+  check(dropped.unavailable && dropped.label == "slots"
+            && dropped.availability == sg::counters::Availability::ABSENT,
+        "a refusal stands the column unavailable and absent (FR-026)");
+  check(noteBuffer.str() == "slots: " + bare.message + " (" + kind + ")\n",
+        "the run's line names the refusal kind of the row (FR-026, FR-027)");
+
   const char* const path = "harness_cli_name_out.txt";
   const int saved = dup(STDERR_FILENO);
   if (saved < 0 || std::freopen(path, "w", stderr) == nullptr) {
