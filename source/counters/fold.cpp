@@ -111,15 +111,10 @@ struct FoldContext
   }
   if (node.kind == 4) {
     // A literal weighs nothing; a scale passes its operand's weight
-    // through; a product carries the weight of both operands.
-    if (node.left < 0) {
-      return 0;
-    }
-    const int left = leafSign(core, node.left, targetLeaf, sign);
-    if (node.right < 0) {
-      return left;
-    }
-    return left + leafSign(core, node.right, targetLeaf, sign);
+    // through. The parser's literal and the public scaleAll are the only
+    // kind-4 producers, and neither seats a second operand: products
+    // arrive on the arithmetic kinds below (FR-019).
+    return node.left < 0 ? 0 : leafSign(core, node.left, targetLeaf, sign);
   }
   const int left = leafSign(core, node.left, targetLeaf, sign);
   const int right =
