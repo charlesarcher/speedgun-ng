@@ -59,7 +59,7 @@ table.
 ./build/example/first_benchmark --metric cpi --metric l2_mpi
 ```
 
-Two columns appear, in that order, labelled with the names. A name the host
+Two columns appear, in that order, labeled with the names. A name the host
 has no metric for prints one line and exits with status 2 before any
 measurement runs, so a typo costs no measured time. A metric the host cannot
 count prints its refusal kind in the column and the run continues.

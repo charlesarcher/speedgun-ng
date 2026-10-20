@@ -6,6 +6,7 @@ build/
 cmake-build-*/
 # Scratch build trees the installed-package consumer test configures
 build-consumer*/
+build-tidy/
 prefix/
 .clangd
 CMakeLists.txt.user

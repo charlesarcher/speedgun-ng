@@ -36,28 +36,28 @@ codes and the CTest registration.
 
 **CRITICAL**: no story test compiles until this phase is complete.
 
-- [ ] T001 [C-2] Add `include/speedgun-ng/counters_metrics.hpp` with the
+- [X] T001 [C-2] Add `include/speedgun-ng/counters_metrics.hpp` with the
   `MetricView` shape and the `metricByName` declaration in namespace
   `sg::counters`, per `contracts/metric-by-name.md`, including the header
-  guard, the export macro and the doc comment the neighbouring headers use
-- [ ] T002 [C-1] Add `source/counters/linux_pmu/metric_formula.hpp` with the
+  guard, the export macro and the doc comment the neighboring headers use
+- [X] T002 [C-1] Add `source/counters/linux_pmu/metric_formula.hpp` with the
   `detail` token kinds, the parse-result shape and the nine `MetricRefusal`
   kinds of `data-model.md`
-- [ ] T003 [C-1] Append the two node kind codes to `detail::ExprCore` in
+- [X] T003 [C-1] Append the two node kind codes to `detail::ExprCore` in
   `include/speedgun-ng/counters_measurement.hpp`, extend the kind-code
   comment, and add the minimum and maximum arms to `detail::foldPairsCore`,
   `detail::metricCore` and `compileCore`
-- [ ] T004 [C-1] Add `source/counters/linux_pmu/metric_tables.hpp` with the
+- [X] T004 [C-1] Add `source/counters/linux_pmu/metric_tables.hpp` with the
   `ScaleUnit` conversion table and the literal-constant fact table, empty
   entries included so the sweep task fills them from measurement
-- [ ] T005 [P] Add `source/counters/linux_pmu/metric_formula.cpp` with the
+- [X] T005 [P] Add `source/counters/linux_pmu/metric_formula.cpp` with the
   namespace and the one-line file comment, and add the file to the counters
   sources in `CMakeLists.txt`
-- [ ] T006 [P] Register `test/source/counters_metric_formula_test.cpp` and
+- [X] T006 [P] Register `test/source/counters_metric_formula_test.cpp` and
   `test/source/counters_metric_lookup_test.cpp` in `test/CMakeLists.txt` on
   the existing `counters_*_test` pattern so both link against the counters
   objects, the fake provider and the test main
-- [ ] T007 [P] Add `test/source/detail/metric_fixture.hpp` holding the small
+- [X] T007 [P] Add `test/source/detail/metric_fixture.hpp` holding the small
   fixture tables the tests share: a cycle pair, a duplicated name pair, a
   conditional pair and a no-metric host identity, on the pattern of
   `test/source/detail/gcov_flush.hpp`
@@ -77,13 +77,13 @@ model-55 boundary and the class sweep over the pinned mapping file.
 
 ### Tests for this phase (write first, observe failure)
 
-- [ ] T008 [C-6] In `test/source/counters_pmu_test.cpp`, add fixtures for
+- [X] T008 [C-6] In `test/source/counters_pmu_test.cpp`, add fixtures for
   stepping 3 and stepping 5 of family 6 model 85 and assert `skylakex` and
   `cascadelakex` respectively (FR-035)
-- [ ] T009 [C-6] In the same file, add the sweep that walks every row of
+- [X] T009 [C-6] In the same file, add the sweep that walks every row of
   `external/pmu-events/arch/x86/mapfile.csv` carrying a stepping class and
   asserts a fixture key matches it (FR-036)
-- [ ] T010 [C-6] In the same file, assert that a row without a class still
+- [X] T010 [C-6] In the same file, assert that a row without a class still
   matches the plain key, so the 45 other rows keep behaving as they do today
 
 Observation: the two boundary fixtures fail with an empty selection, which is
@@ -91,9 +91,9 @@ the defect the spec records.
 
 ### Implementation for this phase
 
-- [ ] T011 [C-6] Add the stepping field to `PmuIdent` in
+- [X] T011 [C-6] Add the stepping field to `PmuIdent` in
   `source/counters/detail/pmu.hpp` and fill it where CPUID is read
-- [ ] T012 [C-6] Extend `mapfileKey` in `source/counters/linux_pmu/table_parse.cpp`
+- [X] T012 [C-6] Extend `mapfileKey` in `source/counters/linux_pmu/table_parse.cpp`
   to render `<vendor>-<family>-<model>-<stepping>` and teach
   `pmuSelectDirectory` the character-class match `contracts/table-selection.md`
   specifies (FR-034)
@@ -111,28 +111,28 @@ pinned rows quoted in the test.
 
 ### Tests for User Story 1 (write first, observe failure)
 
-- [ ] T013 [P] [US1] Create `test/source/counters_metric_formula_test.cpp`
+- [X] T013 [P] [US1] Create `test/source/counters_metric_formula_test.cpp`
   with one case per literal form of FR-003: decimal, hexadecimal, exponent,
   unary minus, dotted event names and the `:` privilege suffix
-- [ ] T014 [P] [US1] In the same file, add the `unit@modifier@` cases
+- [X] T014 [P] [US1] In the same file, add the `unit@modifier@` cases
   `cstate_pkg@c6\-residency@` and
   `cpu_core@DTLB_LOAD_MISSES.STLB_HIT\,cmask\=1@`, so the escaped hyphen and
   the escaped comma each hold one token (FR-003)
-- [ ] T015 [P] [US1] In the same file, add the operator and parenthesis cases
+- [X] T015 [P] [US1] In the same file, add the operator and parenthesis cases
   of FR-003, including a nested parenthesised quotient and a subtraction that
   yields a negative term
-- [ ] T016 [P] [US1] In the same file, add the five functions of FR-004: two
+- [X] T016 [P] [US1] In the same file, add the five functions of FR-004: two
   runtime arguments, one runtime and one constant argument, and the
   `d_ratio` zero-denominator case that must answer through the
   `max(y, 1.0)` lowering
-- [ ] T017 [P] [US1] In the same file, add the conditional cases of FR-005:
+- [X] T017 [P] [US1] In the same file, add the conditional cases of FR-005:
   `<` and `>` tests, a `has_event` test, a `source_count` test, and a missing
   `else`
-- [ ] T018 [P] [US1] In the same file, add the literal-constant cases of
+- [X] T018 [P] [US1] In the same file, add the literal-constant cases of
   FR-006: `#SMT_on`, `#num_packages`, `#num_cpus_online`,
   `#SYSTEM_TSC_FREQ` resolve, and `#has_pmem`, `#num_dies`, `#core_wide`
   refuse and name the constant
-- [ ] T019 [P] [US1] In the same file, add the refusal corpus of FR-007:
+- [X] T019 [P] [US1] In the same file, add the refusal corpus of FR-007:
   unbalanced parenthesis, trailing operator, doubled operator, empty
   expression, an unknown construct such as a ternary, and an unterminated
   modifier
@@ -142,28 +142,28 @@ implementation lands.
 
 ### Implementation for User Story 1
 
-- [ ] T020 [C-1] Implement the token scan in
+- [X] T020 [C-1] Implement the token scan in
   `source/counters/linux_pmu/metric_formula.cpp`: numbers, identifiers with
   dotted suffixes, the `:` suffix, the `@modifier@` form with escape decoding
   and escaped commas, and the `#` constant (FR-003, D-08)
-- [ ] T021 [C-1] Implement the expression parser over that scan: precedence,
+- [X] T021 [C-1] Implement the expression parser over that scan: precedence,
   parentheses, unary minus, and the conditional form as a load-time selection
   node (FR-003, FR-005, D-01)
-- [ ] T022 [C-1] Implement the five functions: `min` and `max` lower onto the
+- [X] T022 [C-1] Implement the five functions: `min` and `max` lower onto the
   new node kinds, `d_ratio` lowers to the guarded quotient with the
   integer-count limit written beside it, and `has_event` and `source_count`
   settle against the host encode set and the image (FR-004, FR-012, D-07)
-- [ ] T023 [C-1] Implement the literal-constant resolution against the fact
+- [X] T023 [C-1] Implement the literal-constant resolution against the fact
   table, reading the object tree counts and the calibration frequency the
   library already publishes, and refuse a constant with no reader (FR-006,
   D-06)
-- [ ] T024 [C-1] Implement the refusal record with its kind and one-line
+- [X] T024 [C-1] Implement the refusal record with its kind and one-line
   reason, and make the loader keep going over the rest of the table (FR-007)
-- [ ] T025 [C-1] Extend `addEntry` in
+- [X] T025 [C-1] Extend `addEntry` in
   `source/counters/linux_pmu/table_parse.cpp` so a row with `MetricName` and
   `MetricExpr` becomes a metric definition while the existing refusal keeps
   metric rows out of the countable event catalog (FR-001, FR-013)
-- [ ] T026 [C-1] Keep the parsed definitions beside the event table of the
+- [X] T026 [C-1] Keep the parsed definitions beside the event table of the
   same directory with one load per directory and no path lookup (FR-002)
 
 **Checkpoint**: `ctest --test-dir build -R counters_metric_formula_test`
@@ -179,42 +179,42 @@ the fake provider and compare against the same metrics composed by hand.
 
 ### Tests for User Story 1 (write first, observe failure)
 
-- [ ] T027 [P] [US1] Create `test/source/counters_metric_lookup_test.cpp`
+- [X] T027 [P] [US1] Create `test/source/counters_metric_lookup_test.cpp`
   with `cpi` and `l2_mpi` value checks over `FakeScript` counts, compared
   against a hand-composed `Expression` over the same events (FR-015, FR-018,
   FR-039)
-- [ ] T028 [P] [US1] In the same file, add `tma_info_thread_ipc`, whose
+- [X] T028 [P] [US1] In the same file, add `tma_info_thread_ipc`, whose
   expression names `tma_info_thread_clks`, and assert one fold produces the
   value (FR-008)
-- [ ] T029 [P] [US1] In the same file, add the cycle fixture from
+- [X] T029 [P] [US1] In the same file, add the cycle fixture from
   `test/source/detail/metric_fixture.hpp` and assert both members refuse with
   the cycle named while a third metric stays available (FR-009)
-- [ ] T030 [P] [US1] In the same file, add the duplicated-name fixture and
+- [X] T030 [P] [US1] In the same file, add the duplicated-name fixture and
   assert the first row answers and the second is refused as a duplicate
   (FR-011)
-- [ ] T031 [P] [US1] In the same file, add the scale cases: a `100%` row
+- [X] T031 [P] [US1] In the same file, add the scale cases: a `100%` row
   carries the factor 100 in the value and the `100%` text in the unit, and an
   unknown spelling refuses the metric and names the text (FR-018, D-05)
-- [ ] T032 [P] [US1] In the same file, add the miss cases: no metric table on
+- [X] T032 [P] [US1] In the same file, add the miss cases: no metric table on
   the host, a name no metric carries with its near-miss diagnostics, and a
   metric that loaded and cannot be counted disclosing its kind and reason
   (FR-016, FR-017, FR-020)
-- [ ] T033 [P] [US1] In the same file, add the load-once check that counts
+- [X] T033 [P] [US1] In the same file, add the load-once check that counts
   directory loads across two requests (FR-019)
-- [ ] T034 [P] [US1] In the same file, add the dimension-refusal case of
+- [X] T034 [P] [US1] In the same file, add the dimension-refusal case of
   FR-010 and assert the reason names the operands
 
 ### Implementation for User Story 1
 
-- [ ] T035 [C-1] Implement the name index and the reference resolution pass
-  with the coloured walk in `source/counters/linux_pmu/metric_formula.cpp`
+- [X] T035 [C-1] Implement the name index and the reference resolution pass
+  with the colored walk in `source/counters/linux_pmu/metric_formula.cpp`
   (FR-008, FR-009, D-03, D-04)
-- [ ] T036 [C-1] Implement the `ScaleUnit` conversion against the table in
+- [X] T036 [C-1] Implement the `ScaleUnit` conversion against the table in
   `source/counters/linux_pmu/metric_tables.hpp` and apply the factor through
   `scaleAll` exactly once (FR-018, D-05)
-- [ ] T037 [C-1] Implement the dimension check on the typed composition rules
+- [X] T037 [C-1] Implement the dimension check on the typed composition rules
   and the duplicate-name rule that keeps the first row (FR-010, FR-011)
-- [ ] T038 [C-2] Implement `metricByName` in
+- [X] T038 [C-2] Implement `metricByName` in
   `include/speedgun-ng/counters_metrics.hpp` and its definition in
   `source/counters/linux_pmu/metric_formula.cpp`, returning the view or a
   recoverable one-line error with near-miss diagnostics from the existing
@@ -233,20 +233,20 @@ line account against the table.
 
 ### Tests for User Story 2 (write first, observe failure)
 
-- [ ] T039 [P] [US2] In `test/source/harness_catalog_test.cpp`, assert metric
+- [X] T039 [P] [US2] In `test/source/harness_catalog_test.cpp`, assert metric
   lines appear after the counter lines of the object path, one per row, with
   group, unit text and `mode=metric` (FR-021)
-- [ ] T040 [P] [US2] In the same file, assert the counter lines keep their
+- [X] T040 [P] [US2] In the same file, assert the counter lines keep their
   current shape, order and fields (FR-022)
-- [ ] T041 [P] [US2] In the same file, assert an unavailable metric stays
+- [X] T041 [P] [US2] In the same file, assert an unavailable metric stays
   listed with its availability and reason, and that a host with no selected
   table prints no metric line and reports no error (FR-023, FR-024)
-- [ ] T042 [P] [US2] Update every existing line-count fixture in that file
+- [X] T042 [P] [US2] Update every existing line-count fixture in that file
   that the new lines shift, in the same commit as the implementation task
 
 ### Implementation for User Story 2
 
-- [ ] T043 [C-3] Print metric lines from `printObject` in
+- [X] T043 [C-3] Print metric lines from `printObject` in
   `source/harness/catalog.cpp` in table order, refused rows included, with the
   one-line reasons the data model defines (FR-021, FR-023, D-11)
 
@@ -264,27 +264,27 @@ repeated name and one unknown name.
 
 ### Tests for User Story 3 (write first, observe failure)
 
-- [ ] T044 [P] [US3] In `test/source/harness_cli_test.cpp`, assert one column
+- [X] T044 [P] [US3] In `test/source/harness_cli_test.cpp`, assert one column
   per named metric in command-line order, a repeated name giving one column,
   and a code-attached metric named again giving one column (FR-025, FR-026)
-- [ ] T045 [P] [US3] In the same file, assert an unknown name prints one line
+- [X] T045 [P] [US3] In the same file, assert an unknown name prints one line
   and exits with status 2 before any measured output appears, and that a
   missing value behaves the same way (FR-028, FR-042)
-- [ ] T046 [P] [US3] In the same file, assert a metric that exists and cannot
+- [X] T046 [P] [US3] In the same file, assert a metric that exists and cannot
   be counted prints its refusal kind, the run continues, and the status is the
   run's own (FR-027)
-- [ ] T047 [P] [US3] In the same file, compare a metric column value against
+- [X] T047 [P] [US3] In the same file, compare a metric column value against
   the same metric composed by hand over identical fake counts (FR-029)
 
 ### Implementation for User Story 3
 
-- [ ] T048 [C-4] Add the `--metric` row to the long-option table in
+- [X] T048 [C-4] Add the `--metric` row to the long-option table in
   `source/harness/cli.cpp` with the one-line status-2 path for a missing or
   unknown value (FR-042)
-- [ ] T049 [C-4] Validate the named list before the first repetition in
+- [X] T049 [C-4] Validate the named list before the first repetition in
   `source/harness/cli.cpp`, printing the first failing name and exiting with
   status 2 (FR-028)
-- [ ] T050 [C-4] Build the metric columns from the named list in
+- [X] T050 [C-4] Build the metric columns from the named list in
   `source/harness/runner.cpp` after the attached metrics and before the
   counter addresses, keeping the plan and the recorder as the only read path
   (FR-025, FR-026, FR-029)
@@ -303,22 +303,22 @@ run it, read the printed row.
 
 ### Tests for User Story 4 (write first, observe failure)
 
-- [ ] T051 [P] [US4] Add the region to `example/docs/counter_metrics.cpp`
+- [X] T051 [P] [US4] Add the region to `example/docs/counter_metrics.cpp`
   that asks for `cpi` by name and prints the value with the group and unit
   text, so the region is the source of the page block (FR-030)
-- [ ] T052 [P] [US4] Extend the hardware counter metrics section of
+- [X] T052 [P] [US4] Extend the hardware counter metrics section of
   `README.md` with that block, the option row and the quick-reference row for
   `metricByName`, keeping the section within `SECTION_LINE_CAP` (FR-030,
   FR-031, FR-032)
-- [ ] T053 [P] [US4] Add the reader detail to `docs/pages/harness.md`, the
+- [X] T053 [P] [US4] Add the reader detail to `docs/pages/harness.md`, the
   page `USER_GUIDE_PAGES` already names (FR-033)
 
 ### Implementation for User Story 4
 
-- [ ] T054 [C-5] Record the `PAGE_LINE_CAP` raise the added lines need in
+- [X] T054 [C-5] Record the `PAGE_LINE_CAP` raise the added lines need in
   `tools/docs/example_drift.py`, together with the measured section size and a
   one-line comment naming the feature (FR-031, plan D-14)
-- [ ] T055 [C-5] Run the drift gate, the snippet compile gate and the example
+- [X] T055 [C-5] Run the drift gate, the snippet compile gate and the example
   run gate locally and fix any mismatch between page text and region text
   before the commit lands
 
@@ -329,25 +329,25 @@ passes; the page block prints the row the page names.
 
 **Purpose**: The discipline requirements that span the feature.
 
-- [ ] T056 [C-1] Add the sweep test that walks every directory of
+- [X] T056 [C-1] Add the sweep test that walks every directory of
   `external/pmu-events/arch/x86` and records a verdict for every metric row,
   printing any row dropped without one (FR-038)
-- [ ] T057 [C-1] Fill the `ScaleUnit` conversion table and the literal-constant
+- [X] T057 [C-1] Fill the `ScaleUnit` conversion table and the literal-constant
   fact table from the sweep's distinct-spelling report, so no spelling in the
   tree is unaccounted for (FR-018, D-05, D-06)
 - [ ] T058 [P] Run the coverage capture, read `gcov -b` over the new files and
   close every branch gap with a fixture; a gap that cannot close stops the
   work and is reported with the `gcov -b` evidence (FR-040)
-- [ ] T059 [P] Run the fake-provider value tests and the no-sleep, no-clock
+- [X] T059 [P] Run the fake-provider value tests and the no-sleep, no-clock
   scan across the new test files (FR-039, FR-041)
-- [ ] T060 [P] Run the real-PMU check on corsairone, record the run with the
+- [X] T060 [P] Run the real-PMU check on corsairone, record the run with the
   selected directory and the metric rows it prints, and keep it out of the
   unit suite (FR-039)
-- [ ] T061 [P] Build `ci-ubuntu` so clang-tidy and cppcheck see the new files,
+- [X] T061 [P] Build `ci-ubuntu` so clang-tidy and cppcheck see the new files,
   and clear every finding
-- [ ] T062 [P] Run `python3 tools/prose/prose_gate.py --check prose` and the
+- [X] T062 [P] Run `python3 tools/prose/prose_gate.py --check prose` and the
   commit-message gate over the branch's messages
-- [ ] T063 Bump `PROJECT_VERSION` in `CMakeLists.txt` to the next free minor
+- [X] T063 Bump `PROJECT_VERSION` in `CMakeLists.txt` to the next free minor
   version at merge time, leave both `SOVERSION` numbers unchanged, and record
   in the commit body that no exported layout moved (FR-037)
 - [ ] T064 Rebase onto `master`, run the full `ctest --test-dir build
