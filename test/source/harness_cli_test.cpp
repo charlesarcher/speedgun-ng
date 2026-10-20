@@ -29,6 +29,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../source/harness/detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
@@ -362,6 +363,58 @@ auto scriptedProvider() -> void
   check(registered.has_value(), "the fake provider registers");
 }
 
+// The two texts the metric option writes when a name carries nothing: the
+// failure line with and without near-miss names, and the note of a column
+// whose row stands refused (FR-027, FR-028, FR-042).
+auto metricFailureTextScenario() -> void
+{
+  sg::counters::Error near;
+  near.message = "no metric named 'cpi_x' in the event table of this host";
+  near.suggestions = {"cpi", "ipc"};
+  check(sg::detail::metricNameFailureLine("cpi_x", near)
+            == "--metric cpi_x: " + near.message + " (near: cpi, ipc)",
+        "the failure line names the miss and its near-miss names (FR-042)");
+
+  sg::counters::Error bare;
+  bare.message = "this CPU matched no event-table directory";
+  check(sg::detail::metricNameFailureLine("cpi", bare)
+            == "--metric cpi: " + bare.message,
+        "a failure with no near-miss name states none (FR-042)");
+
+  sg::counters::MetricListing refused;
+  refused.name = "slots";
+  refused.published = false;
+  refused.refusal = sg::counters::MetricRefusal::UNKNOWN_CONSTANT;
+  const std::vector<sg::counters::MetricListing> listed {refused};
+  const std::string kind =
+      std::string(sg::counters::metricRefusalName(refused.refusal));
+  check(sg::detail::metricColumnNote("slots", bare, listed)
+            == bare.message + " (" + kind + ")",
+        "an unavailable column names the refusal kind of its row (FR-027)");
+  check(sg::detail::metricColumnNote("other", bare, listed) == bare.message,
+        "a name the listing carries nothing for states no kind (FR-027)");
+
+  const char* const path = "harness_cli_name_out.txt";
+  const int saved = dup(STDERR_FILENO);
+  if (saved < 0 || std::freopen(path, "w", stderr) == nullptr) {
+    fail("cannot redirect the failure line");
+  }
+  const int status = sg::detail::metricNameFailure({"cpi_x_no_such_metric"});
+  std::fflush(stderr);
+  if (dup2(saved, STDERR_FILENO) < 0) {
+    fail("cannot restore stderr");
+  }
+  close(saved);
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  check(status == 2,
+        "an unknown metric name ends the walk with status two (FR-028)");
+  check(
+      buffer.str().find("--metric cpi_x_no_such_metric:") != std::string::npos,
+      "the walk prints the failure of the first bad name (FR-042)");
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmAlpha);
@@ -465,6 +518,8 @@ auto main(const int argc, char** argv) -> int
         "the address-attached leaf reaches the run (FR-021)");
   check(sameDouble(doubleFieldOf(counterLine, "fake/events="), 900.0 / 3.0),
         "the events^1 leaf reports per iteration (FR-022)");
+
+  metricFailureTextScenario();
 
   // T044 to T047: the `--metric` option. The names come from the table this
   // host selected, so a host that carries no metric row skips the family

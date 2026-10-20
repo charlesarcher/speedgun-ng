@@ -18,6 +18,7 @@
 
 #include <unistd.h>
 
+#include "../source/harness/detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
@@ -163,6 +164,83 @@ auto scriptedProvider() -> void
   check(registered.has_value(), "the fake provider registers");
 }
 
+// The text one print of the listing writes, captured while stdout points at
+// a file (the same redirection captureRun uses).
+template<typename Print>
+[[nodiscard]] auto capturePrint(const Print& print) -> std::string
+{
+  const char* const path = "harness_catalog_lines_out.txt";
+  const int saved = dup(STDOUT_FILENO);
+  if (saved < 0 || std::freopen(path, "w", stdout) == nullptr) {
+    fail("cannot redirect the metric lines");
+  }
+  print();
+  std::fflush(stdout);
+  if (dup2(saved, STDOUT_FILENO) < 0) {
+    fail("cannot restore stdout");
+  }
+  close(saved);
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
+// The two metric lines a host's table need not carry: a published row and a
+// refusal of a kind this host prints nowhere, both written by the listing
+// itself, beside a row that belongs to another object (FR-020 to FR-022,
+// FR-037).
+auto metricListingScenario() -> void
+{
+  const auto scripted = sg::counters::System::local().object("scripted");
+  check(scripted.has_value(),
+        "the scripted object is open for the listing (FR-037)");
+
+  sg::counters::MetricListing published;
+  published.objectPath = "scripted";
+  published.name = "fixture_cpi";
+  published.group = "pipeline";
+  published.unit = "ratio";
+  published.description = "cycles per instruction";
+  published.published = true;
+
+  sg::counters::MetricListing refused = published;
+  refused.name = "fixture_slots";
+  refused.published = false;
+  refused.refusal = sg::counters::MetricRefusal::UNRESOLVED;
+  refused.reason = "no leaf this host counts";
+
+  sg::counters::MetricListing elsewhere = published;
+  elsewhere.objectPath = "other";
+
+  const std::string text = capturePrint(
+      [&]
+      { sg::detail::printObject(*scripted, {published, refused, elsewhere}); });
+
+  const std::string shown = lineWith(text, "catalog: scripted/fixture_cpi");
+  const std::string denied = lineWith(text, "catalog: scripted/fixture_slots");
+  check(shown.find("mode=metric") != std::string::npos
+            && shown.find("group=pipeline") != std::string::npos,
+        "a published row prints its group as a metric line (FR-020, FR-022)");
+  check(shown.find("description=cycles per instruction") != std::string::npos
+            && shown.find("unit=ratio") != std::string::npos,
+        "a published row prints the table's own texts (FR-020)");
+  const std::string blank = "refusal="
+      + std::string(sg::counters::metricRefusalName(published.refusal));
+  check(shown.find("refusal=- reason=-") != std::string::npos
+            && shown.find(blank) == std::string::npos,
+        "a published row states no refusal kind and no reason (FR-021)");
+  check(denied.find(
+            "refusal="
+            + std::string(sg::counters::metricRefusalName(refused.refusal)))
+            != std::string::npos,
+        "a refused row prints the kind of its refusal (FR-021)");
+  check(denied.find("reason=no leaf this host counts") != std::string::npos,
+        "a refused row prints its own reason (FR-021)");
+  check(metricLines(text).size() == 2,
+        "a row of another object prints no line (FR-020)");
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmCatalog);
@@ -170,6 +248,7 @@ SG_BENCHMARK(bmCatalog);
 auto main() -> int
 {
   scriptedProvider();
+  metricListingScenario();
 
   const std::string listing = captureRun({"--catalog"});
 

@@ -1491,6 +1491,97 @@ auto resolvedMetricTable(const MetricHost& host) -> const ResolvedMetricTable&
   return cache.emplace(host.directory, std::move(made)).first->second;
 }
 
+auto metricRowsOnHost(const MetricHost& host)
+    -> const std::vector<MetricDefinition>&
+{
+  static const std::vector<MetricDefinition> kNoRows;
+  if (host.directory.empty()) {
+    return kNoRows;
+  }
+  return resolvedMetricTable(host).rows;
+}
+
+auto metricListingsOnHost(const MetricHost& host) -> std::vector<MetricListing>
+{
+  const auto& rows = metricRowsOnHost(host);
+  std::vector<MetricListing> listing;
+  listing.reserve(rows.size());
+  for (const auto& def : rows) {
+    MetricListing line;
+    line.objectPath = def.objectPath;
+    line.name = def.name;
+    line.group = def.group;
+    line.unit = def.unit;
+    line.description = def.description;
+    line.avail = def.avail;
+    line.refusal = def.refusal;
+    line.published = def.published;
+    line.reason = def.reason;
+    listing.push_back(std::move(line));
+  }
+  return listing;
+}
+
+namespace
+{
+
+/// The name and description pair list the near-miss suggester reads.
+[[nodiscard]] auto metricCandidates(const std::vector<MetricDefinition>& rows)
+    -> std::vector<std::pair<std::string, std::string>>
+{
+  std::vector<std::pair<std::string, std::string>> candidates;
+  candidates.reserve(rows.size());
+  for (const auto& row : rows) {
+    candidates.emplace_back(row.name, row.description);
+  }
+  return candidates;
+}
+
+}  // namespace
+
+auto metricDefinitionOnHost(const MetricHost& host, const std::string_view name)
+    -> std::expected<MetricDefinition, Error>
+{
+  if (host.directory.empty()) {
+    return std::unexpected(Error {
+        .message = "this CPU matched no event-table directory (FR-017)",
+        .suggestions = {},
+    });
+  }
+  return metricDefinitionIn(resolvedMetricTable(host), name);
+}
+
+auto metricDefinitionIn(const ResolvedMetricTable& table,
+                        const std::string_view name)
+    -> std::expected<MetricDefinition, Error>
+{
+  const auto found = table.index.find(std::string(name));
+  if (found == table.index.end()) {
+    return std::unexpected(noSuchMetric(name, metricCandidates(table.rows)));
+  }
+  const MetricDefinition& def = table.rows[found->second];
+  if (!def.published) {
+    return std::unexpected(Error {
+        .message = def.name + ": " + def.reason,
+        .suggestions = def.suggestions,
+    });
+  }
+  return def;
+}
+
+auto metricViewResponse(const std::expected<MetricDefinition, Error>& def)
+    -> std::expected<MetricView, Error>
+{
+  if (!def.has_value()) {
+    return std::unexpected(def.error());
+  }
+  MetricView view;
+  view.expression.core = def->core;
+  view.group = def->group;
+  view.unit = def->unit;
+  return view;
+}
+
 auto metricHostCurrent() -> MetricHost
 {
   // The selected directory is a function of this CPU, which does not
@@ -1529,22 +1620,10 @@ constexpr std::array<std::string_view, 9> kMetricRefusalNames {
     "COLLISION",
 };
 
-/// The name and description pair list the near-miss suggester reads.
-[[nodiscard]] auto metricCandidates(
-    const std::vector<detail::MetricDefinition>& rows)
-    -> std::vector<std::pair<std::string, std::string>>
-{
-  std::vector<std::pair<std::string, std::string>> candidates;
-  candidates.reserve(rows.size());
-  for (const auto& row : rows) {
-    candidates.emplace_back(row.name, row.description);
-  }
-  return candidates;
-}
-
 }  // namespace
 
-auto metricRefusalName(const MetricRefusal kind) noexcept -> std::string_view
+[[nodiscard]] auto metricRefusalName(const MetricRefusal kind) noexcept
+    -> std::string_view
 {
   const auto at = static_cast<std::size_t>(kind);
   SG_REQUIRE(at < kMetricRefusalNames.size(),
@@ -1556,36 +1635,11 @@ auto metricByName(const std::string_view name)
     -> std::expected<MetricView, Error>
 {
 #ifdef __linux__
-  const detail::MetricHost host = detail::metricHostCurrent();
-  if (host.directory.empty()) {
-    return std::unexpected(Error {
-        .message =
-            "this CPU matched no event-table directory, so no " "metric " "tabl" "e " "exists to name (FR-017)",
-        .suggestions = {},
-    });
-  }
-  const detail::ResolvedMetricTable& table = detail::resolvedMetricTable(host);
-  const auto found = table.index.find(std::string(name));
-  if (found == table.index.end()) {
-    return std::unexpected(
-        detail::noSuchMetric(name, metricCandidates(table.rows)));
-  }
-  const detail::MetricDefinition& def = table.rows[found->second];
-  if (!def.published) {
-    return std::unexpected(Error {
-        .message = def.name + ": " + def.reason,
-        .suggestions = def.suggestions,
-    });
-  }
-  MetricView view;
-  view.expression.core = def.core;
-  view.group = def.group;
-  view.unit = def.unit;
-  return view;
+  return detail::metricViewResponse(
+      detail::metricDefinitionOnHost(detail::metricHostCurrent(), name));
 #else
   return std::unexpected(Error {
-      .message =
-          "this platform carries no event table, so no metric " "table " "exist" "s " "to name (FR-042)",
+      .message = "this platform carries no event table (FR-042)",
       .suggestions = {},
   });
 #endif
@@ -1593,29 +1647,11 @@ auto metricByName(const std::string_view name)
 
 auto catalogMetrics() -> std::vector<MetricListing>
 {
-  std::vector<MetricListing> listing;
 #ifdef __linux__
-  const detail::MetricHost host = detail::metricHostCurrent();
-  if (host.directory.empty()) {
-    return listing;
-  }
-  const detail::ResolvedMetricTable& table = detail::resolvedMetricTable(host);
-  listing.reserve(table.rows.size());
-  for (const auto& def : table.rows) {
-    MetricListing line;
-    line.objectPath = def.objectPath;
-    line.name = def.name;
-    line.group = def.group;
-    line.unit = def.unit;
-    line.description = def.description;
-    line.avail = def.avail;
-    line.refusal = def.refusal;
-    line.published = def.published;
-    line.reason = def.reason;
-    listing.push_back(std::move(line));
-  }
+  return detail::metricListingsOnHost(detail::metricHostCurrent());
+#else
+  return {};
 #endif
-  return listing;
 }
 
 }  // namespace sg::counters

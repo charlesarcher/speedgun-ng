@@ -110,6 +110,23 @@ inline constexpr double kDataReadsDelta = 4096.0;
       fixtureMetric("smt_row",
                     "fixture_cycles if #SMT_on else fixture_instructions"),
       fixtureMetric("core_row", "fixture_cycles / #num_cores"),
+      // Conditional tests the load-time evaluator folds: every operator of
+      // the fact grammar, a subtree whose constant names no reader, and a
+      // condition that names one event directly. Both branches are
+      // literals, so the fold needs no counted leaf and the evaluator runs
+      // even where no pmu object is published (FR-005, FR-006).
+      fixtureMetric("fact_mul", "1 if #num_cores * 2 else 2"),
+      fixtureMetric("fact_div", "1 if #num_cpus_online / 2 else 2"),
+      fixtureMetric("fact_sub", "1 if #num_cores - 1 else 2"),
+      fixtureMetric("fact_add", "1 if #num_cores + #num_packages else 2"),
+      fixtureMetric("fact_min", "1 if min(#num_cores, #num_packages) else 2"),
+      fixtureMetric("fact_max", "1 if max(#num_cores, #num_packages) else 2"),
+      fixtureMetric("fact_left_bad", "1 if #has_pmem + 1 else 2"),
+      fixtureMetric("fact_right_bad", "1 if 1 + #has_pmem else 2"),
+      fixtureMetric("test_greater", "1 if #num_cores > 1 else 2"),
+      fixtureMetric("test_less", "1 if #num_cores < 999999 else 2"),
+      fixtureMetric("test_event", "1 if fixture_cycles else 2"),
+      fixtureMetric("test_bad", "1 if #has_pmem else 2"),
       // The helpers, each on the side this host answers (FR-004).
       fixtureMetric(
           "present",
