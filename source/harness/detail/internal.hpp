@@ -79,6 +79,13 @@ public:
   bool processCpuTime = false;
   bool realTime = false;
   bool manualTime = false;
+  // specs/021 FR-019: the percentile selection the family asked for. The
+  // command line wins over it (FR-020).
+  bool showPercentiles = false;
+  // specs/021 FR-005: the per-iteration time of the last attempt of this
+  // instance, the read that calibrates the chunk size of the next one.
+  // Zero names an instance with no measured attempt behind it.
+  double iterationNs = 0.0;
   // FR-027: the registration stores no unit; the record holds the
   // `unit` call alone, and a run resolves the unit it prints.
   std::optional<TimeUnit> timeUnit;
@@ -182,6 +189,10 @@ struct RecorderReservation
 {
   std::size_t endpointPoints = 0;
   std::size_t pauseRoomPoints = 0;
+  // specs/021 FR-008: the chunk points the attempt's recorder reserved,
+  // one per boundary plus the exit point. Zero names an attempt that
+  // captured no chunks.
+  std::size_t chunkPoints = 0;
 };
 
 /// @brief The reservation of the most recent attempt of this process
@@ -321,6 +332,12 @@ struct RunOptions
   std::optional<std::uint64_t> repetitions;
   std::optional<std::uint64_t> fixedIterations;
   std::vector<std::string> counterAddresses;
+  // specs/021 FR-020, FR-021: the two percentile options. A set
+  // `showPercentiles` wins over the family's selection; `percentilePoints`
+  // carries the list
+  // `--percentiles=` stated, empty when the option named none.
+  std::optional<bool> showPercentiles;
+  std::vector<double> percentilePoints;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it

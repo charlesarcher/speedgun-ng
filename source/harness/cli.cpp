@@ -1,4 +1,5 @@
 #include <atomic>
+#include <cctype>
 #include <cerrno>
 #include <cmath>
 #include <csignal>
@@ -47,6 +48,66 @@ constexpr std::string_view kDisabledPrefix = "DISABLED_";
 // `strtoull` wraps `-5` to a huge count, so a negative count would
 // parse, run, and hang. The signed read turns it into a usage error
 // that reports (T044).
+// specs/021 FR-021, FR-022: the point list of `--percentiles=`. One
+// element is optional spaces, one or more digits, an optional point with
+// digits after it, and optional spaces; it stands in the open interval
+// (0, 100). A list holds at least one element and at most
+// kMaxPercentilePoints of them. The shape is checked by hand rather than
+// left to `strtod`, which reads `.5` and `50.` as numbers and a trailing
+// space as the end of the element.
+constexpr std::size_t kMaxPercentilePoints = 16;
+
+[[noreturn]] auto rejectPercentileList(const char* option,
+                                       const char* text) -> void
+{
+  std::fprintf(stderr,
+               "%s: expected comma-separated points in (0, 100), got '%s'\n",
+               option,
+               text);
+  std::exit(2);
+}
+
+auto parsePercentileList(const char* text,
+                         const char* option,
+                         std::vector<double>& points) -> void
+{
+  const char* at = text;
+  bool more = true;
+  while (more) {
+    while (std::isspace(static_cast<unsigned char>(*at)) != 0) {
+      ++at;
+    }
+    const char* const begin = at;
+    while (std::isdigit(static_cast<unsigned char>(*at)) != 0) {
+      ++at;
+    }
+    const bool hasInteger = at != begin;
+    bool shaped = true;
+    if (*at == '.') {
+      ++at;
+      const char* const afterPoint = at;
+      while (std::isdigit(static_cast<unsigned char>(*at)) != 0) {
+        ++at;
+      }
+      shaped = at != afterPoint;
+    }
+    while (std::isspace(static_cast<unsigned char>(*at)) != 0) {
+      ++at;
+    }
+    points.push_back(std::strtod(begin, nullptr));
+    const double point = points.back();
+    if (!shaped || !hasInteger || (*at != '\0' && *at != ',') || point <= 0.0
+        || point >= 100.0 || points.size() > kMaxPercentilePoints)
+    {
+      rejectPercentileList(option, text);
+    }
+    more = *at == ',';
+    if (more) {
+      ++at;
+    }
+  }
+}
+
 auto parseCount(const char* text, const char* option) -> std::uint64_t
 {
   errno = 0;
@@ -195,6 +256,8 @@ auto speedgunMain(int argc, char** argv) -> int
       {"dry-run", no_argument, nullptr, 'd'},
       {"counter", required_argument, nullptr, 'c'},
       {"catalog", no_argument, nullptr, 'C'},
+      {"percentiles", required_argument, nullptr, 'p'},
+      {"no-percentiles", no_argument, nullptr, 'P'},
       {nullptr, 0, nullptr, 0},
   };
 
@@ -230,6 +293,14 @@ auto speedgunMain(int argc, char** argv) -> int
         break;
       case 'C':
         options.catalogMode = true;
+        break;
+      case 'p':
+        // specs/021 FR-020, FR-021: the command line wins over the family.
+        options.showPercentiles = true;
+        parsePercentileList(optarg, "--percentiles", options.percentilePoints);
+        break;
+      case 'P':
+        options.showPercentiles = false;
         break;
       default:
         std::fprintf(stderr, "unknown option; see the option table of "

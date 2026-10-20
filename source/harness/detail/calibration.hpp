@@ -28,6 +28,69 @@ inline constexpr std::uint64_t kRunBound = 96;
 // folds instead (FR-051, FR-052).
 inline constexpr std::size_t kMaxPauseSamplesPerLeaf = 32'768;
 
+// specs/021 FR-006: the ceiling on the chunk points one leaf column of one
+// attempt holds. The endpoint point and the pause room stand beside them,
+// so the ceiling bounds the chunk count and the chunk size rises to meet
+// it.
+inline constexpr std::size_t kMaxChunkPointsPerLeaf = 32'768;
+
+// specs/021 E-02: the chunk plan of one attempt: the iterations one chunk
+// holds, the count of chunks the run leaves, and the points the attempt's
+// recorder reserves.
+struct ChunkPlan
+{
+  std::uint64_t chunkIterations = 1;
+  std::uint64_t chunkCount = 1;
+  std::size_t pointCapacity = 2;
+};
+
+// specs/021 D-03, FR-005, FR-006: the chunk plan of one attempt.
+//
+// The 1% rule sets the floor: a chunk holds the least count of iterations
+// whose time stands at 100 times the cost of one sample action, so one
+// sample costs at most 1% of the window it bounds. The point ceiling then
+// raises the chunk size when the run would otherwise leave more chunks
+// than the ceiling holds. An attempt with no measured iteration time of
+// its own, the first of a fixed-count run, takes the ceiling alone.
+//
+// \pre iterations >= 1, iterationNs >= 0, sampleOverheadNs >= 0, and
+//      pauseRoom <= kMaxPauseSamplesPerLeaf
+// \post chunkCount >= 1, chunkIterations >= 1,
+//       chunkCount <= kMaxChunkPointsPerLeaf,
+//       pointCapacity == chunkCount + 1 + pauseRoom, and
+//       (chunkCount - 1) * chunkIterations < iterations <=
+//       chunkCount * chunkIterations
+[[nodiscard]] inline auto chunkPlanFor(const std::uint64_t iterations,
+                                       const double iterationNs,
+                                       const double sampleOverheadNs,
+                                       const std::size_t pauseRoom) noexcept
+    -> ChunkPlan
+{
+  std::uint64_t chunkIterations = 1;
+  if (iterationNs > 0.0 && sampleOverheadNs > 0.0) {
+    const double wanted = 100.0 * sampleOverheadNs / iterationNs;
+    if (wanted > 1.0) {
+      chunkIterations = static_cast<std::uint64_t>(std::ceil(wanted));
+    }
+  }
+  // The ceiling counts the chunk points alone: the endpoint point and the
+  // pause room stand beside them, so the pause room never changes how the
+  // run divides into chunks.
+  const std::uint64_t maxChunks = kMaxChunkPointsPerLeaf;
+  std::uint64_t chunkCount =
+      (iterations + chunkIterations - 1) / chunkIterations;
+  if (chunkCount > maxChunks) {
+    chunkCount = maxChunks;
+    chunkIterations = (iterations + chunkCount - 1) / chunkCount;
+    chunkCount = (iterations + chunkIterations - 1) / chunkIterations;
+  }
+  return ChunkPlan {
+      .chunkIterations = chunkIterations,
+      .chunkCount = chunkCount,
+      .pointCapacity = static_cast<std::size_t>(chunkCount) + 1 + pauseRoom,
+  };
+}
+
 // One sampled run: the sample span the run owns, the fold of each clock
 // over that span, the paused intervals to net out, and the iteration
 // count the benchmark function asked for. Feature 017 replaced the H1
@@ -50,6 +113,11 @@ struct RunRecord
   // whether that run folded one. The raw path folds none, so these
   // stand at their defaults and the columns keep their bytes.
   std::uint64_t foldPoints = 0;
+  // specs/021 FR-001, FR-002: the chunk plan this run captured: the count
+  // of chunks it left and the iterations one chunk holds. A chunk count of
+  // zero names a run that captured no chunks.
+  std::uint64_t chunkCount = 0;
+  std::uint64_t chunkIterations = 0;
   PauseFoldSink pauseFold;
   bool pauseSamplesFolded = false;
   // E-01, FR-001: the counter store the run opened, in the order the names

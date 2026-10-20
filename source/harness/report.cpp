@@ -291,6 +291,85 @@ auto printContext() -> void
   std::printf("speedgun-ng %s build=%s\n", SG_PROJECT_VERSION, SG_BUILD_TYPE);
 }
 
+// specs/021 FR-010, FR-013: one percentile line. The tag field names the
+// line, the label names the column it answers, and a value the run cannot
+// answer prints the token `not available` in its field. The divisor scales
+// a time column the way the row scales its own time fields; a column that
+// prints no time takes 1.0.
+auto printPercentileLine(const std::string& name,
+                         const char* tag,
+                         const std::string& column,
+                         const std::vector<double>& points,
+                         const std::vector<sg::PercentileValue>& values,
+                         const double divisor) -> void
+{
+  std::printf("%-24s %10s  %s", name.c_str(), tag, column.c_str());
+  for (std::size_t at = 0; at < points.size(); ++at) {
+    char point[32];
+    std::snprintf(point, sizeof point, "p%g", points[at]);
+    std::printf("  %s=", point);
+    if (values[at].available) {
+      std::printf("%9.3f", values[at].value / divisor);
+    } else {
+      std::printf("not available");
+    }
+  }
+  std::printf("\n");
+}
+
+// specs/021 FR-010, SC-001: the label of one percentile column. The first
+// two entries answer the two time columns of the row, the primary first and
+// then the one the primary is not; the rest answer the metric columns in the
+// order the row prints them.
+auto percentileColumnLabel(const BenchmarkResult& result,
+                           const std::size_t column,
+                           std::string_view unitLabel) -> std::string
+{
+  const std::string unit(unitLabel);
+  if (column == 0) {
+    return "primary time/iter (" + unit + ")";
+  }
+  if (column == 1) {
+    return (result.primaryIsCpu ? std::string("real time/iter (")
+                                : std::string("cpu time/iter ("))
+        + unit + ")";
+  }
+  return result.metricLabels[column - 2];
+}
+
+// specs/021 FR-002: the two time columns print their values divided by the
+// unit scale; a metric column prints the value its own fold reached.
+auto percentileColumnDivisor(const std::size_t column,
+                             const double timeDivisor) -> double
+{
+  return column <= 1 ? timeDivisor : 1.0;
+}
+
+// specs/021 FR-007, FR-010: the chunk disclosure and the percentile lines
+// of one repetition row, printed under that row. A run that captured no
+// chunks prints neither (FR-023).
+auto printRowPercentiles(const BenchmarkResult& result,
+                         const sg::ResultRow& row,
+                         const UnitScale& scale) -> void
+{
+  if (result.percentilePoints.empty() || row.chunkCount == 0) {
+    return;
+  }
+  std::printf("%-24s %10s  chunks=%llu  iterations/chunk=%llu\n",
+              result.name.c_str(),
+              "chunks",
+              static_cast<unsigned long long>(row.chunkCount),
+              static_cast<unsigned long long>(row.chunkIterations));
+  for (std::size_t column = 0; column < row.percentiles.size(); ++column) {
+    printPercentileLine(result.name,
+                        "percentile",
+                        percentileColumnLabel(result, column, scale.label),
+                        result.percentilePoints,
+                        row.percentiles[column],
+                        percentileColumnDivisor(column, scale.divisor));
+  }
+}
+
 auto printResult(const BenchmarkResult& result) -> void
 {
   if (result.outcome == RunOutcome::FAILED) {
@@ -446,6 +525,7 @@ auto printResult(const BenchmarkResult& result) -> void
       std::printf("  label=%s", row.label.c_str());
     }
     std::printf("\n");
+    printRowPercentiles(result, row, scale);
   }
 
   // FR-025: a non-empty `contexts` vector names exactly a threaded
@@ -455,6 +535,24 @@ auto printResult(const BenchmarkResult& result) -> void
     return;
   }
   printContextDisclosure(result);
+  // specs/021 FR-014: under the disclosure that names the contexts, each
+  // context answers from its own chunk values.
+  for (std::size_t context = 0; context < result.contextPercentiles.size();
+       ++context)
+  {
+    const auto& folds = result.contextPercentiles[context];
+    for (std::size_t column = 0; column < folds.size(); ++column) {
+      const std::string tag = "ctx" + std::to_string(context);
+      const auto contextScale = unitScale(result.timeUnit);
+      printPercentileLine(
+          result.name,
+          "percentile",
+          tag + " " + percentileColumnLabel(result, column, contextScale.label),
+          result.percentilePoints,
+          folds[column],
+          percentileColumnDivisor(column, contextScale.divisor));
+    }
+  }
   // FR-026: the warning of a result stands after that result's own
   // disclosure line, one line for each result whose condition holds.
   printNoiseWarning(result);

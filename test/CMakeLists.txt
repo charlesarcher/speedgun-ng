@@ -501,6 +501,7 @@ endif()
 # FR-014, FR-016, SC-014).
 add_executable(harness_calibration_test source/harness_calibration_test.cpp)
 target_link_libraries(harness_calibration_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_calibration_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_calibration_test PRIVATE cxx_std_23)
 add_test(NAME harness_calibration_test COMMAND harness_calibration_test)
 set_tests_properties(harness_calibration_test PROPERTIES TIMEOUT 120)
@@ -513,6 +514,14 @@ target_link_libraries(harness_growth_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_growth_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_growth_test PRIVATE cxx_std_23)
 add_test(NAME harness_growth_test COMMAND harness_growth_test)
+
+# The rank rule, the availability bound and the point list over scripted
+# columns of chunk values (T012; US1, US2, FR-010 to FR-013, FR-016, FR-024).
+add_executable(harness_percentile_test source/harness_percentile_test.cpp)
+target_link_libraries(harness_percentile_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_percentile_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_percentile_test PRIVATE cxx_std_23)
+add_test(NAME harness_percentile_test COMMAND harness_percentile_test)
 
 # The command line over a scripted provider (T020; US2, FR-009, FR-015,
 # FR-021, FR-022, FR-034, FR-036, SC-007).

@@ -2,10 +2,17 @@
 // TDD test for the threaded report disclosure and the noise warning
 // (T022; US4, SC-12, FR-025, FR-026, FR-028, E-07).
 //
-// Each scenario builds the `{waitMode, placement}` vector of a run and hands
-// the result to `sg::detail::printResult`, the seam the console report runs
-// through. No benchmark runs, so no provider registers, no thread starts, and
-// no clock reads.
+// Each disclosure scenario builds the `{waitMode, placement}` vector of a run
+// and hands the result to `sg::detail::printResult`, the seam the console
+// report runs through. No benchmark runs there, so no provider registers, no
+// thread starts, and no clock reads.
+//
+// The T019 scenarios drive one threaded family through the run entry point
+// over the scripted fake provider, so the merged row answers from the union of
+// the chunk values while each context folds its own plan alone (FR-004,
+// FR-014, SC-005). Every expectation there is computed by hand from the
+// scripted leaf steps and from the `chunks=` and `iterations/chunk=` fields
+// the report itself states.
 //
 // The disclosure line follows the block of
 // `contracts/report-disclosure.md`:
@@ -32,14 +39,19 @@
 // so one failing scenario reports beside the verdict of every other scenario.
 // ============================================================================
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -48,7 +60,10 @@
 #include <unistd.h>
 
 #include "detail/internal.hpp"
+#include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
+#include "speedgun-ng/counters.hpp"
+#include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/execution_context.hpp"
 
 namespace
@@ -266,17 +281,15 @@ auto blockingOversubscribed() -> std::vector<Policy>
   return policies;
 }
 
-// The printed report of `results`, captured to the end of the print.
-auto printCaptured(const std::vector<sg::BenchmarkResult>& results)
+// The report `body` prints, captured to the end of the print.
+auto captureThrough(const std::function<void()>& body)
     -> std::vector<std::string>
 {
   const int saved = dup(STDOUT_FILENO);
   if (saved < 0 || std::freopen(kScratchFile, "w", stdout) == nullptr) {
     fail("cannot redirect the report");
   }
-  for (const auto& result : results) {
-    sg::detail::printResult(result);
-  }
+  body();
   std::fflush(stdout);
   if (dup2(saved, STDOUT_FILENO) < 0) {
     fail("cannot restore stdout");
@@ -292,6 +305,19 @@ auto printCaptured(const std::vector<sg::BenchmarkResult>& results)
     lines.push_back(line);
   }
   return lines;
+}
+
+// The printed report of `results`, captured to the end of the print.
+auto printCaptured(const std::vector<sg::BenchmarkResult>& results)
+    -> std::vector<std::string>
+{
+  return captureThrough(
+      [&]
+      {
+        for (const auto& result : results) {
+          sg::detail::printResult(result);
+        }
+      });
 }
 
 auto checkLines(const std::vector<std::string>& actual,
@@ -319,6 +345,192 @@ auto checkLines(const std::vector<std::string>& actual,
                  right);
   }
   fail(what);
+}
+
+// ---------------------------------------------------------------------------
+// The scripted run of the T019 scenarios: one threaded family over the fake
+// provider, so the merged row answers from the union of the chunk values and
+// each context folds its own plan alone (FR-004, FR-014).
+// ---------------------------------------------------------------------------
+
+constexpr std::uint64_t kMonotonicStep = 1000;
+constexpr std::uint64_t kThreadCpuStep = 800;
+constexpr int kRunContexts = 2;
+constexpr std::uint64_t kRunIterations = 60;
+
+// The default timing mode folds the thread cpu leaf as its primary column, so
+// one scripted step of that leaf stands behind one chunk value.
+constexpr double kPrimaryStep = static_cast<double>(kThreadCpuStep);
+
+// The default points of FR-012 beside the label the report prints for each.
+struct RunPoint
+{
+  double value;
+  const char* label;
+};
+
+constexpr RunPoint kRunPoints[] {
+    {50.0, "p50="},
+    {90.0, "p90="},
+    {99.0, "p99="},
+    {99.9, "p99.9="},
+};
+
+auto scriptRunProvider() -> void
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  owned->addCounter("machine", "monotonic", "nanoseconds", "monotonic");
+  owned->addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  owned->setPoints("machine", "monotonic", {0}, kMonotonicStep);
+  owned->setPoints("machine", "thread_cpu", {0}, kThreadCpuStep);
+  (void)sg::counters::System::local().registerProvider(std::move(owned));
+}
+
+auto bmThreadedRun(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+}
+
+// The report of one scripted threaded run: two contexts of 60 iterations
+// each, the percentile output of the family on (FR-019).
+auto captureThreadedRun(std::string_view name) -> std::vector<std::string>
+{
+  scriptRunProvider();
+  auto handle = sg::registerBenchmark(&bmThreadedRun, name);
+  handle.threads(kRunContexts).iterations(kRunIterations).showPercentiles(true);
+  return captureThrough(
+      []
+      {
+        char program[] = "harness_context_report_test";
+        char* argv[] {program, nullptr};
+        check(sg::speedgunMain(1, argv) == 0,
+              "the scripted threaded run ended with the success status");
+      });
+}
+
+auto linesHolding(const std::vector<std::string>& lines,
+                  std::string_view needle) -> std::vector<std::string>
+{
+  auto found = std::vector<std::string> {};
+  for (const auto& line : lines) {
+    if (line.find(needle) != std::string::npos) {
+      found.push_back(line);
+    }
+  }
+  return found;
+}
+
+auto lineHolding(const std::vector<std::string>& lines,
+                 std::string_view needle) -> std::string
+{
+  const auto found = linesHolding(lines, needle);
+  check(
+      found.size() == 1,
+      ("exactly one line of the report holds " + std::string(needle)).c_str());
+  return found.empty() ? std::string() : found.front();
+}
+
+auto indexOfLine(const std::vector<std::string>& lines,
+                 std::string_view needle) -> std::size_t
+{
+  for (std::size_t at = 0; at < lines.size(); ++at) {
+    if (lines[at].find(needle) != std::string::npos) {
+      return at;
+    }
+  }
+  check(false, ("one line of the report holds " + std::string(needle)).c_str());
+  return 0;
+}
+
+auto countField(const std::string& line, std::string_view key) -> std::int64_t
+{
+  const auto at = line.find(key);
+  check(at != std::string::npos,
+        ("the report states the " + std::string(key) + " field").c_str());
+  return at == std::string::npos
+      ? 0
+      : std::strtoll(line.c_str() + at + key.size(), nullptr, 10);
+}
+
+// The value one percentile field of a line carries: the number, or no value
+// where the report prints the not-available token (FR-013).
+auto percentileField(const std::string& line,
+                     std::string_view label) -> std::optional<double>
+{
+  const auto at = line.find(label);
+  check(at != std::string::npos,
+        ("the percentile line carries the " + std::string(label) + " label")
+            .c_str());
+  if (at == std::string::npos) {
+    return std::nullopt;
+  }
+  const auto text = std::string_view {line.c_str() + at + label.size()};
+  if (text.starts_with("not available")) {
+    return std::nullopt;
+  }
+  return std::strtod(text.data(), nullptr);
+}
+
+auto closeTo(double got, double want) -> bool
+{
+  const double scale = want < 0.0 ? -want : want;
+  const double delta = got > want ? got - want : want - got;
+  return delta <= 1e-9 * (scale > 1.0 ? scale : 1.0);
+}
+
+// FR-013: the least count of chunks a point can answer from.
+auto leastChunksFor(double point) -> std::int64_t
+{
+  const auto tenths = static_cast<std::int64_t>(point * 10.0 + 0.5);
+  const auto span = 1000 - tenths;
+  return (1000 + span - 1) / span;
+}
+
+// FR-011: the one-based nearest rank of `chunks` values at `point`.
+auto rankOf(double point, std::int64_t chunks) -> std::int64_t
+{
+  const auto tenths = static_cast<std::int64_t>(point * 10.0 + 0.5);
+  return (tenths * chunks + 999) / 1000;
+}
+
+// The value the report owes for one point of a column of `chunks` scripted
+// chunk values: the nearest rank of that column divided by the iterations one
+// chunk holds (FR-002, FR-011), or no value where the column falls below the
+// least count the point names (FR-013).
+auto owedPercentile(double point,
+                    std::int64_t chunks,
+                    std::int64_t chunkIterations) -> std::optional<double>
+{
+  if (chunks < leastChunksFor(point)) {
+    return std::nullopt;
+  }
+  const auto column =
+      std::vector<double>(static_cast<std::size_t>(chunks), kPrimaryStep);
+  const auto rank = rankOf(point, chunks);
+  return column[static_cast<std::size_t>(rank - 1)]
+      / static_cast<double>(chunkIterations);
+}
+
+// One percentile field of one line against the value the scripted column of
+// `chunks` chunk values owes at that point.
+auto checkPercentile(const std::string& line,
+                     const RunPoint& point,
+                     std::int64_t chunks,
+                     std::int64_t chunkIterations,
+                     const std::string& whose) -> void
+{
+  const auto printed = percentileField(line, point.label);
+  const auto owed = owedPercentile(point.value, chunks, chunkIterations);
+  const auto availability = whose + " answers " + point.label + " at the count "
+      + std::to_string(chunks) + " (FR-011, FR-013)";
+  check(printed.has_value() == owed.has_value(), availability.c_str());
+  if (printed.has_value() && owed.has_value()) {
+    const auto rank = whose + " prints the nearest rank of its own scripted "
+        "chunk values at " + point.label + " (FR-002)";
+    check(closeTo(*printed, *owed), rank.c_str());
+  }
 }
 
 // FR-025, SC-12: a threaded result prints the context count and the mode and
@@ -643,6 +855,116 @@ auto scenarioSelectorArms() -> void
         "a placement that missed says so in its own words (FR-035)");
 }
 
+// FR-014, SC-005: the merged row of a threaded run answers one percentile
+// line from the union of every context's chunk values, and the chunk line
+// under the row discloses the merged plan that union stands on.
+auto scenarioMergedPercentileReadsTheUnion() -> void
+{
+  const auto lines = captureThreadedRun("bmMergeUnion");
+  const auto chunkLine = lineHolding(lines, "  chunks=");
+  const auto chunks = countField(chunkLine, "chunks=");
+  const auto chunkIterations = countField(chunkLine, "iterations/chunk=");
+  check(chunks
+            == static_cast<std::int64_t>(kRunContexts)
+                * static_cast<std::int64_t>(kRunIterations),
+        "the merged chunk count sums the chunks of both contexts (FR-014)");
+  check(chunkIterations == 1,
+        "the first attempt of a fixed-count run gives one chunk one iteration "
+        "(FR-005)");
+
+  const auto merged = linesHolding(lines, "  percentile  primary time/iter");
+  check(merged.size() == 1,
+        "the merged row prints one percentile line for its primary column "
+        "(FR-010)");
+  if (merged.size() != 1) {
+    return;
+  }
+  for (const auto& point : kRunPoints) {
+    checkPercentile(
+        merged.front(), point, chunks, chunkIterations, "the merged row");
+  }
+}
+
+// FR-014: under the context disclosure each context answers from its own
+// chunk values alone, and its line carries the point labels of the run.
+auto scenarioContextPercentilesCarryTheirOwnPoints() -> void
+{
+  const auto lines = captureThreadedRun("bmMergeOwn");
+  const auto disclosure = lineHolding(lines, "  contexts=");
+  const auto chunkLine = lineHolding(lines, "  chunks=");
+  const auto contexts = countField(disclosure, "contexts=");
+  const auto chunks = countField(chunkLine, "chunks=");
+  const auto chunkIterations = countField(chunkLine, "iterations/chunk=");
+  check(contexts == kRunContexts,
+        "the disclosure names every context that contributed (FR-014)");
+  const auto disclosureAt = indexOfLine(lines, "  contexts=");
+  for (std::int64_t context = 0; context < contexts; ++context) {
+    const auto tag =
+        "  percentile  ctx" + std::to_string(context) + " primary time/iter";
+    const auto own = lineHolding(lines, tag);
+    check(indexOfLine(lines, tag) > disclosureAt,
+          ("the percentile line of ctx" + std::to_string(context)
+           + " stands under the context disclosure (FR-014)")
+              .c_str());
+    for (const auto& point : kRunPoints) {
+      checkPercentile(own,
+                      point,
+                      chunks / contexts,
+                      chunkIterations,
+                      "ctx" + std::to_string(context));
+    }
+  }
+}
+
+// FR-004, FR-014: no fold reads another context's points. The union holds the
+// count the p99 point names while each context's own column falls below that
+// least count, so only a fold over the union could answer at p99.
+auto scenarioNoFoldCrossesContexts() -> void
+{
+  const auto lines = captureThreadedRun("bmMergeFold");
+  const auto chunkLine = lineHolding(lines, "  chunks=");
+  const auto chunks = countField(chunkLine, "chunks=");
+  const auto contexts =
+      countField(lineHolding(lines, "  contexts="), "contexts=");
+  const auto chunkIterations = countField(chunkLine, "iterations/chunk=");
+  const auto merged = lineHolding(lines, "  percentile  primary time/iter");
+  const auto enough = chunks >= leastChunksFor(99.0)
+      && chunks / contexts < leastChunksFor(99.0);
+  check(enough,
+        "the disclosed counts put the union above the least count p99 names "
+        "and each context below it (FR-013)");
+  check(percentileField(merged, "p99=").has_value(),
+        "the merged column holds the least count p99 names, the union of both "
+        "contexts (FR-013)");
+  const auto mergedP50 = percentileField(merged, "p50=");
+
+  auto ownP50 = std::vector<double> {};
+  for (std::int64_t context = 0; context < contexts; ++context) {
+    const auto tag =
+        "  percentile  ctx" + std::to_string(context) + " primary time/iter";
+    const auto own = lineHolding(lines, tag);
+    const auto name = "ctx" + std::to_string(context);
+    const auto nothing = name
+        + " answers nothing at p99, so its column holds its own chunks alone "
+          "(FR-004)";
+    check(!percentileField(own, "p99=").has_value(), nothing.c_str());
+    const auto ownValue = percentileField(own, "p50=");
+    check(ownValue.has_value(), (name + " answers p50 (FR-014)").c_str());
+    if (ownValue.has_value()) {
+      const auto ownStep = kPrimaryStep / static_cast<double>(chunkIterations);
+      const auto produced =
+          name + " prints the value its own scripted plan can produce (FR-004)";
+      check(closeTo(*ownValue, ownStep), produced.c_str());
+      ownP50.push_back(*ownValue);
+    }
+  }
+  check(mergedP50.has_value() && !ownP50.empty()
+            && *mergedP50 >= std::ranges::min(ownP50)
+            && *mergedP50 <= std::ranges::max(ownP50),
+        "the merged p50 stands between the p50 of the contexts it merges "
+        "(FR-014)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -663,6 +985,10 @@ auto main() -> int
       {"widestPlacementWhole", scenarioWidestPlacementWhole},
       {"placementField", scenarioPlacementField},
       {"selectorArms", scenarioSelectorArms},
+      {"mergedPercentileReadsTheUnion", scenarioMergedPercentileReadsTheUnion},
+      {"contextPercentilesCarryTheirOwnPoints",
+       scenarioContextPercentilesCarryTheirOwnPoints},
+      {"noFoldCrossesContexts", scenarioNoFoldCrossesContexts},
   };
   std::size_t failed = 0;
   for (const auto& scenario : scenarios) {

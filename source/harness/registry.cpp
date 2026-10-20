@@ -259,6 +259,17 @@ auto BenchmarkHandle::displayAggregatesOnly() -> BenchmarkHandle&
   return *this;
 }
 
+auto BenchmarkHandle::showPercentiles(const bool show) -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  m_entry->showPercentiles = show;
+  SG_ENSURE(m_entry->showPercentiles == show,
+            "the entry carries the percentile selection of that family "
+            "(specs/021 FR-019)");
+  return *this;
+}
+
 auto BenchmarkHandle::complexity(const BigO bigO) -> BenchmarkHandle&
 {
   SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,

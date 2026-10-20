@@ -327,6 +327,20 @@ struct FitRow
 };
 
 /**
+ * @brief One reported percentile of one column (specs/021 E-04, FR-013).
+ *
+ * A value stands available when the run left enough chunk values to answer
+ * its point; a value it cannot answer carries `available` false and the
+ * report prints the token `not available` in its field. No value is ever
+ * interpolated or extrapolated (FR-011, FR-013).
+ */
+struct PercentileValue
+{
+  bool available = false;
+  double value = 0.0;
+};
+
+/**
  * @brief One repetition row or one aggregate row (E-06).
  *
  * A repetition row carries the values of that repetition's measured
@@ -375,6 +389,17 @@ struct ResultRow
   // the synthetic fit result carry this.
   FitRow fit;
   double overheadFloorNs = 0.0;
+  // specs/021 FR-010: the percentiles of this row's run, one entry per
+  // reported column in the order the row prints its columns: the primary
+  // time, then each metric, then each counter. Each entry holds one value
+  // per point of `BenchmarkResult::percentilePoints`, in that order. Empty
+  // when the run reports no percentile (FR-023).
+  std::vector<std::vector<PercentileValue>> percentiles;
+  // specs/021 FR-002, FR-007: the chunk count of the run and the iteration
+  // count one chunk holds. The report discloses the pair beside the
+  // percentile lines; a run that reports no percentile leaves both zero.
+  std::uint64_t chunkCount = 0;
+  std::uint64_t chunkIterations = 0;
   Statistics timeStats;
   std::vector<Statistics> metricStats;
 };
@@ -461,6 +486,20 @@ struct BenchmarkResult
   // names exactly a threaded result and the report prints its disclosure
   // line (FR-021, FR-025, E-07).
   std::vector<ContextDisclosure> contexts;
+  // specs/021 FR-024: the percentile points this result reports, ascending
+  // with duplicates collapsed, the order every `percentiles` entry follows.
+  // Empty when the run reports no percentile (FR-023).
+  std::vector<double> percentilePoints;
+  // specs/021 FR-001, FR-010: true when the primary time of this result is
+  // the CPU fold, the default, and false when the family asked for the real
+  // fold. The row reports both time columns, so the percentile column that
+  // follows the primary answers the one the primary is not, and the report
+  // labels it with that field's name (SC-001).
+  bool primaryIsCpu = true;
+  // specs/021 FR-014: for a threaded result, one entry per context in
+  // context order, each holding that context's own percentiles in the
+  // column order of the merged row. Empty for a single-context run.
+  std::vector<std::vector<std::vector<PercentileValue>>> contextPercentiles;
 };
 
 /**
@@ -505,13 +544,22 @@ public:
      * \pre none
      * \post none
      */
-    [[nodiscard]] auto operator!=(
-        [[maybe_unused]] const Cursor& other) const noexcept -> bool
+    [[nodiscard]] auto operator!=([[maybe_unused]] const Cursor& other) noexcept
+        -> bool
     {
       if (m_remaining != 0) {
         return true;
       }
       if (m_state != nullptr) [[unlikely]] {
+        if (m_runRemaining != 0) {
+          // The sample closes the chunk that ran and opens the next, and
+          // the refill is the one write this path performs.
+          const ChunkRun filled =
+              refillRun(m_state, m_runRemaining, m_chunkIterations);
+          m_remaining = filled.remaining;
+          m_runRemaining = filled.runRemaining;
+          return true;
+        }
         m_state->closeWindow();
       }
       return false;
@@ -536,16 +584,43 @@ public:
     /**
      * @brief The iteration index of the current loop pass.
      *
+     * The index counts the iterations the run completed: the ones the
+     * finished chunks hold and the ones the current chunk has run.
+     * Without chunking the run count stands zero and the read is the
+     * difference it has always been.
+     *
      * \pre none
      * \post none
      */
     [[nodiscard]] auto operator*() const noexcept -> std::uint64_t
     {
-      return m_start - m_remaining;
+      return m_start - m_runRemaining - m_remaining;
     }
 
   private:
     friend class State;
+
+    // specs/021 FR-001, D-01: the chunk boundary lives apart from the
+    // per-iteration comparison, and it reaches the cursor's counts by value
+    // so that no call holds the cursor itself: a call that held it would
+    // leave the compiler reloading the iteration count from memory on every
+    // iteration (FR-004, the codegen-shape gate of specs/015 IF-04).
+    struct ChunkRun
+    {
+      std::uint64_t remaining;
+      std::uint64_t runRemaining;
+    };
+
+    [[gnu::noinline]] static auto refillRun(
+        State* state,
+        std::uint64_t runRemaining,
+        std::uint64_t chunkIterations) noexcept -> ChunkRun
+    {
+      state->takeChunkSample();
+      const std::uint64_t take =
+          runRemaining < chunkIterations ? runRemaining : chunkIterations;
+      return {take, runRemaining - take};
+    }
 
     Cursor(State& state, const std::uint64_t remaining) noexcept
         : m_state(&state)
@@ -564,6 +639,12 @@ public:
     State* m_state;
     std::uint64_t m_start;
     std::uint64_t m_remaining;
+    // specs/021 FR-001: the iterations the run still holds beyond the
+    // current chunk, and the size one chunk refills to. Both stand zero for
+    // a run that chunks nothing, and the fast path of `operator!=` reads
+    // neither.
+    std::uint64_t m_runRemaining = 0;
+    std::uint64_t m_chunkIterations = 0;
   };
 
   /**
@@ -598,14 +679,25 @@ public:
     SG_REQUIRE(!m_callbackState,
                "begin() in a callback state violates the callback-state rule "
                "that the callback state opens no sampling window (R-05)");
-    if (m_skipRequested) {
+    if (!openRun()) [[unlikely]] {
       return Cursor {0};
     }
-    ++m_loopsStarted;
-    openWindow();
+    Cursor cursor {*this, m_iterations};
+    // specs/021 FR-001: the chunk cadence, when the runner set one. The
+    // first chunk starts the run and the rest follow at the boundary in
+    // `operator!=`; a run with no chunking keeps the cursor it had.
+    if (m_chunkIterations != 0 && m_iterations > m_chunkIterations) {
+      cursor.m_remaining = m_chunkIterations;
+      cursor.m_runRemaining = m_iterations - m_chunkIterations;
+      cursor.m_chunkIterations = m_chunkIterations;
+      m_chunkPointsLeft =
+          (m_iterations + m_chunkIterations - 1) / m_chunkIterations;
+    } else {
+      m_chunkPointsLeft = 1;
+    }
     SG_ENSURE(m_windowOpened || m_recorder == nullptr,
               "the loop entry takes the entry sample (FR-017)");
-    return Cursor {*this, m_iterations};
+    return cursor;
   }
 
   /**
@@ -827,7 +919,11 @@ public:
     // one to its state at the attempt site beside the recorder it plans, and
     // the callback state, the sole holder of a null sink, opens no window and
     // falls to the precondition above.
-    if (m_recorder->count() + 2 > m_recorder->capacity()) {
+    // specs/021 FR-001, FR-008: the chunk points the run still owes stand
+    // outside the pause room. A pair that would leave fewer points than the
+    // boundaries and the exit still need closes through the slot, so the
+    // boundary sample never passes the capacity.
+    if (m_recorder->count() + 2 + m_chunkPointsLeft > m_recorder->capacity()) {
       // The recorder keeps its room for the window's own points, and
       // the pair closes through the slot (FR-052).
       m_pauseFoldPair = true;
@@ -977,6 +1073,24 @@ private:
   {
   }
 
+  // The entry half of `begin()`, held out of line so that `begin()` itself
+  // inlines: an outlined `begin()` hands the cursor's storage to a call,
+  // the compiler then treats that storage as address-taken, and the timed
+  // loop reloads its count from memory on every iteration (FR-004, the
+  // codegen-shape gate of specs/015 IF-04). The two contract checks of this
+  // entry stay in `begin()`, where the contract is documented: Principle II
+  // puts the enforcement at the documented interface, and the pairing half
+  // of the dbc gate reads it there.
+  [[gnu::noinline]] auto openRun() noexcept -> bool
+  {
+    if (m_skipRequested) {
+      return false;
+    }
+    ++m_loopsStarted;
+    openWindow();
+    return true;
+  }
+
   auto openWindow() noexcept -> void
   {
     SG_ASSERT(m_recorder != nullptr,
@@ -990,6 +1104,30 @@ private:
     }
   }
 
+  // specs/021 FR-001, FR-002: the sample one chunk boundary takes. The
+  // point closes the chunk that ran and opens the next, so the fold after
+  // the run reads one window per chunk. The runner sets the cadence and
+  // reserves the recorder for it, so this path never passes the capacity.
+  auto takeChunkSample() noexcept -> void
+  {
+    SG_ASSERT(m_recorder != nullptr,
+              "the harness constructs every state with the recorder that "
+              "samples its window");
+    m_recorder->sample();
+    ++m_samplesTaken;
+    ++m_foldPoints;
+    --m_chunkPointsLeft;
+  }
+
+  // specs/021 FR-001: the chunk size of this run, set by the runner before
+  // `begin()` opens the window. Zero leaves the loop in its unchunked shape
+  // and the recorder at the endpoint pair.
+  auto setChunking(const std::uint64_t chunkIterations) noexcept -> void
+  {
+    m_chunkIterations =
+        chunkIterations < m_iterations ? chunkIterations : m_iterations;
+  }
+
   auto takeExitSample() noexcept -> void
   {
     SG_ASSERT(m_recorder != nullptr,
@@ -999,6 +1137,7 @@ private:
       m_recorder->sample();
       ++m_samplesTaken;
       ++m_foldPoints;
+      --m_chunkPointsLeft;
       m_windowClosed = true;
     }
   }
@@ -1060,6 +1199,14 @@ private:
   }
 
   std::uint64_t m_iterations = 0;
+  // specs/021 FR-001: the iteration count one chunk holds, zero for a run
+  // that chunks nothing.
+  std::uint64_t m_chunkIterations = 0;
+  // specs/021 FR-001, FR-008: the recorder points the window still owes,
+  // the chunk boundaries and the exit point, counted from the moment the
+  // window opens. The pause room test reads it so a pause pair never takes
+  // the room a boundary needs.
+  std::uint64_t m_chunkPointsLeft = 1;
   bool m_skipRequested = false;
   RunOutcome m_outcome = RunOutcome::MEASURED;
   std::string m_reason;
@@ -1631,6 +1778,21 @@ public:
    *       handle is this handle (FR-016)
    */
   auto reportAggregatesOnly() -> BenchmarkHandle&;
+
+  /**
+   * @brief Turn the percentile output of this family on or off
+   * (specs/021 FR-019).
+   *
+   * The call selects the output and carries no percentile list: the run
+   * reports the default points. The command line wins over the family, the
+   * way `--repetitions` does (FR-020).
+   *
+   * \pre the handle names a registered entry and the run has not started
+   *      for this benchmark (E-02)
+   * \post the entry carries the percentile selection of that family, and
+   *       the returned handle is this handle (FR-019)
+   */
+  auto showPercentiles(bool show) -> BenchmarkHandle&;
 
   /**
    * @brief Restrict the console display of this family to its aggregate rows

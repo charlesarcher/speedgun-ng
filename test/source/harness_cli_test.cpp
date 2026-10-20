@@ -1,12 +1,15 @@
 // ============================================================================
-// TDD test for the command line (T020; US2, FR-009, FR-015, FR-021, FR-022,
-// FR-034, FR-036, SC-007).
+// TDD test for the command line (T020, T023; US2, US4, FR-009, FR-015,
+// FR-020, FR-021, FR-022, FR-024, FR-034, FR-036, SC-006, SC-007).
 //
 // A scripted FakeProvider owns the machine time leaves and one events leaf,
 // so the option effects are read as exact numbers in the captured report and
 // no run can grow into a long calibration. The usage-error cases exit the
 // process from inside the entry point, so each is checked in a re-exec of
-// this binary with a mode argument. Frameworkless check()/fail() convention.
+// this binary with a mode argument. The percentile option cases read the tag
+// field, the point labels and the field counts of the printed lines, so none
+// of them depends on a measured value. Frameworkless check()/fail()
+// convention.
 // ============================================================================
 
 #include <cctype>
@@ -184,6 +187,13 @@ auto mappingCount() -> std::size_t
   return count;
 }
 
+// FR-020, FR-023: a family that asked for the tail, for the precedence pair.
+auto bmAsked(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
 auto captureRun(const std::vector<std::string>& arguments,
                 int expected = 0) -> std::string
 {
@@ -229,6 +239,55 @@ auto linesOf(const std::string& report,
     }
   }
   return found;
+}
+
+// The lines of one benchmark's report that carry a tag field. The tag stands
+// right-aligned in its own field between the name and the fields that follow
+// it, so the needle takes the field on both sides.
+auto taggedLinesOf(const std::string& report,
+                   const std::string& name,
+                   const std::string& tag) -> std::vector<std::string>
+{
+  const std::string needle = " " + tag + "  ";
+  std::vector<std::string> found;
+  for (const auto& line : linesOf(report, name)) {
+    if (line.find(needle) != std::string::npos) {
+      found.push_back(line);
+    }
+  }
+  return found;
+}
+
+// FR-024: the point labels of one percentile line, in the order they print.
+auto pointLabelsOf(const std::string& line) -> std::vector<std::string>
+{
+  std::vector<std::string> labels;
+  for (std::size_t at = line.find("  p"); at != std::string::npos;
+       at = line.find("  p", at + 1))
+  {
+    std::size_t end = at + 3;
+    while (end < line.size()
+           && (std::isdigit(static_cast<unsigned char>(line[end])) != 0
+               || line[end] == '.'))
+    {
+      ++end;
+    }
+    if (end < line.size() && line[end] == '=') {
+      labels.push_back(line.substr(at + 2, end - at - 2));
+    }
+  }
+  return labels;
+}
+
+auto countOf(const std::string& text, const std::string& needle) -> std::size_t
+{
+  std::size_t count = 0;
+  for (std::size_t at = text.find(needle); at != std::string::npos;
+       at = text.find(needle, at + needle.size()))
+  {
+    ++count;
+  }
+  return count;
 }
 
 auto countFieldOf(const std::string& line, const std::string& key) -> long long
@@ -332,6 +391,8 @@ auto main(const int argc, char** argv) -> int
   scriptedProvider();
   auto fixedHandle = sg::registerBenchmark(&bmFixed, "bmFixed");
   fixedHandle.iterations(7);
+  auto askedHandle = sg::registerBenchmark(&bmAsked, "bmAsked");
+  askedHandle.showPercentiles(true);
 
   // FR-009: the filter selects the matching set, and the run reports only
   // the selected benchmarks.
@@ -640,6 +701,138 @@ auto main(const int argc, char** argv) -> int
   check(shapeOf(betaAlone) == shapeOf(betaAfter),
         "a measured benchmark after three failed benchmarks keeps its "
         "scripted row (FR-017)");
+
+  // FR-021, FR-024: the accepted list forms of the contract run, and the
+  // printed labels stand ascending with the duplicates collapsed.
+  struct ListCase
+  {
+    const char* argument;
+    std::vector<std::string> labels;
+  };
+
+  for (const ListCase& testCase :
+       {ListCase {"--percentiles=50", {"p50"}},
+        ListCase {"--percentiles=50,90,99,99.9",
+                  {"p50", "p90", "p99", "p99.9"}},
+        ListCase {"--percentiles=50, 90", {"p50", "p90"}},
+        ListCase {"--percentiles=50 , 90", {"p50", "p90"}},
+        ListCase {"--percentiles=99,50,99", {"p50", "p99"}},
+        ListCase {"--percentiles=99,10,50", {"p10", "p50", "p99"}}})
+  {
+    const std::string report = captureRun(
+        {"--filter", "^bmAlpha$", "--iterations=100", testCase.argument});
+    check(taggedLinesOf(report, "bmAlpha", "chunks").size() == 1,
+          "an accepted list discloses one chunk line (FR-021)");
+    const auto printed = taggedLinesOf(report, "bmAlpha", "percentile");
+    // FR-021: one line for the primary column and one for the other time
+    // column, because a plain benchmark reports both times and no metric.
+    check(printed.size() == 2,
+          "an accepted list prints one percentile line per reported column "
+          "(FR-016, FR-021)");
+    if (pointLabelsOf(printed[0]) != testCase.labels) {
+      std::fprintf(
+          stderr, "%s printed:\n%s\n", testCase.argument, printed[0].c_str());
+    }
+    check(pointLabelsOf(printed[0]) == testCase.labels
+              && pointLabelsOf(printed[1]) == testCase.labels,
+          "the labels print ascending with duplicates collapsed on both "
+          "columns (FR-024)");
+    check(
+        linesOf(report, "bmAlpha")[0].find("iterations=") != std::string::npos,
+        "the accepted list keeps the run row (FR-023)");
+  }
+
+  // FR-020, FR-023, SC-002: with the output off, no chunk line and no
+  // percentile line print, and the run row keeps the fields it carries.
+  const std::string off = captureRun(
+      {"--filter", "^bmAlpha$", "--iterations=100", "--no-percentiles"});
+  check(taggedLinesOf(off, "bmAlpha", "chunks").empty(),
+        "the run with the output off prints no chunk line (FR-023)");
+  check(taggedLinesOf(off, "bmAlpha", "percentile").empty(),
+        "the run with the output off prints no percentile line (FR-023)");
+  const std::string offRow = linesOf(off, "bmAlpha")[0];
+  check(offRow.find("iterations=") != std::string::npos
+            && offRow.find("real time/iter") != std::string::npos
+            && offRow.find("cpu time/iter") != std::string::npos
+            && offRow.find("overhead floor") != std::string::npos
+            && offRow.find("endpoint samples=") != std::string::npos,
+        "the run row keeps every field it carries today (FR-023, SC-002)");
+
+  // FR-020, FR-023: the family setting stands with neither option, and the
+  // run-wide off switch wins over a family that asked.
+  const std::string asked =
+      captureRun({"--filter", "^bmAsked$", "--iterations=100"});
+  const auto askedLines = taggedLinesOf(asked, "bmAsked", "percentile");
+  check(askedLines.size() == 2,
+        "the family that asked prints one percentile line per reported "
+        "column (FR-016, FR-023)");
+  check(pointLabelsOf(askedLines[0])
+            == std::vector<std::string> {"p50", "p90", "p99", "p99.9"},
+        "the family that asked gets the four default points (FR-023)");
+  const std::string askedOff = captureRun(
+      {"--filter", "^bmAsked$", "--iterations=100", "--no-percentiles"});
+  check(taggedLinesOf(askedOff, "bmAsked", "percentile").empty(),
+        "the run-wide off switch wins over the family (FR-020)");
+
+  // FR-020, FR-021: the option sets the points of a family that never
+  // called the handle method.
+  const std::string stated = captureRun(
+      {"--filter", "^bmBeta$", "--iterations=100", "--percentiles=25,75"});
+  const auto statedLines = taggedLinesOf(stated, "bmBeta", "percentile");
+  check(statedLines.size() == 2,
+        "the option turns the output on for a silent family (FR-020)");
+  check(
+      pointLabelsOf(statedLines[0]) == std::vector<std::string> {"p25", "p75"},
+      "the option sets the points of a silent family (FR-021)");
+
+  // FR-021: the dry run reports one iteration, keeps the row shape, and
+  // answers no percentile field with a value.
+  const std::string dry =
+      captureRun({"--filter", "^bmAlpha$", "--dry-run", "--percentiles=50,90"});
+  check(countFieldOf(linesOf(dry, "bmAlpha")[0], "iterations=") == 1,
+        "the dry run reports one iteration (FR-021)");
+  check(
+      linesOf(dry, "bmAlpha")[0].find("endpoint samples=") != std::string::npos,
+      "the dry run row keeps its fields (FR-021)");
+  for (const auto& line : taggedLinesOf(dry, "bmAlpha", "percentile")) {
+    check(countOf(line, "not available") == pointLabelsOf(line).size(),
+          "no percentile field of the dry run carries a value (FR-021)");
+  }
+
+  // FR-022, SC-006: every exit-2 form of contracts/percentile-options.md
+  // prints one line naming the option, exits 2, and reaches no benchmark
+  // function.
+  for (const char* argument :
+       {"--percentiles=",
+        "--percentiles=99,,50",
+        "--percentiles=0",
+        "--percentiles=100",
+        "--percentiles=-5",
+        "--percentiles=150",
+        "--percentiles=abc",
+        "--percentiles=.5",
+        "--percentiles=50.",
+        "--percentiles=50x",
+        "--percentiles=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17"})
+  {
+    std::string output;
+    const int status = subprocessOutput(
+        "\"" + self + "\" arg \"" + argument + "\" 2>&1", output);
+    if (WEXITSTATUS(status) != 2) {
+      std::fprintf(stderr,
+                   "%s exited %d with:\n%s\n",
+                   argument,
+                   WEXITSTATUS(status),
+                   output.c_str());
+    }
+    check(WEXITSTATUS(status) == 2,
+          "an invalid percentile list exits 2 (FR-022, SC-006)");
+    check(countOf(output, "--percentiles") == 1,
+          "the invalid list prints one line naming the option (FR-022)");
+    check(output.find("BENCHMARK_RAN") == std::string::npos
+              && output.find("iterations=") == std::string::npos,
+          "the invalid list runs no benchmark (FR-022, SC-006)");
+  }
 
   std::puts("harness_cli_test: ok");
   return 0;
