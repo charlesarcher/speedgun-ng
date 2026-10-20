@@ -285,10 +285,27 @@ auto main() -> int
   const auto metrics = sg::counters::catalogMetrics();
   check(metricLines(listing).size() == metrics.size(),
         "one listing line per metric row of the table (FR-020, FR-021)");
+  // A table can carry the same name twice, and the listing prints both
+  // lines: each row takes the next line of its own head, in the order
+  // the listing prints them, so each twin of a collision reaches the
+  // line it printed (FR-011, FR-021).
+  const auto lines = metricLines(listing);
+  std::vector<bool> shown(lines.size(), false);
   for (const auto& row : metrics) {
     const std::string head = "catalog: " + std::string(row.objectPath) + "/"
         + std::string(row.name) + " group=";
-    const std::string line = lineWith(listing, head);
+    std::string line;
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+      if (!shown[i] && lines[i].find(head) != std::string::npos) {
+        shown[i] = true;
+        line = lines[i];
+        break;
+      }
+    }
+    if (line.empty()) {
+      lineWith(listing, head);
+      fail("a metric row of the table has no listing line (FR-020)");
+    }
     check(line.find("mode=metric") != std::string::npos,
           "a metric row prints as a metric line (FR-022)");
     check(line.find("group=" + std::string(row.group)) != std::string::npos,
