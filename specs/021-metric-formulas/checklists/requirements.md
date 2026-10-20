@@ -57,13 +57,15 @@
   first reading of the request had as a footnote. The lowercase spellings
   the request names, `#slots` and `#smt_on`, are absent: the tree spells
   the SMT constant `#SMT_on`. Scope records what stays out.
-- PC-1 passes for the parser and PARTIAL for host reachability, and D-7
-  acts on it: `mapfileKey` omits the CPU stepping, so a model-55 part
-  selects no vendored table, and this host is a model-55 part. The owner
-  should read that as the one scope change in this spec. C-6 is the fix,
-  FR-034 to FR-036 its tests, and without it the feature lists no metric
-  on the machine it is written on. Splitting C-6 into its own defect
-  change is the alternative, and it delays C-2, C-3 and C-4 on this host.
+- PC-1 passes for the parser and, as landed, passes for host
+  reachability too: D-7 recorded `mapfileKey` omitting the CPU
+  stepping, so a model-55 part selected no vendored table, and the
+  machine this spec was written on is a model-55 part. C-6 shipped the
+  fix, FR-034 to FR-036 its tests, and the landed record witnesses the
+  reachability: `--catalog` lists 279 metric lines on that machine,
+  128 published and 151 refused, and `metricByName` answers them by
+  name (data-model.md, Real-host run). The one scope change this spec
+  recorded is closed; no PARTIAL remains in this feature.
 - PC-5 passes with the warning the spec acts on: `README.md` stands at 638
   lines against the 638-line page cap, so the added lines cannot land
   without the recorded move FR-031 names. D-6 records the placement choice
