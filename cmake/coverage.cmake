@@ -69,10 +69,18 @@ set(
 
 # Keep application code only. include/* does not match nested
 # include/speedgun-ng/*.hpp; extract from the raw trace after capture.
+#
+# `brace` is a tool rule for a known gcc record: gcov leaves an
+# unexecutable count-zero record on the closing brace of a function that
+# returns its local directly (the return object is constructed at the
+# caller, so no code runs at the brace). Decision of Charles, recorded
+# as D-16 in specs/022-metric-formulas/plan.md: the source returns its
+# local plainly and this filter removes the false record; no copy is
+# built in source to move a coverage count.
 set(
     COVERAGE_EXTRACT_COMMAND
     "${LCOV_EXECUTABLE}" --branch-coverage
-    --filter exception,branch
+    --filter exception,branch,brace
     --omit-lines "SG_(REQUIRE|ENSURE|INVARIANT|ASSERT)(_ALWAYS)?"
     --extract "${PROJECT_BINARY_DIR}/coverage.raw.info"
     "${PROJECT_SOURCE_DIR}/include/speedgun-ng/*"
