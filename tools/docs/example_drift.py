@@ -23,9 +23,10 @@ PREMARK = re.compile(r"^\s*<!--\s*(sg-example|sg-sample-output):\s*(\S+)\s*-->\s
 REQUIRES = re.compile(r"^\s*<!--\s*sg-requires:\s*(\S+)\s*-->\s*$")
 INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 
-# The twenty capabilities of the main page as the H3 titles of "How you do
+# The twenty-one capabilities of the main page as the H3 titles of "How you do
 # it": the twelve of spec FR-009 at the H3 audit point, the six specs/018
-# adds (FR-028, FR-044, research D-13), and the two specs/020 adds (FR-029).
+# adds (FR-028, FR-044, research D-13), the two specs/020 adds (FR-029), and
+# the one specs/021 add (FR-027).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -47,6 +48,7 @@ SECTIONS = (
     "Complexity fit",
     "Execution contexts",
     "Threads",
+    "Percentiles",
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
@@ -73,6 +75,7 @@ SECTION_OWNERS = {
     "Complexity fit": ("complexity_fit.cpp",),
     "Execution contexts": ("execution_contexts.cpp",),
     "Threads": ("threads.cpp",),
+    "Percentiles": ("percentiles.cpp",),
 }
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
@@ -103,10 +106,10 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # for prose trimmed before the cap moves: that disclosure sentence shares the
 # paragraph line it annotates, so the page measures 638 lines and the cap
 # sits there, with no snippet dropped.
-# specs/021 FR-021 adds the two quick-reference option rows, so the page
-# measures 640 lines and the cap sits there until the section lands with
-# the docs commit.
-PAGE_LINE_CAP = 640
+# specs/021 FR-027 measures its own move: the "Percentiles" section runs 19
+# lines and the two quick-reference option rows add 2, so 21 lines move the
+# cap from 638 to 659, the measured length of the page as the feature lands.
+PAGE_LINE_CAP = 659
 SECTION_LINE_CAP = 25
 
 # Only these two sections carry a higher cap, each at the smallest span that

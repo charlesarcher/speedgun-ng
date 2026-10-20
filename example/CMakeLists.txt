@@ -67,6 +67,7 @@ add_docs_example(aggregates_only)
 add_docs_example(complexity_fit)
 add_docs_example(execution_contexts)
 add_docs_example(threads)
+add_docs_example(percentiles)
 
 
 add_folders(Example)

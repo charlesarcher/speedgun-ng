@@ -1,0 +1,7 @@
+# sg-example:begin report
+speedgun-ng 0.11.0 build=Release
+bmRoll                   iterations=       300  real time/iter (ns)=21058.820  cpu time/iter (ns)=21024.593  overhead floor (ns)=   90.000  endpoint samples=301
+bmRoll                       chunks  chunks=300  iterations/chunk=1
+bmRoll                   percentile  primary time/iter (ns)  p50=21010.000  p90=21020.000
+bmRoll                   percentile  real time/iter (ns)  p50=21010.000  p90=21020.000
+# sg-example:end report

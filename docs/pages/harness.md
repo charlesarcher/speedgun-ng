@@ -838,3 +838,55 @@ report prints those disclosures under the merged row. The first line states
 A merged row sums the times, the iterations and the counters of its contexts.
 The flag pass then reads the real context count, and the disclosure line under
 the row names the policy of each context that contributed.
+
+## Percentiles
+
+A family that reports percentiles divides one run into chunks of iterations,
+times each chunk, and reads percentile points off the chunk times.
+`showPercentiles(true)` turns the lines on for one family. `--percentiles=50,90`
+turns them on for every family of the run and sets the points; `--no-percentiles`
+turns them off. The default points are p50, p90, p99 and p99.9.
+
+The run takes one sample at the end of every chunk and one at the end of the
+run. The `chunks` line under the row discloses the plan: `chunks=` states the
+count of chunks and `iterations/chunk=` the size one chunk holds. One percentile
+line prints for each reported column: the primary time, then the time column the
+primary is not, then each metric. Each line states one value per point, in the
+unit that column prints in.
+
+### The chunk rule
+
+A chunk holds the least count of iterations whose time reaches 100 times the
+cost of one sample action, which keeps a sample under 1% of the window it
+bounds. The first attempt of a fixed-count run has no measured iteration time
+to calibrate from, so its chunks hold one iteration each and the next attempt
+of the instance calibrates from the time the first measured. A pause interval
+inside a chunk nets out of that chunk's time and of no other chunk's.
+
+### The rank rule
+
+A point reads the nearest rank of the sorted chunk times: the value at position
+`ceil(p * n / 100)`, counting from one, over the `n` chunk times the run holds.
+The point needs a least count of chunks before it answers at all, and that count
+is `ceil(100 / (100 - p))`.
+
+| Point | Least chunk count that answers |
+| --- | --- |
+| p50 | 2 |
+| p90 | 10 |
+| p99 | 100 |
+| p99.9 | 1000 |
+
+### The merged and per-context rule
+
+The merged row of a threaded run reads its points over the union of every
+context's chunk times, sorted together. The disclosure line of each context
+reads that context's own values alone, so a slow context stays visible in its
+own line and inside the union.
+
+### The not-available rule
+
+A point whose least count the run does not reach prints `not available`. The
+harness never interpolates between the values it holds. A column whose fold
+disclosed a gap answers nothing for every point, because its values do not
+cover the whole run.
