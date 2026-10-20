@@ -167,9 +167,9 @@ auto childInstalled(const std::uint32_t groups,
   const std::size_t threads =
       static_cast<std::size_t>(groups) * coresPerGroup * siblings;
   if (!layout.readable || layout.threads.size() != threads
-      || layout.cores.size()
-             != static_cast<std::size_t>(groups) * coresPerGroup
-      || layout.groups.size() != groups) {
+      || layout.cores.size() != static_cast<std::size_t>(groups) * coresPerGroup
+      || layout.groups.size() != groups)
+  {
     std::fprintf(stderr, "the installed layout did not report its shape\n");
     return 1;
   }
@@ -199,10 +199,9 @@ auto childHostRead() -> int
       return 1;
     }
     if (thread.coreOrdinal < layout.cores.size()
-        && layout.cores[thread.coreOrdinal].groupOrdinal
-               < layout.groups.size()
-        && thread.groupOrdinal
-               != layout.cores[thread.coreOrdinal].groupOrdinal) {
+        && layout.cores[thread.coreOrdinal].groupOrdinal < layout.groups.size()
+        && thread.groupOrdinal != layout.cores[thread.coreOrdinal].groupOrdinal)
+    {
       std::fprintf(stderr, "a thread's group disagrees with its core\n");
       return 1;
     }
@@ -227,7 +226,8 @@ auto childHostRead() -> int
     }
     for (std::size_t i = 1; i < core.threads.size(); ++i) {
       if (layout.threads[core.threads[i]].cpuIndex
-          <= layout.threads[core.threads[i - 1]].cpuIndex) {
+          <= layout.threads[core.threads[i - 1]].cpuIndex)
+      {
         std::fprintf(stderr, "a core's siblings are not ascending\n");
         return 1;
       }
@@ -280,7 +280,8 @@ auto childMaskNarrowed() -> int
   }
   if (layout.threads.size() != 4 || layout.cores.empty()
       || layout.cores.size() > 4 || layout.groups.empty()
-      || layout.groups.size() > 4) {
+      || layout.groups.size() > 4)
+  {
     std::fprintf(stderr, "the narrowed counts did not lower to the mask\n");
     return 1;
   }
@@ -300,7 +301,8 @@ auto childSyntheticOne() -> int
   sg::detail::installTestTopologyDescription(std::string("1"));
   const auto& layout = sg::detail::layout();
   if (!layout.readable || layout.threads.size() != 1 || !layout.cores.empty()
-      || !layout.groups.empty()) {
+      || !layout.groups.empty())
+  {
     std::fprintf(stderr, "the synthetic description 1 did not yield one\n");
     return 1;
   }
@@ -354,8 +356,10 @@ auto childReadOnce() -> int
   }
   installShape(4, 24, 2);
   if (&sg::detail::layout() != first
-      || sg::detail::layout().threads.size() != first->threads.size()) {
-    std::fprintf(stderr, "an install after the first read changed the layout\n");
+      || sg::detail::layout().threads.size() != first->threads.size())
+  {
+    std::fprintf(stderr,
+                 "an install after the first read changed the layout\n");
     return 1;
   }
   return 0;
@@ -402,9 +406,11 @@ auto main(int argc, char** argv) -> int
     const char* mode;
     const char* what;
   };
+
   const std::array<Expected, 9> scenarios {
-      Expected {"hostRead", "the host read scenario ended clean (FR-001, "
-                            "FR-005, R-11, R-13)"},
+      Expected {
+          "hostRead",
+          "the host read scenario ended clean (FR-001, " "FR-005, R-11, R-13)"},
       Expected {"maskNarrowed",
                 "the narrowed-mask scenario ended clean (FR-005)"},
       Expected {"installedOne",
@@ -417,8 +423,9 @@ auto main(int argc, char** argv) -> int
                 "the synthetic description scenario ended clean (R-04, Q-8)"},
       Expected {"syntheticNarrowed",
                 "the narrowed synthetic scenario ended clean (FR-005, R-13)"},
-      Expected {"malformed",
-                "the malformed description scenario ended clean (FR-005, R-04)"},
+      Expected {
+          "malformed",
+          "the malformed description scenario ended clean (FR-005, R-04)"},
       Expected {"readOnce",
                 "the read-once scenario ended clean (FR-002, R-04)"},
   };

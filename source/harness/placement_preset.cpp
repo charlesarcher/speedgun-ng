@@ -15,8 +15,10 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "detail/internal.hpp"
@@ -37,12 +39,11 @@ struct PresetName
 };
 
 // FR-007, E-05: the five names, matched in full and nothing else.
-const std::array<PresetName, 5> kPresetNames {
-    {{"none", Preset::NONE},
-     {"core", Preset::CORE},
-     {"l3", Preset::L3},
-     {"smt", Preset::SMT},
-     {"compact", Preset::COMPACT}}};
+const std::array<PresetName, 5> kPresetNames {{{"none", Preset::NONE},
+                                               {"core", Preset::CORE},
+                                               {"l3", Preset::L3},
+                                               {"smt", Preset::SMT},
+                                               {"compact", Preset::COMPACT}}};
 
 }  // namespace
 
@@ -66,49 +67,51 @@ auto presetText(const Preset preset) -> std::string_view
 // FR-008 to FR-014, FR-018: the ordered walk. Every place list is built
 // from the layout's own orders, which the read built ascending by cpu
 // index, so one layout and one count give one plan (SC-03).
-auto resolvePreset(const Preset preset, const MachineLayout& layout,
+auto resolvePreset(const Preset preset,
+                   const MachineLayout& layout,
                    const int contexts) -> PlacementPlan
 {
-  SG_REQUIRE(contexts >= 1,
-             "a run reaches the resolver only with a count above one "
-             "(FR-008)");
+  SG_REQUIRE(
+      contexts >= 1,
+      "a run reaches the resolver only with a count above one " "(FR-008)");
   PlacementPlan plan;
-  const auto pushThread = [&plan, &layout](const std::uint32_t ordinal) {
+  const auto pushThread = [&plan, &layout](const std::uint32_t ordinal)
+  {
     plan.cpu.push_back(layout.threads[ordinal].cpuIndex);
     plan.group.push_back(layout.threads[ordinal].groupOrdinal);
   };
 
   switch (preset) {
-  case Preset::NONE:
-    return plan;
-  case Preset::CORE:
-    for (const auto& core : layout.cores) {
-      pushThread(core.threads.front());
-    }
-    break;
-  case Preset::L3:
-    for (std::uint32_t group = 0; group < layout.groups.size(); ++group) {
-      plan.cpu.push_back(layout.groups[group].lowestCpu);
-      plan.group.push_back(group);
-    }
-    break;
-  case Preset::SMT:
-    for (const auto& core : layout.cores) {
-      for (const auto ordinal : core.threads) {
-        pushThread(ordinal);
+    case Preset::NONE:
+      return plan;
+    case Preset::CORE:
+      for (const auto& core : layout.cores) {
+        pushThread(core.threads.front());
       }
       break;
-    }
-    break;
-  case Preset::COMPACT:
-    for (const auto& group : layout.groups) {
-      for (const auto coreOrdinal : group.cores) {
-        for (const auto ordinal : layout.cores[coreOrdinal].threads) {
+    case Preset::L3:
+      for (std::uint32_t group = 0; group < layout.groups.size(); ++group) {
+        plan.cpu.push_back(layout.groups[group].lowestCpu);
+        plan.group.push_back(group);
+      }
+      break;
+    case Preset::SMT:
+      for (const auto& core : layout.cores) {
+        for (const auto ordinal : core.threads) {
           pushThread(ordinal);
         }
+        break;
       }
-    }
-    break;
+      break;
+    case Preset::COMPACT:
+      for (const auto& group : layout.groups) {
+        for (const auto coreOrdinal : group.cores) {
+          for (const auto ordinal : layout.cores[coreOrdinal].threads) {
+            pushThread(ordinal);
+          }
+        }
+      }
+      break;
   }
 
   plan.places = static_cast<std::uint32_t>(plan.cpu.size());
@@ -121,11 +124,11 @@ auto resolvePreset(const Preset preset, const MachineLayout& layout,
   plan.cpu.resize(static_cast<std::size_t>(contexts));
   plan.group.resize(static_cast<std::size_t>(contexts));
   SG_ENSURE(
-      [](const std::vector<std::uint32_t>& cpus) {
+      [](const std::vector<std::uint32_t>& cpus)
+      {
         std::vector<std::uint32_t> sorted = cpus;
         std::ranges::sort(sorted);
-        return std::adjacent_find(sorted.begin(), sorted.end())
-            == sorted.end();
+        return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
       }(plan.cpu),
       "the plan's cpus stand pairwise distinct (FR-008)");
   return plan;
@@ -152,8 +155,50 @@ auto placementText(const PlacementSlot& slot) -> std::string_view
       end = std::to_chars(end, buffer.end(), thread.groupOrdinal).ptr;
     }
   }
-  return std::string_view(
-      buffer.data(), static_cast<std::size_t>(end - buffer.data()));
+  return std::string_view(buffer.data(),
+                          static_cast<std::size_t>(end - buffer.data()));
+}
+
+// specs/022 FR-005, FR-018, Q-6, Q-7: the fit check walks the selected
+// instances after selection and before the first run. A preset over a
+// layout the harness cannot read stops the batch whatever the context
+// count; a plan the places cannot hold stops it with one line naming
+// the preset, the place count and the requested count. An instance
+// with no preset stands outside the check, which keeps FR-022 byte
+// identity for an ordinary threaded run.
+auto placementFitStatus(const std::vector<Instance*>& selected)
+    -> std::pair<int, bool>
+{
+  bool inEffect = false;
+  for (auto* instance : selected) {
+    if (instance->placement == Preset::NONE) {
+      continue;
+    }
+    const auto& machine = layout();
+    if (!machine.readable) {
+      std::fprintf(
+          stderr,
+          "--placement: the harness cannot read the machine " "layout\n");
+      return {2, false};
+    }
+    if (instance->threadCount > 1) {
+      inEffect = true;
+      const auto plan =
+          resolvePreset(instance->placement, machine, instance->threadCount);
+      if (plan.cpu.empty()) {
+        const auto name = presetText(instance->placement);
+        std::fprintf(
+            stderr,
+            "--placement: '%.*s' places %u of the %d requested " "contexts\n",
+            static_cast<int>(name.size()),
+            name.data(),
+            plan.places,
+            instance->threadCount);
+        return {2, false};
+      }
+    }
+  }
+  return {0, inEffect};
 }
 
 }  // namespace detail

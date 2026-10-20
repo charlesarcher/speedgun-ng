@@ -5,12 +5,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
-#include <limits>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "speedgun-ng/benchmark.hpp"
@@ -525,11 +526,19 @@ auto installTestTopologyDescription(std::optional<std::string>) -> void;
 /// @brief The plan of one preset over one layout for one context count:
 /// the ordered walk of the resolver contract, an empty `cpu` when the
 /// count exceeds the place count (FR-008 to FR-014, FR-018).
-[[nodiscard]] auto resolvePreset(Preset, const MachineLayout&, int contexts)
-    -> PlacementPlan;
+[[nodiscard]] auto resolvePreset(Preset,
+                                 const MachineLayout&,
+                                 int contexts) -> PlacementPlan;
 
 /// @brief Print the layout listing `--topology` states (FR-036).
 auto printTopologyListing(const MachineLayout&) -> void;
+
+/// @brief The fit walk of the selected instances before the first run:
+/// the first value is 2 when a preset stops the batch and 0 when the
+/// walk stands clear, and the second states whether a preset places the
+/// run (FR-005, FR-018, Q-6, Q-7).
+[[nodiscard]] auto placementFitStatus(const std::vector<Instance*>& selected)
+    -> std::pair<int, bool>;
 
 /// @brief The disclosure text of one slot: `cpu@group` when the layout
 /// names a group for that cpu, the cpu index alone when it names none,

@@ -28,9 +28,8 @@
 #include <string>
 #include <vector>
 
-#include <sched.h>
-
 #include <hwloc.h>
+#include <sched.h>
 
 #include "detail/internal.hpp"
 #include "speedgun-ng/dbc.hpp"
@@ -52,10 +51,7 @@ public:
                "the walk reads a built topology (R-04)");
   }
 
-  ~TopologyHolder()
-  {
-    hwloc_topology_destroy(m_topology);
-  }
+  ~TopologyHolder() { hwloc_topology_destroy(m_topology); }
 
   TopologyHolder(const TopologyHolder&) = delete;
   auto operator=(const TopologyHolder&) -> TopologyHolder& = delete;
@@ -80,18 +76,12 @@ public:
                "the walk reads an allocated bitmap (R-04)");
   }
 
-  ~BitmapHolder()
-  {
-    hwloc_bitmap_free(m_bitmap);
-  }
+  ~BitmapHolder() { hwloc_bitmap_free(m_bitmap); }
 
   BitmapHolder(const BitmapHolder&) = delete;
   auto operator=(const BitmapHolder&) -> BitmapHolder& = delete;
 
-  [[nodiscard]] auto get() const noexcept -> hwloc_bitmap_t
-  {
-    return m_bitmap;
-  }
+  [[nodiscard]] auto get() const noexcept -> hwloc_bitmap_t { return m_bitmap; }
 
 private:
   hwloc_bitmap_t m_bitmap = nullptr;
@@ -113,8 +103,8 @@ auto processCpuSet(hwloc_bitmap_t set) -> void
 
 // The ordinal of `object` in the first-seen order of `objects`, the order
 // ascending cpu index gives; a null object names no ordinal.
-auto ordinalOf(std::vector<hwloc_obj_t>& objects, hwloc_obj_t object)
-    -> std::uint32_t
+auto ordinalOf(std::vector<hwloc_obj_t>& objects,
+               hwloc_obj_t object) -> std::uint32_t
 {
   if (object == nullptr) {
     return detail::kNoGroup;
@@ -154,8 +144,8 @@ auto readLayout(const std::optional<std::string>& description)
   BitmapHolder allowedHolder;
   const hwloc_bitmap_t allowed = allowedHolder.get();
   processCpuSet(allowed);
-  hwloc_bitmap_and(allowed, allowed,
-                   hwloc_topology_get_topology_cpuset(topology));
+  hwloc_bitmap_and(
+      allowed, allowed, hwloc_topology_get_topology_cpuset(topology));
 
   std::vector<hwloc_obj_t> coreObjects;
   std::vector<hwloc_obj_t> groupObjects;
@@ -189,8 +179,7 @@ auto readLayout(const std::optional<std::string>& description)
     layout.mask.push_back(thread.cpuIndex);
     (void)ordinalOf(packageObjects, package);
 
-    if (group != nullptr
-        && thread.groupOrdinal == layout.groups.size()) {
+    if (group != nullptr && thread.groupOrdinal == layout.groups.size()) {
       layout.groups.push_back({});
       layout.groups.back().lowestCpu = thread.cpuIndex;
     }
@@ -247,7 +236,8 @@ auto installTestTopologyDescription(std::optional<std::string> description)
 // `hwloc_topology_set_synthetic`.
 auto layout() -> const MachineLayout&
 {
-  static const detail::MachineLayout kCached = [] {
+  static const detail::MachineLayout kCached = []
+  {
     const auto& installed = installedLayoutSlot();
     if (installed.has_value()) {
       return *installed;
@@ -260,8 +250,7 @@ auto layout() -> const MachineLayout&
 // FR-036: the comma-joined range spelling of a cpu set, consecutive
 // cpus folded into one `low-high` span. The mask and each group line
 // print through it.
-auto appendRangeText(std::string& text, std::vector<std::uint32_t> cpus)
-    -> void
+auto appendRangeText(std::string& text, std::vector<std::uint32_t> cpus) -> void
 {
   std::ranges::sort(cpus);
   for (std::size_t at = 0; at < cpus.size();) {

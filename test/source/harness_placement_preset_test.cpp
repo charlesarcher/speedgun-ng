@@ -177,15 +177,19 @@ auto childCoreFour() -> int
   for (std::uint32_t core = 0; core < 24; ++core) {
     expected.push_back((core / 6) * 12 + (core % 6) * 2);
   }
-  const auto plan = sg::detail::resolvePreset(sg::detail::Preset::CORE, layout, 24);
-  if (plan.places != 24 || plan.cpu != expected || plan.places != plan.cpu.size()) {
+  const auto plan =
+      sg::detail::resolvePreset(sg::detail::Preset::CORE, layout, 24);
+  if (plan.places != 24 || plan.cpu != expected
+      || plan.places != plan.cpu.size())
+  {
     std::fprintf(stderr, "core did not give the lowest thread of each core\n");
     return 1;
   }
   const auto over =
       sg::detail::resolvePreset(sg::detail::Preset::CORE, layout, 25);
   if (!over.cpu.empty() || !over.group.empty() || over.places != 24) {
-    std::fprintf(stderr, "the fit rule did not return the empty plan naming 24\n");
+    std::fprintf(stderr,
+                 "the fit rule did not return the empty plan naming 24\n");
     return 1;
   }
   return 0;
@@ -198,14 +202,17 @@ auto childL3Four() -> int
   installFourGroupShape();
   const auto& layout = sg::detail::layout();
   const std::vector<std::uint32_t> expected {0, 12, 24, 36};
-  const auto plan = sg::detail::resolvePreset(sg::detail::Preset::L3, layout, 4);
+  const auto plan =
+      sg::detail::resolvePreset(sg::detail::Preset::L3, layout, 4);
   if (plan.places != 4 || plan.cpu != expected) {
     std::fprintf(stderr, "l3 did not give the lowest thread of each group\n");
     return 1;
   }
-  const auto over = sg::detail::resolvePreset(sg::detail::Preset::L3, layout, 5);
+  const auto over =
+      sg::detail::resolvePreset(sg::detail::Preset::L3, layout, 5);
   if (!over.cpu.empty() || over.places != 4) {
-    std::fprintf(stderr, "the fit rule did not return the empty plan naming 4\n");
+    std::fprintf(stderr,
+                 "the fit rule did not return the empty plan naming 4\n");
     return 1;
   }
   return 0;
@@ -218,14 +225,17 @@ auto childSmtFour() -> int
   installFourGroupShape();
   const auto& layout = sg::detail::layout();
   const std::vector<std::uint32_t> expected {0, 1};
-  const auto plan = sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 2);
+  const auto plan =
+      sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 2);
   if (plan.places != 2 || plan.cpu != expected) {
     std::fprintf(stderr, "smt did not give the siblings of one core\n");
     return 1;
   }
-  const auto over = sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 3);
+  const auto over =
+      sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 3);
   if (!over.cpu.empty() || over.places != 2) {
-    std::fprintf(stderr, "the fit rule did not return the empty plan naming 2\n");
+    std::fprintf(stderr,
+                 "the fit rule did not return the empty plan naming 2\n");
     return 1;
   }
   return 0;
@@ -251,7 +261,8 @@ auto childCompactFour() -> int
       sg::detail::resolvePreset(sg::detail::Preset::COMPACT, layout, 3);
   const std::vector<std::uint32_t> firstThree {0, 1, 2};
   if (three.cpu != firstThree) {
-    std::fprintf(stderr, "compact did not name both siblings before the next core\n");
+    std::fprintf(stderr,
+                 "compact did not name both siblings before the next core\n");
     return 1;
   }
   return 0;
@@ -263,9 +274,10 @@ auto childSingleCore() -> int
 {
   installShape(1, 1, 1);
   const auto& layout = sg::detail::layout();
-  const std::array<sg::detail::Preset, 4> presets {
-      sg::detail::Preset::CORE, sg::detail::Preset::L3, sg::detail::Preset::SMT,
-      sg::detail::Preset::COMPACT};
+  const std::array<sg::detail::Preset, 4> presets {sg::detail::Preset::CORE,
+                                                   sg::detail::Preset::L3,
+                                                   sg::detail::Preset::SMT,
+                                                   sg::detail::Preset::COMPACT};
   for (const auto preset : presets) {
     const auto plan = sg::detail::resolvePreset(preset, layout, 1);
     const std::vector<std::uint32_t> expected {0};
@@ -288,7 +300,8 @@ auto childSiblingsOff() -> int
 {
   installShape(4, 6, 1);
   const auto& layout = sg::detail::layout();
-  const auto smt = sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 1);
+  const auto smt =
+      sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 1);
   const std::vector<std::uint32_t> one {0};
   if (smt.places != 1 || smt.cpu != one) {
     std::fprintf(stderr, "smt did not place one context with siblings off\n");
@@ -297,8 +310,10 @@ auto childSiblingsOff() -> int
   const auto compact =
       sg::detail::resolvePreset(sg::detail::Preset::COMPACT, layout, 24);
   if (compact.places != 24 || compact.cpu.size() != 24
-      || !distinctCpus(compact.cpu)) {
-    std::fprintf(stderr, "compact did not place 24 contexts with siblings off\n");
+      || !distinctCpus(compact.cpu))
+  {
+    std::fprintf(stderr,
+                 "compact did not place 24 contexts with siblings off\n");
     return 1;
   }
   return 0;
@@ -323,7 +338,8 @@ auto childPartialMask() -> int
     std::fprintf(stderr, "l3 did not lower to the partial mask\n");
     return 1;
   }
-  const auto smt = sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 2);
+  const auto smt =
+      sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 2);
   const std::vector<std::uint32_t> pair {0, 1};
   if (smt.places != 2 || smt.cpu != pair) {
     std::fprintf(stderr, "smt did not lower to the partial mask\n");
@@ -332,7 +348,8 @@ auto childPartialMask() -> int
   const auto compact =
       sg::detail::resolvePreset(sg::detail::Preset::COMPACT, layout, 12);
   if (compact.places != 12 || compact.cpu.size() != 12
-      || !distinctCpus(compact.cpu)) {
+      || !distinctCpus(compact.cpu))
+  {
     std::fprintf(stderr, "compact did not lower to the partial mask\n");
     return 1;
   }
@@ -350,7 +367,8 @@ auto childDeterminism() -> int
   const auto second =
       sg::detail::resolvePreset(sg::detail::Preset::COMPACT, layout, 48);
   if (first.cpu != second.cpu || first.group != second.group) {
-    std::fprintf(stderr, "two calls with one layout returned different plans\n");
+    std::fprintf(stderr,
+                 "two calls with one layout returned different plans\n");
     return 1;
   }
   const auto core =
@@ -361,7 +379,8 @@ auto childDeterminism() -> int
   }
   for (const auto cpu : core.cpu) {
     if (std::find(layout.mask.begin(), layout.mask.end(), cpu)
-        == layout.mask.end()) {
+        == layout.mask.end())
+    {
       std::fprintf(stderr, "a plan cpu stands outside the layout mask\n");
       return 1;
     }
@@ -392,9 +411,10 @@ auto childEmptyLayout() -> int
   installed.readable = true;
   sg::detail::installTestLayout(installed);
   const auto& layout = sg::detail::layout();
-  const std::array<sg::detail::Preset, 4> presets {
-      sg::detail::Preset::CORE, sg::detail::Preset::L3,
-      sg::detail::Preset::SMT, sg::detail::Preset::COMPACT};
+  const std::array<sg::detail::Preset, 4> presets {sg::detail::Preset::CORE,
+                                                   sg::detail::Preset::L3,
+                                                   sg::detail::Preset::SMT,
+                                                   sg::detail::Preset::COMPACT};
   for (const auto preset : presets) {
     const auto plan = sg::detail::resolvePreset(preset, layout, 1);
     if (!plan.cpu.empty() || plan.places != 0) {
@@ -411,7 +431,8 @@ auto childTextGroup() -> int
   installFourGroupShape();
   if (sg::detail::placementText(sg::PlacementSlot::cpu(0)) != "0@0"
       || sg::detail::placementText(sg::PlacementSlot::cpu(24)) != "24@2"
-      || sg::detail::placementText(sg::PlacementSlot::cpu(35)) != "35@2") {
+      || sg::detail::placementText(sg::PlacementSlot::cpu(35)) != "35@2")
+  {
     std::fprintf(stderr, "placementText did not disclose cpu@group\n");
     return 1;
   }
@@ -429,7 +450,8 @@ auto childTextNoGroup() -> int
   installed.mask.push_back(5);
   sg::detail::installTestLayout(installed);
   if (sg::detail::placementText(sg::PlacementSlot::cpu(5)) != "5"
-      || sg::detail::placementText(sg::PlacementSlot::cpu(99)) != "99") {
+      || sg::detail::placementText(sg::PlacementSlot::cpu(99)) != "99")
+  {
     std::fprintf(stderr, "placementText did not disclose the bare cpu index\n");
     return 1;
   }
@@ -458,7 +480,8 @@ auto childThreeShapes() -> int
 {
   installShape(2, 3, 2);
   const auto& layout = sg::detail::layout();
-  const auto smt = sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 2);
+  const auto smt =
+      sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 2);
   const std::vector<std::uint32_t> siblings {0, 1};
   if (smt.cpu != siblings) {
     std::fprintf(stderr, "smt did not name the two siblings of one core\n");
@@ -478,7 +501,8 @@ auto childThreeShapes() -> int
     std::fprintf(stderr, "compact did not fill one core before the next\n");
     return 1;
   }
-  const auto over = sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 3);
+  const auto over =
+      sg::detail::resolvePreset(sg::detail::Preset::SMT, layout, 3);
   if (!over.cpu.empty()) {
     std::fprintf(stderr, "smt with three contexts returned a plan\n");
     return 1;
@@ -588,7 +612,8 @@ auto childRunnerNoPreset() -> int
   }
   for (int index = 0; index < slotCalls.load(); ++index) {
     if (slotRecord[static_cast<std::size_t>(index)]
-        != sg::PlacementSlot::noPin().cpuIndex) {
+        != sg::PlacementSlot::noPin().cpuIndex)
+    {
       std::fprintf(stderr, "a run with no preset named a cpu\n");
       return 1;
     }
@@ -605,6 +630,7 @@ auto parsePresetScenarios() -> int
     const char* text;
     sg::detail::Preset preset;
   };
+
   const std::array<Named, 5> accepted {
       Named {"none", sg::detail::Preset::NONE},
       Named {"core", sg::detail::Preset::CORE},
@@ -688,6 +714,7 @@ auto main(int argc, char** argv) -> int
     const char* mode;
     const char* what;
   };
+
   const std::array<Expected, 16> scenarios {
       Expected {"coreFour", "the core scenario ended clean (FR-011, FR-018)"},
       Expected {"l3Four", "the l3 scenario ended clean (FR-012, FR-018)"},
@@ -695,13 +722,15 @@ auto main(int argc, char** argv) -> int
       Expected {"compactFour", "the compact scenario ended clean (FR-014)"},
       Expected {"singleCore", "the single-core scenario ended clean (SC-04)"},
       Expected {"siblingsOff", "the siblings-off scenario ended clean (SC-04)"},
-      Expected {"partialMask", "the partial-mask scenario ended clean (FR-005)"},
-      Expected {"determinism", "the determinism scenario ended clean (SC-03, "
-                               "FR-008, FR-009)"},
+      Expected {"partialMask",
+                "the partial-mask scenario ended clean (FR-005)"},
+      Expected {
+          "determinism",
+          "the determinism scenario ended clean (SC-03, " "FR-008, " "FR-009)"},
       Expected {"nonePreset", "the none scenario ended clean (FR-010)"},
-      Expected {"threeShapes",
-                "the three-shape scenario ended clean (FR-011, FR-013, "
-                "FR-014, FR-018)"},
+      Expected {
+          "threeShapes",
+          "the three-shape scenario ended clean (FR-011, FR-013, " "FR-014," " " "FR-" "018" ")"},
       Expected {"textGroup",
                 "the cpu@group scenario ended clean (FR-021, E-09)"},
       Expected {"textNoGroup",

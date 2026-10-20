@@ -156,8 +156,8 @@ auto bmSmtBody(sg::State& state) -> void
   }
 }
 
-auto makeResult(const std::string& name, const std::vector<Policy>& policies)
-    -> sg::BenchmarkResult
+auto makeResult(const std::string& name,
+                const std::vector<Policy>& policies) -> sg::BenchmarkResult
 {
   auto result = sg::BenchmarkResult {};
   result.name = name;
@@ -168,10 +168,10 @@ auto makeResult(const std::string& name, const std::vector<Policy>& policies)
   row.endpointSamples = kEndpointSamples;
   result.rows.push_back(row);
   for (const auto& policy : policies) {
-    result.contexts.push_back(sg::ContextDisclosure {
-        .waitMode = policy.waitMode,
-        .placement = policy.placement,
-        .applied = policy.applied});
+    result.contexts.push_back(
+        sg::ContextDisclosure {.waitMode = policy.waitMode,
+                               .placement = policy.placement,
+                               .applied = policy.applied});
   }
   return result;
 }
@@ -227,10 +227,11 @@ auto countLinesWith(const std::vector<std::string>& lines,
 auto scenarioTopologyLine() -> void
 {
   installFourGroupShape();
-  const auto result = makeResult("bmTopo", {{sg::WaitMode::SPIN, "0@0"},
-                                            {sg::WaitMode::SPIN, "12@1"},
-                                            {sg::WaitMode::SPIN, "24@2"},
-                                            {sg::WaitMode::SPIN, "36@3"}});
+  const auto result = makeResult("bmTopo",
+                                 {{sg::WaitMode::SPIN, "0@0"},
+                                  {sg::WaitMode::SPIN, "12@1"},
+                                  {sg::WaitMode::SPIN, "24@2"},
+                                  {sg::WaitMode::SPIN, "36@3"}});
   const auto lines = captureThrough(
       [&]
       {
@@ -251,10 +252,11 @@ auto scenarioTopologyLine() -> void
 auto scenarioCtxFields() -> void
 {
   installFourGroupShape();
-  const auto result = makeResult("bmCtx", {{sg::WaitMode::SPIN, "0@0"},
-                                           {sg::WaitMode::SPIN, "12@1"},
-                                           {sg::WaitMode::SPIN, "24@2"},
-                                           {sg::WaitMode::SPIN, "36@3"}});
+  const auto result = makeResult("bmCtx",
+                                 {{sg::WaitMode::SPIN, "0@0"},
+                                  {sg::WaitMode::SPIN, "12@1"},
+                                  {sg::WaitMode::SPIN, "24@2"},
+                                  {sg::WaitMode::SPIN, "36@3"}});
   const auto lines = captureThrough(
       [&]
       {
@@ -291,10 +293,9 @@ auto scenarioCutMark() -> void
 auto scenarioNoPresetByteIdentical() -> void
 {
   installFourGroupShape();
-  const auto result = makeResult("bmNoPreset", {{sg::WaitMode::SPIN, "NO_PIN",
-                                                 false},
-                                                {sg::WaitMode::SPIN, "NO_PIN",
-                                                 false}});
+  const auto result = makeResult("bmNoPreset",
+                                 {{sg::WaitMode::SPIN, "NO_PIN", false},
+                                  {sg::WaitMode::SPIN, "NO_PIN", false}});
   const auto lines = captureThrough(
       [&]
       {
@@ -339,9 +340,9 @@ auto scenarioSmtDisclosure() -> void
             && countLinesWith(lines, "ctx1=SPIN/1@0/applied") == 1,
         "the smt pair did not print two cpu@group fields for one core "
         "(FR-021)");
-  check(countLinesWith(lines, "warning:") == 0,
-        "the noise warning fired for a pair on two cpus of one core "
-        "(FR-023)");
+  check(
+      countLinesWith(lines, "warning:") == 0,
+      "the noise warning fired for a pair on two cpus of one core " "(FR-023)");
 }
 
 auto runIsolated(const Scenario& scenario) -> bool
