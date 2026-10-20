@@ -48,6 +48,7 @@ SECTIONS = (
     "Complexity fit",
     "Execution contexts",
     "Threads",
+    "Topology placement",
     "Percentiles",
 )
 
@@ -75,6 +76,7 @@ SECTION_OWNERS = {
     "Complexity fit": ("complexity_fit.cpp",),
     "Execution contexts": ("execution_contexts.cpp",),
     "Threads": ("threads.cpp",),
+    "Topology placement": ("topology_placement.cpp",),
     "Percentiles": ("percentiles.cpp",),
 }
 
@@ -122,9 +124,10 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # the one line the first measure hand-set away. The cap sits at that
 # measured figure, below the 698 the metric landing first took.
 # specs/022 FR-016 and FR-036 add the placement and topology
-# quick-reference rows: 2 lines move the cap to 668, the measured
-# length as the parser and the listing land.
-PAGE_LINE_CAP = 668
+# quick-reference rows and the "Topology placement" section: 24 lines
+# move the cap from 668 to 692, the measured length as the section
+# lands.
+PAGE_LINE_CAP = 692
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

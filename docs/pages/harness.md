@@ -848,6 +848,44 @@ A merged row sums the times, the iterations and the counters of its contexts.
 The flag pass then reads the real context count, and the disclosure line under
 the row names the policy of each context that contributed.
 
+## Topology placement
+
+`--placement` plans the cpus of every threaded run of the process from
+the machine layout the harness reads once, at the first need, through
+the vendored hwloc. Five presets name the plans:
+
+| Preset | Places |
+| --- | --- |
+| `none` | no plan and no pin, the behavior of every run before this option |
+| `core` | one thread per core, in core order |
+| `l3` | one cpu per L3 group, the group's lowest cpu |
+| `smt` | the sibling threads of one core, in core order |
+| `compact` | every thread of each L3 group, in group order |
+
+A handle states its family's preset with `placement("l3")`, and the
+handle wins over the command line. The process option is parsed once,
+before the first run.
+
+The fit rule: a preset has as many places as its walk produces cpus.
+A run that asks more contexts than the preset has places stops the
+batch before the first run with one line naming the preset, the place
+count and the requested count, and the process exits 2. A layout the
+harness cannot read stops a preset run the same way, whatever the
+context count.
+
+The report of a run with a preset carries a topology line below the
+version line, `topology: packages=1 l3-groups=4 cores=24 threads=48`,
+and each context of a threaded run discloses its planned pair,
+`ctx0=SPIN/0@0/applied`: the cpu it ran on, `@`, and the ordinal of
+its L3 group. A pair longer than the field meets the standing cut
+mark.
+
+`--topology` prints the layout the plans come from and exits: the
+counts line above, the process mask the layout was built from, and
+one line per L3 group naming that group's cpus inside the mask in the
+range spelling `0-5,24-29`. An unreadable layout prints one line and
+exits 2.
+
 ## Percentiles
 
 A family that reports percentiles divides one run into chunks of iterations,
