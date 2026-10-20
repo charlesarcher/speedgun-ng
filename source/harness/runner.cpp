@@ -20,6 +20,7 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
+#include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -1171,6 +1172,58 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       const sg::counters::Expression<sg::counters::Dim<0, 1>> expression(*leaf);
       column.core = expression.core;
     }
+    columns.push_back(std::move(column));
+  }
+
+  // FR-025, FR-026, FR-027: a named metric joins the columns in
+  // command-line order, keyed by the name as typed, so a name repeated on
+  // the command line or attached in code yields one column. The spine the
+  // lookup returns is the metric's own, so the column folds through the
+  // plan and the recorder like any other column and the timed loop reads
+  // no counter of its own (FR-029).
+  for (const auto& name : m_options.metricNames) {
+    const bool taken = std::any_of(columns.begin(),
+                                   columns.end(),
+                                   [&](const MetricColumn& column)
+                                   { return column.label == name; });
+    if (taken) {
+      continue;
+    }
+    MetricColumn column {
+        .label = name,
+        // The lookup hands back an erased spine, the same carrier
+        // `addMetric` of the same expression takes, so the column reports
+        // the window's summed fold (FR-025).
+        .perIteration = false,
+        .unavailable = false,
+        .availability = sg::counters::Availability::COUNTABLE,
+        .core = {},
+    };
+    const auto view = sg::counters::metricByName(name);
+    if (!view.has_value()) {
+      // The metric exists (the entry point validated the name) and cannot
+      // be counted: its refusal kind rides on the line and the column
+      // stands unavailable while the benchmark runs (FR-027).
+      column.unavailable = true;
+      column.availability = sg::counters::Availability::ABSENT;
+      std::string note = view.error().message;
+      const auto listed = sg::counters::catalogMetrics();
+      if (const auto found =
+              std::find_if(listed.begin(),
+                           listed.end(),
+                           [&](const sg::counters::MetricListing& row)
+                           { return row.name == name; });
+          found != listed.end() && !found->published)
+      {
+        note += " (";
+        note += sg::counters::metricRefusalName(found->refusal);
+        note += ")";
+      }
+      std::fprintf(stderr, "%s: %s\n", name.c_str(), note.c_str());
+      columns.push_back(std::move(column));
+      continue;
+    }
+    column.core = view->expression.core;
     columns.push_back(std::move(column));
   }
 
