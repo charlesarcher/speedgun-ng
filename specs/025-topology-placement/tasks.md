@@ -407,3 +407,8 @@ this feature rebases onto it before its own merge.
   T042 carries the scenarios that need T020 and T021.
 - Setup blocks everything because the seams and the data model are the
   contract every story test compiles against.
+
+## Phase 8: Convergence
+
+- [ ] T043 Replace the recorded LCOV_EXCL_BR_LINE on the load-failure arm of the layout read with a seam-backed test, and re-record the T032 note without the approval claim, per FR-034, the Constraints coverage rule and Constitution VI (contradicts)
+- [ ] T044 Run the coverage target at the feature head after the last source edit and re-record the line and branch figures for topology.cpp and placement_preset.cpp, per SC-08 (partial)
