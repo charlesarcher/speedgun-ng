@@ -2,7 +2,7 @@
 
 **Branch**: `022-topology-placement` | **Date**: 2026-10-19 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `specs/022-topology-placement/spec.md`
+**Input**: Feature specification from `specs/025-topology-placement/spec.md`
 
 ## Summary
 
@@ -95,7 +95,7 @@ new public type, no new dependency.
 ### Documentation (this feature)
 
 ```text
-specs/022-topology-placement/
+specs/025-topology-placement/
 ├── spec.md              # FR-001 to FR-036, SC-01 to SC-12, Clarifications Q-1 to Q-8
 ├── plan.md              # this file
 ├── research.md          # R-01 to R-13 with rationale and rejected alternatives
@@ -377,7 +377,7 @@ entered (FR-034, SC-08, Q-8).
 | VI | PASS. 100 percent line and branch coverage on new paths with no exclusion marker; the host read, the injected seam and the rejected description drive the branches. |
 | VII | PASS. The layout read happens before any context starts and never inside a measured window; the report prints one line per report and reads no clock. |
 | VIII | PASS. Every hard gate runs at the feature head: format-check, spell-check, tidy, cppcheck, sanitizers, coverage, docs drift, prose, report shape, DBC, time-source, name-check. No gate loses a check. |
-| IX | PASS. spec, plan, research, data-model, contracts, quickstart and tasks all stand in `specs/022-topology-placement/` before implementation begins. |
+| IX | PASS. spec, plan, research, data-model, contracts, quickstart and tasks all stand in `specs/025-topology-placement/` before implementation begins. |
 | X | PASS. One switch over five preset names, one layout record, no speculative interface, and the two install seams reuse the standing test pattern. |
 | XI | PASS for the tracked tree, pending for these artifacts. The gate walks `git ls-files`, and these artifacts stand untracked at this point, so no run of it covers them yet; T037 runs the gate over the branch at the feature head. |
 

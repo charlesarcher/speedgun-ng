@@ -158,7 +158,7 @@ constexpr const char* kUnappliedFlag = "unapplied";
 // The mark that stands where the placement field cut a text short.
 constexpr char kTruncationMark = '~';
 
-// FR-025, specs/022 FR-021: the width of the placement field. The
+// FR-025, specs/025 FR-021: the width of the placement field. The
 // default placement function produces the `cpu@group` pair of the slot
 // it ran on, and a pair of two wide indices stands longer than this
 // field, so the field cuts that text and marks the cut, the way it

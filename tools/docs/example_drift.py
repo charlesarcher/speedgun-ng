@@ -123,7 +123,7 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # section with its rows, the format gate's canonical printf wrapping adding
 # the one line the first measure hand-set away. The cap sits at that
 # measured figure, below the 698 the metric landing first took.
-# specs/022 FR-016 and FR-036 add the placement and topology
+# specs/025 FR-016 and FR-036 add the placement and topology
 # quick-reference rows and the "Topology placement" section: 24 lines
 # move the cap from 668 to 692, the measured length as the section
 # lands.

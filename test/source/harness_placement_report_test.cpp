@@ -1,5 +1,5 @@
 // ============================================================================
-// specs/022-topology-placement T015: the topology line and the placement
+// specs/025-topology-placement T015: the topology line and the placement
 // field of the console report (US2, FR-020 to FR-022, R-06, R-09, SC-05).
 //
 // Each scenario builds the `{waitMode, placement, applied}` records of a

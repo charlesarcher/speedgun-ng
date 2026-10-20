@@ -368,7 +368,7 @@ auto expandRegistry(const std::optional<Preset> processPreset) -> void
   std::vector<std::string> suites;
   std::vector<std::vector<Instance>> blocks;
   for (const auto& entry : registry()) {
-    // specs/022 FR-015, FR-016: the handle's name wins over the process
+    // specs/025 FR-015, FR-016: the handle's name wins over the process
     // default, and a name that parses to nothing stops the expansion
     // with one line and status 2 before any instance exists.
     std::optional<Preset> preset = processPreset;

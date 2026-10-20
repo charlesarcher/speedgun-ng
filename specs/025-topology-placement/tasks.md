@@ -1,6 +1,6 @@
 # Tasks: Topology Placement
 
-**Input**: Design documents from `specs/022-topology-placement/`
+**Input**: Design documents from `specs/025-topology-placement/`
 
 **Prerequisites**: plan.md, spec.md (FR-001 to FR-036, SC-01 to SC-12,
 Clarifications Q-1 to Q-8), research.md (R-01 to R-13), data-model.md,
@@ -299,7 +299,7 @@ pass with the new section and example (SC-09).
 
 - [x] T036 Version line: set the project `VERSION` in `CMakeLists.txt` to the next free minor (`0.12.0`, `0.11.0` having been taken at `8eac15d`), keep the harness `SOVERSION` at 7 and the archive `SOVERSION` at 2, record beside the change the exported-layout check that justifies keeping them, and add to `docs/pages/building.md` the 0.10.0 and 0.11.0 paragraphs that page lacks together with the distinction that a member function alone moves no layout: the move to 5 came from the row model, the aggregate statistics and the complexity fit, the move to 6 came from data members of `State` and `BenchmarkResult`, and the move to 7 came from the chunk fields, the chunk cadence, the row percentile columns and the percentile selector, and amend the 0.9.0 paragraph of that page so its items separate the exported layout moves (the row model, the aggregate statistics, the complexity fit and the four new enums) from the member functions `State` and `BenchmarkHandle` gained at the same time, which move no layout (FR-032, FR-033, SC-10)
 
-- [x] T040 Commit series per the Pull Request Quality section of `.specify/memory/constitution.md`: `<Section>: <one-line imperative>` at 50 characters or fewer, a why-body wrapped at 72, one footer block with `Approved-by:` for the decisions Charles made and `Refs: specs/022-topology-placement`, atomic and bisectable (spec Constraints)
+- [x] T040 Commit series per the Pull Request Quality section of `.specify/memory/constitution.md`: `<Section>: <one-line imperative>` at 50 characters or fewer, a why-body wrapped at 72, one footer block with `Approved-by:` for the decisions Charles made and `Refs: specs/025-topology-placement`, atomic and bisectable (spec Constraints)
 
 - [x] T037 Prose and commit gate over the whole change: run
   `cmake -P cmake/prose-lint.cmake`, the standing wrapper that runs

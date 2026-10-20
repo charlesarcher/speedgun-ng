@@ -89,7 +89,7 @@ constexpr std::size_t kCpuIndexWidth = 10;
 
 // The width of the widest account the placement record can name: the
 // `cpu@group` pair of a landed pin, the longest text the placement
-// function composes from the layout (FR-021, FR-025, specs/022 E-09).
+// function composes from the layout (FR-021, FR-025, specs/025 E-09).
 constexpr std::size_t kAccountTextWidth = kCpuIndexWidth * 2 + 1;
 
 // The default placement function: one Linux pin of the started thread
@@ -97,7 +97,7 @@ constexpr std::size_t kAccountTextWidth = kCpuIndexWidth * 2 + 1;
 // names for the seam; the installed function replaces the whole call, so
 // a test that replaces it executes no platform pin at all (SC-05).
 //
-// specs/022 FR-021, E-09: the description is the disclosure text of the
+// specs/025 FR-021, E-09: the description is the disclosure text of the
 // slot, the `cpu@group` pair the layout composes, and the account of a
 // pin that did not land stays the unapplied word the seam chooses.
 //
