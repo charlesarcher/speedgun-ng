@@ -789,6 +789,15 @@ Measured at the audit point, before any section is written:
   `SECTIONS` stay untouched.
 - Quick reference: one row per public name added. Option table: one row.
 
+Recorded at the owner review of the landed page (D-15, PR #41, Charles,
+2026-10-19): FR-031's final measurement is the section at 24 lines inside
+the unraised `SECTION_LINE_CAP`, the `SECTION_LINE_CAPS` raise removed, the
+`#metrics` walk and the fold-and-read flow moved to
+`docs/pages/harness.md` as FR-033 directs, and the page at 666 lines
+(the format gate's canonical printf wrapping of the kept region adds one
+over the first measure) with `PAGE_LINE_CAP` sitting on that measurement,
+below the 698 the metric landing first took.
+
 ## Dependencies
 
 - specs/007-counters-and-timers: the table parser, the seam, the

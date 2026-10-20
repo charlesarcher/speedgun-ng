@@ -26,7 +26,7 @@ auto attachMetric(sg::BenchmarkHandle& handle) -> void
 
 #include "speedgun-ng/counters_metrics.hpp"
 
-auto printMetric(std::string_view name) -> void
+auto describeMetric(std::string_view name) -> void
 {
   const auto metric = sg::counters::metricByName(name);
   if (!metric.has_value()) {
@@ -34,19 +34,8 @@ auto printMetric(std::string_view name) -> void
         "%s: %s\n", std::string(name).c_str(), metric.error().message.c_str());
     return;
   }
-  const auto plan =
-      sg::counters::compile(sg::counters::System::local(), metric->expression);
-  if (!plan.has_value()) {
-    std::printf(
-        "%s: %s\n", std::string(name).c_str(), plan.error().message.c_str());
-    return;
-  }
-  sg::counters::Scope window {*plan};
-  window.start();
-  window.finish();
-  std::printf("%s: %g group=%s unit=%s\n",
+  std::printf("%s: group=%s unit=%s\n",
               std::string(name).c_str(),
-              window.metric(metric->expression).value,
               std::string(metric->group).c_str(),
               std::string(metric->unit).c_str());
 }

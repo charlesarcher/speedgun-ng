@@ -112,18 +112,24 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # The metric-lookup region, its prose and its quick-reference and option
 # rows are the 39 added lines that move the cap from 659 to 698, the
 # measured length of the page as the metric section lands.
-PAGE_LINE_CAP = 698
+# D-15 of the PR #41 owner review (Charles, 2026-10-19): the metric section
+# grew to 59 lines under a recorded raise, and the review keeps one snippet
+# on the main page. The addMetric walk and the fold-and-read flow move to
+# docs/pages/harness.md, the section keeps the metric-lookup region with one
+# sentence each side at 24 lines, the higher cap is removed, and the page
+# measures 666 lines: the 659 the percentile move left and the trimmed
+# section with its rows, the format gate's canonical printf wrapping adding
+# the one line the first measure hand-set away. The cap sits at that
+# measured figure, below the 698 the metric landing first took.
+PAGE_LINE_CAP = 666
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
 # holds its copied regions (D-A, Charles, 2026-10-15). Fixtures counts the
-# sg-requires line the snippet gate reads beside the macro block. Hardware
-# counter metrics holds feature 021's metric-lookup region and the
-# sg-requires line beside it.
+# sg-requires line the snippet gate reads beside the macro block.
 SECTION_LINE_CAPS = {
     "Registration": 38,
     "Fixtures": 43,
-    "Hardware counter metrics": 59,
 }
 
 
