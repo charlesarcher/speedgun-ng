@@ -15,6 +15,7 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
+#include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/execution_context.hpp"
 
 /**
@@ -395,6 +396,31 @@ auto printResult(const BenchmarkResult& result) -> void;
 /// @brief Print the catalog listing; false when the listing failed
 /// (FR-037).
 auto printCatalog() -> void;
+
+/// @brief Print one object's counter lines, then the metric lines whose path
+/// is that object's, in table order (FR-021, FR-022, D-11).
+auto printObject(const sg::counters::Object& object,
+                 const std::vector<sg::counters::MetricListing>& metrics)
+    -> void;
+
+/// @brief The note one unavailable metric column prints: the lookup's message
+/// with the refusal kind of its row in parentheses, when the listing carries
+/// the name as a refusal (FR-027).
+[[nodiscard]] auto metricColumnNote(
+    const std::string& name,
+    const sg::counters::Error& error,
+    const std::vector<sg::counters::MetricListing>& listed) -> std::string;
+
+/// @brief The one line `--metric` prints for a name that carries nothing:
+/// the name, the lookup's message, and its near-miss names in parentheses
+/// when it has any (FR-028, FR-042).
+[[nodiscard]] auto metricNameFailureLine(
+    const std::string& name, const sg::counters::Error& error) -> std::string;
+
+/// @brief The exit status when a `--metric` name carries nothing: the first
+/// failure is stated once, with its near-miss names (FR-028, FR-042).
+[[nodiscard]] auto metricNameFailure(const std::vector<std::string>& names)
+    -> int;
 
 /// @brief The refusal kind of an availability state, as the report and
 /// the listing print it (FR-023, FR-037).

@@ -212,6 +212,20 @@ auto timeSourcePresent(counters::System& sys) -> bool
 // run before any measurement starts, so a typo costs no measured time. The
 // walk is in option order and states the first failure, with its near-miss
 // names on the same line.
+[[nodiscard]] auto metricNameFailureLine(
+    const std::string& name, const counters::Error& error) -> std::string
+{
+  std::string line = "--metric " + name + ": " + error.message;
+  for (std::size_t here = 0; here < error.suggestions.size(); ++here) {
+    line += here == 0 ? " (near: " : ", ";
+    line += error.suggestions[here];
+  }
+  if (!error.suggestions.empty()) {
+    line += ")";
+  }
+  return line;
+}
+
 auto metricNameFailure(const std::vector<std::string>& names) -> int
 {
   const std::vector<counters::MetricListing> listed =
@@ -228,15 +242,8 @@ auto metricNameFailure(const std::vector<std::string>& names) -> int
     SG_ASSERT(!miss.has_value(),
               "a name the catalog lists nothing for is a miss the lookup "
               "answers with an error (FR-016)");
-    std::string line = "--metric " + name + ": " + miss.error().message;
-    for (std::size_t here = 0; here < miss.error().suggestions.size(); ++here) {
-      line += here == 0 ? " (near: " : ", ";
-      line += miss.error().suggestions[here];
-    }
-    if (!miss.error().suggestions.empty()) {
-      line += ")";
-    }
-    std::fprintf(stderr, "%s\n", line.c_str());
+    std::fprintf(
+        stderr, "%s\n", metricNameFailureLine(name, miss.error()).c_str());
     return 2;
   }
   return 0;

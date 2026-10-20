@@ -241,6 +241,54 @@ struct ResolvedMetricTable
 [[nodiscard]] auto resolvedMetricTable(const MetricHost& host)
     -> const ResolvedMetricTable&;
 
+/// The metric rows of the directory `host` names, shared with every later
+/// call (FR-019), and none when `host` names no directory (FR-017).
+///
+/// \pre `host.system` names an open system.
+/// \post An empty `directory` yields no rows; otherwise one entry per metric
+/// row of the table, in table order.
+[[nodiscard]] auto metricRowsOnHost(const MetricHost& host)
+    -> const std::vector<MetricDefinition>&;
+
+/// The catalog line of every metric row `host` lists (FR-021, FR-022).
+///
+/// \pre `host.system` names an open system.
+/// \post No line when `host` names no directory; one line per metric row,
+/// in table order, carrying the row's own published or refused answer.
+[[nodiscard]] auto metricListingsOnHost(const MetricHost& host)
+    -> std::vector<MetricListing>;
+
+/// The definition of `name` inside an already-resolved table, the answer a
+/// published row, a refused row and a missing name each give (FR-016, FR-021).
+///
+/// \pre `table` holds the rows of one directory, resolved against one host.
+/// \post The first row that carried the name answers it; a refused row answers
+/// with its own reason and suggestions, and a name the index lacks answers
+/// with the near-miss names beside the queried text.
+[[nodiscard]] auto metricDefinitionIn(const ResolvedMetricTable& table,
+                                      std::string_view name)
+    -> std::expected<MetricDefinition, Error>;
+
+/// The definition of `name` in the directory `host` names (FR-017).
+///
+/// \pre `host.system` names an open system.
+/// \post A host that names no directory answers with the reason that the CPU
+/// matched no event-table directory; any other host answers through the table
+/// of that directory.
+[[nodiscard]] auto metricDefinitionOnHost(const MetricHost& host,
+                                          std::string_view name)
+    -> std::expected<MetricDefinition, Error>;
+
+/// The public answer to naming a metric: the view of a published row, or the
+/// error the lookup produced (FR-016).
+///
+/// \pre none
+/// \post A value converts to a view carrying its spine, group and unit text;
+/// an error passes through with its message and suggestions intact.
+[[nodiscard]] auto metricViewResponse(
+    const std::expected<MetricDefinition, Error>& def)
+    -> std::expected<MetricView, Error>;
+
 }  // namespace sg::counters::detail
 
 #endif

@@ -41,6 +41,7 @@ using sg::counters::MetricRefusal;
 using sg::counters::Object;
 using sg::counters::Scope;
 using sg::counters::System;
+using sg::counters::detail::MetricDefinition;
 using sg::counters::detail::metricDefinition;
 using sg::counters::detail::metricRows;
 using sg::counters::detail::parsedMetricTable;
@@ -455,6 +456,106 @@ auto chainScenario() -> void
   }
 }
 
+// The host-parameterised lookup: the answers one table gives on its own, the
+// answer of a host that named no directory, and the pass-through into the
+// public view (FR-016, FR-017, FR-021).
+auto hostScenario() -> void
+{
+  const auto noTable = sg::counters::detail::metricDefinitionOnHost(
+      sg::test::noMetricHost(), "cpi");
+  check(!noTable.has_value(),
+        "a host that named no directory names no metric (FR-017)");
+  check(noTable.error().message.find("no event-table directory")
+            != std::string::npos,
+        "the reason says the CPU matched no directory (FR-017)");
+  check(
+      sg::counters::detail::metricRowsOnHost(sg::test::noMetricHost()).empty(),
+      "a host that named no directory lists no metric row (FR-017)");
+  check(sg::counters::detail::metricListingsOnHost(sg::test::noMetricHost())
+            .empty(),
+        "a host that named no directory lists no catalog line (FR-017)");
+  // The lines of the directory this CPU selected mirror its rows row for
+  // row; where no directory was selected both sides are empty and the
+  // equality holds the same way (FR-021, FR-022).
+  const auto currentLines = sg::counters::detail::metricListingsOnHost(
+      sg::counters::detail::metricHostCurrent());
+  const auto currentRows = sg::counters::detail::metricRowsOnHost(
+      sg::counters::detail::metricHostCurrent());
+  check(currentLines.size() == currentRows.size(),
+        "the catalog lines mirror the metric rows of this host (FR-021)");
+  bool linesMatchRows = true;
+  for (std::size_t i = 0; i != currentLines.size(); ++i) {
+    linesMatchRows = linesMatchRows
+        && currentLines[i].name == currentRows[i].name
+        && currentLines[i].objectPath == currentRows[i].objectPath
+        && currentLines[i].published == currentRows[i].published;
+  }
+  check(linesMatchRows,
+        "each line carries its row's name, object path and verdict (FR-022)");
+
+  // A table of two rows, hand-built and resolved here: what the lookup
+  // answers is a property of the table, one every host shares
+  // (FR-016, FR-021).
+  ResolvedMetricTable table;
+  MetricDefinition row;
+  row.name = "cpi_core";
+  row.group = "pipeline";
+  row.unit = "ratio";
+  row.description = "a row of no directory";
+  row.published = true;
+  table.rows.push_back(row);
+  table.index[row.name] = 0;
+  row.name = "cpi_package";
+  row.published = false;
+  row.refusal = sg::counters::MetricRefusal::UNRESOLVED;
+  row.reason = "names no leaf this host counts";
+  table.rows.push_back(row);
+  table.index[row.name] = 1;
+
+  const auto shown =
+      sg::counters::detail::metricDefinitionIn(table, "cpi_core");
+  check(shown.has_value() && shown->published && shown->group == "pipeline",
+        "a published row answers its own name (FR-016)");
+  const auto view = sg::counters::detail::metricViewResponse(shown);
+  check(view.has_value() && view->group == "pipeline" && view->unit == "ratio",
+        "the view carries the group and unit text of the row (FR-016, FR-018)");
+
+  const auto denied =
+      sg::counters::detail::metricDefinitionIn(table, "cpi_package");
+  check(!denied.has_value(), "a refused row answers with an error (FR-012)");
+  check(
+      denied.error().message.find(':') != std::string::npos
+          && denied.error().message.find("names no leaf") != std::string::npos,
+      "the refusal message names the row beside its reason (FR-021)");
+
+  const auto miss = sg::counters::detail::metricDefinitionIn(table, "cpi_cord");
+  check(!miss.has_value(), "a name the table lacks has no answer (FR-016)");
+  check(miss.error().message.find("cpi_cord") != std::string::npos,
+        "the miss names the queried text (FR-021)");
+  check(!miss.error().suggestions.empty(),
+        "the miss carries the near-miss names (FR-016)");
+
+  const auto refusedView = sg::counters::detail::metricViewResponse(denied);
+  check(!refusedView.has_value()
+            && refusedView.error().message == denied.error().message,
+        "the lookup error reaches the public answer unchanged (FR-021)");
+
+  check(sg::counters::detail::metricRowsOnHost(
+            sg::counters::detail::metricHostCurrent())
+                .size()
+            == sg::counters::catalogMetrics().size(),
+        "the shared rows of this host are the rows the catalog lists (FR-021)");
+  const auto absent = sg::counters::metricByName("metric_no_host_names");
+  check(
+      !absent.has_value(),
+      "the public lookup of a name no table carries answers an error (FR-016)");
+
+  double count = -1.0;
+  check(!sg::counters::detail::countObjects(
+            *sg::test::fixtureHost().system, "no-such-kind", count),
+        "a kind the tree publishes nothing for answers no count (FR-006)");
+}
+
 }  // namespace
 
 // T056, T057: the verdict sweep of FR-038. Every metric row of every
@@ -534,19 +635,28 @@ auto verdictSweepScenario() -> void
 
 auto main() -> int
 {
-  if (!sg::test::registerMetricHost()) {
+  (void)sg::counters::System::local().object("machine");
+  // The scripted leaves are what a folded value or a stated refusal reads,
+  // so only those scenarios need the fixture provider. The sweep over the
+  // vendored directories and the host-parameterised lookup answer from the
+  // fixture rows and the host's own table wherever the process stands
+  // (FR-036).
+  const bool scripted = sg::test::registerMetricHost();
+  if (!scripted) {
     std::printf("SKIP metric lookup: the counters system had already opened "
                 "when the fixture registered, so no scripted leaves exist to "
                 "fold (FR-036)\n");
-    return 0;
   }
-  valueScenario();
-  nestedScenario();
-  tableScenario();
-  lookupScenario();
-  refusalScenario();
-  factScenario();
-  chainScenario();
+  if (scripted) {
+    valueScenario();
+    nestedScenario();
+    tableScenario();
+    lookupScenario();
+    refusalScenario();
+    factScenario();
+    chainScenario();
+  }
+  hostScenario();
   verdictSweepScenario();
   std::printf("counters_metric_lookup_test PASS: the value rows against "
               "hand-composed expressions, the nested expansion, the cycle and "

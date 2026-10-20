@@ -35,11 +35,14 @@ auto readModeName(const sg::counters::ReadMode mode) -> const char*
   return kReadModeNames[std::to_underlying(mode)];
 }
 
+}  // namespace
+
 // Metric lines follow the counter lines of the same object path, in table
 // order, and `mode=metric` is the field that separates them (FR-021, FR-022,
 // D-11).
-void printObject(const sg::counters::Object& object,
+auto printObject(const sg::counters::Object& object,
                  const std::vector<sg::counters::MetricListing>& metrics)
+    -> void
 {
   const std::string path = std::string(object.path());
   for (const auto& entry : object.counters()) {
@@ -77,8 +80,6 @@ void printObject(const sg::counters::Object& object,
     printObject(*child, metrics);
   }
 }
-
-}  // namespace
 
 auto printCatalog() -> void
 {

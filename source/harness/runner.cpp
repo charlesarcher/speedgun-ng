@@ -611,6 +611,30 @@ auto mergeThreadedRecords(const std::vector<ThreadedOutcome>& outcomes,
 namespace sg::detail
 {
 
+// FR-027: the note one unavailable metric column prints: the lookup's own
+// message, and the refusal kind in parentheses when the table carries the
+// name as a refusal. The declaration stands in detail/internal.hpp, where the
+// gap test drives both spellings beside the run.
+[[nodiscard]] auto metricColumnNote(
+    const std::string& name,
+    const sg::counters::Error& error,
+    const std::vector<sg::counters::MetricListing>& listed) -> std::string
+{
+  std::string note = error.message;
+  if (const auto found =
+          std::find_if(listed.begin(),
+                       listed.end(),
+                       [&](const sg::counters::MetricListing& row)
+                       { return row.name == name; });
+      found != listed.end() && !found->published)
+  {
+    note += " (";
+    note += sg::counters::metricRefusalName(found->refusal);
+    note += ")";
+  }
+  return note;
+}
+
 // FR-020: the skip rule of the threaded merge: a skipped context sets the
 // merged flag and leaves its reason standing, so the merged row names the
 // first context that skipped. The declaration stands in
@@ -1206,19 +1230,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // stands unavailable while the benchmark runs (FR-027).
       column.unavailable = true;
       column.availability = sg::counters::Availability::ABSENT;
-      std::string note = view.error().message;
-      const auto listed = sg::counters::catalogMetrics();
-      if (const auto found =
-              std::find_if(listed.begin(),
-                           listed.end(),
-                           [&](const sg::counters::MetricListing& row)
-                           { return row.name == name; });
-          found != listed.end() && !found->published)
-      {
-        note += " (";
-        note += sg::counters::metricRefusalName(found->refusal);
-        note += ")";
-      }
+      const std::string note = detail::metricColumnNote(
+          name, view.error(), sg::counters::catalogMetrics());
       std::fprintf(stderr, "%s: %s\n", name.c_str(), note.c_str());
       columns.push_back(std::move(column));
       continue;
