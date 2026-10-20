@@ -33,21 +33,7 @@ constexpr std::int64_t kDefaultMinTimeNs = 500'000'000;
 constexpr std::int64_t kDefaultWarmupNs = 0;
 constexpr std::uint64_t kDefaultRepetitions = 1;
 
-// A metric column of one run: the label, the FR-022 per-iteration
-// decision, the erased spine, and the availability the catalog
-// disclosed before the run (FR-023).
-struct MetricColumn
-{
-  std::string label;
-  bool perIteration = false;
-  bool unavailable = false;
-  sg::counters::Availability availability =
-      sg::counters::Availability::COUNTABLE;
-  sg::counters::detail::ExprCore core;
-  // The sink column of this leaf: its index among the run's cores,
-  // which is the order of the fold totals (FR-052).
-  std::size_t foldColumn = 0;
-};
+using sg::detail::MetricColumn;
 
 auto splitAddress(std::string_view address)
     -> std::pair<std::string_view, std::string_view>
@@ -637,6 +623,43 @@ namespace sg::detail
   return std::string(note);
 }
 
+// FR-025, FR-026, FR-027: the column one metric-name lookup answers. The
+// lookup hands back an erased spine, the same carrier `addMetric` of the
+// same expression takes, so the column reports the window's summed fold;
+// a refusal's kind rides on the line and the column stands unavailable
+// while the benchmark runs. The declaration stands beside
+// metricColumnNote, where the gap test drives both spellings beside the
+// run.
+[[nodiscard]] auto metricColumnFor(
+    const std::string& name,
+    const std::expected<sg::counters::MetricView, sg::counters::Error>& view,
+    const std::vector<sg::counters::MetricListing>& listed) -> MetricColumn
+{
+  MetricColumn column {
+      .label = name,
+      .perIteration = false,
+      .unavailable = false,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .core = {},
+  };
+  if (!view.has_value()) {
+    column.unavailable = true;
+    column.availability = sg::counters::Availability::ABSENT;
+    const std::string note =
+        detail::metricColumnNote(name, view.error(), listed);
+    std::fprintf(stderr, "%s: %s\n", name.c_str(), note.c_str());
+    return column;
+  }
+  MetricColumn resolved {
+      .label = name,
+      .perIteration = false,
+      .unavailable = false,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .core = view->expression.core,
+  };
+  return resolved;
+}
+
 // FR-020: the skip rule of the threaded merge: a skipped context sets the
 // merged flag and leaves its reason standing, so the merged row names the
 // first context that skipped. The declaration stands in
@@ -1215,31 +1238,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     if (taken) {
       continue;
     }
-    MetricColumn column {
-        .label = name,
-        // The lookup hands back an erased spine, the same carrier
-        // `addMetric` of the same expression takes, so the column reports
-        // the window's summed fold (FR-025).
-        .perIteration = false,
-        .unavailable = false,
-        .availability = sg::counters::Availability::COUNTABLE,
-        .core = {},
-    };
-    const auto view = sg::counters::metricByName(name);
-    if (!view.has_value()) {
-      // The metric exists (the entry point validated the name) and cannot
-      // be counted: its refusal kind rides on the line and the column
-      // stands unavailable while the benchmark runs (FR-027).
-      column.unavailable = true;
-      column.availability = sg::counters::Availability::ABSENT;
-      const std::string note = detail::metricColumnNote(
-          name, view.error(), sg::counters::catalogMetrics());
-      std::fprintf(stderr, "%s: %s\n", name.c_str(), note.c_str());
-      columns.push_back(std::move(column));
-      continue;
-    }
-    column.core = view->expression.core;
-    columns.push_back(std::move(column));
+    columns.push_back(detail::metricColumnFor(name,
+                                              sg::counters::metricByName(name),
+                                              sg::counters::catalogMetrics()));
   }
 
   std::vector<const sg::counters::detail::ExprCore*> cores;
