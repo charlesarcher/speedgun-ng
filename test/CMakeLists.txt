@@ -595,6 +595,30 @@ target_include_directories(harness_topology_test PRIVATE ${CMAKE_SOURCE_DIR}/sou
 target_compile_features(harness_topology_test PRIVATE cxx_std_23)
 add_test(NAME harness_topology_test COMMAND harness_topology_test)
 
+# The preset table, the fit rule and the runner wiring over installed
+# layouts (T008, T009; US1, FR-008 to FR-019, FR-021, E-09, SC-02, SC-03,
+# SC-04, R-05).
+add_executable(harness_placement_preset_test
+               source/harness_placement_preset_test.cpp)
+target_link_libraries(harness_placement_preset_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_placement_preset_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_placement_preset_test PRIVATE cxx_std_23)
+add_test(NAME harness_placement_preset_test
+         COMMAND harness_placement_preset_test)
+
+# The --placement option, the handle preset and the stop rule (T019; US3,
+# FR-015, FR-016, FR-017, FR-036, contracts/cli-placement.md).
+add_executable(harness_cli_placement_test
+               source/harness_cli_placement_test.cpp)
+target_link_libraries(harness_cli_placement_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_cli_placement_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_cli_placement_test PRIVATE cxx_std_23)
+add_test(NAME harness_cli_placement_test
+         COMMAND harness_cli_placement_test)
+
 # The barrier codegen shape at -O2 in every compiler present (T036; US6,
 # FR-029, FR-030).
 add_test(NAME barrier_shape
