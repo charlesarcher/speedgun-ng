@@ -94,37 +94,34 @@ auto resolvePreset(const Preset preset,
     plan.group.push_back(layout.threads[ordinal].groupOrdinal);
   };
 
-  switch (preset) {
-    case Preset::NONE:
-      return plan;
-    case Preset::CORE:
-      for (const auto& core : layout.cores) {
-        pushThread(core.threads.front());
+  // The preset arms form a chain of equality tests. An exhaustive switch
+  // makes gcov record a default arm no input can reach, and T032 admits
+  // no coverage exclusion on this file. The `none` preset takes no arm
+  // and leaves the plan empty.
+  if (preset == Preset::CORE) {
+    for (const auto& core : layout.cores) {
+      pushThread(core.threads.front());
+    }
+  } else if (preset == Preset::L3) {
+    for (std::uint32_t group = 0; group < layout.groups.size(); ++group) {
+      plan.cpu.push_back(layout.groups[group].lowestCpu);
+      plan.group.push_back(group);
+    }
+  } else if (preset == Preset::SMT) {
+    for (const auto& core : layout.cores) {
+      for (const auto ordinal : core.threads) {
+        pushThread(ordinal);
       }
       break;
-    case Preset::L3:
-      for (std::uint32_t group = 0; group < layout.groups.size(); ++group) {
-        plan.cpu.push_back(layout.groups[group].lowestCpu);
-        plan.group.push_back(group);
-      }
-      break;
-    case Preset::SMT:
-      for (const auto& core : layout.cores) {
-        for (const auto ordinal : core.threads) {
+    }
+  } else if (preset == Preset::COMPACT) {
+    for (const auto& group : layout.groups) {
+      for (const auto coreOrdinal : group.cores) {
+        for (const auto ordinal : layout.cores[coreOrdinal].threads) {
           pushThread(ordinal);
         }
-        break;
       }
-      break;
-    case Preset::COMPACT:
-      for (const auto& group : layout.groups) {
-        for (const auto coreOrdinal : group.cores) {
-          for (const auto ordinal : layout.cores[coreOrdinal].threads) {
-            pushThread(ordinal);
-          }
-        }
-      }
-      break;
+    }
   }
 
   plan.places = static_cast<std::uint32_t>(plan.cpu.size());
