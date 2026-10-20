@@ -4,6 +4,7 @@
 #include <expected>
 #include <initializer_list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -69,6 +70,20 @@ public:
    * \post none
    */
   [[nodiscard]] auto description() const noexcept -> std::string_view;
+
+  /**
+   * @brief How many programmable counters one context can hold open at
+   * once on this object's event source (FR-005).
+   *
+   * The answer is the value the object's event source published at
+   * `enumerate`. No value is the answer of a source that cannot answer:
+   * such a source limits nothing for the counters it owns.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto programmableCounters() const noexcept
+      -> std::optional<std::size_t>;
 
   /**
    * @brief The parent object, or null for the machine root and for a

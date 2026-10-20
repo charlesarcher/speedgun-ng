@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "../detail/pmu.hpp"
+#include "counter_limits.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_pmu.hpp"
 #include "speedgun-ng/counters_provider.hpp"
@@ -100,6 +101,24 @@ auto readParanoid() -> int
   // container namespace; no test can make the read fail.
   return -1;  // LCOV_EXCL_LINE
   // LCOV_EXCL_BR_STOP
+}
+
+// The host's answer for the programmable-counter limit: the two CPUID
+// leaves read once and the pure decode applied (FR-005, research D-01,
+// D-04). The registers do not change while the process runs, so one read
+// serves every object this provider owns; the constructor below takes it
+// at construction and every enumerate after reads the settled value. A
+// host whose leaf reads version 0 or count 0 settles on no value, and its
+// seeds then publish nothing (FR-005).
+auto hostProgrammableCounterLimit() -> std::optional<std::size_t>
+{
+  static const std::optional<std::size_t> kLimit = []
+  {
+    const auto registers = detail::readCounterLimitRegisters();
+    return detail::programmableCountersFromCpuid(
+        registers.maxLeaf, registers.eax, registers.ebx);
+  }();
+  return kLimit;
 }
 
 }  // namespace
@@ -781,6 +800,11 @@ PmuProvider::PmuProvider()
   // Deterministic seed order: the catalog is frozen at open (FR-009).
   std::ranges::sort(devices);
 
+  // The programmable-counter limit is read once here, at construction, and
+  // every object's seed below carries that one answer (FR-005, research
+  // D-01, D-02).
+  hostProgrammableCounterLimit();
+
   // The permission level the availability probe ran at rides the device
   // description, so a reader of the catalog learns the level at which
   // the kernel answered each test-open, and which refusals are that
@@ -843,6 +867,11 @@ PmuProvider::~PmuProvider() = default;
 
 void PmuProvider::enumerate(ObjectSink& sink) const
 {
+  // Every object this provider owns is an event source on this core's
+  // hardware, so every seed carries the host's one answer: the count the
+  // CPUID leaf decoded, nothing on a host whose leaf reads version 0 or
+  // count 0 (FR-005, research D-01, D-02).
+  const auto hostLimit = hostProgrammableCounterLimit();
   for (const auto& device : m_state->devices) {
     std::vector<CatalogSeed> entries;
     entries.reserve(device.entries.size());
@@ -895,6 +924,7 @@ void PmuProvider::enumerate(ObjectSink& sink) const
         .alias = {},
         .description = device.description,
         .entries = std::move(entries),
+        .programmableCounters = hostLimit,
     });
   }
 }
