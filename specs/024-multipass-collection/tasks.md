@@ -185,35 +185,35 @@ dropped. No option, no report line and no documentation is needed.
 
 ### Tests for User Story 1 (write first, observe failure)
 
-- [ ] T016 [US1] In `test/source/harness_pass_plan_test.cpp`, add the
+- [X] T016 [US1] In `test/source/harness_pass_plan_test.cpp`, add the
   split table: a limit of 4 and four columns of two PMU events each give pass
   0 with columns 0 and 1 and pass 1 with columns 2 and 3, in request order
   (FR-001, FR-002, US1 scenario 1)
-- [ ] T017 [US1] In the same file, add the determinism check that two
+- [X] T017 [US1] In the same file, add the determinism check that two
   calls over the same list, method and limit give an identical assignment, and
   the minimum-count check that the pass count equals the first-fit minimum on
   the fixture limits 1, 4 and 8 (FR-002, SC-02, US1 scenario 4)
-- [ ] T018 [US1] In the same file, add the over-limit case: one column of
+- [X] T018 [US1] In the same file, add the over-limit case: one column of
   five events on a limit of 4 stands alone in a pass flagged exclusive while
   the other columns keep their own passes (FR-003, FR-004, US1 scenario 2)
-- [ ] T019 [US1] In the same file, add the shapes of E-03: an empty column
+- [X] T019 [US1] In the same file, add the shapes of E-03: an empty column
   set produces no plan, a limit of 1 places one column per pass, the 64-column
   set places every column with no limit on the pass count, and two columns that
   share one leaf address claim that counter once inside their shared pass
   (FR-001, FR-002, E-03 rules 2 and 5, the spec's large-set edge)
-- [ ] T020 [US1] In the same file, add the source-limit cases: leaves whose
+- [X] T020 [US1] In the same file, add the source-limit cases: leaves whose
   source publishes no limit are costed against nothing and ride every pass that
   needs them, the two fixed machine clock leaves ride every pass and count
   against none, and a PMU `cycles` event a metric names counts in the pass that
   carries it (FR-005, FR-007, D-4, the two-provider edge)
-- [ ] T021 [US1] In the same file, add the merge table: each metric column
+- [X] T021 [US1] In the same file, add the merge table: each metric column
   and each user-counter column takes the values of its measuring pass at its
   own position, the time columns, the overhead floor, the endpoint samples, the
   context disclosures, the chunk disclosure and the primary percentile columns
   come from pass 0, a metric percentile comes from that metric's own pass, and
   a column whose pass folded a gap keeps `Availability::GAP` (FR-014, FR-015,
   FR-016, E-05, the percentile and gap edges)
-- [ ] T022 [US1] In `test/source/harness_pass_collect_test.cpp`, add the
+- [X] T022 [US1] In `test/source/harness_pass_collect_test.cpp`, add the
   end-to-end fake run: a limit of 4 with the four two-event columns runs two
   passes, every metric column reports its value at running ratio 1.0, no column
   is dropped, calibration runs once, and both passes reuse its iteration count
@@ -221,17 +221,17 @@ dropped. No option, no report line and no documentation is needed.
   `pauseTiming` and `resumeTiming` pair folded inside each pass, so each pass
   nets the interval it excludes and the merged row reads the reference pass's
   net time per iteration (FR-009, FR-014, FR-015)
-- [ ] T023 [US1] In the same file, add the over-limit run: the five-event
+- [X] T023 [US1] In the same file, add the over-limit run: the five-event
   column reports a running ratio below 1.0 from the fake's rotation while the
   other columns keep 1.0 (FR-004, SC-01, US1 scenario 2)
-- [ ] T024 [US1] In the same file, add the window-lifetime checks: each
+- [X] T024 [US1] In the same file, add the window-lifetime checks: each
   pass opens its plan before its first timed window and closes it after its
   last, the plan is computed before the first window and reads no counter, the
   merge runs after the last pass closes, and a one-pass metric run keeps the
   per-iteration provider read count equal to
   `kAuditPointReadsPerIteration` of `test/source/detail/pass_fixture.hpp`
   (FR-008, FR-012, FR-016, SC-09, spec D-10)
-- [ ] T025 [US1] In the same file, add the threaded order case: two
+- [X] T025 [US1] In the same file, add the threaded order case: two
   contexts and two passes complete pass 0 in both contexts before pass 1 opens
   in either, the per-pass window open counts show no overlap, the run chooses
   contexts once so every pass reports the same placement, and the assertions
@@ -242,7 +242,7 @@ Observation: every case above fails on the missing planner before T026 lands.
 
 ### Implementation for User Story 1
 
-- [ ] T026 [US1] Implement `planPasses` in `source/harness/pass_plan.cpp` with
+- [X] T026 [US1] Implement `planPasses` in `source/harness/pass_plan.cpp` with
   the E-03 placement rules 1 to 7: metric columns in `metricLabels` order then
   user-counter columns in open order, a per-source cost over deduplicated leaf
   addresses, first fit under each published limit, an over-limit column alone in
@@ -250,12 +250,12 @@ Observation: every case above fails on the missing planner before T026 lands.
   all when no needed source publishes a limit, with the `SG_ASSERT`
   post-conditions of invariants I-1 and I-2 (FR-001, FR-002, FR-003, FR-004,
   FR-005, FR-007, D-1, research D-05)
-- [ ] T027 [US1] Implement `mergePasses` in `source/harness/pass_plan.cpp` as a
+- [X] T027 [US1] Implement `mergePasses` in `source/harness/pass_plan.cpp` as a
   pure function over the per-pass fold results that reads provenance from the
   plan, records the measuring pass per column, keeps `GAP` and every refusal
   kind unchanged, and re-reads no counter (FR-014, FR-015, FR-016, I-5,
   research D-07)
-- [ ] T028 [US1] Wrap the measured attempts of `source/harness/runner.cpp` in
+- [X] T028 [US1] Wrap the measured attempts of `source/harness/runner.cpp` in
   the pass loop: calibration before pass 0, one leaf list per pass built from
   the plan and compiled through the existing `compileCore` site at lines
   1252-1253 and the per-context site at lines 1727-1730, the loop outside the
