@@ -109,13 +109,22 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/021 FR-027 measures its own move: the "Percentiles" section runs 19
 # lines and the two quick-reference option rows add 2, so 21 lines move the
 # cap from 638 to 659, the measured length of the page as the feature lands.
-PAGE_LINE_CAP = 659
+# The metric-lookup region, its prose and its quick-reference and option
+# rows are the 39 added lines that move the cap from 659 to 698, the
+# measured length of the page as the metric section lands.
+PAGE_LINE_CAP = 698
 SECTION_LINE_CAP = 25
 
-# Only these two sections carry a higher cap, each at the smallest span that
+# Only these sections carry a higher cap, each at the smallest span that
 # holds its copied regions (D-A, Charles, 2026-10-15). Fixtures counts the
-# sg-requires line the snippet gate reads beside the macro block.
-SECTION_LINE_CAPS = {"Registration": 38, "Fixtures": 43}
+# sg-requires line the snippet gate reads beside the macro block. Hardware
+# counter metrics holds feature 021's metric-lookup region and the
+# sg-requires line beside it.
+SECTION_LINE_CAPS = {
+    "Registration": 38,
+    "Fixtures": 43,
+    "Hardware counter metrics": 59,
+}
 
 
 class Finding(Exception):
@@ -396,7 +405,12 @@ def table_rows(page: Path, header: str) -> list[str]:
 
 def header_names(root: Path) -> set[str]:
     names: set[str] = set()
-    for header in ("benchmark.hpp", "barrier.hpp", "execution_context.hpp"):
+    for header in (
+        "benchmark.hpp",
+        "barrier.hpp",
+        "execution_context.hpp",
+        "counters_metrics.hpp",
+    ):
         path = root / "include" / "speedgun-ng" / header
         if path.is_file():
             names.update(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]{2,}\b", path.read_text()))

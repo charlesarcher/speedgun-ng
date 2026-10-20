@@ -306,7 +306,44 @@ auto attachMetric(sg::BenchmarkHandle& handle) -> void
   }
 }
 ```
-The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields, and on a host where the leaf is unavailable the row prints the refusal kind in place of the number and the run continues. This block is the one snippet that adds a header to the pair: `speedgun-ng/counters.hpp`.
+The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields, and on a host where the leaf is unavailable the row prints the refusal kind in place of the number and the run continues. This block and the lookup below are the two snippets that add a header to the pair: `speedgun-ng/counters.hpp` and `speedgun-ng/counters_metrics.hpp`.
+
+<!-- sg-requires: example/docs/counter_metrics.cpp#metrics -->
+<!-- sg-example: example/docs/counter_metrics.cpp#metric-lookup -->
+```cpp
+#include <cstdio>
+#include <string>
+#include <string_view>
+
+#include "speedgun-ng/counters_metrics.hpp"
+
+auto printMetric(std::string_view name) -> void
+{
+  const auto metric = sg::counters::metricByName(name);
+  if (!metric.has_value()) {
+    std::printf(
+        "%s: %s\n", std::string(name).c_str(), metric.error().message.c_str());
+    return;
+  }
+  const auto plan =
+      sg::counters::compile(sg::counters::System::local(), metric->expression);
+  if (!plan.has_value()) {
+    std::printf(
+        "%s: %s\n", std::string(name).c_str(), plan.error().message.c_str());
+    return;
+  }
+  sg::counters::Scope window {*plan};
+  window.start();
+  window.finish();
+  std::printf("%s: %g group=%s unit=%s\n",
+              std::string(name).c_str(),
+              window.metric(metric->expression).value,
+              std::string(metric->group).c_str(),
+              std::string(metric->unit).c_str());
+}
+```
+
+`metricByName` hands back a metric the host's table defines, so the reader names `cpi` rather than composing it, and the print carries the table's group and unit text beside the folded value. `--metric` puts the same metric in a report column, one column per name, in the order the names are given.
 ### Skips
 `skipWithMessage` ends a run early when the work cannot be done, and `skipWithError` ends it as a failure.
 <!-- sg-example: example/docs/skips.cpp#skips -->
@@ -588,6 +625,7 @@ The run divides its iterations into chunks, times each chunk, and reads the near
 | `measureProcessCpuTime` | BenchmarkHandle | Selects the process CPU leaf for the CPU column | [timing-modes](#timing-modes) |
 | `unit` | BenchmarkHandle | Sets the unit one family prints its times in | [the-time-unit](#the-time-unit) |
 | `addMetric` | BenchmarkHandle | Attaches a counter expression to the family | [hardware-counter-metrics](#hardware-counter-metrics) |
+| `metricByName` | free function | Resolves one metric of the host's table by name | [hardware-counter-metrics](#hardware-counter-metrics) |
 | `State::range` | State | Reads one argument position of the instance | [argument-families-and-ranges](#argument-families-and-ranges) |
 | `State::setIterationTime` | State | Reports one iteration's time in nanoseconds | [timing-modes](#timing-modes) |
 | `State::pauseTiming` | State | Opens the pause that excludes the work below it | [pause-and-resume](#pause-and-resume) |
@@ -649,6 +687,7 @@ The run divides its iterations into chunks, times each chunk, and reads the near
 | `--no-percentiles` | Turns the percentile lines off |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter to the report columns |
+| `--metric` | Adds one metric of the host's table to the report columns |
 | `--catalog` | Prints the counter catalog and stops |
 
 ## Planned work
