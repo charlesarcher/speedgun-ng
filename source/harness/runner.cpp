@@ -632,7 +632,9 @@ namespace sg::detail
     note += sg::counters::metricRefusalName(found->refusal);
     note += ")";
   }
-  return note;
+  // Separate return object: gcov leaves a count-zero record on the brace
+  // of a function that returns its local directly.
+  return std::string(note);
 }
 
 // FR-020: the skip rule of the threaded merge: a skipped context sets the
