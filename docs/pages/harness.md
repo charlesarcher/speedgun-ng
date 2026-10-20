@@ -1014,3 +1014,80 @@ auto printMetric(std::string_view name) -> void
 The print carries the table's group and unit text beside the folded value.
 `--metric` puts the same metric in a report column, one column per name, in
 the order the names are given.
+
+## JSON reports
+
+`--json=path` writes one JSON document for the run beside the console report.
+The console keeps the bytes it always printed; the file rides beside it.
+`--json-raw=chunks` asks for the chunk columns of every measured row, which is
+what lets a run whose percentile lines stay off still carry them.
+
+<!-- sg-example: example/docs/json_reports.cpp#json-reports -->
+```cpp
+auto bmDice(sg::State& state) -> void
+{
+  std::uint64_t dice = 0;
+  for (auto _ : state) {
+    for (std::uint64_t i = 0; i < 3'000; ++i) {
+      dice = (dice + i) * 1'099'511'628'211ULL;
+    }
+    sg::doNotOptimize(dice);
+  }
+}
+
+SG_BENCHMARK(bmDice).iterations(120).showPercentiles(true);
+```
+
+<!-- sg-sample-output: example/docs/json_reports.expected#report -->
+```text
+speedgun-ng 0.12.0 build=Release
+bmDice                   iterations=       120  real time/iter (ns)= 2188.825  cpu time/iter (ns)= 2188.833  overhead floor (ns)=   90.000  endpoint samples=121
+bmDice                       chunks  chunks=120  iterations/chunk=1
+bmDice                   percentile  primary time/iter (ns)  p50= 2190.000  p90= 2200.000  p99= 2220.000  p99.9=not available
+bmDice                   percentile  real time/iter (ns)  p50= 2190.000  p90= 2190.000  p99= 2220.000  p99.9=not available
+```
+
+### The shape of the document
+
+The root object carries `schemaVersion`, `speedgun` and `benchmarks`. The
+`speedgun` object carries the library version and the build type of the build
+that ran. `benchmarks` holds one entry per benchmark, in registry order, and
+each entry holds its name, suite, case, outcome, reason, time unit, percentile
+points, contexts, noise warning, rows, labels and statistics. One row per
+repetition carries its iteration count, its two time columns, its metric and
+counter columns, its statistics, its percentile cells, its fit and its raw
+chunk columns. `docs/schema/report-v1.json` states the whole shape.
+
+### The version rule
+
+`schemaVersion` names the shape of the document. A document whose major stands
+at 1 loads, whatever its minor says; a later major is refused, and the refusal
+names the version the document carries.
+
+### The null rule
+
+A percentile the chunk count cannot answer stands as `null`, the file form of
+the `not available` the console prints. `reason`, `label`, `noiseWarning`,
+`counterDisclosure` and `fit` stand `null` where the run carries none, and a
+statistic whose sample set stands empty answers `null` for every quantity.
+
+### The raw column rule
+
+`raw.columns` holds one array per reported quantity, in the order the percentile
+lines read them: the primary time, the time column the primary is not, then each
+metric. Each array holds `chunkCount` values in the order the run closed the
+chunks. A percentile line reads its own sorted order over those values. The key
+stays out of the row when the run captured nothing.
+
+### The loader rule
+
+`loadReport(path)` returns the run's own values, or an error naming the JSON
+pointer of the field it could not read. The loader checks the fields it reads;
+it does not validate the document against the schema file, which stands as the
+gate's oracle.
+
+### The no-date rule
+
+No key of the document names a date, a time, a host or a process id. The file is
+a function of the values the run measured, so two runs of one build write the
+same bytes and a diff of two runs shows only what changed in the run.
