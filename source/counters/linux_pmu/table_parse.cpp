@@ -95,6 +95,10 @@ auto pmuIdentCurrent() -> PmuIdent
       id.family = baseFamily + extFamily;
       // The mapfile's hex-model spelling (kernel jevents convention).
       id.model = baseModel | (extModel << 4);
+      // EAX bits 3..0: the stepping. The two model-55 rows of the
+      // mapping file split the model by it, so a key without it names no
+      // row for a model-55 part (FR-034, FR-035).
+      id.stepping = static_cast<int>(eax & 0xFU);
     }  // LCOV_EXCL_BR_LINE
     // LCOV_EXCL_BR_STOP
     return id;
@@ -370,15 +374,72 @@ auto kernelSpelling(const std::string_view key) noexcept -> std::string_view
   return {};
 }
 
+// One text key of a row, empty when the row carries no such key.
+[[nodiscard]] auto textOf(simdjson::dom::object attributes,
+                          const std::string_view key) -> std::string
+{
+  simdjson::dom::element found;
+  std::string_view text;
+  if (attributes[key].get(found) == simdjson::SUCCESS
+      && found.get_string().get(text) == simdjson::SUCCESS)
+  {
+    return std::string(text);
+  }
+  return {};
+}
+
+// Description precedence; AMD tables ship only "BriefDescription".
+[[nodiscard]] auto descriptionOf(simdjson::dom::object attributes)
+    -> std::string
+{
+  for (const auto candidate : {
+           "Description",
+           "PublicDescription",
+           "BriefDescription",
+       })
+  {
+    const std::string text = textOf(attributes, candidate);
+    if (!text.empty()) {
+      return text;
+    }
+  }
+  return {};
+}
+
+// One metric-definition row: the four texts the metric lookup reads, beside
+// the scope and description the catalog prints as it prints an event's. The
+// row carries no config field, so no encoder ever sees it, and the provider
+// skips it when it merges the vendored table into a device (FR-002, FR-004).
+void addMetricEntry(std::vector<PmuTableEntry>& table,
+                    std::string_view name,
+                    simdjson::dom::object attributes)
+{
+  PmuTableEntry entry;
+  entry.description = descriptionOf(attributes);
+  entry.unit = textOf(attributes, "Unit");
+  entry.metricName = textOf(attributes, "MetricName");
+  if (entry.metricName.empty()) {
+    // A row that carries a formula under the event name itself is the
+    // kernel's shorter spelling of the same definition.
+    entry.metricName = std::string(name);
+  }
+  // A definition is reachable by the metric's name alone: a row spelling
+  // both keys is one metric entry keyed by that name (FR-002, FR-004).
+  entry.name = entry.metricName;
+  entry.metricExpr = textOf(attributes, "MetricExpr");
+  entry.scaleUnit = textOf(attributes, "ScaleUnit");
+  entry.group = textOf(attributes, "MetricGroup");
+  table.push_back(std::move(entry));
+}
+
 void addEntry(std::vector<PmuTableEntry>& table,
               std::string_view name,
               simdjson::dom::object attributes)
 {
-  // Metric definitions are catalog data for a future release,
-  // never countables (R-010, US6).
-  if (attributes["MetricExpr"].error() == simdjson::SUCCESS
-      || attributes["MetricName"].error() == simdjson::SUCCESS)
-  {
+  // Metric definitions are the metric table's data, never countables
+  // (specs/021-metric-formulas FR-002, R-010, US6).
+  if (attributes["MetricExpr"].error() == simdjson::SUCCESS) {
+    addMetricEntry(table, name, attributes);
     return;
   }
   PmuTableEntry entry;
@@ -450,28 +511,8 @@ void addEntry(std::vector<PmuTableEntry>& table,
   // format its index names, and both keys are dropped before a field is
   // built (FR-010, D-05). The seam fixture asserts the recorded names.
   // Description precedence; AMD tables ship only "BriefDescription".
-  for (const auto candidate : {
-           "Description",
-           "PublicDescription",
-           "BriefDescription",
-       })
-  {
-    simdjson::dom::element found;
-    std::string_view text;
-    if (attributes[candidate].get(found) == simdjson::SUCCESS
-        && found.get_string().get(text) == simdjson::SUCCESS)
-    {
-      entry.description = std::string(text);
-      break;
-    }
-  }
-  simdjson::dom::element unit;
-  std::string_view unitText;
-  if (attributes["Unit"].get(unit) == simdjson::SUCCESS
-      && unit.get_string().get(unitText) == simdjson::SUCCESS)
-  {
-    entry.unit = std::string(unitText);
-  }
+  entry.description = descriptionOf(attributes);
+  entry.unit = textOf(attributes, "Unit");
   table.push_back(std::move(entry));
 }
 
@@ -501,12 +542,22 @@ void parsePadded(const simdjson::padded_string& loaded,
       simdjson::dom::object attributes;
       simdjson::dom::element name;
       std::string_view nameText;
-      if (item.get_object().get(attributes) == simdjson::SUCCESS
-          && attributes["EventName"].get(name) == simdjson::SUCCESS
-          && name.get_string().get(nameText) == simdjson::SUCCESS)
-      {
-        addEntry(table, nameText, attributes);
+      if (item.get_object().get(attributes) != simdjson::SUCCESS) {
+        continue;
       }
+      if (attributes["EventName"].get(name) != simdjson::SUCCESS
+          || name.get_string().get(nameText) != simdjson::SUCCESS)
+      {
+        // The kernel's metric files hold no event name at all: a row of the
+        // array shape is named by its metric name, and 5944 rows of the
+        // pinned tree reach the table no other way (FR-001).
+        if (attributes["MetricName"].get(name) != simdjson::SUCCESS
+            || name.get_string().get(nameText) != simdjson::SUCCESS)
+        {
+          continue;
+        }
+      }
+      addEntry(table, nameText, attributes);
     }
     return;
   }
@@ -618,12 +669,27 @@ auto toEcma(std::string_view pattern) -> std::string
 
 // The mapping-file key for `id`: "<vendor>-<family>-<MODEL>", with the
 // family decimal and the model uppercase hex (kernel jevents
-// convention).
-auto mapfileKey(const PmuIdent& id) -> std::string
+// convention). A row that names no stepping class matches against this.
+auto mapfileModelKey(const PmuIdent& id) -> std::string
 {
   char hex[8];
   std::snprintf(hex, sizeof(hex), "%X", static_cast<unsigned>(id.model));
   return id.vendor + '-' + std::to_string(id.family) + '-' + hex;
+}
+
+// The same key with the stepping as one more uppercase hex digit, which
+// is what a row naming a stepping class matches against (FR-034). A CPU
+// that answered no leaf 1 carries no stepping, so its key is the model
+// key and no stepping class can match it.
+auto mapfileKey(const PmuIdent& id) -> std::string
+{
+  if (id.stepping < 0) {
+    return mapfileModelKey(id);
+  }
+  // The stepping is the low nibble of CPUID leaf 1 EAX, so one hex digit.
+  constexpr std::string_view kHex {"0123456789ABCDEF"};
+  return mapfileModelKey(id) + '-'
+      + kHex[static_cast<unsigned>(id.stepping) & 0xFU];
 }
 
 auto pmuSelectDirectory(std::istream& mapfile,
@@ -635,6 +701,7 @@ auto pmuSelectDirectory(std::istream& mapfile,
   // Filename column is a directory name relative to the mapfile. The
   // first matching row wins (FR-038).
   const std::string key = mapfileKey(id);
+  const std::string modelKey = mapfileModelKey(id);
   std::string selected;
   std::string line;
   bool header = true;
@@ -665,7 +732,9 @@ auto pmuSelectDirectory(std::istream& mapfile,
     // selecting a table the mapfile does not name for this CPU.
     const std::regex pattern(toLower(toEcma(text.substr(0, first))),
                              std::regex::icase | std::regex::optimize);
-    if (std::regex_match(key, pattern)) {
+    const bool matches =
+        std::regex_match(key, pattern) || std::regex_match(modelKey, pattern);
+    if (matches) {
       selected = "arch/x86/";
       selected += filename;
       selected += '/';

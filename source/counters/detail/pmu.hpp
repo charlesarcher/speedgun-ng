@@ -29,13 +29,14 @@ namespace sg::counters::detail
 
 // One architecture event-table entry, semantic fields only: the
 // encoder composes them with the running kernel's bit layouts
-// (FR-037). Metric-definition rows are not entries: they ship as
-// catalog data for a future release; they are no countables (US6).
+// (FR-037). A metric-definition row carries the table's formula text
+// beside its name; the counters library publishes it as a composition and
+// the encoder never sees it (specs/021-metric-formulas FR-002, FR-003).
 struct PmuTableEntry
 {
   std::string name;
-  std::string description;
-  // The row's Unit scope, empty where the table carries no Unit key. The
+  std::string description;  // The row's Unit scope, empty where the table
+                            // carries no Unit key. The
   // empty string is the core scope the placement rule reads, and a
   // placeholder spelling like "none" made every core row name a class no
   // device publishes, so a core row reached no device and the core
@@ -46,6 +47,14 @@ struct PmuTableEntry
   // convention-mapped names: "event" (EventCode), "umask" (UMask),
   // plus any other JSON key that names a format field.
   std::vector<std::pair<std::string, std::uint64_t>> fields;
+  // A metric-definition row (specs/021-metric-formulas FR-002): the
+  // table's MetricName, its formula text, its scale-and-unit text and its
+  // group text. A row of an empty `metricName` is an event row, and a
+  // metric row carries no config fields and reaches no encoder.
+  std::string metricName;
+  std::string metricExpr;
+  std::string scaleUnit;
+  std::string group;
 };
 
 // CPU identification read once at open (FR-038): vendor string, family
@@ -55,7 +64,21 @@ struct PmuIdent
   std::string vendor;
   int family = -1;
   int model = -1;
+  // CPUID leaf 1 EAX bits 3..0, the stepping the two model-55 rows of the
+  // mapping file split on: one Skylake X and one Cascade Lake part of one
+  // model name two directories (FR-034, FR-035). Negative when the CPU
+  // answered no leaf 1, which names no stepping class.
+  int stepping = -1;
 };
+
+// The key a mapping-file row matches against: the vendor, the family in
+// decimal, the model in uppercase hex and the stepping in one uppercase
+// hex digit, dash separated (FR-034).
+[[nodiscard]] auto mapfileKey(const PmuIdent& id) -> std::string;
+
+// The same key without the stepping, which is what a row carrying no
+// stepping class matches against (FR-034).
+[[nodiscard]] auto mapfileModelKey(const PmuIdent& id) -> std::string;
 
 // The host's CPU identification (table_parse.cpp; CPUID-based, cached).
 [[nodiscard]] auto pmuIdentCurrent() -> PmuIdent;

@@ -110,7 +110,11 @@ struct LeafCore
 // each other by index; the dimension lives only in the wrapper type.
 struct ExprNode
 {
-  // Kind codes: 0 leaf, 1 add, 2 subtract, 3 divide, 4 scale.
+  // Kind codes: 0 leaf, 1 add, 2 subtract, 3 divide, 4 scale, 5 minimum,
+  // 6 maximum. A kind 4 node is the spine's one multiplication: it scales
+  // its left operand, carries no operand at all when it holds a literal
+  // value, and multiplies two runtime values when it carries a right
+  // operand (specs/021-metric-formulas FR-009).
   std::uint8_t kind = 0;
   int left = -1;  // node index; -1 unless kind is binary or 4
   int right = -1;  // node index; -1 unless kind is binary

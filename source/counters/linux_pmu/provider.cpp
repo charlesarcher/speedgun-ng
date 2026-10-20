@@ -130,7 +130,10 @@ auto mergeVendored(detail::PmuDevice& device) -> void
   // LCOV_EXCL_BR_STOP
   const auto& table = detail::pmuLoadTable(directory);
   for (const auto& row : table) {
-    if (!detail::scopeReaches(device.path, row.unit)) {
+    // A metric row is the metric table's data: it names no event, so it
+    // reaches no device catalog and no encoder (FR-002).
+    if (!row.metricName.empty() || !detail::scopeReaches(device.path, row.unit))
+    {
       continue;
     }
     const bool taken = std::ranges::any_of(device.entries,
