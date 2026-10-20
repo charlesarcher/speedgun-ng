@@ -41,6 +41,12 @@ point is `ab32400b86321f98f13b9c66d4488e15831b47f6`.
   present. The
   purity scan and the library archive's three assertions keep their
   current form.
+- **Measured at T005 on the static tree**: the harness archive holds 12
+  undefined `sg_hwloc_*` references and zero defined ones, and the
+  `first_benchmark` executable holds the same names defined with the
+  vendored archive on its link line. The shared tree configures, builds
+  and installs with no harness archive present, its harness shared
+  object carrying the vendored members locally.
 
 ## R-02: `MachineLayout` is a plain value
 
