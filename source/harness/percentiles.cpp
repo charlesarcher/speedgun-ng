@@ -104,14 +104,21 @@ auto minSamplesFor(const double p) noexcept -> std::uint64_t
 auto percentileAt(const std::vector<double>& sortedValues,
                   const double p) noexcept -> PercentileValue
 {
+  // FR-020: the option parser admits a point only from the open interval,
+  // and the rank below divides by the point, so a point outside it names
+  // no rank at all.
+  SG_REQUIRE(p > 0.0 && p < 100.0,
+             "a percentile point stands strictly between 0 and 100 (FR-020)");
   if (sortedValues.size() < minSamplesFor(p)) {
     return PercentileValue {};
   }
   // FR-011: the nearest rank. The rank is 1-based, so the value it names
-  // stands one position below it in the sorted column.
+  // stands one position below it in the sorted column. A point above zero
+  // and a column that reaches the least count put the rank at one or
+  // above, so the step below it stays inside the column.
   const auto rank =
       ceilNudged(p * static_cast<double>(sortedValues.size()) / 100.0);
-  const std::size_t index = rank == 0 ? 0 : rank - 1;
+  const std::size_t index = static_cast<std::size_t>(rank - 1);
   return PercentileValue {
       .available = true,
       .value = sortedValues[index],
