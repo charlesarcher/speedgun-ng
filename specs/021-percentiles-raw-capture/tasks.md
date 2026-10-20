@@ -185,15 +185,24 @@ finding, and `example_run` runs the program that carries the region.
 
 - [X] T035 [P] Take version 0.11.0 and move the harness `SOVERSION` from 6 to 7 in `CMakeLists.txt`, leaving the archive `SOVERSION` at 2 (FR-030, FR-031, D-15)
 - [X] T036 [P] Run `cmake --preset=ci-sanitize` and `ctest --test-dir build-sanitize --output-on-failure`, and `cmake --preset=ci-tsan` with its suite, over every new path (FR-033)
-  <!-- `ci-tsan` builds clean and its suite passes 91 of 91. `ci-sanitize` does not build on this machine and the cause stands on master: `source/harness/cli.cpp` at ab32400, compiled with the flags of the `ci-sanitize` tree, fails with the same ten `-Werror=maybe-uninitialized` errors inside libstdc++ 16's `<regex>` machinery (`bits/regex_automaton.h:282` through `bits/std_function.h:395`). The branch changes nothing in that path; the gate runs on the CI image's compiler. -->
+  <!-- `ci-tsan` builds clean and its suite passes 92 of 92 on this machine, and
+       the `tsan` job of the CI run over head 82b5532 is green. `ci-sanitize` does
+       not build on this machine and the cause stands on master: `source/harness/cli.cpp`
+       at ab32400, compiled with the flags of the `ci-sanitize` tree, fails with the
+       same ten `-Werror=maybe-uninitialized` errors inside libstdc++ 16's `<regex>`
+       machinery (`bits/regex_automaton.h:282` through `bits/std_function.h:395`).
+       The branch changes nothing in that path; the gate runs on the CI image's
+       compiler. -->
 - [X] T037 [P] Run `cmake --preset=ci-coverage`, `ctest --test-dir build/coverage`, and `cmake --build build/coverage -t coverage`, whose summary step runs `tools/dbc/coverage_gate.sh`; report 100% line and 100% branch with no exclusion marker (FR-032, SC-008)
   <!-- the quickstart first named a `cmake/coverage-gate.cmake` that the tree does not carry; the repository's own gate is the summary step of the `coverage` target, and the spec artifact now points there. -->
-  <!-- `coverage_gate.sh` exits 0: 100.0% lines (4665 of 4665) and 100.0% branches (1889
-       of 1889) over the 37 sources the extract keeps, and the suite in that
-       tree passes 94 of 94. The branch adds no exclusion marker; the four
-       `LCOV_EXCL` lines in `source/counters/detail/pmu.hpp` stand on master.
-       Reaching the bar moved the percentile suite to one re-exec child per run
-       scenario, removed four guards no test can reach, and reshaped two
+  <!-- `coverage_gate.sh` exits 0: 100.0% lines (4668 of 4668) and 100.0% branches
+       (1889 of 1889) in the `coverage` job of the CI run over head 82b5532, where
+       that suite passes 95 of 95. The same gate on this machine reads 4666 of 4666
+       lines over the 37 sources the extract keeps; the two lines stand in the
+       generated export header the CI image writes. The branch adds no exclusion
+       marker; the four `LCOV_EXCL` lines in `source/counters/detail/pmu.hpp` stand
+       on master. Reaching the bar moved the percentile suite to one re-exec child
+       per run scenario, removed four guards no test can reach, and reshaped two
        functions whose exception cleanup gcov charges to a closing brace, as
        `plan.md` records under Implementation notes. -->
 - [X] T038 [P] Run the `ci-ubuntu` build with clang-tidy and cppcheck clean, then `cmake --build build --target format-check` and `spell-check` (SC-011)
