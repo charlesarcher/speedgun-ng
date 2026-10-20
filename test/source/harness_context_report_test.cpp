@@ -98,7 +98,7 @@ constexpr auto kScratchFile = "harness_context_report_out.txt";
 
 // The text of the widest single cpu index: the decimal of the largest
 // value the header's `PlacementSlot::cpuIndex` holds, the number the
-// `cpu@group` pair of specs/022 stands before the `@` (FR-005). The
+// `cpu@group` pair of specs/025 stands before the `@` (FR-005). The
 // field prints this text whole (FR-025).
 constexpr auto kWidestCpuIndex = "4294967295";
 
@@ -816,7 +816,7 @@ auto scenarioWidestPlacementWhole() -> void
              "placement function produces with no cut (FR-025)");
 }
 
-// FR-025, specs/022 FR-021: the field holds the account words and a
+// FR-025, specs/025 FR-021: the field holds the account words and a
 // single index text whole, and cuts a longer text, the `cpu@group`
 // pair of the default function among them, marking the cut in the
 // last position of the field.
@@ -837,7 +837,7 @@ auto scenarioPlacementField() -> void
   const auto pairCut = sg::detail::placementField("4294967295@0");
   check(pairCut == "429496729~",
         "a pair over the field width stands cut with the mark, the way "
-        "any long text does (specs/022 FR-021)");
+        "any long text does (specs/025 FR-021)");
   check(cut.size() == widest.size(),
         "a cut field fills the width of the field (FR-025)");
 }

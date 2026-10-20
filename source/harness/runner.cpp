@@ -1304,7 +1304,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // warm-up, the calibration, and every repetition, and the holder
   // joined beside the run result ends each of them when this run
   // returns (FR-006). The threaded policy is the harness default: SPIN
-  // waits and no pin. specs/022 FR-008, FR-010, FR-019, D-1: when the
+  // waits and no pin. specs/025 FR-008, FR-010, FR-019, D-1: when the
   // instance carries a preset other than `none`, the plan of that preset
   // over the machine layout names each context's cpu by position; the
   // batch fit check has already stopped an unfittable count, so the plan

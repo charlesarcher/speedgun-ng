@@ -352,7 +352,7 @@ auto speedgunMain(int argc, char** argv) -> int
         options.showPercentiles = false;
         break;
       case 'A':
-        // specs/022 FR-016: the text stands raw here; the parse below
+        // specs/025 FR-016: the text stands raw here; the parse below
         // runs it once before the first run.
         options.placement = std::string(optarg);
         break;
@@ -367,7 +367,7 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
-  // specs/022 FR-016, E-05: the process preset name is parsed once here,
+  // specs/025 FR-016, E-05: the process preset name is parsed once here,
   // before the expansion and before any run, so a rejected text stops
   // the batch with one line and status 2.
   std::optional<detail::Preset> processPreset;
@@ -452,7 +452,7 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
-  // specs/022 FR-005, FR-018, Q-6, Q-7: the fit walk, before the first
+  // specs/025 FR-005, FR-018, Q-6, Q-7: the fit walk, before the first
   // run and before any measurement starts.
   const auto fitOutcome = detail::placementFitStatus(selected);
   if (fitOutcome.first != 0) {

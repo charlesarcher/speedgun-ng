@@ -196,7 +196,7 @@ add_library(speedgun-ng::harness ALIAS speedgun-ng_harness)
 
 target_link_libraries(speedgun-ng_harness PUBLIC speedgun-ng::speedgun-ng)
 
-# specs/022 FR-031, R-01: the harness reads the machine through the same
+# specs/025 FR-031, R-01: the harness reads the machine through the same
 # vendored hwloc the counters library carries, and topology.cpp is the
 # one harness translation unit that includes <hwloc.h>. The link is
 # PRIVATE and the imported target stays unexported, so no consumer of

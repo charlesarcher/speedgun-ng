@@ -536,7 +536,7 @@ auto BenchmarkHandle::threads(const int count) -> BenchmarkHandle&
   return *this;
 }
 
-// specs/022 FR-015: the family's preset name, stored as stated and read
+// specs/025 FR-015: the family's preset name, stored as stated and read
 // by the expansion, which parses it as it copies it (T013).
 auto BenchmarkHandle::placement(const std::string_view presetName)
     -> BenchmarkHandle&
