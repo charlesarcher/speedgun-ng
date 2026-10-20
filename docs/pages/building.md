@@ -53,15 +53,31 @@ manual accumulator, `ResultRow` gained `cpuTimePerIterationNs`,
 changed and the registration and timing surface kept its shape.
 
 Release 0.9.0, the next minor above 0.8.0, moved the harness archive from
-`SOVERSION` 4 to 5 and left the counters archive at `SOVERSION` 2. Four
-exported shapes moved with it: the row model gained the counter columns
+`SOVERSION` 4 to 5 and left the counters archive at `SOVERSION` 2. The
+exported layout moves behind it: the row model gained the counter columns
 (`Counter`, a per-row `counters` vector and a row `label`), the aggregate
-statistics (`StatisticValue`) and the complexity fit (`FitRow`); `State`
-gained `setCounter`, `setLabel` and `setComplexityN`; `BenchmarkHandle`
-gained `addStatistic`, `reportAggregatesOnly` and `complexity`; and the
-`BigO`, `CounterFlag`, `CounterBase` and `StatUnit` enums joined the
-public surface. Every one of those changes the layout of an exported
-type, which is the move the number records.
+statistics (`StatisticValue`) and the complexity fit (`FitRow`) joined the
+row shape, and the `BigO`, `CounterFlag`, `CounterBase` and `StatUnit`
+enums joined the public surface. `State` gained `setCounter`, `setLabel`
+and `setComplexityN` and `BenchmarkHandle` gained `addStatistic`,
+`reportAggregatesOnly` and `complexity` at the same time; member
+functions alone move no layout, and the number records the data changes
+above.
+
+Release 0.10.0, the next minor above 0.9.0, moved the harness archive
+from `SOVERSION` 5 to 6 and left the counters archive at `SOVERSION` 2.
+The move came from data members: `State` gained the thread index and the
+thread count of the context running the loop, and `BenchmarkResult`
+gained the disclosure vector of the run's contexts. The execution-context
+types and callbacks that joined the surface at the same time add no
+layout to the exported types that already stood.
+
+Release 0.11.0, the next minor above 0.10.0, moved the harness archive
+from `SOVERSION` 6 to 7 and left the counters archive at `SOVERSION` 2.
+`State` gained the chunk fields and the chunk cadence and `ResultRow`
+gained the percentile columns, data members that move those layouts;
+`BenchmarkHandle` gained the percentile selector at the same time, a
+member function that moves no layout on its own.
 
 ## Dependency re-pinning
 
