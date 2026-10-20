@@ -969,8 +969,26 @@ if(TARGET docs_reading_the_report)
         python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
         --binary $<TARGET_FILE:docs_reading_the_report>
         --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example reading_the_report
   )
   set_tests_properties(report_shape_guide_sample PROPERTIES TIMEOUT 120)
+endif()
+
+if(TARGET docs_percentiles)
+  # The same page carries the percentile run of the percentile example, so the
+  # selector names which recorded run this invocation owns. The fold checks the
+  # recorded file against a real run of the example, which is what keeps a
+  # quoted report from drifting away from what the harness prints (021 FR-025,
+  # SC-011).
+  add_test(
+      NAME report_shape_percentiles_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_percentiles>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example percentiles
+  )
+  set_tests_properties(report_shape_percentiles_sample PROPERTIES TIMEOUT 120)
 endif()
 
 # Each docs example is a complete program whose regions the page quotes, so the

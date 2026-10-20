@@ -111,11 +111,25 @@ def compare(block: list[str], stdout: list[str]) -> list[str]:
     return findings
 
 
-def sample_block(readme: Path) -> list[str]:
+def sample_block(readme: Path, example: str | None) -> list[str]:
+    """The one recorded run of the named example that the page quotes.
+
+    A page carries one recorded run per binary the shape fold runs, so the
+    selector names which of them this invocation owns; without it the page
+    must hold exactly one recorded run, the shape of the main page.
+    """
     blocks = [block for block in scan_blocks(readme, readme.parent) if block.sample]
+    if example is not None:
+        owner = f"{example}.expected"
+        blocks = [
+            block
+            for block in blocks
+            if block.region.split("#", 1)[0].rsplit("/", 1)[-1] == owner
+        ]
     if len(blocks) != 1:
+        named = f" of example '{example}'" if example is not None else ""
         raise Finding(
-            f"{readme}: {len(blocks)} sample output blocks, exactly one required"
+            f"{readme}: {len(blocks)} sample output blocks{named}, exactly one required"
         )
     return blocks[0].body
 
@@ -124,6 +138,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--readme", type=Path, required=True)
+    parser.add_argument("--example", help="the docs example whose recorded run owns the block")
     try:
         args = parser.parse_args(argv)
     except SystemExit as error:
@@ -136,7 +151,7 @@ def main(argv: list[str]) -> int:
         return 2
 
     try:
-        block = sample_block(args.readme)
+        block = sample_block(args.readme, args.example)
         run = subprocess.run(
             [str(args.binary)], capture_output=True, text=True, timeout=110, check=False
         )
