@@ -359,7 +359,8 @@ auto bmFill(sg::State& state) -> void
 SG_BENCHMARK(bmFill).argsProduct({{8}}).threadRange(1, 2);
 ```
 The row carries `bytes_per_second=` from the byte setter and the `label=` field the label setter gave it, and [Reading a report row](docs/pages/harness.md#reading-a-report-row) shows the full run with the `spread=` statistic and the `BIG_O` and `RMS` pair of the fit.
-A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`. A threaded result prints its merged row, `bmFill/8/threads:2`, then the disclosure of the contexts it merged: `contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN`.
+A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends, plus one point for
+each chunk when the run reports percentiles. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`. A threaded result prints its merged row, `bmFill/8/threads:2`, then the disclosure of the contexts it merged: `contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN`.
 
 ### User counters
 <!-- sg-example: example/docs/user_counters.cpp#counter-column -->
@@ -528,6 +529,24 @@ auto bmSharded(sg::State& state) -> void
 SG_BENCHMARK(bmSharded).threads(4);
 ```
 `state.threadIndex()` numbers the context running the loop, and `state.threads()` gives the count the instance asked for. See [what a threaded row merges](docs/pages/harness.md#what-a-threaded-row-merges).
+
+### Percentiles
+<!-- sg-example: example/docs/percentiles.cpp#percentiles -->
+```cpp
+auto bmRoll(sg::State& state) -> void
+{
+  std::uint64_t roll = 0;
+  for (auto _ : state) {
+    for (std::uint64_t i = 0; i < 30'000; ++i) {
+      roll = (roll + i) * 1'099'511'628'211ULL;
+    }
+    sg::doNotOptimize(roll);
+  }
+}
+
+SG_BENCHMARK(bmRoll).iterations(300).showPercentiles(true);
+```
+The run divides its iterations into chunks, times each chunk, and reads the nearest rank of the chunk times, so `showPercentiles(true)` reports how one run's iterations varied. `--percentiles=50,90` sets the points of the run and `--no-percentiles` turns the lines off; a point the chunk count cannot answer prints `not available`. See [percentiles](docs/pages/harness.md#percentiles).
 
 ## Quick reference
 
