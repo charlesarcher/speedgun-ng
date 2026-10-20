@@ -586,6 +586,15 @@ target_include_directories(harness_gap_test PRIVATE ${CMAKE_SOURCE_DIR}/source/h
 target_compile_features(harness_gap_test PRIVATE cxx_std_23)
 add_test(NAME harness_gap_test COMMAND harness_gap_test)
 
+# The machine layout read, the two install seams and the mask intersection
+# (T007; US1, FR-001, FR-002, FR-003, FR-005, FR-006, R-04, R-11, R-13,
+# SC-04, Q-5, Q-8).
+add_executable(harness_topology_test source/harness_topology_test.cpp)
+target_link_libraries(harness_topology_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_topology_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_topology_test PRIVATE cxx_std_23)
+add_test(NAME harness_topology_test COMMAND harness_topology_test)
+
 # The barrier codegen shape at -O2 in every compiler present (T036; US6,
 # FR-029, FR-030).
 add_test(NAME barrier_shape
