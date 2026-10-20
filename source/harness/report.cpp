@@ -158,13 +158,13 @@ constexpr const char* kUnappliedFlag = "unapplied";
 // The mark that stands where the placement field cut a text short.
 constexpr char kTruncationMark = '~';
 
-// FR-025: the width of the placement field. The widest text the default
-// placement function produces is the decimal spelling of the cpu index
-// its slot holds, so the width follows the type of the header's
-// `PlacementSlot::cpuIndex` and every text that function returns stands
-// in the field whole. A replacement function may name itself at any
-// length; the field cuts that text to this width and marks the cut, so
-// the line keeps the shape the docs print.
+// FR-025, specs/022 FR-021: the width of the placement field. The
+// default placement function produces the `cpu@group` pair of the slot
+// it ran on, and a pair of two wide indices stands longer than this
+// field, so the field cuts that text and marks the cut, the way it
+// cuts a long text from a replacement function. The width follows the
+// type of the header's `PlacementSlot::cpuIndex` and keeps the shape
+// the docs print.
 constexpr std::size_t kPlacementFieldWidth =
     std::numeric_limits<decltype(sg::PlacementSlot::cpuIndex)>::digits10 + 1;
 static_assert(kPlacementFieldWidth >= kNoPinPlacement.size());
@@ -284,11 +284,22 @@ auto selectRunnableCpuCount(const bool maskAnswered,
   return host;
 }
 
-auto printContext() -> void
+auto printContext(const bool placementInEffect) -> void
 {
   // R-08: the catalog publishes no host or cpu model string at this
   // head, so those fields stay out of the line (FR-035).
   std::printf("speedgun-ng %s build=%s\n", SG_PROJECT_VERSION, SG_BUILD_TYPE);
+  if (placementInEffect) {
+    // FR-020, R-09: the layout read once at process start answers the
+    // counts, and the line stands directly below the version line,
+    // once per report (specs/022).
+    const auto& machine = detail::layout();
+    std::printf("topology: packages=%u l3-groups=%zu cores=%zu threads=%zu\n",
+                machine.packages,
+                machine.groups.size(),
+                machine.cores.size(),
+                machine.threads.size());
+  }
 }
 
 // specs/021 FR-010, FR-013: one percentile line. The tag field names the
