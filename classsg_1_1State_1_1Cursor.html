@@ -81,7 +81,7 @@
           <h2><a href="#pub-methods">Public functions</a></h2>
           <dl class="m-doc">
             <dt>
-              <span class="m-doc-wrap-bumper">auto <a href="#a260fc904ec9af257607d3142c6f0bb2e" class="m-doc">operator!=</a>(</span><span class="m-doc-wrap">const Cursor&amp; other) const -&gt; bool <span class="m-label m-flat m-success">noexcept</span></span>
+              <span class="m-doc-wrap-bumper">auto <a href="#acbba9b91a9903b593149e26852e55076" class="m-doc">operator!=</a>(</span><span class="m-doc-wrap">const Cursor&amp; other) -&gt; bool <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>True while the loop still runs: the local count of the remaining iterations has not reached zero.</dd>
             <dt>
@@ -96,9 +96,9 @@
         </section>
         <section>
           <h2>Function documentation</h2>
-          <section class="m-doc-details" id="a260fc904ec9af257607d3142c6f0bb2e"><div>
+          <section class="m-doc-details" id="acbba9b91a9903b593149e26852e55076"><div>
             <h3>
-              <span class="m-doc-wrap-bumper">bool sg::<wbr />State::<wbr />Cursor::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a260fc904ec9af257607d3142c6f0bb2e" class="m-doc-self">operator!=</a>(</span><span class="m-doc-wrap">const Cursor&amp; other) const <span class="m-label m-success">noexcept</span></span></span>
+              <span class="m-doc-wrap-bumper">bool sg::<wbr />State::<wbr />Cursor::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#acbba9b91a9903b593149e26852e55076" class="m-doc-self">operator!=</a>(</span><span class="m-doc-wrap">const Cursor&amp; other) <span class="m-label m-success">noexcept</span></span></span>
             </h3>
             <p>True while the loop still runs: the local count of the remaining iterations has not reached zero.</p>
 <p>The fast path reads that one local count and does no other work. The count starts at the run&#x27;s iteration count and only decrements, so it reaches zero and no lower: no check guards it. At zero the cursor closes the run&#x27;s sampling window once, on the path that leaves the loop, and returns false (FR-017).</p><p>The timed loop holds no contract check, so this comparison states no condition of its own: the count-down construction of the cursor, and the single close of the window in <code>closeWindow</code>, are what make the result what it is.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
@@ -115,7 +115,7 @@
               <span class="m-doc-wrap-bumper">std::uint64_t sg::<wbr />State::<wbr />Cursor::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9cc33eac8499e5489604f7ebba6a2af9" class="m-doc-self">operator*</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
             </h3>
             <p>The iteration index of the current loop pass.</p>
-<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+<p>The index counts the iterations the run completed: the ones the finished chunks hold and the ones the current chunk has run. Without chunking the run count stands zero and the read is the difference it has always been.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
         </section>
       </div>

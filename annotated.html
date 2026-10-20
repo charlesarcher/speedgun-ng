@@ -159,6 +159,7 @@
               <li>struct <a href="structsg_1_1FitRow.html" class="m-doc">FitRow</a> <span class="m-doc">One row of a family&#x27;s complexity fit (FR-022, FR-023).</span></li>
               <li>class <a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a> <span class="m-doc">The base of a fixture: the <code><a href="classsg_1_1Fixture.html#aae6cacc771f9db0ad29d245cab760dae" class="m-doc">setUp</a></code> and <code><a href="classsg_1_1Fixture.html#a3023d0249454a5afd76b3e28b8126161" class="m-doc">tearDown</a></code> pair around each run (E-06, FR-015).</span></li>
               <li>struct <a href="structsg_1_1MetricValue.html" class="m-doc">MetricValue</a> <span class="m-doc">One metric of one row, with the disclosure beside the value (FR-024).</span></li>
+              <li>struct <a href="structsg_1_1PercentileValue.html" class="m-doc">PercentileValue</a> <span class="m-doc">One reported percentile of one column (specs/021 E-04, FR-013).</span></li>
               <li>struct <a href="structsg_1_1PlacementResult.html" class="m-doc">PlacementResult</a> <span class="m-doc">What the installed placement function did with one slot (FR-005, SC-05).</span></li>
               <li>struct <a href="structsg_1_1PlacementSlot.html" class="m-doc">PlacementSlot</a> <span class="m-doc">Where a context&#x27;s thread runs: no pin, or one cpu index (FR-005, FR-045).</span></li>
               <li>struct <a href="structsg_1_1ResultRow.html" class="m-doc">ResultRow</a> <span class="m-doc">One repetition row or one aggregate row (E-06).</span></li>
@@ -167,7 +168,12 @@
                 <a href="#" onclick="return toggle(this)">class</a> <a href="classsg_1_1State.html" class="m-doc">State</a> <span class="m-doc">The object the harness hands the benchmark function (E-03).</span>
                 <ul class="m-doc">
                   <li>struct <a href="structsg_1_1State_1_1CounterSlot.html" class="m-doc">CounterSlot</a> <span class="m-doc"><span></span></span></li>
-                  <li>class <a href="classsg_1_1State_1_1Cursor.html" class="m-doc">Cursor</a> <span class="m-doc">The range-for cursor of the timed loop (E-03).</span></li>
+                  <li class="m-doc-collapsible collapsed">
+                    <a href="#" onclick="return toggle(this)">class</a> <a href="classsg_1_1State_1_1Cursor.html" class="m-doc">Cursor</a> <span class="m-doc">The range-for cursor of the timed loop (E-03).</span>
+                    <ul class="m-doc">
+                      <li>struct <a href="structsg_1_1State_1_1Cursor_1_1ChunkRun.html" class="m-doc">ChunkRun</a> <span class="m-doc"><span></span></span></li>
+                    </ul>
+                  </li>
                 </ul>
               </li>
               <li>struct <a href="structsg_1_1Statistics.html" class="m-doc">Statistics</a> <span class="m-doc">The aggregate form of Principle VII over the repetitions that produced a measured value (FR-027, R-05).</span></li>
