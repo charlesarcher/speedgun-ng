@@ -448,6 +448,16 @@ add_test(NAME counters_metric_trees_test COMMAND counters_metric_trees_test)
 set_tests_properties(counters_metric_trees_test PROPERTIES
                      SKIP_RETURN_CODE 2)
 
+add_executable(counters_metric_threadless_test
+               source/counters_metric_threadless_test.cpp)
+target_link_libraries(counters_metric_threadless_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_metric_threadless_test PRIVATE cxx_std_23)
+add_test(NAME counters_metric_threadless_test
+         COMMAND counters_metric_threadless_test)
+set_tests_properties(counters_metric_threadless_test PROPERTIES
+                     SKIP_RETURN_CODE 2)
+
 # Sampling-cost benchmark and mode disclosure (T051; US7 scenarios 1
 # and 6; SC-004, SC-010, quickstart 12). Publishes the min/median/max
 # per-action distribution of each regime this host probes, the achieved

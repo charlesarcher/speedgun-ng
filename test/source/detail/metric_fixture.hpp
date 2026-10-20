@@ -160,6 +160,104 @@ inline constexpr double kDataReadsDelta = 4096.0;
       fixtureMetric("unterminated", "[open_cycles + 1"),
       fixtureMetric("bad_arity",
                     "has_event(fixture_cycles, fixture_instructions)"),
+      // The scanner's own edges: a dot or a dash joins a reference's
+      // characters, an escape at the text's end and a colon without a
+      // privilege word after it strand the scan, and an identifier may
+      // open on an underscore (FR-003).
+      fixtureMetric("dotted_ref", "fixture.cycles"),
+      fixtureMetric("dashed_ref", "fixture-cycles"),
+      fixtureMetric("dangling", "fixture_cycles + 1\\"),
+      fixtureMetric("colon_tail", "fixture_cycles:"),
+      fixtureMetric("colon_slash", "fixture_cycles:/x"),
+      fixtureMetric("underscore_ref", "_hidden + 1"),
+      // The number scanner's edges: an uppercase hexadecimal prefix, a
+      // hexadecimal digit run that hands the next character back, and an
+      // exponent carrying its own sign in either spelling of the letter
+      // (FR-003).
+      fixtureMetric("hex_upper", "fixture_cycles * 0X2"),
+      fixtureMetric("hex_mid", "fixture_cycles * 0xF+1"),
+      fixtureMetric("exp_pos", "fixture_cycles * 1e+2"),
+      fixtureMetric("exp_neg", "fixture_cycles * 1e-2"),
+      fixtureMetric("exp_upper", "fixture_cycles * 1E2"),
+      fixtureMetric("exp_sign_upper", "fixture_cycles * 1E+2"),
+      // The conditional rides an operand's every seat of a pairing and
+      // nests in its own else-branch (FR-005, FR-010).
+      fixtureMetric(
+          "both_cond",
+          "(1 if #num_cores < 0 else 2) * (3 if #num_cores > 0 else " "1) * " "fixture_" "cycles"),
+      fixtureMetric(
+          "third_cond",
+          "(1 if #num_cores < 0 else (4 if #num_cores > 0 else 1)) * " "fixture" "_cycle" "s"),
+      // A helper call closes with nothing between its parentheses
+      // (FR-002), and a pairing's literal may sit on the left (FR-004).
+      fixtureMetric("empty_call", "has_event()"),
+      fixtureMetric("min_left", "min(2, fixture_cycles)"),
+      // The seconds leaf: a duration unit of the closed set, and a time
+      // dimension to pair against the cycle count (FR-006, FR-010).
+      fixtureMetric("seconds_row", "fixture_seconds"),
+      fixtureMetric("time_mix", "fixture_seconds + fixture_cycles"),
+      // A leaf the host refuses to count answers `has_event` false
+      // (FR-011, FR-012).
+      fixtureMetric("event_blocked",
+                    "0 if has_event(fixture_blocked) else fixture_cycles"),
+      // A device token seats itself before the at-reference (FR-003).
+      fixtureMetric("dev_core", "core@fixture_cycles@"),
+      fixtureMetric("dev_cpu", "cpu@fixture_cycles@"),
+      // A scale the table spells in the leaf's own unit rides the row
+      // (FR-003, FR-020).
+      fixtureMetric("scaled_row", "fixture_cycles", "4Bytes"),
+      // The parser's own refusals: an escape stranded at the end of
+      // a reference, a conditional standing inside the test of another
+      // conditional on either side of its comparison, and a helper or a
+      // predicate riding inside a guard's arguments (FR-003, FR-005).
+      fixtureMetric("trailing_escape", "fixture_cycles\\"),
+      fixtureMetric("test_cond", "5 if (1 if #num_cores > 0 else 2) else 3"),
+      fixtureMetric("guard_left_cmp",
+                    "5 if (1 if #num_cores > 0 else 2) < 1 else 7"),
+      fixtureMetric("guard_right_cmp",
+                    "5 if #num_cores < (1 if #num_cores > 0 else 2) " "else 7"),
+      // A conditional buried inside a sum operand of the comparison, on
+      // either seat (FR-005).
+      fixtureMetric("guard_left_deep",
+                    "5 if (1 if #num_cores > 0 else 2) + 1 < 1 else 7"),
+      fixtureMetric("guard_right_deep",
+                    "5 if 1 + (1 if #num_cores > 0 else 2) < 1 else 7"),
+      fixtureMetric("nested_arg", "min(has_event(fixture_cycles), 1)"),
+      fixtureMetric("nest_left", "min(has_event(fixture_cycles) + 1, 2)"),
+      fixtureMetric("nest_right",
+                    "min(fixture_cycles, max(1, has_event(fixture_cycles)))"),
+      fixtureMetric(
+          "nest_add_right",
+          "min(fixture_cycles + has_event(fixture_instructions), " "1)"),
+      // A helper settled outside a test walks as its literal on both
+      // answers, and a guard's literal may sit on either side (FR-004).
+      fixtureMetric("he_mul_true",
+                    "has_event(fixture_instructions) * fixture_cycles"),
+      fixtureMetric("he_mul_false",
+                    "has_event(fixture_no_such_event) * fixture_cycles"),
+      fixtureMetric("guard_right_dim", "max(fixture_cycles, 1)"),
+      fixtureMetric("guard_left_dim", "max(2, fixture_cycles)"),
+      // A digit hands the dash back mid-token; a plus rides the same test
+      // after a signed exponent's digits; a squared duration refuses into a
+      // plain one; a helper hides under two guards (FR-003, FR-005, FR-010).
+      fixtureMetric("tight_dash", "fixture_cycles * 1-2"),
+      fixtureMetric("plus_mid", "fixture_cycles * 2e3+1"),
+      fixtureMetric("time_stack",
+                    "fixture_seconds * fixture_seconds + fixture_seconds"),
+      fixtureMetric(
+          "nest_deep",
+          "min(fixture_cycles + max(1, has_event(fixture_cycles)), " "2)"),
+      // Conditions standing in the test without a comparison, inside an
+      // addition on either side (FR-005).
+      fixtureMetric("test_add_plain",
+                    "fixture_cycles + 1 if #num_cores > 0 else 0"),
+      fixtureMetric(
+          "test_guard_left",
+          "(1 if #num_cores > 0 else 2) + 1 if #num_cores > 0 " "else 0"),
+      fixtureMetric(
+          "test_guard_right",
+          "1 + (1 if #num_cores > 0 else 2) if #num_cores > 0 " "else 0"),
+      fixtureMetric("blocked_pair", "fixture_blocked + fixture_cycles"),
       // The helpers, each on the side this host answers (FR-004).
       fixtureMetric(
           "present",
@@ -207,6 +305,7 @@ enum class MetricTree
   SMT_ON,
   SMT_OFF,
   CORELESS,
+  THREADLESS,
 };
 
 [[nodiscard]] inline auto registerMetricHost(
@@ -226,9 +325,11 @@ enum class MetricTree
                           "core",
                           "core of the metric fixture");
     }
-    provider->addObject("metric-package-0/metric-core-0/metric-thread-0",
-                        "thread",
-                        "thread of the metric fixture");
+    if (tree != MetricTree::THREADLESS) {
+      provider->addObject("metric-package-0/metric-core-0/metric-thread-0",
+                          "thread",
+                          "thread of the metric fixture");
+    }
     if (tree == MetricTree::SMT_ON) {
       provider->addObject("metric-package-0/metric-core-0/metric-thread-1",
                           "thread",
@@ -244,12 +345,20 @@ enum class MetricTree
     provider->addCounter(
         kCoreObject, kTime, "nanoseconds", "fixture time in nanoseconds");
     provider->addCounter(
+        kCoreObject, "fixture_seconds", "seconds", "fixture seconds");
+    provider->addCounter(kCoreObject,
+                         "fixture_blocked",
+                         "none",
+                         "fixture leaf the host will not count",
+                         sg::counters::Availability::PERMISSION_BLOCKED);
+    provider->addCounter(
         kMemoryObject, kDataReads, "bytes", "fixture memory reads");
     provider->setPoints(kCoreObject, kCycles, {0, 1000}, 1000);
     provider->setPoints(kCoreObject, kInstructions, {0, 2000}, 2000);
     provider->setPoints(kCoreObject, kRefCycles, {0, 500}, 500);
     provider->setPoints(kCoreObject, kL2Requests, {0, 10}, 10);
     provider->setPoints(kCoreObject, kTime, {0, 1000000}, 1000000);
+    provider->setPoints(kCoreObject, "fixture_seconds", {0, 250}, 250);
     provider->setPoints(kMemoryObject, kDataReads, {0, 4096}, 4096);
     const auto settled =
         sg::counters::System::local().registerProvider(std::move(provider));

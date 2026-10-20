@@ -171,7 +171,13 @@ template<class E>
 {
   for (const auto& row : allRows()) {
     if (row.name == name) {
-      check(!row.published, "the fixture row refuses");
+      if (row.published) {
+        std::fprintf(stderr,
+                     "METRIC LOOKUP TEST FAIL: %s published: %s\n",
+                     std::string(name).c_str(),
+                     row.reason.c_str());
+        std::exit(1);
+      }
       check(!row.reason.empty(), "a refusal carries the text of its rule");
       return row;
     }
@@ -240,6 +246,70 @@ auto valueScenario() -> void
   check(sameDouble(foldValue(eventsOf(escaped)), sg::test::kCyclesDelta),
         "an escaped name in a bare reference decodes to the row it names "
         "(FR-003)");
+  const auto hexUpper = resolved("hex_upper");
+  check(sameDouble(foldValue(eventsOf(hexUpper)), 2.0 * sg::test::kCyclesDelta),
+        "an uppercase hexadecimal prefix loads like the lowercase one "
+        "(FR-003)");
+  const auto expPos = resolved("exp_pos");
+  check(sameDouble(foldValue(eventsOf(expPos)), 100.0 * sg::test::kCyclesDelta),
+        "an exponent carrying its sign loads like its product (FR-003)");
+  const auto expNeg = resolved("exp_neg");
+  check(sameDouble(foldValue(eventsOf(expNeg)), sg::test::kCyclesDelta / 100.0),
+        "a negative exponent divides by its power (FR-003)");
+  const auto expUpper = resolved("exp_upper");
+  check(
+      sameDouble(foldValue(eventsOf(expUpper)), 100.0 * sg::test::kCyclesDelta),
+      "the exponent letter may stand uppercase (FR-003)");
+  const auto expSignUpper = resolved("exp_sign_upper");
+  check(sameDouble(foldValue(eventsOf(expSignUpper)),
+                   100.0 * sg::test::kCyclesDelta),
+        "an uppercase exponent letter carries its sign too (FR-003)");
+  const auto bothCond = resolved("both_cond");
+  check(sameDouble(foldValue(eventsOf(bothCond)),
+                   6.0 * sg::test::kCyclesDelta),
+        "a conditional rides the right operand's seat of a pairing "
+        "(FR-005, FR-010)");
+  const auto thirdCond = resolved("third_cond");
+  check(
+      sameDouble(foldValue(eventsOf(thirdCond)), 4.0 * sg::test::kCyclesDelta),
+      "a conditional nests in its own else-branch (FR-005)");
+  const auto minLeft = resolved("min_left");
+  check(sameDouble(foldValue(eventsOf(minLeft)), 2.0),
+        "a guard's literal may sit on the helper's left (FR-004)");
+  const auto scaled = resolved("scaled_row");
+  check(scaled.unit == "4Bytes",
+        "the row keeps the scale unit it spells (FR-020)");
+  const auto eventBlocked = resolved("event_blocked");
+  check(sameDouble(foldValue(eventsOf(eventBlocked)), sg::test::kCyclesDelta),
+        "a leaf the host will not count answers has_event false (FR-011)");
+  const auto devCore = resolved("dev_core");
+  check(sameDouble(foldValue(eventsOf(devCore)), sg::test::kCyclesDelta),
+        "a device token seats the reference on its object (FR-003)");
+  const auto devCpu = resolved("dev_cpu");
+  check(sameDouble(foldValue(eventsOf(devCpu)), sg::test::kCyclesDelta),
+        "the cpu token reaches the same counted leaves (FR-003)");
+  const auto heTrue = resolved("he_mul_true");
+  check(sameDouble(foldValue(eventsOf(heTrue)), sg::test::kCyclesDelta),
+        "a settled helper outside a test walks as one (FR-004)");
+  const auto heFalse = resolved("he_mul_false");
+  check(sameDouble(foldValue(eventsOf(heFalse)), 0.0),
+        "a helper the host answers no walks as zero (FR-004, FR-011)");
+  const auto guardRight = resolved("guard_right_dim");
+  check(sameDouble(foldValue(eventsOf(guardRight)), sg::test::kCyclesDelta),
+        "a guard's literal may sit on the helper's right (FR-004)");
+  const auto guardLeftDim = resolved("guard_left_dim");
+  check(sameDouble(foldValue(eventsOf(guardLeftDim)), sg::test::kCyclesDelta),
+        "a guard's literal may sit on the helper's left (FR-004)");
+  const auto blockedPair = resolved("blocked_pair");
+  check(blockedPair.published,
+        "a blocked leaf rides a pairing and the row still publishes "
+        "(FR-011, FR-022)");
+  const auto guardLeft = resolved("test_guard_left");
+  check(guardLeft.published,
+        "a parenthesized conditional rides an addition's left (FR-005)");
+  const auto guardRight2 = resolved("test_guard_right");
+  check(guardRight2.published,
+        "a parenthesized conditional rides an addition's right (FR-005)");
 
   const auto bandwidth = resolved("bandwidth");
   const Expression<Dim<-1, 1>> handRate = reads / time;
@@ -377,6 +447,61 @@ auto refusalScenario() -> void
       "a character the grammar does not seat refuses unsupported " "(FR-005)");
   check(refused("bad_arity").refusal == MetricRefusal::MALFORMED,
         "a helper called with two arguments refuses malformed (FR-002)");
+  // The scanner's edges, each stranded its own way (FR-003, FR-002).
+  check(refused("dotted_ref").refusal == MetricRefusal::UNRESOLVED,
+        "a dot joins a reference's characters (FR-003)");
+  check(refused("dashed_ref").refusal == MetricRefusal::UNRESOLVED,
+        "a dash joins a reference's characters (FR-003)");
+  check(refused("underscore_ref").refusal == MetricRefusal::UNRESOLVED,
+        "an identifier may open on an underscore (FR-003)");
+  check(refused("dangling").refusal == MetricRefusal::UNSUPPORTED,
+        "an escape at the text's end strands the scan (FR-003)");
+  check(refused("colon_tail").refusal == MetricRefusal::UNSUPPORTED,
+        "a colon without a privilege word after it refuses (FR-003)");
+  check(refused("colon_slash").refusal == MetricRefusal::UNSUPPORTED,
+        "a colon before a non-word character refuses (FR-003)");
+  check(refused("hex_mid").refusal == MetricRefusal::DIMENSION,
+        "a hexadecimal digit run hands the next character back (FR-003)");
+  check(refused("empty_call").refusal == MetricRefusal::MALFORMED,
+        "a helper call that closes empty refuses malformed (FR-002)");
+  check(refused("time_mix").refusal == MetricRefusal::DIMENSION,
+        "a duration term does not add into a counted one (FR-006, FR-010)");
+  check(refused("tight_dash").refusal == MetricRefusal::DIMENSION,
+        "a digit hands the dash back mid-token and the difference reads "
+        "(FR-003, FR-010)");
+  check(refused("plus_mid").refusal == MetricRefusal::DIMENSION,
+        "a plus after an exponent's digits reads and the sum refuses "
+        "(FR-003, FR-010)");
+  check(refused("time_stack").refusal == MetricRefusal::DIMENSION,
+        "a squared duration does not add into a plain one (FR-006, FR-010)");
+  check(refused("nest_deep").refusal == MetricRefusal::NESTED,
+        "a helper under a guard inside a guard refuses nested (FR-002)");
+  check(refused("test_add_plain").refusal == MetricRefusal::DIMENSION,
+        "a sum as the test composes no pair and refuses (FR-005, FR-010)");
+  // The parser's own refusals, each named by the rule that bites
+  // (FR-003, FR-005).
+  check(refused("trailing_escape").refusal == MetricRefusal::UNSUPPORTED,
+        "an escape with no partner at the text's edge refuses (FR-003)");
+  check(refused("test_cond").refusal == MetricRefusal::UNSUPPORTED,
+        "a conditional inside a test without a comparison refuses " "(FR-005)");
+  check(refused("guard_left_cmp").refusal == MetricRefusal::UNSUPPORTED,
+        "a conditional on a comparison's left refuses (FR-005)");
+  check(refused("guard_right_cmp").refusal == MetricRefusal::UNSUPPORTED,
+        "a conditional on a comparison's right refuses (FR-005)");
+  check(refused("guard_left_deep").refusal == MetricRefusal::UNSUPPORTED,
+        "a conditional under a sum on a comparison's left refuses (FR-005)");
+  check(refused("guard_right_deep").refusal == MetricRefusal::UNSUPPORTED,
+        "a conditional under a sum on a comparison's right refuses (FR-005)");
+  check(refused("nested_arg").refusal == MetricRefusal::NESTED,
+        "a helper inside a guard's argument refuses nested (FR-002)");
+  check(refused("nest_left").refusal == MetricRefusal::NESTED,
+        "a helper under an arithmetic argument refuses nested (FR-002)");
+  check(refused("nest_right").refusal == MetricRefusal::NESTED,
+        "a helper two guards deep refuses nested (FR-002)");
+  check(
+      refused("nest_add_right").refusal == MetricRefusal::NESTED,
+      "a helper on a sum's right seat under a guard refuses nested " "(FR-"
+                                                                     "002)");
   const auto& nofact = refused("test_missing_right");
   check(
       nofact.refusal == MetricRefusal::UNKNOWN_CONSTANT,
@@ -695,6 +820,23 @@ auto verdictSweepScenario() -> void
       refused);
 }
 
+// The verdict of one fixture row under the full row list, where
+// metric-definition entries sit beside the events. The source count
+// passes the named entries by without counting them (FR-011).
+auto wideListScenario() -> void
+{
+  const auto wide = metricRows(sg::test::fixtureTable(),
+                               sg::test::fixtureRows(),
+                               sg::test::fixtureHost());
+  for (const auto& row : wide) {
+    if (row.name == "sources") {
+      check(row.published,
+            "the source count scans metric entries without counting them "
+            "(FR-011)");
+    }
+  }
+}
+
 auto main() -> int
 {
   // The scripted leaves are what a folded value or a stated refusal reads,
@@ -719,6 +861,7 @@ auto main() -> int
     refusalScenario();
     factScenario();
     chainScenario();
+    wideListScenario();
   }
   hostScenario();
   verdictSweepScenario();

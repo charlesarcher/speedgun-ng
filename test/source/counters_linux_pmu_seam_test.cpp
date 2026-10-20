@@ -2393,6 +2393,8 @@ auto tableArrayScenario() -> void
    "BriefDescription":"a formula spelled under the event name"},
   {"EventName":9,"MetricName":"nine_spelled","MetricExpr":"a*b",
    "BriefDescription":"a definition named past a numeric event name"},
+  {"EventName":true,"MetricName":7,"MetricExpr":"77*77",
+   "BriefDescription":"a row with no name to read"},
   "not an object",
   {"NoEventName":1}
 ])");
@@ -2478,6 +2480,9 @@ auto tableArrayScenario() -> void
         "every row carrying a name enters the table, the metric definitions "
         "among them: 20 event rows and the three definition rows (FR-001, "
         "FR-002, T025)");
+  check(findRow(table, "77*77") == nullptr,
+        "a row whose event name and metric name are both no string is "
+        "passed by (FR-001)");
 
   // A file the parser cannot read adds nothing, and says so by leaving
   // the caller's table untouched.
