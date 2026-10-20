@@ -82,7 +82,7 @@ import_autotools_submodule(
         --with-hwloc-symbol-prefix=sg_
         --disable-libxml2 --disable-opencl --disable-cairo
         --disable-cuda --disable-levelzero --disable-nvml
-        --disable-rsmi --disable-libudev --disable-pci
+        --disable-rsmi --disable-libudev --disable-pci --disable-gl
         --disable-plugin-dlopen --disable-plugin-ltdl
     ARCHIVE hwloc/libhwloc_embedded.a
     MERGE_INTO speedgun-ng_speedgun-ng
@@ -195,6 +195,15 @@ add_library(speedgun-ng_harness ${speedgun-ng_harness_sources})
 add_library(speedgun-ng::harness ALIAS speedgun-ng_harness)
 
 target_link_libraries(speedgun-ng_harness PUBLIC speedgun-ng::speedgun-ng)
+
+# specs/022 FR-031, R-01: the harness reads the machine through the same
+# vendored hwloc the counters library carries, and topology.cpp is the
+# one harness translation unit that includes <hwloc.h>. The link is
+# PRIVATE and the imported target stays unexported, so no consumer of
+# speedgun-ng::harness observes it; the extended nm proof of
+# tools/hwloc/hwloc_nm_proof.sh is the covering check (T031).
+target_link_libraries(speedgun-ng_harness
+                      PRIVATE $<BUILD_INTERFACE:hwloc_vendor>)
 
 # The build type is a build fact the counters library publishes nowhere,
 # so the build writes it and the report reads it as a literal (R-14).

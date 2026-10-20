@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <limits>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -31,6 +32,95 @@ namespace sg
 // FR-007 bounds the instances of one family; above the bound expansion
 // warns and keeps every instance (R-14).
 inline constexpr std::size_t kMaxFamilySize = 100;
+
+namespace detail
+{
+
+// specs/022 data-model.md E-01: the ordinal that names no core and no
+// group, the same maximum `kNoPin` of the public header holds for a cpu
+// index (FR-001).
+inline constexpr std::uint32_t kNoGroup =
+    std::numeric_limits<std::uint32_t>::max();
+
+/// @brief specs/022 data-model.md E-02: one hardware thread inside the
+/// process mask (FR-001, FR-005). `coreOrdinal` indexes
+/// `MachineLayout::cores` and `groupOrdinal` indexes
+/// `MachineLayout::groups`; either stands at `kNoGroup` when the read
+/// found no core or no L3 cache.
+struct LayoutThread
+{
+  std::uint32_t cpuIndex = 0;
+  std::uint32_t coreOrdinal = kNoGroup;
+  std::uint32_t groupOrdinal = kNoGroup;
+};
+
+/// @brief specs/022 data-model.md E-03: one core, with its hardware
+/// threads in ascending cpu index so the first entry is the
+/// lowest-index sibling (FR-011, FR-013).
+struct LayoutCore
+{
+  std::uint32_t groupOrdinal = kNoGroup;
+  std::vector<std::uint32_t> threads;
+};
+
+/// @brief specs/022 data-model.md E-04: one L3 cache group, with its
+/// cores in ascending order, the walk order of `compact` (FR-012,
+/// FR-014).
+struct LayoutGroup
+{
+  std::uint32_t lowestCpu = 0;
+  std::vector<std::uint32_t> cores;
+};
+
+/**
+ * @brief specs/022 data-model.md E-01: the layout of one process, read
+ * once and reused (FR-001, FR-002, FR-005).
+ *
+ * `threads` is ordered by ascending cpu index, `cores` by the lowest
+ * cpu of the core, `groups` by the lowest cpu of the group. `mask`
+ * holds the cpu indices of the process affinity mask intersected with
+ * the topology set, the set the walk built the layout from. A failed
+ * host read leaves `readable` false with no partial layout; an
+ * installed layout always stands readable.
+ */
+struct MachineLayout
+{
+  std::vector<LayoutThread> threads;
+  std::vector<LayoutCore> cores;
+  std::vector<LayoutGroup> groups;
+  std::uint32_t packages = 0;
+  std::vector<std::uint32_t> mask;
+  bool readable = false;
+};
+
+/// @brief specs/022 data-model.md E-05: the five placement presets,
+/// parsed from text that equals one name in full (FR-007, FR-016).
+enum class Preset
+{
+  NONE,
+  CORE,
+  L3,
+  SMT,
+  COMPACT,
+};
+
+/**
+ * @brief specs/022 data-model.md E-06: the plan of one preset over one
+ * layout for one context count (FR-008, FR-009).
+ *
+ * An empty `cpu` means the context count exceeds `places`; otherwise
+ * `cpu.size()` equals the count, every entry is distinct, and `group`
+ * names the group of each cpu. Two calls with one layout and one count
+ * return equal vectors (SC-03).
+ */
+struct PlacementPlan
+{
+  std::vector<std::uint32_t> cpu;
+  std::vector<std::uint32_t> group;
+  std::uint32_t places = 0;
+};
+
+}  // namespace detail
 
 /**
  * @brief One registry record in registration order (E-01).
@@ -102,6 +192,10 @@ public:
   // keeps every family that calls no thread method on its single
   // context and its printed bytes (FR-022).
   std::vector<int> threadCounts {1};
+  // specs/022 data-model.md E-08, FR-015: the placement preset name the
+  // handle stated, the last call winning the slot the way the thread
+  // calls replace an earlier set. Empty when the family named none.
+  std::optional<std::string> placement;
   // FR-021: the dispatch function the family attached for its threaded
   // runs, empty when the harness dispatches the bodies itself.
   ThreadRunnerFn threadRunner;
@@ -134,6 +228,10 @@ public:
   // of 1 a family that called no thread method carries keeps the
   // single-context path and today's row bytes (FR-022).
   int threadCount = 1;
+  // specs/022 data-model.md E-08, FR-015: the placement preset resolved
+  // for this instance: the handle name when the family stated one, the
+  // command-line preset otherwise, `NONE` when neither stands.
+  detail::Preset placement = detail::Preset::NONE;
   RegistryEntry* family = nullptr;
 };
 
@@ -306,6 +404,12 @@ enum class WalkStep : std::uint8_t
  * `speedgunMain` calls this once, before the filter selection and the
  * first run, and the runner walks what it leaves (R-03, R-12).
  *
+ * specs/022 FR-015, FR-016: `processPreset` is the command-line preset
+ * resolved at the entry point, and each instance carries the handle
+ * name when the family stated one, `processPreset` otherwise. A stored
+ * name that parses to nothing prints one line naming the family and
+ * the rejected text and exits with status 2 before any instance runs.
+ *
  * \pre every family call of every registration has returned, and no run
  *      has started (FR-003, E-01).
  * \post the instance list holds one instance per argument tuple of
@@ -313,7 +417,7 @@ enum class WalkStep : std::uint8_t
  *       suite, its case, and the arguments it owns (FR-010, R-02).
  * \invariant no run performs expansion work (FR-003).
  */
-auto expandRegistry() -> void;
+auto expandRegistry(std::optional<Preset> processPreset = std::nullopt) -> void;
 
 /// @brief The expanded instance list, in the order the runner walks it
 /// (R-12).
@@ -340,6 +444,11 @@ struct RunOptions
   std::optional<bool> showPercentiles;
   std::vector<double> percentilePoints;
   std::vector<std::string> metricNames;
+  // specs/022 data-model.md E-07, FR-015, FR-016, FR-036: the raw
+  // placement option text, parsed once before the first run, and the
+  // topology listing flag.
+  std::optional<std::string> placement;
+  bool topologyMode = false;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
@@ -387,8 +496,56 @@ private:
   void clearPending() noexcept;
 };
 
-/// @brief Print the context lines above the rows (FR-035).
-auto printContext() -> void;
+// specs/022 data-model.md E-01, E-10: the internal seams of topology
+// placement. `layout()` reads the machine at most once per process and
+// caches the result in one function-local static, so an install stands
+// before the first read (FR-001, FR-002, FR-006, Q-5).
+
+/// @brief The layout of this process: the installed layout when one
+/// stands, the single host read otherwise (FR-001, FR-002, FR-006).
+[[nodiscard]] auto layout() -> const MachineLayout&;
+
+/// @brief Install a layout in place of the host read; an empty optional
+/// clears the installed one (FR-006, Q-5).
+auto installTestLayout(std::optional<MachineLayout>) -> void;
+
+/// @brief Install a synthetic description the read hands to
+/// `hwloc_topology_set_synthetic`; an empty optional clears it
+/// (FR-006, Q-5, R-04).
+auto installTestTopologyDescription(std::optional<std::string>) -> void;
+
+/// @brief The preset one text names: the five names match in full and
+/// nothing else (FR-007, FR-016, FR-017).
+[[nodiscard]] auto parsePreset(std::string_view) -> std::optional<Preset>;
+
+/// @brief The name one preset prints in a message, the table read in
+/// enum order (FR-016).
+[[nodiscard]] auto presetText(Preset) -> std::string_view;
+
+/// @brief The plan of one preset over one layout for one context count:
+/// the ordered walk of the resolver contract, an empty `cpu` when the
+/// count exceeds the place count (FR-008 to FR-014, FR-018).
+[[nodiscard]] auto resolvePreset(Preset, const MachineLayout&, int contexts)
+    -> PlacementPlan;
+
+/// @brief Print the layout listing `--topology` states (FR-036).
+auto printTopologyListing(const MachineLayout&) -> void;
+
+/// @brief The disclosure text of one slot: `cpu@group` when the layout
+/// names a group for that cpu, the cpu index alone when it names none,
+/// `NO_PIN` for `kNoPin`; rendering only, with the text in storage that
+/// outlives the call (FR-021, data-model.md E-09).
+[[nodiscard]] auto placementText(const PlacementSlot&) -> std::string_view;
+
+/**
+ * @brief Print the context lines above the rows (FR-035).
+ *
+ * specs/022 FR-019, FR-020: `placementInEffect` states that a selected
+ * instance carries a preset other than `none` with a context count
+ * above 1; the topology line then stands below the version line, once
+ * per report.
+ */
+auto printContext(bool placementInEffect) -> void;
 
 /// @brief Format one benchmark result in fixed columns (FR-035, FR-036).
 auto printResult(const BenchmarkResult& result) -> void;
