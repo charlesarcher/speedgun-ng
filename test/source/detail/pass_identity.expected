@@ -1,0 +1,32 @@
+# Byte-identity fixture for specs/024-multipass-collection T042 (FR-021,
+# SC-03, spec D-9, research D-14): the console report of one fitting metric
+# run, captured from a `ci-rocky` build of the audit point 7a75e95.
+#
+# The scenario is the scripted fake of test/source/detail/pass_fixture.hpp:
+# the four metric columns of two PMU events each (pair_a to pair_d, eight
+# leaves) under a programmable-counter limit of 8 on the `cpu` object, so one
+# pass holds the set, on one context with a fixed one iteration and the
+# default `auto` method. `setProgrammableCounters` is the setter T015 lands,
+# absent at the audit point, and the audit point has no planner, so the limit
+# cannot move these bytes; every other scripted fact is transcribed exactly,
+# the leaf steps that give the metric columns their values included.
+#
+# The report region is every line below that does not start with `#`: the
+# whole `sg::detail::printResult` output of that run, one row, from
+# `sg::detail::Runner` over `RunOptions` with `fixedIterations = 1`.
+#
+# One field of that row is a wall-clock measurement. `overhead floor (ns)=`
+# carries `Plan::sampleOverheadNsMedian()`, reached at
+# source/harness/runner.cpp:1281 and printed at source/harness/report.cpp:487.
+# Four captures of this build differ in that value alone and match byte for
+# byte everywhere else, so the token `<host-calibrated>` stands in the fixture
+# for it and the reading scenario masks the same field of its own run before
+# it compares. The mask, an extended regular expression applied with
+# `sed -E`, is
+# `s/overhead floor (ns)= *[0-9]+\.[0-9]+/overhead floor (ns)= <host-calibrated>/`.
+# The suite treats the field that way elsewhere: harness_capture_test.cpp:328
+# and harness_calibration_test.cpp:589 assert a value above zero.
+#
+# The scenario also requires no `passes` line and no `pass=` token anywhere in
+# the output.
+bmPassIdentity           iterations=         1  real time/iter (ns)=  100.000  cpu time/iter (ns)=  100.000  overhead floor (ns)= <host-calibrated>  endpoint samples=2  pair_a= 2000.000 ratio=1.000 scaled=0 gap=0  pair_b= 4000.000 ratio=1.000 scaled=0 gap=0  pair_c= 6000.000 ratio=1.000 scaled=0 gap=0  pair_d= 8000.000 ratio=1.000 scaled=0 gap=0
