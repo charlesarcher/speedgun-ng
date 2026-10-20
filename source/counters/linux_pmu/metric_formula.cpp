@@ -106,9 +106,7 @@ struct Reference
     ++at;
     decoded.push_back(text[at]);
   }
-  // A plain return leaves gcov an unexecutable record on the closing
-  // brace; building the object here keeps the brace executable.
-  return std::string(decoded);
+  return decoded;
 }
 
 // Decodes one reference token: the `@` form, its escapes and the `:`
@@ -148,8 +146,7 @@ struct Reference
     reference.event = unescape(body.substr(0, comma));
     reference.modifier = unescape(body.substr(comma + 1));
   }
-  // Separate return object, per the gcov brace record above.
-  return Reference(reference);
+  return reference;
 }
 
 bool isReferenceChar(const char c) noexcept
@@ -774,8 +771,7 @@ private:
     }
     parsed.rows.push_back(std::move(row));
   }
-  // Separate return object, per the gcov brace record in unescape.
-  return ParsedMetricTable(parsed);
+  return parsed;
 }
 
 // The Linux seam: a directory's bytes and the scope rule that places a
@@ -838,8 +834,7 @@ struct Leaf
   node.kind = 4;
   node.scale = value;
   spine.core.addNode(node);
-  // Separate return object, per the gcov brace record in unescape.
-  return Spine(spine);
+  return spine;
 }
 
 /// The literal a spine holds, when it holds one and nothing else. Only a
@@ -1224,8 +1219,7 @@ private:
       text += " -> ";
     }
     text += name;
-    // Separate return object, per the gcov brace record in unescape.
-    return std::string(text);
+    return text;
   }
 
   auto leaf(const FormulaNode& node,
@@ -1463,8 +1457,7 @@ auto metricRows(const ParsedMetricTable& table,
              "a metric resolves against an open system (FR-013)");
   std::vector<MetricDefinition> rows(table.rows.size());
   Resolver(table, events, host, rows).run();
-  // Separate return object, per the gcov brace record in unescape.
-  return std::vector<MetricDefinition>(rows);
+  return rows;
 }
 
 auto metricDefinition(const ParsedMetricTable& table,
@@ -1545,8 +1538,7 @@ auto metricListingsOnHost(const MetricHost& host) -> std::vector<MetricListing>
     line.reason = def.reason;
     listing.push_back(std::move(line));
   }
-  // Separate return object, per the gcov brace record in unescape.
-  return std::vector<MetricListing>(listing);
+  return listing;
 }
 
 namespace
@@ -1561,8 +1553,7 @@ namespace
   for (const auto& row : rows) {
     candidates.emplace_back(row.name, row.description);
   }
-  // Separate return object, per the gcov brace record in unescape.
-  return std::vector<std::pair<std::string, std::string>>(candidates);
+  return candidates;
 }
 
 }  // namespace
