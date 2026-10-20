@@ -73,9 +73,14 @@ is recorded again at the FR that carries it.
   size from calibration so the cost of one sample point stays at most
   1% of the chunk's own time. The report discloses the chunk size
   (FR-005, FR-007).
-- **D-2 Storage**: a raw array that grows in fixed-size blocks, one per
-  context, reserved before the timed window; no allocation inside the
-  timed window (FR-008).
+- **D-2 Storage**: one reservation per context, minted before the timed
+  window at the chunk plan's point capacity, which the bound of
+  `kMaxChunkPointsPerLeaf` holds at or below 32'768 points per column;
+  calibration raises the chunk size so the bound holds and no raw point
+  is dropped to fit; no allocation happens inside the timed window
+  (FR-006, FR-008). This replaces the fixed-size-blocks wording of the
+  prompt: a reservation under a bound needs no growth step, and a growth
+  step is an allocation inside the window the criterion forbids.
 - **D-3 Percentile method**: exact nearest-rank over the sorted chunk
   values after the run. The vendored HdrHistogram stays out of the
   result path; it can arrive with N8 (FR-011, PC-3).
@@ -411,8 +416,9 @@ region and prints the rows.
 - **FR-007**: The report shall disclose the chunk size, in iterations
   per chunk, of a run that captures.
 - **FR-008**: The raw point storage of one context shall be reserved
-  before the timed window opens and shall grow in fixed-size blocks; no
-  allocation shall happen inside the timed window (D-2).
+  before the timed window opens, at a capacity bounded by
+  `kMaxChunkPointsPerLeaf` points per column; no allocation shall happen
+  inside the timed window (D-2, FR-006).
 - **FR-009**: The chunk values of a finished run shall stay readable in
   the process after the run, and this feature shall write no raw point
   to a file (D-7).
