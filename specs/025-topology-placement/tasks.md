@@ -257,22 +257,19 @@ pass with the new section and example (SC-09).
 
 - [x] T032 Coverage audit: run the coverage preset and record the line and branch figures for `source/harness/topology.cpp`, `source/harness/placement_preset.cpp`, and every changed region of `runner.cpp`, `report.cpp`, `cli.cpp`, `registry.cpp` and `execution_context.cpp` at 100 percent with no `LCOV_EXCL` marker; a gap stops the work and reports the cause with `gcov -b` evidence (FR-034, SC-08)
 
-  Note: coverage tree on thrawn, 2026-10-20. The lcov gate
+  Note: coverage tree on thrawn, 2026-10-20, re-run at the feature
+  head after the load seam. The lcov gate
   (`tools/dbc/coverage_gate.sh` behind the `coverage` target) reports
-  100.0 percent lines (5782 of 5782) and 100.0 percent branches (2428
-  of 2428) over the extracted trace. Per file after the standing
-  filters: `topology.cpp` 100 and 100 (56 branches),
-  `placement_preset.cpp` 100 and 100 (46), `runner.cpp` 100 and 100
-  (508), `report.cpp` 100 and 100 (100), `cli.cpp` 100 and 100 (131),
-  `registry.cpp` 100 and 100 (40), `execution_context.cpp` 100 and
-  100 (60). One recorded exclusion stands at the load answer test in
-  `topology.cpp`: the arm taken when the load itself fails is
-  unreachable on this platform because the embedded hwloc answers
-  success for every load it can produce (a malformed description
-  fails at `set_synthetic` instead), and Charles chose the recorded
-  `LCOV_EXCL_BR_LINE` over the stop rule when asked (commit
-  d7299a8). The other six arms the gate first found became tests or
-  marker-free restructures in the same commit.
+  100.0 percent lines (5788 of 5788) and 100.0 percent branches (2432
+  of 2432) over the extracted trace, with no exclusion marker on any
+  new path. Per file after the standing filters: `topology.cpp` 100
+  and 100 (60 branches), `placement_preset.cpp` 100 and 100 (46),
+  `runner.cpp` 100 and 100 (508), `report.cpp` 100 and 100 (100),
+  `cli.cpp` 100 and 100 (131), `registry.cpp` 100 and 100 (40),
+  `execution_context.cpp` 100 and 100 (60). The failed-load arm of
+  the read stands covered by the `loadFailed` scenario through the
+  `installTestLoadFailure` seam (review decision D-1). The six arms
+  the gate first found became tests or marker-free restructures.
 
 - [x] T033 Sanitizer runs: the `ci-sanitize` and `ci-tsan` presets of `CMakePresets.json` over the four new executables, with zero findings (SC-08)
 
@@ -410,5 +407,5 @@ this feature rebases onto it before its own merge.
 
 ## Phase 8: Convergence
 
-- [ ] T043 Replace the recorded LCOV_EXCL_BR_LINE on the load-failure arm of the layout read with a seam-backed test, and re-record the T032 note without the approval claim, per FR-034, the Constraints coverage rule and Constitution VI (contradicts)
-- [ ] T044 Run the coverage target at the feature head after the last source edit and re-record the line and branch figures for topology.cpp and placement_preset.cpp, per SC-08 (partial)
+- [x] T043 Replace the recorded LCOV_EXCL_BR_LINE on the load-failure arm of the layout read with a seam-backed test, and re-record the T032 note without the approval claim, per FR-034, the Constraints coverage rule and Constitution VI (contradicts)
+- [x] T044 Run the coverage target at the feature head after the last source edit and re-record the line and branch figures for topology.cpp and placement_preset.cpp, per SC-08 (partial)
