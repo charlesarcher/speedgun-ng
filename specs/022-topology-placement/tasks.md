@@ -194,6 +194,28 @@ the disclosure." (spec.md US4)
 
 - [ ] T025 [US4] Record the thrawn real-host check of `quickstart.md` in this task's note: the `--topology` block, the four-context `l3` run of `build/example/docs_threads`, the `smt` refusal of that same family, the two-context `smt` and `core` pair of `build/example/docs_topology_placement`, and the `taskset -c 0-11` narrowing, each with its measured output (SC-01, SC-02, SC-06, SC-11)
 
+  Note: measured on thrawn (one package, four L3 groups, 24 cores, 48
+  threads), 2026-10-20. `docs_threads --topology` printed the counts
+  line `topology: packages=1 l3-groups=4 cores=24 threads=48 mask=0-47`
+  and the group lines `l3 0: 0-5,24-29`, `l3 1: 6-11,30-35`,
+  `l3 2: 12-17,36-41`, `l3 3: 18-23,42-47`, exit 0. The four-context
+  `l3` run of `docs_threads` printed the topology line and
+  `contexts=4 ctx0=SPIN/0@0/applied ctx1=SPIN/6@1/applied
+  ctx2=SPIN/12@2/applied ctx3=SPIN/18@3/applied`, one cpu per group,
+  exit 0. The `smt` run of that family printed
+  `--placement: 'smt' places 2 of the 4 requested contexts` and exit
+  2. `docs_topology_placement --filter bmPair --placement=smt` printed
+  `contexts=2 ctx0=SPIN/0@0/applied ctx1=SPIN/24@0/applied`, the
+  sibling pair of one core, and the same family with
+  `--placement=core` printed `contexts=2 ctx0=SPIN/0@0/applied
+  ctx1=SPIN/1@0/applied`, two threads of one group. Under
+  `taskset -c 0-11` the listing read
+  `topology: packages=1 l3-groups=2 cores=12 threads=12 mask=0-11`
+  with lines `l3 0: 0-5` and `l3 1: 6-11`, and the four-context `l3`
+  run stopped with the line
+  `--placement: 'l3' places 2 of the 4 requested contexts` (SC-01,
+  SC-02, SC-06, SC-11).
+
 **Checkpoint**: US4 stands on its own: the three-shape scenarios pass
 `ctest --test-dir build -R harness_placement_preset_test`, and the thrawn
 `smt` and `core` pair of `build/example/docs_topology_placement` prints
@@ -218,6 +240,11 @@ at the feature head." (spec.md US5)
 - [ ] T029 [P] [US5] Add the "Topology placement" section to `docs/pages/harness.md` with the preset table, the fit-limit idea, the report shape with the topology line, and the listing output rendered in prose and inline code so the page keeps its two `sg-sample-output` blocks, `example/docs/reading_the_report.expected#report` at `docs/pages/harness.md:572` and `example/docs/percentiles.expected#report` at `:857`, byte for byte, and this feature adds none (FR-027)
 
 - [ ] T030 [US5] Register the section in `tools/docs/example_drift.py` and move the page cap: append `"Topology placement",` to the `SECTIONS` tuple at `tools/docs/example_drift.py:30` and `"Topology placement": ("topology_placement.cpp",),` to `SECTION_OWNERS` at `:57`, without which `check_sections` reports `section 'Topology placement' is not one of the 21 capability sections` at `:540` or raises `KeyError` at `:532`; then raise `PAGE_LINE_CAP` at `:112` by the measured size of the new section, the cap having already absorbed the two option rows in T014 and T021, trim prose first, and record the measured number and the resulting page length in this task's note (FR-028, spec Budget note)
+
+  Note: the section measured 24 lines with its quick-reference row
+  (heading, prose, region marker, two fences, the 17-line region, the
+  blank line and the name row), and the page stands at 692 lines with
+  `PAGE_LINE_CAP` at 692; the drift gate passes at that number.
 
 **Checkpoint**: US5 stands on its own: the drift gate and `example_run`
 pass with the new section and example (SC-09).
