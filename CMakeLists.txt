@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.10.0
+    VERSION 0.11.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -218,7 +218,11 @@ set_target_properties(
     # surface, BenchmarkResult gains the contexts disclosure, and the
     # execution context ships in this archive with no new target, so the
     # exported layouts change and the hand-kept number moves (FR-043).
-    SOVERSION 6
+    # specs/021 FR-031: State gains the chunk fields and the chunk cadence,
+    # ResultRow gains the percentile columns, and BenchmarkHandle gains the
+    # percentile selector, so the exported layouts move again and the number
+    # goes to 7 (FR-030, D-15).
+    SOVERSION 7
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
