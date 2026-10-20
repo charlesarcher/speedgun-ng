@@ -615,6 +615,15 @@ name, and `--catalog` lists the metrics the host offers.
 ./build/example/docs_command_line --catalog
 ```
 
+`--metric` names one metric the host's table defines, in the shape
+`--metric=cpi`, and the column it adds holds the metric the library composes:
+one column per name, in the order the names are given. A name the table
+carries nothing for stops the run before any measurement with status 2, on one
+line naming the near-miss names; a metric the host carries but cannot count
+prints its refusal kind in place of the number, and the run continues. The
+`--catalog` listing marks a metric line with `mode=metric` and prints it under
+the object its first leaf reaches, after that object's counter lines.
+
 The aggregate row of the quick-start benchmark carries the built-in statistics
 for one benchmark: mean, median, `sd=`, `cv=`, min, max and the repetition
 count.
