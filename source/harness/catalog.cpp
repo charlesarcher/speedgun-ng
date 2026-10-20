@@ -62,6 +62,13 @@ auto printObject(const sg::counters::Object& object,
     if (row.objectPath != path) {
       continue;
     }
+    // The two refusal fields settle outside the argument list: a
+    // published row states neither, and the strings outlive the call.
+    const std::string refusalText = row.published
+        ? std::string("-")
+        : std::string(sg::counters::metricRefusalName(row.refusal));
+    const std::string reasonText =
+        row.published ? std::string("-") : std::string(row.reason);
     std::printf("catalog: %s/%s group=%s description=%s unit=%s "
                 "mode=metric avail=%s refusal=%s reason=%s\n",
                 path.c_str(),
@@ -70,11 +77,8 @@ auto printObject(const sg::counters::Object& object,
                 std::string(row.description).c_str(),
                 std::string(row.unit).c_str(),
                 availabilityName(row.avail),
-                row.published
-                    ? "-"
-                    : std::string(sg::counters::metricRefusalName(row.refusal))
-                          .c_str(),
-                row.published ? "-" : std::string(row.reason).c_str());
+                refusalText.c_str(),
+                reasonText.c_str());
   }
   for (const auto* child : object.children()) {
     printObject(*child, metrics);
