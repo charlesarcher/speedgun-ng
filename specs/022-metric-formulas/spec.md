@@ -148,7 +148,7 @@ machine at their own run time.
 
 Each check read the audit-point tree on corsairone.
 
-### PC-1: the table parser and `PmuTableEntry`. PASS for the parser, PARTIAL for host reachability.
+### PC-1: the table parser and `PmuTableEntry`. PASS for the parser; host reachability is the gap this feature closes.
 
 - `source/counters/linux_pmu/table_parse.cpp` defines `addEntry`. Its
   first test returns early for a row that carries
