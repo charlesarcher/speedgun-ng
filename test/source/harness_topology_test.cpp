@@ -351,6 +351,20 @@ auto childMalformed() -> int
   return 0;
 }
 
+// Review decision D-1: the installed failure answers the load call in
+// place of hwloc, so the failed-load arm leaves readable false with no
+// partial layout on every platform.
+auto childLoadFailed() -> int
+{
+  sg::detail::installTestLoadFailure(1);
+  const auto& layout = sg::detail::layout();
+  if (layout.readable || !layout.threads.empty() || !layout.mask.empty()) {
+    std::fprintf(stderr, "a failed load produced a partial layout\n");
+    return 1;
+  }
+  return 0;
+}
+
 // FR-002, E-09: the synthetic description `Package:2 Core:2 PU:2`
 // describes packages, cores and processing units but no cache level, so
 // every core closes with no group and the group list stays empty.
@@ -452,6 +466,9 @@ auto main(int argc, char** argv) -> int
     if (mode == "listingGap") {
       return childListingGap();
     }
+    if (mode == "loadFailed") {
+      return childLoadFailed();
+    }
     if (mode == "readOnce") {
       return childReadOnce();
     }
@@ -464,7 +481,7 @@ auto main(int argc, char** argv) -> int
     const char* what;
   };
 
-  const std::array<Expected, 11> scenarios {
+  const std::array<Expected, 12> scenarios {
       Expected {
           "hostRead",
           "the host read scenario ended clean (FR-001, " "FR-005, R-11, R-13)"},
@@ -483,6 +500,8 @@ auto main(int argc, char** argv) -> int
       Expected {
           "malformed",
           "the malformed description scenario ended clean (FR-005, R-04)"},
+      Expected {"loadFailed",
+                "the failed load scenario ended clean (FR-005, D-1)"},
       Expected {"noGroup",
                 "the groupless synthetic scenario ended clean (FR-002, E-09)"},
       Expected {"listingGap",

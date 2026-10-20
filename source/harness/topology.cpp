@@ -1,5 +1,5 @@
 // ============================================================================
-// specs/022-topology-placement T010: the machine layout read (US1, FR-001,
+// specs/025-topology-placement T010: the machine layout read (US1, FR-001,
 // FR-002, FR-004, FR-005, FR-006, R-01, R-04).
 //
 // This is the one harness translation unit that includes <hwloc.h>
@@ -46,7 +46,10 @@ class TopologyHolder
 public:
   TopologyHolder()
   {
-    const int rc = hwloc_topology_init(&m_topology);
+    // The answer is read only inside SG_REQUIRE, which expands to
+    // nothing in a Release build, so the attribute keeps it compiling
+    // in every build type.
+    [[maybe_unused]] const int rc = hwloc_topology_init(&m_topology);
     SG_REQUIRE(rc == 0 && m_topology != nullptr,
                "the walk reads a built topology (R-04)");
   }
@@ -121,6 +124,8 @@ auto ordinalOf(std::vector<hwloc_obj_t>& objects,
 // FR-001, FR-002, FR-005: the one read. A failed load leaves `readable`
 // false and no partial layout; the walk builds the threads, cores, groups
 // and packages of the restricted set in ascending cpu order.
+auto installedLoadFailureSlot() -> std::optional<int>&;
+
 auto readLayout(const std::optional<std::string>& description)
     -> detail::MachineLayout
 {
@@ -135,15 +140,13 @@ auto readLayout(const std::optional<std::string>& description)
     rc = hwloc_topology_set_synthetic(topology, description->c_str());
   }
   if (rc == 0) {
-    rc = hwloc_topology_load(topology);
+    // Review decision D-1: the load answer is a seam. An installed
+    // failure stands in for the hwloc answer, so the failed-load arm
+    // stands under test on every platform.
+    const auto failure = installedLoadFailureSlot();
+    rc = failure.has_value() ? *failure : hwloc_topology_load(topology);
   }
-  // LCOV_EXCL_BR_LINE : coverage exclusion (T032, recorded with Charles):
-  // the arm taken when the load itself fails needs hwloc to answer a
-  // failed load, and the embedded build answers success for every load
-  // this platform can produce (HWLOC_FSROOT is inert there, and a
-  // malformed description fails at set_synthetic, which takes the other
-  // arm of this test, exercised by the malformed scenario).
-  if (rc != 0) {  // LCOV_EXCL_BR_LINE
+  if (rc != 0) {
     return layout;
   }
 
@@ -211,8 +214,8 @@ auto readLayout(const std::optional<std::string>& description)
   return layout;
 }
 
-// R-04: the two installs, each a function-local slot consulted before the
-// one read and never able to invalidate the cache after it.
+// R-04: the three installs, each a function-local slot consulted before
+// the one read and never able to invalidate the cache after it.
 auto installedLayoutSlot() -> std::optional<detail::MachineLayout>&
 {
   static std::optional<detail::MachineLayout> slot;
@@ -222,6 +225,12 @@ auto installedLayoutSlot() -> std::optional<detail::MachineLayout>&
 auto installedDescriptionSlot() -> std::optional<std::string>&
 {
   static std::optional<std::string> slot;
+  return slot;
+}
+
+auto installedLoadFailureSlot() -> std::optional<int>&
+{
+  static std::optional<int> slot;
   return slot;
 }
 
@@ -239,6 +248,11 @@ auto installTestTopologyDescription(std::optional<std::string> description)
     -> void
 {
   installedDescriptionSlot() = std::move(description);
+}
+
+auto installTestLoadFailure(std::optional<int> answer) -> void
+{
+  installedLoadFailureSlot() = answer;
 }
 
 // FR-002, R-04: the one cached read. An installed layout short-circuits
