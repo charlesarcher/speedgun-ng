@@ -1317,6 +1317,31 @@ auto main(const int argc, char** argv) -> int
       methodLine(lastWordOutput).find("method=multiplex") != std::string::npos,
       "the last --metric-method word is the one the run settles to (FR-026)");
 
+  // FR-024, FR-025 and the `auto` row of `contracts/metric-method-option.md`:
+  // the word asks the harness to choose, and the choice is the planner path
+  // wherever a limit is published. The scripted family publishes a limit of 4,
+  // so the word settles to the same two-pass plan the forced word does.
+  std::string autoOutput;
+  const int autoStatus =
+      childRun(self, "methodrun", {"--metric-method=auto"}, autoOutput);
+  if (methodLine(autoOutput).find("method=passes") == std::string::npos) {
+    std::fprintf(stderr,
+                 "--metric-method=auto exited %d with:\n%s\n",
+                 WEXITSTATUS(autoStatus),
+                 autoOutput.c_str());
+  }
+  check(WEXITSTATUS(autoStatus) == 0,
+        "the word that asks the harness to choose carries the run to its "
+        "report (FR-025)");
+  check(autoOutput.find("BENCHMARK_RAN") != std::string::npos,
+        "the accepted word runs the family's function (FR-026)");
+  check(methodLine(autoOutput).find("method=passes") != std::string::npos,
+        "a limit is published, so the chosen method names the planner path "
+        "(FR-024, the `auto` row of the option table)");
+  check(countFieldOf(methodLine(autoOutput), "count=") == 2,
+        "the chosen plan splits the scripted family at the published limit "
+        "(FR-024, FR-025, E-03)");
+
   // FR-025, US2 scenario 4: the handle asks for `multiplex` and the command
   // line asks for `passes`. The command line wins, so the planner splits the
   // four scripted columns into two passes at the scripted limit of 4 and the
