@@ -262,8 +262,8 @@ option table at `:321` to `:344` with `filter`, `list`, `repetitions`,
 `min-time`, `iterations`, `warmup-time`, `dry-run`, `counter`, `metric`,
 `catalog`, `percentiles`, `no-percentiles`, `placement`, `topology`,
 `json` and `json-raw`. The usage errors print one line and answer status
-2 at `:80`, `:132`, `:152`, `:174`, `:276`, `:405`, `:419`, `:462`,
-`:473`, `:498`, `:518` and `:548`. The entry point closes with the
+2 at `:80`, `:132`, `:152`, `:174`, `:276`, `:405`, `:419`, `:435`,
+`:448`, `:462`, `:473`, `:498` and `:518`. The entry point closes with the
 postcondition
 `SG_ENSURE((status != 0) == (anyFailed || anyInterrupted || reportFailed),`
 at `:646`, and the status table of
@@ -1183,7 +1183,7 @@ Symbol and section anchors, each read at the audit point `aec8fce`.
 | Aggregate row, time statistics, metric and counter statistics | `source/harness/runner.cpp:2163`, `:2185` to `:2196`, `:2229`, `:2262` |
 | Counter label source | `source/harness/runner.cpp:2131` |
 | Complexity fit rows | `source/harness/runner.cpp:2436` to `:2466` |
-| `speedgunMain`, option table, usage errors, closing postcondition | `source/harness/cli.cpp:290`, `:321` to `:344`, `:80`, `:132`, `:152`, `:174`, `:276`, `:405`, `:419`, `:435`, `:448`, `:462`, `:498`, `:518`, `:548`, `:646` |
+| `speedgunMain`, option table, usage errors, closing postcondition | `source/harness/cli.cpp:290`, `:321` to `:344`, `:80`, `:132`, `:152`, `:174`, `:276`, `:405`, `:419`, `:435`, `:448`, `:462`, `:473`, `:498`, `:518`, `:646` |
 | Batch filter pattern rule and its no-match answer | `source/harness/cli.cpp:470` to `:474`, `:529` to `:536`, `:545` to `:550` |
 | Console printers and unit scale | `source/harness/report.cpp:70`, `:88`, `:164`, `:193`, `:234`, `:257`, `:309`, `:331` |
 | Percentile column order | `source/harness/report.cpp:282` to `:296` |
