@@ -1076,3 +1076,127 @@ the thirteen status 2 answers of the scan, `:80`, `:132`, `:152`, `:174`,
 `:276`, `:405`, `:419`, `:435`, `:448`, `:462`, `:473`, `:498` and `:518`,
 and the no-match print at `:548` left both lists because that path answers
 status 0 at `:549`.
+
+
+
+
+
+## Phase 18: Convergence round 7
+
+**Verified at:** `fc3a429` on 2026-10-21, the citation commit `54d908e`
+and its ledger on top of round 6's audit point `88d0589`.
+`git diff --stat 88d0589..HEAD` names `research.md`, `spec.md` and
+`tasks.md`; no source, test, fixture, schema or docs file changed.
+
+**Verdict:** no non-trivial work to append. T074, T075, T076 and T077
+read closed at the passages they name, and a sweep of every citation in
+this feature's artifacts finds no number that holds something else at
+the reading its own label states.
+
+**Counts:** 74 functional requirements: 74 satisfied, 0 partial, 0
+unsatisfied. 13 success criteria: 12 satisfied, 1 partial (SC-012), 0
+unsatisfied. 77 tasks: 73 verified, 2 open under the owner's deferral
+(T069, T070), 2 external (T058, T060).
+
+**T077 reads closed at its three sites.**
+`specs/026-regression-gate/research.md:270` names the schema checker at
+`source/harness/json_load.cpp:1083`, and that line holds
+`auto checkReport(std::string_view schemaPath,`.
+`specs/026-regression-gate/spec.md:266` and `:1186` each list thirteen
+status 2 answers of the option scan, each landing on a `std::exit(2)`
+or `return 2` line of `source/harness/cli.cpp`: `:80`, `:132`,
+`:152`, `:174`, `:276`, `:405`, `:419`, `:435`, `:448`,
+`:462`, `:473`, `:498`, `:518`. The no-match print at `:548`
+stands outside both lists and that path answers status 0 at `:549`.
+
+**T074, T075 and T076 read closed.** The nineteen
+`source/harness/cli.cpp` sites of this feature's artifacts each match a
+landmark measured here: entry `:290`, option table `:321` to `:344`
+with the terminator `:344`, scan close `:464`, filter precompile
+`:470` to `:474`, compare branch `:477` to `:486`, filter search
+`:533`, no-match answer `:545` to `:550`, closing postcondition
+`:646` to `:647`. The closed artifacts of the other specs again name
+their own audit points:
+`specs/016-harness-registration-and-fixtures/contracts/selection-and-cli.md:11`
+cites `source/harness/cli.cpp:142`, and
+`specs/023-json-reports/contracts/report-options.md:77` cites `:415`.
+
+**The citation sweep of this round.** 385 citation references in
+`spec.md`, `plan.md`, `research.md`, `data-model.md`,
+`quickstart.md` and the six contracts resolve to 108 distinct target
+lines. A passage describing this head cites this head: the reader fills
+`schemaVersion` at `source/harness/json_load.cpp:1156`,
+`speedgunVersion` at `:1175` and one warning slot per result at
+`:1183` to `:1189`, the pairing postcondition stands at `:1195` to
+`:1197`, and `RunOptions` stands at
+`source/harness/detail/internal.hpp:430`. A passage recording the audit
+point cites `aec8fce`, and its number holds there: `loadReport` at
+`include/speedgun-ng/benchmark.hpp:2330`, `ReportData` at `:553`, the
+noise record read at `source/harness/json_load.cpp:729` to `:743`, and
+`PAGE_LINE_CAP` 713 at `tools/docs/example_drift.py:132`.
+
+One label reads wider than its rows. The sentence at
+`specs/026-regression-gate/spec.md:1163` states that the table's
+anchors stand "each read at the audit point `aec8fce`", and the two
+`source/harness/cli.cpp` rows at `:1186` and `:1187` carry this
+head's numbers, the numbers T074, T076 and T077 re-derived. Every
+number there holds here, so no task is appended.
+
+**The requirements read complete.** The grammar stands at
+`source/harness/compare.cpp:162` with `kEscapedCharacters`, `:186`
+and `:772` (FR-004 to FR-024). The value space stands at `:381`,
+`:840`, `:873`, `:510` and `:518` (FR-011 to FR-017, FR-027,
+FR-032, FR-055). `compareValues` at `:922` answers the arithmetic, the
+words and the zero-baseline fault (FR-025 to FR-031). The guard stands at
+`:1067` over the account at `:995`, `entryFor` at `:1380` carries its
+reason, and the walk runs through `:1173`, `:1207`, `:1287` and
+`:1438` with the default rule at `:724` (FR-002, FR-008 to FR-011,
+FR-033 to FR-046). The mode runs at `:1520`, prints at `:1596` and
+writes at `:1678`, and a refused file answers at `:1738` to `:1753`
+(FR-006, FR-007, FR-053, FR-056 to FR-058, FR-074). The public surface
+stands at `include/speedgun-ng/benchmark.hpp:596`, `:613`, `:624`,
+`:647`, `:674`, `:697`, `:712`, `:2515` and `:2544` (FR-001,
+FR-064). The lenient key rule stands at `source/harness/json_load.cpp:1000`
+to `:1030` with its case at `test/source/harness_json_load_test.cpp:914`
+(FR-067, FR-070, FR-073). 61 cases run in
+`test/source/harness_compare_test.cpp` and 22 in
+`test/source/harness_compare_cli_test.cpp` over eleven fixtures under
+`test/data/`, and neither file names a sleep or a clock (FR-071). The
+page, its rows, the guide section, the budget and the example target
+stand at `README.md:597` to `:620`, `:637` to `:639`, `:644` to
+`:645`, `docs/pages/harness.md:1095` and `example/CMakeLists.txt:73`
+(FR-059 to FR-063). The version reads 0.15.0 at `CMakeLists.txt:7` with
+the harness `SOVERSION` 9 at `:251` (FR-065, FR-066), and the loop-shape
+gate runs inside `ctest` at `test/CMakeLists.txt:694` (FR-072).
+
+**The success criteria read complete.** SC-001 to SC-011 and SC-013 hold
+on the evidence above, and SC-008 holds on the coverage reading of 100.0%
+lines (7714 of 7714) and 100.0% branches (3651 of 3651) at `88d0589`,
+whose code equals this head. SC-012 stays partial: run 39652027115 at
+this head answers success for nine of its jobs with `test` and
+`coverage` in flight, and run 39644756129 at `4b59f1e` answers the whole
+set.
+
+**The four open tasks read as their owners left them.** T058: `git
+ls-remote origin 026-regression-gate` answers `fc3a429`, equal to this
+head. T060 waits on the coverage reading of the landing head. T069
+stands enforced where a check exists at the call: `SG_REQUIRE` at
+`source/harness/compare.cpp:775`, `:796`, `:800`, `:928`, `:1074`
+and `:1684`, beside `SG_ENSURE` at `:779`, `:812` and `:1736`.
+T070's duplication stands: `:605`, `:634` and `:510` of
+`source/harness/compare.cpp` beside `JsonObjectWriter` at
+`source/harness/json_report.cpp:34`, `JsonArrayWriter` at `:63` and the
+table at `source/harness/report.cpp:61`. The open questions at
+`spec.md:1212` to `:1225` each stand encoded in their requirement.
+
+**The gates read at this head.** `bash test/cli_shape.sh` exits 0 with
+the flag read once per pass, `bash test/time_source_gate.sh` prints
+clean with both planted probes reported, and
+`python3 tools/docs/example_drift.py .` exits 0. `LCOV_EXCL` appears zero
+times in the three touched sources, and `ctest --test-dir build/conv1`
+answers 109 of 109.
+
+**Checkpoint:** the tree is clean at `fc3a429`, the remote equals the
+head, and every fixture the table of
+`specs/026-regression-gate/quickstart.md:69` to `:77` names stands in
+`test/data/`.
