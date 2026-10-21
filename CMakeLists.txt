@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.14.0
+    VERSION 0.15.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -244,7 +244,11 @@ set_target_properties(
     # capture types, and the harness gains the report writer, the loader and
     # the two report options, so the exported layouts move again and the
     # number goes to 8 (FR-043, D-16).
-    SOVERSION 8
+    # specs/026 FR-065: ReportData gains the document texts and the noise
+    # warning column, the comparison types enter the public header, and the
+    # harness gains the comparison surface, so the exported layouts move
+    # again and the number goes to 9 (FR-065, spec D-17).
+    SOVERSION 9
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
