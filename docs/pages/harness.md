@@ -1053,16 +1053,20 @@ The root object carries `schemaVersion`, `speedgun` and `benchmarks`. The
 `speedgun` object carries the library version and the build type of the build
 that ran. `benchmarks` holds one entry per benchmark, in registry order, and
 each entry holds its name, suite, case, outcome, reason, time unit, percentile
-points, contexts, noise warning, rows, labels and statistics. One row per
-repetition carries its iteration count, its two time columns, its metric and
-counter columns, its statistics, its percentile cells, its fit and its raw
-chunk columns. `docs/schema/report-v1.json` states the whole shape.
+points, contexts, noise warning, rows, labels and statistics, beside the pass
+disclosure `metricMethod`, `passCount`, `passSpread` and `spreadWarning`. One
+row per repetition carries its iteration count, its two time columns, its metric
+and counter columns, its statistics, its percentile cells, its fit and its raw
+chunk columns. Each metric column of a row carries `pass`, the index of the pass
+that measured the value. `docs/schema/report-v1.json` states the whole shape.
 
 ### The version rule
 
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
-names the version the document carries.
+names the version the document carries. A run writes `1.1`, the shape that
+added the pass fields; a `1.0` document, which carries none of them, loads
+through the same rule.
 
 ### The null rule
 
@@ -1070,6 +1074,8 @@ A percentile the chunk count cannot answer stands as `null`, the file form of
 the `not available` the console prints. `reason`, `label`, `noiseWarning`,
 `counterDisclosure` and `fit` stand `null` where the run carries none, and a
 statistic whose sample set stands empty answers `null` for every quantity.
+`passSpread` and each metric column's `pass` stand `null` where fewer than two
+passes measured the run.
 
 ### The raw column rule
 
@@ -1242,7 +1248,8 @@ those passes. A spread above 5% brings the warning line with it, and the
 warning changes no value and no exit status. When more than one pass ran,
 each metric column gains a `pass=<index>` token after its `gap=` field,
 naming the pass that measured the value. A one-pass run of the default
-method prints no line, and its report keeps the fields of a single-plan run.
+method prints no line, and its report names `AUTO` with a count of zero, a
+null spread and a null `pass` on every metric column.
 
 ### The split rule
 
