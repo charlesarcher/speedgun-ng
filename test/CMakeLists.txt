@@ -596,6 +596,24 @@ target_include_directories(harness_json_load_test PRIVATE ${CMAKE_SOURCE_DIR}/so
 target_compile_features(harness_json_load_test PRIVATE cxx_std_23)
 add_test(NAME harness_json_load_test COMMAND harness_json_load_test)
 
+# The rule grammar and the compare mode of the regression gate (specs/026
+# T007; FR-071, SC-007, D-20, PC-10). The fixture documents reach each
+# test through the path argument, the shape of `hwloc_purity_scan`.
+add_executable(harness_compare_test source/harness_compare_test.cpp)
+target_link_libraries(harness_compare_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_compare_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_compare_test PRIVATE cxx_std_23)
+add_test(NAME harness_compare_test
+         COMMAND harness_compare_test ${CMAKE_SOURCE_DIR}/test/data)
+
+add_executable(harness_compare_cli_test source/harness_compare_cli_test.cpp)
+target_link_libraries(harness_compare_cli_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_compare_cli_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_compare_cli_test PRIVATE cxx_std_23)
+add_test(NAME harness_compare_cli_test
+         COMMAND harness_compare_cli_test ${CMAKE_SOURCE_DIR}/test/data)
+
 # The command line over a scripted provider (T020; US2, FR-009, FR-015,
 # FR-021, FR-022, FR-034, FR-036, SC-007).
 add_executable(harness_cli_test source/harness_cli_test.cpp)

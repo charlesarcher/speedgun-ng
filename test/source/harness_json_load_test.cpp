@@ -8,6 +8,13 @@
 // the raw setting at `none`. The version rule then gates the reader: a
 // later minor loads, a later major is refused naming its version, and a
 // document whose version stands missing or unspelled is refused.
+// The reader extension of specs/026 (T010) then adds the three fields of
+// E-07: the two header texts the document carries, and the noise record
+// of each entry stored beside the result it warns of. Each error code the
+// extension can answer carries its own plant. The unknown-key rule of
+// specs/026 (T047) then shows a key the node table does not list, inside
+// an object the schema leaves open, loading with no fault.
+//
 // Frameworkless check()/fail() convention.
 // ============================================================================
 
@@ -527,16 +534,11 @@ constexpr Mutation kMutations[] = {
 // One planted value in place of the whole value the key carries, so a
 // field that stands where an array or an object belongs stays a readable
 // document (FR-024).
-auto replaceValue(std::string& text,
-                  const char* key,
-                  const char* replacement) -> bool
+// One past the value that stands at `valueAt`: an array or an object
+// closes at its own bracket, a scalar ends at the next separator.
+auto valueEnd(const std::string& text, std::size_t valueAt) -> std::size_t
 {
-  const std::string needle = std::string("\"") + key + "\":";
-  const std::size_t at = text.find(needle);
-  if (at == std::string::npos) {
-    return false;
-  }
-  std::size_t end = at + needle.size();
+  std::size_t end = valueAt;
   const char open = text[end];
   if (open == '[' || open == '{') {
     const char close = open == '[' ? ']' : '}';
@@ -569,7 +571,40 @@ auto replaceValue(std::string& text,
       ++end;
     }
   }
+  return end;
+}
+
+auto replaceValue(std::string& text,
+                  const char* key,
+                  const char* replacement) -> bool
+{
+  const std::string needle = std::string("\"") + key + "\":";
+  const std::size_t at = text.find(needle);
+  if (at == std::string::npos) {
+    return false;
+  }
+  const std::size_t end = valueEnd(text, at + needle.size());
   text.replace(at, end - at, needle + replacement);
+  return true;
+}
+
+// One key taken out of an object whole, its separating comma with it, so
+// a document can stand without a key the reader only reads leniently.
+auto eraseKey(std::string& text, const char* key) -> bool
+{
+  const std::string needle = std::string("\"") + key + "\":";
+  const std::size_t at = text.find(needle);
+  if (at == std::string::npos) {
+    return false;
+  }
+  std::size_t start = at;
+  std::size_t end = valueEnd(text, at + needle.size());
+  if (start > 0 && text[start - 1] == ',') {
+    --start;
+  } else if (end < text.size() && text[end] == ',') {
+    ++end;
+  }
+  text.erase(start, end - start);
   return true;
 }
 
@@ -694,6 +729,221 @@ auto theContextSpansRefuseWithPointers() -> void
   }
 }
 
+// The string one key carries in the written document, read from its bytes
+// so a version bump moves no test here (specs/026 E-07).
+auto quotedValue(const std::string& text, const char* key) -> std::string
+{
+  const std::string needle = std::string("\"") + key + "\":\"";
+  const std::size_t at = text.find(needle);
+  if (at == std::string::npos) {
+    return {};
+  }
+  const std::size_t start = at + needle.size();
+  const std::size_t end = text.find('"', start);
+  return end == std::string::npos ? std::string()
+                                  : text.substr(start, end - start);
+}
+
+// The three fields the load call gains (specs/026 E-07, FR-070, D-04):
+// the two header texts the document carries, and one warning entry beside
+// every result. The writer stamps the header texts itself, so the loaded
+// text answers the document and not this build.
+auto theHeaderFieldsAndTheStoredWarningsLoad(const std::string& text) -> void
+{
+  const auto loaded = sg::loadReport(kWritten);
+  if (!loaded.has_value()) {
+    std::printf("  %s\n", loaded.error().c_str());
+    sg::test::fail("the written document stopped loading");
+    return;
+  }
+  check(loaded->schemaVersion == quotedValue(text, "schemaVersion")
+            && !loaded->schemaVersion.empty(),
+        "the loaded value answers the schemaVersion text the document "
+        "carries (FR-070, E-07)");
+  check(loaded->speedgunVersion == quotedValue(text, "version")
+            && !loaded->speedgunVersion.empty(),
+        "the loaded value answers the version text under the speedgun "
+        "header (FR-070, E-07)");
+  check(loaded->noiseWarnings.size() == loaded->results.size()
+            && loaded->noiseWarnings.size() == 1
+            && !loaded->noiseWarnings[0].has_value(),
+        "a null noise warning answers one entry per result, holding "
+        "nothing (FR-070, E-07)");
+
+  // The field answers the text the document carried. The build stamps
+  // its own number elsewhere; a later minor loads and answers its own
+  // number in the field.
+  std::string other = text;
+  other.replace(other.find("\"schemaVersion\":") + 16, 5, "\"1.9\"");
+  sg::test::writeText("harness_json_load_headertext.json", other);
+  const auto minor = sg::loadReport("harness_json_load_headertext.json");
+  check(minor.has_value() && minor->schemaVersion == "1.9",
+        "the field answers the version of a later minor (FR-070, FR-010)");
+
+  // A document that omits the speedgun object entirely stays readable and
+  // answers an empty text: the reader is lenient on a header it prints.
+  std::string noHeader = text;
+  if (!eraseKey(noHeader, "speedgun")) {
+    sg::test::fail("no speedgun header in the written document");
+    return;
+  }
+  sg::test::writeText("harness_json_load_noheader.json", noHeader);
+  const auto bare = sg::loadReport("harness_json_load_noheader.json");
+  check(bare.has_value() && bare->speedgunVersion.empty()
+            && bare->schemaVersion == quotedValue(text, "schemaVersion"),
+        "a document that omits the speedgun object answers an empty "
+        "speedgunVersion with no fault (FR-070, E-07)");
+
+  // The speedgun object stands and the `version` key inside it does not:
+  // the same lenience one level deeper, an empty text and no fault.
+  std::string noVersionKey = text;
+  if (!eraseKey(noVersionKey, "version")) {
+    sg::test::fail("no version key in the written document");
+    return;
+  }
+  sg::test::writeText("harness_json_load_noversionkey.json", noVersionKey);
+  const auto keyless = sg::loadReport("harness_json_load_noversionkey.json");
+  check(keyless.has_value() && keyless->speedgunVersion.empty()
+            && keyless->schemaVersion == quotedValue(text, "schemaVersion"),
+        "a speedgun header that carries no version key answers an empty "
+        "speedgunVersion with no fault (FR-070, E-07)");
+
+  // The warning key taken away entirely, which is the one key an entry
+  // may leave out (E-10): the entry beside that result still stands and
+  // holds nothing.
+  std::string noWarning = text;
+  const std::size_t absent = noWarning.find(",\"noiseWarning\":null");
+  if (absent == std::string::npos) {
+    sg::test::fail("no noise-warning key in the written document");
+    return;
+  }
+  noWarning.erase(absent, std::strlen(",\"noiseWarning\":null"));
+  sg::test::writeText("harness_json_load_noheaderwarning.json", noWarning);
+  const auto quiet = sg::loadReport("harness_json_load_noheaderwarning.json");
+  check(quiet.has_value() && quiet->noiseWarnings.size() == 1
+            && !quiet->noiseWarnings[0].has_value(),
+        "a document that carries no noise-warning key answers an entry "
+        "that holds nothing (FR-070, E-07, E-10)");
+
+  // The record the hand-built document carries, stored beside its result
+  // and answering its three values (E-06, E-07).
+  sg::test::writeText("harness_json_load_noise.json", kRich);
+  const auto rich = sg::loadReport("harness_json_load_noise.json");
+  check(rich.has_value(), "the document that carries a noise record loads");
+  if (!rich.has_value()) {
+    std::printf("  %s\n", rich.error().c_str());
+    return;
+  }
+  check(rich->noiseWarnings.size() == rich->results.size()
+            && rich->noiseWarnings.size() == 1
+            && rich->noiseWarnings[0].has_value(),
+        "the entry carries a warning beside its result (FR-070, E-07)");
+  const sg::NoiseWarning warning =
+      rich->noiseWarnings.size() == 1 && rich->noiseWarnings[0].has_value()
+      ? *rich->noiseWarnings[0]
+      : sg::NoiseWarning {};
+  check(warning.spinning == 3 && warning.runnableCpus == 16
+            && warning.sharesOneCpu,
+        "the stored warning answers its three values (FR-070, E-06)");
+}
+
+// Each error code the extension can answer, planted once in a document
+// that carries a noise record: the header object, the version text under
+// it, and the three values of the record the reader now stores. Every
+// refusal names the pointer of the field it stands in (FR-067, FR-070,
+// specs/026 contracts/reader-extension.md).
+constexpr struct ExtensionPlant
+{
+  const char* key;
+  const char* replacement;
+  const char* pointer;
+} kExtensionPlants[] = {
+    {"speedgun", "5", "/speedgun"},
+    {"version", "5", "/speedgun/version"},
+    {"spinning", "\"x\"", "/benchmarks/0/noiseWarning/spinning"},
+    {"runnableCpus", "\"x\"", "/benchmarks/0/noiseWarning/runnableCpus"},
+    {"sharesOneCpu", "\"x\"", "/benchmarks/0/noiseWarning/sharesOneCpu"},
+};
+
+auto eachExtensionErrorCodeRefuses(const std::string& text) -> void
+{
+  std::string base = text;
+  const std::size_t at = base.find(",\"noiseWarning\":null");
+  if (at == std::string::npos) {
+    sg::test::fail("no noise-warning key in the written document");
+    return;
+  }
+  base.replace(at,
+               std::strlen(",\"noiseWarning\":null"),
+               ",\"noiseWarning\":{\"spinning\":3,\"runnableCpus\":16,"
+               "\"sharesOneCpu\":true}");
+  sg::test::writeText("harness_json_load_extension.json", base);
+  check(sg::loadReport("harness_json_load_extension.json").has_value(),
+        "the document that carries a noise record loads (FR-070)");
+
+  for (const ExtensionPlant& plant : kExtensionPlants) {
+    std::string broken = base;
+    if (!replaceValue(broken, plant.key, plant.replacement)) {
+      std::printf("  no '%s' in the document\n", plant.key);
+      sg::test::fail("the planted key has no place to stand");
+      continue;
+    }
+    sg::test::writeText("harness_json_load_extension.json", broken);
+    const auto refused = sg::loadReport("harness_json_load_extension.json");
+    if (refused.has_value()) {
+      std::printf("  '%s' holding %s loaded\n", plant.key, plant.replacement);
+      sg::test::fail("a value of the wrong kind the extension reads loads "
+                     "anyway (FR-067, FR-070)");
+      continue;
+    }
+    if (refused.error().find(plant.pointer) == std::string::npos) {
+      std::printf("  '%s' refused without '%s': %s\n",
+                  plant.key,
+                  plant.pointer,
+                  refused.error().c_str());
+      sg::test::fail(
+          "the refusal names no pointer for the field (FR-067, " "SC-007)");
+    }
+  }
+}
+
+// A key the reader's node table does not list, planted in the one object
+// the report schema leaves open: the document root. The pass fields the
+// parallel lane adds arrive this way, so a document carrying one loads
+// and answers the values of the same document without it (FR-073, PC-4).
+auto anUnknownKeyInAnOpenObjectLoads(const std::string& text) -> void
+{
+  constexpr const char* const kPlant = ",\"passCount\":3";
+
+  sg::test::writeText("harness_json_load_plainkey.json", text);
+  const auto plain = sg::loadReport("harness_json_load_plainkey.json");
+  if (!plain.has_value()) {
+    std::printf("  %s\n", plain.error().c_str());
+    sg::test::fail("the written document stopped loading");
+    return;
+  }
+
+  const std::size_t open = text.find(",\"speedgun\"");
+  if (open == std::string::npos) {
+    sg::test::fail("the planted key has no place to stand");
+    return;
+  }
+
+  std::string extended = text;
+  extended.insert(open, kPlant);
+  sg::test::writeText("harness_json_load_unknownkey.json", extended);
+  const auto loaded = sg::loadReport("harness_json_load_unknownkey.json");
+  if (!loaded.has_value()) {
+    std::printf("  %s\n", loaded.error().c_str());
+    sg::test::fail("a key the node table does not list inside an open "
+                   "object refuses the document (FR-073, PC-4)");
+    return;
+  }
+  check(sg::test::sameReport(*loaded, *plain),
+        "the document carrying the unknown key answers the values of the "
+        "document without it (FR-073, PC-4)");
+}
+
 // The written document carries the sampling overhead floor the plan
 // measures from the machine at the start of the attempt, so the digits
 // of that one number stand nowhere the planted tables can name. The
@@ -727,6 +977,9 @@ auto main() -> int
   versionRuleGatesTheReader();
   everyFieldOfTheDocumentLoads();
   const std::string written = pinOverheadFloor(sg::test::readText(kWritten));
+  theHeaderFieldsAndTheStoredWarningsLoad(written);
+  eachExtensionErrorCodeRefuses(written);
+  anUnknownKeyInAnOpenObjectLoads(written);
   plantedFieldsOfEveryRecordRefuse();
   theRootListAndTheWarningKeyAnswerTheirOwnRules(written);
   brokenDocumentsRefuseWithPointers(written);

@@ -454,6 +454,18 @@ struct RunOptions
   // writes no document, and the chunk content `--json-raw=` asked for.
   std::string jsonPath;
   RawContent rawContent = RawContent::NONE;
+  // specs/026-regression-gate data-model.md E-11, FR-045, FR-047,
+  // FR-049, FR-050: the compare mode's inputs. `compareBaseline` is the
+  // path before the first comma of `--compare=`, empty when the mode
+  // stands off; `compareContender` the path after that comma, a missing
+  // comma or an empty side being a usage fault at the scan.
+  // `compareRules` carries one entry per `--compare-rule=`, in order;
+  // empty means the default rule. `compareStrict` is the
+  // `--compare-strict` flag.
+  std::string compareBaseline;
+  std::string compareContender;
+  std::vector<CompareRule> compareRules;
+  bool compareStrict = false;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it

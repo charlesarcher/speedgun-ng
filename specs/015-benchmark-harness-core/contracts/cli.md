@@ -69,6 +69,14 @@ BM_copy                    18432            311.4                  22.7   ipc=1.
 
 ## Exit statuses (FR-036)
 
+Compare mode (specs/026) answers a verdict over two report documents
+and runs no benchmark: `--compare` names the baseline and the
+contender, split at the first comma (specs/026 FR-047, FR-048),
+`--compare-rule` adds one rule, in order, repeatable (FR-049), and
+`--compare-strict` turns every `NOISY` row into a failure while the
+state word stays `NOISY` (FR-044, FR-045). The mode's rows join the
+table below (FR-052).
+
 | Condition | Status |
 | --- | --- |
 | a benchmark failed, the catalog listing failed, or SIGINT interrupted a run | nonzero |
@@ -81,6 +89,13 @@ BM_copy                    18432            311.4                  22.7   ipc=1.
 | a selected instance's preset cannot place its contexts | 2, with one line naming the preset, the place count and the requested count, before any run (specs/025 FR-018, Q-4) |
 | a preset run meets a machine layout the harness cannot read | 2, with one line, whatever the context count (specs/025 FR-005, Q-6) |
 | the `--topology` listing meets a machine layout the harness cannot read | 2, with one line (specs/025 FR-036, plan R-07) |
+| the comparison verdict is a regression | 1 (specs/026 FR-052) |
+| `--compare` names a document the load call rejects | 2, with one line naming the file and the reader's fault (specs/026 FR-051) |
+| the two reports carry different `schemaVersion` texts | 2, with one line naming both versions (specs/026 FR-051) |
+| a rule filter matches no benchmark in either report | 2, with one line naming the rule (specs/026 FR-039) |
+| a value a rule names is absent, unanswered or uncountable, a zero baseline stands under a relative threshold, or a rule's whole scope holds no readable row | 2, with one line naming the rule, the benchmark and the report (specs/026 FR-031, FR-036 to FR-038, FR-040) |
+| the comparison document could not be written | 2, with one line naming the path (specs/026 FR-074) |
+| the comparison passes, or the pair matched nothing | 0 |
 
 ## Interrupt behavior (clarification, FR-032)
 

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <expected>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -626,7 +627,8 @@ auto readEntry(Element value,
                const std::string& where,
                BenchmarkResult& result,
                std::vector<RowRaw>& rowRaw,
-               std::vector<std::vector<RowRaw>>& contextRaw)
+               std::vector<std::vector<RowRaw>>& contextRaw,
+               std::optional<NoiseWarning>& warning)
     -> std::expected<void, std::string>
 {
   std::vector<std::pair<std::string, std::expected<Element, std::string>>>
@@ -731,8 +733,8 @@ auto readEntry(Element value,
   {
     // The three fields of the warning are the account the console line
     // prints and the document carries; the result value holds no field
-    // for them, so the reader checks the record and lets the values go
-    // (FR-017, E-10).
+    // for them, so the reader checks the record and stores it beside the
+    // result it warns of (FR-017, FR-070, E-06, E-10).
     auto spinning = field(*noise, where + "/noiseWarning", "spinning");
     auto runnable = field(*noise, where + "/noiseWarning", "runnableCpus");
     auto shares = field(*noise, where + "/noiseWarning", "sharesOneCpu");
@@ -740,6 +742,20 @@ auto readEntry(Element value,
     if (!settledNoise.has_value()) {
       return std::unexpected(settledNoise.error());
     }
+    auto spinningCount =
+        asUnsigned(*spinning, where + "/noiseWarning/spinning");
+    auto runnableCount =
+        asUnsigned(*runnable, where + "/noiseWarning/runnableCpus");
+    auto oneCpu = asBool(*shares, where + "/noiseWarning/sharesOneCpu");
+    auto settledRecord = allSettled(spinningCount, runnableCount, oneCpu);
+    if (!settledRecord.has_value()) {
+      return std::unexpected(settledRecord.error());
+    }
+    warning = NoiseWarning {
+        .spinning = *spinningCount,
+        .runnableCpus = *runnableCount,
+        .sharesOneCpu = *oneCpu,
+    };
   }
   auto rows = asArray(at(11), where + "/rows");
   if (!rows.has_value()) {
@@ -1137,24 +1153,50 @@ auto loadReport(const std::string& path)
     return std::unexpected(items.error());
   }
   ReportData data;
+  data.schemaVersion = *versionText;
+  if (const auto header = field(root, "", "speedgun"); header.has_value()) {
+    // A header text the reader only ever prints stays lenient: the object
+    // or the key may stand absent and answer an empty text with no fault,
+    // while a value of the wrong kind names the pointer it stands at
+    // (FR-070, E-07).
+    simdjson::dom::object headerObject;
+    if (const auto code = header->get_object().get(headerObject);
+        code != simdjson::SUCCESS)
+    {
+      return std::unexpected(wrongKind("/speedgun", *header, "an object"));
+    }
+    if (const auto versionKey = field(*header, "/speedgun", "version");
+        versionKey.has_value())
+    {
+      auto headerText = asString(*versionKey, "/speedgun/version");
+      if (!headerText.has_value()) {
+        return std::unexpected(headerText.error());
+      }
+      data.speedgunVersion = *headerText;
+    }
+  }
   std::size_t index = 0;
   for (const auto item : *items) {
     data.results.emplace_back();
     data.rowRaw.emplace_back();
     data.contextRaw.emplace_back();
+    data.noiseWarnings.emplace_back();
     auto read = readEntry(item,
                           "/benchmarks/" + std::to_string(index),
                           data.results.back(),
                           data.rowRaw.back(),
-                          data.contextRaw.back());
+                          data.contextRaw.back(),
+                          data.noiseWarnings.back());
     if (!read.has_value()) {
       return std::unexpected(read.error());
     }
     ++index;
   }
   SG_ENSURE(data.results.size() == data.rowRaw.size()
-                && data.results.size() == data.contextRaw.size(),
-            "loadReport answers a value whose raw fields answer results");
+                && data.results.size() == data.contextRaw.size()
+                && data.results.size() == data.noiseWarnings.size(),
+            "loadReport answers a value whose raw fields and warning "
+            "entries answer results");
   return data;
 }
 
