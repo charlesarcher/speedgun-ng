@@ -8,11 +8,11 @@
 #   master-build   build tree of a pre-feature (master) checkout, used for the
 #                  single-event reference runs; with none given the reference
 #                  runs are recorded as skipped, with the reason.
-# Env:   MIN_TIME   per-run --min-time in seconds (default 0.2)
+# Env:   MIN_TIME   per-run min time seconds (default 0.2)
 #
 # What it measures, in order:
 #   1. the over-limit metric set of example/docs/metric_passes.cpp under
-#      --metric-method=multiplex, passes and auto on one binary. That set is
+#      the multiplex metric method, passes and auto on one binary. That set is
 #      programmableCounters() + 1 single-leaf columns, so it is over the
 #      published limit on any host (FR-001);
 #   2. a quiet-window noise marker: the same benchmark body with no metric
@@ -25,11 +25,11 @@
 #
 # The transcript is rewritten whole at specs/024-multipass-collection/results/
 # multipass_comparison.md (stale_state: never append). A run that measures
-# nothing is recorded, not hidden: the record states the host condition
+# nothing is recorded in its own right: the record states the host condition
 # (perf_event_paranoid, load) beside the rows, and a run whose columns carry
 # no count is named in the digest.
 #
-# This is a documented measurement, not a CI gate (FR-035): it is registered
+# This is a documented measurement with CI independence (FR-035): it is registered
 # with neither CMake nor CTest, and no workflow runs it or depends on its host.
 #
 # Exit 0 once the record is written. Exit 1 on a usage failure (a build tree
