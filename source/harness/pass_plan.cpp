@@ -81,6 +81,40 @@ namespace
   return true;
 }
 
+// Whether every leaf group of every column names a counter source the caller
+// priced (FR-001, FR-005). A function here, where `SG_REQUIRE` reaches it by
+// name: the predicate of that macro also reaches the constant expression of
+// the compile-time reject, where a closure gains a coverage record with no
+// lines of its own and lcov refuses the whole trace. Only that requirement
+// calls this, so a build whose contracts are ignored calls nothing.
+[[nodiscard]] [[maybe_unused]] auto everyGroupNamesPricedSource(
+    const std::vector<std::vector<ColumnLeaves>>& columnLeaves,
+    const std::vector<std::optional<std::size_t>>& sourceLimits) -> bool
+{
+  return std::all_of(columnLeaves.begin(),
+                     columnLeaves.end(),
+                     [&sourceLimits](const std::vector<ColumnLeaves>& column)
+                     {
+                       return std::all_of(
+                           column.begin(),
+                           column.end(),
+                           [&sourceLimits](const ColumnLeaves& group)
+                           { return group.source < sourceLimits.size(); });
+                     });
+}
+
+// Whether every measuring pass of a plan names one of the fold results the run
+// folded (FR-014). A function for the reason the one above states.
+[[nodiscard]] [[maybe_unused]] auto everyMeasuringPassFolds(
+    const std::vector<std::size_t>& measuringPass,
+    const std::vector<BenchmarkResult>& passResults) -> bool
+{
+  return std::all_of(measuringPass.begin(),
+                     measuringPass.end(),
+                     [&passResults](const std::size_t measuring)
+                     { return measuring < passResults.size(); });
+}
+
 }  // namespace
 
 auto settleMethod(const MetricMethod requested,
@@ -122,19 +156,7 @@ auto planPasses(const std::vector<std::vector<ColumnLeaves>>& columnLeaves,
   // sound for it - not even the empty plan of the row of E-01 that settles
   // `MULTIPLEX`, which is why the requirement stands before that early return
   // (FR-005).
-  SG_REQUIRE(std::all_of(columnLeaves.begin(),
-                         columnLeaves.end(),
-                         [&sourceLimits](const std::vector<ColumnLeaves>& column)
-                         {
-                           return std::all_of(column.begin(),
-                                              column.end(),
-                                              [&sourceLimits](
-                                                  const ColumnLeaves& group)
-                                              {
-                                                return group.source
-                                                       < sourceLimits.size();
-                                              });
-                         }),
+  SG_REQUIRE(everyGroupNamesPricedSource(columnLeaves, sourceLimits),
              "every leaf group of every column names a counter source the "
              "caller priced (FR-001, FR-005)");
 
@@ -254,12 +276,8 @@ auto mergePasses(const PassPlan& plan,
   SG_REQUIRE(plan.columns.size() == passResults.size(),
              "the plan names one pass for every fold result the run folded "
              "(FR-014)");
-  SG_REQUIRE(
-      std::all_of(plan.measuringPass.begin(),
-                  plan.measuringPass.end(),
-                  [&passResults](const std::size_t measuring)
-                  { return measuring < passResults.size(); }),
-      "every measuring pass of the plan names one fold result " "(FR-014)");
+  SG_REQUIRE(everyMeasuringPassFolds(plan.measuringPass, passResults),
+             "every measuring pass of the plan names one fold result (FR-014)");
 
   // I-4, FR-015: pass 0 is the reference pass (spec D-5), so its identity,
   // its labels, its point list, its time columns, its overhead floor, its
