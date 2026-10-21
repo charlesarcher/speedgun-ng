@@ -474,9 +474,9 @@ on every commit of this branch, the agent that made the calls here.
   host size, or skips. Fixture documents reach a test through the path
   argument T007 passes (FR-071).
 - The spec's Citations table named the option table as
-  `source/harness/cli.cpp:301` to `:319`; the table ends at `:318` with
-  the terminator there, and T020 uses `:310`. The analyze pass
-  corrected the spec to `:310`.
+  `source/harness/cli.cpp:293` to `:310` at the audit point; at this head the
+  table spans `:321` to `:345` with the terminator row at `:344`, and T020
+  keeps the audit-point numbers. T074 re-derived the descriptive anchors.
 - `contracts/compare-call.md`, `contracts/compare-document.md`,
   `contracts/compare-options.md`, `contracts/reader-extension.md`,
   `contracts/rule-parse.md` and `contracts/page-and-examples.md` cited
@@ -504,7 +504,7 @@ coverage gate reads one count-zero line record the local gcov does
 not emit. One requirement carries a CLI-surface test gap.
 
 - [X] T059 Pair the contract of `compareReports` with its enforcement: an `SG_ENSURE` postcondition in the body of the call in `source/harness/compare.cpp` and the default-rule `SG_ASSERT` moved out of that documented body, then `cmake --build build -t dbc-gate` reports zero drifted interfaces per Principle II, Principle VI, SC-012 (contradicts)
-- [ ] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:470` to `:475` so the CI gcov answers no count-zero record at the declaration line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
+- [ ] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:470` to `:474` so the CI gcov answers no count-zero record at the declaration line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
 - [X] T061 Add one `harness_compare_cli_test` case that passes two `--compare-rule=` flags in one run and answers two rule-major rows in flag order per FR-049 (partial)
 
 ## Phase 11: Audit round 1
@@ -629,3 +629,131 @@ of the value-name forms. T070's deferral stands: the two writer classes at
 translation unit, and the hoist would edit the writer units two other features
 change at the same time, the drive-by refactor Principle X.3 keeps off a feature
 branch.
+
+## Phase 14: Convergence round 4
+
+This pass read the branch head `32a0c2f` against `spec.md`, `plan.md`, the
+six contracts and the constitution, then read the code and the tests on
+disk. The comparison core stands in `source/harness/compare.cpp` at 1760
+lines: the grammar at `:162`, `:186` and `:772`, the value space at `:381`,
+`:840` and `:873`, the arithmetic at `:922`, the guard at `:1067`, the walk
+at `:1287` and `:1438`, the mode at `:1520`, the table at `:1596` and the
+document at `:1678`. The public surface stands at
+`include/speedgun-ng/benchmark.hpp:596` to `:712` with the two calls at
+`:2515` and `:2548`. The reader extension stands at
+`source/harness/json_load.cpp:1133` to `:1199` with its cases at
+`test/source/harness_json_load_test.cpp:751`, `:868` and `:914`. The entry
+point carries the mode at `source/harness/cli.cpp:477` to `:486`, ahead of
+the registry expansion at `:526`, and the closing postcondition stands at
+`:646`. The test surface runs 119 checks in
+`test/source/harness_compare_test.cpp` and 70 in
+`test/source/harness_compare_cli_test.cpp` over eleven fixture documents
+under `test/data/`. The written document answers
+`docs/schema/compare-v1.json` with six top keys and eight entry keys. The
+page, the guide section, the example and its target stand at `README.md:597`,
+`docs/pages/harness.md:1095`, `example/docs/regression_gate.cpp` and
+`example/CMakeLists.txt:73`. The version reads 0.15.0 at `CMakeLists.txt:7`,
+the harness `SOVERSION` 9 at `:251` and the archive `SOVERSION` 2 at `:47`.
+
+The one change since the last pass gives the three compare options a number
+of their own: `kCompareOptionValue`, `kCompareRuleOptionValue` and
+`kCompareStrictOptionValue` at `source/harness/cli.cpp:69` to `:71`, read at
+the table rows `:341` to `:343` and at the switch cases `:422`, `:441` and
+`:453`. A sweep of every markdown, header, source, test, script and schema
+file in the tree found no artifact, contract, page or test that names a
+letter for those three options; the `'a'`, `'Q'` and `'S'` tokens left in the
+tree stand in `source/counters/linux_pmu/` and
+`test/source/harness_context_barrier_test.cpp`, beside unrelated code. The
+drift gate reads the option names out of the `longOptions` table, counts 19
+of them, and matches the three compare names to the README rows at `:737` to
+`:739`, so the change sits inside a gate that passes. The comment at
+`source/harness/cli.cpp:66` to `:68` states that the number 256 belongs to a
+metric method option, and no entry of this tree's table carries 256, so that
+sentence names a reservation no code here checks.
+
+The gates ran in this pass, each read by the count it prints: the prose gate
+over the tree reports 529 sources, 83,003 units examined, 0 findings and 0
+skipped; `python3 tools/docs/example_drift.py .` reports no finding over the
+page, the sections, the example regions and the option rows, and the same
+command with `--options` answers the 19 long options against the README rows
+with exit 0; `bash test/cli_shape.sh` reports the flag read once per pass and
+the run-wide postcondition reading no flag; `bash test/time_source_gate.sh`
+reports clean with its two planted probes reported; and codespell 2.4.3
+reports no finding with the repository's own configuration read, that version
+rejecting the `--rcfile` flag while `cmake/spell.cmake` drives the plain
+invocation this pass used. No build, no `ctest` and no coverage target ran
+here, because two other channels hold the build trees.
+
+The pass judged 74 Functional Requirements, 13 Success Criteria and 73 tasks.
+Every FR reads satisfied on the code and tests above, including FR-020 and
+FR-021 at the escape cases of `test/source/harness_compare_test.cpp:267` and
+`:294`, FR-033 and FR-034 at `source/harness/compare.cpp:724` with the
+library case at `:2104`, FR-041 to FR-046 at `:1067` with the guard cases at
+`:1483` to `:1638`, FR-057 and FR-058 at `:1678` with the document cases of
+`test/source/harness_compare_cli_test.cpp:570`, `:610`, `:640` and `:678`,
+FR-067 and FR-070 at `source/harness/json_load.cpp:1156` to `:1197`, FR-073
+at `test/source/harness_json_load_test.cpp:914` and FR-074 at
+`test/source/harness_compare_cli_test.cpp:544` and `:831`. Every SC reads
+satisfied with three readings standing outside this tree. Of the tasks, 69
+read verified, 2 stand open by decision (T069 keeps its remaining scope as the
+doc text of the seven value-name forms, and T070 stays off the branch because
+the hoist would edit the two writer units two other features change at the
+same time), and 2 carry only an external reading: T058's push already
+happened, since `git ls-remote origin 026-regression-gate` answers `32a0c2f`,
+and T060 waits on the CI coverage job. That job runs
+`tools/dbc/coverage_gate.sh`, which fails below 100.0% lines and 100.0%
+branches, and it answers success for run `39638417175` over the previous head
+`029d216` while run `39641758902` over this head stands in flight. The
+loop-shape reading FR-072 and SC-010 ask for runs inside `ctest` as the
+registered `loop_shape` test at `test/CMakeLists.txt:694`, so the CI `test`
+job carries it: `test` stands in flight at this head while `test-rocky`
+answers success at `029d216`, beside the `lint`, `dbc-gate`, `prose-lint`,
+`sanitize`, `tsan`, `coverage`, `consumer-release`, `downstream-consumer` and
+`shared-audit` jobs that all answer success there.
+
+One gap in the specified scope is non-trivial, and it is documentation this
+branch wrote. `5315706` moved the option scan down by eight lines and
+`dbd953d` answered by adding eight to every `source/harness/cli.cpp` anchor
+it found, rewriting 53 lines across 22 artifacts: 23 citations in this
+feature's own files and 35 in the closed artifacts of five other specs. The
+addition left each number where its own audit point had put it, so the result
+matches neither the audit point `aec8fce` that the Path Conventions of this
+file declare nor the file as it stands now. Measured against this head, the
+option table cited at `:301` to `:318` stands at `:321` to `:345`,
+`speedgunMain` cited at `:270` stands at `:290`, the batch filter search
+cited at `:461` stands at `:533`, and the no-match answer cited at `:465` to
+`:470` stands at `:545` to `:550`. The anchors that did land right are the
+precompile at `:470` to `:474`, the scan close at `:464`, the three table
+rows at `:341` to `:343` and the compare branch at `:477` to `:486`.
+
+- [X] T074 Re-derive every `source/harness/cli.cpp` anchor of this feature's
+  artifacts against this head, at `spec.md:260`, `:339`, `:1186` and `:1187`,
+  `plan.md:41`, `:61`, `:240` and `:253`, `research.md:243` and `:288`,
+  `data-model.md:180` and `:184`, `contracts/compare-options.md:6`, `:22` and
+  `:53`, `contracts/page-and-examples.md:37`, `contracts/rule-parse.md:64`
+  and the Notes anchor at `tasks.md:477`, citing the landmarks this pass
+  measured: `speedgunMain` at `:290`, the `longOptions` table at `:321` to
+  `:345` with the terminator row at `:344`, the scan close at `:464`, the
+  filter precompile at `:470` to `:474`, the compare branch at `:477` to
+  `:486`, the registry expansion at `:526`, the filter search at `:533`, the
+  no-match answer at `:545` to `:550` and the closing postcondition at `:646`
+  to `:647`, then `cmake -DPROSE_MODE=tree -P cmake/prose-lint.cmake` reports
+  0 findings over 529 sources per Principle IV, FR-024, FR-050, FR-052
+  (contradicts)
+- [X] T075 Re-derive, or label as audit-point numbers, the
+  `source/harness/cli.cpp` anchors the same eight-line sweep rewrote in the
+  closed artifacts of specs/015, specs/016, specs/021, specs/023 and
+  specs/025, where the file grew by more than eight lines above the option
+  table: `specs/016-harness-registration-and-fixtures/contracts/selection-and-cli.md:11`
+  cites `:150` for an entry point that stands at `:290`,
+  `specs/023-json-reports/contracts/report-options.md:77` cites `:423` for
+  the closing postcondition that stands at `:646`, and one range of
+  `specs/016-harness-registration-and-fixtures/data-model.md:202` moved while
+  its neighbor on the same line stayed, per Principle IV (contradicts)
+
+T075 took the labeling branch: the eight-line sweep was undone in the closed
+artifacts of specs/015, specs/016, specs/021, specs/023 and
+specs/025-topology-placement, so each of those files again cites the
+`source/harness/cli.cpp` line numbers of its own audit point, the convention
+the Path Conventions section states. Only this feature's artifacts carry
+anchors re-derived against this head.
