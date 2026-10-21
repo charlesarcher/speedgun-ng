@@ -1366,6 +1366,21 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   }
   const std::size_t passCount = passColumns.size();
 
+  // E-07, FR-017, FR-019: the disclosure of a collection whose method has
+  // settled. Every return that follows this settling publishes it through this
+  // one call, the stops inside the pass loop included, so a run stopped
+  // mid-collection names the passes it folded and leaves the plan it was
+  // given unpublished. The spread and the per-value pass tag belong to the
+  // merge, the writer of both, so a stopped collection keeps the empty answer
+  // for them and nothing resets them here. A settling of `AUTO`, the run that
+  // carries no metric column, publishes no count.
+  const auto publishSettled = [&](std::size_t standingPasses) noexcept -> void
+  {
+    result.metricMethod = collectionMethod;
+    result.passCount =
+        collectionMethod == MetricMethod::AUTO ? 0 : standingPasses;
+  };
+
   // E-04, FR-009, FR-012: the seat of one pass. The two time leaves ride
   // every pass and consume no programmable counter (E-03 rule 6); the
   // columns the pass measures join them in request order, and that leaf
@@ -2172,10 +2187,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     if (warm.outcome == GrowOutcome::SKIPPED) {
       result.outcome = RunOutcome::SKIPPED;
       result.reason = warm.record.reason;
+      publishSettled(0);
       return result;
     }
     if (warm.outcome == GrowOutcome::INTERRUPTED) {
       markInterrupted(result);
+      publishSettled(0);
       return result;
     }
   }
@@ -2207,10 +2224,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     if (ahead.outcome == GrowOutcome::SKIPPED) {
       result.outcome = RunOutcome::SKIPPED;
       result.reason = ahead.record.reason;
+      // The stop closed the calibration that stands ahead of pass 0, so no
+      // pass has a fold standing (E-07).
+      publishSettled(0);
       return result;
     }
     if (ahead.outcome == GrowOutcome::INTERRUPTED) {
       markInterrupted(result);
+      publishSettled(0);
       return result;
     }
     // FR-012, FR-020: the qualified record sums the count of every context,
@@ -2232,6 +2253,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   std::vector<BenchmarkResult> passResults;
   passResults.reserve(passCount);
   bool interrupted = false;
+  // E-07, FR-017: the count a pass loop publishes when it leaves early: the
+  // passes that closed before the one in flight, beside that pass itself once
+  // it has folded a row. A pass that folded no row has no fold standing, so it
+  // stays out of the count.
+  const auto standingPasses = [&passResults, &result] noexcept -> std::size_t
+  { return passResults.size() + (result.rows.empty() ? 0U : 1U); };
   // specs/023 E-01 beside specs/024 E-04: each pass appends its retained
   // chunk rows behind the earlier passes', and the mark of each pass names
   // where its entries stand, so the join below - or a return inside a
@@ -2295,11 +2322,13 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           result.outcome = RunOutcome::SKIPPED;
           result.reason = grown.record.reason;
           keepCurrentPassLedger();
+          publishSettled(standingPasses());
           return result;
         }
         if (grown.outcome == GrowOutcome::INTERRUPTED) {
           markInterrupted(result);
           keepCurrentPassLedger();
+          publishSettled(standingPasses());
           return result;
         }
         chosen = std::move(grown.record);
@@ -2318,6 +2347,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           result.outcome = RunOutcome::SKIPPED;
           result.reason = chosen->reason;
           keepCurrentPassLedger();
+          publishSettled(standingPasses());
           return result;
         }
       }
@@ -2479,10 +2509,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // the merge path reaches `mergePasses`, the writer of these fields. A
   // settling of `AUTO` - the run that carries no metric column - publishes
   // no count, the reading E-07 gives a run whose pass mechanism did not run.
-  // The single pass of such a run and of the one-plan settleings measured no
-  // second time to spread, so the published spread stays the empty answer.
-  result.metricMethod = collectionMethod;
-  result.passCount = collectionMethod == MetricMethod::AUTO ? 0 : passCount;
+  // The count reads the folds that stand: a collection that ran to its last
+  // pass owes the plan it was given, and one the loop left early owes the
+  // passes before the stop. The single pass of such a run and of the one-plan
+  // settleings measured no second time to spread, so the published spread
+  // stays the empty answer.
+  publishSettled(passResults.size());
   // FR-021, clarification Q2, research D-10: the forced-method record is
   // caller state - the command line's word or the family's own request -
   // that the settled method cannot recover, because a forced one-pass
