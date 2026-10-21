@@ -1234,6 +1234,21 @@ handle carries the same three values. `auto` is the default. The command line
 wins over the handle, and a repeated option keeps its last word. A word
 outside the three prints one line and ends the run with status 2.
 
+`example/docs/metric_passes.cpp` makes that request from the registration
+side, on the handle the over-limit set was attached to:
+
+<!-- sg-example: example/docs/metric_passes.cpp#metric-method -->
+```cpp
+#include "speedgun-ng/benchmark.hpp"
+
+// The request stands for every instance of the family; a command line word
+// outranks it (FR-025).
+auto requestPasses(sg::BenchmarkHandle& handle) -> sg::BenchmarkHandle&
+{
+  return handle.metricMethod(sg::MetricMethod::PASSES);
+}
+```
+
 A run that measured more than one pass prints one disclosure line under its
 rows. A caller that forced a method sees the same line for one pass:
 

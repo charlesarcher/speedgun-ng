@@ -33,6 +33,18 @@ auto attachOverLimit(sg::BenchmarkHandle& handle) -> void
 
 // sg-example:end metric-passes
 
+// sg-example:begin metric-method
+#include "speedgun-ng/benchmark.hpp"
+
+// The request stands for every instance of the family; a command line word
+// outranks it (FR-025).
+auto requestPasses(sg::BenchmarkHandle& handle) -> sg::BenchmarkHandle&
+{
+  return handle.metricMethod(sg::MetricMethod::PASSES);
+}
+
+// sg-example:end metric-method
+
 // The first catalog query opens the system and closes provider registration
 // (FR-009), so main stages the providers before it reads the limit.
 auto main(int argc, char** argv) -> int
@@ -42,5 +54,6 @@ auto main(int argc, char** argv) -> int
   (void)sys.registerProvider(std::make_unique<sg::counters::PmuProvider>());
   auto handle = sg::registerBenchmark(&bmTick, "Passes/overLimit");
   attachOverLimit(handle);
+  requestPasses(handle);
   return sg::speedgunMain(argc, argv);
 }
