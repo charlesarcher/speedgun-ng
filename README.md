@@ -734,7 +734,7 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `--catalog` | Prints the counter catalog and stops |
 | `--placement` | Selects the preset that plans the run's cpus |
 | `--topology` | Prints the machine layout listing and stops |
-| `--compare` | Compares two report documents instead of running a batch |
+| `--compare` | Compares two report documents; the mode runs no benchmark |
 | `--compare-rule` | Adds one comparison rule, repeatable in order |
 | `--compare-strict` | Makes every noisy row fail the verdict |
 
