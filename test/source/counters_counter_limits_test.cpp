@@ -68,7 +68,8 @@ constexpr auto wordOf(std::string_view text) noexcept -> std::uint32_t
 
 // The three vendor words of a name, in the order leaf 0 answers them:
 // `EBX`, `EDX`, `ECX`. A name of fewer than 12 characters leaves the rest
-// of the last word zero, which is how `Shanghai` answers.
+// of its last word zero: the padded Shanghai identity of zhaoxin.c fills
+// all twelve, the one-space refusal row fills ten.
 constexpr auto wordsOf(std::string_view name) noexcept
     -> std::array<std::uint32_t, 3>
 {
@@ -169,9 +170,9 @@ auto vendorTableScenario() -> void
       {wordsOf("CentaurHauls"),
        CounterLimitVendor::ZHAOXIN,
        "CentaurHauls answers ZHAOXIN (D-01)"},
-      {wordsOf("Shanghai"),
+      {wordsOf("  Shanghai  "),
        CounterLimitVendor::ZHAOXIN,
-       "Shanghai, zero padded, answers ZHAOXIN (D-01)"},
+       "Shanghai, space padded, answers ZHAOXIN (D-01)"},
       {wordsOf("AuthenticAMD"),
        CounterLimitVendor::AMD,
        "AuthenticAMD answers AMD (D-01)"},
@@ -190,15 +191,18 @@ auto vendorTableScenario() -> void
       {{wordOf("Cent"), wordOf("xxxx"), wordOf("auls")},
        CounterLimitVendor::OTHER,
        "Centaur first word with a refused second word answers OTHER"},
-      {{wordOf("Cent"), wordOf("aulH"), wordOf("xxxx")},
+      {{wordOf("Cent"), wordOf("aurH"), wordOf("xxxx")},
        CounterLimitVendor::OTHER,
        "Centaur first two words with a refused third word answer OTHER"},
-      {{wordOf("Shan"), wordOf("xxxx"), wordOf("xxxx")},
+      {{wordOf("  Sh"), wordOf("xxxx"), wordOf("xxxx")},
        CounterLimitVendor::OTHER,
        "Shanghai first word with a refused second word answers OTHER"},
-      {{wordOf("Shan"), wordOf("ghai"), wordOf("xxxx")},
+      {wordsOf(" Shanghai "),
        CounterLimitVendor::OTHER,
-       "Shanghai with a nonzero third word answers OTHER (D-01)"},
+       "One space of padding each side answers OTHER (D-01)"},
+      {{wordOf("  Sh"), wordOf("angh"), wordOf("xxxx")},
+       CounterLimitVendor::OTHER,
+       "Shanghai first two words with a refused third word answer OTHER"},
       {{wordOf("Auth"), wordOf("xxxx"), wordOf("cAMD")},
        CounterLimitVendor::OTHER,
        "AMD first word with a refused second word answers OTHER"},

@@ -38,8 +38,9 @@ namespace sg::counters::detail
 enum class CounterLimitVendor : std::uint8_t
 {
   INTEL,  ///< `GenuineIntel`.
-  ZHAOXIN,  ///< `CentaurHauls` and `Shanghai`, which answer through the
-            ///< same leaf 0AH fields (research D-01).
+  ZHAOXIN,  ///< `CentaurHauls` and `  Shanghai  ` (the twelve characters
+            ///< zhaoxin.c matches, two spaces each side), which answer through
+            ///< the same leaf 0AH fields (research D-01).
   AMD,  ///< `AuthenticAMD` and `HygonGenuine`, which answer through
         ///< the extended leaves (research D-01).
   OTHER,  ///< Any other vendor words, or no vendor words at all.
@@ -90,9 +91,10 @@ struct CounterLimitRegisters
 /// Which vendor's rule the registers answer through.
 ///
 /// \pre none: every register word is a legal input.
-/// \post `GenuineIntel` answers INTEL, `CentaurHauls` and `Shanghai` answer
-///       ZHAOXIN, `AuthenticAMD` and `HygonGenuine` answer AMD, and every
-///       other word triple answers OTHER (research D-01).
+/// \post `GenuineIntel` answers INTEL, `CentaurHauls` and the padded
+///       `  Shanghai  ` answer ZHAOXIN, `AuthenticAMD` and `HygonGenuine`
+///       answer AMD, and every other word triple answers OTHER
+///       (research D-01).
 [[nodiscard]] auto vendorOf(const CounterLimitRegisters& registers) noexcept
     -> CounterLimitVendor;
 
