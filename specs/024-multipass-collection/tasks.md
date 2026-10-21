@@ -577,24 +577,32 @@ the analyzers, the gate set and the landing move.
   `ctest --test-dir build --output-on-failure` once more, and push with
   `--force-with-lease` (FR-031, spec Constraints)
 
-  Settled 2026-10-21: `git merge-base origin/master HEAD` is `aec8fce`, which is
-  `origin/master`, so the branch carries the current master with nothing behind
-  it and the four files hold one lane's lines each. PR #45 stands open, so the
-  version was retaken against that master: `CMakeLists.txt:8` reads `0.15.0`
-  beside master's `0.14.0` at its line 7, `CMakeLists.txt:52` reads `SOVERSION 3`
-  beside master's 2 at its line 47, `CMakeLists.txt:256` reads `SOVERSION 9`
-  beside master's 8 at its line 247, the next free number for each archive.
-  `README.md` measures 740 lines and `PAGE_LINE_CAP` of
-  `tools/docs/example_drift.py` reads the measured 740, with the
-  `Multi-pass collection` section back inside `SECTION_LINE_CAP`.
+  Settled again 2026-10-21, after PR #45 merged as `9976768`: `git merge-base
+  origin/master HEAD` is `9976768`, which is `origin/master`, so the branch
+  carries the merged master with nothing behind it. The rebase stopped six times
+  and every stop kept both lanes: `CMakeLists.txt` keeps the specs/026 `FR-065`
+  paragraph above the specs/024 one, `cli.cpp` keeps the three compare rows,
+  their comment and the compare-mode dispatch, `tools/docs/example_drift.py`
+  keeps the `Regression gate` capability and its history paragraphs beside the
+  specs/024 rows, and `docs/pages/harness.md` keeps both the `Multi-pass
+  collection` section and the `Regression gate` section, to 1325 lines. The
+  version was retaken against the merged master: `CMakeLists.txt:9` reads
+  `0.16.0` beside master's `0.15.0` at its line 7, `CMakeLists.txt:53` reads
+  `SOVERSION 3` beside master's 2 at its line 47, `CMakeLists.txt:261` reads
+  `SOVERSION 10` beside master's 9 at its line 251, the next free number for
+  each archive. `README.md` measures 773 lines over 25 capability sections and
+  `PAGE_LINE_CAP` of `tools/docs/example_drift.py` reads the measured 773, a
+  number the tool re-measured at each stop of the rebase: 773, then 780 with the
+  snippet-gate include lines, then 773 again.
   `harness_pass_report_test byte-identity` compares the automatic run against
   `test/source/detail/pass_identity.expected` byte for byte, with the host floor
-  span masked as the capture masks it, and passes against this master. The
-  suite re-ran through `ctest --test-dir /tmp/m/ctest-build` with
-  `--output-on-failure` over 113 tests with 1 failure on this head,
-  `example_run`, whose row check wants the machine to itself: the same binary
-  passes that gate solo and passes inside the suite of run 39617740469 on a
-  runner. The branch pushed with `--force-with-lease` as `0481fa7`.
+  span masked as the capture masks it, and passes against this master: the
+  capture carries no version string, so the version move leaves its bytes
+  untouched. The suite re-ran through `ctest --test-dir build` with `-j2`, a
+  per-test `--timeout` of 3600 seconds and `--output-on-failure`, over 115 tests
+  with none failing, `harness_cli_test` the long one at 3078 seconds and
+  `example_run` passing inside that load. The branch pushed with
+  `--force-with-lease` as `b73140f`.
 - [X] T066 Show `git ls-remote origin 024-multipass-collection`, read the CI logs
   of the pushed commit, fix its failures in this lane, and record in
   `specs/024-multipass-collection/tasks.md` the line, branch and DBC coverage
@@ -624,6 +632,27 @@ the analyzers, the gate set and the landing move.
   stays open on purpose and is stated in the PR comment: a split run drops a
   `--counter` column whose measuring pass is a pass other than the reference
   pass, which reads against FR-006 and FR-014 and needs its own decision.
+
+  Re-recorded 2026-10-21 for the rebased head: `git ls-remote origin
+  024-multipass-collection` shows `b73140f37e18`. Run
+  `https://github.com/charlesarcher/speedgun-ng/actions/runs/39667437675`
+  concludes `success` over the same 12 jobs on its second attempt: the first
+  attempt lost `test-rocky` before the build, because the runner could not
+  download the EPEL metadata (`checksum doesn't match`, then a certificate
+  error from one mirror), and `gh run rerun --failed` cleared it without a code
+  change. The `test`, `coverage`, `sanitize` and `test-rocky` jobs each print
+  `100% tests passed out of 115`, two more than the record above, since specs/026
+  brought its two comparison suites, and `tsan` prints 112 with the PMU-bound
+  tests skipped as the runners carry no PMU. The coverage job prints lines
+  100.0% (8128 of 8128) and branches 100.0% (3900 of 3900) over 47 source files;
+  `coverage_gate.sh` reads exactly those two figures, and the functions figure
+  the same summary prints, 97.5% (1014 of 1040), carries no bar. No new
+  `LCOV_EXCL` marker entered: the tree still carries the 398 of the T059 census.
+  The DBC gates print 274
+  interfaces with 0 gaps on both matrices, seven past the 267 above, which are
+  specs/026's comparison entry. The prose gate over `9976768..b73140f` prints 84
+  sources, 5618 units and 0 findings, one round after a commit message carried a
+  double hyphen that XI.1 refused and an amended message cleared it.
 
 **Checkpoint**: every gate of Principle VIII is green on the pushed state and the
 table below has no uncovered row.
