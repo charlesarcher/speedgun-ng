@@ -115,8 +115,11 @@ struct PassPlan
 /// chunk disclosure and the percentile columns. The merge reads provenance
 /// from `plan` and consults no clock and no counter (I-5).
 ///
-/// \pre the pass count of `plan` equals `passResults.size()`, and every
-///      index of `plan.measuringPass` names one of them
+/// \pre `passResults` holds at least one fold result and its count equals
+///      `plan.columns.size()`; every index of `plan.measuringPass` names one
+///      of them, and `plan.measuringPass` carries an entry for every
+///      percentile slot past the two time slots of the widest grid
+///      `passResults` holds, of a row and of a context block alike
 /// \post every metric and user-counter column value comes from its measuring
 ///       pass at its own position (FR-014); the time columns, the overhead
 ///       floor, the endpoint samples, the context disclosures, the chunk

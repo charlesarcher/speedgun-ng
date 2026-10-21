@@ -115,6 +115,29 @@ auto planPasses(const std::vector<std::vector<ColumnLeaves>>& columnLeaves,
                 const std::vector<std::optional<std::size_t>>& sourceLimits)
     -> PassPlan
 {
+  // E-03 rule 1, FR-001: every leaf group names the source it lives on by an
+  // index into `sourceLimits`, and the fit below reads the limit at that index
+  // to decide whether a pass can hold the column. A group that names a source
+  // the caller never priced has no limit to fit, so no answer of this call is
+  // sound for it - not even the empty plan of the row of E-01 that settles
+  // `MULTIPLEX`, which is why the requirement stands before that early return
+  // (FR-005).
+  SG_REQUIRE(std::all_of(columnLeaves.begin(),
+                         columnLeaves.end(),
+                         [&sourceLimits](const std::vector<ColumnLeaves>& column)
+                         {
+                           return std::all_of(column.begin(),
+                                              column.end(),
+                                              [&sourceLimits](
+                                                  const ColumnLeaves& group)
+                                              {
+                                                return group.source
+                                                       < sourceLimits.size();
+                                              });
+                         }),
+             "every leaf group of every column names a counter source the "
+             "caller priced (FR-001, FR-005)");
+
   // E-03 rule 7, FR-005: a run whose needed sources all answer no limit gets
   // no plan at all, the row of E-01 that settles `MULTIPLEX`. No pass exists
   // to measure anything, so no column carries a measuring pass either.
@@ -225,14 +248,18 @@ auto mergePasses(const PassPlan& plan,
   // I-5, FR-016: the merge reads the fold results the passes already hold and
   // consults no clock and no counter, so it publishes no value a pass did not
   // measure. Its contract is the plan's own shape.
-  SG_ASSERT(!passResults.empty(),
-            "a run that settled to the passes method folded its reference pass "
-            "(FR-014)");
-  for ([[maybe_unused]] const auto measuring : plan.measuringPass) {
-    SG_ASSERT(
-        measuring < passResults.size(),
-        "every measuring pass of the plan names one fold result (FR-014)");
-  }
+  SG_REQUIRE(!passResults.empty(),
+             "a run that settled to the passes method folded its reference "
+             "pass (FR-014)");
+  SG_REQUIRE(plan.columns.size() == passResults.size(),
+             "the plan names one pass for every fold result the run folded "
+             "(FR-014)");
+  SG_REQUIRE(
+      std::all_of(plan.measuringPass.begin(),
+                  plan.measuringPass.end(),
+                  [&passResults](const std::size_t measuring)
+                  { return measuring < passResults.size(); }),
+      "every measuring pass of the plan names one fold result " "(FR-014)");
 
   // I-4, FR-015: pass 0 is the reference pass (spec D-5), so its identity,
   // its labels, its point list, its time columns, its overhead floor, its

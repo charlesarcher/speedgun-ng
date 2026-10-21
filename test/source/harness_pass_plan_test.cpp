@@ -27,11 +27,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -1402,15 +1405,27 @@ auto spreadZeroMedian() -> void
         "(FR-017, D-6)");
 }
 
+// The child's own stderr, kept for the report the contract facility prints
+// before it aborts. The list below runs one breach at a time, so one file
+// serves them all.
+constexpr std::string_view kBreachLog = "harness_pass_plan_breach.log";
+
 // A contract breach ends its process through the contract facility, which
-// aborts, so no scenario of the list below can run one in process. Each breach
-// therefore runs in a process of its own, chosen the way every scenario here
-// is chosen, through `argv[1]`, and the verdict the parent reads is the signal
-// (the pattern `harness_context_barrier_test.cpp` carries). A contract taken
-// back out of the source shows here as a child that exits cleanly, or one that
-// dies of a signal other than the abort.
-auto breachAborts(const std::string_view name) -> void
+// reports the requirement it broke and then aborts, so no scenario of the list
+// below can run one in process. Each breach therefore runs in a process of its
+// own, chosen the way every scenario here is chosen, through `argv[1]` (the
+// pattern `harness_context_barrier_test.cpp` carries). The signal alone is not
+// the verdict: the release presets compile with `-D_GLIBCXX_ASSERTIONS`, whose
+// standard-library range check aborts too, and an out-of-range read is exactly
+// what a breach left behind does once its requirement is taken back out of the
+// source. So the child's report, which names the requirement by its own
+// message, is read beside the signal. The abort of the semantic this build
+// configures (`speedgun-ng_CONTRACTS=enforce`) is what reports here; the
+// quick semantic traps without a report and is not this build.
+auto breachAborts(const std::string_view name,
+                  const std::string_view marker) -> void
 {
+  const std::string log {kBreachLog};
   std::vector<char> mode;
   mode.reserve(name.size() + 1);
   mode.insert(mode.end(), name.begin(), name.end());
@@ -1418,6 +1433,9 @@ auto breachAborts(const std::string_view name) -> void
   const pid_t child = ::fork();
   check(child >= 0, "the breach child was created");
   if (child == 0) {
+    const int report = ::open(
+        log.c_str(), O_WRONLY | O_CREAT | O_TRUNC, static_cast<mode_t>(0644));
+    static_cast<void>(::dup2(report, STDERR_FILENO));
     const std::array<char*, 3> argv {
         const_cast<char*>("/proc/self/exe"), mode.data(), nullptr};
     ::execv("/proc/self/exe", argv.data());
@@ -1425,11 +1443,22 @@ auto breachAborts(const std::string_view name) -> void
   }
   int status = 0;
   check(::waitpid(child, &status, 0) == child, "the breach child was waited");
-  const std::string message =
+  const std::string signal =
       std::string("the breach of ")
           .append(name)
           .append(" ends in the contract facility's abort");
-  check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT, message.c_str());
+  check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT, signal.c_str());
+  std::ifstream stream {log};
+  std::ostringstream text;
+  text << stream.rdbuf();
+  const std::string
+      reported = std::string("the breach of ")
+                     .append(name)
+                     .append(
+                         " is the abort of the requirement it names, not of "
+                         "the " "out-of-range read the breach leaves behind: ")
+                     .append(marker);
+  check(text.str().find(marker) != std::string::npos, reported.c_str());
 }
 
 // FR-014, FR-015: the merge reads the plan at `slot - 2` for every percentile
@@ -1447,18 +1476,84 @@ auto breachGridPastPlan() -> void
   (void)sg::detail::mergePasses(table.plan, passes);
 }
 
+// E-03 rule 1, FR-005: a leaf group whose `source` index runs past the limits
+// the caller priced names a source no pass can be bound by. The empty plan a
+// run with no published limit gets is no answer for such a group either, so
+// the breach stands even where the planner would have returned early.
+auto breachSourcePastLimits() -> void
+{
+  sg::detail::ColumnLeaves group;
+  group.source = 1;
+  group.addresses = {"0x309"};
+  const std::vector<std::vector<sg::detail::ColumnLeaves>> leaves {{group}};
+  const std::vector<std::optional<std::size_t>> limits {std::size_t {4}};
+  (void)sg::detail::planPasses(leaves, limits);
+}
+
+// FR-014: the merge reads pass 0 as the reference pass, so a run that folded
+// no fold result at all has nothing to merge and nothing to publish.
+auto breachNoFoldResults() -> void
+{
+  (void)sg::detail::mergePasses(sg::detail::PassPlan {}, {});
+}
+
+// FR-014: one fold result per pass of the plan, so a plan that names more
+// passes than the run folded leaves a pass whose fold result no one read.
+auto breachColumnsPastFolds() -> void
+{
+  const MergeTable table = mergeTable();
+  std::vector<sg::BenchmarkResult> passes;
+  for (std::size_t pass = 0; pass + 1 < table.plan.columns.size(); ++pass) {
+    passes.push_back(foldOfPass(table, pass));
+  }
+  (void)sg::detail::mergePasses(table.plan, passes);
+}
+
+// FR-014: every measuring pass of the plan names one fold result. The column
+// count still agrees with the fold count, so this is the arm that reads past
+// the last fold result and no other.
+auto breachMeasuringPastFolds() -> void
+{
+  const MergeTable table = mergeTable();
+  std::vector<sg::BenchmarkResult> passes;
+  for (std::size_t pass = 0; pass < table.plan.columns.size(); ++pass) {
+    passes.push_back(foldOfPass(table, pass));
+  }
+  sg::detail::PassPlan plan = table.plan;
+  plan.measuringPass.push_back(passes.size());
+  (void)sg::detail::mergePasses(plan, passes);
+}
+
 struct Breach
 {
   std::string_view name;
   void (*body)();
+  // A run of the message of the requirement this breach trips, the text the
+  // contract facility reports for it.
+  std::string_view marker;
 };
 
 // The breaches of this file: what the list below runs in a child of its own,
-// and what `argv[1]` selects for that child. A breach absent here never runs.
+// what `argv[1]` selects for that child, and the requirement each one trips.
+// A breach absent here never runs.
 [[nodiscard]] auto breaches() -> const std::vector<Breach>&
 {
   static const std::vector<Breach> kList {
-      Breach {"breach-grid-past-plan", breachGridPastPlan},
+      Breach {"breach-grid-past-plan",
+              breachGridPastPlan,
+              "names a measuring pass for every percentile"},
+      Breach {"breach-source-past-limits",
+              breachSourcePastLimits,
+              "names a counter source the caller priced"},
+      Breach {"breach-no-fold-results",
+              breachNoFoldResults,
+              "folded its reference pass"},
+      Breach {"breach-columns-past-folds",
+              breachColumnsPastFolds,
+              "one pass for every fold result the run folded"},
+      Breach {"breach-measuring-past-folds",
+              breachMeasuringPastFolds,
+              "every measuring pass of the plan names one fold result"},
   };
   return kList;
 }
@@ -1524,7 +1619,7 @@ auto main(const int argc, char** argv) -> int
     scenario.body();
   }
   for (const auto& breach : breaches()) {
-    breachAborts(breach.name);
+    breachAborts(breach.name, breach.marker);
   }
   std::printf("harness_pass_plan_test: ok\n");
   return 0;
