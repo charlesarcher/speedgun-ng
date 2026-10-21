@@ -262,11 +262,11 @@ option table at `:321` to `:344` with `filter`, `list`, `repetitions`,
 `min-time`, `iterations`, `warmup-time`, `dry-run`, `counter`, `metric`,
 `catalog`, `percentiles`, `no-percentiles`, `placement`, `topology`,
 `json` and `json-raw`. The usage errors print one line and answer status
-2 at `:70`, `:122`, `:142`, `:164`, `:248`, `:371`, `:385`, `:392`,
-`:406`, `:426`, `:446` and `:468`. The entry point closes with the
+2 at `:80`, `:132`, `:152`, `:174`, `:276`, `:405`, `:419`, `:462`,
+`:473`, `:498`, `:518` and `:548`. The entry point closes with the
 postcondition
 `SG_ENSURE((status != 0) == (anyFailed || anyInterrupted || reportFailed),`
-at `:566`, and the status table of
+at `:646`, and the status table of
 `specs/015-benchmark-harness-core/contracts/cli.md:83` lists the rows
 that entry point answers today. A compare mode that answers status 1 for
 a regression and status 2 for a rule fault moves both (FR-052).
