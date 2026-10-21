@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://speedgun-ng.dev/schema/compare-v1.json",
+  "title": "speedgun-ng regression comparison",
+  "description": "The document the harness writes for one comparison run (specs/026 FR-057, data model E-10). Key order is normative and stands in x-order; the harness checker reads this file and compares the key set, the key order and the value kinds of every written document against it (specs/026 D-14). An empty optional value writes null, the report format's unanswered form, and values stand in the stored unit with no printed scaling (spec D-22). The document carries no date, no host and no pid, so two runs of one command write the same bytes (SC-009).",
+  "type": "object",
+  "x-order": [
+    "schemaVersion",
+    "speedgun",
+    "inputs",
+    "rules",
+    "entries",
+    "verdict"
+  ],
+  "required": [
+    "schemaVersion",
+    "speedgun",
+    "inputs",
+    "rules",
+    "entries",
+    "verdict"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "speedgun": {
+      "type": "object",
+      "x-order": ["version", "buildType"],
+      "required": ["version", "buildType"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "string" },
+        "buildType": { "type": "string" }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "x-order": ["baseline", "contender"],
+      "required": ["baseline", "contender"],
+      "additionalProperties": false,
+      "properties": {
+        "baseline": { "type": "string" },
+        "contender": { "type": "string" }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "x-order": [
+          "name",
+          "rule",
+          "baseline",
+          "contender",
+          "changePercent",
+          "changeAbsolute",
+          "state",
+          "reason"
+        ],
+        "required": [
+          "name",
+          "rule",
+          "baseline",
+          "contender",
+          "changePercent",
+          "changeAbsolute",
+          "state",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "rule": { "type": "string" },
+          "baseline": { "type": ["number", "null"] },
+          "contender": { "type": ["number", "null"] },
+          "changePercent": { "type": ["number", "null"] },
+          "changeAbsolute": { "type": ["number", "null"] },
+          "state": {
+            "type": "string",
+            "enum": [
+              "OK",
+              "REGRESSED",
+              "IMPROVED",
+              "NOISY",
+              "ADDED",
+              "REMOVED",
+              "SKIPPED"
+            ]
+          },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "x-order": ["passed"],
+      "required": ["passed"],
+      "additionalProperties": false,
+      "properties": {
+        "passed": { "type": "boolean" }
+      }
+    }
+  }
+}

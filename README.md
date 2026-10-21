@@ -594,6 +594,31 @@ SG_BENCHMARK(bmDice).iterations(120).showPercentiles(true);
 ```
 `--json=path` writes the whole run as one JSON document beside the console report: the header, one entry per benchmark, and one row per repetition with its statistics, its percentile cells and its chunk columns. `--json-raw=chunks` carries those columns when the percentile lines stay off, and `loadReport(path)` reads the document back as the same `BenchmarkResult` values the run printed. The file carries no date, so two runs of one build write the same bytes. See [JSON reports](docs/pages/harness.md#json-reports).
 
+### Regression gate
+`--compare=baseline,contender` reads two report documents and answers whether the contender holds the rules you set; the comparison consults those documents and runs no benchmark of its own.
+<!-- sg-example: example/docs/regression_gate.cpp#regression-gate -->
+```cpp
+auto printComparison(const sg::ReportData& baseline,
+                     const sg::ReportData& contender) -> int
+{
+  constexpr std::array kStateWords {
+      "OK", "REGRESSED", "IMPROVED", "NOISY", "ADDED", "REMOVED", "SKIPPED"};
+  const auto rule = sg::parseCompareRule("time@median:lower:5%");
+  const auto answer = sg::compareReports(baseline, contender, {*rule}, false);
+  if (!answer.has_value()) {
+    std::printf("compare: %s\n", answer.error().c_str());
+    return 2;
+  }
+  for (const sg::CompareEntry& entry : answer->entries) {
+    const auto word = kStateWords[std::to_underlying(entry.state)];
+    std::printf("%-12s %s\n", entry.name.c_str(), word);
+  }
+  std::printf("compare: the verdict is %s\n", answer->passed ? "pass" : "fail");
+  return 0;
+}
+```
+That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`, `IMPROVED`, `NOISY`, `ADDED`, `REMOVED` or `SKIPPED`, and one verdict line `compare: the verdict is fail`; the command line answers a failed verdict with status 1 and a rejected rule or document with status 2. See [regression gate](docs/pages/harness.md#regression-gate).
+
 ## Quick reference
 
 | Name | Owner | What it does | Teaches |
@@ -609,10 +634,14 @@ SG_BENCHMARK(bmDice).iterations(120).showPercentiles(true);
 | `Fixture` | type | Builds state before the loop and releases it after | [fixtures](#fixtures) |
 | `ScopedPauseTiming` | type | Takes a scope out of the timed window | [pause-and-resume](#pause-and-resume) |
 | `TimeUnit` | type | The four scales a time column prints in | [the-time-unit](#the-time-unit) |
+| `CompareRule` | type | One parsed comparison rule: value, threshold and filter | [regression gate](#regression-gate) |
+| `CompareState` | type | The seven words one benchmark answers under a rule | [regression gate](#regression-gate) |
 | `registerBenchmark` | free function | Registers a family under a name you give | [registration](#registration) |
 | `setDefaultTimeUnit` | free function | Sets the unit for families that call no `unit` | [the-time-unit](#the-time-unit) |
 | `speedgunMain` | free function | Runs the registry against the command line | [the-command-line](#the-command-line) |
 | `loadReport` | free function | Reads a report document back as the run's own values | [json-reports](#json-reports) |
+| `compareReports` | free function | Compares two loaded reports under a list of rules | [regression gate](#regression-gate) |
+| `parseCompareRule` | free function | Reads one rule text into a rule or a fault | [regression gate](#regression-gate) |
 | `doNotOptimize` | free function | Keeps a value live across the barrier | [the-run-loop](#the-run-loop) |
 | `clobberMemory` | free function | Pushes cached values back to memory | [the-run-loop](#the-run-loop) |
 | `arg` | BenchmarkHandle | Appends one argument value to the instance list | [argument-families-and-ranges](#argument-families-and-ranges) |
@@ -704,6 +733,9 @@ SG_BENCHMARK(bmDice).iterations(120).showPercentiles(true);
 | `--catalog` | Prints the counter catalog and stops |
 | `--placement` | Selects the preset that plans the run's cpus |
 | `--topology` | Prints the machine layout listing and stops |
+| `--compare` | Compares two report documents instead of running a batch |
+| `--compare-rule` | Adds one comparison rule, repeatable in order |
+| `--compare-strict` | Makes every noisy row fail the verdict |
 
 ## Planned work
 

@@ -23,10 +23,11 @@ PREMARK = re.compile(r"^\s*<!--\s*(sg-example|sg-sample-output):\s*(\S+)\s*-->\s
 REQUIRES = re.compile(r"^\s*<!--\s*sg-requires:\s*(\S+)\s*-->\s*$")
 INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 
-# The twenty-one capabilities of the main page as the H3 titles of "How you do
-# it": the twelve of spec FR-009 at the H3 audit point, the six specs/018
-# adds (FR-028, FR-044, research D-13), the two specs/020 adds (FR-029), and
-# the one specs/021 add (FR-027).
+# The twenty-four capabilities of the main page as the H3 titles of "How you
+# do it": the twelve of spec FR-009 at the H3 audit point, the six specs/018
+# adds (FR-028, FR-044, research D-13), the two specs/020 adds (FR-029), the
+# one specs/021 add (FR-027), the one specs/023 add (FR-037), the one
+# specs/025 add (FR-016), and the one specs/026 add (FR-063).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -51,6 +52,7 @@ SECTIONS = (
     "Topology placement",
     "Percentiles",
     "JSON reports",
+    "Regression gate",
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
@@ -80,6 +82,7 @@ SECTION_OWNERS = {
     "Topology placement": ("topology_placement.cpp",),
     "Percentiles": ("percentiles.cpp",),
     "JSON reports": ("json_reports.cpp",),
+    "Regression gate": ("regression_gate.cpp",),
 }
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
@@ -129,7 +132,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # reports" section runs 18 lines and the three quick-reference rows
 # add 3, so 21 lines move the cap from 692 to 713, the measured
 # length of the page as the feature lands.
-PAGE_LINE_CAP = 713
+# specs/026 FR-063 measures its own move the same way: the "Regression gate"
+# section runs 25 lines and the four quick-reference name rows and three
+# option rows add 7, so 32 lines move the cap from 713 to 745, the measured
+# length of the page as the feature lands. The section sits at the
+# per-section budget of FR-024, so no entry joins SECTION_LINE_CAPS.
+PAGE_LINE_CAP = 745
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

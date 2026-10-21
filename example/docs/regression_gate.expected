@@ -1,0 +1,10 @@
+# sg-example:begin report
+bmGate/8     OK
+bmGate/16    REGRESSED
+bmGate/32    REMOVED
+bmGate/64    SKIPPED
+bmGate/128   IMPROVED
+bmGate/256   NOISY
+bmGate/512   ADDED
+compare: the verdict is fail
+# sg-example:end report
