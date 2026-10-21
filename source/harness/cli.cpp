@@ -62,6 +62,14 @@ constexpr std::string_view kDisabledPrefix = "DISABLED_";
 // space as the end of the element.
 constexpr std::size_t kMaxPercentilePoints = 16;
 
+// specs/026 FR-048, FR-049, FR-045: the value each compare option answers
+// from `getopt_long`. A long option with no letter of its own takes a number
+// of 256 or more, so it cannot collide with a short option. The number 256
+// belongs to the metric method option of the counters feature.
+constexpr int kCompareOptionValue = 257;
+constexpr int kCompareRuleOptionValue = 258;
+constexpr int kCompareStrictOptionValue = 259;
+
 [[noreturn]] auto rejectPercentileList(const char* option,
                                        const char* text) -> void
 {
@@ -330,9 +338,9 @@ auto speedgunMain(int argc, char** argv) -> int
       // specs/026 FR-048, FR-049, FR-045: the three options of the
       // regression gate. The mode stands off until `--compare` names a
       // baseline.
-      {"compare", required_argument, nullptr, 'a'},
-      {"compare-rule", required_argument, nullptr, 'Q'},
-      {"compare-strict", no_argument, nullptr, 'S'},
+      {"compare", required_argument, nullptr, kCompareOptionValue},
+      {"compare-rule", required_argument, nullptr, kCompareRuleOptionValue},
+      {"compare-strict", no_argument, nullptr, kCompareStrictOptionValue},
       {nullptr, 0, nullptr, 0},
   };
 
@@ -411,7 +419,7 @@ auto speedgunMain(int argc, char** argv) -> int
           return 2;
         }
         break;
-      case 'a': {
+      case kCompareOptionValue: {
         // specs/026 FR-048: the text is the two report paths split at the
         // first comma. A missing comma or an empty side is a usage fault:
         // one line naming the option and the text read, status 2 (FR-051).
@@ -430,7 +438,7 @@ auto speedgunMain(int argc, char** argv) -> int
         options.compareContender = std::string(pair.substr(comma + 1));
         break;
       }
-      case 'Q': {
+      case kCompareRuleOptionValue: {
         // specs/026 FR-049: one rule per option, in the order given. The
         // parse call names the field of its fault and the text it read, so
         // the line below adds the option and nothing else (FR-051).
@@ -442,7 +450,7 @@ auto speedgunMain(int argc, char** argv) -> int
         options.compareRules.push_back(std::move(*rule));
         break;
       }
-      case 'S':
+      case kCompareStrictOptionValue:
         // specs/026 FR-045: a NOISY row fails the run; the state word
         // stands as printed.
         options.compareStrict = true;
