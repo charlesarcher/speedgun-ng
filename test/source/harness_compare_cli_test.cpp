@@ -1,5 +1,5 @@
 // ============================================================================
-// T019, T025, T028, T032, T042, T044: the compare mode of the regression
+// T019, T025, T028, T032, T042, T044, T061: the compare mode of the regression
 // gate driven through the entry point over the committed fixture documents
 // of test/data (specs/026; FR-006, FR-011, FR-021, FR-024, FR-031, FR-034,
 // FR-039, FR-040, FR-044, FR-045, FR-048, FR-049, FR-051, FR-052, FR-053,
@@ -216,6 +216,43 @@ auto thePassPairAnswersZeroWithOneOkRow(const std::string& data) -> void
         "the pass row names the benchmark, the default rule, the two values, "
         "the percent and the absolute delta, and answers OK (SC-001, FR-053, "
         "FR-054)");
+}
+
+// T061, FR-049: `--compare-rule` repeats and the rules keep the order the
+// flags give them. Two rules over the pass pair answer two rows of one
+// benchmark in flag order, and the tighter bound of the first flag is the
+// one that fails the run.
+auto twoWrittenRulesAnswerTwoRowsInFlagOrder(const std::string& data) -> void
+{
+  const std::string baseline = data + "/gate_ok_base.json";
+  const std::string contender = data + "/gate_ok_contender.json";
+  const ModeRun run = runMode({"--compare=" + baseline + "," + contender,
+                               "--compare-rule=time@median:lower:1%",
+                               "--compare-rule=time@median:lower:50%"});
+
+  check(run.err.empty(), "two written rules print no fault (FR-049)");
+  check(run.status == 1,
+        "the tighter bound of the first flag fails the run (SC-002, FR-052)");
+
+  const std::vector<std::string> lines = linesOf(run.out);
+  if (lines.size() != 5) {
+    dump("two written rules", run);
+  }
+  check(lines.size() == 5,
+        "two header lines, one column line and two rows are the whole of the "
+        "output (SC-005)");
+  if (lines.size() != 5) {
+    return;
+  }
+  check(lines[3].rfind("bmGate", 0) == 0
+            && lines[3].find("time@median:lower:1%") != std::string::npos
+            && endsWith(lines[3], "REGRESSED"),
+        "the first row answers the rule the first flag wrote (FR-049)");
+  check(lines[4].rfind("bmGate", 0) == 0
+            && lines[4].find("time@median:lower:50%") != std::string::npos
+            && endsWith(lines[4], "OK"),
+        "the second row answers the rule the second flag wrote, in the order "
+        "the flags stand (FR-049)");
 }
 
 // The fail pair: the contender sits 9 percent behind the default rule, so
@@ -834,6 +871,7 @@ auto main(const int argc, char** argv) -> int
   static_cast<void>(handle);
 
   thePassPairAnswersZeroWithOneOkRow(data);
+  twoWrittenRulesAnswerTwoRowsInFlagOrder(data);
   theFailPairAnswersOneWithARegressedRow(data);
   aFilterMatchingNothingAnswersZeroWithOneLine(data);
   aScopedRuleAnswersOneRowAndTheFitEntry(data);
