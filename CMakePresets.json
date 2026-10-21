@@ -91,6 +91,7 @@
     },
     {
       "name": "coverage-linux",
+      "description": "A forked test child flushes its counters through __gcov_dump before it exits. libgcov defines that symbol in an archive member nothing else references, and a weak reference never pulls an archive member, so a plain --coverage link leaves it null and the child's counts vanish while its test still passes. Forcing the symbol undefined pulls the member.",
       "binaryDir": "${sourceDir}/build/coverage",
       "inherits": "ci-linux",
       "hidden": true,
@@ -98,8 +99,8 @@
         "ENABLE_COVERAGE": "ON",
         "CMAKE_BUILD_TYPE": "Coverage",
         "CMAKE_CXX_FLAGS_COVERAGE": "-Og -g --coverage -fprofile-update=atomic -fno-inline -fkeep-inline-functions -fkeep-static-functions",
-        "CMAKE_EXE_LINKER_FLAGS_COVERAGE": "--coverage -fprofile-update=atomic",
-        "CMAKE_SHARED_LINKER_FLAGS_COVERAGE": "--coverage -fprofile-update=atomic"
+        "CMAKE_EXE_LINKER_FLAGS_COVERAGE": "--coverage -fprofile-update=atomic -Wl,-u,__gcov_dump",
+        "CMAKE_SHARED_LINKER_FLAGS_COVERAGE": "--coverage -fprofile-update=atomic -Wl,-u,__gcov_dump"
       }
     },
     {
