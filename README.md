@@ -751,13 +751,13 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `--iterations` | Fixes the iteration count and skips calibration |
 | `--warmup-time` | Sets the untimed warm-up seconds |
 | `--percentiles` | Sets the percentile points one run reports |
-| `--metric-method` | Sets the metric collection method to `auto`, `passes` or `multiplex` |
 | `--no-percentiles` | Turns the percentile lines off |
 | `--json` | Writes one JSON report document for the run |
 | `--json-raw` | Selects the chunk columns the document carries |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter to the report columns |
 | `--metric` | Adds one metric of the host's table to the report columns |
+| `--metric-method` | Sets the metric collection method to `auto`, `passes` or `multiplex` |
 | `--catalog` | Prints the counter catalog and stops |
 | `--placement` | Selects the preset that plans the run's cpus |
 | `--topology` | Prints the machine layout listing and stops |
