@@ -70,7 +70,7 @@ these rows (FR-052):
 | --- | --- |
 | the comparison verdict is a regression | 1 |
 | `--compare` names a document the load call rejects | 2, with one line naming the file and the reader's fault (FR-051) |
-| the two reports carry different `schemaVersion` texts | 2, with one line naming both versions (FR-051) |
+| the two reports carry no common `schemaVersion` major, or a version text that reads no major | 2, with one line naming both versions (FR-051) |
 | a rule filter matches no benchmark in either report | 2, with one line naming the rule (FR-039) |
 | a value a rule names is absent, unanswered or uncountable, or a zero baseline stands under a relative threshold, or a rule's whole scope holds no readable row | 2, with one line naming the rule, the benchmark and the report (FR-036 to FR-038, FR-031, FR-040) |
 | the comparison document could not be written | 2, with one line naming the path (FR-074) |

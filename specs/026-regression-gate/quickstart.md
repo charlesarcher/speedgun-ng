@@ -69,7 +69,8 @@ The other forms, each with the answer the contract carries:
 | Command tail | Printed line and status |
 | --- | --- |
 | `--compare=test/data/gate_fit_base.json,test/data/gate_fit_contender.json` | the fit entry prints `SKIPPED`, the readable benchmark prints its word, status 0 |
-| `--compare=test/data/gate_ok_base.json,test/data/gate_schema_11.json` | one line naming both schema versions, status 2 |
+| `--compare=test/data/gate_ok_base.json,test/data/gate_schema_11.json` | the `1.0` baseline against the `1.1` contender shares its major, so the row prints `OK`, status 0 |
+| `--compare=test/data/gate_ok_base.json,test/data/gate_schema_20.json` | one line naming the schema version the reader refuses, status 2 |
 | `--compare-rule='time@median:lower:5' --compare=test/data/gate_ok_base.json,test/data/gate_ok_contender.json` | one line naming the rule text and the threshold fault, status 2 |
 | `--compare-rule='time@median:lower:5%:nothing-matches' --compare=test/data/gate_ok_base.json,test/data/gate_ok_contender.json` | one line naming the rule and its no-match filter, status 2 |
 | `--compare-rule='p99:lower:10%' --compare=test/data/gate_ok_base.json,test/data/gate_ok_contender.json` | the value resolves whole, status 0 |

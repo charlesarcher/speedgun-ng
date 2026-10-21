@@ -145,9 +145,11 @@ none of them carries the owner's approval.
   `docs/schema/compare-v1.json`, built with the vendored writer (C-8,
   FR-053 to FR-058).
 - **D-13 Schema version pairing**: the two reports must carry the same
-  `schemaVersion` text. A mismatch stops with one line naming both
-  versions and status 2, and a report whose major version the reader does
-  not know already stops inside the load call (C-7, FR-051).
+  major part of `schemaVersion`, so a `1.0` baseline compares against a
+  `1.1` run. Two different majors stop with one line naming both versions
+  and status 2, and so does a version text that reads no major; a report
+  whose major version the reader does not know already stops inside the
+  load call (C-7, FR-051).
 - **D-14 Version and merge order**: N5 takes the next free minor version
   after every feature that merges before it, and the harness `SOVERSION`
   moves 8 to 9 for the grown public surface of the harness archive. The
@@ -529,9 +531,9 @@ and read the line and the status.
    filter, and the process answers status 2.
 4. **Given** a baseline path that does not exist, **When** the gate runs,
    **Then** one line names the path, and the process answers status 2.
-5. **Given** two reports whose `schemaVersion` texts differ, **When** the
-   gate runs, **Then** one line names both versions, and the process
-   answers status 2.
+5. **Given** two reports whose `schemaVersion` majors differ, **When** the
+   gate runs, **Then** one line names the versions and the process answers
+   status 2, while a `1.0` report against a `1.1` one compares.
 6. **Given** a rule with a relative threshold over a baseline value of
    zero, **When** the gate runs, **Then** one line names the benchmark
    and the value, and the process answers status 2.
@@ -851,10 +853,10 @@ expected file.
   grammar of D-6, and each occurrence shall add one rule.
 - **FR-050**: The batch filter option shall limit the benchmarks every
   rule applies to, in compare mode as in run mode.
-- **FR-051**: A missing file, a file the reader refuses, a schema version
-  mismatch between the two reports, a malformed rule, an unknown value
-  name, a missing value and a filter that matches nothing shall each print
-  one line and answer status 2.
+- **FR-051**: A missing file, a file the reader refuses, a schema major the
+  two reports do not share, a version text that reads no major, a malformed
+  rule, an unknown value name, a missing value and a filter that matches
+  nothing shall each print one line and answer status 2.
 - **FR-052**: The option table, the usage-error path and the closing
   postcondition of the entry point shall carry the compare mode, and the
   status table of `specs/015-benchmark-harness-core/contracts/cli.md` shall
@@ -984,8 +986,9 @@ expected file.
 - **SC-004**: Each fault form (a malformed rule text, a missing threshold,
   an unknown value name, a missing value in one report, a filter that
   matches nothing, a zero baseline under a relative threshold, a missing
-  file, an unreadable file, a schema version mismatch) answers exactly one
-  line naming the fault and status 2, and no comparison table prints.
+  file, an unreadable file, a schema major the pair does not share) answers
+  exactly one line naming the fault and status 2, and no comparison table
+  prints.
 - **SC-005**: A compare-mode run loads two files and runs no benchmark: the
   registry runs nothing, no clock is read, and the run answers its status
   from the comparison alone.
@@ -1014,8 +1017,9 @@ expected file.
   cppcheck with no new finding, `format-check`, `spell-check`,
   `prose-lint`, the time-source gate, the page-drift gates, the DBC gates,
   and the coverage gates.
-- **SC-013**: A gate run over a pair whose `schemaVersion` texts differ
-  answers one line naming both versions and status 2.
+- **SC-013**: The gate refuses two reports with different major schema
+  versions, or a malformed version, before it pairs any rows. Two reports
+  with the same major version compare.
 
 ## Constraints
 
