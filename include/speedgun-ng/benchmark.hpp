@@ -688,7 +688,8 @@ struct CompareEntry
  * FR-044, FR-045).
  *
  * `entries` holds one entry per benchmark per rule, in baseline order,
- * then the names the contender adds in contender order (FR-002).
+ * then the names the contender adds in contender order, and a rule's filter
+ * decides which benchmarks that rule admits (FR-002, FR-024).
  * `passed` is false when any entry is REGRESSED, or when the strict
  * setting stands and any entry is NOISY; NOISY passes while strict
  * stands off (FR-044, FR-045).
@@ -2523,7 +2524,9 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
  * row fails the run when it stands and passes when it does not, and the
  * state word never changes for it (FR-044, FR-045). The entries follow
  * the run order of the baseline, then the names the contender adds in
- * the order of the contender (FR-002). The call reads no file, runs no
+ * the order of the contender (FR-002), and each rule answers one entry per
+ * benchmark of the pair that its filter admits (FR-024). The call reads no
+ * file, runs no
  * benchmark, reads no clock, samples no sensor, repairs no value and
  * prints nothing (FR-006, FR-007), and it throws nothing to the caller
  * and aborts nothing.
@@ -2531,9 +2534,9 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
  * \pre `baseline` and `contender` are values `loadReport` answered, or
  *      values built to the same shape: `noiseWarnings`, when non-empty,
  *      holds one entry per entry of `results`
- * \post When the call answers a value, its `entries` hold one entry per
- *       benchmark per rule and `passed` states the verdict of FR-044
- *       and FR-045
+ * \post When the call answers a value, every entry of `entries` carries the
+ *       text of one of the rules the call applied and `passed` states the
+ *       verdict of FR-044 and FR-045
  * \post When the call answers an error, the text names the fault and
  *       stands non-empty, and no partial entries reach the caller
  *       (FR-003)

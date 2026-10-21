@@ -29,8 +29,8 @@ inline constexpr std::string_view kDefaultCompareRule = "time@median:lower:5%";
  * (specs/026 E-11, FR-052, D-15).
  *
  * `status` is the exit status the mode returns, taken from the table of
- * `specs/026-regression-gate/contracts/cli.md`; `failed` is set from the
- * comparison verdict or from the fault. The two are computed
+ * `specs/015-benchmark-harness-core/contracts/cli.md`; `failed` is set from
+ * the comparison verdict or from the fault. The two are computed
  * independently, which is what gives the closing `SG_ENSURE` of the
  * compare branch its content.
  */
@@ -71,8 +71,8 @@ struct CompareExit
  * \pre `options.compareBaseline` is not empty: the caller stands the
  *      mode up only when `--compare` named a baseline
  * \post the answer holds a status from the table of
- *       `specs/026-regression-gate/contracts/cli.md`, and `failed` set
- *       exactly when that status is not 0
+ *       `specs/015-benchmark-harness-core/contracts/cli.md`, and `failed`
+ *       set exactly when that status is not 0
  */
 [[nodiscard]] auto runCompareMode(const RunOptions& options) -> CompareExit;
 
