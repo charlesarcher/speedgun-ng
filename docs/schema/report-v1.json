@@ -42,7 +42,11 @@
           "metricLabels",
           "counterLabels",
           "counterStats",
-          "statisticValues"
+          "statisticValues",
+          "metricMethod",
+          "passCount",
+          "passSpread",
+          "spreadWarning"
         ],
         "required": [
           "name",
@@ -59,7 +63,11 @@
           "metricLabels",
           "counterLabels",
           "counterStats",
-          "statisticValues"
+          "statisticValues",
+          "metricMethod",
+          "passCount",
+          "passSpread",
+          "spreadWarning"
         ],
         "additionalProperties": false,
         "properties": {
@@ -188,14 +196,16 @@
                       "value",
                       "runningRatio",
                       "scaled",
-                      "availability"
+                      "availability",
+                      "pass"
                     ],
                     "required": [
                       "label",
                       "value",
                       "runningRatio",
                       "scaled",
-                      "availability"
+                      "availability",
+                      "pass"
                     ],
                     "additionalProperties": false,
                     "properties": {
@@ -213,7 +223,8 @@
                           "SCOPE_REFUSED",
                           "GAP"
                         ]
-                      }
+                      },
+                      "pass": { "type": ["integer", "null"] }
                     }
                   }
                 },
@@ -444,7 +455,14 @@
                 "value": { "type": "number" }
               }
             }
-          }
+          },
+          "metricMethod": {
+            "type": "string",
+            "enum": ["AUTO", "PASSES", "MULTIPLEX"]
+          },
+          "passCount": { "type": "integer" },
+          "passSpread": { "type": ["number", "null"] },
+          "spreadWarning": { "type": "boolean" }
         }
       }
     }

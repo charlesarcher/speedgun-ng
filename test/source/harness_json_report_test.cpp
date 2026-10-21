@@ -14,8 +14,10 @@
 // ============================================================================
 
 #include <cctype>
+#include <cstddef>
 #include <cstdio>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -326,6 +328,113 @@ auto theNoiseWarningRoundTrips() -> void
         "the reader answers the two contexts the warning answers (E-10)");
 }
 
+// One entry of the pass shapes: a single row with a single metric column,
+// carrying the pass disclosure the run settled to (specs/024 FR-019).
+auto passShape(const char* name,
+               sg::MetricMethod method,
+               std::size_t passCount,
+               std::optional<double> spread,
+               std::optional<std::size_t> pass) -> sg::BenchmarkResult
+{
+  sg::BenchmarkResult entry;
+  entry.name = name;
+  entry.suite = name;
+  entry.caseName = name;
+  entry.metricLabels = {"work"};
+  entry.metricMethod = method;
+  entry.passCount = passCount;
+  entry.passSpread = spread;
+
+  sg::ResultRow row;
+  row.kind = sg::RowKind::REPETITION;
+  row.iterations = 1;
+  row.metrics = {{2.5, 1.0, true, sg::counters::Availability::COUNTABLE, pass}};
+  entry.rows = {row};
+  return entry;
+}
+
+// C-6, FR-038: the pass disclosure of the run stands in the document. A
+// one-pass run keeps the keys the format carried and adds the four new ones
+// at the end of its entry, with a null spread, no warning and a null pass
+// on each metric column (E-08). Two passes write the count and the spread
+// between them beside the index of the pass that measured each column. A
+// spread above the limit carries the warning the console prints. The reader
+// answers each of them back.
+auto thePassDisclosureRoundTrips() -> void
+{
+  sg::ReportData data;
+  data.results.push_back(passShape(
+      "bmOne", sg::MetricMethod::AUTO, 0, std::nullopt, std::nullopt));
+  data.results.push_back(
+      passShape("bmTwo", sg::MetricMethod::PASSES, 2, 1.5, std::size_t {1}));
+  data.results.push_back(
+      passShape("bmWarn", sg::MetricMethod::PASSES, 3, 7.5, std::size_t {2}));
+  data.results.push_back(passShape(
+      "bmMix", sg::MetricMethod::MULTIPLEX, 1, std::nullopt, std::nullopt));
+  for (std::size_t entry = 0; entry < data.results.size(); ++entry) {
+    data.rowRaw.push_back({sg::RowRaw {}});
+    data.contextRaw.push_back({{sg::RowRaw {}}});
+  }
+
+  check(sg::detail::writeReport("harness_json_pass.json", data),
+        "the writer wrote the four pass shapes (FR-038)");
+  const std::string text = sg::test::readText("harness_json_pass.json");
+  const auto schema = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  if (schema.has_value()) {
+    check(true, "the four pass shapes answer the schema (FR-008)");
+  } else {
+    std::printf("  the pass document disagrees: %s\n", schema.error().c_str());
+    fail("the pass document disagrees with the schema (FR-008)");
+  }
+
+  check(text.find("\"metricMethod\":\"AUTO\",\"passCount\":0,"
+                  "\"passSpread\":null,\"spreadWarning\":false")
+            != std::string::npos,
+        "a one-pass run writes the auto method, no count, a null spread and "
+        "no warning (FR-016, FR-038)");
+  check(text.find("\"spreadWarning\":false}") != std::string::npos,
+        "the four keys stand at the end of the entry, after the keys the "
+        "format already carried (FR-038)");
+  check(text.find("\"availability\":\"COUNTABLE\",\"pass\":null}")
+            != std::string::npos,
+        "a metric column of a one-pass run writes a null pass (E-08, FR-019)");
+  check(text.find("\"passCount\":2,\"passSpread\":1.5,\"spreadWarning\":false")
+            != std::string::npos,
+        "two passes write their count and their spread with no warning "
+        "(FR-017, FR-038)");
+  check(text.find("\"availability\":\"COUNTABLE\",\"pass\":1}")
+            != std::string::npos,
+        "a metric column of a two-pass run names the pass that measured it "
+        "(FR-019)");
+  check(text.find("\"passCount\":3,\"passSpread\":7.5,\"spreadWarning\":true")
+            != std::string::npos,
+        "a spread above the limit carries the warning the console prints "
+        "(FR-018, FR-038)");
+  check(text.find("\"metricMethod\":\"MULTIPLEX\",\"passCount\":1,"
+                  "\"passSpread\":null")
+            != std::string::npos,
+        "a multiplex run writes its method with a null spread (FR-016, "
+        "FR-038)");
+
+  const auto loaded = sg::loadReport("harness_json_pass.json");
+  if (!loaded.has_value()) {
+    std::printf("  the pass document refused: %s\n", loaded.error().c_str());
+    fail("the reader refused the pass document (FR-022)");
+    return;
+  }
+  check(
+      sg::test::sameReport(*loaded, data),
+      "the reader answers every pass field of the document (FR-022, " "FR-"
+                                                                      "038)");
+  check(loaded->results[1].passCount == 2
+            && loaded->results[1].passSpread.has_value()
+            && sg::test::sameValue(*loaded->results[1].passSpread, 1.5)
+            && loaded->results[2].rows[0].metrics[0].pass == 2
+            && loaded->results[3].metricMethod == sg::MetricMethod::MULTIPLEX,
+        "the loaded count, spread, pass index and method answer the run "
+        "(FR-017, FR-019, FR-038)");
+}
+
 // FR-030: a file system that refuses the write answers false, and the
 // refusal reaches stderr; no exception escapes. The full device opens
 // and refuses every byte, so the write itself is what fails.
@@ -423,6 +532,7 @@ auto main() -> int
   aValueOutsideTheTableWritesTheGuardWord();
   everyFieldOfTheFormatRoundTrips();
   theNoiseWarningRoundTrips();
+  thePassDisclosureRoundTrips();
   aRefusedWriteAnswersFalse();
   aRowWithoutARawEntryWritesNoColumns();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",

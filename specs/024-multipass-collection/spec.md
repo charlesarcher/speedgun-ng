@@ -45,8 +45,8 @@ this feature and not copied.
 > tests run on the fake provider with a set limit; a real-PMU script on
 > corsairone compares both methods and stands outside CI.
 >
-> Out of scope: the top-down tree (N10), JSON output of the pass data
-> (N3 adds it after the merge), placement (N4), new metric formulas.
+> Out of scope: the top-down tree (N10), placement (N4), new metric
+> formulas. The JSON output of the pass data is in scope as FR-038.
 
 ## Decisions
 
@@ -543,7 +543,7 @@ gate does the same in CI.
   lower of the two central values; no value is averaged. The merged
   result shall also carry the
   settled method, the pass count and the spread as published disclosure
-  fields, which the JSON lane extends to its schema later (Q4,
+  fields, which the JSON document carries through FR-038 (Q4,
   2026-10-20).
 - **FR-018**: When the spread exceeds 5 percent, the report shall print
   one warning line beside it. The warning discloses; it shall not
@@ -644,6 +644,17 @@ gate does the same in CI.
 - **FR-037**: The coverage preset shall keep `-fprofile-update=atomic`
   and stay without `-D_GLIBCXX_ASSERTIONS`; the suite shall keep passing
   under `ctest -j 2`.
+- **FR-038**: The JSON document shall carry the pass disclosure. Each
+  benchmark entry gains `metricMethod`, `passCount`, `passSpread` and
+  `spreadWarning` after the fields it already carried, and each metric
+  column of a row gains `pass`, the index of the pass that measured the
+  value, `null` where one pass measured the run. The schema file shall
+  state the five fields, `loadReport` shall read them and refuse a
+  document whose `spreadWarning` disagrees with the spread beside it, and
+  a round-trip test shall cover one pass, two passes, a spread above the
+  warning limit and `multiplex`, with an error path for each field. A
+  one-pass run keeps the bytes the format wrote before, with the new keys
+  added.
 
 ## Clarifications
 
@@ -661,8 +672,8 @@ gate does the same in CI.
   each pass, the same numbers the report shows.
 - Q: Must the settled method, pass count and spread be readable from
   the result object and not only the console? → A: Yes. They are
-  published disclosure fields of the merged result, and the JSON lane
-  adds them to its schema later.
+  published disclosure fields of the merged result, and FR-038 writes
+  them into the JSON document.
 - Q: Do user-counter columns from `--counter` take part in the pass
   split? → A: Yes. Every PMU column of the run participates, and the
   metrics place first in request order.
@@ -754,10 +765,16 @@ gate does the same in CI.
   features' lines, take the next free minor, raise `PAGE_LINE_CAP` again
   by this feature's own section, run the full gate set, and push once
   with `--force-with-lease`.
-- The JSON schema and its round-trip test belong to N3: if this feature
+- The JSON schema and its round-trip test belong to N3: if a feature
   adds a field to `ResultRow`, `MetricValue` or `BenchmarkResult`, the
   feature that merges second adds it to the JSON output and the
-  round-trip test.
+  round-trip test. This feature merges second over N3, so FR-038 carries
+  that work here. The schema gains fields, so `schemaVersion` moves from
+  `1.0` to `1.1` under specs/023 D-4 and FR-010, the rule that a minor
+  adds fields and a major is what breaks a loader. A `1.0` document
+  stands outside the new keys and loads through the version rule, and
+  the schema file keeps its name, `docs/schema/report-v1.json`, because
+  the major stands at 1.
 - Commit messages follow the constitution template: blank lines between
   body paragraphs, one footer block with `Approved-by:` then `Refs:`, an
   `Approved-by:` line only for a decision Charles approved, and
@@ -765,26 +782,23 @@ gate does the same in CI.
 
 ## Scope
 
-In: FR-001 to FR-037. The planner and its first-fit split, the
+In: FR-001 to FR-038. The planner and its first-fit split, the
 per-source limit fact inside counters, the fake provider's limit
 parameter, the per-pass runs with one calibration, the merge, the
 console disclosure with its warning, the method option on handle and
-command line, the threaded pass order, the docs section with its runnable
-example, and the version and `SOVERSION` effects.
+command line, the threaded pass order, the pass fields of the JSON
+document with their schema and round-trip test, the docs section with its
+runnable example, and the version and `SOVERSION` effects.
 
 Out, each with its owner:
 
 - The top-down metric tree and its levels: N10.
-- JSON output of the pass data: N3, which adds any field this feature's
-  result types gain after the merge lands.
 - Topology placement and any edit of `ContextDisclosure` or
   `printContextDisclosure`: N4.
 - New metric formulas, new vendored tables and new metric names: none.
 - Modeling cross-process counter contention (another perf session on the
   same CPU): the kernel still rotates, and the ratio field discloses it,
   as today.
-- The JSON schema entries for the pass fields: the JSON lane adds them
-  after this merge lands.
 - Splitting one metric's events across passes: D-1 forbids it.
 - Rejecting a run because its spread is large: D-6 discloses.
 - A per-source limit on an event source the library cannot answer for:

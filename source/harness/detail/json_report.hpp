@@ -87,6 +87,14 @@ inline constexpr std::array<std::string_view, 3> kWaitModeWords {
 static_assert(kWaitModeWords.size()
               == std::to_underlying(sg::WaitMode::BLOCK) + 1);
 
+inline constexpr std::array<std::string_view, 3> kMetricMethodWords {
+    "AUTO",
+    "PASSES",
+    "MULTIPLEX",
+};
+static_assert(kMetricMethodWords.size()
+              == std::to_underlying(sg::MetricMethod::MULTIPLEX) + 1);
+
 // The word one value of a closed enumeration writes. A value outside the
 // enumeration writes the one word the document carries for it, the guard
 // `availabilityName` stands beside the console table. The span form keeps
@@ -141,6 +149,21 @@ inline constexpr std::string_view kUnappliedPlacement = "UNAPPLIED";
  */
 [[nodiscard]] auto noiseWarningOf(const BenchmarkResult& result)
     -> std::optional<NoiseWarning>;
+
+// The limit the pass warning reads, as a percentage of the median of the
+// pass times, on the unrounded figure (specs/024 FR-018). The console names
+// this figure in its own line and the document carries the answer below it.
+inline constexpr double kSpreadWarningLimitPercent = 5.0;
+
+/**
+ * @brief Whether one pass spread carries the warning of specs/024 FR-018.
+ *
+ * The console line, the `spreadWarning` key of the document and the
+ * reader's check of that key all answer this one predicate, so the limit is
+ * stated once (FR-018). A spread the run could not compute carries no
+ * warning, the reading of `spread=not available`.
+ */
+[[nodiscard]] auto spreadWarned(std::optional<double> spread) noexcept -> bool;
 
 /**
  * @brief Write the report document of a finished batch to `path`
