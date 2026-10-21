@@ -504,7 +504,7 @@ coverage gate reads one count-zero line record the local gcov does
 not emit. One requirement carries a CLI-surface test gap.
 
 - [X] T059 Pair the contract of `compareReports` with its enforcement: an `SG_ENSURE` postcondition in the body of the call in `source/harness/compare.cpp` and the default-rule `SG_ASSERT` moved out of that documented body, then `cmake --build build -t dbc-gate` reports zero drifted interfaces per Principle II, Principle VI, SC-012 (contradicts)
-- [ ] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:470` to `:474` so the CI gcov answers no count-zero record at the declaration line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
+- [X] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:470` to `:474` so the CI gcov answers no count-zero record at the declaration line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
 - [X] T061 Add one `harness_compare_cli_test` case that passes two `--compare-rule=` flags in one run and answers two rule-major rows in flag order per FR-049 (partial)
 
 ## Phase 11: Audit round 1
@@ -1135,12 +1135,10 @@ point cites `aec8fce`, and its number holds there: `loadReport` at
 noise record read at `source/harness/json_load.cpp:729` to `:743`, and
 `PAGE_LINE_CAP` 713 at `tools/docs/example_drift.py:132`.
 
-One label reads wider than its rows. The sentence at
-`specs/026-regression-gate/spec.md:1163` states that the table's
-anchors stand "each read at the audit point `aec8fce`", and the two
-`source/harness/cli.cpp` rows at `:1186` and `:1187` carry this
-head's numbers, the numbers T074, T076 and T077 re-derived. Every
-number there holds here, so no task is appended.
+The label of the Citations table reads correctly at the branch head. The
+sentence at `specs/026-regression-gate/spec.md:1163` names the audit
+point `aec8fce` and adds that the two `source/harness/cli.cpp` rows stand
+at the head this branch pushes, a change made outside this pass.
 
 **The requirements read complete.** The grammar stands at
 `source/harness/compare.cpp:162` with `kEscapedCharacters`, `:186`
@@ -1196,7 +1194,18 @@ clean with both planted probes reported, and
 times in the three touched sources, and `ctest --test-dir build/conv1`
 answers 109 of 109.
 
-**Checkpoint:** the tree is clean at `fc3a429`, the remote equals the
-head, and every fixture the table of
+**Checkpoint:** the branch head moved during this pass. `807068c` narrows
+the label sentence at `spec.md:1163`, `0318c32` carries this section, and
+the remote answers `0318c32`. Every fixture the table of
 `specs/026-regression-gate/quickstart.md:69` to `:77` names stands in
 `test/data/`.
+
+**T060 reads closed, and the label fix landed.** The coverage job of run
+39652027115 at `fc3a429` answers 100.0% lines (7714 of 7714) and 100.0%
+branches (3651 of 3651) on the CI toolchain, gcc 15 with lcov 2.4-3, read
+from the `coverage-info` artifact of that job. The precompile restructure
+stands at `source/harness/cli.cpp:470` to `:474`, and `LCOV_EXCL` appears
+zero times in the three touched sources. `807068c` widened the label above
+the Citations table to name both readings. The head that carries this
+ledger differs from `fc3a429` in markdown only, so the reading describes
+the same binaries, and SC-008 and FR-069 read satisfied on it.
