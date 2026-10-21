@@ -934,6 +934,20 @@ auto scenarioThreadedPassOrder() -> int
         "pass: the window counts of the passes show no overlap and no window "
         "held open past its pass (FR-011, FR-013, SC-10)");
 
+  // The chunk fold of a chunked threaded split run walks the columns this
+  // pass leaves unmeasured, so the percentile row answers as many columns as
+  // the run opened. The arm runs last: it widens the arrival log, which the
+  // claims above read.
+  auto chunkedOptions = valueOptions;
+  chunkedOptions.showPercentiles = true;
+  chunkedOptions.percentilePoints = {50.0};
+  const RunAccount chunked =
+      runMeasured(*needInstance(threadedInstance), chunkedOptions);
+  check(chunked.result.rows.front().percentiles.size()
+            == 2 + chunked.result.metricLabels.size(),
+        "the threaded chunk fold answers every column the run opened, the "
+        "columns this pass leaves unmeasured included (FR-014, FR-019)");
+
   std::puts("threaded-pass-order: ok");
   return 0;
 }
