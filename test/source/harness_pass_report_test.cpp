@@ -686,6 +686,20 @@ auto scenarioSpreadTwoPass() -> void
         "times, where the upper would print 7.4 (D-6, E-06 TWO_PASS)");
 }
 
+// T058d, FR-017, D-6: the two-pass disclosure with the missing figure.
+// The lower central time of the pair stands exactly zero, so the spread
+// is the empty answer and the line names it with the words; the count
+// still prints, no warning line reads a number, and the report stops at
+// the row and the line.
+auto scenarioSpreadTwoPassNone() -> void
+{
+  const auto result =
+      checkSpreadFixture({0.0, 5.0}, "  spread=not available", false);
+  check(!result.passSpread.has_value() && result.passCount == 2,
+        "the pair whose lower central time is zero discloses its count with "
+        "no spread figure to name (FR-017, D-6)");
+}
+
 // ---------------------------------------------------------------------------
 // T043: the `multiplex` settling shape
 // ---------------------------------------------------------------------------
@@ -893,13 +907,14 @@ struct Scenario
   void (*body)();
 };
 
-constexpr std::array<Scenario, 11> kScenarios {{
+constexpr std::array<Scenario, 12> kScenarios {{
     Scenario {"two-pass-shape", &scenarioTwoPassShape},
     Scenario {"spread-in-band", &scenarioSpreadInBand},
     Scenario {"spread-boundary", &scenarioSpreadBoundary},
     Scenario {"spread-warning", &scenarioSpreadWarning},
     Scenario {"spread-zero-median", &scenarioSpreadZeroMedian},
     Scenario {"spread-two-pass", &scenarioSpreadTwoPass},
+    Scenario {"spread-two-pass-none", &scenarioSpreadTwoPassNone},
     Scenario {"multiplex-shape", &scenarioMultiplexShape},
     Scenario {"forced-one-pass", &scenarioForcedMethodPrintsOnePass},
     Scenario {"no-metric-column", &scenarioNoMetricColumnPrintsNothing},
