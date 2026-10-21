@@ -313,31 +313,24 @@ auto describeMetric(std::string_view name) -> void
 ```
 `--metric` puts the same metric in a report column, one column per name, in the order the names are given; attaching a composed expression and folding a named metric against a window are at [hardware counter metrics](docs/pages/harness.md#hardware-counter-metrics).
 ### Multi-pass collection
-A metric set larger than the host's published `programmableCounters` limit needs more than one measurement window, and `metricMethod` names how the run collects it: `auto` lets the harness choose, `passes` forces one replay per group of columns, `multiplex` keeps the single kernel-rotated plan.
+A metric set wider than the host's published `programmableCounters` limit needs more than one measurement window, and `metricMethod` names how the run collects it: `auto` lets the harness choose, `passes` forces one replay per group of columns, `multiplex` keeps the single kernel-rotated plan.
 <!-- sg-example: example/docs/metric_passes.cpp#metric-passes -->
 ```cpp
-#include <array>
-#include <cstddef>
 #include <ranges>
-#include <string_view>
 
 #include "speedgun-ng/counters.hpp"
 
-constexpr std::array<std::string_view, 5> kOverLimitMetricLeafNames {
-    "cpu-cycles", "instructions", "branch-misses", "ref-cycles", "bus-cycles"};
-
 auto attachOverLimit(sg::BenchmarkHandle& handle) -> void
 {
+  using Leaf = sg::counters::Dim<0, 1>;
   const auto cpu = sg::counters::System::local().object("cpu");
   if (!cpu.has_value()) {
     return;
   }
-  const std::size_t wanted = cpu->programmableCounters().value_or(0) + 1;
-  for (const auto name : kOverLimitMetricLeafNames | std::views::take(wanted)) {
-    const auto leaf = cpu->counter<sg::counters::Dim<0, 1>>(name);
-    if (leaf.has_value()) {
-      const sg::counters::Expression<sg::counters::Dim<0, 1>> metric {*leaf};
-      handle.addMetric(metric, name);
+  const auto limit = cpu->programmableCounters().value_or(0);
+  for (const auto& entry : cpu->counters() | std::views::take(limit + 1)) {
+    if (const auto leaf = cpu->counter<Leaf>(entry.name); leaf.has_value()) {
+      handle.addMetric(sg::counters::Expression<Leaf> {*leaf}, entry.name);
     }
   }
 }

@@ -1,8 +1,4 @@
-#include <array>
-#include <cstddef>
 #include <memory>
-#include <ranges>
-#include <string_view>
 
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -16,28 +12,21 @@ auto bmTick(sg::State& state) -> void
 }
 
 // sg-example:begin metric-passes
-#include <array>
-#include <cstddef>
 #include <ranges>
-#include <string_view>
 
 #include "speedgun-ng/counters.hpp"
 
-constexpr std::array<std::string_view, 5> kOverLimitMetricLeafNames {
-    "cpu-cycles", "instructions", "branch-misses", "ref-cycles", "bus-cycles"};
-
 auto attachOverLimit(sg::BenchmarkHandle& handle) -> void
 {
+  using Leaf = sg::counters::Dim<0, 1>;
   const auto cpu = sg::counters::System::local().object("cpu");
   if (!cpu.has_value()) {
     return;
   }
-  const std::size_t wanted = cpu->programmableCounters().value_or(0) + 1;
-  for (const auto name : kOverLimitMetricLeafNames | std::views::take(wanted)) {
-    const auto leaf = cpu->counter<sg::counters::Dim<0, 1>>(name);
-    if (leaf.has_value()) {
-      const sg::counters::Expression<sg::counters::Dim<0, 1>> metric {*leaf};
-      handle.addMetric(metric, name);
+  const auto limit = cpu->programmableCounters().value_or(0);
+  for (const auto& entry : cpu->counters() | std::views::take(limit + 1)) {
+    if (const auto leaf = cpu->counter<Leaf>(entry.name); leaf.has_value()) {
+      handle.addMetric(sg::counters::Expression<Leaf> {*leaf}, entry.name);
     }
   }
 }
