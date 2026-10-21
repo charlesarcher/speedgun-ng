@@ -742,6 +742,19 @@ target_include_directories(harness_gap_test PRIVATE ${CMAKE_SOURCE_DIR}/source/h
 target_compile_features(harness_gap_test PRIVATE cxx_std_23)
 add_test(NAME harness_gap_test COMMAND harness_gap_test)
 
+# The foundational jitter probe surface: the option defaults of data-model.md
+# E-01 (FR-003, R-15), the sixteen-field stats aggregate in the E-03 order
+# (FR-002), the three mode enumerators (E-02, R-10), the declared entry point
+# and seam signatures (contracts/public-api.md, R-02), and the record and
+# per-cpu state shapes (E-04, E-05).
+add_executable(harness_jitter_probe_test
+               source/harness_jitter_probe_test.cpp)
+target_link_libraries(harness_jitter_probe_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_jitter_probe_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_jitter_probe_test PRIVATE cxx_std_23)
+add_test(NAME harness_jitter_probe_test COMMAND harness_jitter_probe_test)
+
 # The machine layout read, the two install seams and the mask intersection
 # (T007; US1, FR-001, FR-002, FR-003, FR-005, FR-006, R-04, R-11, R-13,
 # SC-04, Q-5, Q-8).
