@@ -339,6 +339,10 @@ auto speedgunMain(int argc, char** argv) -> int
   (void)sys.registerProvider(std::make_unique<counters::PmuProvider>());
 
   detail::RunOptions options;
+  // The scanner carries no short letters, so the long-only option answers a
+  // value outside the letter range: no option a later feature adds can reach
+  // the same switch arm by claiming a letter.
+  constexpr int kMetricMethodOption = 256;
   static option longOptions[] = {
       {"filter", required_argument, nullptr, 'f'},
       {"list", no_argument, nullptr, 'l'},
@@ -362,7 +366,7 @@ auto speedgunMain(int argc, char** argv) -> int
       {"compare", required_argument, nullptr, kCompareOptionValue},
       {"compare-rule", required_argument, nullptr, kCompareRuleOptionValue},
       {"compare-strict", no_argument, nullptr, kCompareStrictOptionValue},
-      {"metric-method", required_argument, nullptr, 'S'},
+      {"metric-method", required_argument, nullptr, kMetricMethodOption},
       {nullptr, 0, nullptr, 0},
   };
 
@@ -441,7 +445,7 @@ auto speedgunMain(int argc, char** argv) -> int
           return 2;
         }
         break;
-      case 'S': {
+      case kMetricMethodOption: {
         // specs/024 FR-025, FR-026: the word is the method the run is asked
         // for and wins over the family's own request the way `--percentiles`
         // wins over `showPercentiles`; the assignment overwrites, so a
