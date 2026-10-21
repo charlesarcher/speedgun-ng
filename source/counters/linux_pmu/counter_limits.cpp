@@ -328,19 +328,16 @@ auto usableCounters(const std::optional<std::size_t> hardware,
   if (watchdogValue != 1) {
     return hardware;
   }
-  switch (vendor) {
-    case CounterLimitVendor::INTEL:
-    case CounterLimitVendor::ZHAOXIN:
-      // With a fixed cycles counter the watchdog's cycles event holds that
-      // counter; without one the watchdog occupies a programmable counter.
-      return hasFixedCycles ? hardware : publishMinusOne(*hardware);
-    case CounterLimitVendor::AMD:
-    case CounterLimitVendor::OTHER:
-      // AMD has no fixed cycles counter and its watchdog pins a cycles
-      // event; an unknown vendor keeps the conservative subtraction.
-      return publishMinusOne(*hardware);
+  // With a fixed cycles counter the watchdog's cycles event holds that
+  // counter; without one the watchdog occupies a programmable counter. AMD
+  // pins a cycles event and has no fixed counter to hold it, and an unknown
+  // vendor keeps the conservative subtraction (research D-01).
+  const bool intelLike = vendor == CounterLimitVendor::INTEL
+      || vendor == CounterLimitVendor::ZHAOXIN;
+  if (intelLike && hasFixedCycles) {
+    return hardware;
   }
-  return std::nullopt;
+  return publishMinusOne(*hardware);
 }
 
 }  // namespace sg::counters::detail
