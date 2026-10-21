@@ -4,7 +4,7 @@
   "title": "speedgun-ng benchmark report",
   "description": "The document the harness writes for one batch (specs/023 FR-008). Key order is normative and stands in x-order; the harness checker reads this file and compares the key set, the key order and the value kinds of every written document against it.",
   "type": "object",
-  "x-order": ["schemaVersion", "speedgun", "run", "benchmarks"],
+  "x-order": ["schemaVersion", "speedgun", "run", "jitter", "benchmarks"],
   "required": ["schemaVersion", "speedgun", "benchmarks"],
   "additionalProperties": true,
   "properties": {
@@ -42,6 +42,117 @@
         }
       }
     },
+    "jitter": {
+      "type": "object",
+      "x-order": [
+        "mode",
+        "thresholdNs",
+        "loopPeriodNs",
+        "cpus",
+        "stats",
+        "droppedGaps",
+        "disclosure"
+      ],
+      "required": [
+        "mode",
+        "thresholdNs",
+        "loopPeriodNs",
+        "cpus",
+        "stats",
+        "droppedGaps",
+        "disclosure"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["ALONGSIDE", "PRECHECK", "BOTH"]
+        },
+        "thresholdNs": { "type": "integer" },
+        "loopPeriodNs": { "type": "integer" },
+        "cpus": { "type": "array", "items": { "type": "integer" } },
+        "stats": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "x-order": [
+              "cpu",
+              "gapCount",
+              "gapsPerSecond",
+              "minNs",
+              "medianNs",
+              "meanNs",
+              "p90Ns",
+              "p99Ns",
+              "p999Ns",
+              "p9999Ns",
+              "maxNs",
+              "totalNs",
+              "totalPercent",
+              "runtimeNs",
+              "thresholdNs",
+              "loopPeriodNs",
+              "droppedGaps",
+              "gaps"
+            ],
+            "required": [
+              "cpu",
+              "gapCount",
+              "gapsPerSecond",
+              "minNs",
+              "medianNs",
+              "meanNs",
+              "p90Ns",
+              "p99Ns",
+              "p999Ns",
+              "p9999Ns",
+              "maxNs",
+              "totalNs",
+              "totalPercent",
+              "runtimeNs",
+              "thresholdNs",
+              "loopPeriodNs",
+              "droppedGaps"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "cpu": { "type": "integer" },
+              "gapCount": { "type": "integer" },
+              "gapsPerSecond": { "type": "number" },
+              "minNs": { "type": "integer" },
+              "medianNs": { "type": "integer" },
+              "meanNs": { "type": "number" },
+              "p90Ns": { "type": "integer" },
+              "p99Ns": { "type": "integer" },
+              "p999Ns": { "type": "integer" },
+              "p9999Ns": { "type": "integer" },
+              "maxNs": { "type": "integer" },
+              "totalNs": { "type": "integer" },
+              "totalPercent": { "type": "number" },
+              "runtimeNs": { "type": "integer" },
+              "thresholdNs": { "type": "integer" },
+              "loopPeriodNs": { "type": "integer" },
+              "droppedGaps": { "type": "integer" },
+              "gaps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": ["stamp", "gapNs"],
+                  "required": ["stamp", "gapNs"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "stamp": { "type": "integer" },
+                    "gapNs": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "droppedGaps": { "type": "integer" },
+        "disclosure": { "type": "string" }
+      }
+    },
     "benchmarks": {
       "type": "array",
       "items": {
@@ -59,6 +170,7 @@
           "percentilePoints",
           "contexts",
           "noiseWarning",
+          "jitter",
           "rows",
           "metricLabels",
           "counterLabels",
@@ -138,6 +250,9 @@
               "runnableCpus": { "type": "integer" },
               "sharesOneCpu": { "type": "boolean" }
             }
+          },
+          "jitter": {
+            "type": ["object", "null"]
           },
           "rows": {
             "type": "array",

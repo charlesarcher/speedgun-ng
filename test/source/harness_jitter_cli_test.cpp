@@ -369,7 +369,7 @@ auto main() -> int
     captureRun(arguments);
     const auto document = readDocument(path);
     std::remove(path.c_str());
-    check(document.find("\"mode\":\"alongside\"") != std::string::npos,
+    check(document.find("\"mode\":\"ALONGSIDE\"") != std::string::npos,
           "no mode= value stands alongside (FR-012, D-1)");
   }
 
