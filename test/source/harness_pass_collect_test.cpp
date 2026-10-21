@@ -27,9 +27,11 @@
 // that end early and the one that widens the merged row: the calibration
 // ahead of an adaptive split's pass loop answers a failing, a skipping and a
 // signaled body each with its own stop, the interrupt read between a pass's
-// repetitions ends the loop with two passes measured and no merge, and a
-// percentile run stands its row wider than the plan the merge reads
-// (FR-016, FR-031, FR-032, FR-014; specs/021 FR-016).
+// repetitions ends the loop with two passes measured and no merge, a
+// percentile run stands its row wider than the plan the merge reads, and the
+// three-pass arms read the disclosure a loop that leaves early publishes: the
+// passes whose folds stand, with no spread and no pass tag
+// (FR-016, FR-031, FR-032, FR-014, FR-017; specs/021 FR-016).
 // ============================================================================
 
 #include <array>
@@ -581,6 +583,25 @@ auto bmInterruptSecondWindow(sg::State& state) -> void
     if (arrivals.fetch_add(1) == 1) {
       sg::detail::interruptFlag().store(true);
     }
+    sg::doNotOptimize(index);
+  }
+}
+
+// The window whose body skips, counted in the windows one process opens: the
+// arms below give a window the one iteration, so the arrival counter counts
+// windows. A scenario sets it before its run, which it may do because every
+// scenario runs in its own process.
+std::uint64_t skipWindow = 0;
+
+// A body that skips the window `skipWindow`: the record of that window carries
+// the skip's own reason, so the pass that ran it closes with the rows of its
+// earlier repetitions, or with none (FR-031).
+auto bmSkipWindow(sg::State& state) -> void
+{
+  if (arrivals.fetch_add(1) == skipWindow) {
+    state.skipWithMessage("the scripted pass skip");
+  }
+  for (auto index : state) {
     sg::doNotOptimize(index);
   }
 }
@@ -1938,6 +1959,211 @@ auto scenarioInterruptInsideSplit() -> int
   return 0;
 }
 
+// The columns of the three-pass plan the arms below stop short of: the four
+// pairs the scripted limit lays across two passes, beside the column that
+// stands over the limit on its own (FR-004, E-03 rule 4).
+auto attachThreePassPlan(sg::BenchmarkHandle& handle) -> void
+{
+  attachColumns(handle, {0, 1, 2, 3, kWideColumnIndex});
+}
+
+// The plan a stopped arm stops short of, read from a run of the same columns
+// that reaches its last pass: a stopped run publishes the folds that stand, so
+// its own result names the collection it ran, and the plan it was given
+// reaches this file through a run that completed.
+auto checkWholeThreePassPlan(sg::Instance& instance) -> void
+{
+  const auto options = optionsFor(1, 1);
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult whole = runner.run(instance);
+  check(whole.outcome == sg::RunOutcome::MEASURED,
+        "the run of these columns that reaches its last pass measures "
+        "(FR-009)");
+  check(whole.passCount == kThreePassCount,
+        "the scripted limit lays these columns across three passes, the plan a "
+        "stopped run stops short of (FR-004, FR-017)");
+}
+
+// What a collection stopped before its last pass publishes, on the result and
+// on both report surfaces: the method it settled to and the count of the
+// passes whose folds stand, with no spread and no pass tag, because the merge
+// that writes both stayed unrun (FR-017, FR-019, FR-031, FR-038).
+// `standing` is that count and `printed` the console the stop printed.
+auto checkStoppedCollection(const sg::BenchmarkResult& result,
+                            const std::size_t standing,
+                            const std::string& printed,
+                            sg::detail::Runner& runner) -> void
+{
+  check(result.metricMethod == sg::MetricMethod::PASSES,
+        "the stopped collection publishes the method it settled to (FR-017)");
+  check(result.passCount == standing,
+        "the published pass count names the passes whose folds stand, and the "
+        "plan the run was given stays unpublished (FR-017, E-07)");
+  check(!result.passSpread.has_value(),
+        "a partial set of passes publishes no spread (FR-017)");
+  for (const auto& row : result.rows) {
+    for (const sg::MetricValue& value : row.metrics) {
+      check(
+          !value.pass.has_value(),
+          "no value carries a pass tag, because nothing was merged " "(FR-"
+                                                                     "019)");
+    }
+  }
+
+  // The console surface: a stopped run prints its reason line alone, so no
+  // field of the pass disclosure reaches it (FR-031).
+  check(printed.find("SKIPPED:") != std::string::npos,
+        "the console states the stop and its reason");
+  check(printed.find("count=") == std::string::npos
+            && printed.find("spread=") == std::string::npos
+            && printed.find("pass=") == std::string::npos,
+        "the console of a stopped run prints no disclosure line, no spread and "
+        "no pass tag (FR-019, FR-021)");
+
+  // The document surface, written beside the ledger the run retained.
+  sg::ReportData written;
+  written.results = {result};
+  written.rowRaw = {runner.rowRaw().back()};
+  written.contextRaw = {runner.contextRaw().back()};
+  check(sg::detail::writeReport(kReportPath, written),
+        "the JSON writer wrote the stopped run (FR-038)");
+  const auto read = sg::loadReport(kReportPath);
+  check(read.has_value(),
+        "the document of the stopped run reads back through the public reader "
+        "(FR-038)");
+  const sg::BenchmarkResult& documented = read->results.front();
+  check(documented.metricMethod == sg::MetricMethod::PASSES
+            && documented.passCount == standing,
+        "the document carries the settled method and the count of the passes "
+        "whose folds stand (FR-017, FR-038)");
+  check(!documented.passSpread.has_value(),
+        "the document carries no spread for a stopped collection (FR-038)");
+  for (const auto& row : documented.rows) {
+    for (const sg::MetricValue& value : row.metrics) {
+      check(!value.pass.has_value(),
+            "the document carries no pass tag for a collection that merged "
+            "nothing (FR-019, FR-038)");
+    }
+  }
+}
+
+// FR-017, FR-019, FR-032: the flag raised while the second pass of a
+// three-pass plan measures its repetition. Two folds stand when the loop
+// leaves, so the run publishes a pass count of 2 where the plan held 3, and
+// neither report surface carries a spread or a pass tag.
+auto scenarioInterruptInSecondPass() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto whole = sg::registerBenchmark(&bmPlain, "bmThreePassWhole");
+  attachThreePassPlan(whole);
+  auto stopped =
+      sg::registerBenchmark(&bmInterruptSecondWindow, "bmStopInPassOne");
+  attachThreePassPlan(stopped);
+  sg::detail::expandRegistry();
+
+  checkWholeThreePassPlan(*needInstance("bmThreePassWhole"));
+
+  resetAttempts();
+  const auto options = optionsFor(1, 1);
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result =
+      runner.run(*needInstance("bmStopInPassOne"));
+  sg::detail::interruptFlag().store(false);
+
+  check(arrivals.load() == kTwoPassCount,
+        "the collection ran one window of pass 0 and one of pass 1 and opened "
+        "no window of the third pass (FR-032)");
+  check(result.outcome == sg::RunOutcome::SKIPPED,
+        "the flag inside the second pass ends the run as a skip (FR-032)");
+  check(result.reason == "interrupted by the user (SIGINT)",
+        "the stopped collection states the signal as its reason (FR-032)");
+  captureThrough(kScratchPath, [&result] { sg::detail::printResult(result); });
+  checkStoppedCollection(result, kTwoPassCount, readAll(kScratchPath), runner);
+
+  std::puts("interrupt-in-second-pass: ok");
+  return 0;
+}
+
+// FR-017, FR-019, FR-031: the body skip inside the second pass of the same
+// plan, on that pass's second repetition. The stopped pass has a fold
+// standing, so the published count is the 2 the signal leaves as well.
+auto scenarioSkipInSecondPass() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto whole = sg::registerBenchmark(&bmPlain, "bmSkipWholePlan");
+  attachThreePassPlan(whole);
+  auto stopped = sg::registerBenchmark(&bmSkipWindow, "bmSkipInPassOne");
+  attachThreePassPlan(stopped);
+  sg::detail::expandRegistry();
+
+  checkWholeThreePassPlan(*needInstance("bmSkipWholePlan"));
+
+  // One iteration to a window makes the arrival counter name the windows: 3
+  // is the second repetition of pass 1, whose first repetition folded a row.
+  skipWindow = 3;
+  resetAttempts();
+  const auto options = optionsFor(1, 2);
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result =
+      runner.run(*needInstance("bmSkipInPassOne"));
+
+  check(arrivals.load() == skipWindow + 1,
+        "the collection ran both repetitions of both passes it reached and "
+        "opened no window of the third pass (FR-031)");
+  check(result.outcome == sg::RunOutcome::SKIPPED,
+        "the skip inside the second pass ends the run as a skip (FR-031)");
+  check(result.reason == "the scripted pass skip",
+        "the skip's own reason stands as the run's reason (FR-031)");
+  check(result.rows.size() == 1,
+        "the published result carries the rows of the stopped pass alone, the "
+        "merge of a stopped collection staying unrun (FR-014)");
+  check(!result.rows.empty()
+            && result.rows.front().metrics[2].availability
+                == sg::counters::Availability::COUNTABLE,
+        "the row that stands answers from the stopped pass's own folds, the "
+        "fold that keeps that pass in the published count (FR-014, FR-017)");
+  captureThrough(kScratchPath, [&result] { sg::detail::printResult(result); });
+  checkStoppedCollection(result, kTwoPassCount, readAll(kScratchPath), runner);
+
+  std::puts("skip-in-second-pass: ok");
+  return 0;
+}
+
+// FR-017: the same skip on the first repetition of the second pass, where the
+// stopped pass folds nothing. The pass before it stands alone in the published
+// count, and the method stays the one the run settled to.
+auto scenarioSkipStopsSecondPassFold() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto stopped = sg::registerBenchmark(&bmSkipWindow, "bmSkipPassOneFold");
+  attachThreePassPlan(stopped);
+  sg::detail::expandRegistry();
+
+  skipWindow = 1;
+  resetAttempts();
+  const auto options = optionsFor(1, 1);
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result =
+      runner.run(*needInstance("bmSkipPassOneFold"));
+
+  check(result.rows.empty(),
+        "the stopped pass folded no row of its own, and the rows of the pass "
+        "before it stay in the collection that closed (FR-014)");
+  check(result.metricMethod == sg::MetricMethod::PASSES,
+        "the run publishes the method it settled to (FR-017)");
+  check(result.passCount == 1,
+        "only the pass that closed stands in the published count, the pass "
+        "that folded nothing staying out of it (FR-017, E-07)");
+  check(!result.passSpread.has_value(),
+        "a partial set of passes publishes no spread (FR-017)");
+
+  std::puts("skip-stops-second-pass-fold: ok");
+  return 0;
+}
+
 // specs/021 FR-016 beside FR-014 of specs/024: a percentile run over a split
 // stands one percentile slot beside every column the row prints, which is
 // wider than the columns the planner costed. The merge pads the plan it reads
@@ -2134,7 +2360,7 @@ struct Scenario
   int (*run)();
 };
 
-constexpr std::array<Scenario, 17> kScenarios {{
+constexpr std::array<Scenario, 20> kScenarios {{
     Scenario {"two-pass-run", &scenarioTwoPassRun},
     Scenario {"pause-across-passes", &scenarioPauseAcrossPasses},
     Scenario {"over-limit-run", &scenarioOverLimitRun},
@@ -2152,6 +2378,9 @@ constexpr std::array<Scenario, 17> kScenarios {{
     Scenario {"unplanned-columns-across-passes",
               &scenarioUnplannedColumnsAcrossPasses},
     Scenario {"interrupt-inside-split", &scenarioInterruptInsideSplit},
+    Scenario {"interrupt-in-second-pass", &scenarioInterruptInSecondPass},
+    Scenario {"skip-in-second-pass", &scenarioSkipInSecondPass},
+    Scenario {"skip-stops-second-pass-fold", &scenarioSkipStopsSecondPassFold},
     Scenario {"percentiles-across-passes", &scenarioPercentilesAcrossPasses},
     Scenario {"dry-run-across-passes", &scenarioDryRunAcrossPasses},
 }};
