@@ -347,14 +347,11 @@ constexpr Mutation kRichMutations[] = {
     {"[{\"available\":true,\"value\":3.5}]",
      "[{\"value\":3.5}]",
      "/benchmarks/0/rows/0/percentiles/0/0"},
-    // The pass disclosure of specs/024 FR-038: each key of the entry taken
-    // away, each key of the wrong kind, the method word outside the closed
-    // list, the count below zero, and a warning that disagrees with the
-    // spread beside it (FR-024, FR-038).
-    {"\"metricMethod\":\"PASSES\",", "", "/benchmarks/0"},
-    {"\"passCount\":2,", "", "/benchmarks/0"},
-    {"\"passSpread\":3.5,", "", "/benchmarks/0"},
-    {",\"spreadWarning\":false", "", "/benchmarks/0"},
+    // The pass disclosure of specs/024 FR-038: each key of the wrong kind,
+    // the method word outside the closed list, the count below zero, and a
+    // warning that disagrees with the spread beside it. A key taken away is
+    // the one shape that loads, and the case after this one covers it
+    // (FR-024, FR-038).
     {"\"metricMethod\":\"PASSES\"",
      "\"metricMethod\":1",
      "/benchmarks/0/metricMethod"},
@@ -372,10 +369,10 @@ constexpr Mutation kRichMutations[] = {
     {"\"spreadWarning\":false",
      "\"spreadWarning\":true",
      "/benchmarks/0/spreadWarning"},
-    // The pass index of one metric column, a wrong kind and a key taken
-    // away (specs/024 E-08, FR-019).
+    // The pass index of one metric column at a value of the wrong kind
+    // (specs/024 E-08, FR-019); the key taken away loads, as the case below
+    // shows.
     {"\"pass\":1", "\"pass\":\"one\"", "/benchmarks/0/rows/0/metrics/0/pass"},
-    {",\"pass\":1", "", "/benchmarks/0/rows/0/metrics/0"},
 };
 
 auto plantedFieldsOfEveryRecordRefuse() -> void
@@ -405,6 +402,66 @@ auto plantedFieldsOfEveryRecordRefuse() -> void
       sg::test::fail("the refusal names no pointer (FR-024, SC-007)");
     }
   }
+}
+
+// The five keys specs/024 FR-038 added, four to the entry and one to a metric
+// column: a document written before that feature carries none of them, and
+// the comparison of specs/026 reads such a stored baseline (FR-051), so a key
+// that stands missing loads and leaves its member at the default of a run
+// that collected no pass. Each key alone first, then all five together.
+auto aDocumentPredatingThePassFieldsLoads() -> void
+{
+  constexpr const char* const kPassKeys[] = {
+      "\"metricMethod\":\"PASSES\",",
+      "\"passCount\":2,",
+      "\"passSpread\":3.5,",
+      ",\"spreadWarning\":false",
+      ",\"pass\":1",
+  };
+
+  for (const char* const key : kPassKeys) {
+    std::string stripped = kRich;
+    const std::size_t at = stripped.find(key);
+    if (at == std::string::npos) {
+      sg::test::fail("the rich document holds no such pass key");
+      continue;
+    }
+    stripped.erase(at, std::strlen(key));
+    sg::test::writeText("harness_json_load_pre024.json", stripped);
+    const auto loaded = sg::loadReport("harness_json_load_pre024.json");
+    if (!loaded.has_value()) {
+      std::printf("  without '%s': %s\n", key, loaded.error().c_str());
+    }
+    check(loaded.has_value(),
+          "a document missing one pass key loads (FR-038, FR-051)");
+  }
+
+  constexpr std::string_view kWarning = "\"spreadWarning\":false";
+  std::string pre024 = kRich;
+  pre024.erase(pre024.find(kPassKeys[4]), std::strlen(kPassKeys[4]));
+  const std::size_t method = pre024.find("\"metricMethod\"");
+  const std::size_t warning = pre024.find(kWarning);
+  if (method == std::string::npos || warning == std::string::npos) {
+    sg::test::fail("the rich document holds no pass block to take away");
+    return;
+  }
+  const std::size_t comma = pre024.rfind(',', method);
+  pre024.erase(comma, warning + kWarning.size() - comma);
+  sg::test::writeText("harness_json_load_pre024.json", pre024);
+  const auto loaded = sg::loadReport("harness_json_load_pre024.json");
+  if (!loaded.has_value()) {
+    std::printf("  %s\n", loaded.error().c_str());
+    sg::test::fail("a document written before the pass fields refuses");
+    return;
+  }
+  check(loaded->results.size() == 1
+            && loaded->results[0].name == "bmRich"
+            && loaded->results[0].metricMethod == sg::MetricMethod::AUTO
+            && loaded->results[0].passCount == 0
+            && !loaded->results[0].passSpread.has_value()
+            && !loaded->results[0].rows[0].metrics[0].pass.has_value(),
+        "the document of before specs/024 answers the defaults of a run that "
+        "collected no pass (FR-038, FR-051)");
 }
 
 // The benchmark list is the one key of the root the reader asks for by
@@ -1012,6 +1069,7 @@ auto main() -> int
   eachExtensionErrorCodeRefuses(written);
   anUnknownKeyInAnOpenObjectLoads(written);
   plantedFieldsOfEveryRecordRefuse();
+  aDocumentPredatingThePassFieldsLoads();
   theRootListAndTheWarningKeyAnswerTheirOwnRules(written);
   brokenDocumentsRefuseWithPointers(written);
   brokenSpansRefuseWithPointers(written);

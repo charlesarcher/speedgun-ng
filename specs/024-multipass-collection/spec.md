@@ -654,7 +654,10 @@ gate does the same in CI.
   a round-trip test shall cover one pass, two passes, a spread above the
   warning limit and `multiplex`, with an error path for each field. A
   one-pass run keeps the bytes the format wrote before, with the new keys
-  added.
+  added. A document written before the five fields shall load as it
+  stands: `loadReport` shall read a key that stands missing as the
+  default its member holds, so the comparison of specs/026 (FR-051)
+  reaches a baseline stored before this feature.
 
 ## Clarifications
 
