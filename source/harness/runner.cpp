@@ -2450,10 +2450,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // wider than the columns the planner costed: a body that stores counters
     // adds one column each. Those columns ride every pass unmeasured by the
     // planner, so the reference pass answers them, and the padding keeps the
-    // merge's index inside the plan it reads. The percentile grid asks for no
-    // term of its own: it stands one slot per printed column, the two time
-    // columns beside one slot per metric and one per user counter, so every
-    // slot past the second prints a column the counter term already covers.
+    // merge's index inside the plan it reads. The percentile grid needs no term
+    // of its own: it holds one slot per printed column in the order the row
+    // prints them, the primary time, the time column the primary is not, then
+    // each metric column, so the grid is never wider than two slots plus the
+    // widest row above, and a plan padded to that row names a measuring pass
+    // for every slot the merge reads at `slot - 2`.
     std::size_t widestRow = 0;
     for (const BenchmarkResult& passResult : passResults) {
       for (const ResultRow& row : passResult.rows) {
