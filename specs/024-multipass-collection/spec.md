@@ -493,8 +493,9 @@ gate does the same in CI.
   shall disclose its running ratio with the existing fields.
 - **FR-005**: The counters library shall publish, beside the catalog
   facts it already publishes, the number of programmable counters one
-  context can hold at open time on an event source it can answer for.
-  An event source it cannot answer for shall publish no limit, and the
+  context can hold at open time on an event source it can answer for,
+  for each vendor and per device, as the research D-01 table gives. An
+  event source it cannot answer for shall publish no limit, and the
   planner shall treat a run that needs only such sources as the `auto`
   fallback of D-11.
 - **FR-006**: The fake provider shall take the counter limit as a test
@@ -831,9 +832,9 @@ Out, each with its owner:
   the behavior the tree already measures and documents (PC-3). The
   `multiplex` method relies on it.
 - The limit the planner needs is the programmable general-purpose count
-  per core on Intel server parts of the pinned catalog; where the
-  provider reads it is a plan decision, and this spec states only that
-  the fact is published, fakeable and per source.
+  per core, for each vendor, as the research D-01 table gives; where
+  the provider reads it is a plan decision, and this spec states only
+  that the fact is published, fakeable and per source.
 - Pass 0 is the reference pass for every run; nothing in the request
   selects a different reference.
 - Metric event totals come from the loaded metric spines, which the

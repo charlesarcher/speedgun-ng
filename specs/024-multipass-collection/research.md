@@ -8,14 +8,17 @@ alternatives considered, in the style the 022 plan and research use: `Decision`
 
 ## D-01 - Learning the programmable-counter limit
 
-**Decision**: The `perf` PMU provider reads CPUID leaf 0AH and decodes the
-architectural performance-monitoring fields: `EAX[7:0]` is the version,
+**Decision**: The `perf` PMU provider reads the CPUID leaves the tables
+below names, takes the vendor from the leaf 0 vendor words, and answers
+the programmable-counter limit for each vendor, as the research D-01
+table gives, per device it enumerates. For an Intel or Zhaoxin core it
+decodes leaf 0AH, the architectural performance-monitoring fields:
+`EAX[7:0]` is the version,
 `EAX[15:8]` is the number of general-purpose counters that support
 programmable events per logical CPU, `EAX[23:16]` is their bit width,
 `EAX[31:24]` is the length of the `EBX` programmable-counter bit vector, and
-`EBX` carries that vector when the version exceeds 1. The provider answers the
-limit from `EAX[15:8]` when the version is nonzero and the count is nonzero,
-and answers nothing otherwise. Measured on the development host `corsairone`
+`EBX` carries that vector when the version exceeds 1. The core answer is
+`EAX[15:8]` when the version is not zero, and nothing when it is. Measured on the development host `corsairone`
 (i9-9920X, Cascade Lake) on 2026-10-20: `EAX=0x07300404`, `EBX=0x00000000`,
 `EDX=0x00000603`: version 4, four general-purpose counters, 48-bit width. The
 `EBX` vector reads zero on this host, so the decode treats it as decoration
@@ -25,6 +28,55 @@ motivates all of this: the kernel grants a group of 64 core-PMU events opened
 at once and rotates it, with ratios of 0.428174 and 0.543263 measured on this
 host (`docs/pages/counters-overhead.md`, cited by PC-3), so failure-probing
 observes nothing.
+
+**The AMD rule**: an AMD core answers from the extended leaves. The leaf
+`0x80000022` words count only when the maximum extended leaf (leaf
+`0x80000000`, `EAX`) reaches `0x80000022`. With `PerfMonV2` (`0x80000022`
+`EAX` bit 0) set, the core answer is `EBX[3:0]`, the core PMU counter count
+the part publishes. Without it, `PerfCtrExtCore` (`0x80000001` `ECX` bit 23)
+answers 6, and the pre-extension core PMU answers 4. The maximum-extended
+leaf gates the read because a leaf above the answered maximum answers the
+maximum leaf's registers, whose low bits are unrelated data.
+
+**The device table**: the answer is a fact of the device a seed names.
+
+| Device | Published limit |
+|---|---|
+| `cpu` | the vendor's core answer, adjusted below |
+| `cpu_core`, `cpu_atom` | the vendor's core answer, adjusted below (the Intel hybrid names) |
+| every other device | no limit |
+
+**The hybrid rule**: a host whose device list carries the hybrid core names
+(`cpu_core` or `cpu_atom`) and whose leaf `0x23` answers publishes no limit
+for its core devices, because one host-wide core figure would be wrong for
+both core types. A hybrid host whose leaf `0x23` answers nothing keeps the
+vendor's core answer.
+
+**The watchdog table**: `/proc/sys/kernel/nmi_watchdog` decides whether the
+kernel watchdog holds a counter at open time.
+
+| Watchdog value | Meaning |
+|---|---|
+| 1 | enabled: a cycles event of the watchdog occupies a counter |
+| 0 | released |
+| -1 | the read or the parse failed, treated as any value other than 1 |
+
+The adjustment applies the watchdog to the hardware core answer; the first
+matching row wins, and a result of zero answers no value.
+
+| Condition | Published limit |
+|---|---|
+| the watchdog value is not 1 (a failed read gives -1) | the hardware answer |
+| Intel or Zhaoxin with a fixed cycles counter | the hardware answer |
+| Intel or Zhaoxin without a fixed cycles counter | the hardware answer minus one |
+| AMD, which has no fixed cycles counter and whose watchdog pins a cycles event | the hardware answer minus one |
+| any other vendor | the hardware answer minus one |
+
+Fixed counters count against the limit: leaf 0AH `EDX[4:0]` counts them
+beside the programmable ones, and a version of at least 2 with `EDX[4:0]`
+of at least 2 is the fixed cycles counter that decides the Intel and
+Zhaoxin watchdog rows. An AMD paired event and an Arm chained event each
+occupy two counters, so the published limit is a ceiling.
 
 **Rationale**: Leaf 0AH is the only user-readable, hardware-shaped answer to
 "how many programmable counters does this core hold" that the pinned Intel
@@ -62,12 +114,11 @@ even if a future kernel grew one, reading it would break the dogfood rule and
 the no-root story twice over. (c) Hard-code the limit per model in a new table
 inside the pinned catalog. Rejected: the CPUID leaf answers every part that
 carries the catalog without a per-model row, and a row that disagrees with the
-leaf is a second source of truth. (d) Read the
-AMD leaf `0x80000022` for AMD hosts. Rejected for this feature: the pinned
-catalog is the Intel core tree (PC-3 records the core-PMU measurements on that
-host's family), and the leaf 0AH decode answers nothing on hosts
-whose version field is zero, which is the published "no limit" state those
-hosts take today under kernel rotation. (e) Let the harness read CPUID
+leaf is a second source of truth. (d) The AMD leaf
+`0x80000022` is adopted as the AMD rule above; an earlier draft rejected it
+because the pinned catalog is the Intel core tree (PC-3 records the core-PMU
+measurements on that host's family), and the amendment takes the extended
+leaf as AMD's own answer, gate and fallbacks included. (e) Let the harness read CPUID
 directly. Rejected: the time-source and dogfood rules put every hardware fact
 inside the counters library, and the handle-selector path needs the fact
 through the library surface anyway.
@@ -88,9 +139,11 @@ gains a trailing member `programmableCounters` of type
 `auto programmableCounters() const -> std::optional<std::size_t>` answering
 the published value of the object's event source. A provider that can answer
 fills the field on each device object it owns; a provider that cannot answer
-leaves it empty. The PMU provider fills it on the `cpu` object and every PMU
-device object on a host whose leaf answers; the clock, push and fake providers
-leave it empty unless scripted. The harness planner reads the fact through
+leaves it empty. The PMU provider fills it on the core devices it enumerates
+(`cpu`, `cpu_core`, `cpu_atom`) per the vendor rules, the hybrid rule and the
+watchdog adjustment of D-01; every other device, and every core device of a
+hybrid host whose leaf `0x23` answers, publishes no limit; the clock, push
+and fake providers leave it empty unless scripted. The harness planner reads the fact through
 `System::object(path)` and nothing else.
 
 **Rationale**: The limit is a catalog fact of an event source, the same kind
@@ -160,11 +213,12 @@ parallel `ctest -j2` contract and X.2's no-ambient-rule.
 **Decision**: The PMU provider's CPUID work grows one site in
 `source/counters/linux_pmu/` beside the existing leaf reads in
 `table_parse.cpp` (`<cpuid.h>` there at line 46, leaf 0 at line 71, leaf 1 at
-line 90). Two pieces: a branchless probe that executes `__get_cpuid` for leaf
-0 and for leaf 0AH and returns the three raw values, and a pure free function
-`programmableCountersFromCpuid(std::uint32_t maxLeaf, std::uint32_t eax,
-std::uint32_t ebx) -> std::optional<std::size_t>` in the PMU detail header
-that decides the answer. The probe holds no decision; the decode holds no
+line 90). Two pieces: a branchless probe that executes
+`__get_cpuid_count` once per leaf for the leaves D-01 names and returns the
+raw words with no decision of its own, and the pure free functions of the
+PMU detail header (`vendorOf`, `intelCoreLimit`, `amdCoreLimit`,
+`fixedCycles`, `watchdogValueFrom`, `usableCounters`, `isHybrid`,
+`limitForDevice`) that decide the answer. The probe holds no decision; the decode holds no
 instruction. `<cpuid.h>` is the house's standard header for this (time-source
 gate bans `<x86intrin.h>`-family headers, not `<cpuid.h>`; `table_parse.cpp`
 is the precedent).
@@ -173,11 +227,11 @@ is the precedent).
 synthetic registers, which is what keeps the new code at 100 percent branch
 coverage on hosts that cannot reproduce "no leaf" or "version 0" in hardware
 (FR-032, no new `LCOV_EXCL` marker). The probe stays branchless because the
-only guard the read needs (`maxLeaf >= 0x0A`) moves into the decode: on a
-host without the leaf, `CPUID` with `EAX` above the maximum returns the
-maximum leaf's registers, whose version nibble can be vendor-string garbage,
-so the raw registers mean nothing until `maxLeaf` vouches for them; checking
-inside the pure function keeps the probe straight-line and the arm countable.
+guard needs no code: every register word is zero-initialized before its
+`__get_cpuid_count`, and a leaf above the answered maximum leaves its
+registers untouched, so an absent leaf reads as zeros; the gates
+(`maxLeaf`, `maxExtended`, the version fields) live in the pure functions,
+which keeps the probe straight-line and the arm countable.
 Executing leaf 0AH on every x86-64 host is safe: the instruction exists on
 every x86-64 part and the clamped return is defined by that behavior.
 The `ebx` parameter enters the signature because the SDM defines the
@@ -582,8 +636,8 @@ reaches its test binary as the first command-line argument: the `add_test`
 call passes the path through a generator expression over
 `CMAKE_CURRENT_SOURCE_DIR`, and the test opens the file with `std::ifstream`.
 The PMU-side
-tests drive `programmableCountersFromCpuid` with synthetic registers
-(every decode arm) and assert the publication fact on `corsairone` only in
+tests drive the counter-limit decoders with synthetic registers
+(every rule row) and assert the publication fact on `corsairone` only in
 the recorded script of D-15, never in CI. Coverage runs under the existing
 preset: `-fprofile-update=atomic` stays, no `-D_GLIBCXX_ASSERTIONS` (FR-037),
 `ctest -j2`, and the grep for new `LCOV_EXCL` markers in this feature's files
