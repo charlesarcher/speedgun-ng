@@ -1082,6 +1082,14 @@ target_include_directories(harness_pass_report_test PRIVATE ${CMAKE_SOURCE_DIR}/
 target_compile_features(harness_pass_report_test PRIVATE cxx_std_23)
 add_test(NAME harness_pass_report_test COMMAND harness_pass_report_test)
 
+# The byte-identity scenario of T042 compares the automatic run against the
+# bytes captured at the audit point, so its entry names that fixture beside
+# the scenario: the provider limit of the capture belongs to the scenario, not
+# to the list the shared process walks.
+add_test(NAME harness_pass_report_test_identity
+         COMMAND harness_pass_report_test byte-identity
+                 ${CMAKE_CURRENT_SOURCE_DIR}/source/detail/pass_identity.expected)
+
 # ---- Main-page documentation gates (feature 018) ----
 
 # The root README.md teaches the harness surface, and every code block it
