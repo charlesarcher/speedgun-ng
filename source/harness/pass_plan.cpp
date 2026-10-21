@@ -2,6 +2,7 @@
 // detail/pass_plan.hpp (FR-032).
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -81,6 +82,34 @@ namespace
 }
 
 }  // namespace
+
+auto settleMethod(const MetricMethod requested,
+                  const bool anyLimit,
+                  const std::size_t metricColumns) noexcept -> MetricMethod
+{
+  // E-01 row 1, clarification Q2: a run that carries no metric column settles
+  // nothing, whatever its caller asked for and whatever the host publishes.
+  // The answer stays `AUTO` so the report fields keep their default and no
+  // line prints: a method needs PMU events to collect.
+  if (metricColumns == 0u) {
+    return MetricMethod::AUTO;
+  }
+  // E-01 row 3, FR-005: no needed source publishes a limit, so no pass can
+  // hold a bound on its own counters and the planner has nothing to decide.
+  // Every request settles `MULTIPLEX`, a forced `passes` included.
+  if (!anyLimit) {
+    return MetricMethod::MULTIPLEX;
+  }
+  // E-01 rows 6 and 7, FR-017: an `auto` request settles `PASSES` whether the
+  // columns fit one pass or need a split. The planner's own count tells those
+  // two rows apart, and the print rule decides which of them prints.
+  if (requested == MetricMethod::AUTO) {
+    return MetricMethod::PASSES;
+  }
+  // E-01 rows 4 and 5, FR-024: a forced request settles itself, because a
+  // caller that named a method chose it over what resolution would have read.
+  return requested;
+}
 
 auto planPasses(const std::vector<std::vector<ColumnLeaves>>& columnLeaves,
                 const std::vector<std::optional<std::size_t>>& sourceLimits)
@@ -219,8 +248,14 @@ auto mergePasses(const PassPlan& plan,
     // columns in the same order the row holds them - the metric columns, then
     // the user-counter columns - so one index names the column throughout.
     for (std::size_t metric = 0; metric < mergedRow.metrics.size(); ++metric) {
-      mergedRow.metrics[metric] =
+      auto& tagged = mergedRow.metrics[metric];
+      tagged =
           passResults[plan.measuringPass[metric]].rows[row].metrics[metric];
+      // FR-019, E-08: the value carries the pass that measured it, so the
+      // report can name the provenance inside the existing metric field
+      // spelling. Every metric column of a merged run carries one, the
+      // reference pass included.
+      tagged.pass = plan.measuringPass[metric];
     }
     for (std::size_t counter = 0; counter < mergedRow.counters.size();
          ++counter)
@@ -245,9 +280,62 @@ auto mergePasses(const PassPlan& plan,
     // here invents a number or drops a disclosure.
   }
 
+  // FR-017, E-07: the three published disclosure fields ride the merged
+  // result beside the values the merge placed. Only a settling of
+  // `passes` reaches a merge, so the merge publishes that method; the count
+  // is the passes whose folds stood merged.
+  merged.metricMethod = MetricMethod::PASSES;
+  merged.passCount = passResults.size();
+  // E-06, D-6, clarification Q3: the spread reads the reference time per
+  // iteration each pass folded - the primary time column of the pass's own
+  // reference row, the figure the report shows for that pass. The precondition
+  // has every pass fold the row count of pass 0, so a run with a row gives
+  // every pass a reference row; a run that folded no row at all leaves no
+  // figure to spread, and the published spread stays the empty answer FR-017
+  // gives a run of fewer than two passes.
+  if (!merged.rows.empty()) {
+    std::vector<double> passTimes;
+    passTimes.reserve(passResults.size());
+    for (const BenchmarkResult& passResult : passResults) {
+      const auto& referenceRow = passResult.rows.front();
+      passTimes.push_back(merged.primaryIsCpu
+                              ? referenceRow.cpuTimePerIterationNs
+                              : referenceRow.timePerIterationNs);
+    }
+    merged.passSpread = passSpread(passTimes);
+  }
+
   // A separate return object, for the reason `createRange` states in
   // source/harness/family.cpp.
   return BenchmarkResult(std::move(merged));
+}
+
+auto passSpread(const std::vector<double>& passTimes) -> std::optional<double>
+{
+  // FR-017, D-6: one pass has no spread across which to speak - one sample
+  // carries no spread - so fewer than two times answer nothing.
+  if (passTimes.size() < 2u) {
+    return std::nullopt;
+  }
+  // Ordering a copy of the pass times - the pass count, a handful of values
+  // - gives the minimum, the maximum and the median from one list, so no
+  // iterator arithmetic stands between the question and its answer (research
+  // D-08). The median of an even count is the lower of its two central
+  // values (D-6), which the index `(n - 1) / 2` names for every count.
+  std::vector<double> ordered(passTimes);
+  std::sort(ordered.begin(), ordered.end());
+  const double median = ordered[(ordered.size() - 1u) / 2u];
+  // FR-017's edge: a zero median carries no relative spread, and the report
+  // prints `spread=not available` in its place rather than divide (research
+  // D-08). `-Wfloat-equal` bars the direct comparison, so the classification
+  // answers - the reading `statisticsOf` gives the mean at
+  // source/harness/runner.cpp:79.
+  if (std::fpclassify(median) == FP_ZERO) {
+    return std::nullopt;
+  }
+  // The percentage stands unrounded: the print is the one rounding, and the
+  // warning of FR-018 reads the 5.0 predicate on this figure (research D-08).
+  return (ordered.back() - ordered.front()) / median * 100.0;
 }
 
 }  // namespace sg::detail

@@ -202,6 +202,87 @@ auto printNoiseWarning(const BenchmarkResult& result) -> void
       static_cast<unsigned long long>(warning->runnableCpus));
 }
 
+// The tokens the pass disclosure prints for the collection methods, indexed
+// by the enumerator, the table shape the availability names and the wait
+// mode names take (E-01, FR-017).
+constexpr std::array<const char*, 3> kMetricMethodNames {
+    "auto",
+    "passes",
+    "multiplex",
+};
+static_assert(kMetricMethodNames.size()
+              == std::to_underlying(sg::MetricMethod::MULTIPLEX) + 1);
+
+auto metricMethodName(const sg::MetricMethod method) -> const char*
+{
+  // The static_assert above ties the table to the last enumerator, so the
+  // index of a value of that closed enumeration sits inside the table, and
+  // the guard answers every other value (FR-017).
+  const auto index = std::to_underlying(method);
+  if (index >= kMetricMethodNames.size()) {
+    return "unknown";
+  }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  return kMetricMethodNames[index];
+}
+
+// The spread limit the pass warning reads, as a percentage of the median of
+// the pass times, on the unrounded figure (FR-018, E-06). The warning line
+// names this same figure in its own words, printed from here.
+constexpr double kSpreadWarningLimitPercent = 5.0;
+
+// specs/024 FR-017, FR-018, FR-020, FR-021: the pass disclosure of one
+// result. One line names the method the run settled to and the passes it
+// measured, in the tagged shape of the chunks and percentile lines, and a
+// run that measured more than one pass adds the spread of their reference
+// times - the print being the one rounding of the published figure, the
+// words `not available` standing where the figure is not computable, as the
+// percentile field does. A spread above the limit adds the warning line in
+// the voice of the noise warning, which refuses nothing and changes nothing
+// (FR-018). A run with no metric column has no method to name, and a run
+// that settled to `passes` on its own and measured one pass measured the
+// whole set in that pass, so neither prints a line: their report is the
+// audit point's bytes (FR-021, SC-03).
+//
+// The third case the rule names, a method the caller forced, is caller
+// state: research D-10 settles it on the command line's word and the
+// family's own request, the runner records that answer on the result, and
+// the print below reads the record.
+auto printPassDisclosure(const BenchmarkResult& result) -> void
+{
+  if (result.metricLabels.empty()
+      || result.metricMethod == sg::MetricMethod::AUTO)
+  {
+    return;
+  }
+  const bool multiplex = result.metricMethod == sg::MetricMethod::MULTIPLEX;
+  if (!multiplex && result.passCount <= 1 && !result.metricMethodForced) {
+    return;
+  }
+  std::printf("%-24s %10s  method=%s  count=%zu",
+              result.name.c_str(),
+              "passes",
+              metricMethodName(result.metricMethod),
+              result.passCount);
+  // FR-017: one pass has no spread across which to speak, so the field
+  // stands only where there is more than one pass to compare.
+  if (result.passCount > 1) {
+    if (result.passSpread.has_value()) {
+      std::printf("  spread=%.1f%%", *result.passSpread);
+    } else {
+      std::printf("  spread=not available");
+    }
+  }
+  std::printf("\n");
+  if (result.passSpread.has_value()
+      && *result.passSpread > kSpreadWarningLimitPercent)
+  {
+    std::printf("warning: pass spread %.1f%% exceeds %.0f%%\n",
+                *result.passSpread,
+                kSpreadWarningLimitPercent);
+  }
+}
+
 }  // namespace
 
 // FR-025: the placement field of one context. A text no longer than the
@@ -454,6 +535,13 @@ auto printResult(const BenchmarkResult& result) -> void
           metric.runningRatio,
           metric.scaled ? 1 : 0,
           metric.availability == sg::counters::Availability::GAP ? 1 : 0);
+      // specs/024 FR-019, FR-021: the tag names the pass that measured this
+      // value and stands inside the same field group. A run that measured
+      // one pass has no split to name, so its row keeps the four tokens the
+      // audit point prints; a value no split measured carries no index.
+      if (result.passCount > 1 && metric.pass.has_value()) {
+        std::printf(" pass=%zu", *metric.pass);
+      }
       if (metric.availability != sg::counters::Availability::COUNTABLE
           && metric.availability != sg::counters::Availability::GAP)
       {
@@ -485,6 +573,11 @@ auto printResult(const BenchmarkResult& result) -> void
     std::printf("\n");
     printRowPercentiles(result, row, scale);
   }
+
+  // specs/024 FR-017, FR-022: the pass disclosure stands under the rows it
+  // describes, and the context disclosure below it prints what it printed
+  // before the pass mechanism existed (spec D-8, N4).
+  printPassDisclosure(result);
 
   // FR-025: a non-empty `contexts` vector names exactly a threaded
   // result, so a single-context result leaves here holding the bytes its

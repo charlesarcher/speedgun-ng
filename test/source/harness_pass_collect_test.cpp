@@ -1,6 +1,7 @@
 // ============================================================================
-// The pass collection runs (specs/024-multipass-collection T022 to T025; US1;
-// FR-008 to FR-016, FR-034; SC-01, SC-09, SC-10; research D-06, D-10).
+// The pass collection runs (specs/024-multipass-collection T022 to T025 and
+// T032 to T034; US1, US2; FR-008 to FR-016, FR-023 to FR-025, FR-034; SC-01,
+// SC-09, SC-10; research D-06, D-09, D-10).
 //
 // Every scenario runs the real collection path over the scripted pass fixture
 // of `detail/pass_fixture.hpp`: the leaves answer from a frozen script, so no
@@ -889,18 +890,475 @@ auto scenarioThreadedPassOrder() -> int
   return 0;
 }
 
+// ============================================================================
+// The collection method one run settles to (T032 to T034; US2; FR-023 to
+// FR-025; data-model E-01; research D-09, D-10).
+//
+// `harness_pass_plan_test.cpp` drives the resolution table of E-01 as a pure
+// function; the three arms here drive the same rows through a real collection
+// run over the scripted fixture. Two observables carry every claim below, on
+// the figures a run publishes today:
+//
+//   * the count of the fake's sampling actions per repetition, which names the
+//     windows the run opened and therefore the passes it ran (FR-009);
+//   * the running ratio of each metric column, which only a plan holding a
+//     carrier leaf beside the scripted `cpu/enabled` and `cpu/running` leaves
+//     can set below 1.0: `linkRatioSlots` (`source/counters/plan.cpp:142`) ties
+//     the pair to a carrier slot by plan, so a pass that holds no pair leaves
+//     discloses 1.0.
+//
+// The published `BenchmarkResult::metricMethod`, `passCount` and
+// `MetricValue::pass` fields arrive with T047 and their printed bytes are
+// US3's, so no claim here reads a field the result does not carry yet: the pass
+// count and the settled method are read off the window account and the ratio
+// disclosure.
+// ============================================================================
+
+// The passes the first-fit planner owes the rotated column set at the scripted
+// limit of 4: the first two pairs fill pass 0, `rot_c` opens pass 1, and the
+// pair that carries the enabled/running leaves opens pass 2 (E-03 rule 3).
+constexpr std::uint64_t kRotatedPassCount = 3;
+
+// The column of the rotated set that names the enabled/running leaves, so the
+// plan that measures it holds the pair its carrier links to: the spelling
+// T023's over-limit column uses for the same purpose.
+constexpr std::size_t kPairCarrierColumn = 3;
+
+// The fixture leaves the `multiplex` arm promotes to ratio-pair carriers, one
+// per column. The fold of a column multiplies the ratio of every carrier leaf
+// it holds (`windowRatio` in `source/counters/fold.cpp`), so two carriers of
+// one object in one column would disclose the square of the scripted ratio.
+constexpr std::array<std::string_view, 4> kRotatedCarrierLeaves {
+    "pass_a0", "pass_b0", "pass_c0", "pass_d0"};
+
+// The step the leaves of the no-limit host carry. These leaves stand outside
+// `passColumns()`, whose steps are weighted by column index, so they hold one
+// step of their own.
+constexpr std::uint64_t kNoLimitLeafStep = 3 * sg::test::kPassEventStep;
+
+// The columns of the rotated run in request order: the four fixture pairs over
+// `cpu`, the last of them also summing the scripted pair leaves. Ten distinct
+// PMU events against the scripted limit of 4, so the planner splits them and
+// the forced `multiplex` method has to hold them whole.
+[[nodiscard]] auto rotatedColumns() -> std::vector<sg::test::PassColumn>
+{
+  auto columns = std::vector<sg::test::PassColumn> {
+      sg::test::PassColumn {
+          "rot_a", sg::test::kPassCpuObject, {"pass_a0", "pass_a1"}},
+      sg::test::PassColumn {
+          "rot_b", sg::test::kPassCpuObject, {"pass_b0", "pass_b1"}},
+      sg::test::PassColumn {
+          "rot_c", sg::test::kPassCpuObject, {"pass_c0", "pass_c1"}},
+      sg::test::PassColumn {"rot_d",
+                            sg::test::kPassCpuObject,
+                            {"pass_d0", "pass_d1", kEnabledLeaf, kRunningLeaf}},
+  };
+  // A `return columns;` would make the local the return object itself, the
+  // shape `createRange` states in `source/harness/family.cpp`.
+  return std::vector<sg::test::PassColumn>(columns);
+}
+
+// The columns of the no-limit host: three pairs over the source the fixture
+// scripts no limit for, six PMU events costed against nothing (E-03 rule 5).
+[[nodiscard]] auto noLimitColumns() -> std::vector<sg::test::PassColumn>
+{
+  auto columns = std::vector<sg::test::PassColumn> {
+      sg::test::PassColumn {
+          "free_a", sg::test::kPassRideObject, {"free_a0", "free_a1"}},
+      sg::test::PassColumn {
+          "free_b", sg::test::kPassRideObject, {"free_b0", "free_b1"}},
+      sg::test::PassColumn {
+          "free_c", sg::test::kPassRideObject, {"free_c0", "free_c1"}},
+  };
+  return std::vector<sg::test::PassColumn>(columns);
+}
+
+// Lay the scripted ratio pair on `cpu` and promote one leaf of every rotated
+// column to a carrier of it. `addCounter` rewrites the catalog entry of a leaf
+// it already holds and leaves the scripted sequence alone
+// (`source/counters/fake_provider.cpp:199-221`), so a promoted leaf keeps the
+// steps the fixture scripted for it. Every scripted fact precedes the
+// registration, the rule `registerFixtureProvider` states.
+auto registerCarrierProvider() -> sg::counters::FakeProvider&
+{
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  sg::test::scriptPassFixture(*provider, sg::test::kHostPassLimit);
+  scriptRatioPair(*provider);
+  for (const std::string_view leaf : kRotatedCarrierLeaves) {
+    provider->addCounter(sg::test::kPassCpuObject,
+                         leaf,
+                         kRatioPairUnit,
+                         "rotated fixture leaf carrying the scripted pair",
+                         sg::counters::Availability::COUNTABLE,
+                         sg::counters::ReadMode::SYSCALL,
+                         true);
+  }
+  auto* scripted = provider.get();
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(provider));
+  check(settled.has_value(),
+        "the carrier fixture registers on the local system");
+  fake = scripted;
+  return *scripted;
+}
+
+// Register the fixture and script the no-limit host on the source
+// `scriptPassFixture` publishes no limit for. The `cpu` source keeps its
+// scripted limit for the contrast arm, which needs a source that answers: the
+// row of E-01 that settles `MULTIPLEX` reads only the sources a run needs
+// (FR-005, FR-024).
+auto registerNoLimitProvider() -> sg::counters::FakeProvider&
+{
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  sg::test::scriptPassFixture(*provider, sg::test::kHostPassLimit);
+  for (const auto& column : noLimitColumns()) {
+    for (const std::string_view leaf : column.events) {
+      provider->addCounter(
+          column.object, leaf, "none", "leaf of a source that publishes none");
+      provider->setPoints(column.object, leaf, {0}, kNoLimitLeafStep);
+    }
+  }
+  auto* scripted = provider.get();
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(provider));
+  check(settled.has_value(),
+        "the no-limit fixture registers on the local system");
+  fake = scripted;
+  return *scripted;
+}
+
+auto attachRotatedColumns(sg::BenchmarkHandle& handle) -> void
+{
+  for (const auto& column : rotatedColumns()) {
+    attachColumn(handle, column);
+  }
+}
+
+auto attachNoLimitColumns(sg::BenchmarkHandle& handle) -> void
+{
+  for (const auto& column : noLimitColumns()) {
+    attachColumn(handle, column);
+  }
+}
+
+// The value one column of the rotated run owes: the fixture pair of its index,
+// beside the two scripted pair leaves for the column that names them. The pair
+// leaves are leaves of the expression like any other and step by their own
+// scripted delta, the shape T023's over-limit column folds.
+auto expectedRotatedValue(const std::size_t index) -> double
+{
+  auto expected = expectedColumnValue(index, kPlainSteps, kValueIterations);
+  if (index == kPairCarrierColumn) {
+    expected += static_cast<double>(kEnabledStep + kRunningStep)
+        / static_cast<double>(kValueIterations);
+  }
+  return expected;
+}
+
+// The value one column of the no-limit host owes: the two leaves it sums, each
+// stepping `kNoLimitLeafStep` once over the single window of the attempt.
+auto expectedNoLimitValue() -> double
+{
+  return 2.0 * static_cast<double>(kNoLimitLeafStep) * kPlainSteps
+      / static_cast<double>(kValueIterations);
+}
+
+// T032: the forced `multiplex` run (FR-024, FR-025, US2 scenario 1, E-01 row
+// 4). The ten PMU events the `auto` run spreads over three passes stand in the
+// one plan the forced method compiles, so the rotation of the scripted pair
+// reaches every column of the run.
+auto scenarioMultiplexRun() -> int
+{
+  registerCarrierProvider();
+
+  auto split = sg::registerBenchmark(&bmPlain, "bmRotatedAuto");
+  attachRotatedColumns(split);
+  auto forced = sg::registerBenchmark(&bmPlain, "bmRotatedMultiplex");
+  forced.metricMethod(sg::MetricMethod::MULTIPLEX);
+  attachRotatedColumns(forced);
+  // The single-plan mirror of the pair column: four events against a limit of
+  // 4, so `auto` gives it the one plan of the audit point and the ratio it
+  // discloses there is the figure the forced run has to match.
+  auto alone = sg::registerBenchmark(&bmPlain, "bmRotatedPairAlone");
+  attachColumn(alone, rotatedColumns()[kPairCarrierColumn]);
+  sg::detail::expandRegistry();
+
+  const auto valueOptions = optionsFor(kValueIterations, 1);
+  const RunAccount splitRun =
+      runMeasured(*needInstance("bmRotatedAuto"), valueOptions);
+  const RunAccount forcedRun =
+      runMeasured(*needInstance("bmRotatedMultiplex"), valueOptions);
+  const RunAccount aloneRun =
+      runMeasured(*needInstance("bmRotatedPairAlone"), valueOptions);
+  const sg::ResultRow& row = forcedRun.result.rows.front();
+  const sg::ResultRow& splitRow = splitRun.result.rows.front();
+  const sg::ResultRow& aloneRow = aloneRun.result.rows.front();
+
+  check(forcedRun.result.metricLabels
+            == std::vector<std::string> {"rot_a", "rot_b", "rot_c", "rot_d"},
+        "the forced method measures every attached column of its one plan "
+        "(FR-024)");
+  for (std::size_t column = 0; column < row.metrics.size(); ++column) {
+    const auto& value = row.metrics[column];
+    check(value.availability == sg::counters::Availability::COUNTABLE,
+          "every column of the rotated run folds a countable value (FR-024)");
+    check(closeTo(value.runningRatio, kScriptedRatio),
+          "every metric column of the forced run discloses the scripted ratio "
+          "below 1.0 that the single-plan path discloses (FR-024, SC-01, US2 "
+          "scenario 1)");
+    check(value.runningRatio < 1.0,
+          "the rotated run reports a fraction below full rate for every column "
+          "of its one plan (FR-024)");
+    check(value.scaled,
+          "a column of a rotated window discloses as scaled (FR-024)");
+    check(closeTo(value.value, expectedRotatedValue(column)),
+          "the rotated column carries the value its leaves fold over the one "
+          "plan (FR-024, FR-014)");
+    check(closeTo(value.value, splitRow.metrics[column].value),
+          "the same column reads the figure the split run reads, so the forced "
+          "method changes the plan and nothing the fold returns (FR-024)");
+  }
+  check(closeTo(row.metrics[kPairCarrierColumn].runningRatio,
+                aloneRow.metrics[0].runningRatio),
+        "the ratio of the column of the one plan equals the ratio the same "
+        "column discloses alone in a single plan (FR-024, US2 scenario 1)");
+  check(closeTo(row.metrics[kPairCarrierColumn].value,
+                aloneRow.metrics[0].value),
+        "the value of that column equals its single-plan figure as well "
+        "(FR-024, FR-014)");
+
+  // The contrast with the planner path: under `auto` only the column whose pass
+  // holds the pair leaves discloses the fraction, because the pair is tied to a
+  // carrier slot by plan (FR-004, FR-009).
+  check(closeTo(splitRow.metrics[0].runningRatio, 1.0),
+        "a column of a pass that holds no pair leaves keeps running ratio 1.0 "
+        "under `auto` (FR-004, SC-01)");
+  check(!splitRow.metrics[0].scaled,
+        "a column that ran its pass at full rate reports no scaling (FR-009)");
+  check(closeTo(splitRow.metrics[kPairCarrierColumn].runningRatio,
+                kScriptedRatio),
+        "the one column whose pass holds the scripted pair is the one column "
+        "that discloses it under `auto` (FR-004)");
+
+  // The window account of the two methods at one pinned iteration count: three
+  // windows per repetition for the split run and one for the forced run. That
+  // single window is the statement that one plan holds every PMU event of the
+  // run and the planner stayed out of it (FR-024, research D-10).
+  const auto highOptions = optionsFor(kValueIterations, kCountHighRepetitions);
+  const auto lowOptions = optionsFor(kValueIterations, kCountLowRepetitions);
+  const RunAccount splitHigh =
+      runMeasured(*needInstance("bmRotatedAuto"), highOptions);
+  const RunAccount splitLow =
+      runMeasured(*needInstance("bmRotatedAuto"), lowOptions);
+  const RunAccount forcedHigh =
+      runMeasured(*needInstance("bmRotatedMultiplex"), highOptions);
+  const RunAccount forcedLow =
+      runMeasured(*needInstance("bmRotatedMultiplex"), lowOptions);
+  check(splitHigh.reads - splitLow.reads
+            == kRotatedPassCount * kPlainWindowReads,
+        "the `auto` run of the same column set opens three windows per "
+        "repetition, so the fixture does split at the scripted limit (FR-001, "
+        "FR-009)");
+  check(forcedHigh.reads - forcedLow.reads == kPlainWindowReads,
+        "the forced run opens one window per repetition: the forced method "
+        "compiles one plan holding every PMU event of the run and the planner "
+        "stays out of it (FR-024, US2 scenario 1)");
+  check(row.endpointSamples == kPlainWindowReads,
+        "the row of the rotated run discloses the endpoint samples of its "
+        "single window (FR-024, FR-015)");
+  check(closeTo(row.timePerIterationNs,
+                expectedTimePerIteration(kPlainSteps, kValueIterations)),
+        "the time columns of the one plan read the reference figures (FR-015, "
+        "FR-024)");
+
+  std::puts("multiplex-run: ok");
+  return 0;
+}
+
+// T033: the host whose needed sources publish no limit (FR-024, FR-025, spec
+// D-11, E-01 row 3). Both the `auto` run and a run whose family forces
+// `passes` keep the single kernel-multiplexed plan, because the planner has no
+// published limit to split against.
+auto scenarioNoLimitHost() -> int
+{
+  registerNoLimitProvider();
+
+  auto automatic = sg::registerBenchmark(&bmPlain, "bmNoLimitAuto");
+  attachNoLimitColumns(automatic);
+  auto forced = sg::registerBenchmark(&bmPlain, "bmNoLimitPasses");
+  forced.metricMethod(sg::MetricMethod::PASSES);
+  attachNoLimitColumns(forced);
+  // The contrast arm: the same six PMU events on the source that publishes 4,
+  // which is a set the planner does split. Without it the single plan below
+  // could come from a fixture that never splits at all.
+  auto limited = sg::registerBenchmark(&bmPlain, "bmLimitedPairs");
+  attachColumns(limited, {0, 1, 2});
+  sg::detail::expandRegistry();
+
+  const auto valueOptions = optionsFor(kValueIterations, 1);
+  const RunAccount automaticRun =
+      runMeasured(*needInstance("bmNoLimitAuto"), valueOptions);
+  const RunAccount forcedRun =
+      runMeasured(*needInstance("bmNoLimitPasses"), valueOptions);
+  const sg::ResultRow& row = forcedRun.result.rows.front();
+  const sg::ResultRow& automaticRow = automaticRun.result.rows.front();
+
+  check(forcedRun.result.metricLabels == std::vector<std::string> {"free_a",
+                                                                  "free_b",
+                                                                  "free_c"},
+        "the run of the no-limit host measures every attached column (FR-024, "
+        "FR-009)");
+  for (std::size_t column = 0; column < row.metrics.size(); ++column) {
+    const auto& value = row.metrics[column];
+    check(value.availability == sg::counters::Availability::COUNTABLE,
+          "every column of a source that publishes no limit folds a countable "
+          "value (FR-005, FR-024)");
+    check(closeTo(value.runningRatio, 1.0),
+          "every column of the one kernel-multiplexed plan reports running "
+          "ratio 1.0, the disclosure of the single plan (FR-024, SC-01)");
+    check(!value.scaled,
+          "a column of a plan the split never touched reports no scaling "
+          "(FR-024)");
+    check(closeTo(value.value, expectedNoLimitValue()),
+          "the column folds the steps of its two leaves over the single window "
+          "(FR-024, FR-014)");
+    check(closeTo(value.value, automaticRow.metrics[column].value),
+          "the forced run reads the figures the `auto` run reads, so the "
+          "request settled the method the host can offer (FR-024, FR-025, "
+          "E-01 row 3)");
+  }
+  check(row.iterations == kValueIterations,
+        "the row of the single plan reports the iteration count of the run "
+        "(FR-010, FR-024)");
+  check(row.endpointSamples == kPlainWindowReads,
+        "the row discloses the endpoint samples of one window (FR-015, "
+        "FR-024)");
+
+  const auto highOptions = optionsFor(kValueIterations, kCountHighRepetitions);
+  const auto lowOptions = optionsFor(kValueIterations, kCountLowRepetitions);
+  const RunAccount automaticHigh =
+      runMeasured(*needInstance("bmNoLimitAuto"), highOptions);
+  const RunAccount automaticLow =
+      runMeasured(*needInstance("bmNoLimitAuto"), lowOptions);
+  const RunAccount forcedHigh =
+      runMeasured(*needInstance("bmNoLimitPasses"), highOptions);
+  const RunAccount forcedLow =
+      runMeasured(*needInstance("bmNoLimitPasses"), lowOptions);
+  const RunAccount limitedHigh =
+      runMeasured(*needInstance("bmLimitedPairs"), highOptions);
+  const RunAccount limitedLow =
+      runMeasured(*needInstance("bmLimitedPairs"), lowOptions);
+  check(automaticHigh.reads - automaticLow.reads == kPlainWindowReads,
+        "the `auto` run of a host that publishes no limit opens one window per "
+        "repetition: no plan stands, so the run keeps the single "
+        "kernel-multiplexed plan (FR-024, spec D-11, E-01 row 3)");
+  check(forcedHigh.reads - forcedLow.reads == kPlainWindowReads,
+        "a forced `passes` run on that host settles `multiplex` and keeps the "
+        "one plan: the request names a method the host cannot offer (FR-024, "
+        "FR-025, E-01 row 3)");
+  check(limitedHigh.reads - limitedLow.reads
+            == kTwoPassCount * kPlainWindowReads,
+        "the same count of PMU events on a source that publishes a limit does "
+        "split into two passes, so the single plan above is the answer of the "
+        "missing limit (FR-001, FR-005)");
+
+  std::puts("no-limit-host: ok");
+  return 0;
+}
+
+// T034: the `metricMethod` selector on a family with a fitting set (FR-023,
+// FR-025, US2 scenario 2, E-01 row 5). The scripted limit of 8 holds all four
+// pairs, so the planner answers one pass and the forced request adds a record
+// to the run and no work to it.
+auto scenarioSelectorOnePass() -> int
+{
+  registerFixtureProvider(sg::test::kWidePassLimit);
+
+  // The chaining of the selector, the property `showPercentiles` has: it
+  // returns the handle it was called on, so a family states its selections in
+  // one expression (FR-023). The family stands unrun: the claim is the shape
+  // of the call, and a percentile run would widen the window account below.
+  auto chained = sg::registerBenchmark(&bmPlain, "bmSelectorChained");
+  const sg::BenchmarkHandle& handle =
+      chained.metricMethod(sg::MetricMethod::PASSES).showPercentiles(true);
+  check(&handle == &chained,
+        "the selector returns the handle it was called on, so it chains like "
+        "showPercentiles (FR-023)");
+
+  auto selected = sg::registerBenchmark(&bmPlain, "bmSelectedOnePass");
+  selected.metricMethod(sg::MetricMethod::PASSES);
+  attachColumns(selected, {0, 1, 2, 3});
+  auto automatic = sg::registerBenchmark(&bmPlain, "bmAutomaticOnePass");
+  attachColumns(automatic, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  const auto valueOptions = optionsFor(kValueIterations, 1);
+  const RunAccount selectedRun =
+      runMeasured(*needInstance("bmSelectedOnePass"), valueOptions);
+  const RunAccount automaticRun =
+      runMeasured(*needInstance("bmAutomaticOnePass"), valueOptions);
+  const sg::ResultRow& row = selectedRun.result.rows.front();
+
+  check(selectedRun.result.metricLabels == std::vector<std::string> {"pair_a",
+                                                                    "pair_b",
+                                                                    "pair_c",
+                                                                    "pair_d"},
+        "the selected family measures the fitting set in request order "
+        "(FR-023, FR-009)");
+  checkColumnsAtFullRatio(row, {0, 1, 2, 3}, kPlainSteps, kValueIterations);
+  check(row.endpointSamples == kPlainWindowReads,
+        "the row of a forced `passes` run of a fitting set discloses the "
+        "endpoint samples of one window (FR-023, FR-015)");
+
+  // The pass count the run publishes, read the way a run publishes it today:
+  // one more repetition costs the endpoint samples of one window, the figure a
+  // two-pass run doubles (FR-009, E-07). A forced `passes` run of a set that
+  // fits the published limit therefore runs one pass and states a pass count of
+  // 1; the `metricMethod`, `passCount` and `pass` fields that carry the same
+  // three figures land with T047.
+  const auto highOptions = optionsFor(kValueIterations, kCountHighRepetitions);
+  const auto lowOptions = optionsFor(kValueIterations, kCountLowRepetitions);
+  const RunAccount selectedHigh =
+      runMeasured(*needInstance("bmSelectedOnePass"), highOptions);
+  const RunAccount selectedLow =
+      runMeasured(*needInstance("bmSelectedOnePass"), lowOptions);
+  const RunAccount automaticHigh =
+      runMeasured(*needInstance("bmAutomaticOnePass"), highOptions);
+  const RunAccount automaticLow =
+      runMeasured(*needInstance("bmAutomaticOnePass"), lowOptions);
+  check(selectedHigh.reads - selectedLow.reads == kPlainWindowReads,
+        "a forced `passes` run of a set that fits the published limit runs one "
+        "pass: one more repetition costs the two endpoint samples of one "
+        "window (FR-023, FR-025, US2 scenario 2, E-01 row 5)");
+  check(automaticHigh.reads - automaticLow.reads == kPlainWindowReads,
+        "the identical family with no request runs the same single pass: the "
+        "request adds a record to the run and no work to it (FR-025, SC-03)");
+  for (std::size_t column = 0; column < row.metrics.size(); ++column) {
+    check(closeTo(row.metrics[column].value,
+                  automaticRun.result.rows.front().metrics[column].value),
+          "every column of the selected run reads the figure the `auto` run "
+          "reads for it (FR-023, FR-014)");
+  }
+
+  std::puts("selector-one-pass: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 5> kScenarios {{
+constexpr std::array<Scenario, 8> kScenarios {{
     Scenario {"two-pass-run", &scenarioTwoPassRun},
     Scenario {"pause-across-passes", &scenarioPauseAcrossPasses},
     Scenario {"over-limit-run", &scenarioOverLimitRun},
     Scenario {"window-lifetime", &scenarioWindowSpan},
     Scenario {"threaded-pass-order", &scenarioThreadedPassOrder},
+    Scenario {"multiplex-run", &scenarioMultiplexRun},
+    Scenario {"no-limit-host", &scenarioNoLimitHost},
+    Scenario {"selector-one-pass", &scenarioSelectorOnePass},
 }};
 
 }  // namespace
@@ -909,7 +1367,7 @@ auto main(int argc, char** argv) -> int
 {
   // The command line of the child is built out of `std::string` and `const
   // char*` only, the spelling `harness_pause_test.cpp` uses: a `std::string`
-  // built from a `std::string_view` whose length the optimiser cannot bound
+  // built from a `std::string_view` whose length the optimizer cannot bound
   // trips GCC's `-Wrestrict` on the copy inside that constructor.
   const std::string self =
       argc > 0 && argv[0] != nullptr ? argv[0] : "harness_pass_collect_test";

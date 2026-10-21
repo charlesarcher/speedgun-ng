@@ -1,15 +1,18 @@
 // ============================================================================
 // The pass plan and merge tables (specs/024-multipass-collection T016 to T021;
-// US1; FR-001 to FR-008, FR-014 to FR-016, FR-033; SC-02; research D-05, D-07).
+// US1; FR-001 to FR-008, FR-014 to FR-016, FR-033; SC-02; research D-05, D-07)
+// and the resolution table of the collection method (T029; US2; FR-023 to
+// FR-025; research D-10).
 //
-// The split and the merge are pure functions, so every table here stands
-// without a run, without a provider and without a clock: `planPasses` decides
-// over published limits and column leaf tables alone and reads no counter
-// (FR-008), and `mergePasses` decides over the fold results of the passes
-// alone (I-5). The columns, the sources and the limits are the ones
-// `test/source/detail/pass_fixture.hpp` scripts, so no figure below is
-// invented here; where a table needs a column the fixture does not carry, the
-// comment names the fixture entries it is composed from.
+// The split, the merge and the settling are pure functions, so every table
+// here stands without a run, without a provider and without a clock:
+// `planPasses` decides over published limits and column leaf tables alone and
+// reads no counter (FR-008), `mergePasses` decides over the fold results of
+// the passes alone (I-5), and `settleMethod` decides over the request, the
+// limit facts and the metric-column count (E-01). The columns, the sources and
+// the limits are the ones `test/source/detail/pass_fixture.hpp` scripts, so no
+// figure below is invented here; where a table needs a column the fixture does
+// not carry, the comment names the fixture entries it is composed from.
 //
 // `argv[1]` selects one scenario; with no argument the list at the bottom
 // runs, and that list is what CTest runs, so a scenario absent from it never
@@ -1029,6 +1032,260 @@ auto mergeProvenance() -> void
         "the scaled disclosure of a refused column rides unchanged (FR-016)");
 }
 
+// ============================================================================
+// The resolution table of data-model E-01 (T029, US2).
+// ============================================================================
+
+// The pass count one settling discloses (E-07, contracts/pass-disclosure.md):
+// a settling of nothing discloses none, the `multiplex` settling runs the one
+// plan holding every PMU event of the run, and a `passes` settling discloses
+// the passes of its plan (FR-017, FR-020).
+[[nodiscard]] auto disclosedPassCount(const sg::MetricMethod settled,
+                                      const sg::detail::PassPlan& plan)
+    -> std::size_t
+{
+  if (settled == sg::MetricMethod::AUTO) {
+    return 0;
+  }
+  if (settled == sg::MetricMethod::MULTIPLEX) {
+    return 1;
+  }
+  return plan.columns.size();
+}
+
+// The print rule of E-07, FR-020, FR-021 and research D-10, which
+// `printPassDisclosure` applies from the settled method, the pass count and
+// the forced record. The forced bit is caller state that the settled method
+// cannot recover, so it is an input of its own: a forced `passes` run that
+// fits in one pass prints the line and the identical `auto` run prints
+// nothing (research D-10, SC-03). The printed bytes are golden-tested in
+// `harness_pass_report_test.cpp`; this table pins what the rule reads.
+[[nodiscard]] auto printsPassLine(const std::size_t metricColumns,
+                                  const sg::MetricMethod settled,
+                                  const std::size_t passCount,
+                                  const bool forced) -> bool
+{
+  if (metricColumns == 0 || settled == sg::MetricMethod::AUTO) {
+    return false;
+  }
+  return settled == sg::MetricMethod::MULTIPLEX || passCount > 1 || forced;
+}
+
+// The columns of the host that publishes no limit: one pair on the source
+// scripted without a limit, beside the two fixed time leaves, so every source
+// the run needs answers nothing (E-03 rules 5 and 7, spec D-11). The time
+// leaves ride the run and are columns of no metric, which is why the row that
+// carries them counts one metric column.
+[[nodiscard]] auto unlimitedColumns() -> std::vector<sg::test::PassColumn>
+{
+  std::vector<sg::test::PassColumn> columns;
+  columns.push_back(sg::test::passRideColumns()[1]);
+  columns.push_back(clockColumn());
+  // A `return columns;` would make the local the return object itself and
+  // leave gcov an unexecutable record at the closing brace, the rule
+  // `createRange` states in source/harness/family.cpp.
+  return std::vector<sg::test::PassColumn>(columns);
+}
+
+// One row of the resolution table of data-model E-01: the request that won the
+// priority of research D-09, the forced record, what the run carries, and the
+// three figures the row pins. `plannedPasses` is what `planPasses` answers for
+// the row's columns whenever it is called, a figure the run may leave unused.
+struct ResolutionRow
+{
+  std::string_view name {};
+  sg::MetricMethod requested = sg::MetricMethod::AUTO;
+  bool forced = false;
+  std::size_t metricColumns = 0;
+  std::vector<sg::test::PassColumn> columns;
+  sg::MetricMethod settled = sg::MetricMethod::AUTO;
+  bool plannerRuns = false;
+  std::size_t plannedPasses = 0;
+  std::size_t passes = 0;
+  bool printsLine = false;
+};
+
+// The rows of the table, in data-model order. The listing run and the catalog
+// run end before anything settles, so the command-line suite drives that row
+// (T031).
+[[nodiscard]] auto resolutionRows() -> const std::vector<ResolutionRow>&
+{
+  static const std::vector<ResolutionRow> kRows {
+      ResolutionRow {
+          .name = "a host with no limit",
+          .requested = sg::MetricMethod::AUTO,
+          .forced = false,
+          .metricColumns = 1,
+          .columns = unlimitedColumns(),
+          .settled = sg::MetricMethod::MULTIPLEX,
+          .plannerRuns = false,
+          .plannedPasses = 0,
+          .passes = 1,
+          .printsLine = true,
+      },
+      ResolutionRow {
+          .name = "a forced multiplex",
+          .requested = sg::MetricMethod::MULTIPLEX,
+          .forced = true,
+          .metricColumns = 4,
+          .columns = fixtureColumns(4),
+          .settled = sg::MetricMethod::MULTIPLEX,
+          .plannerRuns = false,
+          .plannedPasses = 2,
+          .passes = 1,
+          .printsLine = true,
+      },
+      ResolutionRow {
+          .name = "a forced passes on a fitting set",
+          .requested = sg::MetricMethod::PASSES,
+          .forced = true,
+          .metricColumns = 2,
+          .columns = fixtureColumns(2),
+          .settled = sg::MetricMethod::PASSES,
+          .plannerRuns = true,
+          .plannedPasses = 1,
+          .passes = 1,
+          .printsLine = true,
+      },
+      ResolutionRow {
+          .name = "an auto set that fits",
+          .requested = sg::MetricMethod::AUTO,
+          .forced = false,
+          .metricColumns = 2,
+          .columns = fixtureColumns(2),
+          .settled = sg::MetricMethod::PASSES,
+          .plannerRuns = true,
+          .plannedPasses = 1,
+          .passes = 1,
+          .printsLine = false,
+      },
+      ResolutionRow {
+          .name = "an auto set that does not fit",
+          .requested = sg::MetricMethod::AUTO,
+          .forced = false,
+          .metricColumns = 4,
+          .columns = fixtureColumns(4),
+          .settled = sg::MetricMethod::PASSES,
+          .plannerRuns = true,
+          .plannedPasses = 2,
+          .passes = 2,
+          .printsLine = true,
+      },
+  };
+  return kRows;
+}
+
+// One check of one row: the row names itself in the failure, so a red run
+// states which row of E-01 broke.
+auto checkRow(const ResolutionRow& row,
+              const bool condition,
+              const std::string_view what) -> void
+{
+  if (condition) {
+    return;
+  }
+  const std::string message = std::string(row.name) + ": " + std::string(what);
+  fail(message.c_str());
+}
+
+// T029, FR-023, FR-024, FR-025, E-01, research D-10: the resolution table.
+// Every row states the settled method, whether the planner runs, the pass
+// count the report discloses and whether the console line prints. The settling
+// is `settleMethod`'s answer over the row's request, the limit facts its
+// columns read and its metric-column count; the plan is `planPasses`'s answer
+// over the same columns; the console column follows the print rule from those
+// two answers and the forced record.
+auto resolutionTable() -> void
+{
+  for (const auto& row : resolutionRows()) {
+    const SourceList sources =
+        sourceListOf(row.columns, sg::test::kHostPassLimit);
+    // True when some source the row's columns need publishes a limit (E-02).
+    // The host is read off the fixture through the same objects the runner
+    // resolves its leaves against (`runner.cpp:1296`).
+    bool anyLimit = false;
+    for (const auto& limit : sources.limits) {
+      anyLimit = anyLimit || limit.has_value();
+    }
+    const auto settled =
+        sg::detail::settleMethod(row.requested, anyLimit, row.metricColumns);
+    checkRow(row,
+             settled == row.settled,
+             "the row settles the method E-01 names (FR-023, FR-024, FR-025)");
+    checkRow(row,
+             (settled == sg::MetricMethod::PASSES) == row.plannerRuns,
+             "the planner runs on the rows whose settling names passes "
+             "(FR-001, FR-024)");
+    const auto plan =
+        sg::detail::planPasses(leavesOf(row.columns, sources), sources.limits);
+    checkRow(row,
+             plan.columns.size() == row.plannedPasses,
+             "the planner's answer for the row's columns is the row's "
+             "(E-03, FR-001)");
+    const auto passes = disclosedPassCount(settled, plan);
+    checkRow(row,
+             passes == row.passes,
+             "the run discloses the pass count of its row (FR-017, E-07)");
+    checkRow(row,
+             printsPassLine(
+                 row.metricColumns, settled, passes, row.forced)
+                 == row.printsLine,
+             "the console line follows the print rule for the row (FR-020, "
+             "FR-021, research D-10)");
+  }
+  // The table can fail: the forced `multiplex` row leaves a two-pass split of
+  // its own columns unclaimed, so its count of one answers the settling and
+  // the planner answer cannot stand in for it; the two one-pass `passes` rows
+  // differ in the forced record and in the console line, so the print rule is
+  // the only thing that tells them apart.
+  const auto& rows = resolutionRows();
+  check(rows[1].plannedPasses > rows[1].passes,
+        "the forced `multiplex` row's columns do want a split the row leaves "
+        "unplanned (FR-024)");
+  check(rows[2].forced != rows[3].forced
+            && rows[2].printsLine != rows[3].printsLine
+            && rows[2].settled == rows[3].settled
+            && rows[2].passes == rows[3].passes,
+        "the two one-pass `passes` rows differ in the forced record and in the "
+        "line, so one can print while the other stays silent (FR-021)");
+}
+
+// T029, E-01 row 1, FR-021, clarification Q2: a run that carries no metric
+// column settles nothing, plans nothing and prints nothing, whatever its
+// caller asked for and whatever the host publishes. A forced method needs PMU
+// events to collect, so the fields keep their default and the report stays
+// master's bytes.
+auto noMetricColumn() -> void
+{
+  const std::vector<sg::test::PassColumn> none;
+  const SourceList sources = sourceListOf(none, sg::test::kHostPassLimit);
+  const auto plan =
+      sg::detail::planPasses(leavesOf(none, sources), sources.limits);
+  check(plan.columns.empty(),
+        "a run with no metric column has no plan of its own (E-03)");
+  for (const auto requested : {
+           sg::MetricMethod::AUTO,
+           sg::MetricMethod::PASSES,
+           sg::MetricMethod::MULTIPLEX,
+       })
+  {
+    for (const bool hostPublishes : {false, true}) {
+      const auto settled =
+          sg::detail::settleMethod(requested, hostPublishes, 0);
+      const auto passes = disclosedPassCount(settled, plan);
+      check(settled == sg::MetricMethod::AUTO,
+            "a run with no metric column settles nothing, whatever it asked "
+            "for and whatever the host publishes (E-01, FR-025)");
+      check(passes == 0,
+            "a settling of nothing discloses no pass (E-07, " "FR-017)");
+      check(!printsPassLine(0, settled, passes,
+                            requested != sg::MetricMethod::AUTO),
+            "a run with no metric column prints no line even when a method is "
+            "forced (FR-021, clarification Q2)");
+    }
+  }
+}
+
 struct Scenario
 {
   std::string_view name;
@@ -1053,6 +1310,8 @@ struct Scenario
       Scenario {"cycles-counts", cyclesCounts},
       Scenario {"two-provider-limits", twoProviderLimits},
       Scenario {"merge-table", mergeProvenance},
+      Scenario {"no-metric-column", noMetricColumn},
+      Scenario {"resolution-table", resolutionTable},
   };
   return kList;
 }
