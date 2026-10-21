@@ -456,7 +456,7 @@ auto speedgunMain(int argc, char** argv) -> int
         if (!method.has_value()) {
           std::fprintf(
               stderr,
-              "--metric-method '%s' is not auto, passes or " "multiplex\n",
+              "--metric-method '%s' is not auto, passes or multiplex\n",
               optarg);
           return 2;
         }
