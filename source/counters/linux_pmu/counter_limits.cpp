@@ -101,7 +101,9 @@ constexpr std::size_t kLegacyCoreCount = 4U;
 
 constexpr auto kIntelWords = vendorWords("GenuineIntel");
 constexpr auto kCentaurWords = vendorWords("CentaurHauls");
-constexpr auto kShanghaiWords = vendorWords("Shanghai");
+// The identity zhaoxin.c matches is the padded twelve characters: two
+// spaces, the name, two spaces.
+constexpr auto kShanghaiWords = vendorWords("  Shanghai  ");
 constexpr auto kAmdWords = vendorWords("AuthenticAMD");
 constexpr auto kHygonWords = vendorWords("HygonGenuine");
 
