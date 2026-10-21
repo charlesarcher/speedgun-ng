@@ -757,3 +757,166 @@ specs/025-topology-placement, so each of those files again cites the
 `source/harness/cli.cpp` line numbers of its own audit point, the convention
 the Path Conventions section states. Only this feature's artifacts carry
 anchors re-derived against this head.
+
+---
+
+## Phase 15: Convergence round 5
+
+**Verified at:** `4b59f1e` on 2026-10-21. The head carries the re-anchor
+commit `54f7809` and its ledger on top of round 4's audit point
+`32a0c2f`. The code, the tests, the fixtures, the schema and the docs
+stand where round 4 read them.
+
+**Verdict:** one item of unbuilt work remains to append: the line
+numbers that still carry the audit point inside the passages this
+feature's artifacts state in the present tense. Every functional
+requirement, every success criterion and every user story reads
+satisfied on the code at this head, with the two readings named below
+held by the CI jobs.
+
+**Counts:** 74 functional requirements: 73 satisfied, 1 partial
+(FR-069), 0 unsatisfied. 13 success criteria: 11 satisfied, 2 partial
+(SC-008, SC-012), 0 unsatisfied. 75 tasks: 71 verified, 2 open under the
+owner's deferral (T069, T070), 2 external (T058, T060).
+
+**Round 4's re-anchor reads complete.** The 19 citation sites that name
+`source/harness/cli.cpp` in this feature's artifacts each match a
+landmark measured against this file: the entry point at `:290`, the
+option table at `:321` to `:344` with the terminator row at `:344`, the
+option value constants at `:69` to `:71`, the scan close at `:464`, the
+filter precompile at `:470` to `:474`, the compare branch at `:477` to
+`:486`, the registry expansion at `:526`, the filter search at `:533`,
+the no-match answer at `:545` to `:550` and the closing postcondition at
+`:646`. The twelve usage-error numbers of the Citations table at
+`specs/026-regression-gate/spec.md:1186` each land on an `std::exit(2)`
+or a `return 2` line: `:80`, `:132`, `:152`, `:174`, `:276`, `:405`,
+`:419`, `:435`, `:448`, `:462`, `:498` and `:518`.
+
+**The residue.** Six passages state a call's position in the present
+tense with the audit point's number:
+
+- `specs/026-regression-gate/contracts/compare-document.md:60` to `:62`
+  names the schema checker at `source/harness/json_load.cpp:1067` and at
+  `source/harness/detail/json_report.hpp:188`. That header runs 182
+  lines, so the second pointer stands past its end. `checkReport` stands
+  at `source/harness/json_load.cpp:1083` and at
+  `source/harness/detail/json_report.hpp:176`.
+- `specs/026-regression-gate/plan.md:61` names the same checker at
+  `source/harness/json_load.cpp:1067`.
+- `specs/026-regression-gate/plan.md:239` lists
+  `source/harness/detail/json_report.hpp:172` and `:188`. At this head
+  `:172` holds the contract block of `checkReport`.
+- `specs/026-regression-gate/research.md:291` and `:303` place the
+  closing postcondition at `:566`; it stands at
+  `source/harness/cli.cpp:646`.
+- `specs/026-regression-gate/research.md:295` places the registry
+  expansion at `:434`; it stands at `source/harness/cli.cpp:526`.
+- `specs/026-regression-gate/spec.md:265` and `:269` keep the audit
+  point's usage-error list and closing postcondition inside PC-3, beside
+  the entry point and the option table that carry this head's numbers.
+
+**Task list:**
+
+- [X] T076 Re-derive the audit-point line numbers inside the
+  present-tense passages of `specs/026-regression-gate/contracts/compare-document.md`,
+  `specs/026-regression-gate/plan.md`, `specs/026-regression-gate/research.md`
+  and `specs/026-regression-gate/spec.md`, then
+  `python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/026-regression-gate`
+  reports zero findings per Principle IV (partial)
+
+**The public surface reads complete.** `parseCompareRule` at
+`source/harness/compare.cpp:772` and `compareReports` at `:788` answer
+through the contracts of `include/speedgun-ng/benchmark.hpp:2515` and
+`:2544`; `CompareState` stands at `:596`, `CompareRule` at `:647`,
+`CompareOptions` at `:712` and the three document fields of `ReportData`
+at `:581` to `:586`. The mode's seams stay internal in
+`source/harness/detail/compare.hpp` (FR-001, FR-012, FR-064).
+
+**The comparison reads complete.** `matchPair` at
+`source/harness/compare.cpp:1207` pairs on the full instance name
+through `indexOfResult` at `:1173`; `scopedValuesOf` at `:1287` holds
+the rule filter, the no-match fault, the uncountable metric and the
+empty-scope fault; `entryFor` at `:1380` answers `ADDED`, `REMOVED` and
+`SKIPPED` and calls `noiseGuard` at `:1067`; `compareReportValues` at
+`:1438` runs the version pairing first and the rule-major validation
+walk before any entry; `appliedRulesOf` at `:724` carries the default
+rule (FR-002, FR-003, FR-008 to FR-011, FR-024, FR-033 to FR-040,
+FR-044, FR-045).
+
+**The mode reads complete.** `runCompareMode` at `:1520` loads both
+documents at `:1524` and `:1532`, scopes them with `applyBatchFilter` at
+`:1499`, writes the document at `:1560` to `:1566` ahead of the table,
+and computes `status` and `failed` apart at `:1588` to `:1591`.
+`source/harness/cli.cpp:477` to `:486` returns that answer ahead of
+`detail::expandRegistry` at `:526`, so the mode reads no clock and runs
+no benchmark (FR-006, FR-007, FR-047, FR-050, FR-052, FR-074, SC-005).
+
+**The reader extension reads complete.** `source/harness/json_load.cpp:1156`
+stores the schema text, `:1175` the header text and `:1183` to `:1189`
+one warning slot per result, with the pairing postcondition at `:1195`
+to `:1199`. `test/source/harness_json_load_test.cpp:751` reads them,
+`:861` to `:865` plants each error code the extension answers, and `:914`
+plants a key the node table does not list inside an open object
+(FR-067, FR-070, FR-073).
+
+**The tests read complete.** `test/source/harness_compare_test.cpp` holds
+61 cases, among them `everyValueNameAnswersUnderASingleRow` at `:1766`
+and `everyAggregateReadsTheRecordOfItsValue` at `:1871` (SC-003),
+`aCarriedWarningOnEitherReportNamesTheWarning` at `:1483` through
+`aValueWithNoRecordIsGuardedByTheCarriedWarningAlone` at `:1620`
+(FR-041 to FR-046), and `theLibraryCallAnswersTheEntriesAndTheVerdict`
+at `:2038` (SC-007). `test/source/harness_compare_cli_test.cpp` holds 22
+cases, among them `thePassPairAnswersZeroWithOneOkRow` at `:158`,
+`theFailPairAnswersOneWithARegressedRow` at `:260`,
+`aRelativeRuleOverAZeroBaselineAnswersTheZeroFault` at `:514`,
+`twoRunsWriteByteIdenticalDocuments` at `:610` (SC-009),
+`strictTurnsTheNoisyRowIntoAFailure` at `:767` (SC-006) and
+`aFullDeviceRefusesTheWrittenDocument` at `:831` (FR-074). Neither file
+names a sleep or a clock (FR-071).
+
+**The docs read complete.** The `Regression gate` section runs 24 lines
+at `README.md:597` to `:620`, inside the 25-line budget; the
+quick-reference rows stand at `README.md:637` to `:645` and the option
+rows at `:737` to `:739`; the guide section stands at
+`docs/pages/harness.md:1095`; `PAGE_LINE_CAP` reads 746 at
+`tools/docs/example_drift.py:143` with the measurement recorded at
+`:135` to `:141`; `add_docs_example(regression_gate)` stands at
+`example/CMakeLists.txt:73` (FR-059 to FR-063, SC-011).
+
+**The gates read at this head.** `bash test/cli_shape.sh` exits 0.
+`bash test/time_source_gate.sh` prints clean with both liveness probes
+reporting. `python3 tools/docs/example_drift.py .` exits 0, and the same
+script with `--options` exits 0. `LCOV_EXCL` appears zero times in
+`source/harness/compare.cpp`, `source/harness/json_load.cpp` and
+`source/harness/cli.cpp`. `ctest --test-dir build/conv1` answers 109 of
+109, which carries the registered `loop_shape` test at
+`test/CMakeLists.txt:694` (FR-072, SC-010).
+
+**The two readings that stay outside this tree.** The coverage job
+answers 100.0% lines and 100.0% branches at `029d216` and runs in
+flight at this head, which keeps FR-069 and SC-008 partial and T060
+open. The CI job set concluded success at `029d216` and runs in flight
+at this head, which keeps SC-012 partial. `git ls-remote origin
+026-regression-gate` answers `4b59f1e`, so T058's push stands.
+
+**The two deferred tasks read as the owner left them.** T069's
+`SG_REQUIRE` calls already stand at `source/harness/compare.cpp:775`,
+`:796`, `:800`, `:928`, `:1074` and `:1684`, beside the `SG_ENSURE`
+postconditions at `:779`, `:812` and `:1736`. T070's duplication stands:
+the object writer at `:605`, the array writer at `:634` and the unit
+table at `:510` of `source/harness/compare.cpp` beside the table at
+`source/harness/report.cpp:61`.
+
+**Checkpoint:** `ctest --test-dir build/conv1` answers 109 of 109 at
+this head, and every fixture the command table of
+`specs/026-regression-gate/quickstart.md:69` to `:77` names stands in
+`test/data/`.
+
+**T076 reads closed.** The present-tense passages cite this head: the
+checker at `source/harness/json_load.cpp:1083`, declared at
+`source/harness/detail/json_report.hpp:176`, the twelve usage-error lines
+PC-3 lists, the expansion at `source/harness/cli.cpp:526` and the closing
+postcondition at `:646`. The anchor list of `plan.md` keeps the numbers of
+`aec8fce`, the label above it records that reading, and its
+`source/harness/cli.cpp` entries went back to those numbers so the list
+reads in one voice.
