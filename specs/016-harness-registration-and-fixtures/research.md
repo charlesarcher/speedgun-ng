@@ -37,17 +37,17 @@ an index at run time, rejected because the runner would re-derive name and argum
 
 ## R-03: expansion at the start of `speedgunMain` (FR-003)
 
-**Decision**: `expandRegistry()` runs at the start of `speedgunMain` (`cli.cpp:150`), before the filter
+**Decision**: `expandRegistry()` runs at the start of `speedgunMain` (`cli.cpp:142`), before the filter
 selection and the first run. The family-size warning and the duplicate-instance check live there.
 
-**Rationale**: the CLI order is providers, parse, selection, list mode, run loop (`cli.cpp:159-173`,
+**Rationale**: the CLI order is providers, parse, selection, list mode, run loop (`cli.cpp:151-165`,
 `:185-220`, `:227-248`, `:250-255`, `:278-299`). The filter matches instance names (FR-011), so expansion
 precedes the regex search at `:243-247`. FR-003 keeps expansion work out of `sampleRun`
 (`runner.cpp:317-366`).
 
 **Alternatives considered**: expansion at registration time, rejected because family calls chain after the
 registration call and the last call defines the set; expansion inside the run loop, rejected by FR-003 and
-by the list-mode exit (`cli.cpp:262`), which prints instance names with no runner present.
+by the list-mode exit (`cli.cpp:254`), which prints instance names with no runner present.
 
 ## R-04: the state argument view (FR-008)
 
@@ -167,7 +167,7 @@ around each run.
 skips such an instance and list mode omits it. A fixture method named `DISABLED_x` keeps its class prefix
 and runs.
 
-**Rationale**: selection (`cli.cpp:235-256`) and list mode (`:258-263`) are the two read points of the H1
+**Rationale**: selection (`cli.cpp:227-248`) and list mode (`:250-255`) are the two read points of the H1
 CLI, so one name test covers both (FR-011, FR-020). The cited revision tests the prefix on the full instance
 name (`benchmark_register.cc:181`, `kDisabledPrefix` `:67`), and a fixture instance name starts with the
 class (`registration.h:121-130`), which is why a method named `DISABLED_x` runs.
@@ -182,7 +182,7 @@ because the name test at selection is one string check and the flag adds a field
 runner walks that order. The console row keeps the H1 single name column.
 
 **Rationale**: FR-021 fixes suite order at first registered instance and row order at registration order.
-The run loop (`cli.cpp:286-307`) walks the selected list in order and prints each result through
+The run loop (`cli.cpp:278-299`) walks the selected list in order and prints each result through
 `printResult` (`report.cpp:42-111`), so a stable grouping of the instance list is the whole mechanism. The
 name column prints `result.name` (`report.cpp:60`, `:91`), and Q-6 keeps that shape.
 

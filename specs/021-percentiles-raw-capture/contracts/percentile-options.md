@@ -27,7 +27,7 @@ use.
 
 `<list>` is a comma-separated list of decimal values, each in the open
 interval (0, 100). The scanner parses it with the same shape as the existing
-parsers in `source/harness/cli.cpp:50-108`: one line on standard error naming
+parsers in `source/harness/cli.cpp:50-100`: one line on standard error naming
 the option and the offending text, then `std::exit(2)`, before any benchmark
 runs (FR-022).
 

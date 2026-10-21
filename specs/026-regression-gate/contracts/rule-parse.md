@@ -61,7 +61,7 @@ The parse rules, each closing its FR:
 - The filter field is the rest of the text after the threshold's
   colon; empty means no filter (FR-024).
 - A rule filter is a `std::regex` over the full instance name, the
-  same matching as the batch filter (`source/harness/cli.cpp:461`); an
+  same matching as the batch filter (`source/harness/cli.cpp:533`); an
   invalid pattern is a rule fault (FR-024).
 - Unknown words, a missing field, a malformed point, a malformed
   number or trailing text are faults naming the field (FR-005).

@@ -3,15 +3,15 @@
 The H1 `--filter` and `--list` options
 (`specs/015-benchmark-harness-core/contracts/cli.md:11-12`) match
 instance names. Expansion completes before selection, so the filter
-and list mode see every instance (`source/harness/cli.cpp:150`, R-03).
+and list mode see every instance (`source/harness/cli.cpp:142`, R-03).
 
 ## Selection over instance names (FR-003, FR-011)
 
 ```text
-speedgunMain                       source/harness/cli.cpp:150
+speedgunMain                       source/harness/cli.cpp:142
   expandRegistry()                 added: families to instances (R-03)
-  --filter / --list selection      H1 path, cli.cpp:235-256
-  list mode prints names           cli.cpp:258-263
+  --filter / --list selection      H1 path, cli.cpp:227-248
+  list mode prints names           cli.cpp:250-255
   the runner walks the suite-grouped order (R-12)
 ```
 
@@ -21,8 +21,8 @@ speedgunMain                       source/harness/cli.cpp:150
 | Expansion shall complete at the start of `speedgunMain`, before the filter and the first run (R-03). | FR-003 |
 | A filter that matches one instance name exactly shall run exactly that instance. | FR-011 |
 | The filter is a regular expression, and list mode prints one name per line, as H1 defines (`015 contracts/cli.md:11-12`). | FR-011 |
-| The filter compiles one regular expression and selects by substring match over the instance name, as H1 leaves it (`source/harness/cli.cpp:241-255`). | FR-011 |
-| The `--catalog` path returns before selection and prints no instance name (`source/harness/cli.cpp:230-233`). | FR-011 |
+| The filter compiles one regular expression and selects by substring match over the instance name, as H1 leaves it (`source/harness/cli.cpp:233-247`). | FR-011 |
+| The `--catalog` path returns before selection and prints no instance name (`source/harness/cli.cpp:222-225`). | FR-011 |
 | A duplicate instance name found at expansion prints one line on the standard error stream and leaves the exit status unchanged (FR-012). | FR-012 |
 | The option spellings, the parse, and the exit statuses of H1 shall stay unchanged. | FR-022 |
 

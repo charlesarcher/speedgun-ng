@@ -214,7 +214,7 @@ object the run releases, so no later pass can rebuild the columns.
   `RunOptions` stands at `source/harness/detail/internal.hpp:324`.
 - The entry point closes with the postcondition
   `SG_ENSURE((status != 0) == (anyFailed || anyInterrupted), ...)` at
-  `source/harness/cli.cpp:423`, and the status table of
+  `source/harness/cli.cpp:415`, and the status table of
   `specs/015-benchmark-harness-core/contracts/cli.md:73` lists no
   status 2 row for a report write. A write failure that exits 2 moves
   both (FR-050).
@@ -974,7 +974,7 @@ Symbol and section anchors, each read at the audit point `c7f1769`.
 | Merged and per-context percentile columns | `source/harness/runner.cpp:527`, `:531` |
 | `printContextDisclosure`, `printNoiseWarning`, `runnableCpuCount` | `source/harness/report.cpp:173`, `:227`, `:203` |
 | Context header, percentile line, row, result | `source/harness/report.cpp:287`, `:299`, `:351`, `:373` |
-| `speedgunMain`, option table, usage errors, exit-status postcondition | `source/harness/cli.cpp:226`, `:257`, `:75`, `:127`, `:147`, `:169`, `:340`, `:423` |
+| `speedgunMain`, option table, usage errors, exit-status postcondition | `source/harness/cli.cpp:218`, `:249`, `:67`, `:119`, `:139`, `:161`, `:332`, `:415` |
 | `RunOptions` | `source/harness/detail/internal.hpp:324` |
 | Exit status table and option table of the contract | `specs/015-benchmark-harness-core/contracts/cli.md:9`, `:73` |
 | Vendored simdjson version, import, merge, tripwire | `external/simdjson/include/simdjson/simdjson_version.h:7`, `CMakeLists.txt:109`, `CMakeLists.txt:170`, `source/simdjson/simdjson_gate.cpp:12` |
