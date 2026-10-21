@@ -1422,14 +1422,9 @@ constexpr std::string_view kBreachLog = "harness_pass_plan_breach.log";
 // message, is read beside the signal. The abort of the semantic this build
 // configures (`speedgun-ng_CONTRACTS=enforce`) is what reports here; the
 // quick semantic traps without a report and is not this build.
-auto breachAborts(const std::string_view name,
-                  const std::string_view marker) -> void
+auto breachAborts(const char* const name, const std::string_view marker) -> void
 {
   const std::string log {kBreachLog};
-  std::vector<char> mode;
-  mode.reserve(name.size() + 1);
-  mode.insert(mode.end(), name.begin(), name.end());
-  mode.push_back('\0');
   const pid_t child = ::fork();
   check(child >= 0, "the breach child was created");
   if (child == 0) {
@@ -1437,7 +1432,7 @@ auto breachAborts(const std::string_view name,
         log.c_str(), O_WRONLY | O_CREAT | O_TRUNC, static_cast<mode_t>(0644));
     static_cast<void>(::dup2(report, STDERR_FILENO));
     const std::array<char*, 3> argv {
-        const_cast<char*>("/proc/self/exe"), mode.data(), nullptr};
+        const_cast<char*>("/proc/self/exe"), const_cast<char*>(name), nullptr};
     ::execv("/proc/self/exe", argv.data());
     ::_exit(127);
   }
@@ -1526,7 +1521,7 @@ auto breachMeasuringPastFolds() -> void
 
 struct Breach
 {
-  std::string_view name;
+  const char* name;
   void (*body)();
   // A run of the message of the requirement this breach trips, the text the
   // contract facility reports for it.
