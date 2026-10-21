@@ -925,6 +925,9 @@ auto compareValues(const CompareRule& rule,
                    const double contender)
     -> std::expected<CompareEntry, std::string>
 {
+  SG_REQUIRE(
+      rule.relativeThreshold.has_value() || rule.absoluteThreshold.has_value(),
+      "a rule the parse answers carries a threshold (specs/026 FR-022)");
   // FR-025, spec D-4: the delta runs forward for a lower-is-better value
   // and backward for a higher-is-better one, so a positive delta is worse
   // and the sign of the change agrees with the state word.
@@ -1068,6 +1071,9 @@ auto noiseGuard(const CompareRule& rule,
                 const NoiseWarning* contenderWarning)
     -> std::optional<std::string>
 {
+  SG_REQUIRE(
+      rule.relativeThreshold.has_value() || rule.absoluteThreshold.has_value(),
+      "a rule the parse answers carries a threshold (specs/026 FR-022)");
   std::string reason;
   // Each condition names itself, so the table answers why (SC-006).
   const auto mark = [&reason](const std::string_view text)
@@ -1556,13 +1562,11 @@ auto runCompareMode(const RunOptions& options) -> CompareExit
   // FR-057, FR-074: `--json=` names the comparison document, and it is
   // written before anything prints, so a file system refusal answers the one
   // line naming the path beside no table, the form the report write already
-  // answers (specs/015-benchmark-harness-core/contracts/cli.md:83). The
+  // answers (specs/015-benchmark-harness-core/contracts/cli.md:86). The
   // refusal line itself stands in `writeCompareReport`.
   if (!options.jsonPath.empty()
       && !writeCompareReport(options.jsonPath,
                              *comparison,
-                             *baseline,
-                             *contender,
                              options.compareRules,
                              options.compareBaseline,
                              options.compareContender))
@@ -1673,8 +1677,6 @@ auto printCompareTable(const CompareResult& result,
 
 auto writeCompareReport(const std::string& path,
                         const CompareResult& result,
-                        const ReportData& baseline,
-                        const ReportData& contender,
                         const std::vector<CompareRule>& rules,
                         const std::string& baselinePath,
                         const std::string& contenderPath) -> bool
@@ -1682,11 +1684,6 @@ auto writeCompareReport(const std::string& path,
   SG_REQUIRE(!path.empty(),
              "writeCompareReport takes the path the option scanner settled "
              "(specs/026 contracts/compare-document.md)");
-  // The two reports stand in the signature because the document names the
-  // pair the comparison read; every field it writes comes from the result,
-  // the rules and the two paths (E-10).
-  static_cast<void>(baseline);
-  static_cast<void>(contender);
 
   Builder builder;
   {

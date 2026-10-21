@@ -109,15 +109,13 @@ auto printCompareTable(const CompareResult& result,
  * command write the same bytes.
  *
  * \pre `path` is not empty and `result` is the value the comparison
- *      answered for the two reports and rules named here
+ *      answered for the rules named here
  * \post true when the file holds the whole document, false when the
  *       file system refused it; the call reports the refusal on stderr
  *       and throws nothing
  */
 [[nodiscard]] auto writeCompareReport(const std::string& path,
                                       const CompareResult& result,
-                                      const ReportData& baseline,
-                                      const ReportData& contender,
                                       const std::vector<CompareRule>& rules,
                                       const std::string& baselinePath,
                                       const std::string& contenderPath) -> bool;
