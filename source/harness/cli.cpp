@@ -8,6 +8,7 @@
 #include <numeric>
 #include <optional>
 #include <regex>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -17,6 +18,7 @@
 
 #include "detail/compare.hpp"
 #include "detail/internal.hpp"
+#include "detail/jitter_probe.hpp"
 #include "detail/json_report.hpp"
 #include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -99,6 +101,181 @@ auto printOptionDisclosure(const std::vector<detail::OptionUse>& uses,
     line += parts[index];
   }
   std::printf("%s\n", line.c_str());
+}
+
+// FR-011 with the value grammar of contracts/cli-options.md: a number
+// with no sign and no trailing text; the cpu tokens admit zero, the
+// keys do not.
+auto parseProbeNumber(const std::string& text,
+                      std::uint64_t& out,
+                      const bool allowZero) -> bool
+{
+  if (text.empty() || text.front() < '0' || text.front() > '9') {
+    return false;
+  }
+  errno = 0;
+  char* end = nullptr;
+  const long long number = std::strtoll(text.c_str(), &end, 10);
+  if (errno != 0 || end != text.c_str() + text.size()) {
+    return false;
+  }
+  if (!allowZero && number <= 0) {
+    return false;
+  }
+  out = static_cast<std::uint64_t>(number);
+  return true;
+}
+
+// The cpu token of the value grammar: an index or a closed a-b range,
+// the form the --topology listing prints; each cpu stands in the
+// process affinity mask (FR-011, FR-038).
+auto parseProbeCpuToken(const std::string& token,
+                        std::vector<std::uint32_t>& cpus,
+                        std::string& message) -> bool
+{
+  const auto dash = token.find('-');
+  std::uint64_t low = 0;
+  std::uint64_t high = 0;
+  if (dash == std::string::npos) {
+    if (!parseProbeNumber(token, low, true)) {
+      message = "the cpu '" + token + "' is not a cpu index or range";
+      return false;
+    }
+    high = low;
+  } else {
+    const auto lowText = token.substr(0, dash);
+    const auto highText = token.substr(dash + 1);
+    if (!parseProbeNumber(lowText, low, true)
+        || !parseProbeNumber(highText, high, true) || low > high) {
+      message = "the cpu '" + token + "' is not a cpu index or range";
+      return false;
+    }
+  }
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    message = "the process affinity mask is unreadable";
+    return false;
+  }
+  for (auto cpu = low; cpu <= high; ++cpu) {
+    if (!CPU_ISSET(static_cast<std::size_t>(cpu), &mask)) {
+      message = "the cpu '" + token
+                + "' stands outside the process affinity mask";
+      return false;
+    }
+    cpus.push_back(static_cast<std::uint32_t>(cpu));
+  }
+  return true;
+}
+
+// The value grammar of contracts/cli-options.md (FR-011, FR-014, R-06):
+// the head names a cpu list or the word idle, and the keys follow, each
+// standing once in the value. Every rejection names its token, so the
+// caller's one line carries it (FR-038).
+auto parseJitterProbeValue(const std::string& value,
+                           JitterProbeOptions& parsed,
+                           std::string& message) -> bool
+{
+  parsed = JitterProbeOptions {};
+  std::set<std::string> seenKeys;
+  bool idleHead = false;
+  bool headSeen = false;
+  std::size_t position = 0;
+  while (position <= value.size()) {
+    const auto comma = value.find(',', position);
+    const std::string token = value.substr(
+        position,
+        comma == std::string::npos ? std::string::npos : comma - position);
+    const bool last = comma == std::string::npos;
+    position = last ? value.size() + 1 : comma + 1;
+
+    if (!headSeen) {
+      headSeen = true;
+      if (token == "idle") {
+        idleHead = true;
+        continue;
+      }
+      std::vector<std::uint32_t> headCpus;
+      if (parseProbeCpuToken(token, headCpus, message)) {
+        parsed.cpus = headCpus;
+        continue;
+      }
+      if (message.empty()) {
+        message = "the head '" + token
+                  + "' names no cpu list and no idle preset";
+      }
+      return false;
+    }
+
+    // A token after the head is a key when it carries '=' or names the
+    // value-less `strict`; every other token extends the cpu list.
+    const bool keyToken = idleHead || token.find('=') != std::string::npos
+                          || token == "strict";
+    if (!keyToken) {
+      if (!parseProbeCpuToken(token, parsed.cpus, message)) {
+        return false;
+      }
+      continue;
+    }
+
+    const auto equals = token.find('=');
+    const std::string key =
+        equals == std::string::npos ? token : token.substr(0, equals);
+    const std::string keyArgument =
+        equals == std::string::npos ? "" : token.substr(equals + 1);
+    if (!seenKeys.insert(key).second) {
+      message = "the key '" + key + "' stands twice in the value";
+      return false;
+    }
+    if (key == "threshold") {
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, false)) {
+        message =
+            "the threshold '" + keyArgument + "' is not a positive number";
+        return false;
+      }
+      parsed.thresholdNs = number;
+    } else if (key == "gaps") {
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, false)
+          || number > kMaxGapCount) {
+        message = "the gaps '" + keyArgument
+                  + "' is not a number between 1 and 16777216";
+        return false;
+      }
+      parsed.gapCount = static_cast<std::uint32_t>(number);
+    } else if (key == "mode") {
+      if (keyArgument == "alongside") {
+        parsed.mode = JitterProbeMode::ALONGSIDE;
+      } else if (keyArgument == "precheck") {
+        parsed.mode = JitterProbeMode::PRECHECK;
+      } else if (keyArgument == "both") {
+        parsed.mode = JitterProbeMode::BOTH;
+      } else {
+        message = "the mode '" + keyArgument
+                  + "' is not alongside, precheck or both";
+        return false;
+      }
+    } else if (key == "precheck") {
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, false)) {
+        message =
+            "the precheck '" + keyArgument + "' is not a positive number";
+        return false;
+      }
+      parsed.precheckMs = static_cast<std::uint32_t>(number);
+    } else if (key == "strict") {
+      if (!keyArgument.empty()) {
+        message = "the key 'strict' takes no value";
+        return false;
+      }
+      parsed.strict = true;
+    } else {
+      message = "the key '" + key + "' is not one the value names";
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace
@@ -381,6 +558,19 @@ auto speedgunMain(int argc, char** argv) -> int
     processPreset = parsed;
   }
 
+  // FR-011, FR-038, R-06: the value parses once here, before the
+  // expansion and before any run; every rejection stands one line and
+  // exits 2.
+  if (!options.jitterProbeText.empty()) {
+    auto parsed = JitterProbeOptions {};
+    std::string message;
+    if (!parseJitterProbeValue(options.jitterProbeText, parsed, message)) {
+      std::fprintf(stderr, "--jitter-probe: %s\n", message.c_str());
+      return 2;
+    }
+    options.jitterProbe = parsed;
+  }
+
   if (options.catalogMode) {
     detail::printCatalog();
     return 0;
@@ -495,6 +685,34 @@ auto speedgunMain(int argc, char** argv) -> int
   // console prints, and the document writer reads no clock and samples
   // nothing on its way to the file (FR-005).
   ReportData report;
+  // The probe holder rides the batch state: the lifecycle starts before
+  // the first run and stops after the selected loop ends (T010, R-01).
+  std::optional<detail::JitterProbe> jitterProbe;
+  bool jitterIdle = false;
+  bool jitterUnavailable = false;
+  if (options.jitterProbe.has_value()) {
+    if (options.jitterProbe->cpus.empty()) {
+      // The idle preset's resolver and the overlap check land with US2
+      // (R-07): an empty list runs no probe this wave, and the batch's
+      // disclosure rides that task.
+      jitterIdle = true;
+    } else {
+      jitterProbe.emplace(*options.jitterProbe);
+      jitterProbe->start();
+      if (jitterProbe->states().empty()) {
+        // The availability answer (Q-1): strict stops the batch before
+        // any run, and the plain run discloses and continues (FR-037,
+        // D-10).
+        if (options.jitterProbe->strict) {
+          std::fprintf(stderr,
+                       "--jitter-probe: the machine/tsc leaf is not "
+                       "available\n");
+          return 2;
+        }
+        jitterUnavailable = true;
+      }
+    }
+  }
   detail::Runner runner(options);
   // specs/028 FR-051, FR-055, D-12: the order the run walks. A seeded run
   // walks the selected instances in the order `detail::shuffledOrder`
@@ -568,6 +786,12 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
+  // FR-006, R-01: the probe spans the batch, so the stop lands after
+  // the selected loop ends, before the last family's fit prints.
+  if (jitterProbe.has_value()) {
+    jitterProbe->stopAndJoin();
+  }
+
   // FR-056, FR-057: the held rows print after the walk in registration
   // order, and the fit of a family follows the last held row of that family.
   // The rows an interrupted run holds are those of the instances its walk
@@ -610,6 +834,13 @@ auto speedgunMain(int argc, char** argv) -> int
     report.results.push_back(*fit);
     report.rowRaw.emplace_back();
     report.contextRaw.emplace_back();
+  }
+
+  // FR-023, FR-036, R-08: the probe block and the disclosure print in
+  // the end-of-report region, after the benchmark tables; a probe-free
+  // run prints none of them (FR-013, SC-003).
+  if (options.jitterProbe.has_value() && !jitterIdle) {
+    detail::printJitterReport(!jitterUnavailable, jitterProbe->states());
   }
 
   // FR-030: a document the file system refused reports on stderr and
