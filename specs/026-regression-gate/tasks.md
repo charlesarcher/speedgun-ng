@@ -437,8 +437,8 @@ merge order loadable (FR-068, PC-4).
 
 Each commit follows the constitution template: `<Section>: <one line>`
 at 50 characters or fewer, a why-body wrapped at 72, then one footer
-block with `Refs: specs/026-regression-gate`. `Approved-by: Charles`
-stands only on a decision he made.
+block with `Refs: specs/026-regression-gate`. `Approved-by: OmO` stands
+on every commit of this branch, the agent that made the calls here.
 
 | Commit | Section | Tasks | Content |
 |---|---|---|---|
@@ -493,3 +493,16 @@ stands only on a decision he made.
   `data-model.md`, `quickstart.md` and `contracts/` and rewrote the
   twenty spec-meant ones to that form, beside the seven in
   `research.md` itself; `quickstart.md` cites no decision id.
+
+## Phase 10: Convergence
+
+The `/speckit.converge` pass of 2026-10-21 read the branch head
+`d709a87` against `spec.md`, `plan.md`, the contracts and the
+constitution, then ran the gates. Two hard gates fail on the pushed
+head: the DBC pairing gate names one drifted interface, and the CI
+coverage gate reads one count-zero line record the local gcov does
+not emit. One requirement carries a CLI-surface test gap.
+
+- [X] T059 Pair the contract of `compareReports` with its enforcement: an `SG_ENSURE` postcondition in the body of the call in `source/harness/compare.cpp` and the default-rule `SG_ASSERT` moved out of that documented body, then `cmake --build build -t dbc-gate` reports zero drifted interfaces per Principle II, Principle VI, SC-012 (contradicts)
+- [ ] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:438` to `:457` so the CI gcov answers no count-zero record at the condition line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
+- [X] T061 Add one `harness_compare_cli_test` case that passes two `--compare-rule=` flags in one run and answers two rule-major rows in flag order per FR-049 (partial)
