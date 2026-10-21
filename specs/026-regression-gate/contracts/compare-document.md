@@ -15,15 +15,13 @@ vendored builder's `string_builder`, the report writer's tool
  * @brief Write the comparison document of one finished comparison.
  *
  * \pre `path` is not empty and `result` is the value the comparison
- *      answered for the two reports and rules named here
+ *      answered for the rules named here
  * \post true when the file holds the whole document, false when the
  *       file system refused it; the call reports the refusal on stderr
  *       and throws nothing
  */
 [[nodiscard]] auto writeCompareReport(const std::string& path,
                                       const CompareResult& result,
-                                      const ReportData& baseline,
-                                      const ReportData& contender,
                                       const std::vector<CompareRule>& rules,
                                       const std::string& baselinePath,
                                       const std::string& contenderPath) -> bool;
@@ -31,7 +29,7 @@ vendored builder's `string_builder`, the report writer's tool
 
 A write failure answers status 2 from the compare mode, the form the
 report write already answers
-(`specs/015-benchmark-harness-core/contracts/cli.md:74`), and the mode
+(`specs/015-benchmark-harness-core/contracts/cli.md:86`), and the mode
 prints one line naming the path (FR-074).
 
 ## Key order and content
