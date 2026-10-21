@@ -19,9 +19,9 @@
 // baseline report carries speedgun 0.14.0 and the contender 0.15.0, both
 // under schema 1.0. Beside the pairs stand two documents of that same
 // benchmark at the baseline's own numbers: `gate_schema_11.json` carries the
-// pass keys of the 1.1 format under speedgun 0.16.0, and
-// `gate_schema_20.json` states major 2, which the reader refuses (D-13,
-// SC-013). The zero-baseline pair holds that same contender against
+// pass keys of the 1.1 format as an AUTO entry holds them, under speedgun
+// 0.16.0, and `gate_schema_20.json` states major 2, which the reader refuses
+// (D-13, SC-013). The zero-baseline pair holds that same contender against
 // a baseline whose primary time column reads 0, the pair that a relative
 // threshold measures not at all (FR-031). The noisy pair is that same pass
 // pair with one field added, the `noiseWarning` object the contender's
