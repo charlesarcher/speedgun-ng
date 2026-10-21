@@ -51,6 +51,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "detail/gcov_flush.hpp"
 #include "detail/internal.hpp"
 #include "detail/pass_fixture.hpp"
 #include "detail/pass_plan.hpp"
@@ -184,7 +185,7 @@ auto captureThrough(const std::string& path, Call&& call) -> void
   }
   check(saved != nullptr, "the capture kept the real stdout");
 
-  std::FILE* replacement = std::fopen(path.c_str(), "w");
+  std::FILE* replacement = std::fopen(path.c_str(), "we");
   check(replacement != nullptr, "the capture opened its scratch file");
   const int replacementFd = fileno(replacement);
   check(replacementFd >= 0, "the capture file carries a descriptor");
@@ -569,7 +570,7 @@ auto builtSpreadResult(const std::string& name,
   sg::BenchmarkResult result;
   result.name = name;
   result.outcome = sg::RunOutcome::MEASURED;
-  result.metricLabels.push_back(kBuiltColumnLabel);
+  result.metricLabels.emplace_back(kBuiltColumnLabel);
   result.metricMethod = sg::MetricMethod::PASSES;
   result.passCount = passTimes.size();
   result.passSpread = sg::detail::passSpread(passTimes);
@@ -766,6 +767,47 @@ auto scenarioNoMetricColumnPrintsNothing() -> void
 }
 
 // ---------------------------------------------------------------------------
+// The automatic one-pass arm of the print rule (T058b)
+// ---------------------------------------------------------------------------
+
+// FR-021, clarification Q2, E-01 row 3: the automatic settling with one
+// measured pass closes the print rule on its third clause. The run names
+// neither multiplex nor a second pass and carries no forcing, so the report
+// carries the row's bytes and nothing else. The settled record alone cannot
+// answer this arm: an identical forced run prints, and only the forcing
+// tells the two apart.
+auto scenarioAutomaticOnePassPrintsNothing() -> void
+{
+  const auto result = runInstance("bmPassSecondMirror");
+  const auto lines = printedLines(result);
+
+  check(lines.size() == 1,
+        "the automatic one-pass run prints its row and no disclosure line "
+        "(FR-021, Q2, SC-03)");
+  check(disclosureLineOf(lines).empty(),
+        "no line names a method the run's caller never asked for (FR-021)");
+  const auto& columns = sg::test::passColumns();
+  const std::vector<ExpectedMetric> expected {
+      {std::string(columns[2].label),
+       kFirstColumnValue + 2.0 * kColumnValueStep,
+       std::nullopt},
+      {std::string(columns[3].label),
+       kFirstColumnValue + 3.0 * kColumnValueStep,
+       std::nullopt}};
+  check(maskHostFloor(lines.front())
+            == expectedRow(
+                result.name, kPassTimePerIterationNs, kMaskedFloor, expected),
+        "the row of the one-pass run keeps the audit point's bytes, with no "
+        "pass tag (FR-019, FR-021)");
+  check(
+      result.metricMethod == sg::MetricMethod::PASSES && result.passCount == 1,
+      "the run publishes its settling even though no line prints it " "(E-07)");
+  check(!result.metricMethodForced,
+        "the automatic settling records no forcing, the fact the print rule "
+        "reads on its third clause (FR-021, Q2)");
+}
+
+// ---------------------------------------------------------------------------
 // T045: the published fields are the values the console printed
 // ---------------------------------------------------------------------------
 
@@ -851,7 +893,7 @@ struct Scenario
   void (*body)();
 };
 
-constexpr std::array<Scenario, 10> kScenarios {{
+constexpr std::array<Scenario, 11> kScenarios {{
     Scenario {"two-pass-shape", &scenarioTwoPassShape},
     Scenario {"spread-in-band", &scenarioSpreadInBand},
     Scenario {"spread-boundary", &scenarioSpreadBoundary},
@@ -861,6 +903,7 @@ constexpr std::array<Scenario, 10> kScenarios {{
     Scenario {"multiplex-shape", &scenarioMultiplexShape},
     Scenario {"forced-one-pass", &scenarioForcedMethodPrintsOnePass},
     Scenario {"no-metric-column", &scenarioNoMetricColumnPrintsNothing},
+    Scenario {"auto-one-pass-quiet", &scenarioAutomaticOnePassPrintsNothing},
     Scenario {"published-fields", &scenarioPublishedFields},
 }};
 
@@ -881,6 +924,14 @@ auto runIsolated(const Scenario& scenario) -> bool
     scenario.body();
     std::fflush(stdout);
     std::fflush(stderr);
+    // libgcov writes its counters from the exit hooks that only a return
+    // from main reaches, so a child that dies by `_Exit` leaves the lines it
+    // ran out of the coverage trace. `detail/gcov_flush.hpp` names that
+    // leak; this is its dump ahead of the death. The symbol is weak: an
+    // uninstrumented build has none and the call stays out of the way.
+    if (&__gcov_dump != nullptr) {
+      __gcov_dump();
+    }
     std::_Exit(0);
   }
   int status = 0;

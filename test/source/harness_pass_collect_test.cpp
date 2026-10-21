@@ -17,6 +17,14 @@
 // the parent below walks the scenario list and re-executes this binary once
 // per entry, the pattern of `harness_pause_test.cpp`. The list is what CTest
 // runs, so a scenario absent from it never runs.
+//
+// Beside the splits that run to their last pass, the file holds the ones
+// that end early and the one that widens the merged row: the calibration
+// ahead of an adaptive split's pass loop answers a failing, a skipping and a
+// signaled body each with its own stop, the interrupt read between a pass's
+// repetitions ends the loop with two passes measured and no merge, and a
+// percentile run stands its row wider than the plan the merge reads
+// (FR-016, FR-031, FR-032, FR-014; specs/021 FR-016).
 // ============================================================================
 
 #include <array>
@@ -409,6 +417,46 @@ auto bmContextLog(sg::State& state) -> void
       const auto identity = sg::currentContext();
       record.hasContext = identity.has_value();
       record.contextSerial = identity.has_value() ? identity->serial : 0;
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+// A body that never enters the timed loop: the record build of any sample
+// that ran it carries the FR-017 failure, so the sample of a calibration is
+// where that failure reaches the collection.
+auto bmNeverLoops(sg::State& /*state*/) -> void {}
+
+// A body that skips before its loop takes no sample: the loop walks the
+// empty cursor the skip left behind, and the record of the run carries the
+// skip's own reason (FR-031).
+auto bmSkipBeforeLoop(sg::State& state) -> void
+{
+  state.skipWithMessage("the scripted ahead skip");
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+}
+
+// A body that raises the interrupt flag inside its window leaves the stop
+// rule of the growth reading a set flag once the sample closes (FR-032).
+auto bmInterruptInWindow(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::detail::interruptFlag().store(true);
+    sg::doNotOptimize(index);
+  }
+}
+
+// A body that raises the interrupt flag when the second timed window of the
+// process opens: in a fixed-iteration split the first window belongs to pass
+// 0 and the second to pass 1, so the flag stands while the collection's
+// second pass measures its repetition (FR-032).
+auto bmInterruptSecondWindow(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (arrivals.fetch_add(1) == 1) {
+      sg::detail::interruptFlag().store(true);
     }
     sg::doNotOptimize(index);
   }
@@ -1344,13 +1392,201 @@ auto scenarioSelectorOnePass() -> int
   return 0;
 }
 
+// ============================================================================
+// What ends a split collection before its last pass, and what widens the
+// row the merge reads: the calibration that stands ahead of the pass loop of
+// an adaptive split answers a failure, a skip and a signal each with its own
+// ending; the interrupt read between the repetitions of a pass stops the
+// loop with more than one pass already measured; and a percentile run stands
+// a column beside every column of the row, wider than the plan the planner
+// costed (FR-016, FR-031, FR-032, FR-014; specs/021 FR-016; T058b).
+// ============================================================================
+
+// E-03 rule 6, FR-016: an adaptive split calibrates once ahead of pass 0,
+// and every pass measures the count that calibration produced. A body that
+// fails the record build of that one sample ends the collection with the
+// calibration's own error, before any pass measures a row.
+auto scenarioCalibrationAheadFails() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmNeverLoops, "bmAheadFailure");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  // The absence of a fixed iteration count is what stands the calibration
+  // ahead of the pass loop; the failing sample ends that path on its first
+  // run, whatever the growth target is.
+  sg::detail::RunOptions options;
+  options.repetitions = 1;
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result =
+      runner.run(*needInstance("bmAheadFailure"));
+  check(result.outcome == sg::RunOutcome::FAILED,
+        "the split collection whose ahead calibration fails reports the "
+        "failure (FR-016)");
+  check(result.reason == "the benchmark never entered the timed loop (FR-017)",
+        "the calibration's own error stands as the run's reason (FR-016, "
+        "FR-017)");
+  check(result.rows.empty(), "no pass measured a row after the failure");
+
+  std::puts("calibration-ahead-fails: ok");
+  return 0;
+}
+
+// FR-031: a body that skips before its loop hands the ahead calibration a
+// skipped record, and the collection ends with the skip's own reason. The
+// empty cursor the skip leaves is the shape of a run that takes no sample.
+auto scenarioCalibrationAheadSkipped() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmSkipBeforeLoop, "bmAheadSkip");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  sg::detail::RunOptions options;
+  options.repetitions = 1;
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result = runner.run(*needInstance("bmAheadSkip"));
+  check(result.outcome == sg::RunOutcome::SKIPPED,
+        "the ahead skip ends the split collection (FR-031)");
+  check(result.reason == "the scripted ahead skip",
+        "the skip's own reason stands as the run's reason, the way the "
+        "warm-up skip carries its message (FR-031)");
+  check(result.rows.empty(), "the skipped collection measured no row");
+
+  std::puts("calibration-ahead-skipped: ok");
+  return 0;
+}
+
+// FR-032: the flag read after the calibration run ends the collection the
+// way it ends the warm-up: the run carries the skip outcome and the signal
+// as its reason, and no pass opens.
+auto scenarioCalibrationAheadInterrupted() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmInterruptInWindow, "bmAheadInterrupt");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  sg::detail::RunOptions options;
+  options.repetitions = 1;
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result =
+      runner.run(*needInstance("bmAheadInterrupt"));
+  sg::detail::interruptFlag().store(false);
+  check(
+      result.outcome == sg::RunOutcome::SKIPPED,
+      "the signal inside the ahead calibration ends the collection " "(FR-"
+                                                                     "032)");
+  check(result.reason == "interrupted by the user (SIGINT)",
+        "the interrupted run states the signal as its reason (FR-032)");
+  check(result.rows.empty(), "the interrupted collection measured no row");
+
+  std::puts("calibration-ahead-interrupted: ok");
+  return 0;
+}
+
+// FR-014, FR-032: the flag read between the repetitions ends the pass loop
+// mid-collection. With two passes measured and the run stopped, the merge
+// stays unrun and the published result is the stopped pass's own row, whose
+// columns from the reference pass stand unread.
+auto scenarioInterruptInsideSplit() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide =
+      sg::registerBenchmark(&bmInterruptSecondWindow, "bmInterruptSplit");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  resetAttempts();
+  const auto options = optionsFor(1, 1);
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result =
+      runner.run(*needInstance("bmInterruptSplit"));
+  sg::detail::interruptFlag().store(false);
+
+  check(arrivals.load() == kTwoPassCount,
+        "the collection ran one window of pass 0 and one of pass 1 before the "
+        "flag ended it (FR-032)");
+  check(result.outcome == sg::RunOutcome::SKIPPED,
+        "the flag between the repetitions ends the run as a skip (FR-032)");
+  check(result.reason == "interrupted by the user (SIGINT)",
+        "the stopped collection states the signal as its reason (FR-032)");
+  check(result.rows.size() == 1,
+        "the published result is the stopped pass's own single row, because "
+        "the merge of an interrupted collection stays unrun (FR-014)");
+  const sg::ResultRow& row = result.rows.front();
+  check(row.metrics[0].availability == sg::counters::Availability::GAP
+            && row.metrics[1].availability == sg::counters::Availability::GAP,
+        "the columns pass 0 measured stand unread on the stopped pass's row, "
+        "the figures the merge would have carried (FR-014)");
+  check(row.metrics[2].availability == sg::counters::Availability::COUNTABLE
+            && closeTo(row.metrics[2].value,
+                       expectedColumnValue(2, kPlainSteps, 1)),
+        "the columns of the stopped pass answer from that pass's own folds "
+        "(FR-014)");
+  check(!result.passSpread.has_value(),
+        "the interrupted collection publishes no spread (FR-017)");
+
+  std::puts("interrupt-inside-split: ok");
+  return 0;
+}
+
+// specs/021 FR-016 beside FR-014 of specs/024: a percentile run over a split
+// stands one percentile column beside every column the row prints, which is
+// wider than the columns the planner costed. The merge pads the plan it
+// reads so those columns answer the reference pass, and every metric column
+// keeps the value and the pass tag of the pass that measured it.
+auto scenarioPercentilesAcrossPasses() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmPlain, "bmPercentileSplit");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  sg::detail::RunOptions options = optionsFor(kValueIterations, 1);
+  options.showPercentiles = true;
+  options.percentilePoints = {50.0, 90.0};
+  const RunAccount merged =
+      runMeasured(*needInstance("bmPercentileSplit"), options);
+
+  const sg::ResultRow& row = merged.result.rows.front();
+  check(merged.result.metricLabels.size() == 4,
+        "the widened run labels every attached column (FR-001)");
+  check(row.percentiles.size() == 2 + merged.result.metricLabels.size(),
+        "a percentile row stands one column beside the time columns and every "
+        "metric column, wider than the plan the planner costed (FR-016, "
+        "SC-001)");
+  for (std::size_t index = 0; index < 4; ++index) {
+    check(row.metrics[index].availability
+              == sg::counters::Availability::COUNTABLE,
+          "every column stays countable through the widened merge (FR-014)");
+    const std::optional<std::size_t> expectedPass = index < 2
+        ? std::optional<std::size_t> {0}
+        : std::optional<std::size_t> {1};
+    check(row.metrics[index].pass == expectedPass,
+          "every column keeps the pass that measured it through the widened "
+          "merge (FR-019)");
+  }
+  check(merged.result.passCount == kTwoPassCount,
+        "the widened run still publishes its two passes (E-07)");
+
+  std::puts("percentiles-across-passes: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 8> kScenarios {{
+constexpr std::array<Scenario, 13> kScenarios {{
     Scenario {"two-pass-run", &scenarioTwoPassRun},
     Scenario {"pause-across-passes", &scenarioPauseAcrossPasses},
     Scenario {"over-limit-run", &scenarioOverLimitRun},
@@ -1359,6 +1595,12 @@ constexpr std::array<Scenario, 8> kScenarios {{
     Scenario {"multiplex-run", &scenarioMultiplexRun},
     Scenario {"no-limit-host", &scenarioNoLimitHost},
     Scenario {"selector-one-pass", &scenarioSelectorOnePass},
+    Scenario {"calibration-ahead-fails", &scenarioCalibrationAheadFails},
+    Scenario {"calibration-ahead-skipped", &scenarioCalibrationAheadSkipped},
+    Scenario {"calibration-ahead-interrupted",
+              &scenarioCalibrationAheadInterrupted},
+    Scenario {"interrupt-inside-split", &scenarioInterruptInsideSplit},
+    Scenario {"percentiles-across-passes", &scenarioPercentilesAcrossPasses},
 }};
 
 }  // namespace

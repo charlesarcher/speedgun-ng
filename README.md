@@ -316,6 +316,13 @@ auto describeMetric(std::string_view name) -> void
 A metric set larger than the host's published `programmableCounters` limit needs more than one measurement window, and `metricMethod` names how the run collects it: `auto` lets the harness choose, `passes` forces one replay per group of columns, `multiplex` keeps the single kernel-rotated plan.
 <!-- sg-example: example/docs/metric_passes.cpp#metric-passes -->
 ```cpp
+#include <array>
+#include <cstddef>
+#include <ranges>
+#include <string_view>
+
+#include "speedgun-ng/counters.hpp"
+
 constexpr std::array<std::string_view, 5> kOverLimitMetricLeafNames {
     "cpu-cycles", "instructions", "branch-misses", "ref-cycles", "bus-cycles"};
 

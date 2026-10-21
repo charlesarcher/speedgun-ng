@@ -167,10 +167,9 @@ auto planPasses(const std::vector<std::vector<ColumnLeaves>>& columnLeaves,
     // is the new one, the only pass that may stand over a limit.
     if (alone || pass == columns.size()) {
       pass = columns.size();
-      columns.push_back({});
+      columns.emplace_back();
       exclusive.push_back(alone);
-      claims.push_back(
-          std::vector<std::vector<std::string>>(sourceLimits.size()));
+      claims.emplace_back(sourceLimits.size());
     }
     for (std::size_t source = 0; source < sourceLimits.size(); ++source) {
       claims[pass][source] =

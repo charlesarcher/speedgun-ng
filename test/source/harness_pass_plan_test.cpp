@@ -685,7 +685,7 @@ auto cyclesCounts() -> void
   sg::test::PassColumn cycles;
   cycles.label = "cycles";
   cycles.object = sg::test::kPassCpuObject;
-  cycles.events.push_back("cycles");
+  cycles.events.emplace_back("cycles");
   const auto pairs = fixtureColumns(4);
   std::vector<sg::test::PassColumn> columns;
   columns.push_back(cycles);

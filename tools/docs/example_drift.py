@@ -147,8 +147,11 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # "Multi-pass collection" section runs 24 lines, its two quick-reference rows
 # add 2, and the metric-method option row adds 1, so 24 + 2 + 1 = 27 lines move
 # the cap from 746 to 773, the measured length of the page as the feature
-# lands.
-PAGE_LINE_CAP = 773
+# lands. The snippet gate then asked for its own price: a fenced region must
+# compile with nothing but the quick-start prelude, so the region carries seven
+# include lines inline, the same shape the metric-lookup region carries. The
+# page measures 780 as that lands, and the cap sits there.
+PAGE_LINE_CAP = 780
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
@@ -157,6 +160,9 @@ SECTION_LINE_CAP = 25
 SECTION_LINE_CAPS = {
     "Registration": 38,
     "Fixtures": 43,
+    # specs/024: the mirrored region carries its seven standalone-compile
+    # include lines inline (snippet gate), so the section spans 31 lines.
+    "Multi-pass collection": 31,
 }
 
 

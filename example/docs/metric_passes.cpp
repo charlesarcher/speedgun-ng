@@ -16,6 +16,13 @@ auto bmTick(sg::State& state) -> void
 }
 
 // sg-example:begin metric-passes
+#include <array>
+#include <cstddef>
+#include <ranges>
+#include <string_view>
+
+#include "speedgun-ng/counters.hpp"
+
 constexpr std::array<std::string_view, 5> kOverLimitMetricLeafNames {
     "cpu-cycles", "instructions", "branch-misses", "ref-cycles", "bus-cycles"};
 
