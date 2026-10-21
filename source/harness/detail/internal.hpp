@@ -635,6 +635,78 @@ auto installTestLoadFailure(std::optional<int>) -> void;
                                  const MachineLayout&,
                                  int contexts) -> PlacementPlan;
 
+/**
+ * @brief specs/027 data-model.md D-4: the `idle` preset's resolution
+ * over one layout (FR-016, FR-017, R-07).
+ *
+ * \pre `machine` stands readable (FR-020)
+ * \post every cpu of `cpus` stands inside one group a planned cpu
+ *       names, is the lowest cpu of that group that names no planned
+ *       cpu and no SMT sibling of a planned cpu, and the list carries
+ *       one cpu per non-skipped touched group in group order (FR-016,
+ *       D-4, R-07)
+ * \post `skippedGroups` carries exactly the touched groups that name
+ *       no free cpu, ascending (FR-017, D-4)
+ */
+struct IdleResolution
+{
+  std::vector<std::uint32_t> cpus;
+  std::vector<std::uint32_t> skippedGroups;
+};
+
+/// @brief The `idle` resolution: the lowest free cpu of each L3 group
+/// the planned cpus name, with the skip record (FR-016, FR-017, R-07).
+[[nodiscard]] auto
+resolveIdleCpus(const MachineLayout& machine,
+                const std::vector<std::uint32_t>& plannedCpus)
+    -> IdleResolution;
+
+/// @brief specs/027 data-model.md D-3: one probe cpu the plans refuse,
+/// with the benchmark whose plan it meets (FR-018, D-9).
+struct ProbeOverlap
+{
+  std::uint32_t cpu = 0;
+  std::string benchmark;
+};
+
+/// @brief The overlap check of the alongside phase: the first probe cpu
+/// that names a planned cpu of a selected instance or an SMT sibling of
+/// one; the `precheck` mode allows every overlap, because it stops
+/// before the benchmarks start (FR-018, D-3, R-10).
+///
+/// \pre `machine` stands readable (FR-020)
+/// \post a `precheck` mode names no overlap, and every other mode
+///       names the first probe cpu a plan refuses, if one stands
+///       (D-3, R-10)
+[[nodiscard]] auto probeOverlapOf(const MachineLayout& machine,
+                                  const std::vector<Instance*>& selected,
+                                  const std::vector<std::uint32_t>& probeCpus,
+                                  JitterProbeMode mode)
+    -> std::optional<ProbeOverlap>;
+
+/**
+ * @brief specs/027 data-model.md D-5: the affinity-mask narrowing of
+ * one benchmark that carries no placement (FR-019, FR-036).
+ *
+ * \post `remaining` carries the mask cpus the probe cpus leave, in the
+ *       mask's order, and the empty list is the status-2 condition
+ *       (FR-019, D-5)
+ * \post `limited` stands when a probe cpu names no mask cpu, the
+ *       cpuset limit FR-036 discloses
+ */
+struct MaskNarrowing
+{
+  std::vector<std::uint32_t> remaining;
+  bool limited = false;
+};
+
+/// @brief The mask decision: the mask minus the probe cpus, with the
+/// cpuset-limit answer (FR-019, D-5, FR-036).
+[[nodiscard]] auto
+maskNarrowingOf(const std::vector<std::uint32_t>& probeCpus,
+                const std::vector<std::uint32_t>& maskCpus)
+    -> MaskNarrowing;
+
 /// @brief Print the layout listing `--topology` states (FR-036).
 auto printTopologyListing(const MachineLayout&) -> void;
 
