@@ -201,8 +201,8 @@ D-08).
 | Field | Where | Rule |
 |---|---|---|
 | `BenchmarkResult::metricMethod` | `benchmark.hpp` (near `percentilePoints`, line 492 neighborhood) | settled method (FR-017) |
-| `BenchmarkResult::passCount` | same | number of passes run; metric-bearing runs only carry a meaningful value; `0` means the mechanism did not run |
-| `BenchmarkResult::passSpread` | same, `std::optional<double>` | E-06 value (FR-017) |
+| `BenchmarkResult::passCount` | same | number of passes run; metric-bearing runs only carry a meaningful value; `0` means the mechanism did not run; a pass loop left early publishes the passes whose folds stand, so a stopped pass that folded no row stays out of the count (edge, FR-017) |
+| `BenchmarkResult::passSpread` | same, `std::optional<double>` | E-06 value (FR-017); the merge is its only writer, so a run stopped inside the pass loop publishes none (edge) |
 
 Console rule (research D-10, FR-020, FR-021, FR-024): the `passes` line prints when the
 run carries at least one metric column and (the settled method is `MULTIPLEX`
@@ -217,7 +217,7 @@ shared report-schema file is touched here (N3; Q4; FR-017).
 
 | Field | Where | Rule |
 |---|---|---|
-| `MetricValue::pass` | `benchmark.hpp:211` struct | index of the measuring pass; printed as `pass=N` inside the existing metric field spelling when `passCount > 1` (FR-019; research D-11) |
+| `MetricValue::pass` | `benchmark.hpp:211` struct | index of the measuring pass; printed as `pass=N` inside the existing metric field spelling when `passCount > 1` (FR-019; research D-11); only the merge writes a tag, so a run stopped inside the pass loop carries none (edge) |
 
 A one-pass run prints no `pass=` token: master's field list stands untouched
 (FR-021, D-9). The tag is per value: rows of one result may print the same
