@@ -94,6 +94,22 @@ auto field(Element object,
   return std::unexpected(where + ": " + simdjson::error_message(found.error()));
 }
 
+// One key that stands optional: the four keys of the pass disclosure and the
+// pass index of a metric column arrived after the format was published, and
+// the comparison of specs/026 FR-051 reads documents stored before it, so a
+// key that stands absent reads as nothing and leaves its member at the
+// default of a run that collected no pass. A key that stands present keeps
+// its own kind and its own refusal (specs/024 FR-038).
+auto optionalField(Element object,
+                   std::string_view key) noexcept -> std::optional<Element>
+{
+  auto found = object[key];
+  if (!found.has_value()) {
+    return std::nullopt;
+  }
+  return *found;
+}
+
 // The keys a record must hold, reported once: the first key that stands
 // missing names the record and itself (FR-024).
 auto settled(const std::vector<
@@ -362,7 +378,6 @@ auto readMetricValue(Element value, const std::string& where)
           {"runningRatio", field(value, where, "runningRatio")},
           {"scaled", field(value, where, "scaled")},
           {"availability", field(value, where, "availability")},
-          {"pass", field(value, where, "pass")},
       };
   auto keys = settled(parts);
   if (!keys.has_value()) {
@@ -380,8 +395,9 @@ auto readMetricValue(Element value, const std::string& where)
     return std::unexpected(settledValues.error());
   }
   std::optional<std::size_t> passIndex;
-  if (!parts[5].second.value().is_null()) {
-    auto count = asUnsigned(parts[5].second.value(), where + "/pass");
+  const auto pass = optionalField(value, "pass");
+  if (pass.has_value() && !pass->is_null()) {
+    auto count = asUnsigned(*pass, where + "/pass");
     if (!count.has_value()) {
       return std::unexpected(count.error());
     }
@@ -660,11 +676,7 @@ auto readEntry(Element value,
                           "metricLabels",
                           "counterLabels",
                           "counterStats",
-                          "statisticValues",
-                          "metricMethod",
-                          "passCount",
-                          "passSpread",
-                          "spreadWarning"})
+                          "statisticValues"})
   {
     parts.emplace_back(key, field(value, where, key));
   }
@@ -860,30 +872,47 @@ auto readEntry(Element value,
   // specs/024 FR-038: the pass disclosure the writer puts after the
   // statistics. The warning enters no field: FR-018 answers it from the
   // spread at every reader, and the document keeps the answer explicit for
-  // a reader of the file alone, so the read checks the two agree.
-  auto method = asEnum<sg::MetricMethod>(
-      detail::kMetricMethodWords, at(16), where + "/metricMethod");
-  auto passes = asUnsigned(at(17), where + "/passCount");
-  auto warned = asBool(at(19), where + "/spreadWarning");
-  auto settledPass = allSettled(method, passes, warned);
-  if (!settledPass.has_value()) {
-    return std::unexpected(settledPass.error());
+  // a reader of the file alone, so the read checks the two agree. A key the
+  // writer of before specs/024 never wrote leaves its member at the default
+  // it holds, which is the disclosure of a run that collected no pass.
+  const auto declared = optionalField(value, "metricMethod");
+  if (declared.has_value()) {
+    auto method = asEnum<sg::MetricMethod>(
+        detail::kMetricMethodWords, *declared, where + "/metricMethod");
+    if (!method.has_value()) {
+      return std::unexpected(method.error());
+    }
+    result.metricMethod = *method;
+  }
+  const auto counted = optionalField(value, "passCount");
+  if (counted.has_value()) {
+    auto passes = asUnsigned(*counted, where + "/passCount");
+    if (!passes.has_value()) {
+      return std::unexpected(passes.error());
+    }
+    result.passCount = static_cast<std::size_t>(*passes);
   }
   std::optional<double> spread;
-  if (!at(18).is_null()) {
-    auto number = asDouble(at(18), where + "/passSpread");
+  const auto spreadField = optionalField(value, "passSpread");
+  if (spreadField.has_value() && !spreadField->is_null()) {
+    auto number = asDouble(*spreadField, where + "/passSpread");
     if (!number.has_value()) {
       return std::unexpected(number.error());
     }
     spread = *number;
   }
-  if (*warned != detail::spreadWarned(spread)) {
-    return std::unexpected(where
-                           + "/spreadWarning: the document's warning "
-                             "disagrees with its pass spread");
+  const auto warnedField = optionalField(value, "spreadWarning");
+  if (warnedField.has_value()) {
+    auto warned = asBool(*warnedField, where + "/spreadWarning");
+    if (!warned.has_value()) {
+      return std::unexpected(warned.error());
+    }
+    if (*warned != detail::spreadWarned(spread)) {
+      return std::unexpected(where
+                             + "/spreadWarning: the document's warning "
+                               "disagrees with its pass spread");
+    }
   }
-  result.metricMethod = *method;
-  result.passCount = static_cast<std::size_t>(*passes);
   result.passSpread = spread;
   return {};
 }
