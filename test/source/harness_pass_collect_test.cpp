@@ -24,13 +24,14 @@
 // runs, so a scenario absent from it never runs.
 //
 // Beside the splits that run to their last pass, the file holds the ones
-// that end early and the one that widens the merged row: the calibration
+// that end early and the two that widen the merged row: the calibration
 // ahead of an adaptive split's pass loop answers a failing, a skipping and a
 // signaled body each with its own stop, the interrupt read between a pass's
 // repetitions ends the loop with two passes measured and no merge, a
-// percentile run stands its row wider than the plan the merge reads, and the
-// three-pass arms read the disclosure a loop that leaves early publishes: the
-// passes whose folds stand, with no spread and no pass tag
+// percentile run and a body that stores a user counter each stand a row
+// wider than the plan the merge reads, and the three-pass arms read the
+// disclosure a loop that leaves early publishes: the passes whose folds
+// stand, with no spread and no pass tag
 // (FR-016, FR-031, FR-032, FR-014, FR-017; specs/021 FR-016).
 // ============================================================================
 
@@ -2312,6 +2313,97 @@ auto scenarioPercentilesAcrossPasses() -> int
   return 0;
 }
 
+// The user counter of the stored-counter arm, and the step its value carries.
+// The value of a store names the window that stored it, so the two passes of a
+// split store two different figures and the merged column states which of them
+// the run publishes.
+constexpr std::string_view kCounterName {"widgets"};
+constexpr double kCounterStep = 64.0;
+
+// The body of the stored-counter arm: the plain loop beside one `setCounter`
+// call, made once per window at its first iteration, so the arrival counter
+// names the window the store belongs to.
+auto bmStoredCounter(sg::State& state) -> void
+{
+  for (auto index : state) {
+    if (index == 0) {
+      state.setCounter(
+          kCounterName,
+          {kCounterStep * static_cast<double>(arrivals.fetch_add(1) + 1)});
+    }
+    sg::doNotOptimize(index);
+  }
+}
+
+// FR-014, FR-016: the merge of a split whose body stores a user counter. The
+// planner costs the metric columns before the run opens a counter name, so the
+// widest fold row of this run stands one column wider than the plan the merge
+// indexes. The merge reads the plan at the index of that column, so the padding
+// of the plan is what keeps the read inside it: the padding writes 0 at the new
+// slot, which names the reference pass, and the row below publishes the figure
+// the reference pass stored beside the figures of the passes that measured the
+// metric columns.
+auto scenarioCounterColumnAcrossPasses() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmStoredCounter, "bmCounterSplit");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  resetAttempts();
+  const RunAccount widened = runMeasured(*needInstance("bmCounterSplit"),
+                                         optionsFor(kValueIterations, 1));
+  const sg::BenchmarkResult& result = widened.result;
+  const sg::ResultRow& row = result.rows.front();
+
+  check(arrivals.load() == kTwoPassCount,
+        "the four columns split across two passes and each pass opened one "
+        "window, so the two stores of the counter belong one to each pass "
+        "(FR-009)");
+  check(result.metricLabels.size() == 4 && row.counters.size() == 1,
+        "the widest fold row stands five wide against the four columns the "
+        "planner costed: the counter name the body opened is the column past "
+        "the last one the plan names (FR-014)");
+  check(result.counterLabels.size() == 1
+            && result.counterLabels.front() == kCounterName,
+        "the merged result publishes the counter name the body opened, in the "
+        "order the name opened (FR-006)");
+  // The window of pass 0 stored `kCounterStep` and the window of pass 1 stored
+  // twice that figure. The first window of a fixed-iteration split belongs to
+  // pass 0, which `window-lifetime` states, so this figure can only be the one
+  // the reference pass stored.
+  check(closeTo(row.counters.front(), kCounterStep),
+        "the merged counter column carries the figure the reference pass "
+        "stored, where the pass after it stored twice that (FR-014, E-05)");
+
+  // The columns the plan did cost keep their own measuring pass beside the
+  // column it never costed (FR-014, FR-019).
+  checkColumnsAtFullRatio(row, {0, 1, 2, 3}, kPlainSteps, kValueIterations);
+  for (std::size_t index = 0; index < 4; ++index) {
+    const std::optional<std::size_t> expectedPass = index < 2
+        ? std::optional<std::size_t> {0}
+        : std::optional<std::size_t> {1};
+    check(row.metrics[index].pass == expectedPass,
+          "the counter column of the padded slot leaves every metric column on "
+          "the pass that measured it (FR-014, FR-019)");
+  }
+  check(closeTo(row.timePerIterationNs,
+                expectedTimePerIteration(kPlainSteps, kValueIterations)),
+        "the time columns of the widened row still read the reference pass "
+        "(FR-015)");
+
+  // The fields the run publishes are the plan it ran, the padded slot being a
+  // field of that plan and no part of the settlement (FR-017, E-07).
+  check(result.metricMethod == sg::MetricMethod::PASSES
+            && result.passCount == kTwoPassCount,
+        "the widened run publishes the method it settled to and the two passes "
+        "it ran (FR-017, E-07)");
+
+  std::puts("counters-across-passes: ok");
+  return 0;
+}
+
 // FR-014 beside FR-010: the dry run of a split collection keeps the shape of
 // the audit point, one iteration, one repetition and no warm-up, so the ahead
 // calibration stands aside while the split still runs every pass.
@@ -2360,7 +2452,7 @@ struct Scenario
   int (*run)();
 };
 
-constexpr std::array<Scenario, 20> kScenarios {{
+constexpr std::array<Scenario, 21> kScenarios {{
     Scenario {"two-pass-run", &scenarioTwoPassRun},
     Scenario {"pause-across-passes", &scenarioPauseAcrossPasses},
     Scenario {"over-limit-run", &scenarioOverLimitRun},
@@ -2382,6 +2474,7 @@ constexpr std::array<Scenario, 20> kScenarios {{
     Scenario {"skip-in-second-pass", &scenarioSkipInSecondPass},
     Scenario {"skip-stops-second-pass-fold", &scenarioSkipStopsSecondPassFold},
     Scenario {"percentiles-across-passes", &scenarioPercentilesAcrossPasses},
+    Scenario {"counters-across-passes", &scenarioCounterColumnAcrossPasses},
     Scenario {"dry-run-across-passes", &scenarioDryRunAcrossPasses},
 }};
 
