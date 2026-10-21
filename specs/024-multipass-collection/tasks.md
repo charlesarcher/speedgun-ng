@@ -2,7 +2,7 @@
 
 **Input**: Design documents from `specs/024-multipass-collection/`
 
-**Prerequisites**: [spec.md](spec.md) (FR-001 to FR-037, SC-01 to SC-10,
+**Prerequisites**: [spec.md](spec.md) (FR-001 to FR-038, SC-01 to SC-10,
 user stories US1 to US4, clarifications of 2026-10-20, decisions D-1 to
 D-12), [plan.md](plan.md), [research.md](research.md) (D-01 to D-15),
 [data-model.md](data-model.md) (E-01 to E-08, invariants I-1 to I-6),
@@ -759,12 +759,15 @@ registration, the shared fixture.
 3. Complete Phase 3: `planPasses`, `mergePasses`, the pass loop.
 4. **Stop and validate**: `harness_pass_plan_test` and
 `harness_pass_collect_test` prove the split, the runs and the merge with no
-option and no report change.
+option. The pass loop and `mergePasses` publish `metricMethod`, `passCount`
+and `passSpread` from here on, and a run that splits prints the values its
+passes measured: master's bytes hold for a run that needs one pass.
 
 ### Incremental Delivery
 
 1. Phases 1 and 2 publish the fact; no run changes behavior.
-2. US1 splits, runs and merges; the console stays master's bytes.
+2. US1 splits, runs and merges; the console of a run that needs one pass stays
+master's bytes.
 3. US2 lets the caller pick the method.
 4. US3 discloses the method, the count and the spread.
 5. US4 teaches it on the page.
@@ -788,8 +791,9 @@ the JSON schema stay untouched here: N4 and N3 own them.
 - [P] marks different files with no dependency on an open task.
 - A one-pass `auto` run prints what master prints, so every report task carries a
 byte rule beside its new shape.
-- The pass fields join the JSON schema when that lane lands its own schema file
-(FR-017, spec Scope).
+- The five pass fields stand in `docs/schema/report-v1.json`, `json_report.cpp`
+writes them and `loadReport` reads them, so a document written before them
+loads through the missing-key default (FR-017, FR-038).
 - Stop at any checkpoint and validate the story independently.
 
 ---
@@ -835,6 +839,7 @@ task.
 | FR-035 | T062 |
 | FR-036 | T013, T064 |
 | FR-037 | T060 |
+| FR-038 | T059 |
 | SC-01 | T022, T023, T032, T062 |
 | SC-02 | T017 |
 | SC-03 | T042 |
