@@ -18,7 +18,10 @@ fixes.
 | `--counter` | catalog address, repeatable | attaches the leaf to every selected benchmark | FR-021 |
 | `--catalog` | none | prints the catalog listing, then exits without running a benchmark | FR-037 |
 | `--placement` | preset name: `none`, `core`, `l3`, `smt` or `compact` | runs the selected threaded benchmarks on the cpus the preset plans; the name is parsed once before the first run, and a name outside the five is a recoverable error that runs no benchmark (specs/025 FR-015, FR-016) | specs/025 FR-015, FR-016 |
-| `--topology` | none | prints the layout listing of data-model.md E-10, then exits without running a benchmark; the listing stands ahead of selection, the way the catalog listing does | specs/025 FR-036 | specs/025 FR-015, FR-016 |
+| `--topology` | none | prints the layout listing of data-model.md E-10, then exits without running a benchmark; the listing stands ahead of selection, the way the catalog listing does | specs/025 FR-036 |
+| `--compare` | `<baseline>,<contender>` | loads the two report documents, split at the first comma, answers the comparison table and the verdict, and runs no benchmark; a text with no comma, or an empty path on either side, prints one line naming the option and the text read (specs/026 FR-047, FR-048) | specs/026 FR-047, FR-048 |
+| `--compare-rule` | one rule text, repeatable | adds one rule in the order given; a text the parse call rejects prints one line naming the option and the fault the parse call named (specs/026 FR-049, FR-051) | specs/026 FR-049 |
+| `--compare-strict` | none | makes every `NOISY` row fail the run while the state word stays `NOISY` (specs/026 FR-044, FR-045) | specs/026 FR-044, FR-045 |
 
 - A benchmark value set through the handle shall win over the command
   line (FR-015).

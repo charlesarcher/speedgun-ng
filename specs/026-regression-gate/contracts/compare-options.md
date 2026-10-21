@@ -63,7 +63,7 @@ the pair matched nothing and answers status 0 (D-19).
 ## Exit statuses
 
 The exit status table of the CLI contract
-(`specs/015-benchmark-harness-core/contracts/cli.md:72` to `:82`) gains
+(`specs/015-benchmark-harness-core/contracts/cli.md:83` to `:101`) gains
 these rows (FR-052):
 
 | Condition | Status |

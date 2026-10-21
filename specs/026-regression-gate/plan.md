@@ -67,7 +67,7 @@ harness archive and changes the layout of the public struct
 (`CMakeLists.txt:247`) and the library archive stays 2 (`:47`); the
 project `VERSION` at `:7` (0.14.0 at the base) takes the next free
 minor at rebase time. The CLI contract table
-(`specs/015-benchmark-harness-core/contracts/cli.md:72` to `:82`) gains
+(`specs/015-benchmark-harness-core/contracts/cli.md:83` to `:101`) gains
 the compare-mode rows. No gate fails on the design.
 
 ## Project Structure
@@ -229,7 +229,7 @@ auto compareReports(const ReportData& baseline, const ReportData& contender,
   and Evolution section.
 - Neighbor artifacts: [023 plan](../023-json-reports/plan.md),
   [023 contracts](../023-json-reports/contracts/), the CLI exit-status
-  table of [015](../015-benchmark-harness-core/contracts/cli.md:72).
+  table of [015](../015-benchmark-harness-core/contracts/cli.md:83).
 - Code anchors, re-read on this branch at `aec8fce` on 2026-10-21:
   `include/speedgun-ng/benchmark.hpp:77`, `:88`, `:212`, `:231`,
   `:274`, `:338`, `:352`, `:441`, `:553`, `:1758`, `:1786`, `:2330`;

@@ -44,7 +44,7 @@ The parse rules, each closing its FR:
 - The fields run in the order above; the parse reads them in that
   order (FR-012, FR-021).
 - A prefixed value name reads its label to the first unescaped colon,
-  and the backslash escapes `\:` , `\@` and `\\` stand inside the
+  and the backslash escapes `\:` , `\,` , `\@` and `\\` stand inside the
   label (FR-020, FR-021, D-06, spec D-15 carried). An unescaped `@`
   after a `stat:` label ends the name where the parser reads the
   aggregate marker.

@@ -1130,7 +1130,7 @@ answers status 0, the second answers 1 with its row `REGRESSED`.
 The fields run in that order. `time` reads the primary column, `real_time` and
 `cpu_time` read one column by name, `p<point>` reads one percentile cell, and
 the three prefixed names read the column or the statistic their label names. A
-label ends at the first unescaped colon, and `\:` , `\@` and `\\` stand inside
+label ends at the first unescaped colon, and `\:` , `\,` , `\@` and `\\` stand inside
 it. The `@` suffix names one aggregate and defaults to `median` for a name the
 report holds as a statistics record; a written suffix on a percentile cell or on
 a statistic is a fault. The direction word is required. A threshold carries a

@@ -321,7 +321,7 @@ gains nothing.
 **Decision**: the file writes the three outcomes of
 `include/speedgun-ng/benchmark.hpp:76-81`: `MEASURED`, `SKIPPED`,
 `FAILED`. An interrupted run reports as skipped, the rule
-`specs/015-benchmark-harness-core/contracts/cli.md:77-82` already states.
+`specs/015-benchmark-harness-core/contracts/cli.md:103-108` already states.
 
 **Rationale**: the spec's edge-case bullet named `DISABLED` and
 `INTERRUPTED`, and neither enumerator exists. The analyze pass of
