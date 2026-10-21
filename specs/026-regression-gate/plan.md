@@ -38,7 +38,7 @@ each test task in `tasks.md` names the run that fails red first.
 | Targets | `speedgun-ng_harness` (archive, `SOVERSION` 8 to 9, `CMakeLists.txt:247`); `speedgun-ng_speedgun-ng` (archive, `SOVERSION` 2, unchanged, `:47`); the harness sources come from `GLOB_RECURSE` at `:191`, so a new `source/harness/*.cpp` needs no CMake edit |
 | JSON | simdjson 4.6.11 vendored at `external/simdjson`, the only JSON library: the reader's DOM error-code form `x.get(out)` and the builder's `string_builder` (`source/harness/json_report.cpp:25`); no new library, no in-house parser or emitter, no throwing `.value()` getter |
 | Standard library | `std::expected`, `std::optional`, `std::regex`, `std::from_chars`, `std::string_view` |
-| CLI | `getopt_long` table in `speedgunMain` (`source/harness/cli.cpp:293` to `:310`); three new entries |
+| CLI | `getopt_long` table in `speedgunMain` (`source/harness/cli.cpp:301` to `:318`); three new entries |
 | Tests | standalone binaries under `test/source/` with `add_test` entries in `test/CMakeLists.txt`; fixture JSON documents under a new `test/data/` passed as a path argument, the shape of `test/CMakeLists.txt:82` |
 | Docs gates | `tools/docs/example_drift.py` with `PAGE_LINE_CAP` 713 (`:132`), `SECTION_LINE_CAP` 25 (`:133`), `SECTIONS` (`:30` to `:54`), `SECTION_OWNERS` (`:59`) |
 | Platforms | Linux, GCC and Clang; the CI matrix of Principle VIII |
@@ -58,7 +58,7 @@ each test task in `tasks.md` names the run that fails red first.
 | VII, performance discipline | PASS | the feature touches no per-iteration path; `test/loop_shape.sh` must print its base reading (FR-072, PC-11); the comparison runs once after the run |
 | VIII, hard CI gates | PASS | the Implementation Strategy schedules every gate: both release builds, `ctest -j 2`, sanitizers, tsan, coverage, format, spell, prose, the three shape gates, the drift gate and the DBC gates |
 | IX, spec-driven development | PASS | this artifact set follows the clarified spec |
-| X, anti-slop | PASS | the plan reuses the report reader, the schema checker `checkReport` (`source/harness/json_load.cpp:1067`), the unit scale and printers of `source/harness/report.cpp`, the pattern rule of `--filter` (`source/harness/cli.cpp:437` to `:453`) and the test helper `sameValue` (`test/source/detail/json_fixture.hpp:48`); one new translation unit |
+| X, anti-slop | PASS | the plan reuses the report reader, the schema checker `checkReport` (`source/harness/json_load.cpp:1067`), the unit scale and printers of `source/harness/report.cpp`, the pattern rule of `--filter` (`source/harness/cli.cpp:445` to `:461`) and the test helper `sameValue` (`test/source/detail/json_fixture.hpp:48`); one new translation unit |
 | XI, prose law | PASS | the artifacts pass `tools/prose/prose_gate.py` with zero findings |
 
 **Re-check after Phase 1**: the design grows the public surface of the
@@ -237,7 +237,7 @@ auto compareReports(const ReportData& baseline, const ReportData& contender,
   `:1067`, `:1117` to `:1128`; `source/harness/json_report.cpp:25`,
   `:28`, `:400`, `:472` to `:481`, `:485`, `:530`;
   `source/harness/detail/json_report.hpp:137`, `:154`, `:172`, `:188`;
-  `source/harness/cli.cpp:262`, `:293` to `:310`, `:371`, `:385`,
+  `source/harness/cli.cpp:270`, `:301` to `:318`, `:379`, `:393`,
   `:406`, `:426`, `:437` to `:453`, `:465` to `:470`, `:566`;
   `source/harness/report.cpp:70`, `:88`, `:193`, `:282` to `:296`,
   `:309`, `:331`; `source/harness/runner.cpp:2131`, `:2163`, `:2195`,
@@ -250,7 +250,7 @@ auto compareReports(const ReportData& baseline, const ReportData& contender,
   `:247`; `test/source/detail/json_fixture.hpp:48`;
   `test/source/harness_json_report_test.cpp:41` to `:53`.
 - One drift from the spec's Citations table, repaired by this analyze
-  pass: the option table spans `source/harness/cli.cpp:293` to `:310`,
+  pass: the option table spans `source/harness/cli.cpp:301` to `:318`,
   the terminator at `:310`; the spec's Citations table and PC-3 first
   cited `:293` to `:311` and now cite `:310`. No other cited anchor
   moved.

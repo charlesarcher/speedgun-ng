@@ -3,7 +3,7 @@
 ## The options
 
 Three entries join the `longOptions` table of `speedgunMain`
-(`source/harness/cli.cpp:293` to `:310`):
+(`source/harness/cli.cpp:301` to `:318`):
 
 | Option | Argument | Meaning |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ answer nothing the comparison reads.
 ## Parsing and the usage faults
 
 The option scan parses as it goes, the pattern of the existing usage
-errors (`source/harness/cli.cpp:371`, `:385`, `:406`, `:426`):
+errors (`source/harness/cli.cpp:379`, `:393`, `:414`, `:434`):
 
 - `--compare` with no comma, or with an empty side, prints one line
   naming the option and the text read, and answers status 2.
@@ -27,11 +27,11 @@ errors (`source/harness/cli.cpp:371`, `:385`, `:406`, `:426`):
   naming the option and the rule text and the fault the parse call
   named, and answers status 2 (FR-051).
 - An invalid batch filter pattern prints the run path's line
-  (`source/harness/cli.cpp:462` to `:466`) and answers status 2.
+  (`source/harness/cli.cpp:470` to `:474`) and answers status 2.
 
 ## The compare branch
 
-The branch sits after the option scan closes (`source/harness/cli.cpp:456`)
+The branch sits after the option scan closes (`source/harness/cli.cpp:464`)
 and before registry expansion (`:518`), so the mode runs no benchmark
 and reads no clock (SC-005):
 
@@ -50,7 +50,7 @@ answers `CompareExit { int status; bool failed; }`: `failed` is set
 from the verdict or the fault, `status` from the table below, the two
 computed independently so the `SG_ENSURE` carries content (FR-052,
 D-15). The closing postcondition of the run path
-(`source/harness/cli.cpp:639`) keeps its predicate. The shape gate
+(`source/harness/cli.cpp:647`) keeps its predicate. The shape gate
 anchors of `test/cli_shape.sh:31` to `:41` stand untouched (PC-11).
 
 ## Scoping and the empty pair

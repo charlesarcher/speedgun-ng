@@ -428,7 +428,7 @@ head.
   `[[maybe_unused]]`, the only reader of both being the run-wide
   postcondition that the ignore semantic expands to nothing (contradicts):
   the `ci-linux-ignore` build at `6446ead` failed with `variable 'anyFailed
-  set but not used` at `source/harness/cli.cpp:257` and the same at 258,
+  set but not used` at `source/harness/cli.cpp:265` and the same at 258,
   and the same build is clean at this head
 - [X] T070 PR-4a: carry the contract block of `sg::doNotOptimize` on each
   overload, state the conditions of `addMetric` in the template that

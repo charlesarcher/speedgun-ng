@@ -177,11 +177,11 @@ Two filters scope the comparison (FR-050, FR-024):
 
 - The batch filter: `--filter` in compare mode, applied by the command
   line to the two loaded values before the call (D-12). Its regex
-  compile reuses the run path's rule (`source/harness/cli.cpp:437` to
+  compile reuses the run path's rule (`source/harness/cli.cpp:445` to
   `:453`); an invalid pattern answers the same line and status 2.
 - The rule filter: each rule's `filter`, a `std::regex` over the full
   instance name, the same matching as the batch filter
-  (`source/harness/cli.cpp:453`). An invalid pattern is a rule fault.
+  (`source/harness/cli.cpp:461`). An invalid pattern is a rule fault.
 
 A rule whose written filter matches no benchmark in either report
 faults with status 2 (FR-039). An empty pair with no written filter

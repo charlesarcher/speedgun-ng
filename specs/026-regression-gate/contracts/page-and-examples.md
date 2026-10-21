@@ -34,7 +34,7 @@ and `CompareState`, each with owner, one-line job and the anchor to the
 new section. The option table gains `--compare`, `--compare-rule` and
 `--compare-strict` rows, the drift gate checking them against the
 `longOptions` table of `speedgunMain`
-(`source/harness/cli.cpp:293` to `:310`).
+(`source/harness/cli.cpp:301` to `:318`).
 
 ## The guide page
 

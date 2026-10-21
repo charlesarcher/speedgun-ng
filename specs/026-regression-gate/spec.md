@@ -257,7 +257,7 @@ gate does about that.
 
 ### PC-3: the option table, the usage-error path, and the entry point. PASS.
 
-`speedgunMain` stands at `source/harness/cli.cpp:262` and the long
+`speedgunMain` stands at `source/harness/cli.cpp:270` and the long
 option table at `:293` to `:310` with `filter`, `list`, `repetitions`,
 `min-time`, `iterations`, `warmup-time`, `dry-run`, `counter`, `metric`,
 `catalog`, `percentiles`, `no-percentiles`, `placement`, `topology`,
@@ -336,7 +336,7 @@ the escape D-15 records (FR-020).
 ### PC-8: the pattern rule a rule filter must match. PASS.
 
 `--filter` compiles a `std::regex` and searches the instance name with
-`std::regex_search` (`source/harness/cli.cpp:437` to `:453`), answers one
+`std::regex_search` (`source/harness/cli.cpp:445` to `:461`), answers one
 line and status 2 for an invalid expression (`:441` to `:446`), and
 answers one line on standard error with status 0 when no benchmark
 matches (`:465` to `:470`, the row `the filter matched no benchmark | zero,
@@ -1183,8 +1183,8 @@ Symbol and section anchors, each read at the audit point `aec8fce`.
 | Aggregate row, time statistics, metric and counter statistics | `source/harness/runner.cpp:2163`, `:2185` to `:2196`, `:2229`, `:2262` |
 | Counter label source | `source/harness/runner.cpp:2131` |
 | Complexity fit rows | `source/harness/runner.cpp:2436` to `:2466` |
-| `speedgunMain`, option table, usage errors, closing postcondition | `source/harness/cli.cpp:262`, `:293` to `:310`, `:70`, `:122`, `:142`, `:164`, `:248`, `:371`, `:385`, `:392`, `:406`, `:426`, `:446`, `:468`, `:566` |
-| Batch filter pattern rule and its no-match answer | `source/harness/cli.cpp:437` to `:453`, `:465` to `:470` |
+| `speedgunMain`, option table, usage errors, closing postcondition | `source/harness/cli.cpp:270`, `:301` to `:318`, `:78`, `:130`, `:150`, `:172`, `:256`, `:379`, `:393`, `:400`, `:414`, `:434`, `:454`, `:476`, `:574` |
+| Batch filter pattern rule and its no-match answer | `source/harness/cli.cpp:445` to `:461`, `:473` to `:478` |
 | Console printers and unit scale | `source/harness/report.cpp:70`, `:88`, `:164`, `:193`, `:234`, `:257`, `:309`, `:331` |
 | Percentile column order | `source/harness/report.cpp:282` to `:296` |
 | Report schema top keys | `docs/schema/report-v1.json:7` |
