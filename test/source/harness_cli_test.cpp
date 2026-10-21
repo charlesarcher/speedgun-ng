@@ -1172,6 +1172,86 @@ auto main(const int argc, char** argv) -> int
           "the invalid list runs no benchmark (FR-022, SC-006)");
   }
 
+  // specs/023 T031, T035, SC-004: the report options answer the status the
+  // contract names, and the console keeps its bytes ahead of the file.
+  {
+    std::remove("harness_cli_none.json");
+    const std::string plain =
+        captureRun({"--filter", "^bmAlpha$", "--iterations=2"});
+    check(!linesOf(plain, "bmAlpha").empty(), "the plain run prints its row");
+    std::ifstream absent("harness_cli_none.json");
+    check(!absent.is_open(), "no option writes no file (FR-002)");
+  }
+  {
+    // FR-004, FR-030: an unwritable path prints the console report first
+    // and answers 2.
+    const std::string unwritten = captureRun({"--filter",
+                                              "^bmAlpha$",
+                                              "--iterations=2",
+                                              "--json=/proc/nope/report.json"},
+                                             2);
+    check(!linesOf(unwritten, "bmAlpha").empty(),
+          "the console report stands ahead of the failed write (FR-004)");
+  }
+  {
+    // FR-034, E-05: `none` is a spelling the option names, and as the
+    // document sees it it is the whole of the raw setting: the file is
+    // written and no row carries a chunk column.
+    std::remove("harness_cli_rawnone.json");
+    captureRun({"--filter",
+                "^bmAlpha$",
+                "--iterations=2",
+                "--json=harness_cli_rawnone.json",
+                "--json-raw=none"});
+    const auto loaded = sg::loadReport("harness_cli_rawnone.json");
+    bool bare = loaded.has_value() && loaded->results.size() == 1
+        && loaded->rowRaw.size() == 1;
+    for (const auto& rows : loaded->rowRaw) {
+      for (const auto& row : rows) {
+        bare = bare && row.columns.empty();
+      }
+    }
+    check(bare,
+          "--json-raw=none parses and writes a document with no chunk "
+          "columns (FR-034, E-05)");
+  }
+  // FR-004: a failed write beside a failed benchmark still answers 2.
+  captureRun({"--filter",
+              "^bmThrows$",
+              "--iterations=1",
+              "--json=/proc/nope/report.json"},
+             2);
+  for (const std::string argument :
+       {"--json=", "--json-raw=", "--json-raw=bogus"})
+  {
+    std::string output;
+    const int status = subprocessOutput(
+        "\"" + self + "\" arg \"" + argument + "\" 2>&1", output);
+    check(WEXITSTATUS(status) == 2,
+          "an invalid report option exits 2 (FR-006, FR-030, SC-004)");
+    check(output.find("BENCHMARK_RAN") == std::string::npos
+              && output.find("iterations=") == std::string::npos,
+          "the invalid report option runs no benchmark (FR-006, SC-004)");
+  }
+  {
+    // FR-001, T035: an interrupted batch still writes the file, and the
+    // status stays the one the interrupt earns.
+    std::remove("harness_cli_interrupt.json");
+    captureRun({"--filter",
+                "^bmInterrupts$",
+                "--iterations=1",
+                "--repetitions=3",
+                "--json=harness_cli_interrupt.json"},
+               1);
+    const auto loaded = sg::loadReport("harness_cli_interrupt.json");
+    check(loaded.has_value() && loaded->results.size() == 1
+              && loaded->results[0].outcome == sg::RunOutcome::SKIPPED
+              && loaded->results[0].reason.find("interrupted")
+                     != std::string::npos,
+          "the interrupted batch writes the file with the outcome the run "
+          "earned (FR-001, FR-004)");
+  }
+
   // ---- specs/024-multipass-collection T030, T031: `--metric-method` ----
   //
   // FR-025, FR-026, SC-04 and `contracts/metric-method-option.md`. The refusal
