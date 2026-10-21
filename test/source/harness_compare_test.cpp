@@ -895,11 +895,14 @@ auto zeroBaselineWithAnAbsoluteThresholdAnswersAlone() -> void
 }
 
 // A report built in code: the comparison reads the values a load call
-// would answer, so these cases read no document (FR-006, FR-007).
+// would answer, so these cases read no document (FR-006, FR-007). The
+// version of a document stands too, since the pairing reads it; the cases
+// that own the pairing answer a version of their own (D-13).
 auto makeReport(std::vector<sg::BenchmarkResult> results) -> sg::ReportData
 {
   sg::ReportData report;
   report.results = std::move(results);
+  report.schemaVersion = "1.0";
   return report;
 }
 
@@ -1139,23 +1142,24 @@ auto anEmptyPairAnswersAnEmptyEntryList() -> void
         "a scope holding no pair answers no entry and no fault (D-19, FR-040)");
 }
 
-// FR-051, D-13, SC-013: the two schemaVersion texts must agree, the
+// FR-051, D-13, SC-013: the two schemaVersion majors must agree, the
 // pairing check stands first inside the call, and the fault names both
-// versions.
-auto aSchemaVersionMismatchFaultsFirst() -> void
+// versions. A text that states no major holds no major to share, so it
+// faults the pair from either side.
+auto aSchemaMajorMismatchFaultsFirst() -> void
 {
   auto baseline = makeReport({measured("a", 100.0)});
   auto contender = makeReport({measured("a", 100.0)});
   baseline.schemaVersion = "1.0";
-  contender.schemaVersion = "1.1";
+  contender.schemaVersion = "2.0";
   const auto answer =
       compared(baseline, contender, rulesOf({"time@median:lower:5%"}), false);
   if (answer.has_value()) {
-    fail("a schema version mismatch faults (FR-051, D-13)");
+    fail("a schema major mismatch faults (FR-051, D-13)");
     return;
   }
   check(answer.error().find("1.0") != std::string::npos
-            && answer.error().find("1.1") != std::string::npos
+            && answer.error().find("2.0") != std::string::npos
             && answer.error().find('\n') == std::string::npos,
         "the version fault names both versions in one line (SC-013, D-13)");
 
@@ -1166,6 +1170,46 @@ auto aSchemaVersionMismatchFaultsFirst() -> void
   check(!both.has_value() && both.error().find("1.0") != std::string::npos
             && both.error().find("nomatch") == std::string::npos,
         "the version pairing stands first in the walk (D-13)");
+
+  // No dot, an empty major, an empty minor and the empty text of a value no
+  // document produced each state no major (specs/026 D-13).
+  const auto readable = makeReport({measured("a", 100.0)});
+  for (const char* const text : {"1", ".1", "1.", ""}) {
+    auto unreadable = makeReport({measured("a", 100.0)});
+    unreadable.schemaVersion = text;
+    const auto refusal = compared(
+        unreadable, readable, rulesOf({"time@median:lower:5%"}), false);
+    const auto other = compared(
+        readable, unreadable, rulesOf({"time@median:lower:5%"}), false);
+    check(!refusal.has_value() && !other.has_value(),
+          "a version text that states no major faults the pair from either "
+          "side (FR-051, D-13)");
+  }
+}
+
+// D-13, SC-013: the pairing reads the major alone, so the 1.0 baseline of
+// 0.15.0 compares against the 1.1 run that carries the pass keys: the minor
+// move a key added inside major 1 takes pairs.
+auto theSameSchemaMajorComparesAcrossMinors() -> void
+{
+  auto baseline = makeReport({measured("a", 100.0)});
+  auto contender = makeReport({measured("a", 103.0)});
+  baseline.schemaVersion = "1.0";
+  contender.schemaVersion = "1.1";
+  const auto answer =
+      compared(baseline, contender, rulesOf({"time@median:lower:5%"}), false);
+  if (!answer.has_value()) {
+    fail("a 1.0 report against a 1.1 one compares (D-13, SC-013)");
+    return;
+  }
+  check(answer->passed && answer->entries.size() == 1,
+        "the pair across the minor answers one row and passes (SC-013)");
+  entryAt(answer,
+          0,
+          "a",
+          "time@median:lower:5%",
+          sg::CompareState::OK,
+          "the row of the pair across the minor answers OK (D-13, FR-054)");
 }
 
 // FR-039: a written filter that matches no benchmark in either report
@@ -2792,7 +2836,8 @@ auto main() -> int
   matchingIgnoresTheDocumentOrder();
   addedAndRemovedAnswerTheirWordsWithNoValues();
   anEmptyPairAnswersAnEmptyEntryList();
-  aSchemaVersionMismatchFaultsFirst();
+  aSchemaMajorMismatchFaultsFirst();
+  theSameSchemaMajorComparesAcrossMinors();
   aFilterSelectingNothingFaults();
   aMissingValueFaultsNamingRuleBenchmarkAndReport();
   aPercentilePointOneReportLacksFaults();

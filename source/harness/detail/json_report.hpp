@@ -166,6 +166,26 @@ inline constexpr double kSpreadWarningLimitPercent = 5.0;
 [[nodiscard]] auto spreadWarned(std::optional<double> spread) noexcept -> bool;
 
 /**
+ * @brief The major part of one `schemaVersion` text (specs/026 D-13).
+ *
+ * The writer moves the minor for a key it adds inside major 1, so the
+ * reader of a document and the gate that pairs two documents read the
+ * major from this one split. A text with no dot, or with an empty part on
+ * either side of the dot it carries, states no major at all.
+ *
+ * @return the text before the dot, or nothing when the text states no major
+ */
+[[nodiscard]] inline constexpr auto schemaMajor(
+    std::string_view version) noexcept -> std::optional<std::string_view>
+{
+  const auto dot = version.find('.');
+  if (dot == std::string_view::npos || dot == 0 || dot + 1 == version.size()) {
+    return std::nullopt;
+  }
+  return version.substr(0, dot);
+}
+
+/**
  * @brief Write the report document of a finished batch to `path`
  * (specs/023 FR-001, D-02).
  *

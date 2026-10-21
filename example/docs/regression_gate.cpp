@@ -33,10 +33,13 @@ auto skipped(const char* name) -> sg::BenchmarkResult
 }
 
 // The two documents a compare run would read, written here in code so the
-// printed lines stand the same on every machine (D-16).
+// printed lines stand the same on every machine (D-16). The version they
+// carry is the one the writer stamps, whose major the comparison pairs
+// (specs/026 D-13).
 auto baselineReport() -> sg::ReportData
 {
   auto report = sg::ReportData {};
+  report.schemaVersion = "1.1";
   report.results = {measured("bmGate/8", 100.0),
                     measured("bmGate/16", 200.0),
                     measured("bmGate/32", 400.0),
@@ -49,6 +52,7 @@ auto baselineReport() -> sg::ReportData
 auto contenderReport() -> sg::ReportData
 {
   auto report = sg::ReportData {};
+  report.schemaVersion = "1.1";
   report.results = {measured("bmGate/8", 100.0),
                     measured("bmGate/16", 230.0),
                     skipped("bmGate/64"),

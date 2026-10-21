@@ -21,6 +21,7 @@
 
 #include <simdjson.h>
 
+#include "detail/json_report.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -1422,7 +1423,8 @@ auto entryFor(const PairSite& site,
  *
  * \pre `baseline` and `contender` are values `loadReport` answered, or
  *      values built to the same shape: `noiseWarnings`, when non-empty,
- *      holds one entry per entry of `results`
+ *      holds one entry per entry of `results`, and `schemaVersion` carries
+ *      the major and the minor the document carried
  * \pre every rule of `rules` is a rule `parseCompareRule` answered
  * \post the entries hold one entry per benchmark of the pair that the rule's
  *       filter admits, per rule, the baseline's run order first and the names
@@ -1441,12 +1443,17 @@ auto compareReportValues(const ReportData& baseline,
                          const bool strict)
     -> std::expected<CompareResult, std::string>
 {
-  // D-13, FR-051, SC-013: the pairing check stands first, so a library
-  // caller answers the fault the command line prints as its one line.
-  if (baseline.schemaVersion != contender.schemaVersion) {
-    return std::unexpected("the two reports carry different schema versions: '"
-                           + baseline.schemaVersion + "' against '"
-                           + contender.schemaVersion + "'");
+  // D-13, FR-051, SC-013: the pairing of the two majors stands first, so a
+  // library caller answers the fault the command line prints as its one
+  // line. The minor stands outside the pairing, so a 1.0 report compares
+  // against a 1.1 one; a text that states no major holds no major to share.
+  const auto baselineMajor = schemaMajor(baseline.schemaVersion);
+  const auto contenderMajor = schemaMajor(contender.schemaVersion);
+  if (!baselineMajor || baselineMajor != contenderMajor) {
+    return std::unexpected(
+        "the two reports carry no common schema major version: '"
+        + baseline.schemaVersion + "' against '" + contender.schemaVersion
+        + "'");
   }
   const std::vector<PairSite> matched = matchPair(baseline, contender);
   // FR-035: every rule walks its whole scope before any value is compared.
