@@ -238,6 +238,26 @@ auto mergePasses(const PassPlan& plan,
   // its labels, its point list, its time columns, its overhead floor, its
   // endpoint samples, its context disclosures, its chunk disclosure and its
   // primary percentile columns are what the merged result publishes (E-05).
+  // FR-014, FR-015: the slot rule of E-05 reads `plan.measuringPass` at
+  // `slot - 2` for every percentile slot past the two time slots, of a row's
+  // grid and of a context block alike. The widest grid of the fold results is
+  // therefore where that read ends, and the plan has to name a measuring pass
+  // for every slot of it. Read once here, over the plan and the pass results,
+  // so neither loop below can index past the plan.
+  std::size_t widestGrid = 0;
+  for (const BenchmarkResult& fold : passResults) {
+    for (const ResultRow& foldRow : fold.rows) {
+      widestGrid = std::max(widestGrid, foldRow.percentiles.size());
+    }
+    for (const auto& block : fold.contextPercentiles) {
+      widestGrid = std::max(widestGrid, block.size());
+    }
+  }
+  SG_REQUIRE(plan.measuringPass.size() + 2 >= widestGrid,
+             "plan.measuringPass names a measuring pass for every percentile "
+             "slot past the two time slots of the grids this merge reads "
+             "(FR-014, FR-015)");
+
   BenchmarkResult merged(passResults[0]);
   const std::size_t metricColumns = merged.metricLabels.size();
   for (std::size_t row = 0; row < merged.rows.size(); ++row) {
@@ -264,19 +284,46 @@ auto mergePasses(const PassPlan& plan,
               .rows[row]
               .counters[counter];
     }
-    // FR-015, E-05: the primary percentile column answers the reference pass
-    // and rides the copy; every other percentile column answers the pass that
-    // measured its column, because chunk times of another pass would state a
-    // distribution the printed column never saw.
-    for (std::size_t slot = 1; slot < mergedRow.percentiles.size(); ++slot) {
+    // FR-015, E-05: the two time slots answer the reference pass and ride the
+    // copy; every slot past them answers the pass that measured the column the
+    // slot prints, because chunk values of another pass would state a
+    // distribution the printed column never saw. A grid stands one slot per
+    // printed column in print order - the primary time, the time column the
+    // primary is not, then one slot per metric label and one per user counter -
+    // so slot `slot` prints column `slot - 2`, the index `plan.measuringPass`
+    // is kept in (SC-001).
+    for (std::size_t slot = 2; slot < mergedRow.percentiles.size(); ++slot) {
       mergedRow.percentiles[slot] =
-          passResults[plan.measuringPass[slot - 1]].rows[row].percentiles[slot];
+          passResults[plan.measuringPass[slot - 2]].rows[row].percentiles[slot];
     }
     // FR-016: a value whose measuring pass folded a gap keeps
     // `Availability::GAP` with the number that pass folded, and a refusal
     // kind, its running ratio and its scaled disclosure ride unchanged - the
     // whole value of the measuring pass stands in the merged row, so nothing
     // here invents a number or drops a disclosure.
+  }
+
+  // FR-015, E-05: the per-context answers of a threaded run follow the same
+  // slot rule, block by block in the flattened order the result holds them:
+  // the two time slots of a block ride the copy from the reference pass and
+  // every slot past them answers the pass that measured its column. A loop
+  // over an empty list is the whole of a single-context run, whose
+  // `contextPercentiles` stays as the copy left it. Where a run captures
+  // chunks it captures them in every pass, because the capture is a run-level
+  // decision and not a pass decision: `chunkPlanOf`
+  // (source/harness/runner.cpp:1536) answers no chunk only when the run
+  // reports no percentile and retains no chunk, which no pass of a run can
+  // answer differently, and `chunkPlanFor` leaves at least one chunk wherever
+  // it captures. Every pass therefore folded the same blocks in the same
+  // order, and the flattened index of a merged block names the same block of
+  // the measuring pass.
+  for (std::size_t block = 0; block < merged.contextPercentiles.size(); ++block)
+  {
+    auto& blockColumns = merged.contextPercentiles[block];
+    for (std::size_t slot = 2; slot < blockColumns.size(); ++slot) {
+      blockColumns[slot] = passResults[plan.measuringPass[slot - 2]]
+                               .contextPercentiles[block][slot];
+    }
   }
 
   // FR-017, E-07: the three published disclosure fields ride the merged

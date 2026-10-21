@@ -12,6 +12,11 @@
 // after the run joined. No clock stands in this file, as
 // `test/time_source_gate.sh` bars one from a harness test.
 //
+// The two percentile arms read the report surfaces beside the result value:
+// `sg::detail::printResult` behind the stdout capture of
+// `harness_pass_report_test.cpp`, `sg::detail::writeReport` read back through
+// `sg::loadReport`, and the chunk columns the run retained behind its rows.
+//
 // Each scenario scripts its own provider, and the counters system takes one
 // provider per path per process, so each scenario runs in its own process:
 // the parent below walks the scenario list and re-executes this binary once
@@ -34,15 +39,21 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <memory>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include "detail/internal.hpp"
+#include "detail/json_report.hpp"
 #include "detail/pass_fixture.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -288,6 +299,118 @@ auto runMeasured(sg::Instance& instance,
         "the scripted run measured its row");
   check(!result.rows.empty(), "the measured result carries a row");
   return RunAccount {std::move(result), fake->readActions() - before};
+}
+
+// One run beside the chunk columns it retained: the ledger of row `k` stands
+// at `rowRaw[k]` and the ledger of context `j` of that row at
+// `contextRaw[k][j]`, the pairing the document writes beside the row it
+// printed (specs/023 E-01, FR-029). A split run remaps the row's own ledger to
+// the pass that measured each column, so the ledger is a surface of its own
+// for a merged figure.
+struct LedgerAccount
+{
+  RunAccount run;
+  std::vector<sg::RowRaw> rowRaw;
+  std::vector<std::vector<sg::RowRaw>> contextRaw;
+};
+
+auto runMeasuredLedger(sg::Instance& instance,
+                       const sg::detail::RunOptions& options) -> LedgerAccount
+{
+  const std::uint64_t before = fake->readActions();
+  sg::detail::Runner runner(options);
+  auto result = runner.run(instance);
+  check(result.outcome == sg::RunOutcome::MEASURED,
+        "the scripted run measured its row");
+  check(!result.rows.empty(), "the measured result carries a row");
+  return LedgerAccount {
+      RunAccount {std::move(result), fake->readActions() - before},
+      runner.rowRaw().back(),
+      runner.contextRaw().back()};
+}
+
+// The file a scenario's printed report is captured to, and the document one
+// scenario writes: the scratch files of `harness_pass_report_test.cpp` and
+// `harness_json_report_test.cpp`, spelled for this binary.
+constexpr const char* kScratchPath = "harness_pass_collect_out.txt";
+constexpr const char* kReportPath = "harness_pass_collect_report.json";
+
+// `call` prints to the process stdout, so the capture redirects that stream to
+// a scratch file and restores it: the verdict lines of this file stay on the
+// real stdout. The pattern of `captureThrough` in `harness_pause_test.cpp` and
+// `harness_pass_report_test.cpp`.
+template<class Call>
+auto captureThrough(const std::string& path, Call&& call) -> void
+{
+  std::FILE* saved = nullptr;
+  const int savedFd = dup(STDOUT_FILENO);
+  if (savedFd >= 0) {
+    saved = fdopen(savedFd, "w");
+  }
+  check(saved != nullptr, "the capture kept the real stdout");
+
+  std::FILE* replacement = std::fopen(path.c_str(), "we");
+  check(replacement != nullptr, "the capture opened its scratch file");
+  const int replacementFd = fileno(replacement);
+  check(replacementFd >= 0, "the capture file carries a descriptor");
+  const bool redirected = dup2(replacementFd, STDOUT_FILENO) == STDOUT_FILENO;
+  check(redirected, "the capture redirected stdout");
+  if (std::setvbuf(stdout, nullptr, _IONBF, 0) != 0) {
+    fail("the capture could not unbuffer the redirected stdout");
+  }
+  std::fflush(stdout);
+
+  call();
+
+  std::fflush(stdout);
+  const bool restored = dup2(savedFd, STDOUT_FILENO) == STDOUT_FILENO;
+  check(restored, "the capture restored stdout");
+  if (std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ) != 0) {
+    fail("the restored stdout could not set its buffering mode");
+  }
+  std::fclose(saved);
+  std::fclose(replacement);
+}
+
+auto readAll(const std::string& path) -> std::string
+{
+  std::ifstream file(path);
+  check(static_cast<bool>(file), "the captured file opens for reading");
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
+// The percentile lines of a printed report, in the order they stand: a row's
+// own lines come first and one per slot of the row, so line `slot` of a
+// single-row report answers slot `slot` of the row (SC-001).
+auto percentileLines(const std::string& report) -> std::vector<std::string>
+{
+  std::vector<std::string> lines;
+  std::istringstream stream(report);
+  for (std::string line; std::getline(stream, line);) {
+    if (line.find("  percentile") != std::string::npos) {
+      lines.push_back(line);
+    }
+  }
+  return lines;
+}
+
+// The figure one point of a printed percentile line carries, or nothing where
+// the line answers `not available` in its place. The read stops at the first
+// byte the number does not carry, so a unit suffix changes nothing.
+auto printedPoint(const std::string& line,
+                  const std::string_view token) -> std::optional<double>
+{
+  const auto at = line.find(token);
+  check(at != std::string::npos, "the printed line carries the point's token");
+  const char* text = line.c_str() + at + token.size();
+  char* end = nullptr;
+  const double value = std::strtod(text, &end);
+  if (end == text) {
+    return std::nullopt;
+  }
+  return value;
 }
 
 // The value a fixture column owes a run: every leaf of the column steps
@@ -801,9 +924,51 @@ auto scenarioWindowSpan() -> int
 }
 
 // T025: the pass order of a threaded run (FR-011, FR-013, FR-034, SC-10).
+// The step the clock leaves of a percentile arm carry. The chunk plan sizes a
+// chunk from the iteration time against the cost of one sampling action, so a
+// scripted iteration time far above any real sampling action leaves one
+// iteration to each chunk, in every pass of the run, whatever the machine
+// measures for the sample: the shape `harness_percentile_test.cpp` scripts for
+// the same reason.
+constexpr std::uint64_t kPercentileTimeStep = 20'000'000;
+
+// The iteration count of a percentile arm. One iteration per chunk means one
+// chunk per iteration, and twelve of them answer both points of the arm: p50
+// needs two chunks and p90 needs ten (FR-013).
+constexpr std::uint64_t kPercentileIterations = 12;
+
+// The points of the percentile arms and the token each prints by, the option
+// list and the printed spelling of the same two points (FR-011).
+constexpr double kPoint50 = 50.0;
+constexpr double kPoint90 = 90.0;
+constexpr std::array<std::pair<double, std::string_view>, 2> kPercentilePoints {
+    std::pair {kPoint50, std::string_view {"p50="}},
+    std::pair {kPoint90, std::string_view {"p90="}},
+};
+
+// The slots of a percentile grid that belong to the row before its columns do:
+// the primary time and the time column the primary is not (SC-001).
+constexpr std::size_t kTimeSlotCount = 2;
+
+// Stand the clock leaves of the fixture at the percentile step. `setPoints`
+// rewinds the leaf it scripts, so this runs before the scenario attaches a
+// metric, which is where the tree first opens an object.
+auto scriptPercentileClock() -> void
+{
+  fake->setPoints(sg::test::kPassClockObject,
+                  sg::test::kPassRealTimeLeaf,
+                  {0},
+                  kPercentileTimeStep);
+  fake->setPoints(sg::test::kPassClockObject,
+                  sg::test::kPassCpuTimeLeaf,
+                  {0},
+                  kPercentileTimeStep);
+}
+
 auto scenarioThreadedPassOrder() -> int
 {
   registerFixtureProvider(sg::test::kHostPassLimit);
+  scriptPercentileClock();
 
   auto threaded = sg::registerBenchmark(&bmContextLog, "bmThreadedTwoPass");
   threaded.threads(kThreadCount);
@@ -940,13 +1105,110 @@ auto scenarioThreadedPassOrder() -> int
   // claims above read.
   auto chunkedOptions = valueOptions;
   chunkedOptions.showPercentiles = true;
-  chunkedOptions.percentilePoints = {50.0};
-  const RunAccount chunked =
-      runMeasured(*needInstance(threadedInstance), chunkedOptions);
-  check(chunked.result.rows.front().percentiles.size()
-            == 2 + chunked.result.metricLabels.size(),
+  chunkedOptions.percentilePoints = {kPoint50};
+  const LedgerAccount chunked =
+      runMeasuredLedger(*needInstance(threadedInstance), chunkedOptions);
+  const sg::BenchmarkResult& chunkedResult = chunked.run.result;
+  const sg::ResultRow& chunkedRow = chunkedResult.rows.front();
+  check(chunkedRow.percentiles.size()
+            == kTimeSlotCount + chunkedResult.metricLabels.size(),
         "the threaded chunk fold answers every column the run opened, the "
         "columns this pass leaves unmeasured included (FR-014, FR-019)");
+  check(chunkedResult.contexts.size()
+            == static_cast<std::size_t>(kThreadCount),
+        "the merged result names both contexts of the run beside its row "
+        "(FR-016)");
+  // The chunk plan of the arm, pinned so every claim below reads answers and
+  // not the absence of them: each context takes one iteration to a chunk, so
+  // the merged row holds the chunks of both contexts (FR-006, FR-013).
+  check(chunkedRow.chunkIterations == 1,
+        "the chunk plan gives one iteration to a chunk in every context of "
+        "the run (FR-006)");
+  check(
+      chunkedRow.chunkCount
+          == kValueIterations * static_cast<std::uint64_t>(kThreadCount),
+      "the merged row holds one chunk per iteration of each context (FR-006)");
+  // The per-context answers stand one block per context of the row, in the
+  // flattened order the result holds them, so context `context` of the single
+  // row of this run stands at block `context` (specs/021 FR-014).
+  check(chunkedResult.contextPercentiles.size()
+            == static_cast<std::size_t>(kThreadCount),
+        "the merged result carries one percentile block per context of its row "
+        "(FR-014)");
+  for (std::size_t context = 0;
+       context < chunkedResult.contextPercentiles.size();
+       ++context)
+  {
+    const auto& folds = chunkedResult.contextPercentiles[context];
+    check(folds.size() == chunkedRow.percentiles.size(),
+          "a context answers as many slots as the merged row does, the columns "
+          "its pass leaves unmeasured included (FR-014, FR-019)");
+    for (std::size_t index = 0; index < chunkedResult.metricLabels.size();
+         ++index)
+    {
+      const std::size_t slot = kTimeSlotCount + index;
+      // The pass tags of the merged row state the plan this run ran, columns 0
+      // and 1 in pass 0 and columns 2 and 3 in pass 1, so exactly one pass
+      // holds chunk values for every column. A context of the pass that did
+      // not measure a column holds none at all, so the answer there is no
+      // number: a slot read from the wrong pass cannot hide behind a figure of
+      // its own (FR-015, E-05).
+      check(folds[slot][0].available,
+            "the slot of a context answers from the pass that measured its "
+            "column, in both contexts of the run (FR-015, FR-014)");
+      check(closeTo(folds[slot][0].value,
+                    expectedColumnValue(index, kPlainSteps, 1)),
+            "the slot of a context states the chunk figure of its own column "
+            "(FR-015)");
+    }
+  }
+  // The chunk ledger a threaded run retains: the merged row of a threaded run
+  // carries no copy of the union its contexts answer from (FR-020), so the
+  // join has no column to move onto it, and the entries that stand beside the
+  // row are the per-context ledgers of the reference pass, the segment the join
+  // leaves behind. A column of another pass therefore stands there empty, the
+  // same absence the per-context slot above must not read: the slot of a column
+  // pass 1 measured answers with a figure, where no ledger of this result holds
+  // a chunk of it (FR-020, FR-015).
+  check(chunked.rowRaw.size() == chunkedResult.rows.size(),
+        "the retained ledger carries one entry per row of the merged result "
+        "(FR-029)");
+  check(chunked.rowRaw.front().columns.empty(),
+        "the merged row of a threaded run retains no copy of the union its "
+        "contexts carry (FR-020)");
+  check(chunked.contextRaw.size() == chunkedResult.rows.size(),
+        "the per-context ledger carries one entry per row of the merged result "
+        "(FR-029)");
+  for (std::size_t context = 0; context < chunkedResult.contexts.size();
+       ++context)
+  {
+    const auto& ledger = chunked.contextRaw.front()[context];
+    check(ledger.columns.size() == chunkedRow.percentiles.size(),
+          "a context's ledger stands one column per slot of the merged row "
+          "(FR-029)");
+    for (std::size_t index = 0; index < chunkedResult.metricLabels.size();
+         ++index)
+    {
+      const std::size_t slot = kTimeSlotCount + index;
+      const auto& chunks = ledger.columns[slot];
+      const double owed = expectedColumnValue(index, kPlainSteps, 1);
+      if (chunkedRow.metrics[index].pass == 0) {
+        check(chunks.size() == kValueIterations,
+              "the context ledger of a column the reference pass measured holds "
+              "the chunks behind that context's percentile (FR-029, FR-015)");
+        for (const double chunk : chunks) {
+          check(closeTo(chunk, owed),
+                "the context chunk states the figure of its own column, the "
+                "figure the context's slot above answers with (FR-029, FR-015)");
+        }
+      } else {
+        check(chunks.empty(),
+              "the context ledger stands as the reference pass folded it, empty "
+              "for a column its pass left unmeasured, so the slot above cannot "
+              "have been read off this ledger (FR-020, FR-015)");
+      }
+    }
+  }
 
   std::puts("threaded-pass-order: ok");
   return 0;
@@ -1677,29 +1939,37 @@ auto scenarioInterruptInsideSplit() -> int
 }
 
 // specs/021 FR-016 beside FR-014 of specs/024: a percentile run over a split
-// stands one percentile column beside every column the row prints, which is
-// wider than the columns the planner costed. The merge pads the plan it
-// reads so those columns answer the reference pass, and every metric column
-// keeps the value and the pass tag of the pass that measured it.
+// stands one percentile slot beside every column the row prints, which is
+// wider than the columns the planner costed. The merge pads the plan it reads
+// so those slots answer, and every slot past the two time slots of the row
+// states the pass that measured its column (FR-015, E-05). The pass tags of
+// the row below state the plan this run ran: the {0, 0, 1, 1} of four columns
+// over the scripted limit of 4, the first two columns measured by pass 0 and
+// the last two by pass 1. A slot read from a pass that measured neither the
+// column nor its chunks states no figure at all, so every surface of the
+// merged slot is read here: the result, the printed report, the document and
+// the chunk columns the run retained beside the row.
 auto scenarioPercentilesAcrossPasses() -> int
 {
   registerFixtureProvider(sg::test::kHostPassLimit);
+  scriptPercentileClock();
 
   auto wide = sg::registerBenchmark(&bmPlain, "bmPercentileSplit");
   attachColumns(wide, {0, 1, 2, 3});
   sg::detail::expandRegistry();
 
-  sg::detail::RunOptions options = optionsFor(kValueIterations, 1);
+  sg::detail::RunOptions options = optionsFor(kPercentileIterations, 1);
   options.showPercentiles = true;
-  options.percentilePoints = {50.0, 90.0};
-  const RunAccount merged =
-      runMeasured(*needInstance("bmPercentileSplit"), options);
+  options.percentilePoints = {kPoint50, kPoint90};
+  const LedgerAccount merged =
+      runMeasuredLedger(*needInstance("bmPercentileSplit"), options);
+  const sg::BenchmarkResult& result = merged.run.result;
+  const sg::ResultRow& row = result.rows.front();
 
-  const sg::ResultRow& row = merged.result.rows.front();
-  check(merged.result.metricLabels.size() == 4,
+  check(result.metricLabels.size() == 4,
         "the widened run labels every attached column (FR-001)");
-  check(row.percentiles.size() == 2 + merged.result.metricLabels.size(),
-        "a percentile row stands one column beside the time columns and every "
+  check(row.percentiles.size() == kTimeSlotCount + result.metricLabels.size(),
+        "a percentile row stands one slot beside the time columns and every "
         "metric column, wider than the plan the planner costed (FR-016, "
         "SC-001)");
   for (std::size_t index = 0; index < 4; ++index) {
@@ -1713,8 +1983,104 @@ auto scenarioPercentilesAcrossPasses() -> int
           "every column keeps the pass that measured it through the widened "
           "merge (FR-019)");
   }
-  check(merged.result.passCount == kTwoPassCount,
+  check(result.passCount == kTwoPassCount,
         "the widened run still publishes its two passes (E-07)");
+
+  // The chunk plan of the arm, pinned so the claims below read answers and not
+  // the absence of them: one iteration to a chunk, so the row holds twelve
+  // chunks and both points reach their least sample count (FR-006, FR-013).
+  check(row.chunkIterations == 1,
+        "the chunk plan gives one iteration to a chunk in every pass of the "
+        "run (FR-006)");
+  check(row.chunkCount == kPercentileIterations,
+        "the merged row holds one chunk per iteration of its run (FR-006)");
+  for (std::size_t point = 0; point < kPercentilePoints.size(); ++point) {
+    check(result.percentilePoints.size() == kPercentilePoints.size()
+              && closeTo(result.percentilePoints[point],
+                         kPercentilePoints[point].first),
+          "the row reports the points the arm asked for, the order its printed "
+          "tokens spell them in (FR-010, FR-011)");
+  }
+
+  // The printed report of the merged result, and the document written beside
+  // it with the chunk columns the run retained.
+  captureThrough(kScratchPath, [&result] { sg::detail::printResult(result); });
+  const std::vector<std::string> printed =
+      percentileLines(readAll(kScratchPath));
+  check(printed.size() == row.percentiles.size(),
+        "the report prints one percentile line per slot of the merged row, the "
+        "slots of the columns the plan never costed included (FR-010, SC-001)");
+  sg::ReportData written;
+  written.results = {result};
+  written.rowRaw = {merged.rowRaw};
+  written.contextRaw = {merged.contextRaw};
+  check(sg::detail::writeReport(kReportPath, written),
+        "the JSON writer wrote the widened run (FR-030)");
+  const auto read = sg::loadReport(kReportPath);
+  check(read.has_value(),
+        "the document of the widened run reads back through the public reader "
+        "(FR-024)");
+  const sg::ResultRow& documented = read->results.front().rows.front();
+  const sg::RowRaw& documentedRaw = read->rowRaw.front().front();
+
+  for (std::size_t index = 0; index < result.metricLabels.size(); ++index) {
+    const std::size_t slot = kTimeSlotCount + index;
+    // The figure one chunk of the column owes: the column's leaves over the one
+    // iteration of the chunk, the per-iteration rule dividing by that one
+    // iteration. It is the figure of the column whoever measured it, and the
+    // pass that did not measure it holds no chunk of it at all.
+    const double owed = expectedColumnValue(index, kPlainSteps, 1);
+    check(row.percentiles[slot].size() == kPercentilePoints.size(),
+          "the merged slot carries one value per point of the run (FR-010)");
+    // The surface of the result value.
+    for (std::size_t point = 0; point < kPercentilePoints.size(); ++point) {
+      check(row.percentiles[slot][point].available,
+            "the merged slot of a measured column answers, so it cannot state "
+            "the empty distribution of a pass that never sampled the column "
+            "(FR-015, E-05)");
+      check(closeTo(row.percentiles[slot][point].value, owed),
+            "the merged slot states the chunk figure of its own column "
+            "(FR-015, FR-016)");
+      // The surface of the printed report.
+      const std::string& line = printed[slot];
+      check(line.find(result.metricLabels[index]) != std::string::npos,
+            "the printed line of the slot names the column of the slot "
+            "(FR-010)");
+      check(line.find("not available") == std::string::npos,
+            "the printed line of the slot answers, where the pass of the copy "
+            "had nothing to answer with (FR-015)");
+      const auto printedValue =
+          printedPoint(line, kPercentilePoints[point].second);
+      check(printedValue.has_value() && closeTo(*printedValue, owed),
+            "the printed point of the slot states the figure of its own column "
+            "(FR-015, FR-016)");
+      // The surface of the document.
+      check(documented.percentiles[slot][point].available
+                && closeTo(documented.percentiles[slot][point].value, owed),
+            "the document carries the same answer for the same slot and point "
+            "as the merged result (FR-015, FR-022)");
+    }
+    // The surface of the chunk columns the run retained beside the row: the
+    // remap pulls each column's chunks out of the ledger of the pass that
+    // measured it, where the reference pass left an empty column (FR-029).
+    const auto& chunks = merged.rowRaw.front().columns[slot];
+    check(chunks.size() == kPercentileIterations,
+          "the retained chunk column of the slot holds the chunks of the pass "
+          "that measured the column (FR-029, FR-015)");
+    for (const double chunk : chunks) {
+      check(closeTo(chunk, owed),
+            "the retained chunk of the slot states the figure of its own "
+            "column (FR-029)");
+    }
+    check(documentedRaw.columns[slot].size() == chunks.size(),
+          "the document carries the chunk column of the slot beside the row "
+          "(FR-029)");
+    for (const double chunk : documentedRaw.columns[slot]) {
+      check(closeTo(chunk, owed),
+            "the chunk column of the document states the figure of its own "
+            "column (FR-029, FR-022)");
+    }
+  }
 
   std::puts("percentiles-across-passes: ok");
   return 0;

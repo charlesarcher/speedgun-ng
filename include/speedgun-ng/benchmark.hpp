@@ -420,11 +420,12 @@ struct ResultRow
   // the synthetic fit result carry this.
   FitRow fit;
   double overheadFloorNs = 0.0;
-  // specs/021 FR-010: the percentiles of this row's run, one entry per
-  // reported column in the order the row prints its columns: the primary
-  // time, then each metric, then each counter. Each entry holds one value
-  // per point of `BenchmarkResult::percentilePoints`, in that order. Empty
-  // when the run reports no percentile (FR-023).
+  // specs/021 FR-010: the percentiles of this row's run, one slot per
+  // printed column in the order the row prints its columns: the primary
+  // time, the time column the primary is not, then each metric, then each
+  // counter. Each slot holds one value per point of
+  // `BenchmarkResult::percentilePoints`, in that order. Empty when the run
+  // reports no percentile (FR-023).
   std::vector<std::vector<PercentileValue>> percentiles;
   // specs/021 FR-002, FR-007: the chunk count of the run and the iteration
   // count one chunk holds. The report discloses the pair beside the

@@ -20,7 +20,9 @@
 // ============================================================================
 
 #include <algorithm>
+#include <array>
 #include <bit>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -30,6 +32,10 @@
 #include <string_view>
 #include <vector>
 
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include "detail/gcov_flush.hpp"
 #include "detail/pass_fixture.hpp"
 #include "detail/pass_plan.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -854,19 +860,18 @@ struct MergeTable
             ? foldValue(pass, row, kCounterField, counter)
             : kNotMeasured);
   }
-  // The percentile columns follow the print order of the row: the primary
-  // time, then every metric, then every counter. The primary column belongs
-  // to every pass; a metric or counter column answers only in the pass that
-  // measured it.
-  result.percentiles.resize(1 + table.columns.size());
-  for (std::size_t column = 0; column < 1 + table.columns.size(); ++column) {
-    const auto slot = column == 0 ? 0 : column - 1;
-    const auto owned = column == 0 || measuredBy(table, pass, slot);
-    auto& point = result.percentiles[column];
+  // The percentile grid follows the print order of the row: the primary time,
+  // the time column the primary is not, then every metric, then every counter
+  // (SC-001). Both time columns belong to every pass; a metric or counter slot
+  // answers only in the pass that measured its column, so the slot past the
+  // second answers the column two below it.
+  result.percentiles.resize(2 + table.columns.size());
+  for (std::size_t slot = 0; slot < 2 + table.columns.size(); ++slot) {
+    const auto owned = slot < 2 || measuredBy(table, pass, slot - 2);
+    auto& point = result.percentiles[slot];
     point.resize(1);
     point[0].available = owned;
-    point[0].value =
-        owned ? foldValue(pass, row, kPercentileField, column) : 0.0;
+    point[0].value = owned ? foldValue(pass, row, kPercentileField, slot) : 0.0;
   }
   return result;
 }
@@ -1013,22 +1018,39 @@ auto mergeProvenance() -> void
                      passes[pass].rows[row].metrics[column].runningRatio),
           "the running ratio of the measuring pass rides unchanged " "(FR-"
                                                                      "016)");
-      check(sameDouble(mergedRow.percentiles[column + 1][0].value,
-                       passes[pass].rows[row].percentiles[column + 1][0].value),
+      // The grid of the row stands two slots before its first metric column:
+      // the primary time and the time column the primary is not (SC-001).
+      check(sameDouble(mergedRow.percentiles[column + 2][0].value,
+                       passes[pass].rows[row].percentiles[column + 2][0].value),
             "a metric percentile comes from that metric's own pass "
             "(FR-015, E-05)");
-      check(mergedRow.percentiles[column + 1][0].available,
+      check(mergedRow.percentiles[column + 2][0].available,
             "the percentile of a measured metric column answers (FR-015)");
+      // The metric columns of this table are measured by the first two passes,
+      // so the other one of them states nothing in the slot.
+      const auto otherPass = pass == 0 ? std::size_t {1} : std::size_t {0};
+      check(!passes[otherPass].rows[row].percentiles[column + 2][0].available,
+            "a pass that did not measure the column answers nothing in its "
+            "slot, so the claim above reads a figure one pass holds alone "
+            "(FR-015)");
     }
     for (std::size_t counter = 0; counter < counters; ++counter) {
       const auto pass = table.plan.measuringPass[table.metricColumns + counter];
+      const std::size_t slot = table.metricColumns + counter + 2;
       check(sameDouble(mergedRow.counters[counter],
                        passes[pass].rows[row].counters[counter]),
             "each user-counter column takes the value of its measuring pass at "
             "its own position (FR-014)");
+      check(sameDouble(mergedRow.percentiles[slot][0].value,
+                       passes[pass].rows[row].percentiles[slot][0].value),
+            "a user-counter percentile comes from its measuring pass, the slot "
+            "past the metric slots of the grid (FR-015, E-05)");
       check(pass != 0,
             "the table measures the counter columns away from pass 0, so the "
             "claim above cannot pass by default");
+      check(!passes[0].rows[row].percentiles[slot][0].available,
+            "the reference pass folded nothing for a counter column it did not "
+            "measure, so the slot above cannot read the copy (FR-015)");
     }
     // FR-015: the reference pass is pass 0 (I-4).
     check(sameDouble(mergedRow.timePerIterationNs,
@@ -1049,6 +1071,18 @@ auto mergeProvenance() -> void
     check(sameDouble(mergedRow.percentiles[0][0].value,
                      passes[0].rows[row].percentiles[0][0].value),
           "the primary percentile column comes from pass 0 (FR-015)");
+    // SC-001: the slot beside the primary time is the time column the primary
+    // is not, and it is a time column: the plan splits columns of the run and
+    // never a time column, so no plan can move this slot away from the
+    // reference pass.
+    check(sameDouble(mergedRow.percentiles[1][0].value,
+                     passes[0].rows[row].percentiles[1][0].value),
+          "the secondary time percentile comes from pass 0 whatever the plan "
+          "says (FR-015, E-05)");
+    check(!sameDouble(passes[1].rows[row].percentiles[1][0].value,
+                      passes[0].rows[row].percentiles[1][0].value),
+          "the passes of the table state different secondary time "
+          "percentiles, so the claim above cannot read any pass but pass 0");
   }
   check(merged.contexts.size() == passes[0].contexts.size(),
         "the context disclosures come from pass 0 (E-05, research D-06)");
@@ -1368,6 +1402,67 @@ auto spreadZeroMedian() -> void
         "(FR-017, D-6)");
 }
 
+// A contract breach ends its process through the contract facility, which
+// aborts, so no scenario of the list below can run one in process. Each breach
+// therefore runs in a process of its own, chosen the way every scenario here
+// is chosen, through `argv[1]`, and the verdict the parent reads is the signal
+// (the pattern `harness_context_barrier_test.cpp` carries). A contract taken
+// back out of the source shows here as a child that exits cleanly, or one that
+// dies of a signal other than the abort.
+auto breachAborts(const std::string_view name) -> void
+{
+  std::vector<char> mode;
+  mode.reserve(name.size() + 1);
+  mode.insert(mode.end(), name.begin(), name.end());
+  mode.push_back('\0');
+  const pid_t child = ::fork();
+  check(child >= 0, "the breach child was created");
+  if (child == 0) {
+    const std::array<char*, 3> argv {
+        const_cast<char*>("/proc/self/exe"), mode.data(), nullptr};
+    ::execv("/proc/self/exe", argv.data());
+    ::_exit(127);
+  }
+  int status = 0;
+  check(::waitpid(child, &status, 0) == child, "the breach child was waited");
+  const std::string message =
+      std::string("the breach of ")
+          .append(name)
+          .append(" ends in the contract facility's abort");
+  check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT, message.c_str());
+}
+
+// FR-014, FR-015: the merge reads the plan at `slot - 2` for every percentile
+// slot past the two time slots, so a grid wider than the plan names passes for
+// has no measuring pass for its last slot, and the precondition of the merge
+// closes over it. The breach is one slot more than the table's columns.
+auto breachGridPastPlan() -> void
+{
+  const MergeTable table = mergeTable();
+  std::vector<sg::BenchmarkResult> passes;
+  for (std::size_t pass = 0; pass < table.plan.columns.size(); ++pass) {
+    passes.push_back(foldOfPass(table, pass));
+  }
+  passes.front().rows.front().percentiles.resize(3 + table.columns.size());
+  (void)sg::detail::mergePasses(table.plan, passes);
+}
+
+struct Breach
+{
+  std::string_view name;
+  void (*body)();
+};
+
+// The breaches of this file: what the list below runs in a child of its own,
+// and what `argv[1]` selects for that child. A breach absent here never runs.
+[[nodiscard]] auto breaches() -> const std::vector<Breach>&
+{
+  static const std::vector<Breach> kList {
+      Breach {"breach-grid-past-plan", breachGridPastPlan},
+  };
+  return kList;
+}
+
 struct Scenario
 {
   std::string_view name;
@@ -1413,10 +1508,23 @@ auto main(const int argc, char** argv) -> int
         return 0;
       }
     }
+    for (const auto& breach : breaches()) {
+      if (breach.name == mode) {
+        // The mode of a breach stands for the child's own entry point: the
+        // counters of the path that aborts still have to reach the coverage
+        // record, which the abort of the contract facility would not flush.
+        sg::test::flushCountersOnAbort();
+        breach.body();
+        return 0;
+      }
+    }
     fail("the scenario name is not one of this file's list");
   }
   for (const auto& scenario : scenarios()) {
     scenario.body();
+  }
+  for (const auto& breach : breaches()) {
+    breachAborts(breach.name);
   }
   std::printf("harness_pass_plan_test: ok\n");
   return 0;
