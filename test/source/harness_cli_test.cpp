@@ -1419,6 +1419,49 @@ auto main(const int argc, char** argv) -> int
         "a bad word with --list prints its refusal alone before the list name "
         "and exits 2 (FR-025, FR-026)");
 
+  // The option values of the two features meet on one line: `--metric-method`
+  // answers 256 (FR-025, D-09) and the three compare options of specs/026
+  // answer 257, 258 and 259. A bad method word beside both compare options
+  // prints the method refusal and nothing of the compare pair, so no compare
+  // option took that argument; the same line with an accepted word reaches
+  // the compare arm, which names the document it cannot read (FR-025, FR-026,
+  // specs/026 FR-048, FR-049).
+  std::vector<std::string> collide {
+      "--metric-method=fast",
+      "--compare=nosuch-base.json,nosuch-contender.json",
+      "--compare-strict"};
+  std::string collideMethod;
+  const int collideStatus = childRun(self, "arg", collide, collideMethod);
+  if (collideMethod.rfind(refusalText("fast"), 0) != 0
+      || collideMethod.find("nosuch-base.json") != std::string::npos)
+  {
+    std::fprintf(stderr,
+                 "--metric-method=fast beside --compare exited %d with:\n%s\n",
+                 WEXITSTATUS(collideStatus),
+                 collideMethod.c_str());
+  }
+  check(WEXITSTATUS(collideStatus) == 2
+            && collideMethod.rfind(refusalText("fast"), 0) == 0
+            && collideMethod.find("nosuch-base.json") == std::string::npos,
+        "a bad method word beside --compare and --compare-strict prints the "
+        "method refusal alone and exits 2 (FR-025, FR-026)");
+
+  collide[0] = "--metric-method=auto";
+  std::string collideCompare;
+  const int collideRead = childRun(self, "arg", collide, collideCompare);
+  if (collideCompare.find("nosuch-base.json") == std::string::npos) {
+    std::fprintf(stderr,
+                 "--metric-method=auto beside --compare exited %d with:\n%s\n",
+                 WEXITSTATUS(collideRead),
+                 collideCompare.c_str());
+  }
+  check(WEXITSTATUS(collideRead) == 2
+            && collideCompare.find("nosuch-base.json") != std::string::npos
+            && methodLine(collideCompare).empty(),
+        "the accepted word leaves --compare to name its own unreadable "
+        "document, so the two option values answer separate arms (FR-025, "
+        "specs/026 FR-048)");
+
   std::puts("harness_cli_test: ok");
   return 0;
 }
