@@ -13,8 +13,9 @@ Decisions: [research.md](research.md).
 - a `build/` directory of your choice; `ci-rocky` writes `./build`.
 
 The recorded PMU comparison runs on `corsairone` only, the host where the
-spec's PC-3 measured the kernel rotating an oversize group and where CPUID
-leaf 0AH answers 4 programmable counters (research D-01).
+spec's PC-3 measured the kernel rotating an oversize group and where its
+`cpu` device publishes a limit of 4 (CPUID leaf 0AH `EAX[15:8]`, the vendor
+rule of research D-01).
 
 ## Build
 
@@ -41,7 +42,7 @@ The suite must be green before any recorded run.
 
 | Check | Command | Expect |
 |---|---|---|
-| Limit decode decision table | `ctest --test-dir build -R counters_counter_limits_test` | every `programmableCountersFromCpuid` arm passes on synthetic registers, including version 0, count 0, and the missing-leaf case |
+| Limit decode decision tables | `ctest --test-dir build -R counters_counter_limits_test` | every decoder arm passes on synthetic words: the leaf 0 vendor words both directions, the Intel and Zhaoxin core answer with a zero version answering nothing, the AMD answer behind the maximum-extended gate, the device table, the leaf 0x23 hybrid gate answering nothing, and the watchdog adjustment in first-match order including the zero that publishes no limit |
 | Fact publication | `ctest --test-dir build -R counters_objects_limit_test` | the fake publishes its scripted limit through `Object::programmableCounters`; unscripted sources publish nothing |
 | Planner and merge tables | `ctest --test-dir build -R harness_pass_plan_test` | first-fit order, over-limit alone, the 64-column set, empty set, gaps kept by the merge table, the two-provider ride-along |
 | Pass execution and merge | `ctest --test-dir build -R harness_pass_collect_test` | calibration once, per-pass compile/open/close, merged columns from the right passes, every metric column at running ratio 1.0 with no column dropped |

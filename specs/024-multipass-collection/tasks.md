@@ -120,12 +120,14 @@ rotates it afterwards.
 
 ### Tests for this phase (write first, observe failure)
 
-- [X] T009 [P] Write the CPUID decode decision table in
-  `test/source/counters_counter_limits_test.cpp` over
-  `programmableCountersFromCpuid(maxLeaf, eax, ebx)` with synthetic
-  registers: a maximum leaf below 0AH answers nothing, version 0 answers
-  nothing, count 0 answers nothing, `EAX=0x07300404` answers 4, and a nonzero
-  `EBX` vector leaves the answer unchanged (FR-005, FR-032, research D-01,
+- [X] T009 [P] Write the counter-limit decision tables in
+  `test/source/counters_counter_limits_test.cpp` over the pure decoders, with
+  synthetic words no host has to provide: the leaf 0 vendor triple in both
+  directions, the Intel and Zhaoxin core answer where a version of zero
+  answers nothing and `EAX=0x07300404` answers 4, the AMD answer behind the
+  maximum-extended gate, the device table, the leaf 0x23 hybrid gate, and the
+  watchdog adjustment in first-match order with the zero that publishes no
+  limit (FR-005, FR-032, research D-01,
   D-04)
 - [X] T010 [P] Write the publication test in
   `test/source/counters_objects_limit_test.cpp`: a scripted fake object
@@ -150,14 +152,17 @@ Observation: both files fail on the missing names before T011 lands.
   precondition (FR-005, research D-02)
 - [X] T013 [P] Add `source/counters/linux_pmu/counter_limits.hpp` and
   `source/counters/linux_pmu/counter_limits.cpp` holding the branchless
-  `__get_cpuid` probe for leaf 0 and leaf 0AH and the pure decode
-  `programmableCountersFromCpuid`, with the measured `EBX=0` host state
-  recorded beside the parameter it ignores (FR-005, FR-032, research D-01,
+  `__get_cpuid_count` probe for every leaf the rules read, the read of
+  `/proc/sys/kernel/nmi_watchdog`, and the pure decoders `vendorOf`,
+  `intelCoreLimit`, `amdCoreLimit`, `fixedCycles`, `isHybrid`,
+  `limitForDevice` and `usableCounters`, with the measured `EBX=0` host state
+  recorded beside the field it leaves unused (FR-005, FR-032, research D-01,
   D-04)
-- [X] T014 Fill `programmableCounters` on the `cpu` object and on every PMU
-  device object in the enumerate seeds of
-  `source/counters/linux_pmu/provider.cpp`, leaving it empty on a host whose
-  leaf reads version 0 or count 0 (FR-005, research D-01, D-02)
+- [X] T014 Fill `programmableCounters` per device in the enumerate seeds of
+  `source/counters/linux_pmu/provider.cpp`: the vendor's core answer for a
+  core device, nothing for every other device, empty for a hybrid host whose
+  leaf 0x23 answers, and empty on a host whose leaf reads version 0 or count
+  0 (FR-005, research D-01, D-02)
 - [X] T015 Add the fluent `setProgrammableCounters(objectPath, limit)` to
   `FakeProvider` in `include/speedgun-ng/counters_fake.hpp` beside
   `addObject`, record it beside the object's seed data, publish it at
