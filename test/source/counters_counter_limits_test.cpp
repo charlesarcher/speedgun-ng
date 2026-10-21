@@ -52,11 +52,11 @@ auto check(const bool condition, const char* what) -> void
 // carry a nonzero vector so the omission stays a decision (research D-04).
 struct Row
 {
-  std::uint32_t maxLeaf;
-  std::uint32_t eax;
-  std::uint32_t ebx;
+  std::uint32_t maxLeaf = 0;
+  std::uint32_t eax = 0;
+  std::uint32_t ebx = 0;
   std::optional<std::size_t> expected;
-  const char* why;
+  const char* why = nullptr;
 };
 
 // The registers of a row whose answer disagrees, so a red table says which

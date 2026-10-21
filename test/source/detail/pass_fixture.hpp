@@ -201,7 +201,7 @@ inline auto scriptPassFixture(sg::counters::FakeProvider& provider,
 //   EQUAL         100, 100, 100    0.0 percent      no
 //   ZERO_MEDIAN   0, 0, 0          no value         no, prints `spread=not
 //                                                   available`
-enum class PassTimeShape
+enum class PassTimeShape : std::uint8_t
 {
   IN_BAND,
   BOUNDARY,

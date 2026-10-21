@@ -506,10 +506,10 @@ the analyzers, the gate set and the landing move.
   Record the line, branch and DBC counts the target reports for the new files and
   for the files this feature edits, beside that evidence (FR-032, SC-07,
   constitution VI)
-- [ ] T059 [P] Confirm `grep -rn 'LCOV_EXCL' include source` still counts 398
+- [X] T059 [P] Confirm `grep -rn 'LCOV_EXCL' include source` still counts 398
   marker lines and that no file this feature adds carries a marker, a waiver or a
   partial row (FR-032, PC-5)
-- [ ] T060 [P] Scan `test/source/counters_counter_limits_test.cpp`,
+- [X] T060 [P] Scan `test/source/counters_counter_limits_test.cpp`,
   `test/source/counters_objects_limit_test.cpp`,
   `test/source/harness_pass_plan_test.cpp`,
   `test/source/harness_pass_collect_test.cpp` and
@@ -517,20 +517,20 @@ the analyzers, the gate set and the landing move.
   PMU dependency, then run `ctest --test-dir build -j2 --output-on-failure` under
   the coverage preset that keeps `-fprofile-update=atomic` and passes no
   `-D_GLIBCXX_ASSERTIONS` (FR-033, FR-037, SC-10)
-- [ ] T061 [P] Run the existing allocation and overhead checks in
+- [X] T061 [P] Run the existing allocation and overhead checks in
   `test/source/counters_noalloc_test.cpp` and `tools/dbc/overhead.sh` and record
   that the per-iteration provider read count of a one-pass metric run equals
   `kAuditPointReadsPerIteration` of `test/source/detail/pass_fixture.hpp`
   (SC-09)
-- [ ] T062 [P] Add `tools/pmu_events/multipass_comparison.sh` and run it on
+- [X] T062 [P] Add `tools/pmu_events/multipass_comparison.sh` and run it on
   corsairone: the six-event over-limit set under `--metric-method=multiplex`,
   `passes` and `auto`, one single-metric reference run per event on a master build,
   wall time per configuration and a quiet-window noise marker, with the output
   recorded under `specs/024-multipass-collection/`; the script stays out of CMake
   and no CI job depends on it (FR-035, SC-01, research D-15)
-- [ ] T063 [P] Build `ci-ubuntu` so clang-tidy and cppcheck see the new files,
+- [X] T063 [P] Build `ci-ubuntu` so clang-tidy and cppcheck see the new files,
   and clear every finding (constitution VIII)
-- [ ] T064 [P] Run the `format-check`, `spell-check`, `prose-lint` and
+- [X] T064 [P] Run the `format-check`, `spell-check`, `prose-lint` and
   `dbc-gate` build targets, the `dbc_dependency_scan`, `time_source_gate`,
   `cli_shape`, `loop_shape` and `barrier_shape` tests, and the commit-message
   gate over every message on the branch (FR-036, constitution VIII and XI)
