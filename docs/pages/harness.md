@@ -1091,3 +1091,118 @@ gate's oracle.
 No key of the document names a date, a time, a host or a process id. The file is
 a function of the values the run measured, so two runs of one build write the
 same bytes and a diff of two runs shows only what changed in the run.
+
+## Regression gate
+
+Two report documents go in and one verdict comes out. `--compare` names the
+baseline document and the contender document, split at the first comma, and the
+mode loads both through `loadReport`; it runs no benchmark and reads no clock.
+`--compare-rule` adds one rule and repeats in the order given, and with no rule
+the gate applies one: the median primary time at five percent relative.
+`--compare-strict` makes a `NOISY` row fail the run while the word that row
+prints stays `NOISY`. `--filter` scopes the pair the way it scopes a run.
+
+```sh
+./build/example/first_benchmark \
+  --compare=test/data/gate_ok_base.json,test/data/gate_ok_contender.json
+./build/example/first_benchmark \
+  --compare=test/data/gate_fail_base.json,test/data/gate_fail_contender.json
+```
+
+The table prints one line per input naming its path, its speedgun version and
+its schema version, then a header and one row per benchmark under one rule: the
+baseline value, the contender value, the change in percent, the change in the
+unit the baseline report declares, and the state word. The first run above
+answers status 0, the second answers 1 with its row `REGRESSED`.
+
+### The rule grammar
+
+```text
+<rule>      ::= <value> [ @ <aggregate> ] : <direction> : <threshold> [ : <filter> ]
+<value>     ::= time | real_time | cpu_time | p <point>
+              | counter : <label> | metric : <label> | stat : <label>
+<aggregate> ::= median | mean | min | max
+<direction> ::= lower | higher
+<threshold> ::= <percent>% | abs = <number> | <percent>% , abs = <number>
+<filter>    ::= any text, the rest of the rule text
+```
+
+The fields run in that order. `time` reads the primary column, `real_time` and
+`cpu_time` read one column by name, `p<point>` reads one percentile cell, and
+the three prefixed names read the column or the statistic their label names. A
+label ends at the first unescaped colon, and `\:` , `\@` and `\\` stand inside
+it. The `@` suffix names one aggregate and defaults to `median` for a name the
+report holds as a statistics record; a written suffix on a percentile cell or on
+a statistic is a fault. The direction word is required. A threshold carries a
+percent, an `abs=` number, or the two in that order, the number standing in the
+stored unit of the value. The filter is a regular expression over the full
+instance name, matched the way the batch filter option matches.
+
+`parseCompareRule` is the public call behind that parse, and `compareReports`
+takes the rules with two loaded reports, so a program can drive the comparison
+the options drive.
+
+### The state words
+
+An entry is one benchmark under one rule, and it carries one of seven words.
+
+| Word | The row that prints it |
+| --- | --- |
+| `OK` | the change sits inside the rule's threshold |
+| `REGRESSED` | the change moves against the direction past the threshold |
+| `IMPROVED` | the change moves with the direction past the threshold |
+| `NOISY` | the row cannot carry a verdict |
+| `ADDED` | the name stands in the contender alone |
+| `REMOVED` | the name stands in the baseline alone |
+| `SKIPPED` | the entry holds no readable row |
+
+`lower` means a smaller value is better, so the change a `lower` rule watches is
+the positive one, and a rule with both thresholds written regresses a row only
+when both are exceeded. A `NOISY` row prints `reason=` naming every condition
+that fired: a noise warning the report carries, a coefficient of variation past
+the relative threshold, a sample standard deviation past the absolute threshold,
+or a metric running ratio below one. That row fails the run only under
+`--compare-strict`. `ADDED`, `REMOVED` and `SKIPPED` print `n/a` in their value
+cells and never fail the run.
+
+### The fault lines
+
+A fault answers status 2, prints one line, and prints no table.
+
+```text
+--compare: expected '<baseline>,<contender>', got 'test/data/gate_ok_base.json'
+--compare-rule: the threshold of the rule 'time@median:lower:5' is not readable: '5' is neither a percent, nor the abs= marker, nor the two in that order with one comma between
+error: the two reports carry different schema versions: '1.0' against '1.1'
+error: the rule 'time@median:lower:5%:nothing-matches' selects no benchmark: its filter 'nothing-matches' matches neither report
+error: the rule 'time@median:lower:5%' cannot measure bmGate: the baseline of time is zero
+```
+
+The scan faults name the option and the text it read. A document the reader
+refuses prints the reader's own line naming the file and the reason, and a
+document the file system refuses names the path. A pair that shares no name
+after `--filter` prints one line and answers 0.
+
+### The comparison document
+
+`--json=` writes the comparison as one document while the mode runs, and the
+write happens before anything prints; the same option writes a run's own report
+document when the mode stands off. The root carries `schemaVersion`, `speedgun`,
+`inputs`, `rules`, `entries` and `verdict`, and one entry object stands per row
+with `name`, `rule`, `baseline`, `contender`, `changePercent`, `changeAbsolute`,
+`state` and `reason`. `docs/schema/compare-v1.json` describes the shape. Values
+stand in the stored unit with no printed scaling, and no key names a date, a
+host or a process id.
+
+The pairs under `test/data/` are committed report documents, so the runs quoted
+above read the same values every time, and two runs of one command write the
+same bytes:
+
+```sh
+./build/example/first_benchmark \
+  --compare=test/data/gate_ok_base.json,test/data/gate_ok_contender.json \
+  --json=compare-a.json
+./build/example/first_benchmark \
+  --compare=test/data/gate_ok_base.json,test/data/gate_ok_contender.json \
+  --json=compare-b.json
+cmp compare-a.json compare-b.json
+```
