@@ -2252,10 +2252,16 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // leaf list before it opens its first timed window.
       attemptRecorder.reset();
       plan.reset();
-      if (const auto seated = seatPass(passColumns[pass]); !seated.has_value())
-      {
-        return fail(seated.error());
-      }
+      // FR-004, E-04: the catalog is frozen at open and every provider is
+      // additive, so a leaf list the pre-loop seat compiled compiles again
+      // at every later seat; the invariant below is the fuse for a
+      // counter layer that broke that fact.
+      [[maybe_unused]] const auto seated = seatPass(passColumns[pass]);
+      SG_INVARIANT(
+          seated.has_value(),
+          "the catalog frozen at open and the additive providers keep every "
+          "pass's leaf list compilable after the pre-loop seat compiled it "
+          "(FR-004, E-04)");
     }
     // E-05: one result per pass, each carrying the identity the run
     // established before the split.
