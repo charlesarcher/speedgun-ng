@@ -10,10 +10,10 @@ A run whose metric columns ask the core PMU for more events than one context
 can hold splits the columns into passes by the published programmable-counter
 limit, runs the benchmark once per pass with the iteration count calibration
 settled beforehand, and publishes one result built from all passes. The
-counters library learns the limit from CPUID leaf 0AH and publishes it as a
-fact on each event-source object that answers; every other source publishes
-nothing, and the kernel rotation plus the `ratio=` disclosure stays as the
-disclosed answer there. The split itself lives in the harness: a pure first-fit
+counters library learns the limit from the CPUID leaves its per-vendor rules
+name and publishes it as a fact of each device it enumerates; a device whose
+rule answers nothing publishes nothing, and the kernel rotation plus the
+`ratio=` disclosure stays as the disclosed answer there. The split itself lives in the harness: a pure first-fit
 planner, a pure merge, and a pure spread sit in one new translation unit
 beside `percentiles.cpp`, so the fake provider drives every branch with no
 hardware, no clock and no sleep. The caller chooses the method with
@@ -49,13 +49,14 @@ documentation site + example suite
 window; one-pass timed path byte- and read-count-identical to master; no
 counter read, no clock read in planning, merging or disclosure
 (SC-06, SC-07, SC-09; spec FR-008, FR-036; Principle VII)
-**Startup Time**: one extra CPUID leaf 0AH read at PMU provider construction;
-no per-run cost
+**Startup Time**: seven CPUID reads and one `/proc` read at PMU provider
+construction, each once for the process; no per-run cost
 **Memory-Bound**: n/a; the pass plan holds one index per metric column
 **Scale / Scope**: per run, one metric family's column set: the spec's PC-3
 measured a 64-event oversize set on the development host, so the planner
 tables treat a 64-column set as its large input. corsairone publishes a
-4-counter limit (CPUID leaf 0AH `EAX[15:8]` = 4, measured 2026-10-20;
+4-counter limit on its `cpu` device (CPUID leaf 0AH `EAX[15:8]` = 4, measured
+2026-10-20;
 spec PC-3 records the oversize-group rotation on that host)
 
 ## Constitution Check
@@ -157,7 +158,8 @@ include/speedgun-ng/
                             # E-07 result fields, E-08 MetricValue pass tag
 
 source/counters/
-├── linux_pmu/counter_limits.cpp   # E-02: CPUID 0AH read + pure decode
+├── linux_pmu/counter_limits.cpp   # E-02: CPUID and watchdog reads, the
+│                                  # per-vendor and per-device decode
 ├── linux_pmu/provider.cpp         # publish the fact on PMU objects
 ├── linux_pmu/table_parse.cpp      # unchanged read site; probe reuse
 └── fake_provider.cpp              # publish the scripted limit
@@ -212,10 +214,10 @@ above names its file, as in `research D-10`.
 
 | # | Subject | Decision |
 |---|---------|----------|
-| D-01 | Learning the limit | CPUID leaf 0AH `EAX[15:8]`, version-gated by `EAX[7:0]`, read in the PMU provider; measured on corsairone: `EAX=0x07300404`, four programmable counters |
+| D-01 | Learning the limit | the vendor from the leaf 0 words, the core answer from leaf 0AH for Intel and Zhaoxin and from the extended leaves for AMD, answered per device and adjusted for the watchdog; a hybrid host that answers leaf 0x23 publishes nothing for its core devices; measured on corsairone: `EAX=0x07300404`, four programmable counters |
 | D-02 | Publishing the limit | `ObjectSeed` gains `programmableCounters` (`std::optional<std::size_t>`), `Object::programmableCounters()` reads it |
 | D-03 | Fake parameter | `FakeProvider::setProgrammableCounters(objectPath, limit)`, fluent, unset objects publish nothing |
-| D-04 | Read site and decode | branchless probe, pure `programmableCountersFromCpuid(maxLeaf, eax, ebx)` decision function |
+| D-04 | Read site and decode | branchless probe of every leaf the rules read; pure `vendorOf`, `intelCoreLimit`, `amdCoreLimit`, `fixedCycles`, `isHybrid`, `limitForDevice` and `usableCounters` decision functions |
 | D-05 | Planner location | harness-internal `detail/pass_plan.hpp` + `pass_plan.cpp`; pure first-fit over columns in request order, per-source limits |
 | D-06 | Pass execution | pass loop wraps the measured attempts; per pass the existing `compileCore` sites compile that pass's leaf list; windows close with the pass's plan |
 | D-07 | Merge | metric and counter columns from the measuring pass; time columns, floor, endpoint samples, contexts, percentiles and chunk disclosure from pass 0 |
@@ -290,7 +292,7 @@ grows the pass dimension, and the three new pure functions decide it.
   counters_system.hpp Object::programmableCounters() <--+    v
         ^           (E-02, published at registration)   | counters_provider.hpp
         |                                               | ObjectSeed field
-        |   pmu provider: CPUID 0AH publishes there     |
+        | pmu provider: per-device limits publish there |
         +----------------------- runner.cpp <-----------+
                      (resolve, plan, loop, merge: pass_plan.hpp)
                               |
