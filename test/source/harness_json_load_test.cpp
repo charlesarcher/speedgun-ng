@@ -110,6 +110,39 @@ auto versionRuleGatesTheReader() -> void
       !refused.has_value() && refused.error().find("2.0") != std::string::npos,
       "a later major is refused, naming the version it carries (FR-023)");
 
+  sg::test::writeText("harness_json_load_current.json", withVersion("\"1.1\""));
+  check(sg::loadReport("harness_json_load_current.json").has_value(),
+        "the version this build writes loads (FR-010)");
+
+  // Three texts state no major, each for its own reason: "1" carries no dot,
+  // "1." leaves nothing after the dot it carries, ".1" leaves nothing before
+  // it. The refusal names the text it was given, so the three read as three
+  // checks and not one (specs/026 D-13).
+  struct NoMajorRow
+  {
+    const char* const value;
+    const char* const file;
+    const char* const marker;
+  };
+
+  static constexpr NoMajorRow kNoMajor[] {
+      {"\"1\"", "harness_json_load_bare.json", "carries schema version '1'"},
+      {"\"1.\"",
+       "harness_json_load_dotlast.json",
+       "carries schema version '1.'"},
+      {"\".1\"",
+       "harness_json_load_dotfirst.json",
+       "carries schema version '.1'"},
+  };
+  for (const NoMajorRow& row : kNoMajor) {
+    sg::test::writeText(row.file, withVersion(row.value));
+    const auto missing = sg::loadReport(row.file);
+    check(!missing.has_value()
+              && missing.error().find(row.marker) != std::string::npos,
+          "a version that states no major is refused, naming that version "
+          "(FR-023, specs/026 D-13)");
+  }
+
   sg::test::writeText("harness_json_load_number.json", withVersion("1"));
   check(!sg::loadReport("harness_json_load_number.json").has_value(),
         "a version that is not a string is refused (FR-023)");
