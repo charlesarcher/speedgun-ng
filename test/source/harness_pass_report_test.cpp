@@ -41,8 +41,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <iterator>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -210,10 +210,11 @@ auto captureThrough(const std::string& path, Call&& call) -> void
 
 auto readAll(const std::string& path) -> std::string
 {
-  std::ifstream stream(path);
-  check(static_cast<bool>(stream), "the captured file opens for reading");
-  return std::string((std::istreambuf_iterator<char>(stream)),
-                     std::istreambuf_iterator<char>());
+  std::ifstream file(path);
+  check(static_cast<bool>(file), "the captured file opens for reading");
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
 }
 
 auto splitLines(const std::string& text) -> std::vector<std::string>
