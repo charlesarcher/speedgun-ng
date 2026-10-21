@@ -1286,6 +1286,36 @@ auto noMetricColumn() -> void
   }
 }
 
+// T058c, FR-017, research D-6: the spread guard on a single sample.
+// `passSpread` speaks across the pass times of a collection: one time
+// carries no spread, so the answer for a lone sample is the empty one.
+// The pair answers with a figure, so the guard reads the count.
+auto spreadSingleSample() -> void
+{
+  check(!sg::detail::passSpread({100.0}).has_value(),
+        "one pass time carries no spread to speak across (FR-017, D-6)");
+  check(sg::detail::passSpread({100.0, 110.0}).has_value(),
+        "a pair of pass times answers with a figure (FR-017, D-6)");
+}
+
+// T058c, FR-017's edge, research D-6: the spread guard on a zero median.
+// The median of the ordered pass times scales the spread; when the lower
+// central value stands exactly zero, the answer is the empty one and the
+// report prints `spread=not available` in its place. The widened row keeps
+// its zero and still answers, so the guard reads the median.
+auto spreadZeroMedian() -> void
+{
+  check(!sg::detail::passSpread({0.0, 5.0}).has_value(),
+        "the pair whose lower central value is zero answers no spread "
+        "(FR-017, D-6)");
+  check(!sg::detail::passSpread({0.0, 0.0, 5.0}).has_value(),
+        "the triple whose central value is zero answers no spread "
+        "(FR-017, D-6)");
+  check(sg::detail::passSpread({0.0, 5.0, 6.0}).has_value(),
+        "a widened row keeps its zero and reaches the median that divides "
+        "(FR-017, D-6)");
+}
+
 struct Scenario
 {
   std::string_view name;
@@ -1312,6 +1342,8 @@ struct Scenario
       Scenario {"merge-table", mergeProvenance},
       Scenario {"no-metric-column", noMetricColumn},
       Scenario {"resolution-table", resolutionTable},
+      Scenario {"spread-single-sample", spreadSingleSample},
+      Scenario {"spread-zero-median", spreadZeroMedian},
   };
   return kList;
 }
