@@ -717,6 +717,34 @@ void writeEntry(Builder& builder, const CompareEntry& entry)
   put(builder, object, "reason", entry.reason);
 }
 
+// The rules one comparison applies: the list the caller gave, or the one
+// default rule when it gave none (specs/026 FR-033, FR-034, spec D-5).
+// The default is a text this unit's grammar reads, so the parse of FR-004
+// stays the one source.
+auto appliedRulesOf(const std::vector<CompareRule>& rules)
+    -> std::vector<CompareRule>
+{
+  if (!rules.empty()) {
+    return rules;
+  }
+  const auto fallback = parseCompareRule(detail::kDefaultCompareRule);
+  SG_ASSERT(fallback.has_value(),
+            "the default rule text reads as a rule (specs/026 FR-033)");
+  return {*fallback};
+}
+
+// True when one entry of the list answers one state word (specs/026 E-03).
+// The verdict of FR-044 and FR-045 reads through it in both the engine and
+// the postcondition check of `compareReports`, so one rule states the rule.
+auto hasState(const std::vector<CompareEntry>& entries,
+              const CompareState state) -> bool
+{
+  return std::any_of(entries.begin(),
+                     entries.end(),
+                     [state](const CompareEntry& entry)
+                     { return entry.state == state; });
+}
+
 }  // namespace
 
 auto parseCompareRule(std::string_view text)
@@ -738,7 +766,7 @@ auto parseCompareRule(std::string_view text)
 auto compareReports(const ReportData& baseline,
                     const ReportData& contender,
                     const std::vector<CompareRule>& rules,
-                    const bool strict)
+                    const CompareOptions& options)
     -> std::expected<CompareResult, std::string>
 {
   // E-07: the warning records index the results by position, which is how
@@ -751,17 +779,25 @@ auto compareReports(const ReportData& baseline,
       contender.noiseWarnings.empty()
           || contender.noiseWarnings.size() == contender.results.size(),
       "a report's noise warnings stand beside its results " "(specs/026 E-07)");
-  // FR-033, spec D-5: a caller that names no rule gets the default rule,
-  // and a caller that names rules replaces it (FR-034). The default is a
-  // text this unit's grammar reads, so the parse is the one source.
-  if (rules.empty()) {
-    const auto fallback = parseCompareRule(detail::kDefaultCompareRule);
-    SG_ASSERT(fallback.has_value(),
-              "the default rule text reads as a rule (specs/026 FR-033)");
-    return detail::compareReportValues(
-        baseline, contender, {*fallback}, strict);
-  }
-  return detail::compareReportValues(baseline, contender, rules, strict);
+  const std::vector<CompareRule> applied = appliedRulesOf(rules);
+  const auto answer =
+      detail::compareReportValues(baseline, contender, applied, options.strict);
+  // FR-002, FR-003, FR-044, FR-045: a value answers one entry for every
+  // benchmark under every rule it applied, with the verdict the entries
+  // state, and a fault answers one text naming it.
+  SG_ENSURE(!answer.has_value()
+                ? !answer.error().empty()
+                : answer->entries.size() % applied.size() == 0U
+                      && answer->passed
+                             == (!hasState(answer->entries,
+                                           CompareState::REGRESSED)
+                                 && (!options.strict
+                                     || !hasState(answer->entries,
+                                                  CompareState::NOISY))),
+            "compareReports answers one entry per benchmark per rule with the "
+            "verdict of FR-044 and FR-045, or one text naming the fault "
+            "(specs/026 FR-002, FR-003, FR-044, FR-045)");
+  return answer;
 }
 
 namespace detail
@@ -1409,14 +1445,8 @@ auto compareReportValues(const ReportData& baseline,
   }
   // FR-044, FR-045: a regression fails the verdict, and strict moves it for
   // a NOISY row without changing that row's word.
-  result.passed =
-      std::none_of(result.entries.begin(),
-                   result.entries.end(),
-                   [strict](const CompareEntry& entry)
-                   {
-                     return entry.state == CompareState::REGRESSED
-                         || (strict && entry.state == CompareState::NOISY);
-                   });
+  result.passed = !hasState(result.entries, CompareState::REGRESSED)
+      && (!strict || !hasState(result.entries, CompareState::NOISY));
   return result;
 }
 
@@ -1476,8 +1506,9 @@ auto runCompareMode(const RunOptions& options) -> CompareExit
   }
   // FR-033: an empty rule list is the default rule, which the public call
   // stands in; the mode hands the parsed list through unchanged.
+  const CompareOptions compareOptions {.strict = options.compareStrict};
   const auto comparison = compareReports(
-      *baseline, *contender, options.compareRules, options.compareStrict);
+      *baseline, *contender, options.compareRules, compareOptions);
   if (!comparison.has_value()) {
     // FR-003: a fault answers one line and no table; the text already
     // names the rule, the benchmark and the report, or the two versions

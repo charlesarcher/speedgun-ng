@@ -1962,7 +1962,8 @@ auto libraryCall(const sg::ReportData& baseline,
                  const bool strict)
     -> std::expected<sg::CompareResult, std::string>
 {
-  return sg::compareReports(baseline, contender, rules, strict);
+  return sg::compareReports(
+      baseline, contender, rules, sg::CompareOptions {.strict = strict});
 }
 
 // The entry list as the name and the rule text of every entry, joined in the

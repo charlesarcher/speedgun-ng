@@ -56,8 +56,11 @@ units where one closes the contract.
 ## D-03: The comparison call answers `std::expected<CompareResult, std::string>`
 
 **Decision:** `compareReports(const ReportData& baseline, const
-ReportData& contender, const std::vector<CompareRule>& rules, bool
-strict)` answers `std::expected<CompareResult, std::string>`. It
+ReportData& contender, const std::vector<CompareRule>& rules, const
+CompareOptions& options)` answers `std::expected<CompareResult,
+std::string>`. `CompareOptions` carries `strict`, and the settings stand
+in one struct so a later setting grows the call with the exported
+signature unchanged (Charles, 2026-10-21, the PR #45 review round). It
 validates every rule over its scope before comparing anything, and the
 first fault stops the call with one error text naming the rule, the
 benchmark and the report; no partial entries reach the caller (FR-003).

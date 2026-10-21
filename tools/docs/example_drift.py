@@ -137,7 +137,10 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # option rows add 7, so 32 lines move the cap from 713 to 745, the measured
 # length of the page as the feature lands. The section sits at the
 # per-section budget of FR-024, so no entry joins SECTION_LINE_CAPS.
-PAGE_LINE_CAP = 745
+# The review round of PR #45 adds the `CompareOptions` name row that
+# FR-061 asks for beside the other comparison names, so one line moves
+# the cap from 745 to 746, the measured length with the row in place.
+PAGE_LINE_CAP = 746
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

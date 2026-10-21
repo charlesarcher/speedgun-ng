@@ -159,7 +159,7 @@ sequenceDiagram
     L-->>C: ReportData with header texts and warnings
     C->>L: contender path
     C->>C: batch filter over the loaded values
-    C->>X: compareReports(baseline, contender, rules, strict)
+    C->>X: compareReports(baseline, contender, rules, options)
     X->>X: version pairing, validation pass, first fault stops
     X->>X: value resolution, noise guard, verdicts
     X-->>C: CompareResult or one fault text
@@ -211,10 +211,12 @@ struct NoiseWarning;                      // moved from the detail header
 struct CompareRule;
 struct CompareEntry;
 struct CompareResult;
+struct CompareOptions;
 auto parseCompareRule(std::string_view text)
     -> std::expected<CompareRule, std::string>;
 auto compareReports(const ReportData& baseline, const ReportData& contender,
-                    const std::vector<CompareRule>& rules, bool strict)
+                    const std::vector<CompareRule>& rules,
+                    const CompareOptions& options)
     -> std::expected<CompareResult, std::string>;
 ```
 
