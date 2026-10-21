@@ -1139,8 +1139,10 @@ stored unit of the value. The filter is a regular expression over the full
 instance name, matched the way the batch filter option matches.
 
 `parseCompareRule` is the public call behind that parse, and `compareReports`
-takes the rules with two loaded reports, so a program can drive the comparison
-the options drive.
+takes the rules with two loaded reports and one `CompareOptions` value, so a
+program can drive the comparison the options drive. The settings struct carries
+`strict`, the same setting `--compare-strict` answers, and a later setting
+joins it with the call's signature unchanged.
 
 ### The state words
 

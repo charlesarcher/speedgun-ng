@@ -91,7 +91,7 @@ auto printComparison(const sg::ReportData& baseline,
   constexpr std::array kStateWords {
       "OK", "REGRESSED", "IMPROVED", "NOISY", "ADDED", "REMOVED", "SKIPPED"};
   const auto rule = sg::parseCompareRule("time@median:lower:5%");
-  const auto answer = sg::compareReports(baseline, contender, {*rule}, false);
+  const auto answer = sg::compareReports(baseline, contender, {*rule}, {});
   if (!answer.has_value()) {
     std::printf("compare: %s\n", answer.error().c_str());
     return 2;

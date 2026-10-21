@@ -700,6 +700,20 @@ struct CompareResult
 };
 
 /**
+ * @brief The settings one comparison applies (specs/026 FR-045, FR-064).
+ *
+ * `strict` decides what a `NOISY` row does to the verdict: the row
+ * fails the run while the setting stands and passes while it stays off,
+ * and the row keeps its word either way (FR-044, FR-045). The settings
+ * stand in one struct, so a later setting grows the call with the
+ * exported signature unchanged.
+ */
+struct CompareOptions
+{
+  bool strict = false;
+};
+
+/**
  * @brief The object the harness hands the benchmark function (E-03).
  *
  * The function runs its setup, the timed loop as `for (auto _ : state)`,
@@ -2505,29 +2519,30 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
  *
  * An empty `rules` list applies the default rule
  * `time@median:lower:5%` (specs/026 spec D-5, FR-033), and given rules
- * replace it (FR-034). `strict` moves the verdict only: a NOISY row
- * fails the run when it stands and passes when it does not, and the
- * state word never changes for it (FR-044, FR-045). The call reads no
- * file, runs no benchmark, reads no clock, samples no sensor, repairs no
- * value and prints nothing (FR-006, FR-007).
+ * replace it (FR-034). `options.strict` moves the verdict only: a NOISY
+ * row fails the run when it stands and passes when it does not, and the
+ * state word never changes for it (FR-044, FR-045). The entries follow
+ * the run order of the baseline, then the names the contender adds in
+ * the order of the contender (FR-002). The call reads no file, runs no
+ * benchmark, reads no clock, samples no sensor, repairs no value and
+ * prints nothing (FR-006, FR-007), and it throws nothing to the caller
+ * and aborts nothing.
  *
  * \pre `baseline` and `contender` are values `loadReport` answered, or
  *      values built to the same shape: `noiseWarnings`, when non-empty,
  *      holds one entry per entry of `results`
  * \post When the call answers a value, its `entries` hold one entry per
- *       benchmark per rule, baseline order first and contender
- *       additions after (FR-002), and `passed` states the verdict
- *       (FR-044, FR-045)
- * \post When the call answers an error, the string names the rule, the
- *       benchmark and the report of the first fault, and no partial
- *       entries reach the caller (FR-003)
- * \post The call throws nothing to the caller and aborts nothing.
+ *       benchmark per rule and `passed` states the verdict of FR-044
+ *       and FR-045
+ * \post When the call answers an error, the text names the fault and
+ *       stands non-empty, and no partial entries reach the caller
+ *       (FR-003)
  */
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto compareReports(
     const ReportData& baseline,
     const ReportData& contender,
     const std::vector<CompareRule>& rules,
-    bool strict) -> std::expected<CompareResult, std::string>;
+    const CompareOptions& options) -> std::expected<CompareResult, std::string>;
 
 /**
  * @brief Register `fn` at namespace scope before `main` begins, under

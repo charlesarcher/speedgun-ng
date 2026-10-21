@@ -604,7 +604,7 @@ auto printComparison(const sg::ReportData& baseline,
   constexpr std::array kStateWords {
       "OK", "REGRESSED", "IMPROVED", "NOISY", "ADDED", "REMOVED", "SKIPPED"};
   const auto rule = sg::parseCompareRule("time@median:lower:5%");
-  const auto answer = sg::compareReports(baseline, contender, {*rule}, false);
+  const auto answer = sg::compareReports(baseline, contender, {*rule}, {});
   if (!answer.has_value()) {
     std::printf("compare: %s\n", answer.error().c_str());
     return 2;
@@ -634,6 +634,7 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `Fixture` | type | Builds state before the loop and releases it after | [fixtures](#fixtures) |
 | `ScopedPauseTiming` | type | Takes a scope out of the timed window | [pause-and-resume](#pause-and-resume) |
 | `TimeUnit` | type | The four scales a time column prints in | [the-time-unit](#the-time-unit) |
+| `CompareOptions` | type | The settings a comparison applies, the strict verdict among them | [regression gate](#regression-gate) |
 | `CompareRule` | type | One parsed comparison rule: value, threshold and filter | [regression gate](#regression-gate) |
 | `CompareState` | type | The seven words one benchmark answers under a rule | [regression gate](#regression-gate) |
 | `registerBenchmark` | free function | Registers a family under a name you give | [registration](#registration) |
