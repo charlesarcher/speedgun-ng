@@ -23,11 +23,12 @@ PREMARK = re.compile(r"^\s*<!--\s*(sg-example|sg-sample-output):\s*(\S+)\s*-->\s
 REQUIRES = re.compile(r"^\s*<!--\s*sg-requires:\s*(\S+)\s*-->\s*$")
 INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 
-# The twenty-four capabilities of the main page as the H3 titles of "How you
+# The twenty-five capabilities of the main page as the H3 titles of "How you
 # do it": the twelve of spec FR-009 at the H3 audit point, the six specs/018
 # adds (FR-028, FR-044, research D-13), the two specs/020 adds (FR-029), the
 # one specs/021 add (FR-027), the one specs/023 add (FR-037), the one
-# specs/025 add (FR-016), and the one specs/026 add (FR-063).
+# specs/025 add (FR-016), the one specs/026 add (FR-063), and the one
+# specs/024 add (FR-027).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -38,6 +39,7 @@ SECTIONS = (
     "Pause and resume",
     "The time unit",
     "Hardware counter metrics",
+    "Multi-pass collection",
     "Skips",
     "The command line",
     "Reading the report",
@@ -68,6 +70,7 @@ SECTION_OWNERS = {
     "Pause and resume": ("pause_and_resume.cpp",),
     "The time unit": ("time_unit.cpp",),
     "Hardware counter metrics": ("counter_metrics.cpp",),
+    "Multi-pass collection": ("metric_passes.cpp",),
     "Skips": ("skips.cpp",),
     "The command line": ("command_line.cpp",),
     "Reading the report": ("reading_the_report.cpp",),
@@ -140,7 +143,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # The review round of PR #45 adds the `CompareOptions` name row that
 # FR-061 asks for beside the other comparison names, so one line moves
 # the cap from 745 to 746, the measured length with the row in place.
-PAGE_LINE_CAP = 746
+# specs/024 FR-027 and FR-030 measure their own move as the section lands: the
+# "Multi-pass collection" section runs 24 lines, its two quick-reference rows
+# add 2, and the metric-method option row adds 1, so 24 + 2 + 1 = 27 lines move
+# the cap from 746 to 773, the measured length of the page as the feature
+# lands.
+PAGE_LINE_CAP = 773
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
@@ -435,6 +443,7 @@ def header_names(root: Path) -> set[str]:
         "barrier.hpp",
         "execution_context.hpp",
         "counters_metrics.hpp",
+        "counters_system.hpp",
     ):
         path = root / "include" / "speedgun-ng" / header
         if path.is_file():

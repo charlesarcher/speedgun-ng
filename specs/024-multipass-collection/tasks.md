@@ -448,39 +448,39 @@ it, read the printed row; `example_drift` and `example_run` do the same in CI.
 
 ### Tests for User Story 4 (write first, observe failure)
 
-- [ ] T051 [P] [US4] Add `example/docs/metric_passes.cpp` with the marked region
+- [X] T051 [P] [US4] Add `example/docs/metric_passes.cpp` with the marked region
   that reads the host's published limit through `Object::programmableCounters`,
   asks for metric columns past it and prints the `passes` disclosure, and add
   `example/docs/metric_passes.expected` recording the run on corsairone with the
   no-PMU shape beside the PMU shape, on the pattern of
   `example/docs/percentiles.expected` (FR-027, research D-13)
-- [ ] T052 [P] [US4] Add the `Multi-pass collection` section to `README.md`
+- [X] T052 [P] [US4] Add the `Multi-pass collection` section to `README.md`
   between `Hardware counter metrics` and `Skips`, within the 25 lines of
   `SECTION_LINE_CAP`, with one purpose sentence, the copied region and one result
   sentence (FR-027, spec Budget note, research D-13)
-- [ ] T053 [US4] Add the three rows FR-028 names to `README.md`: the
+- [X] T053 [US4] Add the three rows FR-028 names to `README.md`: the
   quick-reference rows for `metricMethod` and
   `Object::programmableCounters` and the `--metric-method` option row, beside
   the `metricByName` row at line 596 and the `--percentiles`
   row at line 654 (FR-028)
-- [ ] T054 [P] [US4] Add the reader detail to `docs/pages/harness.md`: the
+- [X] T054 [P] [US4] Add the reader detail to `docs/pages/harness.md`: the
   first-fit split rule, the merge rule, the spread formula with its warning
   threshold, and the fallback of spec D-11 on a host that
   publishes no limit (FR-029)
 
 ### Implementation for User Story 4
 
-- [ ] T055 [US4] Register the example with `add_docs_example(metric_passes)` in
+- [X] T055 [US4] Register the example with `add_docs_example(metric_passes)` in
   `example/CMakeLists.txt` beside `add_docs_example(counter_metrics)`, which gives
   the `docs_` target, the `run_docs_` runner and the `run-examples` dependency the
   run gate walks (`example/CMakeLists.txt:40-48`, FR-027)
-- [ ] T056 [US4] Add `Multi-pass collection` to `SECTIONS` at
+- [X] T056 [US4] Add `Multi-pass collection` to `SECTIONS` at
   `tools/docs/example_drift.py:30` and its owner file to `SECTION_OWNERS` at line
   57, then raise `PAGE_LINE_CAP` at line 124 to the measured post-change line count
   of `README.md` with the comment naming this feature and the measured figure, in
   the voice of the raise recorded at lines 115-123 (FR-030, SC-08, spec Budget
   note)
-- [ ] T057 [US4] Run `python3 tools/docs/example_drift.py` and
+- [X] T057 [US4] Run `python3 tools/docs/example_drift.py` and
   `sh test/example_run.sh build` and clear every difference between the page block
   and the region it copies, in the same commit as T052 and T056 (FR-028, FR-030,
   SC-08)
