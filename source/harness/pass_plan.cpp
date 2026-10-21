@@ -332,11 +332,11 @@ auto mergePasses(const PassPlan& plan,
     // FR-015, E-05: the two time slots answer the reference pass and ride the
     // copy; every slot past them answers the pass that measured the column the
     // slot prints, because chunk values of another pass would state a
-    // distribution the printed column never saw. A grid stands one slot per
-    // printed column in print order - the primary time, the time column the
-    // primary is not, then one slot per metric label and one per user counter -
-    // so slot `slot` prints column `slot - 2`, the index `plan.measuringPass`
-    // is kept in (SC-001).
+    // distribution the printed column never saw. A grid holds one slot per
+    // printed column in the order the row prints them: the primary time, the
+    // time column the primary is not, then each metric column. Slot `slot`
+    // therefore prints column `slot - 2`, the index `plan.measuringPass` is
+    // kept in (SC-001).
     for (std::size_t slot = 2; slot < mergedRow.percentiles.size(); ++slot) {
       mergedRow.percentiles[slot] =
           passResults[plan.measuringPass[slot - 2]].rows[row].percentiles[slot];
