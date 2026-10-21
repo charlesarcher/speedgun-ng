@@ -2418,18 +2418,17 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // reads no counter and publishes no value a pass did not measure. The
     // merge indexes the plan by the column of a row, and a row can stand
     // wider than the columns the planner costed: a body that stores counters
-    // adds one column each, and a run that reports percentiles stands one
-    // column beside every column of the row. Those columns ride every pass
-    // unmeasured by the planner, so the reference pass answers them, and the
-    // padding keeps the merge's index inside the plan it reads.
+    // adds one column each. Those columns ride every pass unmeasured by the
+    // planner, so the reference pass answers them, and the padding keeps the
+    // merge's index inside the plan it reads. The percentile grid asks for no
+    // term of its own: it stands one slot per printed column, the two time
+    // columns beside one slot per metric and one per user counter, so every
+    // slot past the second prints a column the counter term already covers.
     std::size_t widestRow = 0;
     for (const BenchmarkResult& passResult : passResults) {
       for (const ResultRow& row : passResult.rows) {
         widestRow = std::max(
             widestRow, passIdentity.metricLabels.size() + row.counters.size());
-        if (row.percentiles.size() > 1) {
-          widestRow = std::max(widestRow, row.percentiles.size() - 1);
-        }
       }
     }
     if (planning.measuringPass.size() < widestRow) {
