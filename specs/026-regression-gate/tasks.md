@@ -123,7 +123,7 @@ column and three attached statistics, plus the rule rows of the
 quickstart's command table.
 
 - [X] T026 [P] [US2] Add the value-kind matrix tests to `test/source/harness_compare_test.cpp` over `ReportData` values built in code: each name of E-08 (`time`, `real_time`, `cpu_time`, `p<point>`, `counter:<label>`, `metric:<label>`, `stat:<name>`) under each aggregate it accepts, in both directions, with each threshold form, each double read through `sameValue` (`test/source/detail/json_fixture.hpp:48`); the run fails red before T030 and T031 land (SC-003, FR-013, FR-014, FR-015, FR-016, FR-017, FR-019, FR-025, FR-026, FR-027, FR-028)
-- [X] T027 [US2] Apply the rule filter inside the validation walk and the comparison of `source/harness/compare.cpp`: "each rule's `filter`, a `std::regex` over the full instance name, the same matching as the batch filter (`source/harness/cli.cpp:453`)", the batch filter applying first and an invalid pattern standing as a rule fault (FR-024, FR-035, FR-039, FR-050, E-12, D-12)
+- [X] T027 [US2] Apply the rule filter inside the validation walk and the comparison of `source/harness/compare.cpp`: "each rule's `filter`, a `std::regex` over the full instance name, the same matching as the batch filter (`source/harness/cli.cpp:461`)", the batch filter applying first and an invalid pattern standing as a rule fault (FR-024, FR-035, FR-039, FR-050, E-12, D-12)
 - [X] T028 [P] [US2] Add the rule-option tests to `test/source/harness_compare_cli_test.cpp`: `metric:ipc:higher:3%:bmHash.*` scoping to the matching names, `counter:bytes@mean:higher:abs=1e6` failing only past one million, the fit pair printing `SKIPPED` beside the readable benchmark at status 0, and two written rules applying exactly those two with the default rule absent; the run fails red before T029 lands (SC-002, SC-003, FR-011, FR-034, FR-040, FR-049)
 - [X] T029 [US2] Answer the fit entry in `source/harness/compare.cpp`: "a matched benchmark whose rows hold no row a rule can read ... answers a `SKIPPED` entry with no values and does not fail while strict mode stands off; a rule whose whole filtered scope holds only such results is the fault FR-040 states"; turn T028 green (FR-011, FR-040, spec D-20)
 - [X] T030 [US2] Carry the stored unit through the absolute test and the printed columns of `source/harness/compare.cpp`: "nanoseconds per iteration for a time column, a percentile cell or a `TIME` statistic, percentage points for a `PERCENTAGE` statistic, and the counter's own unit for a counter or metric column", the table printing "both value columns and the absolute change in the unit the baseline report declares" (FR-027, FR-055, spec D-22)
@@ -474,7 +474,7 @@ on every commit of this branch, the agent that made the calls here.
   host size, or skips. Fixture documents reach a test through the path
   argument T007 passes (FR-071).
 - The spec's Citations table named the option table as
-  `source/harness/cli.cpp:293` to `:311`; the table ends at `:310` with
+  `source/harness/cli.cpp:301` to `:319`; the table ends at `:318` with
   the terminator there, and T020 uses `:310`. The analyze pass
   corrected the spec to `:310`.
 - `contracts/compare-call.md`, `contracts/compare-document.md`,
@@ -504,7 +504,7 @@ coverage gate reads one count-zero line record the local gcov does
 not emit. One requirement carries a CLI-surface test gap.
 
 - [X] T059 Pair the contract of `compareReports` with its enforcement: an `SG_ENSURE` postcondition in the body of the call in `source/harness/compare.cpp` and the default-rule `SG_ASSERT` moved out of that documented body, then `cmake --build build -t dbc-gate` reports zero drifted interfaces per Principle II, Principle VI, SC-012 (contradicts)
-- [ ] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:462` to `:467` so the CI gcov answers no count-zero record at the declaration line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
+- [ ] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:470` to `:475` so the CI gcov answers no count-zero record at the declaration line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
 - [X] T061 Add one `harness_compare_cli_test` case that passes two `--compare-rule=` flags in one run and answers two rule-major rows in flag order per FR-049 (partial)
 
 ## Phase 11: Audit round 1
@@ -579,3 +579,53 @@ with a stack-protector trap before its gate ran; the same job answered
 100.0% lines and 100.0% branches at `001accc` on the same workflow, the
 test passes in a local `ci-coverage` build, and the job stands re-run for
 the record.
+## Phase 13: Convergence round 3
+
+This pass found no non-trivial work to append. The grammar group FR-001 to
+FR-024 reads complete: `scanName` at `source/harness/compare.cpp:162` carries
+the escape set, `readThreshold` at `:186` carries the three threshold forms,
+and `parseCompareRule` at `:772` reads the fields in the order the contract
+sets, with the fault rows in `test/source/harness_compare_test.cpp:182` to
+`:347` and the extra corners at `:2380` and `:2443`. The comparison group
+FR-002, FR-008 to FR-011 and FR-025 to FR-040 reads complete: `valueSiteOf` at
+`:381` and `resolveCompareValue` at `:873` answer the value space of E-08,
+`selectCompareRow` at `:840` answers the row of FR-032, `compareValues` at
+`:922` answers the arithmetic and the words of E-09, `matchPair` at `:1207`
+pairs by the full instance name in baseline order, `scopedValuesOf` at `:1287`
+walks every rule over its whole scope before anything compares, and
+`compareReportValues` at `:1438` pairs the schema versions first and answers
+the empty pair of D-19 with no entry. The noise group FR-041 to FR-046 reads
+complete in `noiseGuard` at `:1067`, and the verdict of FR-044 and FR-045
+stands at the close of `compareReportValues`. The command-line group FR-047 to
+FR-052 reads complete in the option table of `source/harness/cli.cpp:341` to
+`:343`, the filter precompile at `:470` and the compare branch at `:480`, which
+stands ahead of the registry expansion, and the status table of
+`specs/015-benchmark-harness-core/contracts/cli.md:95` to `:101` carries the
+seven compare rows. The printing and document group FR-053 to FR-058 and FR-074
+reads complete in `printCompareTable` at `:1596` and `writeCompareReport` at
+`:1678` against `docs/schema/compare-v1.json`, and the reader group FR-067,
+FR-070 and FR-073 reads complete in `source/harness/json_load.cpp:1156` to
+`:1199` with the unknown-key case at `test/source/harness_json_load_test.cpp:934`
+and the two header faults at `:861`. The page and version group FR-059 to FR-066
+reads complete in `README.md:597`, `docs/pages/harness.md:1095`,
+`example/docs/regression_gate.cpp` with its recorded block, and
+`CMakeLists.txt:7`, `:47` and `:251`. Gates run in this pass, each read by the
+count it prints: the prose gate over the tree reports 526 sources, 82,862 units
+examined, 0 findings and 0 skipped; `python3 tools/docs/example_drift.py .`
+reports no finding over the page, the example, the quick-reference rows and the
+option rows; `bash test/cli_shape.sh` reports the flag read once per pass; and
+`bash test/time_source_gate.sh` reports clean with its planted probes reported.
+The thirteen Success Criteria read satisfied except SC-007 and SC-012, whose
+last word belongs to the CI coverage job: run 39638417175 over head `029d216`
+reports `dbc-gate`, `lint` and `prose-lint` passed while `coverage`, `sanitize`,
+`tsan`, `test`, `test-rocky`, `consumer-release` and `downstream-consumer` stand
+in flight, so T058 and T060 stay open on that reading alone, and the coverage
+job of the previous run aborted in `counters_linux_pmu_seam_test`, a test
+outside every file this feature touches. T069 stands enforced in the internal
+calls where a check exists at the call, and its remaining scope is the doc text
+of the value-name forms. T070's deferral stands: the two writer classes at
+`:605` and `:634` and the unit table at `:518` duplicate `JsonObjectWriter` and
+`JsonArrayWriter` of `source/harness/json_report.cpp:34` and `:63` inside one
+translation unit, and the hoist would edit the writer units two other features
+change at the same time, the drive-by refactor Principle X.3 keeps off a feature
+branch.
