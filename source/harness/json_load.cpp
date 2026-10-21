@@ -386,6 +386,10 @@ auto readMetricValue(Element value, const std::string& where)
       .runningRatio = *running,
       .scaled = *flag,
       .availability = *state,
+      // specs/024 E-08: the document names no pass, so the value the
+      // document answers keeps the field empty, the reading a one-pass
+      // run gives.
+      .pass = std::nullopt,
   };
 }
 

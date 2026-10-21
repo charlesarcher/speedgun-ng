@@ -143,14 +143,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # The review round of PR #45 adds the `CompareOptions` name row that
 # FR-061 asks for beside the other comparison names, so one line moves
 # the cap from 745 to 746, the measured length with the row in place.
-# specs/024 FR-027 and FR-030 measure their own move as the section lands: the
-# "Multi-pass collection" section runs 24 lines, its two quick-reference rows
-# add 2, and the metric-method option row adds 1, so 24 + 2 + 1 = 27 lines move
-# the cap from 746 to 773, the measured length of the page as the feature
-# lands. The snippet gate then asked for its own price: a fenced region must
-# compile with nothing but the quick-start prelude, so the region carries seven
-# include lines inline, the same shape the metric-lookup region carries. The
-# page measures 780 as that lands, and the cap sits there.
+# specs/024 FR-027 and FR-030 stack theirs over both: the "Multi-pass
+# collection" section runs 24 lines, its two quick-reference rows add 2, the
+# metric-method option row adds 1, and the snippet gate's standalone-compile
+# price adds seven include lines inline, the same shape the metric-lookup
+# region carries, so 34 lines move the cap from 746 to 780, the measured length
+# of the page with both features landed.
 PAGE_LINE_CAP = 780
 SECTION_LINE_CAP = 25
 

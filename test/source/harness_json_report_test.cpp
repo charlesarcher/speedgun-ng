@@ -221,8 +221,9 @@ auto everyFieldOfTheFormatRoundTrips() -> void
   fitted.endpointSamples = 4;
   fitted.pauseSamplesFolded = true;
   fitted.timeAvailability = sg::counters::Availability::GAP;
-  fitted.metrics = {{1.0, 2.0, true, sg::counters::Availability::COUNTABLE},
-                    {0.0, 0.0, false, sg::counters::Availability::ABSENT}};
+  fitted.metrics = {
+      {1.0, 2.0, true, sg::counters::Availability::COUNTABLE, std::nullopt},
+      {0.0, 0.0, false, sg::counters::Availability::ABSENT, std::nullopt}};
   fitted.counters = {4.0};
   fitted.counterDisclosure = "zero-divisor";
   fitted.label = "labeled";
