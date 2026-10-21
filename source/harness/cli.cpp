@@ -843,6 +843,74 @@ auto speedgunMain(int argc, char** argv) -> int
     detail::printJitterReport(!jitterUnavailable, jitterProbe->states());
   }
 
+  // E-07: the record the document carries, filled from the joined
+  // states the fold reads (R-04). The idle preset runs no probe this
+  // wave, so its run writes no key, like a probe-free run (FR-013).
+  std::optional<detail::JitterReportRecord> jitterRecord;
+  if (options.jitterProbe.has_value() && !jitterIdle) {
+    detail::JitterReportRecord record;
+    record.mode = options.jitterProbe->mode;
+    if (jitterUnavailable) {
+      // E-07: the unavailable answer carries the requested mode, the
+      // configured threshold, no measured period, and the disclosure;
+      // the run continues with status 0 (FR-037, D-10).
+      record.thresholdNs = options.jitterProbe->thresholdNs;
+      record.disclosure = "not available";
+    } else {
+      // E-07, E-09: the document sorts the cpus ascending, the one
+      // order the disclosure text carries.
+      std::vector<const detail::ProbeCpuState*> ordered;
+      ordered.reserve(jitterProbe->states().size());
+      for (const auto& state : jitterProbe->states()) {
+        ordered.push_back(&state);
+      }
+      std::ranges::sort(ordered, [](const detail::ProbeCpuState* left,
+                                    const detail::ProbeCpuState* right) {
+        return left->cpu < right->cpu;
+      });
+      std::string cpuList;
+      for (const auto* state : ordered) {
+        if (!cpuList.empty()) {
+          cpuList.push_back(',');
+        }
+        cpuList += std::to_string(state->cpu);
+      }
+      record.disclosure = "probe on cpus " + cpuList + "; loop period "
+          + std::to_string(ordered.front()->loopPeriodNs) + " ns, threshold "
+          + std::to_string(ordered.front()->thresholdNs) + " ns";
+      // E-07: the record carries the measured points the disclosure
+      // names; every probe cpu's fold carries the same pair (FR-007).
+      record.thresholdNs = ordered.front()->thresholdNs;
+      record.loopPeriodNs = ordered.front()->loopPeriodNs;
+      for (const auto* state : ordered) {
+        record.disclosure += "; cpu " + std::to_string(state->cpu)
+            + " kept " + std::to_string(state->kept) + " dropped "
+            + std::to_string(state->droppedGaps);
+      }
+      record.disclosure += "; split and percentiles use the kept gaps only";
+      // FR-028: the gap list rides the `--json-raw=gaps` value alone;
+      // the list holds the kept records only (D-6).
+      record.rawGaps = options.rawContent == RawContent::GAPS;
+      for (const auto* state : ordered) {
+        record.cpus.push_back(state->cpu);
+        detail::JitterReportCpu entry;
+        entry.cpu = state->cpu;
+        entry.stats = detail::gapStatsOf(*state);
+        if (record.rawGaps) {
+          entry.gaps.assign(
+              state->buffer.begin(),
+              state->buffer.begin()
+                  + static_cast<std::ptrdiff_t>(state->kept));
+        }
+        record.stats.push_back(std::move(entry));
+      }
+      for (const auto& state : jitterProbe->states()) {
+        record.droppedGaps += state.droppedGaps;
+      }
+    }
+    jitterRecord = std::move(record);
+  }
+
   // FR-030: a document the file system refused reports on stderr and
   // leaves the exit status at the usage error the table names, which
   // outranks the 1 a failed benchmark leaves.
@@ -856,7 +924,7 @@ auto speedgunMain(int argc, char** argv) -> int
       seed = resolved->interleave.seed;
     }
     const detail::RunDisclosure disclosure {resolved->uses, seed};
-    if (!detail::writeReport(options.jsonPath, report, disclosure)) {
+    if (!detail::writeReport(options.jsonPath, report, disclosure, jitterRecord)) {
       reportFailed = true;
       status = 2;
     }

@@ -247,6 +247,43 @@ void writeMetricValue(Builder& builder,
   putOrNull(builder, object, "pass", metric.pass);
 }
 
+// One per-cpu object of the run-level `stats` array: the cpu index and
+// the sixteen fields in the E-03 order, and under the `--json-raw=gaps`
+// condition alone the kept gap records, each one object of the two
+// fields E-04 carries (E-03, E-10, FR-028).
+void writeJitterCpu(Builder& builder, const JitterReportCpu& entry,
+                    bool rawGaps)
+{
+  JsonObjectWriter object(builder);
+  put(builder, object, "cpu", std::uint64_t {entry.cpu});
+  put(builder, object, "gapCount", entry.stats.gapCount);
+  put(builder, object, "gapsPerSecond", entry.stats.gapsPerSecond);
+  put(builder, object, "minNs", entry.stats.minNs);
+  put(builder, object, "medianNs", entry.stats.medianNs);
+  put(builder, object, "meanNs", entry.stats.meanNs);
+  put(builder, object, "p90Ns", entry.stats.p90Ns);
+  put(builder, object, "p99Ns", entry.stats.p99Ns);
+  put(builder, object, "p999Ns", entry.stats.p999Ns);
+  put(builder, object, "p9999Ns", entry.stats.p9999Ns);
+  put(builder, object, "maxNs", entry.stats.maxNs);
+  put(builder, object, "totalNs", entry.stats.totalNs);
+  put(builder, object, "totalPercent", entry.stats.totalPercent);
+  put(builder, object, "runtimeNs", entry.stats.runtimeNs);
+  put(builder, object, "thresholdNs", entry.stats.thresholdNs);
+  put(builder, object, "loopPeriodNs", entry.stats.loopPeriodNs);
+  put(builder, object, "droppedGaps", entry.stats.droppedGaps);
+  if (rawGaps) {
+    object.key("gaps");
+    JsonArrayWriter gaps(builder);
+    for (const auto& gap : entry.gaps) {
+      gaps.item();
+      JsonObjectWriter record(builder);
+      put(builder, record, "stamp", gap.stamp);
+      put(builder, record, "gapNs", gap.gapNs);
+    }
+  }
+}
+
 // One rank of one column: the availability stands beside the value in
 // every case, and a rank the run could not answer carries `null` beside
 // a false flag, which is the pair the reader answers back the same way
@@ -403,7 +440,10 @@ void writeRow(Builder& builder,
   }
 }
 
-void writeEntry(Builder& builder, const ReportData& data, std::size_t index)
+void writeEntry(Builder& builder,
+                const ReportData& data,
+                std::size_t index,
+                const std::optional<JitterReportRecord>& jitter)
 {
   const BenchmarkResult& result = data.results[index];
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
@@ -455,6 +495,13 @@ void writeEntry(Builder& builder, const ReportData& data, std::size_t index)
     put(builder, noise, "runnableCpus", warning->runnableCpus);
     put(builder, noise, "sharesOneCpu", warning->sharesOneCpu);
   } else {
+    builder.append_null();
+  }
+  if (jitter.has_value()) {
+    // E-08: the per-entry object stands null before the split of the
+    // attribution story fills it with the per-benchmark stats (FR-027,
+    // User Story 3).
+    object.key("jitter");
     builder.append_null();
   }
   object.key("rows");
@@ -613,7 +660,8 @@ auto writeRunObject(Builder& builder, const RunDisclosure& disclosure) -> void
 
 auto writeReport(const std::string& path,
                  const ReportData& data,
-                 const RunDisclosure& disclosure) -> bool
+                 const RunDisclosure& disclosure,
+                 const std::optional<JitterReportRecord>& jitter) -> bool
 {
   SG_REQUIRE(!path.empty(),
              "writeReport takes the path the option scanner settled "
@@ -622,6 +670,10 @@ auto writeReport(const std::string& path,
                  && data.contextRaw.size() == data.results.size(),
              "the raw columns of a report stand beside every result of it "
              "(specs/023 E-01)");
+  SG_REQUIRE(
+      !jitter.has_value()
+          || jitter->cpus.size() == jitter->stats.size(),
+      "the jitter record carries one stats object per probe cpu (E-07)");
   Builder builder;
   {
     JsonObjectWriter root(builder);
@@ -639,12 +691,44 @@ auto writeReport(const std::string& path,
       root.key("run");
       writeRunObject(builder, disclosure);
     }
+    if (jitter.has_value()) {
+      // E-07: the run-level object stands after `speedgun` and before
+      // `benchmarks`, in the key order the schema row states (FR-026,
+      // R-09). The unavailable answer still appears, with the mode the
+      // run requested and the disclosure text (FR-037, D-10).
+      root.key("jitter");
+      JsonObjectWriter probe(builder);
+      put(builder,
+          probe,
+          "mode",
+          enumWord(kJitterModeWords, std::to_underlying(jitter->mode)));
+      put(builder, probe, "thresholdNs", jitter->thresholdNs);
+      put(builder, probe, "loopPeriodNs", jitter->loopPeriodNs);
+      probe.key("cpus");
+      {
+        JsonArrayWriter cpus(builder);
+        for (const auto cpu : jitter->cpus) {
+          cpus.item();
+          builder.append(std::uint64_t {cpu});
+        }
+      }
+      probe.key("stats");
+      {
+        JsonArrayWriter stats(builder);
+        for (const auto& entry : jitter->stats) {
+          stats.item();
+          writeJitterCpu(builder, entry, jitter->rawGaps);
+        }
+      }
+      put(builder, probe, "droppedGaps", jitter->droppedGaps);
+      put(builder, probe, "disclosure", jitter->disclosure);
+    }
     root.key("benchmarks");
     {
       JsonArrayWriter entries(builder);
       for (std::size_t index = 0; index < data.results.size(); ++index) {
         entries.item();
-        writeEntry(builder, data, index);
+        writeEntry(builder, data, index, jitter);
       }
     }
   }

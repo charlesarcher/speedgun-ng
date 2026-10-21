@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "options.hpp"
+#include "jitter_probe.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/execution_context.hpp"
@@ -72,6 +73,14 @@ inline constexpr std::array<std::string_view, 4> kTimeUnitWords {
 };
 static_assert(kTimeUnitWords.size()
               == std::to_underlying(sg::TimeUnit::SECONDS) + 1);
+
+inline constexpr std::array<std::string_view, 3> kJitterModeWords {
+    "ALONGSIDE",
+    "PRECHECK",
+    "BOTH",
+};
+static_assert(kJitterModeWords.size()
+              == std::to_underlying(sg::JitterProbeMode::BOTH) + 1);
 
 inline constexpr std::array<std::string_view, 2> kStatUnitWords {
     "TIME",
@@ -202,6 +211,40 @@ struct RunDisclosure
 };
 
 /**
+ * @brief The per-cpu line of the run-level jitter record (E-07): the
+ * cpu index, the fold over that cpu's covered windows, and the kept
+ * gap records the `--json-raw=gaps` condition asks for (E-10, FR-028).
+ */
+struct JitterReportCpu
+{
+  std::uint32_t cpu = 0;
+  sg::JitterStats stats {};
+  std::vector<GapRecord> gaps;
+};
+
+/**
+ * @brief The run-level jitter record the document carries (E-07),
+ * filled from the probe states after the holder is joined (R-04).
+ *
+ * `disclosure` carries the record data-model.md E-09 canonically lists
+ * as one text, the content the console disclosure lines print (FR-025,
+ * D-8). `rawGaps` stands when `--json-raw=gaps` named the run, and it
+ * is the one condition under which a stats object carries `gaps`
+ * (FR-028); an empty list then stands for a cpu that kept no gap.
+ */
+struct JitterReportRecord
+{
+  sg::JitterProbeMode mode = sg::JitterProbeMode::ALONGSIDE;
+  std::uint64_t thresholdNs = 0;
+  std::uint64_t loopPeriodNs = 0;
+  std::vector<std::uint32_t> cpus;
+  std::vector<JitterReportCpu> stats;
+  std::uint64_t droppedGaps = 0;
+  bool rawGaps = false;
+  std::string disclosure;
+};
+
+/**
  * @brief Write the report document of a finished batch to `path`
  * (specs/023 FR-001, D-02).
  *
@@ -220,13 +263,23 @@ struct RunDisclosure
  * @pre every `disclosure.uses` entry points at a row of
  *      `detail::optionRows()` and names a source other than the command
  *      line (specs/028 E-05)
+ * @pre `jitter`, when filled, carries one stats object per probe cpu,
+ *      the cpus ascending (E-07)
  * @post true when the file holds the whole document, false when the file
  *       system refused it; the call reports the refusal on stderr and
  *       throws nothing (FR-030)
+ * @post a filled `jitter` writes the root `jitter` object in the E-07
+ *       key order after `speedgun` and before `benchmarks`, and the
+ *       nullable per-entry key after `noiseWarning` of every entry
+ *       (FR-026, FR-027, E-08); an empty one writes neither, so a
+ *       probe-free run keeps the fields and the shape master's document
+ *       carries (FR-013, D-1)
  */
-[[nodiscard]] auto writeReport(const std::string& path,
-                               const ReportData& data,
-                               const RunDisclosure& disclosure = {}) -> bool;
+[[nodiscard]] auto writeReport(
+    const std::string& path,
+    const ReportData& data,
+    const RunDisclosure& disclosure = {},
+    const std::optional<JitterReportRecord>& jitter = std::nullopt) -> bool;
 
 /**
  * @brief Check one written document against the schema file at

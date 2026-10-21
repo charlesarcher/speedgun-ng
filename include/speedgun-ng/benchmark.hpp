@@ -565,12 +565,15 @@ struct BenchmarkResult
  * `NONE` writes the ranks the run computed and no chunk value; `CHUNKS`
  * writes the chunk values themselves beside them. `CHUNKS` also turns
  * the chunk capture on for a run whose percentile output stands off, so
- * the file can hold values the console never ranked (FR-020).
+ * the file can hold values the console never ranked (FR-020). `GAPS`
+ * writes the kept gap records of the jitter probe beside the stats, and
+ * no chunk value (specs/027 FR-028).
  */
 enum class RawContent : std::uint8_t
 {
   NONE,
-  CHUNKS
+  CHUNKS,
+  GAPS
 };
 
 /**

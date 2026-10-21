@@ -178,6 +178,39 @@ auto splitLines(const std::string& text) -> std::vector<std::string>
   return lines;
 }
 
+// The per-thread stamp state of the seam reader below: each probe
+// thread carries its own series, so the two cpus' reads interleave
+// without sharing a cursor (R-02, FR-039). The probe threads are new
+// threads of the run, so the state starts fresh for every scenario.
+struct GapThreadState
+{
+  std::uint64_t calls = 0;
+  std::uint64_t stamp = 0;
+};
+
+thread_local GapThreadState gapThreadState;
+
+// The per-thread stamp series the raw-gap scenario runs through the
+// reader-install seam (R-02): the fake's one shared cursor cannot
+// express a per-thread jump, because the run drives both probe threads'
+// reads through it interleaved and the test cannot step between the
+// phases. Each thread's series steps 1 through the measurement pass's
+// 1,024 reads and jumps once at its 1,025th read, the first read of the
+// pre-check phase, whose loop runs to its scripted span before any stop
+// can matter, so each cpu keeps exactly one record under any load
+// (FR-028, E-10, FR-014).
+class GapSeriesReader final : public sg::counters::WindowReader
+{
+public:
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    auto& thread = gapThreadState;
+    ++thread.calls;
+    thread.stamp += thread.calls == 1025 ? 1000000 : 1;
+    sink.put(thread.stamp);
+  }
+};
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -335,14 +368,24 @@ auto main() -> int
   }
 
   // FR-028, E-10: --json-raw=gaps writes the per-cpu gap list, each
-  // record carrying stamp and gapNs. Red against the writer T014 lands.
+  // record carrying stamp and gapNs. The gap series rides the
+  // reader-install seam, the route the fake's shared cursor cannot
+  // express (R-02); red against the writer T014 lands.
   {
     const std::string path = "harness_jitter_window_gaps.json";
     auto arguments = quickRun;
     arguments.push_back("--json=" + path);
     arguments.push_back("--json-raw=gaps");
-    arguments.push_back("--jitter-probe=" + cpuList);
+    // The pre-check mode makes the kept record load-independent: the
+    // pre-check loop runs to its scripted span with no stop check, and
+    // `precheck=1` with the series' one-tick step reaches that span at
+    // the jump read, so the phase is one read that every cpu keeps
+    // (FR-014, E-05).
+    arguments.push_back("--jitter-probe=" + cpuList
+                        + ",mode=precheck,precheck=1");
+    sg::detail::installTestReader(std::make_unique<GapSeriesReader>());
     captureRun(arguments);
+    sg::detail::installTestReader(nullptr);
     const auto document = readDocument(path);
     std::remove(path.c_str());
     check(document.find("\"gaps\"") != std::string::npos
