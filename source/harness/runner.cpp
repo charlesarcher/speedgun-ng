@@ -2456,9 +2456,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         for (std::size_t metric = 0; metric + 2 < rawEntry.columns.size();
              ++metric)
         {
-          const std::size_t measuring = metric < planning.measuringPass.size()
-              ? planning.measuringPass[metric]
-              : 0;
+          SG_REQUIRE(metric < planning.measuringPass.size(),
+                     "a merge column outside the padded plan violates the bound "
+                     "the padding of measuringPass keeps (FR-014, FR-016)");
+          const std::size_t measuring = planning.measuringPass[metric];
           if (measuring > 0) {
             rawEntry.columns[metric + 2] = std::move(
                 rowRaws[passLedgerMarks[measuring] + row].columns[metric + 2]);
