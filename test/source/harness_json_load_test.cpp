@@ -153,7 +153,7 @@ constexpr const char* const kRich = R"JSON(
     "timePerIterationNs":1.5,"cpuTimePerIterationNs":2.5,"endpointSamples":7,
     "pauseSamplesFolded":true,"timeAvailability":"GAP",
     "metrics":[{"label":"work","value":2.5,"runningRatio":1.0,
-                "scaled":true,"availability":"COUNTABLE"}],
+                "scaled":true,"availability":"COUNTABLE","pass":1}],
     "counters":[1.5,2.5],"counterDisclosure":"two contexts",
     "fit":{"quantity":"real time","curve":"N","coefficient":2.5,
            "rmsPercent":1.5,"scalesWithUnit":true,"reason":"the scripted fit"},
@@ -170,7 +170,9 @@ constexpr const char* const kRich = R"JSON(
   "metricLabels":["work"],"counterLabels":["ctr"],
   "counterStats":[{"samples":4,"mean":4.0,"median":4.5,"sampleStdDev":4.25,
                     "coefficientOfVariation":4.5,"min":4.75,"max":5.0}],
-  "statisticValues":[{"name":"custom","unit":"TIME","value":4.5}]}]}
+  "statisticValues":[{"name":"custom","unit":"TIME","value":4.5}],
+  "metricMethod":"PASSES","passCount":2,
+  "passSpread":3.5,"spreadWarning":false}]}
 )JSON";
 
 auto everyFieldOfTheDocumentLoads() -> void
@@ -345,6 +347,35 @@ constexpr Mutation kRichMutations[] = {
     {"[{\"available\":true,\"value\":3.5}]",
      "[{\"value\":3.5}]",
      "/benchmarks/0/rows/0/percentiles/0/0"},
+    // The pass disclosure of specs/024 FR-038: each key of the entry taken
+    // away, each key of the wrong kind, the method word outside the closed
+    // list, the count below zero, and a warning that disagrees with the
+    // spread beside it (FR-024, FR-038).
+    {"\"metricMethod\":\"PASSES\",", "", "/benchmarks/0"},
+    {"\"passCount\":2,", "", "/benchmarks/0"},
+    {"\"passSpread\":3.5,", "", "/benchmarks/0"},
+    {",\"spreadWarning\":false", "", "/benchmarks/0"},
+    {"\"metricMethod\":\"PASSES\"",
+     "\"metricMethod\":1",
+     "/benchmarks/0/metricMethod"},
+    {"\"metricMethod\":\"PASSES\"",
+     "\"metricMethod\":\"PASSESSED\"",
+     "/benchmarks/0/metricMethod"},
+    {"\"passCount\":2", "\"passCount\":\"two\"", "/benchmarks/0/passCount"},
+    {"\"passCount\":2", "\"passCount\":-1", "/benchmarks/0/passCount"},
+    {"\"passSpread\":3.5",
+     "\"passSpread\":\"wide\"",
+     "/benchmarks/0/passSpread"},
+    {"\"spreadWarning\":false",
+     "\"spreadWarning\":\"yes\"",
+     "/benchmarks/0/spreadWarning"},
+    {"\"spreadWarning\":false",
+     "\"spreadWarning\":true",
+     "/benchmarks/0/spreadWarning"},
+    // The pass index of one metric column, a wrong kind and a key taken
+    // away (specs/024 E-08, FR-019).
+    {"\"pass\":1", "\"pass\":\"one\"", "/benchmarks/0/rows/0/metrics/0/pass"},
+    {",\"pass\":1", "", "/benchmarks/0/rows/0/metrics/0"},
 };
 
 auto plantedFieldsOfEveryRecordRefuse() -> void
@@ -405,7 +436,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
-    {"\"schemaVersion\":\"1.0\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.1\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.
@@ -485,8 +516,8 @@ constexpr Mutation kMutations[] = {
     {"\"scaled\":false",
      "\"scaled\":\"x\"",
      "/benchmarks/0/rows/0/metrics/0/scaled"},
-    {"\"availability\":\"COUNTABLE\"}",
-     "\"availability\":\"BOGUS\"}",
+    {",\"availability\":\"COUNTABLE\",\"pass\"",
+     ",\"availability\":\"BOGUS\",\"pass\"",
      "/benchmarks/0/rows/0/metrics/0/availability"},
     {"\"counters\":[]",
      "\"counters\":[\"x\"]",

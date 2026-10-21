@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -24,8 +25,10 @@ namespace
 
 using Builder = simdjson::builder::string_builder;
 
-// The schema the writer emits and the checker reads (FR-007).
-constexpr std::string_view kSchemaVersion = "1.0";
+// The schema the writer emits and the checker reads (FR-007). The minor
+// stands at 1.1 since specs/024 added the pass keys, the move
+// specs/023/contracts/schema-file.md states for a key added inside major 1.
+constexpr std::string_view kSchemaVersion = "1.1";
 
 // The builder is a low-level writer that emits no separator of its own,
 // so every object and array of the document opens a scope that puts one
@@ -153,6 +156,36 @@ auto putOrNull(Builder& builder,
   builder.escape_and_append_with_quotes(value);
 }
 
+// A count the run leaves unset stands `null`, the spelling the reader
+// answers back as an empty optional (E-05, specs/024 E-08).
+auto putOrNull(Builder& builder,
+               JsonObjectWriter& object,
+               std::string_view key,
+               const std::optional<std::size_t>& value) noexcept -> void
+{
+  object.key(key);
+  if (!value.has_value()) {
+    builder.append_null();
+    return;
+  }
+  builder.append(static_cast<std::uint64_t>(*value));
+}
+
+// A figure the run leaves unset stands `null` for the same reason, the file
+// form of the console's `not available` (E-05, specs/024 FR-017).
+auto putOrNull(Builder& builder,
+               JsonObjectWriter& object,
+               std::string_view key,
+               const std::optional<double>& value) noexcept -> void
+{
+  object.key(key);
+  if (!value.has_value()) {
+    builder.append_null();
+    return;
+  }
+  builder.append(*value);
+}
+
 void writeStatistics(Builder& builder, const sg::Statistics& stats)
 {
   JsonObjectWriter object(builder);
@@ -193,6 +226,9 @@ void writeMetricValue(Builder& builder,
       object,
       "availability",
       enumWord(kAvailabilityWords, std::to_underlying(metric.availability)));
+  // The pass that measured this column, `null` where one pass measured the
+  // whole set (specs/024 E-08, FR-019).
+  putOrNull(builder, object, "pass", metric.pass);
 }
 
 // One rank of one column: the availability stands beside the value in
@@ -461,6 +497,16 @@ void writeEntry(Builder& builder, const ReportData& data, std::size_t index)
       put(builder, record, "value", value.value);
     }
   }
+  // specs/024 FR-038: the pass disclosure of the run in the form the
+  // document carries. The keys stand for every run, the one-pass run
+  // included, the case where the console prints no line (FR-021).
+  put(builder,
+      object,
+      "metricMethod",
+      enumWord(kMetricMethodWords, std::to_underlying(result.metricMethod)));
+  put(builder, object, "passCount", result.passCount);
+  putOrNull(builder, object, "passSpread", result.passSpread);
+  put(builder, object, "spreadWarning", spreadWarned(result.passSpread));
 }
 
 // The count of cpus the noise condition compares the spinning contexts
@@ -513,6 +559,13 @@ auto noiseWarningOf(const BenchmarkResult& result)
     return std::nullopt;
   }
   return warning;
+}
+
+// specs/024 FR-018: the one answer the console line, the `spreadWarning` key
+// and the reader's check of that key give.
+auto spreadWarned(const std::optional<double> spread) noexcept -> bool
+{
+  return spread.has_value() && *spread > kSpreadWarningLimitPercent;
 }
 
 auto writeReport(const std::string& path, const ReportData& data) -> bool

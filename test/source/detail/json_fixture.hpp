@@ -203,7 +203,16 @@ auto sameMetric(const sg::MetricValue& actual,
   return sameValue(actual.value, want.value)
       && sameValue(actual.runningRatio, want.runningRatio)
       && actual.scaled == want.scaled
-      && actual.availability == want.availability;
+      && actual.availability == want.availability && actual.pass == want.pass;
+}
+
+// The spread of the passes, empty where fewer than two ran (specs/024
+// FR-017).
+auto sameSpread(const std::optional<double>& actual,
+                const std::optional<double>& want) -> bool
+{
+  return actual.has_value() == want.has_value()
+      && (!actual.has_value() || sameValue(*actual, *want));
 }
 
 auto sameFit(const sg::FitRow& actual, const sg::FitRow& want) -> bool
@@ -308,6 +317,9 @@ auto sameResult(const sg::BenchmarkResult& actual,
       || actual.timeUnit != want.timeUnit
       || actual.primaryIsCpu != want.primaryIsCpu
       || actual.pauseSamplesFolded != want.pauseSamplesFolded
+      || actual.metricMethod != want.metricMethod
+      || actual.passCount != want.passCount
+      || !sameSpread(actual.passSpread, want.passSpread)
       || actual.percentilePoints.size() != want.percentilePoints.size()
       || actual.metricLabels != want.metricLabels
       || actual.counterLabels != want.counterLabels

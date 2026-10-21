@@ -362,6 +362,7 @@ auto readMetricValue(Element value, const std::string& where)
           {"runningRatio", field(value, where, "runningRatio")},
           {"scaled", field(value, where, "scaled")},
           {"availability", field(value, where, "availability")},
+          {"pass", field(value, where, "pass")},
       };
   auto keys = settled(parts);
   if (!keys.has_value()) {
@@ -378,6 +379,14 @@ auto readMetricValue(Element value, const std::string& where)
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
+  std::optional<std::size_t> passIndex;
+  if (!parts[5].second.value().is_null()) {
+    auto count = asUnsigned(parts[5].second.value(), where + "/pass");
+    if (!count.has_value()) {
+      return std::unexpected(count.error());
+    }
+    passIndex = static_cast<std::size_t>(*count);
+  }
   // The label of a metric column stands in the entry's `metricLabels`,
   // which the entry reads beside these values; the row repeats the label
   // for a reader of the file alone, so the value keeps no copy of it.
@@ -386,10 +395,9 @@ auto readMetricValue(Element value, const std::string& where)
       .runningRatio = *running,
       .scaled = *flag,
       .availability = *state,
-      // specs/024 E-08: the document names no pass, so the value the
-      // document answers keeps the field empty, the reading a one-pass
-      // run gives.
-      .pass = std::nullopt,
+      // specs/024 E-08, FR-019: the pass the document names beside the
+      // value, the empty reading a one-pass run gives.
+      .pass = passIndex,
   };
 }
 
@@ -652,7 +660,11 @@ auto readEntry(Element value,
                           "metricLabels",
                           "counterLabels",
                           "counterStats",
-                          "statisticValues"})
+                          "statisticValues",
+                          "metricMethod",
+                          "passCount",
+                          "passSpread",
+                          "spreadWarning"})
   {
     parts.emplace_back(key, field(value, where, key));
   }
@@ -845,6 +857,34 @@ auto readEntry(Element value,
     });
     ++valueIndex;
   }
+  // specs/024 FR-038: the pass disclosure the writer puts after the
+  // statistics. The warning enters no field: FR-018 answers it from the
+  // spread at every reader, and the document keeps the answer explicit for
+  // a reader of the file alone, so the read checks the two agree.
+  auto method = asEnum<sg::MetricMethod>(
+      detail::kMetricMethodWords, at(16), where + "/metricMethod");
+  auto passes = asUnsigned(at(17), where + "/passCount");
+  auto warned = asBool(at(19), where + "/spreadWarning");
+  auto settledPass = allSettled(method, passes, warned);
+  if (!settledPass.has_value()) {
+    return std::unexpected(settledPass.error());
+  }
+  std::optional<double> spread;
+  if (!at(18).is_null()) {
+    auto number = asDouble(at(18), where + "/passSpread");
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    spread = *number;
+  }
+  if (*warned != detail::spreadWarned(spread)) {
+    return std::unexpected(where
+                           + "/spreadWarning: the document's warning "
+                             "disagrees with its pass spread");
+  }
+  result.metricMethod = *method;
+  result.passCount = static_cast<std::size_t>(*passes);
+  result.passSpread = spread;
   return {};
 }
 

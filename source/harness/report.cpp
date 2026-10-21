@@ -226,10 +226,10 @@ auto metricMethodName(const sg::MetricMethod method) -> const char*
   return kMetricMethodNames[index];
 }
 
-// The spread limit the pass warning reads, as a percentage of the median of
-// the pass times, on the unrounded figure (FR-018, E-06). The warning line
-// names this same figure in its own words, printed from here.
-constexpr double kSpreadWarningLimitPercent = 5.0;
+// The spread limit the pass warning reads stands in
+// `detail/json_report.hpp`, where the document's `spreadWarning` key reads
+// the same figure (FR-018, E-06). The warning line names the figure in its
+// own words, printed from here.
 
 // specs/024 FR-017, FR-018, FR-020, FR-021: the pass disclosure of one
 // result. One line names the method the run settled to and the passes it
@@ -274,9 +274,7 @@ auto printPassDisclosure(const BenchmarkResult& result) -> void
     }
   }
   std::printf("\n");
-  if (result.passSpread.has_value()
-      && *result.passSpread > kSpreadWarningLimitPercent)
-  {
+  if (spreadWarned(result.passSpread)) {
     std::printf("warning: pass spread %.1f%% exceeds %.0f%%\n",
                 *result.passSpread,
                 kSpreadWarningLimitPercent);
