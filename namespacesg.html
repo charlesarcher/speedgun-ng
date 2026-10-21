@@ -135,9 +135,29 @@
             </dt>
             <dd>The retained chunk columns of one row or one context (specs/023 E-02).</dd>
             <dt>
+              struct <a href="structsg_1_1NoiseWarning.html" class="m-doc">NoiseWarning</a>
+            </dt>
+            <dd>The noise warning of one result, in the form the document carries (specs/023 E-10, specs/026 E-06, FR-070, D-05).</dd>
+            <dt>
               struct <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>
             </dt>
             <dd>The value the harness writes as one JSON report and reads back (specs/023 E-01).</dd>
+            <dt>
+              struct <a href="structsg_1_1CompareRule.html" class="m-doc">CompareRule</a>
+            </dt>
+            <dd>One parsed comparison rule (specs/026 E-01, D-01, D-08).</dd>
+            <dt>
+              struct <a href="structsg_1_1CompareEntry.html" class="m-doc">CompareEntry</a>
+            </dt>
+            <dd>One benchmark under one comparison rule (specs/026 E-02, FR-002, FR-044, FR-054).</dd>
+            <dt>
+              struct <a href="structsg_1_1CompareResult.html" class="m-doc">CompareResult</a>
+            </dt>
+            <dd>The comparison table and its verdict (specs/026 E-03, FR-002, FR-044, FR-045).</dd>
+            <dt>
+              struct <a href="structsg_1_1CompareOptions.html" class="m-doc">CompareOptions</a>
+            </dt>
+            <dd>The settings one comparison applies (specs/026 FR-045, FR-064).</dd>
             <dt>
               class <a href="classsg_1_1State.html" class="m-doc">State</a>
             </dt>
@@ -257,6 +277,28 @@
             </dt>
             <dd>The chunk content a JSON report carries (specs/023 E-01, FR-029).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#aa737363ef961fe09cbb3aa011e11c751" class="m-doc">CompareState</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#aa737363ef961fe09cbb3aa011e11c751ae0aa021e21dddbd6d8cecec71e9cf564" class="m-doc">OK</a>,
+              <a href="#aa737363ef961fe09cbb3aa011e11c751ae42852c77965c5496b0763d4d6a5e020" class="m-doc">REGRESSED</a>,
+              <a href="#aa737363ef961fe09cbb3aa011e11c751a321c58006890623ca62eba9f6d068353" class="m-doc">IMPROVED</a>,
+              <a href="#aa737363ef961fe09cbb3aa011e11c751aff82ab8aa6ed210a595c38a1542c40ff" class="m-doc">NOISY</a>,
+              <a href="#aa737363ef961fe09cbb3aa011e11c751a55771bcb939a8afbf4d119d6e0099317" class="m-doc">ADDED</a>,
+              <a href="#aa737363ef961fe09cbb3aa011e11c751ab3461745d64b12346503b2980e436db5" class="m-doc">REMOVED</a>,
+              <a href="#aa737363ef961fe09cbb3aa011e11c751a203ec08f57cb105eeb2b121ba6503b52" class="m-doc">SKIPPED</a> }</span>
+            </dt>
+            <dd>The outcome word of one benchmark under one comparison rule (specs/026 E-04, FR-054).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a7c0fa6de6359721285a136f26f180a57" class="m-doc">Aggregate</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a7c0fa6de6359721285a136f26f180a57a8ab0c3a037e882577dec378985477074" class="m-doc">MEDIAN</a>,
+              <a href="#a7c0fa6de6359721285a136f26f180a57a4ea6d1161ea24d7599365f574aff6610" class="m-doc">MEAN</a>,
+              <a href="#a7c0fa6de6359721285a136f26f180a57ace31e2a082d17e038fcc6e3006166653" class="m-doc">MIN</a>,
+              <a href="#a7c0fa6de6359721285a136f26f180a57a26a4b44a837bf97b972628509912b4a5" class="m-doc">MAX</a> }</span>
+            </dt>
+            <dd>The statistics record a comparison rule reads (specs/026 E-05, FR-016).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#afb000a3c9ccd12370ccc57aa2a2f0584" class="m-doc">Direction</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#afb000a3c9ccd12370ccc57aa2a2f0584a8c17376c6605e89a8e7c26b88ff330d0" class="m-doc">LOWER_IS_BETTER</a>,
+              <a href="#afb000a3c9ccd12370ccc57aa2a2f0584a93e5b7782f87c5eea64fc5c49f3e6ef6" class="m-doc">HIGHER_IS_BETTER</a> }</span>
+            </dt>
+            <dd>Which way of moving a value is worse (specs/026 E-05, FR-012).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#aa3fb9e24a0f554081c7ed820b9d71565" class="m-doc">WaitMode</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#aa3fb9e24a0f554081c7ed820b9d71565a01518642fd172918ac4e6fa78bbb3164" class="m-doc">SPIN</a>,
               <a href="#aa3fb9e24a0f554081c7ed820b9d71565a18e25ac6cc28c2b91bce1fbe629b682a" class="m-doc">YIELD</a>,
               <a href="#aa3fb9e24a0f554081c7ed820b9d71565a4d34f53389ed7f28ca91fc31ea360a66" class="m-doc">BLOCK</a> }</span>
@@ -365,6 +407,17 @@
             </dt>
             <dd>Read one JSON report document this harness wrote (specs/023 FR-022, D-08).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ae6ca8731ee35f1df124d5ae1103eea91" class="m-doc">parseCompareRule</a>(</span><span class="m-doc-wrap">std::string_view text) -&gt; std::expected&lt; CompareRule, std::string &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Parse one rule text into one rule value (specs/026 FR-004, D-01, D-08).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a47ccc1dc29a3c803a1cc2df1654ee7d6" class="m-doc">compareReports</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; baseline,
+              const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; contender,
+              const std::vector&lt;<a href="structsg_1_1CompareRule.html" class="m-doc">CompareRule</a>&gt;&amp; rules,
+              const <a href="structsg_1_1CompareOptions.html" class="m-doc">CompareOptions</a>&amp; options) -&gt; std::expected&lt; CompareResult, std::string &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Compare two loaded report values under a list of rules.</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#ae376244899f5567ea4fbcc99ce7dd8ac" class="m-doc">currentContext</a>(</span><span class="m-doc-wrap">) -&gt; std::optional&lt;<a href="structsg_1_1ContextId.html" class="m-doc">ContextId</a>&gt;</span>
             </dt>
             <dd>The identity of the context the calling thread runs (FR-002).</dd>
@@ -472,6 +525,29 @@
             </h3>
             <p>The chunk content a JSON report carries (specs/023 E-01, FR-029).</p>
 <p><code>NONE</code> writes the ranks the run computed and no chunk value; <code>CHUNKS</code> writes the chunk values themselves beside them. <code>CHUNKS</code> also turns the chunk capture on for a run whose percentile output stands off, so the file can hold values the console never ranked (FR-020).</p>
+          </div></section>
+          <section class="m-doc-details" id="aa737363ef961fe09cbb3aa011e11c751"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#aa737363ef961fe09cbb3aa011e11c751" class="m-doc-self">CompareState</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The outcome word of one benchmark under one comparison rule (specs/026 E-04, FR-054).</p>
+<p>The seven words the comparison table prints and the comparison document writes; the document writes the enumerator name.</p>
+          </div></section>
+          <section class="m-doc-details" id="a7c0fa6de6359721285a136f26f180a57"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#a7c0fa6de6359721285a136f26f180a57" class="m-doc-self">Aggregate</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The statistics record a comparison rule reads (specs/026 E-05, FR-016).</p>
+<p>The default when a statistics name carries no <code>@</code> suffix is MEDIAN.</p>
+          </div></section>
+          <section class="m-doc-details" id="afb000a3c9ccd12370ccc57aa2a2f0584"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#afb000a3c9ccd12370ccc57aa2a2f0584" class="m-doc-self">Direction</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Which way of moving a value is worse (specs/026 E-05, FR-012).</p>
           </div></section>
           <section class="m-doc-details" id="aa3fb9e24a0f554081c7ed820b9d71565"><div>
             <h3>
@@ -657,6 +733,25 @@
             </h3>
             <p>Read one JSON report document this harness wrote (specs/023 FR-022, D-08).</p>
 <p>The call answers the same result types the run produced, so handing the value back to the writer with the raw setting the file carries gives the same bytes the file already holds (FR-026). A field the format allows to stand absent answers the empty value the field documents.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>path</code> is not empty: an empty path is a contract violation. A path the file system refuses is an input error the call answers (specs/023 contracts/report-loader.md)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>when the call answers a value, that value holds one entry per benchmark of the document in document order, with the raw chunk columns of the document in its <code>rowRaw</code> and <code>contextRaw</code> fields</p><p>when the call answers an error, the string names the JSON pointer of the fault and what the reader expected there; no error form throws to the caller or aborts (FR-023, FR-024)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ae6ca8731ee35f1df124d5ae1103eea91"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae6ca8731ee35f1df124d5ae1103eea91" class="m-doc-self">parseCompareRule</a>(</span><span class="m-doc-wrap">std::string_view text) -&gt; std::expected&lt; CompareRule, std::string &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Parse one rule text into one rule value (specs/026 FR-004, D-01, D-08).</p>
+<p>The command line and a library caller read the same grammar through this one call: the value name, the optional <code>@</code> aggregate suffix, the direction word, the threshold field and the optional filter, in that order (FR-012, FR-021). A prefixed value name reads its label to the first unescaped colon or at sign, and a backslash escapes a colon, a comma, an at sign or a backslash inside the label (FR-015, FR-020, FR-021, D-06, spec D-15). The threshold field carries a percent, an <code>abs=</code> number, or the two in that order, the percent answering a fraction (FR-022, FR-023, D-07, spec D-22). The call consults no report, defaults nothing but the aggregate of a statistics name, and repairs nothing.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>text</code> is the whole rule text of one <code>--compare-rule=</code> or of one library caller&#x27;s rule, and carries no NUL byte inside it</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>when the call answers a value, every field holds what the text spelled and <code>text</code> holds the input whole (FR-004)</p><p>when the call answers an error, the string names the field of the fault and the text read; the caller owns the exit status (FR-005)</p><p>the call throws nothing to the caller and aborts nothing</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a47ccc1dc29a3c803a1cc2df1654ee7d6"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a47ccc1dc29a3c803a1cc2df1654ee7d6" class="m-doc-self">compareReports</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; baseline,
+              const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; contender,
+              const std::vector&lt;<a href="structsg_1_1CompareRule.html" class="m-doc">CompareRule</a>&gt;&amp; rules,
+              const <a href="structsg_1_1CompareOptions.html" class="m-doc">CompareOptions</a>&amp; options) -&gt; std::expected&lt; CompareResult, std::string &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>Compare two loaded report values under a list of rules.</p>
+<p>An empty <code>rules</code> list applies the default rule <code>time@median:lower:5%</code> (specs/026 spec D-5, FR-033), and given rules replace it (FR-034). <code>options.strict</code> moves the verdict only: a NOISY row fails the run when it stands and passes when it does not, and the state word never changes for it (FR-044, FR-045). The entries follow the run order of the baseline, then the names the contender adds in the order of the contender (FR-002), and each rule answers one entry per benchmark of the pair that its filter admits (FR-024). The call reads no file, runs no benchmark, reads no clock, samples no sensor, repairs no value and prints nothing (FR-006, FR-007), and it throws nothing to the caller and aborts nothing.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>baseline</code> and <code>contender</code> are values <code><a href="#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a></code> answered, or values built to the same shape: <code>noiseWarnings</code>, when non-empty, holds one entry per entry of <code>results</code></p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>When the call answers a value, every entry of <code>entries</code> carries the text of one of the rules the call applied and <code>passed</code> states the verdict of FR-044 and FR-045</p><p>When the call answers an error, the text names the fault and stands non-empty, and no partial entries reach the caller (FR-003)</p></aside>
           </div></section>
           <section class="m-doc-details" id="ae376244899f5567ea4fbcc99ce7dd8ac"><div>
             <h3>
