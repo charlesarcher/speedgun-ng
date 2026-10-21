@@ -49,7 +49,7 @@ reaches them:
 
 | Fault | Named in the text |
 |---|---|
-| the two `schemaVersion` texts differ (FR-051, D-13) | both versions |
+| the two `schemaVersion` majors differ, or one text reads no major (FR-051, D-13) | both version texts |
 | a rule filter matches no benchmark in either report (FR-039) | the rule |
 | the value is absent from one report: a missing column, a missing statistic name, a percentile point one report lacks, a cell that answers nothing, an aggregate named on a column with no statistics record in a repeated run (FR-036, FR-037, FR-038, spec D-18) | the rule, the benchmark, the report |
 | a metric whose `availability` is not `COUNTABLE` in either report (FR-037) | the rule, the benchmark, the report |

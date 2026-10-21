@@ -143,11 +143,11 @@ tells CI the run never started.
 malformed rule text, each unknown value name, each empty filter and each
 broken file.
 
-- [X] T032 [P] [US3] Add the fault-form tests to `test/source/harness_compare_cli_test.cpp`: each row of the quickstart's command table answering exactly one line and status 2 with no table printed, covering the malformed rule text, the filter that matches nothing, the missing file, the pair `test/data/gate_ok_base.json` against `test/data/gate_schema_11.json` naming both versions, and a relative threshold over a zero baseline naming the benchmark and the value (SC-004, SC-013, FR-051)
+- [X] T032 [P] [US3] Add the fault-form tests to `test/source/harness_compare_cli_test.cpp`: each row of the quickstart's command table answering exactly one line and status 2 with no table printed, covering the malformed rule text, the filter that matches nothing, the missing file, the pair `test/data/gate_ok_base.json` against `test/data/gate_schema_20.json` naming the version the reader refuses, the pair against `test/data/gate_schema_11.json` answering status 0 with its `OK` row, and a relative threshold over a zero baseline naming the benchmark and the value (SC-004, SC-013, FR-051)
 - [X] T033 [US3] Print the one fault line in `runCompareMode` of `source/harness/compare.cpp` from the text `compareReports` answered, "the string names the rule, the benchmark and the report of the first fault", and print no partial table (FR-003, FR-005, FR-051)
 - [X] T034 [US3] Add the scan-time usage faults to `source/harness/cli.cpp`: the `--compare` split at the first comma with an empty side, the `--compare-rule` text the parse call rejecting through "one line naming the option and the rule text and the fault the parse call named", and the invalid batch filter reusing the run path's line at `:442` to `:446` (FR-024, FR-048, FR-051)
 - [X] T035 [US3] Answer the load and value faults in `runCompareMode` of `source/harness/compare.cpp`: a missing file and a document the reader refuses each printing one line naming the path and the reader's text at status 2, and the value-absent, uncountable-metric and percentile-point faults naming "the rule, the benchmark, the report" (FR-006, FR-036, FR-037, FR-038, FR-051)
-- [X] T036 [US3] Stand the schema version pairing check first inside `compareReports` of `source/harness/compare.cpp` so a library caller answers the same fault: the fault row "the two `schemaVersion` texts differ" naming "both versions" in the error text the mode prints as its one line (FR-051, SC-013, D-13)
+- [X] T036 [US3] Stand the schema major pairing check first inside `compareReports` of `source/harness/compare.cpp` so a library caller answers the same fault: the fault row "the two `schemaVersion` majors differ, or one text reads no major" naming "both versions" in the error text the mode prints as its one line, which leaves a `1.0` report against a `1.1` one to compare (FR-051, SC-013, D-13)
 - [X] T037 [US3] Answer the document write failure through `runCompareMode` of `source/harness/compare.cpp`: a false `writeCompareReport` answer setting `CompareExit::failed` and the status 2 row, "the form the report write already answers (`specs/015-benchmark-harness-core/contracts/cli.md:86`)" (FR-051, FR-057, FR-074)
 
 **Checkpoint**: nine fault forms, nine one-line answers, status 2 each,
@@ -593,7 +593,7 @@ FR-002, FR-008 to FR-011 and FR-025 to FR-040 reads complete: `valueSiteOf` at
 `:922` answers the arithmetic and the words of E-09, `matchPair` at `:1207`
 pairs by the full instance name in baseline order, `scopedValuesOf` at `:1287`
 walks every rule over its whole scope before anything compares, and
-`compareReportValues` at `:1438` pairs the schema versions first and answers
+`compareReportValues` at `:1438` pairs the schema majors first and answers
 the empty pair of D-19 with no entry. The noise group FR-041 to FR-046 reads
 complete in `noiseGuard` at `:1067`, and the verdict of FR-044 and FR-045
 stands at the close of `compareReportValues`. The command-line group FR-047 to
