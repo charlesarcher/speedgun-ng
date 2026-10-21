@@ -91,6 +91,7 @@
 #include <unistd.h>
 
 #include "detail/json_fixture.hpp"
+#include "detail/pass_plan.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
 using sg::test::check;
@@ -1220,10 +1221,10 @@ auto anUncountableMetricCountsAsAMissingValue() -> void
   gapped.name = "a";
   gapped.metricLabels = {"work"};
   auto& gappedRow = addRow(gapped, sg::RowKind::REPETITION, 1000.0, 100.0);
-  gappedRow.metrics = {sg::MetricValue {.value = 12.0,
-                                .availability =
-                                    sg::counters::Availability::GAP,
-                                .pass = {}}};
+  gappedRow.metrics = {
+      sg::MetricValue {.value = 12.0,
+                       .availability = sg::counters::Availability::GAP,
+                       .pass = {}}};
 
   faultRow(makeReport({clean}),
            makeReport({gapped}),
@@ -2713,6 +2714,52 @@ auto theTablePrintsTheShapesNoFixtureCarries() -> void
         "a time unit outside the four prints under the nanosecond guard "
         "(FR-055)");
 }
+
+// specs/024 FR-038: the pass disclosure stands on the entry, beside the method
+// that collected the values a rule reads. It names no value and no rule, so
+// two runs answer the same rows and the same verdict whether they disclose
+// three passes or none: the comparison of specs/026 reads a document that
+// carries the fields and one written before them (FR-038, FR-051, FR-054).
+auto thePassDisclosureStaysOutOfTheComparison() -> void
+{
+  auto quiet = measured("bm", 100.0);
+  auto passes = measured("bm", 100.0);
+  passes.metricMethod = sg::MetricMethod::PASSES;
+  passes.passCount = 3;
+  passes.passSpread = sg::detail::passSpread({100.0, 104.0, 118.0});
+
+  const auto cleared =
+      compared(makeReport({quiet}),
+               makeReport({quiet}),
+               rulesOf({"time@median:lower:5%", "real_time:lower:5%"}),
+               false);
+  const auto disclosed =
+      compared(makeReport({passes}),
+               makeReport({passes}),
+               rulesOf({"time@median:lower:5%", "real_time:lower:5%"}),
+               false);
+  if (!cleared.has_value() || !disclosed.has_value()) {
+    std::printf("  %s\n",
+                cleared.has_value() ? disclosed.error().c_str()
+                                    : cleared.error().c_str());
+    fail("two reports that disclose their passes stop the comparison");
+    return;
+  }
+  check(disclosed->passed == cleared->passed
+            && disclosed->entries.size() == cleared->entries.size(),
+        "the pass disclosure moves no verdict and adds no row (FR-038)");
+  for (std::size_t index = 0; index < disclosed->entries.size(); ++index) {
+    const sg::CompareEntry& one = disclosed->entries[index];
+    const sg::CompareEntry& other = cleared->entries[index];
+    check(one.name == other.name && one.ruleText == other.ruleText
+              && one.state == other.state && one.baseline == other.baseline
+              && one.contender == other.contender
+              && one.changePercent == other.changePercent
+              && one.changeAbsolute == other.changeAbsolute,
+          "the row of a multi-pass run answers the row of the same run with "
+          "the disclosure cleared (FR-038, FR-054)");
+  }
+}
 }  // namespace
 
 auto main() -> int
@@ -2778,6 +2825,7 @@ auto main() -> int
   strictStandsOffForARowThatCarriesAVerdict();
   theBatchFilterDropsAndMovesTheLists();
   theTablePrintsTheShapesNoFixtureCarries();
+  thePassDisclosureStaysOutOfTheComparison();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
