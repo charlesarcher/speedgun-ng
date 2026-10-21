@@ -288,6 +288,54 @@ auto escapedColonInLabelIsAccepted() -> void
   check(parsed->filter.empty(), "the rule wrote no filter (FR-024)");
 }
 
+// FR-020, D-15: the comma, the at sign and the backslash each stand inside
+// a label behind a backslash, and the value name carries the prefix plus the
+// unescaped label. The colon case stands above; these three close the set.
+auto escapedCommaAtSignAndBackslashInLabelAreAccepted() -> void
+{
+  constexpr std::string_view kCommaText = "metric:read\\,write@max:higher:1%";
+  const auto comma = sg::parseCompareRule(kCommaText);
+  if (!comma) {
+    fail("the escaped comma inside a metric label parses (FR-020, D-15)");
+    return;
+  }
+  check(comma->text == kCommaText,
+        "the rule keeps the text the call read (D-08)");
+  check(comma->valueName == "metric:read,write",
+        "the value name is the prefix plus the unescaped label (FR-015, "
+        "FR-020, E-01)");
+  check(comma->aggregate == sg::Aggregate::MAX,
+        "the written suffix answers MAX (FR-016)");
+  check(comma->direction == sg::Direction::HIGHER_IS_BETTER,
+        "the direction word answers HIGHER_IS_BETTER (FR-012)");
+
+  constexpr std::string_view kAtText = "stat:cache\\@hit:lower:3%";
+  const auto at = sg::parseCompareRule(kAtText);
+  if (!at) {
+    fail("the escaped at sign inside a statistic label parses (FR-020, D-15)");
+    return;
+  }
+  check(at->text == kAtText, "the rule keeps the text the call read (D-08)");
+  check(at->valueName == "stat:cache@hit",
+        "the value name is the prefix plus the unescaped label (FR-015, "
+        "FR-020, E-01)");
+  check(!at->aggregate,
+        "a statistic name carries one value and writes no aggregate "
+        "(FR-018, spec D-21)");
+
+  constexpr std::string_view kSlashText = "counter:a\\\\b@median:lower:2%";
+  const auto slash = sg::parseCompareRule(kSlashText);
+  if (!slash) {
+    fail("the escaped backslash inside a counter label parses (FR-020, D-15)");
+    return;
+  }
+  check(slash->text == kSlashText,
+        "the rule keeps the text the call read (D-08)");
+  check(slash->valueName == "counter:a\\b",
+        "the value name is the prefix plus the unescaped label (FR-015, "
+        "FR-020, E-01)");
+}
+
 // The value names of the resolution cases carry the aggregate their `@`
 // suffix would have written; the parse writes MEDIAN for every value the
 // report holds as a statistics record (FR-016, spec D-21).
@@ -2676,6 +2724,7 @@ auto main() -> int
   invalidFilterRegexFaults();
   percentThenAbsoluteIsAccepted();
   escapedColonInLabelIsAccepted();
+  escapedCommaAtSignAndBackslashInLabelAreAccepted();
   timeFollowsThePrimaryFlag();
   percentileCellReadsColumnZero();
   aggregateRowIsReadWhenOneStands();
