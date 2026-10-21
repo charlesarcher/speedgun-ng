@@ -95,7 +95,10 @@ auto linesOf(const std::string& report,
   std::istringstream stream(report);
   std::string line;
   while (std::getline(stream, line)) {
-    if (line.rfind(name, 0) == 0) {
+    // specs/024 FR-021: the pass disclosure line opens with the benchmark
+    // name too. It is a disclosure, not a measured or aggregate row, so the
+    // row counts below must not see it.
+    if (line.rfind(name, 0) == 0 && line.find("method=") == std::string::npos) {
       found.push_back(line);
     }
   }

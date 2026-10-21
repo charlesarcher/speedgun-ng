@@ -20,7 +20,6 @@
 
 #include "detail/compare.hpp"
 #include "detail/internal.hpp"
-#include "detail/json_report.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
@@ -194,6 +193,27 @@ auto compileFilterPattern(const std::string& pattern)
   }
 }
 
+// specs/024 FR-023, FR-026, research D-09: the word of `--metric-method`, read
+// against the three words of contracts/metric-method-option.md. The comparison
+// is exact and case-sensitive, so `Auto` is a fourth word, and the reader
+// answers with nothing for one of those: the entry point owns the report, so
+// that a refusal returns the usage status and the entry point keeps the
+// process exit.
+auto parseMetricMethod(const char* text) -> std::optional<MetricMethod>
+{
+  const std::string_view word {text};
+  if (word == "auto") {
+    return MetricMethod::AUTO;
+  }
+  if (word == "passes") {
+    return MetricMethod::PASSES;
+  }
+  if (word == "multiplex") {
+    return MetricMethod::MULTIPLEX;
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
 namespace detail
@@ -341,6 +361,7 @@ auto speedgunMain(int argc, char** argv) -> int
       {"compare", required_argument, nullptr, kCompareOptionValue},
       {"compare-rule", required_argument, nullptr, kCompareRuleOptionValue},
       {"compare-strict", no_argument, nullptr, kCompareStrictOptionValue},
+      {"metric-method", required_argument, nullptr, 'S'},
       {nullptr, 0, nullptr, 0},
   };
 
@@ -388,37 +409,24 @@ auto speedgunMain(int argc, char** argv) -> int
       case 'P':
         options.showPercentiles = false;
         break;
-      case 'A':
-        // specs/025 FR-016: the text stands raw here; the parse below
-        // runs it once before the first run.
-        options.placement = std::string(optarg);
-        break;
-      case 'T':
-        options.topologyMode = true;
-        break;
-      case 'j':
-        // FR-030: an empty path is a usage error, and it reports before
-        // anything runs.
-        if (std::string_view(optarg).empty()) {
-          std::fprintf(stderr,
-                       "--json: the path the option names stands " "empty\n");
+      case 'S': {
+        // specs/024 FR-025, FR-026: the word is the method the run is asked
+        // for and wins over the family's own request the way `--percentiles`
+        // wins over `showPercentiles`; the assignment overwrites, so a
+        // repeated flag keeps its last word. A word outside the three ends the
+        // run here, before the expansion, the listing and the first
+        // measurement, so a typo costs no measured time.
+        const auto method = parseMetricMethod(optarg);
+        if (!method.has_value()) {
+          std::fprintf(
+              stderr,
+              "--metric-method '%s' is not auto, passes or " "multiplex\n",
+              optarg);
           return 2;
         }
-        options.jsonPath = optarg;
+        options.metricMethod = method;
         break;
-      case 'J':
-        // FR-029: `chunks` is the one content the option names besides
-        // `none`; any other word is a usage error (FR-034).
-        if (std::string_view(optarg) == "chunks") {
-          options.rawContent = RawContent::CHUNKS;
-        } else if (std::string_view(optarg) == "none") {
-          options.rawContent = RawContent::NONE;
-        } else {
-          std::fprintf(stderr, "--json-raw: 'chunks' and 'none' are the "
-                               "values the option names\n");
-          return 2;
-        }
-        break;
+      }
       case kCompareOptionValue: {
         // specs/026 FR-048: the text is the two report paths split at the
         // first comma. A missing comma or an empty side is a usage fault:
@@ -505,28 +513,17 @@ auto speedgunMain(int argc, char** argv) -> int
     return 0;
   }
 
-  if (options.topologyMode) {
-    // FR-036, Q-3, R-07: the listing answers the layout read once, runs
-    // no benchmark and exits 0; an unreadable layout prints one line and
-    // exits 2. The listing stands ahead of the expansion and the filter,
-    // the way the catalog block above does.
-    const auto& machine = detail::layout();
-    if (!machine.readable) {
-      std::fprintf(
-          stderr,
-          "--topology: the harness cannot read the machine " "layout\n");
-      return 2;
-    }
-    detail::printTopologyListing(machine);
-    return 0;
-  }
-
   // FR-003, R-03: expansion completes here, before the filter and
   // before the first run, so a run carries no expansion work.
-  detail::expandRegistry(processPreset);
+  detail::expandRegistry();
 
   std::vector<Instance*> selected;
   for (auto& instance : detail::instances()) {
+    // FR-020, R-11: the gate stands here, on the expanded instance name.
+    // A disabled instance stays in the registry and in the expansion; the
+    // filter never matches it and list mode never prints it, and a filter
+    // whose only match is disabled leaves the empty-selection report of
+    // contracts/cli.md untouched.
     if (instance.name.starts_with(kDisabledPrefix)) {
       continue;
     }
@@ -558,30 +555,19 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
-  // specs/025 FR-005, FR-018, Q-6, Q-7: the fit walk, before the first
-  // run and before any measurement starts.
-  const auto fitOutcome = detail::placementFitStatus(selected);
-  if (fitOutcome.first != 0) {
-    return fitOutcome.first;
-  }
-
   // One entry-point invocation owns one interrupt flag: a suite that
   // calls the entry point again starts with no pending interrupt.
   detail::interruptFlag().store(false);
   SG_ENSURE(!detail::interruptFlag().load(),
             "the entry point starts with no pending interrupt (R-06)");
   std::signal(SIGINT, handleInterrupt);
-  detail::printContext(fitOutcome.second);
+  detail::printContext();
 
   int status = 0;
   // The two run-wide flags are read by the postcondition below, which the
   // default semantic compiles away, so a consumer build needs the marker.
   [[maybe_unused]] bool anyFailed = false;
   [[maybe_unused]] bool anyInterrupted = false;
-  // specs/023 FR-001: the values of the batch gather beside the rows the
-  // console prints, and the document writer reads no clock and samples
-  // nothing on its way to the file (FR-005).
-  ReportData report;
   detail::Runner runner(options);
   // The loop variable keeps the spelling `entry`: `test/cli_shape.sh`
   // locates this loop by the `runner.run(*entry)` line and reads the
@@ -592,17 +578,9 @@ auto speedgunMain(int argc, char** argv) -> int
     // summarizes.
     if (const auto fit = runner.fitForFamilyEnd(entry)) {
       detail::printResult(*fit);
-      // FR-002: a fit stands as its own entry of the document, beside
-      // the entries of the runs it summarizes.
-      report.results.push_back(*fit);
-      report.rowRaw.emplace_back();
-      report.contextRaw.emplace_back();
     }
     const auto result = runner.run(*entry);
     detail::printResult(result);
-    report.results.push_back(result);
-    report.rowRaw.push_back(runner.rowRaw().back());
-    report.contextRaw.push_back(runner.contextRaw().back());
     // FR-036: the flag is read once per pass, so the status update, the
     // per-pass check and the break all see one instant of the flag.
     const bool interrupted = detail::interruptFlag().load();
@@ -627,23 +605,9 @@ auto speedgunMain(int argc, char** argv) -> int
   // rows.
   if (const auto fit = runner.fitForFamilyEnd(nullptr)) {
     detail::printResult(*fit);
-    report.results.push_back(*fit);
-    report.rowRaw.emplace_back();
-    report.contextRaw.emplace_back();
   }
 
-  // FR-030: a document the file system refused reports on stderr and
-  // leaves the exit status at the usage error the table names, which
-  // outranks the 1 a failed benchmark leaves.
-  [[maybe_unused]] bool reportFailed = false;
-  if (!options.jsonPath.empty()) {
-    if (!detail::writeReport(options.jsonPath, report)) {
-      reportFailed = true;
-      status = 2;
-    }
-  }
-
-  SG_ENSURE((status != 0) == (anyFailed || anyInterrupted || reportFailed),
+  SG_ENSURE((status != 0) == (anyFailed || anyInterrupted),
             "the exit status follows the table of contracts/cli.md (FR-036)");
 
   return status;

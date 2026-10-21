@@ -283,19 +283,19 @@ method over the fake provider.
 
 ### Tests for User Story 2 (write first, observe failure)
 
-- [ ] T029 [P] [US2] In `test/source/harness_pass_plan_test.cpp`, add every
+- [X] T029 [P] [US2] In `test/source/harness_pass_plan_test.cpp`, add every
   row of the E-01 resolution table: no metric column, a host with no limit,
   a forced `multiplex`, a forced `passes`, an `auto` set that fits and an
   `auto` set that does not, each asserting the settled method, whether the
   planner runs and whether the console line prints (FR-023, FR-024, FR-025,
   E-01, research D-10)
-- [ ] T030 [US2] In `test/source/harness_cli_test.cpp`, add the refusal
+- [X] T030 [US2] In `test/source/harness_cli_test.cpp`, add the refusal
   table: `--metric-method=fast` prints one line naming the quoted word and
   exits with status 2 before any benchmark output appears, an empty word
   prints the same line, `Auto` is a bad word, and
   `--metric-method=passes --metric-method=multiplex` applies the last word
   (FR-026, SC-04, US2 scenario 3, `contracts/metric-method-option.md`)
-- [ ] T031 [US2] In the same file, add the precedence case: a family whose
+- [X] T031 [US2] In the same file, add the precedence case: a family whose
   handle asks for `multiplex` collects by passes when the command line asks for
   `passes`, and the settled method published for the run names `passes`
   (FR-025, US2 scenario 4). Add the early-exit arms: with
@@ -303,16 +303,16 @@ method over the fake provider.
   prints its list, prints no `passes` line, and settles no method; with a bad
   word and `--list`, the refusal and status 2 still come first (FR-025, FR-026,
   `contracts/metric-method-option.md`)
-- [ ] T032 [US2] In `test/source/harness_pass_collect_test.cpp`, add the
+- [X] T032 [US2] In `test/source/harness_pass_collect_test.cpp`, add the
   `multiplex` run: the forced method compiles one plan holding every PMU event
   of the run, the planner stays out of it, and each metric column discloses the
   scripted ratio below 1.0 that master's single-plan path discloses (FR-024,
   US2 scenario 1)
-- [ ] T033 [US2] In the same file, add the no-limit host cases: on a host
+- [X] T033 [US2] In the same file, add the no-limit host cases: on a host
   whose needed sources publish no limit, both the `auto` run and a forced
   `passes` run keep the single kernel-multiplexed plan and settle to
   `MULTIPLEX` (FR-024, spec D-11, the no-limit edge)
-- [ ] T034 [US2] In the same file, add the selector case:
+- [X] T034 [US2] In the same file, add the selector case:
   `metricMethod(MetricMethod::PASSES)` on a family with a fitting set runs one
   pass, publishes a pass count of 1 together with the forced record, and chains
   like `showPercentiles` (FR-023, FR-025, US2 scenario 2, E-01)
@@ -322,23 +322,23 @@ fail on the missing selector before T035 lands.
 
 ### Implementation for User Story 2
 
-- [ ] T035 [US2] Add `enum class MetricMethod` with `AUTO`, `PASSES` and
+- [X] T035 [US2] Add `enum class MetricMethod` with `AUTO`, `PASSES` and
   `MULTIPLEX`, the fluent `BenchmarkHandle::metricMethod` selector with its
   Doxygen contract, and the forced record on the entry in
   `include/speedgun-ng/benchmark.hpp` beside `showPercentiles` at lines
   1782-1795 (FR-023, FR-025, E-01, research D-09,
   `contracts/metric-method-selector.md`)
-- [ ] T036 [US2] Add the `--metric-method` row to the long-option table in
+- [X] T036 [US2] Add the `--metric-method` row to the long-option table in
   `source/harness/cli.cpp` beside the percentiles pair at lines 303-304, with
   the one-line stderr refusal that names the quoted word, the exit status 2
   taken before any measurement, the last-flag-wins overwrite, and the matching
   `--help` line (FR-023, FR-026, research D-09)
-- [ ] T037 [US2] Implement `settleMethod` in `source/harness/pass_plan.cpp` as
+- [X] T037 [US2] Implement `settleMethod` in `source/harness/pass_plan.cpp` as
   the E-01 table with the command-line-over-entry-over-`auto` priority, and call
   it in `source/harness/runner.cpp` before the first window so one run settles
   once and the `multiplex` path keeps master's single `compileCore` call
   (FR-024, FR-025, I-6, research D-09, D-10)
-- [ ] T038 [US2] Run `bash test/cli_shape.sh`, the run-control shape gate over
+- [X] T038 [US2] Run `bash test/cli_shape.sh`, the run-control shape gate over
   the entry point, after the option row lands, so the edited
   `source/harness/cli.cpp` keeps the shape the gate reads (constitution VIII;
   option-table parity is the `example_drift` option check of T053 and T056)
@@ -361,24 +361,24 @@ the warning predicate and the byte-identity fixture over the fake provider.
 
 ### Tests for User Story 3 (write first, observe failure)
 
-- [ ] T039 [US3] In `test/source/harness_pass_report_test.cpp`, add the
+- [X] T039 [US3] In `test/source/harness_pass_report_test.cpp`, add the
   two-pass shape: one line naming `method=passes` with `count=2` and the spread,
   where an even pass count takes the lower of its two central times as the
   median, and each metric column carrying `pass=0` or `pass=1` in the existing
   metric field spelling (FR-017, FR-019, US3 scenario 1)
-- [ ] T040 [US3] In the same file, add the spread fixtures of the
+- [X] T040 [US3] In the same file, add the spread fixtures of the
   spread-fixture table of [data-model.md](data-model.md) E-06: the in-band set,
   the boundary set that prints `spread=5.0%` with no warning line, and the
   three-pass warning set with its `warning:` line (FR-017, FR-018, SC-05, US3
   scenario 2, research D-08)
-- [ ] T041 [US3] In the same file, add the arms the formula cannot answer and
+- [X] T041 [US3] In the same file, add the arms the formula cannot answer and
   the second warning case: a zero median prints `spread=not available` with no
   warning and no failure, the three-pass fixture 100, 104 and 108 prints
   `spread=7.7%` with the warning line, and the two-pass fixture 100 and 108
   prints `spread=8.0%` with the warning line, the lower-of-two median of D-6
   being what gives the two-pass value its 8.0 (FR-017, FR-018, E-06, the
   zero-median edge, research D-14)
-- [ ] T042 [US3] Add the byte-identity fixture
+- [X] T042 [US3] Add the byte-identity fixture
   `test/source/detail/pass_identity.expected` captured from a `ci-rocky` build of
   the audit point for one fitting metric run, and assert in the same file that an
   `auto` run of that fixture prints those bytes field for field with no `passes`
@@ -386,18 +386,18 @@ the warning predicate and the byte-identity fixture over the fake provider.
   The test binary receives the fixture path as its first command-line argument,
   which `add_test` passes through a generator expression over
   `CMAKE_CURRENT_SOURCE_DIR`, and the test reads the file with `std::ifstream`.
-- [ ] T043 [US3] In the same file, add the `multiplex` settling shape: the
+- [X] T043 [US3] In the same file, add the `multiplex` settling shape: the
   disclosure names `method=multiplex` with `count=1`, prints no `spread` field,
   and keeps `ratio=`, `scaled=` and `gap=` in their current spelling (FR-020, US3
   scenario 4)
-- [ ] T044 [US3] In the same file, add the print rule: a forced method with
+- [X] T044 [US3] In the same file, add the print rule: a forced method with
   one pass prints the line, and a run that carries no metric column prints no
   line even when a method is forced (FR-021, clarification Q2, research D-10)
-- [ ] T045 [US3] In the same file, add the published-field checks: the
+- [X] T045 [US3] In the same file, add the published-field checks: the
   merged result of a two-pass run, of a `multiplex` settling and of a run with no
   metric column carries the `metricMethod`, `passCount` and `passSpread` values
   the console prints (FR-017, SC-06, clarification Q4, E-07)
-- [ ] T046 [US3] In `test/source/harness_context_report_test.cpp`, add the
+- [X] T046 [US3] In `test/source/harness_context_report_test.cpp`, add the
   untouched check: the context disclosure lines of a threaded two-pass run equal
   the expected bytes, held as an inline literal in the test, so
   `printContextDisclosure` stays byte-identical; no capture step and no history
@@ -408,16 +408,16 @@ result fields before T047 lands.
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] Add `MetricValue::pass` beside `MetricValue` at line 211 and
+- [X] T047 [US3] Add `MetricValue::pass` beside `MetricValue` at line 211 and
   the `metricMethod`, `passCount` and `passSpread` fields beside `percentilePoints`
   at line 492 of `include/speedgun-ng/benchmark.hpp`, filled by the merge path
   (FR-017, FR-019, E-07, E-08)
-- [ ] T048 [US3] Implement `passSpread` in `source/harness/pass_plan.cpp` as one
+- [X] T048 [US3] Implement `passSpread` in `source/harness/pass_plan.cpp` as one
   pure decision over the merged reference time per iteration: fewer than two passes
   answers nothing, a zero median answers nothing, otherwise `(max - min) / median
   * 100`, with the warning predicate being a value that exists and exceeds 5.0 on
   the unrounded figure (FR-017, FR-018, E-06, D-6, research D-08)
-- [ ] T049 [US3] Add `printPassDisclosure` in `source/harness/report.cpp` in the
+- [X] T049 [US3] Add `printPassDisclosure` in `source/harness/report.cpp` in the
   tagged-line format of the percentile line at line 306 and the chunks line at
   lines 358-362, with the warning voice of the `std::printf` inside
   `printNoiseWarning` at lines 251-255, called from `printResult`
@@ -425,7 +425,7 @@ result fields before T047 lands.
   the run carries a metric column and the settled method is `MULTIPLEX` or the pass
   count exceeds 1 or the caller forced a method (FR-017, FR-018, FR-020, FR-021,
   FR-022, research D-10, research D-11, `contracts/pass-disclosure.md`)
-- [ ] T050 [US3] Add the conditional `pass=%zu` token after `gap=` in the metric
+- [X] T050 [US3] Add the conditional `pass=%zu` token after `gap=` in the metric
   field loop of `source/harness/report.cpp` at lines 489-504, printed when the pass
   count exceeds 1, so a one-pass run keeps the four tokens master prints
   (FR-019, FR-021, research D-11)

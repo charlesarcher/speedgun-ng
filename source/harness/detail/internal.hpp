@@ -174,6 +174,10 @@ public:
   // specs/021 FR-019: the percentile selection the family asked for. The
   // command line wins over it (FR-020).
   bool showPercentiles = false;
+  // specs/024 FR-023, FR-025: the collection method the family asked for.
+  // The metric-method flag on the command line wins over it, and the run
+  // settles from it to the method it publishes (E-01).
+  MetricMethod metricMethod = MetricMethod::AUTO;
   // specs/021 FR-005: the per-iteration time of the last attempt of this
   // instance, the read that calibrates the chunk size of the next one.
   // Zero names an instance with no measured attempt behind it.
@@ -444,6 +448,10 @@ struct RunOptions
   // `--percentiles=` stated, empty when the option named none.
   std::optional<bool> showPercentiles;
   std::vector<double> percentilePoints;
+  // specs/024 FR-023, FR-025, research D-09: the word of `--metric-method`.
+  // A set value wins over the family's request the way `showPercentiles` wins
+  // over its selection, and a repeated flag keeps its last word.
+  std::optional<MetricMethod> metricMethod;
   std::vector<std::string> metricNames;
   // specs/025 data-model.md E-07, FR-015, FR-016, FR-036: the raw
   // placement option text, parsed once before the first run, and the

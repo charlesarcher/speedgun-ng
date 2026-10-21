@@ -1316,7 +1316,28 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
     columnLeaves.push_back(std::move(groups));
   }
-  auto planning = sg::detail::planPasses(columnLeaves, sourceLimits);
+  // E-01, FR-024, FR-025, FR-007, research D-09: the run settles its
+  // collection method once, here, before its first window opens. The command
+  // line's word wins over the family's own request and over `auto`, on the
+  // `--percentiles` precedent; the limit facts of the sources these columns
+  // need and the count of the columns answer the rest of the table. One call
+  // settles one run: nothing downstream re-decides.
+  bool anyLimit = false;
+  for (const auto& limit : sourceLimits) {
+    anyLimit = anyLimit || limit.has_value();
+  }
+  const auto collectionMethod = sg::detail::settleMethod(
+      m_options.metricMethod.value_or(entry.metricMethod),
+      anyLimit,
+      columns.size());
+
+  // E-01, FR-024: only a settling of `passes` runs the planner. Any other
+  // settling leaves the plan of the audit point standing, so the run keeps the
+  // single `compileCore` call over every column and the kernel rotates the
+  // whole spine (FR-025, research D-10).
+  auto planning = collectionMethod == MetricMethod::PASSES
+      ? sg::detail::planPasses(columnLeaves, sourceLimits)
+      : sg::detail::PassPlan {};
 
   // Every column of the run in request order: the spine the audit point
   // compiled, and the spine a run with no plan of its own measures whole.
@@ -2356,6 +2377,25 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   } else {
     result = std::move(passResults.back());
   }
+
+  // E-07, FR-017, FR-020, research D-10: the settled method and its pass
+  // count ride the published result on both arms of this join. The merge
+  // already carries them; the single-result arm is where the `multiplex`
+  // settling and a one-pass `passes` settling publish theirs, because only
+  // the merge path reaches `mergePasses`, the writer of these fields. A
+  // settling of `AUTO` - the run that carries no metric column - publishes
+  // no count, the reading E-07 gives a run whose pass mechanism did not run.
+  // The single pass of such a run and of the one-plan settleings measured no
+  // second time to spread, so the published spread stays the empty answer.
+  result.metricMethod = collectionMethod;
+  result.passCount = collectionMethod == MetricMethod::AUTO ? 0 : passCount;
+  // FR-021, clarification Q2, research D-10: the forced-method record is
+  // caller state - the command line's word or the family's own request -
+  // that the settled method cannot recover, because a forced one-pass
+  // `passes` run and an identical `auto` one settle alike. The runner holds
+  // both records and carries the answer to the report's print rule.
+  result.metricMethodForced = m_options.metricMethod.has_value()
+      || entry.metricMethod != MetricMethod::AUTO;
 
   // FR-054: the result records the fold when a measured repetition's
   // run netted a pause pair through the fold path.

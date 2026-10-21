@@ -270,6 +270,17 @@ auto BenchmarkHandle::showPercentiles(const bool show) -> BenchmarkHandle&
   return *this;
 }
 
+auto BenchmarkHandle::metricMethod(const MetricMethod method)
+    -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  m_entry->metricMethod = method;
+  SG_ENSURE(m_entry->metricMethod == method,
+            "the entry carries the metric method of that family (FR-025)");
+  return *this;
+}
+
 auto BenchmarkHandle::complexity(const BigO bigO) -> BenchmarkHandle&
 {
   SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,

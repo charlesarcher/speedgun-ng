@@ -60,6 +60,7 @@
 #include <unistd.h>
 
 #include "detail/internal.hpp"
+#include "detail/pass_fixture.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
@@ -968,6 +969,153 @@ auto scenarioNoFoldCrossesContexts() -> void
         "(FR-014)");
 }
 
+// ---------------------------------------------------------------------------
+// The threaded two-pass run of specs/024-multipass-collection T046
+// (FR-022, spec D-8): the four metric columns of two PMU events each over the
+// scripted programmable-counter limit of 4 do not fit one pass, so every
+// context measures its half of the columns twice. The pass loop is feature
+// 024's; the context disclosure it must leave alone is feature 020's.
+// ---------------------------------------------------------------------------
+
+constexpr const char* kPassFamily = "bmPassContext";
+constexpr std::uint64_t kPassRunIterations = 20;
+constexpr std::uint64_t kPassRepetitions = 2;
+
+// The passes the fixture's four columns take at the scripted limit of 4
+// (`harness_pass_collect_test.cpp` states the split), and the endpoint
+// samples one window of one iteration folds.
+constexpr std::size_t kPassCount = 2;
+constexpr std::uint64_t kWindowReads = sg::test::kAuditPointReadsPerIteration;
+
+// The four pairs of the fixture, in request order: eight PMU events over the
+// scripted limit of 4, which `pass_fixture.hpp` states fill two passes of two
+// columns each. The fixture's fifth column stays out on purpose - the column
+// of five events takes a pass of its own, which would make this a three-pass
+// run and this scenario's witness of something other than the two-pass shape.
+constexpr std::size_t kPassColumnCount = 4;
+
+// The disclosure bytes of a threaded run of `kRunContexts` contexts, spelled
+// out whole: the threaded policy is SPIN waits with no pin, and the no-pin
+// slot's field closes after the placement word. The claim of T046 is that
+// these bytes come from `printContextDisclosure` alone, so no fixture file
+// and no captured history carries them here.
+constexpr auto kTwoPassDisclosure =
+    "  contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN";
+
+// The pass fixture, held by the scenario because its window account is what
+// proves the run really took two passes (`registerPassFixture` keeps the
+// provider out of reach).
+auto registerPassProvider() -> sg::counters::FakeProvider&
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  sg::test::scriptPassFixture(provider, sg::test::kHostPassLimit);
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(settled.has_value(),
+        "the pass fixture provider registers on the local system");
+  return provider;
+}
+
+// The sum of one fixture column's leaves, in the arithmetic form the harness
+// reports per iteration.
+auto sumLeaves(const std::string_view objectPath,
+               const std::vector<std::string_view>& names)
+    -> sg::counters::Expression<sg::counters::Dim<0, 1>>
+{
+  const auto object = sg::counters::System::local().object(objectPath);
+  check(object.has_value(), "the object of the metric column resolves");
+  const auto first = object->counter<sg::counters::Dim<0, 1>>(names.front());
+  check(first.has_value(), "the first leaf of the column resolves");
+  auto total = sg::counters::Expression<sg::counters::Dim<0, 1>>(*first);
+  for (std::size_t index = 1; index < names.size(); ++index) {
+    const auto leaf = object->counter<sg::counters::Dim<0, 1>>(names[index]);
+    check(leaf.has_value(), "every leaf of the column resolves");
+    total = total + *leaf;
+  }
+  return total;
+}
+
+auto attachPassColumns(sg::BenchmarkHandle& handle) -> void
+{
+  const auto& columns = sg::test::passColumns();
+  check(columns.size() >= kPassColumnCount,
+        "the fixture carries the four pairs this run attaches");
+  for (std::size_t index = 0; index < kPassColumnCount; ++index) {
+    handle.addMetric(sumLeaves(columns[index].object, columns[index].events),
+                     columns[index].label);
+  }
+}
+
+// One run of the two-pass family on its own contexts, with the provider
+// actions its windows cost.
+struct PassRun
+{
+  sg::BenchmarkResult result;
+  std::uint64_t reads = 0;
+};
+
+auto runPassFamily(sg::counters::FakeProvider& provider,
+                   const std::uint64_t repetitions) -> PassRun
+{
+  const std::string instanceName =
+      std::string(kPassFamily) + "/threads:" + std::to_string(kRunContexts);
+  auto* target = static_cast<sg::Instance*>(nullptr);
+  for (auto& instance : sg::detail::instances()) {
+    if (instance.name == instanceName) {
+      target = &instance;
+    }
+  }
+  check(target != nullptr, "the expansion produced the threaded instance");
+
+  sg::detail::RunOptions options;
+  options.fixedIterations = kPassRunIterations;
+  options.repetitions = repetitions;
+  sg::detail::Runner runner(options);
+  const std::uint64_t before = provider.readActions();
+  auto result = runner.run(*target);
+  check(result.outcome == sg::RunOutcome::MEASURED,
+        "the two-pass run measured its row");
+  return PassRun {std::move(result), provider.readActions() - before};
+}
+
+// FR-022, spec D-8: the pass loop changes what a run measures; the context
+// disclosure says the same thing either way. The run below measures its metric
+// columns on two passes per context; the disclosure of its merged result
+// stands byte for byte where the audit point printed it.
+auto scenarioTwoPassContextBytesUntouched() -> void
+{
+  auto& provider = registerPassProvider();
+  auto handle = sg::registerBenchmark(&bmThreadedRun, kPassFamily);
+  handle.threads(kRunContexts);
+  attachPassColumns(handle);
+  sg::detail::expandRegistry();
+
+  // The window account of one more repetition names the pass count: each
+  // context opens one window per pass per iteration, so one repetition more
+  // costs contexts x passes x window reads (`harness_pass_collect_test.cpp`
+  // strikes the same account for the single-context case).
+  const auto few = runPassFamily(provider, kPassRepetitions);
+  const auto many = runPassFamily(provider, kPassRepetitions + 1);
+  check(many.reads - few.reads
+            == static_cast<std::uint64_t>(kRunContexts) * kPassCount
+                * kWindowReads,
+        "the run measured its metric columns on two passes per context "
+        "(FR-009, SC-08)");
+  check(many.result.contexts.size() == kRunContexts,
+        "the merged result discloses each context that contributed (FR-025)");
+
+  const auto lines =
+      captureThrough([&many] { sg::detail::printResult(many.result); });
+  const auto disclosure = linesHolding(lines, "  contexts=");
+  check(disclosure.size() == 1,
+        "the two-pass run discloses its contexts once, not once per pass "
+        "(FR-022, FR-025, spec D-8)");
+  check(!disclosure.empty() && disclosure.front() == kTwoPassDisclosure,
+        "the context disclosure of a threaded two-pass run is the bytes the "
+        "audit point printed, unchanged (FR-022, spec D-8)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -992,6 +1140,7 @@ auto main() -> int
       {"contextPercentilesCarryTheirOwnPoints",
        scenarioContextPercentilesCarryTheirOwnPoints},
       {"noFoldCrossesContexts", scenarioNoFoldCrossesContexts},
+      {"twoPassContextBytesUntouched", scenarioTwoPassContextBytesUntouched},
   };
   std::size_t failed = 0;
   for (const auto& scenario : scenarios) {

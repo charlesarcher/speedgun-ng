@@ -31,5 +31,8 @@ skip = */.git,*/build,*/build-tidy,*/prefix,*/node_modules,*/.omo,*/external
 # data-model.md): the rule that a page block compiles as pasted under the
 # canonical includes. Codespell's code dictionary proposes "Compatibility",
 # a different word, and no text change keeps the property name.
-ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation,onother,nowns,compilability
+# "unexpect" is the std::unexpect in-place error tag (source/harness/runner.cpp):
+# the standard's own name for it, and codespell's dictionary proposes
+# "unexpected", a different token that would not compile.
+ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation,onother,nowns,compilability,unexpect
 quiet-level = 2

@@ -203,12 +203,36 @@ inline constexpr std::size_t kMaxUserCounters = 16;
 inline constexpr std::size_t kMaxCounterNameBytes = 32;
 
 /**
+ * @brief How a run that carries metric columns collects its events
+ * (E-01, FR-023).
+ *
+ * `AUTO` leaves the choice to the run, which settles it per the
+ * resolution table of data-model E-01: `PASSES` wherever a source the run
+ * needs publishes a programmable-counter limit, `MULTIPLEX` where none
+ * does. `PASSES` names the planner path, one pass per group of columns;
+ * `MULTIPLEX` names the single kernel-rotated plan. No fourth value
+ * exists, so a caller cannot ask for a method the run cannot settle to
+ * (FR-023, FR-024, research D-10).
+ *
+ * The definition stands above `MetricValue` and `BenchmarkResult`, the two
+ * types that publish the settled method (specs/024 E-07).
+ */
+enum class MetricMethod : std::uint8_t
+{
+  AUTO,
+  PASSES,
+  MULTIPLEX
+};
+
+/**
  * @brief One metric of one row, with the disclosure beside the value
  * (FR-024).
  *
  * `availability` carries the gap state: a window whose endpoint
  * measured nothing reports `sg::counters::Availability::GAP`, and a
  * leaf the host cannot count keeps its refusal kind (FR-023, FR-025).
+ * `pass` names the pass that measured the value, empty when no split
+ * named one (specs/024 E-08).
  */
 struct MetricValue
 {
@@ -218,6 +242,11 @@ struct MetricValue
   // The field name is the contract name. The type spelling is Availability.
   sg::counters::Availability availability =
       sg::counters::Availability::COUNTABLE;
+  // specs/024 E-08, FR-019: the index of the pass that measured this value.
+  // The merge of a multi-pass run names one for every metric column; a run
+  // that measured one pass leaves the field empty, which is what holds the
+  // report to the four tokens master prints (FR-021).
+  std::optional<std::size_t> pass;
 };
 
 /**
@@ -492,6 +521,30 @@ struct BenchmarkResult
   // with duplicates collapsed, the order every `percentiles` entry follows.
   // Empty when the run reports no percentile (FR-023).
   std::vector<double> percentilePoints;
+  // specs/024 E-07, FR-017: the method this run settled to, one of
+  // `PASSES` or `MULTIPLEX` once the run carries a metric column, and
+  // `AUTO` while it does not (E-01, I-6). The merge of the passes names
+  // `PASSES`; the console prints the token beside it (FR-020).
+  MetricMethod metricMethod = MetricMethod::AUTO;
+  // specs/024 E-07, FR-017: the number of passes the run measured. Zero
+  // means the pass mechanism did not run, which is the reading a settling
+  // of `AUTO` leaves; the `multiplex` settling runs the one plan holding
+  // every PMU event, so it discloses one.
+  std::size_t passCount = 0;
+  // specs/024 E-06, FR-017: the relative spread of the reference time per
+  // iteration across the passes, as a percentage of their median and
+  // unrounded, the print being the one rounding (research D-08). Empty when
+  // fewer than two passes ran or their median is zero, the case the report
+  // prints as `spread=not available`.
+  std::optional<double> passSpread;
+  // specs/024 FR-021, clarification Q2, research D-10: true when the caller
+  // forced the collection method, `--metric-method=` on the command line or
+  // the `metricMethod` selector on the family. The settled method cannot
+  // carry this record: a forced one-pass `passes` run and an identical
+  // `auto` one settle to the same method and count yet only the forced one
+  // prints the disclosure line, so the runner fills it and the report reads
+  // it.
+  bool metricMethodForced = false;
   // specs/021 FR-001, FR-010: true when the primary time of this result is
   // the CPU fold, the default, and false when the family asked for the real
   // fold. The row reports both time columns, so the percentile column that
@@ -2005,6 +2058,26 @@ public:
    *       the returned handle is this handle (FR-019)
    */
   auto showPercentiles(bool show) -> BenchmarkHandle&;
+
+  /**
+   * @brief Set the collection method this family asks for (FR-023,
+   * FR-025).
+   *
+   * The request names a method and nothing else: no plan, no limit, no
+   * column list, and no timing change of its own. The `--metric-method`
+   * flag wins over it the way `--repetitions` wins over `repetitions`, so
+   * one run settles one method for every family it runs, and a request of
+   * `AUTO` settles at run time per the table of data-model E-01 (FR-024,
+   * FR-025, research D-09).
+   *
+   * \pre the handle names a registered entry and the run has not started
+   *      for this benchmark (E-02)
+   * \post the entry carries `method` as the request of that family, and
+   *       the returned handle is this handle; the method the run settles
+   *       to is published as `BenchmarkResult::metricMethod` whatever it
+   *       settled to (FR-025)
+   */
+  auto metricMethod(MetricMethod method) -> BenchmarkHandle&;
 
   /**
    * @brief Restrict the console display of this family to its aggregate rows

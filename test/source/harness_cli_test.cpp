@@ -2,6 +2,11 @@
 // TDD test for the command line (T020, T023; US2, US4, FR-009, FR-015,
 // FR-020, FR-021, FR-022, FR-024, FR-034, FR-036, SC-006, SC-007).
 //
+// T030 and T031 of specs/024-multipass-collection add the `--metric-method`
+// refusal table, the precedence of the command line over the family's own
+// request, and the two modes that end before any method settles (FR-025,
+// FR-026, SC-04).
+//
 // A scripted FakeProvider owns the machine time leaves and one events leaf,
 // so the option effects are read as exact numbers in the captured report and
 // no run can grow into a long calibration. The usage-error cases exit the
@@ -24,12 +29,14 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include "../source/harness/detail/internal.hpp"
+#include "detail/pass_fixture.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
@@ -81,6 +88,22 @@ auto bmFixed(sg::State& state) -> void
 
 auto bmMetric(sg::State& state) -> void
 {
+  for (auto _ : state) {
+  }
+}
+
+// The four fixture pairs the `--metric-method` scenarios attach: at the
+// scripted limit of 4 they fill two passes of two columns each, and one
+// kernel-rotated plan holds all eight events otherwise (E-03 rule 3).
+constexpr std::size_t kMethodColumnCount = 4;
+
+int methodRuns = 0;
+
+// The family of the specs/024 method scenarios, registered only in the child
+// that runs them (see the `methodrun` mode below).
+auto bmMethod(sg::State& state) -> void
+{
+  ++methodRuns;
   for (auto _ : state) {
   }
 }
@@ -348,6 +371,21 @@ auto subprocessOutput(const std::string& command, std::string& output) -> int
   return pclose(pipe);
 }
 
+// Re-exec this binary in one of its usage modes with the arguments given, and
+// report the child's merged output; the answer is the wait status. Every
+// argument stands quoted, so a word with nothing in it survives the shell.
+auto childRun(const std::string& self,
+              const std::string& mode,
+              const std::vector<std::string>& arguments,
+              std::string& output) -> int
+{
+  std::string command = "\"" + self + "\" " + mode;
+  for (const auto& argument : arguments) {
+    command += " \"" + argument + "\"";
+  }
+  return subprocessOutput(command + " 2>&1", output);
+}
+
 auto scriptedProvider() -> void
 {
   auto provider = std::make_unique<sg::counters::FakeProvider>();
@@ -361,6 +399,25 @@ auto scriptedProvider() -> void
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(provider));
   check(registered.has_value(), "the fake provider registers");
+}
+
+// The sum of one scripted column's leaves: the shape of a metric column, one
+// same-dimension core over the PMU events it names (E-03 rule 1).
+auto sumLeaves(const std::string_view objectPath,
+               const std::vector<std::string_view>& names)
+    -> sg::counters::Expression<sg::counters::Dim<0, 1>>
+{
+  const auto object = sg::counters::System::local().object(objectPath);
+  check(object.has_value(), "the scripted object of the column resolves");
+  const auto first = object->counter<sg::counters::Dim<0, 1>>(names.front());
+  check(first.has_value(), "the first scripted leaf of the column resolves");
+  auto total = sg::counters::Expression<sg::counters::Dim<0, 1>>(*first);
+  for (std::size_t index = 1; index < names.size(); ++index) {
+    const auto leaf = object->counter<sg::counters::Dim<0, 1>>(names[index]);
+    check(leaf.has_value(), "every scripted leaf of the column resolves");
+    total = total + *leaf;
+  }
+  return total;
 }
 
 // The two texts the metric option writes when a name carries nothing: the
@@ -503,6 +560,42 @@ auto main(const int argc, char** argv) -> int
     // marker is itself the observation that no benchmark ran.
     std::fprintf(
         stderr, "%s\n", alphaRuns > 0 ? "BENCHMARK_RAN" : "BENCHMARK_NO_RUN");
+    return status;
+  }
+
+  if (mode == "methodrun" && argc > 2) {
+    // specs/024 T030, T031: the settled method of a run reaches this file only
+    // through the `passes` line of a run that carries metric columns, so the
+    // child runs the four scripted columns of the pass fixture. Every scripted
+    // fact has to precede the first resolution, so no other provider registers
+    // here: the fixture takes the machine leaves and the `cpu` path alike,
+    // which leaves the entry point's own clock and pmu providers refused and
+    // no hardware read (FR-006).
+    check(sg::test::registerPassFixture(sg::test::kHostPassLimit),
+          "the scripted pass fixture takes the host counting source");
+    auto methodHandle = sg::registerBenchmark(&bmMethod, "bmMethod");
+    methodHandle.iterations(1);
+    // The family asks for `multiplex` on its own handle; only the command line
+    // decides whether it gets it (FR-025).
+    methodHandle.metricMethod(sg::MetricMethod::MULTIPLEX);
+    const auto columns = sg::test::passColumns();
+    for (std::size_t index = 0; index < kMethodColumnCount; ++index) {
+      methodHandle.addMetric(
+          sumLeaves(columns[index].object, columns[index].events),
+          columns[index].label);
+    }
+    std::vector<char*> inner = {argv[0],
+                                const_cast<char*>("--filter"),
+                                const_cast<char*>("^bmMethod$"),
+                                const_cast<char*>("--iterations=1")};
+    for (int index = 2; index < argc; ++index) {
+      inner.push_back(argv[index]);
+    }
+    const int status =
+        sg::speedgunMain(static_cast<int>(inner.size()), inner.data());
+    std::fflush(stdout);
+    std::fprintf(
+        stderr, "%s\n", methodRuns > 0 ? "BENCHMARK_RAN" : "BENCHMARK_NO_RUN");
     return status;
   }
 
@@ -1079,85 +1172,147 @@ auto main(const int argc, char** argv) -> int
           "the invalid list runs no benchmark (FR-022, SC-006)");
   }
 
-  // specs/023 T031, T035, SC-004: the report options answer the status the
-  // contract names, and the console keeps its bytes ahead of the file.
+  // ---- specs/024-multipass-collection T030, T031: `--metric-method` ----
+  //
+  // FR-025, FR-026, SC-04 and `contracts/metric-method-option.md`. The refusal
+  // table runs through the `arg` mode, whose marker states whether the
+  // benchmark function was reached, so the exact child output below is also
+  // the proof that the refusal came before any benchmark output. The settled
+  // method is read off the `passes` line of the scripted family
+  // (`contracts/pass-disclosure.md`, E-07).
+  const auto refusalText = [](const std::string& word) {
+    return "--metric-method '" + word + "' is not auto, passes or multiplex\n";
+  };
+
+  // The one `passes` line of the scripted family, empty when the child printed
+  // none or printed more than one.
+  const auto methodLine = [](const std::string& report) -> std::string
   {
-    std::remove("harness_cli_none.json");
-    const std::string plain =
-        captureRun({"--filter", "^bmAlpha$", "--iterations=2"});
-    check(!linesOf(plain, "bmAlpha").empty(), "the plain run prints its row");
-    std::ifstream absent("harness_cli_none.json");
-    check(!absent.is_open(), "no option writes no file (FR-002)");
-  }
-  {
-    // FR-004, FR-030: an unwritable path prints the console report first
-    // and answers 2.
-    const std::string unwritten = captureRun({"--filter",
-                                              "^bmAlpha$",
-                                              "--iterations=2",
-                                              "--json=/proc/nope/report.json"},
-                                             2);
-    check(!linesOf(unwritten, "bmAlpha").empty(),
-          "the console report stands ahead of the failed write (FR-004)");
-  }
-  {
-    // FR-034, E-05: `none` is a spelling the option names, and as the
-    // document sees it it is the whole of the raw setting: the file is
-    // written and no row carries a chunk column.
-    std::remove("harness_cli_rawnone.json");
-    captureRun({"--filter",
-                "^bmAlpha$",
-                "--iterations=2",
-                "--json=harness_cli_rawnone.json",
-                "--json-raw=none"});
-    const auto loaded = sg::loadReport("harness_cli_rawnone.json");
-    bool bare = loaded.has_value() && loaded->results.size() == 1
-        && loaded->rowRaw.size() == 1;
-    for (const auto& rows : loaded->rowRaw) {
-      for (const auto& row : rows) {
-        bare = bare && row.columns.empty();
-      }
+    const auto lines = taggedLinesOf(report, "bmMethod", "passes");
+    return lines.size() == 1 ? lines.front() : std::string {};
+  };
+
+  // FR-026, SC-04, US2 scenario 3: a word outside the three costs no measured
+  // time. The comparison is exact and case-sensitive, so `Auto` is a bad word
+  // and an empty word is a bad word, each named in quotes on one line.
+  for (const char* word : {"fast", "", "Auto"}) {
+    std::string output;
+    const int status =
+        childRun(self, "arg", {"--metric-method=" + std::string(word)}, output);
+    if (output != refusalText(word) + "BENCHMARK_NO_RUN\n") {
+      std::fprintf(stderr,
+                   "--metric-method='%s' exited %d with:\n%s\n",
+                   word,
+                   WEXITSTATUS(status),
+                   output.c_str());
     }
-    check(bare,
-          "--json-raw=none parses and writes a document with no chunk "
-          "columns (FR-034, E-05)");
+    check(WEXITSTATUS(status) == 2,
+          "a word outside the three exits with the usage status (FR-026, "
+          "SC-04)");
+    check(output == refusalText(word) + "BENCHMARK_NO_RUN\n",
+          "the refusal is one line naming the quoted word and the three good "
+          "words, with no benchmark output beside it (FR-026, SC-04, US2 "
+          "scenario 3)");
   }
-  // FR-004: a failed write beside a failed benchmark still answers 2.
-  captureRun({"--filter",
-              "^bmThrows$",
-              "--iterations=1",
-              "--json=/proc/nope/report.json"},
-             2);
-  for (const std::string argument :
-       {"--json=", "--json-raw=", "--json-raw=bogus"})
+
+  // FR-026: a repeated flag applies its last occurrence, as every other
+  // value-carrying flag of the table does.
+  std::string lastWordOutput;
+  const int lastWordStatus =
+      childRun(self,
+               "methodrun",
+               {"--metric-method=passes", "--metric-method=multiplex"},
+               lastWordOutput);
+  if (methodLine(lastWordOutput).empty()) {
+    std::fprintf(stderr,
+                 "the repeated flag exited %d with:\n%s\n",
+                 WEXITSTATUS(lastWordStatus),
+                 lastWordOutput.c_str());
+  }
+  check(WEXITSTATUS(lastWordStatus) == 0,
+        "two accepted words carry the run to its report (FR-026)");
+  check(!methodLine(lastWordOutput).empty(),
+        "a forced run discloses its method once (FR-020)");
+  check(
+      methodLine(lastWordOutput).find("method=multiplex") != std::string::npos,
+      "the last --metric-method word is the one the run settles to (FR-026)");
+
+  // FR-025, US2 scenario 4: the handle asks for `multiplex` and the command
+  // line asks for `passes`. The command line wins, so the planner splits the
+  // four scripted columns into two passes at the scripted limit of 4 and the
+  // method published for the run names `passes`.
+  std::string winsOutput;
+  const int winsStatus =
+      childRun(self, "methodrun", {"--metric-method=passes"}, winsOutput);
+  if (methodLine(winsOutput).empty()) {
+    std::fprintf(stderr,
+                 "the precedence run exited %d with:\n%s\n",
+                 WEXITSTATUS(winsStatus),
+                 winsOutput.c_str());
+  }
+  check(WEXITSTATUS(winsStatus) == 0,
+        "the family that asked for multiplex runs to its report (FR-025)");
+  check(winsOutput.find("BENCHMARK_RAN") != std::string::npos,
+        "the family that asked for multiplex runs its function (FR-025)");
+  check(!methodLine(winsOutput).empty(),
+        "a forced run discloses its method once (FR-020)");
+  check(methodLine(winsOutput).find("method=passes") != std::string::npos,
+        "the command line wins the family's request (FR-025, US2 scenario 4)");
+  check(countFieldOf(methodLine(winsOutput), "count=") == 2,
+        "the winning word collects by passes: two passes of two scripted "
+        "columns at the scripted limit of 4 (FR-024, FR-025, E-03)");
+
+  // FR-025: `--list` and `--catalog` end before any method settles, after they
+  // print what they print today. The accepted word costs them nothing.
+  struct EarlyCase
+  {
+    const char* argument;
+    const char* needle;
+  };
+
+  for (const EarlyCase& testCase :
+       {EarlyCase {"--list", "bmMethod"},
+        EarlyCase {"--catalog", "catalog: machine/monotonic"}})
   {
     std::string output;
-    const int status = subprocessOutput(
-        "\"" + self + "\" arg \"" + argument + "\" 2>&1", output);
-    check(WEXITSTATUS(status) == 2,
-          "an invalid report option exits 2 (FR-006, FR-030, SC-004)");
-    check(output.find("BENCHMARK_RAN") == std::string::npos
-              && output.find("iterations=") == std::string::npos,
-          "the invalid report option runs no benchmark (FR-006, SC-004)");
+    const int status = childRun(self,
+                                "methodrun",
+                                {"--metric-method=passes", testCase.argument},
+                                output);
+    if (output.find("method=") != std::string::npos) {
+      std::fprintf(stderr,
+                   "%s exited %d with:\n%s\n",
+                   testCase.argument,
+                   WEXITSTATUS(status),
+                   output.c_str());
+    }
+    check(WEXITSTATUS(status) == 0,
+          "the mode that settles no method exits zero (FR-025)");
+    check(output.find(testCase.needle) != std::string::npos,
+          "the mode still prints the listing it prints today (FR-025)");
+    check(methodLine(output).empty()
+              && output.find("method=") == std::string::npos,
+          "no passes line prints and no method settles (FR-025)");
+    check(output.find("iterations=") == std::string::npos
+              && output.find("BENCHMARK_RAN") == std::string::npos,
+          "the mode that settles no method runs no benchmark (FR-025)");
   }
-  {
-    // FR-001, T035: an interrupted batch still writes the file, and the
-    // status stays the one the interrupt earns.
-    std::remove("harness_cli_interrupt.json");
-    captureRun({"--filter",
-                "^bmInterrupts$",
-                "--iterations=1",
-                "--repetitions=3",
-                "--json=harness_cli_interrupt.json"},
-               1);
-    const auto loaded = sg::loadReport("harness_cli_interrupt.json");
-    check(loaded.has_value() && loaded->results.size() == 1
-              && loaded->results[0].outcome == sg::RunOutcome::SKIPPED
-              && loaded->results[0].reason.find("interrupted")
-                     != std::string::npos,
-          "the interrupted batch writes the file with the outcome the run "
-          "earned (FR-001, FR-004)");
+
+  // FR-026 over FR-025: a bad word is refused before the list prints, so the
+  // list name stands nowhere in the child's output.
+  std::string earlyRefusal;
+  const int earlyStatus =
+      childRun(self, "arg", {"--metric-method=fast", "--list"}, earlyRefusal);
+  if (earlyRefusal != refusalText("fast") + "BENCHMARK_NO_RUN\n") {
+    std::fprintf(stderr,
+                 "--metric-method=fast --list exited %d with:\n%s\n",
+                 WEXITSTATUS(earlyStatus),
+                 earlyRefusal.c_str());
   }
+  check(WEXITSTATUS(earlyStatus) == 2
+            && earlyRefusal == refusalText("fast") + "BENCHMARK_NO_RUN\n",
+        "a bad word with --list prints its refusal alone before the list name "
+        "and exits 2 (FR-025, FR-026)");
 
   std::puts("harness_cli_test: ok");
   return 0;

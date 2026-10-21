@@ -627,7 +627,7 @@ auto labelledColumnsReadTheirOwnRecords() -> void
   static_cast<void>(addRow(result, sg::RowKind::REPETITION, 1000.0, 250.0));
   auto& aggregate = addRow(result, sg::RowKind::AGGREGATE, 777.0, 888.0);
   aggregate.counters = {7.0};
-  aggregate.metrics = {sg::MetricValue {12.0}};
+  aggregate.metrics = {sg::MetricValue {.value = 12.0, .pass = {}}};
   aggregate.metricStats = {statsOf(15.0, 16.0, 10.0, 20.0)};
   answers(result, "counter:cache:misses", kMean, 40.0,
           "a counter label with an aggregate reads the counter's record "
@@ -1214,14 +1214,16 @@ auto anUncountableMetricCountsAsAMissingValue() -> void
   clean.name = "a";
   clean.metricLabels = {"work"};
   auto& cleanRow = addRow(clean, sg::RowKind::REPETITION, 1000.0, 100.0);
-  cleanRow.metrics = {sg::MetricValue {12.0}};
+  cleanRow.metrics = {sg::MetricValue {.value = 12.0, .pass = {}}};
 
   auto gapped = makeResult();
   gapped.name = "a";
   gapped.metricLabels = {"work"};
   auto& gappedRow = addRow(gapped, sg::RowKind::REPETITION, 1000.0, 100.0);
-  gappedRow.metrics = {sg::MetricValue {
-      .value = 12.0, .availability = sg::counters::Availability::GAP}};
+  gappedRow.metrics = {sg::MetricValue {.value = 12.0,
+                                .availability =
+                                    sg::counters::Availability::GAP,
+                                .pass = {}}};
 
   faultRow(makeReport({clean}),
            makeReport({gapped}),
@@ -1415,8 +1417,8 @@ auto metricRun(const char* name,
   result.name = name;
   result.metricLabels = {"work"};
   auto& row = addRow(result, sg::RowKind::REPETITION, 1000.0, 100.0);
-  row.metrics = {
-      sg::MetricValue {.value = value, .runningRatio = runningRatio}};
+  row.metrics = {sg::MetricValue {
+      .value = value, .runningRatio = runningRatio, .pass = {}}};
   return result;
 }
 
@@ -1682,7 +1684,7 @@ auto matrixResult(const char* name,
   result.percentilePoints = {99.0};
   row.percentiles = {{sg::PercentileValue {true, values.point}}};
   row.counters = {values.counter};
-  row.metrics = {sg::MetricValue {.value = values.metric}};
+  row.metrics = {sg::MetricValue {.value = values.metric, .pass = {}}};
   return result;
 }
 
