@@ -64,8 +64,9 @@ hold open at once on that source.
 | query | `Object::programmableCounters()` (`counters_system.hpp:34`) | `std::optional<std::size_t>` | Answers the published value; `\pre` none |
 | scripted limit | `FakeProvider::setProgrammableCounters(objectPath, limit)` (`counters_fake.hpp:103`) | fluent setter | Must precede `System::open`, like every scripted fake fact (FR-006; D-03) |
 
-Source of the real value: CPUID leaf 0AH, `EAX[7:0]` version, `EAX[15:8]`
-count; the answer exists when version and count are both nonzero (D-01).
+Source of the real value: the CPUID leaves of D-01, decoded per vendor for
+the core devices of its device table and adjusted for the watchdog per its
+adjustment table; a result of zero publishes no value (D-01).
 Measured on `corsairone` on 2026-10-20: version 4, count 4
 (`EAX=0x07300404`).
 
