@@ -211,8 +211,13 @@ or the pass count exceeds 1 or the caller forced the method). The exact
 printed shape, the `spread=not available` token, and the warning line are the
 contract of `contracts/pass-disclosure.md`; they are golden-tested.
 
-JSON: the fields join the JSON schema when that lane's schema file lands; no
-shared report-schema file is touched here (N3; Q4; FR-017).
+JSON rule (FR-017, FR-038, Q4; N3): the benchmark entry carries
+`metricMethod`, `passCount`, `passSpread` and `spreadWarning`, each metric
+column carries E-08's `pass`, and `docs/schema/report-v1.json` states the
+five. `loadReport` reads them, refuses a document whose `spreadWarning`
+disagrees with the spread beside it, and reads a key that stands missing as
+the default its member holds, so a document written before the five loads as
+it stands (specs/026 FR-051).
 
 ## E-08 - Pass tag on a metric value
 
