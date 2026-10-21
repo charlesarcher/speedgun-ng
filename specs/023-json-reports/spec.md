@@ -215,7 +215,7 @@ object the run releases, so no later pass can rebuild the columns.
 - The entry point closes with the postcondition
   `SG_ENSURE((status != 0) == (anyFailed || anyInterrupted), ...)` at
   `source/harness/cli.cpp:415`, and the status table of
-  `specs/015-benchmark-harness-core/contracts/cli.md:68` lists no
+  `specs/015-benchmark-harness-core/contracts/cli.md:73` lists no
   status 2 row for a report write. A write failure that exits 2 moves
   both (FR-050).
 
@@ -976,7 +976,7 @@ Symbol and section anchors, each read at the audit point `c7f1769`.
 | Context header, percentile line, row, result | `source/harness/report.cpp:287`, `:299`, `:351`, `:373` |
 | `speedgunMain`, option table, usage errors, exit-status postcondition | `source/harness/cli.cpp:218`, `:249`, `:67`, `:119`, `:139`, `:161`, `:332`, `:415` |
 | `RunOptions` | `source/harness/detail/internal.hpp:324` |
-| Exit status table and option table of the contract | `specs/015-benchmark-harness-core/contracts/cli.md:9`, `:68` |
+| Exit status table and option table of the contract | `specs/015-benchmark-harness-core/contracts/cli.md:9`, `:73` |
 | Vendored simdjson version, import, merge, tripwire | `external/simdjson/include/simdjson/simdjson_version.h:7`, `CMakeLists.txt:109`, `CMakeLists.txt:170`, `source/simdjson/simdjson_gate.cpp:12` |
 | `string_builder` and its number path | `external/simdjson/include/simdjson/generic/builder/json_string_builder.h:51`, `external/simdjson/include/simdjson/generic/builder/json_string_builder-inl.h:749` |
 | The writer's double algorithm | `external/simdjson/src/to_chars.cpp:701`, `:761` |

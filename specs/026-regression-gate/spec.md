@@ -267,7 +267,7 @@ option table at `:293` to `:310` with `filter`, `list`, `repetitions`,
 postcondition
 `SG_ENSURE((status != 0) == (anyFailed || anyInterrupted || reportFailed),`
 at `:566`, and the status table of
-`specs/015-benchmark-harness-core/contracts/cli.md:72` lists the rows
+`specs/015-benchmark-harness-core/contracts/cli.md:83` lists the rows
 that entry point answers today. A compare mode that answers status 1 for
 a regression and status 2 for a rule fault moves both (FR-052).
 
@@ -1188,7 +1188,7 @@ Symbol and section anchors, each read at the audit point `aec8fce`.
 | Console printers and unit scale | `source/harness/report.cpp:70`, `:88`, `:164`, `:193`, `:234`, `:257`, `:309`, `:331` |
 | Percentile column order | `source/harness/report.cpp:282` to `:296` |
 | Report schema top keys | `docs/schema/report-v1.json:7` |
-| Exit status table of the CLI contract | `specs/015-benchmark-harness-core/contracts/cli.md:72` to `:82` |
+| Exit status table of the CLI contract | `specs/015-benchmark-harness-core/contracts/cli.md:83` to `:101` |
 | Version and `SOVERSION` | `CMakeLists.txt:7`, `:47`, `:247` |
 | Drift gate caps and section list | `tools/docs/example_drift.py:30` to `:54`, `:59`, `:132`, `:133` |
 | Main page and quick-reference table | `README.md` (713 lines), `README.md:597` |

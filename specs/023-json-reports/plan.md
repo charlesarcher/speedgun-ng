@@ -104,7 +104,7 @@ surfaces and the spec carries.
    third case (research D-10). FR-050 carries the edit.
 3. `RunOutcome` has three values, `MEASURED`, `SKIPPED` and `FAILED`
    (`include/speedgun-ng/benchmark.hpp:76-81`), and an interrupted run
-   reports as skipped (`specs/015-benchmark-harness-core/contracts/cli.md:77-82`).
+   reports as skipped (`specs/015-benchmark-harness-core/contracts/cli.md:103-108`).
    The spec's edge-case bullet named two outcomes that do not exist; the
    `/speckit.analyze` pass of 2026-10-20 rewrote it to the three that do.
 
