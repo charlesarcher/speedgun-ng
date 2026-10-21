@@ -760,6 +760,7 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `--no-percentiles` | Turns the percentile lines off |
 | `--json` | Writes one JSON report document for the run |
 | `--json-raw` | Selects the chunk columns the document carries |
+| `--jitter-probe` | Runs the jitter probe over the batch by one value |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter to the report columns |
 | `--metric` | Adds one metric of the host's table to the report columns |

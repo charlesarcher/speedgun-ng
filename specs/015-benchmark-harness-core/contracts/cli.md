@@ -22,6 +22,7 @@ fixes.
 | `--compare` | `<baseline>,<contender>` | loads the two report documents, split at the first comma, answers the comparison table and the verdict, and runs no benchmark; a text with no comma, or an empty path on either side, prints one line naming the option and the text read (specs/026 FR-047, FR-048) | specs/026 FR-047, FR-048 |
 | `--compare-rule` | one rule text, repeatable | adds one rule in the order given; a text the parse call rejects prints one line naming the option and the fault the parse call named (specs/026 FR-049, FR-051) | specs/026 FR-049 |
 | `--compare-strict` | none | makes every `NOISY` row fail the run while the state word stays `NOISY` (specs/026 FR-044, FR-045) | specs/026 FR-044, FR-045 |
+| `--jitter-probe` | one value: a cpu list or the word `idle`, then the `threshold`, `mode`, `precheck`, `gaps` and `strict` keys, each standing once | runs the jitter probe over the batch by that value; the value parses once before the first run | specs/027 FR-011 |
 
 - A benchmark value set through the handle shall win over the command
   line (FR-015).
@@ -134,6 +135,9 @@ FR-034, FR-036, FR-046, FR-054, FR-064, FR-065, FR-082).
 | the `--compare-rules` file cannot be opened | 2, with one line naming the path (specs/028 FR-065) |
 | a `--threads` list holds a malformed item, a count below one, or a range whose low bound stands above its high | 2, with one line naming the option and the text (specs/028 FR-045, FR-046) |
 | `--interleave` names a text the seed reader refuses | 2, with one line naming the option and the text (specs/028 FR-054) |
+| a `--jitter-probe` value stands outside the grammar of contracts/cli-options.md | 2, with one line naming the rejected token, before any run (specs/027 FR-008, FR-009, FR-014, FR-038, R-06) |
+| the machine/tsc leaf stands missing under `--jitter-probe` with the `strict` key | 2, with one line, before any run (specs/027 FR-037, Q-1) |
+| the machine/tsc leaf stands missing under `--jitter-probe` without the `strict` key | zero, with the disclosure at report time (specs/027 FR-037, D-10) |
 
 ## Interrupt behavior (clarification, FR-032)
 

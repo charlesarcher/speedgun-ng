@@ -755,6 +755,35 @@ target_include_directories(harness_jitter_probe_test
 target_compile_features(harness_jitter_probe_test PRIVATE cxx_std_23)
 add_test(NAME harness_jitter_probe_test COMMAND harness_jitter_probe_test)
 
+# The probe's report surfaces (T007): the console block of a run with the
+# probe (FR-023, R-08), the run-level and per-entry JSON keys (FR-026,
+# FR-027), the round trip (FR-029), the raw gap list (FR-028), and the
+# reader error codes on the new keys.
+add_executable(harness_jitter_window_test
+               source/harness_jitter_window_test.cpp)
+target_link_libraries(harness_jitter_window_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_jitter_window_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_jitter_window_test PRIVATE cxx_std_23)
+add_test(NAME harness_jitter_window_test
+         COMMAND harness_jitter_window_test)
+
+# The option grammar of contracts/cli-options.md (T008): every
+# status-2 case, the standing getopt paths, the option-value uniqueness
+# over the parser's own table (FR-011, R-06), and the probe-free shape
+# (FR-013, SC-003). The uniqueness scan reads the parser's source
+# through the path the registration hands the binary, the way the
+# schema tests read their schema path.
+add_executable(harness_jitter_cli_test source/harness_jitter_cli_test.cpp)
+target_link_libraries(harness_jitter_cli_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_jitter_cli_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_jitter_cli_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_jitter_cli_test
+    PRIVATE SG_CLI_SOURCE="${CMAKE_SOURCE_DIR}/source/harness/cli.cpp")
+add_test(NAME harness_jitter_cli_test COMMAND harness_jitter_cli_test)
+
 # The machine layout read, the two install seams and the mask intersection
 # (T007; US1, FR-001, FR-002, FR-003, FR-005, FR-006, R-04, R-11, R-13,
 # SC-04, Q-5, Q-8).

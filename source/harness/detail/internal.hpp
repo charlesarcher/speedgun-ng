@@ -20,6 +20,8 @@
 #include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/execution_context.hpp"
 
+#include "jitter_probe.hpp"
+
 /**
  * @file internal.hpp
  * @brief The harness internals behind the public surface: the registry
@@ -497,6 +499,10 @@ struct RunOptions
   // once before the expansion and before any run. Empty when the option
   // stood absent.
   std::optional<JitterProbeOptions> jitterProbe;
+  // specs/027 FR-015, R-06: the option's raw text, as the scan and the
+  // gather read it; the parse stands once at the application point the
+  // placement parse uses.
+  std::string jitterProbeText;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
@@ -657,6 +663,13 @@ auto printContext(bool placementInEffect) -> void;
 
 /// @brief Format one benchmark result in fixed columns (FR-035, FR-036).
 auto printResult(const BenchmarkResult& result) -> void;
+
+/// @brief Print the console probe block, one column per probe cpu in the
+/// E-03 order, and the run-level disclosure lines in the end-of-report
+/// region (FR-023, FR-036, R-08, E-09). A false `available` prints the
+/// not-available disclosure only.
+auto printJitterReport(bool available,
+                       const std::vector<ProbeCpuState>& states) -> void;
 
 /// @brief Print the catalog listing; false when the listing failed
 /// (FR-037).

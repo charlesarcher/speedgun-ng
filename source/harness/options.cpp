@@ -658,6 +658,12 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Prints the project version and stops",
        "FR-016"},
+      {"jitter-probe",
+       kJitterProbeOptionValue,
+       OptionArgument::REQUIRED,
+       false,
+       "Runs the jitter probe over the batch by that value",
+       "specs/027-jitter-probe"},
   });
   return kRows;
 }
@@ -893,6 +899,11 @@ auto scanCommandLine(int argc, char** argv)
         scan.interleave = InterleaveSeed {true, *seed};
         break;
       }
+      case kJitterProbeOptionValue:
+        // specs/027 FR-011, R-06: the text stands raw here; the entry
+        // point parses it once before the expansion and before any run.
+        options.jitterProbeText = optarg;
+        break;
       case kHelpOptionValue:
         // FR-017: the walk answers the first of the two print options or
         // a usage fault that it meets, so the walk ends here and reads
@@ -1609,6 +1620,14 @@ auto applySourceValue(const OptionRow& row,
         return false;
       }
       resolved.optionFileRulesPath = text;
+      return true;
+    case kJitterProbeOptionValue:
+      // specs/027 FR-011: the text stands raw here the way the scan keeps
+      // it; the entry point's single parse covers every source.
+      if (!options.jitterProbeText.empty() && prior != kSameSourceSettled) {
+        return false;
+      }
+      options.jitterProbeText = text;
       return true;
   }
 }
