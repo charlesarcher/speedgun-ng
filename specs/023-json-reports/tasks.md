@@ -493,7 +493,7 @@ byte-identical key sequences across two runs).
 
 Coverage, first measurement of this feature to reach the gate (the 10:58
 run died at a gcda stamp mismatch caused by the crash, so no figure had
-ever been read): 99.4% line, 97.6% branch. The gaps were `cli.cpp:324`
+ever been read): 99.4% line, 97.6% branch. The gaps were `cli.cpp:332`
 (the `--json-raw=none` spelling, never exercised), the null
 `metricStats` entry, the non-null `noiseWarning` branch and the
 post-close `stream.fail()` branch in `json_report.cpp`, and 24 reader

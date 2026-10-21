@@ -172,7 +172,7 @@ visible failure channel; out-parameters, rejected as pre-C++23.
 
 **Decision**: `speedgunMain` calls the writer after the last
 `fitForFamilyEnd(nullptr)` and before the status postcondition
-(`source/harness/cli.cpp:410-418`).
+(`source/harness/cli.cpp:418-426`).
 
 **Rationale**: the console prints one result as its run finishes, so a
 write placed after the run loop holds every result of the batch, and the
@@ -190,13 +190,13 @@ result the file carries.
 
 **Decision**: a report the writer cannot write sets the process status to
 2, and that status wins over a failed benchmark's 1. The postcondition at
-`source/harness/cli.cpp:415` gains the third case, and
+`source/harness/cli.cpp:423` gains the third case, and
 `specs/015-benchmark-harness-core/contracts/cli.md` gains the row.
 
 **Rationale**: the existing postcondition reads `(status != 0) == (anyFailed
 || anyInterrupted)`, so a status of 2 with nothing failed breaks it unless
 the contract says otherwise. Status 2 is the option-error status the same
-file already answers (`cli.cpp:332`), and a report the user asked for and
+file already answers (`cli.cpp:340`), and a report the user asked for and
 did not get is a usage-level failure: the run's measurement stands, but the
 artifact they asked for is missing. FR-030 and FR-050 carry it
 (clarification question 2).

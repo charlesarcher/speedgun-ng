@@ -95,7 +95,7 @@ auto argNames(std::vector<std::string> labels) -> BenchmarkHandle&;
 
 | Rule | Requirement |
 | --- | --- |
-| `expandRegistry()` shall run at the start of `speedgunMain` (`source/harness/cli.cpp:142`), before the filter and the first run (R-03). | FR-003 |
+| `expandRegistry()` shall run at the start of `speedgunMain` (`source/harness/cli.cpp:150`), before the filter and the first run (R-03). | FR-003 |
 | No expansion work shall happen during a run. | FR-003 |
 | Each instance name shall start with the family name and add one `/`-joined segment per argument (R-02). | FR-010 |
 | A segment shall carry the `argName` label as `label:value` where one is set (`benchmark_api_internal.cc:34-51`). | FR-010 |

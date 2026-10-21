@@ -31,8 +31,8 @@ bound above a high bound, a `denseRange` step below 1, a count mismatch.
 
 ## E-02: Instance record
 
-`expandRegistry()` runs at the start of `speedgunMain` (`cli.cpp:142`),
-before the filter (`cli.cpp:227-248`) and the first run, and expands
+`expandRegistry()` runs at the start of `speedgunMain` (`cli.cpp:150`),
+before the filter (`cli.cpp:235-256`) and the first run, and expands
 each family record into its instance set (FR-003, R-03).
 
 | Field | Type | Source |
@@ -199,7 +199,7 @@ The rule is a gate over the instance name, held at selection in
 | --- | --- | --- |
 | prefix | the literal `DISABLED_` | FR-020; a string literal, outside the V.1 identifier scope |
 | test target | the expanded instance name | R-11; tested at selection time |
-| selection and list effect | the filter skips the instance, list mode omits it | FR-020; `cli.cpp:243-247`, `cli.cpp:250-255` |
+| selection and list effect | the filter skips the instance, list mode omits it | FR-020; `cli.cpp:251-255`, `cli.cpp:250-255` |
 
 Validation: a `DISABLED_` family registers and never runs (FR-020). A
 fixture method named `DISABLED_x` keeps its class prefix in the instance

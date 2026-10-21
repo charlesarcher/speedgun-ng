@@ -9,7 +9,7 @@
 The harness already owns the whole measurement a report needs:
 `Runner::run` answers one `BenchmarkResult` per instance and
 `speedgunMain` prints it through `detail::printResult`
-(`source/harness/cli.cpp:376-411`), and the percentile values, the
+(`source/harness/cli.cpp:384-419`), and the percentile values, the
 aggregate statistics, the labels and the context disclosure all stand in
 that value (`include/speedgun-ng/benchmark.hpp:351`, `:440`). The feature
 is therefore a formatter and a parser over a value that already exists.
@@ -100,7 +100,7 @@ surfaces and the spec carries.
    exported struct layout moves, because the raw columns travel beside the
    result (D-07). The `speedgun-ng` archive `SOVERSION` stays 2.
 2. The exit-status contract of `specs/015-benchmark-harness-core` gains a
-   row, and the postcondition at `source/harness/cli.cpp:415` gains its
+   row, and the postcondition at `source/harness/cli.cpp:423` gains its
    third case (research D-10). FR-050 carries the edit.
 3. `RunOutcome` has three values, `MEASURED`, `SKIPPED` and `FAILED`
    (`include/speedgun-ng/benchmark.hpp:76-81`), and an interrupted run
@@ -347,7 +347,7 @@ lands on the harness archive alone (D-16).
   and the print declarations in `source/harness/detail/internal.hpp:324-396`;
   `ContextFolds` and the chunk build in `source/harness/runner.cpp:271`,
   `:329`, `:1441-1512`; the option scan, the run loop and the status
-  postcondition in `source/harness/cli.cpp:249-418`; the console printers
+  postcondition in `source/harness/cli.cpp:257-426`; the console printers
   in `source/harness/report.cpp:138-400`; `string_builder` in
   `external/simdjson/include/simdjson/generic/builder/json_string_builder.h:51`
   and its number path at `json_string_builder-inl.h:749`; the vendored
