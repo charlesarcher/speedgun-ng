@@ -745,6 +745,28 @@ auto hasState(const std::vector<CompareEntry>& entries,
                      { return entry.state == state; });
 }
 
+// True when every entry of the list carries the text of one of the rules the
+// call applied (specs/026 FR-002, FR-034, FR-049). A rule's filter decides
+// which benchmarks the rule admits (FR-024), so the entry count follows the
+// filters while the rule text of each entry stays one of the applied ones.
+// The call site stands inside `SG_ENSURE`, so the contracts=ignore build
+// leaves the helper unused.
+[[maybe_unused]] auto namesAppliedRule(const std::vector<CompareEntry>& entries,
+                                       const std::vector<CompareRule>& applied)
+    -> bool
+{
+  return std::all_of(entries.begin(),
+                     entries.end(),
+                     [&applied](const CompareEntry& entry)
+                     {
+                       return std::any_of(applied.begin(),
+                                          applied.end(),
+                                          [&entry](const CompareRule& rule) {
+                                            return rule.text == entry.ruleText;
+                                          });
+                     });
+}
+
 }  // namespace
 
 auto parseCompareRule(std::string_view text)
@@ -782,21 +804,23 @@ auto compareReports(const ReportData& baseline,
   const std::vector<CompareRule> applied = appliedRulesOf(rules);
   const auto answer =
       detail::compareReportValues(baseline, contender, applied, options.strict);
-  // FR-002, FR-003, FR-044, FR-045: a value answers one entry for every
-  // benchmark under every rule it applied, with the verdict the entries
-  // state, and a fault answers one text naming it.
+  // FR-003, FR-044, FR-045: a fault answers one text naming it, and a value
+  // answers the verdict its entries state beside entries that each carry the
+  // text of one applied rule. A rule's filter decides which benchmarks the
+  // rule admits (FR-024), so the entry count follows the filters and the doc
+  // block carries that claim.
   SG_ENSURE(!answer.has_value()
                 ? !answer.error().empty()
-                : answer->entries.size() % applied.size() == 0U
+                : namesAppliedRule(answer->entries, applied)
                       && answer->passed
                              == (!hasState(answer->entries,
                                            CompareState::REGRESSED)
                                  && (!options.strict
                                      || !hasState(answer->entries,
                                                   CompareState::NOISY))),
-            "compareReports answers one entry per benchmark per rule with the "
-            "verdict of FR-044 and FR-045, or one text naming the fault "
-            "(specs/026 FR-002, FR-003, FR-044, FR-045)");
+            "compareReports answers entries that each carry an applied rule "
+            "text with the verdict of FR-044 and FR-045, or one text naming "
+            "the fault (specs/026 FR-002, FR-003, FR-044, FR-045)");
   return answer;
 }
 
@@ -948,6 +972,15 @@ auto compareValues(const CompareRule& rule,
 /**
  * @brief The noise account one report carries for the value a rule names
  * (specs/026 D-11, FR-042, FR-043).
+ */
+struct NoiseAccount
+{
+  const Statistics* stats = nullptr;
+  std::optional<double> runningRatio;
+};
+
+/**
+ * @brief The noise account of the value `rule` names in `result`.
  *
  * \pre `rule` is a rule the parse answered
  * \post the statistics record of the row the comparison reads and the
@@ -956,12 +989,6 @@ auto compareValues(const CompareRule& rule,
  *       value of it, or the report summarizes that column nowhere (spec
  *       D-18, FR-046)
  */
-struct NoiseAccount
-{
-  const Statistics* stats = nullptr;
-  std::optional<double> runningRatio;
-};
-
 auto noiseAccountOf(const BenchmarkResult& result,
                     const CompareRule& rule) -> NoiseAccount
 {
@@ -1239,15 +1266,17 @@ auto metricAvailabilityOf(const BenchmarkResult& result,
  * @brief The walk of one rule over its scope, before any value is compared
  * (specs/026 FR-035, FR-036, FR-037, FR-038, FR-039, FR-040, spec D-20).
  *
- * \pre `rule` is a rule `parseCompareRule` answered, so its filter reads as
- *      a `std::regex` when it is not empty
+ * \pre `rule` is a rule `parseCompareRule` answered, or a value built to the
+ *      same shape (D-08); a filter the regex library refuses answers the
+ *      fault below, so the walk throws nothing (FR-051)
  * \post the scoped benchmarks of `matched` in that same order, each carrying
  *       the two values the walk read for a pair both reports hold with a
  *       readable row, and nothing else (FR-011, spec D-20)
  * \post one fault text, in the order the table of
- *       `contracts/compare-call.md` lists them, for a filter that selects
- *       nothing, a value one report lacks, a metric that is not countable,
- *       or a scope of paired benchmarks none of which holds a readable row
+ *       `contracts/compare-call.md` lists them, for a filter the regex
+ *       library refuses, a filter that selects nothing, a value one report
+ *       lacks, a metric that is not countable, or a scope of paired
+ *       benchmarks none of which holds a readable row
  */
 auto scopedValuesOf(const std::vector<PairSite>& matched,
                     const CompareRule& rule)
@@ -1255,7 +1284,14 @@ auto scopedValuesOf(const std::vector<PairSite>& matched,
 {
   std::optional<std::regex> filter;
   if (!rule.filter.empty()) {
-    filter.emplace(rule.filter);
+    try {
+      filter.emplace(rule.filter);
+    } catch (const std::regex_error& error) {
+      return std::unexpected("the rule '" + rule.text
+                             + "' carries a filter that is no regular "
+                               "expression: "
+                             + error.what());
+    }
   }
   std::vector<ScopedValue> scope;
   for (std::size_t index = 0; index < matched.size(); ++index) {
@@ -1382,9 +1418,10 @@ auto entryFor(const PairSite& site,
  *      values built to the same shape: `noiseWarnings`, when non-empty,
  *      holds one entry per entry of `results`
  * \pre every rule of `rules` is a rule `parseCompareRule` answered
- * \post the entries hold one entry per benchmark of the pair per rule, the
- *       baseline's run order first and the names the contender adds after
- *       them, and `passed` states the verdict (FR-002, FR-044, FR-045)
+ * \post the entries hold one entry per benchmark of the pair that the rule's
+ *       filter admits, per rule, the baseline's run order first and the names
+ *       the contender adds after them, and `passed` states the verdict
+ *       (FR-002, FR-024, FR-044, FR-045)
  * \post when the call answers an error, the text names what the first fault
  *       of the walk names and no partial entry reaches the caller (FR-003)
  * \post a pair sharing no benchmark name answers an empty entry list and
@@ -1519,7 +1556,7 @@ auto runCompareMode(const RunOptions& options) -> CompareExit
   // FR-057, FR-074: `--json=` names the comparison document, and it is
   // written before anything prints, so a file system refusal answers the one
   // line naming the path beside no table, the form the report write already
-  // answers (specs/015-benchmark-harness-core/contracts/cli.md:74). The
+  // answers (specs/015-benchmark-harness-core/contracts/cli.md:83). The
   // refusal line itself stands in `writeCompareReport`.
   if (!options.jsonPath.empty()
       && !writeCompareReport(options.jsonPath,
