@@ -901,6 +901,58 @@ struct MergeTable
   return result;
 }
 
+// T058, FR-017, E-07: the two arms of the merge's spread computation. A merge
+// of folds that hold no row has no reference time to spread, so it publishes
+// the same empty answer a run of fewer than two passes publishes. The spread
+// reads the time column the run names primary, and `primaryIsCpu` defaults to
+// true, so the wall-clock arm stands nowhere else in this file.
+auto mergeSpreadField() -> void
+{
+  const MergeTable table = mergeTable();
+  std::vector<sg::BenchmarkResult> rowless;
+  for (std::size_t pass = 0; pass < table.plan.columns.size(); ++pass) {
+    sg::BenchmarkResult fold = foldOfPass(table, pass);
+    fold.rows.clear();
+    rowless.push_back(fold);
+  }
+  const sg::BenchmarkResult mergedRowless =
+      sg::detail::mergePasses(table.plan, rowless);
+  check(mergedRowless.rows.empty(),
+        "a merge of folds that hold no row publishes no row (FR-014)");
+  check(!mergedRowless.passSpread.has_value(),
+        "a merge with no reference time publishes no spread (FR-017, E-07)");
+  check(mergedRowless.passCount == table.plan.columns.size()
+            && mergedRowless.metricMethod == sg::MetricMethod::PASSES,
+        "the merge still publishes the count and the method it settled to "
+        "(FR-017)");
+
+  std::vector<sg::BenchmarkResult> wall;
+  for (std::size_t pass = 0; pass < table.plan.columns.size(); ++pass) {
+    wall.push_back(foldOfPass(table, pass));
+  }
+  wall.front().primaryIsCpu = false;
+  const sg::BenchmarkResult mergedWall =
+      sg::detail::mergePasses(table.plan, wall);
+  std::vector<double> wallTimes;
+  std::vector<double> cpuTimes;
+  for (const sg::BenchmarkResult& fold : wall) {
+    wallTimes.push_back(fold.rows[0].timePerIterationNs);
+    cpuTimes.push_back(fold.rows[0].cpuTimePerIterationNs);
+  }
+  check(!mergedWall.primaryIsCpu,
+        "the merged result keeps the primary column of the reference pass "
+        "(FR-015)");
+  check(mergedWall.passSpread.has_value()
+            && sameDouble(*mergedWall.passSpread,
+                          *sg::detail::passSpread(wallTimes)),
+        "the published spread is the spread of the wall times the report "
+        "prints, the column this run names primary (FR-017, E-07)");
+  check(!sameDouble(*mergedWall.passSpread,
+                    *sg::detail::passSpread(cpuTimes)),
+        "the wall times differ from the cpu times of the same folds, so a "
+        "merge that read the other column cannot pass (E-07)");
+}
+
 // T021, FR-014, FR-015, FR-016, E-05: the merge table. Every metric column
 // and every user-counter column takes its measuring pass's values at its own
 // position; the time columns, the overhead floor, the endpoint samples, the
@@ -1340,6 +1392,7 @@ struct Scenario
       Scenario {"cycles-counts", cyclesCounts},
       Scenario {"two-provider-limits", twoProviderLimits},
       Scenario {"merge-table", mergeProvenance},
+      Scenario {"merge-spread-field", mergeSpreadField},
       Scenario {"no-metric-column", noMetricColumn},
       Scenario {"resolution-table", resolutionTable},
       Scenario {"spread-single-sample", spreadSingleSample},
