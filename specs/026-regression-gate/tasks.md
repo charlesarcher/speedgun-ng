@@ -504,5 +504,26 @@ coverage gate reads one count-zero line record the local gcov does
 not emit. One requirement carries a CLI-surface test gap.
 
 - [X] T059 Pair the contract of `compareReports` with its enforcement: an `SG_ENSURE` postcondition in the body of the call in `source/harness/compare.cpp` and the default-rule `SG_ASSERT` moved out of that documented body, then `cmake --build build -t dbc-gate` reports zero drifted interfaces per Principle II, Principle VI, SC-012 (contradicts)
-- [ ] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:438` to `:457` so the CI gcov answers no count-zero record at the condition line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
+- [ ] T060 Restructure the batch-filter precompile of `source/harness/cli.cpp:462` to `:467` so the CI gcov answers no count-zero record at the declaration line, then the `ci-coverage` chain answers 100.0% lines and 100.0% branches on the CI toolchain per FR-069, SC-008 (contradicts)
 - [X] T061 Add one `harness_compare_cli_test` case that passes two `--compare-rule=` flags in one run and answers two rule-major rows in flag order per FR-049 (partial)
+
+## Phase 11: Audit round 1
+
+Two read-only audits of the branch tip (test-surface coverage and
+constitution discipline) ran while Phase 10 landed. Their findings are
+listed here with the code evidence each one carried. One finding is
+rejected: a `report_shape` entry over the regression-gate example cannot
+work, because that gate folds the whole standard output of a bare run and
+the example's recorded block holds the eight comparison lines the run
+prints before `speedgunMain` (see `tools/docs/report_shape.py`).
+
+- [X] T062 Drop the entry-count clause of the `compareReports` postcondition, which a rule filter breaks, and enforce the rule text of every entry instead, then one library case with a filtered rule beside an unfiltered rule answers three rows and no abort per FR-002, FR-024, Principle II (contradicts)
+- [X] T063 Answer a rule built in code whose filter the regex library refuses as one fault line inside the scope walk, so the public call keeps its no-throw promise per FR-051, D-08 (contradicts)
+- [X] T064 Add the pairing case where one name stands at the start of another, so a relaxed match answers a failing check per FR-008, FR-010, SC-003 (partial)
+- [X] T065 Add the table case that declares microseconds, milliseconds and seconds, so each divisor of the unit scale answers its own cells per FR-055 (partial)
+- [X] T066 Add the library case where a valid rule stands beside a rule whose value no report carries, so the fault precedence across two rules is proved per FR-003, FR-035 (partial)
+- [X] T067 Point the compare citations of `source/harness/detail/compare.hpp` at the CLI contract of specs/015 and refresh the line anchors of `source/harness/compare.cpp` and `contracts/compare-options.md` per Principle IV (partial)
+- [X] T068 Move the contract block of the noise account from its struct to its function and reword the README option row per Principle IV, Principle XI.2 (contradicts)
+- [ ] T069 Enforce the documented preconditions of the internal compare calls of `source/harness/compare.cpp` with `SG_REQUIRE`, the way `source/harness/family.cpp` and `source/harness/percentiles.cpp` enforce theirs, per Principle II (partial)
+- [ ] T070 Hoist the object and array writers of `source/harness/compare.cpp` and the unit-scale table into a shared internal header beside `source/harness/json_report.cpp` and `source/harness/report.cpp`, per Principle X.3 (partial)
+- [ ] T071 Carry the three compare options in the option table of `specs/015-benchmark-harness-core/contracts/cli.md`, an edit that moves the line anchors four artifacts of specs/016, specs/023 and specs/026 cite (partial)
