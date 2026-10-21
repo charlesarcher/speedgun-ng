@@ -31,9 +31,13 @@
 // because each of its scenarios scripts a provider of its own.
 //
 // `argv[1]` selects one scenario; with no argument the list at the bottom
-// walks every one of them. A scenario absent from that list never runs.
+// walks every one of them. A scenario absent from that list never runs: the
+// byte-identity scenario takes the fixture it compares against as `argv[2]`
+// and runs at the limit of that capture, so `ctest` names it through an entry
+// of its own.
 // ============================================================================
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -71,6 +75,10 @@ constexpr const char* kScratchPath = "harness_pass_report_out.txt";
 constexpr std::uint64_t kRunIterations = 1;
 constexpr std::uint64_t kRunRepetitions = 1;
 
+// The limit the byte-identity capture saw: eight leaves over four columns fit
+// one pass of the automatic method, the shape whose bytes the fixture holds.
+constexpr std::size_t kIdentityPassLimit = 8;
+
 // The endpoint samples of a window that folds nothing, and the figures the
 // fixture's leaves owe a run of one iteration: the clock leaf steps
 // `kPassTimeStep`, and the column of index k sums two leaves that step
@@ -100,6 +108,9 @@ constexpr double kSpreadWarningLimitPercent = 5.0;
 // The span `maskHostFloor` writes in the host-calibrated field, and the two
 // marks that bound it in the order the row prints them.
 constexpr const char* kMaskedFloor = "overhead floor (ns)= <floor>  ";
+// The token the byte-identity fixture holds where the same figure stands.
+constexpr const char* kIdentityMaskedFloor =
+    "overhead floor (ns)= <host-calibrated>  ";
 constexpr std::string_view kFloorMark = "overhead floor (ns)=";
 constexpr std::string_view kSamplesMark = "endpoint samples=";
 
@@ -253,7 +264,8 @@ auto linesHolding(const std::vector<std::string>& lines,
 // token the expectation holds. The span is bounded by the two fields the row
 // prints around it, so a moved or missing field fails here rather than
 // masking its way past the comparison.
-auto maskHostFloor(const std::string& line) -> std::string
+auto maskHostFloor(const std::string& line,
+                   const std::string& token = kMaskedFloor) -> std::string
 {
   const auto floorAt = line.find(kFloorMark);
   const auto samplesAt = line.find(kSamplesMark);
@@ -265,8 +277,7 @@ auto maskHostFloor(const std::string& line) -> std::string
       floorAt + kFloorMark.size(), samplesAt - floorAt - kFloorMark.size());
   check(hidden.find('.') != std::string::npos,
         "the masked span holds the printed floor figure");
-  return std::string(line).substr(0, floorAt) + kMaskedFloor
-      + line.substr(samplesAt);
+  return std::string(line).substr(0, floorAt) + token + line.substr(samplesAt);
 }
 
 // One metric column of an expected row: the label, the folded value, and the
@@ -406,13 +417,13 @@ auto needInstance(const std::string& name) -> sg::Instance*
   return nullptr;
 }
 
-// The fixture at the scripted limit of 4 (SC-08, `kHostPassLimit`), and the
-// families every scenario runs. The four pairs of two events over a limit of
-// 4 split into two passes; the two pairs fit in one pass; the column-free
-// family carries no metric column for the planner to place.
-auto prepare() -> void
+// The fixture at the limit the caller names (SC-08), and the families every
+// scenario runs. The four pairs of two events over a limit of 4 split into two
+// passes; the two pairs fit in one pass; the column-free family carries no
+// metric column for the planner to place.
+auto prepare(const std::size_t limit) -> void
 {
-  check(sg::test::registerPassFixture(sg::test::kHostPassLimit),
+  check(sg::test::registerPassFixture(limit),
         "the pass fixture registers on the local system");
 
   auto wide = sg::registerBenchmark(&bmPassBody, "bmPassShape");
@@ -434,6 +445,11 @@ auto prepare() -> void
   // reference time (the mirror technique of T022).
   auto mirror = sg::registerBenchmark(&bmPassBody, "bmPassSecondMirror");
   attachColumns(mirror, {2, 3});
+
+  // The family of the byte-identity fixture: the four columns of the capture,
+  // the automatic method the capture ran.
+  auto identity = sg::registerBenchmark(&bmPassBody, "bmPassIdentity");
+  attachColumns(identity, {0, 1, 2, 3});
 
   sg::detail::expandRegistry();
 }
@@ -898,6 +914,90 @@ auto scenarioPublishedFields() -> void
         "T047)");
 }
 
+// The three guards that stand around the disclosure: a method outside the
+// word table prints the guard word the table carries, the automatic method
+// prints no line even beside columns, and a column no pass measured carries
+// no index with its value (FR-017, FR-019, FR-021).
+auto scenarioGuardShapesStandAroundTheDisclosure() -> void
+{
+  auto outside = builtSpreadResult("bmGuardWord", {1.0, 2.0});
+  outside.metricMethod = static_cast<sg::MetricMethod>(99);
+  check(disclosureLineOf(printedLines(outside)).find("method=unknown")
+            != std::string::npos,
+        "a method outside the word table prints the guard word it carries "
+        "(FR-017)");
+
+  auto automatic = builtSpreadResult("bmGuardAuto", {1.0, 2.0});
+  automatic.metricMethod = sg::MetricMethod::AUTO;
+  check(disclosureLineOf(printedLines(automatic)).empty(),
+        "the automatic method prints no line beside its columns (FR-021)");
+
+  auto untagged = builtSpreadResult("bmGuardTag", {1.0, 2.0});
+  untagged.rows.front().metrics.front().pass = std::nullopt;
+  const auto untaggedLines = printedLines(untagged);
+  check(
+      !untaggedLines.empty()
+          && untaggedLines.front().find("pass=") == std::string::npos,
+      "a column no pass measured carries no index beside its value " "(FR-"
+                                                                     "019)");
+  check(!disclosureLineOf(untaggedLines).empty(),
+        "the split still discloses its method and its count beside an "
+        "untagged column (FR-017)");
+}
+
+// ---------------------------------------------------------------------------
+// T042: the bytes of the audit point
+// ---------------------------------------------------------------------------
+
+// The report region of the captured fixture: the lines that are not the
+// comment of the file that holds them.
+auto fixtureRegion(const std::string& text) -> std::vector<std::string>
+{
+  std::vector<std::string> region;
+  for (const auto& line : splitLines(text)) {
+    if (!line.empty() && line.front() != '#') {
+      region.push_back(line);
+    }
+  }
+  return region;
+}
+
+// FR-021, SC-03: the automatic run of the captured shape prints the bytes the
+// audit point printed. The fixture holds the same scripted facts at the limit
+// that capture saw, so the one row it carries answers the printed row field
+// for field with the host's floor figure masked, and the report holds no
+// `passes` line and no `pass=` tag. The scenario runs at the limit of its
+// capture, which the fixture's own comment names, so `ctest` runs it through an
+// entry of its own and passes the fixture path beside the scenario name.
+auto scenarioByteIdentity(const std::string& fixturePath) -> void
+{
+  check(!fixturePath.empty(),
+        "the byte-identity scenario stands given the fixture it compares "
+        "against (T042)");
+  const auto expected = fixtureRegion(readAll(fixturePath));
+  check(expected.size() == 1, "the fixture holds the one row it captured");
+
+  const auto lines = printedLines(runInstance("bmPassIdentity"));
+  check(lines.size() == expected.size(),
+        "the automatic run of the captured shape prints the row and nothing "
+        "beside it (FR-021, SC-03)");
+  const std::size_t shared = std::min(lines.size(), expected.size());
+  for (std::size_t index = 0; index < shared; ++index) {
+    check(maskHostFloor(lines[index], kIdentityMaskedFloor)
+              == expected[index],
+          "the printed row answers the bytes the audit point printed, field "
+          "for field (FR-021, SC-03, D-9)");
+  }
+  check(disclosureLineOf(lines).empty(),
+        "the automatic one-pass run prints no passes line (FR-021, SC-03)");
+  const bool untagged =
+      std::ranges::none_of(lines,
+                           [](const std::string& line)
+                           { return line.find("pass=") != std::string::npos; });
+  check(untagged,
+        "the row of a one-pass run carries no pass tag (FR-019, FR-021)");
+}
+
 // ---------------------------------------------------------------------------
 // The scenario list CTest walks
 // ---------------------------------------------------------------------------
@@ -908,7 +1008,7 @@ struct Scenario
   void (*body)();
 };
 
-constexpr std::array<Scenario, 12> kScenarios {{
+constexpr std::array<Scenario, 13> kScenarios {{
     Scenario {"two-pass-shape", &scenarioTwoPassShape},
     Scenario {"spread-in-band", &scenarioSpreadInBand},
     Scenario {"spread-boundary", &scenarioSpreadBoundary},
@@ -921,6 +1021,7 @@ constexpr std::array<Scenario, 12> kScenarios {{
     Scenario {"no-metric-column", &scenarioNoMetricColumnPrintsNothing},
     Scenario {"auto-one-pass-quiet", &scenarioAutomaticOnePassPrintsNothing},
     Scenario {"published-fields", &scenarioPublishedFields},
+    Scenario {"guard-shapes", &scenarioGuardShapesStandAroundTheDisclosure},
 }};
 
 // One scenario of the no-argument walk in a child of its own, so that a red
@@ -961,11 +1062,21 @@ auto runIsolated(const Scenario& scenario) -> bool
 
 auto main(int argc, char** argv) -> int
 {
-  prepare();
-
   const std::string_view requested =
       argc > 1 && argv[1] != nullptr ? argv[1] : std::string_view();
+
+  // The provider is a process-wide registration, so the limit stands before
+  // the fork: the byte-identity scenario runs at the limit of its capture and
+  // every other scenario shares the split limit of the host.
+  prepare(requested == "byte-identity" ? kIdentityPassLimit
+                                       : sg::test::kHostPassLimit);
+
   if (!requested.empty()) {
+    if (requested == "byte-identity") {
+      scenarioByteIdentity(argc > 2 && argv[2] != nullptr ? argv[2] : "");
+      std::puts("byte-identity: ok");
+      return 0;
+    }
     for (const auto& scenario : kScenarios) {
       if (requested == scenario.name) {
         scenario.body();
