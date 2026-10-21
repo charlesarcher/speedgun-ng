@@ -496,7 +496,7 @@ it, read the printed row; `example_drift` and `example_run` do the same in CI.
 evidence, the determinism scan, the cost rule, the recorded real-PMU comparison,
 the analyzers, the gate set and the landing move.
 
-- [ ] T058 [P] Run the capture through the `coverage` target, read `gcov -b` over
+- [X] T058 [P] Run the capture through the `coverage` target, read `gcov -b` over
   `source/harness/pass_plan.cpp`, `source/harness/report.cpp`,
   `source/harness/cli.cpp`, `source/harness/runner.cpp`,
   `source/counters/linux_pmu/counter_limits.cpp`,
@@ -506,6 +506,37 @@ the analyzers, the gate set and the landing move.
   Record the line, branch and DBC counts the target reports for the new files and
   for the files this feature edits, beside that evidence (FR-032, SC-07,
   constitution VI)
+
+  Settled 2026-10-21: the `coverage` target of run 39617740469 reports lines
+  100.0% (7329 of 7329) and branches 100.0% (3391 of 3391) over the extracted
+  application trace, and `bash tools/dbc/coverage_gate.sh` run on that trace in
+  this clone exits 0 on the same two figures. Per file the trace reads
+  `pass_plan.cpp` 107/107 lines and 83/83 branches, `report.cpp` 216/216 and
+  115/115, `cli.cpp` 257/257 and 159/159, `runner.cpp` 1204/1204 and 619/619,
+  `counter_limits.cpp` 18/18 and 4/4, `provider.cpp` 295/295 and 119/119,
+  `fake_provider.cpp` 126/126 and 32/32, `system.cpp` 281/281 and 122/122, the
+  pass fields of `json_report.cpp` 345/345 and 93/93 and `json_load.cpp`
+  802/802 and 497/497. The DBC gates of the `dbc-gate` job of the same run
+  report `doc-gate: 267 interfaces, 0 gaps` and
+  `pair-gate: 267 interfaces, 0 gaps`. No gap had to be reported unclosed: the
+  arms the `abdde0f` capture left cold stand under drivers now, each read in
+  `gcov -b` of the local coverage build. `report.cpp:222, 254, 259, 270, 278`
+  and `:542` stand in the `guard-shapes` scenario of `harness_pass_report_test`;
+  `runner.cpp:1336`, `:2194` and `:2212` and the success tail at `:2218` to
+  `:2220` stand in the ahead-calibration and dry-run scenarios of
+  `harness_pass_collect_test`; `runner.cpp:1740` needs a run that is threaded,
+  captures chunks and splits in one, which the closing arm of
+  `threaded-pass-order` supplies; `pass_plan.cpp:295` and `:300` stand in
+  `mergeSpreadField` of `harness_pass_plan_test`, which calls `mergePasses` on
+  folds holding no row and on a fold whose primary column is wall time;
+  `cli.cpp:178` and `:179` answer to the `--metric-method` scenarios of
+  `harness_cli_test`, reachable once the child dump of `__gcov_dump` lands in
+  the forked runner. The fallback index at `runner.cpp:2460` had no run that
+  could reach it: the padding a few lines above exists to bound that index, so
+  the merge index is an `SG_REQUIRE` of the plan now, the shape
+  `ThreadRun::context` uses in this file, and the statement carries no branch to
+  miss. No marker was added: `grep -rn 'LCOV_EXCL' include source` still counts
+  398.
 - [X] T059 [P] Confirm `grep -rn 'LCOV_EXCL' include source` still counts 398
   marker lines and that no file this feature adds carries a marker, a waiver or a
   partial row (FR-032, PC-5)
@@ -534,7 +565,7 @@ the analyzers, the gate set and the landing move.
   `dbc-gate` build targets, the `dbc_dependency_scan`, `time_source_gate`,
   `cli_shape`, `loop_shape` and `barrier_shape` tests, and the commit-message
   gate over every message on the branch (FR-036, constitution VIII and XI)
-- [ ] T065 Rebase onto `master`, keep both lanes' lines in `CMakeLists.txt`,
+- [X] T065 Rebase onto `master`, keep both lanes' lines in `CMakeLists.txt`,
   `README.md`, `example/CMakeLists.txt` and `test/CMakeLists.txt`, retake the
   project version at `CMakeLists.txt:7` and both `SOVERSION` lines at
   `CMakeLists.txt:47` and `CMakeLists.txt:225` against the then-current master,
@@ -545,10 +576,54 @@ the analyzers, the gate set and the landing move.
   `test/source/detail/pass_identity.expected` against the rebased master, run
   `ctest --test-dir build --output-on-failure` once more, and push with
   `--force-with-lease` (FR-031, spec Constraints)
-- [ ] T066 Show `git ls-remote origin 024-multipass-collection`, read the CI logs
+
+  Settled 2026-10-21: `git merge-base origin/master HEAD` is `aec8fce`, which is
+  `origin/master`, so the branch carries the current master with nothing behind
+  it and the four files hold one lane's lines each. PR #45 stands open, so the
+  version was retaken against that master: `CMakeLists.txt:8` reads `0.15.0`
+  beside master's `0.14.0` at its line 7, `CMakeLists.txt:52` reads `SOVERSION 3`
+  beside master's 2 at its line 47, `CMakeLists.txt:256` reads `SOVERSION 9`
+  beside master's 8 at its line 247, the next free number for each archive.
+  `README.md` measures 740 lines and `PAGE_LINE_CAP` of
+  `tools/docs/example_drift.py` reads the measured 740, with the
+  `Multi-pass collection` section back inside `SECTION_LINE_CAP`.
+  `harness_pass_report_test byte-identity` compares the automatic run against
+  `test/source/detail/pass_identity.expected` byte for byte, with the host floor
+  span masked as the capture masks it, and passes against this master. The
+  suite re-ran through `ctest --test-dir /tmp/m/ctest-build` with
+  `--output-on-failure` over 113 tests with 1 failure on this head,
+  `example_run`, whose row check wants the machine to itself: the same binary
+  passes that gate solo and passes inside the suite of run 39617740469 on a
+  runner. The branch pushed with `--force-with-lease` as `0481fa7`.
+- [X] T066 Show `git ls-remote origin 024-multipass-collection`, read the CI logs
   of the pushed commit, fix its failures in this lane, and record in
   `specs/024-multipass-collection/tasks.md` the line, branch and DBC coverage
   counts and the gate list that run reports (SC-07, spec Constraints)
+
+  Recorded 2026-10-21: `git ls-remote origin 024-multipass-collection` shows
+  `0481fa73fe36`. Run
+  `https://github.com/charlesarcher/speedgun-ng/actions/runs/39617740469`
+  concludes `success` over 12 jobs: `lint`, `shared-audit`, `dbc-gate`, `test`,
+  `test-rocky`, `coverage`, `tsan`, `sanitize`, `downstream-consumer`,
+  `prose-lint` and `consumer-release` report `success`, and `docs` reports
+  `skipped` because it runs on `master` alone; the `test` job stamped its
+  conclusion a few minutes after the run concluded, which cleared its check.
+  Every check of the pull request reads `pass` on `0481fa7`. The `test`,
+  `coverage`, `sanitize` and `test-rocky` jobs each print
+  `100% tests passed out of 113`, with `counters_pmu_test` and
+  `counters_overhead` skipped as the runners carry no
+  PMU, and `example_run` passes inside that suite. The coverage job prints lines
+  100.0% (7329 of 7329) and branches 100.0% (3391 of 3391), and the DBC gates
+  print 267 interfaces with 0 gaps on both the document and the pair matrix.
+  The gate list of Principle VIII the run carries (`format-check`,
+  `spell-check`, `prose-lint` with the commit-message gate over the 27 commits
+  of `aec8fce..0481fa7`, which re-run locally reads 27 sources, 235 units and 0
+  findings, besides `dbc-gate`, `dbc_dependency_scan`, `time_source_gate`,
+  `cli_shape`, `loop_shape`, `barrier_shape`, the clang-tidy and cppcheck lanes
+  and the sanitizers) reports no finding. One behaviour this round surfaced
+  stays open on purpose and is stated in the PR comment: a split run drops a
+  `--counter` column whose measuring pass is a pass other than the reference
+  pass, which reads against FR-006 and FR-014 and needs its own decision.
 
 **Checkpoint**: every gate of Principle VIII is green on the pushed state and the
 table below has no uncovered row.
