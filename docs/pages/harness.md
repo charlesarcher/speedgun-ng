@@ -1208,3 +1208,111 @@ same bytes:
   --json=compare-b.json
 cmp compare-a.json compare-b.json
 ```
+## Multi-pass collection
+
+A metric set that needs more PMU events than the processor counts at once is
+a supported case. A pass is one collection round. It opens the events of the
+columns assigned to it, runs every repetition, and closes with its own
+readings. The harness splits the set into passes, runs the benchmark once per
+pass, and merges the passes into the usual one row per instance. The split and
+the merge sit outside every timed window.
+
+Two published facts drive the split: `Object::programmableCounters` states
+how many programmable counters one context can hold open on one event
+source, and a loaded metric states how many events its column needs. The
+planner reads both before the first timed window and opens no counter.
+
+`--metric-method=auto`, `--metric-method=passes` and
+`--metric-method=multiplex` choose the method, and `metricMethod` on the
+handle carries the same three values. `auto` is the default. The command line
+wins over the handle, and a repeated option keeps its last word. A word
+outside the three prints one line and ends the run with status 2.
+
+A run that measured more than one pass prints one disclosure line under its
+rows. A caller that forced a method sees the same line for one pass:
+
+```text
+<name>                      passes  method=passes  count=2  spread=11.1%
+warning: pass spread 11.1% exceeds 5%
+```
+
+`method=` names the method the run settled to, `count=` the passes it
+measured, and `spread=` the relative spread of the time per iteration across
+those passes. A spread above 5% brings the warning line with it, and the
+warning changes no value and no exit status. When more than one pass ran,
+each metric column gains a `pass=<index>` token after its `gap=` field,
+naming the pass that measured the value. A one-pass run of the default
+method prints no line, and its report keeps the fields of a single-plan run.
+
+### The split rule
+
+The planner takes the PMU columns of the run in request order: the metric
+columns in the order `addMetric` attached them, then the user-counter
+columns in the order `--counter` opened them. Each column joins the first
+pass that still holds all of its events within every source limit, and a
+column with no such pass opens a pass of its own.
+
+The events of one column stay in one pass, because a pair split across two
+windows has no common interval to fold. A column wider than the limit takes
+a pass of its own and runs oversubscribed: the kernel rotates its events over
+the counters, and the `ratio=` field discloses the fraction of the enabled
+time the value covers. The two machine clock leaves
+of the spine (`machine/monotonic` and the CPU leaf the family selected) ride
+every pass and count against no limit, because they consume no programmable
+counter. The same columns, method and limits give the same passes on every
+run.
+
+One calibration runs before the first pass, and every pass takes the
+iteration count it produced, so the passes measure the same amount of work.
+Every pass runs the repetitions the family and the run control ask for, on
+the same execution contexts as the other passes. In a threaded run every
+context finishes one pass before any context opens the next.
+
+### The merge rule
+
+The merge publishes one result of the usual shape: one row per instance and
+repetition, in the column order the run fixed before the split. Each metric
+column and each user-counter column carries the values of the pass that
+measured it. The time columns, the overhead floor, the endpoint samples, the
+CPU-time column and the percentile columns of the primary time come from
+pass 0, the reference pass. The percentile columns of a metric come from the
+pass that measured that metric. A value whose measuring pass folded a gap
+keeps the gap disclosure, and a refused metric keeps its refusal kind. The
+merge moves the values the passes folded, and it publishes no value a pass
+left unmeasured.
+
+### The pass spread
+
+The spread is the maximum minus the minimum, divided by the median of the
+reference time per iteration of the passes, as a percentage. The primary
+time column of each pass's reference row supplies that pass's figure. The
+median of an even count is the lower of the two central values, and the
+formula takes no average. One pass carries no spread. A median of zero
+answers `spread=not available`. Pass times of 100 ns, 108 ns and 112 ns
+through a median of 108 ns give a spread of 11.1%, and the warning line
+follows.
+
+The merged result carries the same three values as published fields,
+`BenchmarkResult::metricMethod`, `passCount` and `passSpread`, so a consumer
+reads what the line prints.
+
+### A host that publishes no limit
+
+An event source the counters library cannot answer for publishes no limit.
+Such a host keeps the single oversize plan and the kernel rotation of it
+under `auto` and under a forced `passes` alike, and the disclosure line names
+`method=multiplex`. No spread appears, because one plan measured the run,
+and every column keeps its `ratio=`, `scaled=` and `gap=` fields. A missing
+limit stays a missing fact: the run completes and discloses the method it
+used.
+
+A run whose metric set is wider than the counters measures the set in rounds
+and still reports one row per instance: each metric value comes from a pass
+that counted it inside the limit, the times come from the first pass, and the
+line under the row states the method, the pass count and the spread between
+the passes. `--metric-method` pins one method for a scripted comparison of
+the two. The split, the merge and the disclosure run in
+`test/source/harness_pass_plan_test.cpp`,
+`test/source/harness_pass_collect_test.cpp` and
+`test/source/harness_pass_report_test.cpp`, on the fake provider with a set
+counter limit.

@@ -312,6 +312,30 @@ auto describeMetric(std::string_view name) -> void
 }
 ```
 `--metric` puts the same metric in a report column, one column per name, in the order the names are given; attaching a composed expression and folding a named metric against a window are at [hardware counter metrics](docs/pages/harness.md#hardware-counter-metrics).
+### Multi-pass collection
+A metric set larger than the host's published `programmableCounters` limit needs more than one measurement window, and `metricMethod` names how the run collects it: `auto` lets the harness choose, `passes` forces one replay per group of columns, `multiplex` keeps the single kernel-rotated plan.
+<!-- sg-example: example/docs/metric_passes.cpp#metric-passes -->
+```cpp
+constexpr std::array<std::string_view, 5> kOverLimitMetricLeafNames {
+    "cpu-cycles", "instructions", "branch-misses", "ref-cycles", "bus-cycles"};
+
+auto attachOverLimit(sg::BenchmarkHandle& handle) -> void
+{
+  const auto cpu = sg::counters::System::local().object("cpu");
+  if (!cpu.has_value()) {
+    return;
+  }
+  const std::size_t wanted = cpu->programmableCounters().value_or(0) + 1;
+  for (const auto name : kOverLimitMetricLeafNames | std::views::take(wanted)) {
+    const auto leaf = cpu->counter<sg::counters::Dim<0, 1>>(name);
+    if (leaf.has_value()) {
+      const sg::counters::Expression<sg::counters::Dim<0, 1>> metric {*leaf};
+      handle.addMetric(metric, name);
+    }
+  }
+}
+```
+Each pass times its own columns, every metric field carries a `pass=<index>` tag, and a `passes` line discloses the settled `method=`, the pass `count=` and the `spread=`; the split rule, the merge rule, the spread formula and the fallback for a host that publishes no limit are at [multi-pass collection](docs/pages/harness.md#multi-pass-collection).
 ### Skips
 `skipWithMessage` ends a run early when the work cannot be done, and `skipWithError` ends it as a failure.
 <!-- sg-example: example/docs/skips.cpp#skips -->
@@ -666,6 +690,8 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `unit` | BenchmarkHandle | Sets the unit one family prints its times in | [the-time-unit](#the-time-unit) |
 | `addMetric` | BenchmarkHandle | Attaches a counter expression to the family | [hardware-counter-metrics](#hardware-counter-metrics) |
 | `metricByName` | free function | Resolves one metric of the host's table by name | [hardware-counter-metrics](#hardware-counter-metrics) |
+| `metricMethod` | BenchmarkHandle | Chooses how a run collects its metric columns | [multi-pass-collection](#multi-pass-collection) |
+| `Object::programmableCounters` | Object | Answers how many programmable counters one context can hold open | [multi-pass-collection](#multi-pass-collection) |
 | `State::range` | State | Reads one argument position of the instance | [argument-families-and-ranges](#argument-families-and-ranges) |
 | `State::setIterationTime` | State | Reports one iteration's time in nanoseconds | [timing-modes](#timing-modes) |
 | `State::pauseTiming` | State | Opens the pause that excludes the work below it | [pause-and-resume](#pause-and-resume) |
@@ -725,6 +751,7 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `--iterations` | Fixes the iteration count and skips calibration |
 | `--warmup-time` | Sets the untimed warm-up seconds |
 | `--percentiles` | Sets the percentile points one run reports |
+| `--metric-method` | Sets the metric collection method to `auto`, `passes` or `multiplex` |
 | `--no-percentiles` | Turns the percentile lines off |
 | `--json` | Writes one JSON report document for the run |
 | `--json-raw` | Selects the chunk columns the document carries |
