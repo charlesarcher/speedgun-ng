@@ -267,7 +267,7 @@ does not ask for; rejected.
 `docs/schema/compare-v1.json` follows the report schema's conventions
 (`x-order`, `required`, inlined definitions, `docs/schema/report-v1.json:7`)
 and the existing checker `checkReport`
-(`source/harness/json_load.cpp:1067`) validates the written bytes
+(`source/harness/json_load.cpp:1083`) validates the written bytes
 against it: the checker reads any schema file in those conventions, so
 no second checker enters the tree.
 
