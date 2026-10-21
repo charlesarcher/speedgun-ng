@@ -126,20 +126,8 @@ auto enumOf(const std::array<std::string_view, Size>& words,
 inline constexpr std::string_view kNoPinPlacement = "NO_PIN";
 inline constexpr std::string_view kUnappliedPlacement = "UNAPPLIED";
 
-/**
- * @brief The noise warning of one result, in the form the document
- * carries (specs/023 E-10).
- *
- * The three fields are the account `printNoiseWarning` reaches on its way
- * to its line, so the document and the console answer from one predicate
- * (FR-017, D-11).
- */
-struct NoiseWarning
-{
-  std::uint64_t spinning = 0;
-  std::uint64_t runnableCpus = 0;
-  bool sharesOneCpu = false;
-};
+// The warning record itself, `sg::NoiseWarning`, stands in the public
+// header (specs/026 E-06, D-05); only the predicate below is internal.
 
 /**
  * @brief The noise warning of one result, or nothing when the console

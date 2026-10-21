@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "1.0",
+  "speedgun": {
+    "version": "0.14.0",
+    "buildType": "Release"
+  },
+  "benchmarks": [
+    {
+      "name": "bmGate",
+      "suite": "bmGate",
+      "case": "bmGate",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [50.0, 90.0, 99.0, 99.9],
+      "contexts": [],
+      "noiseWarning": null,
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 4,
+          "timePerIterationNs": 1050.0,
+          "cpuTimePerIterationNs": 1000.0,
+          "endpointSamples": 5,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 100.0,
+          "percentiles": [
+            [
+              {"available": true, "value": 1000.0},
+              {"available": true, "value": 1050.0},
+              {"available": true, "value": 1200.0},
+              {"available": false, "value": null}
+            ],
+            [
+              {"available": true, "value": 1050.0},
+              {"available": true, "value": 1100.0},
+              {"available": true, "value": 1250.0},
+              {"available": false, "value": null}
+            ]
+          ],
+          "chunkCount": 4,
+          "chunkIterations": 1,
+          "timeStats": null,
+          "metricStats": [],
+          "raw": {
+            "columns": [
+              [980.0, 1000.0, 1010.0, 1100.0],
+              [1030.0, 1050.0, 1060.0, 1150.0]
+            ]
+          }
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": []
+    },
+    {
+      "name": "bmGateFit",
+      "suite": "bmGateFit",
+      "case": "bmGateFit",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "noiseWarning": null,
+      "rows": [
+        {
+          "kind": "BIG_O",
+          "label": null,
+          "iterations": 0,
+          "timePerIterationNs": 0.0,
+          "cpuTimePerIterationNs": 0.0,
+          "endpointSamples": 0,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": {
+            "quantity": "time/iter",
+            "curve": "N^2",
+            "coefficient": 0.5,
+            "rmsPercent": 0.0,
+            "scalesWithUnit": true,
+            "reason": null
+          },
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        },
+        {
+          "kind": "RMS",
+          "label": null,
+          "iterations": 0,
+          "timePerIterationNs": 0.0,
+          "cpuTimePerIterationNs": 0.0,
+          "endpointSamples": 0,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": {
+            "quantity": "time/iter",
+            "curve": "",
+            "coefficient": 0.0,
+            "rmsPercent": 7.5,
+            "scalesWithUnit": false,
+            "reason": null
+          },
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": []
+    }
+  ]
+}

@@ -8,6 +8,7 @@
 #include <functional>
 #include <initializer_list>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -537,6 +538,22 @@ struct RowRaw
 };
 
 /**
+ * @brief The noise warning of one result, in the form the document
+ * carries (specs/023 E-10, specs/026 E-06, FR-070, D-05).
+ *
+ * The three fields are the account `printNoiseWarning` reaches on its way
+ * to its line, so the document and the console answer from one predicate
+ * (FR-017, D-11). The record is data and stands in the public header;
+ * the predicate `noiseWarningOf` stays internal to the harness.
+ */
+struct NoiseWarning
+{
+  std::uint64_t spinning = 0;
+  std::uint64_t runnableCpus = 0;
+  bool sharesOneCpu = false;
+};
+
+/**
  * @brief The value the harness writes as one JSON report and reads back
  * (specs/023 E-01).
  *
@@ -555,6 +572,131 @@ struct ReportData
   std::vector<BenchmarkResult> results;
   std::vector<std::vector<RowRaw>> rowRaw;
   std::vector<std::vector<std::vector<RowRaw>>> contextRaw;
+
+  // The document texts the load call read (specs/026 E-07, D-04): the
+  // `schemaVersion` key, and the text under the `speedgun` header at
+  // `version`, each empty for a value no document produced. The report
+  // writer ignores both and stamps its own, so the 023 byte-identical
+  // round trip stands; the run path leaves them empty.
+  std::string schemaVersion;
+  std::string speedgunVersion;
+  // One entry per entry of `results` when the load call fills it; the
+  // entry holds nothing when the document carried no warning for that
+  // result (specs/026 E-07, FR-070).
+  std::vector<std::optional<NoiseWarning>> noiseWarnings;
+};
+
+/**
+ * @brief The outcome word of one benchmark under one comparison rule
+ * (specs/026 E-04, FR-054).
+ *
+ * The seven words the comparison table prints and the comparison
+ * document writes; the document writes the enumerator name.
+ */
+enum class CompareState : std::uint8_t
+{
+  OK,
+  REGRESSED,
+  IMPROVED,
+  NOISY,
+  ADDED,
+  REMOVED,
+  SKIPPED
+};
+
+/**
+ * @brief The statistics record a comparison rule reads (specs/026 E-05,
+ * FR-016).
+ *
+ * The default when a statistics name carries no `@` suffix is MEDIAN.
+ */
+enum class Aggregate : std::uint8_t
+{
+  MEDIAN,
+  MEAN,
+  MIN,
+  MAX
+};
+
+/**
+ * @brief Which way of moving a value is worse (specs/026 E-05, FR-012).
+ */
+enum class Direction : std::uint8_t
+{
+  LOWER_IS_BETTER,
+  HIGHER_IS_BETTER
+};
+
+/**
+ * @brief One parsed comparison rule (specs/026 E-01, D-01, D-08).
+ *
+ * The value the rule parse answers and the comparison consumes.
+ * `text` is the exact text the parse call read, the form the table, the
+ * fault lines and the document print (D-08); `valueName` is the value
+ * name as written; `aggregate` stands empty when the text wrote no `@`
+ * suffix, and a written suffix on a `p<point>` or `stat:` name is a
+ * parse fault (spec D-21); `relativeThreshold` is the fraction the
+ * percent spelled, `5%` answering 0.05, empty when the text wrote none;
+ * `absoluteThreshold` is the number the `abs=` marker spelled in the
+ * stored unit of the value (spec D-22), empty when the text wrote none;
+ * `filter` is the rule's filter text, empty when the rule wrote none.
+ *
+ * At least one of the two thresholds stands in every parsed rule: a
+ * rule with neither is a parse fault (FR-022, FR-023).
+ */
+struct CompareRule
+{
+  std::string text;
+  std::string valueName;
+  std::optional<Aggregate> aggregate;
+  Direction direction = Direction::LOWER_IS_BETTER;
+  std::optional<double> relativeThreshold;
+  std::optional<double> absoluteThreshold;
+  std::string filter;
+};
+
+/**
+ * @brief One benchmark under one comparison rule (specs/026 E-02,
+ * FR-002, FR-044, FR-054).
+ *
+ * The table row and the document entry. `name` is the full instance
+ * name; `ruleText` is the `text` of the rule that produced the entry;
+ * `baseline` and `contender` are the two values in the stored unit,
+ * empty for ADDED, REMOVED and SKIPPED; `changePercent` is the signed
+ * change as a percent of the baseline magnitude, empty when that
+ * magnitude is zero or no value stands; `changeAbsolute` is the signed
+ * change in the stored unit, empty when no value stands, and positive
+ * when the contender is worse for the rule's direction, so the word and
+ * the sign agree; `reason` stands empty except on NOISY, where it names
+ * the bound, the carried warning or the running ratio that fired
+ * (FR-044).
+ */
+struct CompareEntry
+{
+  std::string name;
+  std::string ruleText;
+  std::optional<double> baseline;
+  std::optional<double> contender;
+  std::optional<double> changePercent;
+  std::optional<double> changeAbsolute;
+  CompareState state = CompareState::OK;
+  std::string reason;
+};
+
+/**
+ * @brief The comparison table and its verdict (specs/026 E-03, FR-002,
+ * FR-044, FR-045).
+ *
+ * `entries` holds one entry per benchmark per rule, in baseline order,
+ * then the names the contender adds in contender order (FR-002).
+ * `passed` is false when any entry is REGRESSED, or when the strict
+ * setting stands and any entry is NOISY; NOISY passes while strict
+ * stands off (FR-044, FR-045).
+ */
+struct CompareResult
+{
+  std::vector<CompareEntry> entries;
+  bool passed = true;
 };
 
 /**
@@ -2329,6 +2471,63 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
  */
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto loadReport(const std::string& path)
     -> std::expected<ReportData, std::string>;
+
+/**
+ * @brief Parse one rule text into one rule value (specs/026 FR-004,
+ * D-01, D-08).
+ *
+ * The command line and a library caller read the same grammar through
+ * this one call: the value name, the optional `@` aggregate suffix, the
+ * direction word, the threshold field and the optional filter, in that
+ * order (FR-012, FR-021). A prefixed value name reads its label to the
+ * first unescaped colon or at sign, and a backslash escapes a colon, a
+ * comma, an at sign or a backslash inside the label (FR-015, FR-020,
+ * FR-021, D-06, spec D-15).
+ * The threshold field carries a percent, an `abs=` number, or the two
+ * in that order, the percent answering a fraction (FR-022, FR-023,
+ * D-07, spec D-22). The call consults no report, defaults nothing but
+ * the aggregate of a statistics name, and repairs nothing.
+ *
+ * \pre `text` is the whole rule text of one `--compare-rule=` or of
+ *      one library caller's rule, and carries no NUL byte inside it
+ * \post when the call answers a value, every field holds what the text
+ *       spelled and `text` holds the input whole (FR-004)
+ * \post when the call answers an error, the string names the field of
+ *       the fault and the text read; the caller owns the exit status
+ *       (FR-005)
+ * \post the call throws nothing to the caller and aborts nothing
+ */
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto parseCompareRule(std::string_view text)
+    -> std::expected<CompareRule, std::string>;
+
+/**
+ * @brief Compare two loaded report values under a list of rules.
+ *
+ * An empty `rules` list applies the default rule
+ * `time@median:lower:5%` (specs/026 spec D-5, FR-033), and given rules
+ * replace it (FR-034). `strict` moves the verdict only: a NOISY row
+ * fails the run when it stands and passes when it does not, and the
+ * state word never changes for it (FR-044, FR-045). The call reads no
+ * file, runs no benchmark, reads no clock, samples no sensor, repairs no
+ * value and prints nothing (FR-006, FR-007).
+ *
+ * \pre `baseline` and `contender` are values `loadReport` answered, or
+ *      values built to the same shape: `noiseWarnings`, when non-empty,
+ *      holds one entry per entry of `results`
+ * \post When the call answers a value, its `entries` hold one entry per
+ *       benchmark per rule, baseline order first and contender
+ *       additions after (FR-002), and `passed` states the verdict
+ *       (FR-044, FR-045)
+ * \post When the call answers an error, the string names the rule, the
+ *       benchmark and the report of the first fault, and no partial
+ *       entries reach the caller (FR-003)
+ * \post The call throws nothing to the caller and aborts nothing.
+ */
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto compareReports(
+    const ReportData& baseline,
+    const ReportData& contender,
+    const std::vector<CompareRule>& rules,
+    bool strict) -> std::expected<CompareResult, std::string>;
 
 /**
  * @brief Register `fn` at namespace scope before `main` begins, under

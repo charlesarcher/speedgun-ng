@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0",
+  "speedgun": {
+    "version": "0.15.0",
+    "buildType": "Release"
+  },
+  "benchmarks": [
+    {
+      "name": "bmGate",
+      "suite": "bmGate",
+      "case": "bmGate",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [50.0, 90.0, 99.0, 99.9],
+      "contexts": [],
+      "noiseWarning": null,
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 4,
+          "timePerIterationNs": 1081.5,
+          "cpuTimePerIterationNs": 1030.0,
+          "endpointSamples": 5,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 100.0,
+          "percentiles": [
+            [
+              {"available": true, "value": 1030.0},
+              {"available": true, "value": 1081.5},
+              {"available": true, "value": 1236.0},
+              {"available": false, "value": null}
+            ],
+            [
+              {"available": true, "value": 1081.5},
+              {"available": true, "value": 1133.0},
+              {"available": true, "value": 1287.5},
+              {"available": false, "value": null}
+            ]
+          ],
+          "chunkCount": 4,
+          "chunkIterations": 1,
+          "timeStats": null,
+          "metricStats": [],
+          "raw": {
+            "columns": [
+              [1010.0, 1030.0, 1040.0, 1130.0],
+              [1060.0, 1081.5, 1092.0, 1184.5]
+            ]
+          }
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": []
+    }
+  ]
+}

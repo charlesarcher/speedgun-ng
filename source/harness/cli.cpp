@@ -17,6 +17,7 @@
 
 #include <getopt.h>
 
+#include "detail/compare.hpp"
 #include "detail/internal.hpp"
 #include "detail/json_report.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -307,6 +308,12 @@ auto speedgunMain(int argc, char** argv) -> int
       {"topology", no_argument, nullptr, 'T'},
       {"json", required_argument, nullptr, 'j'},
       {"json-raw", required_argument, nullptr, 'J'},
+      // specs/026 FR-048, FR-049, FR-045: the three options of the
+      // regression gate. The mode stands off until `--compare` names a
+      // baseline.
+      {"compare", required_argument, nullptr, 'a'},
+      {"compare-rule", required_argument, nullptr, 'Q'},
+      {"compare-strict", no_argument, nullptr, 'S'},
       {nullptr, 0, nullptr, 0},
   };
 
@@ -385,12 +392,76 @@ auto speedgunMain(int argc, char** argv) -> int
           return 2;
         }
         break;
+      case 'a': {
+        // specs/026 FR-048: the text is the two report paths split at the
+        // first comma. A missing comma or an empty side is a usage fault:
+        // one line naming the option and the text read, status 2 (FR-051).
+        const std::string_view pair = optarg;
+        const std::size_t comma = pair.find(',');
+        if (comma == std::string_view::npos || comma == 0
+            || comma + 1 == pair.size())
+        {
+          std::fprintf(
+              stderr,
+              "--compare: expected '<baseline>,<contender>', got " "'%s'\n",
+              optarg);
+          return 2;
+        }
+        options.compareBaseline = std::string(pair.substr(0, comma));
+        options.compareContender = std::string(pair.substr(comma + 1));
+        break;
+      }
+      case 'Q': {
+        // specs/026 FR-049: one rule per option, in the order given. The
+        // parse call names the field of its fault and the text it read, so
+        // the line below adds the option and nothing else (FR-051).
+        const auto rule = parseCompareRule(optarg);
+        if (!rule.has_value()) {
+          std::fprintf(stderr, "--compare-rule: %s\n", rule.error().c_str());
+          return 2;
+        }
+        options.compareRules.push_back(std::move(*rule));
+        break;
+      }
+      case 'S':
+        // specs/026 FR-045: a NOISY row fails the run; the state word
+        // stands as printed.
+        options.compareStrict = true;
+        break;
       default:
         std::fprintf(stderr, "unknown option; see the option table of "
                              "specs/015-benchmark-harness-core/contracts/"
                              "cli.md\n");
         return 2;
     }
+  }
+
+  // specs/026 FR-024, FR-050, FR-051: the batch filter is compiled while
+  // the scan is all that has happened, so an invalid pattern answers one
+  // line and status 2 on the compare path beside the run path, and the
+  // pattern is compiled once for either path to read.
+  std::optional<std::regex> filterPattern;
+  if (!options.filter.empty()) {
+    try {
+      filterPattern.emplace(options.filter);
+    } catch (const std::regex_error& error) {
+      std::fprintf(stderr,
+                   "--filter: invalid regular expression '%s': %s\n",
+                   options.filter.c_str(),
+                   error.what());
+      return 2;
+    }
+  }
+
+  // specs/026 FR-048, FR-052, D-15: the compare mode stands ahead of the
+  // expansion, so the comparison runs no benchmark, reads no clock and
+  // samples no sensor (FR-007, SC-005).
+  if (!options.compareBaseline.empty()) {
+    const auto exit = detail::runCompareMode(options);
+    SG_ENSURE(
+        (exit.status != 0) == exit.failed,
+        "the compare status follows the table of contracts/cli.md " "(FR-052)");
+    return exit.status;
   }
 
   // specs/025 FR-016, E-05: the process preset name is parsed once here,
@@ -434,23 +505,11 @@ auto speedgunMain(int argc, char** argv) -> int
   detail::expandRegistry(processPreset);
 
   std::vector<Instance*> selected;
-  std::optional<std::regex> pattern;
-  if (!options.filter.empty()) {
-    try {
-      pattern.emplace(options.filter);
-    } catch (const std::regex_error& error) {
-      std::fprintf(stderr,
-                   "--filter: invalid regular expression '%s': %s\n",
-                   options.filter.c_str(),
-                   error.what());
-      return 2;
-    }
-  }
   for (auto& instance : detail::instances()) {
     if (instance.name.starts_with(kDisabledPrefix)) {
       continue;
     }
-    if (!pattern || std::regex_search(instance.name, *pattern)) {
+    if (!filterPattern || std::regex_search(instance.name, *filterPattern)) {
       selected.push_back(&instance);
     }
   }
