@@ -1489,6 +1489,132 @@ auto scenarioCalibrationAheadInterrupted() -> int
   return 0;
 }
 
+// A body that raises the interrupt flag once its timed window closed: the
+// sample answers measured, so the flag reads as the interrupt of the phase
+// that ran it (FR-032).
+auto bmInterruptAfterWindow(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+  sg::detail::interruptFlag().store(true);
+}
+
+// E-03 rule 6, FR-010, D-06: a split collection with no fixed count takes its
+// iteration count from the one calibration ahead of pass 0, and every pass
+// measures that count. The count itself is the harness's, so the check is the
+// invariant: one row per repetition, every row at the same positive count.
+auto scenarioCalibrationAheadGrows() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmPlain, "bmAheadGrow");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  sg::detail::RunOptions options;
+  options.repetitions = 2;
+  options.minTimeNs = 1;
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result = runner.run(*needInstance("bmAheadGrow"));
+
+  check(result.outcome == sg::RunOutcome::MEASURED,
+        "the split collection whose ahead calibration qualifies measures "
+        "every pass (FR-010)");
+  check(result.passCount == 2,
+        "the source limit split the columns across two passes (FR-009)");
+  std::size_t measured = 0;
+  bool oneCount = true;
+  for (const auto& row : result.rows) {
+    if (row.kind != sg::RowKind::REPETITION) {
+      continue;
+    }
+    oneCount = oneCount && row.iterations > 0
+        && (measured == 0 || row.iterations == result.rows[0].iterations);
+    ++measured;
+  }
+  check(oneCount && measured == 2,
+        "every repetition measured the count the ahead calibration gave "
+        "(FR-010, D-06)");
+
+  std::puts("calibration-ahead-grows: ok");
+  return 0;
+}
+
+// FR-032: the flag raised after the calibration window closes reaches the
+// phase itself: the collection ends on the signal, and no pass opens.
+auto scenarioCalibrationAheadSignal() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmInterruptAfterWindow, "bmAheadSignal");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  sg::detail::RunOptions options;
+  options.repetitions = 1;
+  options.minTimeNs = 1;
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result = runner.run(*needInstance("bmAheadSignal"));
+  sg::detail::interruptFlag().store(false);
+
+  check(
+      result.outcome == sg::RunOutcome::SKIPPED,
+      "the signal after the calibration window ends the collection " "(FR-"
+                                                                     "032)");
+  check(
+      result.reason == "interrupted by the user (SIGINT)",
+      "the interrupted calibration states the signal as its reason " "(FR-"
+                                                                     "032)");
+  check(result.rows.empty(), "the interrupted calibration opened no pass");
+
+  std::puts("calibration-ahead-signal: ok");
+  return 0;
+}
+
+// FR-019, FR-020: the columns the plan does not cost stand outside the pass
+// split. A `--counter` address the catalog cannot answer for, and a second
+// source with a limit of its own, ride the split: the run measures every
+// pass, and the unanswerable address prints its refusal at the column site.
+// The merged row answers from the reference pass, so a counter column a
+// later pass measured stands outside it - the gap the pull-request record
+// carries (FR-014, D-5).
+auto scenarioUnplannedColumnsAcrossPasses() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmPlain, "bmPassUnplanned");
+  attachColumns(wide, {0, 1, 2});
+  attachColumn(wide, sg::test::passRideColumns()[0]);
+  sg::detail::expandRegistry();
+
+  auto options = optionsFor(kValueIterations, 1);
+  options.showPercentiles = true;
+  options.percentilePoints = {50.0, 90.0};
+  options.counterAddresses = {"cpu/pass_a0", "absent_source/no_such_leaf"};
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result =
+      runner.run(*needInstance("bmPassUnplanned"));
+
+  check(result.outcome == sg::RunOutcome::MEASURED,
+        "the split collection with columns outside its plan measures its "
+        "passes (FR-019, FR-020)");
+  check(result.passCount > 1,
+        "the limits of the two sources split the columns across passes "
+        "(FR-009)");
+  check(result.metricLabels.size() == 6,
+        "the two time columns and the four requested columns stand in the "
+        "order the request opened them (FR-001, FR-015)");
+  check(!result.rows.empty()
+            && result.rows.front().percentiles.size()
+                == 2 + result.metricLabels.size(),
+        "the chunk fold answers every column the run opened, the address "
+        "the catalog cannot answer for included (FR-019, FR-020)");
+
+  std::puts("unplanned-columns-across-passes: ok");
+  return 0;
+}
+
 // FR-014, FR-032: the flag read between the repetitions ends the pass loop
 // mid-collection. With two passes measured and the run stopped, the merge
 // stays unrun and the published result is the stopped pass's own row, whose
@@ -1586,7 +1712,7 @@ struct Scenario
   int (*run)();
 };
 
-constexpr std::array<Scenario, 13> kScenarios {{
+constexpr std::array<Scenario, 16> kScenarios {{
     Scenario {"two-pass-run", &scenarioTwoPassRun},
     Scenario {"pause-across-passes", &scenarioPauseAcrossPasses},
     Scenario {"over-limit-run", &scenarioOverLimitRun},
@@ -1599,6 +1725,10 @@ constexpr std::array<Scenario, 13> kScenarios {{
     Scenario {"calibration-ahead-skipped", &scenarioCalibrationAheadSkipped},
     Scenario {"calibration-ahead-interrupted",
               &scenarioCalibrationAheadInterrupted},
+    Scenario {"calibration-ahead-grows", &scenarioCalibrationAheadGrows},
+    Scenario {"calibration-ahead-signal", &scenarioCalibrationAheadSignal},
+    Scenario {"unplanned-columns-across-passes",
+              &scenarioUnplannedColumnsAcrossPasses},
     Scenario {"interrupt-inside-split", &scenarioInterruptInsideSplit},
     Scenario {"percentiles-across-passes", &scenarioPercentilesAcrossPasses},
 }};
