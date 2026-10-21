@@ -27,12 +27,12 @@ errors (`source/harness/cli.cpp:371`, `:385`, `:406`, `:426`):
   naming the option and the rule text and the fault the parse call
   named, and answers status 2 (FR-051).
 - An invalid batch filter pattern prints the run path's line
-  (`source/harness/cli.cpp:442` to `:446`) and answers status 2.
+  (`source/harness/cli.cpp:462` to `:466`) and answers status 2.
 
 ## The compare branch
 
-The branch sits after the option scan closes (`source/harness/cli.cpp:394`)
-and before registry expansion (`:434`), so the mode runs no benchmark
+The branch sits after the option scan closes (`source/harness/cli.cpp:456`)
+and before registry expansion (`:518`), so the mode runs no benchmark
 and reads no clock (SC-005):
 
 ```cpp
@@ -50,7 +50,7 @@ answers `CompareExit { int status; bool failed; }`: `failed` is set
 from the verdict or the fault, `status` from the table below, the two
 computed independently so the `SG_ENSURE` carries content (FR-052,
 D-15). The closing postcondition of the run path
-(`source/harness/cli.cpp:566`) keeps its predicate. The shape gate
+(`source/harness/cli.cpp:639`) keeps its predicate. The shape gate
 anchors of `test/cli_shape.sh:31` to `:41` stand untouched (PC-11).
 
 ## Scoping and the empty pair
