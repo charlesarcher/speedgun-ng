@@ -1720,13 +1720,55 @@ auto scenarioPercentilesAcrossPasses() -> int
   return 0;
 }
 
+// FR-014 beside FR-010: the dry run of a split collection keeps the shape of
+// the audit point, one iteration, one repetition and no warm-up, so the ahead
+// calibration stands aside while the split still runs every pass.
+auto scenarioDryRunAcrossPasses() -> int
+{
+  registerFixtureProvider(sg::test::kHostPassLimit);
+
+  auto wide = sg::registerBenchmark(&bmPlain, "bmDryRunSplit");
+  attachColumns(wide, {0, 1, 2, 3});
+  sg::detail::expandRegistry();
+
+  sg::detail::RunOptions options;
+  options.repetitions = 2;
+  options.dryRun = true;
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result = runner.run(*needInstance("bmDryRunSplit"));
+
+  check(result.outcome == sg::RunOutcome::MEASURED,
+        "the dry run of a split collection measures (FR-014)");
+  check(result.passCount == kTwoPassCount,
+        "the dry run still splits its columns across the passes (FR-009)");
+  std::size_t measured = 0;
+  for (const auto& row : result.rows) {
+    if (row.kind != sg::RowKind::REPETITION) {
+      continue;
+    }
+    check(row.iterations == 1,
+          "a dry run measures the one iteration of the audit point (FR-014)");
+    ++measured;
+  }
+  check(
+      measured == 1,
+      "a dry run publishes the one repetition the audit point takes (FR-014)");
+  check(result.rows.front().metrics.back().availability
+            == sg::counters::Availability::COUNTABLE,
+        "the column of the second pass carries a value through the dry-run "
+        "merge " "(FR-014, FR-019)");
+
+  std::puts("dry-run-across-passes: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 16> kScenarios {{
+constexpr std::array<Scenario, 17> kScenarios {{
     Scenario {"two-pass-run", &scenarioTwoPassRun},
     Scenario {"pause-across-passes", &scenarioPauseAcrossPasses},
     Scenario {"over-limit-run", &scenarioOverLimitRun},
@@ -1745,6 +1787,7 @@ constexpr std::array<Scenario, 16> kScenarios {{
               &scenarioUnplannedColumnsAcrossPasses},
     Scenario {"interrupt-inside-split", &scenarioInterruptInsideSplit},
     Scenario {"percentiles-across-passes", &scenarioPercentilesAcrossPasses},
+    Scenario {"dry-run-across-passes", &scenarioDryRunAcrossPasses},
 }};
 
 }  // namespace
