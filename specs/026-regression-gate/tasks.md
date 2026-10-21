@@ -920,3 +920,159 @@ postcondition at `:646`. The anchor list of `plan.md` keeps the numbers of
 `aec8fce`, the label above it records that reading, and its
 `source/harness/cli.cpp` entries went back to those numbers so the list
 reads in one voice.
+
+---
+
+## Phase 17: Convergence round 6
+
+**Verified at:** `88d0589` on 2026-10-21. The head carries the citation
+commit `9f5fd1d` and its ledger on top of round 5's audit point
+`4b59f1e`. `git diff --stat 4b59f1e..HEAD` names four artifact files and
+`tasks.md`. No source file, test file, fixture, schema file or docs page
+changed, so round 5's code readings carry to this head.
+
+**Verdict:** one item of unbuilt work remains to append. Three citation
+sites in this feature's artifacts name a line that holds something else
+at this head. Every functional requirement, every success criterion and
+every user story reads satisfied on the code, the tests and the docs
+here, with the two readings named below held by the CI jobs.
+
+**Counts:** 74 functional requirements: 74 satisfied, 0 partial, 0
+unsatisfied. 13 success criteria: 12 satisfied, 1 partial (SC-012), 0
+unsatisfied. 76 tasks: 72 verified, 2 open under the owner's deferral
+(T069, T070), 2 external (T058, T060).
+
+**T076 reads closed at five of its six passages.** The checker stands at
+`source/harness/json_load.cpp:1083` and is declared at
+`source/harness/detail/json_report.hpp:176`, and
+`specs/026-regression-gate/contracts/compare-document.md:61` to `:62` and
+`specs/026-regression-gate/plan.md:61` cite both. The anchor list at
+`specs/026-regression-gate/plan.md:233` to `:256` carries the label
+`re-read on this branch at aec8fce` and keeps those numbers.
+`specs/026-regression-gate/research.md:291`, `:295` and `:303` place the
+closing postcondition at `source/harness/cli.cpp:646` and the registry
+expansion at `:526`; both landmarks stand there. PC-3 at
+`specs/026-regression-gate/spec.md:258` to `:269` places the entry point
+at `:290`, the option table at `:321` to `:344` and the postcondition at
+`:646`; each holds.
+
+**The residue.** Three sites name a line that holds something else here:
+
+- `specs/026-regression-gate/research.md:270` places the checker
+  `checkReport` at `source/harness/json_load.cpp:1067`. That line holds a
+  fault return inside `checkNode`. The checker stands at `:1083`.
+- `specs/026-regression-gate/spec.md:266` lists `:548` among the usage
+  errors. That line holds the filter text argument of the batch-filter
+  no-match answer, and that path answers status 0 at `:549`.
+- `specs/026-regression-gate/spec.md:1186` lists `:548` again and leaves
+  out `:473`, the status 2 answer of the filter precompile at `:470` to
+  `:474`.
+
+The usage faults of `source/harness/cli.cpp` stand at `:80`, `:132`,
+`:152`, `:174`, `:276`, `:405`, `:419`, `:435`, `:448`, `:462`, `:473`,
+`:498` and `:518`. This feature's two compare faults answer at `:435`
+(`--compare` with no comma or with an empty side) and at `:448`
+(`--compare-rule` with a text the parse rejects).
+
+**Task list:**
+
+- [X] T077 Re-derive the checker pointer at
+  `specs/026-regression-gate/research.md:270` and the usage-error
+  numbers at `specs/026-regression-gate/spec.md:266` and
+  `specs/026-regression-gate/spec.md:1186`, then
+  `python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/026-regression-gate`
+  reports zero findings per FR-052, PC-3, D-14 and Principle IV
+  (partial)
+
+**The compare surface reads complete.** `parseCompareRule` stands at
+`source/harness/compare.cpp:772` and `compareReports` at `:788`; the
+grammar at `:162` and `:186`; the value space at `:381`, `:840` and
+`:873`; the arithmetic at `:922`; the noise guard at `:1067`; the walk at
+`:1207`, `:1287` and `:1438`; the mode at `:1520`; the table at `:1596`;
+the document at `:1678`. The public declarations stand at
+`include/speedgun-ng/benchmark.hpp:596` to `:712` with the two calls at
+`:2515` and `:2544` to `:2548`. `CompareOptions` at `:712` carries the
+strict flag, and the comparison reads it at `source/harness/compare.cpp:806`
+(FR-045, FR-064).
+
+**The command line reads complete.** The option value constants stand at
+`source/harness/cli.cpp:69` to `:71`, the table at `:321` to `:345` with
+the terminator row at `:344`, the three scan cases at `:422` to `:457`,
+the compare branch at `:477` to `:486`, and the run-path postcondition at
+`:646` to `:647`. `RunOptions` carries the four compare fields at
+`source/harness/detail/internal.hpp:465` to `:468` (FR-047 to FR-052).
+
+**The reader and the document read complete.** `loadReport` fills the
+three document fields at `source/harness/json_load.cpp:1155` to `:1197`,
+and the noise record is read and stored at `:731` to `:758` (FR-070). The
+lenient key rule stands at `:1000` to `:1030`, and its pair runs at
+`test/source/harness_json_load_test.cpp:913` to `:944` (FR-073).
+`docs/schema/compare-v1.json` lists the six top keys at `:7` and the
+eight entry keys at `:57`. `writeCompareReport` answers a refused file at
+`source/harness/compare.cpp:1737` to `:1750` (FR-074, FR-068).
+
+**The tests read complete.** `test/source/harness_compare_test.cpp` holds
+61 cases, among them `everyValueNameAnswersUnderASingleRow` at `:1766`
+and `everyAggregateReadsTheRecordOfItsValue` at `:1871` (SC-003), the
+five guard cases from `aCarriedWarningOnEitherReportNamesTheWarning` at
+`:1483` to `aValueWithNoRecordIsGuardedByTheCarriedWarningAlone` at
+`:1620` (FR-041 to FR-046), and
+`theLibraryCallAnswersTheEntriesAndTheVerdict` at `:2038` (SC-007).
+`test/source/harness_compare_cli_test.cpp` calls 22 cases from `main`,
+among them `thePassPairAnswersZeroWithOneOkRow` at `:158`,
+`theFailPairAnswersOneWithARegressedRow` at `:260`,
+`twoRunsWriteByteIdenticalDocuments` at `:610` (SC-009),
+`strictTurnsTheNoisyRowIntoAFailure` at `:767` (SC-006) and
+`aFullDeviceRefusesTheWrittenDocument` at `:831` (FR-074). Neither file
+names a sleep or a clock (FR-071).
+
+**The docs read complete.** The `Regression gate` section runs 24 lines
+at `README.md:597` to `:620`; the name rows stand at `:637` to `:639` and
+`:644` to `:645`; the option rows stand at `:737` to `:739`; the guide
+section stands at `docs/pages/harness.md:1095`; `PAGE_LINE_CAP` reads 746
+at `tools/docs/example_drift.py:143`; `add_docs_example(regression_gate)`
+stands at `example/CMakeLists.txt:73`; the recorded region at
+`example/docs/regression_gate.expected` runs 10 lines and answers the
+seven state words (FR-059 to FR-063, SC-011).
+
+**The gates read at this head.** `bash test/cli_shape.sh` exits 0.
+`bash test/time_source_gate.sh` prints clean with both liveness probes
+reporting. `python3 tools/docs/example_drift.py .` exits 0, and the same
+script with `--options` exits 0. `LCOV_EXCL` appears zero times in
+`source/harness/compare.cpp`, `source/harness/json_load.cpp` and
+`source/harness/cli.cpp`. `ctest --test-dir build/conv1` answers 109 of
+109 at this head, which carries the registered `loop_shape` test at
+`test/CMakeLists.txt:694` (FR-072, SC-010).
+
+**The two readings that stay outside this tree.** The coverage job
+answers 100.0% lines (7714 of 7714) and 100.0% branches (3651 of 3651)
+at `4b59f1e`, and the code here equals the code there, so FR-069 and
+SC-008 read satisfied. T060 stays open as the reading of that job at the
+landing head. The CI job set concluded success at `4b59f1e` and runs in
+flight at this head, which keeps SC-012 partial. `git ls-remote origin
+026-regression-gate` answers `88d0589`, so T058's push stands.
+
+**The audit-point voice stays where its label stands.** The symbol
+anchors of `include/speedgun-ng/benchmark.hpp` in PC-1, PC-2, PC-6,
+`data-model.md:82`, `data-model.md:113` and
+`contracts/reader-extension.md:5` keep the numbers of `aec8fce`, the same
+numbers the Citations table records under its label at
+`specs/026-regression-gate/spec.md:1163`. Measured here: `RunOutcome`
+`:78`, `RowKind` `:89`, `MetricValue` `:213`, `Statistics` `:232`,
+`StatUnit` `:250`, `ResultRow` `:353`, `BenchmarkResult` `:442`,
+`ReportData` `:570`, `loadReport` `:2487`. The sentences there describe
+the state before this feature, so a number moved on its own would leave
+the sentence wrong. No task is appended for them, and the owner can rule
+otherwise in one line.
+
+**Checkpoint:** the tree is clean at `88d0589`, the remote equals the
+head, and every fixture the command table of
+`specs/026-regression-gate/quickstart.md:69` to `:77` names stands in
+`test/data/`.
+
+**T077 reads closed.** The checker pointer in `research.md` names
+`source/harness/json_load.cpp:1083`. PC-3 and the Citations table now list
+the thirteen status 2 answers of the scan, `:80`, `:132`, `:152`, `:174`,
+`:276`, `:405`, `:419`, `:435`, `:448`, `:462`, `:473`, `:498` and `:518`,
+and the no-match print at `:548` left both lists because that path answers
+status 0 at `:549`.
