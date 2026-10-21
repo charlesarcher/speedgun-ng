@@ -78,6 +78,39 @@ of at least 2 is the fixed cycles counter that decides the Intel and
 Zhaoxin watchdog rows. An AMD paired event and an Arm chained event each
 occupy two counters, so the published limit is a ceiling.
 
+**The conservatism direction**: the rules above err low on purpose, because
+the two errors cost differently. An under-count costs one extra pass: the
+planner splits where the columns could have fit one plan, and the run measures
+one pass more. An over-count is what risks a multiplexed pass: a plan the
+hardware cannot hold opens anyway, the kernel rotates it, and the run reports
+values measured at a running ratio below 1. Every rule below guards the
+over-count and pays in passes when it guards too far.
+
+| Rule | Which way it errs | The error it guards |
+|---|---|---|
+| the watchdog rows | low by one | an over-count, whose plan opens past the counter the watchdog holds |
+| the hybrid rule | low to nothing | an over-count, because one core figure cannot fit both core types |
+| the hybrid common subset | low by two | an over-count, whose plan the efficiency cores cannot hold open |
+| the Arm answer | publishes nothing | an over-count, read from a register no unprivileged reader reaches |
+
+**Alder Lake and Raptor Lake**: a hybrid host that keeps the vendor's core
+answer keeps one figure for `cpu_core` and `cpu_atom` together, and that
+figure is the common subset, the count both core types hold. It sits two
+counters below what the performance cores really hold, so the ceiling
+published on those parts is low by two. A pass planned under it opens within
+the reach of either core type, at the price of the extra pass the direction
+above names.
+
+**The Arm hosts**: an Arm core publishes no limit, so its runs keep the single
+kernel-rotated plan that PC-3 measured on the Intel host. `PMCR_EL0.N` counts
+the programmable event counters of an Arm core and exception level 0 cannot
+read it: the kernel leaves `PMUSERENR_EL0.EN` clear, so a read at that level
+traps. The caps directory of the device,
+`/sys/bus/event_source/devices/<name>/caps`, carries event fields and format
+fields and no counter count. No value is published on an Arm host until the
+group probe lands as follow-up work, and the planner reads that empty answer
+as the row of E-02 that publishes nothing.
+
 **Rationale**: Leaf 0AH is the only user-readable, hardware-shaped answer to
 "how many programmable counters does this core hold" that the pinned Intel
 catalog can rely on. The Intel SDM documents the leaf as the architectural
