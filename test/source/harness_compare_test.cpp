@@ -2151,6 +2151,174 @@ auto aLibraryRuleCarriesItsParsedFieldsIntoTheComparison() -> void
         "threshold field and the text read (FR-005)");
 }
 
+// FR-002, FR-024, FR-034: a rule whose filter admits one benchmark stands
+// beside a rule that admits the whole pair, so the entry list holds three
+// rows and each carries the text of the rule that answered it.
+auto aFilteredRuleBesideAnUnfilteredRuleAnswersItsOwnRows() -> void
+{
+  const auto baseline =
+      makeReport({measured("bmGate", 100.0), measured("bmGateFit", 200.0)});
+  const auto contender =
+      makeReport({measured("bmGate", 101.0), measured("bmGateFit", 201.0)});
+  const auto answer = libraryCall(
+      baseline,
+      contender,
+      rulesOf({"time@median:lower:5%", "time@median:lower:5%:^bmGate$"}),
+      false);
+  if (!answer.has_value()) {
+    fail("a filtered rule beside an unfiltered rule answers a comparison "
+         "(FR-024, FR-034)");
+    return;
+  }
+  check(entryOrder(*answer)
+            == "bmGate time@median:lower:5%; "
+               "bmGate time@median:lower:5%:^bmGate$; "
+               "bmGateFit time@median:lower:5%",
+        "the rules of one benchmark stand together and a filtered rule "
+        "answers only the benchmark its filter admits (FR-002, FR-024)");
+  check(answer->passed,
+        "a change under both thresholds passes (FR-028, FR-044)");
+}
+
+// FR-051, D-08: a caller that builds a rule in code can carry a filter the
+// regex library refuses, and the public call answers one fault line.
+auto aHandBuiltRuleWithAnUnreadableFilterAnswersOneFault() -> void
+{
+  const auto baseline = makeReport({measured("first", 100.0)});
+  const auto contender = makeReport({measured("first", 104.0)});
+  const sg::CompareRule handBuilt {.text = "time@median:lower:5%:(",
+                                   .valueName = "time",
+                                   .aggregate = sg::Aggregate::MEDIAN,
+                                   .direction = sg::Direction::LOWER_IS_BETTER,
+                                   .relativeThreshold = 5.0,
+                                   .absoluteThreshold = std::nullopt,
+                                   .filter = "("};
+  const auto answer = libraryCall(baseline, contender, {handBuilt}, false);
+  check(!answer.has_value()
+            && faultNames(answer.error(),
+                          "time@median:lower:5%:(",
+                          "no regular expression"),
+        "a rule built in code whose filter the regex library refuses answers "
+        "one fault naming the rule and the filter (FR-051, D-08)");
+}
+
+// FR-008, FR-009, SC-003: a name that stands at the start of another name
+// pairs with nothing, so the pair answers one REMOVED row beside one ADDED
+// row.
+auto aPrefixOfAnotherNamePairsWithNothing() -> void
+{
+  const auto baseline =
+      makeReport({measured("bmGate/8", 100.0), measured("bmGate/16", 100.0)});
+  const auto contender =
+      makeReport({measured("bmGate/8", 100.0), measured("bmGate/80", 100.0)});
+  const auto answer = libraryCall(
+      baseline, contender, rulesOf({"time@median:lower:5%"}), false);
+  if (!answer.has_value()) {
+    fail("a pair of prefix-sharing names answers a comparison (FR-008)");
+    return;
+  }
+  check(entryOrder(*answer)
+            == "bmGate/8 time@median:lower:5%; bmGate/16 "
+               "time@median:lower:5%; bmGate/80 time@median:lower:5%",
+        "a name that stands at the start of another name pairs with nothing, "
+        "so the shared name answers one row and the two others answer one "
+        "each (FR-008, FR-010, SC-003)");
+  check(answer->entries.size() == 3
+            && answer->entries[1].state == sg::CompareState::REMOVED
+            && answer->entries[2].state == sg::CompareState::ADDED,
+        "the name one report holds alone answers its own state word (FR-009, "
+        "FR-010)");
+  check(answer->entries.size() == 3 && carriesNoValues(answer->entries[1])
+            && carriesNoValues(answer->entries[2]),
+        "the two rows carry no values (E-02, FR-009)");
+}
+
+// FR-003, FR-035: a rule that would answer rows stands beside a rule whose
+// value no report of the pair carries, and the call answers one fault.
+auto aValidRuleBesideAFaultyRuleAnswersOneFault() -> void
+{
+  const auto baseline = makeReport({measured("first", 100.0)});
+  const auto contender = makeReport({measured("first", 104.0)});
+  const auto answer =
+      libraryCall(baseline,
+                  contender,
+                  rulesOf({"time@median:lower:5%", "counter:bytes:lower:5%"}),
+                  false);
+  check(!answer.has_value()
+            && faultNames(answer.error(),
+                          "counter:bytes:lower:5%",
+                          "first"),
+        "a rule whose value a report lacks answers one fault naming the rule "
+        "and the benchmark, and no entry reaches the caller (FR-003, FR-035, "
+        "FR-036)");
+}
+
+// FR-055: the three divisors of the unit a report declares scale the value
+// cells and the absolute change of the table.
+auto theTableScalesEveryDeclaredUnit() -> void
+{
+  const auto entryOf = [](const double value,
+                          const double change) -> sg::CompareEntry
+  {
+    auto entry = sg::CompareEntry {};
+    entry.name = "a";
+    entry.ruleText = "time@median:lower:5%";
+    entry.state = sg::CompareState::OK;
+    entry.baseline = value;
+    entry.contender = value + change;
+    entry.changePercent = 0.3;
+    entry.changeAbsolute = change;
+    return entry;
+  };
+  const auto measuredWithUnit =
+      [](const char* name, const sg::TimeUnit unit) -> sg::BenchmarkResult
+  {
+    auto result = measured(name, 1000.0);
+    result.timeUnit = unit;
+    return result;
+  };
+  constexpr const char* const kScaleCapture =
+      "harness_compare_scale_capture.txt";
+  const int savedOut = dup(STDOUT_FILENO);
+  if (std::freopen(kScaleCapture, "w", stdout) == nullptr) {
+    fail("the scale capture opens");
+    return;
+  }
+  for (const sg::TimeUnit unit : {sg::TimeUnit::MICROSECONDS,
+                                  sg::TimeUnit::MILLISECONDS,
+                                  sg::TimeUnit::SECONDS})
+  {
+    const double divisor = unit == sg::TimeUnit::MICROSECONDS
+        ? 1'000.0
+        : (unit == sg::TimeUnit::MILLISECONDS ? 1'000'000.0 : 1'000'000'000.0);
+    sg::ReportData baseline;
+    baseline.results = {measuredWithUnit("a", unit)};
+    sg::ReportData contender;
+    contender.results = {measuredWithUnit("a", unit)};
+    const sg::CompareResult comparison {{entryOf(divisor, divisor * 0.003)},
+                                        true};
+    sg::detail::printCompareTable(
+        comparison, baseline, contender, "base.json", "contender.json");
+  }
+  std::fflush(stdout);
+  if (dup2(savedOut, STDOUT_FILENO) < 0) {
+    fail("the scale capture closes");
+    return;
+  }
+  close(savedOut);
+  const std::string printed = sg::test::readText(kScaleCapture);
+  check(printed.find("1.000 us") != std::string::npos
+            && printed.find("+0.003 us") != std::string::npos
+            && printed.find("1.000 ms") != std::string::npos
+            && printed.find("+0.003 ms") != std::string::npos
+            && printed.find("1.000 s") != std::string::npos
+            && printed.find("+0.003 s") != std::string::npos,
+        "the table divides the value cells and the absolute change by the "
+        "unit the baseline declares (FR-055)");
+  check(printed.find(" ns") == std::string::npos,
+        "a declared unit replaces the nanosecond label (FR-055)");
+}
+
 // T055: the grammar corners the fault table had not reached. A percentile
 // name whose point does not read answers the value-name fault through
 // each of the four ways the number test refuses: no text at all, a first
@@ -2547,6 +2715,11 @@ auto main() -> int
   theLibraryCallAnswersTheEntriesAndTheVerdict();
   theLibraryCallAppliesTheDefaultRuleToAnEmptyRuleList();
   aLibraryRuleCarriesItsParsedFieldsIntoTheComparison();
+  aFilteredRuleBesideAnUnfilteredRuleAnswersItsOwnRows();
+  aHandBuiltRuleWithAnUnreadableFilterAnswersOneFault();
+  aPrefixOfAnotherNamePairsWithNothing();
+  aValidRuleBesideAFaultyRuleAnswersOneFault();
+  theTableScalesEveryDeclaredUnit();
   theGrammarFaultsEveryUnreadableCorner();
   theGrammarAcceptsTheRemainingShapes();
   theUnreadableValueSitesAnswerNothing();
