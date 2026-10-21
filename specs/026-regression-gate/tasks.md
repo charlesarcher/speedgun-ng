@@ -224,7 +224,7 @@ and the example runs in CI.
 - [X] T055 [P] Run `cmake --preset=ci-coverage`, `cmake --build build/coverage -j 2`, `ctest --test-dir build/coverage -j 2 --output-on-failure` and `cmake --build build/coverage -t coverage`, whose summary step runs `tools/dbc/coverage_gate.sh`: report 100% lines and 100% branches over `source/harness/compare.cpp`, the reader extension in `source/harness/json_load.cpp` and the compare branch in `source/harness/cli.cpp`, with no `LCOV_EXCL` marker, keeping `-fprofile-update=atomic` and no `-D_GLIBCXX_ASSERTIONS` (FR-069, SC-008)
 - [X] T056 [P] Run `cmake --preset=ci-rocky` with `cmake --build build` and `ctest --test-dir build -j 2 --output-on-failure`, then the `ci-ubuntu` build with clang-tidy and cppcheck reporting no new finding, then `cmake --build build --target format-check`, `cmake -P cmake/spell.cmake` and `cmake -P cmake/prose-lint.cmake` (SC-012)
 - [X] T057 [P] Run `bash test/time_source_gate.sh`, `bash test/loop_shape.sh build`, `bash test/cli_shape.sh`, `python3 tools/docs/example_drift.py .`, `ctest --test-dir build -R 'simdjson_purity_scan|simdjson_nm_proof'`, `cmake --build build -t dbc-gate` and `python3 tools/prose/prose_gate.py --check all` over the branch's commits: the loop-shape gate printing the same per-iteration cycle it prints at `aec8fce` under both compilers it drives, and `test/cli_shape.sh` reading its base anchors with the compare branch before the run loop (FR-072, SC-010, SC-011, SC-012)
-- [ ] T058 Rebase on `master` keeping both features' lines in every shared list, retake the version per FR-066, re-measure the page budget against the page the rebase leaves, run the full gate set, and push once with `--force-with-lease`, showing `git ls-remote origin 026-regression-gate` (FR-066, SC-012)
+- [X] T058 Rebase on `master` keeping both features' lines in every shared list, retake the version per FR-066, re-measure the page budget against the page the rebase leaves, run the full gate set, and push once with `--force-with-lease`, showing `git ls-remote origin 026-regression-gate` (FR-066, SC-012)
 
 ---
 
@@ -1094,9 +1094,9 @@ this feature's artifacts finds no number that holds something else at
 the reading its own label states.
 
 **Counts:** 74 functional requirements: 74 satisfied, 0 partial, 0
-unsatisfied. 13 success criteria: 12 satisfied, 1 partial (SC-012), 0
-unsatisfied. 77 tasks: 73 verified, 2 open under the owner's deferral
-(T069, T070), 2 external (T058, T060).
+unsatisfied. 13 success criteria: 13 satisfied, 0 partial, 0 unsatisfied.
+77 tasks: 75 verified, 2 open under the owner's deferral (T069, T070),
+0 external.
 
 **T077 reads closed at its three sites.**
 `specs/026-regression-gate/research.md:270` names the schema checker at
@@ -1170,14 +1170,13 @@ gate runs inside `ctest` at `test/CMakeLists.txt:694` (FR-072).
 **The success criteria read complete.** SC-001 to SC-011 and SC-013 hold
 on the evidence above, and SC-008 holds on the coverage reading of 100.0%
 lines (7714 of 7714) and 100.0% branches (3651 of 3651) at `88d0589`,
-whose code equals this head. SC-012 stays partial: run 39652027115 at
-this head answers success for nine of its jobs with `test` and
-`coverage` in flight, and run 39644756129 at `4b59f1e` answers the whole
-set.
+whose code equals this head. SC-012 closes on run 39652027115 at
+`fc3a429`, where eleven jobs answer success and the `docs` job stays
+skipped.
 
-**The four open tasks read as their owners left them.** T058: `git
-ls-remote origin 026-regression-gate` answers `fc3a429`, equal to this
-head. T060 waits on the coverage reading of the landing head. T069
+**The three open tasks read as their owners left them.** T058: `git
+ls-remote origin 026-regression-gate` answers `0318c32`, equal to the
+head that carries this ledger. T069
 stands enforced where a check exists at the call: `SG_REQUIRE` at
 `source/harness/compare.cpp:775`, `:796`, `:800`, `:928`, `:1074`
 and `:1684`, beside `SG_ENSURE` at `:779`, `:812` and `:1736`.
@@ -1209,3 +1208,16 @@ zero times in the three touched sources. `807068c` widened the label above
 the Citations table to name both readings. The head that carries this
 ledger differs from `fc3a429` in markdown only, so the reading describes
 the same binaries, and SC-008 and FR-069 read satisfied on it.
+
+**T058 reads closed, and SC-012 with it.** `git ls-remote origin` answers
+`3c7dce7` for `026-regression-gate`, equal to this head, and `aec8fce` for
+`master`, the commit this branch was cut from, so the rebase had nothing to
+resolve. The version reads 0.15.0 at `CMakeLists.txt:7` with the harness
+`SOVERSION` 9 at `:251`, the page budget reads 746 at
+`tools/docs/example_drift.py:143`, and the gate set answers clean at this
+head: `ctest` 109 of 109, `dbc-gate` 271 interfaces with 0 gaps, the
+loop-shape, command-line-shape and time-source gates, the example drift
+gate in both modes, prose and spell. Run 39652027115 at `fc3a429`
+completed success across its eleven jobs, and the push went through
+`git push --force-with-lease`. T069 and T070 stay open on the decisions
+that deferred them.
