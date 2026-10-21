@@ -493,6 +493,10 @@ struct RunOptions
   // `off` stands, and it settles the run with no environment source, so the
   // gather is handed no rows at all.
   bool environmentOff = false;
+  // specs/027 FR-015, R-01, R-06: the parsed jitter probe options, parsed
+  // once before the expansion and before any run. Empty when the option
+  // stood absent.
+  std::optional<JitterProbeOptions> jitterProbe;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
