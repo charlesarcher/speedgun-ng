@@ -103,7 +103,7 @@ in `test/data/`, plus the two hand runs of the quickstart.
 - [X] T021 [US1] Add the compare branch to `speedgunMain` of `source/harness/cli.cpp` after the option scan closes at `:394` and before `detail::expandRegistry` at `:434`, in the form of `contracts/compare-options.md`: `const auto exit = detail::runCompareMode(options);`, then `SG_ENSURE((exit.status != 0) == exit.failed, ...)`, then `return exit.status;`, leaving the closing postcondition at `:566` and the `runner.run(*entry)` anchor of `test/cli_shape.sh:31` to `:41` untouched (FR-052, FR-072, D-15)
 - [X] T022 [US1] Implement `runCompareMode` in `source/harness/compare.cpp`: load both documents through `loadReport`, apply the batch filter to the loaded values, call `compareReports`, print the table or the one fault line, write the document when `--json=` stands, and answer `CompareExit` with `status` and `failed` "computed independently so the `SG_ENSURE` carries content"; "When the filtered pair shares no name, the run prints one line saying the pair matched nothing and answers status 0" (FR-006, FR-007, FR-047, FR-050, FR-053, FR-056, FR-057, D-12, D-19)
 - [X] T023 [US1] Apply the default rule in `source/harness/compare.cpp` from the constant of `source/harness/detail/compare.hpp` when `RunOptions::compareRules` stands empty: "`time@median:lower:5%` applies when no rule is given. Given rules replace it" (FR-033, FR-034, SC-002, spec D-5)
-- [X] T024 [US1] Add the compare rows to the exit-status table of `specs/015-benchmark-harness-core/contracts/cli.md:72` to `:82`: the seven rows of `contracts/compare-options.md`, status 1 for a regression, status 2 for a refused document, a version mismatch, a filter that matches nothing, a missing or uncountable value, a zero baseline under a relative threshold, a scope with no readable row and an unwritable comparison document, and status 0 for a pass or a pair that matched nothing (FR-052)
+- [X] T024 [US1] Add the compare rows to the exit-status table of `specs/015-benchmark-harness-core/contracts/cli.md:83` to `:101`: the seven rows of `contracts/compare-options.md`, status 1 for a regression, status 2 for a refused document, a version mismatch, a filter that matches nothing, a missing or uncountable value, a zero baseline under a relative threshold, a scope with no readable row and an unwritable comparison document, and status 0 for a pass or a pair that matched nothing (FR-052)
 - [X] T025 [US1] Add the status-mapping tests to `test/source/harness_compare_cli_test.cpp`: `--filter=zzz` and an empty-name pair each answering the matched-nothing line at status 0, and `--compare=test/data/gate_ok_base.json` answering one usage line and status 2 (SC-001, SC-002, FR-048, FR-051, D-19)
 
 **Checkpoint**: one command, one table, one status, over committed
@@ -148,7 +148,7 @@ broken file.
 - [X] T034 [US3] Add the scan-time usage faults to `source/harness/cli.cpp`: the `--compare` split at the first comma with an empty side, the `--compare-rule` text the parse call rejecting through "one line naming the option and the rule text and the fault the parse call named", and the invalid batch filter reusing the run path's line at `:442` to `:446` (FR-024, FR-048, FR-051)
 - [X] T035 [US3] Answer the load and value faults in `runCompareMode` of `source/harness/compare.cpp`: a missing file and a document the reader refuses each printing one line naming the path and the reader's text at status 2, and the value-absent, uncountable-metric and percentile-point faults naming "the rule, the benchmark, the report" (FR-006, FR-036, FR-037, FR-038, FR-051)
 - [X] T036 [US3] Stand the schema version pairing check first inside `compareReports` of `source/harness/compare.cpp` so a library caller answers the same fault: the fault row "the two `schemaVersion` texts differ" naming "both versions" in the error text the mode prints as its one line (FR-051, SC-013, D-13)
-- [X] T037 [US3] Answer the document write failure through `runCompareMode` of `source/harness/compare.cpp`: a false `writeCompareReport` answer setting `CompareExit::failed` and the status 2 row, "the form the report write already answers (`specs/015-benchmark-harness-core/contracts/cli.md:74`)" (FR-051, FR-057, FR-074)
+- [X] T037 [US3] Answer the document write failure through `runCompareMode` of `source/harness/compare.cpp`: a false `writeCompareReport` answer setting `CompareExit::failed` and the status 2 row, "the form the report write already answers (`specs/015-benchmark-harness-core/contracts/cli.md:86`)" (FR-051, FR-057, FR-074)
 
 **Checkpoint**: nine fault forms, nine one-line answers, status 2 each,
 and no table.
@@ -526,4 +526,56 @@ prints before `speedgunMain` (see `tools/docs/report_shape.py`).
 - [X] T068 Move the contract block of the noise account from its struct to its function and reword the README option row per Principle IV, Principle XI.2 (contradicts)
 - [ ] T069 Enforce the documented preconditions of the internal compare calls of `source/harness/compare.cpp` with `SG_REQUIRE`, the way `source/harness/family.cpp` and `source/harness/percentiles.cpp` enforce theirs, per Principle II (partial)
 - [ ] T070 Hoist the object and array writers of `source/harness/compare.cpp` and the unit-scale table into a shared internal header beside `source/harness/json_report.cpp` and `source/harness/report.cpp`, per Principle X.3 (partial)
-- [ ] T071 Carry the three compare options in the option table of `specs/015-benchmark-harness-core/contracts/cli.md`, an edit that moves the line anchors four artifacts of specs/016, specs/023 and specs/026 cite (partial)
+- [X] T071 Carry the three compare options in the option table of `specs/015-benchmark-harness-core/contracts/cli.md`, an edit that moves the line anchors four artifacts of specs/016, specs/023 and specs/026 cite (partial)
+
+## Phase 12: Convergence round 2
+
+The `/speckit.converge` pass of 2026-10-21 read the branch head
+`ddf4749` against `spec.md`, `plan.md`, the six contracts and the
+constitution. The branch moved while the pass ran: `001accc` was
+rebased to `ddf4749`, and the one content change is the
+`[[maybe_unused]]` attribute on `namesAppliedRule` at
+`source/harness/compare.cpp:754`, the fix for the `-Wunused-function`
+error that made the CI `consumer-release` job refuse the
+contracts=ignore build of run 39624322143. Every gate ran in a tree
+outside the repository: the `ci-rocky` build is clean, `ctest` answers
+109 of 109, the DBC doc gate and pairing gate read 271 interfaces with
+zero gaps, the drift gate, the prose gate (44 sources, 4367 units, zero
+findings), the spell gate, `test/cli_shape.sh`, `test/time_source_gate.sh`
+and `test/loop_shape.sh` pass, and `test/example_run.sh` runs the
+regression-gate example with its ten instances. The coverage job of run
+39624322143 reads 100.0% lines (7718 of 7718) and 100.0% branches
+(3650 of 3650) with `source/harness/cli.cpp` at 100%, the reading T060
+asks for. The coverage job of run 39628023626 aborts in its test step at
+`counters_linux_pmu_seam_test` with a stack-protector trap before the
+gate runs; that test passes in a local `ci-coverage` build, and it
+stands in the counters seam, outside every file this feature touches, so
+this pass records it as a runner fault for a re-run. Two gaps in the
+specified scope remain.
+
+- [X] T072 Add the escaped comma and escaped at sign forms of a prefixed label to `test/source/harness_compare_test.cpp`, beside the escaped colon case at `:267`, and name the comma in the escape lists of `docs/pages/harness.md:1133` and `specs/026-regression-gate/contracts/rule-parse.md:47`, then `ctest --test-dir build -R harness_compare_test` and `python3 tools/docs/example_drift.py .` both pass per FR-020, FR-021 (partial)
+- [X] T073 Drop the two `ReportData` parameters of `detail::writeCompareReport` and the two `static_cast<void>` sinks at `source/harness/compare.cpp:1688` and `:1689`, refresh the declaration in `source/harness/detail/compare.hpp`, the call site in `runCompareMode` and the signature block of `specs/026-regression-gate/contracts/compare-document.md`, then `cmake --build build -t dbc-gate` and `ctest --test-dir build -R harness_compare_cli_test` both pass per Principle X.2 (unrequested)
+
+The round that followed closed five of the eight open lines. T069
+stands enforced where a check exists at the call: `compareValues` and
+`noiseGuard` each answer `SG_REQUIRE` for the threshold FR-022 makes
+every rule carry. The remaining `\pre` claims name the seven value-name
+forms the grammar of this unit reads, and a second reader of that
+grammar inside the same unit would be a copy of it, so those claims stay
+doc text under the rule that a claim no code can check is prose. T071
+carried the three options into the option table of the 015 contract at
+`:22` to `:24` and repaired every citation that names a line of that
+file: eleven anchors across seven artifacts, two of them already eight
+lines off from the rows T024 added before this change. T072 closed the
+escape set in the tests and in the two escape lists, and the escaped at
+sign case answers a `stat:` label taking no aggregate suffix (FR-018,
+spec D-21). T073 dropped the two unread parameters of
+`writeCompareReport`. T070 stays open on purpose: the hoist spans
+`source/harness/json_report.cpp`, `source/harness/report.cpp` and a new
+internal header, three units two other features edit at the same time,
+and the duplication it removes sits inside one translation unit. The
+coverage job of run 39628023626 aborted in `counters_linux_pmu_seam_test`
+with a stack-protector trap before its gate ran; the same job answered
+100.0% lines and 100.0% branches at `001accc` on the same workflow, the
+test passes in a local `ci-coverage` build, and the job stands re-run for
+the record.
