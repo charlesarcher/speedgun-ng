@@ -4,7 +4,9 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    VERSION 0.15.0
+    # specs/024-multipass-collection FR-031: the next free minor, past the
+    # 0.15.0 the regression gate took on master (D-12).
+    VERSION 0.16.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -44,7 +46,11 @@ set_target_properties(
     # 0.x release, so every release would claim the same ABI. The value is
     # stated here and the package config's compatibility tracks the minor
     # position (FR-020, FR-021, D-11).
-    SOVERSION 2
+    # specs/024 FR-031: ObjectSeed gains programmableCounters, Object
+    # answers it, and FakeProvider gains the scripted limit fact, so the
+    # exported layouts of this archive move and the hand-kept number goes
+    # to 3 (D-12).
+    SOVERSION 3
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng
 )
@@ -248,7 +254,11 @@ set_target_properties(
     # warning column, the comparison types enter the public header, and the
     # harness gains the comparison surface, so the exported layouts move
     # again and the number goes to 9 (FR-065, spec D-17).
-    SOVERSION 9
+    # specs/024 FR-031: BenchmarkHandle gains the metricMethod selector,
+    # BenchmarkResult gains metricMethod, passCount and passSpread, and
+    # MetricValue gains pass, so the exported layouts move again and the
+    # number goes to 10 (D-12).
+    SOVERSION 10
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
