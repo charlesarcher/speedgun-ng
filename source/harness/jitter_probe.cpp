@@ -287,10 +287,9 @@ auto JitterProbe::start() -> void
     available = clockOpenCarriesReader();
   }
 
-  // The probe cpus resolve here; the idle preset's resolver and the
-  // overlap check land with US2 (R-07), so an empty list runs no loop
-  // this wave and the batch's disclosure carries the facts the states
-  // hold.
+  // The availability gate stands here; the idle resolution and the
+  // overlap check ran in the entry point before this start (R-07), so
+  // an empty list arrives only when no probe stands to run.
   if (!available || m_options.cpus.empty()) {
     return;
   }

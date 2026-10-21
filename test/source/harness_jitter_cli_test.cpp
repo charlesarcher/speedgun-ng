@@ -11,6 +11,16 @@
 // scenario reads the JSON document, so it stands red against the writer
 // T013 lands, and runs after the green scenarios. Frameworkless
 // check()/fail() convention.
+//
+// T018 appends the placement status-2 cases of US2 (FR-017 to FR-019,
+// D-3 to D-5): the idle stop, the alongside overlap stop for a planned
+// cpu and for an SMT sibling, the precheck allowance, the `both` stop
+// after the pre-check phase, and the emptied-mask stop. A rejected run
+// may return 2 from inside the entry point while probe threads stand
+// live, so every scenario of this group runs in a fork of this binary
+// that captures its two streams, the pattern
+// harness_cli_placement_test.cpp carries; the synthetic layouts install
+// in the child before the entry point reads them.
 // ============================================================================
 
 #include <algorithm>
@@ -26,6 +36,7 @@
 #include <vector>
 
 #include <sched.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "detail/internal.hpp"
@@ -208,6 +219,435 @@ auto readDocument(const std::string& path) -> std::string
   return buffer.str();
 }
 
+// The comma-joined list of every cpu the process affinity mask holds,
+// read from sched_getaffinity (VI); the mask-emptied scenario probes
+// every one of them.
+auto allMaskCpus() -> std::string
+{
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the process affinity mask is unreadable (FR-040)");
+  }
+  std::string joined;
+  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE);
+       ++cpu) {
+    if (CPU_ISSET(cpu, &mask) != 0) {
+      if (!joined.empty()) {
+        joined.push_back(',');
+      }
+      joined += std::to_string(cpu);
+    }
+  }
+  check(!joined.empty(), "the affinity mask holds cpus (FR-040)");
+  return joined;
+}
+
+// The thrawn shape built from `base`: 4 L3 groups, 24 cores, 48 threads,
+// two siblings per core; cpu base + n and cpu base + n + 24 share one
+// core, and group n / 6 holds the cores 6n through 6n + 5, so the `l3`
+// plan names base, base + 6, base + 12 and base + 18.
+auto installThrawnShape(std::uint32_t base) -> void
+{
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  for (std::uint32_t core = 0; core < 24; ++core) {
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = core / 6;
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = base + core;
+    thread.coreOrdinal = core;
+    thread.groupOrdinal = core / 6;
+    layoutCore.threads.push_back(core);
+    installed.threads.push_back(thread);
+    installed.mask.push_back(base + core);
+    installed.cores.push_back(layoutCore);
+  }
+  for (std::uint32_t core = 0; core < 24; ++core) {
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = base + core + 24;
+    thread.coreOrdinal = core;
+    thread.groupOrdinal = core / 6;
+    installed.threads.push_back(thread);
+    installed.mask.push_back(base + core + 24);
+    installed.cores.at(core).threads.push_back(core + 24);
+  }
+  for (std::uint32_t group = 0; group < 4; ++group) {
+    sg::detail::LayoutGroup layoutGroup;
+    layoutGroup.lowestCpu = base + group * 6;
+    for (std::uint32_t core = group * 6; core < group * 6 + 6; ++core) {
+      layoutGroup.cores.push_back(core);
+    }
+    installed.groups.push_back(layoutGroup);
+  }
+  sg::detail::installTestLayout(installed);
+}
+
+// Two groups of one core with two siblings each: the `l3` plan names
+// base and base + 2, and the siblings cover the rest, so no cpu stays
+// free (FR-017).
+auto installTwoGroupPairsShape(std::uint32_t base) -> void
+{
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  for (std::uint32_t group = 0; group < 2; ++group) {
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = group;
+    for (std::uint32_t sibling = 0; sibling < 2; ++sibling) {
+      const std::uint32_t cpu = base + group * 2 + sibling;
+      sg::detail::LayoutThread thread;
+      thread.cpuIndex = cpu;
+      thread.coreOrdinal = group;
+      thread.groupOrdinal = group;
+      layoutCore.threads.push_back(
+          static_cast<std::uint32_t>(installed.threads.size()));
+      installed.threads.push_back(thread);
+      installed.mask.push_back(cpu);
+    }
+    installed.cores.push_back(layoutCore);
+  }
+  for (std::uint32_t group = 0; group < 2; ++group) {
+    sg::detail::LayoutGroup layoutGroup;
+    layoutGroup.lowestCpu = base + group * 2;
+    layoutGroup.cores.push_back(group);
+    installed.groups.push_back(layoutGroup);
+  }
+  sg::detail::installTestLayout(installed);
+}
+
+// The base cpu the layout scenarios build their shapes from, picked
+// from the process affinity mask (VI); a static carries it into the
+// setups the forked children run.
+std::uint32_t g_baseCpu = 0;
+
+// The probe cpus of the mask-emptied scenario: every cpu the process
+// mask holds (FR-019).
+std::string g_allCpus;
+
+auto bmJitIdleNoFree(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmJitOverlap(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmJitMaskEmpty(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+// The probe cpu the cpuset-limit scenario's first body drops from the
+// main thread's mask, the way a cpuset change stands between the parse
+// and the run (FR-036); a static carries it into the body the child
+// runs.
+std::uint32_t g_limitCpu = 0;
+
+auto bmJitLimitShrunk(sg::State& state) -> void
+{
+  // The body narrows the main thread's mask before the next instance's
+  // run reads it; the instance carries a handle preset, so no narrowing
+  // and no restore stands around the change (FR-019).
+  cpu_set_t current {};
+  CPU_ZERO(&current);
+  if (sched_getaffinity(0, sizeof(current), &current) == 0) {
+    CPU_CLR(g_limitCpu, &current);
+    if (sched_setaffinity(0, sizeof(current), &current) != 0) {
+      fail("the body cannot narrow the mask (FR-036)");
+    }
+  }
+  for (auto _ : state) {
+  }
+}
+
+auto bmJitLimitProbe(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmJitSkip(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto setupNoLayout() -> void
+{
+}
+
+auto setupIdleNoFree() -> void
+{
+  installTwoGroupPairsShape(g_baseCpu);
+  auto handle = sg::registerBenchmark(&bmJitIdleNoFree, "bmJitIdleNoFree");
+  handle.threads(2);
+}
+
+auto setupOverlap() -> void
+{
+  installThrawnShape(g_baseCpu);
+  auto handle = sg::registerBenchmark(&bmJitOverlap, "bmJitOverlap");
+  handle.threads(4);
+}
+
+auto setupMaskEmpty() -> void
+{
+  (void)sg::registerBenchmark(&bmJitMaskEmpty, "bmJitMaskEmpty");
+}
+
+auto setupCpusetLimit() -> void
+{
+  g_limitCpu = g_baseCpu;
+  auto handle = sg::registerBenchmark(&bmJitLimitShrunk, "bmJitLimitShrunk");
+  handle.placement("l3");
+  (void)sg::registerBenchmark(&bmJitLimitProbe, "bmJitLimitProbe");
+}
+
+auto setupSkip() -> void
+{
+  installThrawnShape(g_baseCpu);
+  auto handle = sg::registerBenchmark(&bmJitSkip, "bmJitSkip");
+  handle.threads(13);
+}
+
+// The exit status and both captures of one forked scenario child.
+struct Captured
+{
+  int status;
+  std::string out;
+  std::string err;
+};
+
+// One speedgunMain run in a forked child with both streams captured:
+// a stop may return 2 from inside the entry point, so the work stands
+// in a child either way (the harness_cli_placement_test pattern).
+auto runChildScenario(const char* mode,
+                      const std::vector<std::string>& arguments,
+                      void (*setup)()) -> Captured
+{
+  const std::string outPath =
+      std::string("harness_jitter_cli_") + mode + "-out.txt";
+  const std::string errPath =
+      std::string("harness_jitter_cli_") + mode + "-err.txt";
+
+  const pid_t pid = fork();
+  if (pid < 0) {
+    fail("cannot fork the child");
+  }
+  if (pid == 0) {
+    if (std::freopen(outPath.c_str(), "w", stdout) == nullptr
+        || std::freopen(errPath.c_str(), "w", stderr) == nullptr) {
+      _exit(3);
+    }
+    setup();
+    std::vector<std::string> argvStorage {"harness_jitter_cli_test"};
+    for (const auto& argument : arguments) {
+      argvStorage.push_back(argument);
+    }
+    std::vector<char*> argv;
+    for (auto& argument : argvStorage) {
+      argv.push_back(argument.data());
+    }
+    const int status =
+        sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+    std::fflush(stdout);
+    std::fflush(stderr);
+    std::exit(status);
+  }
+  int waitStatus = 0;
+  if (waitpid(pid, &waitStatus, 0) < 0) {
+    fail("cannot wait for the child");
+  }
+  if (!WIFEXITED(waitStatus)) {
+    fail("the child did not exit normally");
+  }
+  return Captured {WEXITSTATUS(waitStatus),
+                   readDocument(outPath),
+                   readDocument(errPath)};
+}
+
+// FR-011, FR-017: the idle value parses, and the resolution over a run
+// whose instances carry no plan names no free cpu: one line naming the
+// preset word and status 2. The child installs no layout, so the
+// resolution answers the host read its own first read caches.
+auto scenarioIdleNoPlans() -> int
+{
+  const Captured run = runChildScenario(
+      "idleNoPlans",
+      {"--filter=bmQuiet", "--repetitions=1", "--iterations=2",
+       "--jitter-probe=idle"},
+      &setupNoLayout);
+  check(run.status == 2, "a plan-free idle run stops (FR-017)");
+  checkOneLine(run.err, "the idle stop prints one line (FR-017)");
+  check(run.err.find("idle") != std::string::npos,
+        "the stop names the preset word (FR-017)");
+  check(run.out.find("bmQuiet") == std::string::npos,
+        "no benchmark ran (FR-017)");
+  return 0;
+}
+
+// FR-017, FR-038: `idle` over a run whose plans leave no cpu free
+// prints one line naming the preset word and exits 2 before any
+// benchmark runs.
+auto scenarioIdleNoFree() -> int
+{
+  const Captured run =
+      runChildScenario("idleNoFree",
+                       {"--placement=l3", "--filter", "^bmJitIdleNoFree",
+                        "--jitter-probe=idle"},
+                       &setupIdleNoFree);
+  check(run.status == 2, "no free cpu under idle exits 2 (FR-017)");
+  checkOneLine(run.err, "the idle stop prints one line (FR-017, FR-038)");
+  check(run.err.find("idle") != std::string::npos,
+        "the idle stop names the preset word (FR-017)");
+  check(run.out.find("bmJitIdleNoFree") == std::string::npos,
+        "no benchmark ran (FR-017)");
+  return 0;
+}
+
+// FR-018, D-3: a probe cpu that is a planned cpu of the `l3` plan
+// prints one line naming the cpu and the benchmark and exits 2 before
+// any benchmark runs.
+auto scenarioOverlapPlanned() -> int
+{
+  const std::string probe = std::to_string(g_baseCpu);
+  const Captured run =
+      runChildScenario("overlapPlanned",
+                       {"--placement=l3", "--filter", "^bmJitOverlap",
+                        "--jitter-probe=" + probe},
+                       &setupOverlap);
+  check(run.status == 2, "a planned probe cpu exits 2 (FR-018)");
+  checkOneLine(run.err, "the overlap stop prints one line (FR-018)");
+  check(run.err.find(probe) != std::string::npos
+            && run.err.find("bmJitOverlap") != std::string::npos,
+        "the line names the cpu and the benchmark (FR-018)");
+  check(run.out.find("bmJitOverlap") == std::string::npos,
+        "no benchmark ran (FR-018)");
+  return 0;
+}
+
+// FR-018, D-3, D-9: the SMT sibling of a planned cpu is refused the
+// same way, the thrawn shape quickstart.md names.
+auto scenarioOverlapSibling() -> int
+{
+  const std::string sibling = std::to_string(g_baseCpu + 24);
+  const Captured run =
+      runChildScenario("overlapSibling",
+                       {"--placement=l3", "--filter", "^bmJitOverlap",
+                        "--jitter-probe=" + sibling},
+                       &setupOverlap);
+  check(run.status == 2,
+        "an SMT sibling of a planned cpu exits 2 (FR-018)");
+  checkOneLine(run.err, "the sibling stop prints one line (FR-018)");
+  check(run.err.find(sibling) != std::string::npos
+            && run.err.find("bmJitOverlap") != std::string::npos,
+        "the sibling line names the cpu and the benchmark (FR-018)");
+  check(run.out.find("bmJitOverlap") == std::string::npos,
+        "no benchmark ran (FR-018)");
+  return 0;
+}
+
+// D-3, R-10: the same overlap under `precheck` runs, because the probe
+// stops before the benchmarks start.
+auto scenarioPrecheckAllows() -> int
+{
+  const std::string probe = std::to_string(g_baseCpu);
+  const Captured run = runChildScenario(
+      "precheckAllows",
+      {"--placement=l3", "--filter", "^bmJitOverlap", "--repetitions=1",
+       "--iterations=2",
+       "--jitter-probe=" + probe + ",mode=precheck,precheck=1"},
+      &setupOverlap);
+  check(run.status == 0,
+        "the precheck mode allows the overlap (D-3, R-10)");
+  check(run.out.find("bmJitOverlap") != std::string::npos,
+        "the benchmark ran under the precheck allowance (D-3)");
+  return 0;
+}
+
+// D-3, R-10: under `both` the pre-check phase uses the cpu and the
+// alongside stop lands with the overlap line before any row.
+auto scenarioBothOverlap() -> int
+{
+  const std::string probe = std::to_string(g_baseCpu);
+  const Captured run = runChildScenario(
+      "bothOverlap",
+      {"--placement=l3", "--filter", "^bmJitOverlap",
+       "--jitter-probe=" + probe + ",mode=both,precheck=1"},
+      &setupOverlap);
+  check(run.status == 2, "the alongside phase of `both` refuses (FR-018)");
+  checkOneLine(run.err, "the both-mode stop prints one line (FR-018)");
+  check(run.err.find(probe) != std::string::npos
+            && run.err.find("bmJitOverlap") != std::string::npos,
+        "the both-mode line names the cpu and the benchmark (FR-018)");
+  check(run.out.find("bmJitOverlap") == std::string::npos,
+        "no row printed (FR-018)");
+  return 0;
+}
+
+// FR-019, D-5: an unpinned benchmark whose affinity mask the probe
+// cpus empty prints one line naming the benchmark and exits 2.
+auto scenarioMaskEmpty() -> int
+{
+  const Captured run = runChildScenario(
+      "maskEmpty",
+      {"--filter", "^bmJitMaskEmpty$", "--jitter-probe=" + g_allCpus},
+      &setupMaskEmpty);
+  check(run.status == 2, "the emptied mask exits 2 (FR-019)");
+  checkOneLine(run.err, "the mask stop prints one line (FR-019)");
+  check(run.err.find("bmJitMaskEmpty") != std::string::npos,
+        "the mask stop names the benchmark (FR-019)");
+  check(run.out.find("bmJitMaskEmpty") == std::string::npos,
+        "no benchmark ran (FR-019)");
+  return 0;
+}
+
+// FR-017, D-4: a group with no free cpu stands skipped and disclosed,
+// and the run continues over the free cpu the other touched group
+// yields; the `compact` plan of thirteen contexts covers group 0
+// fully and names group 1's lowest cpu.
+auto scenarioSkipDisclosure() -> int
+{
+  const Captured run = runChildScenario(
+      "skipDisclosure",
+      {"--placement=compact", "--filter", "^bmJitSkip", "--repetitions=1",
+       "--iterations=2", "--jitter-probe=idle"},
+      &setupSkip);
+  check(run.status == 0, "a skipped group continues the run (FR-017)");
+  check(run.out.find("skipped L3 group(s) 0") != std::string::npos,
+        "the disclosure names the skipped group (FR-017, D-4)");
+  check(run.out.find("bmJitSkip") != std::string::npos,
+        "the benchmark ran (FR-017)");
+  return 0;
+}
+
+// FR-036, D-12: cpusets limiting the probe cpus reach the disclosure
+// and the run continues; the first instance's body narrows the main
+// thread's mask between the parse and the second instance's run.
+auto scenarioCpusetLimit() -> int
+{
+  const std::string probe = std::to_string(g_baseCpu);
+  const Captured run =
+      runChildScenario("cpusetLimit",
+                       {"--filter", "^bmJitLimit", "--repetitions=1",
+                        "--iterations=2", "--jitter-probe=" + probe},
+                       &setupCpusetLimit);
+  check(run.status == 0,
+        "the cpuset limit discloses and continues (FR-036)");
+  check(run.out.find("cpusets limit the probe cpus") != std::string::npos,
+        "the disclosure names the cpuset limit (FR-036, D-12)");
+  check(run.out.find("bmJitLimitProbe") != std::string::npos,
+        "the second benchmark ran (FR-036)");
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -220,6 +660,26 @@ auto main() -> int
   const std::vector<std::string> quickRun {
       "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
 
+  // T018: the placement status-2 cases of US2 run first, in children
+  // forked before the entry point's first layout read: `layout()`
+  // caches the read once per process and an install cannot invalidate
+  // it after, so a child that installs its synthetic layout before any
+  // read answers the install, and the parent's later in-process
+  // scenarios answer the host (FR-002, Q-5). The base cpu comes from
+  // the process affinity mask (VI), and the mask-emptied scenario
+  // probes every cpu the mask holds.
+  g_baseCpu = pickCpus(1).at(0);
+  g_allCpus = allMaskCpus();
+  check(scenarioIdleNoPlans() == 0, "idleNoPlans");
+  check(scenarioIdleNoFree() == 0, "idleNoFree");
+  check(scenarioOverlapPlanned() == 0, "overlapPlanned");
+  check(scenarioOverlapSibling() == 0, "overlapSibling");
+  check(scenarioPrecheckAllows() == 0, "precheckAllows");
+  check(scenarioBothOverlap() == 0, "bothOverlap");
+  check(scenarioMaskEmpty() == 0, "maskEmpty");
+  check(scenarioSkipDisclosure() == 0, "skipDisclosure");
+  check(scenarioCpusetLimit() == 0, "cpusetLimit");
+
   // FR-011: the cpu list, `idle`, and every key parse once, each key
   // standing once in the value; the accepted value proceeds into the
   // batch.
@@ -230,13 +690,6 @@ auto main() -> int
     const auto report = captureRun(arguments);
     check(report.find("bmQuiet") != std::string::npos,
           "the accepted value runs the batch (FR-011)");
-  }
-  {
-    auto arguments = quickRun;
-    arguments.push_back("--jitter-probe=idle");
-    const auto report = captureRun(arguments);
-    check(report.find("bmQuiet") != std::string::npos,
-          "the idle value parses and the batch runs (FR-011)");
   }
 
   // FR-011: a repeated key stands rejected on one line and status 2,
