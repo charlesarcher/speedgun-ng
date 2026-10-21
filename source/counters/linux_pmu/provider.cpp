@@ -103,22 +103,24 @@ auto readParanoid() -> int
   // LCOV_EXCL_BR_STOP
 }
 
-// The host's answer for the programmable-counter limit: the two CPUID
-// leaves read once and the pure decode applied (FR-005, research D-01,
-// D-04). The registers do not change while the process runs, so one read
-// serves every object this provider owns; the constructor below takes it
-// at construction and every enumerate after reads the settled value. A
-// host whose leaf reads version 0 or count 0 settles on no value, and its
-// seeds then publish nothing (FR-005).
-auto hostProgrammableCounterLimit() -> std::optional<std::size_t>
+// The host's counter-limit registers, read once: the words do not change
+// while the process runs, so one probe serves every object this provider
+// owns and every enumerate after reads the settled words (FR-005,
+// research D-01, D-04).
+auto hostCounterLimitRegisters() -> const detail::CounterLimitRegisters&
 {
-  static const std::optional<std::size_t> kLimit = []
-  {
-    const auto registers = detail::readCounterLimitRegisters();
-    return detail::programmableCountersFromCpuid(
-        registers.maxLeaf, registers.eax, registers.ebx);
-  }();
-  return kLimit;
+  static const detail::CounterLimitRegisters kRegisters =
+      detail::readCounterLimitRegisters();
+  return kRegisters;
+}
+
+// The host's watchdog answer, read once on the same ground: the sysctl
+// settles before the run and holds for every enumerate (research D-01's
+// watchdog table).
+auto hostWatchdogValue() -> int
+{
+  static const int kWatchdog = detail::readWatchdogValue();
+  return kWatchdog;
 }
 
 }  // namespace
@@ -800,10 +802,11 @@ PmuProvider::PmuProvider()
   // Deterministic seed order: the catalog is frozen at open (FR-009).
   std::ranges::sort(devices);
 
-  // The programmable-counter limit is read once here, at construction, and
-  // every object's seed below carries that one answer (FR-005, research
-  // D-01, D-02).
-  hostProgrammableCounterLimit();
+  // The counter-limit registers and the watchdog answer are read once
+  // here, at construction, and every enumerate after reads the settled
+  // words (FR-005, research D-01, D-04).
+  hostCounterLimitRegisters();
+  hostWatchdogValue();
 
   // The permission level the availability probe ran at rides the device
   // description, so a reader of the catalog learns the level at which
@@ -867,11 +870,21 @@ PmuProvider::~PmuProvider() = default;
 
 void PmuProvider::enumerate(ObjectSink& sink) const
 {
-  // Every object this provider owns is an event source on this core's
-  // hardware, so every seed carries the host's one answer: the count the
-  // CPUID leaf decoded, nothing on a host whose leaf reads version 0 or
-  // count 0 (FR-005, research D-01, D-02).
-  const auto hostLimit = hostProgrammableCounterLimit();
+  // The limit is a fact of this host's core hardware decoded per device:
+  // the vendor, the hybrid answer and the watchdog belong to the host and
+  // settle once per enumerate, the device name picks the vendor's rule,
+  // and the watchdog adjustment turns the hardware count into the
+  // published limit (FR-005, research D-01, D-02).
+  const detail::CounterLimitRegisters& registers = hostCounterLimitRegisters();
+  const auto vendor = detail::vendorOf(registers);
+  const int watchdog = hostWatchdogValue();
+  const bool hasFixedCycles = detail::fixedCycles(registers);
+  std::vector<std::string_view> deviceNames;
+  deviceNames.reserve(m_state->devices.size());
+  for (const auto& device : m_state->devices) {
+    deviceNames.push_back(device.path);
+  }
+  const bool hybrid = detail::isHybrid(deviceNames);
   for (const auto& device : m_state->devices) {
     std::vector<CatalogSeed> entries;
     entries.reserve(device.entries.size());
@@ -924,7 +937,11 @@ void PmuProvider::enumerate(ObjectSink& sink) const
         .alias = {},
         .description = device.description,
         .entries = std::move(entries),
-        .programmableCounters = hostLimit,
+        .programmableCounters = detail::usableCounters(
+            detail::limitForDevice(device.path, vendor, hybrid, registers),
+            vendor,
+            watchdog,
+            hasFixedCycles),
     });
   }
 }

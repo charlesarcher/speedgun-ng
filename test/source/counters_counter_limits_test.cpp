@@ -1,24 +1,25 @@
 // ============================================================================
-// The leaf-0AH decode decision table (specs/024 T009; FR-005, FR-032,
+// The leaf-0AH core decode decision table (specs/024 T009; FR-005, FR-032,
 // research D-01, D-04).
 //
-// `programmableCountersFromCpuid` is a pure function of three register
-// values, so the table drives every arm of its decision with registers no
-// host has to provide: a maximum leaf below 0AH, a maximum leaf of 0, version
-// 0, count 0, the measured `EAX=0x07300404` that answers 4 (version 4, count
-// 4 on `corsairone`), and an `EBX` event vector that changes nothing.
+// `intelCoreLimit` is a pure function of the leaf 0AH words, so the table
+// drives every arm of its decision with registers no host has to provide:
+// the zeroed words of a leaf `__get_cpuid_count` left unanswered, version
+// 0, count 0, and the measured `EAX=0x07300404` that answers 4 (version 4,
+// count 4 on `corsairone`).
 //
-// `maxLeaf` decides first: a CPUID above the maximum leaf returns the maximum
-// leaf's registers, whose version nibble is vendor-string text, so the raw
-// registers mean nothing until the leaf vouches for them (research D-04). The
-// refusal arms matter as much as the count: a published zero limit would
-// empty every pass, so version 0 and count 0 answer nothing (data-model
-// E-02). No case here executes CPUID, opens a device, or needs a privilege,
-// which is what keeps the decode at full branch coverage on a host that
-// reproduces none of the refusals in hardware (FR-032).
+// The refusal arms matter as much as the count: a published zero limit
+// would empty every pass, and `usableCounters` publishes a zero core
+// answer as no value (data-model E-02). The probe zero-initializes every
+// word before its call and an unanswered leaf leaves its registers
+// untouched, so the decode reads version 0 on a host without the leaf and
+// needs no maximum-leaf guard of its own (research D-04). No case here
+// executes CPUID, opens a device, or needs a privilege, which is what
+// keeps the decode at full branch coverage on a host that reproduces none
+// of the refusals in hardware (FR-032).
 //
-// The decode lives in `source/counters/linux_pmu/counter_limits.hpp`, reached
-// through the relative include of a private header the way
+// The decode lives in `source/counters/linux_pmu/counter_limits.hpp`,
+// reached through the relative include of a private header the way
 // `counters_metric_lookup_test.cpp` reaches `linux_pmu/metric_tables.hpp`.
 // Frameworkless check()/fail() convention.
 // ============================================================================
@@ -47,14 +48,12 @@ auto check(const bool condition, const char* what) -> void
   }
 }
 
-// One row: three synthetic registers and the answer the decode owes them.
-// `ebx` is the event vector; the decode ignores it by decision, and the rows
-// carry a nonzero vector so the omission stays a decision (research D-04).
+// One row: one synthetic leaf 0AH `EAX` and the answer the decode owes it.
+// The words stand in for what the probe stores after its calls, answered
+// leaves included (research D-04).
 struct Row
 {
-  std::uint32_t maxLeaf = 0;
   std::uint32_t eax = 0;
-  std::uint32_t ebx = 0;
   std::optional<std::size_t> expected;
   const char* why = nullptr;
 };
@@ -63,72 +62,35 @@ struct Row
 // nibble of which register the decode read wrong.
 auto describe(const Row& row, const std::optional<std::size_t>& answer) -> void
 {
-  std::fprintf(stderr,
-               "  maxLeaf=0x%08X eax=0x%08X ebx=0x%08X: expected has=%d "
-               "value=%zu, answered has=%d value=%zu\n",
-               row.maxLeaf,
-               row.eax,
-               row.ebx,
-               int(row.expected.has_value()),
-               row.expected.value_or(0),
-               int(answer.has_value()),
-               answer.value_or(0));
+  std::fprintf(
+      stderr,
+      "  eax=0x%08X: expected has=%d value=%zu, answered has=%d " "value=%zu\n",
+      row.eax,
+      int(row.expected.has_value()),
+      row.expected.value_or(0),
+      int(answer.has_value()),
+      answer.value_or(0));
 }
 
 // The scenario: the decision table of FR-005, arm by arm.
 auto decodeTableScenario() -> void
 {
   static constexpr Row kRows[] = {
-      {0x09U,
-       0x07300404U,
-       0x00000000U,
+      {0x00000000U,
        std::nullopt,
-       "a maximum leaf below 0AH answers nothing (FR-005, D-04)"},
-      {0x00U,
-       0x07300404U,
-       0x00000000U,
-       std::nullopt,
-       "a maximum leaf of 0 answers nothing (FR-005, D-04)"},
-      {0x0AU,
-       0x07300400U,
-       0x00000000U,
-       std::nullopt,
-       "version 0 answers nothing (FR-005, D-01)"},
-      {0x0AU,
-       0x07300004U,
-       0x00000000U,
-       std::nullopt,
-       "count 0 answers nothing (FR-005, D-01)"},
-      {0x0AU,
-       0x07300404U,
-       0x00000000U,
-       std::size_t {4},
-       "EAX=0x07300404 answers 4 (FR-005, D-01)"},
-      {0x0BU,
-       0x07300404U,
-       0x00000000U,
-       std::size_t {4},
-       "a maximum leaf above 0AH answers too (FR-005, D-04)"},
-      {0x0AU,
-       0x07300804U,
-       0x00000000U,
-       std::size_t {8},
-       "the answer is EAX[15:8], not the version nibble (D-01)"},
-      {0x0AU,
-       0x07300404U,
-       0x00000FBBU,
-       std::size_t {4},
-       "a nonzero EBX vector leaves the answer unchanged (D-04)"},
-      {0x0AU,
-       0x07300400U,
-       0xFFFFFFFFU,
-       std::nullopt,
-       "an all-ones EBX vector changes nothing (D-04)"},
+       "the zeroed words of an unanswered leaf answer nothing (D-04)"},
+      {0x07300400U, std::nullopt, "version 0 answers nothing (FR-005, D-01)"},
+      {0x07300004U,
+       std::size_t {0},
+       "count 0 answers zero, which publishes as no value (D-01, E-02)"},
+      {0x07300404U, std::size_t {4}, "EAX=0x07300404 answers 4 (FR-005, D-01)"},
+      {0x07300804U, std::size_t {8}, "the answer reads EAX[15:8] (D-01)"},
   };
 
   for (const auto& row : kRows) {
-    const auto answer = sg::counters::detail::programmableCountersFromCpuid(
-        row.maxLeaf, row.eax, row.ebx);
+    sg::counters::detail::CounterLimitRegisters registers {};
+    registers.perfMonEax = row.eax;
+    const auto answer = sg::counters::detail::intelCoreLimit(registers);
     if (answer != row.expected) {
       describe(row, answer);
     }
