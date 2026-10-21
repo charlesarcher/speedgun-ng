@@ -17,7 +17,11 @@
 // default rule `time@median:lower:5%` of spec D-5 prints +3.000% and
 // +30.000 ns on one pair and +9.000% and +90.000 ns on the other. The
 // baseline report carries speedgun 0.14.0 and the contender 0.15.0, both
-// under schema 1.0. The zero-baseline pair holds that same contender against
+// under schema 1.0. Beside the pairs stand two documents of that same
+// benchmark at the baseline's own numbers: `gate_schema_11.json` carries the
+// pass keys of the 1.1 format under speedgun 0.16.0, and
+// `gate_schema_20.json` states major 2, which the reader refuses (D-13,
+// SC-013). The zero-baseline pair holds that same contender against
 // a baseline whose primary time column reads 0, the pair that a relative
 // threshold measures not at all (FR-031). The noisy pair is that same pass
 // pair with one field added, the `noiseWarning` object the contender's
@@ -484,16 +488,54 @@ auto aRuleFilterReachingNothingAnswersTheNoMatchFault(const std::string& data)
       {"time@median:lower:5%:nothing-matches", "nothing-matches", "match"});
 }
 
-// T032, D-13, FR-051, SC-013: the reader accepts any schema of the major
-// version it knows, so the pairing check inside the comparison is what
-// rejects a `1.0` document against a `1.1` one. The line names both texts.
-auto aSchemaVersionPairAnswersTheVersionFault(const std::string& data) -> void
+// T032, D-13, FR-051, SC-013: the pairing reads the major of the schema
+// version, so the committed `1.0` baseline compares against the `1.1`
+// contender with the pass keys: the pair answers the table with its `OK`
+// row at status 0, and the two header lines name the two versions.
+auto aMinorSchemaVersionPairAnswersAnOkRow(const std::string& data) -> void
 {
   const std::string baseline = data + "/gate_ok_base.json";
   const std::string contender = data + "/gate_schema_11.json";
   const ModeRun run = runMode({"--compare=" + baseline + "," + contender});
 
-  oneFaultLine(run, "the schema version pair", {"schema", "1.0", "1.1"});
+  check(run.status == 0,
+        "a pair that shares its schema major answers status 0 (SC-013, D-13)");
+  check(run.err.empty(), "the pair across the minor prints no fault (D-13)");
+
+  const std::vector<std::string> lines = linesOf(run.out);
+  if (lines.size() != 4) {
+    dump("the pair across the schema minor", run);
+  }
+  check(lines.size() == 4,
+        "the pair across the minor answers the table and nothing else "
+        "(SC-005)");
+  if (lines.size() != 4) {
+    return;
+  }
+  check(containsAll(lines[0], {"speedgun 0.14.0", "schema 1.0"})
+            && containsAll(lines[1], {"speedgun 0.16.0", "schema 1.1"}),
+        "the two header lines name the two schema versions the pair carries "
+        "(FR-056)");
+  check(containsAll(lines[3], {"bmGate", "time@median:lower:5%", "1000.000 ns"})
+            && endsWith(lines[3], "OK"),
+        "the row of the pair across the minor answers OK (SC-013, FR-054)");
+  check(run.out.find("REGRESSED") == std::string::npos
+            && run.out.find("NOISY") == std::string::npos,
+        "no row of the pair across the minor carries another word (SC-013)");
+}
+
+// T032, FR-006, FR-051, SC-013: a document of a major the reader does not
+// know is refused inside the load call, before the pair reaches the
+// pairing. The one line names the path and the version it carries.
+auto aForeignSchemaMajorAnswersTheLoadFault(const std::string& data) -> void
+{
+  const std::string contender = data + "/gate_schema_20.json";
+  const ModeRun run =
+      runMode({"--compare=" + data + "/gate_ok_base.json," + contender});
+
+  oneFaultLine(run,
+               "the document of another schema major",
+               {"gate_schema_20.json", "schema version", "2.0"});
 }
 
 // T032, FR-006, FR-051: a path the reader cannot open answers one line
@@ -879,7 +921,8 @@ auto main(const int argc, char** argv) -> int
   aCompareWithNoPairAnswersTheUsageFault(data);
   aRuleWithABareThresholdAnswersTheThresholdFault(data);
   aRuleFilterReachingNothingAnswersTheNoMatchFault(data);
-  aSchemaVersionPairAnswersTheVersionFault(data);
+  aMinorSchemaVersionPairAnswersAnOkRow(data);
+  aForeignSchemaMajorAnswersTheLoadFault(data);
   aMissingDocumentAnswersTheLoadFault(data);
   aRelativeRuleOverAZeroBaselineAnswersTheZeroFault(data);
   aRefusedComparisonDocumentAnswersTheWriteFault(data);

@@ -1211,7 +1211,11 @@ auto loadReport(const std::string& path)
   if (!versionText.has_value()) {
     return std::unexpected(versionText.error());
   }
-  if (versionText->substr(0, versionText->find('.')) != "1") {
+  // The reader knows one major: a later minor of it stays readable, since
+  // the writer moves the minor for a key it adds inside major 1, while a
+  // text that states no major is no version this build can read
+  // (specs/023 FR-010, FR-023, specs/026 D-13).
+  if (detail::schemaMajor(*versionText) != std::string_view("1")) {
     return std::unexpected("the file '" + path + "' carries schema version '"
                            + *versionText
                            + "', which this build cannot read: the reader "

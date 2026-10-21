@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.1",
   "speedgun": {
-    "version": "0.14.0",
+    "version": "0.16.0",
     "buildType": "Release"
   },
   "benchmarks": [
@@ -62,7 +62,11 @@
       "metricLabels": [],
       "counterLabels": [],
       "counterStats": [],
-      "statisticValues": []
+      "statisticValues": [],
+      "metricMethod": "AUTO",
+      "passCount": 1,
+      "passSpread": null,
+      "spreadWarning": false
     }
   ]
 }

@@ -1180,7 +1180,7 @@ A fault answers status 2, prints one line, and prints no table.
 ```text
 --compare: expected '<baseline>,<contender>', got 'test/data/gate_ok_base.json'
 --compare-rule: the threshold of the rule 'time@median:lower:5' is not readable: '5' is neither a percent, nor the abs= marker, nor the two in that order with one comma between
-error: the two reports carry different schema versions: '1.0' against '1.1'
+error: the compare document 'test/data/gate_schema_20.json' was rejected: the file 'test/data/gate_schema_20.json' carries schema version '2.0', which this build cannot read: the reader knows version 1
 error: the rule 'time@median:lower:5%:nothing-matches' selects no benchmark: its filter 'nothing-matches' matches neither report
 error: the rule 'time@median:lower:5%' cannot measure bmGate: the baseline of time is zero
 ```
