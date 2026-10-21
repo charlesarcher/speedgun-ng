@@ -29,7 +29,7 @@ percentile-options.md`).
 
 The scanner parses both options in the shape the existing parsers use: one
 line on standard error naming the option and the offending text, then
-`std::exit(2)`, before any benchmark runs (`source/harness/cli.cpp:50-108`,
+`std::exit(2)`, before any benchmark runs (`source/harness/cli.cpp:50-100`,
 `:332`).
 
 **Exit-2 forms the tests cover**: an empty path (`--json=`), a path with a
@@ -74,7 +74,7 @@ Status 2 wins over status 1: a user who asked for a report and did not get
 one sees the failure of the artifact they asked for, and the run's own
 failures stay visible in the document and on the console (FR-030, D-10).
 
-The postcondition at `source/harness/cli.cpp:423` reads today:
+The postcondition at `source/harness/cli.cpp:415` reads today:
 
 ```cpp
 SG_ENSURE((status != 0) == (anyFailed || anyInterrupted));

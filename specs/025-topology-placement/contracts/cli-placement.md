@@ -26,7 +26,7 @@ line (FR-015).
 | `--placement=none` | accepted as the preset name it is: no plan, no topology line, no fit check, the behavior feature 020 ships, exit 0 (FR-010, FR-019) |
 | `--placement` with no argument | the standing `getopt_long` missing-argument path, exit status 2 |
 | `--topology` | the listing prints, exit 0, no benchmark runs, no report block prints |
-| `--topology --filter=x` | the listing prints and exits 0: the listing runs before selection, the way `--catalog` does, beside the `--catalog` block at `source/harness/cli.cpp:321` and ahead of the expansion and filter at `:326-357` |
+| `--topology --filter=x` | the listing prints and exits 0: the listing runs before selection, the way `--catalog` does, beside the `--catalog` block at `source/harness/cli.cpp:313` and ahead of the expansion and filter at `:318-349` |
 | An unknown flag | the standing unknown-option line and exit status 2 |
 | `--placement=l3` over a layout the harness cannot read | one line on standard error, exit status 2, no benchmark runs, whatever the context count (FR-005, Q-6) |
 

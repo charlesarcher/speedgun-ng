@@ -240,8 +240,8 @@ filters only.
 rule carries it. Pre-filtering the values keeps one scoping rule inside
 the call (rule filter) and matches the edge case's order: the batch
 filter first, then the rule answers no match. The regex compile and its
-error line reuse the run path's shape (`source/harness/cli.cpp:445` to
-`:453`).
+error line reuse the run path's shape (`source/harness/cli.cpp:470` to
+`:474`).
 
 **Alternatives:** a fifth parameter on the call splits scoping across
 two layers; rejected.
@@ -285,7 +285,7 @@ rejected.
 ## D-15: The entry point carries the compare mode through an early branch with its own postcondition
 
 **Decision:** `speedgunMain` branches to the compare mode right after
-the option scan (`source/harness/cli.cpp:436`), before registry
+the option scan (`source/harness/cli.cpp:464`), before registry
 expansion: `const auto exit = detail::runCompareMode(options);` then
 `SG_ENSURE((exit.status != 0) == exit.failed, ...)` then `return
 exit.status;`. The closing postcondition at `:566` keeps its run-path

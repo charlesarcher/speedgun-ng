@@ -172,7 +172,7 @@ harness archive carries the feature, the same call 020 made.
   `source/harness/detail/calibration.hpp`; the attempt samplers and the
   reservation seam in `source/harness/runner.cpp:1390-1620`; `printResult` in
   `source/harness/report.cpp:255-400`; the option scanner in
-  `source/harness/cli.cpp:40-308`
+  `source/harness/cli.cpp:40-300`
 - **Reference read**: Google Benchmark's console report carries the aggregate
   statistics and no percentile row, so this feature has no upstream row shape
   to copy. The plan pins the revision at implementation time and records any

@@ -3,7 +3,7 @@
 ## The options
 
 Three entries join the `longOptions` table of `speedgunMain`
-(`source/harness/cli.cpp:301` to `:318`):
+(`source/harness/cli.cpp:321` to `:344`):
 
 | Option | Argument | Meaning |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ answer nothing the comparison reads.
 ## Parsing and the usage faults
 
 The option scan parses as it goes, the pattern of the existing usage
-errors (`source/harness/cli.cpp:379`, `:393`, `:414`, `:434`):
+errors (`source/harness/cli.cpp:405`, `:419`, `:498`, `:518`):
 
 - `--compare` with no comma, or with an empty side, prints one line
   naming the option and the text read, and answers status 2.
@@ -50,7 +50,7 @@ answers `CompareExit { int status; bool failed; }`: `failed` is set
 from the verdict or the fault, `status` from the table below, the two
 computed independently so the `SG_ENSURE` carries content (FR-052,
 D-15). The closing postcondition of the run path
-(`source/harness/cli.cpp:647`) keeps its predicate. The shape gate
+(`source/harness/cli.cpp:646`) keeps its predicate. The shape gate
 anchors of `test/cli_shape.sh:31` to `:41` stand untouched (PC-11).
 
 ## Scoping and the empty pair

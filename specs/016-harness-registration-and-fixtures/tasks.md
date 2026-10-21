@@ -479,7 +479,7 @@ Two gate facts worth recording. The prose gate enumerates sources through `git l
 
 ### T045 green and the example surface proven, measured by the lead, 2026-10-10
 
-`ctest --test-dir build/dev` exit 0: `100% tests passed out of 68`, total 114.48 s, with all eight feature-016 suites Passed, including `harness_disabled_test` 0.06 s. The `DISABLED_` gate stands at `source/harness/cli.cpp:257-269`, one `continue` on the expanded instance name before both the filter match and the list print, so the registry and the expansion keep the instance and the empty-selection report of the 015 contract is untouched.
+`ctest --test-dir build/dev` exit 0: `100% tests passed out of 68`, total 114.48 s, with all eight feature-016 suites Passed, including `harness_disabled_test` 0.06 s. The `DISABLED_` gate stands at `source/harness/cli.cpp:249-261`, one `continue` on the expanded instance name before both the filter match and the list print, so the registry and the expansion keep the instance and the empty-selection report of the 015 contract is untouched.
 
 The lead added a `DISABLED_bmTouch` registration to `example/benchmark_example.cpp` so the criterion-4 proof is not vacuous: the example registers a disabled family, `--list` prints six names with none of them disabled, `--dry-run` prints one row each for `bmArgs/width:8/depth:16`, `bmArgs/width:16/depth:32`, `TableFixture/bmTableTouch` and `bmFill<std::uint64_t>` with exit status 0, and `--filter "^DISABLED_bmTouch$"` reports `no benchmark matches the filter`.
 
@@ -587,7 +587,7 @@ Two gate facts worth recording. The prose gate enumerates sources through `git l
 
 ### T045 green and the example surface proven, measured by the lead, 2026-10-10
 
-`ctest --test-dir build/dev` exit 0: `100% tests passed out of 68`, total 114.48 s, with all eight feature-016 suites Passed, including `harness_disabled_test` 0.06 s. The `DISABLED_` gate stands at `source/harness/cli.cpp:257-269`, one `continue` on the expanded instance name before both the filter match and the list print, so the registry and the expansion keep the instance and the empty-selection report of the 015 contract is untouched.
+`ctest --test-dir build/dev` exit 0: `100% tests passed out of 68`, total 114.48 s, with all eight feature-016 suites Passed, including `harness_disabled_test` 0.06 s. The `DISABLED_` gate stands at `source/harness/cli.cpp:249-261`, one `continue` on the expanded instance name before both the filter match and the list print, so the registry and the expansion keep the instance and the empty-selection report of the 015 contract is untouched.
 
 The lead added a `DISABLED_bmTouch` registration to `example/benchmark_example.cpp` so the criterion-4 proof is not vacuous: the example registers a disabled family, `--list` prints six names with none of them disabled, `--dry-run` prints one row each for `bmArgs/width:8/depth:16`, `bmArgs/width:16/depth:32`, `TableFixture/bmTableTouch` and `bmFill<std::uint64_t>` with exit status 0, and `--filter "^DISABLED_bmTouch$"` reports `no benchmark matches the filter`.
 
