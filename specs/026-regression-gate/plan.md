@@ -58,7 +58,7 @@ each test task in `tasks.md` names the run that fails red first.
 | VII, performance discipline | PASS | the feature touches no per-iteration path; `test/loop_shape.sh` must print its base reading (FR-072, PC-11); the comparison runs once after the run |
 | VIII, hard CI gates | PASS | the Implementation Strategy schedules every gate: both release builds, `ctest -j 2`, sanitizers, tsan, coverage, format, spell, prose, the three shape gates, the drift gate and the DBC gates |
 | IX, spec-driven development | PASS | this artifact set follows the clarified spec |
-| X, anti-slop | PASS | the plan reuses the report reader, the schema checker `checkReport` (`source/harness/json_load.cpp:1067`), the unit scale and printers of `source/harness/report.cpp`, the pattern rule of `--filter` (`source/harness/cli.cpp:529` to `:536`) and the test helper `sameValue` (`test/source/detail/json_fixture.hpp:48`); one new translation unit |
+| X, anti-slop | PASS | the plan reuses the report reader, the schema checker `checkReport` (`source/harness/json_load.cpp:1083`), the unit scale and printers of `source/harness/report.cpp`, the pattern rule of `--filter` (`source/harness/cli.cpp:529` to `:536`) and the test helper `sameValue` (`test/source/detail/json_fixture.hpp:48`); one new translation unit |
 | XI, prose law | PASS | the artifacts pass `tools/prose/prose_gate.py` with zero findings |
 
 **Re-check after Phase 1**: the design grows the public surface of the
@@ -237,8 +237,8 @@ auto compareReports(const ReportData& baseline, const ReportData& contender,
   `:1067`, `:1117` to `:1128`; `source/harness/json_report.cpp:25`,
   `:28`, `:400`, `:472` to `:481`, `:485`, `:530`;
   `source/harness/detail/json_report.hpp:137`, `:154`, `:172`, `:188`;
-  `source/harness/cli.cpp:290`, `:321` to `:344`, `:405`, `:419`,
-  `:498`, `:518`, `:470` to `:474`, `:529` to `:536`, `:545` to `:550`, `:646`;
+  `source/harness/cli.cpp:262`, `:293` to `:310`, `:371`, `:385`,
+  `:406`, `:426`, `:437` to `:453`, `:465` to `:470`, `:566`;
   `source/harness/report.cpp:70`, `:88`, `:193`, `:282` to `:296`,
   `:309`, `:331`; `source/harness/runner.cpp:2131`, `:2163`, `:2195`,
   `:2229`, `:2262`, `:2436` to `:2466`;

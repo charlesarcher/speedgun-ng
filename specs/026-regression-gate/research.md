@@ -288,11 +288,11 @@ rejected.
 the option scan (`source/harness/cli.cpp:464`), before registry
 expansion: `const auto exit = detail::runCompareMode(options);` then
 `SG_ENSURE((exit.status != 0) == exit.failed, ...)` then `return
-exit.status;`. The closing postcondition at `:566` keeps its run-path
+exit.status;`. The closing postcondition at `:646` keeps its run-path
 predicate.
 
 **Rationale:** the compare mode runs no benchmark, so it must return
-before the expansion at `:434` and before the run loop; the branch's
+before the expansion at `:526` and before the run loop; the branch's
 own `SG_ENSURE` is the entry point's postcondition for the mode
 (FR-052), and `status` and `failed` are computed independently inside
 `runCompareMode` (the verdict and the fault), which gives the ensure
@@ -300,7 +300,7 @@ content. `test/cli_shape.sh:31` to `:41` locates the loop by the
 `runner.run(*entry)` line, which the branch leaves untouched (PC-11).
 
 **Alternatives:** wrapping the whole run path in an `else` re-indents
-130 lines for one branch; a shared flag at `:566` needs the compare
+130 lines for one branch; a shared flag at `:646` needs the compare
 path to fall through the run loop's guards; both rejected.
 
 ## D-16: The docs example builds two report values in code and prints the comparison lines
