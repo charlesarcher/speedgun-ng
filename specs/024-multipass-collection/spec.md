@@ -458,6 +458,16 @@ gate does the same in CI.
   source with no published limit): the split applies the limit of the
   sources that publish one, and a source without a limit rides every
   pass it needs while its folds keep the ratio disclosure of D-2.
+- A pass loop left early on a stop, the interrupt flag or a body skip,
+  once the method has settled: the result publishes the method it
+  settled to and, for a stop in pass k, a `passCount` of k + 1
+  counting the passes whose folds stand. Pass k stands in that
+  count once it has folded a row; a pass that folded none stays out of
+  it, and a stop before pass 0 opens publishes the `passCount` of 0
+  that says the mechanism did not run. No `passSpread` appears: the
+  spread is the figure of a complete set of passes. No value carries a
+  pass tag: the tag names the measuring pass of a merged row, and a
+  stopped collection merged nothing (FR-017, FR-019).
 
 ## Requirements *(mandatory)*
 
