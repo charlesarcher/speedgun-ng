@@ -1160,7 +1160,8 @@ against the page as the rebase leaves it.
 
 ## Citations
 
-Symbol and section anchors, each read at the audit point `aec8fce`.
+Symbol and section anchors, each read at the audit point `aec8fce`, with
+the two `source/harness/cli.cpp` rows read at the head this branch pushes.
 
 | Artifact | Location |
 | --- | --- |
