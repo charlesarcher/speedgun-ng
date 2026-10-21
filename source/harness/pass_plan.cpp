@@ -181,7 +181,7 @@ auto planPasses(const std::vector<std::vector<ColumnLeaves>>& columnLeaves,
 
   // Invariant I-2: no pass stands empty, the columns of a pass keep request
   // order, and the passes follow the order of their first column.
-  std::size_t previousFirst = 0;
+  [[maybe_unused]] std::size_t previousFirst = 0;
   for (std::size_t pass = 0; pass < columns.size(); ++pass) {
     SG_ASSERT(!columns[pass].empty(),
               "no pass of a plan stands empty, because only a column opens a "
@@ -228,7 +228,7 @@ auto mergePasses(const PassPlan& plan,
   SG_ASSERT(!passResults.empty(),
             "a run that settled to the passes method folded its reference pass "
             "(FR-014)");
-  for (const auto measuring : plan.measuringPass) {
+  for ([[maybe_unused]] const auto measuring : plan.measuringPass) {
     SG_ASSERT(
         measuring < passResults.size(),
         "every measuring pass of the plan names one fold result (FR-014)");
