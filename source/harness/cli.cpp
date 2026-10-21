@@ -169,13 +169,17 @@ auto parsePositiveSeconds(const char* text, const char* option) -> std::int64_t
 }
 
 // The batch filter pattern of FR-024 and FR-050, compiled once for either
-// path to read: the expression the option names, or one text naming the
-// expression the regex library refused (FR-051).
+// path to read: the expression the option names, no pattern when the option
+// stands absent, or one text naming the expression the regex library refused
+// (FR-051).
 auto compileFilterPattern(const std::string& pattern)
-    -> std::expected<std::regex, std::string>
+    -> std::expected<std::optional<std::regex>, std::string>
 {
+  if (pattern.empty()) {
+    return std::optional<std::regex> {};
+  }
   try {
-    return std::regex(pattern);
+    return std::optional<std::regex>(pattern);
   } catch (const std::regex_error& error) {
     return std::unexpected("invalid regular expression '" + pattern
                            + "': " + error.what());
@@ -455,15 +459,12 @@ auto speedgunMain(int argc, char** argv) -> int
   // the scan is all that has happened, so an invalid pattern answers one
   // line and status 2 on the compare path beside the run path, and the
   // pattern is compiled once for either path to read.
-  std::optional<std::regex> filterPattern;
-  if (!options.filter.empty()) {
-    const auto compiled = compileFilterPattern(options.filter);
-    if (!compiled.has_value()) {
-      std::fprintf(stderr, "--filter: %s\n", compiled.error().c_str());
-      return 2;
-    }
-    filterPattern.emplace(std::move(*compiled));
+  const auto compiled = compileFilterPattern(options.filter);
+  if (!compiled.has_value()) {
+    std::fprintf(stderr, "--filter: %s\n", compiled.error().c_str());
+    return 2;
   }
+  std::optional<std::regex> filterPattern = *compiled;
 
   // specs/026 FR-048, FR-052, D-15: the compare mode stands ahead of the
   // expansion, so the comparison runs no benchmark, reads no clock and
