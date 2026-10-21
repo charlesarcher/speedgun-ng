@@ -72,6 +72,11 @@ matching row wins, and a result of zero answers no value.
 | AMD, which has no fixed cycles counter and whose watchdog pins a cycles event | the hardware answer minus one |
 | any other vendor | the hardware answer minus one |
 
+The last row cannot occur in production: `limitForDevice` gives no value for
+`OTHER`, so a host whose vendor words this decode does not name never reaches
+the adjustment at all. The row stays for the table test, which drives one row
+per condition of this table.
+
 Fixed counters count against the limit: leaf 0AH `EDX[4:0]` counts them
 beside the programmable ones, and a version of at least 2 with `EDX[4:0]`
 of at least 2 is the fixed cycles counter that decides the Intel and
