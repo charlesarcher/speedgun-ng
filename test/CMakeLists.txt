@@ -1344,12 +1344,16 @@ if(TARGET docs_jitter_probe)
   add_test(
       NAME report_shape_jitter_sample
       COMMAND
+        bash ${CMAKE_SOURCE_DIR}/test/docs_mask_guard.sh 3
         python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
         --binary $<TARGET_FILE:docs_jitter_probe>
         --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
         --example jitter_probe
   )
-  set_tests_properties(report_shape_jitter_sample PROPERTIES TIMEOUT 120)
+  # The mask guard answers 2 on a host the recorded run cannot serve,
+  # the count the example's `example-run: needs-cpus` declaration names.
+  set_tests_properties(report_shape_jitter_sample PROPERTIES
+                       TIMEOUT 120 SKIP_RETURN_CODE 2)
 endif()
 
 # Each docs example is a complete program whose regions the page quotes, so the

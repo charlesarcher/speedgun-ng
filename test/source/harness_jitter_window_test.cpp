@@ -428,140 +428,156 @@ auto main() -> int
           "the probe-free document carries no jitter key (FR-013, E-07)");
   }
 
-  // FR-023, R-08: the console report of a run with the probe prints the
-  // probe block after the benchmark tables, one column per probe cpu,
-  // the sixteen stats fields in the E-03 order; the disclosure lines
-  // follow in the end-of-report region (FR-036, D-8).
-  {
-    auto arguments = quickRun;
-    arguments.push_back("--jitter-probe=" + cpuList);
-    const auto probed = captureRun(arguments);
-    const auto lines = splitLines(probed);
+  // The two-cpu probe scenarios run the unpinned benchmark beside both
+  // probe cpus, and the narrowed mask keeps a cpu only where the mask
+  // holds a third one (FR-019). A mask that holds two prints the skip
+  // and the single-cpu scenarios run on, the printed skip the fork
+  // tests of dbc_test.cpp carry.
+  cpu_set_t held {};
+  CPU_ZERO(&held);
+  check(sched_getaffinity(0, sizeof(held), &held) == 0,
+        "the process affinity mask is readable (FR-040)");
+  const bool twoCpuScenarios = CPU_COUNT(&held) >= 3;
+  if (!twoCpuScenarios) {
+    std::printf("the two-cpu probe scenarios: SKIPPED (the mask holds "
+                "fewer than three cpus)\n");
+  }
+  if (twoCpuScenarios) {
+    // FR-023, R-08: the console report of a run with the probe prints the
+    // probe block after the benchmark tables, one column per probe cpu,
+    // the sixteen stats fields in the E-03 order; the disclosure lines
+    // follow in the end-of-report region (FR-036, D-8).
+    {
+      auto arguments = quickRun;
+      arguments.push_back("--jitter-probe=" + cpuList);
+      const auto probed = captureRun(arguments);
+      const auto lines = splitLines(probed);
 
-    std::size_t blockLine = 0;
-    std::size_t lastBenchmarkLine = 0;
-    for (std::size_t index = 0; index < lines.size(); ++index) {
-      if (lines.at(index).rfind("bmQuiet", 0) == 0) {
-        lastBenchmarkLine = index;
+      std::size_t blockLine = 0;
+      std::size_t lastBenchmarkLine = 0;
+      for (std::size_t index = 0; index < lines.size(); ++index) {
+        if (lines.at(index).rfind("bmQuiet", 0) == 0) {
+          lastBenchmarkLine = index;
+        }
+        if (lines.at(index).rfind("jitter probe: cpus ", 0) == 0
+            && blockLine == 0)
+        {
+          blockLine = index;
+        }
       }
-      if (lines.at(index).rfind("jitter probe: cpus ", 0) == 0
-          && blockLine == 0)
-      {
-        blockLine = index;
+      check(blockLine > 0, "the run prints the probe block (FR-023, R-08)");
+      check(blockLine > lastBenchmarkLine,
+            "the probe block stands after the benchmark tables (FR-023, R-08)");
+      check(lines.at(blockLine) == "jitter probe: cpus " + cpuList,
+            "the probe block names one column per probe cpu (FR-023, R-08)");
+      for (std::size_t field = 0; field < kStatFields.size(); ++field) {
+        const auto& line = lines.at(blockLine + 1 + field);
+        check(line.rfind(kStatFields.at(field), 0) == 0,
+              "the block lists the stats fields in the E-03 order (R-08)");
+        check(line.find_first_not_of(" \t", kStatFields.at(field).size())
+                  != std::string::npos,
+              "each stats line carries one value per probe cpu (FR-023)");
       }
-    }
-    check(blockLine > 0, "the run prints the probe block (FR-023, R-08)");
-    check(blockLine > lastBenchmarkLine,
-          "the probe block stands after the benchmark tables (FR-023, R-08)");
-    check(lines.at(blockLine) == "jitter probe: cpus " + cpuList,
-          "the probe block names one column per probe cpu (FR-023, R-08)");
-    for (std::size_t field = 0; field < kStatFields.size(); ++field) {
-      const auto& line = lines.at(blockLine + 1 + field);
-      check(line.rfind(kStatFields.at(field), 0) == 0,
-            "the block lists the stats fields in the E-03 order (R-08)");
-      check(line.find_first_not_of(" \t", kStatFields.at(field).size())
+      check(lines.at(blockLine + 14).find("200") != std::string::npos,
+            "the threshold field carries the risen default (FR-007, R-08)");
+      check(lines.at(blockLine + 15).find(" 1 ") != std::string::npos,
+            "the loop-period field carries the pass's minimum (E-05, R-05)");
+
+      // FR-036, D-8, D-12: the disclosure lines stand in the
+      // end-of-report region: the availability and the cpus, the measured
+      // points, the per-cpu counts, and the kept-gaps-only rule.
+      check(probed.find("jitter: probe on cpus " + cpuList) != std::string::npos,
+            "the disclosure names the probe and the cpus (FR-036, E-09)");
+      check(probed.find("jitter: loop period 1 ns, threshold 200 ns")
                 != std::string::npos,
-            "each stats line carries one value per probe cpu (FR-023)");
+            "the disclosure carries the measured points (FR-007, E-09)");
+      check(probed.find("jitter: split and percentiles use the kept gaps only")
+                != std::string::npos,
+            "the disclosure carries the kept-gaps-only rule (E-09)");
     }
-    check(lines.at(blockLine + 14).find("200") != std::string::npos,
-          "the threshold field carries the risen default (FR-007, R-08)");
-    check(lines.at(blockLine + 15).find(" 1 ") != std::string::npos,
-          "the loop-period field carries the pass's minimum (E-05, R-05)");
 
-    // FR-036, D-8, D-12: the disclosure lines stand in the
-    // end-of-report region: the availability and the cpus, the measured
-    // points, the per-cpu counts, and the kept-gaps-only rule.
-    check(probed.find("jitter: probe on cpus " + cpuList) != std::string::npos,
-          "the disclosure names the probe and the cpus (FR-036, E-09)");
-    check(probed.find("jitter: loop period 1 ns, threshold 200 ns")
-              != std::string::npos,
-          "the disclosure carries the measured points (FR-007, E-09)");
-    check(probed.find("jitter: split and percentiles use the kept gaps only")
-              != std::string::npos,
-          "the disclosure carries the kept-gaps-only rule (E-09)");
-  }
-
-  // FR-026, E-07, R-09: the JSON writer carries the run-level jitter
-  // object in the E-07 key order after `speedgun` and before
-  // `benchmarks`, and each benchmark entry the nullable per-entry key
-  // after `noiseWarning` (E-08), standing null before the split ships.
-  // Red against the writer T013 lands: the scope the wave still misses.
-  {
-    const std::string path = "harness_jitter_window_run.json";
-    auto arguments = quickRun;
-    arguments.push_back("--json=" + path);
-    arguments.push_back("--jitter-probe=" + cpuList);
-    captureRun(arguments);
-    const auto document = readDocument(path);
-    std::remove(path.c_str());
-    const auto speedgun = document.find("\"speedgun\"");
-    const auto jitter = document.find("\"jitter\"");
-    const auto benchmarks = document.find("\"benchmarks\"");
-    check(jitter != std::string::npos && jitter > speedgun
-              && jitter < benchmarks,
-          "the run-level jitter object stands after speedgun and before "
-          "benchmarks (FR-026, E-07)");
-    const std::string_view keys[] = {"mode",
-                                     "thresholdNs",
-                                     "loopPeriodNs",
-                                     "cpus",
-                                     "stats",
-                                     "droppedGaps",
-                                     "disclosure"};
-    auto cursor = jitter;
-    for (const auto key : keys) {
-      cursor = document.find("\"" + std::string(key) + "\"", cursor);
-      check(cursor != std::string::npos,
-            "the jitter object carries its keys in the E-07 order (E-07)");
+    // FR-026, E-07, R-09: the JSON writer carries the run-level jitter
+    // object in the E-07 key order after `speedgun` and before
+    // `benchmarks`, and each benchmark entry the nullable per-entry key
+    // after `noiseWarning` (E-08), standing null before the split ships.
+    // Red against the writer T013 lands: the scope the wave still misses.
+    {
+      const std::string path = "harness_jitter_window_run.json";
+      auto arguments = quickRun;
+      arguments.push_back("--json=" + path);
+      arguments.push_back("--jitter-probe=" + cpuList);
+      captureRun(arguments);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      const auto speedgun = document.find("\"speedgun\"");
+      const auto jitter = document.find("\"jitter\"");
+      const auto benchmarks = document.find("\"benchmarks\"");
+      check(jitter != std::string::npos && jitter > speedgun
+                && jitter < benchmarks,
+            "the run-level jitter object stands after speedgun and before "
+            "benchmarks (FR-026, E-07)");
+      const std::string_view keys[] = {"mode",
+                                       "thresholdNs",
+                                       "loopPeriodNs",
+                                       "cpus",
+                                       "stats",
+                                       "droppedGaps",
+                                       "disclosure"};
+      auto cursor = jitter;
+      for (const auto key : keys) {
+        cursor = document.find("\"" + std::string(key) + "\"", cursor);
+        check(cursor != std::string::npos,
+              "the jitter object carries its keys in the E-07 order (E-07)");
+      }
+      const auto noiseWarning = document.find("\"noiseWarning\"");
+      check(noiseWarning != std::string::npos,
+            "the entry carries its noise warning (FR-027)");
+      const auto entryJitter = document.find("\"jitter\"", noiseWarning);
+      check(entryJitter != std::string::npos,
+            "the per-entry key stands after noiseWarning (FR-027, E-08)");
     }
-    const auto noiseWarning = document.find("\"noiseWarning\"");
-    check(noiseWarning != std::string::npos,
-          "the entry carries its noise warning (FR-027)");
-    const auto entryJitter = document.find("\"jitter\"", noiseWarning);
-    check(entryJitter != std::string::npos,
-          "the per-entry key stands after noiseWarning (FR-027, E-08)");
-  }
 
-  // FR-029, SC-001: the reader reads the written file back with every
-  // jitter field equal. Red against the reader T014 lands: the fields
-  // the wave still misses.
-  {
-    const std::string path = "harness_jitter_window_roundtrip.json";
-    auto arguments = quickRun;
-    arguments.push_back("--json=" + path);
-    arguments.push_back("--jitter-probe=" + cpuList);
-    captureRun(arguments);
-    const auto loaded = sg::loadReport(path);
-    std::remove(path.c_str());
-    check(loaded.has_value(),
-          "the document of a probed run loads (FR-029, SC-001)");
-  }
+    // FR-029, SC-001: the reader reads the written file back with every
+    // jitter field equal. Red against the reader T014 lands: the fields
+    // the wave still misses.
+    {
+      const std::string path = "harness_jitter_window_roundtrip.json";
+      auto arguments = quickRun;
+      arguments.push_back("--json=" + path);
+      arguments.push_back("--jitter-probe=" + cpuList);
+      captureRun(arguments);
+      const auto loaded = sg::loadReport(path);
+      std::remove(path.c_str());
+      check(loaded.has_value(),
+            "the document of a probed run loads (FR-029, SC-001)");
+    }
 
-  // FR-028, E-10: the gaps value of the raw JSON option writes the
-  // per-cpu gap list, each record carrying stamp and gapNs. The gap
-  // series rides the reader-install seam, the route the fake's shared
-  // cursor cannot express (R-02); red against the writer T014 lands.
-  {
-    const std::string path = "harness_jitter_window_gaps.json";
-    auto arguments = quickRun;
-    arguments.push_back("--json=" + path);
-    arguments.push_back("--json-raw=gaps");
-    // The pre-check mode makes the kept record load-independent: the
-    // pre-check loop runs to its scripted span with no stop check, and
-    // `precheck=1` with the series' one-tick step reaches that span at
-    // the jump read, so the phase is one read that every cpu keeps
-    // (FR-014, E-05).
-    arguments.push_back("--jitter-probe=" + cpuList
-                        + ",mode=precheck,precheck=1");
-    sg::detail::installTestReader(std::make_unique<GapSeriesReader>());
-    captureRun(arguments);
-    sg::detail::installTestReader(nullptr);
-    const auto document = readDocument(path);
-    std::remove(path.c_str());
-    check(document.find("\"gaps\"") != std::string::npos
-              && document.find("\"stamp\"") != std::string::npos
-              && document.find("\"gapNs\"") != std::string::npos,
-          "the raw gap list carries its records (FR-028, E-10)");
+    // FR-028, E-10: the gaps value of the raw JSON option writes the
+    // per-cpu gap list, each record carrying stamp and gapNs. The gap
+    // series rides the reader-install seam, the route the fake's shared
+    // cursor cannot express (R-02); red against the writer T014 lands.
+    {
+      const std::string path = "harness_jitter_window_gaps.json";
+      auto arguments = quickRun;
+      arguments.push_back("--json=" + path);
+      arguments.push_back("--json-raw=gaps");
+      // The pre-check mode makes the kept record load-independent: the
+      // pre-check loop runs to its scripted span with no stop check, and
+      // `precheck=1` with the series' one-tick step reaches that span at
+      // the jump read, so the phase is one read that every cpu keeps
+      // (FR-014, E-05).
+      arguments.push_back("--jitter-probe=" + cpuList
+                          + ",mode=precheck,precheck=1");
+      sg::detail::installTestReader(std::make_unique<GapSeriesReader>());
+      captureRun(arguments);
+      sg::detail::installTestReader(nullptr);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      check(document.find("\"gaps\"") != std::string::npos
+                && document.find("\"stamp\"") != std::string::npos
+                && document.find("\"gapNs\"") != std::string::npos,
+            "the raw gap list carries its records (FR-028, E-10)");
+    }
   }
 
   // FR-029, contracts/report-json.md: one test per reader error code on
