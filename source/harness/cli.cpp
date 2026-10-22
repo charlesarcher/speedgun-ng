@@ -216,10 +216,8 @@ auto parseJitterProbeValue(const std::string& value,
         parsed.cpus = headCpus;
         continue;
       }
-      if (message.empty()) {
-        message =
-            "the head '" + token + "' names no cpu list and no idle preset";
-      }
+      // parseProbeCpuToken names the token it read in every refusal it
+      // answers (FR-038), so the head refusal carries that message.
       return false;
     }
 
@@ -495,6 +493,36 @@ auto restoreSavedMask(const cpu_set_t& saved) noexcept -> void
       restored,
       "the affinity mask stands restored after the instance " "ends (D-5)");
 }
+
+// D-5: the narrowed mask the run carries is a subset of the mask the
+// same thread read from the kernel a moment earlier, so the write
+// answers success the way the read did; a host that refuses it breaks
+// the contract the assertion owns, the way the restore above does.
+auto applyNarrowedMask(const cpu_set_t& narrowed) noexcept -> void
+{
+  [[maybe_unused]] const bool applied =
+      sched_setaffinity(0, sizeof(narrowed), &narrowed) == 0;
+  SG_ASSERT(
+      applied,
+      "the affinity mask stands narrowed for the instance's run (D-5)");
+}
+
+// D-5: the narrowing reads the mask the run already answered once -
+// the value's parse or the plan's resolution read it first, and both
+// stop the run beside their refusal - so the read stands answered the
+// way those reads did; a host that refuses it breaks the contract the
+// assertion owns, the way the narrowed write and the restore do. A
+// filter a benchmark's own context installs stands on that context's
+// thread and never reaches the calling thread the narrowing runs on.
+auto readNarrowingMask(cpu_set_t& saved) noexcept -> void
+{
+  [[maybe_unused]] const bool readable =
+      sched_getaffinity(0, sizeof(saved), &saved) == 0;
+  SG_ASSERT(
+      readable,
+      "the narrowing reads the mask it narrows for the instance (D-5)");
+}
+
 /**
  * @brief Run the benchmark suite the command line names (FR-040).
  *
@@ -918,36 +946,34 @@ auto speedgunMain(int argc, char** argv) -> int
              && entry->placement != detail::Preset::NONE))
     {
       CPU_ZERO(&savedMask);
-      if (sched_getaffinity(0, sizeof(savedMask), &savedMask) == 0) {
-        std::vector<std::uint32_t> maskCpus;
-        for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE);
-             ++cpu)
-        {
-          if (CPU_ISSET(cpu, &savedMask) != 0) {
-            maskCpus.push_back(static_cast<std::uint32_t>(cpu));
-          }
-        }
-        const auto narrowing = detail::maskNarrowingOf(probeCpus, maskCpus);
-        cpusetLimited = cpusetLimited || narrowing.limited;
-        if (narrowing.remaining.empty()) {
-          std::fprintf(stderr,
-                       "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
-                       entry->name.c_str());
-          if (jitterProbe.has_value()) {
-            jitterProbe->stopAndJoin();
-          }
-          return 2;
-        }
-        cpu_set_t narrowed {};
-        CPU_ZERO(&narrowed);
-        for (const auto cpu : narrowing.remaining) {
-          CPU_SET(cpu, &narrowed);
-        }
-        if (sched_setaffinity(0, sizeof(narrowed), &narrowed) == 0) {
-          maskNarrowed = true;
-          maskNarrowedNames.push_back(entry->name);
+      readNarrowingMask(savedMask);
+      std::vector<std::uint32_t> maskCpus;
+      for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE);
+           ++cpu)
+      {
+        if (CPU_ISSET(cpu, &savedMask) != 0) {
+          maskCpus.push_back(static_cast<std::uint32_t>(cpu));
         }
       }
+      const auto narrowing = detail::maskNarrowingOf(probeCpus, maskCpus);
+      cpusetLimited = cpusetLimited || narrowing.limited;
+      if (narrowing.remaining.empty()) {
+        std::fprintf(stderr,
+                     "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
+                     entry->name.c_str());
+        // The holder stands emplaced beside the option that named the
+        // probe (R-01), so the stop lands on the live session.
+        jitterProbe->stopAndJoin();
+        return 2;
+      }
+      cpu_set_t narrowed {};
+      CPU_ZERO(&narrowed);
+      for (const auto cpu : narrowing.remaining) {
+        CPU_SET(cpu, &narrowed);
+      }
+      applyNarrowedMask(narrowed);
+      maskNarrowed = true;
+      maskNarrowedNames.push_back(entry->name);
     }
     const auto result = runner.run(*entry);
     if (maskNarrowed) {
@@ -1006,8 +1032,7 @@ auto speedgunMain(int argc, char** argv) -> int
         }
       }
       return true;
-    };
-    for (std::size_t index = 0; index < selected.size(); ++index) {
+    };    for (std::size_t index = 0; index < selected.size(); ++index) {
       const auto& row = held[index];
       if (!row.has_value()) {
         continue;
