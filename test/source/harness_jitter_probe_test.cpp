@@ -15,8 +15,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <memory>
 #include <new>
+#include <memory>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -428,6 +428,7 @@ struct LatchThreadState
   std::uint64_t stamp = 0;
   std::uint64_t ticket = 0;
 };
+
 thread_local LatchThreadState latchThreadState;
 std::atomic<std::uint64_t> latchTicket {0};
 std::atomic<std::uint64_t> latchCalls[2] {};
@@ -444,8 +445,7 @@ public:
   {
     auto& thread = latchThreadState;
     if (thread.ticket == 0) {
-      thread.ticket =
-          1 + latchTicket.fetch_add(1, std::memory_order_relaxed);
+      thread.ticket = 1 + latchTicket.fetch_add(1, std::memory_order_relaxed);
     }
     ++thread.calls;
     thread.stamp += kLatchStep;
@@ -472,8 +472,7 @@ auto latchOrderReset() -> void
 // runner's first benchmark rides and checks it against the guarded
 // count the latch stands behind, and the joined state against the
 // fields the guarded passes filled.
-auto runLatchOrderCase(sg::JitterProbeMode mode, std::uint64_t guarded)
-    -> void
+auto runLatchOrderCase(sg::JitterProbeMode mode, std::uint64_t guarded) -> void
 {
   latchOrderReset();
   sg::JitterProbeOptions options;
@@ -486,8 +485,7 @@ auto runLatchOrderCase(sg::JitterProbeMode mode, std::uint64_t guarded)
   // The benchmark side begins here: the runner's first benchmark stands
   // behind this return, so the snapshot reads the counts the latch
   // released (FR-006, R-04).
-  const std::uint64_t began =
-      latchCalls[0].load(std::memory_order_relaxed);
+  const std::uint64_t began = latchCalls[0].load(std::memory_order_relaxed);
   probe.stopAndJoin();
   sg::detail::installTestReader(nullptr);
   check(began >= guarded,
@@ -502,6 +500,67 @@ auto runLatchOrderCase(sg::JitterProbeMode mode, std::uint64_t guarded)
   check(probed.kept == 0,
         "the scripted series below the risen threshold keeps no gap "
         "(FR-001, FR-005)");
+}
+
+// The latch-jump reader: the same per-thread series the latch-order
+// reader carries, with the stamp jumping at the first read the latch
+// releases - call 1,025 in the alongside mode, the read the loop's
+// first comparison would stand against if the wait stayed in the
+// record (FR-006, R-04).
+inline constexpr std::uint64_t kLatchJump = kLatchStep * 1000000;
+
+class LatchJumpReader final : public sg::counters::WindowReader
+{
+public:
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    auto& thread = latchThreadState;
+    if (thread.ticket == 0) {
+      thread.ticket = 1 + latchTicket.fetch_add(1, std::memory_order_relaxed);
+    }
+    ++thread.calls;
+    thread.stamp += thread.calls == kLatchPassCalls + 1
+                        ? kLatchJump
+                        : kLatchStep;
+    sink.put(thread.stamp);
+    if (thread.ticket <= 2) {
+      latchCalls[thread.ticket - 1].store(thread.calls,
+                                          std::memory_order_relaxed);
+    }
+  }
+};
+
+// The latch wait stands outside the record (FR-006, R-04): the probe
+// of the alongside mode over one scripted cpu, whose series jumps at
+// the first read the latch releases, keeps no gap, because the
+// alongside phase compares against the stamp read behind the latch.
+auto runLatchJumpCase() -> void
+{
+  latchOrderReset();
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.mode = sg::JitterProbeMode::ALONGSIDE;
+  sg::detail::installTestReader(std::make_unique<LatchJumpReader>());
+  sg::detail::JitterProbe probe(options);
+  probe.start();
+  // The loop's early passes stand past the jump, so the joined state
+  // answers for the phase the jump opened (FR-039).
+  std::uint64_t spins = 0;
+  while (latchCalls[0].load(std::memory_order_relaxed)
+         < kLatchPassCalls + 50)
+  {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the jumped series never passed the latch (FR-039)");
+    }
+  }
+  probe.stopAndJoin();
+  sg::detail::installTestReader(nullptr);
+  const auto& probed = probe.states().at(0);
+  check(probed.kept == 0,
+        "a stamp jump across the latch records no gap (FR-006, R-04)");
+  check(probed.thresholdNs == 10 * kLatchStep,
+        "the default rises to ten times the period (FR-007, D-2)");
 }
 
 }  // namespace
@@ -621,7 +680,11 @@ auto main() -> int
     sg::JitterProbeOptions loopOptions;
     loopOptions.cpus = pickCpus(1);
     auto points = passSeries(1);
-    points.push_back(1223);  // the first window read: a gap of exactly 200
+    // The read behind the latch stands at 1223, the wait it closes
+    // naming no gap (FR-006); the first window read follows at 1423: a
+    // gap of exactly 200.
+    points.push_back(1223);
+    points.push_back(1423);
     runSeries(loopOptions,
               points,
               1,
@@ -633,7 +696,7 @@ auto main() -> int
                       "the read at the threshold keeps one gap (FR-001)");
                 check(probed.buffer.at(0).gapNs == 200,
                       "the kept gap carries its size (E-04)");
-                check(probed.buffer.at(0).stamp == 1223,
+                check(probed.buffer.at(0).stamp == 1423,
                       "the kept gap carries its stamp (E-04)");
                 check(probed.droppedGaps == 0,
                       "the buffer never filled (FR-010)");
@@ -678,39 +741,39 @@ auto main() -> int
     sg::JitterProbeOptions loopOptions;
     loopOptions.cpus = pickCpus(1);
     auto points = passSeries(1);
-    points.push_back(2000);  // a gap of 977: kept, the front stamp
-    points.push_back(0);     // the decreasing read: the wrapped gap keeps
+    points.push_back(1024);  // the read behind the latch names no gap
+    points.push_back(2000);  // a gap of 976: kept, the front stamp
+    points.push_back(0);  // the decreasing read: the wrapped gap keeps
     points.push_back(5000);  // a gap of 5000: kept, above every earlier stamp
-    runSeries(
-        loopOptions,
-        std::move(points),
-        1000,
-        1100,
-        [](const auto& states)
-        {
-          const auto& probed = states.at(0);
-          check(probed.kept >= 3,
-                "the series keeps its decreasing read (FR-001)");
-          check(probed.buffer.at(0).stamp == 2000
+    runSeries(loopOptions,
+              std::move(points),
+              1000,
+              1100,
+              [](const auto& states)
+              {
+                const auto& probed = states.at(0);
+                check(probed.kept >= 3,
+                      "the series keeps its decreasing read (FR-001)");
+                check(probed.buffer.at(0).stamp == 2000
                     && probed.buffer.at(1).stamp == 0
                     && probed.buffer.at(2).stamp == 5000,
                 "the kept records stand in read order over the "
                 "out-of-order stamps (E-04)");
-          std::uint64_t low = probed.buffer.at(0).stamp;
-          std::uint64_t high = low;
-          for (std::size_t index = 1; index < probed.kept; ++index) {
-            if (probed.buffer.at(index).stamp < low) {
-              low = probed.buffer.at(index).stamp;
-            }
-            if (probed.buffer.at(index).stamp > high) {
-              high = probed.buffer.at(index).stamp;
-            }
-          }
-          const auto fold = sg::detail::gapStatsOf(probed);
-          check(fold.runtimeNs == high - low,
+                std::uint64_t low = probed.buffer.at(0).stamp;
+                std::uint64_t high = low;
+                for (std::size_t index = 1; index < probed.kept; ++index) {
+                  if (probed.buffer.at(index).stamp < low) {
+                    low = probed.buffer.at(index).stamp;
+                  }
+                  if (probed.buffer.at(index).stamp > high) {
+                    high = probed.buffer.at(index).stamp;
+                  }
+                }
+                const auto fold = sg::detail::gapStatsOf(probed);
+                check(fold.runtimeNs == high - low,
                 "the covered span reads the kept records' stamp span "
                 "(E-03, R-05)");
-        });
+              });
   }
 
   // FR-007, D-2, R-05: the default rises to ten times the measured
@@ -720,8 +783,9 @@ auto main() -> int
     sg::JitterProbeOptions loopOptions;
     loopOptions.cpus = pickCpus(1);
     auto points = passSeries(30);  // the pass: deltas of 30
-    points.push_back(30690 + 250);  // a gap of 250: below the rise
-    points.push_back(30690 + 250 + 300);  // a gap of 300: at the rise
+    points.push_back(30720);  // the read behind the latch names no gap
+    points.push_back(30720 + 250);  // a gap of 250: below the rise
+    points.push_back(30720 + 250 + 300);  // a gap of 300: at the rise
     runSeries(loopOptions,
               points,
               30,
@@ -747,7 +811,8 @@ auto main() -> int
     loopOptions.cpus = pickCpus(1);
     loopOptions.thresholdNs = 100;
     auto points = passSeries(30);
-    points.push_back(30690 + 100);
+    points.push_back(30720);  // the read behind the latch names no gap
+    points.push_back(30720 + 100);
     runSeries(
         loopOptions,
         points,
@@ -773,22 +838,22 @@ auto main() -> int
     loopOptions.cpus = pickCpus(1);
     loopOptions.thresholdNs = 200;
     auto points = passSeries(30);
-    points.push_back(30690 + 250);  // a gap of 250: above 200, below the rise
-    runSeries(
-        loopOptions,
-        points,
-        30,
-        1100,
-        [](const auto& states)
-        {
-          const auto& probed = states.at(0);
-          check(probed.thresholdNs == 200,
+    points.push_back(30720);  // the read behind the latch names no gap
+    points.push_back(30720 + 250);  // a gap of 250: above 200, below the rise
+    runSeries(loopOptions,
+              points,
+              30,
+              1100,
+              [](const auto& states)
+              {
+                const auto& probed = states.at(0);
+                check(probed.thresholdNs == 200,
                 "an explicit threshold=200 stands at exactly 200 ns "
                 "(FR-007, FR-008, D-2)");
-          check(probed.kept == 1 && probed.buffer.at(0).gapNs == 250,
+                check(probed.kept == 1 && probed.buffer.at(0).gapNs == 250,
                 "the explicit threshold keeps the gap the risen default "
                 "would pass by (FR-007, D-2)");
-        });
+              });
   }
 
   // FR-010, D-6, E-05: the buffer-full path. A buffer of two records
@@ -800,6 +865,7 @@ auto main() -> int
     loopOptions.cpus = pickCpus(1);
     loopOptions.gapCount = 2;
     auto points = passSeries(1);
+    points.push_back(1024);  // the read behind the latch names no gap
     for (int index = 0; index < 4; ++index) {
       points.push_back(points.back() + 500);  // four gaps of 500
     }
@@ -835,7 +901,8 @@ auto main() -> int
     sg::JitterProbeOptions loopOptions;
     loopOptions.cpus = pickCpus(1);
     auto points = passSeries(1);
-    std::uint64_t stamp = 1023;
+    points.push_back(1024);  // the read behind the latch names no gap
+    std::uint64_t stamp = 1024;
     for (std::uint64_t gap = 200; gap <= 1300; gap += 100) {
       stamp += gap;
       points.push_back(stamp);  // twelve gaps of 200 to 1300
@@ -959,6 +1026,14 @@ auto main() -> int
                       kLatchPassCalls + kLatchPhaseCalls);
     runLatchOrderCase(sg::JitterProbeMode::BOTH,
                       kLatchPassCalls + kLatchPhaseCalls);
+  }
+
+  // The latch wait itself stands outside the record (FR-006, R-04): a
+  // series that jumps at the first read the latch releases keeps no
+  // gap, the comparison standing against the stamp read behind the
+  // latch.
+  {
+    runLatchJumpCase();
   }
 
   // FR-041, SC-005, Q-2: the no-allocation proof. The counting hooks
