@@ -21,9 +21,21 @@
 // that captures its two streams, the pattern
 // harness_cli_placement_test.cpp carries; the synthetic layouts install
 // in the child before the entry point reads them.
+//
+// The coverage wave appends the refusal arms the first rounds left
+// dark: the parse rejections of the value grammar's remaining tokens
+// (the empty and overflowing numbers, the trailing text, the cpu
+// ranges, the cpu outside the mask, the bare extension, the valued
+// strict and the unknown key), the unreadable-mask refusal, which one
+// seccomp filter drives at the syscall boundary, the multi-context
+// preset-none narrowing, the two skipped L3 groups, the mid-batch fit
+// beside the probe, and the unavailable answers, which run in a fresh
+// exec of this binary whose fake publishes no tsc leaf (FR-037, E-07).
 // ============================================================================
 
 #include <algorithm>
+#include <cerrno>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -36,7 +48,11 @@
 #include <utility>
 #include <vector>
 
+#include <linux/filter.h>
+#include <linux/seccomp.h>
 #include <sched.h>
+#include <sys/prctl.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -127,6 +143,52 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   check(cpus.size() == count,
         "the mask holds the cpus the scenario asks for (FR-040)");
   return cpus;
+}
+
+// The first cpu index the process affinity mask does not hold, below
+// the set's own bound: the token the outside-the-mask refusal reads
+// (FR-011).
+auto pickCpuOutsideMask() -> std::string
+{
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the process affinity mask is unreadable (FR-040)");
+  }
+  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE); ++cpu)
+  {
+    if (CPU_ISSET(cpu, &mask) == 0) {
+      return std::to_string(cpu);
+    }
+  }
+  fail("the mask leaves no cpu index free (FR-040)");
+  return {};
+}
+
+// The syscall refusal seam: one seccomp filter that answers the named
+// syscall number with EPERM for the rest of the child's life. The
+// filter is the injection route the unreadable-mask refusal of the
+// parse and the skipped narrowing read carry (FR-011, D-5), the way
+// the load-failure seam stands in for the load call's refusal.
+auto blockSyscallWithEperm(const int number) -> void
+{
+  const struct sock_filter program[] = {
+      BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)),
+      BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,
+               static_cast<__u32>(number),
+               0,
+               1),
+      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | EPERM),
+      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+  };
+  const struct sock_fprog programArg = {
+      .len = static_cast<unsigned short>(sizeof(program) / sizeof(program[0])),
+      .filter = const_cast<struct sock_filter*>(program),
+  };
+  check(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == 0,
+        "the child accepts its no-new-privs state (FR-011)");
+  check(syscall(SYS_seccomp, SECCOMP_SET_MODE_FILTER, 0, &programArg) == 0,
+        "the child installs its refusal filter (FR-011)");
 }
 
 // One speedgunMain run with stdout captured and the status checked
@@ -391,6 +453,12 @@ auto bmJitLimitProbe(sg::State& state) -> void
   }
 }
 
+auto bmJitLimitFree(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
 auto bmJitSkip(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -418,6 +486,13 @@ auto setupMaskEmpty() -> void
   (void)sg::registerBenchmark(&bmJitMaskEmpty, "bmJitMaskEmpty");
 }
 
+// The unreadable-mask refusal of the parse: the child blocks the
+// affinity read before the entry point reads the value (FR-011).
+auto setupSeccompGetaffinity() -> void
+{
+  blockSyscallWithEperm(SYS_sched_getaffinity);
+}
+
 auto setupSingle() -> void
 {
   auto handle = sg::registerBenchmark(&bmJitSingle, "bmJitSingle");
@@ -443,6 +518,10 @@ auto setupCpusetLimit() -> void
   handle.placement("l3");
   handle.threads(2);
   (void)sg::registerBenchmark(&bmJitLimitProbe, "bmJitLimitProbe");
+  // A second unpinned instance: the first unpinned instance's
+  // narrowing latches the cpuset answer, and the second's takes the
+  // latched short-circuit (FR-036).
+  (void)sg::registerBenchmark(&bmJitLimitFree, "bmJitLimitFree");
 }
 
 auto setupSkip() -> void
@@ -450,6 +529,66 @@ auto setupSkip() -> void
   installThrawnShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitSkip, "bmJitSkip");
   handle.threads(13);
+}
+
+auto bmJitPlannedNone(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmJitPlannedL3(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+// The idle resolution's plan walk skips the multi-context instance
+// whose preset names none (FR-017), and the narrowing narrows the
+// calling thread's mask for it (D-5).
+auto setupMultiIdle() -> void
+{
+  auto none = sg::registerBenchmark(&bmJitPlannedNone, "bmJitPlannedNone");
+  none.threads(2);
+  auto placed = sg::registerBenchmark(&bmJitPlannedL3, "bmJitPlannedL3");
+  placed.placement("l3");
+  placed.threads(2);
+}
+
+auto bmJitSkip25(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+// The `compact` plan of twenty-five contexts covers groups 0 and 1 of
+// the thrawn shape fully and one cpu of group 2, so the idle
+// resolution skips two groups and the disclosure names both (FR-017,
+// D-4).
+auto setupSkipTwoGroups() -> void
+{
+  auto handle = sg::registerBenchmark(&bmJitSkip25, "bmJitSkip25");
+  handle.placement("compact");
+  handle.threads(25);
+}
+
+auto bmFit(sg::State& state) -> void
+{
+  const double size = static_cast<double>(state.range(0));
+  for (auto _ : state) {
+    state.setIterationTime(static_cast<std::int64_t>(100.0 * size));
+  }
+}
+
+// Two families of planted manual times: the batch carries a family
+// boundary, so the first family's fit prints between the rows of the
+// two families, behind the join edge the probe owns (FR-022, R-08).
+auto setupFitFamilies() -> void
+{
+  auto first = sg::registerBenchmark(&bmFit, "bmFitA");
+  first.useManualTime().arg(2).arg(4).complexity(sg::BigO::ONE);
+  auto second = sg::registerBenchmark(&bmFit, "bmFitB");
+  second.useManualTime().arg(2).arg(4).complexity(sg::BigO::ONE);
 }
 
 // The exit status and both captures of one forked scenario child.
@@ -506,6 +645,75 @@ auto runChildScenario(const char* mode,
   }
   return Captured {
       WEXITSTATUS(waitStatus), readDocument(outPath), readDocument(errPath)};
+}
+
+// One speedgunMain run in a fresh exec of this binary: the
+// availability scenarios need a provider catalog of their own, and the
+// process-wide system holds the scripted one already, so the scenario
+// re-enters main with its mode and redirects both streams itself (the
+// harness_context_barrier_test pattern).
+auto runExecChild(const char* mode, const char* tag) -> Captured
+{
+  const std::string outPath =
+      std::string("harness_jitter_cli_") + tag + "-out.txt";
+  const std::string errPath =
+      std::string("harness_jitter_cli_") + tag + "-err.txt";
+  const pid_t pid = fork();
+  if (pid < 0) {
+    fail("cannot fork the exec child");
+  }
+  if (pid == 0) {
+    char* const execArgv[] = {const_cast<char*>("harness_jitter_cli_test"),
+                              const_cast<char*>(mode),
+                              nullptr};
+    (void)execv("/proc/self/exe", execArgv);
+    _exit(3);
+  }
+  int waitStatus = 0;
+  if (waitpid(pid, &waitStatus, 0) < 0) {
+    fail("cannot wait for the exec child");
+  }
+  if (!WIFEXITED(waitStatus)) {
+    fail("the exec child did not exit normally");
+  }
+  return Captured {
+      WEXITSTATUS(waitStatus), readDocument(outPath), readDocument(errPath)};
+}
+
+// The fresh process of the availability scenarios: the fake it
+// registers publishes the leaves the runner resolves its plans
+// through and no tsc leaf, so the catalog the availability check
+// reads carries no qualifying entry (Q-1, R-02).
+auto childUnavailable(const bool strict) -> int
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+  provider.setPoints("machine", "monotonic", {0}, 4000);
+  provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  provider.setPoints("machine", "thread_cpu", {0}, 2000);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  const std::string probe = std::to_string(pickCpus(1).front());
+  std::vector<std::string> arguments {
+      "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
+  if (strict) {
+    arguments.push_back("--jitter-probe=" + probe + ",strict");
+  } else {
+    arguments.push_back("--json=harness_jitter_cli_unavailable.json");
+    arguments.push_back("--jitter-probe=" + probe);
+  }
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  std::fflush(stderr);
+  return status;
 }
 
 // FR-011, FR-017: the idle value parses, and the resolution over a run
@@ -720,12 +928,152 @@ auto scenarioCpusetLimit() -> int
   return 0;
 }
 
+// FR-017, D-4: the plan walk skips the multi-context instance whose
+// preset names none, and the narrowing narrows the calling thread's
+// mask for that unpinned instance, whose name the disclosure carries
+// (D-5).
+auto scenarioMultiIdle() -> int
+{
+  const Captured run = runChildScenario("multiIdle",
+                                        {"--filter=^bmJitPlanned",
+                                         "--repetitions=1",
+                                         "--iterations=2",
+                                         "--jitter-probe=idle"},
+                                        &setupMultiIdle);
+  check(run.status == 0, "the preset-none instance continues the run (D-5)");
+  check(run.out.find("affinity mask narrowed for 'bmJitPlannedNone")
+            != std::string::npos,
+        "the disclosure names the narrowed mask (FR-019, D-5)");
+  check(run.out.find("bmJitPlannedNone") != std::string::npos,
+        "the unpinned instance ran (D-5)");
+  return 0;
+}
+
+// FR-011, D-5: the parse's unreadable-mask refusal answers one line
+// and status 2, and the narrowing that skips its own read lets the run
+// continue over the full mask. The refusal filter stands in the child
+// before the entry point reads the value (FR-011).
+auto scenarioUnreadableMask() -> int
+{
+  const std::string probe = std::to_string(baseCpu);
+  const Captured run =
+      runChildScenario("unreadableMask",
+                       {"--filter=bmQuiet",
+                        "--repetitions=1",
+                        "--iterations=2",
+                        "--jitter-probe=" + probe},
+                       &setupSeccompGetaffinity);
+  check(run.status == 2, "the unreadable mask refuses the value (FR-011)");
+  checkOneLine(run.err, "the unreadable mask prints one line (FR-011)");
+  check(run.err.find("unreadable") != std::string::npos,
+        "the line names the unreadable mask (FR-011)");
+  return 0;
+}
+
+auto scenarioSkipTwoGroups() -> int
+{
+  const Captured run = runChildScenario(
+      "skipTwoGroups",
+      {"--filter=^bmJitSkip25",
+       "--repetitions=1",
+       "--iterations=2",
+       "--jitter-probe=idle"},
+      &setupSkipTwoGroups);
+  check(run.status == 0, "the two skipped groups continue the run (FR-017)");
+  check(run.out.find("skipped L3 group(s) 0,1") != std::string::npos,
+        "the disclosure names both skipped groups (FR-017, D-4)");
+  check(run.out.find("bmJitSkip25") != std::string::npos,
+        "the benchmark ran (FR-017)");
+  return 0;
+}
+
+// FR-022, R-08: the fit of the family that ended prints between the
+// rows of two families, behind the join edge the probe owns, so the
+// probed run defers every table to the stop (R-08).
+auto scenarioFitBesideProbe() -> int
+{
+  const std::string probe = std::to_string(baseCpu);
+  const Captured run = runChildScenario(
+      "fitBesideProbe",
+      {"--filter=^bmFit",
+       "--repetitions=1",
+       "--iterations=2",
+       "--jitter-probe=" + probe},
+      &setupFitFamilies);
+  check(run.status == 0, "the two families run beside the probe (R-08)");
+  check(run.out.find("bmFitA") != std::string::npos
+            && run.out.find("bmFitB") != std::string::npos,
+        "the batch carries both families (FR-022)");
+  return 0;
+}
+
+// FR-037, D-10: a probe the machine/tsc leaf is missing for stands
+// disclosed and the batch continues at status 0; the document carries
+// the unavailable record with the default threshold (E-07).
+auto scenarioUnavailableProbe() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=unavailable", "unavailable");
+  check(run.status == 0,
+        "the unavailable probe discloses and continues (FR-037, D-10)");
+  check(run.out.find("not available") != std::string::npos,
+        "the run discloses the unavailable answer (FR-037)");
+  check(run.out.find("bmQuiet") != std::string::npos,
+        "the batch ran beside the disclosure (FR-037, D-10)");
+  const auto document = readDocument("harness_jitter_cli_unavailable.json");
+  check(document.find("not available") != std::string::npos,
+        "the document carries the unavailable record (E-07)");
+  check(document.find("\"thresholdNs\":200") != std::string::npos,
+        "the record carries the default threshold (E-07)");
+  std::remove("harness_jitter_cli_unavailable.json");
+  return 0;
+}
+
+// FR-037, D-10: the same unavailable answer under `strict` stops the
+// batch before any run, one line and status 2.
+auto scenarioUnavailableStrict() -> int
+{
+  const Captured run = runExecChild(
+      "--jitter-cli-child=unavailable-strict", "unavailable-strict");
+  check(run.status == 2, "the strict refusal stops the batch (FR-037)");
+  checkOneLine(run.err, "the strict refusal prints one line (FR-037)");
+  check(run.err.find("the machine/tsc leaf is not available")
+            != std::string::npos,
+        "the line names the unavailable leaf (FR-037)");
+  check(run.out.find("bmQuiet") == std::string::npos,
+        "no benchmark ran (FR-037)");
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
 
-auto main() -> int
+auto main(int argc, char** argv) -> int
 {
+  // The fresh-process scenarios re-enter this binary with their mode
+  // and answer before any provider stands registered (FR-037, R-02).
+  if (argc > 1) {
+    const std::string_view mode = argv[1];
+    auto redirect = [](const char* tag) -> bool {
+      const std::string outPath =
+          std::string("harness_jitter_cli_") + tag + "-out.txt";
+      const std::string errPath =
+          std::string("harness_jitter_cli_") + tag + "-err.txt";
+      return std::freopen(outPath.c_str(), "w", stdout) != nullptr
+          && std::freopen(errPath.c_str(), "w", stderr) != nullptr;
+    };
+    if (mode == "--jitter-cli-child=unavailable" && redirect("unavailable")) {
+      return childUnavailable(false);
+    }
+    if (mode == "--jitter-cli-child=unavailable-strict"
+        && redirect("unavailable-strict"))
+    {
+      return childUnavailable(true);
+    }
+    return 3;
+  }
+
   scriptedProvider();
   const auto cpus = pickCpus(2);
   const std::string cpu = std::to_string(cpus.at(0));
@@ -753,6 +1101,12 @@ auto main() -> int
   check(scenarioSingleContext() == 0, "singleContext");
   check(scenarioSkipDisclosure() == 0, "skipDisclosure");
   check(scenarioCpusetLimit() == 0, "cpusetLimit");
+  check(scenarioMultiIdle() == 0, "multiIdle");
+  check(scenarioUnreadableMask() == 0, "unreadableMask");
+  check(scenarioSkipTwoGroups() == 0, "skipTwoGroups");
+  check(scenarioFitBesideProbe() == 0, "fitBesideProbe");
+  check(scenarioUnavailableProbe() == 0, "unavailableProbe");
+  check(scenarioUnavailableStrict() == 0, "unavailableStrict");
 
   // FR-011: the cpu list, `idle`, and every key parse once, each key
   // standing once in the value; the accepted value proceeds into the
@@ -773,6 +1127,84 @@ auto main() -> int
     arguments.push_back("--jitter-probe=" + cpu + ",threshold=1,threshold=2");
     const auto note = captureError(arguments, 2);
     checkOneLine(note, "a repeated key stands rejected (FR-011)");
+  }
+
+  // FR-011: the value grammar's remaining rejections. The bare cpu
+  // extension, the head token that names no cpu list, the cpu range,
+  // the reversed range, the cpu outside the mask, the valued strict
+  // and the unknown key each stand one line and status 2.
+  {
+    const std::string second = std::to_string(cpus.at(1));
+    auto accepted = quickRun;
+    accepted.push_back("--jitter-probe=" + cpu + "," + second);
+    check(captureRun(accepted).find("bmQuiet") != std::string::npos,
+          "a bare cpu extension joins the head's list (FR-011)");
+    auto range = quickRun;
+    range.push_back("--jitter-probe=" + cpu + "-" + second);
+    check(captureRun(range).find("bmQuiet") != std::string::npos,
+          "a closed cpu range joins both cpus (FR-011)");
+
+    auto extension = quickRun;
+    extension.push_back("--jitter-probe=" + cpu + ",zzz");
+    checkOneLine(captureError(extension, 2),
+                 "a bare token outside the grammar stands rejected (FR-011)");
+    auto head = quickRun;
+    head.push_back("--jitter-probe=zzz");
+    checkOneLine(captureError(head, 2),
+                 "a head token that names no cpu stands rejected (FR-011)");
+    auto reversed = quickRun;
+    reversed.push_back("--jitter-probe=" + second + "-" + cpu);
+    checkOneLine(captureError(reversed, 2),
+                 "a reversed cpu range stands rejected (FR-011)");
+    const std::string outside = pickCpuOutsideMask();
+    auto beyond = quickRun;
+    beyond.push_back("--jitter-probe=" + outside);
+    checkOneLine(captureError(beyond, 2),
+                 "a cpu outside the mask stands rejected (FR-011)");
+    auto rangeBeyond = quickRun;
+    rangeBeyond.push_back("--jitter-probe=" + cpu + "-" + outside);
+    checkOneLine(captureError(rangeBeyond, 2),
+                 "a range that ends outside the mask stands rejected "
+                 "(FR-011)");
+
+    // Each end of the range that reads no number stands rejected
+    // (FR-011).
+    auto lowEnd = quickRun;
+    lowEnd.push_back("--jitter-probe=zz-" + cpu);
+    checkOneLine(captureError(lowEnd, 2),
+                 "a range whose lower end reads no number stands rejected "
+                 "(FR-011)");
+    auto highEnd = quickRun;
+    highEnd.push_back("--jitter-probe=" + cpu + "-zz");
+    checkOneLine(captureError(highEnd, 2),
+                 "a range whose upper end reads no number stands rejected "
+                 "(FR-011)");
+
+    auto valuedStrict = quickRun;
+    valuedStrict.push_back("--jitter-probe=" + cpu + ",strict=5");
+    checkOneLine(captureError(valuedStrict, 2),
+                 "a valued strict key stands rejected (FR-011)");
+    auto unknown = quickRun;
+    unknown.push_back("--jitter-probe=" + cpu + ",bogus=1");
+    checkOneLine(captureError(unknown, 2),
+                 "a key the value does not name stands rejected (FR-011)");
+
+    // A bare cpu after an `idle` head joins the value as a key-shaped
+    // token the key switch refuses (FR-011).
+    auto idleExtend = quickRun;
+    idleExtend.push_back("--jitter-probe=idle," + cpu);
+    checkOneLine(captureError(idleExtend, 2),
+                 "a bare cpu after the idle head stands rejected (FR-011)");
+  }
+
+  // FR-008, FR-038: the number reads that refuse: the empty argument,
+  // the count the conversion overflows, and the trailing text.
+  for (const auto* value : {"", "99999999999999999999999", "5x"}) {
+    auto arguments = quickRun;
+    arguments.push_back(std::string("--jitter-probe=") + cpu
+                        + ",threshold=" + value);
+    const auto note = captureError(arguments, 2);
+    checkOneLine(note, "a bad threshold stands rejected (FR-008, FR-038)");
   }
 
   // FR-008, FR-038: threshold=0, a negative value, a non-number each

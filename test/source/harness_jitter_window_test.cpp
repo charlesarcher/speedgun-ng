@@ -878,6 +878,16 @@ auto main() -> int
     check(
         !sg::parseCompareRule("jitter:any:p99Ns@mean:lower:abs=1").has_value(),
         "an aggregate suffix on a jitter name is a fault (spec D-21)");
+    // The empty cpu token, the bare name with no colon after it, and
+    // the at-sign where the colon stands are faults: the cpu reads
+    // neither an index nor `any`, and the name carries no field (FR-030,
+    // FR-038).
+    check(!sg::parseCompareRule("jitter::p99Ns:lower:abs=1").has_value(),
+          "an empty cpu token is a fault (FR-038)");
+    check(!sg::parseCompareRule("jitter").has_value(),
+          "the bare name with no colon after it is a fault (FR-030)");
+    check(!sg::parseCompareRule("jitter@median:lower:5%").has_value(),
+          "an at sign where the colon stands is a fault (FR-030)");
   }
 
   // US4 scenario 2, FR-038: the field fault is the usage error of the
@@ -955,6 +965,25 @@ auto main() -> int
                    0);
     check(passed.find("REGRESSED") == std::string::npos,
           "a bound the values clear passes the comparison (SC-004)");
+
+    // US4 scenario 3a, FR-030, E-03: every one of the sixteen fields
+    // reads through its own reader of the field table: one comparison
+    // run carries one rule per field, so each reader answers both
+    // reports' values. The moved jump regresses the fields the jump
+    // moves, so the run fails with status 1.
+    {
+      std::vector<std::string> fieldArguments {"--compare=" + basePath + ","
+                                               + bigPath};
+      for (const auto field : kStatFields) {
+        fieldArguments.push_back("--compare-rule=jitter:any:"
+                                 + std::string(field) + ":lower:abs=1");
+      }
+      const auto fields = captureRun(fieldArguments, 1);
+      check(fields.find("error:") == std::string::npos,
+            "every field of the table reads without a fault (FR-030, E-03)");
+      check(fields.find("REGRESSED") != std::string::npos,
+            "the fields the moved jump moves regress (SC-004)");
+    }
 
     // US4 scenario 4, FR-031, SC-004: the `jitter:run:` prefix reads the
     // whole-run values, and the same moved bound fails with status 1.

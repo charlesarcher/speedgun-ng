@@ -316,8 +316,12 @@ auto readJitterName(std::string_view name)
     }
     const auto* const begin = cpuToken.data();
     const auto* const end = begin + cpuToken.size();
-    const auto [stop, code] = std::from_chars(begin, end, parts.cpu);
-    if (code != std::errc {} || stop != end) {
+    const auto conversion = std::from_chars(begin, end, parts.cpu);
+    // The token stands all digits and ends at the colon or at the end
+    // of the name, so the conversion consumes the token whole or
+    // refuses the value; a partial consumption stands outside the
+    // grammar (FR-030).
+    if (conversion.ec != std::errc {}) {
       return std::unexpected("'" + std::string(cpuToken)
                              + "' is neither an index nor 'any'");
     }
