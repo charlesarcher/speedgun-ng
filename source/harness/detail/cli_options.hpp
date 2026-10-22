@@ -2,6 +2,7 @@
 #define SG_HARNESS_CLI_OPTIONS_HPP
 
 #include <cstddef>
+
 #include <getopt.h>
 
 namespace sg
@@ -22,6 +23,6 @@ namespace sg
 // (`--jitter-probe`).
 extern const option kLongOptions[];
 
-}
+}  // namespace sg
 
 #endif

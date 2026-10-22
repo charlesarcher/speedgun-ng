@@ -824,14 +824,13 @@ auto main() -> int
                                "jitter:run:any:"};
     for (const auto& head : heads) {
       for (const auto field : kStatFields) {
-        const std::string text =
-            head + std::string(field) + ":lower:abs=5000";
+        const std::string text = head + std::string(field) + ":lower:abs=5000";
         const auto rule = sg::parseCompareRule(text);
         check(rule.has_value(),
               "the parser accepts the jitter value name (FR-030, D-11)");
-        check(rule->text == text
-                  && rule->valueName == head + std::string(field),
-              "the rule keeps the text and the value name it read (D-08)");
+        check(
+            rule->text == text && rule->valueName == head + std::string(field),
+            "the rule keeps the text and the value name it read (D-08)");
         check(rule->absoluteThreshold.has_value()
                   && std::fabs(*rule->absoluteThreshold - 5000.0) <= 1e-9,
               "the standing suffix's absolute bound lands in the rule "
@@ -853,30 +852,29 @@ auto main() -> int
     // spec D-21).
     check(!sg::parseCompareRule("jitter:any").has_value(),
           "a jitter name with no field is a fault (FR-030)");
-    check(!sg::parseCompareRule("jitter:any:madeUpNs:lower:abs=1")
-              .has_value(),
+    check(!sg::parseCompareRule("jitter:any:madeUpNs:lower:abs=1").has_value(),
           "a field name outside the sixteen is a fault (FR-038)");
     check(!sg::parseCompareRule("jitter:x:p99Ns:lower:abs=1").has_value(),
           "a cpu that is neither an index nor any is a fault (FR-038)");
     check(!sg::parseCompareRule("jitter:4294967296:p99Ns:lower:abs=1")
-              .has_value(),
+               .has_value(),
           "a cpu past the index range is a fault (FR-038)");
-    check(!sg::parseCompareRule("jitter:any:p99Ns@mean:lower:abs=1")
-              .has_value(),
-          "an aggregate suffix on a jitter name is a fault (spec D-21)");
+    check(
+        !sg::parseCompareRule("jitter:any:p99Ns@mean:lower:abs=1").has_value(),
+        "an aggregate suffix on a jitter name is a fault (spec D-21)");
   }
 
   // US4 scenario 2, FR-038: the field fault is the usage error of the
   // option scan: one line and exit status 2, before any report is read.
   {
-    const auto note = captureError(
-        {"--compare=a.json,b.json",
-         "--compare-rule=jitter:any:madeUpNs:lower:abs=5000"},
-        2);
-    check(note.rfind("--compare-rule: ", 0) == 0
-              && std::count(note.begin(), note.end(), '\n') == 1,
-          "the field fault prints one line and exits with status 2 "
-          "(FR-038)");
+    const auto note =
+        captureError({"--compare=a.json,b.json",
+                      "--compare-rule=jitter:any:madeUpNs:lower:abs=5000"},
+                     2);
+    check(
+        note.rfind("--compare-rule: ", 0) == 0
+            && std::count(note.begin(), note.end(), '\n') == 1,
+        "the field fault prints one line and exits with status 2 " "(FR-038)");
   }
 
   // US4 scenarios 3 to 7, FR-030 to FR-032, SC-004: the comparison runs
@@ -914,32 +912,31 @@ auto main() -> int
     check(integerValueAfter(baseDocument, gateName, "p99Ns") == kSeriesJump,
           "the entry stats carry the scripted jump as their p99 (E-03)");
     check(integerValueAfter(baseDocument, 0, "p99Ns") == kSeriesJump,
-          "the run-level stats carry the scripted jump as their p99 "
-          "(E-07)");
+          "the run-level stats carry the scripted jump as their p99 " "(E-07)");
 
     // US4 scenario 3, FR-030, SC-004: the bare rules read the
     // per-benchmark values, and a bound the contender's p99 moves past
     // fails the comparison with status 1.
-    const auto regressed = captureRun(
-        {"--compare=" + basePath + "," + bigPath,
-         "--compare-rule=jitter:" + cpu + ":p99Ns:lower:abs=5000"},
-        1);
+    const auto regressed =
+        captureRun({"--compare=" + basePath + "," + bigPath,
+                    "--compare-rule=jitter:" + cpu + ":p99Ns:lower:abs=5000"},
+                   1);
     check(regressed.find("REGRESSED") != std::string::npos,
           "the named-cpu bare rule reads the per-benchmark values and the "
           "moved bound fails with status 1 (SC-004, FR-030)");
-    const auto regressedAny = captureRun(
-        {"--compare=" + basePath + "," + bigPath,
-         "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
-        1);
+    const auto regressedAny =
+        captureRun({"--compare=" + basePath + "," + bigPath,
+                    "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+                   1);
     check(regressedAny.find("REGRESSED") != std::string::npos,
           "the worst-cpu bare rule reads the per-benchmark values and the "
           "moved bound fails with status 1 (SC-004, D-11)");
     // The same rule over two equal documents reads a delta of zero and
     // passes: the state follows the values the documents carry.
-    const auto passed = captureRun(
-        {"--compare=" + basePath + "," + basePath,
-         "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
-        0);
+    const auto passed =
+        captureRun({"--compare=" + basePath + "," + basePath,
+                    "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+                   0);
     check(passed.find("REGRESSED") == std::string::npos,
           "a bound the values clear passes the comparison (SC-004)");
 
@@ -952,10 +949,10 @@ auto main() -> int
     check(regressedRun.find("REGRESSED") != std::string::npos,
           "the run-scoped rule reads the whole-run values and the moved "
           "bound fails with status 1 (SC-004, FR-031)");
-    const auto regressedRunAny = captureRun(
-        {"--compare=" + basePath + "," + bigPath,
-         "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
-        1);
+    const auto regressedRunAny =
+        captureRun({"--compare=" + basePath + "," + bigPath,
+                    "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
+                   1);
     check(regressedRunAny.find("REGRESSED") != std::string::npos,
           "the run-scoped worst-cpu rule reads the whole-run values and "
           "the moved bound fails with status 1 (SC-004, FR-031)");
@@ -966,22 +963,22 @@ auto main() -> int
     // it.
     const std::string entryEditedPath = "harness_jitter_rule_entry.json";
     {
-      const std::string edited = withIntegerReplaced(
-          baseDocument, gateName, "p99Ns", 2 * kSeriesJump);
+      const std::string edited =
+          withIntegerReplaced(baseDocument, gateName, "p99Ns", 2 * kSeriesJump);
       std::ofstream out(entryEditedPath);
       out << edited;
       out.close();
     }
-    const auto entryMoved = captureRun(
-        {"--compare=" + basePath + "," + entryEditedPath,
-         "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
-        1);
+    const auto entryMoved =
+        captureRun({"--compare=" + basePath + "," + entryEditedPath,
+                    "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+                   1);
     check(entryMoved.find("REGRESSED") != std::string::npos,
           "the bare rule reads the entry's own stats (FR-031, D-11)");
-    const auto entryUnmoved = captureRun(
-        {"--compare=" + basePath + "," + entryEditedPath,
-         "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
-        0);
+    const auto entryUnmoved =
+        captureRun({"--compare=" + basePath + "," + entryEditedPath,
+                    "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
+                   0);
     check(entryUnmoved.find("REGRESSED") == std::string::npos,
           "the run-scoped rule reads the run-level object, which the "
           "entry edit leaves equal (FR-031, D-11)");
@@ -993,16 +990,16 @@ auto main() -> int
       out << edited;
       out.close();
     }
-    const auto rootMoved = captureRun(
-        {"--compare=" + basePath + "," + rootEditedPath,
-         "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
-        1);
+    const auto rootMoved =
+        captureRun({"--compare=" + basePath + "," + rootEditedPath,
+                    "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
+                   1);
     check(rootMoved.find("REGRESSED") != std::string::npos,
           "the run-scoped rule reads the run-level object (FR-031, D-11)");
-    const auto rootUnmoved = captureRun(
-        {"--compare=" + basePath + "," + rootEditedPath,
-         "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
-        0);
+    const auto rootUnmoved =
+        captureRun({"--compare=" + basePath + "," + rootEditedPath,
+                    "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+                   0);
     check(rootUnmoved.find("REGRESSED") == std::string::npos,
           "the bare rule reads the entry's own stats, which the "
           "run-level edit leaves equal (FR-031, D-11)");
@@ -1024,8 +1021,7 @@ auto main() -> int
             "line and status 2 (FR-032, FR-038)");
       const auto runNote = captureError(
           {"--compare=" + basePath + "," + basePath,
-           "--compare-rule=jitter:run:" + otherCpu
-               + ":p99Ns:lower:abs=5000"},
+           "--compare-rule=jitter:run:" + otherCpu + ":p99Ns:lower:abs=5000"},
           2);
       check(runNote.rfind("error: ", 0) == 0
                 && std::count(runNote.begin(), runNote.end(), '\n') == 1,
@@ -1046,18 +1042,18 @@ auto main() -> int
                   "--repetitions=1",
                   "--iterations=2",
                   "--json=" + freeB});
-      const auto note = captureError(
-          {"--compare=" + freeA + "," + freeB,
-           "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
-          2);
+      const auto note =
+          captureError({"--compare=" + freeA + "," + freeB,
+                        "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+                       2);
       check(note.rfind("error: ", 0) == 0
                 && std::count(note.begin(), note.end(), '\n') == 1,
             "a bare jitter rule on a probe-free report is the usage "
             "error, one line and status 2 (FR-032, SC-004)");
-      const auto runNote = captureError(
-          {"--compare=" + freeA + "," + freeB,
-           "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
-          2);
+      const auto runNote =
+          captureError({"--compare=" + freeA + "," + freeB,
+                        "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
+                       2);
       check(runNote.rfind("error: ", 0) == 0
                 && std::count(runNote.begin(), runNote.end(), '\n') == 1,
             "a run-scoped jitter rule on a probe-free report is the "
