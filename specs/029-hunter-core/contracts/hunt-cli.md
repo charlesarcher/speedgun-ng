@@ -24,7 +24,7 @@ free for this lane (spec D-22).
 | Option | `getopt_long` row | Value | Default | Accepted | Refusal |
 |---|---|---|---|---|---|
 | `--hunt` | `{"hunt", optional_argument, nullptr, kHuntOption}` | 270 | off | no value or `=all`, `=none`, a comma or newline list of catalog addresses, one glob pattern, or `@path` | unknown address, pattern that matches nothing, empty address line, raw code |
-| `--hunt-norm` | `required_argument` | 271 | `instr` | `instr`, `cycle`, `iter` | any other word |
+| `--hunt-norm` | `required_argument` | 271 | `instr` when unset | `instr`, `cycle`, `iter` | any other word |
 | `--hunt-rank` | `required_argument` | 272 | `rate` | `rate`, `cv` | any other word, `sensitivity`, `delta`, `score` included (D-3) |
 | `--hunt-top` | `required_argument` | 273 | `20` | integer 1 to 10000 | 0, 10001, non-integer |
 | `--hunt-noise` | `required_argument` | 274 | `10` | percent CV threshold above `0.0` | `0`, a negative value, non-numeric |
@@ -150,7 +150,7 @@ hunt: plan summary events=40/42 passes=14 spend=1184000ns budget=120s
 
 | Rule | Detail |
 |---|---|
-| Ranked table size | at most `--hunt-top` ranked rows, then the excluded tail with `rank=-` and a `mark=` of `noisy`, `unrepeated` or `beyond-top` (D-7; PD-14) |
+| Ranked table size | at most `--hunt-top` ranked rows, then the excluded tail with `rank=-` and a `mark=` of `noisy`, `unrepeated` or `beyond-top` (D-7, D-8; PD-14) |
 | `MULTIPLEX` | a run whose plan settled `MULTIPLEX` prints the method word `MULTIPLEX` in the plan line and the word `multiplexed` on every row (D-19) |
 | No anchor | the plan line carries ` normalized=iter`, and the rate column is labelled `iter=`; the silent fallback belongs to the unset norm, an explicit word refuses first (D-13) |
 | No estimate | `estimate=not available`, because the estimate is calibration data and a hunt run can reach the plan before any calibration answered (FR-012) |
