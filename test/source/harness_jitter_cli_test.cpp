@@ -46,7 +46,7 @@
 #include "speedgun-ng/counters_system.hpp"
 
 #ifndef SG_CLI_SOURCE
-#error "the registration passes the CLI source path the scan reads (R-06)"
+#  error "the registration passes the CLI source path the scan reads (R-06)"
 #endif
 
 namespace
@@ -79,14 +79,18 @@ auto bmQuiet(sg::State& state) -> void
 // records no gap and the batch stays quiet.
 auto scriptedProvider() -> sg::counters::FakeProvider&
 {
-  static auto* provider = [] {
+  static auto* provider = []
+  {
     auto owned = std::make_unique<sg::counters::FakeProvider>();
     auto& ref = *owned;
     ref.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
     ref.setPoints("machine", "monotonic", {0}, 4000);
     ref.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
     ref.setPoints("machine", "thread_cpu", {0}, 2000);
-    ref.addCounter("machine", "tsc", "none", "raw tick counter",
+    ref.addCounter("machine",
+                   "tsc",
+                   "none",
+                   "raw tick counter",
                    sg::counters::Availability::COUNTABLE,
                    sg::counters::ReadMode::FAST_TSC);
     ref.setPoints("machine", "tsc", {0}, 1);
@@ -110,8 +114,9 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   const int online = CPU_COUNT(&mask);
   check(online > 0, "the affinity mask holds cpus (FR-040)");
   std::vector<std::uint32_t> cpus;
-  for (std::size_t index = 0;
-         index < CPU_SETSIZE && cpus.size() < count; ++index) {
+  for (std::size_t index = 0; index < CPU_SETSIZE && cpus.size() < count;
+       ++index)
+  {
     if (CPU_ISSET(index, &mask)) {
       check(index < static_cast<std::size_t>(online),
             "a picked cpu stands below the online count (FR-040)");
@@ -149,10 +154,8 @@ auto captureRun(const std::vector<std::string>& arguments,
   }
   close(saved);
   if (status != expected) {
-    std::fprintf(stderr,
-                 "speedgunMain returned %d, expected %d\n",
-                 status,
-                 expected);
+    std::fprintf(
+        stderr, "speedgunMain returned %d, expected %d\n", status, expected);
     fail("the exit status does not follow contracts/cli.md (FR-036)");
   }
 
@@ -189,10 +192,8 @@ auto captureError(const std::vector<std::string>& arguments,
   }
   close(saved);
   if (status != expected) {
-    std::fprintf(stderr,
-                 "speedgunMain returned %d, expected %d\n",
-                 status,
-                 expected);
+    std::fprintf(
+        stderr, "speedgunMain returned %d, expected %d\n", status, expected);
     fail("the exit status does not follow contracts/cli.md (FR-036)");
   }
 
@@ -230,8 +231,8 @@ auto allMaskCpus() -> std::string
     fail("the process affinity mask is unreadable (FR-040)");
   }
   std::string joined;
-  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE);
-       ++cpu) {
+  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE); ++cpu)
+  {
     if (CPU_ISSET(cpu, &mask) != 0) {
       if (!joined.empty()) {
         joined.push_back(',');
@@ -379,9 +380,7 @@ auto bmJitSkip(sg::State& state) -> void
   }
 }
 
-auto setupNoLayout() -> void
-{
-}
+auto setupNoLayout() -> void {}
 
 auto setupIdleNoFree() -> void
 {
@@ -443,7 +442,8 @@ auto runChildScenario(const char* mode,
   }
   if (pid == 0) {
     if (std::freopen(outPath.c_str(), "w", stdout) == nullptr
-        || std::freopen(errPath.c_str(), "w", stderr) == nullptr) {
+        || std::freopen(errPath.c_str(), "w", stderr) == nullptr)
+    {
       _exit(3);
     }
     setup();
@@ -468,9 +468,8 @@ auto runChildScenario(const char* mode,
   if (!WIFEXITED(waitStatus)) {
     fail("the child did not exit normally");
   }
-  return Captured {WEXITSTATUS(waitStatus),
-                   readDocument(outPath),
-                   readDocument(errPath)};
+  return Captured {
+      WEXITSTATUS(waitStatus), readDocument(outPath), readDocument(errPath)};
 }
 
 // FR-011, FR-017: the idle value parses, and the resolution over a run
@@ -479,11 +478,12 @@ auto runChildScenario(const char* mode,
 // resolution answers the host read its own first read caches.
 auto scenarioIdleNoPlans() -> int
 {
-  const Captured run = runChildScenario(
-      "idleNoPlans",
-      {"--filter=bmQuiet", "--repetitions=1", "--iterations=2",
-       "--jitter-probe=idle"},
-      &setupNoLayout);
+  const Captured run = runChildScenario("idleNoPlans",
+                                        {"--filter=bmQuiet",
+                                         "--repetitions=1",
+                                         "--iterations=2",
+                                         "--jitter-probe=idle"},
+                                        &setupNoLayout);
   check(run.status == 2, "a plan-free idle run stops (FR-017)");
   checkOneLine(run.err, "the idle stop prints one line (FR-017)");
   check(run.err.find("idle") != std::string::npos,
@@ -498,11 +498,10 @@ auto scenarioIdleNoPlans() -> int
 // benchmark runs.
 auto scenarioIdleNoFree() -> int
 {
-  const Captured run =
-      runChildScenario("idleNoFree",
-                       {"--placement=l3", "--filter", "^bmJitIdleNoFree",
-                        "--jitter-probe=idle"},
-                       &setupIdleNoFree);
+  const Captured run = runChildScenario(
+      "idleNoFree",
+      {"--placement=l3", "--filter", "^bmJitIdleNoFree", "--jitter-probe=idle"},
+      &setupIdleNoFree);
   check(run.status == 2, "no free cpu under idle exits 2 (FR-017)");
   checkOneLine(run.err, "the idle stop prints one line (FR-017, FR-038)");
   check(run.err.find("idle") != std::string::npos,
@@ -518,11 +517,12 @@ auto scenarioIdleNoFree() -> int
 auto scenarioOverlapPlanned() -> int
 {
   const std::string probe = std::to_string(baseCpu);
-  const Captured run =
-      runChildScenario("overlapPlanned",
-                       {"--placement=l3", "--filter", "^bmJitOverlap",
-                        "--jitter-probe=" + probe},
-                       &setupOverlap);
+  const Captured run = runChildScenario("overlapPlanned",
+                                        {"--placement=l3",
+                                         "--filter",
+                                         "^bmJitOverlap",
+                                         "--jitter-probe=" + probe},
+                                        &setupOverlap);
   check(run.status == 2, "a planned probe cpu exits 2 (FR-018)");
   checkOneLine(run.err, "the overlap stop prints one line (FR-018)");
   check(run.err.find(probe) != std::string::npos
@@ -538,13 +538,13 @@ auto scenarioOverlapPlanned() -> int
 auto scenarioOverlapSibling() -> int
 {
   const std::string sibling = std::to_string(baseCpu + 24);
-  const Captured run =
-      runChildScenario("overlapSibling",
-                       {"--placement=l3", "--filter", "^bmJitOverlap",
-                        "--jitter-probe=" + sibling},
-                       &setupOverlap);
-  check(run.status == 2,
-        "an SMT sibling of a planned cpu exits 2 (FR-018)");
+  const Captured run = runChildScenario("overlapSibling",
+                                        {"--placement=l3",
+                                         "--filter",
+                                         "^bmJitOverlap",
+                                         "--jitter-probe=" + sibling},
+                                        &setupOverlap);
+  check(run.status == 2, "an SMT sibling of a planned cpu exits 2 (FR-018)");
   checkOneLine(run.err, "the sibling stop prints one line (FR-018)");
   check(run.err.find(sibling) != std::string::npos
             && run.err.find("bmJitOverlap") != std::string::npos,
@@ -561,12 +561,14 @@ auto scenarioPrecheckAllows() -> int
   const std::string probe = std::to_string(baseCpu);
   const Captured run = runChildScenario(
       "precheckAllows",
-      {"--placement=l3", "--filter", "^bmJitOverlap", "--repetitions=1",
+      {"--placement=l3",
+       "--filter",
+       "^bmJitOverlap",
+       "--repetitions=1",
        "--iterations=2",
        "--jitter-probe=" + probe + ",mode=precheck,precheck=1"},
       &setupOverlap);
-  check(run.status == 0,
-        "the precheck mode allows the overlap (D-3, R-10)");
+  check(run.status == 0, "the precheck mode allows the overlap (D-3, R-10)");
   check(run.out.find("bmJitOverlap") != std::string::npos,
         "the benchmark ran under the precheck allowance (D-3)");
   return 0;
@@ -577,11 +579,13 @@ auto scenarioPrecheckAllows() -> int
 auto scenarioBothOverlap() -> int
 {
   const std::string probe = std::to_string(baseCpu);
-  const Captured run = runChildScenario(
-      "bothOverlap",
-      {"--placement=l3", "--filter", "^bmJitOverlap",
-       "--jitter-probe=" + probe + ",mode=both,precheck=1"},
-      &setupOverlap);
+  const Captured run =
+      runChildScenario("bothOverlap",
+                       {"--placement=l3",
+                        "--filter",
+                        "^bmJitOverlap",
+                        "--jitter-probe=" + probe + ",mode=both,precheck=1"},
+                       &setupOverlap);
   check(run.status == 2, "the alongside phase of `both` refuses (FR-018)");
   checkOneLine(run.err, "the both-mode stop prints one line (FR-018)");
   check(run.err.find(probe) != std::string::npos
@@ -615,11 +619,14 @@ auto scenarioMaskEmpty() -> int
 // fully and names group 1's lowest cpu.
 auto scenarioSkipDisclosure() -> int
 {
-  const Captured run = runChildScenario(
-      "skipDisclosure",
-      {"--placement=compact", "--filter", "^bmJitSkip", "--repetitions=1",
-       "--iterations=2", "--jitter-probe=idle"},
-      &setupSkip);
+  const Captured run = runChildScenario("skipDisclosure",
+                                        {"--placement=compact",
+                                         "--filter",
+                                         "^bmJitSkip",
+                                         "--repetitions=1",
+                                         "--iterations=2",
+                                         "--jitter-probe=idle"},
+                                        &setupSkip);
   check(run.status == 0, "a skipped group continues the run (FR-017)");
   check(run.out.find("skipped L3 group(s) 0") != std::string::npos,
         "the disclosure names the skipped group (FR-017, D-4)");
@@ -634,13 +641,14 @@ auto scenarioSkipDisclosure() -> int
 auto scenarioCpusetLimit() -> int
 {
   const std::string probe = std::to_string(baseCpu);
-  const Captured run =
-      runChildScenario("cpusetLimit",
-                       {"--filter", "^bmJitLimit", "--repetitions=1",
-                        "--iterations=2", "--jitter-probe=" + probe},
-                       &setupCpusetLimit);
-  check(run.status == 0,
-        "the cpuset limit discloses and continues (FR-036)");
+  const Captured run = runChildScenario("cpusetLimit",
+                                        {"--filter",
+                                         "^bmJitLimit",
+                                         "--repetitions=1",
+                                         "--iterations=2",
+                                         "--jitter-probe=" + probe},
+                                        &setupCpusetLimit);
+  check(run.status == 0, "the cpuset limit discloses and continues (FR-036)");
   check(run.out.find("cpusets limit the probe cpus") != std::string::npos,
         "the disclosure names the cpuset limit (FR-036, D-12)");
   check(run.out.find("bmJitLimitProbe") != std::string::npos,
@@ -747,9 +755,10 @@ auto main() -> int
   }
   {
     const auto note = captureError({"--jitter-probe-nonsense"}, 2);
-    check(note.find("unknown option") != std::string::npos,
-          "an unknown flag keeps the standing line "
-          "(contracts/cli-options.md)");
+    check(
+        note.find("unknown option") != std::string::npos,
+        "an unknown flag keeps the standing line " "(contracts/"
+                                                   "cli-options.md)");
   }
 
   // FR-011, R-06: every value in the option table is unique. The scan
@@ -766,8 +775,7 @@ auto main() -> int
     check(tableStart != std::string::npos,
           "the option table stands in the source (R-06)");
     const auto tableEnd = text.find("\n  };", tableStart);
-    check(tableEnd != std::string::npos,
-          "the option table closes (R-06)");
+    check(tableEnd != std::string::npos, "the option table closes (R-06)");
 
     std::set<std::string> values;
     auto cursor = text.find('{', tableStart);
@@ -795,8 +803,7 @@ auto main() -> int
       }
       cursor = text.find('{', entryEnd + 1);
     }
-    check(values.size() > 15,
-          "the scan read the whole table (FR-011, R-06)");
+    check(values.size() > 15, "the scan read the whole table (FR-011, R-06)");
   }
 
   // FR-013, SC-003: a run with no --jitter-probe prints the console

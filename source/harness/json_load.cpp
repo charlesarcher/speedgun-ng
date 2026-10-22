@@ -444,14 +444,13 @@ auto readFit(Element value,
 // kind-checked in order, so a wrong kind names itself before a later
 // key's absence does (FR-029).
 auto readJitterCpu(Element value, const std::string& where)
-    -> std::expected<std::pair<std::uint32_t, sg::JitterStats>,
-                     std::string>
+    -> std::expected<std::pair<std::uint32_t, sg::JitterStats>, std::string>
 {
   std::pair<std::uint32_t, sg::JitterStats> read {};
   std::uint64_t cpuValue = 0;
-  const auto readUnsignedKey = [&](std::string_view key,
-                                   std::uint64_t* into)
-      -> std::expected<void, std::string>
+  const auto readUnsignedKey =
+      [&](std::string_view key,
+          std::uint64_t* into) -> std::expected<void, std::string>
   {
     auto found = field(value, where, key);
     if (!found.has_value()) {
@@ -464,8 +463,8 @@ auto readJitterCpu(Element value, const std::string& where)
     *into = *number;
     return {};
   };
-  const auto readRealKey = [&](std::string_view key, double* into)
-      -> std::expected<void, std::string>
+  const auto readRealKey = [&](std::string_view key,
+                               double* into) -> std::expected<void, std::string>
   {
     auto found = field(value, where, key);
     if (!found.has_value()) {
@@ -478,24 +477,24 @@ auto readJitterCpu(Element value, const std::string& where)
     *into = *number;
     return {};
   };
-  auto settledValues = allSettled(
-      readUnsignedKey("cpu", &cpuValue),
-      readUnsignedKey("gapCount", &read.second.gapCount),
-      readRealKey("gapsPerSecond", &read.second.gapsPerSecond),
-      readUnsignedKey("minNs", &read.second.minNs),
-      readUnsignedKey("medianNs", &read.second.medianNs),
-      readRealKey("meanNs", &read.second.meanNs),
-      readUnsignedKey("p90Ns", &read.second.p90Ns),
-      readUnsignedKey("p99Ns", &read.second.p99Ns),
-      readUnsignedKey("p999Ns", &read.second.p999Ns),
-      readUnsignedKey("p9999Ns", &read.second.p9999Ns),
-      readUnsignedKey("maxNs", &read.second.maxNs),
-      readUnsignedKey("totalNs", &read.second.totalNs),
-      readRealKey("totalPercent", &read.second.totalPercent),
-      readUnsignedKey("runtimeNs", &read.second.runtimeNs),
-      readUnsignedKey("thresholdNs", &read.second.thresholdNs),
-      readUnsignedKey("loopPeriodNs", &read.second.loopPeriodNs),
-      readUnsignedKey("droppedGaps", &read.second.droppedGaps));
+  auto settledValues =
+      allSettled(readUnsignedKey("cpu", &cpuValue),
+                 readUnsignedKey("gapCount", &read.second.gapCount),
+                 readRealKey("gapsPerSecond", &read.second.gapsPerSecond),
+                 readUnsignedKey("minNs", &read.second.minNs),
+                 readUnsignedKey("medianNs", &read.second.medianNs),
+                 readRealKey("meanNs", &read.second.meanNs),
+                 readUnsignedKey("p90Ns", &read.second.p90Ns),
+                 readUnsignedKey("p99Ns", &read.second.p99Ns),
+                 readUnsignedKey("p999Ns", &read.second.p999Ns),
+                 readUnsignedKey("p9999Ns", &read.second.p9999Ns),
+                 readUnsignedKey("maxNs", &read.second.maxNs),
+                 readUnsignedKey("totalNs", &read.second.totalNs),
+                 readRealKey("totalPercent", &read.second.totalPercent),
+                 readUnsignedKey("runtimeNs", &read.second.runtimeNs),
+                 readUnsignedKey("thresholdNs", &read.second.thresholdNs),
+                 readUnsignedKey("loopPeriodNs", &read.second.loopPeriodNs),
+                 readUnsignedKey("droppedGaps", &read.second.droppedGaps));
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
@@ -538,27 +537,29 @@ auto readJitterCpu(Element value, const std::string& where)
 auto readJitterRecord(Element value, const std::string& where)
     -> std::expected<void, std::string>
 {
-  const auto readKey = [&](std::string_view key)
-      -> std::expected<Element, std::string>
-  {
-    return field(value, where, key);
-  };
-  auto mode = readKey("mode").and_then([&](Element found) {
-    return asEnum<sg::JitterProbeMode>(
-        detail::kJitterModeWords, found, where + "/mode");
-  });
+  const auto readKey =
+      [&](std::string_view key) -> std::expected<Element, std::string>
+  { return field(value, where, key); };
+  auto mode = readKey("mode").and_then(
+      [&](Element found)
+      {
+        return asEnum<sg::JitterProbeMode>(
+            detail::kJitterModeWords, found, where + "/mode");
+      });
   if (!mode.has_value()) {
     return std::unexpected(mode.error());
   }
-  auto threshold = readKey("thresholdNs").and_then([&](Element found) {
-    return asUnsigned(found, where + "/thresholdNs");
-  });
+  auto threshold =
+      readKey("thresholdNs")
+          .and_then([&](Element found)
+                    { return asUnsigned(found, where + "/thresholdNs"); });
   if (!threshold.has_value()) {
     return std::unexpected(threshold.error());
   }
-  auto period = readKey("loopPeriodNs").and_then([&](Element found) {
-    return asUnsigned(found, where + "/loopPeriodNs");
-  });
+  auto period =
+      readKey("loopPeriodNs")
+          .and_then([&](Element found)
+                    { return asUnsigned(found, where + "/loopPeriodNs"); });
   if (!period.has_value()) {
     return std::unexpected(period.error());
   }
@@ -580,22 +581,23 @@ auto readJitterRecord(Element value, const std::string& where)
   }
   std::size_t index = 0;
   for (const auto item : *stats) {
-    auto read =
-        readJitterCpu(item, where + "/stats/" + std::to_string(index));
+    auto read = readJitterCpu(item, where + "/stats/" + std::to_string(index));
     if (!read.has_value()) {
       return std::unexpected(read.error());
     }
     ++index;
   }
-  auto dropped = readKey("droppedGaps").and_then([&](Element found) {
-    return asUnsigned(found, where + "/droppedGaps");
-  });
+  auto dropped =
+      readKey("droppedGaps")
+          .and_then([&](Element found)
+                    { return asUnsigned(found, where + "/droppedGaps"); });
   if (!dropped.has_value()) {
     return std::unexpected(dropped.error());
   }
-  auto disclosure = readKey("disclosure").and_then([&](Element found) {
-    return asString(found, where + "/disclosure");
-  });
+  auto disclosure =
+      readKey("disclosure")
+          .and_then([&](Element found)
+                    { return asString(found, where + "/disclosure"); });
   if (!disclosure.has_value()) {
     return std::unexpected(disclosure.error());
   }
@@ -943,8 +945,7 @@ auto readEntry(Element value,
     }
     std::size_t index = 0;
     for (const auto item : *items) {
-      auto read =
-          readJitterCpu(item, here + "/stats/" + std::to_string(index));
+      auto read = readJitterCpu(item, here + "/stats/" + std::to_string(index));
       if (!read.has_value()) {
         return std::unexpected(read.error());
       }

@@ -669,9 +669,9 @@ auto BenchmarkHandle::jitterProbe(const JitterProbeOptions& options)
   // the command line enforces the same bounds where it parses.
   SG_REQUIRE(options.thresholdNs >= 1,
              "the threshold stands at or above 1 ns (FR-008, D-13)");
-  SG_REQUIRE(options.gapCount >= kMinGapCount
-                 && options.gapCount <= kMaxGapCount,
-             "the gap count stands inside the bounded range (FR-009, D-13)");
+  SG_REQUIRE(
+      options.gapCount >= kMinGapCount && options.gapCount <= kMaxGapCount,
+      "the gap count stands inside the bounded range (FR-009, D-13)");
   SG_REQUIRE(options.precheckMs >= 1,
              "the pre-check duration stands at or above 1 ms (FR-008, D-13)");
   m_entry->jitterProbeOptions = options;

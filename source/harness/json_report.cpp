@@ -251,7 +251,8 @@ void writeMetricValue(Builder& builder,
 // the sixteen fields in the E-03 order, and under the `--json-raw=gaps`
 // condition alone the kept gap records, each one object of the two
 // fields E-04 carries (E-03, E-10, FR-028).
-void writeJitterCpu(Builder& builder, const JitterReportCpu& entry,
+void writeJitterCpu(Builder& builder,
+                    const JitterReportCpu& entry,
                     bool rawGaps)
 {
   JsonObjectWriter object(builder);
@@ -687,10 +688,8 @@ auto writeReport(const std::string& path,
                  && data.contextRaw.size() == data.results.size(),
              "the raw columns of a report stand beside every result of it "
              "(specs/023 E-01)");
-  SG_REQUIRE(
-      !jitter.has_value()
-          || jitter->cpus.size() == jitter->stats.size(),
-      "the jitter record carries one stats object per probe cpu (E-07)");
+  SG_REQUIRE(!jitter.has_value() || jitter->cpus.size() == jitter->stats.size(),
+             "the jitter record carries one stats object per probe cpu (E-07)");
   Builder builder;
   {
     JsonObjectWriter root(builder);

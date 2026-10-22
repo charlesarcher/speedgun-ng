@@ -51,13 +51,11 @@ auto windowStampNow() -> std::optional<std::uint64_t>
   if (!machine.has_value()) {
     return std::nullopt;
   }
-  const auto leaf
-      = machine.value().counter<sg::counters::Dim<0, 1>>("tsc");
+  const auto leaf = machine.value().counter<sg::counters::Dim<0, 1>>("tsc");
   if (!leaf.has_value()) {
     return std::nullopt;
   }
-  sg::counters::Expression<sg::counters::Dim<0, 1>> expression(
-      leaf.value());
+  sg::counters::Expression<sg::counters::Dim<0, 1>> expression(leaf.value());
   auto compiled = sg::counters::detail::compileCore(
       sys, sg::counters::Target {}, {&expression.core});
   if (!compiled.has_value()) {
@@ -70,8 +68,7 @@ auto windowStampNow() -> std::optional<std::uint64_t>
   }
   auto& recorder = minted.value();
   recorder.sample();
-  return recorder.mColumns[(recorder.mHead - 1)
-                           & (recorder.mCapacity - 1)];
+  return recorder.mColumns[(recorder.mHead - 1) & (recorder.mCapacity - 1)];
 }
 
 auto splitAddress(std::string_view address)
@@ -2062,13 +2059,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // attempt's measured spans stand inside one `[start, end)` window
     // the split folds the kept gaps into. The stamps stand outside the
     // measured spans the window covers.
-    const auto windowOpen
-        = m_windowStamping ? windowStampNow() : std::nullopt;
+    const auto windowOpen = m_windowStamping ? windowStampNow() : std::nullopt;
     launchBodies(body, count);
-    const auto windowClose
-        = m_windowStamping ? windowStampNow() : std::nullopt;
-    if (m_windowStamping && windowOpen.has_value()
-        && windowClose.has_value()) {
+    const auto windowClose = m_windowStamping ? windowStampNow() : std::nullopt;
+    if (m_windowStamping && windowOpen.has_value() && windowClose.has_value()) {
       m_runWindows.push_back(sg::detail::TimedWindow {
           .start = *windowOpen,
           .end = *windowClose,
@@ -2180,8 +2174,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // the split folds the kept gaps into; a callable that throws leaves
     // the close unstamped and the window unrecorded. The stamps stand
     // outside the measured span the window covers.
-    const auto windowOpen
-        = m_windowStamping ? windowStampNow() : std::nullopt;
+    const auto windowOpen = m_windowStamping ? windowStampNow() : std::nullopt;
     try {
       // R-10: the callback pair wraps the run, the setup callback
       // first and the teardown callback last, the warm-up,
@@ -2208,10 +2201,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       return std::unexpected("the benchmark threw an unknown exception");
     }
     state.topUpWindow();
-    const auto windowClose
-        = m_windowStamping ? windowStampNow() : std::nullopt;
-    if (m_windowStamping && windowOpen.has_value()
-        && windowClose.has_value()) {
+    const auto windowClose = m_windowStamping ? windowStampNow() : std::nullopt;
+    if (m_windowStamping && windowOpen.has_value() && windowClose.has_value()) {
       m_runWindows.push_back(sg::detail::TimedWindow {
           .start = *windowOpen,
           .end = *windowClose,

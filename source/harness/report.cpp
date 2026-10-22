@@ -659,14 +659,16 @@ auto printJitterReport(const bool available,
   }
 
   // FR-002: the sixteen fields in the E-03 order.
-  const auto printUintField = [&folds](const char* name, auto get) {
+  const auto printUintField = [&folds](const char* name, auto get)
+  {
     std::printf("%s:", name);
     for (const auto& fold : folds) {
       std::printf(" %llu", static_cast<unsigned long long>(get(fold)));
     }
     std::printf("\n");
   };
-  const auto printRealField = [&folds](const char* name, auto get) {
+  const auto printRealField = [&folds](const char* name, auto get)
+  {
     std::printf("%s:", name);
     for (const auto& fold : folds) {
       std::printf(" %.2f", get(fold));
@@ -675,27 +677,22 @@ auto printJitterReport(const bool available,
   };
   printUintField("gapCount",
                  [](const JitterStats& fold) { return fold.gapCount; });
-  printRealField(
-      "gapsPerSecond", [](const JitterStats& fold) { return
-          fold.gapsPerSecond; });
-  printUintField("minNs",
-                 [](const JitterStats& fold) { return fold.minNs; });
+  printRealField("gapsPerSecond",
+                 [](const JitterStats& fold) { return fold.gapsPerSecond; });
+  printUintField("minNs", [](const JitterStats& fold) { return fold.minNs; });
   printUintField("medianNs",
                  [](const JitterStats& fold) { return fold.medianNs; });
-  printRealField("meanNs",
-                 [](const JitterStats& fold) { return fold.meanNs; });
+  printRealField("meanNs", [](const JitterStats& fold) { return fold.meanNs; });
   printUintField("p90Ns", [](const JitterStats& fold) { return fold.p90Ns; });
   printUintField("p99Ns", [](const JitterStats& fold) { return fold.p99Ns; });
-  printUintField("p999Ns",
-                 [](const JitterStats& fold) { return fold.p999Ns; });
+  printUintField("p999Ns", [](const JitterStats& fold) { return fold.p999Ns; });
   printUintField("p9999Ns",
                  [](const JitterStats& fold) { return fold.p9999Ns; });
   printUintField("maxNs", [](const JitterStats& fold) { return fold.maxNs; });
   printUintField("totalNs",
                  [](const JitterStats& fold) { return fold.totalNs; });
-  printRealField(
-      "totalPercent", [](const JitterStats& fold) { return
-          fold.totalPercent; });
+  printRealField("totalPercent",
+                 [](const JitterStats& fold) { return fold.totalPercent; });
   printUintField("runtimeNs",
                  [](const JitterStats& fold) { return fold.runtimeNs; });
   printUintField("thresholdNs",

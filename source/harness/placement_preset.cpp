@@ -142,8 +142,7 @@ auto resolvePreset(const Preset preset,
 // thread records; the walk needs the core and the group each planned
 // cpu names.
 auto plannedCpusResolve(const MachineLayout& machine,
-                       const std::vector<std::uint32_t>& plannedCpus)
-    -> bool
+                        const std::vector<std::uint32_t>& plannedCpus) -> bool
 {
   for (const auto cpu : plannedCpus) {
     const auto found = std::ranges::lower_bound(machine.mask, cpu);
@@ -166,9 +165,10 @@ auto plannedCpusResolve(const MachineLayout& machine,
   if (!plannedCpusResolve(machine, plannedCpus)) {
     return false;
   }
-  const auto isPlanned = [&](const std::uint32_t cpu) {
+  const auto isPlanned = [&](const std::uint32_t cpu)
+  {
     return std::find(plannedCpus.begin(), plannedCpus.end(), cpu)
-           != plannedCpus.end();
+        != plannedCpus.end();
   };
   std::vector<std::uint32_t> siblings;
   std::vector<std::uint32_t> touched;
@@ -180,8 +180,7 @@ auto plannedCpusResolve(const MachineLayout& machine,
       touched.push_back(thread.groupOrdinal);
     }
     if (thread.coreOrdinal != kNoGroup) {
-      for (const auto ordinal :
-           machine.cores.at(thread.coreOrdinal).threads) {
+      for (const auto ordinal : machine.cores.at(thread.coreOrdinal).threads) {
         siblings.push_back(machine.threads.at(ordinal).cpuIndex);
       }
     }
@@ -190,8 +189,7 @@ auto plannedCpusResolve(const MachineLayout& machine,
   touched.erase(std::unique(touched.begin(), touched.end()), touched.end());
 
   const auto isSibling = [&](const std::uint32_t cpu) {
-    return std::find(siblings.begin(), siblings.end(), cpu)
-           != siblings.end();
+    return std::find(siblings.begin(), siblings.end(), cpu) != siblings.end();
   };
   // The skip record ascends, and the covered groups are the touched
   // ones, each named exactly once across the two lists (FR-017, D-4).
@@ -215,8 +213,8 @@ auto plannedCpusResolve(const MachineLayout& machine,
   }
   std::ranges::sort(covered);
   if (covered != touched
-      || std::adjacent_find(covered.begin(), covered.end())
-             != covered.end()) {
+      || std::adjacent_find(covered.begin(), covered.end()) != covered.end())
+  {
     return false;
   }
   // Every yielded cpu names no planned cpu and no sibling, and it is
@@ -232,9 +230,9 @@ auto plannedCpusResolve(const MachineLayout& machine,
     const auto& thread = machine.threads.at(
         static_cast<std::size_t>(found - machine.mask.begin()));
     for (const auto& other : machine.threads) {
-      if (other.groupOrdinal == thread.groupOrdinal
-          && other.cpuIndex < cpu && !isPlanned(other.cpuIndex)
-          && !isSibling(other.cpuIndex)) {
+      if (other.groupOrdinal == thread.groupOrdinal && other.cpuIndex < cpu
+          && !isPlanned(other.cpuIndex) && !isSibling(other.cpuIndex))
+      {
         return false;
       }
     }
@@ -257,9 +255,10 @@ auto resolveIdleCpus(const MachineLayout& machine,
   SG_REQUIRE(plannedCpusResolve(machine, plannedCpus),
              "every planned cpu names a thread of the layout (R-07)");
 
-  const auto isPlanned = [&](const std::uint32_t cpu) {
+  const auto isPlanned = [&](const std::uint32_t cpu)
+  {
     return std::find(plannedCpus.begin(), plannedCpus.end(), cpu)
-           != plannedCpus.end();
+        != plannedCpus.end();
   };
   std::vector<std::uint32_t> excluded;
   std::vector<std::uint32_t> touched;
@@ -273,8 +272,7 @@ auto resolveIdleCpus(const MachineLayout& machine,
     // The sibling relation reads from the core thread lists the layout
     // walk built (internal.hpp:60-72, R-07).
     if (thread.coreOrdinal != kNoGroup) {
-      for (const auto ordinal :
-           machine.cores.at(thread.coreOrdinal).threads) {
+      for (const auto ordinal : machine.cores.at(thread.coreOrdinal).threads) {
         excluded.push_back(machine.threads.at(ordinal).cpuIndex);
       }
     }
@@ -286,10 +284,10 @@ auto resolveIdleCpus(const MachineLayout& machine,
   for (const auto group : touched) {
     std::optional<std::uint32_t> freeCpu;
     for (const auto& thread : machine.threads) {
-      if (thread.groupOrdinal != group
-          || isPlanned(thread.cpuIndex)
+      if (thread.groupOrdinal != group || isPlanned(thread.cpuIndex)
           || std::find(excluded.begin(), excluded.end(), thread.cpuIndex)
-                 != excluded.end()) {
+              != excluded.end())
+      {
         continue;
       }
       freeCpu = thread.cpuIndex;
@@ -318,8 +316,8 @@ auto resolveIdleCpus(const MachineLayout& machine,
     return !overlap.has_value();
   }
   return !overlap.has_value()
-         || std::find(probeCpus.begin(), probeCpus.end(), overlap->cpu)
-                != probeCpus.end();
+      || std::find(probeCpus.begin(), probeCpus.end(), overlap->cpu)
+      != probeCpus.end();
 }
 
 // specs/027 D-3, D-9, R-10: the overlap check of the alongside phase.
@@ -332,8 +330,7 @@ auto resolveIdleCpus(const MachineLayout& machine,
 auto probeOverlapOf(const MachineLayout& machine,
                     const std::vector<Instance*>& selected,
                     const std::vector<std::uint32_t>& probeCpus,
-                    const JitterProbeMode mode)
-    -> std::optional<ProbeOverlap>
+                    const JitterProbeMode mode) -> std::optional<ProbeOverlap>
 {
   SG_REQUIRE(machine.readable,
              "the overlap check reads an installed layout (FR-020)");
@@ -342,8 +339,7 @@ auto probeOverlapOf(const MachineLayout& machine,
   }
   std::optional<ProbeOverlap> overlap;
   for (const auto* instance : selected) {
-    if (instance->threadCount <= 1
-        || instance->placement == Preset::NONE) {
+    if (instance->threadCount <= 1 || instance->placement == Preset::NONE) {
       continue;
     }
     const auto plan =
@@ -356,7 +352,8 @@ auto probeOverlapOf(const MachineLayout& machine,
             static_cast<std::size_t>(found - machine.mask.begin()));
         if (thread.coreOrdinal != kNoGroup) {
           for (const auto ordinal :
-               machine.cores.at(thread.coreOrdinal).threads) {
+               machine.cores.at(thread.coreOrdinal).threads)
+          {
             coreCpus.push_back(machine.threads.at(ordinal).cpuIndex);
           }
         }
@@ -364,7 +361,8 @@ auto probeOverlapOf(const MachineLayout& machine,
       for (const auto probe : probeCpus) {
         if (probe == plannedCpu
             || std::find(coreCpus.begin(), coreCpus.end(), probe)
-                   != coreCpus.end()) {
+                != coreCpus.end())
+        {
           overlap = ProbeOverlap {probe, instance->name};
           break;
         }
@@ -391,19 +389,16 @@ auto probeOverlapOf(const MachineLayout& machine,
     const MaskNarrowing& narrowing) -> bool
 {
   for (const auto cpu : narrowing.remaining) {
-    if (std::find(probeCpus.begin(), probeCpus.end(), cpu)
-        != probeCpus.end()) {
+    if (std::find(probeCpus.begin(), probeCpus.end(), cpu) != probeCpus.end()) {
       return false;
     }
-    if (std::find(maskCpus.begin(), maskCpus.end(), cpu) == maskCpus.end())
-      {
+    if (std::find(maskCpus.begin(), maskCpus.end(), cpu) == maskCpus.end()) {
       return false;
     }
   }
   bool limited = false;
   for (const auto probe : probeCpus) {
-    if (std::find(maskCpus.begin(), maskCpus.end(), probe)
-        == maskCpus.end()) {
+    if (std::find(maskCpus.begin(), maskCpus.end(), probe) == maskCpus.end()) {
       limited = true;
       break;
     }
@@ -422,15 +417,13 @@ auto maskNarrowingOf(const std::vector<std::uint32_t>& probeCpus,
 {
   MaskNarrowing result;
   for (const auto probe : probeCpus) {
-    if (std::find(maskCpus.begin(), maskCpus.end(), probe)
-        == maskCpus.end()) {
+    if (std::find(maskCpus.begin(), maskCpus.end(), probe) == maskCpus.end()) {
       result.limited = true;
       break;
     }
   }
   for (const auto cpu : maskCpus) {
-    if (std::find(probeCpus.begin(), probeCpus.end(), cpu)
-        == probeCpus.end()) {
+    if (std::find(probeCpus.begin(), probeCpus.end(), cpu) == probeCpus.end()) {
       result.remaining.push_back(cpu);
     }
   }
