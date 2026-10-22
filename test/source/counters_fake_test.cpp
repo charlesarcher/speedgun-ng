@@ -979,6 +979,76 @@ auto openRefusalScenario() -> void
         "an address carrying no separator names no object at all");
 }
 
+// The scripted group refusal (D-18, PD-09): `setGroupLeafLimit` scripts the
+// widest leaf set one object's `open` accepts, so a harness-level test can
+// make a wide group fail where one event with its two anchors opens. No
+// catalog fact reaches this state, because the plan compiler refuses an
+// unknown leaf before `open` runs, and the refusal message names the object
+// path and the leaf count the caller asked for. An object nobody scripts
+// keeps the refusals of an undeclared object or counter only, and the last
+// call for an object holds.
+auto groupLeafRefusalScenario() -> void
+{
+  FakeProvider provider;
+  provider.addObject("package-1/core-9", "core", "a core with a leaf limit");
+  provider.addObject(
+      "package-1/core-10", "core", "a core with no scripted set");
+  for (const std::string_view object :
+       {"package-1/core-9", "package-1/core-10"})
+  {
+    for (const std::string_view leaf :
+         {"cycles", "instructions", "branches", "l1-dcache"})
+    {
+      provider.addCounter(object, leaf, "ops", "a scripted leaf");
+    }
+  }
+  const Target where {};
+  const std::vector<std::string> wide {
+      "package-1/core-9/cycles",
+      "package-1/core-9/instructions",
+      "package-1/core-9/branches",
+      "package-1/core-9/l1-dcache",
+  };
+  provider.setGroupLeafLimit("package-1/core-9", 3);
+  check(provider.open(LeafSet {.addresses = wide}, where) == nullptr,
+        "a leaf set wider than the scripted count opens no window (D-18)");
+  const auto refusal = provider.lastRefusalMessage();
+  check(contains(refusal, "package-1/core-9") && contains(refusal, "4"),
+        "the refusal message names the object path and the refused leaf "
+        "count (PD-09)");
+  // One event with both anchors of its own device is the narrow set the
+  // retry of D-18 opens: three leaves at a scripted count of three.
+  check(provider.open(LeafSet {.addresses = {"package-1/core-9/branches",
+                                             "package-1/core-9/cycles",
+                                             "package-1/core-9/instructions"}},
+                      where)
+            != nullptr,
+        "a three-leaf set of one event with both anchors opens a window");
+  // An object with no scripted limit is skipped whole by the refusal, so
+  // the same width opens and the present refusals stay the only ones.
+  const std::vector<std::string> unscriptedWide {
+      "package-1/core-10/cycles",
+      "package-1/core-10/instructions",
+      "package-1/core-10/branches",
+      "package-1/core-10/l1-dcache",
+  };
+  check(provider.open(LeafSet {.addresses = unscriptedWide}, where) != nullptr,
+        "an object with no scripted limit opens a set of the same width");
+  check(provider.open(LeafSet {.addresses = {"package-1/core-10/nosuchleaf"}},
+                      where)
+            == nullptr,
+        "an unscripted object still refuses an undeclared leaf");
+  // The last call for an object is the scripted count: widening the count
+  // admits the set the earlier count refused, and narrowing it refuses
+  // that set again.
+  provider.setGroupLeafLimit("package-1/core-9", 4);
+  check(provider.open(LeafSet {.addresses = wide}, where) != nullptr,
+        "the last scripted count is the one open refuses a wider set by");
+  provider.setGroupLeafLimit("package-1/core-9", 3);
+  check(provider.open(LeafSet {.addresses = wide}, where) == nullptr,
+        "a later call for the same object replaces the scripted count");
+}
+
 // A scalar multiple of a composite: the scale is one node over the
 // spine root, so the fold multiplies the sum the addition node folds to
 // and that node keeps both operands at full weight (FR-016, T066).
@@ -1165,6 +1235,7 @@ auto main() -> int
   testSeededTail();
   testMultiGroupDisclosure();
   openRefusalScenario();
+  groupLeafRefusalScenario();
   scaledCompositeScenario();
   scaledQuotientScenario();
   scaledSplicedOperandScenario();
