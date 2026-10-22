@@ -239,8 +239,8 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
 
   // The measurement pass: the 1,024 reads take no record and set the
   // effective threshold, the default rising to ten times the minimum
-  // period the pass measured when that stands larger (E-05, FR-007,
-  // D-2, R-05).
+  // period the pass measured when that stands larger, and an explicit
+  // value standing as given (E-05, FR-007, D-2, R-05).
   std::uint64_t last = readStamp();
   std::uint64_t minDelta = 0;
   for (std::uint64_t pass = 1; pass < kPassReads; ++pass) {
@@ -253,9 +253,9 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   }
   state->loopPeriodNs = minDelta;
   const std::uint64_t risen = kRiseFactor * minDelta;
-  state->thresholdNs = options->thresholdNs == kDefaultThresholdNs
-      ? (risen > kDefaultThresholdNs ? risen : kDefaultThresholdNs)
-      : options->thresholdNs;
+  state->thresholdNs = options->thresholdNs.has_value()
+      ? *options->thresholdNs
+      : (risen > kDefaultThresholdNs ? risen : kDefaultThresholdNs);
 
   // The pre-check phase: the cpus stand lined at the start barrier,
   // so all of them spin together for the precheck duration, measured

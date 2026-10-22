@@ -27,7 +27,7 @@ R-15).
 ```text
 struct JitterProbeOptions {
   std::vector<std::uint32_t> cpus = {};               // empty names the idle preset
-  std::uint64_t   thresholdNs = kDefaultThresholdNs;  // 200
+  std::optional<std::uint64_t> thresholdNs = std::nullopt;  // the default rule
   JitterProbeMode mode        = JitterProbeMode::ALONGSIDE;
   std::uint32_t   gapCount    = kDefaultGapCount;     // 65,536
   std::uint32_t   precheckMs  = kDefaultPrecheckMs;   // 200
@@ -38,7 +38,7 @@ struct JitterProbeOptions {
 | Field | Contract | Requirement |
 | --- | --- | --- |
 | `cpus` | the probe cpu request: an empty vector names the `idle` preset (FR-016); a non-empty vector names the probe cpus inside the process affinity mask, in the order given; the command line parses the cpu list or the word `idle` into it | FR-011, FR-016, D-4 |
-| `thresholdNs` | at or above 1; the effective threshold rises to 10 times the measured loop period when that stands larger | FR-007, FR-008, R-05 |
+| `thresholdNs` | a value at or above 1 stands as given, an explicit 200 ns staying exactly 200 ns; no value names the default rule: the 200 ns default, or 10 times the measured loop period when that stands larger | FR-007, FR-008, R-05 |
 | `mode` | one of the three enumerators; `ALONGSIDE` matches the option default | FR-012, FR-014 |
 | `gapCount` | inside `kMinGapCount` (1) through `kMaxGapCount` (16,777,216) | FR-009 |
 | `precheckMs` | at or above 1 | FR-014, D-13 |
@@ -60,9 +60,10 @@ runJitterProbe(const JitterProbeOptions& options)
   \pre `options.cpus` carries the probe cpu request: an empty vector
        names the `idle` preset, a non-empty vector names cpus inside
        the process affinity mask (FR-011, FR-016, D-4)
-  \pre `options` carries `thresholdNs` at or above 1, `gapCount` inside
-       the `kMinGapCount` through `kMaxGapCount` range, and `precheckMs`
-       at or above 1 (FR-008, FR-009, D-13)
+  \pre `options` carries a `thresholdNs` value at or above 1 when the
+       field carries one, `gapCount` inside the `kMinGapCount` through
+       `kMaxGapCount` range, and `precheckMs` at or above 1 (FR-008,
+       FR-009, D-13)
   \post the suite's next run starts the probe before its first selected
         instance and stops, drains and joins it after the last, over
         these options, the way the command-line option does (FR-006, R-01)
@@ -126,8 +127,9 @@ gapStatsOf(...)
         covered windows' span: the probe's `runtimeNs` for the
         run-level fold, the benchmark's window total for the
         per-benchmark fold (E-03, R-05)
-  \post `thresholdNs` is the effective threshold: the configured value,
-        or 10 times `loopPeriodNs` when that stands larger (FR-007, R-05)
+  \post `thresholdNs` is the effective threshold: the configured value
+        when the field carries one, or the larger of the 200 ns default
+        and 10 times `loopPeriodNs` when it names none (FR-007, R-05)
   \post `loopPeriodNs` is the minimum loop period the probe measured in
         the fixed measurement pass data-model.md E-05 specifies
         (FR-007, R-05)

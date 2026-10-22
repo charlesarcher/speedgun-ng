@@ -429,8 +429,9 @@ auto main() -> int
   const sg::JitterProbeOptions options;
   check(options.cpus.empty(),
         "an empty cpus names the idle preset (E-01, D-4)");
-  check(options.thresholdNs == sg::kDefaultThresholdNs,
-        "the default threshold stands at kDefaultThresholdNs (E-01)");
+  check(!options.thresholdNs.has_value(),
+        "the default field names no threshold value; the default rule "
+        "stands (E-01)");
   check(options.mode == sg::JitterProbeMode::ALONGSIDE,
         "the default mode stands at ALONGSIDE (E-01, D-1)");
   check(options.gapCount == sg::kDefaultGapCount,
@@ -618,6 +619,34 @@ auto main() -> int
                 "an explicit threshold stands as given (FR-007, FR-008)");
           check(probed.kept == 1 && probed.buffer.at(0).gapNs == 100,
                 "the explicit threshold keeps the first gap at it (FR-007)");
+        });
+  }
+
+  // FR-007, FR-008, D-2: an explicit threshold=200 stands exactly 200 ns
+  // even where the default rule would rise: the pass measures 30, the
+  // rise would hold 300, and the gap of 250 the explicit threshold keeps
+  // pins the value the option carried, the value no longer standing in
+  // for the default.
+  {
+    sg::JitterProbeOptions loopOptions;
+    loopOptions.cpus = pickCpus(1);
+    loopOptions.thresholdNs = 200;
+    auto points = passSeries(30);
+    points.push_back(30690 + 250);  // a gap of 250: above 200, below the rise
+    runSeries(
+        loopOptions,
+        points,
+        30,
+        1100,
+        [](const auto& states)
+        {
+          const auto& probed = states.at(0);
+          check(probed.thresholdNs == 200,
+                "an explicit threshold=200 stands at exactly 200 ns "
+                "(FR-007, FR-008, D-2)");
+          check(probed.kept == 1 && probed.buffer.at(0).gapNs == 250,
+                "the explicit threshold keeps the gap the risen default "
+                "would pass by (FR-007, D-2)");
         });
   }
 

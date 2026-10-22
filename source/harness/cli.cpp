@@ -454,9 +454,10 @@ auto environmentRows(char* const* table) -> std::vector<EnvironmentRow>
  * \pre `options.cpus` carries the probe cpu request: an empty vector
  *      names the `idle` preset, and a non-empty vector names cpus
  *      inside the process affinity mask (FR-011, FR-016, D-4)
- * \pre `options` carries `thresholdNs` at or above 1, `gapCount`
- *      inside the `kMinGapCount` through `kMaxGapCount` range, and
- *      `precheckMs` stands at or above 1 (FR-008, FR-009, D-13)
+ * \pre `options` carries a `thresholdNs` value at or above 1 when the
+ *      field carries one, `gapCount` inside the `kMinGapCount` through
+ *      `kMaxGapCount` range, and `precheckMs` stands at or above 1
+ *      (FR-008, FR-009, D-13)
  * \post the suite's next run starts the probe before its first
  *       selected instance and stops, drains and joins it after the
  *       last, over these options (FR-006, R-01)
@@ -466,7 +467,8 @@ auto runJitterProbe(const JitterProbeOptions& options) -> void
 {
   // The field bounds the contract states; the command line enforces
   // the same bounds where it parses (FR-008, FR-009, D-13).
-  SG_REQUIRE(options.thresholdNs >= 1,
+  SG_REQUIRE(!options.thresholdNs.has_value()
+                 || *options.thresholdNs >= 1,
              "the threshold stands at or above 1 ns (FR-008, D-13)");
   SG_REQUIRE(
       options.gapCount >= kMinGapCount && options.gapCount <= kMaxGapCount,
@@ -1129,8 +1131,11 @@ auto speedgunMain(int argc, char** argv) -> int
     if (jitterUnavailable) {
       // E-07: the unavailable answer carries the requested mode, the
       // configured threshold, no measured period, and the disclosure;
-      // the run continues with status 0 (FR-037, D-10).
-      record.thresholdNs = options.jitterProbe->thresholdNs;
+      // the run continues with status 0 (FR-037, D-10). No period
+      // stands measured, so the record carries a threshold value, the
+      // 200 ns default when the option named none.
+      record.thresholdNs
+          = options.jitterProbe->thresholdNs.value_or(kDefaultThresholdNs);
       record.disclosure = "not available" + placementTail;
     } else {
       // E-07, E-09: the document sorts the cpus ascending, the one

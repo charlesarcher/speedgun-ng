@@ -21,7 +21,9 @@ probe writes no key and the document carries the same fields and shape
 as master's (FR-013, R-09). The writer writes the key exactly when the
 run carried a probe (FR-026). A run that requested the probe and found the TSC unavailable carried a
 probe in this sense: the writer writes the key with `mode` as
-requested, the configured `thresholdNs`, `loopPeriodNs` 0, the empty
+requested, the configured `thresholdNs` (a value the option carried, or
+the 200 ns default when it named none; no period stands measured, so no
+rise applies), `loopPeriodNs` 0, the empty
 `cpus` and `stats`, `droppedGaps` 0, and the unavailability disclosure
 E-07 states (FR-037).
 

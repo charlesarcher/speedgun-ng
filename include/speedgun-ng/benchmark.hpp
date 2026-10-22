@@ -1906,16 +1906,19 @@ inline constexpr std::uint32_t kDefaultPrecheckMs = 200;
  * `cpus` carries the probe cpu request: an empty vector names the
  * `idle` preset, and a non-empty vector names the probe cpus in the
  * order given (FR-016, D-4). `thresholdNs` carries the gap threshold
- * in ns; the effective threshold rises to 10 times the measured loop
- * period when that stands larger, and an explicit value stands as
- * given (FR-007, D-2). `mode` carries the default when the option
+ * in ns as `std::optional<std::uint64_t>`: a field with no value names
+ * the default rule, the 200 ns default rising to 10 times the measured
+ * loop period when that stands larger, and a value stands as given, an
+ * explicit `threshold=200` staying exactly 200 ns (FR-007, FR-008,
+ * D-2). `mode` carries the default when the option
  * names no mode value (FR-012, D-1). `gapCount` carries the per-cpu
  * buffer size in records (FR-009). `precheckMs` carries the pre-check
  * duration in ms (FR-014, D-13). `strict` stops the run with status 2
  * when the time-stamp counter stands unavailable; a non-strict run
  * discloses and continues with status 0 (FR-037, D-10). The entry
- * points that take the options require `thresholdNs` at or above 1,
- * `gapCount` inside the `kMinGapCount` through `kMaxGapCount` range,
+ * points that take the options require a `thresholdNs` value at or
+ * above 1 when the field carries one, `gapCount` inside the
+ * `kMinGapCount` through `kMaxGapCount` range,
  * and `precheckMs` at or above 1, and enforce the bounds where they
  * parse and bind (FR-008, FR-009, D-13).
  *
@@ -1925,7 +1928,7 @@ inline constexpr std::uint32_t kDefaultPrecheckMs = 200;
 struct JitterProbeOptions
 {
   std::vector<std::uint32_t> cpus = {};
-  std::uint64_t thresholdNs = kDefaultThresholdNs;
+  std::optional<std::uint64_t> thresholdNs = std::nullopt;
   JitterProbeMode mode = JitterProbeMode::ALONGSIDE;
   std::uint32_t gapCount = kDefaultGapCount;
   std::uint32_t precheckMs = kDefaultPrecheckMs;
@@ -1946,9 +1949,10 @@ struct JitterProbeOptions
  * \pre `options.cpus` carries the probe cpu request: an empty vector
  *      names the `idle` preset, and a non-empty vector names cpus
  *      inside the process affinity mask (FR-011, FR-016, D-4)
- * \pre `options` carries `thresholdNs` at or above 1, `gapCount`
- *      inside the `kMinGapCount` through `kMaxGapCount` range, and
- *      `precheckMs` at or above 1 (FR-008, FR-009, D-13)
+ * \pre `options` carries a `thresholdNs` value at or above 1 when the
+ *      field carries one, `gapCount` inside the `kMinGapCount` through
+ *      `kMaxGapCount` range, and `precheckMs` at or above 1 (FR-008,
+ *      FR-009, D-13)
  * \post the suite's next run starts the probe before its first
  *       selected instance and stops, drains and joins it after the
  *       last, over these options (FR-006, R-01)

@@ -565,8 +565,9 @@ that never prints.
 - **FR-008**: `threshold=<ns>` shall set the threshold. A value of 0, a
   negative value, or a value that is not a number shall print one line
   and exit with status 2; the negative value is a rule of the option
-  value's grammar, where the string carries the sign, because
-  `thresholdNs` is `std::uint64_t` and represents none (D-2).
+  value's grammar, where the string carries the sign, because the field
+  carries `std::optional<std::uint64_t>`, an unsigned value, and the
+  absence stands apart from every in-range value (D-2).
 - **FR-009**: The gap buffer shall be pre-sized to 65,536 gaps for each
   probe cpu, 16 bytes each, allocated and first touched on the probe
   cpu before the probe window. `gaps=<n>` shall set the size, in the
