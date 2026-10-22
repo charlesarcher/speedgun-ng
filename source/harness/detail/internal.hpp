@@ -516,11 +516,23 @@ class Runner
 {
 public:
   explicit Runner(const RunOptions& options) noexcept
-      : m_options(options)
+      : m_options(options),
+        // R-04: the runner stamps the timed windows only when the batch
+        // carries a probe, the split's one consumer.
+        m_windowStamping(options.jitterProbe.has_value())
   {
   }
 
   [[nodiscard]] auto run(Instance& instance) -> BenchmarkResult;
+
+  /// @brief The timed windows the runs of this runner recorded since the
+  /// last take, moved out (R-04, E-06): the window-stamp access the
+  /// split reads, behind the join edge the probe's stop gives.
+  [[nodiscard]] auto takeRunWindows()
+      -> std::vector<sg::detail::TimedWindow>
+  {
+    return std::move(m_runWindows);
+  }
 
   /// @brief The complexity fit of the family the runner has been collecting,
   /// when that family ends here: `next` names the instance the run turns to
@@ -589,6 +601,14 @@ private:
   // that captured nothing stand for an empty entry.
   std::vector<std::vector<RowRaw>> m_rowRaw;
   std::vector<std::vector<std::vector<RowRaw>>> m_contextRaw;
+
+  // specs/027 E-06, R-04: the timed windows the current run's attempts
+  // stamped, cleared at each run's start and taken by the caller after
+  // it; the repetition index the windows name; and the stamping gate the
+  // probe option sets.
+  std::vector<sg::detail::TimedWindow> m_runWindows;
+  std::uint64_t m_repetition = 0;
+  bool m_windowStamping = false;
 
   void noteFitSample(const Instance& instance,
                      const BenchmarkResult& result,

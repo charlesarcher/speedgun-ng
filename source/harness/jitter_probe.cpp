@@ -4,8 +4,8 @@
 // One translation unit owns the probe (R-01): the holder's lifecycle, the
 // per-cpu work item the probe contexts run, the availability check over
 // the provider catalog and `ClockProvider::open` (Q-1), the run-level
-// fold, and the reader-install seam storage. The window-sided fold lands
-// with T024 (US3); the declaration stands in the seam header.
+// fold, the window-sided fold the split of E-06 reads, and the
+// reader-install seam storage.
 // ============================================================================
 
 #include "detail/jitter_probe.hpp"
@@ -127,6 +127,12 @@ struct ProbeSession
 
 auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
 {
+    // The start line: every chosen cpu arrives at the barrier the holder
+    // owns, and the holder arrives beside them, so the alongside loop
+    // spans the batch from its first read: the batch begins only when
+    // every item's thread stands live at this line (FR-006, R-01, R-04).
+    session->barrier->arriveAndWait();
+
     // The buffer allocates and first touches on this probe cpu, after
     // the pin the context applied at thread start and before the first
     // read, so the first-touch faults land on the probe cpu and outside
@@ -199,13 +205,12 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
             ? (risen > kDefaultThresholdNs ? risen : kDefaultThresholdNs)
             : options->thresholdNs;
 
-    // The pre-check phase: every chosen cpu arrives at the barrier the
-    // holder owns, so all of them spin together for the precheck
-    // duration, measured through the same reader in the leaf's one time
-    // base (FR-014, R-10, R-04).
+    // The pre-check phase: the cpus stand lined at the start barrier,
+    // so all of them spin together for the precheck duration, measured
+    // through the same reader in the leaf's one time base (FR-014, R-10,
+    // R-04).
     if (options->mode == JitterProbeMode::PRECHECK
         || options->mode == JitterProbeMode::BOTH) {
-      session->barrier->arriveAndWait();
       const std::uint64_t span = static_cast<std::uint64_t>(options->precheckMs)
                                  * 1000000ULL;
       const std::uint64_t phaseStart = last;
@@ -303,10 +308,10 @@ auto JitterProbe::start() -> void
     m_states.at(index).cpu = m_options.cpus.at(index);
   }
 
-  if (m_options.mode == JitterProbeMode::PRECHECK
-      || m_options.mode == JitterProbeMode::BOTH) {
-    session->barrier.emplace(static_cast<int>(m_options.cpus.size()));
-  }
+  // The party count: every chosen cpu at the item's start line, and the
+  // holder itself, so the batch's first read waits for the probe's
+  // (FR-006, R-01, R-04).
+  session->barrier.emplace(static_cast<int>(m_options.cpus.size() + 1));
 
   // The seam reader moves out of the slot at start, so a scenario's
   // next install stands alone (R-02, Q-5).
@@ -325,6 +330,11 @@ auto JitterProbe::start() -> void
   for (std::size_t index = 0; index < session->contexts.size(); ++index) {
     sg::dispatch(*session->contexts.at(index), *session->nodes.at(index));
   }
+  // The holder's own arrival at the start line: the dispatch returns
+  // once every item's thread stands live at the line, so the batch that
+  // follows runs beside the probe's reads from their first one (FR-006,
+  // R-01, R-04).
+  session->barrier->arriveAndWait();
 
   probeSession = std::move(session);
 }
@@ -407,6 +417,69 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
   }
   stats.runtimeNs = lastStamp - firstStamp;
 
+  stats.gapsPerSecond = static_cast<double>(stats.gapCount) * 1e9
+                        / static_cast<double>(stats.runtimeNs);
+  stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0
+                       / static_cast<double>(stats.runtimeNs);
+  return stats;
+}
+
+auto gapStatsOf(const ProbeCpuState& state,
+                std::span<const TimedWindow> windows) -> JitterStats
+{
+  JitterStats stats {};
+
+  // The covered span the entry's fields divide (E-03, R-05): the
+  // windows' total, the one duration the window set carries. The fold
+  // of an empty placement answers the empty kept set's zeros below.
+  std::uint64_t coveredNs = 0;
+  for (const auto& window : windows) {
+    coveredNs += window.end - window.start;
+  }
+
+  std::vector<double> sorted;
+  sorted.reserve(state.kept);
+  std::uint64_t total = 0;
+  for (std::size_t index = 0; index < state.kept; ++index) {
+    const auto& record = state.buffer.at(index);
+    // A kept gap folds into every window whose half-open `[start, end)`
+    // contains its stamp (E-06, R-04); the entry's stats fold each
+    // placed record once, the one reading that leaves `gapCount` the
+    // count of the gaps the benchmark's windows placed.
+    const bool placed
+        = std::any_of(windows.begin(), windows.end(),
+                      [&](const TimedWindow& window) noexcept -> bool
+                      {
+                        return window.start <= record.stamp
+                            && record.stamp < window.end;
+                      });
+    if (!placed) {
+      continue;
+    }
+    sorted.push_back(static_cast<double>(record.gapNs));
+    total += record.gapNs;
+  }
+  std::sort(sorted.begin(), sorted.end());
+
+  stats.gapCount = sorted.size();
+  stats.droppedGaps = state.droppedGaps;
+  stats.thresholdNs = state.thresholdNs;
+  stats.loopPeriodNs = state.loopPeriodNs;
+  if (sorted.empty()) {
+    return stats;
+  }
+
+  stats.minNs = static_cast<std::uint64_t>(sorted.front());
+  stats.maxNs = static_cast<std::uint64_t>(sorted.back());
+  stats.totalNs = total;
+  stats.meanNs = static_cast<double>(total)
+                 / static_cast<double>(sorted.size());
+  stats.medianNs = percentileField(sorted, 50.0);
+  stats.p90Ns = percentileField(sorted, 90.0);
+  stats.p99Ns = percentileField(sorted, 99.0);
+  stats.p999Ns = percentileField(sorted, 99.9);
+  stats.p9999Ns = percentileField(sorted, 99.99);
+  stats.runtimeNs = coveredNs;
   stats.gapsPerSecond = static_cast<double>(stats.gapCount) * 1e9
                         / static_cast<double>(stats.runtimeNs);
   stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0

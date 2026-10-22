@@ -438,50 +438,64 @@ auto readFit(Element value,
 
 // One per-cpu stats object of a jitter record: the cpu index and the
 // sixteen fields in the E-03 order, plus the kept gap records when the
-// document carries them (E-03, E-10). The reader checks the record and
-// lets the values go, the shape the noise warning read uses (E-08);
-// each key is read and kind-checked in order, so a wrong kind names
-// itself before a later key's absence does (FR-029).
+// document carries them (E-03, E-10). The reader answers the parsed cpu
+// and stats so the per-entry read fills the result's carrier with them
+// (E-08, FR-027); the run-level read lets them go. Each key is read and
+// kind-checked in order, so a wrong kind names itself before a later
+// key's absence does (FR-029).
 auto readJitterCpu(Element value, const std::string& where)
-    -> std::expected<void, std::string>
+    -> std::expected<std::pair<std::uint32_t, sg::JitterStats>,
+                     std::string>
 {
-  const auto readUnsignedKey = [&](std::string_view key)
+  std::pair<std::uint32_t, sg::JitterStats> read {};
+  std::uint64_t cpuValue = 0;
+  const auto readUnsignedKey = [&](std::string_view key,
+                                   std::uint64_t* into)
       -> std::expected<void, std::string>
   {
     auto found = field(value, where, key);
     if (!found.has_value()) {
       return std::unexpected(found.error());
     }
-    return asUnsigned(*found, where + "/" + std::string(key))
-        .transform([](auto) {});
+    auto number = asUnsigned(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
   };
-  const auto readRealKey = [&](std::string_view key)
+  const auto readRealKey = [&](std::string_view key, double* into)
       -> std::expected<void, std::string>
   {
     auto found = field(value, where, key);
     if (!found.has_value()) {
       return std::unexpected(found.error());
     }
-    return asDouble(*found, where + "/" + std::string(key))
-        .transform([](auto) {});
+    auto number = asDouble(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
   };
-  auto settledValues = allSettled(readUnsignedKey("cpu"),
-                                  readUnsignedKey("gapCount"),
-                                  readRealKey("gapsPerSecond"),
-                                  readUnsignedKey("minNs"),
-                                  readUnsignedKey("medianNs"),
-                                  readRealKey("meanNs"),
-                                  readUnsignedKey("p90Ns"),
-                                  readUnsignedKey("p99Ns"),
-                                  readUnsignedKey("p999Ns"),
-                                  readUnsignedKey("p9999Ns"),
-                                  readUnsignedKey("maxNs"),
-                                  readUnsignedKey("totalNs"),
-                                  readRealKey("totalPercent"),
-                                  readUnsignedKey("runtimeNs"),
-                                  readUnsignedKey("thresholdNs"),
-                                  readUnsignedKey("loopPeriodNs"),
-                                  readUnsignedKey("droppedGaps"));
+  auto settledValues = allSettled(
+      readUnsignedKey("cpu", &cpuValue),
+      readUnsignedKey("gapCount", &read.second.gapCount),
+      readRealKey("gapsPerSecond", &read.second.gapsPerSecond),
+      readUnsignedKey("minNs", &read.second.minNs),
+      readUnsignedKey("medianNs", &read.second.medianNs),
+      readRealKey("meanNs", &read.second.meanNs),
+      readUnsignedKey("p90Ns", &read.second.p90Ns),
+      readUnsignedKey("p99Ns", &read.second.p99Ns),
+      readUnsignedKey("p999Ns", &read.second.p999Ns),
+      readUnsignedKey("p9999Ns", &read.second.p9999Ns),
+      readUnsignedKey("maxNs", &read.second.maxNs),
+      readUnsignedKey("totalNs", &read.second.totalNs),
+      readRealKey("totalPercent", &read.second.totalPercent),
+      readUnsignedKey("runtimeNs", &read.second.runtimeNs),
+      readUnsignedKey("thresholdNs", &read.second.thresholdNs),
+      readUnsignedKey("loopPeriodNs", &read.second.loopPeriodNs),
+      readUnsignedKey("droppedGaps", &read.second.droppedGaps));
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
@@ -512,7 +526,8 @@ auto readJitterCpu(Element value, const std::string& where)
       ++index;
     }
   }
-  return {};
+  read.first = static_cast<std::uint32_t>(cpuValue);
+  return read;
 }
 
 // The run-level jitter record: the seven keys of E-07 in the kinds the
@@ -933,6 +948,12 @@ auto readEntry(Element value,
       if (!read.has_value()) {
         return std::unexpected(read.error());
       }
+      // E-08, FR-029: the object reads back into the result's carrier,
+      // the value the round trip compares equal (SC-001).
+      result.jitterFolds.push_back(sg::JitterEntryFold {
+          .cpu = read->first,
+          .stats = read->second,
+      });
       ++index;
     }
   }

@@ -16,14 +16,18 @@
 // ============================================================================
 
 #include <array>
+#include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include <sched.h>
@@ -84,6 +88,55 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
     return &ref;
   }();
   return *provider;
+}
+
+// The jump the gate body scripts into the shared tsc series' tail: one
+// read stands a kept gap above the risen threshold, and every read
+// after it jumps again until the body restores the tick (R-02, FR-001).
+inline constexpr std::uint64_t kSeriesJump = 1000000;
+
+// The gate benchmark: the body scripts the jump into the shared series
+// inside its own timed window and restores the one-tick tail before the
+// window closes, so no kept gap lands after this body's windows (R-02,
+// FR-039). The two waits stand the jump after the probe's measurement
+// pass and count the alongside reads the jump's tail carries: the
+// runner's own reads inside one attempt are the chunk samples the
+// chunk plan bounds, so the margins below stand above them, and the
+// probe's reads are certain.
+auto bmGate(sg::State& state) -> void
+{
+  auto& provider = scriptedProvider();
+  // The pass wait: the measurement pass's reads finish before the
+  // jump, so the pass measures the one-tick series and the effective
+  // threshold stands at the configured value (E-05, FR-007, R-05). The
+  // margin stands above the pass and the calibration's read counts
+  // together.
+  const auto base = provider.readActions();
+  std::uint64_t spins = 0;
+  while (provider.readActions() < base + 20000) {
+    // The wait yields, the way the probe test's waits do, so the pinned
+    // probe thread progresses under concurrent load; the bound turns a
+    // stalled series into a reported failure instead of a hang (FR-039).
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the probe's measurement pass never finished (FR-039)");
+    }
+  }
+  // The jump wait: the pass is over, so every read in the margin rides
+  // the scripted tail and keeps its gap inside this body's window
+  // (FR-039, R-04).
+  provider.setPoints("machine", "tsc", {}, kSeriesJump);
+  const auto jumped = provider.readActions();
+  spins = 0;
+  while (provider.readActions() < jumped + 20000) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the scripted jump never reached the probe's reads (FR-039)");
+    }
+  }
+  provider.setPoints("machine", "tsc", {}, 1);
+  for (auto _ : state) {
+  }
 }
 
 // The cpu indexes the scenarios pin probe threads to, taken from the
@@ -178,6 +231,25 @@ auto splitLines(const std::string& text) -> std::vector<std::string>
   return lines;
 }
 
+// The unsigned value one integral JSON key carries, read as the digit
+// run that follows the key's colon from `from` on: the writer writes
+// the stats integers as bare digits (E-03).
+auto integerValueAfter(const std::string& document,
+                      std::size_t from,
+                      const char* key) -> std::uint64_t
+{
+  const auto at = document.find(std::string("\"") + key + "\":", from);
+  check(at != std::string::npos, "the document carries the key");
+  auto cursor = at + std::strlen(key) + 3;
+  std::uint64_t value = 0;
+  while (std::isdigit(static_cast<unsigned char>(document.at(cursor))) != 0) {
+    value = value * 10
+        + static_cast<std::uint64_t>(document.at(cursor) - '0');
+    ++cursor;
+  }
+  return value;
+}
+
 // The per-thread stamp state of the seam reader below: each probe
 // thread carries its own series, so the two cpus' reads interleave
 // without sharing a cursor (R-02, FR-039). The probe threads are new
@@ -214,6 +286,7 @@ public:
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
+SG_BENCHMARK(bmGate);
 
 auto main() -> int
 {
@@ -444,6 +517,187 @@ auto main() -> int
             "a jitter scope with a wrong kind names the kind it expected "
             "(FR-029, contracts/report-json.md)");
     }
+  }
+
+  // US3 scenario 1, FR-021, FR-024, FR-027, E-08, R-04: the split
+  // places the kept gaps of one probe cpu into the entry whose windows
+  // contain their stamps. The gate benchmark scripts a jump into the
+  // shared tsc series inside its own timed window, so the probe cpu's
+  // next read stands a kept gap above the risen threshold, the window
+  // close reads the same series after the jump, and the one-tick restore
+  // lands before the close, so no kept gap stands after the gate's
+  // windows (R-02, R-04). Observe red before T023 to T025 exist: the
+  // per-entry key stands null and no attribution line prints.
+  {
+    auto& provider = scriptedProvider();
+    provider.setPoints("machine", "tsc", {}, 1);
+    const std::string path = "harness_jitter_window_split.json";
+    const auto console = captureRun({
+        "--repetitions=1", "--iterations=2", "--json=" + path,
+        "--jitter-probe=" + std::to_string(cpus.at(0))});
+    const auto document = readDocument(path);
+    std::remove(path.c_str());
+
+    const auto gateName = document.find("\"bmGate\"");
+    const auto quietName = document.find("\"bmQuiet\"");
+    check(gateName != std::string::npos && quietName != std::string::npos,
+          "the document carries both entries (FR-021)");
+    check(document.find("\"jitter\":{\"stats\"", gateName)
+              != std::string::npos,
+          "the gate entry's jitter object carries the stats (FR-021, E-08)");
+    check(document.find("\"jitter\":null", quietName) != std::string::npos,
+          "the entry whose windows held no kept gap stands null "
+          "(FR-027, E-08)");
+    check(document.find("\"cpu\":" + std::to_string(cpus.at(0)), gateName)
+              != std::string::npos,
+          "the stats name the probe cpu (E-08)");
+    check(integerValueAfter(document, gateName, "maxNs") == kSeriesJump,
+          "the stats carry the scripted gap (E-08, R-04)");
+
+    const auto lines = splitLines(console);
+    std::size_t gateLast = 0;
+    std::size_t blockLine = 0;
+    std::size_t lineAt = 0;
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+      if (lines.at(index).rfind("bmGate", 0) == 0) {
+        gateLast = index;
+      }
+      if (lines.at(index).rfind("jitter: worst cpu ", 0) == 0
+          && lineAt == 0) {
+        lineAt = index;
+      }
+      if (lines.at(index).rfind("jitter probe: cpus ", 0) == 0
+          && blockLine == 0) {
+        blockLine = index;
+      }
+    }
+    check(lineAt != 0 && gateLast != 0 && blockLine != 0,
+          "the run prints the attribution line (FR-024, R-08)");
+    check(lineAt > gateLast && lineAt < blockLine,
+          "the attribution line prints under that benchmark's rows "
+          "(FR-024, R-08)");
+    check(lines.at(lineAt).find("gaps=") != std::string::npos
+              && lines.at(lineAt).find("max=") != std::string::npos
+              && lines.at(lineAt).find("total=") != std::string::npos,
+          "the line carries the grammar of the one code span (FR-024)");
+    check(lines.at(lineAt).find("worst cpu " + std::to_string(cpus.at(0)))
+              != std::string::npos,
+          "the line names the worst probe cpu (FR-024, R-08)");
+  }
+
+  // US3 scenario 2, FR-022, PC-5: each pass the runner carries gives its
+  // own timed windows and the split covers all of them. The gate's three
+  // repetitions each keep their jump inside their own window, and the
+  // entry's fold counts every repetition's kept gaps; a split over one
+  // window alone would carry one repetition's records and stand red
+  // against the count below.
+  {
+    auto& provider = scriptedProvider();
+    provider.setPoints("machine", "tsc", {}, 1);
+    const std::string path = "harness_jitter_window_passes.json";
+    captureRun({"--filter=bmGate",
+                "--repetitions=3",
+                "--iterations=2",
+                "--json=" + path,
+                "--jitter-probe=" + std::to_string(cpus.at(0))});
+    const auto document = readDocument(path);
+    std::remove(path.c_str());
+    const auto gateName = document.find("\"bmGate\"");
+    check(gateName != std::string::npos,
+          "the document carries the gate entry (FR-022)");
+    check(document.find("\"jitter\":{\"stats\"", gateName)
+              != std::string::npos,
+          "the fold covers the windows of every repetition (FR-022, PC-5)");
+    check(integerValueAfter(document, gateName, "gapCount") >= 3,
+          "each repetition's windows placed their kept gaps (FR-022, PC-5)");
+    check(integerValueAfter(document, gateName, "maxNs") == kSeriesJump,
+          "the kept gaps carry the scripted jump (E-04, R-04)");
+  }
+
+  // FR-010, D-6: a buffer that filled attributes only the kept records.
+  // The one-slot buffer keeps the jump's first record and drops the
+  // reads after it, the entry's stats carry the kept record alone, the
+  // run-level record counts the dropped gaps, and the report states the
+  // rule.
+  {
+    auto& provider = scriptedProvider();
+    provider.setPoints("machine", "tsc", {}, 1);
+    const std::string path = "harness_jitter_window_kept.json";
+    const auto console = captureRun({
+        "--filter=bmGate",
+        "--repetitions=1",
+        "--iterations=2",
+        "--json=" + path,
+        "--jitter-probe=" + std::to_string(cpus.at(0)) + ",gaps=1"});
+    const auto document = readDocument(path);
+    std::remove(path.c_str());
+    const auto gateName = document.find("\"bmGate\"");
+    check(gateName != std::string::npos,
+          "the document carries the gate entry (FR-010)");
+    check(document.find("\"jitter\":{\"stats\"", gateName)
+              != std::string::npos,
+          "the entry carries the kept record's stats (FR-010, D-6)");
+    check(integerValueAfter(document, gateName, "gapCount") == 1,
+          "the stats attribute the kept record alone (FR-010, D-6)");
+    const auto benchmarks = document.find(",\"benchmarks\"");
+    check(benchmarks != std::string::npos,
+          "the document carries its entries key (FR-026)");
+    check(integerValueAfter(document, 0, "droppedGaps") >= 1,
+          "the run-level record counts the dropped gaps (FR-010, E-07)");
+    check(console.find(
+              "jitter: split and percentiles use the kept gaps only")
+              != std::string::npos,
+          "the report states the kept-gaps-only rule (FR-010, D-6)");
+  }
+
+  // E-06, R-04, FR-021: the fold of one probe cpu over one benchmark's
+  // windows places each kept record by its stamp: a record inside a
+  // window folds once into the entry's stats even when two of its
+  // windows contain it, a record outside every window stands absent
+  // from the stats, and the covered span the percent and rate fields
+  // divide is the windows' total. The fold rides the seam header, so
+  // the red this scenario predicts against T024 is the undefined
+  // reference the split's definition answers (Principle III).
+  {
+    sg::detail::ProbeCpuState state;
+    state.cpu = cpus.at(0);
+    state.buffer.resize(4);
+    state.buffer.at(0) = {.stamp = 10, .gapNs = 5};
+    state.buffer.at(1) = {.stamp = 12, .gapNs = 9};
+    state.buffer.at(2) = {.stamp = 30, .gapNs = 7};
+    state.buffer.at(3) = {.stamp = 100, .gapNs = 11};
+    state.kept = 4;
+    state.thresholdNs = 200;
+    state.loopPeriodNs = 1;
+    const std::vector<sg::detail::TimedWindow> windows {
+        {.start = 0, .end = 20, .entry = 0, .repetition = 0,
+         .chunk = 0, .pass = 0},
+        {.start = 10, .end = 25, .entry = 0, .repetition = 0,
+         .chunk = 0, .pass = 0},
+        {.start = 25, .end = 40, .entry = 0, .repetition = 1,
+         .chunk = 0, .pass = 0},
+    };
+    const auto fold = sg::detail::gapStatsOf(state, windows);
+    check(fold.gapCount == 3,
+          "the fold counts each placed record once (E-06, FR-021)");
+    check(fold.minNs == 5 && fold.maxNs == 9 && fold.totalNs == 21,
+          "the fold carries the placed records' fields (E-03, E-06)");
+    check(fold.thresholdNs == 200 && fold.loopPeriodNs == 1,
+          "the fold carries the run's measured points (E-03)");
+    check(fold.runtimeNs == 50,
+          "the covered span is the windows' total (E-03, R-05)");
+    check(std::fabs(fold.totalPercent - 42.0) <= 1e-9,
+          "the percent divides by the windows' total (E-03, R-05)");
+
+    const std::vector<sg::detail::TimedWindow> elsewhere {
+        {.start = 1000, .end = 2000, .entry = 0, .repetition = 0,
+         .chunk = 0, .pass = 0},
+    };
+    const auto absent = sg::detail::gapStatsOf(state, elsewhere);
+    check(absent.gapCount == 0 && absent.totalNs == 0
+              && absent.maxNs == 0,
+          "a record outside every window stands absent from the stats "
+          "(E-06, FR-021)");
   }
 
   std::puts("harness_jitter_window_test: ok");

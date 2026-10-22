@@ -720,9 +720,9 @@ auto speedgunMain(int argc, char** argv) -> int
         return 2;
       }
     }
-    sg::JitterProbeOptions resolved = *options.jitterProbe;
-    resolved.cpus = probeCpus;
-    jitterProbe.emplace(resolved);
+    sg::JitterProbeOptions probeOptions = *options.jitterProbe;
+    probeOptions.cpus = probeCpus;
+    jitterProbe.emplace(probeOptions);
     jitterProbe->start();
     if (jitterProbe->states().empty()) {
       // The availability answer (Q-1): strict stops the batch before
@@ -777,9 +777,19 @@ auto speedgunMain(int argc, char** argv) -> int
     BenchmarkResult result;
     std::vector<RowRaw> raw;
     std::vector<std::vector<RowRaw>> contextRaw;
+    std::vector<sg::detail::TimedWindow> windows;
   };
 
   std::vector<std::optional<HeldRow>> held(selected.size());
+  // R-08, R-04: a probed run prints its benchmark tables behind the join
+  // edge, so the per-benchmark attribution line reads the folds the
+  // split fills after the stop; the printed order keeps the order the
+  // streaming carries, and a probe-free run keeps today's bytes.
+  const bool consoleDeferred = jitterProbe.has_value();
+  // E-06, R-04: the windows each entry's runs stamped, one entry per
+  // result of the batch in the order the results push, the alignment the
+  // split reads below.
+  std::vector<std::vector<sg::detail::TimedWindow>> entryWindows;
   // The loop variable keeps the spelling `entry`: `test/cli_shape.sh`
   // locates this loop by the `runner.run(*entry)` line and reads the
   // flag exactly once inside it.
@@ -788,15 +798,19 @@ auto speedgunMain(int argc, char** argv) -> int
     // FR-022, FR-023: the complexity fit of the family that ended prints
     // between the rows of two families, after every row of the family it
     // summarizes. A shuffled run holds its fits for the print pass, where a
-    // family ends at its last row in registration order (FR-056).
+    // family ends at its last row in registration order (FR-056); a probed
+    // run holds its print behind the join edge the same way (R-08).
     if (!interleaved) {
       if (const auto fit = runner.fitForFamilyEnd(entry)) {
-        detail::printResult(*fit);
+        report.results.push_back(*fit);
+        entryWindows.emplace_back();
         // FR-002: a fit stands as its own entry of the document, beside
         // the entries of the runs it summarizes.
-        report.results.push_back(*fit);
         report.rowRaw.emplace_back();
         report.contextRaw.emplace_back();
+        if (!consoleDeferred) {
+          detail::printResult(report.results.back());
+        }
       }
     }
     // FR-019, D-5: an instance that carries no placement has its
@@ -855,13 +869,18 @@ auto speedgunMain(int argc, char** argv) -> int
                 "ends (D-5)");
     }
     if (interleaved) {
-      held[position] =
-          HeldRow {result, runner.rowRaw().back(), runner.contextRaw().back()};
+      held[position] = HeldRow {result,
+                                runner.rowRaw().back(),
+                                runner.contextRaw().back(),
+                                runner.takeRunWindows()};
     } else {
-      detail::printResult(result);
       report.results.push_back(result);
+      entryWindows.push_back(runner.takeRunWindows());
       report.rowRaw.push_back(runner.rowRaw().back());
       report.contextRaw.push_back(runner.contextRaw().back());
+      if (!consoleDeferred) {
+        detail::printResult(report.results.back());
+      }
     }
     // FR-036: the flag is read once per pass, so the status update, the
     // per-pass check and the break all see one instant of the flag.
@@ -884,7 +903,7 @@ auto speedgunMain(int argc, char** argv) -> int
   }
 
   // FR-006, R-01: the probe spans the batch, so the stop lands after
-  // the selected loop ends, before the last family's fit prints.
+  // the selected loop ends, before the print passes and the split.
   if (jitterProbe.has_value()) {
     jitterProbe->stopAndJoin();
   }
@@ -908,14 +927,20 @@ auto speedgunMain(int argc, char** argv) -> int
       if (!row.has_value()) {
         continue;
       }
-      detail::printResult(row->result);
+      if (!consoleDeferred) {
+        detail::printResult(row->result);
+      }
       report.results.push_back(row->result);
+      entryWindows.push_back(std::move(row->windows));
       report.rowRaw.push_back(row->raw);
       report.contextRaw.push_back(row->contextRaw);
       if (endsFamily(index)) {
         if (const auto fit = runner.fitForFamily(selected[index]->family)) {
-          detail::printResult(*fit);
+          if (!consoleDeferred) {
+            detail::printResult(*fit);
+          }
           report.results.push_back(*fit);
+          entryWindows.emplace_back();
           report.rowRaw.emplace_back();
           report.contextRaw.emplace_back();
         }
@@ -927,10 +952,49 @@ auto speedgunMain(int argc, char** argv) -> int
   // rows. The print pass answered every family a shuffled run ran, so this
   // answers nothing for such a run.
   if (const auto fit = runner.fitForFamilyEnd(nullptr)) {
-    detail::printResult(*fit);
+    if (!consoleDeferred) {
+      detail::printResult(*fit);
+    }
     report.results.push_back(*fit);
+    entryWindows.emplace_back();
     report.rowRaw.emplace_back();
     report.contextRaw.emplace_back();
+  }
+
+  // R-04, E-06: the split reads the buffers behind the join edge the
+  // stop gives, folding each probe cpu's kept gaps into the windows
+  // each entry's runs stamped, in ascending cpu order; an entry
+  // carries one fold per cpu whose kept gaps landed inside its
+  // windows, and a cpu whose gaps landed inside none stands absent
+  // (E-06, FR-021).
+  if (jitterProbe.has_value() && !jitterUnavailable) {
+    std::vector<const detail::ProbeCpuState*> ordered;
+    ordered.reserve(jitterProbe->states().size());
+    for (const auto& state : jitterProbe->states()) {
+      ordered.push_back(&state);
+    }
+    std::ranges::sort(ordered, [](const detail::ProbeCpuState* left,
+                                  const detail::ProbeCpuState* right) {
+      return left->cpu < right->cpu;
+    });
+    for (std::size_t index = 0; index < report.results.size(); ++index) {
+      auto& stored = report.results.at(index);
+      for (const auto* state : ordered) {
+        const auto fold = detail::gapStatsOf(*state, entryWindows.at(index));
+        if (fold.gapCount != 0) {
+          stored.jitterFolds.push_back(
+              sg::JitterEntryFold {.cpu = state->cpu, .stats = fold});
+        }
+      }
+    }
+  }
+
+  // R-08: the benchmark tables print here, behind the join edge, in
+  // the order the batch pushed them.
+  if (consoleDeferred) {
+    for (const auto& stored : report.results) {
+      detail::printResult(stored);
+    }
   }
 
   // specs/027 E-09: the placement-safety disclosure rides the record
