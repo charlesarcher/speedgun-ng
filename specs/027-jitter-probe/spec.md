@@ -92,7 +92,14 @@ criteria AC-1 to AC-8, and the scope."
   missing or the open returns null, it discloses "not available" for the
   probe and the run continues with status 0; with `,strict` on the
   option value the process exits with status 2. Recorded at FR-037,
-  FR-004, D-10 and PC-3.
+  FR-004, D-10 and PC-3. Clarified 2026-10-22: the null-reader
+  disjunct went, with the proof the K-8 review wave records. The open
+  refuses a `machine/tsc` request only on a build without the
+  time-stamp instruction (`kTscAvailable`,
+  `source/counters/clock_provider.cpp`), and `enumerate` publishes the
+  leaf under the same macro, so the catalog that publishes the leaf is
+  the catalog whose open answers a reader: one build fact governs
+  both, and the check asks the catalog alone.
 - **Q-2 The allocation counter AC-5 rides on**: Clarified 2026-10-21:
   master carries no shared allocation counter in the harness library.
   Each harness test binary carries its own file-local replaceable
@@ -174,10 +181,10 @@ named beside it.
   continues with status 0; with `--jitter-probe=...,strict` the process
   exits with status 2. Master publishes no runtime invariant-TSC
   detection: the `tsc` catalog leaf is omitted at build time on builds
-  without the time-stamp instruction, and `ClockProvider::open` returns
-  a null reader for a `machine/tsc` request on such a build. The probe
-  checks the catalog for the leaf and recovers the null reader (FR-037,
-  Clarifications Q-1).
+  without the time-stamp instruction, and `ClockProvider::open` refuses
+  a `machine/tsc` request on exactly such a build. The probe checks the
+  catalog for the leaf, and the catalog's answer carries the open's
+  (FR-037, Clarifications Q-1).
 - **D-11 Rule names (D-13.7).** `jitter:<cpu>:<field>` and
   `jitter:any:<field>`, the worst cpu for that field, with the field
   names of FR-002 in camelCase; for example
@@ -551,8 +558,7 @@ that never prints.
 - **FR-004**: The probe shall read time only through `sg::counters`:
   the `ClockProvider` TSC read mode and the calibration the counters
   plan runs (PC-3). The probe takes its availability answer from the
-  provider catalog and the null-reader result of `ClockProvider::open`
-  (FR-037, Clarifications Q-1). The time-source gate
+  provider catalog (FR-037, Clarifications Q-1). The time-source gate
   (`test/time_source_gate.sh`) shall stay green.
 - **FR-005**: The probe loop shall perform no allocation, no syscall,
   and no I/O. It shall read the TSC, compare, write one gap record when
@@ -713,14 +719,16 @@ that never prints.
   probe cpus (D-12).
 - **FR-037**: The probe shall perform the availability check itself:
   it shall check the provider catalog for the `machine/tsc` leaf, and
-  when the leaf is missing, or `ClockProvider::open` returns a null
-  reader for a `machine/tsc` request, the probe shall disclose "not
-  available" for the probe and shall continue the run with status 0.
-  With `--jitter-probe=...,strict` on the option value, the process
-  shall exit with status 2. Master publishes no runtime invariant-TSC
+  when the leaf is missing, the probe shall disclose "not available"
+  for the probe and shall continue the run with status 0. With
+  `--jitter-probe=...,strict` on the option value, the process shall
+  exit with status 2. Master publishes no runtime invariant-TSC
   detection; the catalog carries the fact of a build without the
   time-stamp instruction, and no `Availability` enumerator describes
-  the absence (D-10, PC-3, Clarifications Q-1).
+  the absence. The publication and the open's refusal answer to one
+  build fact (`kTscAvailable`, `source/counters/clock_provider.cpp`),
+  so the catalog's answer carries the open's, and the check asks the
+  catalog alone (D-10, PC-3, Clarifications Q-1).
 - **FR-038**: An invalid command-line option or value of this feature
   shall print one line and exit with status 2: a bad cpu, an unknown
   preset, an overlap in the alongside phase, a bad threshold, a bad

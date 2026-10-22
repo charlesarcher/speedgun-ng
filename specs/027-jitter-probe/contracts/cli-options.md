@@ -72,7 +72,7 @@ and exits with status 2, before the first run starts (FR-038, SC-002):
 | No free cpu at all under `idle` | the preset word | 2 |
 | An overlap in `alongside` mode or in the alongside phase of `both`: a probe cpu that is a planned cpu of a benchmark context, or an SMT sibling of one | the cpu and the benchmark | 2 |
 | An unpinned benchmark whose affinity mask the probe cpus empty | the benchmark | 2 |
-| The `machine/tsc` leaf missing, or a null reader, with `strict` | the availability fact | 2 |
+| The `machine/tsc` leaf missing, with `strict` | the availability fact | 2 |
 
 Message shape: `--jitter-probe: <message>`, one line, carrying the
 offending token and the reason, the shape the `--json-raw` rejection
@@ -86,7 +86,7 @@ plan (FR-025):
 
 | Case | Behavior |
 | --- | --- |
-| The leaf missing, or a null reader, without `strict` | the report discloses `not available` for the probe and the run continues with status 0 (FR-037, D-10) |
+| The leaf missing, without `strict` | the report discloses `not available` for the probe and the run continues with status 0 (FR-037, D-10) |
 | A group with no free cpu under `idle` | the group is skipped, the report discloses it, and the run continues (FR-017) |
 | An unpinned benchmark with cpus left after the probe cpus leave | the mask change is disclosed and the run continues (D-5) |
 | Cpusets limit the probe cpus | the report discloses the limit (D-12, FR-036) |

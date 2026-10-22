@@ -214,7 +214,7 @@ condition and its three fields keep their bytes (PC-6, R-08).
 
 | Field | Type | Rule |
 | --- | --- | --- |
-| `available` | `bool` | False when the `machine/tsc` leaf is missing or `ClockProvider::open` returns a null reader; the line reads `not available` (FR-037, Q-1) |
+| `available` | `bool` | False when the `machine/tsc` leaf is missing; the line reads `not available` (FR-037, Q-1) |
 | `cpus` | ordered list of `std::uint32_t` | The probe cpus in ascending cpu index, the one order the console lines and the `disclosure` text carry; the option value preserves the order given, and the JSON array of E-07 sorts ascending the same way (FR-025, E-07) |
 | `loopPeriodNs`, `thresholdNs` | `std::uint64_t`, ns | The disclosed measurement points (FR-007, FR-025) |
 | `droppedGaps` | per-cpu counts | The condition the report states when a buffer filled (FR-010, FR-025) |
@@ -270,8 +270,8 @@ percentiles run after the stop (FR-006, D-7).
 
 - No gap list in the JSON by default; it rides `--json-raw=gaps` alone
   (FR-028).
-- No new `Availability` enumerator and no CPUID check; the catalog and the
-  null reader carry the availability answer (Q-1, R-11).
+- No new `Availability` enumerator and no CPUID check; the catalog
+  carries the availability answer (Q-1, R-11).
 - No root privilege and no kernel setting change (D-12, FR-036).
 - No per-gap heap allocation and no growable container behind the buffer;
   the loop performs no allocation, no syscall and no I/O (FR-005, R-03).
