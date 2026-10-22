@@ -239,7 +239,7 @@ counting `operator new` pair).
   One test asserts every value in the option table is unique (FR-011).
 - **Rationale**: the option takes no short letter because master's
   letters are taken (`f l r m i w d c M C p P A T j J`,
-  `source/harness/cli.cpp:294-312`) and both open pull requests take
+  `source/harness/cli.cpp:294-312`) and the two merged lanes take
   more (the spec's Parallel work section); a value of 256 or above
   cannot collide with any short letter or with the values of the two
   branches, and the uniqueness test holds that property against
@@ -442,7 +442,7 @@ counting `operator new` pair).
     second detection path would disagree with the provider's own
     answer on exactly the builds where it matters.
 
-## R-12: The rule names ride the N5 parser, added after PR #45 merges
+## R-12: The rule names ride the merged N5 parser
 
 - **Decision**: the value names `jitter:<cpu>:<field>` and
   `jitter:any:<field>` join `parseCompareRule(std::string_view)`
@@ -455,7 +455,7 @@ counting `operator new` pair).
   copies no parser code (FR-033). A `jitter:` rule evaluated on a
   report with no probe is the parser's usage error, one line and
   status 2.
-- **Rationale**: PR #45 ships the parser as public API with the
+- **Rationale**: the merged N5 parser stands as public API with the
   option `--compare-rule` already in the table, so the probe's names
   are new value-name producers over an existing surface, and the
   comparison gate of User Story 4 needs no option of its own. The

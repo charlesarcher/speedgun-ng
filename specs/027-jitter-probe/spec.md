@@ -54,14 +54,13 @@ criteria AC-1 to AC-8, and the scope."
   When both land before this feature rebases, the harness `SOVERSION`
   rises to 11. Each rebase re-reads the `VERSION` and `SOVERSION` lines
   of `CMakeLists.txt` on master, takes the next free minor version, and
-  raises each `SOVERSION` by one from master, and the constitution rule
-  governs (Decisions D-16). The rebase landed on `bd10d76` (0.16.0,
-  harness 10, archive 3) and records the ABI check the lane owner
-  asks for: the public surface gains `runJitterProbe` and
+  raises a `SOVERSION` only when that archive's public ABI changes, the
+  rule D-16 records and the constitution governs. The rebase landed on
+  `bd10d76` (0.16.0, harness 10, archive 3) and carries the ABI check
+  the rule asks for: the public surface gains `runJitterProbe` and
   `BenchmarkHandle::jitterProbe`, so the harness `SOVERSION` rises to
-  11 and the archive, which carries the harness objects, rises to 4;
-  with the public surface unchanged the versions would have stood
-  still at master's.
+  11; the archive's exported layouts stand unchanged, so the archive
+  `SOVERSION` stays at 3.
 - **Roadmap file**: the roadmap path
   `/workspace/speedgun-ng-harness-roadmap.md` held no file on this
   machine at run time. The prompt carries the decisions D-13.1 to
@@ -70,8 +69,8 @@ criteria AC-1 to AC-8, and the scope."
   the capability list C-1 of the prompt (Assumptions).
 - **Merged lane state**: N4 (topology placement) is merged as
   `specs/025-topology-placement`. N3 (JSON reports) is merged as
-  `specs/023-json-reports`. N5 and N6 stand open as the pull requests
-  named above.
+  `specs/023-json-reports`. N5 is merged as `9976768` and N6 is merged
+  as `bd10d76`, the two pull requests the plan names.
 
 ## Clarifications
 
@@ -145,14 +144,18 @@ named beside it.
   are not SMT siblings of a planned cpu, the lowest such cpu in each
   group. A group with no free cpu is skipped and disclosed. When no cpu
   is free at all, `idle` is a usage error with status 2 (FR-016,
-  FR-017).
+  FR-017). In the `precheck` mode the planned cpus stand as the probe's
+  own, because no probe thread runs beside a benchmark, and no group
+  stands skipped (FR-006, R-10).
 - **D-5 Unpinned benchmarks (R-13.2).** When a benchmark carries no
   placement, the harness removes the probe cpus from the benchmark's
   affinity mask for the run and discloses the change. A benchmark that
   carries a preset with a single context is unpinned (the runner pins
   only benchmarks with more than one context), so the removal covers it
-  too. When the mask empties, the process exits with status 2
-  (FR-020).
+  too. The removal happens only while a probe thread runs beside the
+  benchmark: the `precheck` mode and an unavailable probe narrow
+  nothing (FR-006, R-10, FR-037). When the mask empties, the process
+  exits with status 2 (FR-020).
 - **D-6 Gap buffer (D-13.4, R-13.3).** The buffer is pre-sized to
   65,536 gaps for each probe cpu, 16 bytes each, allocated and first
   touched on the probe cpu before the probe window. `gaps=<n>` sets the
@@ -206,11 +209,9 @@ named beside it.
 - **D-16 Version and merge order.** Charles set the merge order on
   2026-10-21: PR #45 lands first, PR #44 second, and N13a reserves
   0.17.0. Each rebase re-reads `CMakeLists.txt` on master and takes the
-  next free minor version; each `SOVERSION` rises by one from master.
-  A change in the order takes the next free value, and the rebase note
-  records why (Run-time binding). The review of PR #46 corrects the
-  rule's application: a `SOVERSION` rises only when that archive's
-  public ABI changes, and the check stands recorded here. The harness
+  next free minor version; a `SOVERSION` rises only when that archive's
+  public ABI changes. A change in the order takes the next free value,
+  and the rebase note records why (Run-time binding). The harness
   ABI changes - `JitterStats`, `JitterEntryFold`, `JitterProbeMode`,
   `JitterProbeOptions` and `runJitterProbe` join the surface,
   `BenchmarkResult` gains `jitterFolds`, `ReportData` gains
@@ -322,8 +323,8 @@ shall cover all of them (FR-022).
 `source/harness/compare.cpp:722`, the option `--compare-rule` with the
 short letter `Q` (`source/harness/cli.cpp:315`), and
 `compare-strict` with the short letter `S` (line 316). N13a adds the
-`jitter:` value names through this parser after PR #45 merges, and the
-branch waits for N5 and rebases (FR-033).
+`jitter:` value names through the merged N5 parser, the branch the
+rebase carries (FR-033).
 
 ## Roadmap position
 
@@ -335,14 +336,14 @@ N13c adds the FWQ/FTQ probes and their spectrum, and N13d adds the
 hardware latency probe and the SMI counts; both lanes run after the
 features the roadmap orders before them.
 
-## Parallel work: two open pull requests and the shared lists
+## Parallel work: the merged lanes and the shared lists
 
-- PR #45 (N5, `origin/026-regression-gate`, spec 026) adds the
+- PR #45 (N5, `origin/026-regression-gate`, spec 026) added the
   comparison gate: `compare.cpp`, `parseCompareRule`,
   `compareReports(..., const CompareOptions&)`, the options `Q` and
-  `S`. N13a adds the `jitter:` value names to the N5 parser after N5
-  merges. When N13a is ready before N5 merges, the branch waits for N5
-  and rebases (FR-033).
+  `S`, merged as `9976768`. N13a adds the `jitter:` value names to the
+  merged N5 parser, and the branch carries the rebase onto it
+  (FR-033).
 - PR #44 (N6, `origin/024-multipass-collection`, spec 024) adds the
   multi-pass runner loop, `BenchmarkResult::metricMethod`,
   `passCount`, `passSpread`, and new JSON fields. A multi-pass run
@@ -694,9 +695,9 @@ that never prints.
   `jitter:run:` shall name the whole-run values (D-11).
 - **FR-032**: A `jitter:` rule evaluated on a report with no probe
   shall print one line and exit with status 2 (D-11).
-- **FR-033**: This feature shall add the names through the N5 parser
-  after PR #45 merges, and shall copy no parser code; when N13a is
-  ready before N5 merges, the branch waits for N5 and rebases.
+- **FR-033**: This feature shall add the names through the merged N5
+  parser, and shall copy no parser code; the branch rebased onto N5
+  before the names landed.
 
 ### Documentation (C-8)
 

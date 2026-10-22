@@ -129,5 +129,5 @@ The thrawn acceptance script `tools/noise/jitter_probe_thrawn.sh` runs
 the N4 presets and the N13-V probes, and records its results under
 `specs/027-jitter-probe/results/` (FR-042, FR-043, SC-008). The
 coverage, sanitizer and tsan gates of SC-006 run in CI. The `jitter:`
-rule names of US4 land behind PR #45 and validate through the N5 parser
-surface (SC-004).
+rule names of US4 ride the merged N5 parser and validate through the
+parser surface (SC-004).

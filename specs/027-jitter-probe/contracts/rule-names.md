@@ -1,6 +1,6 @@
 # Contract: the jitter value names of the comparison gate
 
-Phase 1 output. The names the N5 value-name parser gains after PR #45
+Phase 1 output. The names the merged N5 value-name parser carries:
 merges, the prefix semantics, and the rule a comparison run holds a
 probe report to (FR-030 to FR-033, FR-038, D-11, SC-004).
 
@@ -52,19 +52,18 @@ line and exit status 2 (FR-032, FR-038).
 
 | Rule | Requirement |
 | --- | --- |
-| The names join `parseCompareRule(std::string_view)`, public API on `origin/026-regression-gate` (`include/speedgun-ng/benchmark.hpp:2500`, `source/harness/compare.cpp:722`), after PR #45 merges. | FR-033, PC-7 |
+| The names join `parseCompareRule(std::string_view)`, public API of the merged N5 (`include/speedgun-ng/benchmark.hpp:2500`, `source/harness/compare.cpp:722`). | FR-033, PC-7 |
 | When N13a is ready before N5 merges, the branch waits for N5 and rebases. | FR-033 |
 | The feature copies no parser code: one parser carries the value-name grammar, and a probe-local parser is the divergence FR-033 exists to prevent. | FR-033, R-12 |
 | The names ride the option `--compare-rule` (short letter `Q` on the N5 branch); no second option joins. | FR-033, R-12 |
-| `specs/026-regression-gate/contracts/` gains the value names in the same commit as the parser change, after PR #45 merges. | FR-033 (plan, Files outside the feature directory) |
+| `specs/026-regression-gate/contracts/` carries the value names in the same commit as the parser change. | FR-033 (plan, Files outside the feature directory) |
 
 ## Consumers
 
-- The N5 comparison surface: the rule names through `parseCompareRule`
-  after PR #45 merges; the worst-cpu field names; the `jitter:run:`
+- The N5 comparison surface: the rule names through the merged
+  `parseCompareRule`; the worst-cpu field names; the `jitter:run:`
   prefix; the status-2 stop on a probe-free report; and the status-1
   comparison failure on a bound the probe moves past (FR-030 to FR-033,
   SC-004).
 - `test/source/harness_jitter_window_test.cpp` carries the probe report
-  the comparison reads; the comparison tests ride the N5 surface after
-  PR #45 merges (FR-033).
+  the comparison reads; the comparison tests ride the merged N5 surface (FR-033).
