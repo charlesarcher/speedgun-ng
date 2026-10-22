@@ -20,7 +20,7 @@ from `sched_getaffinity` (FR-039, FR-040).
 toolchain precondition. Phase 2 declares the public types and the
 probe seams every story compiles against. Phases 3 to 7 carry the five
 user stories in priority order. Phase 8 carries the gates, the
-acceptance record, and the rebase that waits for PR #45. Every task
+acceptance record, and the rebase onto the merged lanes. Every task
 names exact file paths, and every bound from data-model.md, contracts/,
 and research.md is quoted so nothing is left to implementation-time
 discretion.
@@ -40,7 +40,7 @@ every task compiles under. No behavior arrives in this phase.
 reservation rides the same commit series the branch lands, and the
 toolchain check is the gate a fresh clone drives.
 
-- [x] T001 Record the version reservation in the task note and carry it into the first commit of the branch: re-read the `VERSION` line at `CMakeLists.txt:7`, the archive `SOVERSION` at `:47` and the harness `SOVERSION` at `:247` on `master`, and take, per D-16, the reserved minor `0.17.0` with harness `SOVERSION` 11 and archive `SOVERSION` 4 when PR #45 (0.15.0, harness `SOVERSION` 9) and PR #44 (0.16.0, harness `SOVERSION` 10, archive `SOVERSION` 3) stand merged as the plan records; a changed merge order takes the next free values from the master the rebase reads, and the note records the values and the reason (D-16, Run-time binding). Corrected at the PR #46 review: the design moves the exported harness layouts - `JitterStats`, `JitterEntryFold`, `JitterProbeMode`, `JitterProbeOptions` and `runJitterProbe` join the surface, `BenchmarkResult` gains `jitterFolds`, `ReportData` gains `runJitterStats`, `RawContent` gains `GAPS`, and `BenchmarkHandle` gains the `jitterProbe` member - so the harness `SOVERSION` rises to 11; the archive's only counters change names no public symbol, so its `SOVERSION` stays at 3 (D-16, the applied check the spec records)
+- [x] T001 Record the version reservation in the task note and carry it into the first commit of the branch: re-read the `VERSION` line at `CMakeLists.txt:7`, the archive `SOVERSION` at `:47` and the harness `SOVERSION` at `:247` on `master`, and take, per D-16, the reserved minor `0.17.0` with harness `SOVERSION` 11 and archive `SOVERSION` 3, the values the merged lanes leave (`9976768` at 0.15.0, harness 9; `bd10d76` at 0.16.0, harness 10, archive 3) as the plan records; a changed merge order takes the next free values from the master the rebase reads, and the note records the values and the reason (D-16, Run-time binding). The ABI check the rule asks for: the design moves the exported harness layouts - `JitterStats`, `JitterEntryFold`, `JitterProbeMode`, `JitterProbeOptions` and `runJitterProbe` join the surface, `BenchmarkResult` gains `jitterFolds`, `ReportData` gains `runJitterStats`, `RawContent` gains `GAPS`, and `BenchmarkHandle` gains the `jitterProbe` member - so the harness `SOVERSION` rises to 11; the archive's only counters change names no public symbol, so its `SOVERSION` stays at 3 (D-16, the applied check the spec records)
 
 - [x] T002 Verify the build precondition and record it in the task note: `cmake --preset=ci-rocky && cmake --build build` configures and builds at the audit point with the vendored `external/hwloc` at 2.14.0 and the vendored `external/simdjson` at v4.6.11 checked out through `.gitmodules`, `ctest --test-dir build -j 2` is green, and no `CMakeUserPresets.json` stands on this machine so the daily loop drives `ci-rocky` (README Build, AGENTS.md). The check touches no tracked file
 
@@ -189,7 +189,7 @@ with a `jitter:` rule exits with status 2." (spec.md US4)
 
 ### Implementation for User Story 4
 
-- [X] T027 [US4] Add the `jitter:` value names to the N5 parser in `source/harness/compare.cpp` beside `parseCompareRule` (`:722` on `origin/026-regression-gate`) after PR #45 merges and the branch rebases: the two prefixes, the `any` worst-cpu form, the sixteen camelCase field names, the usage errors one line and status 2, and no parser code copied from anywhere, one parser carrying the value-name grammar (FR-030 to FR-033, R-12); the covering test is T026's rule-name scenarios; and add the value names to `specs/026-regression-gate/contracts/` in the same commit, the grammar that contract owns (FR-033, plan Files outside the feature directory)
+- [X] T027 [US4] Add the `jitter:` value names to the N5 parser in `source/harness/compare.cpp` beside `parseCompareRule` (`:722` on `origin/026-regression-gate`) on the merged N5 parser the branch rebased on: the two prefixes, the `any` worst-cpu form, the sixteen camelCase field names, the usage errors one line and status 2, and no parser code copied from anywhere, one parser carrying the value-name grammar (FR-030 to FR-033, R-12); the covering test is T026's rule-name scenarios; and add the value names to `specs/026-regression-gate/contracts/` in the same commit, the grammar that contract owns (FR-033, plan Files outside the feature directory)
 
 ### Verification for User Story 4
 
@@ -258,7 +258,7 @@ pass with the new section and example (SC-007).
 
 - [x] T040 Prose gate over the whole change: run `cmake -P cmake/prose-lint.cmake`, the standing wrapper that runs `--check all --mode range` with the left edge resolved from the merge base with `origin/master`, and require zero findings for every new comment and doc line and for every commit message of the branch; `--check prose --mode tree` alone never reads a commit message, so it is not the gate for this task (Principle XI, Principle VIII)
 
-- [x] T041 Rebase and push: rebase the branch `027-jitter-probe` onto the current `master` with no merge commit, keeping both open lanes' lines in every shared list the spec's Parallel work section names (the `VERSION` and `SOVERSION` lines, `README.md`, the quick-reference table, `PAGE_LINE_CAP` and `SECTIONS` in `tools/docs/example_drift.py`, `example/CMakeLists.txt` and the example run list, `test/CMakeLists.txt`, the option table in `source/harness/cli.cpp`, `include/speedgun-ng/benchmark.hpp`, `docs/schema/report-v1.json`); take the next free minor version and raise each `SOVERSION` by one from master per D-16, confirming the reservation T001 recorded; set `PAGE_LINE_CAP` to the measured page length, T033's raise having covered this feature's own section; the N5 rule-name tasks T026 to T028 execute only after this rebase, when PR #45 has merged (FR-033, D-16); run the full gate set and push one time with `--force-with-lease`, then show `git ls-remote origin 027-jitter-probe` (spec Parallel work, Constraints)
+- [x] T041 Rebase and push: rebase the branch `027-jitter-probe` onto the current `master` with no merge commit, keeping both lanes' lines in every shared list the spec's Parallel work section names (the `VERSION` and `SOVERSION` lines, `README.md`, the quick-reference table, `PAGE_LINE_CAP` and `SECTIONS` in `tools/docs/example_drift.py`, `example/CMakeLists.txt` and the example run list, `test/CMakeLists.txt`, the option table in `source/harness/cli.cpp`, `include/speedgun-ng/benchmark.hpp`, `docs/schema/report-v1.json`); take the next free minor version and raise each `SOVERSION` by one from master per D-16, confirming the reservation T001 recorded; set `PAGE_LINE_CAP` to the measured page length, T033's raise having covered this feature's own section; the N5 rule-name tasks T026 to T028 execute only after this rebase, when PR #45 has merged (FR-033, D-16); run the full gate set and push one time with `--force-with-lease`, then show `git ls-remote origin 027-jitter-probe` (spec Parallel work, Constraints)
 
 - [x] T042 Full gate record and ledger: `ctest --test-dir build --output-on-failure -j 2`, the docs drift set (`example_drift`, `snippet_compile`, `example_run`, `report_shape`), `tools/dbc/dbc_pair_gate.py`, `format-check`, `spell-check` and the prose gate, each with its exit code read from the CI logs after the push of T041; record the task-list count of this file and the coverage counts of the CI run of the last pushed commit, the ledger line the spec Constraints name (Principle VIII, spec Constraints, SC-006)
   - **Gate record (2026-10-22, task closed)**: the push of T041 landed
@@ -289,9 +289,9 @@ pass with the new section and example (SC-007).
 - Phase 8 follows the stories; T038 records the thrawn runs once the
   stories land; T041 is the last task that changes the tree before its
   push, T042 reads the CI logs that push produces.
-- US4 waits for PR #45: T026 to T028 execute only after the rebase of
-  T041 onto the post-PR-#45 master (FR-033). Every other story stands
-  independent of both open pull requests.
+- US4 rides the merged N5 parser: T026 to T028 executed after the
+  rebase of T041 onto the post-merge master (FR-033). Every other
+  story stood independent of both lanes.
 
 ### User Story Dependencies
 
@@ -305,7 +305,7 @@ pass with the new section and example (SC-007).
   T021 records the host runs once the story lands.
 - US3 needs the probe of US1 and the stamps of T023: T022 precedes T023
   to T025; T024 needs T023's edges; T025 reports the fold T024 computes.
-- US4 needs the split of Phase 5 and the N5 parser of PR #45: T026
+- US4 needs the split of Phase 5 and the merged N5 parser: T026
   precedes T027, both after the rebase of T041; T028 records the
   comparison runs.
 - US5 needs T011 (the option row the drift gate checks), T012 (the block
@@ -357,13 +357,13 @@ report (SC-001, SC-003).
 ### Incremental Delivery
 
 US2 makes the placement safe and its failures clean, US3 attributes the
-noise to each benchmark, US4 adds the CI gate through the N5 parser
-after PR #45 merges, US5 ships the page and the example, and Phase 8
+noise to each benchmark, US4 adds the CI gate through the merged N5 parser,
+US5 ships the page and the example, and Phase 8
 clears the gates, records the thrawn acceptance, and lands the change.
 
-**Delivery note**: the two open lanes (PR #45, PR #44) share the lists
-the spec's Parallel work section names. N5 lands first when it is ready,
-and this feature waits for it only at US4 and rebases onto it at T041;
+**Delivery note**: the two lanes (PR #45, PR #44) share the lists
+the spec's Parallel work section names. N5 landed first (`9976768`),
+and this feature waited for it only at US4 and rebased onto it at T041;
 the multi-pass windows of PR #44 reach the split through the pass
 indexes T023 records, and the rebase of T041 keeps both lanes' lines.
 
