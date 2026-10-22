@@ -127,7 +127,7 @@ auto parseProbeNumber(const std::string& text,
 }
 
 // The cpu token of the value grammar: an index or a closed a-b range,
-// the form the --topology listing prints; each cpu stands in the
+// the form the topology listing prints; each cpu stands in the
 // process affinity mask (FR-011, FR-038).
 auto parseProbeCpuToken(const std::string& token,
                         std::vector<std::uint32_t>& cpus,

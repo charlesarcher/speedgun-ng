@@ -120,7 +120,8 @@ auto bmGate(sg::State& state) -> void
   while (provider.readActions() < base + 20000) {
     // The wait yields, the way the probe test's waits do, so the pinned
     // probe thread progresses under concurrent load; the bound turns a
-    // stalled series into a reported failure instead of a hang (FR-039).
+    // stalled series into a reported failure; the wait cannot hang
+    // (FR-039).
     std::this_thread::yield();
     if (++spins > 1000000000ULL) {
       fail("the probe's measurement pass never finished (FR-039)");
@@ -311,7 +312,7 @@ auto main() -> int
   const std::vector<std::string> quickRun {
       "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
 
-  // FR-013, SC-003: a run with no --jitter-probe prints the console
+  // FR-013, SC-003: a run with no probe option prints the console
   // report with the fields and the shape master prints, and the JSON
   // writer of the same run carries no jitter key.
   {
@@ -457,10 +458,10 @@ auto main() -> int
           "the document of a probed run loads (FR-029, SC-001)");
   }
 
-  // FR-028, E-10: --json-raw=gaps writes the per-cpu gap list, each
-  // record carrying stamp and gapNs. The gap series rides the
-  // reader-install seam, the route the fake's shared cursor cannot
-  // express (R-02); red against the writer T014 lands.
+  // FR-028, E-10: the gaps value of the raw JSON option writes the
+  // per-cpu gap list, each record carrying stamp and gapNs. The gap
+  // series rides the reader-install seam, the route the fake's shared
+  // cursor cannot express (R-02); red against the writer T014 lands.
   {
     const std::string path = "harness_jitter_window_gaps.json";
     auto arguments = quickRun;

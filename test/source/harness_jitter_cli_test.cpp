@@ -1,8 +1,8 @@
 // ============================================================================
 // T008: the option grammar of contracts/cli-options.md, driven directly.
 //
-// Every value's rejection stands one line on stderr with the
-// --jitter-probe prefix and exit status 2, before any benchmark runs
+// Every value's rejection stands one line on stderr with the probe
+// option's prefix and exit status 2, before any benchmark runs
 // (FR-008, FR-009, FR-011, FR-014, FR-038, R-06); the standing
 // getopt_long paths keep their shapes (contracts/cli-options.md); and
 // the option-value uniqueness test scans the parser's own table through
@@ -806,7 +806,7 @@ auto main() -> int
     check(values.size() > 15, "the scan read the whole table (FR-011, R-06)");
   }
 
-  // FR-013, SC-003: a run with no --jitter-probe prints the console
+  // FR-013, SC-003: a run with no probe option prints the console
   // report with the fields and the shape master prints.
   {
     const auto report = captureRun(quickRun);
