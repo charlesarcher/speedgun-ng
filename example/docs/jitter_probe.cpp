@@ -18,11 +18,3 @@ auto main(int argc, char** argv) -> int
 }
 
 // sg-example:end jitter-probe
-
-// The recorded run needs a host whose mask gives the idle resolution a
-// free cpu behind the two planned contexts (FR-017), so a mask that
-// holds fewer than three cpus cannot serve it. The run gates read the
-// declaration below and skip with both counts on such a host, the way
-// counters_overhead skips on a host without a probe-passing fast
-// mechanism.
-// example-run: needs-cpus 3
