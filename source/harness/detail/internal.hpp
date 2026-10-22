@@ -19,6 +19,7 @@
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/execution_context.hpp"
+#include "speedgun-ng/hunt.hpp"
 
 /**
  * @file internal.hpp
@@ -493,6 +494,9 @@ struct RunOptions
   // `off` stands, and it settles the run with no environment source, so the
   // gather is handed no rows at all.
   bool environmentOff = false;
+  // specs/029 data-model.md E-09, FR-080 to FR-082, D-22: the hunt selection
+  // and its settled values, empty when the run carries no hunt.
+  std::optional<hunt::HuntOptions> hunt;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
