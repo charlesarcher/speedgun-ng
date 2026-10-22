@@ -120,7 +120,12 @@ named beside it.
   measures the loop period before its window and discloses the loop
   period and the threshold. `threshold=<ns>` sets the value; a value of
   0, a negative value, or a value that is not a number exits with
-  status 2 (FR-007, FR-008).
+  status 2 (FR-007, FR-008). Corrected at the PR #46 review: an
+  explicit `threshold=200` sets exactly 200 ns - the default rule
+  applies only when the option names no threshold value, and the
+  library type carries the absence (`JitterProbeOptions::thresholdNs`
+  is `std::optional<std::uint64_t>`) so no in-range value can stand in
+  for it (FR-009, R-05).
 - **D-3 Overlap (D-13.2, R-13.2).** In `alongside` mode, a probe cpu
   that is a planned cpu of a benchmark context, or an SMT sibling of
   one, is a usage error: one line naming the cpu and the benchmark, and
