@@ -654,8 +654,9 @@ target_compile_features(harness_cli_test PRIVATE cxx_std_23)
 add_test(NAME harness_cli_test COMMAND harness_cli_test)
 
 # The one option table of the contract, read out of the source that holds
-# it: 27 rows in the fixed order, each with its argument kind and its
-# value, the seven new names at the constants 290 to 296 (T004; FR-001,
+# it: 28 rows in the fixed order, each with its argument kind and its
+# value, the seven new names at the constants 290 to 296 and the one row
+# this feature brings at 297 (T004; FR-001,
 # FR-003, FR-004, FR-079, SC-001). The directory that holds the table
 # reaches the test by argument, the way the fixture directory reaches
 # `harness_compare_test`. The test is red until Phase 1 lands the seven

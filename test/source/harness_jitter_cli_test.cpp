@@ -771,10 +771,10 @@ auto main() -> int
     std::stringstream buffer;
     buffer << source.rdbuf();
     const auto text = buffer.str();
-    const auto tableStart = text.find("option longOptions[]");
+    const auto tableStart = text.find("const option kLongOptions[]");
     check(tableStart != std::string::npos,
           "the option table stands in the source (R-06)");
-    const auto tableEnd = text.find("\n  };", tableStart);
+    const auto tableEnd = text.find("\n};", tableStart);
     check(tableEnd != std::string::npos, "the option table closes (R-06)");
 
     std::set<std::string> values;

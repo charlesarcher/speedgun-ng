@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "detail/compare.hpp"
+#include "detail/cli_options.hpp"
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
 #include "detail/json_report.hpp"
