@@ -185,15 +185,34 @@ with a `jitter:` rule exits with status 2." (spec.md US4)
 
 ### Tests for User Story 4 (write first, observe failure)
 
-- [ ] T026 [US4] Append the rule-name scenarios to `test/source/harness_jitter_window_test.cpp` after the rebase onto the post-PR-#45 master, the probe report the comparison reads coming from the split of Phase 5: `parseCompareRule` accepts `jitter:<cpu>:<field>`, `jitter:any:<field>`, `jitter:run:<cpu>:<field>` and `jitter:run:any:<field>` with the sixteen field names of FR-002 in camelCase and the standing comparison suffix the N5 grammar carries (FR-030, FR-031, D-11, contracts/rule-names.md); a field name outside the sixteen is the usage error, one line and exit status 2 (FR-038); a named cpu the report's `jitter` object does not carry is the same usage error; a `jitter:` rule evaluated on a report with no probe prints one line and exits with status 2 (FR-032, SC-004); a bare `jitter:` rule reads the named benchmark's per-benchmark values and the `jitter:run:` prefix reads the whole-run values (FR-031, D-11); a bound the whole-run `p99Ns` moves past fails the comparison with status 1 (SC-004). Observe red before T027 exists: the parser carries no `jitter:` names
+- [X] T026 [US4] Append the rule-name scenarios to `test/source/harness_jitter_window_test.cpp` after the rebase onto the post-PR-#45 master, the probe report the comparison reads coming from the split of Phase 5: `parseCompareRule` accepts `jitter:<cpu>:<field>`, `jitter:any:<field>`, `jitter:run:<cpu>:<field>` and `jitter:run:any:<field>` with the sixteen field names of FR-002 in camelCase and the standing comparison suffix the N5 grammar carries (FR-030, FR-031, D-11, contracts/rule-names.md); a field name outside the sixteen is the usage error, one line and exit status 2 (FR-038); a named cpu the report's `jitter` object does not carry is the same usage error; a `jitter:` rule evaluated on a report with no probe prints one line and exits with status 2 (FR-032, SC-004); a bare `jitter:` rule reads the named benchmark's per-benchmark values and the `jitter:run:` prefix reads the whole-run values (FR-031, D-11); a bound the whole-run `p99Ns` moves past fails the comparison with status 1 (SC-004). Observe red before T027 exists: the parser carries no `jitter:` names
 
 ### Implementation for User Story 4
 
-- [ ] T027 [US4] Add the `jitter:` value names to the N5 parser in `source/harness/compare.cpp` beside `parseCompareRule` (`:722` on `origin/026-regression-gate`) after PR #45 merges and the branch rebases: the two prefixes, the `any` worst-cpu form, the sixteen camelCase field names, the usage errors one line and status 2, and no parser code copied from anywhere, one parser carrying the value-name grammar (FR-030 to FR-033, R-12); the covering test is T026's rule-name scenarios; and add the value names to `specs/026-regression-gate/contracts/` in the same commit, the grammar that contract owns (FR-033, plan Files outside the feature directory)
+- [X] T027 [US4] Add the `jitter:` value names to the N5 parser in `source/harness/compare.cpp` beside `parseCompareRule` (`:722` on `origin/026-regression-gate`) after PR #45 merges and the branch rebases: the two prefixes, the `any` worst-cpu form, the sixteen camelCase field names, the usage errors one line and status 2, and no parser code copied from anywhere, one parser carrying the value-name grammar (FR-030 to FR-033, R-12); the covering test is T026's rule-name scenarios; and add the value names to `specs/026-regression-gate/contracts/` in the same commit, the grammar that contract owns (FR-033, plan Files outside the feature directory)
 
 ### Verification for User Story 4
 
-- [ ] T028 [US4] Record the comparison runs of SC-004 in this task's note: two reports whose whole-run `p99Ns` differ by more than the rule's bound failing the comparison with status 1 under `--compare-rule=jitter:any:p99Ns:lower:abs=5000`, and a `jitter:` rule evaluated on a report with no probe printing one line and exiting with status 2, each with its measured output (SC-004, FR-030 to FR-032)
+- [X] T028 [US4] Record the comparison runs of SC-004 in this task's note: two reports whose whole-run `p99Ns` differ by more than the rule's bound failing the comparison with status 1 under `--compare-rule=jitter:any:p99Ns:lower:abs=5000`, and a `jitter:` rule evaluated on a report with no probe printing one line and exiting with status 2, each with its measured output (SC-004, FR-030 to FR-032)
+
+  Note, T028 (2026-10-22, measured at this head): two real runs of the
+  docs example binary with `--jitter-probe=1` wrote two reports whose
+  whole-run `p99Ns` differ by 8652 ns, more than the bound 5000 of the
+  example rule of D-11. The comparison run printed
+
+  ```
+  benchmark                rule                                    baseline       contender     change%          change  state
+  bmMeasured/threads:2     jitter:any:p99Ns:lower:abs=5000         9450.000       18102.000    +91.556%       +8652.000  REGRESSED
+  ```
+
+  and exited with status 1 (SC-004). A probe-free report, written by
+  `first_benchmark --json=...`, under the same rule printed one line,
+
+  ```
+  error: the rule 'jitter:any:p99Ns:lower:abs=5000' names the worst cpu and the jitter stats of bmSum in the baseline report carry no probe cpu
+  ```
+
+  and exited with status 2 (FR-032).
 
 **Checkpoint**: US4 stands on the N5 surface: a probe-free report with a
 `jitter:` rule exits 2 and a moved bound fails with status 1 (SC-004,

@@ -714,6 +714,12 @@ struct ReportData
   // entry holds nothing when the document carried no warning for that
   // result (specs/026 E-07, FR-070).
   std::vector<std::optional<NoiseWarning>> noiseWarnings;
+  // specs/027 E-07, FR-031: the run-level jitter stats the document
+  // carried, one entry per probe cpu. The load call fills it when the
+  // document carried the root `jitter` object; absent stands for a
+  // document that carries no probe. The run path never fills it and
+  // never reads it: the value a `jitter:run:` comparison rule reads.
+  std::optional<std::vector<JitterEntryFold>> runJitterStats;
 };
 
 /**

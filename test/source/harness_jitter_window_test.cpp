@@ -15,6 +15,7 @@
 // check()/fail() convention.
 // ============================================================================
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cmath>
@@ -100,6 +101,16 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
 // must read the same tail the kept records ride (R-02, FR-001).
 inline constexpr std::uint64_t kSeriesJump = 1000000;
 
+// The jump the gate body scripts, mutable so the comparison scenarios of
+// US4 script two different kept-gap magnitudes; every other scenario
+// keeps the constexpr default (R-02). The function-local static keeps
+// the mutable state out of namespace scope.
+auto seriesJump() -> std::uint64_t&
+{
+  static std::uint64_t value = kSeriesJump;
+  return value;
+}
+
 // The gate benchmark: the body scripts the jump into the shared series
 // inside its own timed window and leaves the jumped tail in place, so
 // the window close reads the tail the kept records ride and stands
@@ -136,7 +147,7 @@ auto bmGate(sg::State& state) -> void
   // The jump wait: the pass is over, so every read in the margin rides
   // the scripted tail and keeps its gap inside this body's window
   // (FR-039, R-04).
-  provider.setPoints("machine", "tsc", {}, kSeriesJump);
+  provider.setPoints("machine", "tsc", {}, seriesJump());
   const auto jumped = provider.readActions();
   spins = 0;
   while (provider.readActions() < jumped + 20000) {
@@ -223,6 +234,66 @@ auto readDocument(const std::string& path) -> std::string
   std::stringstream buffer;
   buffer << file.rdbuf();
   return buffer.str();
+}
+
+// One speedgunMain run with stderr captured: the comparison run's usage
+// errors print their one line there (FR-032, FR-038), the way the option
+// rejections of the cli test do.
+auto captureError(const std::vector<std::string>& arguments,
+                  const int expected) -> std::string
+{
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_window_test"));
+  for (const auto& argument : arguments) {
+    argv.push_back(const_cast<char*>(argument.c_str()));
+  }
+
+  static int runIndex = 0;
+  const std::string path =
+      "harness_jitter_window_err_" + std::to_string(++runIndex) + ".txt";
+  const int saved = dup(STDERR_FILENO);
+  if (saved < 0 || std::freopen(path.c_str(), "w", stderr) == nullptr) {
+    fail("cannot redirect the failure note");
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stderr);
+  if (dup2(saved, STDERR_FILENO) < 0) {
+    fail("cannot restore stderr");
+  }
+  close(saved);
+  if (status != expected) {
+    std::fprintf(
+        stderr, "speedgunMain returned %d, expected %d\n", status, expected);
+    fail("the exit status does not follow contracts/cli.md (FR-036)");
+  }
+
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  std::remove(path.c_str());
+  return buffer.str();
+}
+
+// The document with the digits of one integral key's value replaced, the
+// first occurrence of the key at or after `from`: the comparison
+// scenarios script one report's value the way the reader scenarios
+// script a broken document, and the stats integers stand as bare digits
+// (E-03).
+auto withIntegerReplaced(const std::string& document,
+                         std::size_t from,
+                         const char* key,
+                         std::uint64_t value) -> std::string
+{
+  const auto at = document.find(std::string("\"") + key + "\":", from);
+  check(at != std::string::npos, "the document carries the key");
+  const auto digitsEnd =
+      document.find_first_not_of("0123456789", at + std::strlen(key) + 3);
+  check(digitsEnd != std::string::npos, "the key carries a digit run");
+  std::string replaced = document.substr(0, at + std::strlen(key) + 3);
+  replaced += std::to_string(value);
+  replaced += document.substr(digitsEnd);
+  return replaced;
 }
 
 // The sixteen stats fields in the E-03 order, the canonical enumeration
@@ -738,6 +809,265 @@ auto main() -> int
               && absent.maxNs == 0,
           "a record outside every window stands absent from the stats "
           "(E-06, FR-021)");
+  }
+
+  // US4 scenario 1, FR-030, FR-031, D-11, contracts/rule-names.md: the
+  // parser accepts the four jitter value names with every one of the
+  // sixteen field names of FR-002 in camelCase and the standing
+  // comparison suffix the N5 grammar carries. Observe red before T027
+  // exists: the parser carries no `jitter:` names.
+  {
+    const std::string cpu = std::to_string(cpus.at(0));
+    const std::string heads[] {"jitter:" + cpu + ":",
+                               "jitter:any:",
+                               "jitter:run:" + cpu + ":",
+                               "jitter:run:any:"};
+    for (const auto& head : heads) {
+      for (const auto field : kStatFields) {
+        const std::string text =
+            head + std::string(field) + ":lower:abs=5000";
+        const auto rule = sg::parseCompareRule(text);
+        check(rule.has_value(),
+              "the parser accepts the jitter value name (FR-030, D-11)");
+        check(rule->text == text
+                  && rule->valueName == head + std::string(field),
+              "the rule keeps the text and the value name it read (D-08)");
+        check(rule->absoluteThreshold.has_value()
+                  && std::fabs(*rule->absoluteThreshold - 5000.0) <= 1e-9,
+              "the standing suffix's absolute bound lands in the rule "
+              "(FR-033)");
+      }
+    }
+    const auto percent = sg::parseCompareRule("jitter:any:p99Ns:higher:5%");
+    check(percent.has_value() && percent->relativeThreshold.has_value()
+              && percent->direction == sg::Direction::HIGHER_IS_BETTER,
+          "the percent suffix and the direction word read on a jitter "
+          "name (FR-033)");
+    const auto filtered =
+        sg::parseCompareRule("jitter:run:any:p99Ns:lower:abs=1:bm");
+    check(filtered.has_value() && filtered->filter == "bm",
+          "the filter field reads on a jitter name (FR-024)");
+    // A field name outside the sixteen, a cpu that is neither an index
+    // nor `any`, a cpu past the index range, and an aggregate suffix on
+    // a jitter name are faults: the value carries one value (FR-038,
+    // spec D-21).
+    check(!sg::parseCompareRule("jitter:any").has_value(),
+          "a jitter name with no field is a fault (FR-030)");
+    check(!sg::parseCompareRule("jitter:any:madeUpNs:lower:abs=1")
+              .has_value(),
+          "a field name outside the sixteen is a fault (FR-038)");
+    check(!sg::parseCompareRule("jitter:x:p99Ns:lower:abs=1").has_value(),
+          "a cpu that is neither an index nor any is a fault (FR-038)");
+    check(!sg::parseCompareRule("jitter:4294967296:p99Ns:lower:abs=1")
+              .has_value(),
+          "a cpu past the index range is a fault (FR-038)");
+    check(!sg::parseCompareRule("jitter:any:p99Ns@mean:lower:abs=1")
+              .has_value(),
+          "an aggregate suffix on a jitter name is a fault (spec D-21)");
+  }
+
+  // US4 scenario 2, FR-038: the field fault is the usage error of the
+  // option scan: one line and exit status 2, before any report is read.
+  {
+    const auto note = captureError(
+        {"--compare=a.json,b.json",
+         "--compare-rule=jitter:any:madeUpNs:lower:abs=5000"},
+        2);
+    check(note.rfind("--compare-rule: ", 0) == 0
+              && std::count(note.begin(), note.end(), '\n') == 1,
+          "the field fault prints one line and exits with status 2 "
+          "(FR-038)");
+  }
+
+  // US4 scenarios 3 to 7, FR-030 to FR-032, SC-004: the comparison runs
+  // over documents the probe writes. The gate benchmark scripts its
+  // jump through `seriesJump`, so the two runs' kept gaps differ by more
+  // than the example rule's bound of D-11.
+  {
+    const std::string cpu = std::to_string(cpus.at(0));
+    const std::string otherCpu = std::to_string(cpus.at(1));
+    const std::string probe = "--jitter-probe=" + cpu;
+
+    auto& provider = scriptedProvider();
+    provider.setPoints("machine", "tsc", {}, 1);
+    seriesJump() = kSeriesJump;
+    const std::string basePath = "harness_jitter_rule_base.json";
+    captureRun({"--filter=bmGate",
+                "--repetitions=1",
+                "--iterations=2",
+                "--json=" + basePath,
+                probe});
+    provider.setPoints("machine", "tsc", {}, 1);
+    seriesJump() = 2 * kSeriesJump;
+    const std::string bigPath = "harness_jitter_rule_big.json";
+    captureRun({"--filter=bmGate",
+                "--repetitions=1",
+                "--iterations=2",
+                "--json=" + bigPath,
+                probe});
+    seriesJump() = kSeriesJump;
+
+    const auto baseDocument = readDocument(basePath);
+    const auto gateName = baseDocument.find("\"bmGate\"");
+    check(gateName != std::string::npos,
+          "the document carries the gate entry (FR-030)");
+    check(integerValueAfter(baseDocument, gateName, "p99Ns") == kSeriesJump,
+          "the entry stats carry the scripted jump as their p99 (E-03)");
+    check(integerValueAfter(baseDocument, 0, "p99Ns") == kSeriesJump,
+          "the run-level stats carry the scripted jump as their p99 "
+          "(E-07)");
+
+    // US4 scenario 3, FR-030, SC-004: the bare rules read the
+    // per-benchmark values, and a bound the contender's p99 moves past
+    // fails the comparison with status 1.
+    const auto regressed = captureRun(
+        {"--compare=" + basePath + "," + bigPath,
+         "--compare-rule=jitter:" + cpu + ":p99Ns:lower:abs=5000"},
+        1);
+    check(regressed.find("REGRESSED") != std::string::npos,
+          "the named-cpu bare rule reads the per-benchmark values and the "
+          "moved bound fails with status 1 (SC-004, FR-030)");
+    const auto regressedAny = captureRun(
+        {"--compare=" + basePath + "," + bigPath,
+         "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+        1);
+    check(regressedAny.find("REGRESSED") != std::string::npos,
+          "the worst-cpu bare rule reads the per-benchmark values and the "
+          "moved bound fails with status 1 (SC-004, D-11)");
+    // The same rule over two equal documents reads a delta of zero and
+    // passes: the state follows the values the documents carry.
+    const auto passed = captureRun(
+        {"--compare=" + basePath + "," + basePath,
+         "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+        0);
+    check(passed.find("REGRESSED") == std::string::npos,
+          "a bound the values clear passes the comparison (SC-004)");
+
+    // US4 scenario 4, FR-031, SC-004: the `jitter:run:` prefix reads the
+    // whole-run values, and the same moved bound fails with status 1.
+    const auto regressedRun = captureRun(
+        {"--compare=" + basePath + "," + bigPath,
+         "--compare-rule=jitter:run:" + cpu + ":p99Ns:lower:abs=5000"},
+        1);
+    check(regressedRun.find("REGRESSED") != std::string::npos,
+          "the run-scoped rule reads the whole-run values and the moved "
+          "bound fails with status 1 (SC-004, FR-031)");
+    const auto regressedRunAny = captureRun(
+        {"--compare=" + basePath + "," + bigPath,
+         "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
+        1);
+    check(regressedRunAny.find("REGRESSED") != std::string::npos,
+          "the run-scoped worst-cpu rule reads the whole-run values and "
+          "the moved bound fails with status 1 (SC-004, FR-031)");
+
+    // US4 scenario 5, FR-031, D-11: the bare rule reads the entry's own
+    // stats and the `jitter:run:` prefix reads the run-level object:
+    // editing one scope of the contender moves only the rule that reads
+    // it.
+    const std::string entryEditedPath = "harness_jitter_rule_entry.json";
+    {
+      const std::string edited = withIntegerReplaced(
+          baseDocument, gateName, "p99Ns", 2 * kSeriesJump);
+      std::ofstream out(entryEditedPath);
+      out << edited;
+      out.close();
+    }
+    const auto entryMoved = captureRun(
+        {"--compare=" + basePath + "," + entryEditedPath,
+         "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+        1);
+    check(entryMoved.find("REGRESSED") != std::string::npos,
+          "the bare rule reads the entry's own stats (FR-031, D-11)");
+    const auto entryUnmoved = captureRun(
+        {"--compare=" + basePath + "," + entryEditedPath,
+         "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
+        0);
+    check(entryUnmoved.find("REGRESSED") == std::string::npos,
+          "the run-scoped rule reads the run-level object, which the "
+          "entry edit leaves equal (FR-031, D-11)");
+    const std::string rootEditedPath = "harness_jitter_rule_root.json";
+    {
+      const std::string edited =
+          withIntegerReplaced(baseDocument, 0, "p99Ns", 2 * kSeriesJump);
+      std::ofstream out(rootEditedPath);
+      out << edited;
+      out.close();
+    }
+    const auto rootMoved = captureRun(
+        {"--compare=" + basePath + "," + rootEditedPath,
+         "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
+        1);
+    check(rootMoved.find("REGRESSED") != std::string::npos,
+          "the run-scoped rule reads the run-level object (FR-031, D-11)");
+    const auto rootUnmoved = captureRun(
+        {"--compare=" + basePath + "," + rootEditedPath,
+         "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+        0);
+    check(rootUnmoved.find("REGRESSED") == std::string::npos,
+          "the bare rule reads the entry's own stats, which the "
+          "run-level edit leaves equal (FR-031, D-11)");
+    std::remove(entryEditedPath.c_str());
+    std::remove(rootEditedPath.c_str());
+
+    // US4 scenario 6, FR-032, FR-038: a named cpu the report's jitter
+    // object does not carry is the same usage error: one line and exit
+    // status 2, in both scopes. The probe ran on one cpu, so the mask's
+    // other cpu stands uncarried.
+    {
+      const auto note = captureError(
+          {"--compare=" + basePath + "," + basePath,
+           "--compare-rule=jitter:" + otherCpu + ":p99Ns:lower:abs=5000"},
+          2);
+      check(note.rfind("error: ", 0) == 0
+                && std::count(note.begin(), note.end(), '\n') == 1,
+            "the uncarried cpu of a bare rule is the usage error, one "
+            "line and status 2 (FR-032, FR-038)");
+      const auto runNote = captureError(
+          {"--compare=" + basePath + "," + basePath,
+           "--compare-rule=jitter:run:" + otherCpu
+               + ":p99Ns:lower:abs=5000"},
+          2);
+      check(runNote.rfind("error: ", 0) == 0
+                && std::count(runNote.begin(), runNote.end(), '\n') == 1,
+            "the uncarried cpu of a run-scoped rule is the usage error, "
+            "one line and status 2 (FR-032, FR-038)");
+    }
+
+    // US4 scenario 7, FR-032, SC-004: a `jitter:` rule on a report with
+    // no probe prints one line and exits with status 2, in both scopes.
+    {
+      const std::string freeA = "harness_jitter_rule_free_a.json";
+      captureRun({"--filter=bmQuiet",
+                  "--repetitions=1",
+                  "--iterations=2",
+                  "--json=" + freeA});
+      const std::string freeB = "harness_jitter_rule_free_b.json";
+      captureRun({"--filter=bmQuiet",
+                  "--repetitions=1",
+                  "--iterations=2",
+                  "--json=" + freeB});
+      const auto note = captureError(
+          {"--compare=" + freeA + "," + freeB,
+           "--compare-rule=jitter:any:p99Ns:lower:abs=5000"},
+          2);
+      check(note.rfind("error: ", 0) == 0
+                && std::count(note.begin(), note.end(), '\n') == 1,
+            "a bare jitter rule on a probe-free report is the usage "
+            "error, one line and status 2 (FR-032, SC-004)");
+      const auto runNote = captureError(
+          {"--compare=" + freeA + "," + freeB,
+           "--compare-rule=jitter:run:any:p99Ns:lower:abs=5000"},
+          2);
+      check(runNote.rfind("error: ", 0) == 0
+                && std::count(runNote.begin(), runNote.end(), '\n') == 1,
+            "a run-scoped jitter rule on a probe-free report is the "
+            "usage error, one line and status 2 (FR-032, SC-004)");
+      std::remove(freeA.c_str());
+      std::remove(freeB.c_str());
+    }
+
+    std::remove(basePath.c_str());
+    std::remove(bigPath.c_str());
   }
 
   std::puts("harness_jitter_window_test: ok");

@@ -31,7 +31,11 @@ stand in [data-model.md](./data-model.md) E-01.
 <rule>    ::= <value> [ @ <aggregate> ] : <direction> : <threshold> [ : <filter> ]
 <value>   ::= time | real_time | cpu_time | p <point>
             | counter : <label> | metric : <label> | stat : <label>
+            | jitter : [ run : ] <jitter-cpu> : <jitter-field>
 <point>   ::= digits [ . digits ]
+<jitter-cpu> ::= any | digits
+<jitter-field> ::= one of the sixteen field names of `JitterStats`,
+            in camelCase (specs/027-jitter-probe data-model.md E-03)
 <label>   ::= any text; ends at the first unescaped colon or at sign
 <aggregate> ::= median | mean | min | max
 <direction> ::= lower | higher
@@ -43,6 +47,15 @@ The parse rules, each closing its FR:
 
 - The fields run in the order above; the parse reads them in that
   order (FR-012, FR-021).
+- The jitter value names of specs/027-jitter-probe (FR-030 to FR-033)
+  name the probe's stats: the bare form reads the per-benchmark stats
+  of the entry the rule names, the `jitter:run:` prefix reads the
+  whole-run stats of the run-level `jitter` object, and `any` names the
+  worst cpu for the field, the one carrying the largest value
+  (specs/027 FR-031, D-11). The parse validates the grammar alone and
+  consults no report: a named cpu the report's `jitter` object does not
+  carry and a probe-free report are the comparison's usage errors, one
+  line and exit status 2 (specs/027 FR-032, FR-038).
 - A prefixed value name reads its label to the first unescaped colon,
   and the backslash escapes `\:` , `\,` , `\@` and `\\` stand inside the
   label (FR-020, FR-021, D-06, spec D-15 carried). An unescaped `@`
@@ -77,6 +90,9 @@ The parse rules, each closing its FR:
 | `time:faster:5%` | the direction word |
 | `time@median:lower:abs=12.5,5%` | the threshold order: the percent stands first (D-07) |
 | `time@median:lower:5%:(` | the filter regex |
+| `jitter:any:madeUpNs:lower:abs=1` | the field name: none of the sixteen jitter fields (specs/027 FR-038) |
+| `jitter:x:p99Ns:lower:abs=1` | the cpu token: neither an index nor `any` (specs/027 FR-030) |
+| `jitter:any:p99Ns@mean:lower:abs=1` | a written aggregate marker on a jitter name: the jitter stats carry one value each (specs/027 FR-030) |
 | `time@median:lower:5%,abs=12.5` | accepted: the percent then the `abs=` marker |
 | `counter:cache\:misses@mean:higher:2%` | accepted: the escaped colon inside the label |
 
