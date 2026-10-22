@@ -73,12 +73,11 @@ auto clockOpenCarriesReader() -> bool
   counters::ClockProvider provider;
   const auto window = provider.open(
       counters::LeafSet {.addresses = {"machine/tsc"}}, counters::Target {});
-  // LCOV_EXCL_BR_START : coverage exclusion (T034): the null-reader arm
-  // needs a build without the time-stamp instruction; every build that
-  // publishes the leaf through the shipped provider answers a reader
-  // here (Q-1).
-  return window != nullptr;  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_BR_STOP
+  // The null-reader arm answers only on a build whose catalog does not
+  // publish the leaf; every shipped provider publishes it (Q-1), so the
+  // arm stands uncovered by design and the coverage report carries the
+  // gap with the gcov evidence of T034.
+  return window != nullptr;
 }
 
 // One record store into the pre-sized buffer, or the drop the filled
