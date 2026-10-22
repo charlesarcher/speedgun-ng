@@ -445,15 +445,14 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
       / static_cast<double>(stats.runtimeNs);
   stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0
       / static_cast<double>(stats.runtimeNs);
-  SG_ENSURE(stats.minNs <= stats.medianNs
-                && stats.medianNs <= stats.p90Ns
+  SG_ENSURE(stats.minNs <= stats.medianNs && stats.medianNs <= stats.p90Ns
                 && stats.p90Ns <= stats.p99Ns && stats.p99Ns <= stats.p999Ns
                 && stats.p999Ns <= stats.p9999Ns
                 && stats.p9999Ns <= stats.maxNs,
             "the percentile chain stands ordered (E-03, PC-4)");
-  SG_ENSURE(stats.gapCount == state.kept
-                && stats.droppedGaps == state.droppedGaps,
-            "the counts answer the kept and dropped records (FR-010, D-6)");
+  SG_ENSURE(
+      stats.gapCount == state.kept && stats.droppedGaps == state.droppedGaps,
+      "the counts answer the kept and dropped records (FR-010, D-6)");
   SG_ENSURE(stats.thresholdNs == state.thresholdNs
                 && stats.loopPeriodNs == state.loopPeriodNs,
             "the effective fields carry the state's own (FR-007, R-05)");
@@ -555,15 +554,14 @@ auto gapStatsOf(const ProbeCpuState& state,
       / static_cast<double>(stats.runtimeNs);
   stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0
       / static_cast<double>(stats.runtimeNs);
-  SG_ENSURE(stats.minNs <= stats.medianNs
-                && stats.medianNs <= stats.p90Ns
+  SG_ENSURE(stats.minNs <= stats.medianNs && stats.medianNs <= stats.p90Ns
                 && stats.p90Ns <= stats.p99Ns && stats.p99Ns <= stats.p999Ns
                 && stats.p999Ns <= stats.p9999Ns
                 && stats.p9999Ns <= stats.maxNs,
             "the percentile chain stands ordered (E-03, PC-4)");
-  SG_ENSURE(stats.gapCount == sorted.size()
-                && stats.droppedGaps == state.droppedGaps,
-            "the counts answer the placed and dropped records (FR-010, D-6)");
+  SG_ENSURE(
+      stats.gapCount == sorted.size() && stats.droppedGaps == state.droppedGaps,
+      "the counts answer the placed and dropped records (FR-010, D-6)");
   SG_ENSURE(stats.thresholdNs == state.thresholdNs
                 && stats.loopPeriodNs == state.loopPeriodNs,
             "the effective fields carry the state's own (FR-007, R-05)");
