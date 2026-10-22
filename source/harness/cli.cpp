@@ -40,6 +40,20 @@ void handleInterrupt(const int) noexcept
   detail::interruptFlag().store(true);
 }
 
+// FR-015's run-not-started pre: the predicate the suite-level probe
+// binding requires, named beside the other helpers so the contract
+// macro carries no lambda (the lane's review rule).
+[[maybe_unused]] auto noRunStarted() -> bool
+{
+  return std::ranges::none_of(
+      registry(), [](const auto& entry) { return entry->runStarted; });
+}
+
+// The largest whole number of seconds whose nanoseconds fit the signed
+// count the run control carries.
+constexpr std::int64_t kMaxWholeSeconds =
+    std::numeric_limits<std::int64_t>::max() / 1'000'000'000;
+
 // FR-020, R-11: the prefix of a disabled instance. The gate is a prefix
 // test on the expanded instance name, and selection is where it stands.
 constexpr std::string_view kDisabledPrefix = "DISABLED_";
@@ -459,10 +473,8 @@ auto runJitterProbe(const JitterProbeOptions& options) -> void
       "the gap count stands inside the bounded range (FR-009, D-13)");
   SG_REQUIRE(options.precheckMs >= 1,
              "the pre-check duration stands at or above 1 ms (FR-008, D-13)");
-  SG_REQUIRE(
-      std::ranges::none_of(registry(),
-                           [](const auto& entry) { return entry->runStarted; }),
-      "the run has not started for any benchmark (E-02, FR-015)");
+  SG_REQUIRE(noRunStarted(),
+             "the run has not started for any benchmark (E-02, FR-015)");
   detail::suiteJitterProbe() = options;
   SG_ENSURE(detail::suiteJitterProbe().has_value(),
             "the suite carries the options of its next run (FR-015)");
@@ -884,11 +896,15 @@ auto speedgunMain(int argc, char** argv) -> int
         }
       }
     }
-    // FR-019, D-5: an instance that carries no placement has its
-    // process affinity mask narrowed by the probe cpus for the run,
-    // the change disclosed, and the mask restored after the instance
-    // ends; the empty intersection stops with one line naming the
-    // benchmark.
+    // FR-019, D-5: an instance that carries no placement narrows the
+    // calling thread's affinity mask by the probe cpus for the run -
+    // `sched_setaffinity(0, ...)` names the calling thread, never the
+    // process. The order is what makes that safe: the probe threads
+    // start before the narrowing and keep their own masks, and the
+    // runner creates the benchmark's worker threads after it, so they
+    // inherit the narrowed mask the benchmark runs under. The change
+    // is disclosed and the mask restored after the instance ends; the
+    // empty intersection stops with one line naming the benchmark.
     cpu_set_t savedMask {};
     bool maskNarrowed = false;
     if (options.jitterProbe.has_value()

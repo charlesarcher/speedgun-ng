@@ -258,9 +258,12 @@ set_target_properties(
     # BenchmarkResult gains metricMethod, passCount and passSpread, and
     # MetricValue gains pass, so the exported layouts move again and the
     # number goes to 10 (D-12).
-    # specs/027 D-16: the rebase raises the number by one from master;
-    # the one member function joins the class with no data member and no
-    # virtual, so the layout stands (T001).
+    # specs/027 D-16: the exported layouts move again - JitterStats,
+    # JitterEntryFold, JitterProbeMode, JitterProbeOptions and
+    # runJitterProbe join the surface, BenchmarkResult gains jitterFolds,
+    # ReportData gains runJitterStats, RawContent gains GAPS, and
+    # BenchmarkHandle gains the jitterProbe member - so the number
+    # rises to 11 (D-16, the ABI list the spec records).
     SOVERSION 11
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness

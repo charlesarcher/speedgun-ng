@@ -44,6 +44,27 @@ inline constexpr std::uint64_t kRiseFactor = 10;
 // clears with an empty optional.
 std::unique_ptr<counters::WindowReader> installedReader;
 
+// The duration-division relation of E-03: the fields the fold filled
+// answer the covered span. `-Wfloat-equal` bars the direct comparison,
+// so the relation reads the difference against the scale of the
+// values, the reading percentiles.cpp's ceiling takes. True on the
+// zero span, the case a kept set with shared stamps answers no finite
+// division through.
+[[maybe_unused]] auto durationDivisionsHold(const JitterStats& stats) -> bool
+{
+  if (stats.runtimeNs == 0) {
+    return true;
+  }
+  const double perSecond = static_cast<double>(stats.gapCount) * 1e9
+      / static_cast<double>(stats.runtimeNs);
+  const double percent = static_cast<double>(stats.totalNs) * 100.0
+      / static_cast<double>(stats.runtimeNs);
+  return std::fabs(stats.gapsPerSecond - perSecond)
+      <= 1e-9 * (std::fabs(perSecond) + 1.0)
+      && std::fabs(stats.totalPercent - percent)
+      <= 1e-9 * (std::fabs(percent) + 1.0);
+}
+
 // The catalog half of the availability check (Q-1): the machine object
 // publishes the tsc leaf, countable, at the read mode the probe opens
 // through (R-02).
@@ -458,21 +479,7 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
             "the effective fields carry the state's own (FR-007, R-05)");
   SG_ENSURE(stats.runtimeNs == lastStamp - firstStamp,
             "the covered span is the kept records' stamp span (E-03)");
-  // `-Wfloat-equal` bars the direct comparison, so the relation reads
-  // the difference against the scale of the values, the reading
-  // percentiles.cpp's ceiling takes.
-  const double perSecond = static_cast<double>(stats.gapCount) * 1e9
-      / static_cast<double>(stats.runtimeNs);
-  const double percent = static_cast<double>(stats.totalNs) * 100.0
-      / static_cast<double>(stats.runtimeNs);
-  // The relation holds over a nonzero span; a kept set whose records
-  // share one stamp answers no finite division, the zero case the
-  // empty-set rows above already except.
-  SG_ENSURE(stats.runtimeNs == 0
-                || (std::fabs(stats.gapsPerSecond - perSecond)
-                        <= 1e-9 * (std::fabs(perSecond) + 1.0)
-                    && std::fabs(stats.totalPercent - percent)
-                        <= 1e-9 * (std::fabs(percent) + 1.0)),
+  SG_ENSURE(durationDivisionsHold(stats),
             "the duration divisions answer the covered span (E-03, R-05)");
   return stats;
 }
@@ -567,18 +574,7 @@ auto gapStatsOf(const ProbeCpuState& state,
             "the effective fields carry the state's own (FR-007, R-05)");
   SG_ENSURE(stats.runtimeNs == coveredNs,
             "the covered span is the windows' total duration (E-03)");
-  // `-Wfloat-equal` bars the direct comparison, so the relation reads
-  // the difference against the scale of the values, the reading
-  // percentiles.cpp's ceiling takes.
-  const double perSecond = static_cast<double>(stats.gapCount) * 1e9
-      / static_cast<double>(stats.runtimeNs);
-  const double percent = static_cast<double>(stats.totalNs) * 100.0
-      / static_cast<double>(stats.runtimeNs);
-  SG_ENSURE(stats.runtimeNs == 0
-                || (std::fabs(stats.gapsPerSecond - perSecond)
-                        <= 1e-9 * (std::fabs(perSecond) + 1.0)
-                    && std::fabs(stats.totalPercent - percent)
-                        <= 1e-9 * (std::fabs(percent) + 1.0)),
+  SG_ENSURE(durationDivisionsHold(stats),
             "the duration divisions answer the covered span (E-03, R-05)");
   return stats;
 }

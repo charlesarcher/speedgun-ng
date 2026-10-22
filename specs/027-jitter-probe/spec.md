@@ -193,7 +193,19 @@ named beside it.
   0.17.0. Each rebase re-reads `CMakeLists.txt` on master and takes the
   next free minor version; each `SOVERSION` rises by one from master.
   A change in the order takes the next free value, and the rebase note
-  records why (Run-time binding).
+  records why (Run-time binding). The review of PR #46 corrects the
+  rule's application: a `SOVERSION` rises only when that archive's
+  public ABI changes, and the check stands recorded here. The harness
+  ABI changes - `JitterStats`, `JitterEntryFold`, `JitterProbeMode`,
+  `JitterProbeOptions` and `runJitterProbe` join the surface,
+  `BenchmarkResult` gains `jitterFolds`, `ReportData` gains
+  `runJitterStats`, `RawContent` gains `GAPS`, and `BenchmarkHandle`
+  gains the `jitterProbe` member (every name read in
+  `include/speedgun-ng/benchmark.hpp`) - so the harness `SOVERSION`
+  rises to 11. The archive's only counters change is the fake
+  provider's lock scope, which names no public symbol, so the archive
+  `SOVERSION` stays at master's 3. The audit table's rise rows stand
+  as the plan-time record; this paragraph carries the applied check.
 
 ## Audit point
 
