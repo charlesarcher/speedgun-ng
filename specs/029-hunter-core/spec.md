@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-22
 
-**Status**: Draft
+**Status**: Ready
 
 **Input**: User description, opening quoted. The request of 2026-10-22 is
 the owner's pasted prompt for roadmap item N14a, section 12 of
@@ -38,7 +38,8 @@ not copied.
 - Branch `029-hunter-core` from master `bd10d76` (dated 2026-10-21,
   version 0.16.0, harness `SOVERSION 10`, archive `SOVERSION 3`).
 - The master facts below cite `bd10d76` lines as evidence. At run time,
-  find each item by its symbol, not by its line number.
+  find each item by its symbol; line numbers stand as audit evidence
+  alone.
 - Version rule. The planned merge order is N13a (0.17.0), N7 (0.18.0),
   N14a (0.19.0). The planned version is a reservation: at rebase, read
   `CMakeLists.txt` on master and take the next free minor. If N14a
@@ -47,10 +48,14 @@ not copied.
   notes.
 - Schema: N14a reserves schema minor 1.4 (hard rule 11). At rebase, take
   the next free minor and add the keys of the lanes that merged before.
-- ABI check of hard rule 12, recorded here: `hunt.hpp` adds new public
-  calls, so the harness public ABI changes and the harness `SOVERSION`
-  rises from 10 to 11. The counters library ABI does not change (no new
-  symbol in any `counters_*.hpp`), so the archive `SOVERSION` stays 3.
+- ABI check of hard rule 12, recorded here and corrected at the audit
+  point: `hunt.hpp` adds new public calls, so the harness public ABI
+  changes and the harness `SOVERSION` rises from 10 to 11. PC-3
+  measured that `FakeProvider` is `final` and scripts no open failure;
+  D-18 requires a test that sets one, so the seam joins
+  `counters_fake.hpp`, which the archive library exports. That changes
+  the counters library ABI and the archive `SOVERSION` rises from 3 to
+  4.
 
 ## Decisions
 
@@ -155,8 +160,198 @@ evidence. Find every item by its symbol.
 
 ## Preconditions
 
-_(filled by the audit tasks PC-1 to PC-9 on this branch before the plan
-phase; see the Audit point section)_
+All nine preconditions carry their evidence below, read from the tree
+at `bd10d76` by symbol on 2026-10-22.
+
+### PC-1: the catalog API, the refusal states and the address form. PASS-with-note.
+
+- `System::object(path)` answers `std::expected<Object, Error>` with
+  near-miss diagnostics; `Object::counters()` answers
+  `std::vector<CatalogEntry>` by value, so a caller keeps the vector
+  while holding views into it; `Object::counter(name)` resolves one
+  leaf. `Object::programmableCounters()` answers the per-device
+  programmable-counter limit as `std::optional`.
+- `CatalogEntry` fields stand exactly as cited; there is no address
+  field. The address is `path + "/" + name`, composed at registration
+  and read back through `Counter::address`.
+- `Availability` carries all six kinds the skipped list names.
+  Discovery (`probeDevice` with one test-open per target kind) is the
+  only place a hunt can collect `PERMISSION_BLOCKED`,
+  `NOT_ENCODABLE` or `SCOPE_REFUSED`: a device-scoped entry whose cpu
+  probe was refused reads `SCOPE_REFUSED`, and planning one
+  non-`COUNTABLE` leaf anyway fails the whole spine compile with one
+  recoverable error naming the catalog state. `ABSENT` arises from an
+  unresolvable address or the scripted seam.
+- Mid-run, the only non-`COUNTABLE` state the fold publishes is `GAP`
+  (an unmeasured window end). D-10's second branch and D-18's retry
+  trigger are exactly that state.
+- Uncore devices each form their own object with a distinct device
+  part (`uncore_imc_0`, `uncore_cha_3`, `amd_df` after the label
+  folds). The library's core-device predicate names `cpu`, `cpu_core`
+  and `cpu_atom` only; the `armv8_` prefix rule of D-1 is new
+  hunt-side code with no library helper.
+
+### PC-2: the N6 planner takes hunt-width plans. PASS-with-note.
+
+- `planPasses` is a width-agnostic first fit: per pass a shared leaf
+  claims one counter (`claimedAddresses`), each column's deduplicated
+  ask is tested against the published limits, and the closing asserts
+  pin request order and the per-pass bound. No column-count constant
+  exists in it.
+- `ColumnLeaves::source` indexes the caller's `sourceLimits` vector,
+  which the harness builds lazily by device path from
+  `Object::programmableCounters()`. Naming an unpriced source trips
+  the contract and plans nothing.
+- Leaf set over the limit means more passes; a column wider than every
+  limit opens a pass flagged `exclusive` that the kernel rotates.
+- Device reports no limit means `MULTIPLEX` already: `planPasses`
+  answers an empty plan when no source answers and `settleMethod`
+  settles `MULTIPLEX` for every request. D-19's no-limit row needs no
+  planner change.
+- The spine compile carries no leaf-count or column-count ceiling. The
+  real bound is the one perf group per device inside it: a refused
+  member makes the whole group open fail. The value there is the
+  device's schedulable set: the published limit answers it, where no
+  code constant exists. `kMaxUserCounters` 16 caps named `--counter`
+  columns alone; hunt columns stand outside that cap.
+- Note: `limitForDevice` answers only for `cpu`, `cpu_core` and
+  `cpu_atom`, and a hybrid host answering leaf 0x23 publishes no limit.
+  Arm hosts therefore plan as `MULTIPLEX`, never as L - 2 per pass; the
+  limit-of-6 shape of AC-1 is reachable through the scripted seam.
+
+### PC-3: FakeProvider scripts values, availability and the limit, and has no open-failure seam. FAIL.
+
+- Values per read: `setPoints(objectPath, name, points, tailDelta,
+  deltaSeed)` with a per-window playback cursor and `readActions()`.
+- Availability per counter: `addCounter(..., avail, ...)` is a catalog
+  fact frozen at open; the only runtime state is `GAP`, scripted per
+  leaf with `setGapActions`.
+- The limit: `setProgrammableCounters(objectPath, limit)` before
+  `System::open`; unscripted objects answer no limit.
+- Open failure: no API. `FakeProvider::open` answers `nullptr` only for
+  an undeclared object or counter, and `compileCore` refuses an unknown
+  or non-`COUNTABLE` leaf before it ever calls `open`, so even that
+  route is unreachable from a harness run. The class is `final`, so a
+  test cannot subclass it either.
+- The only open-failure seams today are hand-written `ProviderIface`
+  subclasses at the counters-library test level; the harness CLI level
+  cannot reach them. The scripted-host fixture
+  (`test/source/detail/pass_fixture.hpp`) scripts `cpu`-family objects
+  and limits before registration and is the shape to build on.
+- Consequence, carried by D-18: the open-failure seam joins the public
+  fake (scripted per address or per leaf set), and by hard rule 12 the
+  archive `SOVERSION` rises to 4 (the ABI record above).
+
+### PC-4: the N1 median/CV aggregate is one TU-local helper, not a reusable one. PASS-with-note.
+
+- The public aggregate is `sg::Statistics` (`benchmark.hpp:Statistics`),
+  the record with `mean`, `median`, `sampleStdDev`,
+  `coefficientOfVariation`; no public function produces it.
+- The only computing site is `statisticsOf` in the anonymous namespace
+  of `source/harness/runner.cpp`: sort, even-count median of the two
+  central values, `n - 1` standard deviation, CV guarded so a zero mean
+  answers 0.0. The three call sites (time, metric, counter columns)
+  guard the empty list with the zero record.
+- `report.cpp`, `compare.cpp:aggregateValueOf`, `json_report.cpp` and
+  `json_load.cpp` all read the record instead of recomputing.
+- Two other medians exist with different conventions and must not rank
+  a hunt: `pass_plan.cpp:passSpread` takes the lower central value and
+  `counters/plan.cpp` the upper. Reusing `statisticsOf` is what makes a
+  hunt CV equal the printed `cv=` column.
+- The plan extracts `statisticsOf` into a named header under
+  `source/harness/detail/`, keeps it a named function for the dbc-gate
+  form, and calls it from `runner.cpp` and the hunt alike (FR-030).
+  `sg::Statistics` arrives whole; a narrower CV-only helper is not
+  worth a second convention.
+
+### PC-5: the JSON writer, reader and schema seams take the two hunt objects. PASS-with-note.
+
+- Writer: `json_report.cpp:writeReport` opens the root object writer and
+  appends the top-level keys; a top-level `hunt` object is one
+  `root.key("hunt")` block with the RAII writers owning commas and
+  brackets. The per-entry object goes in `writeEntry` after the pass
+  keys of 024, the last-appended position.
+- Reader: `loadReport` gates the schema major only; the per-entry read
+  is `readEntry`, all scalars use the `.get(out)` error-code form
+  through the `field`/`optionalField` helpers, and each refused code
+  carries its own test (hard rule 7).
+- The root object of the schema is open and the per-benchmark object is
+  closed: `checkNode` refuses an unlisted key only in the closed object
+  and enforces the relative `x-order` there. So both hunt keys join
+  `properties` and `x-order`; the per-entry key must, or hunt
+  documents fail the schema check.
+- Deviation from the 024 precedent, by D-17: the hunt keys stay out of
+  `required`, because a non-hunt run writes no hunt object, and the
+  reader uses `optionalField` for them.
+- The tests that pin forward compatibility stay green by construction:
+  an unknown key in an open object loads unchanged, a pre-024 document
+  still loads, and written documents are schema-checked through
+  `SG_SCHEMA_PATH`.
+
+### PC-6: no raw r hex event form exists in sg::counters. PASS.
+
+- No raw production exists: the encode path accepts sysfs format specs
+  (`<field>:<low>-<high>`) and `(field-name, integer)` pairs only, and
+  the two accepted event spellings (kernel alias fields, vendored
+  table rows) are both name-based. Names are looked up, never decoded:
+  `r4a03` today is an unknown-name catalog error.
+- Note for D-11: master treats a raw `--counter` value as an ordinary
+  address that fails to resolve, marks the column `ABSENT` and keeps
+  running. The exit-2 refusal therefore lives in
+  `source/harness/hunt_cli.cpp`, and the hunt never composes a column
+  from an unresolved address.
+
+### PC-7: no catalog address can begin with @. PASS-with-note.
+
+- Measured over the whole pinned table tree (542 files, 46,823 event
+  rows): event names use `[0-9A-Za-z_.]` only, start alphanumeric, and
+  none contains `@`. Metric rows use `%` but never reach a device
+  catalog.
+- A kernel and data convention holds this property; no code invariant
+  enforces it:
+  nothing refuses an `@` in a future table row or sysfs alias, so the
+  `@` interception belongs where the option value is read, exactly as
+  the future `--counter=@<file>` will need.
+- Addresses split on the last `/`; a leading `@` does not disturb
+  resolution.
+
+### PC-8: the catalog gives the anchors as cpu/cpu-cycles and cpu/instructions. PASS.
+
+- The address form is `<device>/<name>`: `system.cpp:buildLeaves`
+  composes it, and the device part is the sysfs directory name under
+  `/sys/bus/event_source/devices`.
+- Kernel aliases provide the anchors; the vendored rows carry other
+  events: the catalog
+  exposes `cpu/cpu-cycles` and `cpu/instructions` (and the same two
+  names on `cpu_core` and `cpu_atom` of a hybrid part); the bare
+  `cycles` string exists only in tolerant test lists. The hunt uses the
+  catalog address and invents no alias.
+- `CatalogEntry` carries no address field, so the hunt discovery
+  composes `Object::path() + "/" + entry.name`.
+- `--hunt=all` over the core device parts also selects `cpu/enabled`,
+  `cpu/running` and the `topdown-*` aliases, ordinary catalog entries
+  under D-1's device rule.
+- One hunt column stays on one device: a pass anchor comes from the
+  same device as its event. The `armv8_*` core rule of D-1 is a new
+  prefix rule with no code precedent (no such string exists on
+  master).
+
+### PC-9: a mid-run group-open failure aborts on a contract, it does not fail the run. PASS-with-note.
+
+- The seat for a pass is `seatPass` in `runner.cpp`; it collapses an
+  open refusal and a compile refusal into one "does not compile"
+  message. Pass 0 is the only clean failure: the run marks FAILED and
+  the CLI exits 1.
+- Every later seat checks the seat with `SG_INVARIANT` only. Under the
+  default contract semantic that is `std::abort()` (SIGABRT): the
+  process dies with no row, no report, and status 134. The pass loop
+  documents the opposite assumption (the frozen catalog keeps every
+  pass compilable), and a later open failure violates exactly it.
+- Consequence, carried by D-18 and FR-021: the per-pass retry needs
+  the seat to return its error inside the loop; the invariant route
+  answers with the contract handler. The retry itself runs each event
+  of the failed pass with
+  the two anchors, inside the same pass loop, adding no second loop.
 
 ## Roadmap position
 
@@ -470,8 +665,9 @@ Requirements use the capability ids of the request (C-1 to C-8).
 
 - **FR-090**: `CMakeLists.txt` SHALL rise to version 0.19.0, or the next
   free minor at rebase (recorded reason), with harness `SOVERSION` 11
-  (public ABI change: the new `hunt.hpp` calls) and archive `SOVERSION`
-  unchanged at 3.
+  (the new `hunt.hpp` calls) and archive `SOVERSION` 4 (the scripted
+  open-failure seam of D-18 joins the exported `FakeProvider`, per
+  PC-3).
 - **FR-091**: The change SHALL hold 100% line and branch coverage with
   no exclusion marker, no waiver, and no residual row; coverage uses
   `lcov --filter brace` and no code is shaped to move brace counts. A
@@ -542,8 +738,8 @@ Requirements use the capability ids of the request (C-1 to C-8).
   attached under `specs/029-hunter-core/results/`, and once on gary
   (Zen 5) when its lane has a gap (AC-10). On corsairone the recorded
   `perf_event_paranoid` value (2 at the time of this writing) may push
-  kernel-scoped events into the skipped list; the disclosure is part of
-  the recorded result, not a failure.
+  kernel-scoped events into the skipped list; the disclosure belongs
+  to the recorded result. The run stands passed.
 
 ## Constraints
 
@@ -616,7 +812,8 @@ mechanics, and the AC-10 hardware records.
   compile rejects the hunt width, the planner splits further (still
   inside the N6 planner, D-23).
 - A "repeat" is one full pass-loop run of the benchmark over the plan
-  (the N6 pass loop semantics), not a re-arm inside a pass.
+  (the N6 pass loop semantics). A re-arm inside one pass counts zero
+  repeats.
 - The calibration estimate exists as data after the N6 calibration run
   (the iteration count fixed once per benchmark); the estimate per pass
   is that run time times the repeat and pass counts, computed by the
@@ -641,7 +838,7 @@ mechanics, and the AC-10 hardware records.
   pass loop in `runner.cpp`, `MetricMethod`).
 - N2 JSON writer/reader (`json_report.cpp`, `json_load.cpp`,
   `loadReport`, `docs/schema/report-v1.json`).
-- N1 statistics (median, CV) as aggregates; reused, not copied.
+- N1 statistics (median, CV) as aggregates; reused and copied nowhere.
 - Vendored kernel PMU tables `external/pmu-events` (RECORD
   `linux-7.2.4`, `tools/perf/pmu-events/arch/x86`, skylakex and
   amdzen1 to amdzen6 included), embedded by
@@ -698,7 +895,7 @@ Evidence at `bd10d76`, checked by symbol on 2026-10-22:
   changes the counters ABI (the encode path) and would raise the
   archive `SOVERSION` to 4. Needs a later spec.
 - gary acceptance timing: AC-10's Zen 5 run waits for a gap in the N7
-  lane. Recorded as a schedule risk, not a design question.
+  lane. Recorded as a schedule risk. No design question waits on it.
 
 ## Budget note
 
