@@ -228,53 +228,47 @@ struct JitterField
 // the reader that answers its value: the one table the name lookup and
 // the value read share, so a field name outside the sixteen reads
 // nowhere (specs/027 FR-002, E-03, FR-030).
-constexpr std::array<JitterField, 16> kJitterFields { {
+constexpr std::array<JitterField, 16> kJitterFields {{
     {"gapCount",
-     [](const JitterStats& stats) {
-       return static_cast<double>(stats.gapCount);
-     }},
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.gapCount); }},
     {"gapsPerSecond",
      [](const JitterStats& stats) { return stats.gapsPerSecond; }},
-    {"minNs", [](const JitterStats& stats) {
-       return static_cast<double>(stats.minNs);
-     }},
-    {"medianNs", [](const JitterStats& stats) {
-       return static_cast<double>(stats.medianNs);
-     }},
-    {"meanNs",
-     [](const JitterStats& stats) { return stats.meanNs; }},
-    {"p90Ns", [](const JitterStats& stats) {
-       return static_cast<double>(stats.p90Ns);
-     }},
-    {"p99Ns", [](const JitterStats& stats) {
-       return static_cast<double>(stats.p99Ns);
-     }},
-    {"p999Ns", [](const JitterStats& stats) {
-       return static_cast<double>(stats.p999Ns);
-     }},
-    {"p9999Ns", [](const JitterStats& stats) {
-       return static_cast<double>(stats.p9999Ns);
-     }},
-    {"maxNs", [](const JitterStats& stats) {
-       return static_cast<double>(stats.maxNs);
-     }},
-    {"totalNs", [](const JitterStats& stats) {
-       return static_cast<double>(stats.totalNs);
-     }},
+    {"minNs",
+     [](const JitterStats& stats) { return static_cast<double>(stats.minNs); }},
+    {"medianNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.medianNs); }},
+    {"meanNs", [](const JitterStats& stats) { return stats.meanNs; }},
+    {"p90Ns",
+     [](const JitterStats& stats) { return static_cast<double>(stats.p90Ns); }},
+    {"p99Ns",
+     [](const JitterStats& stats) { return static_cast<double>(stats.p99Ns); }},
+    {"p999Ns",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.p999Ns); }},
+    {"p9999Ns",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.p9999Ns); }},
+    {"maxNs",
+     [](const JitterStats& stats) { return static_cast<double>(stats.maxNs); }},
+    {"totalNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.totalNs); }},
     {"totalPercent",
      [](const JitterStats& stats) { return stats.totalPercent; }},
-    {"runtimeNs", [](const JitterStats& stats) {
-       return static_cast<double>(stats.runtimeNs);
-     }},
-    {"thresholdNs", [](const JitterStats& stats) {
-       return static_cast<double>(stats.thresholdNs);
-     }},
-    {"loopPeriodNs", [](const JitterStats& stats) {
-       return static_cast<double>(stats.loopPeriodNs);
-     }},
-    {"droppedGaps", [](const JitterStats& stats) {
-       return static_cast<double>(stats.droppedGaps);
-     }},
+    {"runtimeNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.runtimeNs); }},
+    {"thresholdNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.thresholdNs); }},
+    {"loopPeriodNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.loopPeriodNs); }},
+    {"droppedGaps",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.droppedGaps); }},
 }};
 
 // The parts of one jitter value name, the grammar
@@ -341,11 +335,10 @@ auto readJitterName(std::string_view name)
     fieldEnd = atMark;
   }
   const std::string_view fieldToken = rest.substr(0, fieldEnd);
-  const auto field = std::find_if(
-      kJitterFields.begin(),
-      kJitterFields.end(),
-      [fieldToken](const JitterField& candidate)
-      { return candidate.name == fieldToken; });
+  const auto field = std::find_if(kJitterFields.begin(),
+                                  kJitterFields.end(),
+                                  [fieldToken](const JitterField& candidate)
+                                  { return candidate.name == fieldToken; });
   if (field == kJitterFields.end()) {
     return std::unexpected("'" + std::string(fieldToken)
                            + "' names none of the sixteen jitter fields");
@@ -382,7 +375,8 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
     rule.valueName = std::string(prefix) + name;
     statisticsValue = prefix != "stat:";
   } else if (name == "jitter" && afterName < text.size()
-             && text[afterName] == ':') {
+             && text[afterName] == ':')
+  {
     const auto jitterName = readJitterName(text.substr(afterName + 1));
     if (!jitterName.has_value()) {
       return ruleFault("value name", text, jitterName.error());
@@ -1439,21 +1433,19 @@ auto jitterValueOf(const std::optional<std::vector<JitterEntryFold>>& runStats,
     -> std::expected<double, std::string>
 {
   const std::vector<JitterEntryFold> noStats;
-  const std::vector<JitterEntryFold>& stats =
-      parts.runScoped ? (runStats.has_value() ? *runStats : noStats)
-                      : entry.jitterFolds;
+  const std::vector<JitterEntryFold>& stats = parts.runScoped
+      ? (runStats.has_value() ? *runStats : noStats)
+      : entry.jitterFolds;
   if (!parts.worstCpu) {
-    const auto found = std::find_if(
-        stats.begin(),
-        stats.end(),
-        [parts](const JitterEntryFold& fold)
-        { return fold.cpu == parts.cpu; });
+    const auto found = std::find_if(stats.begin(),
+                                    stats.end(),
+                                    [parts](const JitterEntryFold& fold)
+                                    { return fold.cpu == parts.cpu; });
     if (found == stats.end()) {
       return std::unexpected(
-          "the rule '" + rule.text + "' names cpu "
-          + std::to_string(parts.cpu) + " and the jitter stats of "
-          + std::string(name) + " in the " + std::string(reportLabel)
-          + " report do not carry it");
+          "the rule '" + rule.text + "' names cpu " + std::to_string(parts.cpu)
+          + " and the jitter stats of " + std::string(name) + " in the "
+          + std::string(reportLabel) + " report do not carry it");
     }
     return kJitterFields.at(parts.field).value(found->stats);
   }
@@ -1550,12 +1542,11 @@ auto scopedValuesOf(const ReportData& baseline,
     if (baselineRow == nullptr || contenderRow == nullptr) {
       continue;
     }
-    const auto readValue =
-        [&](const BenchmarkResult& result,
-            const ResultRow& row,
-            const ReportData& report,
-            const std::string_view reportLabel)
-            -> std::expected<double, std::string>
+    const auto readValue = [&](const BenchmarkResult& result,
+                               const ResultRow& row,
+                               const ReportData& report,
+                               const std::string_view reportLabel)
+        -> std::expected<double, std::string>
     {
       // specs/027 FR-030 to FR-032: a jitter name reads the stats the
       // report carries for it, with the usage errors of FR-032.
