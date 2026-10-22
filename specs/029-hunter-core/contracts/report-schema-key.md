@@ -64,19 +64,22 @@ inside a present `hunt` object every key is required by the hunt node's own
 ```text
 "hunt": {
   "type": "object",
-  "x-order": ["selection", "norm", "rank", "top", "noise", "repeats", "seed",
-              "budget", "passes", "method", "estimate_ns", "planned_events",
-              "ran_events", "stage_two_events"],
-  "required": [the same fourteen],
+  "x-order": ["selection", "norm", "rank", "top", "noisePercent", "repeats",
+              "seed", "budget", "passes", "method", "events", "stages",
+              "estimate_ns", "planned_events", "ran_events",
+              "stage_two_events"],
+  "required": [the same sixteen],
   "additionalProperties": false,
-  "properties": { one entry per name above }
+  "properties": { one entry per name above, `events` an array of strings and
+    `stages` an array of a closed node with x-order
+    ["first", "count", "repeats"] }
 }
 
 "hunt": {
   "type": "object",
-  "x-order": ["method", "pass_count", "top", "retried_passes", "estimate_ns",
-              "budget", "entries", "skipped"],
-  "required": [the same eight],
+  "x-order": ["method", "pass_count", "top", "retried_passes", "entries",
+              "skipped"],
+  "required": [the same six],
   "additionalProperties": false,
   "properties": {
     "entries": array of a closed node with x-order
@@ -89,8 +92,9 @@ inside a present `hunt` object every key is required by the hunt node's own
 Both nodes are closed and both list every key as required, because a hunt object
 the harness wrote always carries all of them: an absent value inside one is
 written as `null`, which is the shape `passSpread` already uses
-(`json_report.cpp:508`). The null-accepting kinds are `budget`, `estimate_ns`,
-`entries[].rank` and `skipped[].stage`, each written as a one-of pair of its kind
+(`json_report.cpp:508`). The null-accepting kinds are the top-level `budget`
+and `estimate_ns`, `entries[].rank` and `skipped[].stage`, each written as a
+one-of pair of its kind
 and `null` in the form the existing optional entries of the schema use.
 
 ## The 1.4 reservation and its rebase

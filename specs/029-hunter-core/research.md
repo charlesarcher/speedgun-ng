@@ -36,8 +36,8 @@ hold by construction: hunt reads nothing that the spine does not already read.
   runner to maintain for one report.
 - Hunt as named counter columns through the existing `--counter` slot.
   Rejected: `kMaxUserCounters` 16 bounds named columns
-  (`runner.cpp:866,873`) and D-6 states plainly that the constant bounds named
-  columns alone and must not bound hunt columns. The slot also carries no
+  (`runner.cpp:866,873`) and spec PC-2 states plainly that the constant bounds
+  named columns alone and bounds no hunt column. The slot also carries no
   per-event identity, so the anchor subtraction, the per-event sample list and
   the skipped list would need a side table keyed by address beside a column set
   that reports no address, which is more machinery than the column family.
@@ -50,18 +50,21 @@ hold by construction: hunt reads nothing that the spine does not already read.
 ## D-02 Core device rule
 
 **Decision**: a device takes part in `--hunt=all` when its device part is
-exactly `cpu`, `cpu_core` or `cpu_atom`, or when its entry name carries the
-`armv8_` prefix. The rule lives hunt-side in `EventCatalog`.
+exactly `cpu`, `cpu_core` or `cpu_atom`, or when its device part starts with the
+`armv8_` prefix. The rule reads the device part of the catalog address, which is
+the text `Object::path()` answers. The rule lives hunt-side in `EventCatalog`.
 
-**Rationale**: D-8 fixes the set, and the audit measured the parts the library
-publishes: `linux_pmu/rules.cpp` seeds `cpu_core` and `cpu_atom` (lines 516 and
-540) and `linux_pmu/provider.cpp` seeds `cpu` (lines 1502, 1513, 1529 and 1552)
-(spec PC-6). The `armv8_` entry names are the armv8 template names the embedded
-tables carry, so an entry-name prefix rule reaches them without a device-part
-rule; `json_load.cpp:868` already compares that prefix, which shows the spelling
-is stable in the shipped data. The library's own device-part switch is at
-`limitForDevice` (`rules.cpp:873`); writing the rule hunt-side leaves that
-function alone and keeps the library's device routing unchanged (spec Scope).
+**Rationale**: D-1 fixes the set on the address device part, and the audit
+measured the parts the library publishes: `source/counters/linux_pmu/counter_limits.cpp:284-295`
+matches `cpu`, `cpu_core` and `cpu_atom` (`limitForDevice` is defined at line
+288) and `source/counters/linux_pmu/provider.cpp:352,447-448` routes the same
+three parts (spec PC-1). No core-device name table exists for the hunt side to
+read; the `armv8_` device parts are the sysfs directory names an Arm host
+exposes, so the prefix rule is new hunt-side code with no library helper (spec
+PC-1). `test/source/detail/hunt_fixture.hpp` scripts a device whose path carries
+that prefix, and that scripted device is what proves the rule. Writing the rule
+hunt-side leaves `limitForDevice` alone and keeps the library's device routing
+unchanged (spec Scope).
 
 **Alternatives considered**:
 
@@ -90,9 +93,8 @@ one host behaviour for a provider that adds objects.
 **Alternatives considered**:
 
 - `System::objects("pmu")` with filters. Rejected for the default scan: the kind
-  filter answers a provider-declared kind, while D-8's rule is about the device
-  part and the entry name, so the walk has to inspect both anyway and the filter
-  adds nothing. It stays available for a later list mode that wants kinds.
+  filter answers a provider-declared kind, while D-1's rule is about the device
+  part, so the walk has to inspect it anyway and the filter adds nothing. It stays available for a later list mode that wants kinds.
 - Asking the metric tables for the event list. Rejected: the metric table lists
   formulas. Raw events come from the catalog, the only event-name source D-4
   names.
@@ -106,10 +108,10 @@ that owns the event, address-composed the same way as any other event
 iterations and says so in the plan line.
 
 **Rationale**: the audit measured `cycles` and `ref-cycles` missing from the
-`cpu` catalog and `cpu-cycles` present with `instructions` (spec PC-7), and the
+`cpu` catalog and `cpu-cycles` present with `instructions` (spec PC-8), and the
 vendor alias of `cpu-cycles` is a metric-formula spelling of the catalog entry,
-not a second catalog entry, so D-10's ban on invented aliases is satisfied by
-using the catalog name itself.
+while the catalog holds one entry, so the anchor uses the catalog name itself
+and invents no alias (D-13, spec PC-8).
 
 **Alternatives considered**:
 
@@ -130,13 +132,16 @@ definition in `source/harness/statistics.cpp`; the three runner call sites
 (`runner.cpp:2569,2601,2634`) call the named function and keep their
 empty-list guards.
 
-**Rationale**: D-16 requires the reuse and spec PC-4 measured the exact
+**Rationale**: FR-030 requires the reuse and spec PC-4 measured the exact
 mismatch: `statisticsOf` uses the average of the two central elements for an
 even count and the `n - 1` sample deviation, while `passSpread`
-(`pass_plan.cpp:367-378`) takes the lower central element, and the counters
-median (`source/counters/plan.cpp:1405`) does too. Reusing `statisticsOf` is the
-only choice that makes a hunt CV equal the printed `cv=` column, which AC-3
-requires. The header-plus-one-translation-unit pair is the house shape for a
+(`source/harness/pass_plan.cpp:404-430`) takes the lower central element and the
+counters median indexes `costs[costs.size() / 2]`
+(`source/counters/plan.cpp:309`), the upper central element, which is the
+lower-versus-upper split spec PC-4 records. Reusing `statisticsOf` is the only
+choice that ties a hunt CV to the printed `cv=` column by one fixed factor:
+hunt `cv` is one hundred times the printed ratio (data-model I-6), the relation
+AC-3 checks. The header-plus-one-translation-unit pair is the house shape for a
 named internal decision unit (`detail/pass_plan.hpp` with `pass_plan.cpp`,
 `detail/percentiles.hpp` with `percentiles.cpp`), and a named function is what
 `tools/dbc/dbc_pair_gate.py` pairs against its doc lines.
@@ -145,9 +150,10 @@ named internal decision unit (`detail/pass_plan.hpp` with `pass_plan.cpp`,
 
 - Reusing `passSpread`'s median. Rejected: it disagrees with the printed `cv=`
   column for an even sample count, so AC-3 would fail on the host of record.
-- Reusing the counters-library median. Rejected: same disagreement, and it
-  reaches into the counters archive for a harness reporting concern.
-- A hunt-local median and CV. Rejected by hard rule 16 and D-16: a second
+- Reusing the counters-library median. Rejected: its convention disagrees with
+  the shared average-of-two for an even count, and it reaches into the counters
+  archive for a harness reporting concern.
+- A hunt-local median and CV. Rejected by FR-030 and spec PC-4: a second
   statistics helper in the same library is the drift the audit recorded.
 - A header-only `inline` definition. Rejected: it puts an algorithm body in a
   header the harness compiles five times, and the house keeps bodies in `.cpp`
@@ -190,11 +196,13 @@ rate descending for `rate` or by CV ascending for `cv`, with ties broken by
 catalog address.
 
 **Rationale**: the report already summarizes every row through `statisticsOf`,
-so a pure ranker over the same samples equals the printed columns by
-construction (AC-3). Breaking ties by address makes the order a total order, so
-two runs of the same samples print the same table (FR-015). The threshold
-comparison reads the unrounded value, matching the specs/024 pass-spread
-warning, where the print is the one rounding.
+so a pure ranker over the same samples stands at one fixed factor from the
+printed columns by construction: hunt `cv` is one hundred times the printed
+ratio (AC-3, data-model I-6). Breaking ties by address makes the order a total
+order, so two runs of the same samples print the same table, and the order of a
+stage derives from the seed and the catalog order (FR-014 with D-9). The
+threshold comparison reads the unrounded value, matching the specs/024
+pass-spread warning, where the print is the one rounding.
 
 **Alternatives considered**:
 
@@ -215,7 +223,7 @@ the `instructions` count of the same pass and multiplies by 1000; `cycle` uses
 pass that answers zero for its anchor contributes no rate for that pass and is
 counted out, the way a gap repetition is counted out of `Statistics::samples`.
 
-**Rationale**: D-3 fixes the formula, and doing it per pass is what removes the
+**Rationale**: D-6 fixes the formula, and doing it per pass is what removes the
 multiplexing bias the formula exists for: each pass scales its own columns by
 its own anchor reading, so a pass the kernel rotated does not depress the rate
 of the events inside it. Zero-anchor exclusion keeps a division by zero out of
@@ -228,7 +236,7 @@ measured.
   passes, which is the bias the normalization removes.
 - A ratio to the anchor of pass 0. Rejected: pass 0 is the reference pass for the
   time columns of the 024 merge, which says nothing about its anchor readings.
-- Percent-of-peak normalization. Rejected: it is not the formula D-3 names and it
+- Percent-of-peak normalization. Rejected: it is not the formula D-6 names and it
   makes the value host-relative, so two hosts would print incomparable numbers.
 
 ## D-09 Scripted group refusal
@@ -292,7 +300,7 @@ pattern at `detail/pass_plan.hpp:27`, so no include cycle appears.
   record is the drift X.3 warns about.
 - Storing the hunt record as a JSON string on the result. Rejected: it hides a
   structured record inside a string, forces the reader to parse twice, and gives
-  no typed access for the console printer or the comparison of AC-8.
+  no typed access for the console printer or the comparison of AC-6.
 - Public hunt fields spread over `BenchmarkResult` beside `passCount`. Rejected:
   eleven flat fields on a record every lane edits widens the conflict surface
   with specs/027 and specs/028 for no gain; one nested record is one line at the
@@ -308,9 +316,10 @@ D-12, and a run with no hunt columns keeps the `SG_INVARIANT` at
 
 **Rationale**: PC-9 measured the consequence: the invariant at that site fires
 when a group-open refusal follows a successful pre-loop seat, and under the
-default `observe` contract semantic a violation prints to `stderr` and calls
-`std::abort` (`source/dbc/dbc.cpp:110-113`), so the run would die instead of
-skipping an event. The invariant's stated assumption is that the frozen catalog
+default `observe` contract semantic a violation reaches the default response
+that writes the record to `stderr` and then calls `std::abort`
+(`include/speedgun-ng/dbc.hpp:128-135,168,213`), so the run would die and skip
+no event. The invariant's stated assumption is that the frozen catalog
 keeps every pass compilable; a schedulable-set refusal at open breaks that
 assumption at run time, so the condition is a runtime condition and not a
 violated contract. Keeping the invariant for a run with no hunt columns keeps
@@ -363,15 +372,20 @@ new skip channel into the fold.
 
 **Decision**: one `Runner::run` call per stage over the same instance: stage 1
 at one repetition over the full plan, stage 2 at `--hunt-repeats` over the
-reduced plan. The row set the report and the JSON writer publish comes from the
-last stage that ran, and the hunt records merge per address, stage 2 values
-winning.
+reduced plan. The row set the report and the JSON writer publish merges both
+stages per address, stage 2 values winning, and an event stage 2 did not
+measure keeps its row: its `RankedEvent` and its `EntryHunt` entry are built
+from its stage 1 samples.
 
 **Rationale**: the runner is the only path that seats a plan, opens windows,
 folds and merges, so two calls reuse the whole spine and add no second pass
-loop. Publishing the last stage's rows keeps one printed row set, which keeps a
-hunt run's benchmark tables readable and keeps `report_shape` shape checks
-single-valued.
+loop. `Runner::run` publishes one `BenchmarkResult` per run
+(`detail/internal.hpp:494`) and `pass_plan.hpp:119` folds exactly the columns of
+the plan that ran, so the stage 2 result alone would publish only the reduced
+column set while invariant I-4 demands an entry for every planned column. The
+merge step appends the stage 1 records for the columns the stage 2 result does
+not cover; that keeps one printed row set, keeps a hunt run's benchmark tables
+readable, and keeps `report_shape` shape checks single-valued.
 
 **Alternatives considered**:
 
@@ -423,7 +437,7 @@ to stderr.
 `report.cpp:410` owns the per-benchmark tables and `printPassDisclosure` at
 line 251 is the precedent for a disclosure printed by the same path, so the
 hunt printers join `report.cpp` and reuse `availabilityName` (line 36) and
-`metricMethodName` (line 216) instead of writing a second name table.
+`metricMethodName` (line 216), which keeps one name table in the tree.
 
 **Alternatives considered**:
 
@@ -464,11 +478,11 @@ is what a CI host without PMU access needs to test the same line.
 
 ## D-17 Option wiring
 
-**Decision**: eight named constants in `cli.cpp` at values 270 to 279:
+**Decision**: eight named constants in `cli.cpp` at values 270 to 277:
 `kHuntOption` 270, `kHuntNormOption` 271, `kHuntRankOption` 272,
 `kHuntTopOption` 273, `kHuntNoiseOption` 274, `kHuntRepeatsOption` 275,
-`kHuntBudgetOption` 276, `kHuntSeedOption` 277, leaving 278 and 279 for the
-hunt lane's later options. `hunt_cli.cpp` holds the parse functions, the value
+`kHuntBudgetOption` 276, `kHuntSeedOption` 277. The lane reserves 270 to 279
+(D-22), so 278 and 279 stay unused this release. `hunt_cli.cpp` holds the parse functions, the value
 ranges, the refusal texts, the `@file` reader, the glob matcher, the raw-code
 refusal and the conflict check. `cli.cpp` gains the eight rows of
 `option longOptions[]` and eight switch arms that call one `hunt_cli` function
@@ -476,7 +490,7 @@ each. `--hunt` is the tree's first `optional_argument` row, so its value form is
 `--hunt=all` with no space.
 
 **Rationale**: values 256 to 259 are taken (`cli.cpp:69-71,345`) and 270 to 279
-are free (spec PC-5). D-22 keeps the parse bodies out of `cli.cpp` because
+are free for this lane (spec D-22). D-22 keeps the parse bodies out of `cli.cpp` because
 specs/028 (N7) rebuilds that file, and a row-and-call edit is the smallest
 possible rebase there. `example_drift.py`'s `cli_options` (line 458) reads the
 single `option ... [] = { ... }` table by regular expression, so all eight rows
@@ -502,13 +516,14 @@ conflict check runs after the scan, where the settled `RunOptions` shows whether
 **Decision**: `test/source/harness_cli_table_test.cpp` reads the source of
 `cli.cpp` through a compiled-in `SG_CLI_SOURCE` path, parses the one
 `option longOptions[]` table and the named value constants, and asserts that no
-name repeats, that no value repeats, that 270 to 279 are claimed by the hunt
-rows, and that 280 to 289 stand free. The fixture twin of a table with a planted
-duplicate and a planted value clash lives under `test/source/detail/`.
+declared name repeats, that no declared value repeats across the whole table,
+and that every hunt value lies in 270 to 279, the block the lane reserves. The
+fixture twin of a table with a planted duplicate and a planted value clash lives
+under `test/source/detail/`.
 
 **Rationale**: hard rule 10 gives the file to the first lane that merges, and
 `git ls-files | grep harness_cli_table` shows no such file at `bd10d76`, so this
-lane creates it and hard rule 9 makes it a requirement (FR-082, AC-4). The
+lane creates it and hard rule 9 makes it a requirement (FR-083). The
 option table is a function-local `static` array in `speedgunMain`
 (`cli.cpp:346`), so no linked test can read it; reading the source is what the
 gate `example_drift.py:458-465` already does for the same table, so the test

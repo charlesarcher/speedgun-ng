@@ -2,12 +2,13 @@
 
 **Feature**: specs/029-hunter-core | **Surface owner**: `source/harness/hunt_cli.cpp`
 with the table rows of `source/harness/cli.cpp` | **Audit point**: `bd10d76`
-**Spec**: FR-030 to FR-033, FR-080 to FR-082, D-1, D-9, D-11, D-12, D-21, D-22,
+**Spec**: FR-080 to FR-083, D-1, D-9, D-10, D-11, D-12, D-16, D-21, D-22,
 hard rules 2, 3, 9 and 10
 
 ## What this contract covers
 
-Eight long options, no short letters, values 270 to 279. `cli.cpp` gains the
+Eight long options, no short letters, named constants 270 to 277 inside the
+block 270 to 279 the lane reserves (D-22). `cli.cpp` gains the
 eight rows of the one `option longOptions[]` table at `cli.cpp:346` and eight
 named constants; every parse, range check, refusal message, `@file` reader, glob
 matcher and conflict check lives in `hunt_cli.cpp` (D-22). The table stays the
@@ -16,22 +17,24 @@ rows, so a hunt option with no README row fails `example_drift --options`.
 
 Values 256 to 259 are taken at `bd10d76` (`cli.cpp:69-71` for the three
 comparison options, `cli.cpp:345` for `kMetricMethodOption`), so 270 to 279 stand
-free (spec PC-5).
+free for this lane (spec D-22).
 
 ## The option table
 
 | Option | `getopt_long` row | Value | Default | Accepted | Refusal |
 |---|---|---|---|---|---|
-| `--hunt` | `{"hunt", optional_argument, nullptr, kHuntOption}` | 270 | off | no value or `=all`, a comma list of catalog addresses, one glob pattern, or `@path` | unknown address, pattern that matches nothing, empty address line, `=none`, raw code |
+| `--hunt` | `{"hunt", optional_argument, nullptr, kHuntOption}` | 270 | off | no value or `=all`, `=none`, a comma or newline list of catalog addresses, one glob pattern, or `@path` | unknown address, pattern that matches nothing, empty address line, raw code |
 | `--hunt-norm` | `required_argument` | 271 | `instr` | `instr`, `cycle`, `iter` | any other word |
-| `--hunt-rank` | `required_argument` | 272 | `rate` | `rate`, `cv` | any other word, `sensitivity`, `delta`, `score` included (D-14) |
+| `--hunt-rank` | `required_argument` | 272 | `rate` | `rate`, `cv` | any other word, `sensitivity`, `delta`, `score` included (D-3) |
 | `--hunt-top` | `required_argument` | 273 | `20` | integer 1 to 10000 | 0, 10001, non-integer |
 | `--hunt-noise` | `required_argument` | 274 | `10` | percent CV threshold above `0.0` | `0`, a negative value, non-numeric |
-| `--hunt-repeats` | `required_argument` | 275 | `10` | integer 1 to 1000 | 0, 1001, non-integer |
+| `--hunt-repeats` | `required_argument` | 275 | `3` | integer 1 to 1000 | 0, 1001, non-integer |
 | `--hunt-budget` | `required_argument` | 276 | none | `<n>s` seconds or `<n>p` passes, `<n>` above 0 | no suffix, `0s`, `0p`, negative, non-numeric |
 | `--hunt-seed` | `required_argument` | 277 | `0` | any unsigned 64-bit value | non-numeric, a value a `std::uint64_t` cannot hold |
 
-Values 278 and 279 stay unclaimed for the later options of this feature. Every
+The eight constants take 270 to 277. The lane reserves 270 to 279 (D-22), so
+278 and 279 stay unused this release, and 280 to 289 stay free for N14a-2.
+Every
 constant is named in `cli.cpp` beside the comparison constants, in the form the
 comment at `cli.cpp:66-68` states: a long option with no letter of its own takes
 a number of 256 or more, so it cannot collide with a short option.
@@ -45,15 +48,17 @@ contract states the attached form as the spelling, and the docs example uses it.
 
 | Form | Reading |
 |---|---|
-| `--hunt` or `--hunt=all` | every entry of every core device in the catalog (D-1, D-8) |
-| `--hunt=a/b,a/d` | a comma-separated list of catalog addresses, in the order of the text, reaching any device, uncore included (FR-005) |
-| `--hunt=uncore/*` | one glob pattern over the catalog addresses; `*` matches any run of characters including none, `?` matches one character, and the match is case-sensitive |
+| `--hunt` or `--hunt=all` | every entry of every core device in the catalog (D-1) |
+| `--hunt=none` | the hunt is disabled; the run behaves exactly like a run with no `--hunt` (FR-001, spec Assumptions), so discovery and planning never see the value |
+| `--hunt=a/b,a/d` | a list of catalog addresses separated by commas or newlines, in the order of the text, reaching any device, uncore included (D-1) |
+| `--hunt=uncore/*` | one glob pattern over the catalog addresses; `*` matches any run of characters including none, `?` matches one character, and the match is case-sensitive; a pattern reaches any device, uncore included (D-1) |
+| `--hunt=uncore*` | a well-formed pattern that selects every catalog address starting with `uncore`, which is the host's uncore events (D-1) |
 | `--hunt=@events.txt` | the file's catalog addresses, newline or comma separated; blank lines and surrounding whitespace are ignored (FR-006) |
 
 A raw event code of the shape `r[0-9a-fA-F]+` is refused wherever it appears,
 including inside a list, inside a pattern and on a line of a `@file`. The shape
 check runs before the catalog is consulted, so `r4a03` is refused on every host
-including one whose kernel would encode it (D-11; spec PC-1 measured that no
+including one whose kernel would encode it (D-11; spec PC-6 measured that no
 catalog entry carries an address-shaped `event` field to resolve it with).
 
 Expansion runs after the option scan and before the first run, where
@@ -70,9 +75,7 @@ status 2 (FR-081). The message form follows the percentile list refusal at
 
 | Input | Line |
 |---|---|
-| `--hunt=none` | `--hunt: expected all, a catalog address list, a pattern or @file, got 'none'` |
 | `--hunt=cpu/nope` | `--hunt: 'cpu/nope' is not a catalog address` |
-| `--hunt=uncore*` | `--hunt: 'uncore*' is not a well-formed pattern` |
 | `--hunt=no/such*` | `--hunt: pattern 'no/such*' matches no catalog address` |
 | `--hunt=@missing.txt` | `--hunt: '@missing.txt' cannot be opened` |
 | `--hunt=@blank.txt` | `--hunt: '@blank.txt' holds no catalog address` |
@@ -101,6 +104,14 @@ the filter selected. `--hunt-repeats` sets the repeats of the hunt stages, and
 `--repetitions` keeps its present meaning for the benchmark's own repetitions,
 which are the rows the report prints.
 
+## Accepted combinations
+
+| Input | Behaviour |
+|---|---|
+| `--hunt` with `--metric-method=multiplex` | legal (D-16): every event is multiplexed, the plan line prints the method word `MULTIPLEX`, every row carries the word `multiplexed`, and the document writes the `method` value `MULTIPLEX` (D-19) |
+| `--hunt` with `--dry-run` | legal: the plan line prints and the run exits before measuring |
+| `--hunt=none` with anything | legal: the run is identical to the same command with no `--hunt` and no `--hunt=none` |
+
 ## Conflict check
 
 `hunt_cli.cpp` owns `validateHuntCombination(const RunOptions&)`, which `cli.cpp`
@@ -118,8 +129,7 @@ All hunt lines go to stdout behind the `hunt:` prefix; refusals go to stderr
 Before the run, once per hunt run:
 
 ```text
-hunt: plan events=42 passes=14 method=PASSES estimate=1248000ns budget=120s
-hunt: plan budget cut stage=2 reason=fits-budget
+hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s
 ```
 
 After the benchmark tables of the run:
@@ -130,19 +140,19 @@ hunt: rank 2 cpu/l2_lines_out.any_core instr=6.910 cv=2.05 multiplexed
 hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
 hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 mark=unrepeated
 hunt: skipped cpu/l1_dc_misses permission-blocked stage=2
-hunt: skipped armv8_cycle group-refused
+hunt: skipped armv8_pmuv3/cycle not-encodable stage=2
 hunt: plan summary events=40/42 passes=14 spend=1184000ns budget=120s
 ```
 
 | Rule | Detail |
 |---|---|
-| Ranked table size | at most `--hunt-top` ranked rows, then the excluded tail with `rank=-` and a `mark=` of `noisy`, `unrepeated` or `beyond-top` (D-14, D-7) |
-| `MULTIPLEX` | a run whose plan settled `MULTIPLEX` prints the method word `MULTIPLEX` in the plan line and the word `multiplexed` on every row (FR-022) |
-| No anchor | the plan line carries ` normalized=iter`, and the rate column is labelled `iter=` (D-3) |
-| No estimate | `estimate=not available`, because the estimate is calibration data and a hunt run can reach the plan before any calibration answered (FR-021) |
+| Ranked table size | at most `--hunt-top` ranked rows, then the excluded tail with `rank=-` and a `mark=` of `noisy`, `unrepeated` or `beyond-top` (D-7; plan decision D-14) |
+| `MULTIPLEX` | a run whose plan settled `MULTIPLEX` prints the method word `MULTIPLEX` in the plan line and the word `multiplexed` on every row (D-19) |
+| No anchor | the plan line carries ` normalized=iter`, and the rate column is labelled `iter=` (D-13) |
+| No estimate | `estimate=not available`, because the estimate is calibration data and a hunt run can reach the plan before any calibration answered (FR-012) |
 | Host that refuses everything | the plan line, no ranked row, the skipped list with one line per refused event, and the summary reading `events=0/N` (D-12) |
-| No hunt | no `hunt:` line at all, and no `hunt` key in the document (FR-040, I-8) |
-| `--dry-run` | the plan line prints and nothing else does: a dry run measures one iteration, so the ranked table, the excluded tail and the summary have no samples to print |
+| No hunt | no `hunt:` line at all, and no `hunt` key in the document (FR-052, I-8) |
+| `--dry-run` | composes with the hunt: the plan line prints and the run exits before measuring, so the ranked table, the excluded tail and the summary have no samples to print |
 
 ## Option table test
 
@@ -152,8 +162,9 @@ pattern `SG_SCHEMA_PATH` uses at
 `test/source/harness_json_schema_test.cpp:21-22`, and asserts:
 
 - no option name repeats in the table,
-- no option value repeats, counting the named constants as their numbers,
-- values 270 to 277 are claimed by the hunt rows and 278 to 289 stand free,
+- no option value repeats, counting the named constants as their numbers, so
+  declared names and declared values are globally unique,
+- every hunt value lies in 270 to 279, the block the lane reserves (D-22),
 - the fixture twin of a table with a planted duplicate name and a planted value
   clash is reported.
 
@@ -163,9 +174,12 @@ pattern `SG_SCHEMA_PATH` uses at
 |---|---|
 | Each refusal line of the table above, one case per row, status 2 and one stderr line | `test/source/harness_hunt_cli_test.cpp` |
 | In-process `speedgunMain` status checks, and forked children where the refusal path calls `std::exit`, following `test/source/harness_cli_test.cpp:800,1166,1417` | `harness_hunt_cli_test.cpp` |
-| Selection forms: `all`, list, pattern, `@file`, dedup across a list and a file | `harness_hunt_cli_test.cpp`, `harness_hunt_plan_test.cpp` |
-| The conflict check for `--counter`, `--metric`, `--compare` and `--dry-run`, in both command-line orders | `harness_hunt_cli_test.cpp` |
-| Console order and the eight line shapes | `test/source/harness_hunt_report_test.cpp` |
+| Selection forms: `all`, `none`, list, pattern, `@file`, dedup across a list and a file | `harness_hunt_cli_test.cpp`, `harness_hunt_plan_test.cpp` |
+| The conflict check for `--counter`, `--metric` and `--compare`, in both command-line orders | `harness_hunt_cli_test.cpp` |
+| `--hunt` with `--metric-method=multiplex` runs every event multiplexed and discloses it in the plan line, the rows and the document | `harness_hunt_cli_test.cpp` |
+| `--dry-run` with `--hunt` prints the plan line and exits before measuring | `harness_hunt_cli_test.cpp` |
+| `--hunt=none` runs exactly like a run with no `--hunt`: no `hunt:` line and no `hunt` key | `harness_hunt_cli_test.cpp`, `harness_hunt_report_test.cpp` |
+| Console order, the eight line shapes, and a two-stage run whose stage-1-only address still reaches the table and the document | `test/source/harness_hunt_report_test.cpp` |
 | Unique option names and values | `test/source/harness_cli_table_test.cpp` |
 | README option rows for all eight options | the `example_drift` test with `--options` |
 | One interrupt line and no second flag read after the hunt edit | `bash test/cli_shape.sh` |

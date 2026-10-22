@@ -15,7 +15,8 @@ device, so a device that publishes a programmable-counter limit `L` carries
 `MULTIPLEX` through the planner path master already has. The median and the
 coefficient of variation come from the one statistics helper master already
 computes, moved out of the anonymous namespace of `runner.cpp` into a named
-internal header, so a hunt CV equals the printed `cv=` column by construction.
+internal header, so a hunt CV is exactly one hundred times the printed `cv=`
+column by construction.
 Ranking is pure post-processing over the collected samples: no clock, no
 counter read, no new pass loop, no second counter path.
 
@@ -88,7 +89,7 @@ alone and bounds no hunt column
   (`pass_plan.hpp:63-107` is the model); `planHunt`, `rankEvents` and the
   budget split are pure functions with stated pre- and post-conditions;
   `SG_REQUIRE`, `SG_ENSURE` and `SG_ASSERT` pair one-for-one with the doc lines
-  under `dbc-gate`, and every contract predicate names a function instead of a
+  under `dbc-gate`, and every contract predicate names a function in place of a
   lambda (FR-093, hard rules 5 and 6)
 - **III. R-DCUT** | PASS | logical and physical views below; the test plan
   below; the decision units are separate translation units reachable from their
@@ -173,7 +174,7 @@ specs/029-hunter-core/
 ├── spec.md                        # approved; Decisions D-1 to D-23, PCs PC-1 to PC-9
 ├── plan.md                        # this document
 ├── research.md                    # D-01 to D-20, with alternatives
-├── data-model.md                  # E-01 to E-10, invariants I-1 to I-8, state tables
+├── data-model.md                  # E-01 to E-11, invariants I-1 to I-8, state tables
 ├── quickstart.md                  # build, test and recorded-run guide
 ├── contracts/
 │   ├── hunt-api.md                # the public hunt.hpp surface
@@ -186,9 +187,9 @@ specs/029-hunter-core/
 
 ### Source
 
-Four new source files, one new public header, one new internal header, six new
-test translation units, one new docs example. No directory is restructured and
-no existing file is moved.
+Four new source files, one new public header, two new internal headers, seven
+new test translation units, one new docs example. No directory is restructured
+and no existing file is moved.
 
 ```text
 include/speedgun-ng/
@@ -197,8 +198,8 @@ include/speedgun-ng/
                                    #      ReportData gains `hunt`, includes hunt.hpp
 
 source/harness/
-├── detail/statistics.hpp          # NEW  statisticsOf, named, out of runner.cpp
-├── statistics.cpp                 # NEW  its definition (was runner.cpp:49-82)
+├── detail/statistics.hpp          # NEW  statisticsOf (E-11), named, out of runner.cpp
+├── statistics.cpp                 # NEW  its definition (E-11; was runner.cpp:49-82)
 ├── detail/hunt_plan.hpp           # NEW  planHunt, splitStages, rankEvents, budget parse core
 ├── hunt_plan.cpp                  # NEW  their definitions
 ├── hunt.cpp                       # NEW  EventCatalog discovery, runHunt driver
@@ -228,12 +229,13 @@ test/source/
 ├── harness_hunt_rank_test.cpp     # NEW  normalization, CV, noise, rank keys
 ├── harness_hunt_collect_test.cpp  # NEW  scripted runs: skips, no-limit, retry, threads
 ├── harness_hunt_cli_test.cpp      # NEW  every exit-2 refusal, conflicts, list file, raw code
-├── harness_hunt_report_test.cpp   # NEW  console order, plan print, no-hunt byte identity
+├── harness_hunt_report_test.cpp   # NEW  console order, plan print, two-stage
+                                   #      rows, no-hunt byte identity
 ├── harness_hunt_json_test.cpp     # NEW  round trip, optional keys, refused codes
 └── harness_cli_table_test.cpp     # NEW  name and value uniqueness (created here, D-21)
 
 test/source/detail/
-└── hunt_fixture.hpp               # NEW  scripted host: core objects, 200 events, limits
+└── hunt_fixture.hpp               # NEW  scripted host: core objects, 200 events, limits, an `armv8_`-prefixed device
 
 tools/docs/
 └── example_drift.py               # EDIT SECTIONS, SECTION_OWNERS, PAGE_LINE_CAP
@@ -249,7 +251,8 @@ spec PC-1, PC-8); the catalog walk follows the same children walk
 existing `planPasses` (D-23), which is width-agnostic and holds no column-count
 constant (spec PC-2). The statistics helper moves to the shared header and one
 stand-alone definition serves both callers, which
-is what keeps a hunt CV equal to the printed `cv=` column (PC-4). The two new
+is what keeps a hunt CV at exactly one hundred times the printed `cv=` column
+(PC-4). The two new
 `source/harness/*.cpp` files need no CMake source-list edit, because the harness
 target globs with `CONFIGURE_DEPENDS` (`CMakeLists.txt:196-200`); the counters
 library globs the same way for its own directory (`CMakeLists.txt:886-891`).
@@ -273,15 +276,15 @@ plan decision below and in [research.md](research.md).
 | D-07 | Rank inputs | `rankEvents` is pure over the per-event sample list; median and CV come from `statisticsOf`; ties break by address |
 | D-08 | Normalization | rate per 1000 anchor units of the same pass (`instr` default, `cycle`), or the raw per-iteration median (`iter`); per pass, before the median |
 | D-09 | Scripted open refusal | `FakeProvider::setGroupLeafLimit(objectPath, leaves)`: `open` refuses a leaf set wider than the limit for that object, so a wide group fails where one event with the two anchors opens |
-| D-10 | Hunt data location | public `hunt::RunPlan` on `ReportData` and public `hunt::EntryHunt` on `BenchmarkResult`, because `loadReport` must read both back |
+| D-10 | Hunt data location | public `hunt::RunHunt` on `ReportData` and public `hunt::EntryHunt` on `BenchmarkResult`, because `loadReport` must read both back |
 | D-11 | Seat error route | `seatPass` returns its error into the pass loop; a hunt run appends one-event passes and continues, a run with no hunt columns keeps the `SG_INVARIANT` fuse |
 | D-12 | Retry inside the loop | a failed pass appends its single-event passes to the pass list the loop is reading, so one loop runs the whole run |
-| D-13 | Two-stage run | one `Runner::run` per stage over the same instance, stage 1 at one repeat, stage 2 at `--hunt-repeats`; the row set the report prints comes from the last stage |
+| D-13 | Two-stage run | one `Runner::run` per stage over the same instance, stage 1 at one repeat, stage 2 at `--hunt-repeats`; the row set the report prints merges both stages per address, and a stage-1-only event keeps a row built from its stage 1 samples |
 | D-14 | Single-sample events | an event with one sample reports `cv` 0.0 and cannot enter the top N; stage-1 selection ranks those samples by rate |
 | D-15 | Console order | plan before the run; then the ranked table, the marked excluded tail, the skipped list and the plan summary after the benchmark tables |
 | D-16 | Refusal point | option values are parsed at the scan; list, glob and `@file` expansion runs after the scan, where the catalog answers, and exits 2 naming the value |
-| D-17 | Option wiring | eight named constants 270 to 279 and eight rows in the one `option longOptions[]` table of `cli.cpp`; every parse and refusal body in `hunt_cli.cpp` |
-| D-18 | Table test | `harness_cli_table_test.cpp` reads `cli.cpp` through a compiled-in path and asserts unique names and unique values |
+| D-17 | Option wiring | eight named constants 270 to 277 inside the block 270 to 279 that the lane reserves (D-22) and eight rows in the one `option longOptions[]` table of `cli.cpp`; every parse and refusal body in `hunt_cli.cpp` |
+| D-18 | Table test | `harness_cli_table_test.cpp` reads `cli.cpp` through a compiled-in path and asserts unique names, unique values and hunt values inside 270 to 279 |
 | D-19 | Docs ownership | `hunt_rank.cpp` owns the "Hunter mode" section with a scripted host that refuses its events, so the skipped list prints on every host |
 | D-20 | Version and schema | `0.19.0` planned, next free minor at rebase; harness `SOVERSION` 11, archive `SOVERSION` 4; schema minor 1.4 |
 
@@ -309,8 +312,8 @@ plan decision below and in [research.md](research.md).
 - **Arm hosts plan as `MULTIPLEX`.** `limitForDevice` answers for `cpu`,
   `cpu_core` and `cpu_atom` only, so an `armv8_` device publishes no limit and
   the `L - 2` shape of AC-1 is reachable only through the scripted limit
-  (spec PC-2 note). The plan states this in the disclosure instead of
-  pretending a limit.
+  (spec PC-2 note). The plan states this in the disclosure and claims no
+  invented limit.
 - **A noisy or unrepeated event crowding the ranked table.** Mitigation: the
   top N holds only events with at least two samples and a CV at or under
   `--hunt-noise`; everything else prints in the marked tail with `rank=-`
@@ -407,7 +410,7 @@ owns selection, planning and ranking. `hunt.hpp` forward-declares
 | `BenchmarkResult::hunt` | `speedgun-ng/benchmark.hpp` | E-06: the per-entry hunt record |
 | `ReportData::hunt` | `speedgun-ng/benchmark.hpp` | E-08: the run-level hunt record |
 | `auto FakeProvider::setGroupLeafLimit(std::string_view, std::size_t) -> FakeProvider&` | `speedgun-ng/counters_fake.hpp` | E-10: the scripted group refusal |
-| `--hunt`, `--hunt-norm`, `--hunt-rank`, `--hunt-top`, `--hunt-noise`, `--hunt-repeats`, `--hunt-budget`, `--hunt-seed` | CLI | E-09: the caller's selection, values 270 to 279 |
+| `--hunt`, `--hunt-norm`, `--hunt-rank`, `--hunt-top`, `--hunt-noise`, `--hunt-repeats`, `--hunt-budget`, `--hunt-seed` | CLI | E-09: the caller's selection, values 270 to 277 |
 
 `statisticsOf`, `planHunt` internals, the printers and the budget split core
 stay internal: no `detail/` type reaches a public signature (spec D-15), and
@@ -425,8 +428,8 @@ form the comments at `CMakeLists.txt:43-52` and `:238-260` record:
 
 | Target | Now | Next | Names that moved the layout |
 |---|---|---|---|
-| `speedgun-ng` archive | 3 (`CMakeLists.txt:53`) | 4 | `FakeProvider` gains the scripted group refusal of D-09: the class is exported (`counters_fake.hpp:103`) and the scripted state joins its members (spec PC-3; hard rule 12) |
-| `harness` archive | 10 (`CMakeLists.txt:261`) | 11 | `hunt.hpp` adds the exported hunt calls; `BenchmarkResult` gains `hunt`; `ReportData` gains `hunt` (hard rule 12) |
+| `speedgun-ng` archive | 3 (`CMakeLists.txt:53`) | 4 | `FakeProvider` gains the scripted group refusal of D-09: the class is exported (`counters_fake.hpp:103`) and the scripted state joins its members (spec PC-3, FR-090; hard rule 12) |
+| `harness` archive | 10 (`CMakeLists.txt:261`) | 11 | `hunt.hpp` adds the exported hunt calls; `BenchmarkResult` gains `hunt`; `ReportData` gains `hunt` (FR-090, hard rule 12) |
 
 `docs/schema/report-v1.json` gains both hunt keys at schema minor `1.4`,
 `kSchemaVersion` at `json_report.cpp:31` moves from `1.1` to `1.4`, and a rebase
@@ -450,7 +453,7 @@ Every file the change touches outside its own new files, with the edit:
 | `test/source/harness_compare_cli_test.cpp` | line 516 expects the console words `schema 1.1`; the value moves with the bump and the pre-1.1 baseline comparison of line 492 stays as it is |
 | `tools/docs/example_drift.py` | `SECTIONS` gains `"Hunter mode"` (line 32), `SECTION_OWNERS` gains its owner (line 63), `PAGE_LINE_CAP` rises from 773 to the measured length with the recorded move note at its comment block (lines 100-155, FR-072) |
 | `docs/schema/report-v1.json` | root `x-order` and `properties` gain `hunt`; entry `x-order` and `properties` gain `hunt`; `required` unchanged in both |
-| `test/source/harness_cli_table_test.cpp` | created here: master has no such file at `bd10d76`, and hard rule 10 gives it to the first lane that merges |
+| `test/source/harness_cli_table_test.cpp` | created here: master has no such file at `bd10d76` and no other lane creates it; hard rule 10 gives the file to the first lane that merges |
 | `test/source/harness_pass_report_test.cpp` | unchanged expectation; its byte-identity golden is the covering check that the non-hunt seat route did not move |
 
 ## Phases
@@ -467,7 +470,7 @@ Task-level detail belongs to `tasks.md`. Each phase names its decisions
 | P5 US1 rank and run | `rankEvents`, `runHunt`, the skipped list, the seat error route, the in-loop retry | D-07, D-08, D-11, D-12, D-14 | R-1, R-3 | V-5: `harness_hunt_rank_test.cpp` and `harness_hunt_collect_test.cpp` pass, including the scripted group-refusal retry and the threaded window-count test |
 | P6 US2 budget and plan print | `HuntBudget` parse, the two-stage split, the printed plan and estimate | D-13, D-06 | R-4 | V-6: `harness_hunt_plan_test.cpp` reproduces the fixed two-stage plan for the fixed seed and estimate (AC-7), and `harness_hunt_cli_test.cpp` refuses a malformed budget with exit 2 |
 | P7 US3 JSON and schema | both hunt objects, the readers, `report-v1.json` at 1.4, `kSchemaVersion` | D-10 | R-2 | V-7: `harness_hunt_json_test.cpp` round-trips every field, `harness_json_schema_test.cpp` passes, and a non-hunt document differs from the master capture only in `schemaVersion` |
-| P8 Console and CLI | the eight options, `hunt_cli.cpp`, `cli.cpp` rows, the printers in `report.cpp`, `harness_cli_table_test.cpp` | D-15, D-16, D-17, D-18 | R-2 | V-8: `harness_hunt_cli_test.cpp` and `harness_hunt_report_test.cpp` pass, `harness_cli_table_test.cpp` reports unique names and unique values, and `bash test/cli_shape.sh` stays clean |
+| P8 Console and CLI | the eight options, `hunt_cli.cpp`, `cli.cpp` rows, the printers in `report.cpp`, `harness_cli_table_test.cpp` | D-15, D-16, D-17, D-18 | R-2 | V-8: `harness_hunt_cli_test.cpp` and `harness_hunt_report_test.cpp` pass, `harness_cli_table_test.cpp` reports unique names, unique values and hunt values inside 270 to 279, and `bash test/cli_shape.sh` stays clean |
 | P9 US4 documentation | the docs example with its golden, the README section, the quick-reference and option rows, `docs/pages/harness.md`, `example_drift.py` lists and cap | D-19 | R-2 | V-9: `example_drift`, `example_drift_fixtures`, `snippet_compile`, `report_shape`, `report_shape_hunt_rank_sample`, `example_run` and `example_run_fixtures` pass, and the prose gates pass on every page |
 | P10 Polish and landing | coverage with `gcov -b` evidence, the determinism scan, the `ci-ubuntu` analyzer build, the sanitizers, the thread sanitizer, the AC-10 hardware records, the rebase and one `--force-with-lease` push | D-20 | R-2, R-5 | V-10: line, branch and DBC coverage recorded at 100 percent with no exclusion, every Principle VIII gate green on the pushed state, `git ls-remote origin 029-hunter-core` shown in the record, every CI job read after the push including the coverage artifact |
 
@@ -484,7 +487,7 @@ count; a test that needs a CPU set calls `sched_getaffinity` (the precedent
 provider, so CI needs no PMU access and no host with `perf_event_paranoid` set
 below 2. Coverage is 100 percent line and 100 percent branch on every new file
 with no exclusion marker, no waiver and no residual row, measured under the
-unchanged `coverage` preset with `lcov --filter brace`; a gap stops the work and
+unchanged `ci-coverage` preset with `lcov --filter brace`; a gap stops the work and
 reports the cause with `gcov -b` evidence (FR-091, FR-092).
 
 | User story | Verification approach | Preconditions exercised |
@@ -497,10 +500,12 @@ reports the cause with `gcov -b` evidence (FR-091, FR-092).
 | US2 plan print (P6) | captured stdout: plan before the run, estimate line naming the budget, `MULTIPLEX` disclosure on a no-limit device | estimate given, estimate absent (`estimate=not available`), no-limit host |
 | US3 JSON (P7) | write through the writer, read with `loadReport`, compare field by field; schema check through `SG_SCHEMA_PATH`; one test per refused reader code | full hunt document, absent hunt object, wrong type per key, missing nested key, pre-024 document still loads, unknown key in the open root |
 | US3 no-hunt identity (P7) | byte compare against the master capture with `schemaVersion` excluded; console and status byte compare | a plain run, a run with named counters, a `--compare` run |
-| CLI refusals (P8) | in-process `speedgunMain` for the status-2 returns, forked children for the `std::exit(2)` refusals with the captured single stderr line (the `harness_cli_test.cpp` pattern at its lines 800, 1166 and 1417) | bad glob, unknown address, bad budget, bad norm, bad rank key including `sensitivity`, `delta` and `score`, repeats 0 and 1001, top 0 and 10001, `r4a03`, `--hunt` with `--counter`, `--metric` or `--compare`, missing `@file`, empty address line, `--hunt=none`, `--hunt` with no value |
-| CLI table (P8) | `harness_cli_table_test.cpp` parses the one `option longOptions[]` table of `cli.cpp` through `SG_CLI_SOURCE` and asserts unique names and unique values, then asserts 270 to 279 are taken and 280 to 289 free | the planted duplicate in the fixture twin of the table |
+| Two-stage rows (P8) | `harness_hunt_report_test.cpp` runs a budgeted plan whose stage 2 measures fewer columns and checks that a stage-1-only address still reaches the console table and the `entries` array through a record built from its stage 1 samples | two-stage plan, stage-1-only address, merged row set |
+| CLI refusals (P8) | in-process `speedgunMain` for the status-2 returns, forked children for the `std::exit(2)` refusals with the captured single stderr line (the `harness_cli_test.cpp` pattern at its lines 800, 1166 and 1417) | bad glob, unknown address, bad budget, bad norm, bad rank key including `sensitivity`, `delta` and `score`, repeats 0 and 1001, top 0 and 10001, `r4a03`, `--hunt` with `--counter`, `--metric` or `--compare`, missing `@file`, empty address line, `--hunt` with no value |
+| CLI legal combinations (P8) | accepted-combination cases on the captured console and document | `--hunt` with `--metric-method=multiplex` (every event multiplexed, the plan line word `MULTIPLEX`, the disclosure in the rows and the document, D-16), `--dry-run` with `--hunt` (the plan line prints and the run exits before measuring), `--hunt=none` (behaves exactly like a run with no `--hunt`) |
+| CLI table (P8) | `harness_cli_table_test.cpp` parses the one `option longOptions[]` table of `cli.cpp` through `SG_CLI_SOURCE` and asserts that declared names and declared values are globally unique, then asserts every hunt value lies in 270 to 279, the block the lane reserves | the planted duplicate in the fixture twin of the table |
 | US4 page (P9) | `snippet_compile` compiles the copied block, `example_run` runs `docs_hunt_rank`, `report_shape_hunt_rank_sample` compares it with `hunt_rank.expected` by shape, `example_drift` checks the section, its owner, the name rows and the eight option rows | the recorded `PAGE_LINE_CAP` move, the 25-line section cap, the host-independent skipped list |
-| Statistics (P2) | existing `harness_statistics_test.cpp` cases plus the hunt CV equality check: the CV a hunt reports equals the `cv=` column of the same samples | empty list guard, one sample, even count, zero mean |
+| Statistics (P2) | existing `harness_statistics_test.cpp` cases plus the hunt CV check: the CV a hunt reports is one hundred times the `cv=` column value of the same samples | empty list guard, one sample, even count, zero mean |
 
 **Existing tests touched**: `test/CMakeLists.txt`, `example/CMakeLists.txt`,
 `tools/docs/example_drift.py`, `README.md`, `docs/pages/harness.md`,
@@ -518,7 +523,7 @@ and by nothing else.
 Scope), `passSpread` and the upper-median convention of
 `source/counters/plan.cpp`, `printContextDisclosure`, `kMaxUserCounters` and the
 named-counter slot arithmetic at `runner.cpp:866-874`, `MetricMethod` and
-`settleMethod`, the `coverage` preset and the CI workflow files (hard rule 14),
+`settleMethod`, the `ci-coverage` preset and the CI workflow files (hard rule 14),
 and the counters encode path (raw codes stay refused, spec D-11).
 
 ## Rebase and lane rules

@@ -25,7 +25,7 @@ the exception D-17 records; the rule and its consequence are in
 Key order stays first-appearance: both `hunt` keys are appended, and the bytes a
 run wrote before stay in place. A run with no hunt writes no `hunt` key at
 either level, so its document differs from the master capture in the
-`schemaVersion` value alone (FR-053, AC-8, SC-06).
+`schemaVersion` value alone (FR-052, AC-6, SC-006).
 
 ## The top-level object
 
@@ -35,16 +35,21 @@ either level, so its document differs from the master capture in the
   "norm": "instr",
   "rank": "rate",
   "top": 20,
-  "noise": 10.0,
-  "repeats": 10,
+  "noisePercent": 10.0,
+  "repeats": 3,
   "seed": 0,
   "budget": "120s",
   "passes": 14,
   "method": "PASSES",
-  "estimate_ns": 1248000,
+  "events": ["cpu/instructions_retired_any", "cpu/l2_lines_out.any_core"],
+  "stages": [
+    { "first": 0, "count": 42, "repeats": 1 },
+    { "first": 0, "count": 42, "repeats": 3 }
+  ],
+  "estimate_ns": 1260000,
   "planned_events": 42,
   "ran_events": 40,
-  "stage_two_events": 12
+  "stage_two_events": 42
 }
 ```
 
@@ -53,10 +58,12 @@ either level, so its document differs from the master capture in the
 | `selection` | string | never, once `hunt` is present |
 | `norm`, `rank` | string, one of `instr`, `cycle`, `iter` and `rate`, `cv` | never |
 | `top`, `repeats`, `passes`, `planned_events`, `ran_events`, `stage_two_events` | integer | never |
-| `noise` | number | never |
+| `noisePercent` | number | never |
 | `seed` | integer | never |
 | `budget` | string such as `120s`, or null | a run with no budget writes null |
 | `method` | string, the settled `MetricMethod` word in the spelling `metricMethod` already uses (`json_report.cpp:504-506`, `kMetricMethodWords`) | never |
+| `events` | array of strings | never; every planned address in plan order (D-17, FR-050); the example shows two of 42 for space |
+| `stages` | array of closed objects `first`, `count`, `repeats` | never; one object per stage that ran: its first index into `events`, its event count, its repeats; the exact membership of a stage-2 subset stays visible in the rank column of `entries` |
 | `estimate_ns` | integer, or null | a plan with no calibration estimate writes null |
 
 ## The per-entry object
@@ -67,8 +74,6 @@ either level, so its document differs from the master capture in the
   "pass_count": 14,
   "top": 20,
   "retried_passes": 1,
-  "estimate_ns": 1248000,
-  "budget": "120s",
   "entries": [
     {
       "address": "cpu/instructions_retired_any",
@@ -89,7 +94,7 @@ either level, so its document differs from the master capture in the
   ],
   "skipped": [
     { "address": "cpu/l1_dc_misses", "kind": "permission-blocked", "stage": 2 },
-    { "address": "armv8_cycle", "kind": "group-refused", "stage": null }
+    { "address": "armv8_pmuv3/cycle", "kind": "not-encodable", "stage": 2 }
   ]
 }
 ```
@@ -100,17 +105,16 @@ either level, so its document differs from the master capture in the
 | `pass_count` | integer | the pass count of the run, the `passCount` of `BenchmarkResult` re-stated for the hunt plan that ran |
 | `top` | integer | the `--hunt-top` value the run used |
 | `retried_passes` | integer | passes that fell back to one event per pass (D-18) |
-| `estimate_ns`, `budget` | integer or null, string | the budget summary of the run (D-17) |
-| `entries` | array | one object per hunt column, in the printed order: the ranked ones first, then the excluded ones in address order |
+| `entries` | array | one object per planned column, including a column only stage 1 measured, whose record is built from its stage 1 samples; in the printed order: the ranked ones first, then the excluded ones in address order |
 | `entries[].address` | string | the catalog address, `Object::path()` plus `/` plus the entry name (spec PC-1) |
 | `entries[].rate` | number | the median normalized rate, in the unit `norm` states |
-| `entries[].cv` | number | the coefficient of variation in percent, `0.0` for a single sample (D-14) |
+| `entries[].cv` | number | the coefficient of variation as a percent: one hundred times the `coefficientOfVariation` of `statisticsOf`; the printed `cv=` column shows the ratio. `0.0` for a single sample (plan decision D-14) |
 | `entries[].noisy` | boolean | true when `cv` is above the threshold, read on the unrounded value |
-| `entries[].multiplexed` | boolean | true when the plan settled `MULTIPLEX` (FR-022) |
+| `entries[].multiplexed` | boolean | true when the plan settled `MULTIPLEX` (D-19) |
 | `entries[].rank` | integer, or null | null for a noisy event, a single-sample event and an event outside the top N (D-7) |
-| `skipped` | array | one object per event that produced no value (FR-032) |
+| `skipped` | array | one object per event that produced no value (D-10) |
 | `skipped[].address` | string | the address the run dropped |
-| `skipped[].kind` | string | `permission-blocked`, `not-encodable`, `absent`, `scope-refused`, `gap`, `group-refused`, the console spelling of `SkippedKind` |
+| `skipped[].kind` | string | `permission-blocked`, `not-encodable`, `absent`, `scope-refused`, `gap`, the console spelling of `SkippedKind` |
 | `skipped[].stage` | integer, or null | null for a discovery skip |
 
 `RankedEvent::samples` and `repeated` stay out of the document: D-17 names the
@@ -153,7 +157,7 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
 - The schema-major gate is untouched: a text that states no major or a major
   other than 1 is refused before any hunt key is read
   (`json_load.cpp:1214-1219`).
-- Unknown keys stay tolerated by the reader (FR-050), and the schema checker
+- Unknown keys stay tolerated by the reader (spec PC-5), and the schema checker
   reports them for the closed hunt objects.
 
 ## Forward and backward reading
@@ -162,8 +166,8 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
 |---|---|---|
 | written by master, schema `1.1`, no hunt keys | this build | loads; both hunt members stand empty |
 | written by this build without `--hunt`, schema `1.4` | master | loads: the root is open and the entry object carries no key master has never seen, because a run with no hunt writes no `hunt` key |
-| written by this build with `--hunt`, schema `1.4` | master | loads and ignores both hunt objects (FR-050); `checkReport` of this build reports the same document as conforming, which is why the keys join `properties` |
-| written by this build with `--hunt`, schema `1.4` | this build | round-trips: every field of both records reads back equal to what the run produced (FR-051, AC-8) |
+| written by this build with `--hunt`, schema `1.4` | master | loads and ignores both hunt objects (spec PC-5); `checkReport` of this build reports the same document as conforming, which is why the keys join `properties` |
+| written by this build with `--hunt`, schema `1.4` | this build | round-trips: every field of both records reads back equal to what the run produced (FR-051, AC-6) |
 
 ## Verification
 
@@ -172,6 +176,7 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
 | A hunt run's document holds both objects with every key of the tables above, in the `x-order` of the schema | `test/source/harness_hunt_json_test.cpp` |
 | Round trip through `loadReport`, field by field, including a rank that is null and a budget that is null | `harness_hunt_json_test.cpp` |
 | One case per refused reader code, naming the pointer | `harness_hunt_json_test.cpp` |
+| A two-stage document: `stages` holds two objects, `events` holds the planned addresses, and `entries` covers a stage-1-only address through its stage-1-built record; the round trip reads all of it back equal | `harness_hunt_json_test.cpp` |
 | A document with no hunt keys loads with both members empty | `harness_hunt_json_test.cpp`, existing `harness_json_load_test.cpp` passes unchanged |
 | Schema conformance of a hunt document through `SG_SCHEMA_PATH` | `harness_hunt_json_test.cpp`, `harness_json_schema_test.cpp` |
 | A run with no `--hunt` writes bytes identical to the master capture apart from `schemaVersion`, prints the same console, and exits the same | `harness_hunt_json_test.cpp`, `harness_hunt_report_test.cpp`, existing `harness_json_report_test.cpp` passes unchanged |

@@ -762,7 +762,7 @@ VIII and IX. Summarized where they bind:
 - One CLI-table test file (hard rule 10; FR-083).
 - Schema minor reservation and rebase rule (hard rule 11; FR-053).
 - SOVERSION raised only on a public ABI change, check recorded (hard
-  rule 12; recorded above: harness 10 to 11, archive stays 3).
+  rule 12; recorded above and in FR-090: harness 10 to 11, archive 3 to 4).
 - Self-triaged CI: every job read after each push, coverage artifact
   included (hard rule 13; FR-094).
 - Rebase, `--force-with-lease`, `git ls-remote` shown, PR never merged

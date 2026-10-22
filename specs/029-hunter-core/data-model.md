@@ -4,7 +4,9 @@
 
 Entities are E-01 to E-11, invariants I-1 to I-8. Public types live in
 `include/speedgun-ng/hunt.hpp` in `namespace sg::hunt`; the two records the run
-path keeps to itself live in `source/harness/detail/hunt_plan.hpp` in
+path keeps to itself, `detail::StageSplit` (the stage split with its cut
+verdict) and `detail::RetriedPass` (one pass that fell back to lone-event
+windows), live in `source/harness/detail/hunt_plan.hpp` in
 `namespace sg::detail`. Field spellings are the spellings the contract files and
 the JSON keys derive from, and a JSON key spells in `snake_case` while its
 member spells in `camelBack`, the way the specs/024 pass keys do.
@@ -16,11 +18,11 @@ Public class in `hunt.hpp`; one instance per hunt run; no clock, no counter read
 
 | Field or call | Type | Meaning |
 |---|---|---|
-| `expand` | `auto expand(std::string_view selection) -> std::expected<void, Error>` | `all`, a comma list, a glob pattern, or a newline list of catalog addresses; stores the expanded addresses in catalog order |
+| `expand` | `auto expand(std::string_view selection) -> std::expected<void, Error>` | `all`, one glob pattern, or a catalog address list whose entries are separated by commas, newlines or both (`@file` arrives as its address lines under the same rule); stores the expanded addresses in catalog order |
 | `addresses` | `auto addresses() const -> const std::vector<std::string>&` | the deduplicated selection in catalog order after the seed shuffle |
 | `split` | `auto split(std::uint64_t seed) const -> std::pair<std::vector<CatalogAddress>, std::vector<SkippedEvent>>` | the countable addresses that become columns, and the entries refused at discovery with their kind |
 | `devicePart` | `auto devicePart(std::string_view address) -> std::string_view` | the part before the last `/` (`splitAddress` in `runner.cpp:41-49` is the existing shape) |
-| `isCoreDevice` | `auto isCoreDevice(std::string_view address) const -> bool` | D-8's rule: device part `cpu`, `cpu_core`, `cpu_atom`, or an entry name with the `armv8_` prefix |
+| `isCoreDevice` | `auto isCoreDevice(std::string_view address) const -> bool` | D-1's rule: device part `cpu`, `cpu_core`, `cpu_atom`, or a device part starting with `armv8_` |
 
 **Rules the entity owns**
 
@@ -29,7 +31,7 @@ Public class in `hunt.hpp`; one instance per hunt run; no clock, no counter read
 - Discovery walks `System::local().object("machine")` and its `children()`, the
   shape `catalog.cpp:81-88` already uses.
 - `all` takes a device when `isCoreDevice` answers for it; a list or a pattern
-  reaches any device, uncore included (D-8).
+  reaches any device, uncore included (D-1).
 - An address that repeats in one selection or across `@file` lines keeps its
   first position and drops the repeat.
 - An entry whose `avail` is not `Availability::COUNTABLE` becomes a skipped
@@ -39,11 +41,11 @@ Public class in `hunt.hpp`; one instance per hunt run; no clock, no counter read
 
 | Type | Enumerators | Source |
 |---|---|---|
-| `enum class HuntNorm : std::uint8_t` | `INSTR`, `CYCLE`, `ITER` | D-3, `--hunt-norm=` |
-| `enum class HuntRank : std::uint8_t` | `RATE`, `CV` | D-14, `--hunt-rank=` |
+| `enum class HuntNorm : std::uint8_t` | `INSTR`, `CYCLE`, `ITER` | D-6, `--hunt-norm=` |
+| `enum class HuntRank : std::uint8_t` | `RATE`, `CV` | D-3, `--hunt-rank=` |
 
 No `SENSITIVITY`, `DELTA` or `SCORE` enumerator exists: specs/031 adds those
-when its method exists (D-14). The names are printed in lower case by the
+when its method exists (D-3). The names are printed in lower case by the
 console and the JSON writer through one internal `huntNormName` and
 `huntRankName` table each, indexed by the enumerator under a `static_assert` on
 the enumerator count, the pattern `catalog.cpp:23-38` carries.
@@ -61,14 +63,14 @@ it before this record exists.
 | `rank` | `HuntRank` | `RATE` | the two of E-02 |
 | `top` | `std::size_t` | `20` | 1 to 10000 |
 | `noise` | `double` | `10.0` | percent CV threshold, greater than zero |
-| `repeats` | `std::size_t` | `10` | 1 to 1000 |
+| `repeats` | `std::size_t` | `3` | 1 to 1000 |
 | `seed` | `std::uint64_t` | `0` | any 64-bit value |
 | `budget` | `std::optional<HuntBudget>` | empty | E-03 budget |
 
 `HuntBudget` holds `kind` of `enum class BudgetKind : std::uint8_t { SECONDS,
 PASSES }` and `amount` of `std::uint64_t`. A budget of `120s` is
 `{SECONDS, 120}` and `8p` is `{PASSES, 8}`; a value with no suffix is refused,
-so no default kind exists (D-21).
+so no default kind exists (FR-013).
 
 ## E-04 `HuntPlan`, `HuntColumn` and `HuntStage`
 
@@ -93,17 +95,16 @@ them and reads no clock and no counter (D-2).
 | `passes` | `std::vector<std::vector<std::size_t>>` | the column indices of each pass, from `planPasses` |
 | `method` | `std::optional<MetricMethod>` | the method `settleMethod` settled for the plan |
 | `stages` | `std::vector<HuntStage>` | one or two stages, E-04 rule below |
-| `estimateNs` | `std::optional<std::uint64_t>` | `calibrationNsPerPass x passes x repeats`, empty without an estimate |
+| `estimateNs` | `std::optional<std::uint64_t>` | `calibrationNsPerPass x passes x repeats`, the stage-1 figures on a split plan, empty without an estimate |
 | `anchorsPerPass` | `std::size_t` | 2 when both anchors exist, else 0 |
 | `normalized` | `bool` | false when the plan normalized by iterations because a device lacked an anchor |
 
-**Stage rule**: with no budget the plan holds two stages, `all events at 1
-repeat` and `top 3 x top at options.repeats`, capped at the event count. A
-`PASSES` budget cuts stage 2 while stage 1 keeps its single pass over every
-event, because stage 1 is what selects the set. A `SECONDS` budget reduces the
-repeats of stage 2 until the estimate fits, keeping at least one repeat, and
-cuts stage 2 entirely when one repeat of one pass still exceeds the budget. The
-reductions D-21 fixes, with no third rule.
+**Stage rule** (D-2, FR-013): a plan with no budget holds one stage: every event
+at `options.repeats`. A budgeted plan holds two stages: stage 1 covers every
+event at one repeat, stage 2 covers the top `3 x top` events, capped at the event
+count, at `options.repeats`. When the two-stage estimate does not fit the budget,
+the plan drops stage 2 entirely and the run prints one `budget cut` line naming
+the reason. Stage 1 never shrinks and no stage keeps a reduced repeat count.
 
 **Limit rule**: a device that publishes `L` admits `max(L - 2, 0)` events per
 pass; the three-leaf shape of one event with both anchors is the smallest plan
@@ -113,7 +114,7 @@ an empty result, because the anchors alone leave no slot. A device with no
 published limit leaves `sourceLimits` empty for it, `planPasses` returns an
 empty plan and `settleMethod` settles `MULTIPLEX` (spec PC-2); the plan then
 carries one pass listing every column, `method` reads `MULTIPLEX`, and every
-event reports `multiplexed` true (D-7).
+event reports `multiplexed` true (D-19).
 
 ## E-05 `EventSamples` and `HuntSample`
 
@@ -150,7 +151,7 @@ and `runHunt` fill them; `BenchmarkResult::hunt` holds the result.
 |---|---|---|
 | `address` | `std::string` | the event address |
 | `rate` | `double` | the median of the per-pass normalized rates, in the unit E-08 states |
-| `cv` | `double` | the coefficient of variation from `statisticsOf`; `0.0` for a single sample (D-14) |
+| `cv` | `double` | the coefficient of variation as a percent: one hundred times the `coefficientOfVariation` of `statisticsOf`; `0.0` for a single sample (plan decision D-14) |
 | `samples` | `std::size_t` | the number of clean samples that produced it |
 | `noisy` | `bool` | `cv` above `options.noise` |
 | `repeated` | `bool` | false when the event has one sample |
@@ -168,20 +169,20 @@ and `runHunt` fill them; `BenchmarkResult::hunt` holds the result.
 | `method` | `std::optional<MetricMethod>` | the settled method of the run |
 | `passCount` | `std::size_t` | the pass count the run measured |
 | `top` | `std::size_t` | the `--hunt-top` value the run used |
-| `entries` | `std::vector<RankedEvent>` | every hunt column, ranked ones first |
+| `entries` | `std::vector<RankedEvent>` | every planned column, ranked ones first; an event only stage 1 measured holds a record built from its stage 1 samples |
 | `skipped` | `std::vector<SkippedEvent>` | every event that produced no value |
 | `retriedPasses` | `std::size_t` | passes that fell back to one event per pass (D-18) |
 
 `enum class SkippedKind : std::uint8_t` holds `PERMISSION_BLOCKED`,
-`NOT_ENCODABLE`, `ABSENT`, `SCOPE_REFUSED`, `GAP` and `GROUP_REFUSED`. The
-first five are the `Availability` values a skipped entry can carry
-(`counters_core.hpp:88-95`) through one mapping function, and `GAP` names the
-mid-run window disclosure (`counters_measurement.hpp:180`). `GROUP_REFUSED` is
-the sixth and the only one with no catalog counterpart: it names the D-18 case
-where an event refused to open even alone, which is a condition of the run
-rather than a state of the catalog. The console prints the kind with the same
-spelling the `--catalog` listing prints for an `Availability`
-(`report.cpp:36 availabilityName`), and `group-refused` for the sixth.
+`NOT_ENCODABLE`, `ABSENT`, `SCOPE_REFUSED` and `GAP`: the five `Availability`
+values a skipped entry can carry (`counters_core.hpp:88-95`), through one named
+mapping function (D-10, FR-021, FR-050). `GAP` names the mid-run window
+disclosure (`counters_measurement.hpp:180`). A group-open refusal that still
+fails on the solo retry maps its error the way the counters discovery probe maps
+an open refusal (`provider.cpp:774-786`, spec PC-1): `EINVAL` or `EOPNOTSUPP`
+answers `NOT_ENCODABLE`, and `EACCES` or `EPERM` answers `PERMISSION_BLOCKED`
+(D-18). The console prints every kind with the spelling the `--catalog` listing
+prints for an `Availability` (`report.cpp:36 availabilityName`).
 
 ## E-07 Printed records
 
@@ -192,7 +193,7 @@ the `hunt:` prefix.
 |---|---|
 | plan | `hunt: plan events=<n> passes=<p> method=<WORD> estimate=<ns>ns budget=<text>|none` |
 | plan, no anchor | the plan line with ` normalized=iter` appended |
-| plan, budget cut | `hunt: plan budget cut stage=<stage> reason=<fits-budget|one-repeat-minimum|one-pass-minimum>` |
+| plan, budget cut | `hunt: plan budget cut stage=2 reason=over-budget`, one line when the plan drops stage 2 |
 | ranking row | `hunt: rank <n> <address> <norm>=<value> cv=<percent> [multiplexed]` |
 | excluded tail | `hunt: rank - <address> <norm>=<value> cv=<percent> mark=<noisy|unrepeated|beyond-top>` |
 | skipped | `hunt: skipped <address> <kind>[ stage=<n>]` |
@@ -210,10 +211,11 @@ The run-level record on `ReportData::hunt`. Public in `hunt.hpp`.
 |---|---|---|
 | `selection` | `std::string` | the text `--hunt=` carried |
 | `options` | `HuntOptions` | the settled values of E-03 |
-| `passes` | `std::size_t` | the pass count of the plan |
+| `passes` | `std::size_t` | the stage-1 pass count |
 | `method` | `std::optional<MetricMethod>` | the settled method, empty for a plan nothing settled |
 | `estimateNs` | `std::optional<std::uint64_t>` | the estimate the plan printed |
-| `plannedEvents` | `std::size_t` | columns the plan built |
+| `plannedAddresses` | `std::vector<std::string>` | the planned event addresses, in plan order |
+| `stages` | `std::vector<HuntStageRange>` | the stages that ran; each holds its first index into `plannedAddresses`, its event count and its repeats |
 | `ranEvents` | `std::size_t` | columns that produced at least one clean sample |
 | `stageTwoEvents` | `std::size_t` | columns stage 2 measured |
 
@@ -223,7 +225,7 @@ The run-level record on `ReportData::hunt`. Public in `hunt.hpp`.
 `metricMethod` field (its block runs to line 476):
 
 ```text
-// specs/029 FR-030 to FR-033, D-22: the hunt selection and its settled
+// specs/029 FR-080 to FR-082, D-22: the hunt selection and its settled
 // values, empty when the run carries no hunt.
 std::optional<HuntOptions> hunt;
 ```
@@ -265,7 +267,7 @@ Its contract moves with it: `SG_ASSERT(!values.empty(), ...)` and
 `SG_ASSERT(n > 1, ...)` stay as the two guards `runner.cpp:52-55` and
 `runner.cpp:74-76` hold today, so every caller keeps the empty-list and
 single-value guard at its own call site, and `rankEvents` keeps one sample out of
-the call (D-14).
+the call (plan decision D-14).
 
 | `Statistics` field | Spelling at `benchmark.hpp:261-272` |
 |---|---|
@@ -282,12 +284,16 @@ the call (D-14).
   holds at most `max(L - 2, 0)` hunt events, and at most `L` leaves including
   the anchors.
 - **I-4** An address stands at most once in `addresses()`, at most once in
-  `entries`, and at most once in `skipped` for one run.
+  `entries`, and at most once in `skipped` for one run. Every planned address
+  holds one `entries` record: an address that only stage 1 measured holds a
+  record built from its stage 1 samples.
 - **I-5** `rank` holds a value for at most `top` entries, the values of a top N
   are `1` to `k` with no gap, and an entry with `noisy` or `repeated` false has
   no rank.
-- **I-6** The `cv` of an entry equals the `cv=` column `statisticsOf` produces
-  for the same list of samples, because it is the same call.
+- **I-6** The `cv` of an entry is one hundred times the `coefficientOfVariation`
+  `statisticsOf` produces for the same list of samples, because it is the same
+  call. The printed `cv=` column shows that ratio un-scaled, so an entry `cv`
+  and the column differ by exactly the factor one hundred.
 - **I-7** `planHunt`, `splitStages` and `rankEvents` read no clock, no counter
   and no `/proc`; every time figure they hold comes from an argument.
 - **I-8** A run whose `RunOptions::hunt` stands empty leaves
@@ -304,7 +310,7 @@ the call (D-14).
 | skipped (discovery) | `avail` is not `COUNTABLE` | terminal | `SkippedEvent` with that kind |
 | column | `avail` is `COUNTABLE` | seated, skipped | one `HuntColumn` |
 | seated | the pass's `seatPass` succeeded | sampled | columns of that pass measured |
-| skipped (`GROUP_REFUSED`) | the pass fell back and the lone event refused too | terminal | `SkippedEvent`, run continues, exit 0 |
+| skipped (retry refusal) | the pass fell back and the lone event refused too | terminal | `SkippedEvent` with the kind the refusal's error maps to, run continues, exit 0 |
 | sampled | the window closed clean | terminal | one `HuntSamples` row |
 | skipped (`GAP`) | the window disclosed a gap | terminal | sample excluded, `SkippedEvent` |
 | ranked | stage 2 or stage 1 produced samples | terminal | `RankedEvent` with or without a rank |
@@ -315,7 +321,7 @@ the call (D-14).
 |---|---|
 | `--hunt` with no value | selection `all` (D-1) |
 | `--hunt=all` | selection `all` |
-| `--hunt=none` | refusal, exit 2 |
+| `--hunt=none` | hunt disabled; the run behaves exactly like a run with no `--hunt` (FR-001, spec Assumptions) |
 | list, pattern, `@file` | expanded after the scan, refusal on the first bad entry |
 | `r4a03` in any selection form | refusal naming the value, before the catalog is consulted |
 | `--hunt-budget=120s` | `{SECONDS, 120}` |
@@ -332,9 +338,10 @@ the call (D-14).
 | Stage | Passes | Repeats | Output |
 |---|---|---|---|
 | plan | from `planPasses` | none | printed plan line |
-| stage 1 | every event | 1 | `HuntSamples` with `stage` 1 |
-| stage 2 | the top `3 x top` set, budget cut | `options.repeats` | `HuntSamples` with `stage` 2 |
-| rank | none | none | `EntryHunt`, `RunHunt`, console table |
+| stage 1 (budgeted run) | every event | 1 | `HuntSamples` with `stage` 1 |
+| stage 2 (budgeted run whose two-stage estimate fits) | the top `3 x top` set | `options.repeats` | `HuntSamples` with `stage` 2 |
+| single stage (no budget) | every event | `options.repeats` | `HuntSamples` with `stage` 1 |
+| rank | none | none | `EntryHunt`, `RunHunt`, console table; `entries` covers every planned column, a stage-1-only event through its stage-1-built record |
 
 ## Normalization and rank formulas
 
@@ -348,7 +355,7 @@ the call (D-14).
 | noisy | `cv` above `options.noise`, read on the unrounded value |
 | rank order, `RATE` | `rate` descending, ties by address ascending |
 | rank order, `CV` | `cv` ascending, ties by address ascending |
-| estimate | `calibrationNsPerPass x passes x repeats` |
+| estimate | `calibrationNsPerPass x passes x repeats`. The plan line of a split plan states the stage-1 figure: `calibrationNsPerPass` times stage 1's pass count times one repeat. |
 
 A sample whose anchor reads zero contributes no rate for that pass and is
 excluded, counted out the way a gap repetition is counted out of
@@ -364,9 +371,11 @@ own kind and its own refusal (hard rule 7).
 |---|---|---|---|
 | `RunHunt` | top-level `hunt` | object | no, the root is open |
 | `RunHunt::selection` | `hunt.selection` | string | no |
-| `HuntOptions::norm`, `rank`, `top`, `noise`, `repeats`, `seed` | `hunt.norm`, `rank`, `top`, `noise`, `repeats`, `seed` | string, string, integer, number, integer, integer | no |
+| `HuntOptions::norm`, `rank`, `top`, `noise`, `repeats`, `seed` | `hunt.norm`, `rank`, `top`, `noisePercent`, `repeats`, `seed` | string, string, integer, number, integer, integer | no |
+| `RunHunt::plannedAddresses` | `hunt.events` | array of strings, the planned addresses in plan order | no |
+| `RunHunt::stages` | `hunt.stages` | array of closed objects `first`, `count`, `repeats`: the first index into `hunt.events`, the event count, the repeats | no |
 | `HuntBudget` | `hunt.budget` | string such as `120s`, or null | no |
-| `RunHunt::passes`, `plannedEvents`, `ranEvents`, `stageTwoEvents` | `hunt.passes`, `planned_events`, `ran_events`, `stage_two_events` | integer | no |
+| `RunHunt::passes`, `plannedAddresses.size()`, `ranEvents`, `stageTwoEvents` | `hunt.passes`, `planned_events`, `ran_events`, `stage_two_events` | integer | no |
 | `RunHunt::method` | `hunt.method` | string | no |
 | `RunHunt::estimateNs` | `hunt.estimate_ns` | integer, or null | no |
 | `EntryHunt` | per-entry `hunt` | object | no, D-17 records the exception |
@@ -374,7 +383,6 @@ own kind and its own refusal (hard rule 7).
 | `RankedEvent::address`, `rate`, `cv`, `noisy`, `multiplexed`, `rank` | the same words | string, number, number, boolean, boolean, integer or null | no |
 | `EntryHunt::skipped` | `hunt.skipped` | array of `{address, kind, stage}` | no |
 | `EntryHunt::method`, `passCount`, `top`, `retriedPasses` | `hunt.method`, `pass_count`, `top`, `retried_passes` | string, integer, integer, integer | no |
-| `EntryHunt` budget and estimate summary | `hunt.estimate_ns`, `hunt.budget` | integer or null, string | no |
 
 `RankedEvent::samples` and `repeated` stay in memory: D-17 names the six entry
 keys, and the console derives the `unrepeated` mark from `samples`. The full key
