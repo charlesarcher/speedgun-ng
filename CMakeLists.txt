@@ -4,9 +4,14 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    # specs/028-full-command-line FR-078: the minor this lane reserves, after the
-    # 0.17.0 that specs/027 reserves.
-    VERSION 0.18.0
+    # specs/024-multipass-collection FR-031: the next free minor, past the
+    # 0.15.0 the regression gate took on master (D-12).
+    # specs/029-hunter-core FR-090: 0.17.0 is the minor specs/027 reserves
+    # and 0.18.0 the minor specs/028 reserves on the master line, so this
+    # feature takes 0.19.0. A rebase onto a tree that has since taken one of
+    # these minors takes the next free minor in its place, and no other
+    # number in this file moves for it (PD-20).
+    VERSION 0.19.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -50,7 +55,11 @@ set_target_properties(
     # answers it, and FakeProvider gains the scripted limit fact, so the
     # exported layouts of this archive move and the hand-kept number goes
     # to 3 (D-12).
-    SOVERSION 3
+    # specs/029 FR-090: the exported FakeProvider gains the scripted
+    # group-leaf refusal of T013, whose scripted member moves the layout of
+    # the exported final class, so the hand-kept number goes to 4
+    # (hard rule 12).
+    SOVERSION 4
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng
 )
@@ -258,7 +267,11 @@ set_target_properties(
     # BenchmarkResult gains metricMethod, passCount and passSpread, and
     # MetricValue gains pass, so the exported layouts move again and the
     # number goes to 10 (D-12).
-    SOVERSION 10
+    # specs/029 FR-090: the public surface gains speedgun-ng/hunt.hpp,
+    # BenchmarkResult gains its hunt record and ReportData gains its hunt
+    # record, so the exported layouts move again and the hand-kept number
+    # goes to 11 (hard rule 12).
+    SOVERSION 11
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )

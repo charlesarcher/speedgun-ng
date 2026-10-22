@@ -1164,6 +1164,82 @@ add_test(NAME harness_pass_report_test_identity
          COMMAND harness_pass_report_test byte-identity
                  ${CMAKE_CURRENT_SOURCE_DIR}/source/detail/pass_identity.expected)
 
+# ---- Hunter mode core (feature 029) ----
+
+# T007 registers the seven skeletons so the build carries the hunt tree ahead
+# of the first assertion; the story tasks named beside each target fill it.
+# The hunt plan header is internal to the harness archive, so each target
+# carries the source/harness include directory the way
+# harness_pass_plan_test does.
+
+# The column shape, the limit rows, the budget split and the seed order
+# (T015; US1, FR-002, FR-011, FR-041, AC-1, AC-2, SC-01).
+add_executable(harness_hunt_plan_test source/harness_hunt_plan_test.cpp)
+target_link_libraries(harness_hunt_plan_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_plan_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_plan_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_plan_test COMMAND harness_hunt_plan_test)
+
+# The normalization, the median and CV, the noise mark and the rank order
+# (T016; US1, FR-030, AC-3, I-5 to I-7).
+add_executable(harness_hunt_rank_test source/harness_hunt_rank_test.cpp)
+target_link_libraries(harness_hunt_rank_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_rank_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_rank_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_rank_test COMMAND harness_hunt_rank_test)
+
+# The collection walk, the skipped kinds and the retry route
+# (T017; US1, FR-021, FR-022, AC-3, AC-4, SC-02, SC-04).
+add_executable(harness_hunt_collect_test source/harness_hunt_collect_test.cpp)
+target_link_libraries(harness_hunt_collect_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_collect_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_collect_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_collect_test COMMAND harness_hunt_collect_test)
+
+# One case per refusal row of contracts/hunt-cli.md, in process and forked
+# (T018; US1, FR-001, FR-006, FR-081, AC-5, SC-05).
+add_executable(harness_hunt_cli_test source/harness_hunt_cli_test.cpp)
+target_link_libraries(harness_hunt_cli_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_cli_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_cli_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_cli_test COMMAND harness_hunt_cli_test)
+
+# The plan line, the ranked table, the skipped list, the estimate and the cut
+# line (T032; US2, FR-040 to FR-043, D-19, D-20).
+add_executable(harness_hunt_report_test source/harness_hunt_report_test.cpp)
+target_link_libraries(harness_hunt_report_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_report_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_report_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_report_test COMMAND harness_hunt_report_test)
+
+# The hunt objects of the written document against the schema the compiled-in
+# path names, and the round trip back (T038; US3, FR-051, AC-6,
+# contracts/hunt-json.md). The schema path enters the way
+# harness_json_report_test takes it.
+add_executable(harness_hunt_json_test source/harness_hunt_json_test.cpp)
+target_link_libraries(harness_hunt_json_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_json_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_json_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_hunt_json_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
+add_test(NAME harness_hunt_json_test COMMAND harness_hunt_json_test)
+
+# The option table of cli.cpp, read from the source through the compiled-in
+# path: unique names, unique values, hunt values inside 270 to 279
+# (T019; US1, FR-083, PD-18). The source path enters the way the schema path
+# does.
+add_executable(harness_cli_table_test source/harness_cli_table_test.cpp)
+target_link_libraries(harness_cli_table_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_cli_table_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_cli_table_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_cli_table_test
+    PRIVATE SG_CLI_SOURCE="${CMAKE_SOURCE_DIR}/source/harness/cli.cpp"
+)
+add_test(NAME harness_cli_table_test COMMAND harness_cli_table_test)
+
 # ---- Main-page documentation gates (feature 018) ----
 
 # The root README.md teaches the harness surface, and every code block it
