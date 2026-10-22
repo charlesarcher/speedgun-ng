@@ -157,7 +157,9 @@ jobs:
           halt_on_error=1"
         UBSAN_OPTIONS: "print_stacktrace=1:\
           halt_on_error=1"
-      run: ctest --output-on-failure --no-tests=error -j 2
+      # Instrumented tests run far slower than the release build, so each one
+      # gets the 3600 s per-test budget T058 states (specs/029 T093).
+      run: ctest --output-on-failure --no-tests=error --timeout 3600 -j 2
 
   tsan:
     needs: [lint]
@@ -187,7 +189,9 @@ jobs:
       working-directory: build/tsan
       env:
         TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
-      run: ctest --output-on-failure --no-tests=error -j 2
+      # Thread-sanitized tests need the same per-test ceiling as the
+      # address-sanitizer lane, or the suite dies in the job (T093).
+      run: ctest --output-on-failure --no-tests=error --timeout 3600 -j 2
 
   test:
     needs: [lint]
