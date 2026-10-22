@@ -535,7 +535,7 @@ auto readJitterCpu(Element value, const std::string& where)
 // is read and kind-checked in order, so a wrong kind names itself
 // before a later key's absence does (FR-029).
 auto readJitterRecord(Element value, const std::string& where)
-    -> std::expected<void, std::string>
+    -> std::expected<std::vector<sg::JitterEntryFold>, std::string>
 {
   const auto readKey =
       [&](std::string_view key) -> std::expected<Element, std::string>
@@ -579,12 +579,17 @@ auto readJitterRecord(Element value, const std::string& where)
   if (!stats.has_value()) {
     return std::unexpected(stats.error());
   }
+  std::vector<sg::JitterEntryFold> folds;
   std::size_t index = 0;
   for (const auto item : *stats) {
     auto read = readJitterCpu(item, where + "/stats/" + std::to_string(index));
     if (!read.has_value()) {
       return std::unexpected(read.error());
     }
+    // E-07: the record reads back into the carrier a `jitter:run:`
+    // comparison rule reads, the same shape the per-entry stats ride
+    // (FR-031).
+    folds.push_back({.cpu = read->first, .stats = read->second});
     ++index;
   }
   auto dropped =
@@ -601,7 +606,7 @@ auto readJitterRecord(Element value, const std::string& where)
   if (!disclosure.has_value()) {
     return std::unexpected(disclosure.error());
   }
-  return {};
+  return folds;
 }
 
 auto readRow(Element value,
@@ -1394,11 +1399,13 @@ auto loadReport(const std::string& path)
                            + "', which this build cannot read: the reader "
                              "knows version 1");
   }
+  ReportData data;
   if (const auto jitter = field(root, "", "jitter"); jitter.has_value()) {
     auto read = readJitterRecord(*jitter, "/jitter");
     if (!read.has_value()) {
       return std::unexpected(read.error());
     }
+    data.runJitterStats = std::move(*read);
   }
   auto entries = field(root, "", "benchmarks");
   if (!entries.has_value()) {
@@ -1408,7 +1415,6 @@ auto loadReport(const std::string& path)
   if (!items.has_value()) {
     return std::unexpected(items.error());
   }
-  ReportData data;
   data.schemaVersion = *versionText;
   if (const auto header = field(root, "", "speedgun"); header.has_value()) {
     // A header text the reader only ever prints stays lenient: the object
