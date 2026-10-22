@@ -26,7 +26,7 @@ value in the option table is unique (FR-011).
 | Part | Meaning | Default | Requirement |
 | --- | --- | --- | --- |
 | `<cpu-list\|idle>` | one or more cpu indexes or closed `a-b` ranges, comma separated, the form the `--topology` listing prints; or the word `idle` | none: the value names the cpus together with the option | FR-011, FR-016, D-4 |
-| `threshold=<ns>` | the gap threshold in nanoseconds, at or above 1; a negative value is a grammar rule of the value, where the string carries the sign (`thresholdNs` is `std::uint64_t`) | 200 ns, or 10 times the measured loop period when that stands larger | FR-007, FR-008, R-05 |
+| `threshold=<ns>` | the gap threshold in nanoseconds, at or above 1; a negative value is a grammar rule of the value, where the string carries the sign (the field is `std::optional<std::uint64_t>`); a value stands as given, an explicit `threshold=200` staying exactly 200 ns | when the option names no threshold value: 200 ns, or 10 times the measured loop period when that stands larger | FR-007, FR-008, R-05 |
 | `mode=` | `alongside`, `precheck`, or `both` | `alongside` | FR-012, FR-014, D-1 |
 | `precheck=<ms>` | the pre-check duration in milliseconds, at or above 1 | 200 ms | FR-014, D-13 |
 | `gaps=<n>` | the gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 | FR-009 |
