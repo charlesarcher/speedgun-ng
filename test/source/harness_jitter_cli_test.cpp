@@ -33,6 +33,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <sched.h>
@@ -244,39 +245,60 @@ auto allMaskCpus() -> std::string
   return joined;
 }
 
-// The thrawn shape built from `base`: 4 L3 groups, 24 cores, 48 threads,
-// two siblings per core; cpu base + n and cpu base + n + 24 share one
-// core, and group n / 6 holds the cores 6n through 6n + 5, so the `l3`
-// plan names base, base + 6, base + 12 and base + 18.
-auto installThrawnShape(std::uint32_t base) -> void
+// The thrawn shape built from the two cpus the mask gives: 4 L3 groups,
+// 24 cores, 48 threads, two siblings per core. Cpus `base` and
+// `sibling` share one core, so the `l3` plan, which names each group's
+// lowest cpu, plans `base`, and the sibling of a planned cpu the FR-018
+// line names stands on the second of the two real cpus; group n / 6
+// holds the cores 6n through 6n + 5.
+auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
+  // The 46 filler cpus: the consecutive ones from base + 1 the sibling
+  // value leaves free. Core 0 carries the two picked cpus and the
+  // fillers fill the other cores, two a core, so the shape spans base
+  // through base + 47 whatever the mask holds.
+  std::vector<std::uint32_t> fillers;
+  for (std::uint32_t cpu = base + 1; fillers.size() < 46; ++cpu) {
+    if (cpu != sibling) {
+      fillers.push_back(cpu);
+    }
+  }
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
+  placed.emplace_back(base, 0);
+  placed.emplace_back(sibling, 0);
+  for (std::uint32_t core = 1; core < 24; ++core) {
+    placed.emplace_back(fillers.at(2 * (core - 1)), core);
+    placed.emplace_back(fillers.at(2 * (core - 1) + 1), core);
+  }
+  // The thread walk emits the cpus ascending, the order the layout read
+  // builds and the resolver's lookups read through (R-07).
+  std::ranges::sort(placed);
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
   for (std::uint32_t core = 0; core < 24; ++core) {
     sg::detail::LayoutCore layoutCore;
     layoutCore.groupOrdinal = core / 6;
-    sg::detail::LayoutThread thread;
-    thread.cpuIndex = base + core;
-    thread.coreOrdinal = core;
-    thread.groupOrdinal = core / 6;
-    layoutCore.threads.push_back(core);
-    installed.threads.push_back(thread);
-    installed.mask.push_back(base + core);
     installed.cores.push_back(layoutCore);
   }
-  for (std::uint32_t core = 0; core < 24; ++core) {
+  for (const auto& [cpu, core] : placed) {
     sg::detail::LayoutThread thread;
-    thread.cpuIndex = base + core + 24;
+    thread.cpuIndex = cpu;
     thread.coreOrdinal = core;
     thread.groupOrdinal = core / 6;
+    installed.cores.at(core).threads.push_back(
+        static_cast<std::uint32_t>(installed.threads.size()));
     installed.threads.push_back(thread);
-    installed.mask.push_back(base + core + 24);
-    installed.cores.at(core).threads.push_back(core + 24);
+    installed.mask.push_back(cpu);
   }
   for (std::uint32_t group = 0; group < 4; ++group) {
     sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = base + group * 6;
+    const auto first = std::ranges::find_if(
+        placed,
+        [group](const std::pair<std::uint32_t, std::uint32_t>& slot) {
+          return slot.second / 6 == group;
+        });
+    layoutGroup.lowestCpu = first->first;
     for (std::uint32_t core = group * 6; core < group * 6 + 6; ++core) {
       layoutGroup.cores.push_back(core);
     }
@@ -318,10 +340,12 @@ auto installTwoGroupPairsShape(std::uint32_t base) -> void
   sg::detail::installTestLayout(installed);
 }
 
-// The base cpu the layout scenarios build their shapes from, picked
-// from the process affinity mask (VI); a static carries it into the
-// setups the forked children run.
+// The two cpus the layout scenarios build their shapes from, picked
+// from the process affinity mask (VI): the planned cpu `baseCpu` and
+// its SMT sibling `siblingCpu`, the second of the two the mask holds;
+// the statics carry them into the setups the forked children run.
 std::uint32_t baseCpu = 0;
+std::uint32_t siblingCpu = 0;
 
 // The probe cpus of the mask-emptied scenario: every cpu the process
 // mask holds (FR-019).
@@ -391,7 +415,7 @@ auto setupIdleNoFree() -> void
 
 auto setupOverlap() -> void
 {
-  installThrawnShape(baseCpu);
+  installThrawnShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitOverlap, "bmJitOverlap");
   handle.threads(4);
 }
@@ -411,7 +435,7 @@ auto setupCpusetLimit() -> void
 
 auto setupSkip() -> void
 {
-  installThrawnShape(baseCpu);
+  installThrawnShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitSkip, "bmJitSkip");
   handle.threads(13);
 }
@@ -534,10 +558,13 @@ auto scenarioOverlapPlanned() -> int
 }
 
 // FR-018, D-3, D-9: the SMT sibling of a planned cpu is refused the
-// same way, the thrawn shape quickstart.md names.
+// same way. The sibling stands on the second of the two cpus the mask
+// gives, the core mate the shape builds for the planned cpu `baseCpu`,
+// so the parse accepts the token and the check reads the refusal off
+// the core thread lists (FR-018, D-9).
 auto scenarioOverlapSibling() -> int
 {
-  const std::string sibling = std::to_string(baseCpu + 24);
+  const std::string sibling = std::to_string(siblingCpu);
   const Captured run = runChildScenario("overlapSibling",
                                         {"--placement=l3",
                                          "--filter",
@@ -663,7 +690,7 @@ SG_BENCHMARK(bmQuiet);
 auto main() -> int
 {
   scriptedProvider();
-  const auto cpus = pickCpus(1);
+  const auto cpus = pickCpus(2);
   const std::string cpu = std::to_string(cpus.at(0));
   const std::vector<std::string> quickRun {
       "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
@@ -673,10 +700,11 @@ auto main() -> int
   // caches the read once per process and an install cannot invalidate
   // it after, so a child that installs its synthetic layout before any
   // read answers the install, and the parent's later in-process
-  // scenarios answer the host (FR-002, Q-5). The base cpu comes from
-  // the process affinity mask (VI), and the mask-emptied scenario
-  // probes every cpu the mask holds.
-  baseCpu = pickCpus(1).at(0);
+  // scenarios answer the host (FR-002, Q-5). The base cpu and its
+  // sibling come from the process affinity mask (VI), and the
+  // mask-emptied scenario probes every cpu the mask holds.
+  baseCpu = cpus.at(0);
+  siblingCpu = cpus.at(1);
   allCpus = allMaskCpus();
   check(scenarioIdleNoPlans() == 0, "idleNoPlans");
   check(scenarioIdleNoFree() == 0, "idleNoFree");
