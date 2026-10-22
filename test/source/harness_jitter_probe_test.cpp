@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <new>
 #include <memory>
 #include <thread>
 #include <type_traits>
@@ -29,59 +28,6 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
-
-// The counters stand atomic: the probe's context threads allocate
-// through the hooks while the main thread arms and reads the count
-// around the span under test (FR-041, the TSan gate).
-std::atomic<std::uint64_t> allocationCount {0};
-std::atomic<bool> countAllocations {false};
-int const volatile* plantedEscape = nullptr;  // the plant's escape hatch
-
-auto allocate(const std::size_t size) -> void*
-{
-  if (countAllocations.load(std::memory_order_relaxed)) {
-    allocationCount.fetch_add(1, std::memory_order_relaxed);
-  }
-  return std::malloc(size == 0 ? 1 : size);
-}
-
-auto operator new(std::size_t size) -> void*
-{
-  void* const block = allocate(size);
-  if (block == nullptr) {
-    throw std::bad_alloc();
-  }
-  return block;
-}
-
-// The nothrow form hands out the same malloc memory the deletes free,
-// the pairing the vendored parser allocations expect (the pattern
-// harness_capture_test.cpp carries).
-auto operator new(std::size_t size, const std::nothrow_t&) noexcept -> void*
-{
-  return allocate(size);
-}
-
-// GCC's warning pass attributes every allocation in a translation unit
-// to the default `operator new` and never consults the replacement
-// declared above, so it reports `-Wmismatched-new-delete` at each `free`
-// below. The pairing is correct: these allocations hand out `malloc`
-// memory and the deletes return it with `free`. The suppression covers
-// exactly that false positive, the way test/source/counters_noalloc_test.cpp
-// does (constitution I, X.2).
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic ignored "-Wmismatched-new-delete"
-#endif
-
-auto operator delete(void* block) noexcept -> void
-{
-  std::free(block);
-}
-
-auto operator delete(void* block, std::size_t) noexcept -> void
-{
-  std::free(block);
-}
 
 namespace
 {
@@ -1034,49 +980,6 @@ auto main() -> int
   // latch.
   {
     runLatchJumpCase();
-  }
-
-  // FR-041, SC-005, Q-2: the no-allocation proof. The counting hooks
-  // arm around a span of loop passes the fake's read counter names, so
-  // the setup allocations stand outside the count; a planted allocation
-  // moves the count, so a clean run cannot come from a counter that
-  // inspects nothing.
-  {
-    sg::JitterProbeOptions loopOptions;
-    loopOptions.cpus = pickCpus(1);
-    auto& provider = scriptedProvider();
-    provider.setPoints("machine", "tsc", passSeries(1), 1);
-    const auto baseActions = provider.readActions();
-    sg::detail::JitterProbe probe(loopOptions);
-    probe.start();
-    std::uint64_t spins = 0;
-    while (provider.readActions() < baseActions + 1100) {
-      std::this_thread::yield();
-      if (++spins > 1000000000ULL) {
-        fail("the loop never opened its window (FR-041)");
-      }
-    }
-    countAllocations.store(true, std::memory_order_relaxed);
-    spins = 0;
-    while (provider.readActions() < baseActions + 20000) {
-      std::this_thread::yield();
-      if (++spins > 1000000000ULL) {
-        fail("the loop never ran the armed passes (FR-041)");
-      }
-    }
-    countAllocations.store(false, std::memory_order_relaxed);
-    probe.stopAndJoin();
-    check(allocationCount.load() == 0,
-          "the loop takes no allocation (FR-041, SC-005)");
-    countAllocations.store(true, std::memory_order_relaxed);
-    // The plant runs through a heap allocation large enough that no
-    // new/delete pair elision folds it into automatic storage (FR-041,
-    // Q-2).
-    const std::vector<char> planted(1 << 20);
-    plantedEscape = reinterpret_cast<const volatile int*>(planted.data());
-    check(allocationCount.load() == 1,
-          "a planted allocation moves the count (FR-041, Q-2)");
-    countAllocations.store(false, std::memory_order_relaxed);
   }
 
   std::puts("harness_jitter_probe_test: ok");

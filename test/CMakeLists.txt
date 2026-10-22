@@ -756,6 +756,26 @@ target_include_directories(harness_jitter_probe_test
 target_compile_features(harness_jitter_probe_test PRIVATE cxx_std_23)
 add_test(NAME harness_jitter_probe_test COMMAND harness_jitter_probe_test)
 
+# The no-allocation proof of the probe loop (T003; FR-041, SC-005, Q-2,
+# K-13): the proof replaces the global operator new and delete - the
+# basic four forms and the four aligned forms std::align_val_t names -
+# and the thread sanitizer runtime defines those operators too, so the
+# two definitions cannot link, and this proof stays out of that preset
+# for the same reason as counters_noalloc_test above. The threaded
+# probe scenarios stand in harness_jitter_probe_test, which replaces
+# nothing, so that preset builds them.
+if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "fsanitize=thread")
+  add_executable(harness_jitter_probe_alloc_test
+                 source/harness_jitter_probe_alloc_test.cpp)
+  target_link_libraries(harness_jitter_probe_alloc_test
+                        PRIVATE speedgun-ng::harness)
+  target_include_directories(harness_jitter_probe_alloc_test
+                             PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+  target_compile_features(harness_jitter_probe_alloc_test PRIVATE cxx_std_23)
+  add_test(NAME harness_jitter_probe_alloc_test
+           COMMAND harness_jitter_probe_alloc_test)
+endif()
+
 # The probe's report surfaces (T007): the console block of a run with the
 # probe (FR-023, R-08), the run-level and per-entry JSON keys (FR-026,
 # FR-027), the round trip (FR-029), the raw gap list (FR-028), and the
