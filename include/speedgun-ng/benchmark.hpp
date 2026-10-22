@@ -477,29 +477,12 @@ struct ContextDisclosure
  * The percentile fields follow the nearest-rank rule of
  * `source/harness/percentiles.cpp` over the sorted kept gaps (PC-4),
  * the rule the report columns fill through. The fold of an empty kept
- * set leaves every field at 0.
+ * set leaves every field at 0. The fold functions of the probe carry
+ * the field relations this struct's fills establish; the aggregate
+ * itself imposes nothing at construction.
  *
- * \pre the buffer of one probe cpu is read after that probe context
- *      is joined (R-04)
- * \post minNs <= medianNs <= p90Ns <= p99Ns <= p999Ns <= p9999Ns <=
- *       maxNs
- * \post `gapCount` counts the kept gaps, and `droppedGaps` counts the
- *       gaps the buffer dropped (FR-010, D-6)
- * \post `totalPercent` divides the kept gaps' total by the covered
- *       duration: the probe's `runtimeNs` for the run-level fold, the
- *       benchmark's window total for the per-benchmark fold (E-03,
- *       R-05)
- * \post `gapsPerSecond` divides `gapCount` by the seconds of the
- *       covered windows' span, the durations the `totalPercent` row
- *       carries (E-03, R-05)
- * \post `thresholdNs` is the effective threshold: the configured
- *       value, or 10 times `loopPeriodNs` when that stands larger
- *       (FR-007, R-05)
- * \post `loopPeriodNs` is the minimum loop period the probe measured
- *       in the fixed measurement pass data-model.md E-05 specifies
- *       (FR-007, R-05)
- * \post `runtimeNs` is the span the loop measured from its start to
- *       the read of the stop flag, through the same reader (R-05)
+ * \pre none
+ * \post none
  */
 struct JitterStats
 {
@@ -525,10 +508,11 @@ struct JitterStats
  * @brief One probe cpu's fold over one benchmark's timed windows
  * (E-08): the cpu index and the fold the split placed into them. A
  * probe cpu whose kept gaps landed inside no window of the benchmark
- * carries no entry here (E-06, FR-021).
+ * carries no entry here (E-06, FR-021). The split reads the probe's
+ * buffers only after the probe contexts are joined (R-04).
  *
- * \pre the probe's buffers are read after the probe contexts are
- *      joined (R-04)
+ * \pre none
+ * \post none
  */
 struct JitterEntryFold
 {
@@ -1929,13 +1913,14 @@ inline constexpr std::uint32_t kDefaultPrecheckMs = 200;
  * buffer size in records (FR-009). `precheckMs` carries the pre-check
  * duration in ms (FR-014, D-13). `strict` stops the run with status 2
  * when the time-stamp counter stands unavailable; a non-strict run
- * discloses and continues with status 0 (FR-037, D-10).
+ * discloses and continues with status 0 (FR-037, D-10). The entry
+ * points that take the options require `thresholdNs` at or above 1,
+ * `gapCount` inside the `kMinGapCount` through `kMaxGapCount` range,
+ * and `precheckMs` at or above 1, and enforce the bounds where they
+ * parse and bind (FR-008, FR-009, D-13).
  *
- * \pre `thresholdNs` stands at or above 1, `gapCount` stands inside
- *      the `kMinGapCount` through `kMaxGapCount` range, and
- *      `precheckMs` stands at or above 1 (FR-008, FR-009, D-13)
- * \post none; the struct is a value type and carries no behavior
- *       (FR-003, R-15)
+ * \pre none
+ * \post none
  */
 struct JitterProbeOptions
 {

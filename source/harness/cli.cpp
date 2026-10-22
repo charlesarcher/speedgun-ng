@@ -16,8 +16,8 @@
 #include <sched.h>
 #include <unistd.h>
 
-#include "detail/compare.hpp"
 #include "detail/cli_options.hpp"
+#include "detail/compare.hpp"
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
 #include "detail/json_report.hpp"
@@ -468,6 +468,19 @@ auto runJitterProbe(const JitterProbeOptions& options) -> void
             "the suite carries the options of its next run (FR-015)");
 }
 
+// D-5: the mask stands restored after the instance ends. The restore
+// applies the saved mask the read returned, so the call stands
+// answered on every path a test drives; a host that refuses it breaks
+// the contract the assertion owns, the way the pin's UNAPPLIED
+// account names the miss (specs/025 FR-005).
+auto restoreSavedMask(const cpu_set_t& saved) noexcept -> void
+{
+  [[maybe_unused]] const bool restored =
+      sched_setaffinity(0, sizeof(saved), &saved) == 0;
+  SG_ASSERT(
+      restored,
+      "the affinity mask stands restored after the instance " "ends (D-5)");
+}
 /**
  * @brief Run the benchmark suite the command line names (FR-040).
  *
@@ -915,16 +928,7 @@ auto speedgunMain(int argc, char** argv) -> int
     }
     const auto result = runner.run(*entry);
     if (maskNarrowed) {
-      // D-5: the mask stands restored after the instance ends. The
-      // restore applies the saved mask the read returned, so the call
-      // stands answered on every path a test drives; a host that
-      // refuses it breaks the contract the assertion owns, the way
-      // the pin's UNAPPLIED account names the miss (specs/025 FR-005).
-      [[maybe_unused]] const bool restored =
-          sched_setaffinity(0, sizeof(savedMask), &savedMask) == 0;
-      SG_ASSERT(
-          restored,
-          "the affinity mask stands restored after the instance " "ends (D-5)");
+      restoreSavedMask(savedMask);
     }
     if (interleaved) {
       held[position] = HeldRow {result,
