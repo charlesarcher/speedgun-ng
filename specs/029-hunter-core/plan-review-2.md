@@ -21,7 +21,7 @@ Nothing in this checkout was edited, built or committed, so this review lives at
 it moves to `specs/029-hunter-core/plan-review-2.md`. Not checked, because it is
 outside the artifacts: whether the spec's own 151-refused hardware record on
 corsairone still matches the 021 record it cites, and whether `harness_cli_test`
-currently passes (a 57-minute suite, not re-run here).
+currently passes (a 57-minute suite, outside this round's runs).
 
 **Result in one line**: 34 of the 37 round-one findings are fixed in the
 committed text; findings 11, 13 and 18 are not; seven new defects were found, one
@@ -330,7 +330,7 @@ disposition.
 Fix: pick one, and N-1's split argues for the refusal: keep hunt-api.md:192-195,
 give hunt-cli.md a refusal row for the below-3 device with its one-line message
 and exit 2, add the case to plan.md:504, and restate data-model.md:111-113 and
-quickstart.md:72-73 as that exit-2 line instead of an empty result.
+quickstart.md:72-73 as that exit-2 line, replacing the empty result.
 
 ### N-7. The gap citation points at an unrelated declaration
 

@@ -8,7 +8,7 @@ V-1 to V-10, Shared-list ledger, Test Plan), `research.md` (PD-01 to PD-20),
 Scope: machine-locatability, dependency order, registration against the
 verification tables, `[P]` write-set honesty, spot-verification against spec FRs
 and ACs and plan gates, and the binding conventions. Every line citation named by
-a task was opened and read, not sampled.
+a task was opened and read in full.
 
 ## What holds up
 
@@ -69,7 +69,7 @@ cases are "green once Phase 7 lands the schema keys". Then T041 runs
 Phase 5 gate, which runs those knowingly failing cases, and plan.md's
 step-and-verify requires `ctest -j 2` green before the next phase starts. The
 phase ships red, and an implementer who follows the phase boundary has no
-honest way to close it.
+green way to close it.
 
 Fix: move T047 (the two closed hunt nodes, the root and entry `x-order` and
 `properties` entries) into Phase 5 ahead of T039, and leave the rest of the
@@ -207,7 +207,7 @@ correct: plan.md's Build system row states preset-driven configuration only and
 hard rule 14 leaves CI and presets alone. `test/CMakeLists.txt` is split between
 T007 and T050 in different phases, both unmarked or non-conflicting, and
 `report.cpp` between T027 and T035 in different phases. Findings 4 and 5 above
-are dependency and marking errors, not shared write sets.
+are dependency and marking errors; neither names a shared write set.
 
 ## Judgment
 
