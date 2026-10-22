@@ -370,6 +370,27 @@ auto JitterProbe::states() const noexcept -> const std::vector<ProbeCpuState>&
   return m_states;
 }
 
+/**
+ * @brief The run-level fold of one probe cpu's kept gaps (E-03): the
+ * sixteen fields over the whole kept set. The covered span the
+ * duration fields divide is the kept records' own stamp span, the
+ * only duration the joined per-cpu state carries; the loop's
+ * start-to-stop span needs a field the state does not declare, and
+ * the deviation rides the wave ledger (E-03, R-05). The empty kept
+ * set answers the zero fields and none of the rows below.
+ *
+ * \post minNs <= medianNs <= p90Ns <= p99Ns <= p999Ns <= p9999Ns <=
+ *       maxNs
+ * \post `gapCount` counts the kept gaps, and `droppedGaps` counts the
+ *       gaps the buffer dropped (FR-010, D-6)
+ * \post `totalPercent` divides the kept gaps' total by `runtimeNs`
+ *       (E-03, R-05)
+ * \post `gapsPerSecond` divides `gapCount` by the seconds of
+ *       `runtimeNs` (E-03, R-05)
+ * \post `thresholdNs` and `loopPeriodNs` carry the state's own
+ *       (FR-007, R-05)
+ * \post `runtimeNs` is the kept records' stamp span (E-03, R-05)
+ */
 auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
 {
   JitterStats stats {};
@@ -424,9 +445,58 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
       / static_cast<double>(stats.runtimeNs);
   stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0
       / static_cast<double>(stats.runtimeNs);
+  SG_ENSURE(stats.minNs <= stats.medianNs
+                && stats.medianNs <= stats.p90Ns
+                && stats.p90Ns <= stats.p99Ns && stats.p99Ns <= stats.p999Ns
+                && stats.p999Ns <= stats.p9999Ns
+                && stats.p9999Ns <= stats.maxNs,
+            "the percentile chain stands ordered (E-03, PC-4)");
+  SG_ENSURE(stats.gapCount == state.kept
+                && stats.droppedGaps == state.droppedGaps,
+            "the counts answer the kept and dropped records (FR-010, D-6)");
+  SG_ENSURE(stats.thresholdNs == state.thresholdNs
+                && stats.loopPeriodNs == state.loopPeriodNs,
+            "the effective fields carry the state's own (FR-007, R-05)");
+  SG_ENSURE(stats.runtimeNs == lastStamp - firstStamp,
+            "the covered span is the kept records' stamp span (E-03)");
+  // `-Wfloat-equal` bars the direct comparison, so the relation reads
+  // the difference against the scale of the values, the reading
+  // percentiles.cpp's ceiling takes.
+  const double perSecond = static_cast<double>(stats.gapCount) * 1e9
+      / static_cast<double>(stats.runtimeNs);
+  const double percent = static_cast<double>(stats.totalNs) * 100.0
+      / static_cast<double>(stats.runtimeNs);
+  // The relation holds over a nonzero span; a kept set whose records
+  // share one stamp answers no finite division, the zero case the
+  // empty-set rows above already except.
+  SG_ENSURE(stats.runtimeNs == 0
+                || (std::fabs(stats.gapsPerSecond - perSecond)
+                        <= 1e-9 * (std::fabs(perSecond) + 1.0)
+                    && std::fabs(stats.totalPercent - percent)
+                        <= 1e-9 * (std::fabs(percent) + 1.0)),
+            "the duration divisions answer the covered span (E-03, R-05)");
   return stats;
 }
 
+/**
+ * @brief The per-benchmark fold of one probe cpu's kept gaps over one
+ * benchmark's timed windows (E-03, E-06): the sixteen fields over the
+ * kept set the windows placed, the covered span the windows' total
+ * duration. The empty placement answers the zero fields and none of
+ * the rows below.
+ *
+ * \post minNs <= medianNs <= p90Ns <= p99Ns <= p999Ns <= p9999Ns <=
+ *       maxNs
+ * \post `gapCount` counts the placed gaps, and `droppedGaps` counts
+ *       the gaps the buffer dropped (FR-010, D-6, E-06)
+ * \post `totalPercent` divides the placed gaps' total by `runtimeNs`
+ *       (E-03, R-05)
+ * \post `gapsPerSecond` divides `gapCount` by the seconds of
+ *       `runtimeNs` (E-03, R-05)
+ * \post `thresholdNs` and `loopPeriodNs` carry the state's own
+ *       (FR-007, R-05)
+ * \post `runtimeNs` is the windows' total duration (E-03, R-05)
+ */
 auto gapStatsOf(const ProbeCpuState& state,
                 std::span<const TimedWindow> windows) -> JitterStats
 {
@@ -485,6 +555,33 @@ auto gapStatsOf(const ProbeCpuState& state,
       / static_cast<double>(stats.runtimeNs);
   stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0
       / static_cast<double>(stats.runtimeNs);
+  SG_ENSURE(stats.minNs <= stats.medianNs
+                && stats.medianNs <= stats.p90Ns
+                && stats.p90Ns <= stats.p99Ns && stats.p99Ns <= stats.p999Ns
+                && stats.p999Ns <= stats.p9999Ns
+                && stats.p9999Ns <= stats.maxNs,
+            "the percentile chain stands ordered (E-03, PC-4)");
+  SG_ENSURE(stats.gapCount == sorted.size()
+                && stats.droppedGaps == state.droppedGaps,
+            "the counts answer the placed and dropped records (FR-010, D-6)");
+  SG_ENSURE(stats.thresholdNs == state.thresholdNs
+                && stats.loopPeriodNs == state.loopPeriodNs,
+            "the effective fields carry the state's own (FR-007, R-05)");
+  SG_ENSURE(stats.runtimeNs == coveredNs,
+            "the covered span is the windows' total duration (E-03)");
+  // `-Wfloat-equal` bars the direct comparison, so the relation reads
+  // the difference against the scale of the values, the reading
+  // percentiles.cpp's ceiling takes.
+  const double perSecond = static_cast<double>(stats.gapCount) * 1e9
+      / static_cast<double>(stats.runtimeNs);
+  const double percent = static_cast<double>(stats.totalNs) * 100.0
+      / static_cast<double>(stats.runtimeNs);
+  SG_ENSURE(stats.runtimeNs == 0
+                || (std::fabs(stats.gapsPerSecond - perSecond)
+                        <= 1e-9 * (std::fabs(perSecond) + 1.0)
+                    && std::fabs(stats.totalPercent - percent)
+                        <= 1e-9 * (std::fabs(percent) + 1.0)),
+            "the duration divisions answer the covered span (E-03, R-05)");
   return stats;
 }
 
