@@ -450,7 +450,7 @@ Every file the change touches outside its own new files, with the edit:
 | `README.md` | new `### Hunter mode` section after `### Regression gate` (line 621), at or under 25 section lines; eight option rows in the option table (ends at line 766); one quick-reference name row per new public type |
 | `docs/pages/harness.md` | the "Hunter mode" option detail and the hunt object shape; line 1067 states the version a run writes and moves with the schema minor |
 | `test/source/harness_json_load_test.cpp` | line 113 builds the current-version document and line 529 plants the `schemaVersion` kind refusal, both beside the bumped version |
-| `test/source/harness_compare_cli_test.cpp` | line 516 expects the console words `schema 1.1`; the value moves with the bump and the pre-1.1 baseline comparison of line 492 stays as it is |
+| `test/source/harness_compare_cli_test.cpp` | no edit: line 516 asserts the console header of `gate_schema_11.json`, a frozen `1.1` fixture whose own version fields stand, and the pre-1.1 baseline comparison of line 492 stays as it is; the bump touches neither (round-two tasks review, finding 1) |
 | `tools/docs/example_drift.py` | `SECTIONS` gains `"Hunter mode"` (line 32), `SECTION_OWNERS` gains its owner (line 63), `PAGE_LINE_CAP` rises from 773 to the measured length with the recorded move note at its comment block (lines 100-155, FR-072) |
 | `docs/schema/report-v1.json` | root `x-order` and `properties` gain `hunt`; entry `x-order` and `properties` gain `hunt`; `required` unchanged in both |
 | `test/source/harness_cli_table_test.cpp` | created here: master has no such file at `bd10d76` and no other lane creates it; hard rule 10 gives the file to the first lane that merges |
