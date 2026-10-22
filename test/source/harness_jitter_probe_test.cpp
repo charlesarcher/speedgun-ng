@@ -215,7 +215,7 @@ auto passSeries(std::uint64_t step) -> std::vector<std::uint64_t>
 // synchronize on the provider's own read counter, the barrier the
 // scenarios hang on (FR-039): the wait spins on the atomic count, with no
 // sleep and no clock, and the bound turns a stalled series into a
-// reported failure instead of a hang.
+// reported failure; the wait cannot hang.
 template<class Assert>
 auto runSeries(const sg::JitterProbeOptions& options,
                std::vector<std::uint64_t> points,
@@ -232,7 +232,7 @@ auto runSeries(const sg::JitterProbeOptions& options,
   while (provider.readActions() < baseActions + waitActions) {
     // The wait yields, so the pinned probe thread progresses under
     // concurrent test load; the bound turns a stalled series into a
-    // reported failure instead of a hang (FR-039).
+    // reported failure; the wait cannot hang (FR-039).
     std::this_thread::yield();
     if (++spins > 1000000000ULL) {
       fail("the scripted series never reached the waited action (FR-039)");
