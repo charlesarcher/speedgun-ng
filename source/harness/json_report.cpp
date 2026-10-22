@@ -498,11 +498,28 @@ void writeEntry(Builder& builder,
     builder.append_null();
   }
   if (jitter.has_value()) {
-    // E-08: the per-entry object stands null before the split of the
-    // attribution story fills it with the per-benchmark stats (FR-027,
-    // User Story 3).
+    // E-08, FR-027: the per-entry key stands after `noiseWarning`: null
+    // when no kept gap landed inside this benchmark's windows, and the
+    // stats object when they did, one object per probe cpu over those
+    // windows in the order the result's carrier fills, ascending cpu
+    // order. The sixteen fields of each object ride the writer the
+    // run-level stats array shares; the raw gap list stays the run
+    // level's condition alone (E-10).
     object.key("jitter");
-    builder.append_null();
+    if (result.jitterFolds.empty()) {
+      builder.append_null();
+    } else {
+      JsonObjectWriter entryJitter(builder);
+      entryJitter.key("stats");
+      JsonArrayWriter stats(builder);
+      for (const auto& fold : result.jitterFolds) {
+        stats.item();
+        JitterReportCpu placed;
+        placed.cpu = fold.cpu;
+        placed.stats = fold.stats;
+        writeJitterCpu(builder, placed, false);
+      }
+    }
   }
   object.key("rows");
   {

@@ -576,6 +576,24 @@ auto printResult(const BenchmarkResult& result) -> void
   // describes, and the context disclosure below it prints what it printed
   // before the pass mechanism existed (spec D-8, N4).
   printPassDisclosure(result);
+  // FR-024, R-08: the per-benchmark attribution line under the rows,
+  // naming the worst probe cpu for this benchmark's windows: the fold
+  // whose max stands largest, ties keeping the ascending cpu order the
+  // carrier fills. A benchmark whose windows placed no kept gap prints
+  // no line (E-06, FR-021).
+  if (!result.jitterFolds.empty()) {
+    const sg::JitterEntryFold* worst = &result.jitterFolds.front();
+    for (const auto& fold : result.jitterFolds) {
+      if (fold.stats.maxNs > worst->stats.maxNs) {
+        worst = &fold;
+      }
+    }
+    std::printf("jitter: worst cpu %u gaps=%llu max=%llu total=%.2f\n",
+                static_cast<unsigned>(worst->cpu),
+                static_cast<unsigned long long>(worst->stats.gapCount),
+                static_cast<unsigned long long>(worst->stats.maxNs),
+                worst->stats.totalPercent);
+  }
 
   // FR-025: a non-empty `contexts` vector names exactly a threaded
   // result, so a single-context result leaves here holding the bytes its

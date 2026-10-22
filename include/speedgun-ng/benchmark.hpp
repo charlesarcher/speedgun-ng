@@ -469,6 +469,73 @@ struct ContextDisclosure
  * the roadmap reuses the pair (FR-021, R-07). `ResultRow` carries
  * neither field: it is one repetition or aggregate (FR-021).
  */
+/**
+ * @brief The jitter result of one probe cpu over one set of covered
+ * windows: the sixteen fields of data-model.md E-03 in the E-03 order
+ * (FR-002, R-05).
+ *
+ * The percentile fields follow the nearest-rank rule of
+ * `source/harness/percentiles.cpp` over the sorted kept gaps (PC-4),
+ * the rule the report columns fill through. The fold of an empty kept
+ * set leaves every field at 0.
+ *
+ * \pre the buffer of one probe cpu is read after that probe context
+ *      is joined (R-04)
+ * \post minNs <= medianNs <= p90Ns <= p99Ns <= p999Ns <= p9999Ns <=
+ *       maxNs
+ * \post `gapCount` counts the kept gaps, and `droppedGaps` counts the
+ *       gaps the buffer dropped (FR-010, D-6)
+ * \post `totalPercent` divides the kept gaps' total by the covered
+ *       duration: the probe's `runtimeNs` for the run-level fold, the
+ *       benchmark's window total for the per-benchmark fold (E-03,
+ *       R-05)
+ * \post `gapsPerSecond` divides `gapCount` by the seconds of the
+ *       covered windows' span, the durations the `totalPercent` row
+ *       carries (E-03, R-05)
+ * \post `thresholdNs` is the effective threshold: the configured
+ *       value, or 10 times `loopPeriodNs` when that stands larger
+ *       (FR-007, R-05)
+ * \post `loopPeriodNs` is the minimum loop period the probe measured
+ *       in the fixed measurement pass data-model.md E-05 specifies
+ *       (FR-007, R-05)
+ * \post `runtimeNs` is the span the loop measured from its start to
+ *       the read of the stop flag, through the same reader (R-05)
+ */
+struct JitterStats
+{
+  std::uint64_t gapCount = 0;
+  double gapsPerSecond = 0.0;
+  std::uint64_t minNs = 0;
+  std::uint64_t medianNs = 0;
+  double meanNs = 0.0;
+  std::uint64_t p90Ns = 0;
+  std::uint64_t p99Ns = 0;
+  std::uint64_t p999Ns = 0;
+  std::uint64_t p9999Ns = 0;
+  std::uint64_t maxNs = 0;
+  std::uint64_t totalNs = 0;
+  double totalPercent = 0.0;
+  std::uint64_t runtimeNs = 0;
+  std::uint64_t thresholdNs = 0;
+  std::uint64_t loopPeriodNs = 0;
+  std::uint64_t droppedGaps = 0;
+};
+
+/**
+ * @brief One probe cpu's fold over one benchmark's timed windows
+ * (E-08): the cpu index and the fold the split placed into them. A
+ * probe cpu whose kept gaps landed inside no window of the benchmark
+ * carries no entry here (E-06, FR-021).
+ *
+ * \pre the probe's buffers are read after the probe contexts are
+ *      joined (R-04)
+ */
+struct JitterEntryFold
+{
+  std::uint32_t cpu = 0;
+  JitterStats stats {};
+};
+
 struct BenchmarkResult
 {
   std::string name;
@@ -546,6 +613,12 @@ struct BenchmarkResult
   // prints the disclosure line, so the runner fills it and the report reads
   // it.
   bool metricMethodForced = false;
+  // specs/027 E-08, FR-027: one entry per probe cpu whose kept gaps
+  // landed inside this benchmark's windows, in ascending cpu order, the
+  // value the per-benchmark attribution line names and the document's
+  // per-entry `jitter` object writes; empty when no kept gap landed
+  // inside the windows or the run carried no probe (E-08, FR-027).
+  std::vector<JitterEntryFold> jitterFolds;
   // specs/021 FR-001, FR-010: true when the primary time of this result is
   // the CPU fold, the default, and false when the family asked for the real
   // fold. The row reports both time columns, so the percentile column that
@@ -1866,58 +1939,6 @@ struct JitterProbeOptions
   std::uint32_t gapCount = kDefaultGapCount;
   std::uint32_t precheckMs = kDefaultPrecheckMs;
   bool strict = false;
-};
-
-/**
- * @brief The jitter result of one probe cpu over one set of covered
- * windows: the sixteen fields of data-model.md E-03 in the E-03 order
- * (FR-002, R-05).
- *
- * The percentile fields follow the nearest-rank rule of
- * `source/harness/percentiles.cpp` over the sorted kept gaps (PC-4),
- * the rule the report columns fill through. The fold of an empty kept
- * set leaves every field at 0.
- *
- * \pre the buffer of one probe cpu is read after that probe context
- *      is joined (R-04)
- * \post minNs <= medianNs <= p90Ns <= p99Ns <= p999Ns <= p9999Ns <=
- *       maxNs
- * \post `gapCount` counts the kept gaps, and `droppedGaps` counts the
- *       gaps the buffer dropped (FR-010, D-6)
- * \post `totalPercent` divides the kept gaps' total by the covered
- *       duration: the probe's `runtimeNs` for the run-level fold, the
- *       benchmark's window total for the per-benchmark fold (E-03,
- *       R-05)
- * \post `gapsPerSecond` divides `gapCount` by the seconds of the
- *       covered windows' span, the durations the `totalPercent` row
- *       carries (E-03, R-05)
- * \post `thresholdNs` is the effective threshold: the configured
- *       value, or 10 times `loopPeriodNs` when that stands larger
- *       (FR-007, R-05)
- * \post `loopPeriodNs` is the minimum loop period the probe measured
- *       in the fixed measurement pass data-model.md E-05 specifies
- *       (FR-007, R-05)
- * \post `runtimeNs` is the span the loop measured from its start to
- *       the read of the stop flag, through the same reader (R-05)
- */
-struct JitterStats
-{
-  std::uint64_t gapCount = 0;
-  double gapsPerSecond = 0.0;
-  std::uint64_t minNs = 0;
-  std::uint64_t medianNs = 0;
-  double meanNs = 0.0;
-  std::uint64_t p90Ns = 0;
-  std::uint64_t p99Ns = 0;
-  std::uint64_t p999Ns = 0;
-  std::uint64_t p9999Ns = 0;
-  std::uint64_t maxNs = 0;
-  std::uint64_t totalNs = 0;
-  double totalPercent = 0.0;
-  std::uint64_t runtimeNs = 0;
-  std::uint64_t thresholdNs = 0;
-  std::uint64_t loopPeriodNs = 0;
-  std::uint64_t droppedGaps = 0;
 };
 
 /**

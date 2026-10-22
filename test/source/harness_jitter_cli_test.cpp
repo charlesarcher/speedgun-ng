@@ -320,11 +320,11 @@ auto installTwoGroupPairsShape(std::uint32_t base) -> void
 // The base cpu the layout scenarios build their shapes from, picked
 // from the process affinity mask (VI); a static carries it into the
 // setups the forked children run.
-std::uint32_t g_baseCpu = 0;
+std::uint32_t baseCpu = 0;
 
 // The probe cpus of the mask-emptied scenario: every cpu the process
 // mask holds (FR-019).
-std::string g_allCpus;
+std::string allCpus;
 
 auto bmJitIdleNoFree(sg::State& state) -> void
 {
@@ -348,7 +348,7 @@ auto bmJitMaskEmpty(sg::State& state) -> void
 // main thread's mask, the way a cpuset change stands between the parse
 // and the run (FR-036); a static carries it into the body the child
 // runs.
-std::uint32_t g_limitCpu = 0;
+std::uint32_t limitCpu = 0;
 
 auto bmJitLimitShrunk(sg::State& state) -> void
 {
@@ -358,7 +358,7 @@ auto bmJitLimitShrunk(sg::State& state) -> void
   cpu_set_t current {};
   CPU_ZERO(&current);
   if (sched_getaffinity(0, sizeof(current), &current) == 0) {
-    CPU_CLR(g_limitCpu, &current);
+    CPU_CLR(limitCpu, &current);
     if (sched_setaffinity(0, sizeof(current), &current) != 0) {
       fail("the body cannot narrow the mask (FR-036)");
     }
@@ -385,14 +385,14 @@ auto setupNoLayout() -> void
 
 auto setupIdleNoFree() -> void
 {
-  installTwoGroupPairsShape(g_baseCpu);
+  installTwoGroupPairsShape(baseCpu);
   auto handle = sg::registerBenchmark(&bmJitIdleNoFree, "bmJitIdleNoFree");
   handle.threads(2);
 }
 
 auto setupOverlap() -> void
 {
-  installThrawnShape(g_baseCpu);
+  installThrawnShape(baseCpu);
   auto handle = sg::registerBenchmark(&bmJitOverlap, "bmJitOverlap");
   handle.threads(4);
 }
@@ -404,7 +404,7 @@ auto setupMaskEmpty() -> void
 
 auto setupCpusetLimit() -> void
 {
-  g_limitCpu = g_baseCpu;
+  limitCpu = baseCpu;
   auto handle = sg::registerBenchmark(&bmJitLimitShrunk, "bmJitLimitShrunk");
   handle.placement("l3");
   (void)sg::registerBenchmark(&bmJitLimitProbe, "bmJitLimitProbe");
@@ -412,7 +412,7 @@ auto setupCpusetLimit() -> void
 
 auto setupSkip() -> void
 {
-  installThrawnShape(g_baseCpu);
+  installThrawnShape(baseCpu);
   auto handle = sg::registerBenchmark(&bmJitSkip, "bmJitSkip");
   handle.threads(13);
 }
@@ -517,7 +517,7 @@ auto scenarioIdleNoFree() -> int
 // any benchmark runs.
 auto scenarioOverlapPlanned() -> int
 {
-  const std::string probe = std::to_string(g_baseCpu);
+  const std::string probe = std::to_string(baseCpu);
   const Captured run =
       runChildScenario("overlapPlanned",
                        {"--placement=l3", "--filter", "^bmJitOverlap",
@@ -537,7 +537,7 @@ auto scenarioOverlapPlanned() -> int
 // same way, the thrawn shape quickstart.md names.
 auto scenarioOverlapSibling() -> int
 {
-  const std::string sibling = std::to_string(g_baseCpu + 24);
+  const std::string sibling = std::to_string(baseCpu + 24);
   const Captured run =
       runChildScenario("overlapSibling",
                        {"--placement=l3", "--filter", "^bmJitOverlap",
@@ -558,7 +558,7 @@ auto scenarioOverlapSibling() -> int
 // stops before the benchmarks start.
 auto scenarioPrecheckAllows() -> int
 {
-  const std::string probe = std::to_string(g_baseCpu);
+  const std::string probe = std::to_string(baseCpu);
   const Captured run = runChildScenario(
       "precheckAllows",
       {"--placement=l3", "--filter", "^bmJitOverlap", "--repetitions=1",
@@ -576,7 +576,7 @@ auto scenarioPrecheckAllows() -> int
 // alongside stop lands with the overlap line before any row.
 auto scenarioBothOverlap() -> int
 {
-  const std::string probe = std::to_string(g_baseCpu);
+  const std::string probe = std::to_string(baseCpu);
   const Captured run = runChildScenario(
       "bothOverlap",
       {"--placement=l3", "--filter", "^bmJitOverlap",
@@ -598,7 +598,7 @@ auto scenarioMaskEmpty() -> int
 {
   const Captured run = runChildScenario(
       "maskEmpty",
-      {"--filter", "^bmJitMaskEmpty$", "--jitter-probe=" + g_allCpus},
+      {"--filter", "^bmJitMaskEmpty$", "--jitter-probe=" + allCpus},
       &setupMaskEmpty);
   check(run.status == 2, "the emptied mask exits 2 (FR-019)");
   checkOneLine(run.err, "the mask stop prints one line (FR-019)");
@@ -633,7 +633,7 @@ auto scenarioSkipDisclosure() -> int
 // thread's mask between the parse and the second instance's run.
 auto scenarioCpusetLimit() -> int
 {
-  const std::string probe = std::to_string(g_baseCpu);
+  const std::string probe = std::to_string(baseCpu);
   const Captured run =
       runChildScenario("cpusetLimit",
                        {"--filter", "^bmJitLimit", "--repetitions=1",
@@ -668,8 +668,8 @@ auto main() -> int
   // scenarios answer the host (FR-002, Q-5). The base cpu comes from
   // the process affinity mask (VI), and the mask-emptied scenario
   // probes every cpu the mask holds.
-  g_baseCpu = pickCpus(1).at(0);
-  g_allCpus = allMaskCpus();
+  baseCpu = pickCpus(1).at(0);
+  allCpus = allMaskCpus();
   check(scenarioIdleNoPlans() == 0, "idleNoPlans");
   check(scenarioIdleNoFree() == 0, "idleNoFree");
   check(scenarioOverlapPlanned() == 0, "overlapPlanned");
