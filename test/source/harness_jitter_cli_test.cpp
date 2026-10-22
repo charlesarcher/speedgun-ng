@@ -369,25 +369,18 @@ auto bmJitMaskEmpty(sg::State& state) -> void
   }
 }
 
-// The probe cpu the cpuset-limit scenario's first body drops from the
-// main thread's mask, the way a cpuset change stands between the parse
-// and the run (FR-036); a static carries it into the body the child
-// runs.
-std::uint32_t limitCpu = 0;
-
-auto bmJitLimitShrunk(sg::State& state) -> void
+auto bmJitSingle(sg::State& state) -> void
 {
-  // The body narrows the main thread's mask before the next instance's
-  // run reads it; the instance carries a handle preset, so no narrowing
-  // and no restore stands around the change (FR-019).
-  cpu_set_t current {};
-  CPU_ZERO(&current);
-  if (sched_getaffinity(0, sizeof(current), &current) == 0) {
-    CPU_CLR(limitCpu, &current);
-    if (sched_setaffinity(0, sizeof(current), &current) != 0) {
-      fail("the body cannot narrow the mask (FR-036)");
-    }
+  for (auto _ : state) {
   }
+}
+
+// The pinned planner of the cpuset-limit scenario: two contexts on
+// the `l3` plan give the idle resolution its touched groups, and the
+// free cpus the resolution leaves stand outside the cpuset the child
+// holds, the cpuset limit the disclosure names (FR-036).
+auto bmJitLimitPlanned(sg::State& state) -> void
+{
   for (auto _ : state) {
   }
 }
@@ -425,11 +418,30 @@ auto setupMaskEmpty() -> void
   (void)sg::registerBenchmark(&bmJitMaskEmpty, "bmJitMaskEmpty");
 }
 
+auto setupSingle() -> void
+{
+  auto handle = sg::registerBenchmark(&bmJitSingle, "bmJitSingle");
+  handle.placement("l3");
+}
+
 auto setupCpusetLimit() -> void
 {
-  limitCpu = baseCpu;
-  auto handle = sg::registerBenchmark(&bmJitLimitShrunk, "bmJitLimitShrunk");
+  // The child's cpuset holds the two picked cpus, the way a cpuset
+  // tighter than the layout stands at the run (FR-036); the shape the
+  // child installs spans cpus the cpuset does not hold, so the idle
+  // resolution names probe cpus outside it.
+  cpu_set_t cpus {};
+  CPU_ZERO(&cpus);
+  CPU_SET(baseCpu, &cpus);
+  CPU_SET(siblingCpu, &cpus);
+  if (sched_setaffinity(0, sizeof(cpus), &cpus) != 0) {
+    fail("the child cannot hold the picked cpuset (FR-036)");
+  }
+  installThrawnShape(baseCpu, siblingCpu);
+  auto handle =
+      sg::registerBenchmark(&bmJitLimitPlanned, "bmJitLimitPlanned");
   handle.placement("l3");
+  handle.threads(2);
   (void)sg::registerBenchmark(&bmJitLimitProbe, "bmJitLimitProbe");
 }
 
@@ -640,6 +652,30 @@ auto scenarioMaskEmpty() -> int
   return 0;
 }
 
+// FR-019, D-5: a single-context instance that carries a preset is
+// unpinned (the runner pins only instances with more than one
+// context), so the probe narrows the main thread's mask and the run
+// continues.
+auto scenarioSingleContext() -> int
+{
+  const std::string probe = std::to_string(baseCpu);
+  const Captured run = runChildScenario("singleContext",
+                                        {"--filter",
+                                         "^bmJitSingle$",
+                                         "--repetitions=1",
+                                         "--iterations=2",
+                                         "--jitter-probe=" + probe},
+                                        &setupSingle);
+  check(run.status == 0,
+        "the single-context preset run continues (FR-019)");
+  check(run.out.find("affinity mask narrowed for 'bmJitSingle'")
+            != std::string::npos,
+        "the disclosure names the narrowed mask (FR-019, D-5)");
+  check(run.out.find("bmJitSingle") != std::string::npos,
+        "the benchmark ran (FR-019)");
+  return 0;
+}
+
 // FR-017, D-4: a group with no free cpu stands skipped and disclosed,
 // and the run continues over the free cpu the other touched group
 // yields; the `compact` plan of thirteen contexts covers group 0
@@ -663,17 +699,18 @@ auto scenarioSkipDisclosure() -> int
 }
 
 // FR-036, D-12: cpusets limiting the probe cpus reach the disclosure
-// and the run continues; the first instance's body narrows the main
-// thread's mask between the parse and the second instance's run.
+// and the run continues; the child's cpuset holds the two picked
+// cpus, the `idle` resolution names free cpus of the shape outside
+// it, and the unpinned second instance's narrowing discloses the
+// limit.
 auto scenarioCpusetLimit() -> int
 {
-  const std::string probe = std::to_string(baseCpu);
   const Captured run = runChildScenario("cpusetLimit",
                                         {"--filter",
                                          "^bmJitLimit",
                                          "--repetitions=1",
                                          "--iterations=2",
-                                         "--jitter-probe=" + probe},
+                                         "--jitter-probe=idle"},
                                         &setupCpusetLimit);
   check(run.status == 0, "the cpuset limit discloses and continues (FR-036)");
   check(run.out.find("cpusets limit the probe cpus") != std::string::npos,
@@ -713,6 +750,7 @@ auto main() -> int
   check(scenarioPrecheckAllows() == 0, "precheckAllows");
   check(scenarioBothOverlap() == 0, "bothOverlap");
   check(scenarioMaskEmpty() == 0, "maskEmpty");
+  check(scenarioSingleContext() == 0, "singleContext");
   check(scenarioSkipDisclosure() == 0, "skipDisclosure");
   check(scenarioCpusetLimit() == 0, "cpusetLimit");
 
