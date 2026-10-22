@@ -55,7 +55,13 @@ criteria AC-1 to AC-8, and the scope."
   rises to 11. Each rebase re-reads the `VERSION` and `SOVERSION` lines
   of `CMakeLists.txt` on master, takes the next free minor version, and
   raises each `SOVERSION` by one from master, and the constitution rule
-  governs (Decisions D-16).
+  governs (Decisions D-16). The rebase landed on `bd10d76` (0.16.0,
+  harness 10, archive 3) and records the ABI check the lane owner
+  asks for: the public surface gains `runJitterProbe` and
+  `BenchmarkHandle::jitterProbe`, so the harness `SOVERSION` rises to
+  11 and the archive, which carries the harness objects, rises to 4;
+  with the public surface unchanged the versions would have stood
+  still at master's.
 - **Roadmap file**: the roadmap path
   `/workspace/speedgun-ng-harness-roadmap.md` held no file on this
   machine at run time. The prompt carries the decisions D-13.1 to
@@ -765,11 +771,9 @@ that never prints.
   alongside phase, a bad threshold, a bad mode, a bad `gaps` value,
   a bad `precheck` value, or no free cpu for `idle` prints one line
   and exits with status 2.
-- **SC-003** (AC-3): a run with no `--jitter-probe` gives a console
-  report and a JSON document with the same fields and shape as
-  master's; the `report_shape` fixture test and the schema validation
-  hold the shape, and the quickstart.md master-worktree diff records
-  the manual check.
+- **SC-003** (AC-3): a run without `--jitter-probe` gives the same
+  console report as master, and its JSON bytes are the same apart from
+  the `schemaVersion` value.
 - **SC-004** (AC-4): an N5 rule on `jitter:any:maxNs` fails a
   comparison with status 1, and a `jitter:` rule on a report with no
   probe exits with status 2.
