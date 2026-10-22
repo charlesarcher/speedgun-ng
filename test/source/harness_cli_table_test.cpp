@@ -5,7 +5,8 @@
 // contracts/option-table.md, contracts/help-and-version.md,
 // contracts/page-and-examples.md).
 //
-// The contract fixes 27 rows in one order. The 20 rows master carries keep
+// The contract fixes 27 rows in one order, plus the one row this feature
+// adds at 297. The 20 rows master carries keep
 // their spelling, their argument kind and their internal value, and the
 // seven new names take the constants 290 to 296 that spec D-24 reserves.
 // The expected rows stand here as literals, the master name to value
@@ -41,7 +42,7 @@
 //
 // Check map:
 //   theTableAnswersARowList        one source file yields rows
-//   theTableHoldsTwentySevenRows   the row count is the contract's 27
+//   theTableHoldsTwentyEightRows   the row count is the contract's 28
 //                                  (FR-001, FR-004, SC-001)
 //   theNamesStandInTheContractOrder
 //                                  the names in table order equal the
@@ -58,7 +59,8 @@
 //   theSevenNewNamesTakeTheReservedConstants
 //                                  `options`, `env`, `threads`,
 //                                  `interleave`, `compare-rules`, `help`
-//                                  and `version` at 290 to 296 (FR-004)
+//                                  and `version` at 290 to 296, and
+//                                  `jitter-probe` at 297 (FR-004)
 //   noNameAndNoValueRepeat         uniqueness over the whole table
 //                                  (FR-004, SC-001)
 //   theValueBlocksStayUniqueAndDisjoint
@@ -109,7 +111,7 @@
 //                                  every table row has a page row of the
 //                                  same argument kind, environment name
 //                                  and help text, every page row names a
-//                                  table row, and both directions walk 27
+//                                  table row, and both directions walk 28
 //                                  rows of which 12 carry an environment
 //                                  name (FR-069, FR-070, FR-074, SC-008)
 //   aTwoCountThreadListRunsAtBothCounts
@@ -117,8 +119,7 @@
 //                                  and the `/threads:2` instance, and the
 //                                  run answers one report row per count
 //                                  (FR-044, FR-048, SC-004)
-// ============================================================================
-
+// =====================================================================
 #include <array>
 #include <cctype>
 #include <cstddef>
@@ -183,7 +184,7 @@ constexpr char kRequired = 'r';
 constexpr char kOptional = 'o';
 constexpr char kNoArgument = 'n';
 
-constexpr std::array<ExpectedRow, 27> kContract = {{
+constexpr std::array<ExpectedRow, 28> kContract = {{
     {"filter", kRequired, 'f'},
     {"list", kNoArgument, 'l'},
     {"repetitions", kRequired, 'r'},
@@ -211,6 +212,7 @@ constexpr std::array<ExpectedRow, 27> kContract = {{
     {"compare-rules", kRequired, 294},
     {"help", kNoArgument, 295},
     {"version", kNoArgument, 296},
+    {"jitter-probe", kRequired, 297},
 }};
 
 // The rows master carries today; the seven rows after them are the ones
@@ -225,6 +227,7 @@ constexpr int kCarriedLow = 256;
 constexpr int kCarriedHigh = 259;
 constexpr int kReservedLow = 290;
 constexpr int kReservedHigh = 296;
+constexpr int kJitterProbeValue = 297;
 
 // The master name to value mapping of FR-013: the sixteen letters and the
 // four carried constants of those 20 rows, spelled out here as a table of
@@ -618,13 +621,13 @@ auto theTableAnswersARowList(const std::vector<Row>& rows) -> void
   check(!rows.empty(), "the table source answers a row list (FR-079)");
 }
 
-auto theTableHoldsTwentySevenRows(const std::vector<Row>& rows) -> void
+auto theTableHoldsTwentyEightRows(const std::vector<Row>& rows) -> void
 {
   if (rows.size() == kContract.size()) {
     return;
   }
-  report("the table holds the 27 rows of the contract (FR-001, FR-004, SC-001)",
-         "27 rows",
+  report("the table holds the 28 rows of the contract (FR-001, FR-004, SC-001)",
+         "28 rows",
          std::to_string(rows.size()) + " rows");
 }
 
@@ -770,11 +773,13 @@ auto inMasterBlock(const int value) -> bool
       || (value >= kCarriedLow && value <= kCarriedHigh);
 }
 
-// The value block of the 7 rows this feature brings: the constants 290
-// to 296 that spec D-24 reserves (FR-004).
+// The value block of the 7 rows the command-line lane brings: the
+// constants 290 to 296 that spec D-24 reserves, plus the one row this
+// feature brings at 297 (FR-004).
 auto inNewBlock(const int value) -> bool
 {
-  return value >= kReservedLow && value <= kReservedHigh;
+  return (value >= kReservedLow && value <= kReservedHigh)
+      || value == kJitterProbeValue;
 }
 
 auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
@@ -805,7 +810,7 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
           + "' answers inside its block (FR-004, FR-079)";
       report(label.c_str(),
              master ? "a letter or a constant from 256 to 259"
-                    : "a constant from 290 to 296",
+                    : "a constant from 290 to 297",
              valueWord(row.value));
     }
     if (master) {
@@ -1313,7 +1318,7 @@ auto theRulesOptionShowsOnTheGuidePage(const std::filesystem::path& start)
 // argument kind, the same environment name where the row carries one and
 // the same help text, and every row of the page names a row of the
 // table. A row missing from the page and an option missing from the table
-// are both findings. Both directions walk 27 rows, and 12 of them carry
+// are both findings. Both directions walk 28 rows, and 12 of them carry
 // an environment name.
 auto thePageAndTheTableAgreeInBothDirections(const std::filesystem::path& start)
     -> void
@@ -1539,7 +1544,7 @@ auto main(int argc, char** argv) -> int
   }
 
   theTableAnswersARowList(rows);
-  theTableHoldsTwentySevenRows(rows);
+  theTableHoldsTwentyEightRows(rows);
   theNamesStandInTheContractOrder(rows);
   eachRowCarriesItsArgumentKind(rows);
   eachRowCarriesItsValue(rows);

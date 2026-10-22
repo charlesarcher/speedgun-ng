@@ -676,6 +676,7 @@ variable.
 | `compare-rules` | required |  | Reads one comparison rule per line from a file |
 | `help` | none |  | Prints one line per option and stops |
 | `version` | none |  | Prints the project version and stops |
+| `jitter-probe` | required |  | Runs the jitter probe over the batch by that value |
 
 The highest source that sets an option wins: the command line, then the option
 file, then the environment, then the built-in default. A repeatable option from
