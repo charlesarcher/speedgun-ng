@@ -13,11 +13,6 @@
 # ran are both visible. A declared skip that never prints is a lie about the
 # example, so the pairing is checked in both directions.
 #
-# A source line `// example-run: needs-cpus <n>` declares the smallest
-# mask the example's recorded run can serve; on a smaller mask the gate
-# prints SKIP with both counts and moves on, the way counters_overhead
-# skips on a host without a probe-passing fast mechanism.
-#
 # The build directory holds the docs_ binaries. The CMake test passes it as the
 # first argument; a manual run can set SG_BUILD_DIR instead. With neither, the
 # gate fails and names both.
@@ -50,18 +45,6 @@ for source in "$ROOT"/example/docs/*.cpp; do
     echo "FAIL: docs_$name lists no registered benchmark" >&2
     status=1
     continue
-  fi
-
-  # The declared mask need: the smallest count the example's recorded
-  # run can serve. A smaller mask skips the example with both counts.
-  needs=$(grep -o 'example-run: needs-cpus [0-9]*' "$source" \
-    | sed 's/^example-run: needs-cpus //')
-  if [ -n "$needs" ]; then
-    held=$(python3 -c 'import os; print(len(os.sched_getaffinity(0)))')
-    if [ "$held" -lt "$needs" ]; then
-      echo "SKIP: docs_$name (the mask holds $held cpus, the recorded run needs $needs)"
-      continue
-    fi
   fi
 
   output=$("$binary" --min-time=0.01 2>&1)

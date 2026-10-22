@@ -1412,28 +1412,29 @@ auto main(int argc, char** argv) -> int
 ```text
 speedgun-ng 0.17.0 build=Release
 topology: packages=1 l3-groups=4 cores=24 threads=48
-bmMeasured/threads:2     iterations=1328202902  real time/iter (ns)=    0.528  cpu time/iter (ns)=    0.527  overhead floor (ns)=  220.000  endpoint samples=4
+bmMeasured/threads:2     iterations=  26039366  real time/iter (ns)=    0.529  cpu time/iter (ns)=    0.528  overhead floor (ns)=  219.000  endpoint samples=4
   contexts=2  ctx0=SPIN/0@0/applied  ctx1=SPIN/24@0/applied
-jitter probe: cpus 1
-gapCount: 61
-gapsPerSecond: 305.08
-minNs: 210
-medianNs: 5879
-meanNs: 6133.70
-p90Ns: 10205
-p99Ns: 18438
-p999Ns: 18438
-p9999Ns: 18438
-maxNs: 18438
-totalNs: 374156
-totalPercent: 0.19
-runtimeNs: 199944654
-thresholdNs: 200
-loopPeriodNs: 1
-droppedGaps: 0
-jitter: probe on cpus 1
-jitter: loop period 1 ns, threshold 200 ns
-jitter: cpu 1 kept 61 dropped 0
+jitter probe: cpus 0,24
+gapCount: 54 65
+gapsPerSecond: 272.44 327.94
+minNs: 420 252
+medianNs: 5670 4662
+meanNs: 8494.89 5272.62
+p90Ns: 10542 9534
+p99Ns: 93072 27048
+p999Ns: 93072 27048
+p9999Ns: 93072 27048
+maxNs: 93072 27048
+totalNs: 458724 342720
+totalPercent: 0.23 0.17
+runtimeNs: 198208038 198206316
+thresholdNs: 420 200
+loopPeriodNs: 42 1
+droppedGaps: 0 0
+jitter: probe on cpus 0,24
+jitter: loop period 42 ns, threshold 420 ns
+jitter: cpu 0 kept 54 dropped 0
+jitter: cpu 24 kept 65 dropped 0
 jitter: split and percentiles use the kept gaps only
 ```
 

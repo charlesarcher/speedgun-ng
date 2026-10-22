@@ -465,8 +465,7 @@ auto runJitterProbe(const JitterProbeOptions& options) -> void
 {
   // The field bounds the contract states; the command line enforces
   // the same bounds where it parses (FR-008, FR-009, D-13).
-  SG_REQUIRE(!options.thresholdNs.has_value()
-                 || *options.thresholdNs >= 1,
+  SG_REQUIRE(!options.thresholdNs.has_value() || *options.thresholdNs >= 1,
              "the threshold stands at or above 1 ns (FR-008, D-13)");
   SG_REQUIRE(
       options.gapCount >= kMinGapCount && options.gapCount <= kMaxGapCount,
@@ -502,9 +501,8 @@ auto applyNarrowedMask(const cpu_set_t& narrowed) noexcept -> void
 {
   [[maybe_unused]] const bool applied =
       sched_setaffinity(0, sizeof(narrowed), &narrowed) == 0;
-  SG_ASSERT(
-      applied,
-      "the affinity mask stands narrowed for the instance's run (D-5)");
+  SG_ASSERT(applied,
+            "the affinity mask stands narrowed for the instance's run (D-5)");
 }
 
 // D-5: the narrowing reads the mask the run already answered once -
@@ -518,9 +516,8 @@ auto readNarrowingMask(cpu_set_t& saved) noexcept -> void
 {
   [[maybe_unused]] const bool readable =
       sched_getaffinity(0, sizeof(saved), &saved) == 0;
-  SG_ASSERT(
-      readable,
-      "the narrowing reads the mask it narrows for the instance (D-5)");
+  SG_ASSERT(readable,
+            "the narrowing reads the mask it narrows for the instance (D-5)");
 }
 
 /**
@@ -825,9 +822,20 @@ auto speedgunMain(int argc, char** argv) -> int
           planned.insert(planned.end(), plan.cpu.begin(), plan.cpu.end());
         }
       }
-      const auto idle = detail::resolveIdleCpus(detail::layout(), planned);
-      probeCpus = idle.cpus;
-      skippedGroups = idle.skippedGroups;
+      if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
+        // FR-006, R-10: no probe thread runs beside a benchmark in the
+        // precheck mode - start() returns only after every pre-check
+        // phase ends - so the planned cpus stand as the probe's own and
+        // no group stands skipped (D-4, R-07).
+        std::ranges::sort(planned);
+        planned.erase(std::unique(planned.begin(), planned.end()),
+                      planned.end());
+        probeCpus = std::move(planned);
+      } else {
+        const auto idle = detail::resolveIdleCpus(detail::layout(), planned);
+        probeCpus = idle.cpus;
+        skippedGroups = idle.skippedGroups;
+      }
       if (probeCpus.empty()) {
         // FR-017: no free cpu at all stops the batch with one line
         // naming the preset word, before any benchmark runs.
@@ -933,7 +941,10 @@ auto speedgunMain(int argc, char** argv) -> int
     // context and a preset: the runner pins only instances with more
     // than one context, and then only when the preset is not `none`,
     // so a single-context instance that carries a preset is unpinned
-    // and narrows too. The order is what makes that safe: the probe threads
+    // and narrows too. A live probe stands behind every narrowing: the
+    // precheck mode runs no probe thread beside a benchmark, and an
+    // unavailable probe runs none at all, so neither narrows (FR-006,
+    // R-10, FR-037). The order is what makes that safe: the probe threads
     // start before the narrowing and keep their own masks, and the
     // runner creates the benchmark's worker threads after it, so they
     // inherit the narrowed mask the benchmark runs under. The change
@@ -941,7 +952,8 @@ auto speedgunMain(int argc, char** argv) -> int
     // empty intersection stops with one line naming the benchmark.
     cpu_set_t savedMask {};
     bool maskNarrowed = false;
-    if (options.jitterProbe.has_value()
+    if (options.jitterProbe.has_value() && !jitterUnavailable
+        && options.jitterProbe->mode != JitterProbeMode::PRECHECK
         && !(entry->threadCount > 1
              && entry->placement != detail::Preset::NONE))
     {
@@ -1164,8 +1176,8 @@ auto speedgunMain(int argc, char** argv) -> int
       // the run continues with status 0 (FR-037, D-10). No period
       // stands measured, so the record carries a threshold value, the
       // 200 ns default when the option named none.
-      record.thresholdNs
-          = options.jitterProbe->thresholdNs.value_or(kDefaultThresholdNs);
+      record.thresholdNs =
+          options.jitterProbe->thresholdNs.value_or(kDefaultThresholdNs);
       record.disclosure = "not available" + placementTail;
     } else {
       // E-07, E-09: the document sorts the cpus ascending, the one
