@@ -660,6 +660,27 @@ auto BenchmarkHandle::threadRunner(ThreadRunnerFn runner) -> BenchmarkHandle&
   return *this;
 }
 
+auto BenchmarkHandle::jitterProbe(const JitterProbeOptions& options)
+    -> BenchmarkHandle&
+{
+  SG_REQUIRE(m_entry != nullptr && !m_entry->runStarted,
+             "an option setter runs before the run starts (E-02)");
+  // The field bounds the suite-level call states (FR-008, FR-009, D-13);
+  // the command line enforces the same bounds where it parses.
+  SG_REQUIRE(options.thresholdNs >= 1,
+             "the threshold stands at or above 1 ns (FR-008, D-13)");
+  SG_REQUIRE(options.gapCount >= kMinGapCount
+                 && options.gapCount <= kMaxGapCount,
+             "the gap count stands inside the bounded range (FR-009, D-13)");
+  SG_REQUIRE(options.precheckMs >= 1,
+             "the pre-check duration stands at or above 1 ms (FR-008, D-13)");
+  m_entry->jitterProbeOptions = options;
+  SG_ENSURE(m_entry->jitterProbeOptions.has_value(),
+            "the entry carries the options in place of any set an earlier "
+            "jitterProbe call stated (FR-015)");
+  return *this;
+}
+
 auto registerBenchmark(std::function<void(State&)> fn,
                        std::string_view name) -> BenchmarkHandle
 {

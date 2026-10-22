@@ -314,6 +314,15 @@ auto batchDefaultTimeUnit() -> std::optional<TimeUnit>&
   return batch;
 }
 
+// FR-015: the suite-level binding `runJitterProbe` writes. The batch
+// reads it where the command line named none, and the command-line
+// value wins when both stand (FR-015, R-01).
+auto suiteJitterProbe() -> std::optional<JitterProbeOptions>&
+{
+  static std::optional<JitterProbeOptions> binding;
+  return binding;
+}
+
 // FR-042: the entry point needs a time source. The counters system opens
 // the host provider, and that provider publishes the machine object, so
 // only the monotonic leaf can be missing (FR-002).
@@ -414,6 +423,49 @@ auto environmentRows(char* const* table) -> std::vector<EnvironmentRow>
 }
 
 }  // namespace detail
+
+/**
+ * @brief State the jitter probe options of the suite's next run
+ * (FR-015).
+ *
+ * The options bind the suite the way the command-line option does.
+ * The availability rule of FR-037 binds the probe the run starts,
+ * whatever entry point configured it: the run discloses `not
+ * available` and continues with status 0, and `strict` stops it with
+ * status 2.
+ *
+ * \pre the run has not started for any benchmark (E-02, FR-015)
+ * \pre `options.cpus` carries the probe cpu request: an empty vector
+ *      names the `idle` preset, and a non-empty vector names cpus
+ *      inside the process affinity mask (FR-011, FR-016, D-4)
+ * \pre `options` carries `thresholdNs` at or above 1, `gapCount`
+ *      inside the `kMinGapCount` through `kMaxGapCount` range, and
+ *      `precheckMs` stands at or above 1 (FR-008, FR-009, D-13)
+ * \post the suite's next run starts the probe before its first
+ *       selected instance and stops, drains and joins it after the
+ *       last, over these options (FR-006, R-01)
+ * \post the command-line value wins when both stand (FR-015, R-01)
+ */
+auto runJitterProbe(const JitterProbeOptions& options) -> void
+{
+  // The field bounds the contract states; the command line enforces
+  // the same bounds where it parses (FR-008, FR-009, D-13).
+  SG_REQUIRE(options.thresholdNs >= 1,
+             "the threshold stands at or above 1 ns (FR-008, D-13)");
+  SG_REQUIRE(options.gapCount >= kMinGapCount
+                 && options.gapCount <= kMaxGapCount,
+             "the gap count stands inside the bounded range (FR-009, D-13)");
+  SG_REQUIRE(options.precheckMs >= 1,
+             "the pre-check duration stands at or above 1 ms (FR-008, D-13)");
+  SG_REQUIRE(std::ranges::none_of(registry(),
+                                  [](const auto& entry) {
+                                    return entry->runStarted;
+                                  }),
+             "the run has not started for any benchmark (E-02, FR-015)");
+  detail::suiteJitterProbe() = options;
+  SG_ENSURE(detail::suiteJitterProbe().has_value(),
+            "the suite carries the options of its next run (FR-015)");
+}
 
 /**
  * @brief Run the benchmark suite the command line names (FR-040).
@@ -569,6 +621,13 @@ auto speedgunMain(int argc, char** argv) -> int
       return 2;
     }
     options.jitterProbe = parsed;
+  }
+
+  // FR-015, R-01: the suite-level call binds the suite the way the
+  // command-line option does, and the command-line value wins when
+  // both stand.
+  if (!options.jitterProbe.has_value()) {
+    options.jitterProbe = detail::suiteJitterProbe();
   }
 
   if (options.catalogMode) {

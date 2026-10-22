@@ -1334,6 +1334,22 @@ if(TARGET docs_json_reports)
   )
   set_tests_properties(report_shape_json_reports_sample PROPERTIES TIMEOUT 120)
 endif()
+if(TARGET docs_jitter_probe)
+  # The guide page carries the recorded run of the jitter probe example, so
+  # the selector names which recorded run this invocation owns. The fold
+  # checks the recorded file against a real run of the example, which is what
+  # keeps a quoted probe block from drifting away from what the harness
+  # prints (027 FR-034, FR-035).
+  add_test(
+      NAME report_shape_jitter_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_jitter_probe>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example jitter_probe
+  )
+  set_tests_properties(report_shape_jitter_sample PROPERTIES TIMEOUT 120)
+endif()
 
 # Each docs example is a complete program whose regions the page quotes, so the
 # gate runs every one of them and requires a row for each registered benchmark,

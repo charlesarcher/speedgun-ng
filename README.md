@@ -648,6 +648,26 @@ auto printComparison(const sg::ReportData& baseline,
 }
 ```
 That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`, `IMPROVED`, `NOISY`, `ADDED`, `REMOVED` or `SKIPPED`, and one verdict line `compare: the verdict is fail`; the command line answers a failed verdict with status 1 and a rejected rule or document with status 2. See [regression gate](docs/pages/harness.md#regression-gate).
+### Jitter probe
+A probe is a spinning context the harness pins to one free cpu of each L3 group the plans touch, and it counts the gaps the host inserts above a threshold while the batch runs.
+<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+```cpp
+auto bmMeasured(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
+
+auto main(int argc, char** argv) -> int
+{
+  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK});
+  return sg::speedgunMain(argc, argv);
+}
+```
+`runJitterProbe` states the options of the suite's next run the way the `--jitter-probe` option does, and an empty `cpus` field names the `idle` preset, so the probe takes one cpu of each L3 group the plans leave free. The block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, and closes with the disclosure lines. See [jitter probe in detail](docs/pages/harness.md#jitter-probe).
 
 ## Quick reference
 
@@ -747,6 +767,12 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `State::threads` | State | Gives the context count the instance was run with | [threads](#threads) |
 | `ContextDisclosure` | type | The wait mode and placement one context disclosed | [reading the report](#reading-the-report) |
 | `BenchmarkResult::contexts` | BenchmarkResult | The disclosures one run recorded for its contexts | [reading the report](#reading-the-report) |
+| `runJitterProbe` | free function | States the probe options of the suite's next run | [jitter-probe](#jitter-probe) |
+| `BenchmarkHandle::jitterProbe` | BenchmarkHandle | States the probe options of this family's runs | [jitter-probe](#jitter-probe) |
+| `JitterProbeOptions` | type | The one argument of every probe entry point | [jitter-probe](#jitter-probe) |
+| `JitterProbeMode` | type | The three phases one probe run can take | [jitter-probe](#jitter-probe) |
+| `JitterStats` | type | One probe cpu's fold over the covered windows | [jitter-probe](#jitter-probe) |
+| `JitterEntryFold` | type | One probe cpu's fold over one benchmark's windows | [jitter-probe](#jitter-probe) |
 
 | Option | What it does |
 | --- | --- |

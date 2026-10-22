@@ -1387,3 +1387,86 @@ the two. The split, the merge and the disclosure run in
 `test/source/harness_pass_collect_test.cpp` and
 `test/source/harness_pass_report_test.cpp`, on the fake provider with a set
 counter limit.
+## Jitter probe
+The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables.
+<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+```cpp
+auto bmMeasured(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
+
+auto main(int argc, char** argv) -> int
+{
+  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK});
+  return sg::speedgunMain(argc, argv);
+}
+```
+
+<!-- sg-sample-output: example/docs/jitter_probe.expected#report -->
+```text
+speedgun-ng 0.14.0 build=Release
+topology: packages=1 l3-groups=4 cores=24 threads=48
+bmMeasured/threads:2     iterations=1311764084  real time/iter (ns)=    0.528  cpu time/iter (ns)=    0.527  overhead floor (ns)=  100.000  endpoint samples=4
+jitter: worst cpu 1 gaps=54 max=31080 total=0.02
+  contexts=2  ctx0=SPIN/0@0/applied  ctx1=SPIN/24@0/applied
+jitter probe: cpus 1
+gapCount: 57
+gapsPerSecond: 287.34
+minNs: 210
+medianNs: 7098
+meanNs: 7054.53
+p90Ns: 13230
+p99Ns: 31080
+p999Ns: 31080
+p9999Ns: 31080
+maxNs: 31080
+totalNs: 402108
+totalPercent: 0.20
+runtimeNs: 198369234
+thresholdNs: 200
+loopPeriodNs: 1
+droppedGaps: 0
+jitter: probe on cpus 1
+jitter: loop period 1 ns, threshold 200 ns
+jitter: cpu 1 kept 57 dropped 0
+jitter: split and percentiles use the kept gaps only
+```
+
+The value takes a head, a cpu list or the word `idle`, and the keys follow, each once:
+
+| Part | Meaning | Default |
+| --- | --- | --- |
+| `<cpu-list\|idle>` | One or more cpu indexes or closed `a-b` ranges, comma separated, or the word `idle` | None: the head names the probe cpus |
+| `threshold=<ns>` | The gap threshold in ns, at or above 1 | 200, or 10 times the measured loop period when that stands larger |
+| `mode=` | `alongside`, `precheck`, or `both` | `alongside` |
+| `precheck=<ms>` | The pre-check duration in ms, at or above 1 | 200 |
+| `gaps=<n>` | The gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 |
+| `strict` | An unavailable time-stamp counter stops the run | Absent: the run discloses it and continues |
+
+The block prints one field line per stats field, in this order, one value per probe cpu:
+
+| Field | Unit | Rule |
+| --- | --- | --- |
+| `gapCount` | count | The kept gaps of the covered windows |
+| `gapsPerSecond` | 1/s | `gapCount` over the seconds of the covered windows' span |
+| `minNs` | ns | The smallest kept gap |
+| `medianNs` | ns | The nearest-rank median over the sorted kept gaps |
+| `meanNs` | ns | The mean of the kept gaps |
+| `p90Ns` | ns | The nearest rank of the sorted kept gaps |
+| `p99Ns` | ns | The nearest rank of the sorted kept gaps |
+| `p999Ns` | ns | The nearest rank of the sorted kept gaps |
+| `p9999Ns` | ns | The nearest rank of the sorted kept gaps |
+| `maxNs` | ns | The largest kept gap |
+| `totalNs` | ns | The sum of the kept gaps |
+| `totalPercent` | percent | `totalNs` over the covered duration |
+| `runtimeNs` | ns | The span from the loop start to the read of the stop flag |
+| `thresholdNs` | ns | The effective threshold the run used |
+| `loopPeriodNs` | ns | The minimum loop period the measurement pass measured |
+| `droppedGaps` | count | The gaps a full buffer dropped; zero when the buffer never filled |
+
+The block ends with the disclosure lines: the probe cpus, the loop period and the threshold the run used, one `kept` and `dropped` line per cpu, and the kept-gaps-only rule the split reads.
