@@ -18,6 +18,7 @@
 #include "detail/internal.hpp"
 #include "detail/pass_plan.hpp"
 #include "detail/percentiles.hpp"
+#include "detail/statistics.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
@@ -44,42 +45,6 @@ auto splitAddress(std::string_view address)
     return {address, {}};
   }
   return {address.substr(0, slash), address.substr(slash + 1)};
-}
-
-auto statisticsOf(std::vector<double> values) -> sg::Statistics
-{
-  sg::Statistics stats;
-  SG_ASSERT(!values.empty(),
-            "the caller builds the summary only for a measured run with more "
-            "than one repetition, so it hands over one value per row");
-
-  std::sort(values.begin(), values.end());
-  stats.samples = static_cast<std::uint64_t>(values.size());
-  stats.min = values.front();
-  stats.max = values.back();
-
-  double sum = 0.0;
-  for (const double value : values) {
-    sum += value;
-  }
-  stats.mean = sum / static_cast<double>(values.size());
-
-  const std::size_t n = values.size();
-  stats.median =
-      (n % 2 == 1) ? values[n / 2] : (values[n / 2 - 1] + values[n / 2]) / 2.0;
-
-  double squared = 0.0;
-  for (const double value : values) {
-    squared += (value - stats.mean) * (value - stats.mean);
-  }
-  SG_ASSERT(n > 1,
-            "the caller builds the summary only for a measured run with more "
-            "than one repetition");
-  stats.sampleStdDev = std::sqrt(squared / static_cast<double>(n - 1));
-  stats.coefficientOfVariation = std::fpclassify(stats.mean) != FP_ZERO
-      ? stats.sampleStdDev / stats.mean
-      : 0.0;
-  return stats;
 }
 
 constexpr const char* kInterruptReason = "interrupted by the user (SIGINT)";
@@ -2566,7 +2531,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // aggregate keeps the default record, zero in every field beside
     // a zero sample count, and statisticsOf keeps its non-empty input.
     aggregate.timeStats =
-        times.empty() ? sg::Statistics {} : statisticsOf(times);
+        times.empty() ? sg::Statistics {} : sg::detail::statisticsOf(times);
 
     // FR-013, FR-014, FR-015: every attached statistic computes over the
     // same clean primary values the built-in set summarized, in the
@@ -2597,8 +2562,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // record. The value lands in the slot before the push, so the
       // fold's summary carries the identical structure of the time
       // aggregate beside it.
-      sg::Statistics columnStats =
-          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values));
+      sg::Statistics columnStats = values.empty()
+          ? sg::Statistics {}
+          : sg::detail::statisticsOf(std::move(values));
       aggregate.metricStats.push_back(columnStats);
     }
 
@@ -2630,8 +2596,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // The same two-step shape as the metric fold above, so both folds of one
     // aggregate row compute the summary into the slot before the push.
     for (auto& values : counterValues) {
-      sg::Statistics columnStats =
-          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values));
+      sg::Statistics columnStats = values.empty()
+          ? sg::Statistics {}
+          : sg::detail::statisticsOf(std::move(values));
       result.counterStats.push_back(columnStats);
     }
 
