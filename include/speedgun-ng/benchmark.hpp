@@ -19,6 +19,7 @@
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/dbc.hpp"
 #include "speedgun-ng/execution_context.hpp"
+#include "speedgun-ng/hunt.hpp"
 #include "speedgun-ng/speedgun-ng_export.hpp"
 
 /**
@@ -613,6 +614,10 @@ struct BenchmarkResult
   // context order, each holding that context's own percentiles in the
   // column order of the merged row. Empty for a single-context run.
   std::vector<std::vector<std::vector<PercentileValue>>> contextPercentiles;
+  // specs/029 data-model.md E-06, FR-031: the hunt record of this benchmark
+  // (PD-10). It stands empty for a run that carried no hunt, which is the
+  // fact the printer, the writer and the reader test (I-8).
+  std::optional<hunt::EntryHunt> hunt;
 };
 
 /**
@@ -704,6 +709,10 @@ struct ReportData
   // document that carries no probe. The run path never fills it and
   // never reads it: the value a `jitter:run:` comparison rule reads.
   std::optional<std::vector<JitterEntryFold>> runJitterStats;
+  // specs/029 data-model.md E-08, FR-031: the hunt record of the run (PD-10).
+  // It stands empty when no benchmark of the document carried a hunt, the
+  // reading a run with no `--hunt` leaves behind (I-8).
+  std::optional<hunt::RunHunt> hunt;
 };
 
 /**

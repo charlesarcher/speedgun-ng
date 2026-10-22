@@ -21,6 +21,7 @@
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/execution_context.hpp"
+#include "speedgun-ng/hunt.hpp"
 
 /**
  * @file internal.hpp
@@ -532,6 +533,9 @@ struct RunOptions
   // file's settle arm parses its own value in place, so the entry
   // point parses the command line's text alone (FR-027, R-06).
   std::optional<std::string> jitterProbeText;
+  // specs/029 data-model.md E-09, FR-080 to FR-082, D-22: the hunt selection
+  // and its settled values, empty when the run carries no hunt.
+  std::optional<hunt::HuntOptions> hunt;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
