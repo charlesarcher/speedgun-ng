@@ -5,7 +5,7 @@ Audit point: `tasks.md` as committed at `1daa010`. Round one:
 nine numbered findings.
 
 Part one closes findings 1 to 8 against the current file, reading the cited tree
-again rather than trusting the round-one citations. Part two hunts the damage of
+again from the files, round-one citations as pointers. Part two hunts the damage of
 the reweave: Phase 5, Phase 7, the Phase Dependencies, Story Independence,
 Parallel Opportunities, Parallel Example, Notes, MVP text and the coverage table.
 Findings 9 of round one (the `[P]` write-set audit) reported no defect and is
@@ -41,12 +41,12 @@ files, exempting only the last one: "and confirm that last file carries no
 edit". The ledger row for that file, `plan.md:453`, reads: "line 516 expects the
 console words `schema 1.1`; the value moves with the bump and the pre-1.1
 baseline comparison of line 492 stays as it is". T049 now says the opposite of
-the first clause. The tree proves T049 right — `harness_compare_cli_test.cpp:515-516`
+the first clause. The tree proves T049 right: `harness_compare_cli_test.cpp:515-516`
 asserts the header line of `gate_schema_11.json`, whose own `:2` and `:4` carry
 `1.1` and `0.16.0`, so no move of `kSchemaVersion` or `VERSION` reaches it and an
 edit to `1.4` fails `harness_compare_cli_test`. Both branches therefore end red:
 carry the ledger row and the test fails, keep the fixture and T053 reports an
-unlanded ledger row — the exact shape round one's finding 1 had, a named check
+unlanded ledger row: the exact shape round one's finding 1 had, a named check
 that cannot close where the file points the implementer. Nothing in the file
 records that this ledger row is deliberately not carried, and Principle IX makes
 a silent deviation from the plan a defect of its own.
@@ -87,8 +87,8 @@ Problem: the headings split the gate: Phase 5 is "gate V-7 (conformance half)"
 and Phase 7 is "gates V-9 and the version rows of V-7". Parallel Opportunities
 `tasks.md:354-356` confirms where conformance actually lands: "T038's cases go
 green with them". But the Phase 5 checkpoint (`:205-207`) never mentions
-conformance or the schema keys — it stops at round trip, refusal by pointer and
-no `hunt` key — while the Phase 7 checkpoint is labelled `(V-7, V-9)` whole and
+conformance or the schema keys: it stops at round trip, refusal by pointer and
+no `hunt` key. The Phase 7 checkpoint is labelled `(V-7, V-9)` whole and
 opens with "a hunt document conforms at both nodes and a planted out-of-order
 hunt key is a finding", an outcome no Phase 7 task produces, against its own
 Purpose at `:239-241`. plan.md V-7 (`:472`) states all three clauses as one gate,
@@ -115,8 +115,8 @@ test/cli_shape.sh` stays clean". `harness_hunt_cli_test.cpp` is filled by T018 a
 run by T030, which labels its run "(Principle IX, V-4, V-5)";
 `harness_hunt_report_test.cpp` is T032's file, run at T037 under "(V-6)".
 Neither T018 nor T032 appears in the carrier list at `:96-97`, so a V-8-to-task
-reconciliation still misses one of the four V-8 clauses — finding 3's defect
-moved rather than closed, one clause smaller.
+reconciliation still misses one of the four V-8 clauses: finding 3's defect
+moved and remains open, one clause smaller.
 
 Fix: name T018 beside T019, T020, T027, T028, T029 and T030 at `:96`, and add
 V-8 to T030's own labels at `:131`. Naming T032 as a V-8 carrier in Phase 4 is

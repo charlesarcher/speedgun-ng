@@ -2,7 +2,7 @@
 
 Adversarial review of `plan.md`, `research.md`, `data-model.md`, the four files under
 `contracts/` and `quickstart.md` against `spec.md` at the recorded audit point `bd10d76`.
-Every code claim below was re-checked in this tree, not read from the artifacts.
+Every code claim below was re-checked in this tree by opening the cited files.
 
 No artifact is truncated: each ends on a complete section and a closed sentence, and none
 carries a TODO, TBD or placeholder marker. `tasks.md` is absent, which is correct at this

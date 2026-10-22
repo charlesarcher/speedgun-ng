@@ -18,7 +18,7 @@ implementer building the wrong thing.
 
 ## Re-check of the ten open items
 
-1. **f11 -- FIXED.** `contracts/hunt-cli.md:99-102` now reads "A hunt option with
+1. **f11: FIXED.** `contracts/hunt-cli.md:99-102` now reads "A hunt option with
    no `--hunt` keeps the hunt off: the value parses, the run behaves like a run
    with no `--hunt`, and a scripted value round-trips exactly like
    `--hunt=none` does (spec Assumptions)", which is the spec's own reading at
@@ -29,7 +29,7 @@ implementer building the wrong thing.
    (`contracts/hunt-cli.md:95-97`), and the plan's refusal fixture list
    (plan.md:504) carries neither the bare option nor a hunt option without
    `--hunt`.
-2. **f13 -- FIXED.** The plan series is `PD-01` to `PD-20` at every site: the
+2. **f13: FIXED.** The plan series is `PD-01` to `PD-20` at every site: the
    decision table at plan.md:270-290, the artifact map at plan.md:176, the phase
    table at plan.md:466-475 (`PD-20, PD-18` ... `PD-19`), and the cross-file
    cites at data-model.md:154, :174, :190, :271, :382, :388,
@@ -47,7 +47,7 @@ implementer building the wrong thing.
    :144 `D-22` option wiring, :149 `D-23` planning through the N6 planner) and
    carries that content, not plan-decision content. No `PD-` token above
    `PD-20` exists.
-3. **f18 -- FIXED.** research.md:317-322 (PD-11 rationale) reads "the default
+3. **f18: FIXED.** research.md:317-322 (PD-11 rationale) reads "the default
    `enforce` contract semantic (the default value 2 of `SG_CONTRACTS_SEMANTIC`
    at `dbc.hpp:10-12`)"; opened `include/speedgun-ng/dbc.hpp:10-12`, which is
    exactly `#ifndef SG_CONTRACTS_SEMANTIC` / `#  define SG_CONTRACTS_SEMANTIC 2`
@@ -57,7 +57,7 @@ implementer building the wrong thing.
    branch at dbc.hpp:198-213, which reports the record and then calls
    `std::abort()`; grep for `observ` in research.md returns no line at all, so
    the obsolete `observe` claim is gone.
-4. **N-1 -- FIXED.** `contracts/hunt-api.md:192-197` restricts the
+4. **N-1: FIXED.** `contracts/hunt-api.md:192-197` restricts the
    `\post` (refusal) to three causes (a device limit below 3, an explicit
    `norm` whose anchor stands refused, a `source` index outside `sourceLimits`)
    and `contracts/hunt-api.md:199-203` states the other half: "An empty `events`
@@ -71,14 +71,14 @@ implementer building the wrong thing.
    carrying `events=0`". The line shapes at data-model.md:195 and :201 can print
    both. Matches spec.md:105-106 (D-12) and the CI-host assumption at
    spec.md:821-826.
-5. **N-2 -- FIXED.** plan.md:504 (CLI refusals, P8) lists bad glob, unknown
+5. **N-2: FIXED.** plan.md:504 (CLI refusals, P8) lists bad glob, unknown
    address, bad budget, bad norm, bad rank key, repeats and top bounds, `r4a03`,
    the three conflicts, missing `@file`, empty address line, the explicit-norm
    refusal and the below-3 device; no bare `--hunt`. The legal row at
    plan.md:505 ends "a bare `--hunt` (selects the whole core catalog, D-1)",
    matching spec.md:66 (D-1), `contracts/hunt-cli.md:26` (`optional_argument`)
    and :42-43.
-6. **N-3 -- FIXED.** `contracts/hunt-cli.md:116` states the accepted
+6. **N-3: FIXED.** `contracts/hunt-cli.md:116` states the accepted
    combination as "the plan line prints, every pass runs one iteration
    (`runner.cpp:2202,2301`), and each column reaches the table with one sample,
    a `cv` of `0.0` and no rank, because an unrepeated event carries none (I-5)";
@@ -89,7 +89,7 @@ implementer building the wrong thing.
    settled;`, so the pass loop runs and the row prints. No "exits before
    measuring" claim survives anywhere (grep for `before measuring` is empty in
    the eight artifacts).
-7. **N-4 -- FIXED.** `contracts/hunt-api.md:74` holds
+7. **N-4: FIXED.** `contracts/hunt-api.md:74` holds
    `std::optional<HuntNorm> norm;` and data-model.md:62 (E-03) holds
    `std::optional<HuntNorm>` with the default "empty, which plans `instr`" and
    the note "a set value marks the word explicit (D-13)". The refusal for an
@@ -102,7 +102,7 @@ implementer building the wrong thing.
    quickstart.md:74-76 walks the case, and `contracts/hunt-api.md:381` lists it
    as a verification row. That closes the mechanism gap: a defaulted value and a
    written `instr` are no longer the same bytes.
-8. **N-5 -- FIXED.** No artifact claims the two lists are disjoint. I-4 at
+8. **N-5: FIXED.** No artifact claims the two lists are disjoint. I-4 at
    data-model.md:287-290 now states only "An address stands at most once in
    `addresses()`, at most once in `entries`, and at most once in `skipped` for
    one run. Every planned address holds one `entries` record", and
@@ -117,7 +117,7 @@ implementer building the wrong thing.
    both members" is `contracts/hunt-api.md:128`, the `split` postcondition at
    discovery, where no measured entry exists yet - a different pair of lists,
    not the run's.
-9. **N-6 -- FIXED.** data-model.md:110-113 (Limit rule) reads "`L` below 3 with
+9. **N-6: FIXED.** data-model.md:110-113 (Limit rule) reads "`L` below 3 with
    both anchors present means no event fits: `planHunt` answers a recoverable
    error naming the device and the limit, the caller prints one line and the run
    exits 2 (FR-081)"; quickstart.md:72-73 says the same for limit 1 or 2;
@@ -128,7 +128,7 @@ implementer building the wrong thing.
    plan.md:504 carries "a device limit below 3 (FR-081)". Grep for `empty
    result` across the eight artifacts returns nothing, so the empty-result
    reading is gone, and the refusal needs no `HuntPlan` reason field.
-10. **N-7 -- FIXED.** data-model.md:180 cites
+10. **N-7: FIXED.** data-model.md:180 cites
     `counters_measurement.hpp:406-413`, "disclosed by `fold` and" for the window
     gap state. Opened the file at 404-414: the comment states the end-point-only
     semantics of `availability`, names `fold` and `foldPairs` as the calls that
