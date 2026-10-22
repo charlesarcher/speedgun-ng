@@ -255,6 +255,21 @@ public:
   }
 
   /**
+   * @brief The number of windows this provider has opened, refusals
+   * aside (US1 threads scenario).
+   *
+   * A threaded run opens one window per context per pass, so a caller
+   * can read that count off the scripted provider.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto windowOpens() const noexcept -> std::uint64_t
+  {
+    return m_windowOpens.load(std::memory_order_relaxed);
+  }
+
+  /**
    * @brief The message of the last `open` this provider refused for a
    * scripted leaf count (PD-09).
    *
@@ -317,9 +332,10 @@ private:
 
   std::map<std::string, ObjectSeedData> m_objects;
   std::atomic<std::uint64_t> m_readActions {0};
+  std::atomic<std::uint64_t> m_windowOpens {0};
   // The message of the last scripted leaf-count refusal. It is read and
   // written under the file-scope script lock, which is why
-  // `lastRefusalMessage` is defined out of line rather than inline here
+  // `lastRefusalMessage` is defined out of line, never inline here
   // (PD-09).
   std::string m_lastRefusal;
 

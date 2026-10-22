@@ -21,6 +21,10 @@
 #include "speedgun-ng/execution_context.hpp"
 #include "speedgun-ng/hunt.hpp"
 
+// specs/029 data-model.md preamble: `detail::RetriedPass` is the record of one
+// pass that fell back to lone-event seats, the account an instance carries.
+#include "hunt_plan.hpp"
+
 /**
  * @file internal.hpp
  * @brief The harness internals behind the public surface: the registry
@@ -239,6 +243,46 @@ public:
   // command-line preset otherwise, `NONE` when neither stands.
   detail::Preset placement = detail::Preset::NONE;
   RegistryEntry* family = nullptr;
+
+  // specs/029 data-model.md E-04, D-15: the plan of the hunt this instance
+  // runs, set by `runHunt` before the run and empty for a run `--hunt` did not
+  // select. The pass loop reads it only to tell a hunt run from every other
+  // run, so a run with no hunt keeps its present route (PD-11).
+  std::optional<hunt::HuntPlan> huntPlan;
+
+  // specs/029 PD-12, D-18: one entry per pass whose group open refused and
+  // fell back to one pass per event of that pass.
+  std::vector<detail::RetriedPass> retriedHuntPasses;
+
+  // specs/029 D-18, FR-021: the addresses of the events whose own retry pass
+  // refused too: the run keeps going and `runHunt` turns each into a skipped
+  // entry with the kind of the refusal.
+  std::vector<std::string> refusedHuntEvents;
+
+  /// @brief specs/029 PD-12, D-18: the passes of this instance's hunt run that
+  /// fell back to one event per pass, in the order the pass loop appended them.
+  ///
+  /// \pre none
+  /// \post one entry per pass whose group open refused, and no entry for a pass
+  ///       that seated; the list stands empty for a run that carried no hunt
+  ///       (I-8)
+  [[nodiscard]] auto huntRetriedPasses() const noexcept
+      -> const std::vector<detail::RetriedPass>&
+  {
+    return retriedHuntPasses;
+  }
+
+  /// @brief specs/029 D-18, FR-021: the addresses of the events that still
+  /// refused after their solo retry pass.
+  ///
+  /// \pre none
+  /// \post one address per refused solo retry, in refusal order; empty for a
+  ///       run whose retries all seated (D-18)
+  [[nodiscard]] auto huntRefusedEvents() const noexcept
+      -> const std::vector<std::string>&
+  {
+    return refusedHuntEvents;
+  }
 };
 
 /// @brief The process registry, in registration order (R-09).
@@ -256,6 +300,15 @@ public:
 
 namespace detail
 {
+
+/// @brief specs/029 data-model.md E-08, FR-031: the record of the hunt this
+/// process last ran.
+///
+/// \pre none
+/// \post the record `runHunt` last assembled, and empty in a process that ran
+///       no hunt (I-8); `hunt.cpp` owns the storage, the report lane reads the
+///       plan fields through this name (D-15)
+auto huntRunRecord() -> std::optional<hunt::RunHunt>&;
 
 /**
  * @brief The fold-path sink of one run (E-03, FR-052): one running

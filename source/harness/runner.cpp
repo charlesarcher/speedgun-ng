@@ -15,6 +15,7 @@
 
 #include "detail/calibration.hpp"
 #include "detail/complexity.hpp"
+#include "detail/hunt_plan.hpp"
 #include "detail/internal.hpp"
 #include "detail/pass_plan.hpp"
 #include "detail/percentiles.hpp"
@@ -1329,7 +1330,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   if (passColumns.empty()) {
     passColumns.push_back(wholeRun);
   }
-  const std::size_t passCount = passColumns.size();
+  // specs/029 PD-12: a hunt run appends passes to this list while the loop
+  // reads it, so the count the loop bounds itself with moves with the list.
+  std::size_t passCount = passColumns.size();
 
   // E-07, FR-017, FR-019: the disclosure of a collection whose method has
   // settled. Every return that follows this settling publishes it through this
@@ -1396,8 +1399,20 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // audit point compiled; a run the plan split seats its first pass's own
   // leaf list, because the whole spine is the leaf list that does not fit
   // the source's programmable-counter limit (FR-004).
+  auto huntPassZeroRefused = false;
   if (const auto seated = seatPass(passColumns.front()); !seated.has_value()) {
-    return fail(seated.error());
+    if (!instance.huntPlan.has_value()) {
+      return fail(seated.error());
+    }
+    // specs/029 D-18, PD-11: a hunt run retries the refused pass instead of
+    // failing it. spec PC-9 keeps the failure route for the device that
+    // seats no window at all: the one-leaf seat is the probe that tells the
+    // refused group from the host that carries nothing.
+    const std::vector<std::size_t> oneLeaf {passColumns.front().front()};
+    if (!seatPass(oneLeaf).has_value()) {
+      return fail(seated.error());
+    }
+    huntPassZeroRefused = true;
   }
 
   // FR-023: the availability of every leaf a metric needs is read
@@ -2237,7 +2252,101 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     m_contextRaw.back().erase(m_contextRaw.back().begin(),
                               m_contextRaw.back().begin() + drop);
   };
+  // specs/029 PD-11, PD-12, D-18: the retry route of a hunt run. The seat of a
+  // pass after the first is a runtime condition for a run that carries hunt
+  // columns - a schedulable-set refusal at open says nothing about the frozen
+  // catalog - so such a pass hands each of its events a pass of its own beside
+  // the two anchors of that event's device, and this same loop runs them
+  // (D-18, hard rule 15). `loneEventOf` marks a pass a retry opened and the one
+  // event it measures; `rowOf` names the fold result each pass of the grown
+  // list produced, so the merge and the chunk ledger read the pass that
+  // measured a column; a pass that was refused keeps no ledger.
+  // `kNoHuntIndex`
+  // names the absent entry of both: no column and no row carry that index.
+  constexpr std::size_t kNoHuntIndex = std::numeric_limits<std::size_t>::max();
+  const bool huntRun = instance.huntPlan.has_value();
+  std::vector<std::size_t> rowOf(passCount, kNoHuntIndex);
+  std::vector<std::size_t> loneEventOf(passCount, kNoHuntIndex);
+  // The pass that measures each column, remapped by the retry below. It feeds
+  // the merge and the ledger exactly as `planning.measuringPass` does.
+  std::vector<std::size_t> measuringOfColumn = planning.measuringPass;
+  measuringOfColumn.resize(columns.size(), 0);
+  const auto retryHuntPass = [&](const std::size_t pass) -> void
+  {
+    std::vector<std::size_t> loneColumns;
+    // The anchors of the plan: an anchor column rides retry passes as a
+    // member of an event, never as a retry event of its own (D-18).
+    std::vector<std::string> anchorLabels;
+    for (const auto& candidate : instance.huntPlan->columns) {
+      for (const std::string& anchor :
+           {candidate.cycles, candidate.instructions})
+      {
+        if (!anchor.empty()) {
+          anchorLabels.push_back(anchor);
+        }
+      }
+    }
+    for (const std::size_t column : passColumns[pass]) {
+      if (std::find(
+              anchorLabels.begin(), anchorLabels.end(), columns[column].label)
+          != anchorLabels.end())
+      {
+        continue;
+      }
+      // The plan column of this column, by address: an anchor column answers
+      // nothing, because no plan column names an anchor as its event.
+      const hunt::HuntColumn* planned = nullptr;
+      for (const auto& candidate : instance.huntPlan->columns) {
+        if (candidate.event == columns[column].label) {
+          planned = &candidate;
+          break;
+        }
+      }
+      if (planned == nullptr) {
+        continue;
+      }
+      std::vector<std::size_t> single {column};
+      for (const std::string& anchor : {planned->cycles, planned->instructions})
+      {
+        if (anchor.empty()) {
+          continue;
+        }
+        for (std::size_t index = 0; index < columns.size(); ++index) {
+          if (columns[index].label == anchor
+              && std::find(single.begin(), single.end(), index) == single.end())
+          {
+            single.push_back(index);
+          }
+        }
+      }
+      const std::size_t opened = passColumns.size();
+      passColumns.push_back(std::move(single));
+      rowOf.push_back(kNoHuntIndex);
+      loneEventOf.push_back(column);
+      // The retry pass measures the event it opened for and the anchors it
+      // carries, so both name this pass from now on (I-2: an anchor one pass
+      // claims is counted once in that pass).
+      for (const std::size_t measured : passColumns[opened]) {
+        if (measuringOfColumn[measured] == pass) {
+          measuringOfColumn[measured] = opened;
+        }
+      }
+      loneColumns.push_back(column);
+    }
+    if (!loneColumns.empty()) {
+      instance.retriedHuntPasses.push_back(detail::RetriedPass {
+          .pass = pass, .loneColumns = std::move(loneColumns)});
+    }
+    passCount = passColumns.size();
+  };
   for (std::size_t pass = 0; pass < passCount; ++pass) {
+    if (pass == 0 && huntRun && huntPassZeroRefused) {
+      // specs/029 D-18, FR-021: the pre-loop seat refused this pass's group,
+      // so the pass hands each of its events a pass of its own and the one
+      // pass measured by the retry loop takes its place (PD-11).
+      retryHuntPass(0);
+      continue;
+    }
     if (pass > 0) {
       // E-04, FR-012: the previous pass's seat closes first - the recorder
       // that stood over it, then the plan - and this pass compiles its own
@@ -2249,6 +2358,28 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // at every later seat; the invariant below is the fuse for a
       // counter layer that broke that fact.
       [[maybe_unused]] const auto seated = seatPass(passColumns[pass]);
+      if (huntRun && !seated.has_value()) {
+        // specs/029 PD-11, D-18: the refusal of one group is a runtime
+        // condition, so a hunt run keeps going where the invariant below would
+        // stop every other run.
+        if (const std::size_t lone = loneEventOf[pass]; lone != kNoHuntIndex) {
+          // specs/029 D-18, FR-021: the event that still refuses after its own
+          // pass stands unavailable the way an unavailable column stands
+          // today, so no row carries a sample of it and the run reaches its
+          // exit status 0. An open refusal of a schedulable set is the
+          // encodability arm of the mapping D-18 names, and the report and
+          // `runHunt` read the kind off the column.
+          columns[lone].unavailable = true;
+          columns[lone].availability =
+              sg::counters::Availability::NOT_ENCODABLE;
+          // specs/029 D-18, FR-021: the event that still refuses is named
+          // for the record, so `runHunt` can give it a skipped entry.
+          instance.refusedHuntEvents.push_back(columns[lone].label);
+        } else {
+          retryHuntPass(pass);
+        }
+        continue;
+      }
       SG_INVARIANT(
           seated.has_value(),
           "the catalog frozen at open and the additive providers keep every "
@@ -2401,10 +2532,29 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // attempt's recorder first, then the plan that recorder stood over.
     attemptRecorder.reset();
     plan.reset();
+    rowOf[pass] = passResults.size();
     passResults.push_back(std::move(result));
     if (interrupted) {
       break;
     }
+  }
+
+  if (!instance.retriedHuntPasses.empty()) {
+    // specs/029 PD-12: the retry passes joined the list the loop read and a
+    // refused pass folded no row, so the merge and the ledger read the passes
+    // that folded, in the order they folded, with every column naming the pass
+    // that measured it (FR-014).
+    sg::detail::PassPlan folded;
+    folded.columns.resize(passResults.size());
+    folded.exclusive.assign(passResults.size(), false);
+    folded.measuringPass = std::move(measuringOfColumn);
+    for (std::size_t& measuring : folded.measuringPass) {
+      // A column whose pass folded no row - the event that still refused after
+      // its own pass, or an anchor no retry pass carried - reads the reference
+      // pass, whose row holds that column's own disclosure (D-18).
+      measuring = rowOf[measuring] == kNoHuntIndex ? 0 : rowOf[measuring];
+    }
+    planning = std::move(folded);
   }
 
   if (passResults.size() > 1 && !interrupted) {
@@ -2432,8 +2582,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       planning.measuringPass.resize(widestRow, 0);
     }
     result = sg::detail::mergePasses(planning, passResults);
-  } else {
+  } else if (!passResults.empty()) {
+    // specs/029 D-18: a hunt run whose every pass refused folds no pass at
+    // all; the published result then keeps the empty shape, and `runHunt`
+    // answers the refused events from the instance's refusal list.
     result = std::move(passResults.back());
+  } else {
+    // specs/029 D-18: no pass folded a row, so the run measured nothing;
+    // the skipped outcome is the one this empty shape tells the truth about.
+    result.outcome = RunOutcome::SKIPPED;
   }
 
   // specs/023 E-01, FR-019 beside specs/024 FR-014, FR-015: the retained
@@ -2464,7 +2621,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
       rowRaws.resize(result.rows.size());
       m_contextRaw.back().resize(result.rows.size());
-    } else {
+    } else if (!passLedgerMarks.empty()) {
       keepCurrentPassLedger();
     }
   }

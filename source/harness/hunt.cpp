@@ -3,18 +3,1006 @@
 // both public in speedgun-ng/hunt.hpp; T036 adds the two-stage merge. No time
 // header enters this file: the driver reads no clock of its own.
 
+#include <algorithm>
+#include <array>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <limits>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "speedgun-ng/hunt.hpp"
 
+#include "detail/hunt_plan.hpp"
+#include "detail/internal.hpp"
+#include "speedgun-ng/benchmark.hpp"
+#include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_system.hpp"
+#include "speedgun-ng/dbc.hpp"
 
 namespace sg::hunt
 {
+
+namespace
+{
+
+// The selection words and the leaf names the plan seats as denominators:
+// `all` names the core devices, the two anchors ride every pass of their own
+// device and stand out of the candidate list (D-1, I-1).
+constexpr std::string_view kAllSelection {"all"};
+constexpr std::string_view kCyclesLeaf {"cpu-cycles"};
+constexpr std::string_view kInstrLeaf {"instructions"};
+
+// D-1's core-device rule, written hunt-side: the three exact device parts and
+// the `armv8_` prefix. The library's own match at `counter_limits.cpp:284-295`
+// holds the three exact parts and publishes no helper.
+constexpr std::array<std::string_view, 3> kCoreDevices {
+    "cpu",
+    "cpu_core",
+    "cpu_atom",
+};
+constexpr std::string_view kCorePrefix {"armv8_"};
+
+// PD-06: the generator the seed shuffle of `--hunt-seed` drives. The pair is
+// the numerically reported constants, so one seed gives one order on every host
+// (FR-014, D-9).
+constexpr std::uint64_t kLcgMultiplier = 6364136223846793005ULL;
+constexpr std::uint64_t kLcgIncrement = 1442695040888963407ULL;
+
+// The position no leaf of a stage's run holds, the value a column of another
+// stage carries for its event and for an anchor its device lacks.
+constexpr std::size_t kNoLeaf = std::numeric_limits<std::size_t>::max();
+
+[[nodiscard]] auto failure(std::string text) -> counters::Error
+{
+  return counters::Error {
+      .message = std::move(text),
+      .suggestions = {},
+  };
+}
+
+[[nodiscard]] auto isSpace(const char symbol) noexcept -> bool
+{
+  return symbol == ' ' || symbol == '\t' || symbol == '\r' || symbol == '\v'
+      || symbol == '\f';
+}
+
+[[nodiscard]] auto isHex(const char symbol) noexcept -> bool
+{
+  return (symbol >= '0' && symbol <= '9') || (symbol >= 'a' && symbol <= 'f')
+      || (symbol >= 'A' && symbol <= 'F');
+}
+
+[[nodiscard]] auto trim(std::string_view text) -> std::string_view
+{
+  while (!text.empty() && isSpace(text.front())) {
+    text.remove_prefix(1);
+  }
+  while (!text.empty() && isSpace(text.back())) {
+    text.remove_suffix(1);
+  }
+  return text;
+}
+
+/// @brief FR-005, D-11: the raw event code shape `r` plus hex digits, refused
+/// before the catalog is consulted.
+[[nodiscard]] auto isRawCode(const std::string_view token) noexcept -> bool
+{
+  if (token.size() < 2 || token.front() != 'r') {
+    return false;
+  }
+  return std::all_of(token.begin() + 1, token.end(), isHex);
+}
+
+/// @brief The address entries of a selection text, split on commas and
+/// newlines with the spaces of each entry removed (FR-002, FR-006).
+[[nodiscard]] auto splitEntries(const std::string_view selection)
+    -> std::vector<std::string_view>
+{
+  std::vector<std::string_view> entries;
+  std::size_t start = 0;
+  while (true) {
+    const std::size_t stop = selection.find_first_of(",\n", start);
+    const std::size_t width =
+        stop == std::string_view::npos ? std::string_view::npos : stop - start;
+    entries.push_back(trim(selection.substr(start, width)));
+    if (stop == std::string_view::npos) {
+      break;
+    }
+    start = stop + 1;
+  }
+  return entries;
+}
+
+/// @brief The case-sensitive glob matcher over one address: `*` stands for any
+/// run of characters and `?` for one character (FR-007).
+[[nodiscard]] auto globMatches(std::string_view pattern,
+                               std::string_view text) -> bool
+{
+  std::size_t mark = std::string_view::npos;
+  std::size_t markText = 0;
+  std::size_t left = 0;
+  std::size_t read = 0;
+  while (read < text.size()) {
+    if (left < pattern.size()
+        && (pattern[left] == '?' || pattern[left] == text[read]))
+    {
+      ++left;
+      ++read;
+    } else if (left < pattern.size() && pattern[left] == '*') {
+      mark = left++;
+      markText = read;
+    } else if (mark != std::string_view::npos) {
+      left = mark + 1;
+      read = ++markText;
+    } else {
+      return false;
+    }
+  }
+  while (left < pattern.size() && pattern[left] == '*') {
+    ++left;
+  }
+  return left == pattern.size();
+}
+
+/// @brief E-01: the device part of an address, the text before the last `/`.
+/// `splitAddress` of `runner.cpp:39-47` answers the same way for the same
+/// spelling; this is the hunt-side half of that pair.
+[[nodiscard]] auto devicePartOf(const std::string_view address)
+    -> std::string_view
+{
+  const std::size_t slash = address.find_last_of('/');
+  return slash == std::string_view::npos ? address : address.substr(0, slash);
+}
+
+/// @brief E-01: the leaf part of an address, the text after the last `/`, or
+/// the whole address where it holds none.
+[[nodiscard]] auto leafPartOf(const std::string_view address)
+    -> std::string_view
+{
+  const std::size_t slash = address.find_last_of('/');
+  return slash == std::string_view::npos ? address : address.substr(slash + 1);
+}
+
+/// @brief D-1, PD-02: the core-device rule over one device part.
+[[nodiscard]] auto coreDevicePart(const std::string_view device) noexcept
+    -> bool
+{
+  return std::find(kCoreDevices.begin(), kCoreDevices.end(), device)
+      != kCoreDevices.end()
+      || device.starts_with(kCorePrefix);
+}
+
+// E-01: one device of the walked catalog: its path, the programmable-counter
+// limit it publishes, and the two anchor addresses of its own. A device that
+// lacks either anchor holds neither (I-1).
+struct DeviceRow
+{
+  std::string path;
+  std::optional<std::size_t> limit;
+  std::string cycles;
+  std::string instructions;
+};
+
+// E-01: one catalog entry in the walk's order, with the availability discovery
+// disclosed for it (FR-002, FR-010).
+struct CatalogRow
+{
+  std::string address;
+  counters::Availability availability = counters::Availability::COUNTABLE;
+};
+
+// The walked catalog: the devices in walk order, which is the order of the
+// limit list handed to the planner, and the entries in catalog-scan order.
+struct CatalogView
+{
+  std::vector<DeviceRow> devices;
+  std::vector<CatalogRow> rows;
+};
+
+/// @brief E-01: the index of one device in the walk order, the first position
+/// winning a device that stands in more than one entry (spec PC-2).
+[[nodiscard]] auto sourceOf(const CatalogView& view,
+                            const std::string_view device) -> std::size_t
+{
+  const auto found = std::find_if(view.devices.begin(),
+                                  view.devices.end(),
+                                  [device](const DeviceRow& row)
+                                  { return row.path == device; });
+  // Every address of the walk names the device it was read from, so the device
+  // stands in the list the same walk built (E-01, spec PC-8).
+  SG_ASSERT(found != view.devices.end(),
+            "the device part of a walked address names one walked device, so "
+            "its index in the limit list stands");
+  return static_cast<std::size_t>(found - view.devices.begin());
+}
+
+// The walk of `catalog.cpp:83-92`: every child object of the machine object
+// contributes its entries and stands as one source of the limit list. The
+// machine object's own entries are its clock leaves, which count no event, so
+// they join neither list (E-01). The stack of objects left to walk keeps the
+// depth-first order of that walk, so the device order is the catalog order and
+// the order of the limit list (spec PC-2, PC-8).
+auto walkCatalog(const counters::Object& root, CatalogView& view) -> void
+{
+  const auto roots = root.children();
+  auto pending =
+      std::vector<const counters::Object*>(roots.rbegin(), roots.rend());
+  while (!pending.empty()) {
+    const counters::Object* walked = pending.back();
+    pending.pop_back();
+    auto device = DeviceRow {.path = std::string(walked->path()),
+                             .limit = walked->programmableCounters(),
+                             .cycles = {},
+                             .instructions = {}};
+    for (const auto& entry : walked->counters()) {
+      const std::string leaf = std::string(entry.name);
+      const std::string address = device.path + "/" + leaf;
+      if (leaf == kCyclesLeaf) {
+        device.cycles = address;
+      } else if (leaf == kInstrLeaf) {
+        device.instructions = address;
+      }
+      view.rows.push_back(
+          CatalogRow {.address = address, .availability = entry.avail});
+    }
+    if (device.cycles.empty() || device.instructions.empty()) {
+      device.cycles.clear();
+      device.instructions.clear();
+    }
+    view.devices.push_back(std::move(device));
+    const auto children = walked->children();
+    pending.insert(pending.end(), children.rbegin(), children.rend());
+  }
+}
+
+/// @brief The discovery read: `System::local().object("machine")` and its
+/// `children()`, the walk `catalog.cpp` already performs. No clock, no counter
+/// read, no sysfs and no CPUID stand here (FR-003, I-7).
+[[nodiscard]] auto discoverCatalog() -> std::optional<CatalogView>
+{
+  const auto machine = counters::System::local().object("machine");
+  if (!machine.has_value()) {
+    return std::nullopt;
+  }
+  auto view = CatalogView {};
+  walkCatalog(*machine, view);
+  return view;
+}
+
+// E-01's invariant is `addresses()` empty until `expand` succeeds, and the
+// class declares no member to hold a list, so the expansion of the run stands
+// in one list of the translation unit that `expand` clears on entry (D-15:
+// `hunt.hpp` states the surface this file implements and nothing else).
+[[nodiscard]] auto expandedAddresses() -> std::vector<std::string>&
+{
+  static std::vector<std::string> addresses;
+  return addresses;
+}
+
+/// @brief E-05, I-4, FR-022, D-10: the kind the skipped entry of one measured
+/// column carries.
+///
+/// \pre `rows` holds at least one sample of one planned address
+/// \post the first disclosure of the run answers its own kind through
+///       `detail::skippedKindOf`, so a column that measured and gapped stands
+///       in `entries` and in `skipped` at once (FR-022) and a column whose
+///       every window disclosed answers the refusal the pass loop left on the
+///       column (D-18, FR-021); no disclosure answers nothing
+[[nodiscard]] auto skippedOf(const EventSamples& rows)
+    -> std::optional<SkippedKind>
+{
+  const auto disclosed = std::find_if(
+      rows.samples.begin(),
+      rows.samples.end(),
+      [](const HuntSample& sample) { return sample.disclosure.has_value(); });
+  if (disclosed == rows.samples.end()) {
+    return std::nullopt;
+  }
+  return detail::skippedKindOf(*disclosed->disclosure);
+}
+
+// One stage's run: the leaf list the run opens its columns in, and for each
+// planned column the position of its event and of its two anchors inside that
+// list, `kNoLeaf` where this stage measures the column not.
+struct StageLeaves
+{
+  std::vector<std::string> leaves;
+  std::vector<std::size_t> event;
+  std::vector<std::size_t> cycles;
+  std::vector<std::size_t> instructions;
+};
+
+/// @brief The position of one leaf in a stage's leaf list, the first position
+/// winning an address two columns of the pass share - the anchors of a device
+/// stand once per pass (I-2).
+[[nodiscard]] auto leafPosition(std::vector<std::string>& leaves,
+                                const std::string& address) -> std::size_t
+{
+  const auto found = std::find(leaves.begin(), leaves.end(), address);
+  if (found != leaves.end()) {
+    return static_cast<std::size_t>(found - leaves.begin());
+  }
+  leaves.push_back(address);
+  return leaves.size() - 1;
+}
+
+[[nodiscard]] auto buildStageLeaves(const HuntPlan& plan,
+                                    const HuntStage& stage) -> StageLeaves
+{
+  auto leaves = StageLeaves {
+      .leaves = {},
+      .event = std::vector<std::size_t>(plan.columns.size(), kNoLeaf),
+      .cycles = std::vector<std::size_t>(plan.columns.size(), kNoLeaf),
+      .instructions = std::vector<std::size_t>(plan.columns.size(), kNoLeaf),
+  };
+  for (const std::size_t column : stage.columns) {
+    const HuntColumn& entry = plan.columns[column];
+    leaves.event[column] = leafPosition(leaves.leaves, entry.event);
+    if (!entry.cycles.empty()) {
+      leaves.cycles[column] = leafPosition(leaves.leaves, entry.cycles);
+    }
+    if (!entry.instructions.empty()) {
+      leaves.instructions[column] =
+          leafPosition(leaves.leaves, entry.instructions);
+    }
+  }
+  return leaves;
+}
+
+// One pass's leaf list with the anchors of its own device joined: the seat
+// compiles the events and the anchors, each counted once (I-2, I-3).
+auto joinLeaf(std::vector<std::size_t>& pass, std::size_t position) -> void
+{
+  if (position == kNoLeaf
+      || std::find(pass.begin(), pass.end(), position) != pass.end())
+  {
+    return;
+  }
+  pass.push_back(position);
+}
+
+/// @brief The plan one stage hands to the runner: the run's column space is the
+/// stage's leaf list, so `passes` hold leaf positions and every seat compiles
+/// one pass's events beside the anchors of their devices (D-23, I-3).
+///
+/// \pre `plan` holds the passes of the whole hunt and `leaves` its stage
+/// \post `columns` holds one entry per leaf, an event entry naming the two
+///       anchor addresses of its device and an anchor entry naming none, so the
+///       retry of PD-12 appends one pass per event of a refused pass with both
+///       anchors and nothing else; `passes` cover every leaf of every pass they
+///       seat and no leaf repeats in one pass (I-2)
+[[nodiscard]] auto buildHandoff(const HuntPlan& plan,
+                                const HuntStage& stage,
+                                const StageLeaves& leaves) -> HuntPlan
+{
+  auto handoff = HuntPlan {
+      .columns = {},
+      .passes = {},
+      .method = plan.method,
+      .stages = {HuntStage {
+          .columns = {},
+          .repeats = stage.repeats,
+      }},
+      .estimateNs = plan.estimateNs,
+      .anchorsPerPass = plan.anchorsPerPass,
+      .normalized = plan.normalized,
+  };
+  handoff.columns.reserve(leaves.leaves.size());
+  for (const auto& leaf : leaves.leaves) {
+    handoff.columns.push_back(HuntColumn {
+        .event = leaf,
+        .cycles = {},
+        .instructions = {},
+        .source = 0,
+    });
+  }
+  for (std::size_t column = 0; column < plan.columns.size(); ++column) {
+    const HuntColumn& entry = plan.columns[column];
+    if (leaves.event[column] == kNoLeaf) {
+      continue;
+    }
+    handoff.columns[leaves.event[column]].cycles = entry.cycles;
+    handoff.columns[leaves.event[column]].instructions = entry.instructions;
+    for (const std::size_t position : {leaves.event[column],
+                                       leaves.cycles[column],
+                                       leaves.instructions[column]})
+    {
+      if (position != kNoLeaf) {
+        handoff.columns[position].source = entry.source;
+      }
+    }
+    handoff.stages.front().columns.push_back(leaves.event[column]);
+  }
+  for (const auto& pass : plan.passes) {
+    std::vector<std::size_t> seated;
+    for (const std::size_t column : pass) {
+      if (leaves.event[column] == kNoLeaf) {
+        continue;
+      }
+      joinLeaf(seated, leaves.event[column]);
+      joinLeaf(seated, leaves.cycles[column]);
+      joinLeaf(seated, leaves.instructions[column]);
+    }
+    if (!seated.empty()) {
+      handoff.passes.push_back(std::move(seated));
+    }
+  }
+  return handoff;
+}
+
+/// @brief The anchor reading of one window, empty where the column's device
+/// holds no such anchor or where that leaf disclosed the window (E-05).
+[[nodiscard]] auto anchorReading(const sg::ResultRow& row,
+                                 const std::size_t position)
+    -> std::optional<std::uint64_t>
+{
+  if (position == kNoLeaf) {
+    return std::nullopt;
+  }
+  SG_ASSERT(position < row.metrics.size(),
+            "one row carries a metric slot per column of the run that built "
+            "it, so an anchor position of the run stands in every row (FR-014)");
+  const sg::MetricValue& anchor = row.metrics[position];
+  if (anchor.availability != sg::counters::Availability::COUNTABLE) {
+    return std::nullopt;
+  }
+  return static_cast<std::uint64_t>(anchor.value);
+}
+
+/// @brief E-05: the collected rows of one stage's run, one `HuntSample` per
+/// measured repetition of one column, each with the anchor readings of its own
+/// window, its iteration count and its disclosure.
+///
+/// \pre `leaves` names the columns of the stage that produced `rows`
+/// \post a column the stage measures keeps the samples of this stage alone, so
+///       stage 2 values win over stage 1 ones (PD-13); a column the stage does
+///       not measure keeps the rows of the stage that measured it (I-4)
+auto collectStageSamples(std::vector<EventSamples>& collected,
+                         const StageLeaves& leaves,
+                         const std::vector<sg::ResultRow>& rows,
+                         const std::size_t stage) -> void
+{
+  for (std::size_t column = 0; column < collected.size(); ++column) {
+    if (leaves.event[column] != kNoLeaf) {
+      collected[column].samples.clear();
+    }
+  }
+  for (const auto& row : rows) {
+    if (row.kind != sg::RowKind::REPETITION) {
+      continue;
+    }
+    for (std::size_t column = 0; column < collected.size(); ++column) {
+      const std::size_t position = leaves.event[column];
+      if (position == kNoLeaf) {
+        continue;
+      }
+      SG_ASSERT(position < row.metrics.size(),
+                "one row carries a metric slot per column of the run that "
+                "built it, so an event position of the run stands in every row "
+                "(FR-014)");
+      const sg::MetricValue& value = row.metrics[position];
+      auto sample = HuntSample {
+          .pass = value.pass.value_or(0),
+          .stage = stage,
+          .eventValue = static_cast<std::uint64_t>(value.value),
+          .anchorInstr = anchorReading(row, leaves.instructions[column]),
+          .anchorCycle = anchorReading(row, leaves.cycles[column]),
+          .iterations = row.iterations,
+          .disclosure = {},
+      };
+      if (value.availability != sg::counters::Availability::COUNTABLE) {
+        sample.disclosure = value.availability;
+      }
+      collected[column].samples.push_back(sample);
+    }
+  }
+}
+
+/// @brief D-13: the text of the refusal of an explicit norm whose anchor
+/// discovery refused, empty where the norm plans.
+///
+/// The plan refuses the norm of a device that holds no anchor, its pair naming
+/// two empty strings (D-13, the post of `planHunt`); what stands here is the
+/// case only the run sees, an anchor address the catalog holds and discovery
+/// refused, because `planHunt` reads no skipped list.
+///
+/// \pre `plan` was built for `options` over the events discovery counted
+/// \post an unset norm or `ITER` answers the empty text; `INSTR` and `CYCLE`
+///       answer a text naming the anchor of that name and the event of the
+///       column that was to divide by it (D-13, FR-081)
+[[nodiscard]] auto normAnchorRefusal(const HuntPlan& plan,
+                                     const HuntOptions& options,
+                                     const std::vector<SkippedEvent>& skipped)
+    -> std::optional<std::string>
+{
+  if (!options.norm.has_value() || *options.norm == HuntNorm::ITER) {
+    return std::nullopt;
+  }
+  const std::string_view word =
+      *options.norm == HuntNorm::CYCLE ? "cycle" : "instr";
+  for (const auto& column : plan.columns) {
+    const std::string& anchor =
+        *options.norm == HuntNorm::CYCLE ? column.cycles : column.instructions;
+    const auto refused = std::find_if(skipped.begin(),
+                                      skipped.end(),
+                                      [&anchor](const SkippedEvent& entry)
+                                      { return entry.address == anchor; });
+    if (refused != skipped.end()) {
+      return "the hunt norm " + std::string(word) + " names the anchor '"
+          + anchor + "', which discovery refused for the hunt of '"
+          + column.event + "'";
+    }
+  }
+  return std::nullopt;
+}
+
+/// @brief FR-002, E-01: the expanded list one selection text answers, the
+/// three shapes of FR-002 to FR-007 taking one named route each.
+///
+/// `all` takes the events of the core devices and excludes uncore (D-1); the
+/// two anchor leaves of a device ride its passes as denominators and stand out
+/// of the candidate list (I-1).
+auto appendAll(const CatalogView& view) -> void
+{
+  for (const auto& row : view.rows) {
+    const auto device = devicePartOf(row.address);
+    const auto leaf = leafPartOf(row.address);
+    if (coreDevicePart(device) && leaf != kCyclesLeaf && leaf != kInstrLeaf) {
+      expandedAddresses().push_back(row.address);
+    }
+  }
+}
+
+/// @brief FR-007: the catalog addresses one glob pattern matches, in catalog
+/// order; the refusal names the pattern that matched none.
+[[nodiscard]] auto appendPattern(const CatalogView& view,
+                                 const std::string_view pattern)
+    -> std::optional<counters::Error>
+{
+  for (const auto& row : view.rows) {
+    if (globMatches(pattern, row.address)) {
+      expandedAddresses().push_back(row.address);
+    }
+  }
+  if (expandedAddresses().empty()) {
+    return failure("the hunt pattern '" + std::string(pattern)
+                   + "' matches no catalog address");
+  }
+  return std::nullopt;
+}
+
+/// @brief FR-002, FR-004, FR-006: the addresses of a comma and newline
+/// separated list, in the order the text gave them; a repeated address keeps
+/// its first position and drops the repeat (E-01).
+[[nodiscard]] auto appendList(const CatalogView& view,
+                              const std::vector<std::string_view>& entries)
+    -> std::optional<counters::Error>
+{
+  for (const auto entry : entries) {
+    if (entry.empty()) {
+      return failure("the hunt selection holds an empty address line (FR-006)");
+    }
+    const auto known = std::any_of(view.rows.begin(),
+                                   view.rows.end(),
+                                   [entry](const CatalogRow& row)
+                                   { return row.address == entry; });
+    if (!known) {
+      return failure("the hunt selection names '" + std::string(entry)
+                     + "', which the catalog holds no such address "
+                       "(FR-004)");
+    }
+    const auto& addresses = expandedAddresses();
+    if (std::find(addresses.begin(), addresses.end(), entry) == addresses.end())
+    {
+      expandedAddresses().emplace_back(entry);
+    }
+  }
+  return std::nullopt;
+}
+
+/// @brief The instance of one registered entry: the first expansion whose
+/// name is the handle's own, or that handle's name with only the thread
+/// segment on it, the instance a hunt of that handle drives (FR-092).
+[[nodiscard]] auto instanceNamed(const std::string_view name) -> sg::Instance*
+{
+  for (auto& instance : sg::detail::instances()) {
+    if (instance.name == name
+        || (instance.name.size() > name.size() + 9U
+            && instance.name.compare(0, name.size(), name) == 0
+            && instance.name.compare(name.size(), 9, "/threads:") == 0))
+    {
+      return &instance;
+    }
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+auto EventCatalog::expand(std::string_view selection)
+    -> std::expected<void, counters::Error>
+{
+  auto& addresses = expandedAddresses();
+  addresses.clear();
+  const auto entries = splitEntries(selection);
+  for (const auto entry : entries) {
+    if (isRawCode(entry)) {
+      const std::string text = "the hunt selection names the raw event code '"
+          + std::string(entry) + "'; no host resolves a raw code (FR-005)";
+      return std::unexpected(failure(text));
+    }
+  }
+  const auto view = discoverCatalog();
+  if (!view.has_value()) {
+    const std::string_view text
+        = "the counters system publishes no machine object, so the hunt "
+          "selection resolves to no catalog address";
+    return std::unexpected(failure(std::string(text)));
+  }
+  const auto whole = trim(selection);
+  if (whole == kAllSelection) {
+    appendAll(*view);
+    return {};
+  }
+  const bool glob = whole.find_first_of("*?") != std::string_view::npos
+      && whole.find_first_of(",\n") == std::string_view::npos;
+  const auto refusal =
+      glob ? appendPattern(*view, whole) : appendList(*view, entries);
+  if (refusal.has_value()) {
+    return std::unexpected(*refusal);
+  }
+  return {};
+}
+
+auto EventCatalog::addresses() const -> const std::vector<std::string>&
+{
+  return expandedAddresses();
+}
+
+auto EventCatalog::split(const std::uint64_t seed) const
+    -> std::pair<std::vector<CatalogAddress>, std::vector<SkippedEvent>>
+{
+  const auto view = discoverCatalog();
+  // The expansion filled its list out of this same walk, so the walk stands for
+  // the availability of every address of the expansion (FR-002, FR-010).
+  SG_ASSERT(view.has_value(),
+            "an expansion answered only where the machine object walked, so "
+            "the walk of the split of its addresses stands too (FR-002)");
+  auto answer =
+      std::pair<std::vector<CatalogAddress>, std::vector<SkippedEvent>> {};
+  for (const auto& address : addresses()) {
+    const auto row = std::find_if(view->rows.begin(),
+                                  view->rows.end(),
+                                  [&address](const CatalogRow& candidate)
+                                  { return candidate.address == address; });
+    // Every address of the expansion is an address of the walk it came from.
+    SG_ASSERT(row != view->rows.end(),
+              "the split reads the availability of a walked address, so the "
+              "walk holds its entry (FR-010)");
+    if (row->availability == counters::Availability::COUNTABLE) {
+      answer.first.push_back(CatalogAddress {
+          .address = address,
+          .device = std::string(devicePartOf(address)),
+          .source = sourceOf(*view, devicePartOf(address)),
+      });
+    } else {
+      answer.second.push_back(SkippedEvent {
+          .address = address,
+          .kind = detail::skippedKindOf(row->availability),
+          .stage = std::nullopt,
+      });
+    }
+  }
+  if (seed != 0) {
+    // Fisher-Yates over the deduplicated order, the LCG of PD-06 driving the
+    // draw; seed 0 keeps the catalog order (D-9, FR-014).
+    std::uint64_t state = seed;
+    for (std::size_t width = answer.first.size(); width > 1; --width) {
+      state = (state * kLcgMultiplier) + kLcgIncrement;
+      const auto draw = static_cast<std::size_t>(state % width);
+      std::swap(answer.first[width - 1], answer.first[draw]);
+    }
+  }
+  return answer;
+}
+
+auto EventCatalog::devicePart(const std::string_view address)
+    -> std::string_view
+{
+  return devicePartOf(address);
+}
+
+auto EventCatalog::isCoreDevice(const std::string_view address) const -> bool
+{
+  return coreDevicePart(devicePartOf(address));
+}
+
+}  // namespace sg::hunt
+
+namespace sg::detail
+{
+
+/// @brief specs/029 data-model.md E-08, PD-10: the run-level hunt record of
+/// the hunt the harness ran last, the field the report writer reads onto
+/// `ReportData::hunt`. `hunt.cpp` fills it and an empty optional stands for a
+/// process that ran no hunt (I-8).
+///
+/// \pre none
+/// \post the record of the hunt `runHunt` last assembled, empty before it
+// NOLINTNEXTLINE(misc-use-internal-linkage) the report lane of the same
+// translation unit reads the record through this external name, so internal
+// linkage would hide the field it publishes.
+auto huntRunRecord() -> std::optional<sg::hunt::RunHunt>&
+{
+  static std::optional<sg::hunt::RunHunt> record;
+  return record;
+}
+
+// The two enums are one ladder with the countable state at the head of the
+// counters side, so the shift states the name-for-name mapping of D-10 and
+// no kind table stands in between (FR-021, FR-050).
+static_assert(
+    static_cast<std::size_t>(sg::counters::Availability::PERMISSION_BLOCKED)
+    == static_cast<std::size_t>(sg::hunt::SkippedKind::PERMISSION_BLOCKED) + 1);
+static_assert(
+    static_cast<std::size_t>(sg::counters::Availability::NOT_ENCODABLE)
+    == static_cast<std::size_t>(sg::hunt::SkippedKind::NOT_ENCODABLE) + 1);
+static_assert(static_cast<std::size_t>(sg::counters::Availability::ABSENT)
+              == static_cast<std::size_t>(sg::hunt::SkippedKind::ABSENT) + 1);
+static_assert(
+    static_cast<std::size_t>(sg::counters::Availability::SCOPE_REFUSED)
+    == static_cast<std::size_t>(sg::hunt::SkippedKind::SCOPE_REFUSED) + 1);
+static_assert(static_cast<std::size_t>(sg::counters::Availability::GAP)
+              == static_cast<std::size_t>(sg::hunt::SkippedKind::GAP) + 1);
+
+auto skippedKindOf(const sg::counters::Availability availability) noexcept
+    -> sg::hunt::SkippedKind
+{
+  SG_ASSERT(availability != sg::counters::Availability::COUNTABLE,
+            "the split hands over the refused states only, so the countable "
+            "state never reaches the kind of a skipped entry (D-10)");
+  return static_cast<sg::hunt::SkippedKind>(
+      static_cast<std::uint8_t>(availability) - 1U);
+}
+
+auto skippedKindOf(const sg::counters::Error& refusal) -> sg::hunt::SkippedKind
+{
+  // The message text carries the errno name the open failed with, the same
+  // errnos the discovery probe maps at provider.cpp:774-786 (D-18, spec PC-1).
+  const auto names = [&refusal](const char* name) -> bool
+  { return refusal.message.find(name) != std::string::npos; };
+  if (names("EINVAL") || names("EOPNOTSUPP")) {
+    return sg::hunt::SkippedKind::NOT_ENCODABLE;
+  }
+  if (names("EACCES") || names("EPERM")) {
+    return sg::hunt::SkippedKind::PERMISSION_BLOCKED;
+  }
+  return sg::hunt::SkippedKind::ABSENT;
+}
+
+}  // namespace sg::detail
+
+namespace sg::hunt
+{
+
+// The name-addressable driver the public `runHunt` delegates to, prototyped
+// beside its definition so the one translation unit that defines it answers
+// the declaration check.
+[[nodiscard]] auto runHuntNamed(
+    std::string_view name,
+    const HuntOptions& options,
+    std::optional<std::uint64_t> calibrationNsPerPass,
+    std::optional<MetricMethod> forcedMethod = std::nullopt,
+    bool dryRun = false) -> std::expected<EntryHunt, counters::Error>;
+
+auto runHuntNamed(std::string_view name,
+                  const HuntOptions& options,
+                  std::optional<std::uint64_t> calibrationNsPerPass,
+                  std::optional<MetricMethod> forcedMethod,
+                  bool dryRun) -> std::expected<EntryHunt, counters::Error>
+{
+  auto* instance = instanceNamed(name);
+  if (instance == nullptr) {
+    return std::unexpected(
+        failure("the hunt names '" + std::string(name)
+                + "', which the expanded registry holds no instance for"));
+  }
+  auto catalog = EventCatalog {};
+  if (const auto expanded = catalog.expand(options.selection);
+      !expanded.has_value())
+  {
+    return std::unexpected(expanded.error());
+  }
+  const auto view = discoverCatalog();
+  SG_ASSERT(view.has_value(),
+            "the expansion answered, so the machine object it walked stands "
+            "for the limit list and the anchors of the plan (FR-011)");
+  const auto [events, discoverySkips] = catalog.split(options.seed);
+
+  std::vector<std::optional<std::size_t>> sourceLimits;
+  std::vector<std::pair<std::string, std::string>> anchors;
+  sourceLimits.reserve(view->devices.size());
+  anchors.reserve(view->devices.size());
+  for (const auto& device : view->devices) {
+    // `Object::programmableCounters()` is the one source of the limit, and the
+    // anchor pair of a device that lacks either anchor stands empty (spec PC-2,
+    // I-1).
+    sourceLimits.push_back(device.limit);
+    anchors.emplace_back(device.cycles, device.instructions);
+  }
+  auto planned =
+      planHunt(events, sourceLimits, anchors, options, calibrationNsPerPass);
+  if (!planned.has_value()) {
+    return std::unexpected(planned.error());
+  }
+  if (forcedMethod.has_value()) {
+    // D-16: a method the caller states outright outranks the settlement the
+    // host's published limits would answer, and the plan carries the stated
+    // word to the printers and the runner alike.
+    planned->method = forcedMethod;
+  }
+  const HuntPlan& plan = *planned;
+  if (const auto refusal = normAnchorRefusal(plan, options, discoverySkips);
+      refusal.has_value())
+  {
+    return std::unexpected(failure(*refusal));
+  }
+
+  auto collected = std::vector<EventSamples> {};
+  auto refused = std::vector<std::string> {};
+  collected.reserve(plan.columns.size());
+  for (const auto& column : plan.columns) {
+    collected.push_back(
+        EventSamples {.address = column.event, .samples = {}, .skipped = {}});
+  }
+  auto runRecord = RunHunt {
+      .selection = options.selection,
+      .options = options,
+      .passes = plan.passes.size(),
+      .method = plan.method,
+      .estimateNs = plan.estimateNs,
+      .plannedAddresses = {},
+      .stages = {},
+      .ranEvents = 0,
+      .stageTwoEvents = 0,
+  };
+  if (!plan.normalized && !runRecord.options.norm.has_value()) {
+    // The record carries the norm the run measured under: a plan that found
+    // no anchors ranks by iterations whoever asked (D-13).
+    runRecord.options.norm = HuntNorm::ITER;
+  }
+  for (const auto& column : plan.columns) {
+    runRecord.plannedAddresses.push_back(column.event);
+  }
+
+  // D-23, hard rule 15: the plan runs through the existing pass loop of the
+  // Runner, one call per stage (PD-13). No second pass loop and no second
+  // counter path stands in this file.
+  std::size_t retriedPasses = 0;
+  std::size_t lonePasses = 0;
+  for (std::size_t index = 0; index < plan.stages.size(); ++index) {
+    const HuntStage& stage = plan.stages[index];
+    if (stage.columns.empty()) {
+      continue;
+    }
+    const auto leaves = buildStageLeaves(plan, stage);
+    auto runOptions = detail::RunOptions {};
+    runOptions.counterAddresses = leaves.leaves;
+    // A dry-run hunt lets every column reach one sample: the repetition lane
+    // stands cut to one, so an unrepeated column carries no rank (I-5).
+    runOptions.repetitions = dryRun ? 1 : stage.repeats;
+    runOptions.dryRun = dryRun;
+    // One hunt window measures one iteration: the pass count and the repeats
+    // carry the length of a hunt run, so the calibration grow stays out of the
+    // way and one repetition opens exactly one window per pass (FR-013).
+    runOptions.fixedIterations = 1;
+    runOptions.hunt = options;
+    // The method the plan settled is the method the run settles too: a forced
+    // request settles itself through `settleMethod` (E-01 rows 4 and 5), so the
+    // pass loop splits the stage's leaves the way the plan split its columns
+    // (FR-011, D-19).
+    runOptions.metricMethod = plan.method;
+
+    const std::size_t retriedBefore = instance->huntRetriedPasses().size();
+    const std::size_t refusedBefore = instance->huntRefusedEvents().size();
+    instance->huntPlan = buildHandoff(plan, stage, leaves);
+    auto runner = detail::Runner {runOptions};
+    const sg::BenchmarkResult result = runner.run(*instance);
+    instance->huntPlan = std::nullopt;
+    if (result.outcome == sg::RunOutcome::FAILED) {
+      // specs/029 spec PC-9: the stage that ends on the failure route ends
+      // the hunt with it, so the run answers the error route and no record.
+      return std::unexpected(failure(result.reason));
+    }
+
+    const auto& retried = instance->huntRetriedPasses();
+    for (std::size_t record = retriedBefore; record < retried.size(); ++record)
+    {
+      lonePasses += retried[record].loneColumns.size();
+    }
+    retriedPasses += retried.size() - retriedBefore;
+    const auto& refusedEvents = instance->huntRefusedEvents();
+    for (std::size_t record = refusedBefore; record < refusedEvents.size();
+         ++record)
+    {
+      refused.push_back(refusedEvents[record]);
+    }
+
+    collectStageSamples(collected, leaves, result.rows, index + 1);
+    runRecord.stages.push_back(HuntStageRange {
+        .first = stage.columns.front(),
+        .count = stage.columns.size(),
+        .repeats = stage.repeats,
+    });
+    if (index > 0) {
+      runRecord.stageTwoEvents += stage.columns.size();
+    }
+  }
+
+  // `rankEvents` takes the columns the run measured: its precondition names a
+  // sample free of a disclosure for every address that carries no skipped kind,
+  // so a column that produced no sample at all - the run stopped mid-collection
+  // - joins no list (E-06, PD-14).
+  auto measured = std::vector<EventSamples> {};
+  measured.reserve(collected.size());
+  for (auto& rows : collected) {
+    if (rows.samples.empty()) {
+      continue;
+    }
+    rows.skipped = skippedOf(rows);
+    const auto clean = std::any_of(rows.samples.begin(),
+                                   rows.samples.end(),
+                                   [](const HuntSample& sample)
+                                   { return !sample.disclosure.has_value(); });
+    if (clean) {
+      ++runRecord.ranEvents;
+    }
+    measured.push_back(std::move(rows));
+  }
+  auto entry = rankEvents(measured, options);
+  entry.method = plan.method;
+  entry.top = options.top;
+  // The pass count of the plan that ran, the passes a retry appended included
+  // (PD-12, D-18).
+  entry.passCount = plan.passes.size() + lonePasses;
+  entry.retriedPasses = retriedPasses;
+  const bool multiplexed =
+      plan.method.has_value() && *plan.method == MetricMethod::MULTIPLEX;
+  for (auto& ranked : entry.entries) {
+    ranked.multiplexed = multiplexed;
+  }
+  // specs/029 D-18, FR-021: the event whose solo retry refused too stands in
+  // the skipped list with the kind its open refusal maps to, beside the
+  // halves the discovery and the disclosures already filled.
+  for (const auto& address : refused) {
+    entry.skipped.push_back(SkippedEvent {
+        .address = address,
+        .kind =
+            detail::skippedKindOf(sg::counters::Availability::NOT_ENCODABLE),
+        .stage = std::nullopt,
+    });
+  }
+  // An address discovery refused can stand in no measured list, so the two
+  // halves of the skipped list hold no address twice (I-4, FR-021).
+  entry.skipped.insert(
+      entry.skipped.end(), discoverySkips.begin(), discoverySkips.end());
+
+  detail::huntRunRecord() = std::move(runRecord);
+  return entry;
+}
+
+auto runHunt(BenchmarkHandle& benchmark,
+             const HuntOptions& options,
+             std::optional<std::uint64_t> calibrationNsPerPass)
+    -> std::expected<EntryHunt, counters::Error>
+{
+  return runHuntNamed(benchmark.name(), options, calibrationNsPerPass);
+}
 
 }  // namespace sg::hunt
