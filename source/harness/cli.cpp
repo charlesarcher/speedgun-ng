@@ -254,6 +254,19 @@ auto environmentRows(char* const* table) -> std::vector<EnvironmentRow>
 
 }  // namespace detail
 
+// specs/029 D-23: the name-addressable driver behind the public `runHunt`, so
+// the entry point hunts the instances the filter selected without a handle of
+// its own (FR-040). `hunt.cpp` defines it.
+namespace hunt
+{
+[[nodiscard]] auto runHuntNamed(
+    std::string_view name,
+    const HuntOptions& options,
+    std::optional<std::uint64_t> calibrationNsPerPass,
+    std::optional<MetricMethod> forcedMethod,
+    bool dryRun) -> std::expected<EntryHunt, counters::Error>;
+}  // namespace hunt
+
 /**
  * @brief State the jitter probe options of the suite's next run
  * (FR-015).
@@ -528,6 +541,28 @@ auto speedgunMain(int argc, char** argv) -> int
   // line naming its source at status 2, on the compare path beside the run
   // path, and the one pattern stands for either path to read.
   std::optional<std::regex> filterPattern = std::move(resolved->filterPattern);
+  // specs/029 FR-081, D-16: the conflict check reads the settled members of the
+  // scan, so a `--counter` that stands after `--hunt` is the same conflict as
+  // one that stands before it. It stands ahead of the compare mode, which reads
+  // no catalog and runs no benchmark.
+  detail::validateHuntCombination(options);
+
+  // specs/029 FR-006, FR-081, PD-17: the selection expands here, where the
+  // clock and PMU providers stand registered and before the first run, so an
+  // unknown address, a pattern that matches nothing and an unreadable `@path`
+  // cost no measured time.
+  detail::expandHuntSelection(options);
+
+  // specs/026 FR-024, FR-050, FR-051: the batch filter is compiled while
+  // the scan is all that has happened, so an invalid pattern answers one
+  // line and status 2 on the compare path beside the run path, and the
+  // pattern is compiled once for either path to read.
+  const auto compiled = compileFilterPattern(options.filter);
+  if (!compiled.has_value()) {
+    std::fprintf(stderr, "--filter: %s\n", compiled.error().c_str());
+    return 2;
+  }
+  std::optional<std::regex> filterPattern = *compiled;
 
   // specs/026 FR-048, FR-052, D-15: the compare mode stands ahead of the
   // expansion, so the comparison runs no benchmark, reads no clock and
@@ -1128,6 +1163,29 @@ auto speedgunMain(int argc, char** argv) -> int
       coveringStates = &covering->holder->states();
     } else if (batchProbed) {
       coveringStates = &jitterProbe->states();
+    auto result = runner.run(*entry);
+    // specs/029 FR-040, FR-043: `--hunt` hunts the instances the filter
+    // selected, and the record rides the result the printers and the writer
+    // read; a hunt that refuses stands its error line on stderr with the
+    // failed outcome's exit status (FR-081, spec PC-9).
+    if (options.hunt.has_value()) {
+      auto hunted = hunt::runHuntNamed(entry->name,
+                                       *options.hunt,
+                                       std::nullopt,
+                                       options.metricMethod,
+                                       options.dryRun);
+      if (hunted.has_value()) {
+        result.hunt = std::move(*hunted);
+        // D-19: a hunt run states its method outright, so the method of the
+        // forced collection rides the result the document writer reads even
+        // where no counter column of its own settled one.
+        if (options.metricMethod.has_value()) {
+          result.metricMethod = *options.metricMethod;
+        }
+      } else {
+        std::fprintf(stderr, "hunt: %s\n", hunted.error().message.c_str());
+        status = 1;
+      }
     }
     if (interleaved) {
       held[position] = HeldRow {result,

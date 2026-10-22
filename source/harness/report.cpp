@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <limits>
+#include <optional>
 #include <string_view>
 #include <thread>
 #include <utility>
@@ -15,6 +16,7 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/execution_context.hpp"
+#include "speedgun-ng/hunt.hpp"
 
 namespace sg::detail
 {
@@ -407,6 +409,15 @@ auto printRowPercentiles(const BenchmarkResult& result,
   }
 }
 
+// specs/029 T027, FR-040, PD-15: the three hunt printers stand below this
+// file's `printResult`, and the hunt block of a result calls them from here.
+auto printHuntPlan(const sg::hunt::RunHunt& run) -> void;
+auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
+                      const sg::hunt::HuntNorm norm) -> void;
+auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
+                    const sg::hunt::RunHunt& run,
+                    const std::optional<std::uint64_t> spendNs) -> void;
+
 auto printResult(const BenchmarkResult& result) -> void
 {
   if (result.outcome == RunOutcome::FAILED) {
@@ -595,6 +606,20 @@ auto printResult(const BenchmarkResult& result) -> void
                 worst->stats.totalPercent);
   }
 
+  // specs/029 T027, FR-040, FR-041, PD-15, data-model E-07: the hunt lines
+  // print behind the rows and disclosures of the benchmark they ranked, in
+  // the order plan, ranking, skipped list, summary. A result that carried no
+  // hunt prints the bytes it printed before the hunt existed (I-8), and the
+  // norm label is the one the run measured under, `instr` when the caller
+  // named none (D-13).
+  if (result.hunt.has_value() && huntRunRecord().has_value()) {
+    const auto& run = *huntRunRecord();
+    printHuntPlan(run);
+    printHuntRanking(*result.hunt,
+                     run.options.norm.value_or(sg::hunt::HuntNorm::INSTR));
+    printHuntSkips(*result.hunt, run, std::nullopt);
+  }
+
   // FR-025: a non-empty `contexts` vector names exactly a threaded
   // result, so a single-context result leaves here holding the bytes its
   // rows printed, with no line below them.
@@ -717,6 +742,211 @@ auto printJitterReport(const bool available,
                 static_cast<unsigned long long>(state->droppedGaps));
   }
   std::printf("jitter: split and percentiles use the kept gaps only\n");
+namespace
+{
+
+// The token that stands in a hunt line where the run holds no figure, the one
+// the pass spread and the percentile fields print for the same case.
+constexpr const char* kUnavailableFigure = "not available";
+
+// specs/029 E-02, FR-040: the label of the column a hunt rate prints under,
+// indexed by the enumerator, the table shape the availability names and the
+// pass method names take. The JSON writer keeps its own table beside its own
+// keys (E-02); the console reads this one.
+constexpr std::array<const char*, 3> kHuntNormNames {
+    "instr",
+    "cycle",
+    "iter",
+};
+static_assert(kHuntNormNames.size()
+              == std::to_underlying(sg::hunt::HuntNorm::ITER) + 1);
+
+auto huntNormName(const sg::hunt::HuntNorm norm) -> const char*
+{
+  // The static_assert above ties the table to the last enumerator of a closed
+  // enumeration, so the index of a value of that enumeration sits inside the
+  // table.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  return kHuntNormNames[std::to_underlying(norm)];
+}
+
+// specs/029 E-06, D-10: the refusal kinds of a skipped entry are the five
+// `Availability` values such an entry carries, so the skipped line prints the
+// words `availabilityName` prints - the same words the `--catalog` listing
+// prints - and no second table of these words enters the tree (FR-021,
+// FR-040). The table pairs the two enumerators by name, never by an
+// offset, and the assert ties the last pair.
+constexpr std::array<sg::counters::Availability, 5> kSkippedKindAvailability {
+    sg::counters::Availability::PERMISSION_BLOCKED,
+    sg::counters::Availability::NOT_ENCODABLE,
+    sg::counters::Availability::ABSENT,
+    sg::counters::Availability::SCOPE_REFUSED,
+    sg::counters::Availability::GAP,
+};
+static_assert(
+    kSkippedKindAvailability[std::to_underlying(sg::hunt::SkippedKind::GAP)]
+    == sg::counters::Availability::GAP);
+
+auto skippedKindName(const sg::hunt::SkippedKind kind) -> const char*
+{
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  return availabilityName(kSkippedKindAvailability[std::to_underlying(kind)]);
+}
+
+// specs/029 FR-012, E-03: the budget field of the two plan lines. The figure
+// stands in the unit the caller named, so `120s` and `8p` print as they were
+// given, and a run with no budget prints the word `none`.
+auto printHuntBudget(const std::optional<sg::hunt::HuntBudget>& budget) -> void
+{
+  if (!budget.has_value()) {
+    std::printf("none");
+    return;
+  }
+  std::printf("%llu%c",
+              static_cast<unsigned long long>(budget->amount),
+              budget->kind == sg::hunt::HuntBudget::Kind::SECONDS ? 's' : 'p');
+}
+
+// specs/029 D-7, D-8, PD-14: the word that names why an event stands out of
+// the top N. One sample carries no deviation, so an event that repeated and
+// stayed under `--hunt-noise` left the table on the size of the table alone.
+auto excludedMarkOf(const sg::hunt::RankedEvent& entry) -> const char*
+{
+  if (entry.noisy) {
+    return "noisy";
+  }
+  if (!entry.repeated) {
+    return "unrepeated";
+  }
+  return "beyond-top";
+}
+
+}  // namespace
+
+// The words the hunt plan line prints for the settled collection method:
+// the data model spells the figure in capital letters, a shape of its own
+// beside the lowercase tokens the pass disclosure prints (E-07).
+constexpr std::array<const char*, 3> kHuntMethodWords {
+    "AUTO",
+    "PASSES",
+    "MULTIPLEX",
+};
+static_assert(kHuntMethodWords.size()
+              == std::to_underlying(sg::MetricMethod::MULTIPLEX) + 1);
+
+// specs/029 T027, FR-040, FR-041, PD-15, data-model E-07: the plan line of
+// one hunt run, spelled from the run record the report lane reads. `events=`
+// counts the planned columns and `passes=` the passes of the plan, `method=`
+// names the settled collection method in the capital word the data model
+// spells, and the estimate is the plan's own figure: it is
+// calibration data, so a plan the run reached before any calibration answered
+// prints `estimate=not available` (FR-012). The record carries the norm the
+// run measured under, so a device that lacked an anchors the run normalized
+// by iterations, which the line states openly (D-13). The line carries no
+// measurement: every figure is a field of the record the caller handed over.
+auto printHuntPlan(const sg::hunt::RunHunt& run) -> void
+{
+  std::printf("hunt: plan events=%zu passes=%zu method=%s",
+              run.plannedAddresses.size(),
+              run.passes,
+              run.method.has_value()
+                  ? kHuntMethodWords[std::to_underlying(*run.method)]
+                  : kUnavailableFigure);
+  if (run.estimateNs.has_value()) {
+    std::printf(" estimate=%lluns",
+                static_cast<unsigned long long>(*run.estimateNs));
+  } else {
+    std::printf(" estimate=%s", kUnavailableFigure);
+  }
+  std::printf(" budget=");
+  printHuntBudget(run.options.budget);
+  if (run.options.norm == sg::hunt::HuntNorm::ITER) {
+    std::printf(" normalized=iter");
+  }
+  std::printf("\n");
+}
+
+// specs/029 T027, FR-040, FR-042, PD-14, PD-15, data-model E-07: the ranked
+// table of one hunt, the first lines the caller prints after the benchmark
+// tables. `entries` holds the ranked events first and the excluded ones after
+// them in address order (I-5), so one walk of the vector prints the top N and
+// then the marked tail at `rank=-`. `cv=` prints the entry's coefficient of
+// variation in the percent the noise threshold compares against (I-6), and a
+// plan that settled the multiplexing method discloses it beside the row
+// (D-19). Nothing here decides a rank, a mark or the size of the table: the
+// record the caller hands over already holds all three.
+auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
+                      const sg::hunt::HuntNorm norm) -> void
+{
+  for (const auto& entry : hunt.entries) {
+    if (entry.rank.has_value()) {
+      std::printf("hunt: rank %zu %s %s=%.3f cv=%.2f",
+                  *entry.rank,
+                  entry.address.c_str(),
+                  huntNormName(norm),
+                  entry.rate,
+                  entry.cv);
+      if (entry.multiplexed) {
+        std::printf(" multiplexed");
+      }
+      std::printf("\n");
+      continue;
+    }
+    std::printf("hunt: rank - %s %s=%.3f cv=%.2f mark=%s\n",
+                entry.address.c_str(),
+                huntNormName(norm),
+                entry.rate,
+                entry.cv,
+                excludedMarkOf(entry));
+  }
+}
+
+// specs/029 T027, FR-040, FR-041, FR-050, D-12, PD-15, data-model E-07: the
+// skipped list of one hunt and the plan summary that closes the hunt lines.
+// The caller prints both after the ranked table: one line per event the run
+// will not measure, with the kind of the refusal in the words the catalog
+// listing uses and the stage that lost the event where a stage did, then the
+// one summary line. A host that refused every event prints no ranking row
+// above these lines and the summary reads `events=0/N` (D-12, FR-041), the
+// denominator being the universe of addresses the hunt stood before: the
+// planned ones plus the refusals discovery kept out of the plan. The
+// spend is the figure the caller measured: this file reads no clock, so a
+// caller that holds no spend leaves the field as `not available`.
+auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
+                    const sg::hunt::RunHunt& run,
+                    const std::optional<std::uint64_t> spendNs) -> void
+{
+  for (const auto& skipped : hunt.skipped) {
+    std::printf("hunt: skipped %s %s",
+                skipped.address.c_str(),
+                skippedKindName(skipped.kind));
+    if (skipped.stage.has_value()) {
+      std::printf(" stage=%zu", *skipped.stage);
+    }
+    std::printf("\n");
+  }
+  std::size_t refused = 0;
+  for (const auto& skipped : hunt.skipped) {
+    if (std::find(run.plannedAddresses.begin(),
+                  run.plannedAddresses.end(),
+                  skipped.address)
+        == run.plannedAddresses.end())
+    {
+      ++refused;
+    }
+  }
+  std::printf("hunt: plan summary events=%zu/%zu passes=%zu",
+              run.ranEvents,
+              run.plannedAddresses.size() + refused,
+              run.passes);
+  if (spendNs.has_value()) {
+    std::printf(" spend=%lluns", static_cast<unsigned long long>(*spendNs));
+  } else {
+    std::printf(" spend=%s", kUnavailableFigure);
+  }
+  std::printf(" budget=");
+  printHuntBudget(run.options.budget);
+  std::printf("\n");
 }
 
 }  // namespace sg::detail

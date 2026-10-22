@@ -687,6 +687,14 @@ variable.
 | `help` | none |  | Prints one line per option and stops |
 | `version` | none |  | Prints the project version and stops |
 | `jitter-probe` | required |  | Runs the jitter probe over the batch by that value |
+| `hunt` | optional |  | Hunts the selected catalog events and ranks them |
+| `hunt-norm` | required |  | Sets the hunt score normaliser: instr, cycle or iter |
+| `hunt-rank` | required |  | Sets the hunt ranking: rate or cv |
+| `hunt-top` | required |  | Sets how many ranked events the hunt prints |
+| `hunt-noise` | required |  | Sets the hunt noise threshold as a percent CV |
+| `hunt-repeats` | required |  | Sets how many repeats one hunt event takes |
+| `hunt-budget` | required |  | Sets the hunt budget in seconds or passes |
+| `hunt-seed` | required |  | Sets the seed the hunt repeats draw from |
 
 The highest source that sets an option wins: the command line, then the option
 file, then the environment, then the built-in default. A repeatable option from

@@ -73,6 +73,10 @@ enum class StopKind
 // the options master gives them, the jitter probe's lane block holds
 // 260 to 269, the seven names the command-line lane brings take
 // 290 to 296, and 298 to 319 stay free (FR-001, FR-004, FR-005, D-24).
+// the options master gives them, the eight hunt names take the block 270
+// to 279 specs/029-hunter-core reserves, the seven names this feature
+// brings take 290 to 296, and 297 to 319 stay free (FR-001, FR-004,
+// FR-005, D-24; specs/029 FR-080, D-22).
 inline constexpr int kMetricMethodOption = 256;
 inline constexpr int kCompareOptionValue = 257;
 inline constexpr int kCompareRuleOptionValue = 258;
@@ -85,6 +89,18 @@ inline constexpr int kInterleaveOptionValue = 293;
 inline constexpr int kCompareRulesOptionValue = 294;
 inline constexpr int kHelpOptionValue = 295;
 inline constexpr int kVersionOptionValue = 296;
+
+// specs/029-hunter-core FR-080 to FR-082, D-22: the value each hunt option
+// answers. The hunt lane reserves the block 270 to 279: 278 and 279 stay
+// unused this release, and 280 to 289 stay free for the next feature.
+inline constexpr int kHuntOption = 270;
+inline constexpr int kHuntNormOption = 271;
+inline constexpr int kHuntRankOption = 272;
+inline constexpr int kHuntTopOption = 273;
+inline constexpr int kHuntNoiseOption = 274;
+inline constexpr int kHuntRepeatsOption = 275;
+inline constexpr int kHuntBudgetOption = 276;
+inline constexpr int kHuntSeedOption = 277;
 
 /**
  * @brief One row of the one option table (E-01, FR-001).
@@ -272,6 +288,23 @@ struct CommandLineOptions
 /// words that ask for an answer end the run before it gathers options.
 [[nodiscard]] auto scanCommandLine(int argc, char** argv)
     -> std::expected<CommandLineOptions, std::string>;
+
+// specs/029-hunter-core FR-080 to FR-082, D-22, PD-17: the hunt option bodies
+// stand in `hunt_cli.cpp` with their ranges, refusal texts, `@file` reader,
+// glob matcher and conflict check, so the scan carries table rows and one call
+// per row and no parse logic of its own. Each answers a refused value with its
+// own line on standard error and the exit status `contracts/hunt-cli.md`
+// states, the way the base scan's rejected values do.
+auto parseHuntSelection(const char* text, RunOptions& options) -> void;
+auto parseHuntNorm(const char* text, RunOptions& options) -> void;
+auto parseHuntRank(const char* text, RunOptions& options) -> void;
+auto parseHuntTop(const char* text, RunOptions& options) -> void;
+auto parseHuntNoise(const char* text, RunOptions& options) -> void;
+auto parseHuntRepeats(const char* text, RunOptions& options) -> void;
+auto parseHuntBudget(const char* text, RunOptions& options) -> void;
+auto parseHuntSeed(const char* text, RunOptions& options) -> void;
+auto expandHuntSelection(RunOptions& options) -> void;
+auto validateHuntCombination(const RunOptions& options) -> void;
 
 /**
  * @brief Print the help answer of `--help`: one line per table row in

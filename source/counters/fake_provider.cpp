@@ -328,6 +328,7 @@ std::unique_ptr<WindowReader> FakeProvider::open(const LeafSet& leaves,
     }
   }
   auto window = std::make_unique<detail::FakeWindow>();
+  m_windowOpens.fetch_add(1, std::memory_order_relaxed);
   window->owner = this;
   window->disclosureColumn = leaves.disclosureColumn;
   for (const auto& address : leaves.addresses) {

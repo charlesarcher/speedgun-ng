@@ -1,34 +1,93 @@
 // ============================================================================
-// The hunt collection runs (specs/029-hunter-core T006, filled by T017; US1;
+// The hunt collection runs (specs/029-hunter-core T017; US1;
 // FR-021, FR-022, FR-041, FR-092; AC-2 to AC-4, SC-02 to SC-04; research
 // D-10, D-12, D-18, D-19; data-model E-04 to E-06, E-10).
 //
-// The seam is `sg::detail::runHunt` driven through `sg::detail::Runner` over
-// the scripted host of `test/source/detail/hunt_fixture.hpp`, which publishes
-// the catalog, the anchors and the programmable-counter limits, so a scenario
-// needs no PMU, no sysfs seam, no sleep and no clock (FR-092). The refusal
-// rows script their own machine fact on the provider they own, and the
-// window-open counts come from `FakeProvider::readActions`, the scripted
-// provider's own counter.
+// The seam is `sg::hunt::runHunt` over the scripted host of
+// `detail/hunt_fixture.hpp`, which publishes the catalog, the anchors and the
+// programmable-counter limits, so a scenario needs no PMU, no sysfs seam, no
+// sleep and no clock (FR-092). The printed half of a claim reads
+// `sg::detail::printResult` behind the stdout capture of
+// `harness_pass_report_test.cpp`, with the collected `EntryHunt` standing on
+// the result's own `hunt` field the way a finished run leaves it; the record
+// half reads the fields of that `EntryHunt`. The scripted window counts come
+// from `FakeProvider::readActions`, the scripted provider's own counter.
 //
-// A scenario that scripts a provider of its own runs in a re-exec of this
-// binary, the way `harness_pass_collect_test.cpp` drives its scenarios,
-// because the counters system takes an object path once per process.
+// "the run exiting 0" is read here as `runHunt` answering a value rather than
+// an error: the error is the route that ends the run nonzero, so an answered
+// record is the collected side of the exit status the contract names. The
+// command line's own status is T018's seam.
 //
-// The file stands empty of cases until T017 fills the scenario list below;
-// the list is what CTest runs, so an entry absent from it never runs, and
-// `argv[1]` selects one entry of it. Frameworkless check()/fail() convention,
-// the one `harness_pass_collect_test.cpp` carries.
+// Each scenario scripts a provider of its own, and the counters system takes
+// one object path per process, so each scenario runs in a re-exec of this
+// binary, the pattern of `harness_pass_collect_test.cpp`. The list below is
+// what CTest runs, so a scenario absent from it never runs, and `argv[1]`
+// selects one entry of it. Frameworkless check()/fail() convention, the one
+// `harness_pass_report_test.cpp` carries.
 // ============================================================================
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <sstream>
+#include <string>
 #include <string_view>
 #include <vector>
 
+#include <sched.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include "detail/hunt_fixture.hpp"
+#include "detail/hunt_plan.hpp"
+#include "detail/internal.hpp"
+#include "speedgun-ng/barrier.hpp"
+#include "speedgun-ng/benchmark.hpp"
+#include "speedgun-ng/counters.hpp"
+#include "speedgun-ng/counters_fake.hpp"
+#include "speedgun-ng/counters_system.hpp"
+#include "speedgun-ng/hunt.hpp"
+
 namespace
 {
+
+using sg::hunt::EntryHunt;
+using sg::hunt::HuntOptions;
+using sg::hunt::RankedEvent;
+using sg::hunt::SkippedEvent;
+using sg::hunt::SkippedKind;
+
+// The file one scenario's printed report is captured to, the scratch file of
+// `harness_pass_report_test.cpp` spelled for this binary.
+constexpr const char* kScratchPath = "harness_hunt_collect_out.txt";
+
+// The scripted limit the retry arms split over: six leaves per pass on `cpu`,
+// the anchors counted, the row `kHuntRows` carries for AC-1.
+constexpr std::size_t kCollectLimit = 6;
+
+// The events a retry arm seats in one pass: four events over two anchors fill
+// the scripted limit exactly, so the group open is the widest the plan asks
+// for and a narrower scripted leaf ceiling refuses exactly that open.
+constexpr std::size_t kWidePassEvents = 4;
+
+// The windows of the gapped arm: twenty repeats of one column, one of whose
+// windows carries the scripted gap, so nineteen clean windows stand (FR-022).
+constexpr std::size_t kGapRepeats = 20;
+
+// The contexts of the threaded arm (FR-092).
+constexpr int kThreadCount = 2;
+
+// The swings of the leaf the noisy arm scripts: four endpoint samples whose
+// consecutive differences spread wide, so the coefficient of variation of the
+// column clears any threshold the scenario can pick.
+constexpr std::uint64_t kNoisySeed = 1;
 
 [[noreturn]] auto fail(const char* what) -> void
 {
@@ -43,6 +102,761 @@ auto check(const bool condition, const char* what) -> void
   }
 }
 
+auto closeTo(const double value, const double expected) -> bool
+{
+  return std::abs(value - expected) <= 0.001 * (std::abs(expected) + 1.0);
+}
+
+// The scripted provider of the running scenario, kept because the record
+// claims and the group-refusal message are read off it after the run.
+sg::counters::FakeProvider* host = nullptr;
+
+// ---------------------------------------------------------------------------
+// The scripted host
+// ---------------------------------------------------------------------------
+
+// Lay the hunt host out at the limit the scenario names and register it, the
+// fluent shape `huntHost` states: the scenario owns the reference and scripts
+// its own fact onto it before this call returns.
+auto registerHuntHost(std::optional<std::size_t> limit,
+                      const std::function<void(sg::counters::FakeProvider&)>&
+                          script = {}) -> sg::counters::FakeProvider&
+{
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  sg::test::huntHost(*provider, limit);
+  if (script) {
+    script(*provider);
+  }
+  auto* scripted = provider.get();
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(provider));
+  check(settled.has_value(), "the hunt fixture registers on the local system");
+  host = scripted;
+  return *scripted;
+}
+
+// Refuse one scripted leaf outright: the availability the discovery answer
+// gives for it is the kind a skipped entry must then carry (D-10). The tree
+// freezes at registration (system.cpp:101), so every refusal is scripted
+// before `registerProvider` through the callback of `registerHuntHost`.
+auto refuseLeaf(sg::counters::FakeProvider& provider,
+                std::string_view leaf,
+                sg::counters::Availability kind) -> void
+{
+  provider.addCounter(sg::test::kHuntCpu, leaf, "none", "refused event", kind);
+}
+
+// The selection text of the catalog addresses a scenario asks for, the comma
+// list the option spells (contracts/hunt-cli.md).
+auto selectionOf(const std::vector<std::size_t>& indexes) -> std::string
+{
+  std::string text;
+  for (const std::size_t index : indexes) {
+    if (!text.empty()) {
+      text += ',';
+    }
+    text +=
+        sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(index));
+  }
+  return text;
+}
+
+auto selectionOfNames(const std::vector<std::string>& leaves) -> std::string
+{
+  std::string text;
+  for (const auto& leaf : leaves) {
+    if (!text.empty()) {
+      text += ',';
+    }
+    text += sg::test::huntAddress(sg::test::kHuntCpu, leaf);
+  }
+  return text;
+}
+
+auto optionsFor(std::string selection,
+                const std::size_t top = 20,
+                const double noise = 10.0,
+                const std::size_t repeats = 3) -> HuntOptions
+{
+  HuntOptions options;
+  options.selection = std::move(selection);
+  options.top = top;
+  options.noise = noise;
+  options.repeats = repeats;
+  return options;
+}
+
+auto bmHuntBody(sg::State& state) -> void
+{
+  for (auto index : state) {
+    sg::doNotOptimize(index);
+  }
+}
+
+auto needInstance(const std::string& name) -> sg::Instance*
+{
+  for (auto& instance : sg::detail::instances()) {
+    if (instance.name == name) {
+      return &instance;
+    }
+  }
+  check(false, "the expansion produced the named instance");
+  return nullptr;
+}
+
+// One scripted hunt run: the record `runHunt` answered and the sampling
+// actions it cost the scripted provider.
+struct HuntAccount
+{
+  std::optional<EntryHunt> hunt;
+  std::uint64_t reads = 0;
+  std::uint64_t opens = 0;
+};
+
+auto runHuntMeasured(sg::BenchmarkHandle& handle,
+                     const HuntOptions& options) -> HuntAccount
+{
+  const std::uint64_t before = host->readActions();
+  const std::uint64_t opensBefore = host->windowOpens();
+  auto answered = sg::hunt::runHunt(handle, options, std::nullopt);
+  const std::uint64_t after = host->readActions();
+  const std::uint64_t opensAfter = host->windowOpens();
+  if (answered.has_value()) {
+    return HuntAccount {std::optional<EntryHunt> {std::move(*answered)},
+                        after - before,
+                        opensAfter - opensBefore};
+  }
+  return HuntAccount {std::nullopt, after - before, opensAfter - opensBefore};
+}
+
+// ---------------------------------------------------------------------------
+// The printed side, the capture seam of `harness_pass_report_test.cpp`
+// ---------------------------------------------------------------------------
+
+template<class Call>
+auto captureThrough(const std::string& path, Call&& call) -> void
+{
+  std::FILE* saved = nullptr;
+  const int savedFd = dup(STDOUT_FILENO);
+  if (savedFd >= 0) {
+    saved = fdopen(savedFd, "w");
+  }
+  check(saved != nullptr, "the capture kept the real stdout");
+
+  std::FILE* replacement = std::fopen(path.c_str(), "we");
+  check(replacement != nullptr, "the capture opened its scratch file");
+  const int replacementFd = fileno(replacement);
+  check(replacementFd >= 0, "the capture file carries a descriptor");
+  const bool redirected = dup2(replacementFd, STDOUT_FILENO) == STDOUT_FILENO;
+  check(redirected, "the capture redirected stdout");
+  if (std::setvbuf(stdout, nullptr, _IONBF, 0) != 0) {
+    fail("the capture could not unbuffer the redirected stdout");
+  }
+  std::fflush(stdout);
+
+  call();
+
+  std::fflush(stdout);
+  const bool restored = dup2(savedFd, STDOUT_FILENO) == STDOUT_FILENO;
+  check(restored, "the capture restored stdout");
+  if (std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ) != 0) {
+    fail("the restored stdout could not set its buffering mode");
+  }
+  std::fclose(saved);
+  std::fclose(replacement);
+}
+
+auto readAll(const std::string& path) -> std::string
+{
+  std::ifstream file(path);
+  check(static_cast<bool>(file), "the captured file opens for reading");
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
+auto splitLines(const std::string& text) -> std::vector<std::string>
+{
+  std::vector<std::string> lines;
+  std::string current;
+  for (const char symbol : text) {
+    if (symbol == '\n') {
+      lines.push_back(current);
+      current.clear();
+      continue;
+    }
+    current.push_back(symbol);
+  }
+  check(current.empty(), "every captured line ends with its newline");
+  return lines;
+}
+
+auto linesHolding(const std::vector<std::string>& lines,
+                  const std::string& needle) -> std::vector<std::string>
+{
+  std::vector<std::string> held;
+  for (const auto& line : lines) {
+    if (line.find(needle) != std::string::npos) {
+      held.push_back(line);
+    }
+  }
+  return held;
+}
+
+// The printed console tail of a collected run: the benchmark's own row, then
+// the hunt lines `EntryHunt` owes, behind the capture (contracts/hunt-cli.md,
+// D-20). The run that produced the record is the real scripted run, so the
+// bytes are those of a finished run, whole and unplanted.
+auto printedLines(sg::Instance& instance,
+                  const EntryHunt& hunt) -> std::vector<std::string>
+{
+  sg::detail::RunOptions options;
+  options.fixedIterations = 1;
+  options.repetitions = 1;
+  sg::detail::Runner runner(options);
+  sg::BenchmarkResult result = runner.run(instance);
+  result.hunt = hunt;
+  captureThrough(kScratchPath, [&] { sg::detail::printResult(result); });
+  return splitLines(readAll(kScratchPath));
+}
+
+// The ranked row of one address; null when the run measured no such address.
+auto entryOf(const EntryHunt& hunt,
+             const std::string& address) -> const RankedEvent*
+{
+  for (const auto& entry : hunt.entries) {
+    if (entry.address == address) {
+      return &entry;
+    }
+  }
+  return nullptr;
+}
+
+// The skipped entry of one address; null when the run measured it.
+auto skippedOf(const EntryHunt& hunt,
+               const std::string& address) -> const SkippedEvent*
+{
+  for (const auto& skipped : hunt.skipped) {
+    if (skipped.address == address) {
+      return &skipped;
+    }
+  }
+  return nullptr;
+}
+
+// The spelling `report.cpp availabilityName` prints for one kind, the one
+// spelling the console owes (hunt.hpp, E-06).
+auto kindName(const SkippedKind kind) -> const char*
+{
+  switch (kind) {
+    case SkippedKind::PERMISSION_BLOCKED:
+      return "permission-blocked";
+    case SkippedKind::NOT_ENCODABLE:
+      return "not-encodable";
+    case SkippedKind::ABSENT:
+      return "absent";
+    case SkippedKind::SCOPE_REFUSED:
+      return "scope-refused";
+    case SkippedKind::GAP:
+      return "gap";
+  }
+  return "unknown";
+}
+
+auto rankCount(const EntryHunt& hunt) -> std::size_t
+{
+  std::size_t ranked = 0;
+  for (const auto& entry : hunt.entries) {
+    if (entry.rank.has_value()) {
+      ++ranked;
+    }
+  }
+  return ranked;
+}
+
+// ---------------------------------------------------------------------------
+// AC-3, SC-03: the noisy event stands in the record and out of the top N
+// ---------------------------------------------------------------------------
+
+auto scenarioNoisyEventStandsOutOfTheTop() -> void
+{
+  // One flat high-rate event and one that swings: the calibration loop reads
+  // every leaf hundreds of times before the repetition windows, so a finite
+  // point list is long consumed by then. The seeded delta tail is the one
+  // script that keeps stepping through the repetitions, and its varying steps
+  // are what give the column a spread (hunt_fixture.hpp, FR-030).
+  const std::string loud =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(199));
+  const std::string swing =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(2));
+  registerHuntHost(
+      kCollectLimit,
+      [](sg::counters::FakeProvider& provider)
+      {
+        provider.setPoints(
+            sg::test::kHuntCpu, sg::test::huntEvent(2), {0}, 0, kNoisySeed);
+      });
+
+  const auto options = optionsFor(selectionOf({199, 2}), 1);
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntNoisy");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "a noisy event is a mark and not an error, so the run answers its "
+        "record and exits 0 (AC-3, D-18)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.skipped.empty(),
+        "a noisy event is not a refused event, so it stands in no skipped "
+        "list (AC-3)");
+  check(hunt.entries.size() == 2,
+        "both scripted events stand in the record, the noisy one kept in it "
+        "(AC-3, I-4)");
+  const auto* loudEntry = entryOf(hunt, loud);
+  const auto* swingEntry = entryOf(hunt, swing);
+  check(loudEntry != nullptr && swingEntry != nullptr,
+        "the record carries a row per scripted address (E-06)");
+  check(loudEntry->rank.has_value() && loudEntry->rank.value() == 1,
+        "the high-rate scripted event ranks first (AC-3)");
+  check(swingEntry->noisy && !swingEntry->rank.has_value(),
+        "the flat scripted event above the CV threshold is marked noisy and "
+        "kept out of the top N (D-7, AC-3)");
+  check(swingEntry->cv > options.noise,
+        "the noisy mark is the unrounded CV read against --hunt-noise (D-7)");
+  check(!loudEntry->noisy && closeTo(loudEntry->cv, 0.0),
+        "a scripted event with no spread carries no noise and a CV of zero "
+        "(I-6)");
+  check(rankCount(hunt) == 1 && hunt.top == 1,
+        "at most --hunt-top entries carry a rank (I-5)");
+
+  const auto lines = printedLines(*needInstance("bmHuntNoisy"), hunt);
+  check(linesHolding(lines, "hunt: rank 1 " + loud).size() == 1,
+        "the console prints the high-rate event as rank 1 (D-20, AC-3)");
+  const auto tailLines = linesHolding(lines, "hunt: rank - " + swing);
+  check(tailLines.size() == 1 &&
+            tailLines[0].find(" mark=noisy") != std::string::npos,
+        "the excluded tail prints the noisy event with rank - and its mark "
+        "(D-7, D-20)");
+  std::printf("noisy-out-of-top: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// AC-4, SC-04, D-10: one skipped entry per refused Availability
+// ---------------------------------------------------------------------------
+
+auto scenarioRefusedAvailabilityJoinsSkipped() -> void
+{
+  const std::vector<std::pair<std::string, SkippedKind>> refused {
+      {"hunt_refused_perm", SkippedKind::PERMISSION_BLOCKED},
+      {"hunt_refused_enc", SkippedKind::NOT_ENCODABLE},
+      {"hunt_refused_abs", SkippedKind::ABSENT},
+      {"hunt_refused_scope", SkippedKind::SCOPE_REFUSED},
+  };
+  const std::vector<sg::counters::Availability> kinds {
+      sg::counters::Availability::PERMISSION_BLOCKED,
+      sg::counters::Availability::NOT_ENCODABLE,
+      sg::counters::Availability::ABSENT,
+      sg::counters::Availability::SCOPE_REFUSED,
+  };
+  registerHuntHost(kCollectLimit,
+                   [&](sg::counters::FakeProvider& provider)
+                   {
+                     for (std::size_t index = 0; index < refused.size();
+                          ++index) {
+                       refuseLeaf(provider, refused[index].first, kinds[index]);
+                     }
+                   });
+
+  HuntOptions options = optionsFor(selectionOfNames({refused[0].first,
+                                                     refused[1].first,
+                                                     refused[2].first,
+                                                     refused[3].first,
+                                                     sg::test::huntEvent(0)}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntRefused");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "a refused event is a skipped entry and the run exits 0 (AC-4, D-10)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.skipped.size() == refused.size(),
+        "one scripted event per refused Availability stands in the skipped "
+        "list (AC-4, I-4)");
+  for (const auto& [leaf, kind] : refused) {
+    const std::string address = sg::test::huntAddress(sg::test::kHuntCpu, leaf);
+    const auto* skipped = skippedOf(hunt, address);
+    check(skipped != nullptr && skipped->kind == kind,
+          "the skipped entry carries the Availability of its own refusal "
+          "(D-10, FR-050)");
+    check(entryOf(hunt, address) == nullptr,
+          "a refused address stands in no ranked row (I-4)");
+  }
+  const auto* counted = entryOf(
+      hunt, sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(0)));
+  check(counted != nullptr && counted->rank.has_value(),
+        "the countable event beside four refusals still ranks (AC-4)");
+  check(hunt.entries.size() == 1,
+        "no refused address reaches the entries list (I-4)");
+
+  const auto lines = printedLines(*needInstance("bmHuntRefused"), hunt);
+  for (const auto& [leaf, kind] : refused) {
+    const std::string line = "hunt: skipped "
+        + sg::test::huntAddress(sg::test::kHuntCpu, leaf) + " "
+        + kindName(kind);
+    check(linesHolding(lines, line).size() == 1,
+          "the console prints one skipped line per refused event with the kind "
+          "spelling report.cpp carries (D-10, D-20)");
+  }
+  std::printf("skipped-per-availability: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// FR-022: a gapped window stands in both lists
+// ---------------------------------------------------------------------------
+
+auto scenarioGappedWindowStandsInBothLists() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const std::size_t index = 5;
+  const std::string address =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(index));
+  // The plan's sampling-cost calibration runs 64 warm-up plus 257 measured
+  // actions before the benchmark's first endpoint, and each repetition
+  // window then costs exactly two sampling actions: action 322 is the first
+  // fold of the first window, so exactly one of the run's windows for that
+  // column measures nothing (FR-022, the geometry harness_capture_test
+  // documents).
+  host->setGapActions(sg::test::kHuntCpu, sg::test::huntEvent(index), {322});
+
+  const auto options = optionsFor(selectionOf({index}), 20, 10.0, kGapRepeats);
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntGap");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "a gapped window is a disclosure and not an error (FR-022, D-10)");
+  const EntryHunt& hunt = *run.hunt;
+
+  const auto* entry = entryOf(hunt, address);
+  const auto* skipped = skippedOf(hunt, address);
+  check(entry != nullptr,
+        "the event of a gapped window still stands in entries, because the "
+        "run measured it (I-4, FR-022)");
+  check(entry != nullptr && entry->samples == kGapRepeats - 1,
+        "nineteen clean windows contribute and the gapped one contributes "
+        "nothing (FR-022, E-05)");
+  check(skipped != nullptr && skipped->kind == SkippedKind::GAP,
+        "the same address stands in the skipped list with kind gap (FR-022, "
+        "I-4)");
+  check(hunt.skipped.size() == 1 && hunt.entries.size() == 1,
+        "one gapped window gives one skipped entry and one record row "
+        "(FR-022)");
+
+  const auto lines = printedLines(*needInstance("bmHuntGap"), hunt);
+  check(linesHolding(lines, "hunt: skipped " + address + " gap").size() == 1,
+        "the console prints the gapped address with the kind word gap "
+        "(FR-022, D-20)");
+  std::printf("gapped-window-both-lists: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// D-12, FR-041: the host that refuses everything
+// ---------------------------------------------------------------------------
+
+auto scenarioAllRefusedHost() -> void
+{
+  // Every catalog leaf refuses, the anchors included: this is the host whose
+  // discovery answers nothing, the shape that is not a refusal (D-12).
+  registerHuntHost(
+      kCollectLimit,
+      [](sg::counters::FakeProvider& provider)
+      {
+        for (std::size_t index = 0; index < sg::test::kHuntEvents; ++index) {
+          refuseLeaf(provider,
+                     sg::test::huntEvent(index),
+                     sg::counters::Availability::PERMISSION_BLOCKED);
+        }
+        refuseLeaf(provider,
+                   sg::test::kHuntCycle,
+                   sg::counters::Availability::PERMISSION_BLOCKED);
+        refuseLeaf(provider,
+                   sg::test::kHuntInstr,
+                   sg::counters::Availability::PERMISSION_BLOCKED);
+      });
+
+  const auto options = optionsFor("all");
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntAllRefused");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "the host that refuses everything is not an error: the run exits 0 "
+        "(D-12, FR-041)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.entries.empty(),
+        "the all-refused host has no ranked row (D-12, FR-041)");
+  check(hunt.skipped.size() == sg::test::kHuntEvents,
+        "the skipped list carries one entry per refused catalog event "
+        "(D-12, FR-041)");
+  check(hunt.passCount == 0, "no pass stands for a plan with no event (D-12)");
+  const bool allPermissionBlocked =
+      std::all_of(hunt.skipped.begin(),
+                  hunt.skipped.end(),
+                  [](const SkippedEvent& skipped)
+                  { return skipped.kind == SkippedKind::PERMISSION_BLOCKED; });
+  check(allPermissionBlocked,
+        "every skipped entry carries the Availability its own refusal gave "
+        "(D-10)");
+
+  const auto lines = printedLines(*needInstance("bmHuntAllRefused"), hunt);
+  const auto planLines = linesHolding(lines, "hunt: plan events=0");
+  check(planLines.size() == 1,
+        "the plan line prints with events=0 on the host that refuses "
+        "everything (D-12, FR-041)");
+  check(linesHolding(lines, "hunt: rank ").empty(),
+        "the all-refused host prints no ranked row (D-12, FR-041)");
+  check(linesHolding(lines, "hunt: skipped ").size() == sg::test::kHuntEvents,
+        "the skipped list prints one line per refused event (D-12, FR-041)");
+  check(linesHolding(lines,
+                     "hunt: plan summary events=0/"
+                         + std::to_string(sg::test::kHuntEvents))
+                .size()
+            == 1,
+        "the summary reads events=0/N on the all-refused host (D-12, FR-041)");
+  std::printf("all-refused-host: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// AC-2, SC-02, D-19: the device that publishes no limit
+// ---------------------------------------------------------------------------
+
+auto scenarioNoLimitHostMarksEveryEvent() -> void
+{
+  registerHuntHost(std::nullopt);
+  const auto options = optionsFor(selectionOf({0, 1, 2}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntMultiplex");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "the no-limit host settles into a measured run (AC-2)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.method.has_value()
+            && hunt.method.value() == sg::MetricMethod::MULTIPLEX,
+        "the no-limit device settles MULTIPLEX (AC-2, D-19, spec PC-2)");
+  check(!hunt.entries.empty(),
+        "the run still measures its scripted events (AC-2)");
+  const bool allMultiplexed =
+      std::all_of(hunt.entries.begin(),
+                  hunt.entries.end(),
+                  [](const RankedEvent& entry) { return entry.multiplexed; });
+  check(allMultiplexed,
+        "every event of a MULTIPLEX plan is marked multiplexed (D-19, SC-02)");
+
+  const auto lines = printedLines(*needInstance("bmHuntMultiplex"), hunt);
+  check(linesHolding(lines, "MULTIPLEX").size() >= 1,
+        "the plan line carries the method word MULTIPLEX (D-19, D-20)");
+  const auto rankLines = linesHolding(lines, "hunt: rank ");
+  check(rankLines.size() == hunt.entries.size(),
+        "the console prints one row per measured event (D-20)");
+  const bool everyRowWords =
+      std::all_of(rankLines.begin(),
+                  rankLines.end(),
+                  [](const std::string& line)
+                  { return line.find("multiplexed") != std::string::npos; });
+  check(everyRowWords,
+        "every row of a MULTIPLEX run carries the word multiplexed (D-19)");
+  std::printf("multiplex-no-limit: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// D-18, FR-021: the group refusal the pass loop retries one event at a time
+// ---------------------------------------------------------------------------
+
+// The scripted widest leaf set one window may carry on `cpu` while the plan
+// still seats four events and two anchors per pass at the scripted limit.
+auto scriptGroupCeiling(const std::size_t leaves) -> void
+{
+  host->setGroupLeafLimit(sg::test::kHuntCpu, leaves);
+}
+
+auto scenarioWidePassRetriesOneAtATime() -> void
+{
+  registerHuntHost(kCollectLimit);
+  // Six leaves fill the pass, three fit a solo retry: the group open refuses
+  // and the one-at-a-time retry inside the same pass loop succeeds (D-18).
+  scriptGroupCeiling(3);
+
+  std::vector<std::size_t> indexes;
+  for (std::size_t index = 0; index < kWidePassEvents; ++index) {
+    indexes.push_back(index);
+  }
+  const auto options = optionsFor(selectionOf(indexes));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntRetry");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "a retried pass is a retry and not an error, so the run exits 0 "
+        "(D-18, FR-021)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.retriedPasses == 1,
+        "retriedPasses counts the pass whose group open refused (D-18)");
+  check(hunt.skipped.empty(),
+        "an event the solo retry measured joins no skipped list (D-18)");
+  check(hunt.entries.size() == kWidePassEvents,
+        "every event of the refused pass still reaches the record (D-18, "
+        "FR-021)");
+  const std::string message = host->lastRefusalMessage();
+  check(message.find(std::string(sg::test::kHuntCpu)) != std::string::npos,
+        "the scripted refusal names the object it refused (PD-09)");
+  check(message.find(std::to_string(kWidePassEvents + 2)) != std::string::npos,
+        "the scripted refusal names the leaf count it refused (PD-09)");
+  std::printf("group-leaf-retry: ok\n");
+}
+
+auto scenarioSoloRefusalMapsItsKind() -> void
+{
+  registerHuntHost(kCollectLimit);
+  // One leaf per window: even the solo retry cannot seat an event beside its
+  // two anchors, so the event that still refuses joins the skipped list with
+  // the kind its open refusal maps to, and the run still exits 0 (D-18,
+  // FR-021, spec PC-1).
+  scriptGroupCeiling(1);
+
+  std::vector<std::size_t> indexes;
+  for (std::size_t index = 0; index < kWidePassEvents; ++index) {
+    indexes.push_back(index);
+  }
+  const auto options = optionsFor(selectionOf(indexes));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntSoloRefusal");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "an event that still refuses after the retry is a skipped entry, so "
+        "the run exits 0 (D-18, FR-021)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.retriedPasses >= 1,
+        "the retry pass is counted even when the solo retry refuses (D-18)");
+  check(hunt.skipped.size() == kWidePassEvents,
+        "every event that still refuses after its solo retry joins the "
+        "skipped list (D-18, FR-021)");
+  const bool mapped =
+      std::all_of(hunt.skipped.begin(),
+                  hunt.skipped.end(),
+                  [](const SkippedEvent& skipped)
+                  {
+                    return skipped.kind == SkippedKind::NOT_ENCODABLE
+                        || skipped.kind == SkippedKind::PERMISSION_BLOCKED;
+                  });
+  check(mapped,
+        "the open refusal maps EINVAL and EOPNOTSUPP to not-encodable and "
+        "EACCES and EPERM to permission-blocked, the mapping the counters "
+        "probe carries (D-18, spec PC-1)");
+
+  const auto lines = printedLines(*needInstance("bmHuntSoloRefusal"), hunt);
+  const auto skippedLines = linesHolding(lines, "hunt: skipped ");
+  check(skippedLines.size() == hunt.skipped.size(),
+        "the console prints one line per still-refused event (D-20)");
+  const bool spelled =
+      std::all_of(hunt.skipped.begin(),
+                  hunt.skipped.end(),
+                  [&lines](const SkippedEvent& skipped)
+                  {
+                    return linesHolding(lines,
+                                        "hunt: skipped " + skipped.address + " "
+                                            + kindName(skipped.kind))
+                               .size()
+                        == 1;
+                  });
+  check(spelled,
+        "each skipped line spells the kind of its own record entry (D-10, "
+        "D-20)");
+  std::printf("solo-refusal-maps-kind: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// spec PC-9: a seat that fails for pass 0 keeps the present failure route
+// ---------------------------------------------------------------------------
+
+auto scenarioPassZeroSeatFailureKeepsExitOne() -> void
+{
+  registerHuntHost(kCollectLimit);
+  // No window can carry even one leaf, so the first seat of pass 0 fails
+  // and no retry shape answers it: the same compile serves warm-up and
+  // calibration, so the run keeps its present failure route (spec PC-9).
+  scriptGroupCeiling(0);
+
+  const auto options = optionsFor(selectionOf({0, 1}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntPassZero");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(!run.hunt.has_value(),
+        "a pass-0 seat failure answers the error route, the one that ends the "
+        "run with exit 1, and not a record (spec PC-9)");
+  check(!host->lastRefusalMessage().empty(),
+        "the run reached the scripted provider before it failed its seat "
+        "(spec PC-9)");
+  std::printf("pass-zero-seat-failure: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// FR-092: the two-context threaded run
+// ---------------------------------------------------------------------------
+
+// The CPUs this process may run on, read from the kernel itself (FR-092).
+auto affinityCount() -> std::size_t
+{
+  cpu_set_t mask {};
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("sched_getaffinity could not read this process's CPU set");
+  }
+  return static_cast<std::size_t>(CPU_COUNT(&mask));
+}
+
+auto scenarioTwoContextWindowOpens() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const std::size_t cpus = affinityCount();
+  check(cpus >= static_cast<std::size_t>(kThreadCount),
+        "the two-context arm runs on a CPU set sched_getaffinity reports as "
+        "two CPUs wide (FR-092)");
+
+  const auto options = optionsFor(selectionOf({0, 1, 2, 3}));
+  auto threaded = sg::registerBenchmark(&bmHuntBody, "bmHuntThreaded");
+  threaded.threads(kThreadCount);
+  auto single = sg::registerBenchmark(&bmHuntBody, "bmHuntSingle");
+  sg::detail::expandRegistry();
+
+  const HuntAccount threadedRun = runHuntMeasured(threaded, options);
+  const HuntAccount singleRun = runHuntMeasured(single, options);
+  check(threadedRun.hunt.has_value() && singleRun.hunt.has_value(),
+        "both context shapes of the same plan answer a record (FR-092)");
+
+  check(threadedRun.hunt->passCount == singleRun.hunt->passCount,
+        "the threaded run plans the same passes as the single-context run");
+  // Windows are provider objects, and the scripted provider counts each
+  // open: the run seats one plan on the main thread, and each threaded
+  // context compiles its own spine on its own thread once per threaded
+  // attempt, the warm-up, the calibration, and the measured attempt
+  // (FR-018). The single-context shape pays for the seat alone. No sleep
+  // and no clock stands in this scenario.
+  check(singleRun.opens == 1,
+        "the single-context run opens the one window its seat compiles");
+  check(threadedRun.opens
+            == 1 + static_cast<std::uint64_t>(kThreadCount) * 3U,
+        "the scripted provider counts the seat window beside one window "
+        "per context for each of the three threaded attempts (FR-018, "
+        "FR-092)");
+  check(threadedRun.hunt->entries.size() == singleRun.hunt->entries.size(),
+        "both context shapes report the same events (FR-013)");
+  std::printf("two-context-window-opens: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The scenario list CTest runs
+// ---------------------------------------------------------------------------
+
 struct Scenario
 {
   std::string_view name;
@@ -50,10 +864,62 @@ struct Scenario
 };
 
 // The scenarios of this file: what CTest runs with no argument, and what
-// `argv[1]` selects from. T017 fills the list with the scripted runs of US1.
+// `argv[1]` selects from (T017, US1).
+auto scenarioKindMappingAnswersEveryName() -> void
+{
+  using sg::counters::Availability;
+  using sg::hunt::SkippedKind;
+  // The five refused states answer their same-named kinds through the one
+  // mapping of D-10, and the four errnos of D-18 answer theirs.
+  check(sg::detail::skippedKindOf(Availability::PERMISSION_BLOCKED)
+            == SkippedKind::PERMISSION_BLOCKED,
+        "permission blocked answers its own kind");
+  check(sg::detail::skippedKindOf(Availability::NOT_ENCODABLE)
+            == SkippedKind::NOT_ENCODABLE,
+        "not encodable answers its own kind");
+  check(sg::detail::skippedKindOf(Availability::ABSENT) == SkippedKind::ABSENT,
+        "absent answers its own kind");
+  check(sg::detail::skippedKindOf(Availability::SCOPE_REFUSED)
+            == SkippedKind::SCOPE_REFUSED,
+        "scope refused answers its own kind");
+  check(sg::detail::skippedKindOf(Availability::GAP) == SkippedKind::GAP,
+        "gap answers its own kind");
+  const auto kindOf = [](const char* text) -> SkippedKind
+  {
+    return sg::detail::skippedKindOf(
+        sg::counters::Error {.message = text, .suggestions = {}});
+  };
+  check(kindOf("window open failed: EINVAL") == SkippedKind::NOT_ENCODABLE,
+        "EINVAL maps to not encodable (D-18, spec PC-1)");
+  check(kindOf("window open failed: EOPNOTSUPP") == SkippedKind::NOT_ENCODABLE,
+        "EOPNOTSUPP maps to not encodable (D-18)");
+  check(kindOf("window open failed: EACCES") == SkippedKind::PERMISSION_BLOCKED,
+        "EACCES maps to permission blocked (D-18)");
+  check(kindOf("window open failed: EPERM") == SkippedKind::PERMISSION_BLOCKED,
+        "EPERM maps to permission blocked (D-18)");
+  check(kindOf("refused package-1/core-9 carrying 8 leaves")
+            == SkippedKind::ABSENT,
+        "a refusal without an errno name maps to absent (D-18)");
+  std::printf("kind-mapping-cases: ok\n");
+}
+
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
 {
-  static const std::vector<Scenario> kList {};
+  static const std::vector<Scenario> kList {
+      Scenario {"noisy-out-of-top", &scenarioNoisyEventStandsOutOfTheTop},
+      Scenario {"skipped-per-availability",
+                &scenarioRefusedAvailabilityJoinsSkipped},
+      Scenario {"gapped-window-both-lists",
+                &scenarioGappedWindowStandsInBothLists},
+      Scenario {"all-refused-host", &scenarioAllRefusedHost},
+      Scenario {"multiplex-no-limit", &scenarioNoLimitHostMarksEveryEvent},
+      Scenario {"group-leaf-retry", &scenarioWidePassRetriesOneAtATime},
+      Scenario {"solo-refusal-maps-kind", &scenarioSoloRefusalMapsItsKind},
+      Scenario {"kind-mapping-cases", &scenarioKindMappingAnswersEveryName},
+      Scenario {"pass-zero-seat-failure",
+                &scenarioPassZeroSeatFailureKeepsExitOne},
+      Scenario {"two-context-window-opens", &scenarioTwoContextWindowOpens},
+  };
   return kList;
 }
 
@@ -61,6 +927,8 @@ struct Scenario
 
 auto main(const int argc, char** argv) -> int
 {
+  const std::string self =
+      argc > 0 && argv[0] != nullptr ? argv[0] : "harness_hunt_collect_test";
   const auto& list = scenarios();
   // One name selects one scenario through `argv[1]`, so a name that stands
   // twice would hide the scenario it repeats.
@@ -81,8 +949,15 @@ auto main(const int argc, char** argv) -> int
     }
     fail("the scenario name is not one of this file's list");
   }
+  // Each scenario scripts a provider of its own and the counters system takes
+  // these object paths once per process, so the walk re-executes this binary
+  // once per entry, the pattern of `harness_pass_collect_test.cpp`.
   for (const auto& scenario : list) {
-    scenario.body();
+    const std::string command =
+        "\"" + self + "\" " + std::string(scenario.name);
+    const int status = std::system(command.c_str());
+    check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+          "the re-executed scenario passes");
   }
   std::printf("harness_hunt_collect_test: ok\n");
   return 0;

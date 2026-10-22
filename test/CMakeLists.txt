@@ -1302,19 +1302,10 @@ target_compile_definitions(
 )
 add_test(NAME harness_hunt_json_test COMMAND harness_hunt_json_test)
 
-# The option table of cli.cpp, read from the source through the compiled-in
-# path: unique names, unique values, hunt values inside 270 to 279
-# (T019; US1, FR-083, PD-18). The source path enters the way the schema path
-# does.
-add_executable(harness_cli_table_test source/harness_cli_table_test.cpp)
-target_link_libraries(harness_cli_table_test PRIVATE speedgun-ng::harness)
-target_include_directories(harness_cli_table_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
-target_compile_features(harness_cli_table_test PRIVATE cxx_std_23)
-target_compile_definitions(
-    harness_cli_table_test
-    PRIVATE SG_CLI_SOURCE="${CMAKE_SOURCE_DIR}/source/harness/cli.cpp"
-)
-add_test(NAME harness_cli_table_test COMMAND harness_cli_table_test)
+# The option table gate needs no registration of its own: the table moved
+# from `cli.cpp` to `options.cpp` on the master line, and the single
+# `harness_cli_table_test` registered above reads both sides of the merged
+# table through the directory it takes by argument.
 
 # ---- Main-page documentation gates (feature 018) ----
 
