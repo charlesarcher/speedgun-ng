@@ -63,7 +63,7 @@ command line + documentation site + example suite
 **Performance Goals**: no clock read and no counter read in discovery, planning,
 normalization or ranking; the calibration estimate reaches the planner as data;
 a run with no `--hunt` keeps its present read count and its present bytes
-(SC-06, SC-07; FR-012, FR-052; Principle VII)
+(SC-006, SC-007; FR-012, FR-052; Principle VII)
 **Constraints**: 100 percent line and 100 percent branch coverage with no
 exclusion marker and no waiver (FR-091); no sleep, no clock and no fixed CPU
 count in any test, CPU sets from `sched_getaffinity` (FR-092); one line naming
@@ -130,9 +130,9 @@ alone and bounds no hunt column
   `quickstart.md` accompany it; `tasks.md` follows from it
 - **X. Anti-Slop** | PASS | no wrapper type over a published
   `std::optional<std::size_t>`, no policy tag, no injection seam beyond the one
-  scripted refusal D-09 adds because D-18 cannot be tested without it, no
+  scripted refusal PD-09 adds because the seat route of PD-11 cannot be tested without it, no
   extension point for N14a-2, N14b or N14c (D-5 fixes the scope); the seat
-  branch of D-11 replaces an `SG_INVARIANT` whose stated assumption the
+  branch of PD-11 replaces an `SG_INVARIANT` whose stated assumption the
   group-open refusal breaks, so it handles a runtime condition and not a
   violated contract; Complexity Tracking stays empty
 - **XI. Discourse and Prose** | PASS | every artifact passes
@@ -173,7 +173,7 @@ alone and bounds no hunt column
 specs/029-hunter-core/
 ├── spec.md                        # approved; Decisions D-1 to D-23, PCs PC-1 to PC-9
 ├── plan.md                        # this document
-├── research.md                    # D-01 to D-20, with alternatives
+├── research.md                    # PD-01 to PD-20, with alternatives
 ├── data-model.md                  # E-01 to E-11, invariants I-1 to I-8, state tables
 ├── quickstart.md                  # build, test and recorded-run guide
 ├── contracts/
@@ -262,31 +262,31 @@ library globs the same way for its own directory (`CMakeLists.txt:886-891`).
 ### Decision index
 
 Full rationale and alternatives stand in [research.md](research.md). A bare
-`D-n` names a spec decision in [spec.md](spec.md); a zero-padded `D-0n` names a
+`D-n` and `D-nn` name spec decisions in [spec.md](spec.md); `PD-nn` names a
 plan decision below and in [research.md](research.md).
 
 | # | Subject | Decision |
 |---|---------|----------|
-| D-01 | Shape of the feature | hunt is a harness column family driven through `Runner` and `planPasses`; no standalone counter driver, no reuse of the named-counter slot |
-| D-02 | Core device rule | exact device parts `cpu`, `cpu_core`, `cpu_atom`, plus the `armv8_` prefix rule written hunt-side; uncore enters only by list or glob |
-| D-03 | Discovery | walk `object("machine")` and its children, compose `path + "/" + entry.name`, keep catalog order, deduplicate by address |
-| D-04 | Anchors | `cpu-cycles` and `instructions` resolved on the event's own device, address-composed, no invented alias; a device without both anchors normalizes by `iter` |
-| D-05 | Statistics reuse | `statisticsOf` moves to `source/harness/detail/statistics.hpp` plus `statistics.cpp`; `runner.cpp` calls it; `passSpread` and the counters median stay untouched |
-| D-06 | Seed order | one in-repo 64-bit linear congruential Fisher-Yates shuffle over the deduplicated catalog order, so every CI compiler agrees on the permutation |
-| D-07 | Rank inputs | `rankEvents` is pure over the per-event sample list; median and CV come from `statisticsOf`; ties break by address |
-| D-08 | Normalization | rate per 1000 anchor units of the same pass (`instr` default, `cycle`), or the raw per-iteration median (`iter`); per pass, before the median |
-| D-09 | Scripted open refusal | `FakeProvider::setGroupLeafLimit(objectPath, leaves)`: `open` refuses a leaf set wider than the limit for that object, so a wide group fails where one event with the two anchors opens |
-| D-10 | Hunt data location | public `hunt::RunHunt` on `ReportData` and public `hunt::EntryHunt` on `BenchmarkResult`, because `loadReport` must read both back |
-| D-11 | Seat error route | `seatPass` returns its error into the pass loop; a hunt run appends one-event passes and continues, a run with no hunt columns keeps the `SG_INVARIANT` fuse |
-| D-12 | Retry inside the loop | a failed pass appends its single-event passes to the pass list the loop is reading, so one loop runs the whole run |
-| D-13 | Two-stage run | one `Runner::run` per stage over the same instance, stage 1 at one repeat, stage 2 at `--hunt-repeats`; the row set the report prints merges both stages per address, and a stage-1-only event keeps a row built from its stage 1 samples |
-| D-14 | Single-sample events | an event with one sample reports `cv` 0.0 and cannot enter the top N; stage-1 selection ranks those samples by rate |
-| D-15 | Console order | plan before the run; then the ranked table, the marked excluded tail, the skipped list and the plan summary after the benchmark tables |
-| D-16 | Refusal point | option values are parsed at the scan; list, glob and `@file` expansion runs after the scan, where the catalog answers, and exits 2 naming the value |
-| D-17 | Option wiring | eight named constants 270 to 277 inside the block 270 to 279 that the lane reserves (D-22) and eight rows in the one `option longOptions[]` table of `cli.cpp`; every parse and refusal body in `hunt_cli.cpp` |
-| D-18 | Table test | `harness_cli_table_test.cpp` reads `cli.cpp` through a compiled-in path and asserts unique names, unique values and hunt values inside 270 to 279 |
-| D-19 | Docs ownership | `hunt_rank.cpp` owns the "Hunter mode" section with a scripted host that refuses its events, so the skipped list prints on every host |
-| D-20 | Version and schema | `0.19.0` planned, next free minor at rebase; harness `SOVERSION` 11, archive `SOVERSION` 4; schema minor 1.4 |
+| PD-01 | Shape of the feature | hunt is a harness column family driven through `Runner` and `planPasses`; no standalone counter driver, no reuse of the named-counter slot |
+| PD-02 | Core device rule | exact device parts `cpu`, `cpu_core`, `cpu_atom`, plus the `armv8_` prefix rule written hunt-side; uncore enters only by list or glob |
+| PD-03 | Discovery | walk `object("machine")` and its children, compose `path + "/" + entry.name`, keep catalog order, deduplicate by address |
+| PD-04 | Anchors | `cpu-cycles` and `instructions` resolved on the event's own device, address-composed, no invented alias; a device without both anchors normalizes by `iter` |
+| PD-05 | Statistics reuse | `statisticsOf` moves to `source/harness/detail/statistics.hpp` plus `statistics.cpp`; `runner.cpp` calls it; `passSpread` and the counters median stay untouched |
+| PD-06 | Seed order | one in-repo 64-bit linear congruential Fisher-Yates shuffle over the deduplicated catalog order, so every CI compiler agrees on the permutation |
+| PD-07 | Rank inputs | `rankEvents` is pure over the per-event sample list; median and CV come from `statisticsOf`; ties break by address |
+| PD-08 | Normalization | rate per 1000 anchor units of the same pass (`instr` default, `cycle`), or the raw per-iteration median (`iter`); per pass, before the median |
+| PD-09 | Scripted open refusal | `FakeProvider::setGroupLeafLimit(objectPath, leaves)`: `open` refuses a leaf set wider than the limit for that object, so a wide group fails where one event with the two anchors opens |
+| PD-10 | Hunt data location | public `hunt::RunHunt` on `ReportData` and public `hunt::EntryHunt` on `BenchmarkResult`, because `loadReport` must read both back |
+| PD-11 | Seat error route | `seatPass` returns its error into the pass loop; a hunt run appends one-event passes and continues, a run with no hunt columns keeps the `SG_INVARIANT` fuse |
+| PD-12 | Retry inside the loop | a failed pass appends its single-event passes to the pass list the loop is reading, so one loop runs the whole run |
+| PD-13 | Two-stage run | one `Runner::run` per stage over the same instance, stage 1 at one repeat, stage 2 at `--hunt-repeats`; the row set the report prints merges both stages per address, and a stage-1-only event keeps a row built from its stage 1 samples |
+| PD-14 | Single-sample events | an event with one sample reports `cv` 0.0 and cannot enter the top N; stage-1 selection ranks those samples by rate |
+| PD-15 | Console order | plan before the run; then the ranked table, the marked excluded tail, the skipped list and the plan summary after the benchmark tables |
+| PD-16 | Refusal point | option values are parsed at the scan; list, glob and `@file` expansion runs after the scan, where the catalog answers, and exits 2 naming the value |
+| PD-17 | Option wiring | eight named constants 270 to 277 inside the block 270 to 279 that the lane reserves (D-22) and eight rows in the one `option longOptions[]` table of `cli.cpp`; every parse and refusal body in `hunt_cli.cpp` |
+| PD-18 | Table test | `harness_cli_table_test.cpp` reads `cli.cpp` through a compiled-in path and asserts unique names, unique values and hunt values inside 270 to 279 |
+| PD-19 | Docs ownership | `hunt_rank.cpp` owns the "Hunter mode" section with a scripted host that refuses its events, so the skipped list prints on every host |
+| PD-20 | Version and schema | `0.19.0` planned, next free minor at rebase; harness `SOVERSION` 11, archive `SOVERSION` 4; schema minor 1.4 |
 
 ### Risks
 
@@ -300,7 +300,7 @@ plan decision below and in [research.md](research.md).
   `report.cpp`, `benchmark.hpp`, `internal.hpp`, `README.md`,
   `example_drift.py`, `docs/pages/harness.md` and `docs/schema/report-v1.json`
   are all shared with specs/027 (N13a) and specs/028 (N7). Mitigation: option
-  parsing lives in `hunt_cli.cpp` and `cli.cpp` gains table rows only (D-17,
+  parsing lives in `hunt_cli.cpp` and `cli.cpp` gains table rows only (PD-17,
   spec D-22); the schema keys and the README rows are appended, never
   reordered; the rebase rules below fix the version, the schema minor and the
   page cap.
@@ -317,7 +317,7 @@ plan decision below and in [research.md](research.md).
 - **A noisy or unrepeated event crowding the ranked table.** Mitigation: the
   top N holds only events with at least two samples and a CV at or under
   `--hunt-noise`; everything else prints in the marked tail with `rank=-`
-  (D-14, D-15), so the table size stays `--hunt-top`.
+  (PD-14, PD-15), so the table size stays `--hunt-top`.
 - **gcov phantom branches.** Every new decision unit is a pure function with
   one entry and one exit; the shape rules specs/022 records apply under
   `lcov --filter brace`; no new exclusion marker, checked by grep in the
@@ -334,7 +334,7 @@ option values (E-09, hunt_cli.cpp)
     |  expand after the scan: all | list | glob | @file   (exit 2 names the value)
     v
 EventCatalog (E-01)  ---- machine children walk, address = path + "/" + name
-    |                    dedup by address, catalog order, seed shuffle (D-06)
+    |                    dedup by address, catalog order, seed shuffle (PD-06)
     |                    COUNTABLE at discovery -> columns; other kinds -> skipped
     v
 planHunt (E-04)      one column per event: { event, cycles, instructions } of
@@ -375,7 +375,7 @@ cli.cpp  --(8 table rows, 8 named constants)--> hunt_cli.cpp  (parse, refuse,
                               detail/pass_plan.hpp planPasses  (unchanged)
                                                        |  PassPlan
                                                        v
-                    runner.cpp pass loop  <-- seat error route (D-11)
+                    runner.cpp pass loop  <-- seat error route (PD-11)
                     detail/statistics.hpp statisticsOf  (shared with 3 sites)
                                                        |
                                                        v
@@ -428,7 +428,7 @@ form the comments at `CMakeLists.txt:43-52` and `:238-260` record:
 
 | Target | Now | Next | Names that moved the layout |
 |---|---|---|---|
-| `speedgun-ng` archive | 3 (`CMakeLists.txt:53`) | 4 | `FakeProvider` gains the scripted group refusal of D-09: the class is exported (`counters_fake.hpp:103`) and the scripted state joins its members (spec PC-3, FR-090; hard rule 12) |
+| `speedgun-ng` archive | 3 (`CMakeLists.txt:53`) | 4 | `FakeProvider` gains the scripted group refusal of PD-09: the class is exported (`counters_fake.hpp:103`) and the scripted state joins its members (spec PC-3, FR-090; hard rule 12) |
 | `harness` archive | 10 (`CMakeLists.txt:261`) | 11 | `hunt.hpp` adds the exported hunt calls; `BenchmarkResult` gains `hunt`; `ReportData` gains `hunt` (FR-090, hard rule 12) |
 
 `docs/schema/report-v1.json` gains both hunt keys at schema minor `1.4`,
@@ -463,16 +463,16 @@ Task-level detail belongs to `tasks.md`. Each phase names its decisions
 
 | Phase | Deliverable | Decisions | Risks | Gate (observable end state) |
 |---|---|---|---|---|
-| P1 Setup | version 0.19.0 with the two `SOVERSION` raises, the new headers and translation units present, the seven test executables registered, `hunt_fixture.hpp` | D-20, D-18 | R-2 | V-1: `cmake --preset=ci-rocky && cmake --build build` builds with the new files present, `ctest --test-dir build -j 2` passes |
-| P2 Shared statistics | `statisticsOf` moved to `detail/statistics.hpp` plus `statistics.cpp`, three call sites repointed, no behaviour move | D-05 | R-1 | V-2: `harness_statistics_test.cpp` and `harness_pass_report_test.cpp` pass unchanged, and the byte-identity golden still matches |
-| P3 Scripted refusal | `setGroupLeafLimit` in the exported fake and in `fake_provider.cpp` | D-09 | R-3 | V-3: `counters_fake_test.cpp` refuses a wide leaf set and accepts a narrow one, and `counters_objects_limit_test.cpp` still passes |
-| P4 US1 discovery and plan | `EventCatalog`, `planHunt`, the core device rule, the anchors, the limit rows | D-01 to D-04, D-06 | R-3 | V-4: `harness_hunt_plan_test.cpp` passes every limit row (1, 3, 4, 6, 8, no limit, 200 events with limit 6 gives 4 events per pass with both anchors once each) |
-| P5 US1 rank and run | `rankEvents`, `runHunt`, the skipped list, the seat error route, the in-loop retry | D-07, D-08, D-11, D-12, D-14 | R-1, R-3 | V-5: `harness_hunt_rank_test.cpp` and `harness_hunt_collect_test.cpp` pass, including the scripted group-refusal retry and the threaded window-count test |
-| P6 US2 budget and plan print | `HuntBudget` parse, the two-stage split, the printed plan and estimate | D-13, D-06 | R-4 | V-6: `harness_hunt_plan_test.cpp` reproduces the fixed two-stage plan for the fixed seed and estimate (AC-7), and `harness_hunt_cli_test.cpp` refuses a malformed budget with exit 2 |
-| P7 US3 JSON and schema | both hunt objects, the readers, `report-v1.json` at 1.4, `kSchemaVersion` | D-10 | R-2 | V-7: `harness_hunt_json_test.cpp` round-trips every field, `harness_json_schema_test.cpp` passes, and a non-hunt document differs from the master capture only in `schemaVersion` |
-| P8 Console and CLI | the eight options, `hunt_cli.cpp`, `cli.cpp` rows, the printers in `report.cpp`, `harness_cli_table_test.cpp` | D-15, D-16, D-17, D-18 | R-2 | V-8: `harness_hunt_cli_test.cpp` and `harness_hunt_report_test.cpp` pass, `harness_cli_table_test.cpp` reports unique names, unique values and hunt values inside 270 to 279, and `bash test/cli_shape.sh` stays clean |
-| P9 US4 documentation | the docs example with its golden, the README section, the quick-reference and option rows, `docs/pages/harness.md`, `example_drift.py` lists and cap | D-19 | R-2 | V-9: `example_drift`, `example_drift_fixtures`, `snippet_compile`, `report_shape`, `report_shape_hunt_rank_sample`, `example_run` and `example_run_fixtures` pass, and the prose gates pass on every page |
-| P10 Polish and landing | coverage with `gcov -b` evidence, the determinism scan, the `ci-ubuntu` analyzer build, the sanitizers, the thread sanitizer, the AC-10 hardware records, the rebase and one `--force-with-lease` push | D-20 | R-2, R-5 | V-10: line, branch and DBC coverage recorded at 100 percent with no exclusion, every Principle VIII gate green on the pushed state, `git ls-remote origin 029-hunter-core` shown in the record, every CI job read after the push including the coverage artifact |
+| P1 Setup | version 0.19.0 with the two `SOVERSION` raises, the new headers and translation units present, the seven test executables registered, `hunt_fixture.hpp` | PD-20, PD-18 | R-2 | V-1: `cmake --preset=ci-rocky && cmake --build build` builds with the new files present, `ctest --test-dir build -j 2` passes |
+| P2 Shared statistics | `statisticsOf` moved to `detail/statistics.hpp` plus `statistics.cpp`, three call sites repointed, no behaviour move | PD-05 | R-1 | V-2: `harness_statistics_test.cpp` and `harness_pass_report_test.cpp` pass unchanged, and the byte-identity golden still matches |
+| P3 Scripted refusal | `setGroupLeafLimit` in the exported fake and in `fake_provider.cpp` | PD-09 | R-3 | V-3: `counters_fake_test.cpp` refuses a wide leaf set and accepts a narrow one, and `counters_objects_limit_test.cpp` still passes |
+| P4 US1 discovery and plan | `EventCatalog`, `planHunt`, the core device rule, the anchors, the limit rows | PD-01 to PD-04, PD-06 | R-3 | V-4: `harness_hunt_plan_test.cpp` passes every limit row (1, 3, 4, 6, 8, no limit, 200 events with limit 6 gives 4 events per pass with both anchors once each) |
+| P5 US1 rank and run | `rankEvents`, `runHunt`, the skipped list, the seat error route, the in-loop retry | PD-07, PD-08, PD-11, PD-12, PD-14 | R-1, R-3 | V-5: `harness_hunt_rank_test.cpp` and `harness_hunt_collect_test.cpp` pass, including the scripted group-refusal retry and the threaded window-count test |
+| P6 US2 budget and plan print | `HuntBudget` parse, the two-stage split, the printed plan and estimate | PD-13, PD-06 | R-4 | V-6: `harness_hunt_plan_test.cpp` reproduces the fixed two-stage plan for the fixed seed and estimate (AC-7), and `harness_hunt_cli_test.cpp` refuses a malformed budget with exit 2 |
+| P7 US3 JSON and schema | both hunt objects, the readers, `report-v1.json` at 1.4, `kSchemaVersion` | PD-10 | R-2 | V-7: `harness_hunt_json_test.cpp` round-trips every field, `harness_json_schema_test.cpp` passes, and a non-hunt document differs from the master capture only in `schemaVersion` |
+| P8 Console and CLI | the eight options, `hunt_cli.cpp`, `cli.cpp` rows, the printers in `report.cpp`, `harness_cli_table_test.cpp` | PD-15, PD-16, PD-17, PD-18 | R-2 | V-8: `harness_hunt_cli_test.cpp` and `harness_hunt_report_test.cpp` pass, `harness_cli_table_test.cpp` reports unique names, unique values and hunt values inside 270 to 279, and `bash test/cli_shape.sh` stays clean |
+| P9 US4 documentation | the docs example with its golden, the README section, the quick-reference and option rows, `docs/pages/harness.md`, `example_drift.py` lists and cap | PD-19 | R-2 | V-9: `example_drift`, `example_drift_fixtures`, `snippet_compile`, `report_shape`, `report_shape_hunt_rank_sample`, `example_run` and `example_run_fixtures` pass, and the prose gates pass on every page |
+| P10 Polish and landing | coverage with `gcov -b` evidence, the determinism scan, the `ci-ubuntu` analyzer build, the sanitizers, the thread sanitizer, the AC-10 hardware records, the rebase and one `--force-with-lease` push | PD-20 | R-2, R-5 | V-10: line, branch and DBC coverage recorded at 100 percent with no exclusion, every Principle VIII gate green on the pushed state, `git ls-remote origin 029-hunter-core` shown in the record, every CI job read after the push including the coverage artifact |
 
 Step-and-verify (X.4): after every phase the `ci-rocky` build, `ctest -j 2` and
 the prose gate over the changed artifacts pass before the next phase starts.
@@ -501,8 +501,8 @@ reports the cause with `gcov -b` evidence (FR-091, FR-092).
 | US3 JSON (P7) | write through the writer, read with `loadReport`, compare field by field; schema check through `SG_SCHEMA_PATH`; one test per refused reader code | full hunt document, absent hunt object, wrong type per key, missing nested key, pre-024 document still loads, unknown key in the open root |
 | US3 no-hunt identity (P7) | byte compare against the master capture with `schemaVersion` excluded; console and status byte compare | a plain run, a run with named counters, a `--compare` run |
 | Two-stage rows (P8) | `harness_hunt_report_test.cpp` runs a budgeted plan whose stage 2 measures fewer columns and checks that a stage-1-only address still reaches the console table and the `entries` array through a record built from its stage 1 samples | two-stage plan, stage-1-only address, merged row set |
-| CLI refusals (P8) | in-process `speedgunMain` for the status-2 returns, forked children for the `std::exit(2)` refusals with the captured single stderr line (the `harness_cli_test.cpp` pattern at its lines 800, 1166 and 1417) | bad glob, unknown address, bad budget, bad norm, bad rank key including `sensitivity`, `delta` and `score`, repeats 0 and 1001, top 0 and 10001, `r4a03`, `--hunt` with `--counter`, `--metric` or `--compare`, missing `@file`, empty address line, `--hunt` with no value |
-| CLI legal combinations (P8) | accepted-combination cases on the captured console and document | `--hunt` with `--metric-method=multiplex` (every event multiplexed, the plan line word `MULTIPLEX`, the disclosure in the rows and the document, D-16), `--dry-run` with `--hunt` (the plan line prints and the run exits before measuring), `--hunt=none` (behaves exactly like a run with no `--hunt`) |
+| CLI refusals (P8) | in-process `speedgunMain` for the status-2 returns, forked children for the `std::exit(2)` refusals with the captured single stderr line (the `harness_cli_test.cpp` pattern at its lines 800, 1166 and 1417) | bad glob, unknown address, bad budget, bad norm, bad rank key including `sensitivity`, `delta` and `score`, repeats 0 and 1001, top 0 and 10001, `r4a03`, `--hunt` with `--counter`, `--metric` or `--compare`, missing `@file`, empty address line, an explicit `--hunt-norm` word whose anchor is refused (D-13), a device limit below 3 (FR-081) |
+| CLI legal combinations (P8) | accepted-combination cases on the captured console and document | `--hunt` with `--metric-method=multiplex` (every event multiplexed, the plan line word `MULTIPLEX`, the disclosure in the rows and the document, D-16), `--dry-run` with `--hunt` (the plan line prints, every pass runs one iteration, and each column prints unrepeated with a `cv` of `0.0`, `runner.cpp:2202,2301`), `--hunt=none` (behaves exactly like a run with no `--hunt`), a bare `--hunt` (selects the whole core catalog, D-1) |
 | CLI table (P8) | `harness_cli_table_test.cpp` parses the one `option longOptions[]` table of `cli.cpp` through `SG_CLI_SOURCE` and asserts that declared names and declared values are globally unique, then asserts every hunt value lies in 270 to 279, the block the lane reserves | the planted duplicate in the fixture twin of the table |
 | US4 page (P9) | `snippet_compile` compiles the copied block, `example_run` runs `docs_hunt_rank`, `report_shape_hunt_rank_sample` compares it with `hunt_rank.expected` by shape, `example_drift` checks the section, its owner, the name rows and the eight option rows | the recorded `PAGE_LINE_CAP` move, the 25-line section cap, the host-independent skipped list |
 | Statistics (P2) | existing `harness_statistics_test.cpp` cases plus the hunt CV check: the CV a hunt reports is one hundred times the `cv=` column value of the same samples | empty list guard, one sample, even count, zero mean |
@@ -513,7 +513,7 @@ reports the cause with `gcov -b` evidence (FR-091, FR-092).
 golden is regenerated.
 
 **Determinism**: the scripted values are fixed; the seed shuffle is an
-in-repo linear congruential Fisher-Yates (D-06), so the permutation stands
+in-repo linear congruential Fisher-Yates (PD-06), so the permutation stands
 across GCC and Clang and across standard library revisions; every decimal the
 tests compare comes from exact integer fixture values; no test reads a clock,
 so the estimate line is driven by a supplied estimate and by a missing estimate

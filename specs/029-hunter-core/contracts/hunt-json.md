@@ -108,11 +108,11 @@ either level, so its document differs from the master capture in the
 | `entries` | array | one object per planned column, including a column only stage 1 measured, whose record is built from its stage 1 samples; in the printed order: the ranked ones first, then the excluded ones in address order |
 | `entries[].address` | string | the catalog address, `Object::path()` plus `/` plus the entry name (spec PC-1) |
 | `entries[].rate` | number | the median normalized rate, in the unit `norm` states |
-| `entries[].cv` | number | the coefficient of variation as a percent: one hundred times the `coefficientOfVariation` of `statisticsOf`; the printed `cv=` column shows the ratio. `0.0` for a single sample (plan decision D-14) |
+| `entries[].cv` | number | the coefficient of variation as a percent: one hundred times the `coefficientOfVariation` of `statisticsOf`; the printed `cv=` column shows the ratio. `0.0` for a single sample (PD-14) |
 | `entries[].noisy` | boolean | true when `cv` is above the threshold, read on the unrounded value |
 | `entries[].multiplexed` | boolean | true when the plan settled `MULTIPLEX` (D-19) |
 | `entries[].rank` | integer, or null | null for a noisy event, a single-sample event and an event outside the top N (D-7) |
-| `skipped` | array | one object per event that produced no value (D-10) |
+| `skipped` | array | one object per event whose open was refused or whose window disclosed a non-`COUNTABLE` availability; an event that measured and gapped stands here and in `entries` (D-10) |
 | `skipped[].address` | string | the address the run dropped |
 | `skipped[].kind` | string | `permission-blocked`, `not-encodable`, `absent`, `scope-refused`, `gap`, the console spelling of `SkippedKind` |
 | `skipped[].stage` | integer, or null | null for a discovery skip |
@@ -135,7 +135,7 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
   path `passSpread` already takes (`json_report.cpp:508`).
 - `writeReport` takes `const ReportData&` (`json_report.cpp:571`), so the run
   data reaches the writer with no new parameter: `ReportData::hunt` carries it
-  (research D-10).
+  (PD-10).
 - No `LCOV_EXCL` marker joins either file (FR-091).
 
 ## Reader rules
