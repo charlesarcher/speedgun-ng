@@ -121,6 +121,40 @@ auto keepOrDrop(ProbeCpuState& state,
   }
 }
 
+// The recorder half of the read move: the one-leaf plan over the
+// machine/tsc leaf the catalog published (R-02, Q-1). The false answer
+// names the open failure the availability gate stood before this start,
+// so the item records nothing and runs no phase, and still meets the
+// holder's latch (FR-006, R-04).
+auto openSystemRecorder(
+    std::optional<counters::Plan>& plan,
+    std::optional<counters::RecorderHandle<counters::Ring>>& recorder)
+    -> bool
+{
+  auto& sys = counters::System::local();
+  const auto machine = sys.object("machine");
+  if (!machine.has_value()) {
+    return false;
+  }
+  const auto leaf = machine.value().counter<counters::Dim<0, 1>>("tsc");
+  if (!leaf.has_value()) {
+    return false;
+  }
+  counters::Expression<counters::Dim<0, 1>> expression(leaf.value());
+  auto compiled = counters::detail::compileCore(
+      sys, counters::Target {}, {&expression.core});
+  if (!compiled.has_value()) {
+    return false;
+  }
+  plan.emplace(std::move(compiled.value()));
+  auto minted = plan->recorder(2, counters::ring);
+  if (!minted.has_value()) {
+    return false;
+  }
+  recorder.emplace(std::move(minted.value()));
+  return true;
+}
+
 struct ProbeSession;
 
 // The per-cpu work item: the buffer's first touch, the measurement pass,
@@ -134,15 +168,21 @@ struct ProbeItem
   auto operator()(sg::WorkContext& /*work*/) noexcept -> void;
 };
 
-// The state one live holder's start owns: the seam reader, the barrier,
-// the work nodes and the probe contexts. The contexts stand declared
-// last, so their destruction runs first: a node dies behind the join
-// edge of the context that settled it (FR-012, R-04). One holder holds
-// the process's session at a time (R-01).
+// The state one live holder's start owns: the seam reader, the start
+// barrier, the latch, the work nodes and the probe contexts. The
+// contexts stand declared last, so their destruction runs first: a node
+// dies behind the join edge of the context that settled it (FR-012,
+// R-04). One holder holds the process's session at a time (R-01).
 struct ProbeSession
 {
   std::unique_ptr<counters::WindowReader> reader;
   std::optional<ContextBarrier> barrier;
+  // The second synchronizer between the holder and the items: the round
+  // the items reach after the buffer's first touch, the measurement
+  // pass and, in the precheck and both modes, the pre-check phase, and
+  // the holder reaches before start() returns, so the batch's first
+  // benchmark begins behind them (FR-006, FR-009, FR-014, R-04).
+  std::optional<ContextBarrier> latch;
   std::vector<std::unique_ptr<sg::WorkNode<ProbeItem>>> nodes;
   std::vector<std::unique_ptr<sg::ExecutionContext>> contexts;
 };
@@ -164,36 +204,26 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // The read move: the installed reader's thunk over a fresh stack
   // point sink per pass, the way the plan's own sampling action
   // builds one, or the one-leaf plan's recorder through the system
-  // otherwise (R-02, Q-1).
+  // otherwise (R-02, Q-1). A move that fails to open stands recorded
+  // in `reading`, so the item still reaches the latch line below and
+  // the holder's wait ends (FR-006, R-04).
   std::uint64_t cell = 0;
   counters::WindowReader* reader = session->reader.get();
   counters::WindowReader::ReadThunk thunk = nullptr;
   std::optional<counters::Plan> plan;
   std::optional<counters::RecorderHandle<counters::Ring>> recorder;
+  bool reading = true;
   if (reader != nullptr) {
     thunk = reader->resolveThunk();
   } else {
-    auto& sys = counters::System::local();
-    const auto machine = sys.object("machine");
-    if (!machine.has_value()) {
-      return;
-    }
-    const auto leaf = machine.value().counter<counters::Dim<0, 1>>("tsc");
-    if (!leaf.has_value()) {
-      return;
-    }
-    counters::Expression<counters::Dim<0, 1>> expression(leaf.value());
-    auto compiled = counters::detail::compileCore(
-        sys, counters::Target {}, {&expression.core});
-    if (!compiled.has_value()) {
-      return;
-    }
-    plan.emplace(std::move(compiled.value()));
-    auto minted = plan->recorder(2, counters::ring);
-    if (!minted.has_value()) {
-      return;
-    }
-    recorder.emplace(std::move(minted.value()));
+    reading = openSystemRecorder(plan, recorder);
+  }
+  if (!reading) {
+    // The latch line stands past the buffer's first touch, so a move
+    // that failed to open still meets the holder's wait before it
+    // leaves (FR-006, R-04).
+    session->latch->arriveAndWait();
+    return;
   }
   const auto readStamp = [&]() noexcept -> std::uint64_t
   {
@@ -249,6 +279,14 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
       }
     }
   }
+
+  // The latch line: the item arrives here after its buffer's first
+  // touch, its measurement pass and, in the precheck and both modes,
+  // its pre-check phase; the holder waits on the same line, so
+  // start() returns only after every item stands past them and the
+  // batch's first benchmark begins behind them (FR-006, FR-009,
+  // FR-014, R-04).
+  session->latch->arriveAndWait();
 
   // The alongside phase: the loop spans the batch, from the first
   // read after the phases to the read of the stop flag, one reader
@@ -338,6 +376,12 @@ auto JitterProbe::start() -> void
   // (FR-006, R-01, R-04).
   session->barrier.emplace(static_cast<int>(m_options.cpus.size() + 1));
 
+  // The latch party count: the same parties meet again at the latch
+  // line, so the holder's return waits for every item's buffer first
+  // touch, its measurement pass and, in the precheck and both modes,
+  // its pre-check phase (FR-006, FR-009, FR-014, R-04).
+  session->latch.emplace(static_cast<int>(m_options.cpus.size() + 1));
+
   // The seam reader moves out of the slot at start, so a scenario's
   // next install stands alone (R-02, Q-5).
   session->reader = std::move(installedReader);
@@ -361,7 +405,23 @@ auto JitterProbe::start() -> void
   // R-01, R-04).
   session->barrier->arriveAndWait();
 
+  // The holder's own arrival at the latch line: the items stand there
+  // after their buffer's first touch, their measurement pass and, in
+  // the precheck and both modes, their pre-check phase, so the return
+  // stands behind them and the first benchmark the runner dispatches
+  // never meets a probe cpu still in its setup or its pre-check spin
+  // (FR-006, FR-009, FR-014, R-04).
+  session->latch->arriveAndWait();
+
   probeSession = std::move(session);
+
+  if (m_options.mode == JitterProbeMode::PRECHECK) {
+    // FR-014, D-3: the precheck mode allows every overlap, because the
+    // probe stops before the benchmarks start, so the stop and join
+    // stand here, inside the start, and the states stay readable where
+    // the runner reads them (R-04).
+    stopAndJoin();
+  }
 }
 
 auto JitterProbe::stopAndJoin() -> void

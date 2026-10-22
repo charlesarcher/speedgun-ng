@@ -79,8 +79,12 @@ public:
   /// against the plans and the layout at start (E-01, R-01, R-07).
   explicit JitterProbe(const JitterProbeOptions& options);
 
-  /// @brief Start the probe contexts; nothing runs before this call
-  /// (FR-006, R-01).
+  /// @brief Start the probe contexts; nothing runs before this call,
+  /// and the call returns only once every probe cpu stands past its
+  /// buffer's first touch and its measurement pass and, in the
+  /// precheck and both modes, past its pre-check phase, with the
+  /// precheck mode stopping and joining the probe before the return
+  /// (FR-006, FR-009, FR-014, R-01).
   auto start() -> void;
 
   /// @brief Stop, drain and join every probe context; the runner reads

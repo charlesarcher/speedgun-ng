@@ -324,6 +324,103 @@ auto waitBothPast() -> void
   }
 }
 
+// The latch-order reader's step and call counts: the series steps by
+// `kLatchStep` per read, so the measurement pass of 1,024 reads measures
+// that step as its minimum period, the default threshold rises to ten
+// times it, and the phase reads stand below the risen threshold and
+// keep no gap; the scripted span of `precheckMs` 1 ends the pre-check
+// phase at the tenth read past the pass (FR-007, FR-014, R-05).
+inline constexpr std::uint64_t kLatchStep = 100000;
+inline constexpr std::uint64_t kLatchPassCalls = 1024;
+inline constexpr std::uint64_t kLatchPhaseCalls = 10;
+
+// The latch-order reader's file-scope state: the per-thread series
+// state, the ticket the thread's first read takes, and the call counts
+// the reader's threads mirror. The counts stand at file scope, so the
+// precheck mode's stop and join inside start() leaves them readable
+// behind the reader it destroys (FR-006, R-04).
+struct LatchThreadState
+{
+  std::uint64_t calls = 0;
+  std::uint64_t stamp = 0;
+  std::uint64_t ticket = 0;
+};
+thread_local LatchThreadState latchThreadState;
+std::atomic<std::uint64_t> latchTicket {0};
+std::atomic<std::uint64_t> latchCalls[2] {};
+
+// The latch-order reader: one per-thread series the measurement pass
+// reads and, in the precheck and both modes, the pre-check phase reads;
+// each thread mirrors its call count to the file-scope slot its ticket
+// names, so the benchmark-side snapshot reads the counts the reader's
+// threads wrote (FR-006, FR-014, R-04).
+class LatchOrderReader final : public sg::counters::WindowReader
+{
+public:
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    auto& thread = latchThreadState;
+    if (thread.ticket == 0) {
+      thread.ticket =
+          1 + latchTicket.fetch_add(1, std::memory_order_relaxed);
+    }
+    ++thread.calls;
+    thread.stamp += kLatchStep;
+    sink.put(thread.stamp);
+    if (thread.ticket <= 2) {
+      latchCalls[thread.ticket - 1].store(thread.calls,
+                                          std::memory_order_relaxed);
+    }
+  }
+};
+
+auto latchOrderReset() -> void
+{
+  latchTicket.store(0, std::memory_order_relaxed);
+  latchCalls[0].store(0, std::memory_order_relaxed);
+  latchCalls[1].store(0, std::memory_order_relaxed);
+}
+
+// One latch-order case (FR-006, FR-014, R-04): the probe of one mode
+// over one scripted cpu, and the snapshot the runner's first benchmark
+// would stand behind. The reader answers the reads the measurement pass
+// needs and, in the precheck and both modes, the reads the pre-check
+// phase needs; the case reads the mirrored call count at the begin the
+// runner's first benchmark rides and checks it against the guarded
+// count the latch stands behind, and the joined state against the
+// fields the guarded passes filled.
+auto runLatchOrderCase(sg::JitterProbeMode mode, std::uint64_t guarded)
+    -> void
+{
+  latchOrderReset();
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.mode = mode;
+  options.precheckMs = 1;
+  sg::detail::installTestReader(std::make_unique<LatchOrderReader>());
+  sg::detail::JitterProbe probe(options);
+  probe.start();
+  // The benchmark side begins here: the runner's first benchmark stands
+  // behind this return, so the snapshot reads the counts the latch
+  // released (FR-006, R-04).
+  const std::uint64_t began =
+      latchCalls[0].load(std::memory_order_relaxed);
+  probe.stopAndJoin();
+  sg::detail::installTestReader(nullptr);
+  check(began >= guarded,
+        "the first benchmark begins only behind the latch (FR-006, "
+        "FR-014, R-04)");
+  const auto& probed = probe.states().at(0);
+  check(probed.loopPeriodNs == kLatchStep,
+        "the measurement pass the latch stands behind measured its "
+        "period (FR-007, R-05)");
+  check(probed.thresholdNs == 10 * kLatchStep,
+        "the default rises to ten times the period (FR-007, D-2)");
+  check(probed.kept == 0,
+        "the scripted series below the risen threshold keeps no gap "
+        "(FR-001, FR-005)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -666,6 +763,21 @@ auto main() -> int
                 && probed.buffer.at(1).gapNs == kPhaseGap,
             "the pre-check record and the alongside record both keep (R-10)");
     }
+  }
+
+  // The latch order (FR-006, FR-014, R-04): in every mode, the first
+  // benchmark the batch would begin stands behind the latch, so it
+  // begins only once the probe cpu stands past its buffer's first
+  // touch and its measurement pass and, in the precheck and both
+  // modes, past its pre-check phase. The guarded count names the reads
+  // the phases take: the measurement pass's 1,024 reads, plus the ten
+  // pre-check reads the scripted span of precheckMs 1 takes.
+  {
+    runLatchOrderCase(sg::JitterProbeMode::ALONGSIDE, kLatchPassCalls);
+    runLatchOrderCase(sg::JitterProbeMode::PRECHECK,
+                      kLatchPassCalls + kLatchPhaseCalls);
+    runLatchOrderCase(sg::JitterProbeMode::BOTH,
+                      kLatchPassCalls + kLatchPhaseCalls);
   }
 
   // FR-041, SC-005, Q-2: the no-allocation proof. The counting hooks
