@@ -669,6 +669,50 @@ auto main() -> int
         });
   }
 
+  // E-03, R-05: the covered span reads the kept records' own stamp
+  // span over a series whose kept stamps stand out of order: the
+  // decreasing read answers a gap the threshold keeps and its stamp
+  // stands below the records before and after it, so the span loop
+  // narrows the first stamp down and the last stamp up.
+  {
+    sg::JitterProbeOptions loopOptions;
+    loopOptions.cpus = pickCpus(1);
+    auto points = passSeries(1);
+    points.push_back(2000);  // a gap of 977: kept, the front stamp
+    points.push_back(0);     // the decreasing read: the wrapped gap keeps
+    points.push_back(5000);  // a gap of 5000: kept, above every earlier stamp
+    runSeries(
+        loopOptions,
+        std::move(points),
+        1000,
+        1100,
+        [](const auto& states)
+        {
+          const auto& probed = states.at(0);
+          check(probed.kept >= 3,
+                "the series keeps its decreasing read (FR-001)");
+          check(probed.buffer.at(0).stamp == 2000
+                    && probed.buffer.at(1).stamp == 0
+                    && probed.buffer.at(2).stamp == 5000,
+                "the kept records stand in read order over the "
+                "out-of-order stamps (E-04)");
+          std::uint64_t low = probed.buffer.at(0).stamp;
+          std::uint64_t high = low;
+          for (std::size_t index = 1; index < probed.kept; ++index) {
+            if (probed.buffer.at(index).stamp < low) {
+              low = probed.buffer.at(index).stamp;
+            }
+            if (probed.buffer.at(index).stamp > high) {
+              high = probed.buffer.at(index).stamp;
+            }
+          }
+          const auto fold = sg::detail::gapStatsOf(probed);
+          check(fold.runtimeNs == high - low,
+                "the covered span reads the kept records' stamp span "
+                "(E-03, R-05)");
+        });
+  }
+
   // FR-007, D-2, R-05: the default rises to ten times the measured
   // minimum loop period when that stands larger; a read below the risen
   // threshold records none and a read at it keeps.

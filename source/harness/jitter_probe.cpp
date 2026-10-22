@@ -106,37 +106,39 @@ auto keepOrDrop(ProbeCpuState& state,
 }
 
 // The recorder half of the read move: the one-leaf plan over the
-// machine/tsc leaf the catalog published (R-02, Q-1). The false answer
-// names the open failure the availability gate stood before this start,
-// so the item records nothing and runs no phase, and still meets the
-// holder's latch (FR-006, R-04).
+// machine/tsc leaf the catalog published (R-02, Q-1). The availability
+// gate (Q-1) answered before this start, and the catalog freezes at the
+// boundary the first lookup opened (FR-009), so every lookup here
+// answers what the gate's did: the machine object and the typed tsc
+// leaf stand in the tree the gate read, the one-leaf expression a
+// resolved countable leaf built compiles - the refusals `compileCore`
+// answers stand on a zero-leaf expression, an address outside the
+// tree, and a leaf the availability gate refuses, and the gate matched
+// a countable entry - and the ring mint over the literal capacity 2, a
+// power of two, succeeds (FR-025). A catalog that broke any of these
+// breaks the contract the assertions own.
 auto openSystemRecorder(
     std::optional<counters::Plan>& plan,
     std::optional<counters::RecorderHandle<counters::Ring>>& recorder)
-    -> bool
+    -> void
 {
   auto& sys = counters::System::local();
   const auto machine = sys.object("machine");
-  if (!machine.has_value()) {
-    return false;
-  }
+  SG_ASSERT(machine.has_value(),
+            "the machine object stands in the catalog (Q-1)");
   const auto leaf = machine.value().counter<counters::Dim<0, 1>>("tsc");
-  if (!leaf.has_value()) {
-    return false;
-  }
+  SG_ASSERT(leaf.has_value(),
+            "the machine/tsc leaf stands in the catalog (Q-1)");
   counters::Expression<counters::Dim<0, 1>> expression(leaf.value());
   auto compiled = counters::detail::compileCore(
       sys, counters::Target {}, {&expression.core});
-  if (!compiled.has_value()) {
-    return false;
-  }
+  SG_ASSERT(compiled.has_value(),
+            "the one-leaf tsc plan compiles (R-02)");
   plan.emplace(std::move(compiled.value()));
   auto minted = plan->recorder(2, counters::ring);
-  if (!minted.has_value()) {
-    return false;
-  }
+  SG_ASSERT(minted.has_value(),
+            "the ring recorder mints over the literal capacity (FR-025)");
   recorder.emplace(std::move(minted.value()));
-  return true;
 }
 
 struct ProbeSession;
@@ -188,26 +190,18 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // The read move: the installed reader's thunk over a fresh stack
   // point sink per pass, the way the plan's own sampling action
   // builds one, or the one-leaf plan's recorder through the system
-  // otherwise (R-02, Q-1). A move that fails to open stands recorded
-  // in `reading`, so the item still reaches the latch line below and
-  // the holder's wait ends (FR-006, R-04).
+  // otherwise (R-02, Q-1). The system open asserts the availability
+  // gate's answer, so the item always reaches the latch line below
+  // (FR-006, R-04).
   std::uint64_t cell = 0;
   counters::WindowReader* reader = session->reader.get();
   counters::WindowReader::ReadThunk thunk = nullptr;
   std::optional<counters::Plan> plan;
   std::optional<counters::RecorderHandle<counters::Ring>> recorder;
-  bool reading = true;
   if (reader != nullptr) {
     thunk = reader->resolveThunk();
   } else {
-    reading = openSystemRecorder(plan, recorder);
-  }
-  if (!reading) {
-    // The latch line stands past the buffer's first touch, so a move
-    // that failed to open still meets the holder's wait before it
-    // leaves (FR-006, R-04).
-    session->latch->arriveAndWait();
-    return;
+    openSystemRecorder(plan, recorder);
   }
   const auto readStamp = [&]() noexcept -> std::uint64_t
   {
@@ -299,7 +293,12 @@ std::unique_ptr<ProbeSession> probeSession;
 // `percentileAt` over the sorted kept gaps (PC-4, R-05). A column that
 // holds fewer samples than the rule's reporting floor answers the rank
 // the rule itself names, so the chain the fold's postcondition states
-// holds over the small kept sets too.
+// holds over the small kept sets too. Both folds early-return on the
+// empty kept set, so the set here carries at least one record, and the
+// five reporting points the folds call with stand inside [1, 100), so
+// the nearest-rank index lands inside [1, size] and the empty-set and
+// clamp arms a general percentile table carries stand outside the
+// grammar (K-8, E-03).
 auto percentileField(const std::vector<double>& sorted,
                      const double point) -> std::uint64_t
 {
@@ -307,17 +306,10 @@ auto percentileField(const std::vector<double>& sorted,
   if (ranked.available) {
     return static_cast<std::uint64_t>(ranked.value);
   }
-  if (sorted.empty()) {
-    return 0;
-  }
   const auto rank =
       std::ceil(point * static_cast<double>(sorted.size()) / 100.0);
-  const auto index = static_cast<std::size_t>(
-      rank < 1.0 ? 1.0
-                 : (rank > static_cast<double>(sorted.size())
-                        ? static_cast<double>(sorted.size())
-                        : rank));
-  return static_cast<std::uint64_t>(sorted.at(index - 1));
+  return static_cast<std::uint64_t>(
+      sorted.at(static_cast<std::size_t>(rank) - 1));
 }
 
 }  // namespace

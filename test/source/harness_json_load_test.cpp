@@ -175,6 +175,9 @@ auto versionRuleGatesTheReader() -> void
 // FR-025, FR-026, SC-010).
 constexpr const char* const kRich = R"JSON(
 {"schemaVersion":"1.0","speedgun":{"version":"0.12.0","buildType":"Release"},
+ "jitter":{"mode":"ALONGSIDE","thresholdNs":200,"loopPeriodNs":20,
+  "cpus":[2],"stats":[{"cpu":2,"gapCount":1,"gapsPerSecond":1000.0,"minNs":200,"medianNs":200,"meanNs":200.0,"p90Ns":210,"p99Ns":220,"p999Ns":230,"p9999Ns":240,"maxNs":250,"totalNs":260,"totalPercent":0.5,"runtimeNs":270,"thresholdNs":280,"loopPeriodNs":29,"droppedGaps":30,"gaps":[{"stamp":100,"gapNs":200}]}],
+  "droppedGaps":0,"disclosure":"the run's disclosure"},
  "benchmarks":[{"name":"bmRich","suite":"bmRich","case":"bmRich",
   "outcome":"SKIPPED","reason":"the scripted skip","hideRepetitionRows":true,
   "timeUnit":"MILLISECONDS","primaryIsCpu":false,"pauseSamplesFolded":true,
@@ -182,6 +185,7 @@ constexpr const char* const kRich = R"JSON(
   "contexts":[{"waitMode":"SPIN","placement":"l3 group 0","applied":true},
               {"waitMode":"BLOCK","placement":"unpinned","applied":false}],
   "noiseWarning":{"spinning":3,"runnableCpus":16,"sharesOneCpu":true},
+  "jitter":{"stats":[{"cpu":3,"gapCount":4,"gapsPerSecond":400.0,"minNs":300,"medianNs":310,"meanNs":320.0,"p90Ns":330,"p99Ns":340,"p999Ns":350,"p9999Ns":360,"maxNs":370,"totalNs":380,"totalPercent":0.6,"runtimeNs":390,"thresholdNs":400,"loopPeriodNs":41,"droppedGaps":42}]},
   "rows":[{"kind":"AGGREGATE","label":"aggregate","iterations":6,
     "timePerIterationNs":1.5,"cpuTimePerIterationNs":2.5,"endpointSamples":7,
     "pauseSamplesFolded":true,"timeAvailability":"GAP",
@@ -245,6 +249,15 @@ auto everyFieldOfTheDocumentLoads() -> void
             && entry.statisticValues[0].unit == sg::StatUnit::TIME
             && sg::test::sameValue(entry.statisticValues[0].value, 4.5),
         "the entry answers its custom statistic (FR-015)");
+  check(loaded->runJitterStats.has_value()
+            && loaded->runJitterStats->size() == 1
+            && (*loaded->runJitterStats)[0].cpu == 2
+            && (*loaded->runJitterStats)[0].stats.gapCount == 1
+            && (*loaded->runJitterStats)[0].stats.thresholdNs == 280,
+        "the run-level jitter record reads into the carrier (E-07, FR-031)");
+  check(entry.jitterFolds.size() == 1 && entry.jitterFolds[0].cpu == 3
+            && entry.jitterFolds[0].stats.gapCount == 4,
+        "the entry's jitter scope reads into its carrier (E-08, FR-027)");
 
   check(entry.rows.size() == 1, "the entry answers its one row (FR-012)");
   const sg::ResultRow& row = entry.rows[0];
@@ -406,6 +419,56 @@ constexpr Mutation kRichMutations[] = {
     // (specs/024 E-08, FR-019); the key taken away loads, as the case below
     // shows.
     {"\"pass\":1", "\"pass\":\"one\"", "/benchmarks/0/rows/0/metrics/0/pass"},
+    // The jitter scopes of E-07 and E-08: the seventeen keys of a per-cpu
+    // stats object, each wrong of kind and two taken away; the kept gap
+    // records the document carries; the seven keys of the run-level
+    // record; and the per-entry scope's stats array. Each refusal names
+    // the pointer it stands at (FR-029, E-03, E-07, E-08, E-10).
+    {"\"cpu\":2,", "\"cpu\":\"x\",", "/jitter/stats/0/cpu"},
+    {"\"gapCount\":1,", "\"gapCount\":\"x\",", "/jitter/stats/0/gapCount"},
+    {"\"gapsPerSecond\":1000.0,", "\"gapsPerSecond\":\"x\",",
+     "/jitter/stats/0/gapsPerSecond"},
+    {"\"minNs\":200,", "\"minNs\":\"x\",", "/jitter/stats/0/minNs"},
+    {"\"medianNs\":200,", "\"medianNs\":\"x\",", "/jitter/stats/0/medianNs"},
+    {"\"meanNs\":200.0,", "\"meanNs\":\"x\",", "/jitter/stats/0/meanNs"},
+    {"\"p90Ns\":210,", "\"p90Ns\":\"x\",", "/jitter/stats/0/p90Ns"},
+    {"\"p99Ns\":220,", "\"p99Ns\":\"x\",", "/jitter/stats/0/p99Ns"},
+    {"\"p999Ns\":230,", "\"p999Ns\":\"x\",", "/jitter/stats/0/p999Ns"},
+    {"\"p9999Ns\":240,", "\"p9999Ns\":\"x\",", "/jitter/stats/0/p9999Ns"},
+    {"\"maxNs\":250,", "\"maxNs\":\"x\",", "/jitter/stats/0/maxNs"},
+    {"\"totalNs\":260,", "\"totalNs\":\"x\",", "/jitter/stats/0/totalNs"},
+    {"\"totalPercent\":0.5,", "\"totalPercent\":\"x\",",
+     "/jitter/stats/0/totalPercent"},
+    {"\"runtimeNs\":270,", "\"runtimeNs\":\"x\",", "/jitter/stats/0/runtimeNs"},
+    {"\"thresholdNs\":280,", "\"thresholdNs\":\"x\",",
+     "/jitter/stats/0/thresholdNs"},
+    {"\"loopPeriodNs\":29,", "\"loopPeriodNs\":\"x\",",
+     "/jitter/stats/0/loopPeriodNs"},
+    {"\"droppedGaps\":30,", "\"droppedGaps\":\"x\",",
+     "/jitter/stats/0/droppedGaps"},
+    {"\"cpu\":2,", "", "/jitter/stats/0"},
+    {"\"meanNs\":200.0,", "", "/jitter/stats/0"},
+    {"\"gaps\":[{\"stamp\":100,\"gapNs\":200}]", "\"gaps\":5",
+     "/jitter/stats/0/gaps"},
+    {"\"stamp\":100", "\"stemp\":100", "/jitter/stats/0/gaps/0"},
+    {"\"stamp\":100", "\"stamp\":\"x\"", "/jitter/stats/0/gaps/0/stamp"},
+    {"\"gapNs\":200}]", "\"gapNz\":200}]", "/jitter/stats/0/gaps/0"},
+    {"\"gapNs\":200", "\"gapNs\":\"x\"", "/jitter/stats/0/gaps/0/gapNs"},
+    {"\"thresholdNs\":200,", "\"thresholdNs\":\"x\",", "/jitter/thresholdNs"},
+    {"\"loopPeriodNs\":20,", "\"loopPeriodNs\":\"x\",", "/jitter/loopPeriodNs"},
+    {"\"cpus\":[2]", "\"cpus\":5", "/jitter/cpus"},
+    {"\"cpus\":[2]", "\"cpus\":[\"x\"]", "/jitter/cpus"},
+    {",\"stats\":[{\"cpu\":2,\"gapCount\":1,\"gapsPerSecond\":1000.0,\"minNs\":200,\"medianNs\":200,\"meanNs\":200.0,\"p90Ns\":210,\"p99Ns\":220,\"p999Ns\":230,\"p9999Ns\":240,\"maxNs\":250,\"totalNs\":260,\"totalPercent\":0.5,\"runtimeNs\":270,\"thresholdNs\":280,\"loopPeriodNs\":29,\"droppedGaps\":30,\"gaps\":[{\"stamp\":100,\"gapNs\":200}]}]",
+     "", "/jitter"},
+    {"\"droppedGaps\":0,\"disclosure\"", "\"droppedGaps\":\"x\",\"disclosure\"",
+     "/jitter/droppedGaps"},
+    {"\"disclosure\":\"the run's disclosure\"", "\"disclosure\":5",
+     "/jitter/disclosure"},
+    {"\"cpu\":3,", "\"cpu\":\"x\",", "/benchmarks/0/jitter/stats/0/cpu"},
+    {"\"stats\":[{\"cpu\":3,\"gapCount\":4,\"gapsPerSecond\":400.0,\"minNs\":300,\"medianNs\":310,\"meanNs\":320.0,\"p90Ns\":330,\"p99Ns\":340,\"p999Ns\":350,\"p9999Ns\":360,\"maxNs\":370,\"totalNs\":380,\"totalPercent\":0.6,\"runtimeNs\":390,\"thresholdNs\":400,\"loopPeriodNs\":41,\"droppedGaps\":42}]",
+     "", "/benchmarks/0/jitter"},
+    {"\"stats\":[{\"cpu\":3,\"gapCount\":4,\"gapsPerSecond\":400.0,\"minNs\":300,\"medianNs\":310,\"meanNs\":320.0,\"p90Ns\":330,\"p99Ns\":340,\"p999Ns\":350,\"p9999Ns\":360,\"maxNs\":370,\"totalNs\":380,\"totalPercent\":0.6,\"runtimeNs\":390,\"thresholdNs\":400,\"loopPeriodNs\":41,\"droppedGaps\":42}]",
+     "\"stats\":5", "/benchmarks/0/jitter/stats"},
 };
 
 auto plantedFieldsOfEveryRecordRefuse() -> void

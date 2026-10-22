@@ -716,6 +716,82 @@ auto childUnavailable(const bool strict) -> int
   return status;
 }
 
+// The fresh process of the blocked-count scenario: the fake publishes
+// the tsc leaf at the fast mode with a count the catalog marks
+// blocked, so the leaf stands in the tree the runner's window stamps
+// read and the plan the stamp compiles refuses on the availability
+// gate (FR-024), the run disclosing the unavailable answer beside it.
+auto childUnavailableBlocked() -> int
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+  provider.setPoints("machine", "monotonic", {0}, 4000);
+  provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  provider.setPoints("machine", "thread_cpu", {0}, 2000);
+  provider.addCounter("machine",
+                      "tsc",
+                      "none",
+                      "blocked tsc leaf",
+                      sg::counters::Availability::PERMISSION_BLOCKED,
+                      sg::counters::ReadMode::FAST_TSC);
+  provider.setPoints("machine", "tsc", {0}, 1);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  const std::string probe = std::to_string(pickCpus(1).front());
+  std::vector<std::string> arguments {
+      "--filter=bmQuiet",
+      "--repetitions=1",
+      "--iterations=2",
+      "--jitter-probe=" + probe};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  std::fflush(stderr);
+  return status;
+}
+
+// The fresh process of the threaded unavailable scenario: the same
+// tsc-less catalog, and the batch's instance carries two contexts, so
+// the threaded body's window edges stamp against the leaf the catalog
+// lacks and stand unrecorded while the batch continues (FR-037, E-06).
+auto childUnavailableThreaded() -> int
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+  provider.setPoints("machine", "monotonic", {0}, 4000);
+  provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  provider.setPoints("machine", "thread_cpu", {0}, 2000);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  auto handle = sg::registerBenchmark(&bmQuiet, "bmThreaded");
+  handle.threads(2);
+  const std::string probe = std::to_string(pickCpus(1).front());
+  std::vector<std::string> arguments {
+      "--filter=bmThreaded",
+      "--repetitions=1",
+      "--iterations=2",
+      "--jitter-probe=" + probe};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  std::fflush(stderr);
+  return status;
+}
+
 // FR-011, FR-017: the idle value parses, and the resolution over a run
 // whose instances carry no plan names no free cpu: one line naming the
 // preset word and status 2. The child installs no layout, so the
@@ -1029,6 +1105,40 @@ auto scenarioUnavailableProbe() -> int
   return 0;
 }
 
+// FR-037, D-10: the same unavailable answer where the tsc leaf stands
+// in the tree at a count the catalog marks blocked: the runner's
+// window stamps refuse on the availability gate the compile answers,
+// and the batch continues at status 0 (FR-024).
+auto scenarioUnavailableBlocked() -> int
+{
+  const Captured run = runExecChild(
+      "--jitter-cli-child=unavailable-blocked", "unavailable-blocked");
+  check(run.status == 0,
+        "the blocked leaf discloses and continues (FR-037, D-10)");
+  check(run.out.find("not available") != std::string::npos,
+        "the run discloses the unavailable answer (FR-037)");
+  check(run.out.find("bmQuiet") != std::string::npos,
+        "the batch ran beside the disclosure (FR-037, D-10)");
+  return 0;
+}
+
+// FR-037, D-10, E-06: the same unavailable answer under a threaded
+// batch: the threaded body's window edges stamp against the leaf the
+// catalog lacks, stand unrecorded, and the batch continues at status
+// 0 (E-06).
+auto scenarioUnavailableThreaded() -> int
+{
+  const Captured run = runExecChild(
+      "--jitter-cli-child=unavailable-threaded", "unavailable-threaded");
+  check(run.status == 0,
+        "the threaded unavailable run discloses and continues (FR-037)");
+  check(run.out.find("not available") != std::string::npos,
+        "the run discloses the unavailable answer (FR-037)");
+  check(run.out.find("bmThreaded") != std::string::npos,
+        "the threaded batch ran beside the disclosure (FR-037, E-06)");
+  return 0;
+}
+
 // FR-037, D-10: the same unavailable answer under `strict` stops the
 // batch before any run, one line and status 2.
 auto scenarioUnavailableStrict() -> int
@@ -1065,6 +1175,16 @@ auto main(int argc, char** argv) -> int
     };
     if (mode == "--jitter-cli-child=unavailable" && redirect("unavailable")) {
       return childUnavailable(false);
+    }
+    if (mode == "--jitter-cli-child=unavailable-blocked"
+        && redirect("unavailable-blocked"))
+    {
+      return childUnavailableBlocked();
+    }
+    if (mode == "--jitter-cli-child=unavailable-threaded"
+        && redirect("unavailable-threaded"))
+    {
+      return childUnavailableThreaded();
     }
     if (mode == "--jitter-cli-child=unavailable-strict"
         && redirect("unavailable-strict"))
@@ -1106,6 +1226,8 @@ auto main(int argc, char** argv) -> int
   check(scenarioSkipTwoGroups() == 0, "skipTwoGroups");
   check(scenarioFitBesideProbe() == 0, "fitBesideProbe");
   check(scenarioUnavailableProbe() == 0, "unavailableProbe");
+  check(scenarioUnavailableBlocked() == 0, "unavailableBlocked");
+  check(scenarioUnavailableThreaded() == 0, "unavailableThreaded");
   check(scenarioUnavailableStrict() == 0, "unavailableStrict");
 
   // FR-011: the cpu list, `idle`, and every key parse once, each key
