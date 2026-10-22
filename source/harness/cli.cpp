@@ -898,10 +898,14 @@ auto speedgunMain(int argc, char** argv) -> int
         }
       }
     }
-    // FR-019, D-5: an instance that carries no placement narrows the
+    // FR-019, D-5: an instance the runner does not pin narrows the
     // calling thread's affinity mask by the probe cpus for the run -
     // `sched_setaffinity(0, ...)` names the calling thread, never the
-    // process. The order is what makes that safe: the probe threads
+    // process. A pinned instance is exactly one with more than one
+    // context and a preset: the runner pins only instances with more
+    // than one context, and then only when the preset is not `none`,
+    // so a single-context instance that carries a preset is unpinned
+    // and narrows too. The order is what makes that safe: the probe threads
     // start before the narrowing and keep their own masks, and the
     // runner creates the benchmark's worker threads after it, so they
     // inherit the narrowed mask the benchmark runs under. The change
@@ -910,7 +914,8 @@ auto speedgunMain(int argc, char** argv) -> int
     cpu_set_t savedMask {};
     bool maskNarrowed = false;
     if (options.jitterProbe.has_value()
-        && entry->placement == detail::Preset::NONE)
+        && !(entry->threadCount > 1
+             && entry->placement != detail::Preset::NONE))
     {
       CPU_ZERO(&savedMask);
       if (sched_getaffinity(0, sizeof(savedMask), &savedMask) == 0) {

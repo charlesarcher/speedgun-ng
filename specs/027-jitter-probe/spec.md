@@ -141,8 +141,11 @@ named beside it.
   FR-017).
 - **D-5 Unpinned benchmarks (R-13.2).** When a benchmark carries no
   placement, the harness removes the probe cpus from the benchmark's
-  affinity mask for the run and discloses the change. When the mask
-  empties, the process exits with status 2 (FR-020).
+  affinity mask for the run and discloses the change. A benchmark that
+  carries a preset with a single context is unpinned (the runner pins
+  only benchmarks with more than one context), so the removal covers it
+  too. When the mask empties, the process exits with status 2
+  (FR-020).
 - **D-6 Gap buffer (D-13.4, R-13.3).** The buffer is pre-sized to
   65,536 gaps for each probe cpu, 16 bytes each, allocated and first
   touched on the probe cpu before the probe window. `gaps=<n>` sets the
