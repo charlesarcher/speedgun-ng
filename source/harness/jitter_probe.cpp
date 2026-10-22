@@ -3,7 +3,7 @@
 //
 // One translation unit owns the probe (R-01): the holder's lifecycle, the
 // per-cpu work item the probe contexts run, the availability check over
-// the provider catalog and `ClockProvider::open` (Q-1), the run-level
+// the provider catalog (Q-1), the run-level
 // fold, the window-sided fold the split of E-06 reads, and the
 // reader-install seam storage.
 // ============================================================================
@@ -20,7 +20,6 @@
 #include "detail/jitter_probe.hpp"
 
 #include "detail/percentiles.hpp"
-#include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/execution_context.hpp"
@@ -65,15 +64,17 @@ std::unique_ptr<counters::WindowReader> installedReader;
       <= 1e-9 * (std::fabs(percent) + 1.0);
 }
 
-// The catalog half of the availability check (Q-1): the machine object
-// publishes the tsc leaf, countable, at the read mode the probe opens
-// through (R-02).
+// The availability check (Q-1): the machine object publishes the tsc
+// leaf, countable, at the read mode the probe reads through (R-02).
+// `System::local()` constructs the machine root beside its catalog
+// (system.cpp), so the lookup answers on every build, and the loop
+// answers whether a registered provider published the qualifying
+// leaf. The publication answers to one build fact (`kTscAvailable`,
+// clock_provider.cpp), the one fact the open refuses the request on,
+// so the catalog's answer carries the open's.
 auto catalogCarriesTsc() -> bool
 {
   const auto machine = counters::System::local().object("machine");
-  if (!machine.has_value()) {
-    return false;
-  }
   for (const auto& entry : machine.value().counters()) {
     if (entry.name == "tsc" && entry.mode == counters::ReadMode::FAST_TSC
         && entry.avail == counters::Availability::COUNTABLE)
@@ -82,23 +83,6 @@ auto catalogCarriesTsc() -> bool
     }
   }
   return false;
-}
-
-// The open half of the availability check (Q-1): the null-reader result
-// of `ClockProvider::open`. The false arm follows a build that executes
-// no time-stamp instruction while a provider still publishes the leaf,
-// the way the provider's own refusal follows one, so the coverage
-// exclusion names that build and not this host.
-auto clockOpenCarriesReader() -> bool
-{
-  counters::ClockProvider provider;
-  const auto window = provider.open(
-      counters::LeafSet {.addresses = {"machine/tsc"}}, counters::Target {});
-  // The null-reader arm answers only on a build whose catalog does not
-  // publish the leaf; every shipped provider publishes it (Q-1), so the
-  // arm stands uncovered by design and the coverage report carries the
-  // gap with the gcov evidence of T034.
-  return window != nullptr;
 }
 
 // One record store into the pre-sized buffer, or the drop the filled
@@ -349,16 +333,18 @@ auto JitterProbe::start() -> void
              "one probe holds the process's session at a time (R-01)");
 
   // The availability check (Q-1): the provider catalog for the
-  // machine/tsc leaf, and the null-reader result of ClockProvider::open.
-  bool available = catalogCarriesTsc();
-  if (available) {
-    available = clockOpenCarriesReader();
+  // machine/tsc leaf. The catalog publishes the qualifying entry only
+  // where the build executes the time-stamp instruction, the one fact
+  // the open refuses the request on, so the check asks the catalog
+  // alone.
+  if (!catalogCarriesTsc()) {
+    return;
   }
 
   // The availability gate stands here; the idle resolution and the
   // overlap check ran in the entry point before this start (R-07), so
   // an empty list arrives only when no probe stands to run.
-  if (!available || m_options.cpus.empty()) {
+  if (m_options.cpus.empty()) {
     return;
   }
 

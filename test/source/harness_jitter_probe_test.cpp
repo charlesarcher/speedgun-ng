@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <sched.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "detail/jitter_probe.hpp"
@@ -195,6 +196,88 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
     return &ref;
   }();
   return *provider;
+}
+
+// The mode-failing catalog (FR-037, R-11): one provider carrying a
+// load leaf and a tsc leaf at the syscall mode, so the qualification
+// rejects both entries and the catalog answers no.
+auto unavailableModeCase() -> void
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine",
+                      "load",
+                      "none",
+                      "synthetic load leaf",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::SYSCALL);
+  provider.addCounter("machine",
+                      "tsc",
+                      "none",
+                      "syscall-mode tsc leaf",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::SYSCALL);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(),
+        "the syscall-mode provider registers (FR-037, R-11)");
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  sg::detail::JitterProbe probe(options);
+  probe.start();
+  check(probe.states().empty(),
+        "a tsc leaf at the syscall mode leaves the probe unstarted "
+        "(FR-037, R-11)");
+}
+
+// The availability-failing catalog (FR-037, R-11): one provider whose
+// tsc leaf carries the fast mode and a count the catalog marks blocked,
+// so the qualification rejects the entry on the availability field.
+auto unavailableAvailabilityCase() -> void
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine",
+                      "tsc",
+                      "none",
+                      "blocked tsc leaf",
+                      sg::counters::Availability::PERMISSION_BLOCKED,
+                      sg::counters::ReadMode::FAST_TSC);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(),
+        "the blocked-count provider registers (FR-037, R-11)");
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  sg::detail::JitterProbe probe(options);
+  probe.start();
+  check(probe.states().empty(),
+        "a tsc leaf whose count stands blocked leaves the probe "
+        "unstarted (FR-037, R-11)");
+}
+
+// One unavailable-catalog case (FR-037, R-11): the child inherits the
+// registration boundary still closed (FR-009), scripts the catalog the
+// case names, starts the probe and answers through its exit status. A
+// catalog without a qualifying leaf exists only in a process that
+// registers no such provider, and the boundary the parent's first
+// lookup opens closes registration behind it, so the fork lands before
+// that first lookup and the parent reads the child's status.
+auto runUnavailableCase(const char* what, void (*script)()) -> void
+{
+  const pid_t pid = fork();
+  if (pid < 0) {
+    fail(what);
+  }
+  if (pid == 0) {
+    script();
+    std::exit(0);
+  }
+  int status = 0;
+  if (waitpid(pid, &status, 0) < 0) {
+    fail(what);
+  }
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 0, what);
 }
 
 // The measurement pass takes a fixed 1,024 loop reads the loop discards
@@ -517,6 +600,20 @@ auto main() -> int
   // against the loop T009 implements: the holder, the folds and the seam
   // definitions arrive with that task.
 
+  // FR-037, R-11: the unavailable-catalog answers. Each case runs in a
+  // forked child, because the parent registers the qualifying leaf and
+  // the boundary the parent's first lookup opens closes registration
+  // behind it (FR-009): the fork lands before that first lookup, and
+  // the case's answer rides the child's exit status.
+  runUnavailableCase(
+      "a tsc leaf at the syscall mode leaves the probe unstarted "
+      "(FR-037, R-11)",
+      unavailableModeCase);
+  runUnavailableCase(
+      "a tsc leaf whose count stands blocked leaves the probe unstarted "
+      "(FR-037, R-11)",
+      unavailableAvailabilityCase);
+
   // FR-001, FR-005: the branches of the gap detection. The first kept gap
   // stands at the threshold, and the reads after it, every one below,
   // record none.
@@ -736,6 +833,17 @@ auto main() -> int
                     <= 1e-9 * (fold.totalPercent + 1.0),
                 "totalPercent divides the kept total by the span (E-03)");
         });
+  }
+
+  // FR-037, R-07: an empty cpu list starts no probe. The catalog
+  // qualifies here, so the gate's answer rides the empty list, and the
+  // start returns before any state exists.
+  {
+    sg::JitterProbeOptions emptyCpusOptions;
+    sg::detail::JitterProbe probe(emptyCpusOptions);
+    probe.start();
+    check(probe.states().empty(),
+          "an empty cpu list starts no probe (FR-037, R-07)");
   }
 
   // FR-014, R-10: the pre-check phase runs on all chosen cpus at the

@@ -244,7 +244,7 @@ pass with the new section and example (SC-007).
 
 ## Phase 8: Polish and Cross-Cutting Concerns
 
-- [x] T034 Coverage audit: run the coverage preset and record the line and branch figures for `source/harness/jitter_probe.cpp`, the seams of `source/harness/detail/jitter_probe.hpp` as reached, the changed regions of `placement_preset.cpp`, `cli.cpp`, `runner.cpp`, `report.cpp`, `json_report.cpp` and `json_load.cpp`, and every branch of the gap detection, the buffer-full path, the threshold rule, the split, the `idle` resolver, the overlap check, the mask change, the modes, the option parse, the JSON write and read at 100 percent with no `LCOV_EXCL` marker; a gap stops the work and reports the cause with `gcov -b` evidence (FR-039, SC-006, Constraints)
+- [ ] T034 Coverage audit: run the coverage preset and record the line and branch figures for `source/harness/jitter_probe.cpp`, the seams of `source/harness/detail/jitter_probe.hpp` as reached, the changed regions of `placement_preset.cpp`, `cli.cpp`, `runner.cpp`, `report.cpp`, `json_report.cpp` and `json_load.cpp`, and every branch of the gap detection, the buffer-full path, the threshold rule, the split, the `idle` resolver, the overlap check, the mask change, the modes, the option parse, the JSON write and read at 100 percent with no `LCOV_EXCL` marker; a gap stops the work and reports the cause with `gcov -b` evidence (FR-039, SC-006, Constraints)
 
 - [x] T035 Sanitizer runs: the `ci-sanitize` and `ci-tsan` presets over the four new executables, with zero findings; the scripted series and the barriers stand in for the real noise the sanitizers cannot schedule (FR-039, SC-006)
 
@@ -272,12 +272,12 @@ pass with the new section and example (SC-007).
     with 0 gaps; `format-check` exit 0 under the CI-pinned
     clang-format 18.1.8; `spell-check` exit 0 under codespell 2.4.3;
     `prose-lint` 0 findings over 63 sources and 4390 units. Task-list
-    count: 42 task ids, every checkbox closed. Coverage of the pushed
-    head, from the T034 audit: 98.8 percent lines (7805/7902) and 95.9
-    percent branches (3434/3579), the unavailable arms and the
-    unscripted error paths carrying the gap with the `gcov -b`
-    evidence T034's record names and no `LCOV_EXCL` marker the change
-    adds.
+    count: 42 task ids, T034 standing open until the coverage figures
+    stand recorded. Coverage stands recorded by the CI run of the
+    pushed head: the figures stand recorded when a CI run shows 100
+    percent lines and 100 percent branches (VI, SC-006), and the CI job
+    the PR runs produces them; no local figure stands in this record
+    and no `LCOV_EXCL` marker the change adds stands anywhere.
 
 ## Dependencies & Execution Order
 
