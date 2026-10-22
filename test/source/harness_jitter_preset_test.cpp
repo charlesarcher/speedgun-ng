@@ -44,6 +44,7 @@
 //                       probe cpu outside the mask sets (FR-036, D-12)
 // ============================================================================
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -121,8 +122,33 @@ auto overlapInstance() -> sg::Instance
 
 }  // namespace
 
-auto main() -> int
+auto main(const int argc, char** argv) -> int
 {
+  if (argc > 1 && std::string(argv[1]) == "idle-unresolved") {
+    // The planned cpu stands outside the layout's mask: the resolver's
+    // precondition is a violation, and the checked semantic terminates
+    // the process (R-07).
+    sg::detail::MachineLayout machine;
+    machine.readable = true;
+    machine.packages = 1;
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = 0;
+    thread.coreOrdinal = 0;
+    thread.groupOrdinal = 0;
+    machine.threads.push_back(thread);
+    machine.mask.push_back(0);
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = 0;
+    layoutCore.threads = {0U};
+    machine.cores.push_back(layoutCore);
+    sg::detail::LayoutGroup group;
+    group.lowestCpu = 0;
+    group.cores = {0U};
+    machine.groups.push_back(group);
+    (void)sg::detail::resolveIdleCpus(machine, std::vector<std::uint32_t> {7});
+    return 0;
+  }
+
   installThrawnShape();
   const auto& machine = sg::detail::layout();
 
@@ -283,6 +309,123 @@ auto main() -> int
     check(limited.remaining == expected,
           "the mask cpus stand in the narrowed mask (FR-019)");
   }
+
+  // D-4, R-07: a planned cpu the layout carries outside every group and
+  // core: the resolution's walk and the postcondition predicate's walk
+  // both skip its group and sibling collections, the touched record
+  // stands empty, and the resolution names no cpu and no skip, whose
+  // covered set equals the touched one.
+  {
+    sg::detail::MachineLayout outside;
+    outside.readable = true;
+    outside.packages = 1;
+    for (const auto cpu : {0U, 1U}) {
+      sg::detail::LayoutThread thread;
+      thread.cpuIndex = cpu;
+      thread.coreOrdinal = 0;
+      thread.groupOrdinal = 0;
+      outside.threads.push_back(thread);
+      outside.mask.push_back(cpu);
+    }
+    sg::detail::LayoutThread loner;
+    loner.cpuIndex = 2;
+    loner.coreOrdinal = sg::detail::kNoGroup;
+    loner.groupOrdinal = sg::detail::kNoGroup;
+    outside.threads.push_back(loner);
+    outside.mask.push_back(2);
+    sg::detail::LayoutCore shared;
+    shared.groupOrdinal = 0;
+    shared.threads = {0U, 1U};
+    outside.cores.push_back(shared);
+    sg::detail::LayoutGroup group;
+    group.lowestCpu = 0;
+    group.cores = {0U};
+    outside.groups.push_back(group);
+
+    const auto resolution =
+        sg::detail::resolveIdleCpus(outside, std::vector<std::uint32_t> {2});
+    check(resolution.cpus.empty()
+              && resolution.skippedGroups.empty(),
+          "a planned cpu outside every group and core leaves the "
+          "resolution empty (FR-016, D-4)");
+  }
+
+  // FR-018, D-9, R-10: the overlap walk reads each planned cpu against
+  // the mask: one planned cpu inside the mask's range that the mask
+  // lacks, one past the mask's end, and the SMT siblings of the ones
+  // the mask holds. The probe cpu naming a sibling stands refused with
+  // the benchmark's name, and a probe cpu naming none stands allowed.
+  {
+    sg::detail::MachineLayout outside;
+    outside.readable = true;
+    outside.packages = 1;
+    // The mask holds cpus 0, 1 and 3; cpu 2 stands inside the mask's
+    // range without being in it, and cpu 5 stands past its end. The
+    // `core` preset plans the front thread of each core: cpu 0, cpu 2
+    // and cpu 5.
+    const std::array<std::uint32_t, 5> cpuIndexes {0U, 1U, 2U, 3U, 5U};
+    for (const auto cpu : cpuIndexes) {
+      sg::detail::LayoutThread thread;
+      thread.cpuIndex = cpu;
+      thread.coreOrdinal = cpu == 5U ? 2U : cpu / 2U;
+      thread.groupOrdinal = 0;
+      outside.threads.push_back(thread);
+    }
+    outside.mask = {0U, 1U, 3U};
+    const std::array<std::uint32_t, 3> coreThreadCounts {3U, 2U, 1U};
+    for (std::size_t ordinal = 0; ordinal < coreThreadCounts.size();
+         ++ordinal)
+    {
+      sg::detail::LayoutCore layoutCore;
+      layoutCore.groupOrdinal = 0;
+      for (std::uint32_t index = 0; index < coreThreadCounts.at(ordinal);
+           ++index)
+      {
+        layoutCore.threads.push_back(
+            static_cast<std::uint32_t>(ordinal) * 2U + index);
+      }
+      outside.cores.push_back(layoutCore);
+    }
+    sg::detail::LayoutGroup group;
+    group.lowestCpu = 0;
+    group.cores = {0U, 1U, 2U};
+    outside.groups.push_back(group);
+
+    sg::Instance instance;
+    instance.name = "bmPresetMaskWalk";
+    instance.threadCount = 3;
+    instance.placement = sg::detail::Preset::CORE;
+    const std::vector<sg::Instance*> selected {&instance};
+
+    const auto planned =
+        sg::detail::probeOverlapOf(outside,
+                                   selected,
+                                   std::vector<std::uint32_t> {1},
+                                   sg::JitterProbeMode::ALONGSIDE);
+    check(planned.has_value() && planned->cpu == 1
+              && planned->benchmark == "bmPresetMaskWalk",
+          "a probe cpu that names a planned sibling stands refused "
+          "(FR-018, D-9)");
+
+    const auto free =
+        sg::detail::probeOverlapOf(outside,
+                                   selected,
+                                   std::vector<std::uint32_t> {9},
+                                   sg::JitterProbeMode::ALONGSIDE);
+    check(!free.has_value(),
+          "a probe cpu that names no planned cpu and no sibling "
+          "stands allowed (FR-018)");
+  }
+
+  // R-07: the self-exec the registry test carries: a planned cpu that
+  // names no thread of the layout violates the resolver's precondition,
+  // and the checked semantic terminates the child.
+  const std::string self =
+      argc > 0 ? argv[0] : "harness_jitter_preset_test";
+  const int violated =
+      std::system(("\"" + self + "\" idle-unresolved 2>/dev/null").c_str());
+  check(violated != 0,
+        "a planned cpu outside the mask is a violation (R-07)");
 
   std::puts("harness_jitter_preset_test: ok");
   return 0;

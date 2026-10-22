@@ -41,16 +41,18 @@ using sg::detail::MetricColumn;
 // read once on the calling thread. The fresh window seeds from the
 // position the leaf carries at the edge, so an edge and the probe's gap
 // stamps read as one series with no conversion between them (R-04).
-// A leaf the catalog lacks, a plan the build cannot compile, or a
-// recorder it cannot mint leaves the edge unstamped and the window
-// unrecorded.
+// The machine object always stands in a run's catalog - the entry point
+// registers the clock provider beside it before the batch starts - and
+// the ring mint over the literal capacity 2, a power of two, succeeds
+// (FR-025), so the assertions own those contracts; a leaf the catalog
+// lacks, or a plan the build cannot compile over it, leaves the edge
+// unstamped and the window unrecorded.
 auto windowStampNow() -> std::optional<std::uint64_t>
 {
   auto& sys = sg::counters::System::local();
   const auto machine = sys.object("machine");
-  if (!machine.has_value()) {
-    return std::nullopt;
-  }
+  SG_ASSERT(machine.has_value(),
+            "the machine object stands in the run's catalog (R-02)");
   const auto leaf = machine.value().counter<sg::counters::Dim<0, 1>>("tsc");
   if (!leaf.has_value()) {
     return std::nullopt;
@@ -63,9 +65,8 @@ auto windowStampNow() -> std::optional<std::uint64_t>
   }
   sg::counters::Plan plan(std::move(compiled.value()));
   auto minted = plan.recorder(2, sg::counters::ring);
-  if (!minted.has_value()) {
-    return std::nullopt;
-  }
+  SG_ASSERT(minted.has_value(),
+            "the ring recorder mints over the literal capacity (FR-025)");
   auto& recorder = minted.value();
   recorder.sample();
   return recorder.mColumns[(recorder.mHead - 1) & (recorder.mCapacity - 1)];
@@ -2058,11 +2059,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // before the bodies run and closes after they settle, so the
     // attempt's measured spans stand inside one `[start, end)` window
     // the split folds the kept gaps into. The stamps stand outside the
-    // measured spans the window covers.
+    // measured spans the window covers. The close stamp answers the
+    // same frozen catalog the open stamp read - registration closed at
+    // the boundary the first lookup opened (FR-009) - so the close's
+    // refusal stands only where the open's does, and the guard re-tests
+    // the open alone (K-8).
     const auto windowOpen = m_windowStamping ? windowStampNow() : std::nullopt;
     launchBodies(body, count);
     const auto windowClose = m_windowStamping ? windowStampNow() : std::nullopt;
-    if (m_windowStamping && windowOpen.has_value() && windowClose.has_value()) {
+    if (m_windowStamping && windowOpen.has_value()) {
       m_runWindows.push_back(sg::detail::TimedWindow {
           .start = *windowOpen,
           .end = *windowClose,
@@ -2202,7 +2207,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
     state.topUpWindow();
     const auto windowClose = m_windowStamping ? windowStampNow() : std::nullopt;
-    if (m_windowStamping && windowOpen.has_value() && windowClose.has_value()) {
+    // The close stamp answers the same frozen catalog the open stamp
+    // read - registration closed at the boundary the first lookup
+    // opened (FR-009) - so the close's refusal stands only where the
+    // open's does, and the guard re-tests the open alone (K-8).
+    if (m_windowStamping && windowOpen.has_value()) {
       m_runWindows.push_back(sg::detail::TimedWindow {
           .start = *windowOpen,
           .end = *windowClose,

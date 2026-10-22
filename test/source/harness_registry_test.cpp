@@ -64,6 +64,14 @@ auto bmViolating(sg::State& state) -> void
   }
 }
 
+// The probed benchmark never stands selected by a run: its handle only
+// carries the suite-level jitterProbe options the FR-015 test attaches.
+auto bmProbed(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
 sg::BenchmarkHandle violatingHandle;
 
 auto captureRun(int argc, char** argv) -> std::string
@@ -163,6 +171,24 @@ auto main(const int argc, char** argv) -> int
 
   auto boundedHandle = sg::registerBenchmark(&bmBounded, "bmBounded");
   boundedHandle.minTime(2'000'000);
+
+  // FR-015: the suite-level jitterProbe call states the probe options of
+  // the suite's next run, in place of any set an earlier call stated. The
+  // handle's benchmark never stands selected, so the options stay inert
+  // and the run's own probe machinery never starts over them.
+  auto probedHandle = sg::registerBenchmark(&bmProbed, "bmProbed");
+  check(probedHandle.name() == "bmProbed",
+        "the runtime registration names itself");
+  const sg::JitterProbeOptions firstOptions {};
+  check(&probedHandle.jitterProbe(firstOptions) == &probedHandle,
+        "the suite-level jitterProbe call returns the handle (FR-015)");
+  const sg::JitterProbeOptions secondOptions {
+      .mode = sg::JitterProbeMode::PRECHECK,
+      .gapCount = 2,
+      .precheckMs = 2,
+  };
+  check(&probedHandle.jitterProbe(secondOptions) == &probedHandle,
+        "a second jitterProbe call replaces the options in place (FR-015)");
 
   std::vector<std::string> listArguments = {"--list"};
   std::vector<char*> list;
