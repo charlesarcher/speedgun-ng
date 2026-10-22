@@ -76,7 +76,7 @@
             </li>
           </ul>
         </nav>
-<p><code><a href="#a114a628731865e7366a719caee3d784c" class="m-doc">path</a></code> is the canonical structured spelling; <code><a href="#a4e649b0326fe104034c7b7b03891f718" class="m-doc">alias</a></code> is the optional platform instance name, empty when the object has none (FR-002). String views must stay valid for the duration of the <code>enumerate</code> call; the system copies what it keeps.</p>
+<p><code><a href="#a114a628731865e7366a719caee3d784c" class="m-doc">path</a></code> is the canonical structured spelling; <code><a href="#a4e649b0326fe104034c7b7b03891f718" class="m-doc">alias</a></code> is the optional platform instance name, empty when the object has none (FR-002). String views must stay valid for the duration of the <code>enumerate</code> call; the system copies what it keeps. <code><a href="#aea0c5fda371a578b3501e33b87665896" class="m-doc">programmableCounters</a></code> is the count of programmable counters one context can hold open at once on this object&#x27;s event source, published by a source that can answer (FR-005).</p>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
@@ -98,6 +98,10 @@
             <dd><span></span></dd>
             <dt id="ac6549c30473bd82719819ae212a98bdb">
               std::vector&lt;<a href="structsg_1_1counters_1_1CatalogSeed.html" class="m-doc">CatalogSeed</a>&gt; <a href="#ac6549c30473bd82719819ae212a98bdb" class="m-doc-self">entries</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="aea0c5fda371a578b3501e33b87665896">
+              std::optional&lt;std::size_t&gt; <a href="#aea0c5fda371a578b3501e33b87665896" class="m-doc-self">programmableCounters</a>
             </dt>
             <dd><span></span></dd>
           </dl>

@@ -112,6 +112,10 @@
             </dt>
             <dd>The catalog description (FR-001).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aa720877667c569699160d3dea8697fdc" class="m-doc">programmableCounters</a>(</span><span class="m-doc-wrap">) const -&gt; std::optional&lt;std::size_t&gt; <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>How many programmable counters one context can hold open at once on this object&#x27;s event source (FR-005).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a831852a32297babdaefd4f1b2365f915" class="m-doc">parent</a>(</span><span class="m-doc-wrap">) const -&gt; const <a href="#acea690b104e93e76f9d1ce110d0dc2ae" class="m-doc">Object</a>* <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>The parent object, or null for the machine root and for a non-root object whose immediate ancestor path names no catalog object (FR-001).</dd>
@@ -175,6 +179,13 @@
             </h3>
             <p>The catalog description (FR-001).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aa720877667c569699160d3dea8697fdc"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::optional&lt;std::size_t&gt; sg::<wbr />counters::<wbr />Object::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aa720877667c569699160d3dea8697fdc" class="m-doc-self">programmableCounters</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>How many programmable counters one context can hold open at once on this object&#x27;s event source (FR-005).</p>
+<p>The answer is the value the object&#x27;s event source published at <code>enumerate</code>. No value is the answer of a source that cannot answer: such a source limits nothing for the counters it owns.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
           <section class="m-doc-details" id="a831852a32297babdaefd4f1b2365f915"><div>
             <h3>

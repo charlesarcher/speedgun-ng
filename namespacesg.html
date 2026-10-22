@@ -256,6 +256,12 @@
             </dt>
             <dd>The suffix a rendered counter value carries (FR-006).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#ace63b9843773c869141427f60bf0241e" class="m-doc">MetricMethod</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ace63b9843773c869141427f60bf0241eae1f2d5134ed2543d38a0de9751cf75d9" class="m-doc">AUTO</a>,
+              <a href="#ace63b9843773c869141427f60bf0241eaf2f16433878e271bec480390f9203d85" class="m-doc">PASSES</a>,
+              <a href="#ace63b9843773c869141427f60bf0241eaeb7de3ea4711bc5bbf10705a1a3947ef" class="m-doc">MULTIPLEX</a> }</span>
+            </dt>
+            <dd>How a run that carries metric columns collects its events (E-01, FR-023).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#abbd8f7ff85995b8aa370ea04cff6b3ac" class="m-doc">StatUnit</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#abbd8f7ff85995b8aa370ea04cff6b3aca346ff32eaa3c09983fb2ec057816d352" class="m-doc">TIME</a>,
               <a href="#abbd8f7ff85995b8aa370ea04cff6b3aca21ee69ba26b6e644d4dddce593855d84" class="m-doc">PERCENTAGE</a> }</span>
             </dt>
@@ -501,6 +507,14 @@
             </h3>
             <p>The suffix a rendered counter value carries (FR-006).</p>
 <p><code>K1000</code> renders with <code>k</code> and <code>K1024</code> with <code>Ki</code>. The console report prints raw numbers, so the base never divides the value a column prints: a counter that holds 64 prints 64 under either base, and the base is the suffix a human-readable renderer would carry (FR-009, FR-010).</p>
+          </div></section>
+          <section class="m-doc-details" id="ace63b9843773c869141427f60bf0241e"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#ace63b9843773c869141427f60bf0241e" class="m-doc-self">MetricMethod</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>How a run that carries metric columns collects its events (E-01, FR-023).</p>
+<p><code>AUTO</code> leaves the choice to the run, which settles it per the resolution table of data-model E-01: <code>PASSES</code> wherever a source the run needs publishes a programmable-counter limit, <code>MULTIPLEX</code> where none does. <code>PASSES</code> names the planner path, one pass per group of columns; <code>MULTIPLEX</code> names the single kernel-rotated plan. No fourth value exists, so a caller cannot ask for a method the run cannot settle to (FR-023, FR-024, research D-10).</p><p>The definition stands above <code><a href="structsg_1_1MetricValue.html" class="m-doc">MetricValue</a></code> and <code><a href="structsg_1_1BenchmarkResult.html" class="m-doc">BenchmarkResult</a></code>, the two types that publish the settled method (specs/024 E-07).</p>
           </div></section>
           <section class="m-doc-details" id="abbd8f7ff85995b8aa370ea04cff6b3ac"><div>
             <h3>

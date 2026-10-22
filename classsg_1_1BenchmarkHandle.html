@@ -156,6 +156,10 @@
             </dt>
             <dd>Turn the percentile output of this family on or off (specs/021 FR-019).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a686523da72d5f42d6d1308687ef05f0e" class="m-doc">metricMethod</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#ace63b9843773c869141427f60bf0241e" class="m-doc">MetricMethod</a> method) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
+            </dt>
+            <dd>Set the collection method this family asks for (FR-023, FR-025).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#abb34da9e1783f2172d9c6137215610e8" class="m-doc">displayAggregatesOnly</a>(</span><span class="m-doc-wrap">) -&gt; <a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp;</span>
             </dt>
             <dd>Restrict the console display of this family to its aggregate rows (FR-017).</dd>
@@ -375,6 +379,13 @@
             </h3>
             <p>Turn the percentile output of this family on or off (specs/021 FR-019).</p>
 <p>The call selects the output and carries no percentile list: the run reports the default points. The command line wins over the family, the way <code>--<a href="#a2d0c4c1f0f5ed38611093d0fe2666ef3" class="m-doc">repetitions</a></code> does (FR-020).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries the percentile selection of that family, and the returned handle is this handle (FR-019)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a686523da72d5f42d6d1308687ef05f0e"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a556dc5380ac3de43d15f1e6f807e5083" class="m-doc">BenchmarkHandle</a>&amp; sg::<wbr />BenchmarkHandle::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a686523da72d5f42d6d1308687ef05f0e" class="m-doc-self">metricMethod</a>(</span><span class="m-doc-wrap"><a href="namespacesg.html#ace63b9843773c869141427f60bf0241e" class="m-doc">MetricMethod</a> method)</span></span>
+            </h3>
+            <p>Set the collection method this family asks for (FR-023, FR-025).</p>
+<p>The request names a method and nothing else: no plan, no limit, no column list, and no timing change of its own. The <code>--metric-method</code> flag wins over it the way <code>--<a href="#a2d0c4c1f0f5ed38611093d0fe2666ef3" class="m-doc">repetitions</a></code> wins over <code><a href="#a2d0c4c1f0f5ed38611093d0fe2666ef3" class="m-doc">repetitions</a></code>, so one run settles one method for every family it runs, and a request of <code>AUTO</code> settles at run time per the table of data-model E-01 (FR-024, FR-025, research D-09).</p><aside class="m-note m-success"><h4>Precondition</h4><p>the handle names a registered entry and the run has not started for this benchmark (E-02)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the entry carries <code>method</code> as the request of that family, and the returned handle is this handle; the method the run settles to is published as <code><a href="structsg_1_1BenchmarkResult.html#a90aba6adba6f6e05be1a1b09a334c508" class="m-doc">BenchmarkResult::<wbr />metricMethod</a></code> whatever it settled to (FR-025)</p></aside>
           </div></section>
           <section class="m-doc-details" id="abb34da9e1783f2172d9c6137215610e8"><div>
             <h3>

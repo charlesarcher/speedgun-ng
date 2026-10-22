@@ -134,6 +134,11 @@
             </dt>
             <dd>Declares an object with a platform alias.</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a939175b534f1a53e9efc8ee2d72aa8b3" class="m-doc">setProgrammableCounters</a>(</span><span class="m-doc-wrap">std::string_view objectPath,
+              std::size_t limit) -&gt; <a href="#a27d6d26b674883a1f2b6e49860b2b940" class="m-doc">FakeProvider</a>&amp;</span>
+            </dt>
+            <dd>Scripts the programmable-counter limit one object answers (FR-006).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a7363bb846601ee98a1450913cfa648d0" class="m-doc">addCounter</a>(</span><span class="m-doc-wrap">std::string_view objectPath,
               std::string_view name,
               std::string_view unit,
@@ -206,6 +211,14 @@
             </h3>
             <p>Declares an object with a platform alias.</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p><code>path</code> is canonical; <code>alias</code> is a platform instance name.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>Enumeration will report the alias, and both spellings resolve to the same object.</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a939175b534f1a53e9efc8ee2d72aa8b3"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a27d6d26b674883a1f2b6e49860b2b940" class="m-doc">FakeProvider</a>&amp; sg::<wbr />counters::<wbr />FakeProvider::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a939175b534f1a53e9efc8ee2d72aa8b3" class="m-doc-self">setProgrammableCounters</a>(</span><span class="m-doc-wrap">std::string_view objectPath,
+              std::size_t limit)</span></span>
+            </h3>
+            <p>Scripts the programmable-counter limit one object answers (FR-006).</p>
+<p>The limit is how many programmable counters one context can hold open at once on this object&#x27;s event source, which the catalog cursor <code><a href="classsg_1_1counters_1_1Object.html#aa720877667c569699160d3dea8697fdc" class="m-doc">Object::<wbr />programmableCounters</a></code> answers once the system has opened. An object nobody scripts answers nothing, the way a source that cannot answer does. The scripted limit reaches the pass planner and nothing else: the fake still opens any leaf set it is asked to, because splitting is the planner&#x27;s job.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>limit &gt; 0</code> and <code>objectPath</code> names an object this fake owns, and the call precedes <code>System::open</code> as every scripted fake fact does. A path the fake owns no object for traps: a script that names nothing would silently test nothing.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>Enumeration publishes that limit for the named object.</p></aside>
           </div></section>
           <section class="m-doc-details" id="a7363bb846601ee98a1450913cfa648d0"><div>
             <h3>
