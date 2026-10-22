@@ -81,6 +81,9 @@ status 2 (FR-081). The message form follows the percentile list refusal at
 | `--hunt=@blank.txt` | `--hunt: '@blank.txt' holds no catalog address` |
 | `--hunt=r4a03` or `--hunt=cpu/r4a03` | `--hunt: 'r4a03' is a raw event code; --hunt takes catalog addresses` |
 | `--hunt-norm=ipc` | `--hunt-norm: expected instr, cycle or iter, got 'ipc'` |
+| `--hunt-norm=cycle` with no countable cycles anchor | `--hunt-norm: 'cycle' has no countable anchor on this host` (D-13) |
+| `--hunt-norm=instr` with no countable instructions anchor | `--hunt-norm: 'instr' has no countable anchor on this host` (D-13) |
+| a hunt plan over a device publishing a limit below 3 | `hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3` |
 | `--hunt-rank=sensitivity` | `--hunt-rank: expected rate or cv, got 'sensitivity'` |
 | `--hunt-top=0` | `--hunt-top: expected 1 to 10000, got '0'` |
 | `--hunt-top=10001` | `--hunt-top: expected 1 to 10000, got '10001'` |
@@ -94,8 +97,9 @@ status 2 (FR-081). The message form follows the percentile list refusal at
 | `--hunt` with `--compare=a.json,b.json` | `--hunt cannot combine with --compare` |
 
 A hunt option given twice keeps the last value, the way every other option in
-the table behaves. A hunt option with no `--hunt` is a refusal naming the option
-it needs: `--hunt-top: needs --hunt`.
+the table behaves. A hunt option with no `--hunt` keeps the hunt off: the value
+parses, the run behaves like a run with no `--hunt`, and a scripted value
+round-trips exactly like `--hunt=none` does (spec Assumptions).
 
 `--hunt` combined with `--list`, `--catalog` or `--topology` is not a refusal:
 those modes print and stop before any run, so the hunt plan never forms and no
@@ -109,7 +113,7 @@ which are the rows the report prints.
 | Input | Behaviour |
 |---|---|
 | `--hunt` with `--metric-method=multiplex` | legal (D-16): every event is multiplexed, the plan line prints the method word `MULTIPLEX`, every row carries the word `multiplexed`, and the document writes the `method` value `MULTIPLEX` (D-19) |
-| `--hunt` with `--dry-run` | legal: the plan line prints and the run exits before measuring |
+| `--hunt` with `--dry-run` | legal: the plan line prints, every pass runs one iteration (`runner.cpp:2202,2301`), and each column reaches the table with one sample, a `cv` of `0.0` and no rank, because an unrepeated event carries none (I-5) |
 | `--hunt=none` with anything | legal: the run is identical to the same command with no `--hunt` and no `--hunt=none` |
 
 ## Conflict check
@@ -146,13 +150,13 @@ hunt: plan summary events=40/42 passes=14 spend=1184000ns budget=120s
 
 | Rule | Detail |
 |---|---|
-| Ranked table size | at most `--hunt-top` ranked rows, then the excluded tail with `rank=-` and a `mark=` of `noisy`, `unrepeated` or `beyond-top` (D-7; plan decision D-14) |
+| Ranked table size | at most `--hunt-top` ranked rows, then the excluded tail with `rank=-` and a `mark=` of `noisy`, `unrepeated` or `beyond-top` (D-7; PD-14) |
 | `MULTIPLEX` | a run whose plan settled `MULTIPLEX` prints the method word `MULTIPLEX` in the plan line and the word `multiplexed` on every row (D-19) |
-| No anchor | the plan line carries ` normalized=iter`, and the rate column is labelled `iter=` (D-13) |
+| No anchor | the plan line carries ` normalized=iter`, and the rate column is labelled `iter=`; the silent fallback belongs to the unset norm, an explicit word refuses first (D-13) |
 | No estimate | `estimate=not available`, because the estimate is calibration data and a hunt run can reach the plan before any calibration answered (FR-012) |
-| Host that refuses everything | the plan line, no ranked row, the skipped list with one line per refused event, and the summary reading `events=0/N` (D-12) |
+| Host that refuses everything | the plan line, no ranked row, the skipped list with one line per refused event, and the summary reading `events=0/N`, the plan line carrying `events=0` (D-12, FR-041) |
 | No hunt | no `hunt:` line at all, and no `hunt` key in the document (FR-052, I-8) |
-| `--dry-run` | composes with the hunt: the plan line prints and the run exits before measuring, so the ranked table, the excluded tail and the summary have no samples to print |
+| `--dry-run` | composes with the hunt: the pass loop runs one iteration per pass (`runner.cpp:2202,2301`), so every column prints with one sample, a `cv` of `0.0` and the `unrepeated` mark |
 
 ## Option table test
 
@@ -177,7 +181,7 @@ pattern `SG_SCHEMA_PATH` uses at
 | Selection forms: `all`, `none`, list, pattern, `@file`, dedup across a list and a file | `harness_hunt_cli_test.cpp`, `harness_hunt_plan_test.cpp` |
 | The conflict check for `--counter`, `--metric` and `--compare`, in both command-line orders | `harness_hunt_cli_test.cpp` |
 | `--hunt` with `--metric-method=multiplex` runs every event multiplexed and discloses it in the plan line, the rows and the document | `harness_hunt_cli_test.cpp` |
-| `--dry-run` with `--hunt` prints the plan line and exits before measuring | `harness_hunt_cli_test.cpp` |
+| `--dry-run` with `--hunt` prints the plan line and one unrepeated row per column | `harness_hunt_cli_test.cpp` |
 | `--hunt=none` runs exactly like a run with no `--hunt`: no `hunt:` line and no `hunt` key | `harness_hunt_cli_test.cpp`, `harness_hunt_report_test.cpp` |
 | Console order, the eight line shapes, and a two-stage run whose stage-1-only address still reaches the table and the document | `test/source/harness_hunt_report_test.cpp` |
 | Unique option names and values | `test/source/harness_cli_table_test.cpp` |

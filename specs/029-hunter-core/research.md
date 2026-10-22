@@ -9,7 +9,7 @@ names a plan decision and appears in the index of [plan.md](plan.md). Section
 numbers quote the spec headings. Line numbers stand unused, so the anchors here
 do not move when the spec grows.
 
-## D-01 Shape of the feature
+## PD-01 Shape of the feature
 
 **Decision**: hunt is a harness column family. `EventCatalog` selects the
 events, `planHunt` turns each one into a column, `runHunt` drives the existing
@@ -47,7 +47,7 @@ hold by construction: hunt reads nothing that the spine does not already read.
   for the same reason). It would also move a public ABI in the counters archive
   for a harness concern.
 
-## D-02 Core device rule
+## PD-02 Core device rule
 
 **Decision**: a device takes part in `--hunt=all` when its device part is
 exactly `cpu`, `cpu_core` or `cpu_atom`, or when its device part starts with the
@@ -76,7 +76,7 @@ unchanged (spec Scope).
   would pull a future `cpu_uncore`-shaped part into the core scan and cannot be
   tested against the exact set the audit measured.
 
-## D-03 Discovery walk
+## PD-03 Discovery walk
 
 **Decision**: discovery walks `System::local().object("machine")` and then its
 `children()`, the same shape `catalog.cpp:81-88` uses for `--catalog`, and
@@ -99,7 +99,7 @@ one host behaviour for a provider that adds objects.
   formulas. Raw events come from the catalog, the only event-name source D-4
   names.
 
-## D-04 Anchors
+## PD-04 Anchors
 
 **Decision**: the two anchors are `cpu-cycles` and `instructions` on the device
 that owns the event, address-composed the same way as any other event
@@ -124,7 +124,7 @@ and invents no alias (D-13, spec PC-8).
   this tree names a second cycle event that is present everywhere, and a
   per-vendor anchor is a table generator, which D-4 defers.
 
-## D-05 Statistics reuse
+## PD-05 Statistics reuse
 
 **Decision**: move `statisticsOf` out of the anonymous namespace of
 `runner.cpp:49-82` into `source/harness/detail/statistics.hpp` with its
@@ -159,7 +159,7 @@ named internal decision unit (`detail/pass_plan.hpp` with `pass_plan.cpp`,
   header the harness compiles five times, and the house keeps bodies in `.cpp`
   files beside their internal headers.
 
-## D-06 Seed order
+## PD-06 Seed order
 
 **Decision**: one in-repo shuffle: a 64-bit linear congruential generator
 seeded from `--hunt-seed`, driving a Fisher-Yates walk over the deduplicated
@@ -171,7 +171,7 @@ here fixes the permutation for every compiler and every standard library
 revision, which is what the CI matrix needs: the `test` job runs GCC and Clang,
 and a comparison test that depends on a library's shuffle implementation would
 be a cross-compiler flake waiting to appear. The order only decides pass
-composition: the ranked table is ordered by the rank key of D-07, so the shuffle
+composition: the ranked table is ordered by the rank key of PD-07, so the shuffle
 spreads correlated events across passes without touching the printed order.
 
 **Alternatives considered**:
@@ -186,7 +186,7 @@ spreads correlated events across passes without touching the printed order.
 - Catalog order untouched under a seed. Rejected: it defeats D-9's purpose,
   which is spreading correlated events across multiplexing groups.
 
-## D-07 Rank inputs
+## PD-07 Rank inputs
 
 **Decision**: `rankEvents` is a pure function over the per-event sample list.
 Per event it takes the per-pass normalized rates, calls `statisticsOf` for the
@@ -215,7 +215,7 @@ pass-spread warning, where the print is the one rounding.
 - A median-of-medians rank. Rejected: it disagrees with the printed aggregate,
   and AC-3 pins the equality.
 
-## D-08 Normalization
+## PD-08 Normalization
 
 **Decision**: per pass, before the median. `instr` divides the event value by
 the `instructions` count of the same pass and multiplies by 1000; `cycle` uses
@@ -239,7 +239,7 @@ measured.
 - Percent-of-peak normalization. Rejected: it is not the formula D-6 names and it
   makes the value host-relative, so two hosts would print incomparable numbers.
 
-## D-09 Scripted group refusal
+## PD-09 Scripted group refusal
 
 **Decision**: one fluent parameter on the exported `FakeProvider`:
 `setGroupLeafLimit(std::string_view objectPath, std::size_t leaves) -> FakeProvider&`.
@@ -248,7 +248,7 @@ refuses a leaf set that carries more than `leaves` leaves on that object, with a
 refusal message naming the object and the count. An object with no scripted
 limit keeps today's behaviour.
 
-**Rationale**: D-18 requires one scripted refusal that makes the group of one
+**Rationale**: PD-09 requires one scripted refusal that makes the group of one
 pass fail while the same event alone opens, and PC-3 measured that the existing
 seam cannot express it: `FakeScript` holds `points`, `tailDelta`, `deltaSeed`,
 `gaps`, `addCounter`, `setPoints` and `setGapActions`, `open` refuses an
@@ -267,7 +267,7 @@ which is one of the two reasons the archive `SOVERSION` moves to 4 (hard rule
   test to how many opens the runner performs, so any change in the pass loop
   breaks the test for a reason unrelated to the behaviour it pins.
 - A per-address refusal list. Rejected: it cannot make the wide group fail and
-  the narrow group succeed at once, which is exactly the shape D-18 needs.
+  the narrow group succeed at once, which is exactly the shape PD-09 needs.
 - A `std::function` refusal predicate. Rejected: a callback member in an
   exported class is a wider ABI move than a size, it complicates the DBC
   contract of `open`, and hard rule 6 already pushes contract predicates away
@@ -277,7 +277,7 @@ which is one of the two reasons the archive `SOVERSION` moves to 4 (hard rule
   cannot reach `open` from a harness-level test at all, which is the wall PC-3
   measured.
 
-## D-10 Hunt data location
+## PD-10 Hunt data location
 
 **Decision**: two public records. `hunt::EntryHunt` becomes
 `std::optional<hunt::EntryHunt> hunt` on `BenchmarkResult`, and
@@ -306,17 +306,18 @@ pattern at `detail/pass_plan.hpp:27`, so no include cycle appears.
   with specs/027 and specs/028 for no gain; one nested record is one line at the
   merge.
 
-## D-11 Seat error route
+## PD-11 Seat error route
 
 **Decision**: `seatPass` keeps returning `std::expected<void, std::string>`. In
 the pass loop, the seat result of a pass after the first is handled by a branch:
 a run whose plan carries hunt columns marks the failed pass for the retry of
-D-12, and a run with no hunt columns keeps the `SG_INVARIANT` at
+PD-12, and a run with no hunt columns keeps the `SG_INVARIANT` at
 `runner.cpp:2287-2292` exactly as master writes it.
 
 **Rationale**: PC-9 measured the consequence: the invariant at that site fires
 when a group-open refusal follows a successful pre-loop seat, and under the
-default `observe` contract semantic a violation reaches the default response
+default `enforce` contract semantic (the default value 2 of `SG_CONTRACTS_SEMANTIC`
+at `dbc.hpp:10-12`) a violation reaches the default response
 that writes the record to `stderr` and then calls `std::abort`
 (`include/speedgun-ng/dbc.hpp:128-135,168,213`), so the run would die and skip
 no event. The invariant's stated assumption is that the frozen catalog
@@ -337,7 +338,7 @@ AC-6's byte-identity promise and the specs/024 contract, whose
   list is the duplicated decision X.2 forbids; the branch sits at the one call
   site that already holds the result.
 
-## D-12 Retry inside the pass loop
+## PD-12 Retry inside the pass loop
 
 **Decision**: the pass loop reads a growable pass-column list. A seat failure
 for pass `p` removes `p`'s events from the plan, appends one pass per event of
@@ -368,7 +369,7 @@ new skip channel into the fold.
   the schedulable set, which the audit shows can be narrower than the published
   general-purpose count.
 
-## D-13 Two-stage run
+## PD-13 Two-stage run
 
 **Decision**: one `Runner::run` call per stage over the same instance: stage 1
 at one repetition over the full plan, stage 2 at `--hunt-repeats` over the
@@ -399,7 +400,7 @@ readable, and keeps `report_shape` shape checks single-valued.
 - Stage 1 skipped when the plan already fits `--hunt-repeats`. Rejected: D-2
   fixes the two-stage shape, and stage 1 is what selects the top `3N` set.
 
-## D-14 Single-sample events
+## PD-14 Single-sample events
 
 **Decision**: an event with one sample reports `cv` as `0.0` and cannot enter
 the top N; it prints in the marked tail with `rank=-` and a mark naming it
@@ -421,11 +422,11 @@ needs an ordering of those samples, and rate is the only figure they carry.
 - Treating one sample as clean CV 0 and letting it rank. Rejected: a single
   sample would beat a measured event, so the top N would fill with unmeasured
   events on a tight budget.
-- Excluding single-sample events from `hunt.events` entirely. Rejected: D-17
+- Excluding single-sample events from `hunt.events` entirely. Rejected: PD-14
   names the array as the place the plan's columns are recorded, and the
   two-stage plan guarantees such events exist.
 
-## D-15 Console order
+## PD-15 Console order
 
 **Decision**: the plan prints before the run. After the benchmark tables the
 console prints, in order: the ranked table (top N), the marked tail of excluded
@@ -433,7 +434,7 @@ events, the skipped list, and the plan summary line with the budget spend. All
 hunt lines go to stdout with the `hunt:` prefix, and invalid-option refusals go
 to stderr.
 
-**Rationale**: D-20 fixes the order and the stream. `printResult` in
+**Rationale**: PD-15 fixes the order and the stream. `printResult` in
 `report.cpp:410` owns the per-benchmark tables and `printPassDisclosure` at
 line 251 is the precedent for a disclosure printed by the same path, so the
 hunt printers join `report.cpp` and reuse `availabilityName` (line 36) and
@@ -445,12 +446,12 @@ hunt printers join `report.cpp` and reuse `availabilityName` (line 36) and
   that live in `report.cpp`, and exporting them to a new file would widen the
   internal surface for no separation gain. `report.cpp` is a shared file with
   specs/027 either way; the hunt edits append functions at the end.
-- Plan printed after the run only. Rejected: D-20 requires the pre-run plan so a
+- Plan printed after the run only. Rejected: PD-15 requires the pre-run plan so a
   reader sees the passes before the rows scroll past.
-- Skipped list on stderr. Rejected: it is reported output, D-20 names stdout, and
+- Skipped list on stderr. Rejected: it is reported output, PD-15 names stdout, and
   `example_run` reads stdout to check that a declared outcome printed.
 
-## D-16 Refusal point
+## PD-16 Refusal point
 
 **Decision**: option values are validated and stored at the scan. Selection
 expansion (list, glob, `@file`, `all`) runs after the scan and before the first
@@ -476,7 +477,7 @@ is what a CI host without PMU access needs to test the same line.
   prints its own line and exits, the way `rejectPercentileList` at
   `cli.cpp:73-81` does for the percentile list.
 
-## D-17 Option wiring
+## PD-17 Option wiring
 
 **Decision**: eight named constants in `cli.cpp` at values 270 to 277:
 `kHuntOption` 270, `kHuntNormOption` 271, `kHuntRankOption` 272,
@@ -511,7 +512,7 @@ conflict check runs after the scan, where the settled `RunOptions` shows whether
   at `cli.cpp:343-345`, which keeps the scan long-only so no later option can
   reach a switch arm by claiming a letter.
 
-## D-18 Option table test
+## PD-18 Option table test
 
 **Decision**: `test/source/harness_cli_table_test.cpp` reads the source of
 `cli.cpp` through a compiled-in `SG_CLI_SOURCE` path, parses the one
@@ -543,7 +544,7 @@ alternative the fixture files use.
   that a compiler accepts must be reported by a build-time check. A run that
   happens to select the wrong arm cannot report it.
 
-## D-19 Docs example ownership
+## PD-19 Docs example ownership
 
 **Decision**: `example/docs/hunt_rank.cpp` owns the "Hunter mode" section
 through its marked regions, registers benchmarks that print rows on every host,
@@ -577,7 +578,7 @@ pattern for the shape check, and `report_shape.py:123` binds the golden by
   gate can compare, and the shape comparison is what tolerates the digits that
   do move.
 
-## D-20 Version, ABI and schema reservations with the rebase rules
+## PD-20 Version, ABI and schema reservations with the rebase rules
 
 **Decision**: `VERSION 0.19.0` planned past the `0.17.0` specs/027 and `0.18.0`
 specs/028 reservations; harness `SOVERSION` 10 to 11 for the public hunt calls
@@ -601,7 +602,7 @@ closed with its own `x-order` and `required` (lines 28-51, ending at
 `spreadWarning`), so an entry key that is absent makes a document invalid and
 the reader's optional-field path cannot rescue it (spec PC-5). That is the
 reason `hunt` joins `x-order` and `properties` and stays out of `required`, the
-exception D-17 records and hard rule 11's sentence about adding a required key
+exception PD-20 records and hard rule 11's sentence about adding a required key
 does not cover.
 
 **Alternatives considered**:

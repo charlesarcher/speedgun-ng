@@ -19,9 +19,9 @@ Public class in `hunt.hpp`; one instance per hunt run; no clock, no counter read
 | Field or call | Type | Meaning |
 |---|---|---|
 | `expand` | `auto expand(std::string_view selection) -> std::expected<void, Error>` | `all`, one glob pattern, or a catalog address list whose entries are separated by commas, newlines or both (`@file` arrives as its address lines under the same rule); stores the expanded addresses in catalog order |
-| `addresses` | `auto addresses() const -> const std::vector<std::string>&` | the deduplicated selection in catalog order after the seed shuffle |
+| `addresses` | `auto addresses() const -> const std::vector<std::string>&` | the deduplicated selection in catalog order; `split` applies the seed shuffle to it |
 | `split` | `auto split(std::uint64_t seed) const -> std::pair<std::vector<CatalogAddress>, std::vector<SkippedEvent>>` | the countable addresses that become columns, and the entries refused at discovery with their kind |
-| `devicePart` | `auto devicePart(std::string_view address) -> std::string_view` | the part before the last `/` (`splitAddress` in `runner.cpp:41-49` is the existing shape) |
+| `devicePart` | `auto devicePart(std::string_view address) -> std::string_view` | the part before the last `/` (`splitAddress` in `runner.cpp:39-47` is the existing shape) |
 | `isCoreDevice` | `auto isCoreDevice(std::string_view address) const -> bool` | D-1's rule: device part `cpu`, `cpu_core`, `cpu_atom`, or a device part starting with `armv8_` |
 
 **Rules the entity owns**
@@ -59,7 +59,7 @@ it before this record exists.
 | Field | Type | Default | Range |
 |---|---|---|---|
 | `selection` | `std::string` | `"all"` | `all`, list, pattern, or the joined text of an `@file` |
-| `norm` | `HuntNorm` | `INSTR` | the three of E-02 |
+| `norm` | `std::optional<HuntNorm>` | empty, which plans `instr` | the three of E-02; a set value marks the word explicit (D-13) |
 | `rank` | `HuntRank` | `RATE` | the two of E-02 |
 | `top` | `std::size_t` | `20` | 1 to 10000 |
 | `noise` | `double` | `10.0` | percent CV threshold, greater than zero |
@@ -109,8 +109,8 @@ the reason. Stage 1 never shrinks and no stage keeps a reduced repeat count.
 **Limit rule**: a device that publishes `L` admits `max(L - 2, 0)` events per
 pass; the three-leaf shape of one event with both anchors is the smallest plan
 and fits at `L` of 3 or more. `L` below 3 with both anchors present means no
-event fits: the plan reports the cause in its printed reason and the run prints
-an empty result, because the anchors alone leave no slot. A device with no
+event fits: `planHunt` answers a recoverable error naming the device and the
+limit, the caller prints one line and the run exits 2 (FR-081). A device with no
 published limit leaves `sourceLimits` empty for it, `planPasses` returns an
 empty plan and `settleMethod` settles `MULTIPLEX` (spec PC-2); the plan then
 carries one pass listing every column, `method` reads `MULTIPLEX`, and every
@@ -137,7 +137,7 @@ repetition of one column of one pass.
 |---|---|---|
 | `address` | `std::string` | the event address the rows belong to |
 | `samples` | `std::vector<HuntSample>` | the collected rows, in pass then stage order |
-| `skipped` | `std::optional<SkippedKind>` | set when the address produced no value, the kind E-06 names |
+| `skipped` | `std::optional<SkippedKind>` | set when the open of the address was refused or one of its windows disclosed a non-`COUNTABLE` availability, the kind E-06 names |
 
 A sample with a disclosure stands out of the rate list, the way a gap
 repetition stands out of `Statistics::samples` today.
@@ -151,7 +151,7 @@ and `runHunt` fill them; `BenchmarkResult::hunt` holds the result.
 |---|---|---|
 | `address` | `std::string` | the event address |
 | `rate` | `double` | the median of the per-pass normalized rates, in the unit E-08 states |
-| `cv` | `double` | the coefficient of variation as a percent: one hundred times the `coefficientOfVariation` of `statisticsOf`; `0.0` for a single sample (plan decision D-14) |
+| `cv` | `double` | the coefficient of variation as a percent: one hundred times the `coefficientOfVariation` of `statisticsOf`; `0.0` for a single sample (PD-14) |
 | `samples` | `std::size_t` | the number of clean samples that produced it |
 | `noisy` | `bool` | `cv` above `options.noise` |
 | `repeated` | `bool` | false when the event has one sample |
@@ -170,14 +170,15 @@ and `runHunt` fill them; `BenchmarkResult::hunt` holds the result.
 | `passCount` | `std::size_t` | the pass count the run measured |
 | `top` | `std::size_t` | the `--hunt-top` value the run used |
 | `entries` | `std::vector<RankedEvent>` | every planned column, ranked ones first; an event only stage 1 measured holds a record built from its stage 1 samples |
-| `skipped` | `std::vector<SkippedEvent>` | every event that produced no value |
-| `retriedPasses` | `std::size_t` | passes that fell back to one event per pass (D-18) |
+| `skipped` | `std::vector<SkippedEvent>` | every event whose open was refused or whose window disclosed a non-`COUNTABLE` availability (D-10) |
+| `retriedPasses` | `std::size_t` | passes that fell back to one event per pass (PD-12) |
 
 `enum class SkippedKind : std::uint8_t` holds `PERMISSION_BLOCKED`,
 `NOT_ENCODABLE`, `ABSENT`, `SCOPE_REFUSED` and `GAP`: the five `Availability`
 values a skipped entry can carry (`counters_core.hpp:88-95`), through one named
 mapping function (D-10, FR-021, FR-050). `GAP` names the mid-run window
-disclosure (`counters_measurement.hpp:180`). A group-open refusal that still
+disclosure (`counters_measurement.hpp:406-413`, disclosed by `fold` and
+`foldPairs`). A group-open refusal that still
 fails on the solo retry maps its error the way the counters discovery probe maps
 an open refusal (`provider.cpp:774-786`, spec PC-1): `EINVAL` or `EOPNOTSUPP`
 answers `NOT_ENCODABLE`, and `EACCES` or `EPERM` answers `PERMISSION_BLOCKED`
@@ -186,7 +187,7 @@ prints for an `Availability` (`report.cpp:36 availabilityName`).
 
 ## E-07 Printed records
 
-The console shapes, in the order D-20 fixes. All hunt lines go to stdout behind
+The console shapes, in the order PD-15 fixes. All hunt lines go to stdout behind
 the `hunt:` prefix.
 
 | Line | Shape |
@@ -267,7 +268,7 @@ Its contract moves with it: `SG_ASSERT(!values.empty(), ...)` and
 `SG_ASSERT(n > 1, ...)` stay as the two guards `runner.cpp:52-55` and
 `runner.cpp:74-76` hold today, so every caller keeps the empty-list and
 single-value guard at its own call site, and `rankEvents` keeps one sample out of
-the call (plan decision D-14).
+the call (PD-14).
 
 | `Statistics` field | Spelling at `benchmark.hpp:261-272` |
 |---|---|
@@ -378,13 +379,13 @@ own kind and its own refusal (hard rule 7).
 | `RunHunt::passes`, `plannedAddresses.size()`, `ranEvents`, `stageTwoEvents` | `hunt.passes`, `planned_events`, `ran_events`, `stage_two_events` | integer | no |
 | `RunHunt::method` | `hunt.method` | string | no |
 | `RunHunt::estimateNs` | `hunt.estimate_ns` | integer, or null | no |
-| `EntryHunt` | per-entry `hunt` | object | no, D-17 records the exception |
+| `EntryHunt` | per-entry `hunt` | object | no, PD-20 records the exception |
 | `EntryHunt::entries` | `hunt.entries` | array of objects | no |
 | `RankedEvent::address`, `rate`, `cv`, `noisy`, `multiplexed`, `rank` | the same words | string, number, number, boolean, boolean, integer or null | no |
 | `EntryHunt::skipped` | `hunt.skipped` | array of `{address, kind, stage}` | no |
 | `EntryHunt::method`, `passCount`, `top`, `retriedPasses` | `hunt.method`, `pass_count`, `top`, `retried_passes` | string, integer, integer, integer | no |
 
-`RankedEvent::samples` and `repeated` stay in memory: D-17 names the six entry
+`RankedEvent::samples` and `repeated` stay in memory: PD-20 names the six entry
 keys, and the console derives the `unrepeated` mark from `samples`. The full key
 rule with its `x-order` positions is in
 [contracts/report-schema-key.md](contracts/report-schema-key.md).

@@ -33,6 +33,7 @@ plain values.
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "speedgun-ng/counters_core.hpp"
@@ -70,7 +71,7 @@ struct HuntBudget
 struct HuntOptions
 {
   std::string selection = "all";
-  HuntNorm norm = HuntNorm::INSTR;
+  std::optional<HuntNorm> norm;
   HuntRank rank = HuntRank::RATE;
   std::size_t top = 20;
   double noise = 10.0;
@@ -125,7 +126,7 @@ public:
 | `expand` | `\pre` `selection` holds `all`, one glob pattern, or a catalog address list whose entries are separated by commas, newlines or both; the text of an `@file` arrives as its address lines under the same separator rule. `\post` on success `addresses()` holds the selected catalog addresses in catalog order, deduplicated by address, for `all` and the pattern in catalog-scan order and for a list in the order of the text; an unknown address, a pattern that matches nothing, an empty address line and a raw event code shaped `r[0-9a-fA-F]+` are recoverable errors naming the value (D-10, D-11); no raw code resolves on any host (spec PC-6) |
 | `addresses` | `\pre` `expand` returned no error. `\post` no address repeats, and every address has the spelling `Object::path() + "/" + entry.name` the catalog composes (spec PC-1, PC-8) |
 | `split` | `\pre` `expand` returned no error. `\post` the first member holds one entry per address whose `Availability` is `COUNTABLE` in the order the seed shuffle of `--hunt-seed` gave, and the second member holds one `SkippedEvent` per refused entry carrying that entry's `Availability` as its kind; no address stands in both members (I-4) |
-| `devicePart` | `\pre` none. `\post` the answer is the text before the last `/`, or the whole address when it holds no `/`; `splitAddress` at `runner.cpp:41-49` answers the same way for the same spelling |
+| `devicePart` | `\pre` none. `\post` the answer is the text before the last `/`, or the whole address when it holds no `/`; `splitAddress` at `runner.cpp:39-47` answers the same way for the same spelling |
 | `isCoreDevice` | `\pre` none. `\post` true for the device part `cpu`, `cpu_core` and `cpu_atom` (`source/counters/linux_pmu/counter_limits.cpp:284-295` matches the three and `source/counters/linux_pmu/provider.cpp:352,447-448` routes them, spec PC-1) and for a device part that starts with `armv8_` (the prefix rule of D-1; new hunt-side code with no library helper); false for every other device, uncore included (D-1) |
 | `\invariant` | `addresses()` is empty until `expand` succeeds |
 
@@ -190,9 +191,16 @@ the two-stage estimate does not fit; `estimateNs` holds
 or stands empty; `normalized` is false exactly when `anchorsPerPass` is zero.
 
 `\post` (refusal) an event whose device publishes a limit below 3 with both
-anchors present, an `events` list that is empty, and a `source` index outside
-`sourceLimits` are each a recoverable error naming the cause. The caller prints
-one line naming the value and exits 2 (FR-081).
+anchors present, a `norm` set to `instr` or `cycle` whose anchor of that name
+stands refused (D-13), and a `source` index outside `sourceLimits` are each a
+recoverable error naming the cause. The caller prints one line naming the value
+and exits 2 (FR-081).
+
+An empty `events` list is not a refusal: it is the shape of a host whose
+discovery refused every event, and `planHunt` then answers zero columns, empty
+`passes`, `anchorsPerPass` zero and `normalized` false, so the run prints the
+plan line, the skipped list and the `events=0/N` summary and exits 0 (D-12,
+FR-041).
 
 `\invariant` `passes` covers every column index exactly once, so no column
 stands in two passes.
@@ -278,7 +286,8 @@ struct EntryHunt
 `Availability` values a skipped entry carries
 (`counters_core.hpp:88-95`: `PERMISSION_BLOCKED`, `NOT_ENCODABLE`, `ABSENT`,
 `SCOPE_REFUSED`, `GAP`) through one named mapping function (D-10, FR-021,
-FR-050). A group-open refusal that still fails on the solo retry maps its error
+FR-050; the window gap state is disclosed at `counters_measurement.hpp:406-413`
+through `fold` and `foldPairs`). A group-open refusal that still fails on the solo retry maps its error
 the way the counters discovery probe maps an open refusal
 (`provider.cpp:774-786`, spec PC-1): `EINVAL` or `EOPNOTSUPP` answers
 `NOT_ENCODABLE`, and `EACCES` or `EPERM` answers `PERMISSION_BLOCKED` (D-18).
@@ -287,8 +296,8 @@ The console prints every kind with the spelling
 
 | Name | Contract |
 |---|---|
-| `rankEvents` `\pre` | every address in `collected` with no `skipped` kind holds at least one sample free of a disclosure, the guard `statisticsOf` carries at `runner.cpp:52-55`; an address with exactly one such sample is reported and never handed to the summary call, so the deviation assert at `runner.cpp:74-76` stays out of reach (plan decision D-14) |
-| `rankEvents` `\post` | one `RankedEvent` per address in `collected` and one `SkippedEvent` per address that carries a `skipped` kind, no address in both (I-4); `rate` is the median of the per-pass normalized rates and `cv` is the coefficient of variation, both from the single `statisticsOf` call over those rates, so `cv` is one hundred times the `cv=` column ratio of the same samples (I-6); `noisy` is the comparison of the unrounded `cv` against `options.noise`; at most `options.top` entries carry a rank, those ranks are `1` to `k` with no gap, and an entry that is noisy or unrepeated carries none (I-5); `multiplexed` states the settled method; entries come first in rank order and then in address order |
+| `rankEvents` `\pre` | every address in `collected` with no `skipped` kind holds at least one sample free of a disclosure, the guard `statisticsOf` carries at `runner.cpp:52-55`; an address with exactly one such sample is reported and never handed to the summary call, so the deviation assert at `runner.cpp:74-76` stays out of reach (PD-14) |
+| `rankEvents` `\post` | one `RankedEvent` per address in `collected` and one `SkippedEvent` per address that carries a `skipped` kind; an address stands at most once in each list, and an address that measured and gapped stands in both (I-4, D-10); `rate` is the median of the per-pass normalized rates and `cv` is the coefficient of variation, both from the single `statisticsOf` call over those rates, so `cv` is one hundred times the `cv=` column ratio of the same samples (I-6); `noisy` is the comparison of the unrounded `cv` against `options.noise`; at most `options.top` entries carry a rank, those ranks are `1` to `k` with no gap, and an entry that is noisy or unrepeated carries none (I-5); `multiplexed` states the settled method; entries come first in rank order and then in address order |
 | `rankEvents` `\post` (exclusion) | a sample whose anchor read zero for its pass contributes no rate for that pass, and a sample with a disclosure contributes none at all, the way a gap repetition stands out of `Statistics::samples` today |
 | `rankEvents` `\invariant` | no address repeats in `entries`, and no address repeats in `skipped` |
 | `RankedEvent` | `\pre` none: the record is data. `\post` `cv` is `0.0` when `samples` is one, and `rank` is empty when `noisy` is true or `repeated` is false |
@@ -339,7 +348,7 @@ std::optional<hunt::RunHunt> hunt;    // in ReportData (benchmark.hpp:624-641)
 `\pre` none. `\post` both stand empty for a run that carried no hunt, which is
 the fact the printers, the writer and the reader test (I-8); `loadReport` fills
 both when a document carries the keys, so a hunt document round-trips without a
-private side table (research D-10). `RunHunt` fields are in
+private side table (PD-10). `RunHunt` fields are in
 [data-model.md](../data-model.md) E-08. Every record this contract declares is
 public in `hunt.hpp`; the two records the run path keeps to itself,
 `detail::StageSplit` and `detail::RetriedPass`, live in
@@ -369,10 +378,11 @@ group-open refusal without it (spec PC-3, D-18).
 |---|---|
 | One column per event with both anchors of its device; the limit rows 1, 3, 4, 6, 8 and no limit; the 200 events at limit 6 row of AC-1 | `test/source/harness_hunt_plan_test.cpp` |
 | Discovery order, dedup by address, the `isCoreDevice` rule including `armv8_`, the four discovery refusal kinds | `harness_hunt_plan_test.cpp`, `harness_hunt_collect_test.cpp` |
-| Budget parse rows and the stage rule of D-2 | `harness_hunt_plan_test.cpp`, `harness_hunt_cli_test.cpp` |
+| Budget parse rows and the stage rule of D-2, the explicit-norm refusal of D-13, the below-3 device-limit refusal | `harness_hunt_plan_test.cpp`, `harness_hunt_cli_test.cpp` |
 | Rate, `cv`, noise threshold, rank order, tie break by address, the single-sample rule, the factor-one-hundred scaling between a hunt `cv` and the printed `cv=` column | `harness_hunt_rank_test.cpp` |
 | A budgeted run whose stage 2 measures fewer columns still publishes an entry and a rank-table row for a stage-1-only address | `harness_hunt_report_test.cpp` |
 | Retry inside the loop, `retriedPasses`, the exit-0 promise, the threaded window counts with no sleep | `harness_hunt_collect_test.cpp` |
+| Nineteen clean windows plus one gapped window stand in `entries` and in `skipped` with kind `GAP` (D-10, FR-022) | `harness_hunt_collect_test.cpp` |
 | Both records empty for a run with no `--hunt` | `harness_hunt_json_test.cpp`, `harness_hunt_report_test.cpp` |
 | The scripted group refusal, wide set refused and narrow set admitted | `test/source/counters_fake_test.cpp` |
 | Contract line pairing for every name above | the `dbc-gate` build target |

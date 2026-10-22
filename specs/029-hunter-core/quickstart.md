@@ -69,8 +69,11 @@ Expected, one case per row of the plan decision table in
   same device, and no third column shape
 - limit 6 with 200 events gives 50 passes, 4 events in each, both anchors
   claimed once per pass, and `planPasses` returns no error for the width
-- limit 3 gives one event per pass; limit 1 or 2 with both anchors present reports
-  the no-room cause and the run prints an empty result
+- limit 3 gives one event per pass; limit 1 or 2 with both anchors present prints
+  one refusal line naming the device and the limit and exits 2 (FR-081)
+- `--hunt-norm=cycle` on a host whose cycles anchor stands refused prints one
+  refusal line and exits 2, while the unset norm falls back to `iter` in the
+  open (D-13)
 - no published limit settles `MULTIPLEX`, names every event `multiplexed` and
   prints the plan line with the word `MULTIPLEX`
 - a high-rate event ranks above a flat one, a flat event whose CV is above the
