@@ -22,9 +22,8 @@ from [contracts/hunt-cli.md](contracts/hunt-cli.md),
   that answers `/proc/sys/kernel/perf_event_paranoid` above 2 runs the whole test
   plan (AC-5); only the two recorded AC-10 hardware runs need a counting host
 - No network at build, test or run time
-- A fresh clone carries no `dev` preset and no `CMakeUserPresets.json`; the daily
-  loop runs on `ci-rocky`, and a machine that has its own `CMakeUserPresets.json`
-  may use its `dev` preset instead
+- A fresh clone carries no `CMakeUserPresets.json`; `ci-rocky` and `ci-ubuntu`
+  are the only two build routes this guide uses
 
 ## Build
 
@@ -50,9 +49,9 @@ ctest --test-dir build --output-on-failure -R 'hunt|cli_table' -j 2
 Expected: `harness_hunt_plan_test`, `harness_hunt_rank_test`,
 `harness_hunt_collect_test`, `harness_hunt_cli_test`,
 `harness_hunt_report_test`, `harness_hunt_json_test` and
-`harness_cli_table_test` all pass. `harness_cli_table_test` reports unique option
-names and unique values, values 270 to 277 claimed by the hunt rows, and the
-planted clash in the fixture twin of the table.
+`harness_cli_table_test` all pass. `harness_cli_table_test` reports option names and option values unique across
+the whole table, every hunt value inside 270 to 279, the block the lane
+reserves, and the planted clash in the fixture twin of the table.
 
 ## Walkthrough: US1 plan, collect, rank
 
@@ -78,9 +77,13 @@ Expected, one case per row of the plan decision table in
   threshold prints `noisy`, stays out of the top N and stays in the JSON
 - the skipped list carries `permission-blocked`, `not-encodable`, `absent` and
   `scope-refused`, each from a scripted `Availability`
+- `isCoreDevice` answers true for a fixture device whose path starts with
+  `armv8_`, and `--hunt=all` selects that device's entries (D-1)
 - `setGroupLeafLimit` refuses the wide pass, the run retries its events one at a
   time inside the same pass loop, `retriedPasses` counts the pass, an event that
-  still refuses joins the skipped list as `group-refused`, and the run exits 0
+  still refuses joins the skipped list with the kind its error maps to (an
+  `EINVAL` or `EOPNOTSUPP` refusal answers `not-encodable`, an `EACCES` or
+  `EPERM` refusal answers `permission-blocked`), and the run exits 0
 - two contexts: the window-open count per pass read from the scripted provider
   equals one per context per pass, with no sleep and no clock read
 
@@ -92,9 +95,10 @@ ctest --test-dir build -R 'harness_hunt_rank_test' -V
 
 Expected: `instr` divides by the `instructions` count of the same pass, `cycle`
 by `cpu-cycles`, `iter` reports the raw per-iteration median, and the median and
-CV a case reports equal the `statisticsOf` answer for the same sample list, which
-is the printed `cv=` convention. The single-sample case reports `cv` `0.0`, no
-rank, and the `unrepeated` mark.
+CV a case reports come from the shared `statisticsOf` call on the same sample
+list: a reported `cv` is exactly one hundred times the printed `cv=` ratio
+(I-6). The single-sample case reports `cv` `0.0`, no rank, and the `unrepeated`
+mark.
 
 ## Walkthrough: US2 budget and printed plan
 
@@ -107,15 +111,21 @@ Expected for the fixed seed, the fixed 200-event catalog and the fixed estimate:
 
 ```text
 hunt: plan events=200 passes=50 method=PASSES estimate=96000000ns budget=8p
-hunt: plan budget cut stage=2 reason=fits-budget
+hunt: plan budget cut stage=2 reason=over-budget
 ```
 
-`8p` keeps stage 1 and cuts stage 2; `120s` reduces the stage-2 repeats and
-keeps at least one; a budget under one pass of one repeat drops stage 2 and
-names `one-pass-minimum`; a budget of `120` with no suffix, `0s`, a negative
-count, `--hunt-repeats=0`, `--hunt-top=10001`, `--hunt-rank=sensitivity` and
-`--hunt=cpu/r4a03` each print one line naming the value and exit 2. No estimate
-prints `estimate=not available`. The plan line prints before the first row.
+Calibration answers 1,920,000 ns per pass, and the plan line states the stage-1
+figure: 1,920,000 x 50 passes x 1 repeat = 96,000,000 ns, whole numbers
+throughout (D-2). The 8-pass budget cannot fit a stage-2 sweep on top of the
+50-pass stage-1 sweep, so the plan drops stage 2 entirely and the run prints one
+`budget cut` line naming the reason. Stage 1 never shrinks: all 200 events still
+run at one repeat (D-2, FR-013). A budget that fits both stages prints no cut
+line: `60p` hosts the 50-pass stage 1 plus a 12-event stage-2 set that takes 3
+passes at `--hunt-repeats` 3, nine more pass runs, 59 in total. A budget of
+`120` with no suffix, `0s`, a negative count, `--hunt-repeats=0`,
+`--hunt-top=10001`, `--hunt-rank=sensitivity` and `--hunt=cpu/r4a03` each print
+one line naming the value and exit 2. No estimate prints
+`estimate=not available`. The plan line prints before the first row.
 
 ## Walkthrough: US3 JSON objects and schema
 
@@ -132,7 +142,7 @@ including a `rank` that is null and a `budget` that is null; one test per refuse
 reader code fails the load with the pointer named; a document without hunt keys
 loads with both hunt members empty; a run with no `--hunt` writes bytes
 identical to the master capture apart from `schemaVersion`, prints the same
-console, and exits the same (FR-040, AC-8).
+console, and exits the same (FR-052, AC-6).
 
 `docs/schema/report-v1.json` gains both keys in `x-order` and `properties` and in
 neither `required`, and `kSchemaVersion` reads `1.4`. These four files name the
@@ -168,9 +178,13 @@ rows and prints its skipped list from the scripted refusal on every host;
 ## Coverage and sanitizers
 
 ```bash
-cmake --preset coverage
-cmake --build build --target coverage
+cmake --preset=ci-coverage
+cmake --build build/coverage --target coverage
 ```
+
+The preset is master's `ci-coverage`, unchanged, and its tree is
+`build/coverage`. This feature adds no preset and touches no workflow file
+(hard rule 14).
 
 Expected: line and branch coverage of 100 percent with no exclusion marker and
 no waiver, and `dbc-gate` at 100 percent. Confirm no marker entered the new
@@ -191,12 +205,12 @@ joins the case (hard rule 1, FR-092).
 | Failing check | Remediation |
 |---|---|
 | `harness_hunt_plan_test` limit row wrong | the column shape is not one event plus the two anchors of the same device: read `planHunt` against the `ColumnLeaves` contract at `detail/pass_plan.hpp:41-107`, never a copy of the planner |
-| a hunt CV differs from the printed `cv=` column | `rankEvents` computed a median or deviation itself; it must call the shared `statisticsOf` (`detail/statistics.hpp`) and nothing else |
-| `harness_cli_table_test` reports a clash | an option name or value repeats: the hunt rows are 270 to 277 and 278 and 279 stay free |
+| A hunt CV stops standing at one hundred times the printed `cv=` column | `rankEvents` computed a median or deviation itself; it must call the shared `statisticsOf` (`detail/statistics.hpp`) and nothing else |
+| `harness_cli_table_test` reports a clash | an option name or value repeats: the eight hunt constants take 270 to 277 and the lane reserves 270 to 279 (D-22) |
 | `checkReport` rejects a hunt document | a `hunt` key stands outside `x-order`, or stands in a closed hunt node's document and not in its `properties` |
 | the byte-identity of a non-hunt run moved | the seat route changed for a run with no hunt columns: `SG_INVARIANT` at `runner.cpp:2287-2292` still serves that route, and the hunt branch is taken only when the plan carries hunt columns |
 | `example_drift` fails on the option table | an option row is missing from the main page: `example_drift.py:681-693` compares every README row with every row of `cli.cpp`'s table |
-| `example_run` fails on `docs_hunt_rank` | the example printed no row, or its skipped list moved: the scripted refusal, not a host fact, owns the output |
+| `example_run` fails on `docs_hunt_rank` | the example printed no row, or its skipped list moved: the scripted refusal owns the output and no host fact does |
 | the AC-1 or AC-2 hardware record misses | read `perf list` and the device's `programmableCounters` answer on the host, and read the plan line's `method=` word: an `armv8_` device publishes no limit and plans `MULTIPLEX` |
 
 ## Evidence to record
@@ -236,7 +250,8 @@ joins the case (hard rule 1, FR-092).
   from `Object::counters()`, and composes an address as `Object::path()` plus `/`
   plus the entry name. No hunt code reads sysfs or CPUID (D-23).
 - The AC-1 `L - 2` shape is reachable on hardware only through a device that
-  publishes a limit: `limitForDevice` at `linux_pmu/rules.cpp:873` answers for
+  publishes a limit: `limitForDevice` at
+  `source/counters/linux_pmu/counter_limits.cpp:288` answers for
   `cpu`, `cpu_core` and `cpu_atom`, so an `armv8_` device publishes none and
   plans `MULTIPLEX`. The scripted limit is the covering check for the shape.
 - The two other lanes share `cli.cpp`, `runner.cpp`, `benchmark.hpp`,
