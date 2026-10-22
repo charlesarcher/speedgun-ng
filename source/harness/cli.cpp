@@ -1176,6 +1176,13 @@ auto speedgunMain(int argc, char** argv) -> int
                                        options.dryRun);
       if (hunted.has_value()) {
         result.hunt = std::move(*hunted);
+        // specs/029 FR-031, PD-10: the run-level record `runHunt` assembled
+        // for this hunt rides the report data the document writer reads, so
+        // the root `hunt` object stands in the document of a hunt run. The
+        // record is a copy: the console printer reads the same record
+        // after this line. A run with no hunt leaves the member empty
+        // and the document keeps its former bytes (I-8, FR-052).
+        report.hunt = detail::huntRunRecord();
         // D-19: a hunt run states its method outright, so the method of the
         // forced collection rides the result the document writer reads even
         // where no counter column of its own settled one.

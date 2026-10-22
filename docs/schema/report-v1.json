@@ -5,6 +5,7 @@
   "description": "The document the harness writes for one batch (specs/023 FR-008). Key order is normative and stands in x-order; the harness checker reads this file and compares the key set, the key order and the value kinds of every written document against it.",
   "type": "object",
   "x-order": ["schemaVersion", "speedgun", "run", "jitter", "benchmarks"],
+  "x-order": ["schemaVersion", "speedgun", "run", "benchmarks", "hunt"],
   "required": ["schemaVersion", "speedgun", "benchmarks"],
   "additionalProperties": true,
   "properties": {
@@ -179,7 +180,8 @@
           "metricMethod",
           "passCount",
           "passSpread",
-          "spreadWarning"
+          "spreadWarning",
+          "hunt"
         ],
         "required": [
           "name",
@@ -598,8 +600,153 @@
           },
           "passCount": { "type": "integer" },
           "passSpread": { "type": ["number", "null"] },
-          "spreadWarning": { "type": "boolean" }
+          "spreadWarning": { "type": "boolean" },
+          "hunt": {
+            "type": "object",
+            "x-order": [
+              "method",
+              "pass_count",
+              "top",
+              "retried_passes",
+              "entries",
+              "skipped"
+            ],
+            "required": [
+              "method",
+              "pass_count",
+              "top",
+              "retried_passes",
+              "entries",
+              "skipped"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "method": { "type": "string" },
+              "pass_count": { "type": "integer" },
+              "top": { "type": "integer" },
+              "retried_passes": { "type": "integer" },
+              "entries": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": [
+                    "address",
+                    "rate",
+                    "cv",
+                    "noisy",
+                    "multiplexed",
+                    "rank"
+                  ],
+                  "required": [
+                    "address",
+                    "rate",
+                    "cv",
+                    "noisy",
+                    "multiplexed",
+                    "rank"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "address": { "type": "string" },
+                    "rate": { "type": "number" },
+                    "cv": { "type": "number" },
+                    "noisy": { "type": "boolean" },
+                    "multiplexed": { "type": "boolean" },
+                    "rank": { "type": ["integer", "null"] }
+                  }
+                }
+              },
+              "skipped": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": ["address", "kind", "stage"],
+                  "required": ["address", "kind", "stage"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "address": { "type": "string" },
+                    "kind": { "type": "string" },
+                    "stage": { "type": ["integer", "null"] }
+                  }
+                }
+              }
+            }
+          }
         }
+      }
+    },
+    "hunt": {
+      "type": "object",
+      "x-order": [
+        "selection",
+        "norm",
+        "rank",
+        "top",
+        "noisePercent",
+        "repeats",
+        "seed",
+        "budget",
+        "passes",
+        "method",
+        "events",
+        "stages",
+        "estimate_ns",
+        "planned_events",
+        "ran_events",
+        "stage_two_events"
+      ],
+      "required": [
+        "selection",
+        "norm",
+        "rank",
+        "top",
+        "noisePercent",
+        "repeats",
+        "seed",
+        "budget",
+        "passes",
+        "method",
+        "events",
+        "stages",
+        "estimate_ns",
+        "planned_events",
+        "ran_events",
+        "stage_two_events"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "selection": { "type": "string" },
+        "norm": { "type": "string" },
+        "rank": { "type": "string" },
+        "top": { "type": "integer" },
+        "noisePercent": { "type": "number" },
+        "repeats": { "type": "integer" },
+        "seed": { "type": "integer" },
+        "budget": { "type": ["string", "null"] },
+        "passes": { "type": "integer" },
+        "method": { "type": "string" },
+        "events": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "x-order": ["first", "count", "repeats"],
+            "required": ["first", "count", "repeats"],
+            "additionalProperties": false,
+            "properties": {
+              "first": { "type": "integer" },
+              "count": { "type": "integer" },
+              "repeats": { "type": "integer" }
+            }
+          }
+        },
+        "estimate_ns": { "type": ["integer", "null"] },
+        "planned_events": { "type": "integer" },
+        "ran_events": { "type": "integer" },
+        "stage_two_events": { "type": "integer" }
       }
     }
   }

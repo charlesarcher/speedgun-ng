@@ -1489,3 +1489,215 @@ The block prints one field line per stats field, in this order, one value per pr
 | `droppedGaps` | count | The gaps a full buffer dropped; zero when the buffer never filled |
 
 The block ends with the disclosure lines: the probe cpus, the loop period and the threshold the run used, one `kept` and `dropped` line per cpu, and the kept-gaps-only rule the split reads.
+
+## Hunter mode
+
+Hunter mode puts a wide catalog event set on one benchmark and ranks the events
+by how far each one stands out of the run. `--hunt` turns it on and selects the
+events, and seven `--hunt-*` options shape the measurement. The hunt drives the
+pass loop described above, so it opens no second counter path. Its lines print
+on stdout under the `hunt:` prefix, after the benchmark tables of the run. A
+value outside the range its option states prints one line naming it on stderr
+and ends the run with status 2.
+
+A run with no `--hunt` prints no `hunt:` line and writes no `hunt` key. Its
+console bytes and its document are the bytes they were before hunter mode
+existed.
+
+### Selecting events
+
+`--hunt` reads its value in the attached form: `--hunt=all`. A space between
+the option and the word leaves `all` as a positional argument and selects
+nothing.
+
+| Form | What it selects |
+| --- | --- |
+| `--hunt` | every catalog entry of every core device |
+| `--hunt=none` | nothing, and the run is the run with no `--hunt` |
+| `--hunt=cpu/instructions_retired_any,cpu/l2_lines_out.any_core` | the listed addresses, in the order of the text |
+| `--hunt=uncore/*` | one glob over the catalog addresses, reaching any device |
+| `--hunt=@events.txt` | the addresses a file holds |
+
+A glob matches `*` to any run of characters including none, `?` to one
+character, and every other character to itself. The match is case-sensitive.
+Addresses separate at a comma and at a newline, in the option value and in a
+`@file` alike, and blank lines and `#` comments of a file are ignored. One
+address that arrives twice, through a list and a file included, is one column.
+
+A raw event code such as `r4a03` is refused wherever it stands: in a list, in a
+pattern, or on a line of a file. The shape check runs before the catalog is
+read, so one text gives the same refusal on a host that counts nothing. A
+device that publishes fewer than three programmable counters cannot carry a
+hunt pass beside its two anchors, and the run is refused before any pass is
+planned.
+
+### The eight options
+
+| Option | Default | Accepted value |
+| --- | --- | --- |
+| `--hunt` | off | `all`, `none`, an address list, one glob, or `@path` |
+| `--hunt-norm` | `instr` | `instr`, `cycle`, `iter` |
+| `--hunt-rank` | `rate` | `rate`, `cv` |
+| `--hunt-top` | `20` | 1 to 10000 ranked events |
+| `--hunt-noise` | `10` | a percentage above 0 |
+| `--hunt-repeats` | `3` | 1 to 1000 hunt repetitions |
+| `--hunt-budget` | none | `<n>s` seconds or `<n>p` passes, `<n>` above 0 |
+| `--hunt-seed` | `0` | any whole number a 64-bit unsigned holds |
+
+`--hunt-norm` unset ranks by instructions. `--hunt-seed` at `0` keeps the
+catalog order, and any other value shuffles the planned order the same way on
+every host. `--hunt-repeats` sets the repeats of the hunt stages, and
+`--repetitions` keeps its own meaning for the repetitions of the report rows. A
+hunt option given twice keeps its last value, and a hunt option beside no
+`--hunt` leaves the hunt off. Beside `--list`, `--catalog` or `--topology` the
+hunt forms no plan, because those modes print and stop.
+
+### The refusal lines
+
+Each line below is the whole of what the run prints on stderr, with the quoted
+text being the value the option carried. The run then ends with status 2.
+
+```text
+--hunt: 'cpu/nope' is not a catalog address
+--hunt: pattern 'no/such*' matches no catalog address
+--hunt: '@missing.txt' cannot be opened
+--hunt: '@blank.txt' holds no catalog address
+--hunt: 'r4a03' is a raw event code; --hunt takes catalog addresses
+--hunt-norm: expected instr, cycle or iter, got 'ipc'
+--hunt-rank: expected rate or cv, got 'sensitivity'
+--hunt-top: expected 1 to 10000, got '0'
+--hunt-noise: expected a percentage above 0, got '0'
+--hunt-repeats: expected 1 to 1000, got '1001'
+--hunt-budget: expected <n>s or <n>p, got '120'
+--hunt-budget: expected a count above 0, got '0p'
+--hunt-seed: expected a whole number, got 'abc'
+hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3
+--hunt cannot combine with --counter
+--hunt cannot combine with --metric
+--hunt cannot combine with --compare
+```
+
+### The hunt lines
+
+The plan line prints once before the run, and the lines below it print after
+the benchmark tables.
+
+```text
+hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s
+hunt: rank 1 cpu/instructions_retired_any instr=1042.300 cv=1.20
+hunt: rank 2 cpu/l2_lines_out.any_core instr=6.910 cv=2.05 multiplexed
+hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
+hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 mark=unrepeated
+hunt: skipped cpu/l1_dc_misses permission-blocked stage=2
+hunt: skipped armv8_pmuv3/cycle not-encodable stage=2
+hunt: plan summary events=40/42 passes=14 spend=1184000ns budget=120s
+```
+
+`events=` counts the planned columns and `passes=` the passes of the plan.
+`method=` names the settled collection method, and `estimate=` carries the
+plan's own figure in nanoseconds. That figure is calibration data, so a run
+that reaches the plan before any calibration answers prints
+`estimate=not available`. The rank lines carry the rate under the label of the
+norm in force, `instr=`, `cycle=` or `iter=`. A skipped line names the kind of
+the refusal in the words the `--catalog` listing prints, and adds `stage=` when
+a stage lost the event. The summary denominator counts the planned events plus
+the refusals that kept an event out of the plan, and its numerator counts the
+events that produced at least one usable sample.
+
+A host that refuses every event prints the plan line, the skipped list and the
+summary with `events=0/N`, and the run ends with status 0. A group open that
+refuses mid-run retries its events one at a time; an event that still refuses
+joins the skipped list, and the run still ends with status 0. Beside
+`--dry-run` every pass runs one iteration, so each column reaches the table
+with one sample, a `cv` of `0.00` and `mark=unrepeated`.
+
+### The norm and the rank
+
+`--hunt-norm=instr` divides an event count by the instructions of the same
+window, `cycle` by the cpu-cycles of the same window, and `iter` by the
+iteration count of the attempt. A rate reads per thousand of its denominator,
+and per iteration under `iter`. A window that disclosed a gap contributes no
+rate, and so does a window whose denominator read zero.
+
+Each anchor rides every pass of its own device, so a device that lacks one of
+the two anchors leaves the whole plan to measure under `iter`. The plan line
+then carries `normalized=iter`, and the rate column reads `iter=`. An explicit
+word whose anchor discovery refused for the hunt is a refusal, and it ends the
+run with status 1:
+
+```text
+hunt: the hunt norm cycle names the anchor 'cpu/cpu-cycles', which discovery refused for the hunt of 'cpu/l2_lines_out.any_core'
+```
+
+`rate` is the median of the per-window rates and `cv` is the coefficient of
+variation of those rates, as a percentage. `--hunt-rank=rate` orders the table
+by `rate` descending and `--hunt-rank=cv` by `cv` ascending, with the catalog
+address as the tie break. At most `--hunt-top` rows carry a rank, numbered from
+1 with no gap. Every other row prints `rank -` and a `mark=`: `noisy` for a
+`cv` above the `--hunt-noise` percent, `unrepeated` for an event with one
+sample, `beyond-top` for a rankable event the size of the table left out. One
+sample carries no deviation, so it is never `noisy`.
+
+### The budget
+
+With no `--hunt-budget` one stage measures every planned event at
+`--hunt-repeats` repetitions. A budget splits the run into two: a first stage
+over every planned event at one repetition, then a second stage over the first
+`3 x --hunt-top` planned events, or over the whole plan if it holds fewer, at
+`--hunt-repeats`. A budgeted run measures everything once and the top set
+again. The budget prints in the unit it was given, `budget=120s` or `budget=8p`,
+on the plan line and on the summary, and the summary adds the time the hunt
+spent.
+
+### The stated collection method
+
+The plan settles its method from the published counter limits: `PASSES` if a
+device it needs publishes one, `MULTIPLEX` if no needed device publishes one.
+`--metric-method` states a method outright, and the stated word outranks that
+settlement. The plan hands that word to the pass loop, the plan line prints
+the stated word in `method=`, every rank row carries the word `multiplexed` if
+the settled method is `MULTIPLEX`, and both `method` keys of the document carry
+the stated word. `--hunt` with `--metric-method=multiplex`
+therefore measures every event in one oversubscribed window and says so in all
+three places.
+
+### The two hunt objects
+
+Every benchmark entry of a hunt run carries a `hunt` object as its last key,
+with `method`, `pass_count`, `top`, `retried_passes`, `entries` and `skipped`.
+`method` is the settled method, `pass_count` counts the passes the run measured
+with the passes a retry appended included, `top` is the `--hunt-top` value, and
+`retried_passes` counts the passes whose group open refused. Every item of
+`entries` carries `address`, `rate`, `cv`, `noisy`, `multiplexed` and `rank`,
+the ranked events first in rank order and the excluded ones after them in
+address order, each `rank` of an excluded event standing `null`. Every item of
+`skipped` carries `address`, `kind` and `stage`, and `stage` stands `null`
+unless a stage lost that event. A run with no hunt writes no `hunt` key in any
+entry.
+
+The document closes with one run-level `hunt` object after the `benchmarks`
+array, holding `selection`, `norm`, `rank`, `top`, `noisePercent`, `repeats`,
+`seed`, `budget`, `passes`, `method`, `events`, `stages`, `estimate_ns`,
+`planned_events`, `ran_events` and `stage_two_events`. `selection` repeats the text the option carried, and a `@file` selection
+arrives here as the deduplicated address lines it read. `events` holds every planned address in plan order,
+and `stages` holds one item per stage that ran, each with `first`, `count` and
+`repeats`. `budget` stands `null` with no budget and `estimate_ns` stands
+`null` with no calibration figure. `ran_events` counts the events that produced
+a usable sample and `stage_two_events` the events the second stage re-measured.
+
+The words these keys take are the words the options take: `method` is `AUTO`,
+`PASSES` or `MULTIPLEX`, `norm` is `instr`, `cycle` or `iter`, the ranking key
+`rank` is `rate` or `cv`, and a `kind` is `permission-blocked`,
+`not-encodable`, `absent`, `scope-refused` or `gap`.
+
+### The library surface
+
+`speedgun-ng/hunt.hpp` carries the surface the options drive.
+`runHunt(benchmark, options, calibrationNsPerPass)` plans, measures and ranks
+one hunt for a registered benchmark. `planHunt(events, limits, anchors, options,
+calibrationNsPerPass)` answers the plan over the events, the per-device limits
+and the anchors, and `rankEvents(collected, options)` ranks samples the caller
+already holds. None of the three opens a window: every time and count figure in
+their records comes from an argument. `EventCatalog` expands a selection text
+against the catalog and splits it into the events to plan and the events
+discovery refused.
