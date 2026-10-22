@@ -119,8 +119,7 @@ auto keepOrDrop(ProbeCpuState& state,
 // breaks the contract the assertions own.
 auto openSystemRecorder(
     std::optional<counters::Plan>& plan,
-    std::optional<counters::RecorderHandle<counters::Ring>>& recorder)
-    -> void
+    std::optional<counters::RecorderHandle<counters::Ring>>& recorder) -> void
 {
   auto& sys = counters::System::local();
   const auto machine = sys.object("machine");
@@ -132,8 +131,7 @@ auto openSystemRecorder(
   counters::Expression<counters::Dim<0, 1>> expression(leaf.value());
   auto compiled = counters::detail::compileCore(
       sys, counters::Target {}, {&expression.core});
-  SG_ASSERT(compiled.has_value(),
-            "the one-leaf tsc plan compiles (R-02)");
+  SG_ASSERT(compiled.has_value(), "the one-leaf tsc plan compiles (R-02)");
   plan.emplace(std::move(compiled.value()));
   auto minted = plan->recorder(2, counters::ring);
   SG_ASSERT(minted.has_value(),
@@ -266,6 +264,11 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // FR-014, R-04).
   session->latch->arriveAndWait();
 
+  // The wait stands outside the record: the alongside phase compares
+  // each stamp with the one read here, behind the latch, so the time
+  // the item spent waiting on the latch names no gap (FR-006, R-04).
+  last = readStamp();
+
   // The alongside phase: the loop spans the batch, from the first
   // read after the phases to the read of the stop flag, one reader
   // call, one comparison, one record store and one stop-flag read per
@@ -333,9 +336,12 @@ auto JitterProbe::start() -> void
     return;
   }
 
-  // The availability gate stands here; the idle resolution and the
-  // overlap check ran in the entry point before this start (R-07), so
-  // an empty list arrives only when no probe stands to run.
+  // The availability gate stands here; the entry point resolved the
+  // cpu list before this start - the precheck mode carries the planned
+  // cpus, the alongside and both modes the free cpus the idle
+  // resolution yields (R-07) - and stopped the batch on an empty one,
+  // so an empty list arrives only from a probe armed outside the
+  // batch's entry point.
   if (m_options.cpus.empty()) {
     return;
   }
