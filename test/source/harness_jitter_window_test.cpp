@@ -96,17 +96,23 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
 
 // The jump the gate body scripts into the shared tsc series' tail: one
 // read stands a kept gap above the risen threshold, and every read
-// after it jumps again until the body restores the tick (R-02, FR-001).
+// after it jumps again until the run ends, because the window close
+// must read the same tail the kept records ride (R-02, FR-001).
 inline constexpr std::uint64_t kSeriesJump = 1000000;
 
 // The gate benchmark: the body scripts the jump into the shared series
-// inside its own timed window and restores the one-tick tail before the
-// window closes, so no kept gap lands after this body's windows (R-02,
-// FR-039). The two waits stand the jump after the probe's measurement
-// pass and count the alongside reads the jump's tail carries: the
-// runner's own reads inside one attempt are the chunk samples the
-// chunk plan bounds, so the margins below stand above them, and the
-// probe's reads are certain.
+// inside its own timed window and leaves the jumped tail in place, so
+// the window close reads the tail the kept records ride and stands
+// above every kept stamp by construction (R-02, FR-039). A one-tick
+// restore before the close resets the shared cursor the close edge
+// reads. When no probe read lands between the restore and the close
+// read, the close forks from the reset cursor and stands below every
+// kept stamp. The scenarios that follow reset the series before their
+// first run. The two waits stand the jump after the probe's
+// measurement pass and count the alongside reads the jump's tail
+// carries: the runner's own reads inside one attempt are the chunk
+// samples the chunk plan bounds, so the margins below stand above
+// them, and the probe's reads are certain.
 auto bmGate(sg::State& state) -> void
 {
   auto& provider = scriptedProvider();
@@ -139,7 +145,9 @@ auto bmGate(sg::State& state) -> void
       fail("the scripted jump never reached the probe's reads (FR-039)");
     }
   }
-  provider.setPoints("machine", "tsc", {}, 1);
+  // The tail stays jumped past the window close: the close edge reads
+  // the same tail, so the close stamp stands above every kept stamp
+  // this window holds (FR-039, R-04).
   for (auto _ : state) {
   }
 }
@@ -541,10 +549,10 @@ auto main() -> int
   // places the kept gaps of one probe cpu into the entry whose windows
   // contain their stamps. The gate benchmark scripts a jump into the
   // shared tsc series inside its own timed window, so the probe cpu's
-  // next read stands a kept gap above the risen threshold, the window
-  // close reads the same series after the jump, and the one-tick restore
-  // lands before the close, so no kept gap stands after the gate's
-  // windows (R-02, R-04). Observe red before T023 to T025 exist: the
+  // next read stands a kept gap above the risen threshold, and the
+  // window close reads the same jumped tail the kept records ride, so
+  // the close stamp stands above every kept record's stamp (R-02,
+  // R-04). Observe red before T023 to T025 exist: the
   // per-entry key stands null and no attribution line prints.
   {
     auto& provider = scriptedProvider();
