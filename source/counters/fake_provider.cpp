@@ -195,6 +195,21 @@ auto FakeProvider::setProgrammableCounters(
   return *this;
 }
 
+auto FakeProvider::setGroupLeafLimit(const std::string_view objectPath,
+                                     const std::size_t leaves) -> FakeProvider&
+{
+  const std::string path(objectPath);
+  SG_REQUIRE(m_objects.count(path) > 0,
+             "set_group_leaf_limit scripts a count for an object the fake "
+             "owns (D-18, PD-09)");
+  auto& object = m_objects.at(path);
+  object.groupLeafLimit = leaves;
+  SG_ENSURE(object.groupLeafLimit.value_or(0) == leaves,
+            "the scripted count is the one open refuses a wider set by "
+            "(D-18, PD-09)");
+  return *this;
+}
+
 auto FakeProvider::addCounter(const std::string_view objectPath,
                               const std::string_view name,
                               const std::string_view unit,
@@ -281,6 +296,30 @@ void FakeProvider::enumerate(ObjectSink& sink) const
 std::unique_ptr<WindowReader> FakeProvider::open(const LeafSet& leaves,
                                                  const Target& /*where*/)
 {
+  // The scripted group refusal: a leaf set that carries more leaves of a
+  // scripted object than its scripted count opens no window, and the
+  // message names the object path and the leaf count the caller asked
+  // for (D-18, PD-09). An
+  // object nobody scripts is skipped whole, so it keeps refusing an
+  // undeclared object or counter only.
+  for (const auto& [path, data] : m_objects) {
+    if (!data.groupLeafLimit) {
+      continue;
+    }
+    std::size_t carried = 0;
+    for (const auto& address : leaves.addresses) {
+      if (splitLeafAddress(address).first == path) {
+        ++carried;
+      }
+    }
+    if (carried > *data.groupLeafLimit) {
+      const std::scoped_lock seedGuard {scriptLock()};
+      m_lastRefusal = "fake group open refuses " + path + " with "
+          + std::to_string(carried) + " leaves over its scripted count of "
+          + std::to_string(*data.groupLeafLimit);
+      return nullptr;
+    }
+  }
   auto window = std::make_unique<detail::FakeWindow>();
   window->owner = this;
   window->disclosureColumn = leaves.disclosureColumn;
@@ -306,6 +345,12 @@ std::unique_ptr<WindowReader> FakeProvider::open(const LeafSet& leaves,
     });
   }
   return window;
+}
+
+auto FakeProvider::lastRefusalMessage() const -> std::string
+{
+  const std::scoped_lock seedGuard {scriptLock()};
+  return m_lastRefusal;
 }
 
 auto FakeProvider::setGapActions(const std::string_view objectPath,
