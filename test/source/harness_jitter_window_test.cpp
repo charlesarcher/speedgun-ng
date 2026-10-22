@@ -71,14 +71,18 @@ auto bmQuiet(sg::State& state) -> void
 // every field of the fold lands at the empty kept set's zeros.
 auto scriptedProvider() -> sg::counters::FakeProvider&
 {
-  static auto* provider = [] {
+  static auto* provider = []
+  {
     auto owned = std::make_unique<sg::counters::FakeProvider>();
     auto& ref = *owned;
     ref.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
     ref.setPoints("machine", "monotonic", {0}, 4000);
     ref.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
     ref.setPoints("machine", "thread_cpu", {0}, 2000);
-    ref.addCounter("machine", "tsc", "none", "raw tick counter",
+    ref.addCounter("machine",
+                   "tsc",
+                   "none",
+                   "raw tick counter",
                    sg::counters::Availability::COUNTABLE,
                    sg::counters::ReadMode::FAST_TSC);
     ref.setPoints("machine", "tsc", {0}, 1);
@@ -151,8 +155,9 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   const int online = CPU_COUNT(&mask);
   check(online > 0, "the affinity mask holds cpus (FR-040)");
   std::vector<std::uint32_t> cpus;
-  for (std::size_t index = 0;
-         index < CPU_SETSIZE && cpus.size() < count; ++index) {
+  for (std::size_t index = 0; index < CPU_SETSIZE && cpus.size() < count;
+       ++index)
+  {
     if (CPU_ISSET(index, &mask)) {
       check(index < static_cast<std::size_t>(online),
             "a picked cpu stands below the online count (FR-040)");
@@ -191,10 +196,8 @@ auto captureRun(const std::vector<std::string>& arguments,
   }
   close(saved);
   if (status != expected) {
-    std::fprintf(stderr,
-                 "speedgunMain returned %d, expected %d\n",
-                 status,
-                 expected);
+    std::fprintf(
+        stderr, "speedgunMain returned %d, expected %d\n", status, expected);
     fail("the exit status does not follow contracts/cli.md (FR-036)");
   }
 
@@ -215,10 +218,22 @@ auto readDocument(const std::string& path) -> std::string
 
 // The sixteen stats fields in the E-03 order, the canonical enumeration
 // the console block's lines and the JSON writer's keys follow.
-constexpr std::array<std::string_view, 16> kStatFields {
-    "gapCount", "gapsPerSecond", "minNs", "medianNs", "meanNs", "p90Ns",
-    "p99Ns", "p999Ns", "p9999Ns", "maxNs", "totalNs", "totalPercent",
-    "runtimeNs", "thresholdNs", "loopPeriodNs", "droppedGaps"};
+constexpr std::array<std::string_view, 16> kStatFields {"gapCount",
+                                                        "gapsPerSecond",
+                                                        "minNs",
+                                                        "medianNs",
+                                                        "meanNs",
+                                                        "p90Ns",
+                                                        "p99Ns",
+                                                        "p999Ns",
+                                                        "p9999Ns",
+                                                        "maxNs",
+                                                        "totalNs",
+                                                        "totalPercent",
+                                                        "runtimeNs",
+                                                        "thresholdNs",
+                                                        "loopPeriodNs",
+                                                        "droppedGaps"};
 
 auto splitLines(const std::string& text) -> std::vector<std::string>
 {
@@ -235,16 +250,15 @@ auto splitLines(const std::string& text) -> std::vector<std::string>
 // run that follows the key's colon from `from` on: the writer writes
 // the stats integers as bare digits (E-03).
 auto integerValueAfter(const std::string& document,
-                      std::size_t from,
-                      const char* key) -> std::uint64_t
+                       std::size_t from,
+                       const char* key) -> std::uint64_t
 {
   const auto at = document.find(std::string("\"") + key + "\":", from);
   check(at != std::string::npos, "the document carries the key");
   auto cursor = at + std::strlen(key) + 3;
   std::uint64_t value = 0;
   while (std::isdigit(static_cast<unsigned char>(document.at(cursor))) != 0) {
-    value = value * 10
-        + static_cast<std::uint64_t>(document.at(cursor) - '0');
+    value = value * 10 + static_cast<std::uint64_t>(document.at(cursor) - '0');
     ++cursor;
   }
   return value;
@@ -351,15 +365,15 @@ auto main() -> int
         lastBenchmarkLine = index;
       }
       if (lines.at(index).rfind("jitter probe: cpus ", 0) == 0
-          && blockLine == 0) {
+          && blockLine == 0)
+      {
         blockLine = index;
       }
     }
     check(blockLine > 0, "the run prints the probe block (FR-023, R-08)");
     check(blockLine > lastBenchmarkLine,
           "the probe block stands after the benchmark tables (FR-023, R-08)");
-    check(lines.at(blockLine)
-              == "jitter probe: cpus " + cpuList,
+    check(lines.at(blockLine) == "jitter probe: cpus " + cpuList,
           "the probe block names one column per probe cpu (FR-023, R-08)");
     for (std::size_t field = 0; field < kStatFields.size(); ++field) {
       const auto& line = lines.at(blockLine + 1 + field);
@@ -377,8 +391,7 @@ auto main() -> int
     // FR-036, D-8, D-12: the disclosure lines stand in the
     // end-of-report region: the availability and the cpus, the measured
     // points, the per-cpu counts, and the kept-gaps-only rule.
-    check(probed.find("jitter: probe on cpus " + cpuList)
-              != std::string::npos,
+    check(probed.find("jitter: probe on cpus " + cpuList) != std::string::npos,
           "the disclosure names the probe and the cpus (FR-036, E-09)");
     check(probed.find("jitter: loop period 1 ns, threshold 200 ns")
               != std::string::npos,
@@ -408,8 +421,12 @@ auto main() -> int
               && jitter < benchmarks,
           "the run-level jitter object stands after speedgun and before "
           "benchmarks (FR-026, E-07)");
-    const std::string_view keys[] = {"mode", "thresholdNs", "loopPeriodNs",
-                                     "cpus", "stats", "droppedGaps",
+    const std::string_view keys[] = {"mode",
+                                     "thresholdNs",
+                                     "loopPeriodNs",
+                                     "cpus",
+                                     "stats",
+                                     "droppedGaps",
                                      "disclosure"};
     auto cursor = jitter;
     for (const auto key : keys) {
@@ -532,9 +549,11 @@ auto main() -> int
     auto& provider = scriptedProvider();
     provider.setPoints("machine", "tsc", {}, 1);
     const std::string path = "harness_jitter_window_split.json";
-    const auto console = captureRun({
-        "--repetitions=1", "--iterations=2", "--json=" + path,
-        "--jitter-probe=" + std::to_string(cpus.at(0))});
+    const auto console =
+        captureRun({"--repetitions=1",
+                    "--iterations=2",
+                    "--json=" + path,
+                    "--jitter-probe=" + std::to_string(cpus.at(0))});
     const auto document = readDocument(path);
     std::remove(path.c_str());
 
@@ -542,8 +561,7 @@ auto main() -> int
     const auto quietName = document.find("\"bmQuiet\"");
     check(gateName != std::string::npos && quietName != std::string::npos,
           "the document carries both entries (FR-021)");
-    check(document.find("\"jitter\":{\"stats\"", gateName)
-              != std::string::npos,
+    check(document.find("\"jitter\":{\"stats\"", gateName) != std::string::npos,
           "the gate entry's jitter object carries the stats (FR-021, E-08)");
     check(document.find("\"jitter\":null", quietName) != std::string::npos,
           "the entry whose windows held no kept gap stands null "
@@ -562,12 +580,12 @@ auto main() -> int
       if (lines.at(index).rfind("bmGate", 0) == 0) {
         gateLast = index;
       }
-      if (lines.at(index).rfind("jitter: worst cpu ", 0) == 0
-          && lineAt == 0) {
+      if (lines.at(index).rfind("jitter: worst cpu ", 0) == 0 && lineAt == 0) {
         lineAt = index;
       }
       if (lines.at(index).rfind("jitter probe: cpus ", 0) == 0
-          && blockLine == 0) {
+          && blockLine == 0)
+      {
         blockLine = index;
       }
     }
@@ -605,8 +623,7 @@ auto main() -> int
     const auto gateName = document.find("\"bmGate\"");
     check(gateName != std::string::npos,
           "the document carries the gate entry (FR-022)");
-    check(document.find("\"jitter\":{\"stats\"", gateName)
-              != std::string::npos,
+    check(document.find("\"jitter\":{\"stats\"", gateName) != std::string::npos,
           "the fold covers the windows of every repetition (FR-022, PC-5)");
     check(integerValueAfter(document, gateName, "gapCount") >= 3,
           "each repetition's windows placed their kept gaps (FR-022, PC-5)");
@@ -623,19 +640,18 @@ auto main() -> int
     auto& provider = scriptedProvider();
     provider.setPoints("machine", "tsc", {}, 1);
     const std::string path = "harness_jitter_window_kept.json";
-    const auto console = captureRun({
-        "--filter=bmGate",
-        "--repetitions=1",
-        "--iterations=2",
-        "--json=" + path,
-        "--jitter-probe=" + std::to_string(cpus.at(0)) + ",gaps=1"});
+    const auto console = captureRun(
+        {"--filter=bmGate",
+         "--repetitions=1",
+         "--iterations=2",
+         "--json=" + path,
+         "--jitter-probe=" + std::to_string(cpus.at(0)) + ",gaps=1"});
     const auto document = readDocument(path);
     std::remove(path.c_str());
     const auto gateName = document.find("\"bmGate\"");
     check(gateName != std::string::npos,
           "the document carries the gate entry (FR-010)");
-    check(document.find("\"jitter\":{\"stats\"", gateName)
-              != std::string::npos,
+    check(document.find("\"jitter\":{\"stats\"", gateName) != std::string::npos,
           "the entry carries the kept record's stats (FR-010, D-6)");
     check(integerValueAfter(document, gateName, "gapCount") == 1,
           "the stats attribute the kept record alone (FR-010, D-6)");
@@ -644,8 +660,7 @@ auto main() -> int
           "the document carries its entries key (FR-026)");
     check(integerValueAfter(document, 0, "droppedGaps") >= 1,
           "the run-level record counts the dropped gaps (FR-010, E-07)");
-    check(console.find(
-              "jitter: split and percentiles use the kept gaps only")
+    check(console.find("jitter: split and percentiles use the kept gaps only")
               != std::string::npos,
           "the report states the kept-gaps-only rule (FR-010, D-6)");
   }
@@ -670,12 +685,24 @@ auto main() -> int
     state.thresholdNs = 200;
     state.loopPeriodNs = 1;
     const std::vector<sg::detail::TimedWindow> windows {
-        {.start = 0, .end = 20, .entry = 0, .repetition = 0,
-         .chunk = 0, .pass = 0},
-        {.start = 10, .end = 25, .entry = 0, .repetition = 0,
-         .chunk = 0, .pass = 0},
-        {.start = 25, .end = 40, .entry = 0, .repetition = 1,
-         .chunk = 0, .pass = 0},
+        {.start = 0,
+         .end = 20,
+         .entry = 0,
+         .repetition = 0,
+         .chunk = 0,
+         .pass = 0},
+        {.start = 10,
+         .end = 25,
+         .entry = 0,
+         .repetition = 0,
+         .chunk = 0,
+         .pass = 0},
+        {.start = 25,
+         .end = 40,
+         .entry = 0,
+         .repetition = 1,
+         .chunk = 0,
+         .pass = 0},
     };
     const auto fold = sg::detail::gapStatsOf(state, windows);
     check(fold.gapCount == 3,
@@ -690,8 +717,12 @@ auto main() -> int
           "the percent divides by the windows' total (E-03, R-05)");
 
     const std::vector<sg::detail::TimedWindow> elsewhere {
-        {.start = 1000, .end = 2000, .entry = 0, .repetition = 0,
-         .chunk = 0, .pass = 0},
+        {.start = 1000,
+         .end = 2000,
+         .entry = 0,
+         .repetition = 0,
+         .chunk = 0,
+         .pass = 0},
     };
     const auto absent = sg::detail::gapStatsOf(state, elsewhere);
     check(absent.gapCount == 0 && absent.totalNs == 0

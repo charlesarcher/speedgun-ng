@@ -14,13 +14,12 @@
 #include <utility>
 #include <vector>
 
+#include "jitter_probe.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/execution_context.hpp"
-
-#include "jitter_probe.hpp"
 
 /**
  * @file internal.hpp
@@ -414,8 +413,7 @@ enum class WalkStep : std::uint8_t
  * (FR-015). The batch reads it where the command line named none, and
  * the command-line value wins when both stand (FR-015, R-01).
  */
-[[nodiscard]] auto suiteJitterProbe()
-    -> std::optional<JitterProbeOptions>&;
+[[nodiscard]] auto suiteJitterProbe() -> std::optional<JitterProbeOptions>&;
 
 /**
  * @brief Expand every family record in the registry into its instance
@@ -529,10 +527,11 @@ class Runner
 {
 public:
   explicit Runner(const RunOptions& options) noexcept
-      : m_options(options),
-        // R-04: the runner stamps the timed windows only when the batch
-        // carries a probe, the split's one consumer.
-        m_windowStamping(options.jitterProbe.has_value())
+      : m_options(options)
+      ,
+      // R-04: the runner stamps the timed windows only when the batch
+      // carries a probe, the split's one consumer.
+      m_windowStamping(options.jitterProbe.has_value())
   {
   }
 
@@ -541,8 +540,7 @@ public:
   /// @brief The timed windows the runs of this runner recorded since the
   /// last take, moved out (R-04, E-06): the window-stamp access the
   /// split reads, behind the join edge the probe's stop gives.
-  [[nodiscard]] auto takeRunWindows()
-      -> std::vector<sg::detail::TimedWindow>
+  [[nodiscard]] auto takeRunWindows() -> std::vector<sg::detail::TimedWindow>
   {
     return std::move(m_runWindows);
   }
@@ -689,10 +687,9 @@ struct IdleResolution
 
 /// @brief The `idle` resolution: the lowest free cpu of each L3 group
 /// the planned cpus name, with the skip record (FR-016, FR-017, R-07).
-[[nodiscard]] auto
-resolveIdleCpus(const MachineLayout& machine,
-                const std::vector<std::uint32_t>& plannedCpus)
-    -> IdleResolution;
+[[nodiscard]] auto resolveIdleCpus(
+    const MachineLayout& machine,
+    const std::vector<std::uint32_t>& plannedCpus) -> IdleResolution;
 
 /// @brief specs/027 data-model.md D-3: one probe cpu the plans refuse,
 /// with the benchmark whose plan it meets (FR-018, D-9).
@@ -735,9 +732,8 @@ struct MaskNarrowing
 
 /// @brief The mask decision: the mask minus the probe cpus, with the
 /// cpuset-limit answer (FR-019, D-5, FR-036).
-[[nodiscard]] auto
-maskNarrowingOf(const std::vector<std::uint32_t>& probeCpus,
-                const std::vector<std::uint32_t>& maskCpus)
+[[nodiscard]] auto maskNarrowingOf(const std::vector<std::uint32_t>& probeCpus,
+                                   const std::vector<std::uint32_t>& maskCpus)
     -> MaskNarrowing;
 
 /// @brief Print the layout listing `--topology` states (FR-036).

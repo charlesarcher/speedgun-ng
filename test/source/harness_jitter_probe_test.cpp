@@ -122,8 +122,8 @@ static_assert(
                    void (*)(const sg::JitterProbeOptions&)>,
     "the suite-level call takes one const options reference (FR-003)");
 
-using HandleProbeFn = sg::BenchmarkHandle& (sg::BenchmarkHandle::*)(
-    const sg::JitterProbeOptions&);
+using HandleProbeFn = sg::BenchmarkHandle& (
+    sg::BenchmarkHandle::*)(const sg::JitterProbeOptions&);
 static_assert(
     std::is_same_v<decltype(&sg::BenchmarkHandle::jitterProbe), HandleProbeFn>,
     "the handle call returns this handle (FR-015)");
@@ -156,15 +156,17 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   const int online = CPU_COUNT(&mask);
   check(online > 0, "the affinity mask holds cpus (FR-040)");
   std::vector<std::uint32_t> cpus;
-  for (std::size_t index = 0;
-         index < CPU_SETSIZE && cpus.size() < count; ++index) {
+  for (std::size_t index = 0; index < CPU_SETSIZE && cpus.size() < count;
+       ++index)
+  {
     if (CPU_ISSET(index, &mask)) {
       check(index < static_cast<std::size_t>(online),
             "a picked cpu stands below the online count (FR-040)");
       cpus.push_back(static_cast<std::uint32_t>(index));
     }
   }
-  check(cpus.size() == count, "the mask holds the cpus the scenario asks for (FR-040)");
+  check(cpus.size() == count,
+        "the mask holds the cpus the scenario asks for (FR-040)");
   return cpus;
 }
 
@@ -174,7 +176,8 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
 // the waits spin on.
 auto scriptedProvider() -> sg::counters::FakeProvider&
 {
-  static auto* provider = [] {
+  static auto* provider = []
+  {
     auto owned = std::make_unique<sg::counters::FakeProvider>();
     auto& ref = *owned;
     ref.addCounter("machine",
@@ -185,8 +188,7 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
                    sg::counters::ReadMode::FAST_TSC);
     const auto registered =
         sg::counters::System::local().registerProvider(std::move(owned));
-    check(registered.has_value(),
-          "the scripted tsc provider registers (R-02)");
+    check(registered.has_value(), "the scripted tsc provider registers (R-02)");
     return &ref;
   }();
   return *provider;
@@ -285,9 +287,10 @@ public:
     // stand in for the other's (FR-039).
     if (thread.ticket <= 2) {
       phaseReaderSlots[thread.ticket - 1].store(thread.calls,
-                                               std::memory_order_relaxed);
+                                                std::memory_order_relaxed);
       if (phaseReaderSlots[0].load(std::memory_order_relaxed) >= 1041
-          && phaseReaderSlots[1].load(std::memory_order_relaxed) >= 1041) {
+          && phaseReaderSlots[1].load(std::memory_order_relaxed) >= 1041)
+      {
         phaseReaderBothPast.store(true, std::memory_order_relaxed);
       }
     }
@@ -421,23 +424,28 @@ auto main() -> int
     loopOptions.cpus = pickCpus(1);
     auto points = passSeries(1);
     points.push_back(1223);  // the first window read: a gap of exactly 200
-    runSeries(loopOptions, points, 1, 1100, [](const auto& states) {
-      const auto& probed = states.at(0);
-      check(probed.kept == 1,
-            "the read at the threshold keeps one gap (FR-001)");
-      check(probed.buffer.at(0).gapNs == 200,
-            "the kept gap carries its size (E-04)");
-      check(probed.buffer.at(0).stamp == 1223,
-            "the kept gap carries its stamp (E-04)");
-      check(probed.droppedGaps == 0,
-            "the buffer never filled (FR-010)");
-      const auto fold = sg::detail::gapStatsOf(probed);
-      check(fold.gapCount == 1 && fold.minNs == 200 && fold.maxNs == 200
-                && fold.totalNs == 200,
-            "the whole-run fold reads the kept record (FR-002)");
-      check(fold.droppedGaps == 0,
-            "the fold counts no dropped gap (FR-010)");
-    });
+    runSeries(loopOptions,
+              points,
+              1,
+              1100,
+              [](const auto& states)
+              {
+                const auto& probed = states.at(0);
+                check(probed.kept == 1,
+                      "the read at the threshold keeps one gap (FR-001)");
+                check(probed.buffer.at(0).gapNs == 200,
+                      "the kept gap carries its size (E-04)");
+                check(probed.buffer.at(0).stamp == 1223,
+                      "the kept gap carries its stamp (E-04)");
+                check(probed.droppedGaps == 0,
+                      "the buffer never filled (FR-010)");
+                const auto fold = sg::detail::gapStatsOf(probed);
+                check(fold.gapCount == 1 && fold.minNs == 200
+                          && fold.maxNs == 200 && fold.totalNs == 200,
+                      "the whole-run fold reads the kept record (FR-002)");
+                check(fold.droppedGaps == 0,
+                      "the fold counts no dropped gap (FR-010)");
+              });
   }
 
   // FR-001, FR-005: reads at or below the threshold record none, and the
@@ -445,16 +453,22 @@ auto main() -> int
   {
     sg::JitterProbeOptions loopOptions;
     loopOptions.cpus = pickCpus(1);
-    runSeries(loopOptions, passSeries(1), 1, 1200, [](const auto& states) {
-      const auto& probed = states.at(0);
-      check(probed.kept == 0,
-            "every read at or below the threshold records none (FR-001)");
-      const auto fold = sg::detail::gapStatsOf(probed);
-      check(fold.gapCount == 0 && fold.minNs == 0 && fold.medianNs == 0
-                && fold.maxNs == 0 && fold.totalNs == 0
-                && fold.runtimeNs == 0 && fold.droppedGaps == 0,
-            "the empty fold leaves every field at 0 (E-03)");
-    });
+    runSeries(
+        loopOptions,
+        passSeries(1),
+        1,
+        1200,
+        [](const auto& states)
+        {
+          const auto& probed = states.at(0);
+          check(probed.kept == 0,
+                "every read at or below the threshold records none (FR-001)");
+          const auto fold = sg::detail::gapStatsOf(probed);
+          check(fold.gapCount == 0 && fold.minNs == 0 && fold.medianNs == 0
+                    && fold.maxNs == 0 && fold.totalNs == 0
+                    && fold.runtimeNs == 0 && fold.droppedGaps == 0,
+                "the empty fold leaves every field at 0 (E-03)");
+        });
   }
 
   // FR-007, D-2, R-05: the default rises to ten times the measured
@@ -463,18 +477,24 @@ auto main() -> int
   {
     sg::JitterProbeOptions loopOptions;
     loopOptions.cpus = pickCpus(1);
-    auto points = passSeries(30);          // the pass: deltas of 30
-    points.push_back(30690 + 250);         // a gap of 250: below the rise
-    points.push_back(30690 + 250 + 300);   // a gap of 300: at the rise
-    runSeries(loopOptions, points, 30, 1100, [](const auto& states) {
-      const auto& probed = states.at(0);
-      check(probed.loopPeriodNs == 30,
-            "the pass measures the minimum period (E-05, R-05)");
-      check(probed.thresholdNs == 300,
-            "the default rises to ten times the period (FR-007, D-2)");
-      check(probed.kept == 1 && probed.buffer.at(0).gapNs == 300,
-            "the risen threshold keeps its first gap (FR-007)");
-    });
+    auto points = passSeries(30);  // the pass: deltas of 30
+    points.push_back(30690 + 250);  // a gap of 250: below the rise
+    points.push_back(30690 + 250 + 300);  // a gap of 300: at the rise
+    runSeries(loopOptions,
+              points,
+              30,
+              1100,
+              [](const auto& states)
+              {
+                const auto& probed = states.at(0);
+                check(probed.loopPeriodNs == 30,
+                      "the pass measures the minimum period (E-05, R-05)");
+                check(
+                    probed.thresholdNs == 300,
+                    "the default rises to ten times the period (FR-007, D-2)");
+                check(probed.kept == 1 && probed.buffer.at(0).gapNs == 300,
+                      "the risen threshold keeps its first gap (FR-007)");
+              });
   }
 
   // FR-007, FR-008: an explicit threshold stands as given, and the rise
@@ -486,13 +506,19 @@ auto main() -> int
     loopOptions.thresholdNs = 100;
     auto points = passSeries(30);
     points.push_back(30690 + 100);
-    runSeries(loopOptions, points, 30, 1100, [](const auto& states) {
-      const auto& probed = states.at(0);
-      check(probed.thresholdNs == 100,
-            "an explicit threshold stands as given (FR-007, FR-008)");
-      check(probed.kept == 1 && probed.buffer.at(0).gapNs == 100,
-            "the explicit threshold keeps the first gap at it (FR-007)");
-    });
+    runSeries(
+        loopOptions,
+        points,
+        30,
+        1100,
+        [](const auto& states)
+        {
+          const auto& probed = states.at(0);
+          check(probed.thresholdNs == 100,
+                "an explicit threshold stands as given (FR-007, FR-008)");
+          check(probed.kept == 1 && probed.buffer.at(0).gapNs == 100,
+                "the explicit threshold keeps the first gap at it (FR-007)");
+        });
   }
 
   // FR-010, D-6, E-05: the buffer-full path. A buffer of two records
@@ -507,24 +533,29 @@ auto main() -> int
     for (int index = 0; index < 4; ++index) {
       points.push_back(points.back() + 500);  // four gaps of 500
     }
-    runSeries(loopOptions, points, 1, 1150, [](const auto& states) {
-      const auto& probed = states.at(0);
-      check(probed.kept == 2,
-            "the buffer keeps its first two gaps (E-05, FR-010)");
-      check(probed.droppedGaps == 2,
-            "the buffer-full path counts the drops (FR-010)");
-      check(probed.droppedTotalNs == 1000,
-            "the dropped total keeps (FR-010)");
-      check(probed.droppedMaxNs == 500,
-            "the dropped max keeps (FR-010)");
-      const auto fold = sg::detail::gapStatsOf(probed);
-      check(fold.gapCount == 2 && fold.minNs == 500 && fold.maxNs == 500
-                && fold.medianNs == 500 && fold.totalNs == 1000
-                && fold.p90Ns == 500 && fold.p99Ns == 500
-                && fold.p999Ns == 500 && fold.p9999Ns == 500
-                && fold.droppedGaps == 2,
-            "the fold reads the kept records only (FR-010, D-6)");
-    });
+    runSeries(loopOptions,
+              points,
+              1,
+              1150,
+              [](const auto& states)
+              {
+                const auto& probed = states.at(0);
+                check(probed.kept == 2,
+                      "the buffer keeps its first two gaps (E-05, FR-010)");
+                check(probed.droppedGaps == 2,
+                      "the buffer-full path counts the drops (FR-010)");
+                check(probed.droppedTotalNs == 1000,
+                      "the dropped total keeps (FR-010)");
+                check(probed.droppedMaxNs == 500,
+                      "the dropped max keeps (FR-010)");
+                const auto fold = sg::detail::gapStatsOf(probed);
+                check(fold.gapCount == 2 && fold.minNs == 500
+                          && fold.maxNs == 500 && fold.medianNs == 500
+                          && fold.totalNs == 1000 && fold.p90Ns == 500
+                          && fold.p99Ns == 500 && fold.p999Ns == 500
+                          && fold.p9999Ns == 500 && fold.droppedGaps == 2,
+                      "the fold reads the kept records only (FR-010, D-6)");
+              });
   }
 
   // FR-002, R-05: the whole-run fold fills the sixteen fields: the
@@ -539,39 +570,43 @@ auto main() -> int
       stamp += gap;
       points.push_back(stamp);  // twelve gaps of 200 to 1300
     }
-    runSeries(loopOptions, points, 1, 1200, [](const auto& states) {
-      const auto& probed = states.at(0);
-      check(probed.kept == 12, "every scripted gap keeps (FR-002)");
-      const auto fold = sg::detail::gapStatsOf(probed);
-      check(fold.gapCount == 12 && fold.minNs == 200 && fold.maxNs == 1300
-                && fold.totalNs == 9000,
-            "the fold carries the kept set's own values (FR-002)");
-      check(fold.medianNs == 700 && fold.p90Ns == 1200
-                && fold.p99Ns == 1300 && fold.p999Ns == 1300
-                && fold.p9999Ns == 1300,
-            "the percentiles follow the nearest-rank rule (PC-4, R-05)");
-      check(std::fabs(fold.meanNs - 750.0) <= 1e-9,
-            "the mean carries the kept set's average (FR-002)");
-      check(fold.minNs <= fold.medianNs
-                && fold.medianNs <= fold.p90Ns
-                && fold.p90Ns <= fold.p99Ns
-                && fold.p99Ns <= fold.p999Ns
-                && fold.p999Ns <= fold.p9999Ns
-                && fold.p9999Ns <= fold.maxNs,
-            "the percentile chain holds (FR-002)");
-      check(fold.runtimeNs == 8800,
-            "runtimeNs covers the kept records' span (E-03, R-05)");
-      const double seconds = static_cast<double>(fold.runtimeNs) / 1e9;
-      check(std::fabs(fold.gapsPerSecond
-                      - static_cast<double>(fold.gapCount) / seconds)
-                <= 1e-9 * (fold.gapsPerSecond + 1.0),
-            "gapsPerSecond divides gapCount by the seconds of the span (E-03)");
-      check(std::fabs(fold.totalPercent
-                      - static_cast<double>(fold.totalNs) * 100.0
-                            / static_cast<double>(fold.runtimeNs))
-                <= 1e-9 * (fold.totalPercent + 1.0),
-            "totalPercent divides the kept total by the span (E-03)");
-    });
+    runSeries(
+        loopOptions,
+        points,
+        1,
+        1200,
+        [](const auto& states)
+        {
+          const auto& probed = states.at(0);
+          check(probed.kept == 12, "every scripted gap keeps (FR-002)");
+          const auto fold = sg::detail::gapStatsOf(probed);
+          check(fold.gapCount == 12 && fold.minNs == 200 && fold.maxNs == 1300
+                    && fold.totalNs == 9000,
+                "the fold carries the kept set's own values (FR-002)");
+          check(fold.medianNs == 700 && fold.p90Ns == 1200 && fold.p99Ns == 1300
+                    && fold.p999Ns == 1300 && fold.p9999Ns == 1300,
+                "the percentiles follow the nearest-rank rule (PC-4, R-05)");
+          check(std::fabs(fold.meanNs - 750.0) <= 1e-9,
+                "the mean carries the kept set's average (FR-002)");
+          check(fold.minNs <= fold.medianNs && fold.medianNs <= fold.p90Ns
+                    && fold.p90Ns <= fold.p99Ns && fold.p99Ns <= fold.p999Ns
+                    && fold.p999Ns <= fold.p9999Ns
+                    && fold.p9999Ns <= fold.maxNs,
+                "the percentile chain holds (FR-002)");
+          check(fold.runtimeNs == 8800,
+                "runtimeNs covers the kept records' span (E-03, R-05)");
+          const double seconds = static_cast<double>(fold.runtimeNs) / 1e9;
+          check(std::fabs(fold.gapsPerSecond
+                          - static_cast<double>(fold.gapCount) / seconds)
+                    <= 1e-9 * (fold.gapsPerSecond + 1.0),
+                "gapsPerSecond divides gapCount by the seconds of the span "
+                "(E-03)");
+          check(std::fabs(fold.totalPercent
+                          - static_cast<double>(fold.totalNs) * 100.0
+                              / static_cast<double>(fold.runtimeNs))
+                    <= 1e-9 * (fold.totalPercent + 1.0),
+                "totalPercent divides the kept total by the span (E-03)");
+        });
   }
 
   // FR-014, R-10: the pre-check phase runs on all chosen cpus at the

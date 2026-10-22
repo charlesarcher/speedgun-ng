@@ -143,14 +143,12 @@ auto main() -> int
   // the resolution names no cpu and carries every touched group as a
   // skip, the status-2 condition.
   {
-    const auto resolution =
-        sg::detail::resolveIdleCpus(machine,
-                                    std::vector<std::uint32_t> {
-                                        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                                        12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-                                        22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-                                        32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
-                                        42, 43, 44, 45, 46, 47});
+    const auto resolution = sg::detail::resolveIdleCpus(
+        machine,
+        std::vector<std::uint32_t> {
+            0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
+            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47});
     check(resolution.cpus.empty(),
           "no free cpu at all names no probe cpu (FR-017)");
     const std::vector<std::uint32_t> expected {0, 1, 2, 3};
@@ -165,9 +163,9 @@ auto main() -> int
     const auto resolution = sg::detail::resolveIdleCpus(
         machine, std::vector<std::uint32_t> {0, 1, 2, 3, 4, 5, 6});
     const std::vector<std::uint32_t> expected {7};
-    check(resolution.cpus == expected,
-          "the group with cpus left contributes its lowest free cpu "
-          "(FR-016)");
+    check(
+        resolution.cpus == expected,
+        "the group with cpus left contributes its lowest free cpu " "(FR-016)");
     const std::vector<std::uint32_t> skipped {0};
     check(resolution.skippedGroups == skipped,
           "the covered group stands skipped (FR-017, D-4)");
@@ -180,26 +178,31 @@ auto main() -> int
     sg::Instance instance = overlapInstance();
     const std::vector<sg::Instance*> selected {&instance};
 
-    const auto planned = sg::detail::probeOverlapOf(
-        machine, selected, std::vector<std::uint32_t> {0},
-        sg::JitterProbeMode::ALONGSIDE);
+    const auto planned =
+        sg::detail::probeOverlapOf(machine,
+                                   selected,
+                                   std::vector<std::uint32_t> {0},
+                                   sg::JitterProbeMode::ALONGSIDE);
     check(planned.has_value() && planned->cpu == 0
               && planned->benchmark == "bmPresetOverlap",
           "a planned probe cpu names the cpu and the benchmark (FR-018)");
 
-    const auto sibling = sg::detail::probeOverlapOf(
-        machine, selected, std::vector<std::uint32_t> {24},
-        sg::JitterProbeMode::ALONGSIDE);
+    const auto sibling =
+        sg::detail::probeOverlapOf(machine,
+                                   selected,
+                                   std::vector<std::uint32_t> {24},
+                                   sg::JitterProbeMode::ALONGSIDE);
     check(sibling.has_value() && sibling->cpu == 24
               && sibling->benchmark == "bmPresetOverlap",
           "an SMT sibling of a planned cpu is refused the same way "
           "(FR-018, D-9)");
 
-    const auto free = sg::detail::probeOverlapOf(
-        machine, selected, std::vector<std::uint32_t> {7},
-        sg::JitterProbeMode::ALONGSIDE);
-    check(!free.has_value(),
-          "a free probe cpu names no overlap (FR-018)");
+    const auto free =
+        sg::detail::probeOverlapOf(machine,
+                                   selected,
+                                   std::vector<std::uint32_t> {7},
+                                   sg::JitterProbeMode::ALONGSIDE);
+    check(!free.has_value(), "a free probe cpu names no overlap (FR-018)");
   }
 
   // D-3, R-10: the precheck mode allows every overlap, because it stops
@@ -208,15 +211,19 @@ auto main() -> int
     sg::Instance instance = overlapInstance();
     const std::vector<sg::Instance*> selected {&instance};
 
-    const auto allowed = sg::detail::probeOverlapOf(
-        machine, selected, std::vector<std::uint32_t> {0, 24},
-        sg::JitterProbeMode::PRECHECK);
+    const auto allowed =
+        sg::detail::probeOverlapOf(machine,
+                                   selected,
+                                   std::vector<std::uint32_t> {0, 24},
+                                   sg::JitterProbeMode::PRECHECK);
     check(!allowed.has_value(),
           "the precheck mode allows the overlap (D-3, R-10)");
 
-    const auto both = sg::detail::probeOverlapOf(
-        machine, selected, std::vector<std::uint32_t> {24},
-        sg::JitterProbeMode::BOTH);
+    const auto both =
+        sg::detail::probeOverlapOf(machine,
+                                   selected,
+                                   std::vector<std::uint32_t> {24},
+                                   sg::JitterProbeMode::BOTH);
     check(both.has_value() && both->cpu == 24,
           "the alongside phase of `both` refuses the overlap (D-3, R-10)");
   }
@@ -224,19 +231,19 @@ auto main() -> int
   // FR-020, PC-2: the new functions change no preset rule; the specs/025
   // plans stand over the same layout.
   {
-    const auto l3 = sg::detail::resolvePreset(sg::detail::Preset::L3,
-                                              machine, 4);
+    const auto l3 =
+        sg::detail::resolvePreset(sg::detail::Preset::L3, machine, 4);
     const std::vector<std::uint32_t> expectedL3 {0, 6, 12, 18};
     check(l3.cpu == expectedL3, "the `l3` rule stands (FR-020, PC-2)");
 
-    const auto core = sg::detail::resolvePreset(sg::detail::Preset::CORE,
-                                                machine, 24);
-    check(core.cpu.size() == 24 && core.cpu.front() == 0
-              && core.cpu.back() == 23,
-          "the `core` rule stands (FR-020, PC-2)");
+    const auto core =
+        sg::detail::resolvePreset(sg::detail::Preset::CORE, machine, 24);
+    check(
+        core.cpu.size() == 24 && core.cpu.front() == 0 && core.cpu.back() == 23,
+        "the `core` rule stands (FR-020, PC-2)");
 
-    const auto smt = sg::detail::resolvePreset(sg::detail::Preset::SMT,
-                                               machine, 2);
+    const auto smt =
+        sg::detail::resolvePreset(sg::detail::Preset::SMT, machine, 2);
     const std::vector<std::uint32_t> expectedSmt {0, 24};
     check(smt.cpu == expectedSmt, "the `smt` rule stands (FR-020, PC-2)");
 
@@ -250,9 +257,9 @@ auto main() -> int
   // FR-019, D-5: the mask decision drops the probe cpus, and the empty
   // intersection is the status-2 condition.
   {
-    const auto drop = sg::detail::maskNarrowingOf(
-        std::vector<std::uint32_t> {1, 3},
-        std::vector<std::uint32_t> {0, 1, 2, 3, 4});
+    const auto drop =
+        sg::detail::maskNarrowingOf(std::vector<std::uint32_t> {1, 3},
+                                    std::vector<std::uint32_t> {0, 1, 2, 3, 4});
     const std::vector<std::uint32_t> expected {0, 2, 4};
     check(drop.remaining == expected,
           "the mask decision drops the probe cpus (FR-019, D-5)");
@@ -260,8 +267,7 @@ auto main() -> int
           "a probe cpu inside the mask names no cpuset limit (FR-036)");
 
     const auto empty = sg::detail::maskNarrowingOf(
-        std::vector<std::uint32_t> {0, 1},
-        std::vector<std::uint32_t> {0, 1});
+        std::vector<std::uint32_t> {0, 1}, std::vector<std::uint32_t> {0, 1});
     check(empty.remaining.empty(),
           "the empty intersection is the status-2 condition (FR-019, D-5)");
   }
@@ -270,8 +276,7 @@ auto main() -> int
   // cpuset-limit answer.
   {
     const auto limited = sg::detail::maskNarrowingOf(
-        std::vector<std::uint32_t> {5},
-        std::vector<std::uint32_t> {0, 1});
+        std::vector<std::uint32_t> {5}, std::vector<std::uint32_t> {0, 1});
     check(limited.limited,
           "a probe cpu outside the mask sets the cpuset limit (FR-036)");
     const std::vector<std::uint32_t> expected {0, 1};

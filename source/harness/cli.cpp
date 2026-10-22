@@ -146,7 +146,8 @@ auto parseProbeCpuToken(const std::string& token,
     const auto lowText = token.substr(0, dash);
     const auto highText = token.substr(dash + 1);
     if (!parseProbeNumber(lowText, low, true)
-        || !parseProbeNumber(highText, high, true) || low > high) {
+        || !parseProbeNumber(highText, high, true) || low > high)
+    {
       message = "the cpu '" + token + "' is not a cpu index or range";
       return false;
     }
@@ -159,8 +160,8 @@ auto parseProbeCpuToken(const std::string& token,
   }
   for (auto cpu = low; cpu <= high; ++cpu) {
     if (!CPU_ISSET(static_cast<std::size_t>(cpu), &mask)) {
-      message = "the cpu '" + token
-                + "' stands outside the process affinity mask";
+      message =
+          "the cpu '" + token + "' stands outside the process affinity mask";
       return false;
     }
     cpus.push_back(static_cast<std::uint32_t>(cpu));
@@ -201,16 +202,16 @@ auto parseJitterProbeValue(const std::string& value,
         continue;
       }
       if (message.empty()) {
-        message = "the head '" + token
-                  + "' names no cpu list and no idle preset";
+        message =
+            "the head '" + token + "' names no cpu list and no idle preset";
       }
       return false;
     }
 
     // A token after the head is a key when it carries '=' or names the
     // value-less `strict`; every other token extends the cpu list.
-    const bool keyToken = idleHead || token.find('=') != std::string::npos
-                          || token == "strict";
+    const bool keyToken =
+        idleHead || token.find('=') != std::string::npos || token == "strict";
     if (!keyToken) {
       if (!parseProbeCpuToken(token, parsed.cpus, message)) {
         return false;
@@ -238,9 +239,10 @@ auto parseJitterProbeValue(const std::string& value,
     } else if (key == "gaps") {
       std::uint64_t number = 0;
       if (!parseProbeNumber(keyArgument, number, false)
-          || number > kMaxGapCount) {
+          || number > kMaxGapCount)
+      {
         message = "the gaps '" + keyArgument
-                  + "' is not a number between 1 and 16777216";
+            + "' is not a number between 1 and 16777216";
         return false;
       }
       parsed.gapCount = static_cast<std::uint32_t>(number);
@@ -252,15 +254,14 @@ auto parseJitterProbeValue(const std::string& value,
       } else if (keyArgument == "both") {
         parsed.mode = JitterProbeMode::BOTH;
       } else {
-        message = "the mode '" + keyArgument
-                  + "' is not alongside, precheck or both";
+        message =
+            "the mode '" + keyArgument + "' is not alongside, precheck or both";
         return false;
       }
     } else if (key == "precheck") {
       std::uint64_t number = 0;
       if (!parseProbeNumber(keyArgument, number, false)) {
-        message =
-            "the precheck '" + keyArgument + "' is not a positive number";
+        message = "the precheck '" + keyArgument + "' is not a positive number";
         return false;
       }
       parsed.precheckMs = static_cast<std::uint32_t>(number);
@@ -452,16 +453,15 @@ auto runJitterProbe(const JitterProbeOptions& options) -> void
   // the same bounds where it parses (FR-008, FR-009, D-13).
   SG_REQUIRE(options.thresholdNs >= 1,
              "the threshold stands at or above 1 ns (FR-008, D-13)");
-  SG_REQUIRE(options.gapCount >= kMinGapCount
-                 && options.gapCount <= kMaxGapCount,
-             "the gap count stands inside the bounded range (FR-009, D-13)");
+  SG_REQUIRE(
+      options.gapCount >= kMinGapCount && options.gapCount <= kMaxGapCount,
+      "the gap count stands inside the bounded range (FR-009, D-13)");
   SG_REQUIRE(options.precheckMs >= 1,
              "the pre-check duration stands at or above 1 ms (FR-008, D-13)");
-  SG_REQUIRE(std::ranges::none_of(registry(),
-                                  [](const auto& entry) {
-                                    return entry->runStarted;
-                                  }),
-             "the run has not started for any benchmark (E-02, FR-015)");
+  SG_REQUIRE(
+      std::ranges::none_of(registry(),
+                           [](const auto& entry) { return entry->runStarted; }),
+      "the run has not started for any benchmark (E-02, FR-015)");
   detail::suiteJitterProbe() = options;
   SG_ENSURE(detail::suiteJitterProbe().has_value(),
             "the suite carries the options of its next run (FR-015)");
@@ -762,7 +762,8 @@ auto speedgunMain(int argc, char** argv) -> int
       std::vector<std::uint32_t> planned;
       for (const auto* instance : selected) {
         if (instance->threadCount > 1
-            && instance->placement != detail::Preset::NONE) {
+            && instance->placement != detail::Preset::NONE)
+        {
           const auto plan = detail::resolvePreset(
               instance->placement, detail::layout(), instance->threadCount);
           planned.insert(planned.end(), plan.cpu.begin(), plan.cpu.end());
@@ -774,8 +775,8 @@ auto speedgunMain(int argc, char** argv) -> int
       if (probeCpus.empty()) {
         // FR-017: no free cpu at all stops the batch with one line
         // naming the preset word, before any benchmark runs.
-        std::fprintf(
-            stderr, "--jitter-probe: the idle preset names no free cpu\n");
+        std::fprintf(stderr,
+                     "--jitter-probe: the idle preset names no free cpu\n");
         return 2;
       }
     }
@@ -788,9 +789,9 @@ auto speedgunMain(int argc, char** argv) -> int
       // any run, and the plain run discloses and continues (FR-037,
       // D-10).
       if (options.jitterProbe->strict) {
-        std::fprintf(stderr,
-                     "--jitter-probe: the machine/tsc leaf is not "
-                     "available\n");
+        std::fprintf(
+            stderr,
+            "--jitter-probe: the machine/tsc leaf is not " "available\n");
         return 2;
       }
       jitterUnavailable = true;
@@ -800,10 +801,7 @@ auto speedgunMain(int argc, char** argv) -> int
       // the pre-check phase began with the start, before the stop
       // lands.
       const auto overlap = detail::probeOverlapOf(
-          detail::layout(),
-          selected,
-          probeCpus,
-          options.jitterProbe->mode);
+          detail::layout(), selected, probeCpus, options.jitterProbe->mode);
       if (overlap.has_value()) {
         std::fprintf(stderr,
                      "--jitter-probe: probe cpu %u overlaps the planned "
@@ -880,13 +878,14 @@ auto speedgunMain(int argc, char** argv) -> int
     cpu_set_t savedMask {};
     bool maskNarrowed = false;
     if (options.jitterProbe.has_value()
-        && entry->placement == detail::Preset::NONE) {
+        && entry->placement == detail::Preset::NONE)
+    {
       CPU_ZERO(&savedMask);
       if (sched_getaffinity(0, sizeof(savedMask), &savedMask) == 0) {
         std::vector<std::uint32_t> maskCpus;
-        for (std::size_t cpu = 0;
-             cpu < static_cast<std::size_t>(CPU_SETSIZE);
-             ++cpu) {
+        for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE);
+             ++cpu)
+        {
           if (CPU_ISSET(cpu, &savedMask) != 0) {
             maskCpus.push_back(static_cast<std::uint32_t>(cpu));
           }
@@ -894,10 +893,9 @@ auto speedgunMain(int argc, char** argv) -> int
         const auto narrowing = detail::maskNarrowingOf(probeCpus, maskCpus);
         cpusetLimited = cpusetLimited || narrowing.limited;
         if (narrowing.remaining.empty()) {
-          std::fprintf(
-              stderr,
-              "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
-              entry->name.c_str());
+          std::fprintf(stderr,
+                       "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
+                       entry->name.c_str());
           if (jitterProbe.has_value()) {
             jitterProbe->stopAndJoin();
           }
@@ -923,9 +921,9 @@ auto speedgunMain(int argc, char** argv) -> int
       // the pin's UNAPPLIED account names the miss (specs/025 FR-005).
       [[maybe_unused]] const bool restored =
           sched_setaffinity(0, sizeof(savedMask), &savedMask) == 0;
-      SG_ASSERT(restored,
-                "the affinity mask stands restored after the instance "
-                "ends (D-5)");
+      SG_ASSERT(
+          restored,
+          "the affinity mask stands restored after the instance " "ends (D-5)");
     }
     if (interleaved) {
       held[position] = HeldRow {result,
@@ -1032,10 +1030,10 @@ auto speedgunMain(int argc, char** argv) -> int
     for (const auto& state : jitterProbe->states()) {
       ordered.push_back(&state);
     }
-    std::ranges::sort(ordered, [](const detail::ProbeCpuState* left,
-                                  const detail::ProbeCpuState* right) {
-      return left->cpu < right->cpu;
-    });
+    std::ranges::sort(ordered,
+                      [](const detail::ProbeCpuState* left,
+                         const detail::ProbeCpuState* right)
+                      { return left->cpu < right->cpu; });
     for (std::size_t index = 0; index < report.results.size(); ++index) {
       auto& stored = report.results.at(index);
       for (const auto* state : ordered) {
@@ -1097,8 +1095,7 @@ auto speedgunMain(int argc, char** argv) -> int
       std::printf("jitter: cpusets limit the probe cpus\n");
     }
     for (const auto& name : maskNarrowedNames) {
-      std::printf("jitter: affinity mask narrowed for '%s'\n",
-                  name.c_str());
+      std::printf("jitter: affinity mask narrowed for '%s'\n", name.c_str());
     }
   }
 
@@ -1122,10 +1119,10 @@ auto speedgunMain(int argc, char** argv) -> int
       for (const auto& state : jitterProbe->states()) {
         ordered.push_back(&state);
       }
-      std::ranges::sort(ordered, [](const detail::ProbeCpuState* left,
-                                    const detail::ProbeCpuState* right) {
-        return left->cpu < right->cpu;
-      });
+      std::ranges::sort(ordered,
+                        [](const detail::ProbeCpuState* left,
+                           const detail::ProbeCpuState* right)
+                        { return left->cpu < right->cpu; });
       std::string cpuList;
       for (const auto* state : ordered) {
         if (!cpuList.empty()) {
@@ -1141,8 +1138,8 @@ auto speedgunMain(int argc, char** argv) -> int
       record.thresholdNs = ordered.front()->thresholdNs;
       record.loopPeriodNs = ordered.front()->loopPeriodNs;
       for (const auto* state : ordered) {
-        record.disclosure += "; cpu " + std::to_string(state->cpu)
-            + " kept " + std::to_string(state->kept) + " dropped "
+        record.disclosure += "; cpu " + std::to_string(state->cpu) + " kept "
+            + std::to_string(state->kept) + " dropped "
             + std::to_string(state->droppedGaps);
       }
       record.disclosure += "; split and percentiles use the kept gaps only";
@@ -1158,8 +1155,7 @@ auto speedgunMain(int argc, char** argv) -> int
         if (record.rawGaps) {
           entry.gaps.assign(
               state->buffer.begin(),
-              state->buffer.begin()
-                  + static_cast<std::ptrdiff_t>(state->kept));
+              state->buffer.begin() + static_cast<std::ptrdiff_t>(state->kept));
         }
         record.stats.push_back(std::move(entry));
       }
@@ -1183,7 +1179,9 @@ auto speedgunMain(int argc, char** argv) -> int
       seed = resolved->interleave.seed;
     }
     const detail::RunDisclosure disclosure {resolved->uses, seed};
-    if (!detail::writeReport(options.jsonPath, report, disclosure, jitterRecord)) {
+    if (!detail::writeReport(
+            options.jsonPath, report, disclosure, jitterRecord))
+    {
       reportFailed = true;
       status = 2;
     }

@@ -16,4 +16,5 @@ auto main(int argc, char** argv) -> int
   sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK});
   return sg::speedgunMain(argc, argv);
 }
+
 // sg-example:end jitter-probe

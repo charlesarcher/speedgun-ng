@@ -8,8 +8,6 @@
 // reader-install seam storage.
 // ============================================================================
 
-#include "detail/jitter_probe.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -19,14 +17,18 @@
 #include <utility>
 #include <vector>
 
+#include "detail/jitter_probe.hpp"
+
 #include "detail/percentiles.hpp"
 #include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/execution_context.hpp"
 
-namespace sg::detail {
-namespace {
+namespace sg::detail
+{
+namespace
+{
 
 // The measurement pass takes a fixed 1,024 loop reads the loop discards
 // (E-05, R-05).
@@ -52,9 +54,9 @@ auto catalogCarriesTsc() -> bool
     return false;
   }
   for (const auto& entry : machine.value().counters()) {
-    if (entry.name == "tsc"
-        && entry.mode == counters::ReadMode::FAST_TSC
-        && entry.avail == counters::Availability::COUNTABLE) {
+    if (entry.name == "tsc" && entry.mode == counters::ReadMode::FAST_TSC
+        && entry.avail == counters::Availability::COUNTABLE)
+    {
       return true;
     }
   }
@@ -127,122 +129,124 @@ struct ProbeSession
 
 auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
 {
-    // The start line: every chosen cpu arrives at the barrier the holder
-    // owns, and the holder arrives beside them, so the alongside loop
-    // spans the batch from its first read: the batch begins only when
-    // every item's thread stands live at this line (FR-006, R-01, R-04).
-    session->barrier->arriveAndWait();
+  // The start line: every chosen cpu arrives at the barrier the holder
+  // owns, and the holder arrives beside them, so the alongside loop
+  // spans the batch from its first read: the batch begins only when
+  // every item's thread stands live at this line (FR-006, R-01, R-04).
+  session->barrier->arriveAndWait();
 
-    // The buffer allocates and first touches on this probe cpu, after
-    // the pin the context applied at thread start and before the first
-    // read, so the first-touch faults land on the probe cpu and outside
-    // every measured window (FR-009, R-03).
-    state->buffer.assign(options->gapCount, GapRecord {});
+  // The buffer allocates and first touches on this probe cpu, after
+  // the pin the context applied at thread start and before the first
+  // read, so the first-touch faults land on the probe cpu and outside
+  // every measured window (FR-009, R-03).
+  state->buffer.assign(options->gapCount, GapRecord {});
 
-    // The read move: the installed reader's thunk over a fresh stack
-    // point sink per pass, the way the plan's own sampling action
-    // builds one, or the one-leaf plan's recorder through the system
-    // otherwise (R-02, Q-1).
-    std::uint64_t cell = 0;
-    counters::WindowReader* reader = session->reader.get();
-    counters::WindowReader::ReadThunk thunk = nullptr;
-    std::optional<counters::Plan> plan;
-    std::optional<counters::RecorderHandle<counters::Ring>> recorder;
-    if (reader != nullptr) {
-      thunk = reader->resolveThunk();
-    } else {
-      auto& sys = counters::System::local();
-      const auto machine = sys.object("machine");
-      if (!machine.has_value()) {
-        return;
-      }
-      const auto leaf = machine.value().counter<counters::Dim<0, 1>>("tsc");
-      if (!leaf.has_value()) {
-        return;
-      }
-      counters::Expression<counters::Dim<0, 1>> expression(leaf.value());
-      auto compiled = counters::detail::compileCore(
-          sys, counters::Target {}, {&expression.core});
-      if (!compiled.has_value()) {
-        return;
-      }
-      plan.emplace(std::move(compiled.value()));
-      auto minted = plan->recorder(2, counters::ring);
-      if (!minted.has_value()) {
-        return;
-      }
-      recorder.emplace(std::move(minted.value()));
+  // The read move: the installed reader's thunk over a fresh stack
+  // point sink per pass, the way the plan's own sampling action
+  // builds one, or the one-leaf plan's recorder through the system
+  // otherwise (R-02, Q-1).
+  std::uint64_t cell = 0;
+  counters::WindowReader* reader = session->reader.get();
+  counters::WindowReader::ReadThunk thunk = nullptr;
+  std::optional<counters::Plan> plan;
+  std::optional<counters::RecorderHandle<counters::Ring>> recorder;
+  if (reader != nullptr) {
+    thunk = reader->resolveThunk();
+  } else {
+    auto& sys = counters::System::local();
+    const auto machine = sys.object("machine");
+    if (!machine.has_value()) {
+      return;
     }
-    const auto readStamp = [&]() noexcept -> std::uint64_t {
-      if (thunk != nullptr) {
-        counters::PointSink sink(&cell, 1, 1, 1, 0);
-        thunk(*reader, sink);
-        return cell;
-      }
-      recorder->sample();
-      return recorder->mColumns[(recorder->mHead - 1)
-                                & (recorder->mCapacity - 1)];
-    };
+    const auto leaf = machine.value().counter<counters::Dim<0, 1>>("tsc");
+    if (!leaf.has_value()) {
+      return;
+    }
+    counters::Expression<counters::Dim<0, 1>> expression(leaf.value());
+    auto compiled = counters::detail::compileCore(
+        sys, counters::Target {}, {&expression.core});
+    if (!compiled.has_value()) {
+      return;
+    }
+    plan.emplace(std::move(compiled.value()));
+    auto minted = plan->recorder(2, counters::ring);
+    if (!minted.has_value()) {
+      return;
+    }
+    recorder.emplace(std::move(minted.value()));
+  }
+  const auto readStamp = [&]() noexcept -> std::uint64_t
+  {
+    if (thunk != nullptr) {
+      counters::PointSink sink(&cell, 1, 1, 1, 0);
+      thunk(*reader, sink);
+      return cell;
+    }
+    recorder->sample();
+    return recorder
+        ->mColumns[(recorder->mHead - 1) & (recorder->mCapacity - 1)];
+  };
 
-    // The measurement pass: the 1,024 reads take no record and set the
-    // effective threshold, the default rising to ten times the minimum
-    // period the pass measured when that stands larger (E-05, FR-007,
-    // D-2, R-05).
-    std::uint64_t last = readStamp();
-    std::uint64_t minDelta = 0;
-    for (std::uint64_t pass = 1; pass < kPassReads; ++pass) {
+  // The measurement pass: the 1,024 reads take no record and set the
+  // effective threshold, the default rising to ten times the minimum
+  // period the pass measured when that stands larger (E-05, FR-007,
+  // D-2, R-05).
+  std::uint64_t last = readStamp();
+  std::uint64_t minDelta = 0;
+  for (std::uint64_t pass = 1; pass < kPassReads; ++pass) {
+    const std::uint64_t stamp = readStamp();
+    const std::uint64_t delta = stamp - last;
+    if (pass == 1 || delta < minDelta) {
+      minDelta = delta;
+    }
+    last = stamp;
+  }
+  state->loopPeriodNs = minDelta;
+  const std::uint64_t risen = kRiseFactor * minDelta;
+  state->thresholdNs = options->thresholdNs == kDefaultThresholdNs
+      ? (risen > kDefaultThresholdNs ? risen : kDefaultThresholdNs)
+      : options->thresholdNs;
+
+  // The pre-check phase: the cpus stand lined at the start barrier,
+  // so all of them spin together for the precheck duration, measured
+  // through the same reader in the leaf's one time base (FR-014, R-10,
+  // R-04).
+  if (options->mode == JitterProbeMode::PRECHECK
+      || options->mode == JitterProbeMode::BOTH)
+  {
+    const std::uint64_t span =
+        static_cast<std::uint64_t>(options->precheckMs) * 1000000ULL;
+    const std::uint64_t phaseStart = last;
+    while (true) {
       const std::uint64_t stamp = readStamp();
-      const std::uint64_t delta = stamp - last;
-      if (pass == 1 || delta < minDelta) {
-        minDelta = delta;
+      const std::uint64_t gap = stamp - last;
+      if (gap >= state->thresholdNs) {
+        keepOrDrop(*state, stamp, gap);
+      }
+      last = stamp;
+      if (stamp - phaseStart >= span) {
+        break;
+      }
+    }
+  }
+
+  // The alongside phase: the loop spans the batch, from the first
+  // read after the phases to the read of the stop flag, one reader
+  // call, one comparison, one record store and one stop-flag read per
+  // pass, and no allocation, no syscall, no I/O anywhere in the body
+  // (FR-005, FR-006, D-7, R-04).
+  if (options->mode == JitterProbeMode::ALONGSIDE
+      || options->mode == JitterProbeMode::BOTH)
+  {
+    while (!state->stop.load(std::memory_order_relaxed)) {
+      const std::uint64_t stamp = readStamp();
+      const std::uint64_t gap = stamp - last;
+      if (gap >= state->thresholdNs) {
+        keepOrDrop(*state, stamp, gap);
       }
       last = stamp;
     }
-    state->loopPeriodNs = minDelta;
-    const std::uint64_t risen = kRiseFactor * minDelta;
-    state->thresholdNs =
-        options->thresholdNs == kDefaultThresholdNs
-            ? (risen > kDefaultThresholdNs ? risen : kDefaultThresholdNs)
-            : options->thresholdNs;
-
-    // The pre-check phase: the cpus stand lined at the start barrier,
-    // so all of them spin together for the precheck duration, measured
-    // through the same reader in the leaf's one time base (FR-014, R-10,
-    // R-04).
-    if (options->mode == JitterProbeMode::PRECHECK
-        || options->mode == JitterProbeMode::BOTH) {
-      const std::uint64_t span = static_cast<std::uint64_t>(options->precheckMs)
-                                 * 1000000ULL;
-      const std::uint64_t phaseStart = last;
-      while (true) {
-        const std::uint64_t stamp = readStamp();
-        const std::uint64_t gap = stamp - last;
-        if (gap >= state->thresholdNs) {
-          keepOrDrop(*state, stamp, gap);
-        }
-        last = stamp;
-        if (stamp - phaseStart >= span) {
-          break;
-        }
-      }
-    }
-
-    // The alongside phase: the loop spans the batch, from the first
-    // read after the phases to the read of the stop flag, one reader
-    // call, one comparison, one record store and one stop-flag read per
-    // pass, and no allocation, no syscall, no I/O anywhere in the body
-    // (FR-005, FR-006, D-7, R-04).
-    if (options->mode == JitterProbeMode::ALONGSIDE
-        || options->mode == JitterProbeMode::BOTH) {
-      while (!state->stop.load(std::memory_order_relaxed)) {
-        const std::uint64_t stamp = readStamp();
-        const std::uint64_t gap = stamp - last;
-        if (gap >= state->thresholdNs) {
-          keepOrDrop(*state, stamp, gap);
-        }
-        last = stamp;
-      }
-    }
+  }
 }
 
 // The live session; a holder that never started leaves it null, and
@@ -264,12 +268,13 @@ auto percentileField(const std::vector<double>& sorted,
   if (sorted.empty()) {
     return 0;
   }
-  const auto rank = std::ceil(point * static_cast<double>(sorted.size())
-                              / 100.0);
+  const auto rank =
+      std::ceil(point * static_cast<double>(sorted.size()) / 100.0);
   const auto index = static_cast<std::size_t>(
-      rank < 1.0 ? 1.0 : (rank > static_cast<double>(sorted.size())
-                              ? static_cast<double>(sorted.size())
-                              : rank));
+      rank < 1.0 ? 1.0
+                 : (rank > static_cast<double>(sorted.size())
+                        ? static_cast<double>(sorted.size())
+                        : rank));
   return static_cast<std::uint64_t>(sorted.at(index - 1));
 }
 
@@ -361,8 +366,7 @@ auto JitterProbe::stopAndJoin() -> void
   probeSession.reset();
 }
 
-auto JitterProbe::states() const noexcept
-    -> const std::vector<ProbeCpuState>&
+auto JitterProbe::states() const noexcept -> const std::vector<ProbeCpuState>&
 {
   return m_states;
 }
@@ -392,8 +396,8 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
   stats.minNs = static_cast<std::uint64_t>(sorted.front());
   stats.maxNs = static_cast<std::uint64_t>(sorted.back());
   stats.totalNs = total;
-  stats.meanNs = static_cast<double>(total)
-                 / static_cast<double>(sorted.size());
+  stats.meanNs =
+      static_cast<double>(total) / static_cast<double>(sorted.size());
   stats.medianNs = percentileField(sorted, 50.0);
   stats.p90Ns = percentileField(sorted, 90.0);
   stats.p99Ns = percentileField(sorted, 99.0);
@@ -418,9 +422,9 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
   stats.runtimeNs = lastStamp - firstStamp;
 
   stats.gapsPerSecond = static_cast<double>(stats.gapCount) * 1e9
-                        / static_cast<double>(stats.runtimeNs);
+      / static_cast<double>(stats.runtimeNs);
   stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0
-                       / static_cast<double>(stats.runtimeNs);
+      / static_cast<double>(stats.runtimeNs);
   return stats;
 }
 
@@ -446,13 +450,11 @@ auto gapStatsOf(const ProbeCpuState& state,
     // contains its stamp (E-06, R-04); the entry's stats fold each
     // placed record once, the one reading that leaves `gapCount` the
     // count of the gaps the benchmark's windows placed.
-    const bool placed
-        = std::any_of(windows.begin(), windows.end(),
-                      [&](const TimedWindow& window) noexcept -> bool
-                      {
-                        return window.start <= record.stamp
-                            && record.stamp < window.end;
-                      });
+    const bool placed = std::any_of(
+        windows.begin(),
+        windows.end(),
+        [&](const TimedWindow& window) noexcept -> bool
+        { return window.start <= record.stamp && record.stamp < window.end; });
     if (!placed) {
       continue;
     }
@@ -472,8 +474,8 @@ auto gapStatsOf(const ProbeCpuState& state,
   stats.minNs = static_cast<std::uint64_t>(sorted.front());
   stats.maxNs = static_cast<std::uint64_t>(sorted.back());
   stats.totalNs = total;
-  stats.meanNs = static_cast<double>(total)
-                 / static_cast<double>(sorted.size());
+  stats.meanNs =
+      static_cast<double>(total) / static_cast<double>(sorted.size());
   stats.medianNs = percentileField(sorted, 50.0);
   stats.p90Ns = percentileField(sorted, 90.0);
   stats.p99Ns = percentileField(sorted, 99.0);
@@ -481,9 +483,9 @@ auto gapStatsOf(const ProbeCpuState& state,
   stats.p9999Ns = percentileField(sorted, 99.99);
   stats.runtimeNs = coveredNs;
   stats.gapsPerSecond = static_cast<double>(stats.gapCount) * 1e9
-                        / static_cast<double>(stats.runtimeNs);
+      / static_cast<double>(stats.runtimeNs);
   stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0
-                       / static_cast<double>(stats.runtimeNs);
+      / static_cast<double>(stats.runtimeNs);
   return stats;
 }
 

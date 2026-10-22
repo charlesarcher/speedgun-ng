@@ -66,7 +66,7 @@ struct ProbeCpuState
   std::uint64_t droppedMaxNs = 0;
   std::uint64_t loopPeriodNs = 0;
   std::uint64_t thresholdNs = 0;
-  alignas(kCacheLineBytes) std::atomic<bool> stop{false};
+  alignas(kCacheLineBytes) std::atomic<bool> stop {false};
 };
 
 /// @brief The batch-scoped probe holder: one instance per run, built
