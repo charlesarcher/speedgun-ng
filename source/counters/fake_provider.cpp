@@ -95,6 +95,11 @@ struct detail::FakeWindow final : WindowReader
 
   void readPoints(PointSink& sink) noexcept override
   {
+    // The script lock spans the whole read: the scenarios reprogram the
+    // series through setPoints while a reader thread stands live, and
+    // the vector the script carries moves under that call (the TSan
+    // gate).
+    const std::scoped_lock guard {scriptLock()};
     owner->m_readActions.fetch_add(1, std::memory_order_relaxed);
     ++actions;
     bool gapped = false;
@@ -133,7 +138,6 @@ struct detail::FakeWindow final : WindowReader
     // (FR-030). Because the fold above read this window's own cursor, the
     // windows of a threaded run fold independently and the order in which
     // their hand-offs land changes nothing a row reports (FR-018).
-    const std::scoped_lock guard {scriptLock()};
     for (auto& leaf : leaves) {
       leaf.data->position = leaf.playback.position;
       leaf.data->last = leaf.playback.last;
@@ -235,6 +239,9 @@ auto FakeProvider::setPoints(const std::string_view objectPath,
       "set_points scripts a declared counter (FR-036)");
   const auto scripted = points.size();
   auto& item = counter(path, leaf);
+  // The lock spans the mutation: a reader thread reads the script's
+  // vector while the scenarios reprogram it mid-run (the TSan gate).
+  const std::scoped_lock guard {scriptLock()};
   item.script = FakeScript {.points = std::move(points),
                             .tailDelta = tailDelta,
                             .deltaSeed = deltaSeed};

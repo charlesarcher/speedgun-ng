@@ -29,14 +29,17 @@
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
 
-std::uint64_t allocationCount = 0;
-bool countAllocations = false;
+// The counters stand atomic: the probe's context threads allocate
+// through the hooks while the main thread arms and reads the count
+// around the span under test (FR-041, the TSan gate).
+std::atomic<std::uint64_t> allocationCount {0};
+std::atomic<bool> countAllocations {false};
 int const volatile* plantedEscape = nullptr;  // the plant's escape hatch
 
 auto allocate(const std::size_t size) -> void*
 {
-  if (countAllocations) {
-    ++allocationCount;
+  if (countAllocations.load(std::memory_order_relaxed)) {
+    allocationCount.fetch_add(1, std::memory_order_relaxed);
   }
   return std::malloc(size == 0 ? 1 : size);
 }
@@ -685,7 +688,7 @@ auto main() -> int
         fail("the loop never opened its window (FR-041)");
       }
     }
-    countAllocations = true;
+    countAllocations.store(true, std::memory_order_relaxed);
     spins = 0;
     while (provider.readActions() < baseActions + 20000) {
       std::this_thread::yield();
@@ -693,19 +696,19 @@ auto main() -> int
         fail("the loop never ran the armed passes (FR-041)");
       }
     }
-    countAllocations = false;
+    countAllocations.store(false, std::memory_order_relaxed);
     probe.stopAndJoin();
-    check(allocationCount == 0,
+    check(allocationCount.load() == 0,
           "the loop takes no allocation (FR-041, SC-005)");
-    countAllocations = true;
+    countAllocations.store(true, std::memory_order_relaxed);
     // The plant runs through a heap allocation large enough that no
     // new/delete pair elision folds it into automatic storage (FR-041,
     // Q-2).
     const std::vector<char> planted(1 << 20);
     plantedEscape = reinterpret_cast<const volatile int*>(planted.data());
-    check(allocationCount == 1,
+    check(allocationCount.load() == 1,
           "a planted allocation moves the count (FR-041, Q-2)");
-    countAllocations = false;
+    countAllocations.store(false, std::memory_order_relaxed);
   }
 
   std::puts("harness_jitter_probe_test: ok");
