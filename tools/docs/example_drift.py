@@ -55,6 +55,7 @@ SECTIONS = (
     "Percentiles",
     "JSON reports",
     "Regression gate",
+    "Jitter probe",
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
@@ -86,6 +87,7 @@ SECTION_OWNERS = {
     "Percentiles": ("percentiles.cpp",),
     "JSON reports": ("json_reports.cpp",),
     "Regression gate": ("regression_gate.cpp",),
+    "Jitter probe": ("jitter_probe.cpp",),
 }
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
@@ -159,7 +161,10 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/027 FR-011 adds the `--jitter-probe` option row: one line moves
 # the cap from 786 to 787, the measured length of the page with the row
 # in place.
-PAGE_LINE_CAP = 787
+# specs/027 FR-034 stacks its own move on top: the "Jitter probe"
+# section and its quick-reference rows move the cap from 787 to 813,
+# the measured length of the page as the section lands.
+PAGE_LINE_CAP = 813
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

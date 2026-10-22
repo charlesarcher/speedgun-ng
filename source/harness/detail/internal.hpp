@@ -203,6 +203,11 @@ public:
   // handle stated, the last call winning the slot the way the thread
   // calls replace an earlier set. Empty when the family named none.
   std::optional<std::string> placement;
+  // specs/027 FR-015: the jitter probe options the handle stated for
+  // this family's runs, the last call winning the slot the way the
+  // thread calls replace an earlier set. Empty when the family named
+  // none.
+  std::optional<JitterProbeOptions> jitterProbeOptions;
   // FR-021: the dispatch function the family attached for its threaded
   // runs, empty when the harness dispatches the bodies itself.
   ThreadRunnerFn threadRunner;
@@ -403,6 +408,14 @@ enum class WalkStep : std::uint8_t
  * run that reads the process default at its own start.
  */
 [[nodiscard]] auto batchDefaultTimeUnit() -> std::optional<TimeUnit>&;
+
+/**
+ * @brief The suite-level jitter probe binding `runJitterProbe` writes
+ * (FR-015). The batch reads it where the command line named none, and
+ * the command-line value wins when both stand (FR-015, R-01).
+ */
+[[nodiscard]] auto suiteJitterProbe()
+    -> std::optional<JitterProbeOptions>&;
 
 /**
  * @brief Expand every family record in the registry into its instance

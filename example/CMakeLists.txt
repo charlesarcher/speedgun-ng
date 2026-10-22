@@ -72,6 +72,7 @@ add_docs_example(topology_placement)
 add_docs_example(percentiles)
 add_docs_example(json_reports)
 add_docs_example(regression_gate)
+add_docs_example(jitter_probe)
 
 
 add_folders(Example)
