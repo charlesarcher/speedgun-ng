@@ -58,16 +58,20 @@ struct RetriedPass
 /// FR-014 derives a stage's columns from the seed and the catalog order only,
 /// so the split reads no measured rate: stage 2 takes the leading columns of
 /// the plan order. The calibration figure converts the seconds budget into
-/// passes and is the same figure `estimateNs` multiplies.
+/// passes and is the same figure `estimateNs` multiplies. A seconds budget that
+/// figure cannot price is a budget this split answers as unfit, because no
+/// clock stands here to weigh it a second way.
 ///
 /// \pre `plan.columns` is not empty; `options` satisfies its own precondition
 /// \post with no budget `stages` holds one stage over every column at
 ///       `options.repeats`; with a budget it holds stage 1 over every column at
 ///       one repeat and stage 2 over the leading `3 x top` columns in column
 ///       order, capped at the column count, at `options.repeats`
-///       (D-2, FR-013, FR-014); `cutStage2` is true with a non-empty
-///       `cutReason` exactly when the two-stage estimate exceeds the budget in
-///       the unit the caller named, `stages` then holding stage 1 alone; no
+///       (D-2, FR-013, FR-014); `cutStage2` is true with the word
+///       `over-budget` in `cutReason` exactly when the two-stage estimate
+///       exceeds the budget in the unit the caller named, or when a seconds
+///       budget leaves that unit unpriced for want of a calibration figure,
+///       `stages` then holding stage 1 alone (FR-012, FR-013, I-7); no
 ///       stage carries a reduced repeat count and no column leaves stage 1
 ///       (FR-013)
 [[nodiscard]] auto splitStages(

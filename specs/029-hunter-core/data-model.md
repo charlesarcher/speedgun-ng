@@ -196,7 +196,7 @@ the `hunt:` prefix.
 | plan | `hunt: plan events=<n> passes=<p> method=<WORD> estimate=<ns>ns budget=<text>|none`, `estimate=` being the nanoseconds one measured pass cost times the stage-1 pass count at one repeat (FR-012, FR-013) |
 | plan, no anchor | the plan line with ` normalized=iter` appended |
 | plan, two stages | the plan line with ` stage1=<n> stage2=<n>` after `budget=`, each field the event count that stage measured (`report.cpp:774-778`) |
-| plan, budget cut | `hunt: plan budget cut stage=2 reason=over-budget`, one line when the plan drops stage 2 |
+| plan, budget cut | `hunt: plan budget cut stage=2 reason=over-budget`, one line when the plan drops stage 2; `over-budget` covers a seconds budget no calibration figure prices, where no estimate stands to compare (FR-012, FR-013) |
 | ranking row | `hunt: rank <n> <address> <norm>=<value> cv=<percent> [multiplexed]` |
 | excluded tail | `hunt: rank - <address> <norm>=<value> cv=<percent> mark=<noisy|unrepeated|beyond-top>` |
 | skipped | `hunt: skipped <address> <kind>` |
@@ -221,7 +221,7 @@ The run-level record on `ReportData::hunt`. Public in `hunt.hpp`.
 | `stages` | `std::vector<HuntStageRange>` | the stages that ran; each holds its first index into `plannedAddresses`, its event count and its repeats |
 | `ranEvents` | `std::size_t` | columns that produced at least one clean sample |
 | `stageTwoEvents` | `std::size_t` | columns stage 2 measured |
-| `cutReason` | `std::string` | the reason the planner recorded for the stage it dropped, the word the budget cut line prints (`hunt.hpp:457`, `report.cpp:788-791`) |
+| `cutReason` | `std::string` | the reason the planner recorded for the stage it dropped, the word the budget cut line prints; the planner records `over-budget` for an estimate above the budget and for a seconds budget no calibration figure prices (`hunt.hpp:457`, `report.cpp:788-791`) |
 
 ## E-09 `RunOptions` hunt fields
 

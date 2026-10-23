@@ -504,7 +504,8 @@ struct RunHunt
  *       holds two: stage 1 over every column at one repeat and stage
  *       2 over the top `3 x top` columns at `options.repeats` (D-2,
  *       FR-013), the budget rule dropping stage 2 whole when the
- *       two-stage estimate does not fit; `estimateNs` holds
+ *       two-stage estimate does not fit the budget or when a seconds
+ *       budget has no calibration figure to price it; `estimateNs` holds
  *       `calibrationNsPerPass x passes x repeats`, the stage-1
  *       figures on a split plan, or stands empty; `normalized` is
  *       false exactly when `anchorsPerPass` is zero
