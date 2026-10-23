@@ -24,6 +24,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_fake.hpp"
@@ -524,6 +525,36 @@ auto main() -> int
   check(options.precheckMs == sg::kDefaultPrecheckMs,
         "the default pre-check duration stands at kDefaultPrecheckMs (E-01)");
   check(!options.strict, "the strict flag stands false by default (E-01)");
+
+  // E-03: the duration-division relation the fold's SG_ENSURE contracts
+  // read. The true fields stand, and each false outcome stands alone:
+  // a rate the covered span contradicts, and a percent the covered span
+  // contradicts while the rate stands true (E-03).
+  {
+    sg::JitterStats divided;
+    divided.gapCount = 4;
+    divided.runtimeNs = 1000;
+    divided.totalNs = 1000;
+    divided.gapsPerSecond = 4000000.0;
+    divided.totalPercent = 100.0;
+    check(sg::detail::durationDivisionsHold(divided),
+          "the fields the fold filled answer the span (E-03)");
+
+    sg::JitterStats wrongRate = divided;
+    wrongRate.gapsPerSecond = 5.0;
+    check(!sg::detail::durationDivisionsHold(wrongRate),
+          "a rate the span contradicts stands refused (E-03)");
+
+    sg::JitterStats wrongPercent = divided;
+    wrongPercent.totalPercent = 7.0;
+    check(!sg::detail::durationDivisionsHold(wrongPercent),
+          "a percent the span contradicts stands refused (E-03)");
+
+    sg::JitterStats zeroSpan = divided;
+    zeroSpan.runtimeNs = 0;
+    check(sg::detail::durationDivisionsHold(zeroSpan),
+          "the zero span answers no finite division and stands true " "(E-03)");
+  }
 
   // E-01: the constants carry the values the table states.
   check(sg::kDefaultThresholdNs == 200,

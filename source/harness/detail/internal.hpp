@@ -736,6 +736,45 @@ struct MaskNarrowing
                                    const std::vector<std::uint32_t>& maskCpus)
     -> MaskNarrowing;
 
+/// @brief The planned-cpus rule the idle resolution's precondition
+/// reads: every planned cpu names a thread the layout's mask holds
+/// (R-07).
+[[maybe_unused]] [[nodiscard]] auto plannedCpusResolve(
+    const MachineLayout& machine,
+    const std::vector<std::uint32_t>& plannedCpus) -> bool;
+
+/// @brief The duration-division relation of data-model.md E-03: the
+/// derived fields the fold filled answer the covered span, read against
+/// the scale of the values (E-03).
+[[maybe_unused]] [[nodiscard]] auto durationDivisionsHold(
+    const JitterStats& stats) -> bool;
+
+/// @brief The resolution's postcondition predicate, read only inside
+/// the SG_ENSURE contract of the idle resolution: the covered groups
+/// equal the touched ones across the skip record and the yielded cpus,
+/// and every yielded cpu stands the lowest free cpu of its group
+/// (FR-016, FR-017, D-4).
+[[maybe_unused]] [[nodiscard]] auto idleResolutionValid(
+    const MachineLayout& machine,
+    const std::vector<std::uint32_t>& plannedCpus,
+    const IdleResolution& resolution) -> bool;
+
+/// @brief The overlap answer's postcondition predicate, read only
+/// inside the SG_ENSURE contract of the overlap check: the answer
+/// names a probe cpu, and no overlap names none (FR-018, D-9, R-10).
+[[maybe_unused]] [[nodiscard]] auto probeOverlapValid(
+    const std::vector<std::uint32_t>& probeCpus,
+    const std::optional<ProbeOverlap>& overlap) -> bool;
+
+/// @brief The narrowing's postcondition predicate, read only inside
+/// the SG_ENSURE contract of the mask decision: the narrowed mask
+/// drops the probe cpus only, and the limit answer follows the mask
+/// (FR-019, FR-036).
+[[maybe_unused]] [[nodiscard]] auto maskNarrowingValid(
+    const std::vector<std::uint32_t>& probeCpus,
+    const std::vector<std::uint32_t>& maskCpus,
+    const MaskNarrowing& narrowing) -> bool;
+
 /// @brief Print the layout listing `--topology` states (FR-036).
 auto printTopologyListing(const MachineLayout&) -> void;
 
