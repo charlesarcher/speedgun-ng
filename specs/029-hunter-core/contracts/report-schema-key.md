@@ -116,16 +116,18 @@ a gate: each is a test or a page that states the number the writer stamps.
 
 | File | What it pins |
 |---|---|
-| `test/source/harness_json_load_test.cpp:113` | the current-version document the loader test builds, `withVersion("\"1.1\"")` |
+| `test/source/harness_json_load_test.cpp:113` | the current-version document the loader test builds, `withVersion("\"1.4\"")` |
 | `test/source/harness_json_load_test.cpp:529` | the `schemaVersion` kind refusal row, which plants `"\"schemaVersion\":1"` beside the current text |
-| `test/source/harness_compare_cli_test.cpp:516` | the comparison console line, which expects the words `schema 1.1` beside `speedgun 0.16.0` |
 | `docs/pages/harness.md:1067` | the sentence that states the version a run writes |
 
-The committed comparison baselines keep their own versions on purpose:
-`harness_compare_cli_test.cpp:492` and `harness_compare_test.cpp:1191-1202` pin
-that a `1.0` baseline compares against a `1.1` run and that a minor difference
-does not stop a comparison. The bump moves neither of those facts: the minor
-position stays a value the comparison reads and reports and never refuses on.
+The committed comparison fixtures keep their own versions on purpose.
+`test/data/gate_ok_base.json` carries `1.0` and `test/data/gate_schema_11.json`
+carries `1.1`, so `harness_compare_cli_test.cpp:516` reads the words
+`schema 1.1` from two stored documents: the case weighs a minor difference
+between documents on disk, a value the comparison reads and reports and never
+refuses on. `harness_compare_cli_test.cpp:492` and
+`harness_compare_test.cpp:1191-1202` pin the same rule at their own sites. The
+bump moves none of these facts.
 
 ## Verification
 

@@ -132,32 +132,65 @@ one line naming the value and exit 2. No estimate prints
 
 ## Walkthrough: US3 JSON objects and schema
 
-```bash
-ctest --test-dir build -R 'harness_hunt_json_test' -V
-ctest --test-dir build -R 'harness_json' -V
-```
+1. Run the hunt JSON suite and the JSON suites around it.
 
-Expected: a hunt document carries the top-level `hunt` object after
-`benchmarks` and a per-entry `hunt` object after `spreadWarning`;
-`checkReport` over the schema at `SG_SCHEMA_PATH` answers clean for the hunt
-document; the round trip through `loadReport` reads every field back equal,
-including a `rank` that is null and a `budget` that is null; one test per refused
-reader code fails the load with the pointer named; a document without hunt keys
-loads with both hunt members empty; a run with no `--hunt` writes bytes
-identical to the master capture apart from `schemaVersion`, prints the same
-console, and exits the same (FR-052, AC-6).
+   ```bash
+   ctest --test-dir build -R 'harness_hunt_json_test' -V
+   ctest --test-dir build -R 'harness_json' -V
+   ```
 
-`docs/schema/report-v1.json` gains both keys in `x-order` and `properties` and in
-neither `required`, and `kSchemaVersion` reads `1.4`. These four files name the
-version that the bump moves, so a red line there is the version and not the
-hunt:
+2. Read the expectations those two suites state for a hunt document.
 
-```bash
-grep -rn 'schema 1.1\|"1.1"\|schemaVersion.*1\.1' \
-  test/source/harness_json_load_test.cpp \
-  test/source/harness_compare_cli_test.cpp \
-  docs/pages/harness.md
-```
+   Expected: a hunt document carries the top-level `hunt` object after
+   `benchmarks` and a per-entry `hunt` object after `spreadWarning`;
+   `checkReport` over the schema at `SG_SCHEMA_PATH` answers clean for the hunt
+   document; the round trip through `loadReport` reads every field back equal,
+   including a `rank` that is null and a `budget` that is null; one test per
+   refused reader code fails the load with the pointer named; a document
+   without hunt keys loads with both hunt members empty (FR-050, FR-051,
+   AC-6).
+
+3. Read the two `hunt` keys in `docs/schema/report-v1.json`. Both keys stand in
+   `x-order` and in `properties` of the root object and of the benchmark entry
+   object, and in neither `required` list (FR-053, D-17).
+
+4. Grep the two FR-052 facts off the document that a run with no `--hunt`
+   writes.
+
+   ```bash
+   ./build/example/docs_json_reports --json=/tmp/hunt-free.json
+   grep -c '"hunt"' /tmp/hunt-free.json
+   grep -oE '"schemaVersion":"[0-9.]+"' /tmp/hunt-free.json
+   ```
+
+   The first grep answers `0` and exits 1: no hunt key stands in the document
+   of a run without the hunt option (FR-052). The second answers the version
+   this feature reserves, `1.4` (FR-053, D-17). The byte golden of
+   `harness_json_report_test.cpp` carries the byte, console and exit-status
+   comparison behind those two lines (AC-6). T048 moved `kSchemaVersion` to
+   `1.4` and T049 moved the rows that name it, so the tree stamps `1.4`.
+
+5. Grep every line that names a schema version, so a red line there points at
+   the version.
+
+   ```bash
+   grep -rnE '"[0-9]\.[0-9]|schema [0-9]\.[0-9]|`[0-9]\.[0-9]' \
+     source/harness/json_report.cpp \
+     test/source/harness_json_load_test.cpp \
+     test/source/harness_compare_cli_test.cpp \
+     docs/pages/harness.md
+   ```
+
+   The pattern matches the value wherever a file spells it, in the quoted form
+   the writer and a written document use, in the escaped form the loader test
+   builds, in the `schema 1.1` console words, and in the backticks of the page.
+   Four lines carry the value the bump moves: `json_report.cpp:32` the writer
+   constant, `harness_json_load_test.cpp:113` the current-version document,
+   `harness_json_load_test.cpp:529` the kind refusal row beside it, and
+   `docs/pages/harness.md:1067` the sentence of the page.
+   `harness_compare_cli_test.cpp:516` states the header that
+   `test/data/gate_schema_11.json` carries, a frozen fixture, and keeps `1.1`.
+   T048 moves the writer constant and T049 moves the three rows that name it.
 
 ## Walkthrough: US4 documentation chain
 
