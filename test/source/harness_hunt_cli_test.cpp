@@ -27,6 +27,7 @@
 // ============================================================================
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -165,7 +166,7 @@ auto registerHost(const std::string& script) -> void
   check(settled.has_value(), "the hunt fixture registers on the local system");
 }
 
-int huntRuns = 0;
+std::atomic<int> huntRuns {0};
 
 auto bmHuntCli(sg::State& state) -> void
 {
