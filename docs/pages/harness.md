@@ -1410,6 +1410,20 @@ A run with no `--hunt` prints no `hunt:` line and writes no `hunt` key. Its
 console bytes and its document are the bytes they were before hunter mode
 existed.
 
+<!-- sg-sample-output: example/docs/hunt_rank.expected#report -->
+```text
+speedgun-ng 0.19.0 build=Release
+bmHunt/8                 iterations= 262294045  real time/iter (ns)=    2.758  cpu time/iter (ns)=    2.753  overhead floor (ns)= 1144.000  endpoint samples=2
+bmHunt/64                iterations=  32787145  real time/iter (ns)=   21.379  cpu time/iter (ns)=   21.350  overhead floor (ns)=  680.000  endpoint samples=2
+hunt: rank 1 cpu/hunt_branches instr=2000.000 cv=0.00
+hunt: rank 2 cpu/hunt_loads instr=1000.000 cv=0.00
+hunt: rank - cpu/hunt_rtls instr=0.000 cv=0.00 mark=unrepeated
+hunt: rank - cpu/hunt_stalls instr=3000.000 cv=33.33 mark=noisy
+hunt: rank - cpu/hunt_stores instr=0.000 cv=0.00 mark=beyond-top
+hunt: skipped cpu/hunt_blocked permission-blocked
+hunt: skipped cpu/hunt_noenc not-encodable
+```
+
 ### Selecting events
 
 `--hunt` reads its value in the attached form: `--hunt=all`. A space between
@@ -1485,8 +1499,8 @@ hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3
 
 ### The hunt lines
 
-The plan line prints once before the run, and the lines below it print after
-the benchmark tables.
+The plan line prints once above the first result row, the cut line directly
+under it, and the lines that rank print after the benchmark tables.
 
 ```text
 hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s
