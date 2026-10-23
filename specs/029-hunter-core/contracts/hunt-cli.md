@@ -25,7 +25,7 @@ free for this lane (spec D-22).
 |---|---|---|---|---|---|
 | `--hunt` | `{"hunt", optional_argument, nullptr, kHuntOption}` | 270 | off | no value or `=all`, `=none`, a comma or newline list of catalog addresses, one glob pattern, or `@path` | unknown address, pattern that matches nothing, empty address line, raw code |
 | `--hunt-norm` | `required_argument` | 271 | `instr` when unset | `instr`, `cycle`, `iter` | any other word |
-| `--hunt-rank` | `required_argument` | 272 | `rate` | `rate`, `cv` | any other word, `sensitivity`, `delta`, `score` included (D-3) |
+| `--hunt-rank` | `required_argument` | 272 | `rate` | `rate`, `cv` | any other word: the three words `sensitivity`, `delta`, `score` name the work that owns them, every further word the accepted words (D-3, FR-032) |
 | `--hunt-top` | `required_argument` | 273 | `20` | integer 1 to 10000 | 0, 10001, non-integer |
 | `--hunt-noise` | `required_argument` | 274 | `10` | percent CV threshold above `0.0` | `0`, a negative value, non-numeric |
 | `--hunt-repeats` | `required_argument` | 275 | `3` | integer 1 to 1000 | 0, 1001, non-integer |
@@ -84,7 +84,8 @@ status 2 (FR-081). The message form follows the percentile list refusal at
 | `--hunt-norm=cycle` with no countable cycles anchor | `--hunt-norm: 'cycle' has no countable anchor on this host` (D-13) |
 | `--hunt-norm=instr` with no countable instructions anchor | `--hunt-norm: 'instr' has no countable anchor on this host` (D-13) |
 | a hunt plan over a device publishing a limit below 3 | `hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3` |
-| `--hunt-rank=sensitivity` | `--hunt-rank: expected rate or cv, got 'sensitivity'` |
+| `--hunt-rank=sensitivity` (`delta`, `score` likewise) | `--hunt-rank: 'sensitivity' is reserved for N14b; --hunt-rank takes rate or cv` (D-3, FR-032) |
+| `--hunt-rank=rate2` | `--hunt-rank: expected rate or cv, got 'rate2'` |
 | `--hunt-top=0` | `--hunt-top: expected 1 to 10000, got '0'` |
 | `--hunt-top=10001` | `--hunt-top: expected 1 to 10000, got '10001'` |
 | `--hunt-noise=0` | `--hunt-noise: expected a percentage above 0, got '0'` |

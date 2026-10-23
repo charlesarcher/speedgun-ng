@@ -83,7 +83,7 @@ struct HuntOptions
 
 | Name | Contract |
 |---|---|
-| `HuntNorm` | `\pre` none. `\post` `INSTR` divides by the instructions count of the same pass, `CYCLE` by the cycles count of the same pass, `ITER` by the iteration count of the attempt. No enumerator names `SENSITIVITY`, `DELTA` or `SCORE`: specs/031 adds those when its method exists (D-3) |
+| `HuntNorm` | `\pre` none. `\post` `INSTR` divides by the instructions count of the same pass, `CYCLE` by the cycles count of the same pass, `ITER` by the iteration count of the attempt. No enumerator names `SENSITIVITY`, `DELTA` or `SCORE`: N14b adds those when its method exists (D-3) |
 | `HuntRank` | `\pre` none. `\post` `RATE` orders by median rate descending, `CV` by coefficient of variation ascending; both break a tie by catalog address, so one sample list gives one order |
 | `HuntBudget` | `\pre` `amount` is greater than zero. `\post` the record states the budget in the unit the caller named, and no conversion to the other unit happens here. `\invariant` `amount` above zero |
 | `HuntOptions` | `\pre` `top` stands in 1 to 10000, `repeats` in 1 to 1000, `noise` above `0.0`. `selection` is non-empty for the hunt a record drives: `runHunt` requires it at `hunt.cpp:1181-1185`. The empty text is the spelling of hunt options that never met `--hunt`, the state the option scan parks at `hunt_cli.cpp:332-334` and `hunt.hpp:122` documents. `\post` the record holds exactly one run's settled values; a default-constructed record is the run `--hunt` names with no other hunt option (D-1, D-3, D-6 to D-9). `\invariant` `budget` is empty or holds an `amount` above zero |
