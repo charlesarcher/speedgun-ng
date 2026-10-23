@@ -1012,6 +1012,49 @@ auto scenarioPassZeroGroupRefusalExitsOne() -> void
   std::printf("pass-zero-group-refusal-exits-one: ok\n");
 }
 
+// A hunt of a benchmark the registry has not expanded, and a hunt of a
+// selection the catalog cannot resolve, each answer the error route with a
+// message naming what they were given, and neither leaves a record behind. The
+// first stands before `expandRegistry`, the state where the instance list
+// holds nothing; every scenario of this file is a re-exec of its own, so that
+// state belongs to this run alone (FR-092, FR-004, FR-005, E-01).
+auto scenarioHuntRefusalsNameTheirInput() -> void
+{
+  registerHuntHost(kCollectLimit);
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntUnexpanded");
+
+  const auto unexpanded =
+      sg::hunt::runHunt(handle, optionsFor(selectionOf({0})), std::nullopt);
+  check(!unexpanded.has_value(),
+        "a hunt of a name the registry holds no instance for answers the error "
+        "route (FR-092)");
+  check(unexpanded.has_value()
+            || unexpanded.error().message.find("bmHuntUnexpanded")
+                != std::string::npos,
+        "the refusal names the instance the registry holds none of (FR-092)");
+
+  sg::detail::expandRegistry();
+  const std::string missing {std::string(sg::test::kHuntCpu) + "/rose"};
+  const auto unresolvable =
+      sg::hunt::runHunt(handle, optionsFor(missing), std::nullopt);
+  check(!unresolvable.has_value(),
+        "a hunt of an address the catalog holds none of answers the error "
+        "route (FR-004)");
+  check(unresolvable.has_value()
+            || unresolvable.error().message.find(missing) != std::string::npos,
+        "the refusal names the address it could not resolve (FR-004)");
+
+  const auto rawCode =
+      sg::hunt::runHunt(handle, optionsFor("r4a03"), std::nullopt);
+  check(!rawCode.has_value(),
+        "a hunt of a raw event code answers the error route (FR-005)");
+  check(rawCode.has_value()
+            || rawCode.error().message.find("raw event code")
+                != std::string::npos,
+        "the refusal states the raw code it was given (FR-005)");
+  std::printf("hunt-refusals-name-their-input: ok\n");
+}
+
 // ---------------------------------------------------------------------------
 // FR-092: the two-context threaded run
 // ---------------------------------------------------------------------------
@@ -1436,6 +1479,8 @@ auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
                 &scenarioPassZeroSeatFailureKeepsExitOne},
       Scenario {"pass-zero-group-refusal-exits-one",
                 &scenarioPassZeroGroupRefusalExitsOne},
+      Scenario {"hunt-refusals-name-their-input",
+                &scenarioHuntRefusalsNameTheirInput},
       Scenario {"two-context-window-opens", &scenarioTwoContextWindowOpens},
       Scenario {"two-stage-merged-record",
                 &scenarioTwoStageBudgetMergesOneRecord},

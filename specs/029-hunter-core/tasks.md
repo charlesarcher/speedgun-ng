@@ -707,3 +707,16 @@ hosts from here.
       the host answers, an estimate present and divisible by the passes of the
       plan, and the defect stays pinned on the library route, where no clock
       runs (`test/source/harness_hunt_cli_test.cpp`; T119, FR-012)
+
+- [x] T157 Cover the selection shapes and the refusal routes the hunt answers.
+      The padded list, the trailing star, the unmatched pattern, the empty
+      address line, the address the catalog holds none of and the raw event
+      code each stood behind a branch no case reached, and the hunt of an
+      unexpanded instance name stood uncovered with two catalog refusals
+      beside it. Every refusal now answers a check naming the value its message
+      carries, on the plan route and the library route alike. One check that
+      read `addresses()` after a refusal aborted on its own precondition, which
+      is the contract answering that a refusal leaves no expansion to read
+      (`test/source/harness_hunt_plan_test.cpp`,
+      `test/source/harness_hunt_collect_test.cpp`; FR-004, FR-005, FR-006,
+      FR-007, FR-092, E-01)
