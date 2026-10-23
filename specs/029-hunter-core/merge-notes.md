@@ -95,6 +95,20 @@ the writer that name a written version: `docs/pages/harness.md:1067`,
 time of this audit, as the findings below record, so a rebase onto `1.5` has
 to settle them anyway.
 
+### Re-taken against master, 2026-10-23
+
+`git fetch`, then the three numbers on `origin/master` at `bd10d76`:
+`VERSION 0.16.0` at line 9, `SOVERSION 3` at line 53 and `SOVERSION 10`
+at line 261. `git merge-base --is-ancestor origin/master HEAD` answers
+yes, so this branch already carries master, and the rebase T063 names as
+its base is a no-op on this host.
+
+Master has taken neither of the minors `0.17.0` and `0.18.0` reserve, so
+the four values above stand as set: `0.19.0`, `SOVERSION 4`,
+`SOVERSION 11` and `"1.4"`. No number in `CMakeLists.txt` moves for this
+measurement. The page cap of 809 lines that `6e1d28b` recorded is
+already the value the page carries on a tree that holds master.
+
 ## Shared-list ledger
 
 `plan.md:445-457` names eleven shared surfaces, and `plan.md:48` names one
