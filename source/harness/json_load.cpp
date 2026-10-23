@@ -967,7 +967,6 @@ auto readSkippedEvent(Element value, const std::string& where)
       parts {
           {"address", field(value, where, "address")},
           {"kind", field(value, where, "kind")},
-          {"stage", field(value, where, "stage")},
       };
   auto keys = settled(parts);
   if (!keys.has_value()) {
@@ -980,22 +979,10 @@ auto readSkippedEvent(Element value, const std::string& where)
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
-  hunt::SkippedEvent event {
+  return hunt::SkippedEvent {
       .address = *address,
       .kind = *kind,
-      .stage = std::nullopt,
   };
-  // A skip discovery answered names no stage, the `null` the writer puts
-  // there (D-10).
-  const Element stage = parts[2].second.value();
-  if (!stage.is_null()) {
-    auto number = asUnsigned(stage, where + "/stage");
-    if (!number.has_value()) {
-      return std::unexpected(number.error());
-    }
-    event.stage = static_cast<std::size_t>(*number);
-  }
-  return event;
 }
 
 // The per-entry hunt object of specs/029 (contracts/hunt-json.md). Every key

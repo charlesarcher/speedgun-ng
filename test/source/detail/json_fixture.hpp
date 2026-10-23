@@ -324,8 +324,7 @@ auto sameRankedEvent(const sg::hunt::RankedEvent& actual,
 auto sameSkippedEvent(const sg::hunt::SkippedEvent& actual,
                       const sg::hunt::SkippedEvent& want) -> bool
 {
-  return actual.address == want.address && actual.kind == want.kind
-      && actual.stage == want.stage;
+  return actual.address == want.address && actual.kind == want.kind;
 }
 
 auto sameEntryHunt(const sg::hunt::EntryHunt& actual,

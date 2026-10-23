@@ -7,7 +7,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -818,7 +817,6 @@ auto EventCatalog::split(const std::uint64_t seed) const
       answer.second.push_back(SkippedEvent {
           .address = address,
           .kind = detail::skippedKindOf(row->availability),
-          .stage = std::nullopt,
       });
     }
   }
@@ -883,7 +881,14 @@ auto huntRunRecord() -> std::optional<sg::hunt::RunHunt>&
 
 // The two enums are one ladder with the countable state at the head of the
 // counters side, so the shift states the name-for-name mapping of D-10 and
-// no kind table stands in between (FR-021, FR-050).
+// no kind table stands in between (FR-021, FR-050). The two pins below hold
+// the head of each ladder at zero, the premise the shift of
+// `skippedKindOf` rests on: a reordering that moves either head fails the
+// build (T118).
+static_assert(static_cast<std::size_t>(sg::counters::Availability::COUNTABLE)
+              == 0U);
+static_assert(
+    static_cast<std::size_t>(sg::hunt::SkippedKind::PERMISSION_BLOCKED) == 0U);
 static_assert(
     static_cast<std::size_t>(sg::counters::Availability::PERMISSION_BLOCKED)
     == static_cast<std::size_t>(sg::hunt::SkippedKind::PERMISSION_BLOCKED) + 1);
@@ -908,19 +913,45 @@ auto skippedKindOf(const sg::counters::Availability availability) noexcept
       static_cast<std::uint8_t>(availability) - 1U);
 }
 
-auto skippedKindOf(const sg::counters::Error& refusal) -> sg::hunt::SkippedKind
+// The words `availabilityName` of `source/counters/plan.cpp:110-129` puts
+// into the refusal of a seat, each paired with the state it names. The
+// counters layer keeps its own list file-local, so this table is the reader's
+// side of one published sentence: it settles no state of its own, and every
+// state in it is a state the discovery probe of
+// `source/counters/linux_pmu/provider.cpp` answers for an entry. The order
+// follows `Availability`.
+constexpr std::array<std::pair<std::string_view, sg::counters::Availability>, 5>
+    kRefusalStateWords {
+        {{"permission_blocked", sg::counters::Availability::PERMISSION_BLOCKED},
+         {"not_encodable", sg::counters::Availability::NOT_ENCODABLE},
+         {"absent", sg::counters::Availability::ABSENT},
+         {"scope_refused", sg::counters::Availability::SCOPE_REFUSED},
+         {"gap", sg::counters::Availability::GAP}},
+    };
+
+auto availabilityOfRefusal(const sg::counters::Error& refusal) noexcept
+    -> std::optional<sg::counters::Availability>
 {
-  // The message text carries the errno name the open failed with, the same
-  // errnos the discovery probe maps at provider.cpp:774-786 (D-18, spec PC-1).
-  const auto names = [&refusal](const char* name) -> bool
-  { return refusal.message.find(name) != std::string::npos; };
-  if (names("EINVAL") || names("EOPNOTSUPP")) {
-    return sg::hunt::SkippedKind::NOT_ENCODABLE;
+  // The counters layer composes the sentence below when the catalog state of
+  // a leaf refuses the seat it asked for
+  // (`source/counters/plan.cpp:485-490`). The state follows the sentence and
+  // runs to the `;` that closes it, so the read starts at the sentence and no
+  // leaf name, device path or error text of its own answers for the state.
+  constexpr std::string_view kReportedLead = "the catalog reports ";
+  const std::string_view message = refusal.message;
+  const auto start = message.find(kReportedLead);
+  if (start == std::string_view::npos) {
+    return std::nullopt;
   }
-  if (names("EACCES") || names("EPERM")) {
-    return sg::hunt::SkippedKind::PERMISSION_BLOCKED;
+  const auto begin = start + kReportedLead.size();
+  const auto end = message.find(';', begin);
+  const std::string_view word = message.substr(begin, end - begin);
+  for (const auto& [stateWord, state] : kRefusalStateWords) {
+    if (stateWord == word) {
+      return state;
+    }
   }
-  return sg::hunt::SkippedKind::ABSENT;
+  return std::nullopt;
 }
 
 }  // namespace sg::detail
@@ -1149,21 +1180,20 @@ auto runHuntNamed(std::string_view name,
   for (auto& ranked : entry.entries) {
     ranked.multiplexed = multiplexed;
   }
-  // specs/029 D-18, FR-021, T073: the event whose solo retry refused too
-  // stands in the skipped list with the kind its own refusal maps to, beside
-  // the halves the discovery and the disclosures already filled. The refusal
-  // takes the place of a gap the same address collected with: a pass that
-  // refused its seat leaves its columns gap-disclosed in the rows of the
-  // passes that did run, and one address names one reason, the one the host
-  // answered (I-4).
+  // specs/029 D-18, FR-021, T073, T118: the event whose solo retry refused
+  // too stands in the skipped list with the kind of the state its own refusal
+  // names, beside the halves the discovery and the disclosures already filled.
+  // The refusal takes the place of a gap the same address collected with: a
+  // pass that refused its seat leaves its columns gap-disclosed in the rows of
+  // the passes that did run, and one address names one reason, the one the
+  // host answered (I-4).
   for (const auto& refusal : refused) {
     std::erase_if(entry.skipped,
                   [&refusal](const SkippedEvent& skipped)
                   { return skipped.address == refusal.address; });
     entry.skipped.push_back(SkippedEvent {
         .address = refusal.address,
-        .kind = detail::skippedKindOf(refusal.refusal),
-        .stage = std::nullopt,
+        .kind = detail::skippedKindOf(refusal.availability),
     });
   }
   // An address discovery refused can stand in no measured list, so the two

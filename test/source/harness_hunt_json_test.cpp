@@ -327,13 +327,12 @@ struct Hunted
   entry.method = plan.method;
   // The retry lane of D-18: two passes of the plan ran a second time solo.
   entry.retriedPasses = 2;
-  // A stage refusal carries the stage whose pass list held the address, the
-  // half of E-06 the run fills and `rankEvents` leaves empty.
+  // The refusal of one event carries the address and the kind, the two
+  // figures FR-050 names; the stage the address stood in belongs to the plan.
   auto refused = sg::hunt::SkippedEvent {};
   refused.address = sg::test::huntAddress(sg::test::kHuntCpu,
                                           sg::test::huntEvent(kColumns + 1));
   refused.kind = sg::hunt::SkippedKind::SCOPE_REFUSED;
-  refused.stage = 1;
   entry.skipped.push_back(std::move(refused));
 
   auto run = runOf(options, plan);
@@ -676,10 +675,12 @@ struct Plant
   if (cut < text.size() && text[cut] == ',') {
     ++cut;
   } else {
+    // The key is the last member of its node, so the comma that sets it off
+    // stands before the key, and the value ends the node.
     const auto prior = text.rfind(',', key);
     check(prior != std::string_view::npos,
           "the removed key stands beside a comma");
-    return std::string(text.substr(0, prior)) + std::string(text.substr(key));
+    return std::string(text.substr(0, prior)) + std::string(text.substr(end));
   }
   return std::string(text.substr(0, key)) + std::string(text.substr(cut));
 }
@@ -830,7 +831,7 @@ auto huntKeysInOrder() -> void
              "/benchmarks/0/hunt/entries/0");
   checkOrder(text,
              elementOpen(text, entryNode, "skipped"),
-             {"address", "kind", "stage"},
+             {"address", "kind"},
              "/benchmarks/0/hunt/skipped/0");
   checkOrder(text,
              elementOpen(text, runNode, "stages"),
@@ -850,9 +851,9 @@ auto huntKeysInOrder() -> void
         "the document carries exactly the two hunt nodes");
 }
 
-// One field-by-field round trip through `loadReport`, with the four null forms
-// of the contract named one by one: a null budget, a null estimate, a null
-// rank and a null skipped stage.
+// One field-by-field round trip through `loadReport`, with the three null
+// forms of the contract named one by one: a null budget, a null estimate and
+// a null rank.
 auto huntRoundTrip() -> void
 {
   const auto hunted = singleStageHunt();
@@ -866,8 +867,6 @@ auto huntRoundTrip() -> void
         "an absent estimate is written as null");
   check(text.find("\"rank\":null") != std::string::npos,
         "an unranked event is written with a null rank");
-  check(text.find("\"stage\":null") != std::string::npos,
-        "a discovery refusal is written with a null stage");
 
   const auto loaded = sg::loadReport(kScratchPath);
   if (!loaded.has_value()) {
@@ -917,18 +916,6 @@ auto huntRoundTrip() -> void
   checked(unranked.size() >= noisy.size() + 2,
           "the record carries more than one null rank");
 
-  const auto nullStage =
-      std::ranges::find_if(entry.skipped,
-                           [](const sg::hunt::SkippedEvent& skip)
-                           { return !skip.stage.has_value(); });
-  const auto staged =
-      std::ranges::find_if(entry.skipped,
-                           [](const sg::hunt::SkippedEvent& skip)
-                           { return skip.stage.has_value(); });
-  checked(nullStage != entry.skipped.end(),
-          "a discovery refusal reads back with a null stage");
-  checked(staged != entry.skipped.end() && *staged->stage == 1,
-          "a stage refusal reads back with its stage");
   // The column that measured and gapped stands in both lists at once (D-10).
   checked(std::any_of(entry.skipped.begin(),
                       entry.skipped.end(),
@@ -1133,12 +1120,13 @@ const auto kPlants = std::vector<Plant> {
            .remove = true,
            .pointer = "/benchmarks/0/hunt/skipped/0",
            .message = "the key 'address' stands missing"},
-    Plant {.what = "a string where the stage of a skipped record stands",
+    Plant {.what = "a missing kind of a skipped record",
            .node = "skipped",
-           .key = "stage",
-           .body = "\"one\"",
-           .pointer = "/benchmarks/0/hunt/skipped/0/stage",
-           .message = "expected an integer, found string"},
+           .key = "kind",
+           .body = "",
+           .remove = true,
+           .pointer = "/benchmarks/0/hunt/skipped/0",
+           .message = "the key 'kind' stands missing"},
     Plant {.what = "a string where the skipped array stands",
            .node = "hunt",
            .key = "skipped",

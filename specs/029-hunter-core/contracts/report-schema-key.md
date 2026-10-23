@@ -84,7 +84,7 @@ inside a present `hunt` object every key is required by the hunt node's own
   "properties": {
     "entries": array of a closed node with x-order
                ["address", "rate", "cv", "noisy", "multiplexed", "rank"],
-    "skipped": array of a closed node with x-order ["address", "kind", "stage"]
+    "skipped": array of a closed node with x-order ["address", "kind"]
   }
 }
 ```
@@ -93,7 +93,7 @@ Both nodes are closed and both list every key as required, because a hunt object
 the harness wrote always carries all of them: an absent value inside one is
 written as `null`, which is the shape `passSpread` already uses
 (`json_report.cpp:508`). The null-accepting kinds are the top-level `budget`
-and `estimate_ns`, `entries[].rank` and `skipped[].stage`, each written as a
+and `estimate_ns` and `entries[].rank`, each written as a
 one-of pair of its kind
 and `null` in the form the existing optional entries of the schema use.
 

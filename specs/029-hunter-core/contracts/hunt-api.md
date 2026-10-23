@@ -238,7 +238,6 @@ struct SkippedEvent
 {
   std::string address;
   SkippedKind kind = SkippedKind::ABSENT;
-  std::optional<std::size_t> stage;
 };
 
 struct HuntSample
@@ -290,10 +289,12 @@ struct EntryHunt
 (`counters_core.hpp:88-95`: `PERMISSION_BLOCKED`, `NOT_ENCODABLE`, `ABSENT`,
 `SCOPE_REFUSED`, `GAP`) through one named mapping function (D-10, FR-021,
 FR-050; the window gap state is disclosed at `counters_measurement.hpp:406-413`
-through `fold` and `foldPairs`). A group-open refusal that still fails on the solo retry maps its error
-the way the counters discovery probe maps an open refusal
-(`provider.cpp:774-786`, spec PC-1): `EINVAL` or `EOPNOTSUPP` answers
-`NOT_ENCODABLE`, and `EACCES` or `EPERM` answers `PERMISSION_BLOCKED` (D-18).
+through `fold` and `foldPairs`). A group-open refusal that still fails on the
+solo retry carries the kind of the catalog state its refusal names, the state
+the counters discovery probe settled for the entry (`provider.cpp:773-786`,
+spec PC-1, T118): `EINVAL`, `EOPNOTSUPP` and `ENOENT` settle `NOT_ENCODABLE`,
+every other errno settles `PERMISSION_BLOCKED`, and a refusal that names no
+state settles `ABSENT` (D-18).
 The console prints every kind with the spelling
 `report.cpp:38 availabilityName` prints.
 

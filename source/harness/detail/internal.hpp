@@ -129,20 +129,27 @@ struct PlacementPlan
 };
 
 /**
- * @brief specs/029 data-model.md E-05, D-18, T073: one hunt event whose solo
- * retry pass refused too, kept with the refusal that refused it.
+ * @brief specs/029 data-model.md E-05, D-18, T073, T118: one hunt event whose
+ * solo retry pass refused too, kept with the refusal that refused it and the
+ * availability the run published for its column.
  *
- * The pass loop cannot name the kind of a refusal - the mapping of the errno
- * the open failed with to a skipped kind belongs to `hunt.cpp` - so it hands
- * the refusal over whole, so no kind is guessed beside the address.
+ * The pass loop cannot name the kind of a refusal - the reading of the state a
+ * refusal names, and the kind that state answers, belong to `hunt.cpp` - so it
+ * hands the refusal over whole and records the state it published for the
+ * column beside it, so the row of that address and the skipped line of that
+ * event answer one state (T128).
  */
 struct RefusedRetry
 {
   // The address of the event the retry pass measured alone.
   std::string address;
   // The error the seat of that pass answered, the counters-layer text with
-  // the errno name the skipped kind is read from.
+  // the availability word the skipped kind is read from.
   counters::Error refusal;
+  // The availability the run published for that column: the state
+  // `detail::availabilityOfRefusal` read off `refusal`, with
+  // `Availability::ABSENT` for a refusal that names no state (T118, T128).
+  counters::Availability availability = counters::Availability::ABSENT;
 };
 
 }  // namespace detail

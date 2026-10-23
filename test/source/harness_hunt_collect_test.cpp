@@ -884,10 +884,39 @@ auto scenarioSoloRefusalMapsItsKind() -> void
                                     return skipped.kind == SkippedKind::ABSENT;
                                   });
   check(mapped,
-        "the kind of a skipped retry entry is the kind its own refusal maps "
-        "to: the scripted group refusal carries no errno name, so the mapping "
-        "answers ABSENT, the answer the pass loop's guessed NOT_ENCODABLE "
-        "could never give (D-18, FR-021, spec PC-1, T073)");
+        "the kind of a skipped retry entry is the kind its own refusal names "
+        "to: the scripted group refusal states no catalog state, so the "
+        "mapping answers ABSENT, the answer the pass loop's guessed "
+        "NOT_ENCODABLE could never give (D-18, FR-021, spec PC-1, T073, T118)");
+  // T118, T128: the state published for the refused column is the state whose
+  // kind the skipped line spells, so one address states one thing on both
+  // surfaces. A refused hunt column stands out of the printed rows: `--hunt`
+  // prints the rows of the run before the hunt and refuses `--counter`
+  // together with `--hunt`, so the published state is read off the record the
+  // pass loop left, beside the line the same address prints below.
+  const auto& refusedEvents =
+      needInstance("bmHuntSoloRefusal")->huntRefusedEvents();
+  check(refusedEvents.size() == hunt.skipped.size(),
+        "the pass loop recorded one refused event per skipped entry (T073, "
+        "T118)");
+  const bool oneState = std::all_of(
+      refusedEvents.begin(),
+      refusedEvents.end(),
+      [&hunt](const sg::detail::RefusedRetry& refused)
+      {
+        const auto entry =
+            std::find_if(hunt.skipped.begin(),
+                         hunt.skipped.end(),
+                         [&refused](const SkippedEvent& skipped)
+                         { return skipped.address == refused.address; });
+        return entry != hunt.skipped.end()
+            && sg::detail::skippedKindOf(refused.availability) == entry->kind
+            && refused.availability == sg::counters::Availability::ABSENT;
+      });
+  check(oneState,
+        "the availability the column publishes and the kind the skipped line "
+        "spells are the two spellings of one state, and a refusal that states "
+        "no state leaves both at absent (FR-021, T118, T128)");
   check(bodyAttempts == options.repeats,
         "the refused pass and its solo retries cost no attempt at all, which "
         "is the arming moment this arm reads its refusal from (T073)");
@@ -1232,7 +1261,7 @@ auto scenarioKindMappingAnswersEveryName() -> void
   using sg::counters::Availability;
   using sg::hunt::SkippedKind;
   // The five refused states answer their same-named kinds through the one
-  // mapping of D-10, and the four errnos of D-18 answer theirs.
+  // mapping of D-10, and the refusal of a seat names the state it maps.
   check(sg::detail::skippedKindOf(Availability::PERMISSION_BLOCKED)
             == SkippedKind::PERMISSION_BLOCKED,
         "permission blocked answers its own kind");
@@ -1246,22 +1275,52 @@ auto scenarioKindMappingAnswersEveryName() -> void
         "scope refused answers its own kind");
   check(sg::detail::skippedKindOf(Availability::GAP) == SkippedKind::GAP,
         "gap answers its own kind");
-  const auto kindOf = [](const char* text) -> SkippedKind
+  // The refusal of a seat states the catalog state that refused it in the
+  // sentence `compileCore` composes at `source/counters/plan.cpp:485-490`.
+  // Each text below is that sentence with one state word in its place, so the
+  // reader is pinned on the words the counters layer really emits (T118).
+  const auto refusalOf = [](const std::string_view text)
   {
-    return sg::detail::skippedKindOf(
-        sg::counters::Error {.message = text, .suggestions = {}});
+    return sg::counters::Error {
+        .message = std::string(text),
+        .suggestions = {},
+    };
   };
-  check(kindOf("window open failed: EINVAL") == SkippedKind::NOT_ENCODABLE,
-        "EINVAL maps to not encodable (D-18, spec PC-1)");
-  check(kindOf("window open failed: EOPNOTSUPP") == SkippedKind::NOT_ENCODABLE,
-        "EOPNOTSUPP maps to not encodable (D-18)");
-  check(kindOf("window open failed: EACCES") == SkippedKind::PERMISSION_BLOCKED,
-        "EACCES maps to permission blocked (D-18)");
-  check(kindOf("window open failed: EPERM") == SkippedKind::PERMISSION_BLOCKED,
-        "EPERM maps to permission blocked (D-18)");
-  check(kindOf("refused package-1/core-9 carrying 8 leaves")
-            == SkippedKind::ABSENT,
-        "a refusal without an errno name maps to absent (D-18)");
+  const auto stateOf = [&](const std::string_view word)
+  {
+    const std::string sentence =
+        "counter 'cpu/hunt001' is not countable on this host: the catalog "
+        "reports "
+        + std::string(word)
+        + "; pick a countable counter or branch on the catalog state before "
+          "composing (FR-024)";
+    return sg::detail::availabilityOfRefusal(refusalOf(sentence));
+  };
+  check(stateOf("permission_blocked") == Availability::PERMISSION_BLOCKED,
+        "a refusal reporting permission_blocked maps to that state (D-18)");
+  check(stateOf("not_encodable") == Availability::NOT_ENCODABLE,
+        "a refusal reporting not_encodable maps to that state (D-18, "
+        "spec PC-1)");
+  check(stateOf("absent") == Availability::ABSENT,
+        "a refusal reporting absent maps to that state (D-18)");
+  check(stateOf("scope_refused") == Availability::SCOPE_REFUSED,
+        "a refusal reporting scope_refused maps to that state (D-18)");
+  check(stateOf("gap") == Availability::GAP,
+        "a refusal reporting gap maps to that state (D-18)");
+  check(!stateOf("countable").has_value(),
+        "the countable state stands outside the kinds a skip carries, so a "
+        "refusal reporting it answers no state (D-10)");
+  // The reader fails closed: an errno name is a word of the host's own error
+  // text and states no catalog state, so a text that carries one and no
+  // sentence answers nothing (T118).
+  const auto errnoWords = sg::detail::availabilityOfRefusal(
+      refusalOf("window open failed: EINVAL"));
+  check(!errnoWords.has_value(),
+        "an errno name alone names no state (D-18, spec PC-1)");
+  const auto groupRefusal = sg::detail::availabilityOfRefusal(
+      refusalOf("refused package-1/core-9 carrying 8 leaves"));
+  check(!groupRefusal.has_value(),
+        "a refusal without the state sentence names no state (D-18)");
   std::printf("kind-mapping-cases: ok\n");
 }
 

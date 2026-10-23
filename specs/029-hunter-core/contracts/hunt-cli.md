@@ -162,8 +162,8 @@ hunt: rank 1 cpu/instructions_retired_any instr=1042.300 cv=1.20
 hunt: rank 2 cpu/l2_lines_out.any_core instr=6.910 cv=2.05 multiplexed
 hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
 hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 mark=unrepeated
-hunt: skipped cpu/l1_dc_misses permission-blocked stage=2
-hunt: skipped armv8_pmuv3/cycle not-encodable stage=2
+hunt: skipped cpu/l1_dc_misses permission-blocked
+hunt: skipped armv8_pmuv3/cycle not-encodable
 hunt: plan summary events=40/42 passes=14 budget=120s
 ```
 
