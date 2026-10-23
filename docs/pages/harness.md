@@ -1507,8 +1507,9 @@ existed.
 <!-- sg-sample-output: example/docs/hunt_rank.expected#report -->
 ```text
 speedgun-ng 0.19.0 build=Release
-bmHunt/8                 iterations= 262294045  real time/iter (ns)=    2.758  cpu time/iter (ns)=    2.753  overhead floor (ns)= 1144.000  endpoint samples=2
-bmHunt/64                iterations=  32787145  real time/iter (ns)=   21.379  cpu time/iter (ns)=   21.350  overhead floor (ns)=  680.000  endpoint samples=2
+bmHunt/8                 iterations= 231869456  real time/iter (ns)=    3.438  cpu time/iter (ns)=    2.939  overhead floor (ns)=  677.000  endpoint samples=2
+bmHunt/64                iterations=  27430438  real time/iter (ns)=   30.484  cpu time/iter (ns)=   24.900  overhead floor (ns)=  677.000  endpoint samples=2
+hunt: plan events=5 passes=3 method=PASSES estimate=not available budget=none
 hunt: rank 1 cpu/hunt_branches instr=2000.000 cv=0.00
 hunt: rank 2 cpu/hunt_loads instr=1000.000 cv=0.00
 hunt: rank - cpu/hunt_rtls instr=0.000 cv=0.00 mark=unrepeated
