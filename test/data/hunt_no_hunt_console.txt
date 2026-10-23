@@ -1,0 +1,24 @@
+# Byte-identity fixture for specs/029-hunter-core T038 (FR-052, SC-006,
+# AC-6): the console of one run that names no --hunt, captured from a ci-rocky
+# build of the 029-hunter-core branch at 9121226.
+#
+# The scenario is the scripted host of test/source/detail/hunt_fixture.hpp
+# registered beside one pinned benchmark of one iteration, run in process
+# through sg::speedgunMain by the capture-no-hunt mode of
+# test/source/harness_hunt_json_test.cpp. No --hunt flag stands in that
+# command, so the run carries no hunt record: this is the console the feature
+# must leave alone, hunt-less, with the same exit status.
+#
+# The report region is every line below that does not start with `#`. The
+# header line `speedgun-ng <version> build=<type>` stands outside the
+# fixture and is dropped from the run as well: it states the build that runs
+# the scenario, which the coverage and sanitizer presets change.
+#
+# One field of that row is a wall-clock measurement. `overhead floor (ns)=`
+# carries `Plan::sampleOverheadNsMedian()`, so the token
+# `<host-calibrated>` stands in the fixture for it and the scenario masks the
+# same field of its own run before it compares, the way
+# test/source/detail/pass_identity.expected does. The mask, an extended
+# regular expression applied with `sed -E`, is
+# `s/overhead floor (ns)= *[0-9]+\.[0-9]+/overhead floor (ns)= <host-calibrated>/`.
+bmHuntJsonCapture        iterations=         1  real time/iter (ns)=  100.000  cpu time/iter (ns)=  100.000  overhead floor (ns)= <host-calibrated>  endpoint samples=2

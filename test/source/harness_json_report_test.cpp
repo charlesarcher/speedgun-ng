@@ -547,6 +547,8 @@ auto theDocumentStampsTheMinorThisFeatureRequires() -> void
         "the written document stamps schema minor 1.4, the next free minor "
         "after the run object's 1.3 and the jitter keys this feature takes "
         "(FR-086, FR-043)");
+        "the written document stamps schema minor 1.4, the minor specs/029 "
+        "takes past the 1.3 this feature requires (FR-086, FR-043)");
 }
 
 // FR-041, FR-043: the run that names no option file and no environment
@@ -562,7 +564,7 @@ auto aRunOfNoFileOrEnvironmentWritesNoRunKey() -> void
   // The planted document that does carry the object keeps the needle live, so
   // the guard above cannot pass by searching for a shape no writer emits.
   sg::test::writeText("harness_json_runkey.json",
-                      "{\"schemaVersion\":\"1.3\",\"speedgun\":{},"
+                      "{\"schemaVersion\":\"1.4\",\"speedgun\":{},"
                       "\"run\":{\"interleave\":7},\"benchmarks\":[]}");
   const std::string planted = sg::test::readText("harness_json_runkey.json");
   check(planted.find("\"run\":") != std::string::npos,

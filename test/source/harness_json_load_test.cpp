@@ -110,7 +110,7 @@ auto versionRuleGatesTheReader() -> void
       !refused.has_value() && refused.error().find("2.0") != std::string::npos,
       "a later major is refused, naming the version it carries (FR-023)");
 
-  sg::test::writeText("harness_json_load_current.json", withVersion("\"1.1\""));
+  sg::test::writeText("harness_json_load_current.json", withVersion("\"1.4\""));
   check(sg::loadReport("harness_json_load_current.json").has_value(),
         "the version this build writes loads (FR-010)");
 
