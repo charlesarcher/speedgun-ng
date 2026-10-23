@@ -23,15 +23,17 @@ Line numbers count from 1 over the raw lines, as in the option file.
 
 ## The order
 
-Rules combine; no source replaces another (FR-063). The order is spec
-D-23:
+A repeatable list from a higher source replaces the whole list of a lower
+source (FR-038). The rule list does not combine: the highest source that
+names rules settles the list the run applies, and a rule of a lower
+source reaches the parser before it drops, so its fault still answers
+(FR-038, FR-063). Within the settling source the order is spec D-23, the
+order its entries were written:
 
 | Position | Source |
 | --- | --- |
-| 1 | the `--compare-rule` options of the command line, in the order typed |
-| 2 | the file `--compare-rules` names, in line order |
-| 3 | the `compare-rule` lines of the `--options` file, in line order |
-| 4 | the file that a `compare-rules` line of that option file names, in line order |
+| 1 | the `--compare-rule` options of that source, in the order they stand |
+| 2 | the file that that source's `--compare-rules` names, in line order |
 
 The list reaches `detail::runCompareMode` in that order, so the printed
 rows and the verdict follow it.
@@ -55,7 +57,9 @@ option file uses (FR-065, research D-05).
 `harness_compare_cli_test` gains the rules-file cases: a file of three
 rules over the fit fixture pair, a comment and a blank line that hold
 line numbers, the refusal line for a rule the parser rejects with the
-path and the number, the unreadable-path line, and the four-position
-order of spec D-23 checked through the printed row order of a compare run
-that sets rules in all four places. The existing specs/026 rule-grammar
-cases stay as they are: the grammar does not move.
+path and the number, the unreadable-path line, the order of spec D-23
+checked through the printed row order of a compare run whose highest
+source sets rules in both of its places, and the settling of the rule
+list by the higher source, with a lower rule read before it drops
+(FR-038, FR-063). The existing
+specs/026 rule-grammar cases stay as they are: the grammar does not move.

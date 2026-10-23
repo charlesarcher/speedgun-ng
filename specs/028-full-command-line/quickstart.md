@@ -40,8 +40,8 @@ reads the process environment or the file system (FR-012).
 `base_cli_matrix` runs the built binary over the twenty-six command lines
 of `test/data/base_cli_matrix.txt` and compares each status and fault
 fragment, which is the standing check that the master behavior of the
-fifteen accepted command lines and the eleven rejected ones did not move
-(FR-003, FR-059, SC-007).
+fifteen command lines the base runs and the eleven it refuses did not
+move (FR-003, FR-059, SC-007).
 
 ## The table, by hand
 
@@ -138,7 +138,7 @@ ctest --test-dir build --output-on-failure -R 'report_shape'
 
 The document carries `run` between `speedgun` and `benchmarks`, with the
 seed and one entry per disclosed option in table order, and the schema
-accepts it as an optional key with open members (FR-040, FR-043). A run
+lists it as an optional key with open members (FR-040, FR-043). A run
 with no file, no environment and no interleaving writes no such key
 (FR-041).
 

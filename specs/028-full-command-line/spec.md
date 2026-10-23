@@ -11,9 +11,9 @@ specify invocation record:
 
 "Full command line, item N7 of the roadmap
 `/workspace/speedgun-ng-harness-roadmap.md` (section 3). Short name:
-full-command-line. Target machine: gary (AMD Zen 5). Lane: harness. N1,
-N3 and N5 are done. N7 is next, then N14b, N8 and N9. N7 runs in parallel
-with N14a (corsairone, spec 029) and N13a (thrawn, spec 027). Goal: give
+full-command-line. Target machine: one AMD Zen 5 socket. Lane: harness.
+N1, N3 and N5 are done. N7 is next, then N14b, N8 and N9. N7 runs in
+parallel with N14a (spec 029) and N13a (spec 027). Goal: give
 every speedgun binary one uniform command line. All options go in one
 internal table with named values. The table also makes the `--help` text.
 N7 adds these items: environment defaults; an option file; `--threads` on
@@ -22,38 +22,36 @@ file that spec 026 deferred to N7. A run with no new option keeps the
 console report and the exit status of master. Its JSON bytes are the same
 apart from the `schemaVersion` value. [...]"
 
-## Clarifications
+## Readings the spec takes
 
-### Session 2026-10-22
-
-- Q: Do rule lists from two sources combine, or does the higher source
-  replace the lower one?
-- A: They combine. Every source that names rules contributes them in the
-  order D-23 states, and the replacement rule of FR-038 stays for every
-  other repeatable option. An option file may name `compare-rules=`, and a
-  rules file names no file of its own.
-- Q: What shape do the `run` object and the disclosure console line take?
-- A: `run` carries the members `interleave` and `options`, the second an
-  array of objects with the keys `option`, `source` and `value`, one entry
-  per option taken from a source other than the command line, in table
-  order. A repeatable value joins its entries with `;`, the separator D-6
-  states. The console line for a run that took `--min-time` from a file and
-  ran `--interleave=7` reads:
+- The spec reads the `run` object and the disclosure console line as one
+  statement of the same facts in two places: `run` carries the members
+  `interleave` and `options`, the second an array of objects with the keys
+  `option`, `source` and `value`, one entry per option taken from a source
+  other than the command line, in table order. A repeatable value joins its
+  entries with `;`, the separator D-6 states. The console line for a run
+  that took `--min-time` from a file and ran `--interleave=7` reads:
 
   `options from a file or the environment: --min-time=0.5; interleave=7`
-- Q: Does the percentile pair fault read the environment pair ahead of the
-  precedence rule?
-- A: It reads the environment pair alone, ahead of the precedence rule,
-  and the command-line pair keeps the master last-word answer of status 0.
-- Q: Which answer wins when `--help` stands beside a usage fault?
-- A: The first event in scan order wins, so `--help --nonsense=1` prints
-  the help and answers 0 while `--nonsense=1 --help` prints the fault and
-  answers 2, and `--help` beside `--version` prints the help alone.
-- Q: What text reads as an interleave seed in either form?
-- A: One reader for both forms: unsigned decimal digits, the whole text
-  consumed, the value held in 64 bits, so `-1`, `0x10`, `7x`, `true` and a
-  digit string above the 64-bit limit answer the FR-054 fault, and
-  `SPEEDGUN_INTERLEAVE=0` means interleaving on with seed 0.
+
+  The two places carry the same facts because a reader of the document and
+  a reader of the console ask one question (FR-039, FR-040).
+- The spec reads the percentile pair fault as a check on the environment
+  pair alone, ahead of the precedence rule, because a reader who sets both
+  variables made a mistake worth reporting whatever the command line
+  carries. The command-line pair keeps the master last-word answer of
+  status 0 (D-5, D-27, FR-023).
+- The spec reads `--help` beside a usage fault as one event, the first the
+  scan meets in left-to-right order, because the scan stops at that event:
+  `--help --nonsense=1` prints the help and answers 0 while
+  `--nonsense=1 --help` prints the fault and answers 2, and `--help` beside
+  `--version` prints the help alone (D-14, FR-017).
+- The spec reads an interleave seed as one text read the same in either
+  form, because one reader serves both forms: unsigned decimal digits, the
+  whole text consumed, the value held in 64 bits, so `-1`, `0x10`, `7x`,
+  `true` and a digit string above the 64-bit limit answer the FR-054 fault,
+  and `SPEEDGUN_INTERLEAVE=0` means interleaving on with seed 0 (D-4,
+  FR-054).
 
 ## Run-time binding
 
@@ -67,7 +65,7 @@ records here.
   `023-json-reports`, `024-multipass-collection` and
   `026-regression-gate`; none carries a spec directory that `master`
   lacks. `gh pr list` answers an empty list on 2026-10-22. 027 stays
-  reserved for N13a on thrawn, so 028 is the next number free on `master`
+  reserved for N13a, so 028 is the next number free on `master`
   and on every branch. A rebase that finds 028 taken takes the next free
   number and records the change here.
 - **Branch base**: `bd10d76174a402ff694883291458bed470002459`
@@ -82,18 +80,15 @@ records here.
 
 ## Decisions
 
-Charles accepted recommendations 1 to 16 of the prompt on 2026-10-22, so
-D-1 to D-16 below are governance for this feature and each is recorded
-again at the FR that carries it. D-17 to D-27 are derived at this audit
-point from the code facts PC-1 to PC-8. Charles has not ruled on those,
-and each stands as a recommendation he can overturn.
+D-1 to D-16 restate recommendations 1 to 12 of the feature prompt
+(recommendation 2 is D-2 to D-7). Each is recorded again at the FR that
+carries it. D-17 to D-27 are derived at this audit point from the code
+facts PC-1 to PC-8, and each names the fact it rests on. D-22, D-25 and
+D-27 stand under Open questions, where a reading the prompt leaves open
+belongs.
 
 - **D-1 Precedence**: the command line, then the option file, then the
-  environment, then the master defaults. A repeatable option from a higher
-  source replaces the whole list of a lower source, and appends nothing
-  (C-3, C-4, FR-037, FR-038). The comparison rule list stands apart: rules
-  from every source combine, in the order D-23 states (Clarifications,
-  FR-063).
+  environment, then the master defaults (C-3, C-4, FR-037, FR-038).
 - **D-2 Environment naming**: the variable is `SPEEDGUN_` plus the long
   name in upper case with each `-` changed to `_`, so `--min-time` reads
   `SPEEDGUN_MIN_TIME` (C-3, FR-019).
@@ -113,7 +108,7 @@ and each stands as a recommendation he can overturn.
   items; a flag takes `1`, `0`, `true` or `false` and nothing else; an
   unknown `SPEEDGUN_*` variable is ignored (C-3, FR-024, FR-025, FR-026).
 - **D-7 One-run environment switch**: `--env=off` turns the environment
-  off for one run, and the option is accepted on the command line alone
+  off for one run, and the option stands on the command line alone
   (C-3, FR-028).
 - **D-8 Disclosure**: a new top-level JSON object `run` and one console
   line state the options that came from the environment or a file, and the
@@ -168,24 +163,24 @@ and each stands as a recommendation he can overturn.
   option takes a required argument or no argument. The attached form and
   `SPEEDGUN_INTERLEAVE=<seed>` share the one seed reader of FR-054
   (FR-051, FR-052, FR-054).
-- **D-18 One run loop** (derived from PC-3): the shuffle changes the order
+- **D-18 One run loop** (derived at the audit from PC-3): the shuffle changes the order
   the loop walks and where the row prints. The line
   `const auto result = runner.run(*entry);` at `source/harness/cli.cpp:645`
   stays, and the interrupt flag keeps its one reading inside the loop, so
   `test/cli_shape.sh` needs no change (FR-060, PC-3, PC-7).
-- **D-19 Two print paths** (derived from PC-3 and AC-7): a run with no
+- **D-19 Two print paths** (derived at the audit from PC-3 and AC-7): a run with no
   `--interleave` prints each row as it runs, exactly as master does. A
   shuffled run holds its rows and prints them after the run in
   registration order. Both paths call the same row printer
   (`source/harness/report.cpp:410`), so one row has one printed form
   (FR-056, FR-059).
-- **D-20 Table location and the drift gate** (derived from PC-5): the
+- **D-20 Table location and the drift gate** (derived at the audit from PC-5): the
   option table moves with the parse into the new internal unit. The
   option-row check of `tools/docs/example_drift.py` reads the table out of
   `source/harness/cli.cpp` today (`:458` to `:466`), so that check follows
   the table to its new file in the same commit, with a liveness probe
   beside it (FR-002, FR-075).
-- **D-21 The `run` object in the schema** (derived from PC-6): the report
+- **D-21 The `run` object in the schema** (derived at the audit from PC-6): the report
   schema leaves the top-level object open today
   (`docs/schema/report-v1.json:9`), so `run` joins the top-level
   properties as an optional key, the required list stays as it stands, and
@@ -193,42 +188,28 @@ and each stands as a recommendation he can overturn.
   FR-040 states need no entry of their own. The reader ignores the
   contents of the object. A test loads a document that carries the object
   and answers no fault (FR-043).
-- **D-22 Option file line forms** (derived from PC-1): a line for a
-  no-argument option may stand without `=`. A line for a required-argument
-  option with no `=`, and a line that starts with `-`, are file faults that
-  name the file, the line number and the text (FR-033, FR-036).
-- **D-23 Rule order across sources** (derived from D-1 and D-13): the rule
-  list combines, so every source that names rules contributes them: the
-  command-line `--compare-rule` options in order, then the rules of the
-  file that `--compare-rules` names in line order, then the `compare-rule`
-  lines of the option file in line order, then the rules of the file that
-  option file names in line order. A rules file holds rules alone and names
-  no file of its own (FR-061, FR-063).
-- **D-24 Value assignment** (derived from hard rule 9): `--options` takes
+- **D-23 Rule list order** (derived from D-1 and D-13): the rule list does
+  not combine across sources: the highest source that names rules settles
+  it, and a rule of a lower source is read before it drops, so its fault
+  still reaches the operator. A source that names rules keeps the order
+  recommendation 8 states, the order its entries were written: the
+  `--compare-rule` options of that source in the order they stand, then
+  the rules of the file that that source's `--compare-rules` names, in
+  line order. A rules file holds rules alone
+  and names no file of its own (FR-038, FR-061, FR-063).
+- **D-24 Value assignment** (derived at the audit from hard rule 9): `--options` takes
   290, `--env` 291, `--threads` 292, `--interleave` 293,
   `--compare-rules` 294, `--help` 295 and `--version` 296, each a named
   constant. Values 297 to 319 stay free for the lanes that follow. The
   values 256 to 259 keep their options (FR-003, FR-004).
-- **D-25 Ambiguity answered by the parse** (derived from PC-1): the
-  scanner reports an ambiguous prefix with no candidate list once `opterr`
-  stands at 0, so the parse computes the candidate set from the table and
-  names it in table order (FR-009, FR-013).
-- **D-26 The version line** (derived from PC-6): `--version` prints the
+- **D-26 The version line** (derived at the audit from PC-6): `--version` prints the
   project version the console report already carries
   (`source/harness/report.cpp:317`, the `SG_PROJECT_VERSION` macro written
   at `CMakeLists.txt:231`), on one line, and answers status 0 (FR-016).
-- **D-27 The percentile pair under a command-line override** (derived from
-  PC-1): the fault of D-5 is read on the environment pair alone, so two
-  environment variables that contradict each other answer status 2 even
-  when the command line overrides one half. The reading rests on the fact
-  that a reader who sets both variables made a mistake worth reporting.
-  The Clarifications session of 2026-10-22 settles it this way, and the
-  command-line pair keeps the master answer FR-023 states.
-
 ## Audit point
 
-Read on 2026-10-22 at `bd10d76` on Gary, the machine this feature
-develops on: one socket, 16 cores, 32 hardware threads, two L3 groups, AMD
+Read on 2026-10-22 at `bd10d76` on the machine this feature develops on:
+one socket, 16 cores, 32 hardware threads, two L3 groups, AMD
 Ryzen 9 9950X3D. No claim in this spec depends on that shape. Every test
 reads the cpu count from `sched_getaffinity`, and the thread and
 interleave tests pass on a four-cpu CI runner and on a two-cpu host.
@@ -281,7 +262,7 @@ printed at `:503`. The entry point closes with
 `SG_ENSURE((status != 0) == (anyFailed || anyInterrupted || reportFailed),`
 at `:690`.
 
-The scanner accepts an unambiguous prefix of a long name, so the new names
+The scanner resolves an unambiguous prefix of a long name, so the new names
 make `--i`, `--t`, `--compare-r`, `--compare-ru` and
 `--compare-rul` ambiguous (FR-013).
 
@@ -360,7 +341,7 @@ and a rules file (N7)" out of its own list (`:1071`).
 cap. `SECTION_LINE_CAP` reads 25 (`:156`) and `SECTION_LINE_CAPS`
 (`:161`) holds no entry for the section this feature extends. `SECTIONS`
 (`:32` to `:57`) already lists `The command line`, so this feature adds
-no section title and no `SECTION_OWNERS` entry (`:63`).
+no section title and no section map entry (`:63`).
 
 The section runs from `README.md:357` to `:370`, fourteen lines of a
 25-line budget, and its snippet comes from the region `command-line-read`
@@ -413,13 +394,14 @@ existing call to remove and no existing pattern to follow.
 directory 027 or above. The public surface this feature touches is the
 command line of the harness entry point, and `speedgunMain` keeps its
 signature, so the ABI check of hard rule 12 answers "no change" and the
-harness `SOVERSION` stays 10 (FR-076).
+harness `SOVERSION` stays at the value `master` carries, 10 at the base
+(FR-076).
 
 
 
 ## Roadmap position
 
-N7 of the harness roadmap. It sits in the gary lane: N1 percentiles and
+N7 of the harness roadmap. It sits in the harness lane: N1 percentiles and
 raw capture landed as spec 021, N3 JSON reports landed as spec 023, N5 the
 regression gate landed as spec 026. N7 runs now, and N14b, N8 and N9
 follow it.
@@ -431,7 +413,7 @@ that also produces the help text. It closes the deferral specs/026 D-11
 recorded for the rules file, and it opens the environment and file sources
 that a CI job needs to drive the regression gate.
 
-N13a (thrawn, spec 027) and N14a (corsairone, spec 029) run in parallel.
+N13a (spec 027) and N14a (spec 029) run in parallel.
 Neither is a dependency: N7 needs specs/023 and specs/026, both merged.
 
 ## Parallel work and the version rule
@@ -455,7 +437,7 @@ Neither is a dependency: N7 needs specs/023 and specs/026, both merged.
   rebase, the next free minor is the one to take, and each lane adds the
   keys of the lanes that merged before it to
   `docs/schema/report-v1.json`.
-- **Ownership against N13a and N14a**: those lanes add the jitter-probe
+- **Overlap with N13a and N14a**: those lanes add the jitter-probe
   options and the `--hunt*` rows. If either merges first, N7 rebases and
   moves their rows into the table with their values and their behavior
   intact, and adds their options to the option reference page and the
@@ -467,12 +449,13 @@ Neither is a dependency: N7 needs specs/023 and specs/026, both merged.
   length through a recorded decision, run the full gate set, and push once
   with `--force-with-lease`, showing `git ls-remote origin <branch>`
   after the push.
-- **Version rule**: the planned merge order is N13a at 0.17.0, N7 at
-  0.18.0, N14a at 0.19.0. The planned value is a reservation. At rebase,
-  read `CMakeLists.txt` on `master` and take the next free minor; a
-  branch that merges before N13a takes 0.17.0. The harness `SOVERSION`
-  stays 10 unless the ABI check finds a public change, and the archive
-  `SOVERSION` stays 3 (FR-076 to FR-078).
+- **Version rule**: the fleet carries three numbers now. PR #46 takes
+  0.17.0 and PR #47 takes 0.19.0, so this branch takes 0.18.0, the value
+  `CMakeLists.txt:9` carries. The planned value is a reservation: at
+  rebase, read `CMakeLists.txt` on `master` and take the next free minor.
+  The harness `SOVERSION` stays at the value `master` carries unless the
+  ABI check finds a public change, and the archive `SOVERSION` stays 3
+  (FR-076 to FR-078).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -501,7 +484,7 @@ for byte, then compare the two JSON documents and find the
 2. **Given** a built suite, **When** the binary runs `--version`, **Then**
    standard output carries the project version on one line and the status
    is 0.
-3. **Given** a command line master accepts, **When** the same command line
+3. **Given** a command line master runs today, **When** the same command line
    runs on this branch, **Then** the console report and the exit status
    match master, and the JSON document differs in `schemaVersion` alone.
 4. **Given** the option table, **When** the uniqueness test reads it,
@@ -684,8 +667,9 @@ pair, and compare the table and the status.
 4. **Given** a rules file path that cannot be read, **When** the run
    starts, **Then** one line names the path and the status is 2.
 5. **Given** one `--compare-rule` option beside an option file with a
-   `compare-rule=` line, **When** the run starts, **Then** both rules
-   stand, the command-line rule first, and the table carries both rows.
+   `compare-rule=` line, **When** the run starts, **Then** the table
+   carries the command-line rule alone: the command line settles the rule
+   list, and the file rule is read before it drops (D-23).
 
 ---
 
@@ -730,7 +714,9 @@ and run the example through `example_run`.
   single-value option, and both entries stand for a repeatable option, the
   master behavior.
 - A repeatable option set in two sources: the higher source replaces the
-  lower list. The comparison rule list combines across sources under D-23.
+  lower list (FR-038). A rule set in two sources: the highest source
+  that names rules settles the rule list, and a lower rule is read before
+  it drops, so a bad one still answers its fault line (D-23).
 - An option file that holds the same option twice: the rule of the command
   line applies inside one source.
 - An option file that cannot be read: one line naming the path, status 2.
@@ -775,14 +761,16 @@ and run the example through `example_run`.
   no row prints, the status is 1, and the seed is stated.
 - A rules file with a rule that names no benchmark: the specs/026
   filter-no-match fault answers, one line and status 2.
-- A rules file beside a `--compare-rule` fault: the option fault answers
-  first, because the command line is the higher source.
-- A rules file beside a command-line `--compare-rule` option: both lists
-  stand, the option rule first, under D-23.
+- A rules file beside a `--compare-rule` fault: both rules reach the
+  parser, and the option fault answers first because the scan reads the
+  command line before the gather reads a file.
+- A `--compare-rules` file beside a `--compare-rule` option of the same
+  source: both lists stand, the option rule first, because one source
+  keeps the order its entries were written (D-23).
 - An option file with a `compare-rules=` line: the line is read, because
   the forbidden list of FR-031 stays at `options`, `env`, `help` and
   `version`.
-- A `run` object in a document a later reader loads: the reader accepts it
+- A `run` object in a document a later reader loads: the reader takes it
   and answers no fault.
 - A run that takes one option from the environment and also runs
   `--interleave`: the disclosure line and the `run` object name both.
@@ -842,8 +830,8 @@ and run the example through `example_run`.
 - **FR-016**: `--version` shall print the project version on one line and
   answer status 0 (D-26).
 - **FR-017**: `--help` and `--version` shall print on standard output,
-  shall stop the run before any benchmark runs, and shall be accepted on
-  the command line alone. The scan shall answer the first of `--help`,
+  shall stop the run before any benchmark runs, and shall stand on the
+  command line alone. The scan shall answer the first of `--help`,
   `--version` or a usage fault that its left-to-right walk meets, so
   `--help --nonsense=1` prints the help and answers status 0 while
   `--nonsense=1 --help` prints the fault and answers status 2, and
@@ -884,11 +872,11 @@ and run the example through `example_run`.
   marked with the environment flag shall be ignored (D-6).
 - **FR-027**: An environment value that the option's own reader rejects
   shall print one line naming the variable and the value and answer
-  status 2.
+  status 2, and that answer stands when a higher source names the same
+  option with a value that reads (D-6, SC-003).
 - **FR-028**: `--env=off` shall turn the environment off for one run, any
   other word shall print one line naming the option and the word and answer
-  status 2, and the option shall be accepted on the command line alone
-  (D-7).
+  status 2, and the option shall stand on the command line alone (D-7).
 
 ### Option file (C-4)
 
@@ -902,7 +890,9 @@ and run the example through `example_run`.
 - **FR-032**: A second `--options` option shall print one line naming the
   option and answer status 2 (D-9).
 - **FR-033**: A line the parse cannot read shall print one line naming the
-  file, the line number and the text, and answer status 2 (D-22).
+  file, the line number and the text, and answer status 2, and that answer
+  stands when a higher source names the same option with a line that reads
+  (D-22).
 - **FR-034**: A file the system cannot read shall print one line naming the
   path and answer status 2.
 - **FR-035**: An option file line shall set its option under the same value
@@ -917,11 +907,17 @@ and run the example through `example_run`.
 
 - **FR-037**: The value of an option shall come from the highest source
   that sets it, in the order command line, option file, environment,
-  `master` default (D-1).
+  `master` default. Every value from every source shall reach the reader
+  of its option, whether or not a higher source names the option, so the
+  fault of a bad value reaches the operator before any drop (D-1,
+  FR-027, FR-033, FR-046, FR-054).
 - **FR-038**: A repeatable option set by a higher source shall replace the
   whole list of a lower source, and shall append nothing to it. The
-  comparison rule list shall combine across sources in the order FR-063
-  states (D-1, D-23).
+  comparison rule list shall not combine across sources: the highest
+  source that names rules shall settle it. A rule of a lower source shall
+  reach the rule parser before it drops, so the fault of a bad rule
+  reaches the operator whatever source spelled it, and a source shall
+  keep the order of the rules it contributes (D-1, D-23, FR-063).
 - **FR-039**: When any option took its value from the environment or an
   option file, or when `--interleave` stands given, the run shall write
   one top-level JSON object `run` and print one console line carrying the
@@ -960,8 +956,9 @@ and run the example through `example_run`.
   bound to at most its high bound, the growth `detail::buildThreadCounts`
   states (D-11, PC-2).
 - **FR-046**: A count below one, a malformed item, and a range whose low
-  bound stands above its high bound shall each print one line naming the
-  option and the text and answer status 2.
+  bound stands above its high bound shall each print one line naming its
+  source and the text and answer status 2, whatever source named the list
+  and whatever a higher source names beside it (D-11).
 - **FR-047**: The option shall set no cpu cap: a count above the count of
   cpus the process affinity allows shall run, and the console shall
   disclose the count (D-11).
@@ -989,9 +986,10 @@ and run the example through `example_run`.
   decimal digits alone, the whole text consumed, with a value at or below
   the largest 64-bit unsigned integer. A text that reads no seed shall
   print one line naming the option or the variable and the text and answer
-  status 2, so `-1`, `0x10`, `7x`, `true` and a digit string above that
-  limit each answer the fault in either form. `SPEEDGUN_INTERLEAVE=0`
-  shall mean interleaving on with seed 0.
+  status 2, and that answer stands when a higher source names the option
+  with a text that reads, so `-1`, `0x10`, `7x`, `true` and a digit string
+  above that limit each answer the fault in either form.
+  `SPEEDGUN_INTERLEAVE=0` shall mean interleaving on with seed 0.
 - **FR-055**: The passes and the repetitions of one instance shall stay
   together in the shuffled order (D-12).
 - **FR-056**: A shuffled run shall hold its rows and print them in
@@ -1019,10 +1017,11 @@ and run the example through `example_run`.
 - **FR-062**: A line whose first non-space character is `#` shall be a
   comment, and a blank line shall yield no rule (D-13).
 - **FR-063**: The rules of a file shall follow the `--compare-rule`
-  options of the same source, in line order, and the order across sources
-  shall follow D-23. Rules from different sources shall combine, so a
-  source that names rules contributes them even when a higher source names
-  rules, and no source replaces another source's rule list (D-13, D-23).
+  options of the same source, in line order, and the rules a source
+  contributes shall keep the order that source wrote them in. The rule
+  list shall not combine across sources: the highest source that names
+  rules shall settle it, and a rule of a lower source shall reach the
+  parser before it drops under FR-038 (D-13, D-23).
 - **FR-064**: A line the rule parser refuses shall print one line naming
   the file, the line number and the parser's fault, and answer status 2
   (D-13).
@@ -1056,7 +1055,8 @@ and run the example through `example_run`.
   types for the new options, and the snippet-compile check shall stay
   clean.
 - **FR-073**: No new capability section title shall join `SECTIONS`, and
-  the section shall keep its marked block and its owner (PC-5).
+  the section shall keep its marked block and its recorded source file
+  (PC-5).
 - **FR-074**: The option reference page shall name the environment variable
   beside each option that carries one, and shall state the precedence order
   of D-1.
@@ -1070,8 +1070,9 @@ and run the example through `example_run`.
   gain no symbol. The oracle of the ABI check of hard rule 12 is one
   diff run from the checkout against `origin/master`:
   `git diff --name-only origin/master -- include/speedgun-ng` prints no
-  path, and the harness `SOVERSION` shall stay 10 while it prints
-  nothing; that result is recorded in this spec (PC-8).
+  path, and the harness `SOVERSION` shall stay at the value `master`
+  carries while it prints nothing; that result is recorded in this spec
+  (PC-8).
 - **FR-077**: The `speedgun-ng` archive `SOVERSION` shall stay 3
   (PC-8).
 - **FR-078**: The project version shall take the next free minor at rebase
@@ -1144,14 +1145,16 @@ and run the example through `example_run`.
 - **SC-002**: One test sets the same option in the command line, the option
   file and the environment with three different values, and the value that
   takes effect is the command-line one; the same test with the command line
-  removed settles to the option file, and with both removed to the
-  environment (FR-037, FR-038).
+  removed reads the option file value, and with both removed the
+  environment one (FR-037, FR-038).
 - **SC-003**: Each of these answers exactly one line naming the source and
   the value, and status 2, with no benchmark row printed: a bad environment
   value, a bad option-file line, a forbidden option-file line, a bad
   `--threads` list, a bad interleave seed, a bad rules-file line, and an
   unknown option (FR-007 to FR-009, FR-027, FR-033, FR-036, FR-046, FR-054,
-  FR-064). A command line that carries a usage fault ahead of `--help`
+  FR-064). Each answer stands whatever source named the value, and it
+  stands when a higher source names the same option with a value that
+  reads. A command line that carries a usage fault ahead of `--help`
   answers that fault alone, and one that carries `--help` ahead of the
   fault answers the help text with status 0 (FR-017).
 - **SC-004**: A run with `--threads=1,<n>`, where `<n>` sits above one
@@ -1333,7 +1336,7 @@ cap move is measured against the page as the rebase leaves it.
   `source/harness/json_load.cpp`, and the schema file
   `docs/schema/report-v1.json` (PC-6).
 - The documentation gates and their budgets: `README.md`,
-  `tools/docs/example_drift.py` (`SECTIONS`, `SECTION_OWNERS`,
+  `tools/docs/example_drift.py` (the `SECTIONS` list, the section map,
   `PAGE_LINE_CAP`, `SECTION_LINE_CAP`, `SECTION_LINE_CAPS`,
   `cli_options`), `docs/pages/harness.md`, and the docs example targets
   (PC-5).
@@ -1397,7 +1400,7 @@ symbol first.
 | `test/source/harness_cli_test.cpp:769`, `:773` | the two tests that expect `unknown option`, one for an unknown name and one for a missing value |
 | `test/source/harness_cli_placement_test.cpp:449` | a third test that matches the same text |
 | `test/CMakeLists.txt:651` to `:654`, `:695` to `:702` | the CLI test targets the message change reaches |
-| `tools/docs/example_drift.py:32` to `:57`, `:63` | `SECTIONS`, which already lists `The command line`, and `SECTION_OWNERS` |
+| `tools/docs/example_drift.py:32` to `:57`, `:63` | `SECTIONS`, which already lists `The command line`, and the section map |
 | `tools/docs/example_drift.py:155`, `:156`, `:161` | `PAGE_LINE_CAP` 773, `SECTION_LINE_CAP` 25, `SECTION_LINE_CAPS` |
 | `tools/docs/example_drift.py:458` to `:466`, `:557`, `:685`, `:691` | `cli_options()` reading the table out of `cli.cpp`, the page-cap check, and the two option-row findings |
 | `README.md:357` to `:370` | the section `The command line`, fourteen lines, with its region marker at `:359` |
@@ -1408,41 +1411,49 @@ symbol first.
 
 ## Open questions
 
-Items 1 and 3 were answered in the Clarifications session of 2026-10-22
-and are recorded here as answered. Item 2 stays Charles's to rule on. None
-blocks planning; each is recorded so a plan can carry the answer and a
-review can settle it before the code lands.
+Four open questions stand: D-22, D-25, D-27, and the percentile column
+qualifier specs/026 D-16 left for N7. None blocks planning. Each carries
+the reading this spec takes and the reason the reading needs a review, so
+a plan can build on it before the code lands.
 
-1. **The percentile pair under a command-line override** (D-27): answered
-   on 2026-10-22. The fault reads the environment pair alone, ahead of the
-   precedence rule, and a command line carrying both percentile options
-   keeps the master last-word answer of status 0. The answer stands in
-   FR-023, in D-5 and D-27, and in the edge case beside the empty-value
-   entry.
-2. **The percentile column qualifier specs/026 D-16 left for N7**: specs/026
+1. **Option file line forms** (D-22): the prompt gives the line form as one
+   option per line in the long form without `--`, and says nothing about a
+   line for a no-argument option or a line missing its `=`. The spec reads
+   a no-argument line as whole without `=`, and reads a line for a
+   required-argument option that carries no `=`, and a line that starts
+   with `-`, as file faults naming the file, the line number and the text
+   (FR-033, FR-036). Another line-form reading moves two fault requirements
+   and their lines, so the reading is recorded as open.
+2. **The ambiguity candidate list** (D-25): `opterr` stands at 0, so the
+   scanner reports an ambiguous prefix with no candidate list of its own.
+   The spec reads the candidate set as a thing the parse computes from the
+   table and names in table order (FR-009, FR-013). Whether the line names
+   candidates at all is a wording choice with two readings.
+3. **The percentile pair under a command-line override** (D-27): the spec
+   reads the fault of D-5 as a check on the environment pair alone, ahead
+   of the precedence rule, so two environment variables that contradict
+   each other answer status 2 even when the command line overrides one
+   half. The reading rests on the fact that a reader who sets both
+   variables made a mistake worth reporting, and the command-line pair
+   keeps the master answer FR-023 states. The other reading, the pair
+   check after precedence, cannot see a pair with one half overridden.
+4. **The percentile column qualifier specs/026 D-16 left for N7**: specs/026
    deferred whether a comparison rule may name the percentile column it
-   reads. This feature takes no decision: the rule grammar stays exactly as
-   specs/026 wrote it (FR-061), so the question stays open and unowned
-   unless Charles assigns it here.
-3. **May an option file name `compare-rules=`?** Answered on 2026-10-22:
-   yes. The forbidden list of FR-031 stays at `options`, `env`, `help` and
-   `version`, so an option file may name `compare-rules=<file>`, and a
-   rules file names no file of its own (FR-061, D-23). Nesting stays one
-   level deep because a rules file holds rules alone.
+   reads. This feature takes no decision: the rule grammar stays as
+   specs/026 wrote it (FR-061), so the question stays open here.
 
 ## Constitution Checklist (Principle IV.1)
 
 - **IV.1 spec completeness**: YES. The spec names the feature branch, the
   base commit and the date, records the run-time binding of every anchor,
-  states the decisions with their attribution, lists the preconditions with
+  states the decisions with their derivation, lists the preconditions with
   measured anchors, gives seven user stories with acceptance scenarios and
   an edge-case list, states 86 functional requirements across the nine
   roadmap capabilities, gives 14 measurable success criteria that map the
   acceptance criteria of the prompt to the repository gates, states the
   constraints, the scope in and out, the assumptions, the documentation
-  budget, the dependencies and the citations, records a Clarifications
-  session of five answered questions, and leaves one open question for the
-  owner.
+  budget, the dependencies and the citations, records four readings the
+  spec takes, and leaves four open questions.
 - **IV.2 plan and tasks follow from the spec**: the plan reads the anchors
   by symbol on the base it runs against, and the task list shall cover
   every FR and every SC.

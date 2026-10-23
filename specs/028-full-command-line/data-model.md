@@ -94,7 +94,7 @@ The scan answers this, or one usage error text, and never calls
 | `options` | `RunOptions` | every option at the value of the highest source that named it (FR-037); a repeatable holds one list, the winner's (FR-038) |
 | `uses` | `std::vector<OptionUse>` | the disclosed uses in table order, empty when nothing came from a file or the environment (FR-039, FR-041) |
 | `interleave` | `InterleaveSeed` | E-10, settled across the sources |
-| `rules` | `std::vector<CompareRule>` | the rules of all four places in spec D-23 order (FR-063, E-12) |
+| `rules` | `std::vector<CompareRule>` | the rules of the highest source that names rules, in spec D-23 order (FR-038, FR-063, E-12) |
 
 The gather answers this, or one usage error text naming the source, the
 line number where a file is named, and the value.
@@ -129,7 +129,7 @@ object stay open (FR-043, D-18). The reader reads no key of it (D-30).
 | Field | Type | Invariant |
 |---|---|---|
 | `given` | `bool` | set by `--interleave`, by `--interleave=<seed>`, or by `SPEEDGUN_INTERLEAVE` (FR-051, FR-022) |
-| `seed` | `std::uint64_t` | the value the reader answered; 0 for the bare form (FR-051) |
+| `seed` | `std::uint64_t` | the value the reader read; 0 for the bare form (FR-051) |
 
 The seed text is unsigned decimal digits alone, consumed whole, at or
 below the largest 64-bit unsigned value; `-1`, `0x10`, `7x`, `true` and
@@ -159,12 +159,14 @@ affinity cpu count runs and the console discloses it (FR-047).
 | Field | Type | Invariant |
 |---|---|---|
 | `path` | `std::string` | the text `--compare-rules=` named; FR-064 and FR-065 name it |
-| `rules` | `std::vector<CompareRule>` | one rule per line that the specs/026 parser accepted, in line order (FR-061, FR-062) |
+| `rules` | `std::vector<CompareRule>` | one rule per line that the specs/026 parser read, in line order (FR-061, FR-062) |
 
 A line the parser refuses answers one line naming the file, the 1-based
 line number and the parser's own text at status 2 (FR-064). The rules
-append to the `--compare-rule` uses of the same source in that order,
-and across the sources the order is spec D-23 (FR-063, D-13).
+append to the `--compare-rule` uses of the same source in that order. The
+rule list does not combine across sources: the highest source that names
+rules settles it, and a rule of a lower source reaches the parser before
+it drops, so its fault still answers (FR-038, FR-063, D-13).
 
 ## E-13: `HeldRow`, a row a shuffled run holds
 
