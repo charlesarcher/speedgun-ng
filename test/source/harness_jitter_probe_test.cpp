@@ -465,9 +465,8 @@ public:
       thread.ticket = 1 + latchTicket.fetch_add(1, std::memory_order_relaxed);
     }
     ++thread.calls;
-    thread.stamp += thread.calls == kLatchPassCalls + 1
-                        ? kLatchJump
-                        : kLatchStep;
+    thread.stamp +=
+        thread.calls == kLatchPassCalls + 1 ? kLatchJump : kLatchStep;
     sink.put(thread.stamp);
     if (thread.ticket <= 2) {
       latchCalls[thread.ticket - 1].store(thread.calls,
@@ -492,9 +491,7 @@ auto runLatchJumpCase() -> void
   // The loop's early passes stand past the jump, so the joined state
   // answers for the phase the jump opened (FR-039).
   std::uint64_t spins = 0;
-  while (latchCalls[0].load(std::memory_order_relaxed)
-         < kLatchPassCalls + 50)
-  {
+  while (latchCalls[0].load(std::memory_order_relaxed) < kLatchPassCalls + 50) {
     std::this_thread::yield();
     if (++spins > 1000000000ULL) {
       fail("the jumped series never passed the latch (FR-039)");

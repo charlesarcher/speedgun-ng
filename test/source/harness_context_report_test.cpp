@@ -1129,12 +1129,9 @@ auto scenarioWorstCpuUpdate() -> void
   small.maxNs = 100;
   sg::JitterStats large {};
   large.maxNs = 900;
-  result.jitterFolds.push_back(
-      sg::JitterEntryFold {.cpu = 0, .stats = small});
-  result.jitterFolds.push_back(
-      sg::JitterEntryFold {.cpu = 1, .stats = large});
-  const auto lines =
-      captureThrough([&] { sg::detail::printResult(result); });
+  result.jitterFolds.push_back(sg::JitterEntryFold {.cpu = 0, .stats = small});
+  result.jitterFolds.push_back(sg::JitterEntryFold {.cpu = 1, .stats = large});
+  const auto lines = captureThrough([&] { sg::detail::printResult(result); });
   bool named = false;
   for (const auto& line : lines) {
     if (line.rfind("jitter: worst cpu ", 0) == 0) {
@@ -1151,8 +1148,8 @@ auto scenarioWorstCpuUpdate() -> void
 // could carry.
 auto scenarioJitterEmptyStates() -> void
 {
-  const auto lines = captureThrough(
-      [&] { sg::detail::printJitterReport(true, {}); });
+  const auto lines =
+      captureThrough([&] { sg::detail::printJitterReport(true, {}); });
   for (const auto& line : lines) {
     check(line.rfind("jitter", 0) != 0,
           "an available probe with no states prints no block (FR-023)");

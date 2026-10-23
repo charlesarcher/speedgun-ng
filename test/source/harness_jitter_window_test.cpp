@@ -486,8 +486,9 @@ auto main() -> int
       // FR-036, D-8, D-12: the disclosure lines stand in the
       // end-of-report region: the availability and the cpus, the measured
       // points, the per-cpu counts, and the kept-gaps-only rule.
-      check(probed.find("jitter: probe on cpus " + cpuList) != std::string::npos,
-            "the disclosure names the probe and the cpus (FR-036, E-09)");
+      check(
+          probed.find("jitter: probe on cpus " + cpuList) != std::string::npos,
+          "the disclosure names the probe and the cpus (FR-036, E-09)");
       check(probed.find("jitter: loop period 1 ns, threshold 200 ns")
                 != std::string::npos,
             "the disclosure carries the measured points (FR-007, E-09)");
@@ -975,8 +976,8 @@ auto main() -> int
       std::vector<std::string> fieldArguments {"--compare=" + basePath + ","
                                                + bigPath};
       for (const auto field : kStatFields) {
-        fieldArguments.push_back("--compare-rule=jitter:any:"
-                                 + std::string(field) + ":lower:abs=1");
+        fieldArguments.push_back(
+            "--compare-rule=jitter:any:" + std::string(field) + ":lower:abs=1");
       }
       const auto fields = captureRun(fieldArguments, 1);
       check(fields.find("error:") == std::string::npos,

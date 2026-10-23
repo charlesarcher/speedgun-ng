@@ -327,11 +327,11 @@ auto main(const int argc, char** argv) -> int
       outside.threads.push_back(thread);
       outside.mask.push_back(cpu);
     }
-    sg::detail::LayoutThread loner;
-    loner.cpuIndex = 2;
-    loner.coreOrdinal = sg::detail::kNoGroup;
-    loner.groupOrdinal = sg::detail::kNoGroup;
-    outside.threads.push_back(loner);
+    sg::detail::LayoutThread lone;
+    lone.cpuIndex = 2;
+    lone.coreOrdinal = sg::detail::kNoGroup;
+    lone.groupOrdinal = sg::detail::kNoGroup;
+    outside.threads.push_back(lone);
     outside.mask.push_back(2);
     sg::detail::LayoutCore shared;
     shared.groupOrdinal = 0;
@@ -373,16 +373,15 @@ auto main(const int argc, char** argv) -> int
     }
     outside.mask = {0U, 1U, 3U};
     const std::array<std::uint32_t, 3> coreThreadCounts {3U, 2U, 1U};
-    for (std::size_t ordinal = 0; ordinal < coreThreadCounts.size();
-         ++ordinal)
+    for (std::size_t ordinal = 0; ordinal < coreThreadCounts.size(); ++ordinal)
     {
       sg::detail::LayoutCore layoutCore;
       layoutCore.groupOrdinal = 0;
       for (std::uint32_t index = 0; index < coreThreadCounts.at(ordinal);
            ++index)
       {
-        layoutCore.threads.push_back(
-            static_cast<std::uint32_t>(ordinal) * 2U + index);
+        layoutCore.threads.push_back(static_cast<std::uint32_t>(ordinal) * 2U
+                                     + index);
       }
       outside.cores.push_back(layoutCore);
     }
@@ -420,12 +419,10 @@ auto main(const int argc, char** argv) -> int
   // R-07: the self-exec the registry test carries: a planned cpu that
   // names no thread of the layout violates the resolver's precondition,
   // and the checked semantic terminates the child.
-  const std::string self =
-      argc > 0 ? argv[0] : "harness_jitter_preset_test";
+  const std::string self = argc > 0 ? argv[0] : "harness_jitter_preset_test";
   const int violated =
       std::system(("\"" + self + "\" idle-unresolved 2>/dev/null").c_str());
-  check(violated != 0,
-        "a planned cpu outside the mask is a violation (R-07)");
+  check(violated != 0, "a planned cpu outside the mask is a violation (R-07)");
 
   std::puts("harness_jitter_preset_test: ok");
   return 0;
