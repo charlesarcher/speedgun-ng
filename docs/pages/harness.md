@@ -1122,8 +1122,8 @@ that measured the value. `docs/schema/report-v1.json` states the whole shape.
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
 names the version the document carries. A run writes `1.4`, the shape that
-added the pass fields; a `1.0` document, which carries none of them, loads
-through the same rule.
+added the hunt keys; a `1.0` document, which carries neither the hunt keys nor
+the pass fields, loads through the same rule.
 
 ### The null rule
 

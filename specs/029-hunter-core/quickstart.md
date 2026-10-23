@@ -186,7 +186,7 @@ one line naming the value and exit 2. No estimate prints
    The pattern matches the value wherever a file spells it, in the quoted form
    the writer and a written document use, in the escaped form the loader test
    builds, in the `schema 1.1` console words, and in the backticks of the page.
-   Four lines carry the value the bump moves: `json_report.cpp:32` the writer
+   Four lines carry the value the bump moves: `json_report.cpp:34` the writer
    constant, `harness_json_load_test.cpp:113` the current-version document,
    `harness_json_load_test.cpp:529` the kind refusal row beside it, and
    `docs/pages/harness.md:1067` the sentence of the page.
