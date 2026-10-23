@@ -1018,25 +1018,27 @@ auto scenarioCutLinePrintsTheRecordedReason() -> void
 {
   const auto record = sg::hunt::RunHunt {
       .selection = "all",
-      .options = sg::hunt::HuntOptions {
-          .selection = "all",
-          .norm = std::nullopt,
-          .rank = sg::hunt::HuntRank::RATE,
-          .top = 20,
-          .noise = 10.0,
-          .repeats = 3,
-          .seed = 0,
-          .budget = sg::hunt::HuntBudget {
-              .kind = sg::hunt::HuntBudget::Kind::PASSES,
-              .amount = 1,
+      .options =
+          sg::hunt::HuntOptions {
+              .selection = "all",
+              .norm = std::nullopt,
+              .rank = sg::hunt::HuntRank::RATE,
+              .top = 20,
+              .noise = 10.0,
+              .repeats = 3,
+              .seed = 0,
+              .budget =
+                  sg::hunt::HuntBudget {
+                      .kind = sg::hunt::HuntBudget::Kind::PASSES,
+                      .amount = 1,
+                  },
           },
-      },
       .passes = 1,
       .method = std::nullopt,
       .estimateNs = std::nullopt,
       .plannedAddresses = {},
-      .stages = {
-          sg::hunt::HuntStageRange {.first = 0, .count = 4, .repeats = 1}},
+      .stages = {sg::hunt::HuntStageRange {
+          .first = 0, .count = 4, .repeats = 1}},
       .ranEvents = 4,
       .stageTwoEvents = 0,
       .cutReason = "planner-recorded",
