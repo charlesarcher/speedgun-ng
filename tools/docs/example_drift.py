@@ -23,12 +23,12 @@ PREMARK = re.compile(r"^\s*<!--\s*(sg-example|sg-sample-output):\s*(\S+)\s*-->\s
 REQUIRES = re.compile(r"^\s*<!--\s*sg-requires:\s*(\S+)\s*-->\s*$")
 INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 
-# The twenty-five capabilities of the main page as the H3 titles of "How you
+# The twenty-six capabilities of the main page as the H3 titles of "How you
 # do it": the twelve of spec FR-009 at the H3 audit point, the six specs/018
 # adds (FR-028, FR-044, research D-13), the two specs/020 adds (FR-029), the
 # one specs/021 add (FR-027), the one specs/023 add (FR-037), the one
-# specs/025 add (FR-016), the one specs/026 add (FR-063), and the one
-# specs/024 add (FR-027).
+# specs/025 add (FR-016), the one specs/026 add (FR-063), the one
+# specs/024 add (FR-027) and the one specs/029 add (FR-070).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -56,6 +56,7 @@ SECTIONS = (
     "JSON reports",
     "Regression gate",
     "Jitter probe",
+    "Hunter mode",
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
@@ -88,6 +89,7 @@ SECTION_OWNERS = {
     "JSON reports": ("json_reports.cpp",),
     "Regression gate": ("regression_gate.cpp",),
     "Jitter probe": ("jitter_probe.cpp",),
+    "Hunter mode": ("hunt_rank.cpp",),
 }
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
@@ -165,6 +167,18 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # section and its quick-reference rows move the cap from 787 to 813,
 # the measured length of the page as the section lands.
 PAGE_LINE_CAP = 813
+# specs/029 FR-070 measures its own move on top: the "Hunter mode" section
+# runs 6 lines and the seven quick-reference name rows and the eight option
+# rows add 15, so 21 lines move the cap from 786 to 807, the measured length
+# of the page as the feature lands. The section sits under the per-section
+# budget of FR-024, so no entry joins SECTION_LINE_CAPS.
+# The marked block of IV.1 measures its own move on top: the
+# `example/docs/hunt_rank.cpp#hunt-rank` region runs 16 lines and its marker
+# comment and two fences add 3, so 19 lines move the cap from 807 to 826, the
+# measured length of the page with the block in place. The section then spans
+# 25 lines, the per-section budget itself, so the section holds no spare line
+# and no entry joins SECTION_LINE_CAPS.
+PAGE_LINE_CAP = 826
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
@@ -460,6 +474,7 @@ def header_names(root: Path) -> set[str]:
         "execution_context.hpp",
         "counters_metrics.hpp",
         "counters_system.hpp",
+        "hunt.hpp",
     ):
         path = root / "include" / "speedgun-ng" / header
         if path.is_file():
