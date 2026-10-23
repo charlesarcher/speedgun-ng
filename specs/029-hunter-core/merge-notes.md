@@ -135,9 +135,29 @@ absence is a read fact.
 registration took the blank line after `add_docs_example(regression_gate)` and
 landed at line 75, where the plan cited "after line 74".
 
+## Main-page impact check (IV.1)
+
+The `Hunter mode` section of `README.md` teaches the capability with one
+purpose sentence, one marked snippet, one result sentence and the
+quick-reference rows, inside the 25-line budget of IV.1's per-section rule.
+
+- The snippet is the `hunt-rank` region of `example/docs/hunt_rank.cpp`, a
+  file the `docs_hunt_rank` target builds; `cmake --build <lane> --target
+  docs_hunt_rank` answers 0 on this host.
+- `example_run` executes that program: `test/example_run.sh` walks
+  `example/docs/*.cpp` and fails a run whose registered benchmark prints no
+  row, so the block the page quotes is a block that printed. It passed in
+  67.76 s on this host.
+- The page block and the region are one fact: `tools/docs/example_drift.py`
+  answers 0 with `PAGE_LINE_CAP` at the measured 809 lines.
+- `report_shape_hunt_rank_sample` compares the console the same binary
+  prints with `example/docs/hunt_rank.expected`, so the rows the result
+  sentence names are rows the run printed.
+
 ## Findings this audit leaves open
 
-Nothing below was fixed. This node's scope is this file.
+Every finding below is closed, each by the commit named under it. The text
+stands as the audit read it.
 
 1. `docs/pages/harness.md:1067` still states the version a run writes as
    `1.1`. That line was true at `bd10d76`, where `kSchemaVersion` stood at
@@ -151,6 +171,8 @@ Nothing below was fixed. This node's scope is this file.
 
    Nothing in the page states `1.4`: the only `1.4` reads over the file land
    inside printed sample values.
+
+   Closed by `c89d56e`, which moves the sentence to `1.4`.
 2. `test/source/harness_json_load_test.cpp` carries no edit at all, while its
    plan row at `plan.md:452` places lines 113 and 529 beside the bumped
    version. The check at line 114 is named "the version this build writes
@@ -159,6 +181,9 @@ Nothing below was fixed. This node's scope is this file.
    loads under the version rule either way, and the mutation seed at line 529
    has to match the committed fixture text it mutates. No test was run here to
    settle either case.
+
+   Closed by `ec3559f`: both rows read `1.4`, the seed at line 529 matches the
+   fixture text it mutates, and `harness_json_load_test` passes on this host.
 3. Landing needs the untracked artifacts added. The second status read lists
    `example/docs/hunt_rank.cpp`, `example/docs/hunt_rank.expected`,
    `test/data/hunt_no_hunt_console.txt`, `test/data/hunt_no_hunt_document.json`
@@ -169,3 +194,7 @@ Nothing below was fixed. This node's scope is this file.
    `hunt_cli_dup.txt`, `hunt_cli_list.txt`, `hunt_cli_raw.txt`,
    `harness_hunt_cli_report.json` and a directory named `local:/`) and a later
    read in the same session found them gone.
+
+   Closed: the artifacts are tracked (`9338ca4` the example and its recording,
+   `ec3559f` the two report fixtures, `6f874fe` the two hardware records) and
+   no droppings stand at the repository root.
