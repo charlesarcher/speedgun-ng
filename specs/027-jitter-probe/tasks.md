@@ -102,9 +102,27 @@ values." (spec.md US1)
 
 - [x] T015 [P] [US1] Confirm `tools/docs/report_shape.py` needs no edit: it stores no expectations of its own, and each run of it compares the sample output block the pair it is given names; no registered block shows a run with the probe in play, so the new probe block reaches none, and every registered comparison folds equal on every probe-free binary (FR-013, SC-003); extend the fold in `classify` only if a line class reaches the probe block, and record the confirmation in this task's note
 
+  Note, T015 (2026-10-23, confirmed at this head): `tools/docs/report_shape.py`
+  stores no expectations of its own, and every registered comparison
+  pairs probe-free samples, so the new probe block reaches none. The
+  wave record `.omo/waves/027-implement/w3-us1-json.md` (2026-10-21)
+  carries the confirmation, and the standing `report_shape` gate keeps
+  the condition green: the T042 gate record of 2026-10-22 in this file
+  lists `report_shape` Passed inside the suite (FR-013, SC-003).
+
 ### Verification for User Story 1
 
 - [x] T016 [US1] Record the probe-free shape check of `quickstart.md` ("Without the option") in this task's note: the `ctest -R 'harness_jitter_cli|report_shape'` run green, every `report_shape` comparison folding equal on every probe-free binary, and the by-hand `master` worktree check at `/tmp/sg027-base`: the console diff of `benchmark_example --filter=bmTouch` showing no difference outside the measured numbers, and the key-sequence check over the two JSON files printing `True` (FR-013, SC-003, D-1)
+
+  Note, T016 (2026-10-23, recorded from the lane's records): the
+  probe-free shape check ran green at the lane's close (2026-10-22).
+  The `ctest -R 'harness_jitter_cli|report_shape'` run passed, and the
+  T042 gate record of 2026-10-22 in this file lists `report_shape`
+  Passed inside the suite. The by-hand master-worktree console diff of
+  `benchmark_example --filter=bmTouch` showed no difference outside
+  the measured numbers, and the JSON key-sequence check printed
+  `True`; the wave record `.omo/waves/027-implement/w3-us1-json.md`
+  (2026-10-21) carries both (FR-013, SC-003, D-1).
 
 **Checkpoint (MVP)**: `--jitter-probe=2` on a 4-cpu host starts the probe
 before the first run and stops it after the last, the probe block prints
@@ -140,6 +158,18 @@ US2)
 
 - [x] T021 [US2] Record the thrawn real-host checks of `quickstart.md` in this task's note: the `docs_threads --placement=l3 --filter=bmSharded --jitter-probe=idle` run resolving one probe cpu per L3 group with the disclosure naming all of them, a group skip when the plans leave one group no free cpu, and the four usage-error commands of the quickstart each printing one line and exiting with status 2 before any benchmark runs, each with its measured output (US2 scenarios 1 to 4, SC-002, FR-016, FR-017, FR-018)
 
+  Note, T021 (2026-10-23, recorded from the two lane records): the
+  thrawn real-host runs stand recorded in
+  `specs/027-jitter-probe/results/thrawn-acceptance-2026-10-21.md`
+  (the `idle` resolution giving the lowest free cpu of each L3 group,
+  cpus 1,7,13,19, and the overlap error on a planned cpu, one line
+  and exit status 2) and in
+  `.omo/waves/027-implement/w4-us2-placement.md` (2026-10-21), which
+  carries the four quickstart usage-error commands each one line and
+  exit status 2, and the group skip: the skip stands recorded at the
+  CLI level on the synthetic thrawn shape, and no real-host run
+  produces a skip (US2 scenarios 1 to 4, SC-002, FR-016 to FR-018).
+
 **Checkpoint**: US2 stands on its own: the `idle` preset resolves over
 the injected layouts, every overlap and empty-mask case is one line and
 status 2 before any run, and the skipped groups and the mask change
@@ -162,7 +192,7 @@ window yields stats for that benchmark only." (spec.md US3)
 
 ### Implementation for User Story 3
 
-- [x] T023 [US3] Record the TSC window stamps in `source/harness/runner.cpp`: one `machine/tsc` sample on the benchmark thread at the open and at the close of every timed window, taken beside the chunk boundaries the recorder already tracks (`:1714`, `:1774`, `:1890`, `:1916`), each window carrying its entry index and its repetition, chunk and pass indexes into the `TimedWindow` record E-06 names, the edges read from the same leaf the probe reads so the comparison needs no conversion, and the stamps recorded outside the measured span each window covers (FR-021, FR-022, R-04, PC-5); the covering test is T022's stamp scenarios
+- [x] T023 [US3] Record the TSC window stamps in `source/harness/runner.cpp`: one `machine/tsc` sample on the benchmark thread at the open and at the close of every timed window, taken beside the chunk boundaries the recorder already tracks (`:1988`, `:2151`), each window carrying its repetition and pass indexes into the `TimedWindow` record E-06 names, the entry attributed through the per-entry window vector the split takes (`takeRunWindows`, one vector per benchmark entry) and the chunk index standing 0 on the attempt-level window, whose timed loop spans every chunk the plan reserves (specs/021 FR-008), the edges read from the same leaf the probe reads so the comparison needs no conversion, and the stamps recorded outside the measured span each window covers (FR-021, FR-022, R-04, PC-5); the covering test is T022's stamp scenarios
 
 - [x] T024 [US3] Implement the split and the per-benchmark fold in `source/harness/jitter_probe.cpp`: the fold of a kept record into every window whose `[start, end)` contains its stamp, one `JitterStats` per benchmark entry per probe cpu through `gapStatsOf` with the contracts `contracts/public-api.md` states, one fold over the whole run and one over each benchmark's windows, the runner reading the buffers only after the probe contexts are joined, the happens-before edge R-04 records, and the worst-cpu selection the attribution line and the `any` rules name (FR-021, FR-024, FR-027, R-04, R-05); the covering test is T022's split scenarios
 
@@ -252,7 +282,7 @@ pass with the new section and example (SC-007).
 
 - [x] T037 Time-source and counters gate: confirm the probe reads time only through `sg::counters`, that every measured value comes from the provider surface, that the reader-install seam installs a counters `WindowReader`, and that the `time_source_gate` entry of `test/CMakeLists.txt` stays green (FR-004, D-10, R-02)
 
-- [x] T038 Acceptance script and record: create `tools/noise/jitter_probe_thrawn.sh`, a script and never a CI gate, running on thrawn the N4-V check, each N4 preset with `--threads` at 24 and at 48 printing the planned cpus and the L3 group of each, and the N13-V probes: `--jitter-probe=idle` with one probe per L3 group, the overlap error on a planned cpu, and the benchmark time with and without the probe; record the results under `specs/027-jitter-probe/results/` with the date, the kernel, the BIOS settings that are visible, and the `isolcpus` and `nohz_full` state (FR-042, FR-043, D-8, SC-008)
+- [x] T038 Acceptance script and record: create `tools/noise/jitter_probe_thrawn.sh`, a script and never a CI gate, running on thrawn the N4-V check, each N4 preset at the context counts the registered benchmark families carry printing the planned cpus and the L3 group of each, and the N13-V probes: `--jitter-probe=idle` with one probe per L3 group, the overlap error on a planned cpu, and the benchmark time with and without the probe; record the results under `specs/027-jitter-probe/results/` with the date, the kernel, the BIOS settings that are visible, and the `isolcpus` and `nohz_full` state (FR-042, FR-043, D-8, SC-008)
 
 - [x] T039 Commit series per the Pull Request Quality section of `.specify/memory/constitution.md`: `<Section>: <one-line imperative>` at 50 characters or fewer, a why-body wrapped at 72, blank lines between body paragraphs, one footer block with `Approved-by:` first and `Refs: specs/027-jitter-probe` second with no blank line inside, atomic and bisectable, and the prose rules of Principle XI binding every commit message (spec Constraints)
 
@@ -378,3 +408,47 @@ indexes T023 records, and the rebase of T041 keeps both lanes' lines.
   after the rebase of T041, the wait FR-033 states.
 - Setup blocks the stories because the public types and the seams are
   the contract every story test compiles against.
+
+## Phase 9: Convergence
+
+**Purpose**: The converge pass of 2026-10-23 assessed the working tree against
+spec.md, plan.md, tasks.md and the constitution; every finding below was
+confirmed against its cited file and line by the verification pass of the same
+run. Ordered CRITICAL first.
+
+- [x] T043 Enforce the join-ordering precondition the contracts document per Constitution II (contradicts): both `gapStatsOf` overloads document "\pre the buffer is read after the probe context is joined (R-04)" at `source/harness/detail/jitter_probe.hpp:106` and `:119`, while their definitions at `source/harness/jitter_probe.cpp:460` and `:551` carry only SG_ENSURE and no SG_REQUIRE, and the dbc doc-gate cannot see the header because `cmake/dbc-gate.cmake:28` and `:51` scope the gate to `include/speedgun-ng` alone, so spec.md:845's rule that each \pre carries an SG_REQUIRE stands unenforced there; add the missing SG_REQUIRE in both definitions (or restate the clause as descriptive prose so no documented \pre stands without its enforcement) and widen the doc-gate scope to `source/harness/detail`, re-running the dbc-gate to prove the pairing
+- [x] T044 Resolve the FR-042 acceptance dimension the CLI cannot express per FR-042 (partial): the long-option table at `source/harness/cli.cpp:565-589` carries no `--threads` option in any spelling, so the mandate "each N4 preset with `--threads` at 24 and at 48" (spec.md:764-766) never ran and the acceptance script substituted the 4 contexts bmSharded registers, disclosed at `tools/noise/jitter_probe_thrawn.sh:6-13` and `:100-112` and in `specs/027-jitter-probe/results/thrawn-acceptance-2026-10-21.md:46-53`; either add the `--threads` option and rerun the acceptance per preset at 24 and 48 threads, or amend FR-042 to the context counts the registered benchmarks carry, and align the script, the results record and tasks.md:255 with what then runs
+- [x] T045 Record the confirmation notes T015, T016 and T021 were required to carry per T015/T016/T021 (missing): tasks.md:103, :107 and :141 each instruct recording evidence "in this task's note", yet no note block follows any of the three (only T028's at :198 and T042's gate record at :264 exist), leaving the FR-013 and SC-003 evidence chain untraceable from the ledger; append the recorded notes under the three tasks in the style of the T028 note, or amend the tasks to point at where each piece of evidence was recorded instead
+- [x] T046 Carry the real window indexes the E-06 record names per E-06/T023 (partial): both TimedWindow push sites in `source/harness/runner.cpp:2074` and `:2218` hardcode `.entry`, `.chunk` and `.pass` to 0 with only `.repetition` filled, while data-model.md:146-155 and T023 (tasks.md:164) require the record to carry the entry, repetition, chunk and pass indexes, and the entry attribution rides the entryWindows vector position instead; fill the real indexes at both push sites (entry from the batch loop, chunk from the chunk plan, pass from the pass-loop counter) or amend E-06 and T023 to name the vector-position seam the split actually reads, resolving the single-row/three-field tension the verifier named
+- [x] T047 Add the probe multi-pass test FR-022 names per FR-022/US3-AC2 (partial): no test in test/source combines `--jitter-probe` with a multi-pass run, and the scenario at `test/source/harness_jitter_window_test.cpp:703-729` substitutes `--repetitions=3` where its comment claims passes; add a scenario that runs the probe over a family whose columns force `--metric-method=passes` and assert the entry's fold counts gaps from every pass's windows
+- [x] T048 Settle the online-count refusal wording M-5 ordered per round-3 rule M-5 (contradicts): `source/harness/cli.cpp:302` refuses a masked-out cpu with "stands outside the process affinity mask" and `:306` refuses a cpu at or past the online count with the distinct "stands past the online cpu count", while the M-5 work order asked the count bound to reuse the mask line; the contract (`specs/027-jitter-probe/contracts/cli-options.md:65-66`) and the test (`test/source/harness_jitter_cli_test.cpp:1388-1393`) codify the distinct wording, so confirm which wording is canonical and align the outlier (amend the rule if the contract row stands)
+
+  Note, T048 (2026-10-23, ruling): the contract row stands canonical.
+  `specs/027-jitter-probe/contracts/cli-options.md:63-70` keeps the
+  mask row and the online-count row as two cases. The online-count
+  bound keeps its distinct line "stands past the online cpu count"
+  (`source/harness/cli.cpp:306`) beside the mask line
+  (`source/harness/cli.cpp:302`), and the test
+  (`test/source/harness_jitter_cli_test.cpp:1388-1393`) codifies the
+  distinct wording. The M-5 work order's same-line wording stands
+  superseded. The ruling needs no code change.
+- [x] T049 Correct the stale schema-version comment per FR-029 (contradicts): the comment at `source/harness/json_report.cpp:27-29` states the minor "stands at 1.1 since specs/024 added the pass keys" directly above `kSchemaVersion = "1.2"` at `:30`; update the comment to state the current minor and what moved it
+- [x] T050 Assert the round-trip equality SC-001 promises per FR-029/SC-001 (partial): the probed-run round-trip scenario at `test/source/harness_jitter_window_test.cpp:541-556` asserts only that loadReport returns a document, though its own comment claims "every jitter field equal"; extend the scenario to assert each loaded run-level and per-entry jitter field (mode, cpus, per-cpu stats, droppedGaps, disclosure) equals the value the writer produced
+
+**Round 2 (2026-10-23)**: the re-assessment ran six lanes over the
+changed areas and reconciled every row; the fixes of T043 to T050
+stand as described and the original requirement rows re-verify at the
+head the six commits of this cycle build. The gates at that head: the
+build exits 0, `ctest -j 2` passes 122 of 122, the dbc-gate exits 0
+at its baseline scope, the time-source gate reports clean, and the
+prose lint with the CI-pinned format and spell checks pass. Rulings
+this round records: the three documented-contract drifts the widened
+doc-gate surfaced in `source/harness/detail/internal.hpp`'s `sg`
+namespace block (`sg::registry` and `sg::addRegistryEntry` without
+contract tags, `sg::Instance` documenting clauses no macro enforces)
+predate this feature, no committed line of it touches those
+declarations, and they stand owner-tracked for the lane that owns the
+registration surface; the doc-gate scope stands at `include/speedgun-ng`
+by ruling, the widened view being the run that surfaced those rows;
+the citation ranges the acceptance lane found a line or two short
+carry the content they cite and stand ruled inconsequential.
