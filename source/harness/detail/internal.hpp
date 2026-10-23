@@ -782,8 +782,8 @@ struct MaskNarrowing
 /// @brief The skipped-groups line the placement disclosure carries
 /// (FR-017, D-4, E-09): the empty vector names no line, one group
 /// stands alone, and two join on the comma.
-[[nodiscard]] auto skippedGroupsText(
-    const std::vector<std::uint32_t>& groups) -> std::string;
+[[nodiscard]] auto skippedGroupsText(const std::vector<std::uint32_t>& groups)
+    -> std::string;
 
 /// @brief The narrowing's postcondition predicate, read only inside
 /// the SG_ENSURE contract of the mask decision: the narrowed mask

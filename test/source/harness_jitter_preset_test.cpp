@@ -560,8 +560,7 @@ auto main(const int argc, char** argv) -> int
       bare.mask.push_back(5);
       sg::detail::IdleResolution bareYield;
       bareYield.cpus = {5};
-      check(!sg::detail::idleResolutionValid(
-                bare, {}, bareYield),
+      check(!sg::detail::idleResolutionValid(bare, {}, bareYield),
             "a yielded cpu with no group stands invalid (D-4)");
     }
 

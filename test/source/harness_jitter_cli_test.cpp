@@ -1021,14 +1021,14 @@ auto scenarioMaskEmpty() -> int
 auto scenarioSingleContext() -> int
 {
   const std::string probe = std::to_string(baseCpu);
-  const Captured run = runChildScenario("singleContext",
-                                        {"--filter",
-                                         "^bmJitSingle$",
-                                         "--repetitions=1",
-                                         "--iterations=2",
-                                         "--jitter-probe=" + probe
-                                             + ",precheck=1"},
-                                        &setupSingle);
+  const Captured run =
+      runChildScenario("singleContext",
+                       {"--filter",
+                        "^bmJitSingle$",
+                        "--repetitions=1",
+                        "--iterations=2",
+                        "--jitter-probe=" + probe + ",precheck=1"},
+                       &setupSingle);
   check(run.status == 0, "the single-context preset run continues (FR-019)");
   check(run.out.find("UNAPPLIED") == std::string::npos,
         "no pin stands unapplied (FR-005, VI)");
@@ -1115,13 +1115,13 @@ auto scenarioUnreadableMask() -> int
 auto scenarioFitBesideProbe() -> int
 {
   const std::string probe = std::to_string(baseCpu);
-  const Captured run = runChildScenario("fitBesideProbe",
-                                        {"--filter=^bmFit",
-                                         "--repetitions=1",
-                                         "--iterations=2",
-                                         "--jitter-probe=" + probe
-                                             + ",precheck=1"},
-                                        &setupFitFamilies);
+  const Captured run =
+      runChildScenario("fitBesideProbe",
+                       {"--filter=^bmFit",
+                        "--repetitions=1",
+                        "--iterations=2",
+                        "--jitter-probe=" + probe + ",precheck=1"},
+                       &setupFitFamilies);
   check(run.status == 0, "the two families run beside the probe (R-08)");
   check(run.out.find("UNAPPLIED") == std::string::npos,
         "no pin stands unapplied (FR-005, VI)");
@@ -1357,11 +1357,13 @@ auto main(int argc, char** argv) -> int
     // refusal reads in a child that holds one cpu of the mask alone
     // and names the other, a cpu below the count the threads report
     // (FR-011).
-    const Captured outside = runChildScenario(
-        "outside",
-        {"--filter=bmQuiet", "--repetitions=1", "--iterations=2",
-         "--jitter-probe=" + std::to_string(siblingCpu)},
-        &setupOutsideMask);
+    const Captured outside =
+        runChildScenario("outside",
+                         {"--filter=bmQuiet",
+                          "--repetitions=1",
+                          "--iterations=2",
+                          "--jitter-probe=" + std::to_string(siblingCpu)},
+                         &setupOutsideMask);
     check(outside.status == 2,
           "a cpu outside the child's mask stands rejected (FR-011)");
     checkOneLine(outside.err,
@@ -1386,17 +1388,14 @@ auto main(int argc, char** argv) -> int
     sg::detail::installTestOnlineCount(cpus.at(0));
     auto pastCount = quickRun;
     pastCount.push_back("--jitter-probe=" + second);
-    checkOneLine(
-        captureError(pastCount, 2),
-        "a cpu past the installed count stands rejected (FR-041)");
-    check(
-        captureError(pastCount, 2).find("stands past the online cpu count")
-            != std::string::npos,
-        "the count bound names the online count (FR-041)");
+    checkOneLine(captureError(pastCount, 2),
+                 "a cpu past the installed count stands rejected (FR-041)");
+    check(captureError(pastCount, 2).find("stands past the online cpu count")
+              != std::string::npos,
+          "the count bound names the online count (FR-041)");
     sg::detail::installTestOnlineCount({});
     auto rangeBeyond = quickRun;
-    rangeBeyond.push_back("--jitter-probe=" + cpu + "-"
-                          + pickCpuOutsideMask());
+    rangeBeyond.push_back("--jitter-probe=" + cpu + "-" + pickCpuOutsideMask());
     checkOneLine(
         captureError(rangeBeyond, 2),
         "a range that ends outside the mask stands rejected " "(FR-011)");
