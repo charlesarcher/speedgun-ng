@@ -149,7 +149,7 @@ of which (N-1) makes the CLI refuse the host class the whole test suite runs on.
     legal combination everywhere (hunt-cli.md:112, :155, :180, plan.md:505) and
     the conflict check lists only `--counter`, `--metric` and `--compare`
     (hunt-cli.md:92-94, verification row hunt-cli.md:178), so the contract no
-    longer both refuses and honours it. What the new text asserts about the run
+    longer both refuses and honors it. What the new text asserts about the run
     is false; see N-3.
 32. FIXED. hunt-cli.md:143 prints `hunt: skipped armv8_pmuv3/cycle
     not-encodable stage=2` and hunt-json.md:97 writes

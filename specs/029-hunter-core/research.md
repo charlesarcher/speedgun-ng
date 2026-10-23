@@ -364,7 +364,7 @@ new skip channel into the fold.
 - Re-running the whole run at a narrower plan. Rejected: it re-runs the
   benchmark, doubles the printed rows, and breaks the one-result-per-instance
   shape the report and the JSON writer assume.
-- Pre-emptive one-event passes whenever a device publishes no limit. Rejected:
+- Preemptive one-event passes whenever a device publishes no limit. Rejected:
   it gives up pass packing on the hosts that need it most, and it cannot know
   the schedulable set, which the audit shows can be narrower than the published
   general-purpose count.

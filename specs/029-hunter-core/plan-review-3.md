@@ -55,7 +55,7 @@ implementer building the wrong thing.
    response, so the abort the decision rests on belongs to `enforce`. The
    dispatch for the default value 2 is the `#elif SG_CONTRACTS_SEMANTIC != 0`
    branch at dbc.hpp:198-213, which reports the record and then calls
-   `std::abort()`; grep for `observ` in research.md returns no line at all, so
+   `std::abort()`; grep for `observe` in research.md returns no line at all, so
    the obsolete `observe` claim is gone.
 4. **N-1: FIXED.** `contracts/hunt-api.md:192-197` restricts the
    `\post` (refusal) to three causes (a device limit below 3, an explicit

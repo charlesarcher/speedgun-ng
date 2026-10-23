@@ -152,7 +152,7 @@ hunt: plan summary events=40/42 passes=14 spend=1184000ns budget=120s
 |---|---|
 | Ranked table size | at most `--hunt-top` ranked rows, then the excluded tail with `rank=-` and a `mark=` of `noisy`, `unrepeated` or `beyond-top` (D-7, D-8; PD-14) |
 | `MULTIPLEX` | a run whose plan settled `MULTIPLEX` prints the method word `MULTIPLEX` in the plan line and the word `multiplexed` on every row (D-19) |
-| No anchor | the plan line carries ` normalized=iter`, and the rate column is labelled `iter=`; the silent fallback belongs to the unset norm, an explicit word refuses first (D-13) |
+| No anchor | the plan line carries ` normalized=iter`, and the rate column is labeled `iter=`; the silent fallback belongs to the unset norm, an explicit word refuses first (D-13) |
 | No estimate | `estimate=not available`, because the estimate is calibration data and a hunt run can reach the plan before any calibration answered (FR-012) |
 | Host that refuses everything | the plan line, no ranked row, the skipped list with one line per refused event, and the summary reading `events=0/N`, the plan line carrying `events=0` (D-12, FR-041) |
 | No hunt | no `hunt:` line at all, and no `hunt` key in the document (FR-052, I-8) |

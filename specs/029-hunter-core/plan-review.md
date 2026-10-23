@@ -29,7 +29,7 @@ each carry a planned test or a record: AC-1 to AC-7 in `plan.md`'s test plan, AC
 P10, AC-9 in P9 and `quickstart.md`, AC-10 in the Evidence tables and the `results/`
 directory. Finding 12 records the one spec-mandated behaviour (D-16's
 `--hunt` with `--metric-method=multiplex`) that no artifact mentions. The constraints
-list of the task is honoured in the plan except where a finding says otherwise: hunt.hpp
+list of the task is honored in the plan except where a finding says otherwise: hunt.hpp
 options structs, no second pass loop, no `perf_event_open` outside counters, exit-2
 one-line refusals, the dbc contract form, simdjson error-code reads, no sleeps, clocks or
 fixed cpu counts in the test plan, 100 percent coverage with no exclusion route, harness
@@ -333,7 +333,7 @@ prefix on stdout for a `--json` run.
     Problem: the Console section says a hunt `--dry-run` prints the plan line "and nothing
     else does", while Verification tests "the conflict check for `--counter`, `--metric`,
     `--compare` and `--dry-run`, in both command-line orders", so the contract both refuses
-    and honours the same combination, and `--dry-run` is a real option
+    and honors the same combination, and `--dry-run` is a real option
     (`source/harness/cli.cpp:353`).
     Fix: decide whether `--dry-run` conflicts with a hunt, and remove it from whichever list
     is wrong.
