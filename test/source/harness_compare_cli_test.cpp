@@ -426,19 +426,18 @@ auto anUnreadableRulesFileNamesThePathAndItsReason(const std::string& data)
         "(SC-003, SC-005)");
 }
 
-// T051, FR-063, spec D-23: rules combine across the four places a rule can
-// stand and no source replaces another. The order is the `--compare-rule`
-// options of the command line, then the file `--compare-rules` names, then
-// the `compare-rule` line of the `--options` file, then the file that a
-// `compare-rules` line of that option file names. Four bounds of one
-// benchmark answer four rows in that order.
-auto rulesFromTheFourPlacesAnswerRowsInThatOrder(const std::string& data)
-    -> void
+// T051, FR-063 as this round reads it: the highest source that names a rule
+// settles the whole list, so the command line's own `--compare-rule` options
+// and the file its `--compare-rules` names stand, while the `compare-rule`
+// line of the `--options` file and the file that line names drop. Within the
+// command line the order is the order it spelled its rules in. Four bounds no
+// longer answer four rows: two rows stand, and the two dropped bounds reach
+// nothing.
+auto theCommandLineSourceSettlesTheRuleList(const std::string& data) -> void
 {
-  // The fail pair carries a nine percent change, so all four bounds of this
-  // case sit below it and every row answers `REGRESSED`. The pass pair
-  // changes by three percent, which would leave the two wider bounds of the
-  // list standing at `OK` (FR-063).
+  // The fail pair carries a nine percent change, so both bounds of this case
+  // sit below it and every row answers `REGRESSED`. The wider bounds of the
+  // lower sources would have left rows standing at `OK` (FR-063).
   const std::string baseline = data + "/gate_fail_base.json";
   const std::string contender = data + "/gate_fail_contender.json";
   const std::string pair = "--compare=" + baseline + "," + contender;
@@ -458,32 +457,35 @@ auto rulesFromTheFourPlacesAnswerRowsInThatOrder(const std::string& data)
                                "--options=" + optionFile});
 
   check(run.status == 1,
-        "four bounds all sitting below the pair's change answer status 1 "
+        "both bounds sitting below the pair's change answer status 1 "
         "(FR-063, FR-052)");
-  check(run.err.empty(),
-        "rules gathered from the four places print no fault (FR-063)");
+  check(run.err.empty(), "the settled rule list prints no fault (FR-063)");
   const std::vector<std::string> lines = linesOf(run.out);
-  if (lines.size() != 7) {
-    dump("the four places of one rule list", run);
+  if (lines.size() != 5) {
+    dump("the settled rule list of one pair", run);
   }
-  check(lines.size() == 7,
-        "every source contributes its rule, so four rows stand beside the "
-        "three header lines and no source replaces another (FR-063)");
-  if (lines.size() != 7) {
+  check(lines.size() == 5,
+        "the command line's two rules settle the list, so two rows stand "
+        "beside the three header lines (FR-038, FR-063)");
+  if (lines.size() != 5) {
     return;
   }
-  const std::array<const char*, 4> kOrder = {"time@median:lower:1%",
-                                             "time@median:lower:2%",
-                                             "time@median:lower:3%",
-                                             "time@median:lower:4%"};
+  const std::array<const char*, 2> kOrder = {"time@median:lower:1%",
+                                             "time@median:lower:2%"};
   for (std::size_t index = 0; index < kOrder.size(); ++index) {
     const std::string& row = lines[3 + index];
     check(row.rfind("bmGate ", 0) == 0
               && row.find(kOrder[index]) != std::string::npos
               && endsWith(row, "REGRESSED"),
-          "the row at that position carries the rule of the source at that "
-          "position of the order spec D-23 states (FR-063)");
+          "the row at that position carries the rule the command line "
+          "spelled at that position (FR-035, FR-063)");
   }
+  // The two lower sources contribute nothing: neither bound of the option
+  // file, nor of the file that option file names, reaches a row (FR-038,
+  // FR-063).
+  check(run.out.find("lower:3%") == std::string::npos
+            && run.out.find("lower:4%") == std::string::npos,
+        "the rules of the lower sources reach no row (FR-038, FR-063)");
 }
 
 // The pass pair: status 0, the header of FR-056, and one `OK` row whose
@@ -1269,7 +1271,7 @@ auto main(const int argc, char** argv) -> int
   aCommentAndABlankLineSetNoRuleAndHoldTheLineNumber(data);
   aRulesLineNamingAnotherFileAnswersTheParserFault(data);
   anUnreadableRulesFileNamesThePathAndItsReason(data);
-  rulesFromTheFourPlacesAnswerRowsInThatOrder(data);
+  theCommandLineSourceSettlesTheRuleList(data);
 
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

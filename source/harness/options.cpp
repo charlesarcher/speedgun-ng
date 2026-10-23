@@ -121,6 +121,30 @@ constexpr std::int64_t kMaxWholeSeconds =
 // space as the end of the element.
 constexpr std::size_t kMaxPercentilePoints = 16;
 
+/**
+ * @brief The text of a value as one fault record carries it.
+ *
+ * A value of the command line or of the environment can hold a line break,
+ * and the fault of any source is one line (FR-024, FR-027, FR-035, SC-003),
+ * so a break is named with its own words. A backslash stands doubled, so a
+ * named break cannot be confused with the two letters of its own name.
+ */
+auto quotedText(const std::string_view text) -> std::string
+{
+  std::string quoted;
+  quoted.reserve(text.size());
+  for (const char letter : text) {
+    if (letter == '\\') {
+      quoted += "\\\\";
+    } else if (letter == '\n') {
+      quoted += "\\n";
+    } else {
+      quoted.push_back(letter);
+    }
+  }
+  return quoted;
+}
+
 auto parsePercentileList(const char* text,
                          const char* option,
                          std::vector<double>& points)
@@ -157,7 +181,7 @@ auto parsePercentileList(const char* text,
       return std::unexpected(std::string(option)
                              + ": expected comma-separated points in "
                                "(0, 100), got '"
-                             + text + "'");
+                             + quotedText(text) + "'");
     }
     more = *at == ',';
     if (more) {
@@ -175,8 +199,8 @@ auto parseCount(const char* text,
   const long long value = std::strtoll(text, &end, 10);
   if (errno != 0 || end == text || *end != '\0' || value <= 0) {
     return std::unexpected(std::string(option)
-                           + ": expected a positive integer, got '" + text
-                           + "'");
+                           + ": expected a positive integer, got '"
+                           + quotedText(text) + "'");
   }
   return static_cast<std::uint64_t>(value);
 }
@@ -185,16 +209,24 @@ auto parseCount(const char* text,
 // argument names whether zero stands: FR-034 with the option table of
 // contracts/cli.md gives `--min-time` a positive count of seconds, where
 // `--warmup-time` admits zero. The words the fault line carries follow the
-// same argument, so each option keeps the line the base prints.
-constexpr bool kZeroAdmitted = true;
-constexpr bool kZeroRefused = false;
+// same argument, so each option keeps the line the base prints. The argument
+// is a two-word enumeration, so a call names its shape and no reader takes
+// a second bool (FR-034).
+enum class ZeroWord
+{
+  ADMITTED,
+  REFUSED
+};
+constexpr auto kZeroAdmitted = ZeroWord::ADMITTED;
+constexpr auto kZeroRefused = ZeroWord::REFUSED;
 
-auto parseSeconds(const char* text, const char* option, const bool zeroAdmitted)
+auto parseSeconds(const char* text, const char* option, const ZeroWord zeroWord)
     -> std::expected<std::int64_t, std::string>
 {
   errno = 0;
   char* end = nullptr;
   const double seconds = std::strtod(text, &end);
+  const bool zeroAdmitted = zeroWord == kZeroAdmitted;
   // The sign the option asks for: `--warmup-time` admits zero, `--min-time`
   // asks above it. A reading that is no number at all fails the finite test
   // below.
@@ -206,8 +238,8 @@ auto parseSeconds(const char* text, const char* option, const bool zeroAdmitted)
         zeroAdmitted ? "number" : "positive number";
     return std::unexpected(std::string(option) + ": expected a finite "
                            + std::string(qualifier) + " of seconds at most "
-                           + std::to_string(kMaxWholeSeconds) + ", got '" + text
-                           + "'");
+                           + std::to_string(kMaxWholeSeconds) + ", got '"
+                           + quotedText(text) + "'");
   }
   return static_cast<std::int64_t>(seconds * 1'000'000'000.0);
 }
@@ -285,6 +317,28 @@ auto editDistance(std::string_view left, std::string_view right) -> std::size_t
 auto typedWord(std::string_view word) -> std::string_view
 {
   return word.substr(0, word.find('='));
+}
+
+// The word that carries the letter a short group was refused on. glibc
+// leaves `optind` standing on a group it stopped inside, so the word behind
+// it names an earlier option there and the group itself stands one word
+// ahead; a letter a long row answers with belongs to no single-dash word,
+// so the search answers nothing and the base line stays (FR-007, T063).
+auto groupWord(int argc,
+               char** argv,
+               int optind,
+               char letter) -> std::string_view
+{
+  const std::string head {'-', letter};
+  for (const int index : {optind - 1, optind}) {
+    if (index > 0 && index < argc) {
+      const std::string_view word = typedWord(argv[index]);
+      if (word.starts_with(head)) {
+        return word;
+      }
+    }
+  }
+  return {};
 }
 
 // The name a typed word carries: the leading dashes and an attached value
@@ -771,7 +825,7 @@ auto scanCommandLine(int argc, char** argv)
         // typed, and the entry point prints it at status 2 (SC-003).
         if (std::string_view(optarg) != "off") {
           return std::unexpected("--env: expected 'off', got '"
-                                 + std::string(optarg) + "'");
+                                 + quotedText(optarg) + "'");
         }
         options.environmentOff = true;
         break;
@@ -827,7 +881,10 @@ auto scanCommandLine(int argc, char** argv)
         // string carries no letter, so every letter names no row (FR-005,
         // FR-007). Only a long name can start a row name, so the candidate
         // list belongs to it alone (FR-006, FR-009).
-        if (optopt != 0 && !typedWord(argv[optind - 1]).starts_with("--")) {
+        if (optopt != 0
+            && !groupWord(argc, argv, optind, static_cast<char>(optopt))
+                    .empty())
+        {
           return std::unexpected(unknownOptionLine(
               std::string(1, '-') + static_cast<char>(optopt)));
         }
@@ -912,7 +969,7 @@ auto readFlag(const std::string_view text) -> std::expected<bool, std::string>
     return false;
   }
   return std::unexpected("expected 1, 0, true or false, got '"
-                         + std::string(text) + "'");
+                         + quotedText(text) + "'");
 }
 
 /**
@@ -928,14 +985,12 @@ auto readFlag(const std::string_view text) -> std::expected<bool, std::string>
 auto readThreadList(const std::string_view text)
     -> std::expected<std::vector<int>, std::string>
 {
-  SG_REQUIRE(text.find_first_of(";\n") == std::string_view::npos,
-             "the reader takes one value word of one source");
   const auto refuse = [text]
   {
+    const std::string quoted = quotedText(text);
     const std::string line =
-        "--threads: expected counts and min:max ranges, got '"
-        + std::string(text) + "'";
-    SG_ENSURE(line.find(text) != std::string::npos,
+        "--threads: expected counts and min:max ranges, got '" + quoted + "'";
+    SG_ENSURE(line.find(quoted) != std::string::npos,
               "the refusal names the text the source spelled (SC-003)");
     return std::unexpected(line);
   };
@@ -982,8 +1037,6 @@ auto readThreadList(const std::string_view text)
 auto readSeed(const std::string_view text)
     -> std::expected<std::uint64_t, std::string>
 {
-  SG_REQUIRE(text.find_first_of(";\n") == std::string_view::npos,
-             "the reader takes one value word of one source");
   std::uint64_t seed = 0;
   const auto answer =
       std::from_chars(text.data(), text.data() + text.size(), seed);
@@ -1072,6 +1125,21 @@ auto readTextFile(const std::string& path)
 }
 
 /**
+ * @brief The refusal of a source line that carries a NUL byte, naming the
+ * source, the line number and the text as it stands (FR-033, FR-061).
+ *
+ * A NUL byte ends a C string, so a reader handed such a line reads a
+ * prefix of it and answers for a value nobody spelled. The line is refused
+ * before any reader takes it, the way a name the table carries is refused
+ * (FR-035, FR-065, D-12).
+ */
+auto nulLine(const std::string& where, std::string_view line) -> std::string
+{
+  return where + ": expected a value without a NUL byte, got '"
+      + std::string(line) + "'";
+}
+
+/**
  * @brief The rules of one rules file, read outside the gather so the
  * gather opens nothing (FR-061, FR-062, FR-064, FR-065, D-05).
  *
@@ -1103,6 +1171,10 @@ auto readCompareRulesFile(const std::string& path)
     const std::size_t first = line.find_first_not_of(kBlanks);
     if (first == std::string_view::npos || line[first] == '#') {
       continue;  // FR-062
+    }
+    if (line.find('\0') != std::string_view::npos) {
+      return std::unexpected(
+          nulLine(path + ":" + std::to_string(number), line));
     }
     const std::size_t last = line.find_last_not_of(kBlanks);
     const auto rule = parseCompareRule(line.substr(first, last - first + 1));
@@ -1166,10 +1238,13 @@ auto splitItems(const std::string& text) -> std::vector<std::string_view>
   return items;
 }
 
-// The rows whose value accumulates within one source: their arms above append
-// the items of every word, where a scalar keeps the last word (FR-035,
-// FR-038). The disclosure of an accumulated row joins its items with `;` and
-// the disclosure of a scalar names the word that took effect (FR-040).
+// The rows whose value accumulates within one source: their arms below
+// append the items of every word, where a scalar keeps the last word
+// (FR-035, FR-038). The disclosure of an accumulated row joins its items
+// with `;` and the disclosure of a scalar names the word that took effect
+// (FR-040). The rule list stands with the scalars: the highest source that
+// named a rule settles the whole list, and a rule of a lower source is read
+// for its fault and then dropped (FR-038, FR-063, D-23).
 auto accumulates(const OptionRow& row) -> bool
 {
   switch (row.value) {
@@ -1177,21 +1252,61 @@ auto accumulates(const OptionRow& row) -> bool
     case 'M':
     case 'p':
     case kThreadsOptionValue:
-    case kCompareRuleOptionValue:
       return true;
     default:
       return false;
   }
 }
 
+// The member one flag row turns. A row that carries no value has nothing to
+// parse beyond its flag word, so one arm settles every flag row through the
+// member it names; a row that carries a value answers no member (FR-025,
+// FR-033).
+auto flagMember(const int value) -> std::optional<bool RunOptions::*>
+{
+  switch (value) {
+    case 'l':
+      return &RunOptions::listMode;
+    case 'd':
+      return &RunOptions::dryRun;
+    case 'C':
+      return &RunOptions::catalogMode;
+    case 'T':
+      return &RunOptions::topologyMode;
+    case kCompareStrictOptionValue:
+      return &RunOptions::compareStrict;
+    default:
+      return std::nullopt;
+  }
+}
+
+// Where the earlier settle of one row came from, when a row carries one:
+// the same source on an earlier line, a higher source, or nothing yet. The
+// answer picks which of the two rules of FR-037 and FR-038 applies, so the
+// seam names the rule it reads (FR-035, FR-038, N7 hard rule 8).
+enum class PriorSettle
+{
+  /// No source has settled the row yet, or nothing above this source did.
+  NO_SETTLE,
+  /// This same source settled the row on an earlier line, so the rule of one
+  /// source stands: a repeatable accumulates and a scalar keeps its word.
+  SAME_SOURCE,
+};
+
+constexpr auto kNoPriorSettle = PriorSettle::NO_SETTLE;
+constexpr auto kSameSourceSettled = PriorSettle::SAME_SOURCE;
+
 // Settle one row from the text one source holds for it, through the reader
 // the command line uses for that value kind, so one rule covers the
 // environment and the option file (FR-024, FR-025, FR-027, FR-035, D-11).
-// The answer says whether the value took effect: a row a higher source
-// already settled keeps its word, which is the precedence of FR-037 read at
-// this seam, and `sameSource` says the very same source settled the row on
-// an earlier line, where the command line's own rule applies instead: a
-// repeatable accumulates and a scalar keeps the last word (FR-035, FR-038).
+// Every text is handed to its reader first, so a value that a higher source
+// shadows still answers its own fault line at status 2 (FR-024, FR-027,
+// SC-003). The answer then says whether the value
+// took effect: a row a higher source already settled keeps its word, which
+// is the precedence of FR-037 read at this seam, and `prior` says this
+// same source settled the row on an earlier line, where the command
+// line's own rule applies instead: a repeatable accumulates and a scalar
+// keeps the last word (FR-035, FR-038).
 // `origin` names the source ahead of the reader's own refusal line: the
 // variable for the environment, the path and the line number for a file
 // (FR-027, FR-035).
@@ -1202,7 +1317,7 @@ auto accumulates(const OptionRow& row) -> bool
 auto applySourceValue(const OptionRow& row,
                       const std::string& text,
                       const std::string& origin,
-                      const bool sameSource,
+                      const PriorSettle prior,
                       ResolvedOptions& resolved)
     -> std::expected<bool, std::string>
 {
@@ -1212,59 +1327,81 @@ auto applySourceValue(const OptionRow& row,
   { return std::unexpected(origin + ": " + line); };
   switch (row.value) {
     case 'f':
-      if (!options.filter.empty() && !sameSource) {
+      if (!options.filter.empty() && prior != kSameSourceSettled) {
         return false;
       }
       options.filter = text;
       return true;
-    case 'r': {
-      if (options.repetitions.has_value() && !sameSource) {
+    default: {
+      // The five rows that carry no value turn one member of `RunOptions`,
+      // and the word is the flag's truth, the way `--no-percentiles` reads
+      // its own word (FR-025, FR-033). The four rows that carry a value yet
+      // cannot stand in a file - the two that would re-root the file's own
+      // sources and the two that print - are refused here ahead of any value
+      // rule, the single place that rule is read (FR-031, spec D-9).
+      const auto member = flagMember(row.value);
+      if (!member.has_value()) {
+        return refuse("the option '" + std::string(row.name)
+                      + "' cannot stand in an option file");
+      }
+      const auto flag = readFlag(text);
+      if (!flag.has_value()) {
+        return refuse(flag.error());
+      }
+      if (options.*member.value() && prior != kSameSourceSettled) {
         return false;
       }
+      options.*member.value() = *flag;
+      return true;
+    }
+    case 'r': {
       const auto count = parseCount(text.c_str(), option.c_str());
       if (!count.has_value()) {
         return refuse(count.error());
+      }
+      if (options.repetitions.has_value() && prior != kSameSourceSettled) {
+        return false;
       }
       options.repetitions = *count;
       return true;
     }
     case 'm': {
-      if (options.minTimeNs.has_value() && !sameSource) {
-        return false;
-      }
       const auto seconds =
           parseSeconds(text.c_str(), option.c_str(), kZeroRefused);
       if (!seconds.has_value()) {
         return refuse(seconds.error());
       }
+      if (options.minTimeNs.has_value() && prior != kSameSourceSettled) {
+        return false;
+      }
       options.minTimeNs = *seconds;
       return true;
     }
     case 'i': {
-      if (options.fixedIterations.has_value() && !sameSource) {
-        return false;
-      }
       const auto count = parseCount(text.c_str(), option.c_str());
       if (!count.has_value()) {
         return refuse(count.error());
+      }
+      if (options.fixedIterations.has_value() && prior != kSameSourceSettled) {
+        return false;
       }
       options.fixedIterations = *count;
       return true;
     }
     case 'w': {
-      if (options.warmupTimeNs.has_value() && !sameSource) {
-        return false;
-      }
       const auto seconds =
           parseSeconds(text.c_str(), option.c_str(), kZeroAdmitted);
       if (!seconds.has_value()) {
         return refuse(seconds.error());
       }
+      if (options.warmupTimeNs.has_value() && prior != kSameSourceSettled) {
+        return false;
+      }
       options.warmupTimeNs = *seconds;
       return true;
     }
     case 'c':
-      if (!options.counterAddresses.empty() && !sameSource) {
+      if (!options.counterAddresses.empty() && prior != kSameSourceSettled) {
         return false;
       }
       for (const std::string_view item : splitItems(text)) {
@@ -1272,7 +1409,7 @@ auto applySourceValue(const OptionRow& row,
       }
       return true;
     case 'M':
-      if (!options.metricNames.empty() && !sameSource) {
+      if (!options.metricNames.empty() && prior != kSameSourceSettled) {
         return false;
       }
       for (const std::string_view item : splitItems(text)) {
@@ -1281,29 +1418,31 @@ auto applySourceValue(const OptionRow& row,
       return true;
     case 'p': {
       // The display flag is what marks this row settled: the scan's
-      // `--percentiles` arm and this arm both set it when they fill the points,
-      // so the points carry no fact the flag does not (FR-025, FR-037).
-      if (!sameSource && options.showPercentiles.has_value()) {
-        return false;
-      }
+      // `--percentiles` arm and this arm both set it when they fill the
+      // points, so the points carry no fact the flag does not (FR-025).
+      std::vector<double> points = options.percentilePoints;
       for (const std::string_view item : splitItems(text)) {
         const std::string itemText(item);
-        const auto points = parsePercentileList(
-            itemText.c_str(), option.c_str(), options.percentilePoints);
-        if (!points.has_value()) {
-          return refuse(points.error());
+        const auto read =
+            parsePercentileList(itemText.c_str(), option.c_str(), points);
+        if (!read.has_value()) {
+          return refuse(read.error());
         }
       }
+      if (prior != kSameSourceSettled && options.showPercentiles.has_value()) {
+        return false;
+      }
+      options.percentilePoints = points;
       options.showPercentiles = true;
       return true;
     }
     case 'P': {
-      if (options.showPercentiles.has_value() && !sameSource) {
-        return false;
-      }
       const auto flag = readFlag(text);
       if (!flag.has_value()) {
         return refuse(flag.error());
+      }
+      if (options.showPercentiles.has_value() && prior != kSameSourceSettled) {
+        return false;
       }
       // The row is the negating flag: the word is the flag's truth, and the
       // flag standing turns percentiles off exactly as the scan's
@@ -1313,7 +1452,7 @@ auto applySourceValue(const OptionRow& row,
       return true;
     }
     case 'A':
-      if (options.placement.has_value() && !sameSource) {
+      if (options.placement.has_value() && prior != kSameSourceSettled) {
         return false;
       }
       options.placement = text;
@@ -1323,86 +1462,132 @@ auto applySourceValue(const OptionRow& row,
       // replacement FR-038 states for a repeatable a higher source named.
       // Within one source the items append in order, the way the counter
       // addresses do (FR-035).
-      if (!options.threadCounts.empty() && !sameSource) {
-        return false;
-      }
       // Each `;` item carries the comma-separated list the command line
       // reads, and the settled counts stand in `RunOptions` (E-11) until
       // the loop over `registry()` writes them into every family
       // record ahead of the expansion (FR-044, FR-045, FR-050, D-14).
+      std::vector<int> counts;
       for (const std::string_view item : splitItems(text)) {
-        const auto counts = readThreadList(item);
-        if (!counts.has_value()) {
-          return refuse(counts.error());
+        const auto words = readThreadList(item);
+        if (!words.has_value()) {
+          return refuse(words.error());
         }
-        options.threadCounts.insert(
-            options.threadCounts.end(), counts->begin(), counts->end());
+        counts.insert(counts.end(), words->begin(), words->end());
       }
+      if (!options.threadCounts.empty() && prior != kSameSourceSettled) {
+        return false;
+      }
+      options.threadCounts.insert(
+          options.threadCounts.end(), counts.begin(), counts.end());
       return true;
     }
     case kInterleaveOptionValue: {
-      if (resolved.interleave.given && !sameSource) {
-        return false;
-      }
       const auto seed = readSeed(text);
       if (!seed.has_value()) {
         return refuse(seed.error());
+      }
+      if (resolved.interleave.given && prior != kSameSourceSettled) {
+        return false;
       }
       // `SPEEDGUN_INTERLEAVE=0` is given with seed 0: the reader answers
       // the number and the option stands on (FR-022, E-10).
       resolved.interleave = InterleaveSeed {true, *seed};
       return true;
     }
+    case 'j':
+      if (std::string_view(text).empty()) {
+        return refuse("--json: the path the option names stands empty");
+      }
+      if (!options.jsonPath.empty() && prior != kSameSourceSettled) {
+        return false;
+      }
+      options.jsonPath = text;
+      return true;
+    case 'J': {
+      // The word is read against the two words the contract names, the way
+      // the scan's `case 'J'` reads it (FR-049, FR-050).
+      if (text != "chunks" && text != "none") {
+        return refuse("--json-raw: 'chunks' and 'none' are the values the "
+                      "option names");
+      }
+      if (resolved.rawContentSettled && prior != kSameSourceSettled) {
+        return false;
+      }
+      options.rawContent =
+          text == "chunks" ? RawContent::CHUNKS : RawContent::NONE;
+      resolved.rawContentSettled = true;
+      return true;
+    }
+    case kCompareOptionValue: {
+      // The pair of paths splits at the first comma, the way the scan's arm
+      // splits it, and an empty side is refused before the mode could open
+      // a document (FR-052, spec D-16).
+      const std::string_view pair {text};
+      const std::size_t comma = pair.find(',');
+      if (comma == std::string_view::npos || comma == 0
+          || comma + 1 == pair.size())
+      {
+        return refuse("--compare: expected '<baseline>,<contender>', got '"
+                      + quotedText(pair) + "'");
+      }
+      if (!options.compareBaseline.empty() && prior != kSameSourceSettled) {
+        return false;
+      }
+      options.compareBaseline = std::string(pair.substr(0, comma));
+      options.compareContender = std::string(pair.substr(comma + 1));
+      return true;
+    }
+    case kMetricMethodOption: {
+      const auto method = parseMetricMethod(text.c_str());
+      if (!method.has_value()) {
+        return refuse("--metric-method '" + text
+                      + "' is not auto, passes or multiplex");
+      }
+      if (options.metricMethod.has_value() && prior != kSameSourceSettled) {
+        return false;
+      }
+      options.metricMethod = method;
+      return true;
+    }
     case kCompareRuleOptionValue: {
-      // FR-063, spec D-23: the rule list is the one list that does not
-      // replace, so a line of a lower source appends and drops nothing. The
-      // rule parser names the field of its fault, and `origin` above adds
-      // the path with the line number, or the variable name (FR-035,
-      // FR-027).
+      // FR-063, spec D-23 as this round reads it: the rule list does not
+      // combine across sources, so the highest source that named a rule
+      // settles the whole list. A rule of a lower source is still read, so
+      // its own fault reaches the operator, then drops (FR-024, FR-038).
+      // Within one source the order recommendation 8 keeps holds: every rule
+      // that source spells stands, in the order it spelled them (FR-035).
       const auto rule = parseCompareRule(text);
       if (!rule.has_value()) {
         return refuse(rule.error());
       }
-      resolved.rules.push_back(std::move(*rule));
+      if (!resolved.rules.empty() && prior != kSameSourceSettled) {
+        return false;
+      }
+      if (prior == kSameSourceSettled) {
+        resolved.rules.push_back(std::move(*rule));
+      } else {
+        resolved.rules = {std::move(*rule)};
+      }
       return true;
     }
     case kCompareRulesOptionValue:
       // FR-063: the file this source names joins after the rules this
       // source spells, so the path is kept here and the gather reads it
-      // once every source has been applied. A second line of one file keeps
-      // its own path, the scalar rule of FR-035.
+      // once every source has been applied. A source below one that named a
+      // rule names no file either: its path drops the way a rule of that
+      // source drops (FR-038, FR-063). A second line of one source keeps its
+      // own path, the scalar rule of FR-035.
+      if (!resolved.rules.empty() && prior != kSameSourceSettled) {
+        return false;
+      }
       resolved.optionFileRulesPath = text;
       return true;
   }
-  // FR-020 fixes the twelve flagged rows and each of them carries an arm
-  // above; a row that reaches here settles nothing and discloses nothing.
-  // The option file recognizes every table row (FR-033), so the rows that
-  // carry no arm here - the mode options, the output options and the rows
-  // another lane owns - are read and set nothing until the task that owns
-  // the row carries its arm.
-  return false;
 }
-
-// The four names an option file cannot carry: the file cannot re-root its
-// own sources and cannot print (FR-031, spec D-9).
-constexpr std::array<const char*, 4> kFileRefusedNames {
-    "options", "env", "help", "version"};
 
 // The row of the table that carries this long name, or null when the table
 // holds none: the table is the only place an option is recognized, so a
 // name with no row is a fault and never a silent word (FR-033).
-auto rowNamed(const std::string_view name) -> const OptionRow*
-{
-  for (const OptionRow& row : optionRows()) {
-    if (name == std::string_view(row.name)) {
-      // optionRows() is static constexpr storage, so this address is stable.
-      // cppcheck-suppress returnDanglingLifetime
-      return &row;
-    }
-  }
-  return nullptr;
-}
-
 // The line without the spaces that stand around it, a carrying carriage
 // return included, so a line of spaces and tabs is blank and a name starts
 // at its first non-space character (FR-030, D-12).
@@ -1475,19 +1660,16 @@ auto applyOptionFile(const OptionFileText& file, ResolvedOptions& resolved)
     // Every fault of the file names the path and the line number, the way
     // the environment names its variable (FR-031, FR-033, FR-035).
     const std::string where = file.path + ":" + std::to_string(number);
+    if (line.find('\0') != std::string_view::npos) {
+      return std::unexpected(nulLine(where, line));
+    }
     if (line.front() == '-') {
       // The command-line spelling pasted into the file. The table is never
       // asked for a name of that shape, and the fault prints the whole line
       // as the text it read (FR-036, D-12).
       return std::unexpected(where
                              + ": expected an option name without --, got '"
-                             + std::string(line) + "'");
-    }
-    for (const char* const refused : kFileRefusedNames) {
-      if (name == refused) {
-        return std::unexpected(where + ": the option '" + std::string(name)
-                               + "' cannot stand in an option file");
-      }
+                             + quotedText(line) + "'");
     }
     const OptionRow* const row = rowNamed(name);
     if (row == nullptr) {
@@ -1511,8 +1693,10 @@ auto applyOptionFile(const OptionFileText& file, ResolvedOptions& resolved)
       // seed 0 the bare option carries (FR-029, E-10).
       value = row->argument == OptionArgument::OPTIONAL ? "0" : "1";
     }
-    const bool again =
-        std::find(settled.begin(), settled.end(), row) != settled.end();
+    const auto again =
+        std::find(settled.begin(), settled.end(), row) != settled.end()
+        ? kSameSourceSettled
+        : kNoPriorSettle;
     const auto applied = applySourceValue(*row, value, where, again, resolved);
     if (!applied.has_value()) {
       return std::unexpected(applied.error());
@@ -1545,6 +1729,23 @@ auto applyOptionFile(const OptionFileText& file, ResolvedOptions& resolved)
 }
 
 }  // namespace
+
+// The row of the table that carries this long name, or null when the table
+// holds none: the table is the only place an option is recognized, so a name
+// with no row is a fault and never a silent word (FR-033). The option file,
+// the help printer and the disclosure tests all read the table through this
+// one lookup, so the table is walked in one place (FR-033, FR-017).
+auto rowNamed(const std::string_view name) -> const OptionRow*
+{
+  for (const OptionRow& row : optionRows()) {
+    if (name == std::string_view(row.name)) {
+      // optionRows() is static constexpr storage, so this address is stable.
+      // cppcheck-suppress returnDanglingLifetime
+      return &row;
+    }
+  }
+  return nullptr;
+}
 
 /**
  * @brief Settle every option across the sources the entry point hands as
@@ -1582,10 +1783,10 @@ auto gatherOptionSources(const CommandLineOptions& scan,
   // replacing it (FR-037).
   resolved.interleave = scan.interleave;
 
-  // FR-063, spec D-23: the rule list combines, so every source that names
-  // rules contributes them and no source replaces another's list. The
-  // command line's own rules stand first and the file its word named
-  // follows them in line order.
+  // FR-063, spec D-23 as this round reads it: the highest source that names
+  // a rule settles the whole list, so the list starts here with the command
+  // line's own rules and the file its word named follows them in line order
+  // (FR-038). No lower source adds to it.
   resolved.rules = scan.options.compareRules;
   if (!scan.options.compareRulesFile.empty()) {
     const auto read =
@@ -1603,9 +1804,9 @@ auto gatherOptionSources(const CommandLineOptions& scan,
     }
   }
 
-  // The last position of the order spec D-23 states: the file that a
+  // The last position of the order this round reads: the file that a
   // `compare-rules` line of the option file names joins after that file's
-  // own rules (FR-063).
+  // own rules, and only when no higher source named a rule at all (FR-063).
   if (!resolved.optionFileRulesPath.empty()) {
     const auto read =
         appendRuleFile(resolved, resolved.optionFileRulesPath, ruleFiles);
@@ -1647,8 +1848,8 @@ auto gatherOptionSources(const CommandLineOptions& scan,
   for (const OptionRow* const row : present) {
     const std::string& text =
         *environmentValue(environment, environmentName(*row));
-    const auto settled =
-        applySourceValue(*row, text, environmentName(*row), false, resolved);
+    const auto settled = applySourceValue(
+        *row, text, environmentName(*row), kNoPriorSettle, resolved);
     if (!settled.has_value()) {
       return std::unexpected(settled.error());
     }

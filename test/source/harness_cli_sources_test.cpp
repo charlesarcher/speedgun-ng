@@ -169,7 +169,7 @@
 //                                appends nothing to it, and the disclosed
 //                                value carries the winner's items alone
 //                                (FR-038)
-//   theRuleListCombinesAcrossSources
+//   theRuleListReplacesAcrossSources
 //                                the comparison rule list is the one list
 //                                that does not replace: the command line's
 //                                rules stand first and the file's lines
@@ -225,10 +225,28 @@
 //                                a file line naming the seed alone turns the
 //                                option on with the seed 0 and discloses that
 //                                text (FR-029, FR-051, E-10)
-//   aFileLineWithNothingToSettleDisclosesNothing
-//                                the file reads a row whose arm no source
-//                                carries yet, sets nothing and discloses
-//                                nothing (FR-033, FR-040)
+//   everyRowOfTheTableSettlesItsRow
+//                                each of the nine rows a file line can
+//                                name settles from its own line and
+//                                discloses that word, and a word its
+//                                reader refuses answers one line naming
+//                                the file and the number (FR-033,
+//                                FR-035, FR-040, FR-050)
+//   aShadowedBadValueStillNamesItsSource
+//                                a value a higher source shadows is
+//                                still read, so the bad word of a file
+//                                line or a variable answers its own
+//                                line (FR-027, FR-035, FR-037)
+//   theEnvironmentWalkReadsTheTableItIsGiven
+//                                a null table and an empty one answer no
+//                                row, and a handed table answers the one
+//                                entry the prefix covers (FR-012,
+//                                FR-021, FR-026)
+//   aBadLetterOfAShortGroupAfterALongOption
+//                                the letter a short group is refused on
+//                                is named by the group's own line behind
+//                                a long option as it is alone (FR-005,
+//                                FR-007)
 //   aRulesFileTheReaderCannotOpenFaultsTheGather
 //                                the reader the gather is handed answers its
 //                                own line for a path it cannot open (FR-062,
@@ -238,6 +256,22 @@
 //                                carries the prefix and an `=`, and the rows of
 //                                the process carry the name it holds (FR-018,
 //                                FR-019)
+//   everyRefusedRowLineFaultsTheEntry
+//                                the refused word of each of those nine
+//                                rows answers the file and its number at
+//                                status 2 at the entry point, with no
+//                                benchmark row (FR-035, FR-050, SC-003)
+//   aWordOfTwoValuesFaultsTheEntry
+//                                a value word of two values from any of
+//                                the three sources answers one line at
+//                                status 2, never a contract failure
+//                                (FR-024, FR-027, FR-035, FR-046,
+//                                SC-003)
+//   aSourceLineWithANulByteIsRefused
+//                                a NUL byte of an option file line or a
+//                                rules file line is refused behind that
+//                                file and its number at status 2
+//                                (FR-033, FR-061, FR-065, SC-003)
 //   aRefusedThreadRowFaultsTheEntry
 //                                the list that SPEEDGUN_THREADS or an option
 //                                file line refuses answers one line naming its
@@ -491,17 +525,12 @@ auto variableFor(const std::string_view name) -> std::string
 
 // The row of the live table that carries this long name, or null when the
 // table holds none. Every expectation below is built from the row, so a row
-// that moves moves the expectation with it.
+// that moves moves the expectation with it. The lookup stands in one helper
+// of the library, which is the one place the table is walked (FR-017,
+// FR-033).
 auto liveRow(const std::string_view name) -> const sg::detail::OptionRow*
 {
-  for (const sg::detail::OptionRow& row : sg::detail::optionRows()) {
-    if (name == std::string_view(row.name)) {
-      // optionRows() is static constexpr storage, so this address is stable.
-      // cppcheck-suppress returnDanglingLifetime
-      return &row;
-    }
-  }
-  return nullptr;
+  return sg::detail::rowNamed(name);
 }
 
 // One call of the gather: the command line words, the environment rows, and
@@ -1041,7 +1070,8 @@ auto runChildMode(int argc, char** argv) -> std::optional<int>
     return status;
   }
   if (argc == 5 && std::string_view(argv[2]) == "row") {
-    for (const sg::detail::EnvironmentRow& row : sg::detail::environmentRows())
+    for (const sg::detail::EnvironmentRow& row :
+         sg::detail::environmentRows(environ))
     {
       if (row.name == argv[3] && row.value == argv[4]) {
         return 0;
@@ -1050,6 +1080,47 @@ auto runChildMode(int argc, char** argv) -> std::optional<int>
     return 1;
   }
   return 125;
+}
+
+// The answer shape SC-003 pins for every source fault: status 2, exactly one
+// line across the two streams, that one line carrying each of `needles`, and
+// no benchmark row on standard output, neither the column header line nor an
+// `iterations=` summary. The compare-mode tests call this shape
+// `oneFaultLine`; it stands once above the entry-point cases that read it
+// (FR-027, FR-035, SC-003).
+auto oneFaultLine(const Run& run,
+                  const char* what,
+                  std::initializer_list<std::string_view> needles) -> void
+{
+  check(run.status == 2,
+        (std::string(what) + " answers status 2 (SC-003)").c_str());
+  const std::string both = run.out + "\n" + run.err;
+  std::vector<std::string_view> textLines;
+  for (std::size_t at = 0; at < both.size();) {
+    const std::size_t breakAt = both.find('\n', at);
+    const std::size_t end =
+        breakAt == std::string::npos ? both.size() : breakAt;
+    if (end != at) {
+      textLines.push_back(std::string_view(both).substr(at, end - at));
+    }
+    at = end + 1;
+  }
+  if (textLines.size() != 1) {
+    report(what,
+           "exactly one line across both streams",
+           std::to_string(textLines.size()) + " lines: " + both);
+    return;
+  }
+  for (const std::string_view needle : needles) {
+    if (textLines.front().find(needle) == std::string_view::npos) {
+      report(what,
+             "the one line carries '" + std::string(needle) + "'",
+             std::string(textLines.front()));
+    }
+  }
+  check(run.out.find("benchmark") == std::string::npos
+            && run.out.find("iterations=") == std::string::npos,
+        (std::string(what) + " runs no benchmark (SC-003)").c_str());
 }
 
 auto anOptionFileLineSetsItsOption() -> void
@@ -1382,14 +1453,15 @@ auto aHigherSourceReplacesTheWholeList() -> void
   }
 }
 
-auto theRuleListCombinesAcrossSources() -> void
+auto theRuleListReplacesAcrossSources() -> void
 {
-  // FR-038, FR-063, spec D-23: the comparison rule list is the one list that
-  // does not replace. The command line's rules stand first and the option
-  // file's lines follow them, so the gather answers one list holding both.
-  // The two positions a file of its own names (the `--compare-rules` file and
+  // FR-038, FR-063: the comparison rule list is settled by the highest
+  // source that names a rule, the way every other option is. A rule of a
+  // lower source is read, so its own fault still reaches the operator, and
+  // then drops: the list does not combine across the sources. The two
+  // positions a file of its own names (the `--compare-rules` file and
   // the file a `compare-rules` line names) stay out of this seam, which opens
-  // no file (FR-012).
+  // no file (FR-012, FR-037).
   const Gathered bothRun =
       gatherSources({"--compare-rule=time@median:lower:5%"},
                     {},
@@ -1397,13 +1469,77 @@ auto theRuleListCombinesAcrossSources() -> void
   if (const auto* both = settledOf(
           bothRun, "the command line and the file over one rule list"))
   {
-    check(ruleTextsOf(*both)
-              == "time@median:lower:5%;time@max:higher:10%",
-          "the rule list combines across the sources in the order spec D-23 "
-          "states (FR-038, FR-063)");
+    check(ruleTextsOf(*both) == "time@median:lower:5%",
+          "the command line's rule settles the list alone (FR-038, FR-063)");
   }
-  // One source alone still answers a list, so the combining is not what makes
-  // the list stand (FR-061, FR-063).
+  // Within one source the scalar rule of FR-035 stands: the last line of one
+  // file settles the list, so a repeat of one source keeps its last word.
+  const Gathered repeatRun = gatherSources(
+      {},
+      {},
+      "compare-rule=time@max:higher:10%\n" "compare-rule=time@min:lower:1%\n");
+  if (const auto* repeat = settledOf(repeatRun, "one file over two rule lines"))
+  {
+    check(
+        ruleTextsOf(*repeat) == "time@max:higher:10%;time@min:lower:1%",
+        "one file keeps the order of the rules it spells (FR-035, " "FR-063)");
+  }
+  // Two words of one source stand in the order that source spelled them, so
+  // the replacement is a precedence between sources and never a limit on the
+  // number of rules one source may name (FR-035, FR-063, recommendation 8).
+  const Gathered pairRun = gatherSources({"--compare-rule=time@median:lower:5%",
+                                          "--compare-rule=time@max:higher:10%"},
+                                         {},
+                                         std::nullopt);
+  if (const auto* pair =
+          settledOf(pairRun, "the command line over two rule words"))
+  {
+    check(ruleTextsOf(*pair)
+              == "time@median:lower:5%;time@max:higher:10%",
+          "two command-line rules stand in the order they were spelled "
+          "(FR-035, FR-063)");
+  }
+  // A rules file that the option file names carries rules of its own, and a
+  // command-line rule settles the list against them: the named file joins no
+  // rule below a higher source (FR-038, FR-063).
+  const std::filesystem::path rulesPath = capturePath(".namedrules");
+  {
+    std::ofstream stream(rulesPath);
+    stream << "time@max:higher:10%\n";
+  }
+  const Gathered namedRun =
+      gatherSources({"--compare-rule=time@median:lower:5%"},
+                    {},
+                    "compare-rules=" + rulesPath.string() + "\n",
+                    &sg::detail::readCompareRulesFile);
+  if (const auto* named =
+          settledOf(namedRun, "a named rules file under a command-line rule"))
+  {
+    check(ruleTextsOf(*named) == "time@median:lower:5%",
+          "the command line's rule settles the list against a named rules "
+          "file (FR-038, FR-063)");
+  }
+  std::filesystem::remove(rulesPath);
+  // The same file settles the list when nothing stands above it, so the drop
+  // is a precedence and not a refusal to read the named file (FR-061, D-05).
+  const std::filesystem::path ownPath = capturePath(".ownrules");
+  {
+    std::ofstream stream(ownPath);
+    stream << "time@max:higher:10%\n";
+  }
+  const Gathered ownRun =
+      gatherSources({},
+                    {},
+                    "compare-rules=" + ownPath.string() + "\n",
+                    &sg::detail::readCompareRulesFile);
+  if (const auto* own = settledOf(ownRun, "a named rules file alone")) {
+    check(ruleTextsOf(*own) == "time@max:higher:10%",
+          "the file's named rules settle the list when nothing stands above "
+          "them (FR-061, FR-063)");
+  }
+  std::filesystem::remove(ownPath);
+  // One source alone still answers a list, so the replacement is not what
+  // makes the list stand (FR-061, FR-063).
   const Gathered wordsRun =
       gatherSources({"--compare-rule=time@median:lower:5%"}, {}, std::nullopt);
   if (const auto* words =
@@ -1690,19 +1826,145 @@ auto aBareSeedLineStandsForTheSeedZero() -> void
   }
 }
 
-auto aFileLineWithNothingToSettleDisclosesNothing() -> void
+// The nine rows an option file can name and the gather settled through no
+// arm: each carries one good word and one word its reader refuses, so the
+// settle function of the row is read from both sides (FR-033, FR-035, FR-040,
+// FR-050, FR-052).
+struct RowSettleCase
 {
-  // FR-033: the file recognizes every row of the table. A row whose arm no
-  // source carries yet is read, sets nothing, and discloses nothing (FR-040).
-  const Gathered gathered = gatherFile({}, "json=report.json\n");
-  if (const auto* settled =
-          settledOf(gathered, "a file line naming the report path"))
-  {
-    check(settled->uses.empty(),
-          "a row with no arm to settle it discloses no use (FR-033, FR-040)");
-    check(settled->options.jsonPath.empty(),
-          "and the row sets nothing of its own (FR-033)");
+  const char* good;
+  const char* bad;
+  const char* word;
+};
+
+constexpr RowSettleCase kRowSettle[] = {
+    {"list=1", "list=2", "1"},
+    {"dry-run=true", "dry-run=x", "true"},
+    {"catalog=0", "catalog=q", "0"},
+    {"topology=true", "topology=0.5", "true"},
+    {"compare-strict=1", "compare-strict=nope", "1"},
+    {"json=report.json", "json=", "report.json"},
+    {"json-raw=chunks", "json-raw=bogus", "chunks"},
+    {"metric-method=passes", "metric-method=bogus", "passes"},
+    {"compare=base.json,run.json", "compare=nocomma", "base.json,run.json"},
+};
+
+auto everyRowOfTheTableSettlesItsRow() -> void
+{
+  // The option file recognizes every row of the table and the settle seam
+  // carries an arm for every one of them, so no line of a file is read and
+  // dropped unseen (FR-033, FR-040). The two names that would re-root the
+  // file's own sources and the two that print are refused where they stand,
+  // which the case of the four refused names reads (FR-031).
+  for (const RowSettleCase& row : kRowSettle) {
+    const Gathered good = gatherFile({}, std::string(row.good) + "\n");
+    if (!good.settled.has_value()) {
+      report("the good word of one table row settles its row (FR-033)",
+             "no fault",
+             good.fault);
+      continue;
+    }
+    check(good.settled->uses.size() == 1
+              && good.settled->uses.front().value == row.word,
+          "the settled row discloses the word of its own line (FR-039, "
+          "FR-040)");
+    const std::string fault = fileFaultOf(std::string(row.bad) + "\n");
+    check(fault.starts_with(std::string(kOptionFile) + ":1: ")
+              && fault.find('\n') == std::string::npos,
+          "the refused word of the same row answers one line naming the file "
+          "and the number (FR-031, FR-035, SC-003)");
   }
+}
+
+auto aShadowedBadValueStillNamesItsSource() -> void
+{
+  // FR-024, FR-037: a value a higher source shadows is still handed to its
+  // reader, so a word an operator spelled wrongly answers its own line behind
+  // the source that carries it, and the higher
+  // source's value stands. Each shape runs in a child at the entry point and
+  // exits 2 (FR-027, FR-035, FR-037, SC-003).
+  const std::string refusal = faultOf({"--min-time=abc"});
+  oneFaultLine(
+      runEntryWithEnv({"--min-time=1"}, {"SPEEDGUN_MIN_TIME=abc"}),
+      "a bad variable under a command-line value (FR-027, FR-037, " "SC-003)",
+      {"SPEEDGUN_MIN_TIME: ", refusal});
+
+  const std::filesystem::path goodPath = capturePath(".goodshadow");
+  const std::filesystem::path badPath = capturePath(".badshadow");
+  {
+    std::ofstream stream(goodPath);
+    stream << "min-time=1\n";
+  }
+  {
+    std::ofstream stream(badPath);
+    stream << "min-time=abc\n";
+  }
+  oneFaultLine(
+      runEntryWithEnv({"--min-time=1", "--options=" + badPath.string()}, {}),
+      "a bad file line under a command-line value (FR-035, FR-037, SC-003)",
+      {badPath.string() + ":1: ", refusal});
+  oneFaultLine(
+      runEntryWithEnv({"--options=" + goodPath.string()},
+                      {"SPEEDGUN_MIN_TIME=abc"}),
+      "a bad variable under a file value (FR-027, FR-035, FR-037, SC-003)",
+      {"SPEEDGUN_MIN_TIME: ", refusal});
+  std::filesystem::remove(goodPath);
+  std::filesystem::remove(badPath);
+
+  const Gathered counts =
+      gatherSources({"--threads=2"},
+                    {sg::detail::EnvironmentRow {"SPEEDGUN_THREADS", "x"}},
+                    std::nullopt);
+  check(counts.fault.starts_with("SPEEDGUN_THREADS: --threads:"),
+        "a refused count list behind settled counts still answers its line "
+        "(FR-044, FR-046)");
+
+  const Gathered ruleRun = gatherSources(
+      {"--compare-rule=time@median:lower:5%"}, {}, "compare-rule=nonsense\n");
+  check(ruleRun.fault.starts_with("options-file.txt:1: ")
+            && ruleRun.fault.find("rule") != std::string::npos,
+        "a refused rule of a lower source answers its own line (FR-035, "
+        "FR-063)");
+}
+
+auto theEnvironmentWalkReadsTheTableItIsGiven() -> void
+{
+  // FR-012, FR-026: the entry point owns the read of the process table and
+  // hands it along, so the walk reads the table it is given and nothing
+  // else. A null table holds no entry and answers no row, the way an empty
+  // one does, and a table of three entries answers the one row the
+  // `SPEEDGUN_` prefix covers.
+  check(sg::detail::environmentRows(nullptr).empty(),
+        "a null table answers no row (FR-012)");
+  char* const empty[] = {nullptr};
+  check(sg::detail::environmentRows(empty).empty(),
+        "an empty table answers no row (FR-012)");
+  char first[] = "SPEEDGUN_FILTER=one";
+  char second[] = "OTHER_NAME=two";
+  char third[] = "NO_EQUALS_SIGN";
+  char* const table[] = {first, second, third, nullptr};
+  const std::vector<sg::detail::EnvironmentRow> rows =
+      sg::detail::environmentRows(table);
+  check(rows.size() == 1 && rows.front().name == "SPEEDGUN_FILTER"
+            && rows.front().value == "one",
+        "the walk answers the one entry the prefix covers (FR-021, FR-026)");
+}
+
+auto aBadLetterOfAShortGroupAfterALongOption() -> void
+{
+  // FR-007, FR-005: the letter a short group is refused on belongs to the
+  // group, and the walk stands inside a group it stopped within, so the line
+  // names that letter as it does when the group stands alone. The word
+  // behind the walk belongs to the long option and names no letter, so the
+  // base line would be the wrong answer here (FR-009).
+  expectFault({"--filter=a", "-xy"},
+              "unknown option '-x'; --help lists the options",
+              "a bad letter of a short group behind a long option names that "
+              "letter (FR-007, SC-003)");
+  expectFault({"-xy"},
+              "unknown option '-x'; --help lists the options",
+              "the same letter of a group alone names the same line "
+              "(FR-007, FR-005)");
 }
 
 // One row spelled twice by one source, each line carrying its own word.
@@ -1837,45 +2099,130 @@ auto theEnvironmentRowOfOneProcessName() -> void
         "(FR-018, FR-019)");
 }
 
-// The answer shape SC-003 pins for every source fault: status 2, exactly one
-// line across the two streams, that one line carrying each of `needles`, and
-// no benchmark row on standard output, neither the column header line nor an
-// `iterations=` summary. The compare-mode tests call this shape
-// `oneFaultLine`; it stands here once for the entry-point cases of the two
-// lower sources (FR-027, FR-035, SC-003).
-auto oneFaultLine(const Run& run,
-                  const char* what,
-                  std::initializer_list<std::string_view> needles) -> void
+auto aWordOfTwoValuesFaultsTheEntry() -> void
 {
-  check(run.status == 2,
-        (std::string(what) + " answers status 2 (SC-003)").c_str());
-  const std::string both = run.out + "\n" + run.err;
-  std::vector<std::string_view> textLines;
-  for (std::size_t at = 0; at < both.size();) {
-    const std::size_t breakAt = both.find('\n', at);
-    const std::size_t end =
-        breakAt == std::string::npos ? both.size() : breakAt;
-    if (end != at) {
-      textLines.push_back(std::string_view(both).substr(at, end - at));
+  // FR-024, FR-046: a value word that carries two values is a fault of the
+  // source that holds it, never the failure of a contract. The semicolon and
+  // the break are the two shapes a scripted source can hold, and each answers
+  // one line at status 2 from each of the three sources while no benchmark
+  // starts (FR-027, FR-035, FR-054, SC-003).
+  const std::string counts = faultOf({"--threads=1;2"});
+  const std::string seed = faultOf({"--interleave=7;8"});
+  oneFaultLine(
+      runEntryWithEnv({"--threads=1;2"}, {}),
+      "a semicolon of the command line's count list (FR-046, " "SC-003)",
+      {counts});
+  oneFaultLine(runEntryWithEnv({"--interleave=7;8"}, {}),
+               "a semicolon of the command line's seed (FR-054, SC-003)",
+               {seed});
+  oneFaultLine(runEntryWithEnv({}, {"SPEEDGUN_INTERLEAVE=7;8"}),
+               "a semicolon of the seed variable (FR-027, FR-054, SC-003)",
+               {"SPEEDGUN_INTERLEAVE: ", seed});
+  oneFaultLine(runEntryWithEnv({}, {"SPEEDGUN_THREADS=1\n2"}),
+               "a break of the count list variable (FR-027, FR-046, SC-003)",
+               {"SPEEDGUN_THREADS: ", faultOf({"--threads=1\n2"})});
+
+  // The fault names the break with its own words and doubles a backslash, so
+  // the named break cannot be mistaken for the letters of its own name
+  // (FR-024, SC-003).
+  const Run doubled = runEntryWithEnv({"--threads=1\\2"}, {});
+  const std::string echoed = doubled.out + doubled.err;
+  oneFaultLine(doubled,
+               "a backslash of the count list (FR-024, FR-046, SC-003)",
+               {faultOf({"--threads=1\\2"})});
+  check(echoed.find("got '1\\\\2'") != std::string::npos,
+        "the refusal doubles the backslash it names (FR-024)");
+
+  const std::filesystem::path path = capturePath(".twoopts");
+  {
+    std::ofstream stream(path);
+    stream << "interleave=7;8\n";
+  }
+  oneFaultLine(runEntryWithEnv({"--options=" + path.string()}, {}),
+               "a semicolon of the seed line of an option file (FR-035, "
+               "FR-054, SC-003)",
+               {path.string() + ":1: ", seed});
+  std::filesystem::remove(path);
+}
+
+auto aSourceLineWithANulByteIsRefused() -> void
+{
+  // FR-033, FR-061: a NUL byte ends the text a reader reads, so a line that
+  // carries one is refused before any reader takes it, the way a name the
+  // table carries is refused. The refusal names the file, the number of the
+  // line and the line as it stands, and the run does not start (FR-035,
+  // FR-065, SC-003). The two readers answer first in this process, then the
+  // entry point answers in a child.
+  // The text is built with its length spelled out: a NUL byte ends the text
+  // of a literal handed to a string without one, so the byte would vanish
+  // before the gather ever saw it.
+  const std::string nulOptionLine {"percentiles=50\0x\n", 17};
+  const std::string optionFault = fileFaultOf(nulOptionLine);
+  check(optionFault.starts_with(
+            "options-file.txt:1: expected a value without a NUL byte"),
+        "a NUL byte of an option file line is refused by the gather (FR-033, "
+        "FR-035)");
+  const std::filesystem::path directPath = capturePath(".nuldirect");
+  {
+    std::ofstream stream(directPath, std::ios::binary);
+    stream.write("time@median:lower:5%\0x\n", 23);
+  }
+  const auto direct = sg::detail::readCompareRulesFile(directPath.string());
+  check(!direct.has_value()
+            && direct.error().find(
+                   "expected a value without a NUL byte")
+                   != std::string::npos,
+        "a NUL byte of a rules file line is refused by the reader (FR-061, "
+        "FR-065)");
+  std::filesystem::remove(directPath);
+
+  const std::filesystem::path optionsPath = capturePath(".nulopts");
+  {
+    std::ofstream stream(optionsPath, std::ios::binary);
+    stream.write("percentiles=50\0x\n", 17);
+  }
+  oneFaultLine(
+      runEntryWithEnv({"--options=" + optionsPath.string()}, {}),
+      "a NUL byte of an option file line (FR-033, FR-035, SC-003)",
+      {optionsPath.string() + ":1: expected a value without a NUL byte"});
+  std::filesystem::remove(optionsPath);
+
+  const std::filesystem::path rulesPath = capturePath(".nulrules");
+  {
+    std::ofstream stream(rulesPath, std::ios::binary);
+    stream.write("time@median:lower:5%\0x\n", 23);
+  }
+  oneFaultLine(
+      runEntryWithEnv({"--compare-rules=" + rulesPath.string(),
+                       "--compare=base.json,run.json"},
+                      {}),
+      "a NUL byte of a rules file line (FR-061, FR-065, SC-003)",
+      {rulesPath.string() + ":1: expected a value without a NUL byte"});
+  std::filesystem::remove(rulesPath);
+}
+
+// The refused word of each of those nine rows, read at the entry point: the
+// file line answers one line naming that file and its number, at status 2,
+// with no benchmark row (FR-035, FR-050, SC-003).
+auto everyRefusedRowLineFaultsTheEntry() -> void
+{
+  for (const RowSettleCase& row : kRowSettle) {
+    const std::filesystem::path path = capturePath(".badrow");
+    {
+      std::ofstream stream(path);
+      stream << row.bad << "\n";
     }
-    at = end + 1;
+    char what[160];
+    std::snprintf(what,
+                  sizeof what,
+                  "the refused word of the %s line of a file at the entry "
+                  "point (FR-035, SC-003)",
+                  row.good);
+    oneFaultLine(runEntryWithEnv({"--options=" + path.string()}, {}),
+                 what,
+                 {path.string() + ":1: "});
+    std::filesystem::remove(path);
   }
-  if (textLines.size() != 1) {
-    report(what,
-           "exactly one line across both streams",
-           std::to_string(textLines.size()) + " lines: " + both);
-    return;
-  }
-  for (const std::string_view needle : needles) {
-    if (textLines.front().find(needle) == std::string_view::npos) {
-      report(what,
-             "the one line carries '" + std::string(needle) + "'",
-             std::string(textLines.front()));
-    }
-  }
-  check(run.out.find("benchmark") == std::string::npos
-            && run.out.find("iterations=") == std::string::npos,
-        (std::string(what) + " runs no benchmark (SC-003)").c_str());
 }
 
 auto aRefusedThreadRowFaultsTheEntry() -> void
@@ -1968,7 +2315,7 @@ auto main(int argc, char** argv) -> int
   anUnreadableFileAnswersOneLine();
   theThreeSourcesSettleInOrder();
   aHigherSourceReplacesTheWholeList();
-  theRuleListCombinesAcrossSources();
+  theRuleListReplacesAcrossSources();
   aFileLineThatStartsWithADashNamesItsText();
   aRequiredArgumentLineWithoutAnEqualsNamesTheOption();
   aCommandLineOnlyRunDisclosesNothing();
@@ -1979,7 +2326,13 @@ auto main(int argc, char** argv) -> int
   aRefusedValueOfEveryKindNamesItsSource();
   theLastLineOfASourceMayCarryNoBreak();
   aBareSeedLineStandsForTheSeedZero();
-  aFileLineWithNothingToSettleDisclosesNothing();
+  everyRowOfTheTableSettlesItsRow();
+  aShadowedBadValueStillNamesItsSource();
+  theEnvironmentWalkReadsTheTableItIsGiven();
+  aBadLetterOfAShortGroupAfterALongOption();
+  everyRefusedRowLineFaultsTheEntry();
+  aWordOfTwoValuesFaultsTheEntry();
+  aSourceLineWithANulByteIsRefused();
   oneWordTwiceKeepsTheLastWordOfOneSource();
   aRulesFileTheReaderCannotOpenFaultsTheGather();
   theEnvironmentRowOfOneProcessName();

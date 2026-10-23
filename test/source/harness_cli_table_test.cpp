@@ -1092,18 +1092,11 @@ auto theWalkAnswersTheFirstEventItMeets() -> void
 
 // The row of the live table that carries `name`, or null when no row
 // does. The live table is this file's oracle, so a case that pins one
-// option reads its expectation from there, and the text stands in one
-// place.
+// option reads its expectation from there, and the walk itself belongs to
+// the library's one lookup (FR-033).
 auto liveRow(const std::string_view name) -> const sg::detail::OptionRow*
 {
-  for (const sg::detail::OptionRow& row : sg::detail::optionRows()) {
-    if (row.name == name) {
-      // optionRows() is static constexpr storage, so this address is stable.
-      // cppcheck-suppress returnDanglingLifetime
-      return &row;
-    }
-  }
-  return nullptr;
+  return sg::detail::rowNamed(name);
 }
 
 // The first printed line that opens with `prefix`, or an empty answer
