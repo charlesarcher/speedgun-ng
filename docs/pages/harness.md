@@ -1442,7 +1442,7 @@ The value takes a head, a cpu list or the word `idle`, and the keys follow, each
 
 | Part | Meaning | Default |
 | --- | --- | --- |
-| `<cpu-list\|idle>` | One or more cpu indexes or closed `a-b` ranges, comma separated, or the word `idle` | None: the head names the probe cpus |
+| `<cpu-list\|idle>` | One or more cpu indexes or closed `a-b` ranges, comma separated, or the word `idle` | None: the head names the probe cpus; the word `idle` resolves one probe cpu per L3 group the plans touch, or the planned cpus in `precheck` mode |
 | `threshold=<ns>` | The gap threshold in ns, at or above 1; a value stands as given | When the option names no threshold value: 200, or 10 times the measured loop period when that stands larger |
 | `mode=` | `alongside`, `precheck`, or `both` | `alongside` |
 | `precheck=<ms>` | The pre-check duration in ms, at or above 1 | 200 |

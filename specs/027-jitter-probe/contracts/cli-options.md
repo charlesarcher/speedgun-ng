@@ -42,7 +42,7 @@ standing error shape (FR-038).
 | --- | --- |
 | `--jitter-probe=idle` | the `idle` preset resolves one probe cpu per L3 group the plans touch (D-4) |
 | `--jitter-probe=2,5` | the probe runs on cpus 2 and 5 |
-| `--jitter-probe=idle,mode=precheck` | the pre-check phase runs on the resolved cpus before the first benchmark (D-13, R-10) |
+| `--jitter-probe=idle,mode=precheck` | the pre-check phase runs on the planned cpus the `idle` preset names (D-13, R-10) |
 | `--jitter-probe` with no argument | the standing `getopt_long` missing-argument path, exit status 2 |
 | An unknown flag | the standing unknown-option line and exit status 2 |
 | No option at all | no probe exists: the console report and the JSON carry the same fields and shape as master's (FR-013, D-1) |
@@ -50,10 +50,10 @@ standing error shape (FR-038).
 The value parses once in `speedgunMain`, before the expansion and before
 any run, where the `--placement` parse stands today; a rejected value
 stops the batch with one line and status 2, and no benchmark runs
-(R-06). In `precheck` mode the probe uses the benchmark cpus, because it
-stops before they start (D-3); in `alongside` mode and in the alongside
-phase of `both`, the overlap check of the error surface binds (D-3,
-R-10).
+(R-06). In `precheck` mode the probe uses the planned cpus the `idle`
+preset names, because it stops before they start (D-3, D-4); in
+`alongside` mode and in the alongside phase of `both`, the overlap
+check of the error surface binds (D-3, R-10).
 
 ## Error surface
 
@@ -69,6 +69,7 @@ and exits with status 2, before the first run starts (FR-038, SC-002):
 | `gaps=0`, a value above 16,777,216, a value that is not a number | the value | 2 |
 | `precheck=0` or a value that is not a number | the value | 2 |
 | A key repeated in one value | the key | 2 |
+| A precheck batch with no pinned instance, so no cpu is planned | the absence of a plan | 2 |
 | No free cpu at all under `idle` | the preset word | 2 |
 | An overlap in `alongside` mode or in the alongside phase of `both`: a probe cpu that is a planned cpu of a benchmark context, or an SMT sibling of one | the cpu and the benchmark | 2 |
 | An unpinned benchmark whose affinity mask the probe cpus empty | the benchmark | 2 |

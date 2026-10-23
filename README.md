@@ -667,7 +667,7 @@ auto main(int argc, char** argv) -> int
   return sg::speedgunMain(argc, argv);
 }
 ```
-`runJitterProbe` states the options of the suite's next run the way the `--jitter-probe` option does, and an empty `cpus` field names the `idle` preset, so the probe takes one cpu of each L3 group the plans leave free. The block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, and closes with the disclosure lines. See [jitter probe in detail](docs/pages/harness.md#jitter-probe).
+`runJitterProbe` states the options of the suite's next run the way the `--jitter-probe` option does, and an empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. The block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, and closes with the disclosure lines. See [jitter probe in detail](docs/pages/harness.md#jitter-probe).
 
 ## Quick reference
 
