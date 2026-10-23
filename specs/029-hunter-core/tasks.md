@@ -637,7 +637,7 @@ as was the coverage bar. Two rows are BLOCKING.
       `:602`, the listing modes answer at `:641`, `:646` and `:676`, and
       `counterAddresses`, `metricNames` and `compareBaseline` stand at
       `detail/internal.hpp:523`, `:534` and `:552` (FR-080, FR-081, FR-083)
-- [ ] T150 Repoint the `HuntOptions` precondition read at
+- [x] T150 Repoint the `HuntOptions` precondition read at
       `specs/029-hunter-core/contracts/hunt-api.md:89` from
       `source/harness/hunt.cpp:1181-1185` at the `SG_REQUIRE` of `runHunt` at
       `source/harness/hunt.cpp:1213-1216`, which is the require the sentence
