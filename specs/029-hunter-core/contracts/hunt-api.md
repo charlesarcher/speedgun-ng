@@ -50,7 +50,7 @@ alike. `enum class MetricMethod : std::uint8_t;` is forward-declared in
 `source/harness/detail/pass_plan.hpp:27` already carries, so `hunt.hpp` does not
 include `benchmark.hpp` and no include cycle appears. `class BenchmarkHandle;`
 is forward-declared there too, so `runHunt` names the public handle of
-`benchmark.hpp:1831` without including that header. The forward declaration
+`benchmark.hpp:1840` without including that header. The forward declaration
 names the type and not its enumerators, so a record that holds the settled
 method holds `std::optional<MetricMethod>`: the header cannot write an
 enumerator as a default, and an unset method reads as a plan nothing settled.
@@ -86,7 +86,7 @@ struct HuntOptions
 | `HuntNorm` | `\pre` none. `\post` `INSTR` divides by the instructions count of the same pass, `CYCLE` by the cycles count of the same pass, `ITER` by the iteration count of the attempt. No enumerator names `SENSITIVITY`, `DELTA` or `SCORE`: specs/031 adds those when its method exists (D-3) |
 | `HuntRank` | `\pre` none. `\post` `RATE` orders by median rate descending, `CV` by coefficient of variation ascending; both break a tie by catalog address, so one sample list gives one order |
 | `HuntBudget` | `\pre` `amount` is greater than zero. `\post` the record states the budget in the unit the caller named, and no conversion to the other unit happens here. `\invariant` `amount` above zero |
-| `HuntOptions` | `\pre` `top` stands in 1 to 10000, `repeats` in 1 to 1000, `noise` above `0.0`, `selection` non-empty. `\post` the record holds exactly one run's settled values; a default-constructed record is the run `--hunt` names with no other hunt option (D-1, D-3, D-6 to D-9). `\invariant` `budget` is empty or holds an `amount` above zero |
+| `HuntOptions` | `\pre` `top` stands in 1 to 10000, `repeats` in 1 to 1000, `noise` above `0.0`. `selection` is non-empty for the hunt a record drives: `runHunt` requires it at `hunt.cpp:1112-1116`. The empty text is the spelling of hunt options that never met `--hunt`, the state the option scan parks at `hunt_cli.cpp:332-334` and `hunt.hpp:122` documents. `\post` the record holds exactly one run's settled values; a default-constructed record is the run `--hunt` names with no other hunt option (D-1, D-3, D-6 to D-9). `\invariant` `budget` is empty or holds an `amount` above zero |
 
 `selection` holds the text the option carried, because the plan line and the
 document repeat it. A `@file` selection holds the joined address lines rather
@@ -295,11 +295,11 @@ the way the counters discovery probe maps an open refusal
 (`provider.cpp:774-786`, spec PC-1): `EINVAL` or `EOPNOTSUPP` answers
 `NOT_ENCODABLE`, and `EACCES` or `EPERM` answers `PERMISSION_BLOCKED` (D-18).
 The console prints every kind with the spelling
-`report.cpp:36 availabilityName` prints.
+`report.cpp:38 availabilityName` prints.
 
 | Name | Contract |
 |---|---|
-| `rankEvents` `\pre` | every address in `collected` with no `skipped` kind holds at least one sample free of a disclosure, the guard `statisticsOf` carries at `runner.cpp:52-55`; an address with exactly one such sample is reported and never handed to the summary call, so the deviation assert at `runner.cpp:74-76` stays out of reach (PD-14) |
+| `rankEvents` `\pre` | every address in `collected` with no `skipped` kind holds at least one sample free of a disclosure, the guard `statisticsOf` carries at `statistics.cpp:23-25`; an address with exactly one such sample is reported and never handed to the summary call, so the deviation assert at `statistics.cpp:46-48` stays out of reach (PD-14) |
 | `rankEvents` `\post` | one `RankedEvent` per address in `collected` and one `SkippedEvent` per address that carries a `skipped` kind; an address stands at most once in each list, and an address that measured and gapped stands in both (I-4, D-10); `rate` is the median of the per-pass normalized rates and `cv` is the coefficient of variation, both from the single `statisticsOf` call over those rates, so `cv` is one hundred times the `cv=` column ratio of the same samples (I-6); `noisy` is the comparison of the unrounded `cv` against `options.noise`; at most `options.top` entries carry a rank, those ranks are `1` to `k` with no gap, and an entry that is noisy or unrepeated carries none (I-5); `multiplexed` states the settled method; entries come first in rank order and then in address order |
 | `rankEvents` `\post` (exclusion) | a sample whose anchor read zero for its pass contributes no rate for that pass, and a sample with a disclosure contributes none at all, the way a gap repetition stands out of `Statistics::samples` today |
 | `rankEvents` `\invariant` | no address repeats in `entries`, and no address repeats in `skipped` |
@@ -312,7 +312,7 @@ arguments give equal results (I-7, FR-014, D-9).
 
 `runHunt` is public in `hunt.hpp` (D-15). It drives the harness runner behind its
 own definition, whose `Runner` and `Instance` types stay harness internals
-(`detail/internal.hpp:224,486`). The signature names public types alone: the
+(`detail/internal.hpp:246,561`). The signature names public types alone: the
 forward-declared `BenchmarkHandle`, `HuntOptions` and the entry record, and the
 definition lives in `source/harness/hunt.cpp`:
 
@@ -345,7 +345,7 @@ counting the passes a retry appended.
 ```text
 // benchmark.hpp
 std::optional<hunt::EntryHunt> hunt;  // in BenchmarkResult
-std::optional<hunt::RunHunt> hunt;    // in ReportData (benchmark.hpp:624-641)
+std::optional<hunt::RunHunt> hunt;    // in ReportData (benchmark.hpp:629-650)
 ```
 
 `\pre` none. `\post` both stand empty for a run that carried no hunt, which is
@@ -383,7 +383,7 @@ group-open refusal without it (spec PC-3, D-18).
 | Discovery order, dedup by address, the `isCoreDevice` rule including `armv8_`, the four discovery refusal kinds | `harness_hunt_plan_test.cpp`, `harness_hunt_collect_test.cpp` |
 | Budget parse rows and the stage rule of D-2, the explicit-norm refusal of D-13, the below-3 device-limit refusal | `harness_hunt_plan_test.cpp`, `harness_hunt_cli_test.cpp` |
 | Rate, `cv`, noise threshold, rank order, tie break by address, the single-sample rule, the factor-one-hundred scaling between a hunt `cv` and the printed `cv=` column | `harness_hunt_rank_test.cpp` |
-| A budgeted run whose stage 2 measures fewer columns still publishes an entry and a rank-table row for a stage-1-only address | `harness_hunt_report_test.cpp` |
+| A budgeted run whose stage 2 measures fewer columns still publishes an entry and a rank-table row for a stage-1-only address | `harness_hunt_collect_test.cpp`, `harness_hunt_json_test.cpp`, `harness_hunt_report_test.cpp` |
 | Retry inside the loop, `retriedPasses`, the exit-0 promise, the threaded window counts with no sleep | `harness_hunt_collect_test.cpp` |
 | Nineteen clean windows plus one gapped window stand in `entries` and in `skipped` with kind `GAP` (D-10, FR-022) | `harness_hunt_collect_test.cpp` |
 | Both records empty for a run with no `--hunt` | `harness_hunt_json_test.cpp`, `harness_hunt_report_test.cpp` |

@@ -9,14 +9,14 @@ hard rules 2, 3, 9 and 10
 
 Eight long options, no short letters, named constants 270 to 277 inside the
 block 270 to 279 the lane reserves (D-22). `cli.cpp` gains the
-eight rows of the one `option longOptions[]` table at `cli.cpp:346` and eight
+eight rows of the one `option longOptions[]` table at `cli.cpp:388` and eight
 named constants; every parse, range check, refusal message, `@file` reader, glob
 matcher and conflict check lives in `hunt_cli.cpp` (D-22). The table stays the
 single source `tools/docs/example_drift.py:458-465` reads for the README option
 rows, so a hunt option with no README row fails `example_drift --options`.
 
 Values 256 to 259 are taken at `bd10d76` (`cli.cpp:69-71` for the three
-comparison options, `cli.cpp:345` for `kMetricMethodOption`), so 270 to 279 stand
+comparison options, `cli.cpp:387` for `kMetricMethodOption`), so 270 to 279 stand
 free for this lane (spec D-22).
 
 ## The option table
@@ -63,7 +63,7 @@ catalog entry carries an address-shaped `event` field to resolve it with).
 
 Expansion runs after the option scan and before the first run, where
 `speedgunMain` has registered the clock and PMU providers
-(`cli.cpp:326-339`). The shape rules (raw code, malformed pattern, empty
+(`cli.cpp:367-381`). The shape rules (raw code, malformed pattern, empty
 address line) are checked first, so the same text gives the same refusal on a CI
 host without PMU access and on a host that counts everything.
 
@@ -71,7 +71,7 @@ host without PMU access and on a host that counts everything.
 
 Every refusal prints exactly one line naming the value to stderr and exits with
 status 2 (FR-081). The message form follows the percentile list refusal at
-`cli.cpp:73-81`, which prints the option and the text it was given.
+`cli.cpp:87-95`, which prints the option and the text it was given.
 
 | Input | Line |
 |---|---|
@@ -101,9 +101,13 @@ the table behaves. A hunt option with no `--hunt` keeps the hunt off: the value
 parses, the run behaves like a run with no `--hunt`, and a scripted value
 round-trips exactly like `--hunt=none` does (spec Assumptions).
 
-`--hunt` combined with `--list`, `--catalog` or `--topology` is not a refusal:
-those modes print and stop before any run, so the hunt plan never forms and no
-`hunt:` line prints. `--hunt` with `--filter` applies the hunt to the instances
+`--hunt` combined with `--list`, `--catalog` or `--topology` prints no `hunt:`
+line: those modes print and stop before any run, so the hunt plan never forms.
+A refusal the expansion answers still precedes them, because `cli.cpp` calls
+`expandHuntSelection` at `cli.cpp:599` and the listing modes answer later, at
+`cli.cpp:639`, `cli.cpp:655` and `cli.cpp:673`. `--catalog --hunt=r4a03`
+therefore prints the one refusal line and exits with status 2, and the catalog
+stays unprinted. `--hunt` with `--filter` applies the hunt to the instances
 the filter selected. `--hunt-repeats` sets the repeats of the hunt stages, and
 `--repetitions` keeps its present meaning for the benchmark's own repetitions,
 which are the rows the report prints.
@@ -113,15 +117,15 @@ which are the rows the report prints.
 | Input | Behaviour |
 |---|---|
 | `--hunt` with `--metric-method=multiplex` | legal (D-16): every event is multiplexed, the plan line prints the method word `MULTIPLEX`, every row carries the word `multiplexed`, and the document writes the `method` value `MULTIPLEX` (D-19) |
-| `--hunt` with `--dry-run` | legal: the plan line prints, every pass runs one iteration (`runner.cpp:2202,2301`), and each column reaches the table with one sample, a `cv` of `0.0` and no rank, because an unrepeated event carries none (I-5) |
+| `--hunt` with `--dry-run` | legal: the plan line prints, every pass runs one iteration (`runner.cpp:2184,2394`), and each column reaches the table with one sample, a `cv` of `0.0` and no rank, because an unrepeated event carries none (I-5) |
 | `--hunt=none` with anything | legal: the run is identical to the same command with no `--hunt` and no `--hunt=none` |
 
 ## Conflict check
 
 `hunt_cli.cpp` owns `validateHuntCombination(const RunOptions&)`, which `cli.cpp`
 calls once after the scan. It reads the settled members of
-`detail/internal.hpp:434-476`: `counterAddresses` (line 444), `metricNames`
-(line 455) and `compareBaseline` (line 474). The check runs
+`detail/internal.hpp:506-552`: `counterAddresses` (line 516), `metricNames`
+(line 527) and `compareBaseline` (line 545). The check runs
 after the scan because a `--counter` that stands after `--hunt` on the command
 line is the same conflict as one that stands before it.
 
@@ -133,8 +137,11 @@ All hunt lines go to stdout behind the `hunt:` prefix; refusals go to stderr
 Before the run, once per hunt run:
 
 ```text
-hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s
+hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s stage1=42 stage2=42
 ```
+
+`stage1=` and `stage2=` name the events each stage measures. They stand on the
+line when the plan ran two stages; a one-stage plan names neither.
 
 After the benchmark tables of the run:
 
@@ -156,7 +163,7 @@ hunt: plan summary events=40/42 passes=14 spend=1184000ns budget=120s
 | No estimate | `estimate=not available`, because the estimate is calibration data and a hunt run can reach the plan before any calibration answered (FR-012) |
 | Host that refuses everything | the plan line, no ranked row, the skipped list with one line per refused event, and the summary reading `events=0/N`, the plan line carrying `events=0` (D-12, FR-041) |
 | No hunt | no `hunt:` line at all, and no `hunt` key in the document (FR-052, I-8) |
-| `--dry-run` | composes with the hunt: the pass loop runs one iteration per pass (`runner.cpp:2202,2301`), so every column prints with one sample, a `cv` of `0.0` and the `unrepeated` mark |
+| `--dry-run` | composes with the hunt: the pass loop runs one iteration per pass (`runner.cpp:2184,2394`), so every column prints with one sample, a `cv` of `0.0` and the `unrepeated` mark |
 
 ## Option table test
 
