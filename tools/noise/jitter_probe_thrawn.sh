@@ -4,13 +4,15 @@
 # the host state the results need. It is a script and never a CI gate:
 # thrawn is the only host it runs on, and CI never invokes it (SC-008).
 #
-# The spec names each N4 preset with `--threads` at 24 and at 48. The CLI
-# of this tree carries no `--threads` option: the option table of
-# source/harness/cli.cpp lists no such entry, contracts/cli-options.md
-# does not declare one, and no requirement of the spec adds one. The
-# N4 check below therefore runs each preset at the context counts the
-# registered benchmarks carry, and the results record states the cause
-# beside the captured output.
+# FR-042 (amended 2026-10-23) names each N4 preset at the context
+# counts the registered benchmark families carry. The CLI of this tree
+# carries no `--threads` option in any spelling: the long-option table
+# of source/harness/cli.cpp (lines 565 to 589) lists no such entry, and
+# the registered benchmark families fix their own context counts. The
+# N4 check below runs each preset at those counts, and the results
+# record states the cause beside the captured output. A full-width run
+# at 24 and 48 threads stands deferred until the harness carries a
+# threads selection, a future lane.
 #
 # The script expects a configured build in build/ with the example
 # binaries present (`cmake --preset=ci-rocky && cmake --build build`).
@@ -101,14 +103,15 @@ probe shares the machine with the ordinary host load (FR-043).
 
 Each N4 preset runs on `docs_threads`, whose `bmSharded` registers
 four contexts. The report discloses the planned cpu and the L3 group
-of each context (FR-042). The `--threads` dimension of FR-042 stands
-unrunnable on this tree: the long option table of
-`source/harness/cli.cpp` (the `getopt_long` call site) carries no
-`threads` entry, `contracts/cli-options.md` declares none, and no
-requirement of the spec adds one. The runs below cover the presets at
-the context counts the registered benchmarks carry, and the `smt`
-preset run shows the standing refusal when a plan cannot place every
-requested context.
+of each context. FR-042, amended 2026-10-23, names the runs at the
+context counts the registered benchmark families carry: the long
+option table of `source/harness/cli.cpp` (the `getopt_long` call
+site) carries no `threads` entry in any spelling, and the registered
+benchmark families fix their own context counts. A full-width run at
+24 and 48 threads stands deferred until the harness carries a threads
+selection, a future lane. The runs below cover the presets at those
+counts, and the `smt` preset run shows the standing refusal when a
+plan cannot place every requested context.
 EOF
 
 for preset in none core l3 smt compact; do
