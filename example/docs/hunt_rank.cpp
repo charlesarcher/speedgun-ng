@@ -1,8 +1,10 @@
 #include <array>
 #include <cstdio>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -18,9 +20,15 @@ namespace
 
 // The scripted host of the hunt: one core device, five events discovery seats
 // and two it refuses, so one recorded run is the golden on any host (PD-19).
+// The selection names the five ranked addresses and the two refusals
+// outright, so the two anchor counters the plan normalizes by stay out of
+// the ranked table.
 constexpr std::string_view kDevice {"cpu"};
-constexpr std::string_view kSelection {"cpu/*"};
+constexpr std::string_view kSelection {
+    "cpu/hunt_branches,cpu/hunt_loads,cpu/hunt_rtls,cpu/hunt_stalls,"
+    "cpu/hunt_stores,cpu/hunt_blocked,cpu/hunt_noenc"};
 constexpr std::uint64_t kAnchor = 1'000'000;
+constexpr std::size_t kLimit = 4;
 
 constexpr std::array<std::pair<std::string_view, sg::counters::Availability>, 7>
     kScript {
@@ -39,9 +47,14 @@ auto installScriptedHost() -> bool
 {
   auto host = std::make_unique<sg::counters::FakeProvider>();
   host->addObject(kDevice, "core", "the scripted core the hunt walks");
+  host->setProgrammableCounters(kDevice, kLimit);
   for (const auto& [leaf, availability] : kScript) {
     host->addCounter(kDevice, leaf, "none", "the scripted event", availability);
   }
+  // The anchors every column of the plan rides, outside the selection.
+  host->addCounter(kDevice, "cpu-cycles", "none", "the scripted cycles anchor");
+  host->addCounter(
+      kDevice, "instructions", "none", "the scripted instructions anchor");
   return sg::counters::System::local()
       .registerProvider(std::move(host))
       .has_value();
@@ -125,6 +138,25 @@ auto printHunt(const sg::hunt::EntryHunt& hunt) -> void
 
 // sg-example:end hunt-print
 
+// The words the plan line prints for the settled collection method, the
+// capital words the data model spells (E-07, hunt-cli.md).
+constexpr std::array<const char*, 3> kMethodWords {
+    "AUTO", "PASSES", "MULTIPLEX"};
+
+// The plan line hunt-cli.md prints once per hunt run, spelled from the plan
+// `planHunt` settled for the scripted selection. The example hands the
+// planner no calibration figure and names no budget, so those two fields
+// carry E-07's words `not available` and `none`.
+auto printPlanLine(const sg::hunt::HuntPlan& plan) -> void
+{
+  std::printf(
+      "hunt: plan events=%zu passes=%zu method=%s"
+      " estimate=not available budget=none\n",
+      plan.columns.size(),
+      plan.passes.size(),
+      kMethodWords[std::to_underlying(*plan.method)]);
+}
+
 }  // namespace
 
 auto bmHunt(sg::State& state) -> void
@@ -158,6 +190,22 @@ auto main(int argc, char** argv) -> int
   auto options = sg::hunt::HuntOptions {};
   options.selection = kSelection;
   options.top = 2;
-  printHunt(rankHuntEvents(collectedRows(), catalog.split(0).second, options));
+  const auto [events, refused] = catalog.split(0);
+  // The limit and the anchors are the facts this file scripted above; the
+  // planner reads them as data and settles the plan the line below prints.
+  const auto limits =
+      std::vector<std::optional<std::size_t>> {std::optional {kLimit}};
+  const auto anchors = std::vector<std::pair<std::string, std::string>> {
+      {{std::string {kDevice} + "/cpu-cycles",
+        std::string {kDevice} + "/instructions"}},
+  };
+  const auto plan =
+      sg::hunt::planHunt(events, limits, anchors, options, std::nullopt);
+  if (!plan.has_value()) {
+    std::fprintf(stderr, "hunt: %s\n", plan.error().message.c_str());
+    return status != 0 ? status : 2;
+  }
+  printPlanLine(*plan);
+  printHunt(rankHuntEvents(collectedRows(), refused, options));
   return status;
 }
