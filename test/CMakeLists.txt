@@ -653,6 +653,80 @@ target_link_libraries(harness_cli_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_cli_test PRIVATE cxx_std_23)
 add_test(NAME harness_cli_test COMMAND harness_cli_test)
 
+# The one option table of the contract, read out of the source that holds
+# it: 27 rows in the fixed order, each with its argument kind and its
+# value, the seven new names at the constants 290 to 296 (T004; FR-001,
+# FR-003, FR-004, FR-079, SC-001). The directory that holds the table
+# reaches the test by argument, the way the fixture directory reaches
+# `harness_compare_test`. The test is red until Phase 1 lands the seven
+# rows, and it is registered as a plain test so the same registration
+# turns green with them.
+add_executable(harness_cli_table_test source/harness_cli_table_test.cpp)
+target_link_libraries(harness_cli_table_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_cli_table_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_cli_table_test PRIVATE cxx_std_23)
+add_test(NAME harness_cli_table_test
+         COMMAND harness_cli_table_test ${CMAKE_SOURCE_DIR}/source/harness)
+
+# The usage faults of the command-line scan, each driven by an `argv`
+# array built in the test and compared byte for byte against the fault
+# line of the contract (T010; FR-007 to FR-012, SC-003,
+# contracts/option-table.md). T009 owns this registration because the
+# same pass defines `detail::scanCommandLine` in
+# `source/harness/options.cpp` and so first makes the target linkable.
+# The target runs red until T011 splits the parse from the exit: the scan
+# still answers the faults the base prints, so each of the five contract
+# texts mismatches and the five checks report by name.
+add_executable(harness_cli_sources_test source/harness_cli_sources_test.cpp)
+target_link_libraries(harness_cli_sources_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_cli_sources_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_cli_sources_test PRIVATE cxx_std_23)
+add_test(NAME harness_cli_sources_test COMMAND harness_cli_sources_test)
+
+# The thread list of `--threads` read as a comma-separated sequence of
+# items: a single count, a `min:max` range expanded through
+# `detail::buildThreadCounts`, and the refusal line for a count below one,
+# a low above its high or a malformed item (T040; FR-044, FR-045, FR-046).
+# This is the pass that defines `detail::readThreadList` in
+# `source/harness/options.cpp`, so it is the pass that first makes the
+# target linkable and registers it.
+add_executable(harness_cli_threads_test source/harness_cli_threads_test.cpp)
+target_link_libraries(harness_cli_threads_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_cli_threads_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_cli_threads_test PRIVATE cxx_std_23)
+add_test(NAME harness_cli_threads_test COMMAND harness_cli_threads_test)
+
+# The interleaved walk: the seeded order `detail::shuffledOrder` answers,
+# the seed forms `--interleave` accepts and refuses, the rows a run holds
+# back and prints after the walk, and the interrupted run that prints the
+# rows it ran (T044; FR-051 to FR-060, SC-005).
+# This is the pass that defines `detail::shuffledOrder` in
+# `source/harness/options.cpp`, so it is the pass that first makes the
+# target linkable and registers it.
+add_executable(harness_cli_interleave_test source/harness_cli_interleave_test.cpp)
+target_link_libraries(harness_cli_interleave_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_cli_interleave_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_cli_interleave_test PRIVATE cxx_std_23)
+add_test(NAME harness_cli_interleave_test
+         COMMAND harness_cli_interleave_test ${CMAKE_SOURCE_DIR})
+
+# The base command line replayed over the built example binary: each row
+# of the matrix file names a command line, the status the base answers
+# and the shortest fault line it prints, and the runner prints one line
+# per row that moved (T003; FR-003, FR-013, SC-007, SC-013). Only a tree
+# that builds the examples holds the binary the runner drives, so this
+# registration is conditional the way `report_shape` is.
+if(TARGET docs_command_line)
+  add_test(
+      NAME base_cli_matrix
+      COMMAND
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/base_cli/run_matrix.py
+        $<TARGET_FILE:docs_command_line>
+        ${CMAKE_SOURCE_DIR}/test/data/base_cli_matrix.txt
+  )
+  set_tests_properties(base_cli_matrix PROPERTIES TIMEOUT 120)
+endif()
+
 # The catalog listing over a scripted leaf set (T025; US3, FR-036, FR-037,
 # SC-009).
 add_executable(harness_catalog_test source/harness_catalog_test.cpp)

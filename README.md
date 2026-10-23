@@ -368,6 +368,12 @@ auto bmRead(sg::State& state) -> void
 SG_BENCHMARK(bmRead).argNames({"cells"}).arg(256);
 ```
 `--min-time` and `--warmup-time` take seconds, and a usage error reports one line and exits with status 2.
+An option can also come from a file of one option per line named by `--options`, or from a `SPEEDGUN_*` environment variable named after the option, and `--env=off` takes the environment away from one run.
+The highest source that sets an option wins: the command line, then the option file, then the environment, then the built-in default.
+A run that took an option from a file or the environment, or that ran `--interleave`, prints one line after the version line naming each such option and the value that took effect.
+`--threads=1,4` runs every family at one context and then at four, and `--threads=2:16` takes the doubling counts from 2 to 16.
+`--interleave` runs the selected instances in a random order, and `--interleave=7` fixes the seed that order uses.
+`--help` prints one line per option and stops, and `--version` prints the project version and stops; neither runs a benchmark.
 ### Reading the report
 A run prints a version line, then one row per instance and repetition.
 
@@ -764,6 +770,13 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `--compare` | Compares two report documents; the mode runs no benchmark |
 | `--compare-rule` | Adds one comparison rule, repeatable in order |
 | `--compare-strict` | Makes every noisy row fail the verdict |
+| `--options` | Reads one option per line from a file |
+| `--env` | Takes off so the process environment sets nothing |
+| `--threads` | Sets the thread counts of every family |
+| `--interleave` | Runs the selected instances in a seeded random order |
+| `--compare-rules` | Reads one comparison rule per line from a file |
+| `--help` | Prints one line per option and stops |
+| `--version` | Prints the project version and stops |
 
 ## Planned work
 

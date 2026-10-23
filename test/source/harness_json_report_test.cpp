@@ -2,7 +2,9 @@
 // T016, T021, T036, T037: the written report answers the run
 // (specs/023-json-reports;
 // FR-001, FR-003, FR-005, FR-009, FR-011, FR-021, FR-029, FR-031,
-// SC-001, SC-003, SC-009).
+// FR-041, FR-043, FR-086, SC-001, SC-003, SC-009, SC-011).
+// specs/028-full-command-line adds the run object of the same document
+// (FR-039, FR-040, FR-041, FR-043, FR-084, FR-086, SC-009).
 //
 // One scripted run of the shared window feeds the writer; the reader reads
 // the file back and every field of the loaded value answers the run that
@@ -15,12 +17,14 @@
 
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <sys/wait.h>
 #include <unistd.h>
@@ -494,6 +498,38 @@ auto aValueOutsideTheTableWritesTheGuardWord() -> void
         "a value outside the enumeration writes the guard word (FR-015)");
 }
 
+// FR-086, FR-043: the document stamps the schema minor this feature takes.
+// The writer holds one constant for the stamp (`source/harness/json_report.cpp`
+// `kSchemaVersion`), so the value the document carries is that constant read
+// back, and the schema file names the same minor.
+auto theDocumentStampsTheMinorThisFeatureRequires() -> void
+{
+  const std::string text = sg::test::readText("harness_json_report.json");
+  check(text.starts_with("{\"schemaVersion\":\"1.3\""),
+        "the written document stamps schema minor 1.3, the next free minor "
+        "this feature takes (FR-086, FR-043)");
+}
+
+// FR-041, FR-043: the run that names no option file and no environment
+// source writes no `run` key, so the key stays the optional top-level key
+// the schema describes. A writer that emitted the object for every run
+// would answer `"run":` here.
+auto aRunOfNoFileOrEnvironmentWritesNoRunKey() -> void
+{
+  const std::string text = sg::test::readText("harness_json_report.json");
+  check(text.find("\"run\":") == std::string::npos,
+        "a document written with no file or environment source carries no "
+        "top-level run key (FR-041, FR-043)");
+  // The planted document that does carry the object keeps the needle live, so
+  // the guard above cannot pass by searching for a shape no writer emits.
+  sg::test::writeText("harness_json_runkey.json",
+                      "{\"schemaVersion\":\"1.3\",\"speedgun\":{},"
+                      "\"run\":{\"interleave\":7},\"benchmarks\":[]}");
+  const std::string planted = sg::test::readText("harness_json_runkey.json");
+  check(planted.find("\"run\":") != std::string::npos,
+        "the guard reads a run key when one stands in the document (FR-041)");
+}
+
 // FR-005, FR-021, D-13: nothing the file carries changes between two runs
 // of the same values. No key names a date, a time, a host or a process,
 // and the header holds the two compile-definition values alone.
@@ -522,6 +558,123 @@ auto headerCarriesNoVolatileKey() -> void
         "(FR-005)");
 }
 
+// The option row a disclosure entry points at, read from the one table so
+// the test carries no option name of its own (specs/028 E-05).
+auto rowNamed(const std::string_view name) -> const sg::detail::OptionRow*
+{
+  for (const sg::detail::OptionRow& row : sg::detail::optionRows()) {
+    if (name == row.name) {
+      // optionRows() is static constexpr storage, so this address is stable.
+      // cppcheck-suppress returnDanglingLifetime
+      return &row;
+    }
+  }
+  fail("the option table holds no row of the name the case asks for");
+  return nullptr;
+}
+
+// One scripted run written out beside the disclosure the case hands over,
+// read back as the bytes of the file (specs/028 FR-040).
+auto writeWithDisclosure(const char* path,
+                         const sg::detail::RunDisclosure& disclosure)
+    -> std::string
+{
+  sg::detail::RunOptions options;
+  options.fixedIterations = sg::test::kWindowIterations;
+  const auto run = sg::test::scriptedRun(options);
+  sg::ReportData data;
+  data.results.push_back(run.result);
+  data.rowRaw = run.rowRaw;
+  data.contextRaw = run.contextRaw;
+  check(sg::detail::writeReport(path, data, disclosure),
+        "the writer wrote the document beside the disclosure (FR-040)");
+  return sg::test::readText(path);
+}
+
+// FR-039, FR-040, FR-043, FR-084, SC-009: the seed and one entry per use
+// stand in the `run` object, and the object sits between `speedgun` and
+// `benchmarks` the way the schema states the order. The written document
+// passes the checker, and the reader answers no fault for a key it reads
+// as nothing.
+auto theRunObjectHoldsTheDisclosedUses() -> void
+{
+  const std::vector<sg::detail::OptionUse> uses {
+      sg::detail::OptionUse {
+          rowNamed("filter"), sg::detail::OptionSource::ENVIRONMENT, "bm"},
+      sg::detail::OptionUse {
+          rowNamed("min-time"), sg::detail::OptionSource::OPTION_FILE, "20ms"},
+  };
+  const char* const path = "harness_json_run.json";
+  const std::string text = writeWithDisclosure(
+      path, sg::detail::RunDisclosure {uses, std::uint64_t {7}});
+  check(
+      text.find("\"speedgun\":{") < text.find("\"run\":{")
+          && text.find("\"run\":{") < text.find(",\"benchmarks\":"),
+      "the run object stands between speedgun and benchmarks (FR-040, " "D-"
+                                                                        "18)");
+  check(text.find("\"run\":{\"interleave\":7,\"options\":["
+                  "{\"option\":\"--filter\",\"source\":\"environment\","
+                  "\"value\":\"bm\"},"
+                  "{\"option\":\"--min-time\",\"source\":\"file\","
+                  "\"value\":\"20ms\"}]}")
+            != std::string::npos,
+        "the object holds the seed and one entry per use in table order "
+        "(FR-040, SC-009)");
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  check(clean.has_value(),
+        "a document that carries the run object passes the schema "
+        "(FR-043, FR-084)");
+  if (!clean.has_value()) {
+    std::printf("  %s\n", clean.error().c_str());
+  }
+  const auto loaded = sg::loadReport(path);
+  check(loaded.has_value() && loaded->results.size() == 1,
+        "the reader answers no fault for the object it reads as nothing "
+        "(FR-043, D-30)");
+}
+
+// FR-040: the seed key follows the option. The bare form answers seed 0 and
+// still writes the key; a run that gives no interleave writes none.
+auto theSeedKeyFollowsTheOption() -> void
+{
+  const std::string seeded =
+      writeWithDisclosure("harness_json_run_seed.json",
+                          sg::detail::RunDisclosure {{}, std::uint64_t {0}});
+  check(seeded.find("\"run\":{\"interleave\":0,\"options\":[]}")
+            != std::string::npos,
+        "the bare interleave form writes seed 0 and an empty use list "
+        "(FR-040, E-10)");
+
+  const std::vector<sg::detail::OptionUse> uses {
+      sg::detail::OptionUse {
+          rowNamed("iterations"), sg::detail::OptionSource::ENVIRONMENT, "4"},
+  };
+  const std::string unseeded =
+      writeWithDisclosure("harness_json_run_unseeded.json",
+                          sg::detail::RunDisclosure {uses, std::nullopt});
+  check(unseeded.find("\"run\":{\"options\":[{\"option\":\"--iterations\"")
+                != std::string::npos
+            && unseeded.find("\"interleave\"") == std::string::npos,
+        "a run that gives no interleave writes no seed key (FR-040)");
+}
+
+// FR-041, FR-043: an empty disclosure writes no object at all, and the
+// document with the key absent keeps passing the schema the way the base
+// document does.
+auto anEmptyDisclosureWritesNoRunObject() -> void
+{
+  const std::string text = writeWithDisclosure("harness_json_run_none.json",
+                                               sg::detail::RunDisclosure {});
+  check(text.find("\"run\":") == std::string::npos,
+        "an empty disclosure writes no run key (FR-041)");
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  check(clean.has_value(),
+        "the document with the key absent passes the schema (FR-043)");
+  if (!clean.has_value()) {
+    std::printf("  %s\n", clean.error().c_str());
+  }
+}
+
 }  // namespace
 
 auto main() -> int
@@ -529,6 +682,11 @@ auto main() -> int
   runAndWrite("harness_json_report.json");
   twoRunsWriteIdenticalBytes();
   headerCarriesNoVolatileKey();
+  theDocumentStampsTheMinorThisFeatureRequires();
+  aRunOfNoFileOrEnvironmentWritesNoRunKey();
+  theRunObjectHoldsTheDisclosedUses();
+  theSeedKeyFollowsTheOption();
+  anEmptyDisclosureWritesNoRunObject();
   aValueOutsideTheTableWritesTheGuardWord();
   everyFieldOfTheFormatRoundTrips();
   theNoiseWarningRoundTrips();

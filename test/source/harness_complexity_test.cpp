@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -782,6 +783,65 @@ auto main() -> int
         "(FR-022)");
   check(std::isfinite(rmsOf(fitRowOf(realFitLines, "RMS", "time/iter"))),
         "the real-time row of one repetition carries a finite error (FR-022)");
+
+  // specs/028 FR-056 with FR-022, FR-023: a shuffled walk sets the instances
+  // of one family between those of another, and the fit of each family still
+  // answers once, over every sample of it the walk made. Both families carry a
+  // known coefficient, so the order changes nothing of the answer.
+  int shuffledStatus = 0;
+  const std::string shuffled = captureRun({"--filter",
+                                           "^(bmQuad|bmNlgN)",
+                                           "--iterations=1",
+                                           "--repetitions=1",
+                                           "--interleave=7"},
+                                          shuffledStatus);
+  check(shuffledStatus == 0,
+        "the shuffled run of two fitted families reports (FR-056)");
+  const auto onceFitted =
+      [&shuffled](const char* const name, const double wanted)
+  {
+    const std::vector<std::string> lines = linesOf(shuffled, name);
+    std::size_t fits = 0;
+    for (const std::string& line : lines) {
+      if (line.contains("BIG_O") && line.contains("time/iter")) {
+        ++fits;
+      }
+    }
+    const std::string once =
+        std::string(name) + " answers one fit row (FR-022, FR-056)";
+    check(fits == 1, once.c_str());
+    const std::string row = fitRowOf(lines, "BIG_O", "time/iter");
+    const std::string every =
+        std::string(name) + " fits every sample its walk made (FR-021)";
+    check(closeTo(coefficientOf(row), wanted), every.c_str());
+  };
+  onceFitted("bmQuad", 12.0);
+  onceFitted("bmNlgN", 5.0);
+
+  // specs/028 FR-055 with FR-056: two repetitions keep the passes of one
+  // instance together while the shuffle scatters the instances of one family
+  // between those of the other, so a family's rows reach its fit twice over.
+  // The fit still answers once, over every sample of the walk.
+  int repeatedStatus = 0;
+  const std::string repeated = captureRun({"--filter",
+                                           "^(bmQuad|bmNlgN)",
+                                           "--iterations=1",
+                                           "--repetitions=2",
+                                           "--interleave=7"},
+                                          repeatedStatus);
+  check(repeatedStatus == 0,
+        "the shuffled run of two repetitions reports (FR-055)");
+  for (const char* const name : {"bmQuad", "bmNlgN"}) {
+    std::size_t fits = 0;
+    for (const std::string& line : linesOf(repeated, name)) {
+      if (line.contains("BIG_O") && line.contains("time/iter")) {
+        ++fits;
+      }
+    }
+    const std::string label =
+        std::string(name) + " answers one fit row when scattered (FR-055)";
+    check(fits == 1, label.c_str());
+  }
 
   std::puts("harness_complexity_test: ok");
   return 0;

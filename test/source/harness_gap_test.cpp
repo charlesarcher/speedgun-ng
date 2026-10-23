@@ -155,7 +155,8 @@ auto baseProvider(const std::string& threadCpuUnit) -> void
 }
 
 auto captureRun(const std::vector<std::string>& arguments,
-                const int expected = 0) -> std::string
+                const int expected = 0,
+                int* statusOut = nullptr) -> std::string
 {
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_gap_test"));
@@ -179,6 +180,9 @@ auto captureRun(const std::vector<std::string>& arguments,
     std::fprintf(
         stderr, "speedgunMain returned %d, expected %d\n", status, expected);
     fail("the exit status does not follow contracts/cli.md (FR-036)");
+  }
+  if (statusOut != nullptr) {
+    *statusOut = status;
   }
 
   std::ifstream file(path);
@@ -351,21 +355,23 @@ auto modeCatalog() -> int
 }
 
 // FR-035: a count that overflows the signed read, and a count with
-// trailing text, are usage errors that report and stop. The entry point
-// exits from inside the parse, so each form runs as its own mode and the
-// parent reads status two from it.
+// trailing text, are usage errors that report and stop. Each form runs
+// as its own mode, and the mode answers the status the entry point
+// returns, so the parent reads status two from the child (SC-013).
 auto modeHugeCount() -> int
 {
   baseProvider("nanoseconds");
-  captureRun({"--iterations=99999999999999999999"}, 2);
-  return 0;
+  int status = 0;
+  captureRun({"--iterations=99999999999999999999"}, 2, &status);
+  return status;
 }
 
 auto modeJunkCount() -> int
 {
   baseProvider("nanoseconds");
-  captureRun({"--iterations=5x"}, 2);
-  return 0;
+  int status = 0;
+  captureRun({"--iterations=5x"}, 2, &status);
+  return status;
 }
 
 // FR-042: a host whose machine object carries no monotonic leaf leaves
@@ -584,8 +590,9 @@ auto main(const int argc, char** argv) -> int
        })
   {
     const int status = std::system(("\"" + self + "\" " + name).c_str());
-    // A usage error exits from inside the entry point, so the child of
-    // the two count modes ends with status two by design (FR-035).
+    // The entry point answers a usage error with status two and the
+    // mode returns it, so the child of the two count modes ends with
+    // status two by design (FR-035, SC-013).
     const std::string_view modeName {name};
     const int wanted =
         (modeName == "hugeCount" || modeName == "junkCount") ? 2 : 0;

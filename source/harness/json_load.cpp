@@ -1,7 +1,5 @@
-#include <cerrno>
 #include <cstdint>
 #include <expected>
-#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -10,6 +8,7 @@
 
 #include <simdjson.h>
 
+#include "detail/internal.hpp"
 #include "detail/json_report.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
@@ -22,30 +21,6 @@ namespace
 
 using Element = simdjson::dom::element;
 using JsonArray = simdjson::dom::array;
-
-auto readFile(const std::string& path)
-    -> std::expected<std::string, std::string>
-{
-  std::ifstream stream(path, std::ios::binary);
-  if (!stream.is_open()) {
-    return std::unexpected("the file '" + path
-                           + "' cannot be opened: " + std::strerror(errno));
-  }
-  std::string text;
-  char chunk[1024];
-  do {
-    stream.read(chunk, std::streamsize(sizeof chunk));
-    text.append(chunk, std::size_t(stream.gcount()));
-  } while (stream.gcount() == std::streamsize(sizeof chunk));
-  if (stream.bad()) {
-    // The file opens and the read itself fails (a directory,
-    // /proc/self/mem): the expected stays the contract's answer
-    // channel, so the failure is answered here.
-    return std::unexpected("the file '" + path
-                           + "' cannot be read: " + std::strerror(errno));
-  }
-  return text;
-}
 
 auto kindName(Element value) -> const char*
 {
@@ -1156,7 +1131,7 @@ namespace detail
 auto checkReport(std::string_view schemaPath,
                  std::string_view document) -> std::expected<void, std::string>
 {
-  auto schemaText = readFile(std::string(schemaPath));
+  auto schemaText = detail::readTextFile(std::string(schemaPath));
   if (!schemaText.has_value()) {
     return std::unexpected(schemaText.error());
   }
@@ -1191,7 +1166,7 @@ auto loadReport(const std::string& path)
     -> std::expected<ReportData, std::string>
 {
   SG_REQUIRE(!path.empty(), "loadReport reaches an empty path");
-  auto text = readFile(path);
+  auto text = detail::readTextFile(path);
   if (!text.has_value()) {
     return std::unexpected(text.error());
   }

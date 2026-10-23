@@ -1,0 +1,1990 @@
+// ============================================================================
+// TDD test for the usage faults of the command-line scan of
+// specs/028-full-command-line (T010; FR-007 to FR-012, SC-003,
+// contracts/option-table.md).
+//
+// The scan answers one fault text and prints nothing; the entry point turns
+// that text into one line on standard error at status 2 (FR-011). This file
+// compares the text the scan answers byte for byte and leaves the status to
+// `harness_cli_test` and `base_cli_matrix`. Each text carries no newline,
+// which is the shape of one line at this seam.
+//
+// The four texts the contract fixes:
+//
+//   unknown name      `unknown option '<text>'; --help lists the options`
+//   name near a row   `unknown option '<text>', nearest '--<name>'`
+//   ambiguous prefix  `ambiguous option '<text>': <candidate>, <candidate>`
+//   option, no value  `option '--<name>' needs a value`
+//
+// The scan seam `detail::scanCommandLine` stands declared by T006 in
+// `detail/options.hpp` and defined in `source/harness/options.cpp` by T011.
+// The declaration below carries the seam until that header exists, and the
+// target stays out of `test/CMakeLists.txt` until the task that lands the
+// scan registers it, so the link error naming that seam is the red state of
+// this task. `CommandLineOptions` is the scan result of E-06 and arrives in
+// the same header. The placeholder here keeps the declaration well formed,
+// and the branch above takes the real definition over as soon as the header
+// exists, so one program never holds two definitions of the name.
+//
+// Every command line is an `argv` array built here, and every gather is
+// handed its environment rows as data, so no gather case reads the process
+// environment (FR-012). The two cases that need a variable of their own,
+// the entry point and the reader of the process names, reach it through a
+// child forked here and re-run with an explicit `envp` that carries the
+// row, so this process never holds one of a test's own (D-04, FR-081).
+//
+// Check map:
+//   theUnknownOptionNamesTheText
+//                                `--zzzz` answers the unknown line naming
+//                                the typed text, with no suggestion because
+//                                no row name sits within two edits of it
+//                                (FR-007, SC-003)
+//   theNearestNameRidesTheUnknownLine
+//                                `--filtr` answers the unknown line that
+//                                ends with the nearest row name (FR-007)
+//   theAmbiguousPrefixNamesBothCandidates
+//                                each of the five prefixes that start more
+//                                than one row name answers one line naming
+//                                every candidate in table order (FR-009,
+//                                FR-013)
+//   theMissingValueNamesTheOption
+//                                `--filter` with no value answers the
+//                                needs-a-value line (FR-008)
+//   theShortOptionAnswersTheUnknownLine
+//                                `-x` answers the unknown line naming `-x`,
+//                                the option string of the scan carrying no
+//                                short letter (FR-005, FR-007)
+//
+// The environment cases of T022, T025 and T027 build `EnvironmentRow`
+// vectors and hand them to `detail::gatherOptionSources`, the seam
+// `contracts/environment.md` names, so no test writes the process
+// environment and none reads it (FR-012, FR-081). The gather answers one
+// fault text and no status; the entry point prints that text at status 2,
+// which stays the reading of `harness_cli_test` and `base_cli_matrix`.
+//
+// Check map (the environment source):
+//   theFlaggedRowsAnswerTheirEnvironmentName
+//                                each of the twelve rows FR-020 marks
+//                                settles from `SPEEDGUN_` plus the long
+//                                name upper-cased with `-` changed to `_`,
+//                                the name computed from the live row
+//                                (FR-019, FR-020)
+//   theUnflaggedRowsCarryNoEnvironmentName
+//                                each of the fifteen rows FR-021 clears
+//                                carries no flag, and its variable settles
+//                                nothing (FR-021)
+//   aRepeatableSplitsOnItsItems  one `;`-separated value answers one entry
+//                                per item (FR-024)
+//   anItemReachesTheCommandLineRule
+//                                a refused item of a split value answers the
+//                                reader's own line behind the variable name
+//                                (FR-024, FR-027)
+//   theFourFlagWordsAndTheirRefusal
+//                                `1`, `0`, `true` and `false` answer the
+//                                flag, and any other text answers the
+//                                refusal line (FR-025). The row is the
+//                                negating flag, so the word `1` turns
+//                                percentiles off.
+//   anUnknownVariableChangesNothing
+//                                a `SPEEDGUN_*` name that matches no
+//                                flagged row answers no line and settles
+//                                nothing (FR-026)
+//   aRefusedValueNamesTheVariableAndTheReaderLine
+//                                a value the option's own reader refuses
+//                                opens with the variable and carries the
+//                                line the command line answers (FR-027)
+//   theInterleaveVariableTurnsTheOptionOn
+//                                `SPEEDGUN_INTERLEAVE` gives the option with
+//                                the seed its reader answers, and `=0` means
+//                                given with seed 0 (FR-022)
+//   theEnvironmentPercentilePairStandsTogether
+//                                the two percentile variables together
+//                                answer the pair line even when the command
+//                                line overrides one half (FR-023)
+//   aCommandLineHalfLeavesThePairApart
+//                                one half in the environment and the other
+//                                on the command line answer no pair line,
+//                                and the command line keeps the option
+//                                (FR-023, FR-037)
+//
+// The option file cases of T032 build `OptionFileText` values here and hand
+// them to `detail::gatherOptionSources`, the seam
+// `contracts/option-file.md` names. The path of such a value stands nowhere,
+// because the gather splits the text and opens no file (FR-012, D-05). Each
+// fault of the file is one line the entry point prints at status 2, so this
+// file compares the text and leaves the status to the entry-point case and
+// to `base_cli_matrix`.
+//
+// Check map (the option file source):
+//   anOptionFileLineSetsItsOption  one option per line in long spelling
+//                                  without the leading dashes sets its
+//                                  option, a comment and a blank line set
+//                                  nothing, and the two uses come back in
+//                                  table order (FR-029, FR-030, FR-039,
+//                                  FR-040)
+//   aRefusedNameNamesItsLine       `options`, `env`, `help` and `version`
+//                                  answer the file, the line number and the
+//                                  refused name (FR-031)
+//   anUnknownNameNamesItsLine      a name with no row answers the file, the
+//                                  number and the name, with no suggestion,
+//                                  and the number counts the comment and the
+//                                  blank lines before it (FR-030, FR-033)
+//   aSecondOptionsNamesTheOption   a second `--options` answers one line
+//                                  naming the option alone, with no path
+//                                  repeated (FR-032)
+//   aRepeatableAccumulatesInOrder  two lines of one repeatable keep both
+//                                  items in line order and disclose them
+//                                  joined with `;` (FR-035, FR-040)
+//   aFlagLineReachesTheFlagReader  a flag line written `name=value` reaches
+//                                  the flag reader of FR-025, whose refusal
+//                                  stands behind the file and the number
+//                                  (FR-025, FR-035)
+//   aFileValueReachesTheReader     a value the reader refuses carries the
+//                                  command line's own line behind the file
+//                                  and the number (FR-035, FR-027)
+//   anUnreadableFileAnswersOneLine the file the system cannot read answers
+//                                  one line at status 2 at the entry point,
+//                                  where the read stands (FR-034, SC-003,
+//                                  SC-013)
+//
+// The precedence cases of T034 hand all three sources to one call of the
+// gather, the shape SC-002 states, and read the value that takes effect
+// together with the use the disclosure carries. The fourth source, the
+// master default, is what stands when none of the three names the option,
+// so its leg asks that the settled field hold nothing.
+//
+// Check map (the precedence of the four sources):
+//   theThreeSourcesSettleInOrder one option named in the command line, the
+//                                option file and the environment with three
+//                                different values settles to the command
+//                                line, then to the file with the words
+//                                away, then to the environment with both
+//                                away, and to the master default with
+//                                neither, and the one disclosure entry
+//                                names the source that won (FR-037, FR-039,
+//                                FR-040, SC-002)
+//   aHigherSourceReplacesTheWholeList
+//                                a repeatable a higher source names replaces
+//                                the whole list of the lower one and
+//                                appends nothing to it, and the disclosed
+//                                value carries the winner's items alone
+//                                (FR-038)
+//   theRuleListCombinesAcrossSources
+//                                the comparison rule list is the one list
+//                                that does not replace: the command line's
+//                                rules stand first and the file's lines
+//                                follow them (FR-038, FR-061, FR-063,
+//                                spec D-23)
+//   aFileLineThatStartsWithADashNamesItsText
+//                                a line whose first character is `-` answers
+//                                the file, the number and the text, and the
+//                                table is never asked for that name (FR-036,
+//                                SC-003)
+//   aRequiredArgumentLineWithoutAnEqualsNamesTheOption
+//                                a line of a required-argument row that
+//                                carries no `=` answers the file, the number
+//                                and the command line's own needs-a-value
+//                                line, while a flag line written without `=`
+//                                is the option standing (FR-029, FR-036)
+//   aCommandLineOnlyRunDisclosesNothing
+//                                a run that names its options on the command
+//                                line alone, a file that names no option and
+//                                an environment row that matches no flagged
+//                                row all answer no use and no seed, which is
+//                                the run that prints no disclosure line and
+//                                writes no `run` object (FR-041)
+// Check map (the closing pass of the coverage gate):
+//   theEnvironmentSwitchLeavesTheProcessNamesUnread
+//                                `off` is the only word `--env` takes, and the
+//                                switched run answers what the same words
+//                                answer with the variable absent (FR-028,
+//                                SC-005)
+//   theThreadListFaultStandsAtTheScan
+//                                every list the reader refuses is the scan's
+//                                own refusal, and an accepted list reaches the
+//                                counts the reader answers (FR-044, FR-046)
+//   aWordOfDashesAloneNamesNoOption
+//                                `---` carries no row name, so no row is its
+//                                candidate and the unknown line stands (FR-007,
+//                                FR-009)
+//   aLowerSourceYieldsToTheCommandLine
+//                                each of the twelve flagged rows a command line
+//                                settled is read again by neither the
+//                                environment nor the file, and discloses no use
+//                                of its own (FR-037, FR-040)
+//   aRefusedValueOfEveryKindNamesItsSource
+//                                a value its reader refuses is one fault for
+//                                every kind of reader, with the variable or the
+//                                file and number ahead of the reader's line
+//                                (FR-027, FR-035, SC-003)
+//   theLastLineOfASourceMayCarryNoBreak
+//                                a last line that ends at its text settles its
+//                                option, in the option file and in the rules
+//                                file alike (FR-030, FR-061)
+//   aBareSeedLineStandsForTheSeedZero
+//                                a file line naming the seed alone turns the
+//                                option on with the seed 0 and discloses that
+//                                text (FR-029, FR-051, E-10)
+//   aFileLineWithNothingToSettleDisclosesNothing
+//                                the file reads a row whose arm no source
+//                                carries yet, sets nothing and discloses
+//                                nothing (FR-033, FR-040)
+//   aRulesFileTheReaderCannotOpenFaultsTheGather
+//                                the reader the gather is handed answers its
+//                                own line for a path it cannot open (FR-062,
+//                                D-05)
+//   theEnvironmentRowOfOneProcessName
+//                                one process name answers a row only when it
+//                                carries the prefix and an `=`, and the rows of
+//                                the process carry the name it holds (FR-018,
+//                                FR-019)
+//   aRefusedThreadRowFaultsTheEntry
+//                                the list that SPEEDGUN_THREADS or an option
+//                                file line refuses answers one line naming its
+//                                source at status 2 at the entry point, with
+//                                no benchmark row (FR-027, FR-035, FR-044,
+//                                SC-003)
+//   aRefusedSeedRowFaultsTheEntry
+//                                the seed that SPEEDGUN_INTERLEAVE or an
+//                                option file line refuses answers one line
+//                                naming its source at status 2 at the entry
+//                                point, with no benchmark row (FR-027,
+//                                FR-035, FR-054, SC-003)
+// ============================================================================
+
+#include <cctype>
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <expected>
+#include <filesystem>
+#include <fstream>
+#include <initializer_list>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <sys/wait.h>
+#include <unistd.h>
+
+#if __has_include("detail/options.hpp")
+#  include "detail/options.hpp"
+#else
+namespace sg::detail
+{
+// The scan result of E-06 as a placeholder, so the declaration below is
+// well formed: this test reads the fault text and never the accepted value.
+// T006 writes the real definition in `detail/options.hpp`.
+struct CommandLineOptions
+{
+};
+
+[[nodiscard]] auto scanCommandLine(int argc, char** argv)
+    -> std::expected<CommandLineOptions, std::string>;
+}  // namespace sg::detail
+#endif
+
+namespace
+{
+
+int failures = 0;
+
+auto fail(const char* what) -> void
+{
+  ++failures;
+  std::printf("FAILED: %s\n", what);
+}
+
+auto check(const bool cond, const char* what) -> void
+{
+  if (!cond) {
+    fail(what);
+  }
+}
+
+auto report(const char* what,
+            const std::string& expected,
+            const std::string& actual) -> void
+{
+  ++failures;
+  std::printf("FAILED: %s\n  expected: %s\n  actual:   %s\n",
+              what,
+              expected.c_str(),
+              actual.c_str());
+}
+
+// One command line through the scan, in the shape a shell hands to `main`.
+auto scanOf(std::initializer_list<const char*> words)
+    -> std::expected<sg::detail::CommandLineOptions, std::string>
+{
+  const std::vector<std::string> owned(words.begin(), words.end());
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("speedgun"));
+  for (const auto& word : owned) {
+    argv.push_back(const_cast<char*>(word.c_str()));
+  }
+  return sg::detail::scanCommandLine(static_cast<int>(argv.size()),
+                                     argv.data());
+}
+
+// The same command line read for its fault text alone: the answer is the
+// fault text, or the sentence that says the scan accepted the words, so a
+// mismatch reports which of the two happened.
+auto faultOf(std::initializer_list<const char*> words) -> std::string
+{
+  const auto answer = scanOf(words);
+  return answer.has_value() ? "the scan answered no fault" : answer.error();
+}
+
+// One row of the contract table: the command line, the text the scan must
+// answer byte for byte, and the check that the answer holds one line.
+auto expectFault(std::initializer_list<const char*> words,
+                 const std::string& expected,
+                 const char* what) -> void
+{
+  const std::string actual = faultOf(words);
+  if (actual != expected) {
+    report(what, expected, actual);
+    return;
+  }
+  check(actual.find('\n') == std::string::npos,
+        "that fault is one line (FR-007 to FR-009)");
+}
+
+auto theUnknownOptionNamesTheText() -> void
+{
+  expectFault({"--zzzz"},
+              "unknown option '--zzzz'; --help lists the options",
+              "an unknown name answers the unknown line naming the text "
+              "(FR-007, SC-003)");
+}
+
+auto theNearestNameRidesTheUnknownLine() -> void
+{
+  expectFault(
+      {"--filtr"},
+      "unknown option '--filtr', nearest '--filter'",
+      "a name within two edits of a row answers the nearest line " "(FR-007)");
+}
+
+// One abbreviation of the table and the one line the scan answers for it,
+// both captured from the built binary.
+struct AbbreviationCase
+{
+  const char* text;
+  const char* answer;
+};
+
+// The check each row below carries, standing behind the prefix it pins.
+constexpr char kAmbiguousFault[] =
+    "a prefix of several rows names every candidate in table "
+    "order (FR-009, FR-013): ";
+
+// Every prefix of the 27-row table that starts more than one row name, each
+// answer captured byte for byte from `docs_command_line`, which prints the
+// line on standard error and answers status 2.
+constexpr AbbreviationCase kAmbiguous[] = {
+    {"--i",
+     "ambiguous option '--i': iterations, " "interleave"},
+    {"--t",
+     "ambiguous option '--t': topology, " "threads"},
+    {"--compare-r",
+     "ambiguous option '--compare-r': compare-rule, " "compare-rules"},
+    {"--compare-ru",
+     "ambiguous option '--compare-ru': compare-rule, " "compare-rules"},
+    {"--compare-rul",
+     "ambiguous option '--compare-rul': compare-rule, " "compare-rules"},
+};
+
+auto theAmbiguousPrefixNamesBothCandidates() -> void
+{
+  for (const AbbreviationCase& row : kAmbiguous) {
+    const std::string what = std::string(kAmbiguousFault) + row.text;
+    expectFault({row.text}, row.answer, what.c_str());
+  }
+}
+
+auto theMissingValueNamesTheOption() -> void
+{
+  expectFault({"--filter"},
+              "option '--filter' needs a value",
+              "an option given with no value answers the needs-a-value line "
+              "(FR-008)");
+}
+
+auto theShortOptionAnswersTheUnknownLine() -> void
+{
+  expectFault({"-x"},
+              "unknown option '-x'; --help lists the options",
+              "a single dash letter answers the unknown line (FR-005, FR-007)");
+}
+
+// ===========================================================================
+// The environment source of `contracts/environment.md`. The rows reach the
+// gather as data, so no test writes the process environment and none reads
+// it (FR-012, FR-081).
+// ===========================================================================
+
+// One long name and a value its own reader accepts, so the variable of that
+// name settles the option when the row carries the environment flag and
+// changes nothing when it does not.
+struct NameCase
+{
+  const char* name;
+  const char* value;
+};
+
+// The twelve rows FR-020 marks with the environment flag, in the order the
+// requirement names them.
+constexpr NameCase kFlagged[] = {
+    {"filter", "one"},
+    {"repetitions", "3"},
+    {"min-time", "0.5"},
+    {"iterations", "7"},
+    {"warmup-time", "2"},
+    {"counter", "cycles"},
+    {"metric", "ipc"},
+    {"percentiles", "90"},
+    {"no-percentiles", "true"},
+    {"placement", "balanced"},
+    {"threads", "2"},
+    {"interleave", "7"},
+};
+
+// The fifteen rows FR-021 clears: the mode options, the output options and
+// the options another lane owns.
+constexpr NameCase kUnflagged[] = {
+    {"list", "1"},
+    {"catalog", "1"},
+    {"topology", "1"},
+    {"dry-run", "1"},
+    {"json", "report.json"},
+    {"json-raw", "none"},
+    {"compare", "base.json,run.json"},
+    {"compare-rule", "time@median:lower:5%"},
+    {"compare-strict", "1"},
+    {"compare-rules", "rules.txt"},
+    {"metric-method", "auto"},
+    {"options", "options.txt"},
+    {"env", "off"},
+    {"help", "1"},
+    {"version", "1"},
+};
+
+// The variable FR-019 computes from a row: `SPEEDGUN_` plus the long name
+// upper-cased with every `-` changed to `_`.
+auto variableFor(const std::string_view name) -> std::string
+{
+  std::string variable = "SPEEDGUN_";
+  for (const char letter : name) {
+    variable.push_back(letter == '-'
+                           ? '_'
+                           : static_cast<char>(std::toupper(
+                                 static_cast<unsigned char>(letter))));
+  }
+  return variable;
+}
+
+// The row of the live table that carries this long name, or null when the
+// table holds none. Every expectation below is built from the row, so a row
+// that moves moves the expectation with it.
+auto liveRow(const std::string_view name) -> const sg::detail::OptionRow*
+{
+  for (const sg::detail::OptionRow& row : sg::detail::optionRows()) {
+    if (name == std::string_view(row.name)) {
+      // optionRows() is static constexpr storage, so this address is stable.
+      // cppcheck-suppress returnDanglingLifetime
+      return &row;
+    }
+  }
+  return nullptr;
+}
+
+// One call of the gather: the command line words, the environment rows, and
+// no option file. The answer holds the settled options or the one fault
+// text, never both.
+struct Gathered
+{
+  std::optional<sg::detail::ResolvedOptions> settled;
+  std::string fault;
+};
+
+// The path every option-file expectation names. No file of this name exists
+// anywhere the test runs, which is what proves the gather opens nothing.
+constexpr const char* kOptionFile = "options-file.txt";
+
+// The gather over the sources one call hands it as data: the command line
+// words, the environment rows and the text of the option file, each left
+// out of the call when that source stands absent (E-02, E-03, E-06, E-07).
+auto gatherSources(std::initializer_list<const char*> words,
+                   std::vector<sg::detail::EnvironmentRow> environment,
+                   const std::optional<std::string>& fileText,
+                   sg::detail::RuleFileReader ruleFiles = nullptr) -> Gathered
+{
+  Gathered gathered;
+  const auto scan = scanOf(words);
+  if (!scan.has_value()) {
+    gathered.fault = "the scan refused the command line: " + scan.error();
+    return gathered;
+  }
+  std::optional<sg::detail::OptionFileText> file;
+  if (fileText.has_value()) {
+    file = sg::detail::OptionFileText {kOptionFile, *fileText};
+  }
+  const auto answer =
+      sg::detail::gatherOptionSources(*scan, environment, file, ruleFiles);
+  if (answer.has_value()) {
+    gathered.settled = *answer;
+  } else {
+    gathered.fault = answer.error();
+  }
+  return gathered;
+}
+
+auto gather(std::initializer_list<const char*> words,
+            std::vector<sg::detail::EnvironmentRow> environment) -> Gathered
+{
+  return gatherSources(words, std::move(environment), std::nullopt);
+}
+
+// The one use the gather answers for an option a source other than the
+// command line settled (E-05): it names the row, the source and the text.
+auto expectUse(const sg::detail::ResolvedOptions& settled,
+               const NameCase& wanted,
+               const std::string& variable) -> void
+{
+  const std::string label = "the variable " + variable + " settles the row "
+      + wanted.name + " (FR-019, FR-020)";
+  if (settled.uses.size() != 1) {
+    report(label.c_str(),
+           "one use naming the row",
+           std::to_string(settled.uses.size()) + " uses");
+    return;
+  }
+  const sg::detail::OptionUse& use = settled.uses.front();
+  check(use.row != nullptr && std::string_view(use.row->name) == wanted.name,
+        (label + ": the row the use names").c_str());
+  check(use.source == sg::detail::OptionSource::ENVIRONMENT,
+        (label + ": the source the use names").c_str());
+  check(use.value == wanted.value,
+        (label + ": the text the use carries").c_str());
+}
+
+// Two point lists hold the same points in the same order.
+auto sameValues(const std::vector<double>& values,
+                std::initializer_list<double> wanted) -> bool
+{
+  return values == std::vector<double>(wanted);
+}
+
+auto theFlaggedRowsAnswerTheirEnvironmentName() -> void
+{
+  for (const NameCase& wanted : kFlagged) {
+    const std::string variable = variableFor(wanted.name);
+    const sg::detail::OptionRow* row = liveRow(wanted.name);
+    if (row == nullptr) {
+      fail((std::string("the table carries no row named ") + wanted.name
+            + " (FR-020)")
+               .c_str());
+      continue;
+    }
+    check(row->fromEnvironment,
+          (std::string("the row ") + wanted.name
+           + " carries the environment flag (FR-020)")
+              .c_str());
+    const Gathered gathered = gather({}, {{variable, wanted.value}});
+    if (!gathered.settled.has_value()) {
+      report(
+          ("the variable " + variable + " reaches the gather (FR-019)").c_str(),
+          "the gather answers no fault",
+          gathered.fault);
+      continue;
+    }
+    expectUse(*gathered.settled, wanted, variable);
+  }
+}
+
+auto theUnflaggedRowsCarryNoEnvironmentName() -> void
+{
+  for (const NameCase& wanted : kUnflagged) {
+    const std::string variable = variableFor(wanted.name);
+    const sg::detail::OptionRow* row = liveRow(wanted.name);
+    if (row == nullptr) {
+      fail((std::string("the table carries no row named ") + wanted.name
+            + " (FR-021)")
+               .c_str());
+      continue;
+    }
+    check(!row->fromEnvironment,
+          (std::string("the row ") + wanted.name
+           + " carries no environment flag (FR-021)")
+              .c_str());
+    const Gathered gathered =
+        gather({}, {{variable, wanted.value}, {"SPEEDGUN_FILTER", "one"}});
+    if (!gathered.settled.has_value()) {
+      report(("the variable " + variable + " is refused for " + wanted.name
+              + " (FR-021)")
+                 .c_str(),
+             "the gather answers no fault",
+             gathered.fault);
+      continue;
+    }
+    // A flagged row beside the unflagged one covers both halves: the
+    // anchor settles, and the unflagged variable adds no use beside it.
+    const std::string label =
+        "the variable " + variable + " settles nothing (FR-021)";
+    const auto& uses = gathered.settled->uses;
+    if (uses.size() != 1 || uses.front().row == nullptr
+        || std::string_view(uses.front().row->name) != "filter")
+    {
+      report(label.c_str(),
+             "one use, that of the anchor SPEEDGUN_FILTER",
+             std::to_string(uses.size()) + " uses");
+      continue;
+    }
+    check(gathered.settled->options.filter == "one",
+          (label + ": the anchor still settles (FR-019)").c_str());
+  }
+}
+
+auto aRepeatableSplitsOnItsItems() -> void
+{
+  const Gathered counters =
+      gather({}, {{"SPEEDGUN_COUNTER", "cycles;instructions"}});
+  check(counters.settled.has_value()
+            && counters.settled->options.counterAddresses
+                == std::vector<std::string> {"cycles", "instructions"},
+        "SPEEDGUN_COUNTER answers one counter per item (FR-024)");
+  const Gathered metrics =
+      gather({}, {{"SPEEDGUN_METRIC", "ipc;branch-misses"}});
+  check(metrics.settled.has_value()
+            && metrics.settled->options.metricNames
+                == std::vector<std::string> {"ipc", "branch-misses"},
+        "SPEEDGUN_METRIC answers one metric per item (FR-024)");
+  const Gathered points = gather({}, {{"SPEEDGUN_PERCENTILES", "50;90"}});
+  check(
+      points.settled.has_value()
+          && sameValues(points.settled->options.percentilePoints, {50.0, 90.0}),
+      "SPEEDGUN_PERCENTILES answers one point per item (FR-024)");
+}
+
+auto anItemReachesTheCommandLineRule() -> void
+{
+  // The second item of the list reaches the reader the command line uses,
+  // so the refusal is that reader's own line with the variable ahead of it.
+  const Gathered gathered = gather({}, {{"SPEEDGUN_THREADS", "2;x"}});
+  const auto refused = sg::detail::readThreadList("x");
+  const std::string wanted = "SPEEDGUN_THREADS: " + refused.error();
+  if (gathered.fault != wanted) {
+    report("one refused item answers the reader's line naming that item "
+           "(FR-024, FR-027)",
+           wanted,
+           gathered.fault);
+  }
+}
+
+auto theFourFlagWordsAndTheirRefusal() -> void
+{
+  // The four words and the percentile state each answers. The word is the
+  // truth of the negating flag, so `1` and `true` turn percentiles off, the
+  // same answer the scan's `--no-percentiles` arm gives (FR-025).
+  struct FlagWord
+  {
+    const char* text;
+    bool percentiles;
+  };
+
+  for (const FlagWord& word : {FlagWord {"1", false},
+                               FlagWord {"0", true},
+                               FlagWord {"true", false},
+                               FlagWord {"false", true}})
+  {
+    const Gathered gathered =
+        gather({}, {{"SPEEDGUN_NO_PERCENTILES", word.text}});
+    check(gathered.settled.has_value()
+              && gathered.settled->options.showPercentiles.has_value()
+              && *gathered.settled->options.showPercentiles == word.percentiles,
+          ("SPEEDGUN_NO_PERCENTILES=" + std::string(word.text)
+           + " leaves percentiles " + (word.percentiles ? "on" : "off")
+           + " (FR-025)")
+              .c_str());
+  }
+  const Gathered gathered = gather({}, {{"SPEEDGUN_NO_PERCENTILES", "yes"}});
+  if (gathered.fault
+      != "SPEEDGUN_NO_PERCENTILES: expected 1, 0, true or false, got 'yes'")
+  {
+    report("a flag value outside the four words answers the refusal line "
+           "(FR-025, SC-003)",
+           "SPEEDGUN_NO_PERCENTILES: expected 1, 0, true or false, got 'yes'",
+           gathered.fault);
+  }
+}
+
+auto anUnknownVariableChangesNothing() -> void
+{
+  for (const char* const name :
+       {"SPEEDGUN_NOT_AN_OPTION", "SPEEDGUN_FILTERS", "SPEEDGUN_JSON_PATH"})
+  {
+    const Gathered gathered =
+        gather({}, {{name, "1"}, {"SPEEDGUN_FILTER", "one"}});
+    if (!gathered.settled.has_value()) {
+      report((std::string(name) + " answers no line (FR-026)").c_str(),
+             "the gather answers no fault",
+             gathered.fault);
+      continue;
+    }
+    // The unknown name is skipped: the flagged row beside it
+    // still settles, and the unknown one adds no use of its own.
+    const auto& uses = gathered.settled->uses;
+    if (uses.size() != 1 || uses.front().row == nullptr
+        || std::string_view(uses.front().row->name) != "filter")
+    {
+      report((std::string(name) + " settles nothing (FR-026)").c_str(),
+             "one use, that of the anchor SPEEDGUN_FILTER",
+             std::to_string(uses.size()) + " uses");
+      continue;
+    }
+    check(gathered.settled->options.filter == "one",
+          (std::string(name) + " leaves the flagged row settling (FR-026)")
+              .c_str());
+  }
+}
+
+auto aRefusedValueNamesTheVariableAndTheReaderLine() -> void
+{
+  // The expectation is the line the same text answers on the command line,
+  // with the variable ahead of it, so the reader's own words are never
+  // pinned here (FR-027, D-11).
+  for (const NameCase& wanted :
+       {NameCase {"min-time", "banana"}, NameCase {"repetitions", "-3"}})
+  {
+    const std::string variable = variableFor(wanted.name);
+    const Gathered gathered = gather({}, {{variable, wanted.value}});
+    const std::string word =
+        "--" + std::string(wanted.name) + "=" + wanted.value;
+    const std::string expected = variable + ": " + faultOf({word.c_str()});
+    if (gathered.fault != expected) {
+      const std::string what = "a refused " + variable
+                               + " value names the variable and carries the "
+                                 "reader's line (FR-027, SC-003)";
+      report(what.c_str(), expected, gathered.fault);
+    }
+  }
+}
+
+auto theInterleaveVariableTurnsTheOptionOn() -> void
+{
+  const Gathered seeded = gather({}, {{"SPEEDGUN_INTERLEAVE", "7"}});
+  const auto seed = sg::detail::readSeed("7");
+  check(seeded.settled.has_value() && seeded.settled->interleave.given,
+        "SPEEDGUN_INTERLEAVE turns the option on (FR-022)");
+  check(seeded.settled.has_value()
+            && seeded.settled->interleave.seed == seed.value(),
+        "SPEEDGUN_INTERLEAVE carries the seed its reader answers (FR-022)");
+  const Gathered zero = gather({}, {{"SPEEDGUN_INTERLEAVE", "0"}});
+  check(zero.settled.has_value() && zero.settled->interleave.given
+            && zero.settled->interleave.seed == 0,
+        "SPEEDGUN_INTERLEAVE=0 means given with seed 0 (FR-022)");
+}
+
+auto theEnvironmentPercentilePairStandsTogether() -> void
+{
+  const std::vector<sg::detail::EnvironmentRow> pair = {
+      {"SPEEDGUN_PERCENTILES", "50"},
+      {"SPEEDGUN_NO_PERCENTILES", "1"},
+  };
+  // The pair is read over the environment rows alone and ahead of the
+  // precedence rule, so a command line that overrides one half leaves the
+  // fault standing (FR-023, spec D-5, spec D-27).
+  for (const bool overridden : {false, true}) {
+    const Gathered gathered = gather(
+        overridden ? std::initializer_list<const char*> {"--percentiles=25"}
+                   : std::initializer_list<const char*> {},
+        pair);
+    if (gathered.fault
+        != "SPEEDGUN_PERCENTILES and SPEEDGUN_NO_PERCENTILES cannot both "
+           "stand")
+    {
+      report(overridden
+                 ? "the environment pair stands beside a command-line half "
+                   "(FR-023)"
+                 : "the environment pair answers one line (FR-023, SC-003)",
+             "SPEEDGUN_PERCENTILES and SPEEDGUN_NO_PERCENTILES cannot both "
+             "stand",
+             gathered.fault);
+    }
+  }
+}
+
+auto aCommandLineHalfLeavesThePairApart() -> void
+{
+  const Gathered gathered =
+      gather({"--percentiles=25"}, {{"SPEEDGUN_NO_PERCENTILES", "1"}});
+  if (!gathered.settled.has_value()) {
+    report("one half in the environment and the other on the command line "
+           "answer no pair line (FR-023)",
+           "the gather answers no fault",
+           gathered.fault);
+    return;
+  }
+  check(gathered.settled->options.showPercentiles.has_value()
+            && *gathered.settled->options.showPercentiles,
+        "the command-line half keeps the percentile option (FR-037)");
+  check(sameValues(gathered.settled->options.percentilePoints, {25.0}),
+        "the command-line half carries its points (FR-037)");
+}
+
+// ===========================================================================
+// The option file source of `contracts/option-file.md`. The gather takes the
+// file as the path and the whole text the entry point read (E-03, D-05), so
+// these cases build the text here and name a path that stands nowhere: the
+// gather splits the text and opens no file (FR-012). The unreadable file is
+// the one fault of the six the gather cannot answer, because the read stands
+// at the entry point, so that case drives `sg::speedgunMain` in process the
+// way the table test drives it.
+// ===========================================================================
+
+// One call of the gather with an option file: the command line words, no
+// environment row, and the text the entry point would have read.
+auto gatherFile(std::initializer_list<const char*> words,
+                const std::string& text) -> Gathered
+{
+  return gatherSources(words, {}, text);
+}
+
+// The text one option file answers, or the sentence that says the gather
+// settled, so a mismatch reports which of the two happened.
+auto fileFaultOf(const std::string& text) -> std::string
+{
+  const Gathered gathered = gatherFile({}, text);
+  return gathered.settled.has_value() ? "the gather answered no fault"
+                                      : gathered.fault;
+}
+
+// One row of the contract's fault table: the text the gather must answer
+// byte for byte, and the check that the answer holds one line (FR-031,
+// FR-033, SC-003).
+auto expectFileFault(const std::string& text,
+                     const std::string& expected,
+                     const char* what) -> void
+{
+  const std::string actual = fileFaultOf(text);
+  if (actual != expected) {
+    report(what, expected, actual);
+    return;
+  }
+  check(actual.find('\n') == std::string::npos,
+        "that option file fault is one line (FR-031, FR-033)");
+}
+
+// One run of the entry point with both output streams captured to files, so
+// the printed text and the answered status are read together and a fault
+// line stays out of this file's own verdict output. The capture files stand
+// in the system temporary directory under this process number, so two runs
+// never share one.
+struct Run
+{
+  int status = 0;
+  std::string out;
+  std::string err;
+};
+
+auto capturePath(const char* kind) -> std::filesystem::path
+{
+  return std::filesystem::temp_directory_path()
+      / ("harness_cli_sources_" + std::to_string(static_cast<long>(getpid()))
+         + kind);
+}
+
+auto readCapture(const std::filesystem::path& path) -> std::string
+{
+  std::ifstream stream(path);
+  std::ostringstream text;
+  text << stream.rdbuf();
+  return text.str();
+}
+
+auto runEntry(std::initializer_list<std::string> words) -> Run
+{
+  std::vector<std::string> owned(words.begin(), words.end());
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_cli_sources_test"));
+  for (std::string& word : owned) {
+    argv.push_back(word.data());
+  }
+
+  const std::filesystem::path outPath = capturePath(".out");
+  const std::filesystem::path errPath = capturePath(".err");
+  const int savedOut = dup(STDOUT_FILENO);
+  const int savedErr = dup(STDERR_FILENO);
+  if (savedOut < 0 || savedErr < 0
+      || std::freopen(outPath.c_str(), "w", stdout) == nullptr
+      || std::freopen(errPath.c_str(), "w", stderr) == nullptr)
+  {
+    fail("the two output streams of the entry point can be redirected");
+    return {};
+  }
+
+  Run run;
+  run.status = sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  std::fflush(stderr);
+  if (dup2(savedOut, STDOUT_FILENO) < 0 || dup2(savedErr, STDERR_FILENO) < 0) {
+    fail("the two output streams of the entry point can be restored");
+  }
+  close(savedOut);
+  close(savedErr);
+  run.out = readCapture(outPath);
+  run.err = readCapture(errPath);
+  std::filesystem::remove(outPath);
+  std::filesystem::remove(errPath);
+  return run;
+}
+
+// The word that turns a child of this binary into one of the two helpers
+// below, so a child answers that helper and answers nothing else; the check
+// list of this file runs only in the parent.
+constexpr const char* kChildWord = "--sources-test-child";
+
+// One child of this binary, execved with the child word, then `words`, and
+// with the names of this process plus the environment rows of `rows`. The
+// answer is the exit code of the child, or -1 when it could not be run or
+// waited for at all (D-04).
+auto runChild(std::vector<std::string> words,
+              std::initializer_list<std::string> rows) -> int
+{
+  std::vector<std::string> names;
+  for (char** entry = environ; entry != nullptr && *entry != nullptr; ++entry) {
+    names.emplace_back(*entry);
+  }
+  for (const std::string& row : rows) {
+    names.push_back(row);
+  }
+
+  std::vector<char*> argv {const_cast<char*>("harness_cli_sources_test"),
+                           const_cast<char*>(kChildWord)};
+  for (std::string& word : words) {
+    argv.push_back(word.data());
+  }
+  argv.push_back(nullptr);
+
+  std::vector<char*> envp;
+  for (std::string& name : names) {
+    envp.push_back(name.data());
+  }
+  envp.push_back(nullptr);
+
+  std::fflush(stdout);
+  const pid_t child = fork();
+  if (child < 0) {
+    fail("a child of this binary can be forked");
+    return -1;
+  }
+  if (child == 0) {
+    execve("/proc/self/exe", argv.data(), envp.data());
+    _exit(127);
+  }
+  int status = 0;
+  if (waitpid(child, &status, 0) != child) {
+    fail("the forked child can be waited for");
+    return -1;
+  }
+  return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+}
+
+// One run of the entry point in a child whose environment carries `rows`: the
+// child answers the status and writes its two streams to files this process
+// reads back, so the row reaches the harness through the child's environment
+// and this process never carries it (FR-012, FR-027, FR-081).
+auto runEntryWithEnv(std::initializer_list<std::string> words,
+                     std::initializer_list<std::string> rows) -> Run
+{
+  const std::filesystem::path outPath = capturePath(".child.out");
+  const std::filesystem::path errPath = capturePath(".child.err");
+  std::vector<std::string> childWords {
+      "entry", outPath.string(), errPath.string()};
+  for (const std::string& word : words) {
+    childWords.push_back(word);
+  }
+
+  Run run;
+  run.status = runChild(std::move(childWords), rows);
+  run.out = readCapture(outPath);
+  run.err = readCapture(errPath);
+  std::filesystem::remove(outPath);
+  std::filesystem::remove(errPath);
+  return run;
+}
+
+// What a child of this binary does in place of the checks: run the entry point
+// over the words it carries, or answer whether the rows of its own environment
+// carry one name and value. The answer of each is the exit code, and a word
+// that names no helper answers 125.
+auto runChildMode(int argc, char** argv) -> std::optional<int>
+{
+  if (argc < 2 || std::string_view(argv[1]) != kChildWord) {
+    return std::nullopt;
+  }
+  if (argc >= 5 && std::string_view(argv[2]) == "entry") {
+    if (std::freopen(argv[3], "w", stdout) == nullptr
+        || std::freopen(argv[4], "w", stderr) == nullptr)
+    {
+      return 126;
+    }
+    const int status = sg::speedgunMain(argc - 4, argv + 4);
+    std::fflush(stdout);
+    std::fflush(stderr);
+    return status;
+  }
+  if (argc == 5 && std::string_view(argv[2]) == "row") {
+    for (const sg::detail::EnvironmentRow& row : sg::detail::environmentRows())
+    {
+      if (row.name == argv[3] && row.value == argv[4]) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  return 125;
+}
+
+auto anOptionFileLineSetsItsOption() -> void
+{
+  // One option per line in long spelling without the leading dashes, as
+  // `name=value`, beside a comment and two blank lines that set nothing
+  // (FR-029, FR-030). The two option lines stand in the reverse of table
+  // order, so the two uses also carry the disclosure order of FR-039.
+  const Gathered gathered =
+      gatherFile({}, "# the run's filter\n\n\t\nfilter=one\niterations=7\n");
+  if (!gathered.settled.has_value()) {
+    report("a file line in long spelling sets its option (FR-029, FR-035)",
+           "the gather answers no fault",
+           gathered.fault);
+    return;
+  }
+  const sg::detail::ResolvedOptions& settled = *gathered.settled;
+  check(settled.options.filter == "one",
+        "the filter line sets the filter (FR-029, FR-035)");
+  check(settled.options.fixedIterations.has_value()
+            && *settled.options.fixedIterations == 7,
+        "the iterations line sets the count (FR-029, FR-035)");
+  if (settled.uses.size() != 2) {
+    report("one file line answers one disclosed use (FR-039)",
+           "two uses",
+           std::to_string(settled.uses.size()) + " uses");
+    return;
+  }
+  check(
+      settled.uses.front().row != nullptr
+          && std::string_view(settled.uses.front().row->name) == "filter"
+          && settled.uses.back().row != nullptr
+          && std::string_view(settled.uses.back().row->name) == "iterations",
+      "the two uses stand in table order, whatever order the lines stood "
+      "(FR-039, FR-040)");
+  for (const sg::detail::OptionUse& use : settled.uses) {
+    check(use.source == sg::detail::OptionSource::OPTION_FILE,
+          "the use names the option file as its source (FR-039)");
+  }
+  check(settled.uses.front().value == "one" && settled.uses.back().value == "7",
+        "each use carries the text of its own line (FR-040)");
+}
+
+auto aRefusedNameNamesItsLine() -> void
+{
+  // The file cannot re-root its own sources and cannot print, so the four
+  // names are refused by name ahead of any value rule (FR-031, D-12).
+  for (const char* const name : {"options", "env", "help", "version"}) {
+    const std::string expected = std::string(kOptionFile) + ":2: the option '"
+        + name + "' cannot stand in an option file";
+    expectFileFault(std::string("filter=one\n") + name + "=1\n",
+                    expected,
+                    "a refused name answers the file, the number and the name "
+                    "(FR-031, SC-003)");
+  }
+}
+
+auto anUnknownNameNamesItsLine() -> void
+{
+  // The table is the only place an option is recognized, and the number
+  // counts the comment and the two blank lines that stand before the fault,
+  // so the line names 5 and carries no suggestion (FR-030, FR-033, D-12).
+  expectFileFault("# comment\n\n \nfilter=one\npercentil=90\n",
+                  std::string(kOptionFile) + ":5: unknown option 'percentil'",
+                  "a name with no row answers the file, the number and the "
+                  "name (FR-033, SC-003)");
+}
+
+auto aSecondOptionsNamesTheOption() -> void
+{
+  // One option file per run: the second word answers one line naming the
+  // option, and the first file's path is not repeated (FR-032, D-9).
+  const std::string actual =
+      faultOf({"--options=first-options.txt", "--options=second-options.txt"});
+  if (actual != "--options cannot stand twice") {
+    report("a second --options answers one line naming the option (FR-032)",
+           "--options cannot stand twice",
+           actual);
+    return;
+  }
+  check(actual.find("first-options.txt") == std::string::npos
+            && actual.find("second-options.txt") == std::string::npos,
+        "the line names the option alone, with no path repeated (FR-032)");
+}
+
+auto aRepeatableAccumulatesInOrder() -> void
+{
+  // Two lines of one repeatable keep both items, in the order the lines
+  // stand, and the disclosure joins them with `;` (FR-035, FR-040, D-6).
+  const Gathered counters =
+      gatherFile({}, "counter=cycles\ncounter=instructions\n");
+  check(counters.settled.has_value()
+            && counters.settled->options.counterAddresses
+                == std::vector<std::string> {"cycles", "instructions"},
+        "two counter lines answer one counter per line, in line order "
+        "(FR-035)");
+  const Gathered points = gatherFile({}, "percentiles=50\npercentiles=90\n");
+  check(points.settled.has_value()
+            && sameValues(points.settled->options.percentilePoints,
+                          {50.0, 90.0}),
+        "two percentiles lines answer one point per line, in line order "
+        "(FR-035)");
+  if (counters.settled.has_value() && counters.settled->uses.size() == 1) {
+    check(counters.settled->uses.front().value == "cycles;instructions",
+          "the disclosed repeatable joins its items with ; (FR-040)");
+  } else {
+    report("the two counter lines answer one disclosed use (FR-039)",
+           "one use",
+           counters.settled.has_value()
+               ? std::to_string(counters.settled->uses.size()) + " uses"
+               : counters.fault);
+  }
+}
+
+auto aFlagLineReachesTheFlagReader() -> void
+{
+  // A flag line written `name=value` reaches the flag reader of FR-025, and
+  // a word outside the four answers that reader's own line behind the file
+  // and the number (FR-025, FR-035). The row is the negating flag, so the
+  // word `1` turns percentiles off as the environment word does.
+  const Gathered gathered = gatherFile({}, "no-percentiles=1\n");
+  check(gathered.settled.has_value()
+            && gathered.settled->options.showPercentiles.has_value()
+            && !*gathered.settled->options.showPercentiles,
+        "the no-percentiles line turns percentiles off (FR-025, FR-035)");
+  expectFileFault("no-percentiles=yes\n",
+                  std::string(kOptionFile)
+                      + ":1: expected 1, 0, true or false, got 'yes'",
+                  "a flag line outside the four words answers the reader's "
+                  "line behind the file and the number (FR-025, FR-035)");
+}
+
+auto aFileValueReachesTheReader() -> void
+{
+  // The value of a line goes through the reader the command line uses for
+  // that kind, so the refusal is the command line's own line behind the file
+  // and the number. The reader's words are never pinned here (FR-035, D-11).
+  for (const NameCase& wanted :
+       {NameCase {"min-time", "banana"}, NameCase {"repetitions", "-3"}})
+  {
+    const std::string word =
+        "--" + std::string(wanted.name) + "=" + wanted.value;
+    const std::string expected =
+        std::string(kOptionFile) + ":1: " + faultOf({word.c_str()});
+    const std::string actual =
+        fileFaultOf(std::string(wanted.name) + "=" + wanted.value + "\n");
+    if (actual != expected) {
+      report("a refused file value carries the reader's line behind the file "
+             "and the number (FR-035, FR-027)",
+             expected,
+             actual);
+    }
+  }
+}
+
+auto anUnreadableFileAnswersOneLine() -> void
+{
+  // The read stands at the entry point, which hands the gather the path and
+  // the text (D-05), so this is the one fault of the six the gather cannot
+  // answer. The line is the reader's own text behind the option (FR-034).
+  const std::string path = "/speedgun-absent-directory/options-file.txt";
+  const Run run = runEntry({"--options=" + path});
+  const std::string wanted = "--options: the file '" + path
+      + "' cannot be opened: " + std::strerror(ENOENT);
+  if (run.err != wanted + "\n") {
+    report("a file the system cannot read answers one line naming the path "
+           "(FR-034, SC-003)",
+           wanted,
+           run.err);
+  }
+  check(run.status == 2,
+        "the unreadable option file answers status 2 (FR-034, SC-013)");
+  check(run.out.find("iterations=") == std::string::npos,
+        "the unreadable option file runs no benchmark (SC-003)");
+}
+
+// ===========================================================================
+// The precedence of the four sources of spec D-1: the command line, the
+// option file, the environment and the master default (T034; FR-036 to
+// FR-038, FR-041, SC-002). Every source reaches one call of the gather as
+// the same data the two sections above hand it one at a time, which is the
+// shape SC-002 states. The master default is not a source the test hands
+// over: it is what stands in the settled answer when none of the three
+// names the option, so its leg reads the field the option settles and asks
+// that it hold nothing.
+// ===========================================================================
+
+// The settled answer of a gather, or null after one failure line naming the
+// leg, so each precedence leg reads the answer it expects.
+auto settledOf(const Gathered& gathered,
+               const char* what) -> const sg::detail::ResolvedOptions*
+{
+  if (!gathered.settled.has_value()) {
+    report((std::string(what) + " settles no fault (FR-037)").c_str(),
+           "the gather answers no fault",
+           gathered.fault);
+    return nullptr;
+  }
+  return &*gathered.settled;
+}
+
+// The value `--min-time=` answers for this word through the scan, so a
+// precedence expectation carries the reader's own unit and pins no number
+// (FR-037, D-11).
+auto minTimeOf(const std::string& word) -> std::optional<std::int64_t>
+{
+  const auto scan = scanOf({word.c_str()});
+  return scan.has_value() ? scan->options.minTimeNs
+                          : std::optional<std::int64_t> {};
+}
+
+// The rule texts of the settled list, joined with `;`, so an order
+// expectation reads as one line (E-07, E-12).
+auto ruleTextsOf(const sg::detail::ResolvedOptions& settled) -> std::string
+{
+  std::string texts;
+  for (const sg::CompareRule& rule : settled.rules) {
+    if (!texts.empty()) {
+      texts.push_back(';');
+    }
+    texts += rule.text;
+  }
+  return texts;
+}
+
+auto theThreeSourcesSettleInOrder() -> void
+{
+  // One option, three sources, three different values. The value that takes
+  // effect is the command line's; with the words away it is the file's; with
+  // both away it is the environment's; with neither it is the master default
+  // (FR-037, spec D-1, SC-002). Each expectation is the value the scan
+  // answers for the same word, so no unit is pinned here.
+  const std::vector<sg::detail::EnvironmentRow> environment = {
+      {"SPEEDGUN_MIN_TIME", "3"}};
+  const std::string fileText = "min-time=2\n";
+
+  const Gathered allRun =
+      gatherSources({"--min-time=1"}, environment, fileText);
+  if (const auto* all = settledOf(
+          allRun,
+          "the command line, the file and the environment over " "min-time"))
+  {
+    check(all->options.minTimeNs == minTimeOf("--min-time=1"),
+          "the command line settles min-time over the file and the "
+          "environment (FR-037, SC-002)");
+    check(all->uses.empty(),
+          "a value the command line settled answers no use (FR-039, FR-041)");
+  }
+  const Gathered fileRun = gatherSources({}, environment, fileText);
+  if (const auto* file =
+          settledOf(fileRun, "the file and the environment over min-time"))
+  {
+    check(file->options.minTimeNs == minTimeOf("--min-time=2"),
+          "with the words away the option file settles min-time (FR-037, "
+          "SC-002)");
+    check(file->uses.size() == 1
+              && file->uses.front().source
+                     == sg::detail::OptionSource::OPTION_FILE
+              && file->uses.front().value == "2",
+          "the disclosure carries the file's text, not the environment's "
+          "(FR-039, FR-040)");
+  }
+  const Gathered environmentRun = gatherSources({}, environment, std::nullopt);
+  if (const auto* environmentOnly =
+          settledOf(environmentRun, "the environment alone over min-time"))
+  {
+    check(environmentOnly->options.minTimeNs == minTimeOf("--min-time=3"),
+          "with the words and the file away the environment settles min-time "
+          "(FR-037, SC-002)");
+    check(environmentOnly->uses.size() == 1
+              && environmentOnly->uses.front().source
+                  == sg::detail::OptionSource::ENVIRONMENT
+              && environmentOnly->uses.front().value == "3",
+          "the disclosure carries the environment's text (FR-039, FR-040)");
+  }
+  const Gathered noneRun = gatherSources({}, {}, std::nullopt);
+  if (const auto* none = settledOf(noneRun, "no source at all")) {
+    check(!none->options.minTimeNs.has_value(),
+          "an option no source names stands at the master default (FR-037)");
+    check(none->uses.empty(),
+          "the master default answers no use (FR-039, FR-041)");
+  }
+}
+
+auto aHigherSourceReplacesTheWholeList() -> void
+{
+  // FR-038: a repeatable set by a higher source replaces the whole list of a
+  // lower one and appends nothing to it. The command line names two
+  // counters, the file one and the environment two, and the run carries
+  // exactly the command line's two.
+  const std::vector<sg::detail::EnvironmentRow> environment = {
+      {"SPEEDGUN_COUNTER", "faults;branches"}};
+  const std::string fileText = "counter=pages\n";
+
+  const Gathered allRun = gatherSources(
+      {"--counter=cycles", "--counter=instructions"}, environment, fileText);
+  if (const auto* all =
+          settledOf(allRun, "the three sources over one repeatable"))
+  {
+    check(all->options.counterAddresses
+              == std::vector<std::string> {"cycles", "instructions"},
+          "the command line's counters replace the file's and the "
+          "environment's whole lists (FR-038, SC-002)");
+    check(all->uses.empty(),
+          "a repeatable the command line settled answers no use (FR-039)");
+  }
+  const Gathered fileRun = gatherSources({}, environment, fileText);
+  if (const auto* file = settledOf(
+          fileRun, "the file and the environment over one repeatable"))
+  {
+    check(file->options.counterAddresses == std::vector<std::string> {"pages"},
+          "the file's one item replaces the environment's whole list and "
+          "appends nothing (FR-038)");
+    check(
+        file->uses.size() == 1 && file->uses.front().value == "pages",
+        "the disclosed repeatable carries the winner's items alone " "(FR-"
+                                                                     "040)");
+  }
+  // The same rule over the thread counts, whose items the reader expands
+  // (E-11, FR-044): the file's list cannot lengthen the words' list.
+  const Gathered threadRun =
+      gatherSources({"--threads=2,4"}, {}, "threads=8\n");
+  if (const auto* threads = settledOf(
+          threadRun, "the command line and the file over the thread list"))
+  {
+    check(
+        threads->options.threadCounts == std::vector<int> {2, 4},
+        "the command line's counts replace the file's list (FR-038, " "FR-"
+                                                                      "044)");
+  }
+}
+
+auto theRuleListCombinesAcrossSources() -> void
+{
+  // FR-038, FR-063, spec D-23: the comparison rule list is the one list that
+  // does not replace. The command line's rules stand first and the option
+  // file's lines follow them, so the gather answers one list holding both.
+  // The two positions a file of its own names (the `--compare-rules` file and
+  // the file a `compare-rules` line names) stay out of this seam, which opens
+  // no file (FR-012).
+  const Gathered bothRun =
+      gatherSources({"--compare-rule=time@median:lower:5%"},
+                    {},
+                    "compare-rule=time@max:higher:10%\n");
+  if (const auto* both = settledOf(
+          bothRun, "the command line and the file over one rule list"))
+  {
+    check(ruleTextsOf(*both)
+              == "time@median:lower:5%;time@max:higher:10%",
+          "the rule list combines across the sources in the order spec D-23 "
+          "states (FR-038, FR-063)");
+  }
+  // One source alone still answers a list, so the combining is not what makes
+  // the list stand (FR-061, FR-063).
+  const Gathered wordsRun =
+      gatherSources({"--compare-rule=time@median:lower:5%"}, {}, std::nullopt);
+  if (const auto* words =
+          settledOf(wordsRun, "the command line alone over one rule list"))
+  {
+    check(
+        ruleTextsOf(*words) == "time@median:lower:5%",
+        "the command line's rule reaches the answer of the gather " "(FR-063)");
+  }
+  const Gathered fileRun =
+      gatherSources({}, {}, "compare-rule=time@max:higher:10%\n");
+  if (const auto* file =
+          settledOf(fileRun, "the option file alone over one rule list"))
+  {
+    check(ruleTextsOf(*file) == "time@max:higher:10%",
+          "an option file rule reaches the answer of the gather (FR-061, "
+          "FR-063)");
+  }
+}
+
+auto aFileLineThatStartsWithADashNamesItsText() -> void
+{
+  // A line whose first non-space character is `-` is the command-line
+  // spelling pasted into the file. The fault names the file, the number and
+  // the text, and the table is never asked for a name of that shape; the
+  // line before it holds a number, so the fault names 2 (FR-036, D-12).
+  expectFileFault("filter=one\n--filter=two\n",
+                  std::string(kOptionFile)
+                      + ":2: expected an option name without --, got "
+                        "'--filter=two'",
+                  "a line that starts with a dash answers the file, the "
+                  "number and the text (FR-036, SC-003)");
+}
+
+auto aRequiredArgumentLineWithoutAnEqualsNamesTheOption() -> void
+{
+  // A line of a required-argument row that carries no `=` answers the
+  // command line's own needs-a-value line behind the file and the number, so
+  // the reader's words are never pinned here (FR-036, FR-008, D-11).
+  for (const char* const name : {"filter", "min-time"}) {
+    const std::string word = "--" + std::string(name);
+    expectFileFault(std::string(name) + "\n",
+                    std::string(kOptionFile) + ":1: " + faultOf({word.c_str()}),
+                    "a required-argument line with no value answers the "
+                    "file, the number and the option (FR-036, SC-003)");
+  }
+  // The other half of the same rule: a flag row carries no `=` and is not a
+  // fault, the bare name being the option standing as it is on the command
+  // line (FR-029, FR-036).
+  const Gathered gathered = gatherFile({}, "no-percentiles\n");
+  check(gathered.settled.has_value()
+            && gathered.settled->options.showPercentiles.has_value()
+            && !*gathered.settled->options.showPercentiles,
+        "a flag line written without = turns the flag on (FR-029, FR-036)");
+}
+
+auto aCommandLineOnlyRunDisclosesNothing() -> void
+{
+  // FR-041: with no option taken from a file or the environment and no seed
+  // given, the gather answers no use at all, which is the run that prints no
+  // disclosure line and writes no `run` object (FR-039, FR-040).
+  const Gathered wordsRun = gatherSources({"--filter=one",
+                                           "--counter=cycles",
+                                           "--min-time=0.5",
+                                           "--percentiles=90"},
+                                          {},
+                                          std::nullopt);
+  if (const auto* words =
+          settledOf(wordsRun, "a command line that names four options"))
+  {
+    check(words->uses.empty(),
+          "a run with no file and no environment answers no use (FR-041)");
+    check(!words->interleave.given,
+          "and no seed stands given (FR-041, FR-051)");
+  }
+  // A file that stands present and names no option is the same run, and so
+  // is an environment row that matches no flagged row (FR-026, FR-030,
+  // FR-041).
+  const Gathered emptyRun = gatherSources({}, {}, "# nothing here\n\n");
+  if (const auto* empty =
+          settledOf(emptyRun, "a file of one comment and one blank line"))
+  {
+    check(empty->uses.empty(),
+          "a file that names no option answers no use (FR-030, FR-041)");
+  }
+  const Gathered unknownRun =
+      gatherSources({}, {{"SPEEDGUN_NOT_AN_OPTION", "1"}}, std::nullopt);
+  if (const auto* unknown = settledOf(
+          unknownRun, "an environment row that matches no flagged row"))
+  {
+    check(unknown->uses.empty(),
+          "an ignored variable answers no use (FR-026, FR-041)");
+  }
+}
+
+auto theEnvironmentSwitchLeavesTheProcessNamesUnread() -> void
+{
+  // FR-028, D-04: `off` is the only word the option takes. The proof that the
+  // switched run reads no name is a variable that would refuse the run: read,
+  // it answers the gather's line at status 2; switched off, the run answers
+  // what the same words answer with the variable absent (SC-005).
+  const auto off = scanOf({"--env=off"});
+  check(off.has_value() && off->options.environmentOff,
+        "--env=off settles the switch the entry point reads (FR-028)");
+  expectFault({"--env=on"},
+              "--env: expected 'off', got 'on'",
+              "a word beside off answers the line naming it as typed (FR-028, "
+              "SC-003)");
+
+  const Run poisoned = runEntryWithEnv({}, {"SPEEDGUN_ITERATIONS=nonsense"});
+  const Run switched =
+      runEntryWithEnv({"--env=off"}, {"SPEEDGUN_ITERATIONS=nonsense"});
+  const Run plain = runEntryWithEnv({}, {});
+
+  check(poisoned.status == 2,
+        "a variable whose value its reader refuses is a fault at the entry "
+        "point (FR-027, SC-003)");
+  check(poisoned.err.find("SPEEDGUN_ITERATIONS: ") != std::string::npos,
+        "that fault names the variable that carries the refused text (FR-027)");
+  check(switched.err.find("SPEEDGUN_ITERATIONS") == std::string::npos,
+        "--env=off answers no fault line over the same variable (FR-028)");
+  check(switched.status == plain.status && switched.out == plain.out,
+        "--env=off answers what the same words answer with the variable absent "
+        "(FR-028, SC-005)");
+}
+
+auto theThreadListFaultStandsAtTheScan() -> void
+{
+  // The scan owns no reading of the list: it hands the text to
+  // `detail::readThreadList` and answers that reader's line, so the expectation
+  // is the reader's own answer and no text is pinned here (FR-044, FR-046,
+  // D-11).
+  for (const char* const text :
+       {"nonsense", "12x", "0", "a:2", "0:2", "4:2", "2:1", "1:1,3"})
+  {
+    const std::string word = std::string("--threads=") + text;
+    const auto counts = sg::detail::readThreadList(text);
+    const auto answer = scanOf({word.c_str()});
+    const std::string what = "the list '" + std::string(text)
+                           + "' reaches the reader through the scan "
+                             "(FR-044, FR-046)";
+    if (counts.has_value() != answer.has_value()) {
+      report(what.c_str(),
+             counts.has_value() ? "the scan accepts the list"
+                                : "the scan refuses the list",
+             answer.has_value() ? "the scan accepted the list"
+                                : "the scan refused the list");
+      continue;
+    }
+    if (!counts.has_value()) {
+      expectFault({word.c_str()}, counts.error(), what.c_str());
+      continue;
+    }
+    check(answer->options.threadCounts == *counts,
+          (what + ": the counts the reader answers").c_str());
+  }
+}
+
+auto aWordOfDashesAloneNamesNoOption() -> void
+{
+  // A word with no letters carries no row name, so no row of the table is a
+  // candidate for it and the unknown line stands (FR-007, FR-009).
+  expectFault(
+      {"---"},
+      "unknown option '---'; --help lists the options",
+      "a word of dashes alone answers the unknown line (FR-007, " "FR-009)");
+}
+
+auto aLowerSourceYieldsToTheCommandLine() -> void
+{
+  // FR-037: the command line stands above both lower sources, so a row it
+  // settled is neither read again nor disclosed by them. The empty disclosure
+  // list is the proof: had a lower source settled the row, it would name a use
+  // of its own (FR-040).
+  for (const NameCase& wanted : kFlagged) {
+    const std::string variable = variableFor(wanted.name);
+    // A row that takes no value stands bare on the command line the way the
+    // same row stands bare in the file (FR-029, FR-036).
+    const sg::detail::OptionRow* const row = liveRow(wanted.name);
+    const std::string word =
+        row != nullptr && row->argument == sg::detail::OptionArgument::NONE
+        ? std::string("--") + wanted.name
+        : std::string("--") + wanted.name + '=' + wanted.value;
+    const Gathered fromEnvironment =
+        gather({word.c_str()}, {{variable, wanted.value}});
+    if (const auto* settled = settledOf(
+            fromEnvironment,
+            ("the environment beside --" + std::string(wanted.name)).c_str()))
+    {
+      const std::string label =
+          "the variable " + variable + " yields to the words (FR-037)";
+      check(settled->uses.empty(), label.c_str());
+    }
+    const Gathered fromFile = gatherFile(
+        {word.c_str()}, std::string(wanted.name) + '=' + wanted.value + '\n');
+    if (const auto* settled = settledOf(
+            fromFile,
+            ("the option file beside --" + std::string(wanted.name)).c_str()))
+    {
+      const std::string label = std::string(wanted.name)
+          + " of the file yields to the words (FR-037)";
+      check(settled->uses.empty(), label.c_str());
+    }
+  }
+}
+
+auto aRefusedValueOfEveryKindNamesItsSource() -> void
+{
+  // The rule of FR-027 stands for every reader a source can reach, the two the
+  // first pass names and the rest alike, and the file carries the rule beside
+  // the rule list (FR-027, FR-035, SC-003). The expectation is the line the
+  // same text answers on the command line, so no reader's words are pinned here
+  // (D-11).
+  for (const NameCase& wanted : {NameCase {"iterations", "nonsense"},
+                                 NameCase {"warmup-time", "banana"},
+                                 NameCase {"percentiles", "banana"},
+                                 NameCase {"threads", "nonsense"},
+                                 NameCase {"interleave", "banana"}})
+  {
+    const std::string variable = variableFor(wanted.name);
+    const std::string word =
+        std::string("--") + wanted.name + '=' + wanted.value;
+    const Gathered gathered = gather({}, {{variable, wanted.value}});
+    const std::string expected = variable + ": " + faultOf({word.c_str()});
+    if (gathered.fault != expected) {
+      const std::string what = "a refused " + variable
+                             + " value names the variable and carries the "
+                               "reader's line (FR-027, SC-003)";
+      report(what.c_str(), expected, gathered.fault);
+    }
+  }
+  // The rule list of a file the parser refuses names the file and the line
+  // before the parser's own words (FR-035, FR-061).
+  const std::string ruleLine =
+      faultOf({"--compare-rule=not-a-rule"})
+          .substr(std::string_view("--compare-rule: ").size());
+  expectFileFault("compare-rule=not-a-rule\n",
+                  std::string(kOptionFile) + ":1: " + ruleLine,
+                  "a rule of the file its parser refuses names the file, the "
+                  "line and the parser's line (FR-035, FR-061, SC-003)");
+}
+
+auto theLastLineOfASourceMayCarryNoBreak() -> void
+{
+  // FR-030, D-12: a last line may end at its text, and the rules file a
+  // `compare-rules` line names follows the same rule (FR-061).
+  const Gathered noBreak = gatherFile({}, "filter=last");
+  if (const auto* settled =
+          settledOf(noBreak, "a file whose last line carries no break"))
+  {
+    check(settled->options.filter == "last",
+          "the last line of the file settles its option without a break "
+          "(FR-030)");
+    check(settled->uses.size() == 1 && settled->uses.front().value == "last",
+          "that line discloses the text it carries (FR-040)");
+  }
+
+  const std::filesystem::path path = capturePath(".rules");
+  {
+    std::ofstream stream(path);
+    stream << "time@median:lower:5%\ntime@max:higher:2%";
+  }
+  const auto rules = sg::detail::readCompareRulesFile(path.string());
+  check(rules.has_value() && rules->size() == 2,
+        "the last line of a rules file reaches the reader without a break "
+        "(FR-061)");
+  std::filesystem::remove(path);
+}
+
+auto aBareSeedLineStandsForTheSeedZero() -> void
+{
+  // E-10: a line that names a row whose value may stand absent settles the
+  // value that bare option settles on the command line, which for the seed is
+  // zero (FR-029, FR-036, FR-051).
+  const Gathered bare = gatherFile({}, "interleave\n");
+  if (const auto* settled =
+          settledOf(bare, "a file line naming the seed with no value"))
+  {
+    check(settled->interleave.given && settled->interleave.seed == 0,
+          "a bare seed line turns the option on with the seed zero (FR-029, "
+          "E-10)");
+    check(settled->uses.size() == 1 && settled->uses.front().value == "0",
+          "that line discloses the value the bare name settled (FR-040)");
+  }
+}
+
+auto aFileLineWithNothingToSettleDisclosesNothing() -> void
+{
+  // FR-033: the file recognizes every row of the table. A row whose arm no
+  // source carries yet is read, sets nothing, and discloses nothing (FR-040).
+  const Gathered gathered = gatherFile({}, "json=report.json\n");
+  if (const auto* settled =
+          settledOf(gathered, "a file line naming the report path"))
+  {
+    check(settled->uses.empty(),
+          "a row with no arm to settle it discloses no use (FR-033, FR-040)");
+    check(settled->options.jsonPath.empty(),
+          "and the row sets nothing of its own (FR-033)");
+  }
+}
+
+// One row spelled twice by one source, each line carrying its own word.
+struct RepeatCase
+{
+  const char* name;
+  const char* first;
+  const char* later;
+  bool joins;
+};
+
+// The rows whose arm settles a value, each with two words the reader of its
+// kind accepts.
+constexpr RepeatCase kRepeats[] = {
+    {"filter", "one", "two", false},
+    {"repetitions", "3", "5", false},
+    {"min-time", "0.5", "1.5", false},
+    {"iterations", "7", "9", false},
+    {"warmup-time", "2", "3", false},
+    {"metric", "ipc", "cpi", true},
+    {"percentiles", "90", "99", true},
+    {"no-percentiles", "true", "false", false},
+    {"placement", "balanced", "pinned", false},
+    {"threads", "2", "4", true},
+    {"interleave", "7", "9", false},
+};
+
+auto oneWordTwiceKeepsTheLastWordOfOneSource() -> void
+{
+  // The edge case "An option file that holds the same option twice": the rule
+  // of the command line applies inside one source, so a scalar keeps the last
+  // word and a repeatable accumulates in line order (FR-035, FR-038). The
+  // disclosure names such a row once and carries the value that took effect,
+  // a repeatable joining its items with `;` (FR-040, E-05).
+  for (const RepeatCase& wanted : kRepeats) {
+    const std::string label = std::string("the row ") + wanted.name
+        + " spelled twice by one file " + "(FR-035, FR-040)";
+    const Gathered twice =
+        gatherFile({},
+                   std::string(wanted.name) + "=" + wanted.first + "\n"
+                       + wanted.name + "=" + wanted.later + "\n");
+    if (!twice.settled.has_value()) {
+      report(label.c_str(), "the gather settles the pair", twice.fault);
+      continue;
+    }
+    const std::string joined(wanted.first);
+    const std::string expected =
+        wanted.joins ? joined + ";" + wanted.later : std::string(wanted.later);
+    std::size_t named = 0;
+    std::string text;
+    for (const sg::detail::OptionUse& use : twice.settled->uses) {
+      if (use.row != nullptr && std::string_view(use.row->name) == wanted.name)
+      {
+        ++named;
+        text = use.value;
+      }
+    }
+    if (named != 1) {
+      report(label.c_str(),
+             "one use naming the row",
+             std::to_string(named) + " uses");
+      continue;
+    }
+    check(text == expected, (label + ": the value that took effect").c_str());
+  }
+
+  const Gathered fixed = gatherFile({}, "iterations=7\niterations=9\n");
+  if (fixed.settled.has_value()) {
+    check(*fixed.settled->options.fixedIterations == 9,
+          "the later line of one file fixes the iteration count (FR-035)");
+  } else {
+    fail("the gather settles a file that fixes the count twice");
+  }
+
+  const Gathered listed = gatherFile({}, "threads=2\nthreads=4\n");
+  if (listed.settled.has_value()) {
+    const std::vector<int> expected {2, 4};
+    check(listed.settled->options.threadCounts == expected,
+          "both counts of one file stand in line order (FR-035)");
+  } else {
+    fail("the gather settles a file that names two counts");
+  }
+
+  const Gathered word = gather({"--iterations=7", "--iterations=9"}, {});
+  if (word.settled.has_value()) {
+    check(*word.settled->options.fixedIterations == 9,
+          "the later word of one command line fixes the count (FR-038)");
+  } else {
+    fail("the gather settles a command line that fixes the count twice");
+  }
+}
+
+auto aRulesFileTheReaderCannotOpenFaultsTheGather() -> void
+{
+  // The gather opens nothing: the reader it is handed answers for the path,
+  // and the gather carries that line unchanged (FR-062, D-05).
+  const std::string path = "/speedgun-absent-directory/rules.txt";
+  const auto refused = sg::detail::readCompareRulesFile(path);
+  if (refused.has_value()) {
+    fail("the rules reader refuses a path that stands absent");
+    return;
+  }
+  const Gathered gathered = gatherSources({},
+                                          {},
+                                          "compare-rules=" + path + "\n",
+                                          &sg::detail::readCompareRulesFile);
+  if (gathered.fault != refused.error()) {
+    report("the gather carries the rules reader's line for a path it cannot "
+           "open (FR-062, SC-003)",
+           refused.error(),
+           gathered.fault);
+  }
+}
+
+auto theEnvironmentRowOfOneProcessName() -> void
+{
+  // The entry point turns the process names into rows through one reader per
+  // entry, so the shape rules stand there: the prefix, an `=`, and nothing
+  // else (FR-018, FR-019).
+  const auto ours = sg::detail::environmentRowOf("SPEEDGUN_FILTER=one");
+  check(ours.has_value() && ours->name == "SPEEDGUN_FILTER"
+            && ours->value == "one",
+        "a name of the prefix with a value answers the row of both (FR-019)");
+  check(!sg::detail::environmentRowOf("SPEEDGUN_FILTER").has_value(),
+        "a name of the prefix with no `=` answers no row (FR-018)");
+  check(!sg::detail::environmentRowOf("PATH=/bin").has_value(),
+        "a name outside the prefix answers no row (FR-018)");
+
+  check(runChild({"row", "SPEEDGUN_FILTER", "row"}, {"SPEEDGUN_FILTER=row"})
+            == 0,
+        "the rows of the process carry the name it holds and its value "
+        "(FR-018, FR-019)");
+}
+
+// The answer shape SC-003 pins for every source fault: status 2, exactly one
+// line across the two streams, that one line carrying each of `needles`, and
+// no benchmark row on standard output, neither the column header line nor an
+// `iterations=` summary. The compare-mode tests call this shape
+// `oneFaultLine`; it stands here once for the entry-point cases of the two
+// lower sources (FR-027, FR-035, SC-003).
+auto oneFaultLine(const Run& run,
+                  const char* what,
+                  std::initializer_list<std::string_view> needles) -> void
+{
+  check(run.status == 2,
+        (std::string(what) + " answers status 2 (SC-003)").c_str());
+  const std::string both = run.out + "\n" + run.err;
+  std::vector<std::string_view> textLines;
+  for (std::size_t at = 0; at < both.size();) {
+    const std::size_t breakAt = both.find('\n', at);
+    const std::size_t end =
+        breakAt == std::string::npos ? both.size() : breakAt;
+    if (end != at) {
+      textLines.push_back(std::string_view(both).substr(at, end - at));
+    }
+    at = end + 1;
+  }
+  if (textLines.size() != 1) {
+    report(what,
+           "exactly one line across both streams",
+           std::to_string(textLines.size()) + " lines: " + both);
+    return;
+  }
+  for (const std::string_view needle : needles) {
+    if (textLines.front().find(needle) == std::string_view::npos) {
+      report(what,
+             "the one line carries '" + std::string(needle) + "'",
+             std::string(textLines.front()));
+    }
+  }
+  check(run.out.find("benchmark") == std::string::npos
+            && run.out.find("iterations=") == std::string::npos,
+        (std::string(what) + " runs no benchmark (SC-003)").c_str());
+}
+
+auto aRefusedThreadRowFaultsTheEntry() -> void
+{
+  // SC-003 stands at the entry point for the two lower sources as it does
+  // for the command line: the list a reader refuses answers one line behind
+  // the variable name, or behind the file and the line number, at status 2,
+  // and no benchmark starts. The expectation is the scan's own refusal of
+  // the same words, so no reader's words are pinned here (FR-027, FR-035,
+  // FR-044, FR-046, D-11).
+  const std::string refusal = faultOf({"--threads=nonsense"});
+  const Run fromEnvironment =
+      runEntryWithEnv({}, {"SPEEDGUN_THREADS=nonsense"});
+  oneFaultLine(fromEnvironment,
+               "the refused list of SPEEDGUN_THREADS (FR-027, FR-044, SC-003)",
+               {"SPEEDGUN_THREADS: ", refusal});
+
+  const std::filesystem::path path = capturePath(".opts");
+  {
+    std::ofstream stream(path);
+    stream << "threads=nonsense\n";
+  }
+  const Run fromFile = runEntry({"--options=" + path.string()});
+  oneFaultLine(
+      fromFile,
+      "the refused list of an option file line (FR-035, FR-044, " "SC-003)",
+      {path.string() + ":1: ", refusal});
+  std::filesystem::remove(path);
+}
+
+auto aRefusedSeedRowFaultsTheEntry() -> void
+{
+  // The seed reaches a run through the same two sources, and its refusal
+  // answers the same shape at status 2 (FR-027, FR-035, FR-051, FR-054,
+  // SC-003). The flagged variable of the seed row is SPEEDGUN_INTERLEAVE,
+  // which FR-019 computes from the row name, and the bare word `seed` names
+  // no row of the table, so the refused text stands behind the
+  // interleave names. The expectation is the scan's own refusal again
+  // (D-11).
+  const std::string refusal = faultOf({"--interleave=nonsense"});
+  const Run fromEnvironment =
+      runEntryWithEnv({}, {"SPEEDGUN_INTERLEAVE=nonsense"});
+  oneFaultLine(
+      fromEnvironment,
+      "the refused seed of SPEEDGUN_INTERLEAVE (FR-027, FR-054, SC-003)",
+      {"SPEEDGUN_INTERLEAVE: ", refusal});
+
+  const std::filesystem::path path = capturePath(".opts");
+  {
+    std::ofstream stream(path);
+    stream << "interleave=nonsense\n";
+  }
+  const Run fromFile = runEntry({"--options=" + path.string()});
+  oneFaultLine(
+      fromFile,
+      "the refused seed of an option file line (FR-035, FR-054, " "SC-003)",
+      {path.string() + ":1: ", refusal});
+  std::filesystem::remove(path);
+}
+
+}  // namespace
+
+auto main(int argc, char** argv) -> int
+{
+  if (const auto child = runChildMode(argc, argv)) {
+    return *child;
+  }
+  theUnknownOptionNamesTheText();
+  theNearestNameRidesTheUnknownLine();
+  theAmbiguousPrefixNamesBothCandidates();
+  theMissingValueNamesTheOption();
+  theShortOptionAnswersTheUnknownLine();
+  theFlaggedRowsAnswerTheirEnvironmentName();
+  theUnflaggedRowsCarryNoEnvironmentName();
+  aRepeatableSplitsOnItsItems();
+  anItemReachesTheCommandLineRule();
+  theFourFlagWordsAndTheirRefusal();
+  anUnknownVariableChangesNothing();
+  aRefusedValueNamesTheVariableAndTheReaderLine();
+  theInterleaveVariableTurnsTheOptionOn();
+  theEnvironmentPercentilePairStandsTogether();
+  aCommandLineHalfLeavesThePairApart();
+  anOptionFileLineSetsItsOption();
+  aRefusedNameNamesItsLine();
+  anUnknownNameNamesItsLine();
+  aSecondOptionsNamesTheOption();
+  aRepeatableAccumulatesInOrder();
+  aFlagLineReachesTheFlagReader();
+  aFileValueReachesTheReader();
+  anUnreadableFileAnswersOneLine();
+  theThreeSourcesSettleInOrder();
+  aHigherSourceReplacesTheWholeList();
+  theRuleListCombinesAcrossSources();
+  aFileLineThatStartsWithADashNamesItsText();
+  aRequiredArgumentLineWithoutAnEqualsNamesTheOption();
+  aCommandLineOnlyRunDisclosesNothing();
+  theEnvironmentSwitchLeavesTheProcessNamesUnread();
+  theThreadListFaultStandsAtTheScan();
+  aWordOfDashesAloneNamesNoOption();
+  aLowerSourceYieldsToTheCommandLine();
+  aRefusedValueOfEveryKindNamesItsSource();
+  theLastLineOfASourceMayCarryNoBreak();
+  aBareSeedLineStandsForTheSeedZero();
+  aFileLineWithNothingToSettleDisclosesNothing();
+  oneWordTwiceKeepsTheLastWordOfOneSource();
+  aRulesFileTheReaderCannotOpenFaultsTheGather();
+  theEnvironmentRowOfOneProcessName();
+  aRefusedThreadRowFaultsTheEntry();
+  aRefusedSeedRowFaultsTheEntry();
+  std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
+  return failures == 0 ? 0 : 1;
+}
