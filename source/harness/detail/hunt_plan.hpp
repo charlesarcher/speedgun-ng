@@ -52,27 +52,26 @@ struct RetriedPass
   std::vector<std::size_t> loneColumns;
 };
 
-/// @brief specs/029 D-2, FR-012, FR-013 (T033): the stage split of one plan,
-/// with the budget cut verdict.
+/// @brief specs/029 D-2, FR-012, FR-013, FR-014 (T033, T125): the stage split
+/// of one plan, with the budget cut verdict.
 ///
-/// `stageOneRates` holds the stage-1 median rate of every column in column
-/// order, the figure the run collected in stage 1 and the only ordering stage
-/// 2 may read; the calibration figure converts the seconds budget into passes
-/// and is the same figure `estimateNs` multiplies.
+/// FR-014 derives a stage's columns from the seed and the catalog order only,
+/// so the split reads no measured rate: stage 2 takes the leading columns of
+/// the plan order. The calibration figure converts the seconds budget into
+/// passes and is the same figure `estimateNs` multiplies.
 ///
-/// \pre `stageOneRates` holds one entry per entry of `plan.columns`;
-///      `plan.columns` is not empty; `options` satisfies its own precondition
+/// \pre `plan.columns` is not empty; `options` satisfies its own precondition
 /// \post with no budget `stages` holds one stage over every column at
 ///       `options.repeats`; with a budget it holds stage 1 over every column at
-///       one repeat and stage 2 over the top `3 x top` columns by
-///       `stageOneRates`, capped at the column count, at `options.repeats`
-///       (D-2, FR-013); `cutStage2` is true with a non-empty `cutReason`
-///       exactly when the two-stage estimate exceeds the budget in the unit
-///       the caller named, `stages` then holding stage 1 alone; no stage
-///       carries a reduced repeat count and no column leaves stage 1 (FR-013)
+///       one repeat and stage 2 over the leading `3 x top` columns in column
+///       order, capped at the column count, at `options.repeats`
+///       (D-2, FR-013, FR-014); `cutStage2` is true with a non-empty
+///       `cutReason` exactly when the two-stage estimate exceeds the budget in
+///       the unit the caller named, `stages` then holding stage 1 alone; no
+///       stage carries a reduced repeat count and no column leaves stage 1
+///       (FR-013)
 [[nodiscard]] auto splitStages(
     const hunt::HuntPlan& plan,
-    const std::vector<double>& stageOneRates,
     const hunt::HuntOptions& options,
     std::optional<std::uint64_t> calibrationNsPerPass) -> StageSplit;
 

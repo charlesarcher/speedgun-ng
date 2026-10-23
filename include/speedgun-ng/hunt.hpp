@@ -424,6 +424,11 @@ struct EntryHunt
  *
  * The JSON writer spells the three fields `first`, `count` and
  * `repeats` of the closed `hunt.stages` node.
+ *
+ * A range names a contiguous block. The form describes a stage exactly
+ * while stage 2 holds the leading columns of the plan order, the set
+ * FR-013 and FR-014 give it; a stage holding any other set of columns
+ * needs a column list to be spelled.
  */
 struct HuntStageRange
 {
