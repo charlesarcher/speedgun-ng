@@ -92,9 +92,12 @@ The sources of specs/028 answer their own faults before a run starts: a
 `SPEEDGUN_*` value, a `--threads` list and an `--interleave` seed each
 print one line when the reader of the option they set refuses the text, a
 line of the `--options` file or of the `--compare-rules` file the parse
-refuses names its file, its line number and its text, and a file the
-system cannot open names its path. Those rows join the table below
-(FR-027, FR-033, FR-034, FR-036, FR-046, FR-054, FR-064, FR-065, FR-082).
+refuses names its file, its line number and its text, a file the system
+cannot open names its path, a second `--options` word names the option it
+repeats, an `--env` word beside `off` names the option and the word, and
+the two percentile variables standing together name both variables.
+Those rows join the table below (FR-023, FR-027, FR-028, FR-032, FR-033,
+FR-034, FR-036, FR-046, FR-054, FR-064, FR-065, FR-082).
 
 | Condition | Status |
 | --- | --- |
@@ -121,7 +124,10 @@ system cannot open names its path. Those rows join the table below
 | an unknown name within two edits of a table name | 2, with one line naming the rejected text and the nearest table name (specs/028 FR-007) |
 | an option name that is an ambiguous prefix of table rows | 2, with one line naming the rejected text and the candidate names in table order (specs/028 FR-009) |
 | an option given with no value | 2, with one line naming the rejected text (specs/028 FR-008) |
+| `--options` stands twice on one command line | 2, with one line naming the option and no path (specs/028 FR-032) |
+| `--env` names a word beside `off` | 2, with one line naming the option and the word as typed (specs/028 FR-028) |
 | a `SPEEDGUN_*` variable holds a value the reader of its option refuses | 2, with one line naming the variable and the value (specs/028 FR-027) |
+| `SPEEDGUN_PERCENTILES` and `SPEEDGUN_NO_PERCENTILES` stand together | 2, with one line naming both variables, whatever the command line holds (specs/028 FR-023) |
 | a line of the `--options` file the parse cannot read | 2, with one line naming the file, the line number and the text (specs/028 FR-033, FR-036) |
 | the `--options` file cannot be opened | 2, with one line naming the path (specs/028 FR-034) |
 | a line of the `--compare-rules` file the rule parser refuses | 2, with one line naming the file, the line number and the parser's fault (specs/028 FR-064) |
