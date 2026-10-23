@@ -544,8 +544,7 @@ auto buildJitterReportRecord(const JitterProbeOptions& probe,
     // the run continues with status 0 (FR-037, D-10). No period
     // stands measured, so the record carries a threshold value, the
     // 200 ns default when the option named none.
-    record.thresholdNs =
-        probe.thresholdNs.value_or(kDefaultThresholdNs);
+    record.thresholdNs = probe.thresholdNs.value_or(kDefaultThresholdNs);
     record.disclosure = "not available" + placementTail;
     return record;
   }
@@ -556,10 +555,10 @@ auto buildJitterReportRecord(const JitterProbeOptions& probe,
   for (const auto& state : states) {
     ordered.push_back(&state);
   }
-  std::ranges::sort(ordered,
-                    [](const detail::ProbeCpuState* left,
-                       const detail::ProbeCpuState* right)
-                    { return left->cpu < right->cpu; });
+  std::ranges::sort(
+      ordered,
+      [](const detail::ProbeCpuState* left, const detail::ProbeCpuState* right)
+      { return left->cpu < right->cpu; });
   std::string cpuList;
   for (const auto* state : ordered) {
     if (!cpuList.empty()) {
@@ -1262,12 +1261,12 @@ auto speedgunMain(int argc, char** argv) -> int
   // E-07: the record the document carries, built in the function
   // above from the joined states the fold reads (R-04).
   const auto jitterRecord = options.jitterProbe.has_value()
-      ? std::optional(buildJitterReportRecord(
-          *options.jitterProbe,
-          jitterUnavailable,
-          options.rawContent == RawContent::GAPS,
-          placementTail,
-          jitterProbe->states()))
+      ? std::optional(
+            buildJitterReportRecord(*options.jitterProbe,
+                                    jitterUnavailable,
+                                    options.rawContent == RawContent::GAPS,
+                                    placementTail,
+                                    jitterProbe->states()))
       : std::nullopt;
 
   // FR-030: a document the file system refused reports on stderr and

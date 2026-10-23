@@ -307,8 +307,7 @@ auto resolveIdleCpus(const MachineLayout& machine,
 // FR-017, D-4, E-09: the skipped-groups line the placement disclosure
 // carries, the one function the console line and the JSON text read, so
 // the one and the many group record stand one shape (E-09).
-auto skippedGroupsText(const std::vector<std::uint32_t>& groups)
-    -> std::string
+auto skippedGroupsText(const std::vector<std::uint32_t>& groups) -> std::string
 {
   if (groups.empty()) {
     return {};
