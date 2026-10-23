@@ -942,6 +942,34 @@ auto lineIndex(const std::string& text,
   return index;
 }
 
+// The lines of one capture, split at newlines, the shape the ordering checks
+// walk.
+auto splitLines(const std::string& text) -> std::vector<std::string>
+{
+  auto lines = std::vector<std::string> {};
+  auto stream = std::istringstream(text);
+  for (auto line = std::string {}; std::getline(stream, line);) {
+    lines.push_back(line);
+  }
+  return lines;
+}
+
+// The line the `wanted`th occurrence of a line prefix first stands on, the
+// count of lines when the capture holds fewer. The row of an instance starts
+// with its name padded to the column width, so the name with two spaces
+// reaches the row alone.
+auto lineStartIndex(const std::vector<std::string>& lines,
+                    const std::string& needle,
+                    std::size_t wanted) -> std::size_t
+{
+  for (std::size_t index = 0; index < lines.size(); ++index) {
+    if (lines[index].starts_with(needle) && wanted-- == 0) {
+      return index;
+    }
+  }
+  return lines.size();
+}
+
 // The lines that rank a hunt stand behind the rows they measured, but the plan
 // line says what the run set out to measure, so it stands above the first row:
 // the reader holds the budget before the figures it explains (FR-012).
@@ -1215,6 +1243,51 @@ struct Scenario
 
 // The scenarios of this file: what CTest runs with no argument, and what
 // `argv[1]` selects from (T018, US1).
+// ---------------------------------------------------------------------------
+// One filter, two instances, the record of each hunt riding its own result
+// (T126, FR-040, FR-050, PD-10)
+// ---------------------------------------------------------------------------
+
+// The filter selects two instances and `--hunt` hunts both. Each instance
+// prints its own plan line above its own row and its own lines that rank
+// below it, and the document carries the two entry nodes beside one
+// run-level node: every hunt block reads the record its own hunt answered,
+// the fact a process-wide record could only hold as long as the loop kept
+// printing in the order it hunted (T126).
+auto scenarioFilterSelectsTwoHuntedInstances() -> void
+{
+  registerHost(kScriptFull);
+  registerCase("bmHuntCliPair");
+  registerCase("bmHuntCliPairTwo");
+
+  const std::string run = captureRun({"--filter",
+                                      "bmHuntCliPair",
+                                      "--iterations=1",
+                                      "--hunt=" + address(0) + "," + address(1),
+                                      "--json=" + std::string(kDocumentPath)});
+  const auto lines = splitLines(run);
+  const std::size_t firstPlan = lineStartIndex(lines, "hunt: plan events=", 0);
+  const std::size_t firstRow = lineStartIndex(lines, "bmHuntCliPair  ", 0);
+  const std::size_t firstRank = lineStartIndex(lines, "hunt: rank 1 ", 0);
+  const std::size_t secondPlan = lineStartIndex(lines, "hunt: plan events=", 1);
+  const std::size_t secondRow = lineStartIndex(lines, "bmHuntCliPairTwo  ", 0);
+  const std::size_t secondRank = lineStartIndex(lines, "hunt: rank 1 ", 1);
+  check(firstPlan < firstRow && firstRow < firstRank
+            && firstRank < secondPlan && secondPlan < secondRow
+            && secondRow < secondRank,
+        "each instance's plan line stands above its own row and its ranks "
+        "below, so no block reads the record another hunt answered (FR-040, "
+        "T126)");
+  check(countOf(run, "hunt: plan summary events=") == 2,
+        "both hunt blocks close with their own summary (FR-040)");
+  const std::string document = readAll(kDocumentPath);
+  check(countOf(document, "\"hunt\":{") == 3,
+        "the document carries one hunt node per hunted result and one "
+        "run-level node for the plan both instances hunted under (FR-050, "
+        "PD-10)");
+  std::printf("filter-selects-two-hunted: ok\n");
+}
+
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
 {
   static const std::vector<Scenario> kList {
@@ -1244,6 +1317,8 @@ struct Scenario
                 &scenarioSingleContextHuntPrintsTheHuntWhole},
       Scenario {"threaded-hunt-context-tail",
                 &scenarioThreadedHuntPrintsTheContextTail},
+      Scenario {"filter-selects-two-hunted",
+                &scenarioFilterSelectsTwoHuntedInstances},
       Scenario {"option-order-settles", &scenarioOptionOrderSettles},
       Scenario {"option-without-hunt", &scenarioOptionWithoutHunt},
       Scenario {"option-order-refusals", &scenarioOptionOrderRefusals},

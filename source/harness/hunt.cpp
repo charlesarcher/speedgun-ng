@@ -863,22 +863,6 @@ auto EventCatalog::isCoreDevice(const std::string_view address) const -> bool
 namespace sg::detail
 {
 
-/// @brief specs/029 data-model.md E-08, PD-10: the run-level hunt record of
-/// the hunt the harness ran last, the field the report writer reads onto
-/// `ReportData::hunt`. `hunt.cpp` fills it and an empty optional stands for a
-/// process that ran no hunt (I-8).
-///
-/// \pre none
-/// \post the record of the hunt `runHunt` last assembled, empty before it
-// NOLINTNEXTLINE(misc-use-internal-linkage) the report lane of the same
-// translation unit reads the record through this external name, so internal
-// linkage would hide the field it publishes.
-auto huntRunRecord() -> std::optional<sg::hunt::RunHunt>&
-{
-  static std::optional<sg::hunt::RunHunt> record;
-  return record;
-}
-
 // The two enums are one ladder with the countable state at the head of the
 // counters side, so the shift states the name-for-name mapping of D-10 and
 // no kind table stands in between (FR-021, FR-050). The two pins below hold
@@ -959,25 +943,12 @@ auto availabilityOfRefusal(const sg::counters::Error& refusal) noexcept
 namespace sg::hunt
 {
 
-// The name-addressable driver the public `runHunt` delegates to, prototyped
-// beside its definition so the one translation unit that defines it answers
-// the declaration check. `timedPass` states which route calls: the harness run
-// path prints the figures of E-07, holds no calibration data of its own, and
-// measures one pass of the plan to price it (T119, FR-012).
-[[nodiscard]] auto runHuntNamed(
-    std::string_view name,
-    const HuntOptions& options,
-    std::optional<std::uint64_t> calibrationNsPerPass,
-    std::optional<MetricMethod> forcedMethod = std::nullopt,
-    bool dryRun = false,
-    bool timedPass = false) -> std::expected<EntryHunt, counters::Error>;
-
 auto runHuntNamed(std::string_view name,
                   const HuntOptions& options,
                   std::optional<std::uint64_t> calibrationNsPerPass,
                   std::optional<MetricMethod> forcedMethod,
                   bool dryRun,
-                  bool timedPass) -> std::expected<EntryHunt, counters::Error>
+                  bool timedPass) -> std::expected<Hunted, counters::Error>
 {
   auto* instance = instanceNamed(name);
   if (instance == nullptr) {
@@ -1201,8 +1172,7 @@ auto runHuntNamed(std::string_view name,
   entry.skipped.insert(
       entry.skipped.end(), discoverySkips.begin(), discoverySkips.end());
 
-  detail::huntRunRecord() = std::move(runRecord);
-  return entry;
+  return Hunted {.entry = std::move(entry), .run = std::move(runRecord)};
 }
 
 auto runHunt(BenchmarkHandle& benchmark,
@@ -1217,13 +1187,18 @@ auto runHunt(BenchmarkHandle& benchmark,
              "selection `--hunt` named");
   // The library route leaves `timedPass` down: the figure of its estimate is
   // the caller's to hand, and the driver runs no extra pass of the caller's
-  // benchmark (T119, FR-012).
-  auto answer = runHuntNamed(benchmark.name(), options, calibrationNsPerPass);
-  SG_ENSURE(answer.has_value() ? answer->top == options.top
-                               : !answer.error().message.empty(),
+  // benchmark (T119, FR-012). The run-level record of the pair answers only
+  // the internal seam: the public route keeps the entry record its signature
+  // states (T126, PD-10).
+  auto hunted = runHuntNamed(benchmark.name(), options, calibrationNsPerPass);
+  SG_ENSURE(hunted.has_value() ? hunted->entry.top == options.top
+                               : !hunted.error().message.empty(),
             "a hunt that ran states the top it ran with, and a refused hunt "
             "names the cause the caller prints (FR-081)");
-  return answer;
+  if (!hunted.has_value()) {
+    return std::unexpected(std::move(hunted).error());
+  }
+  return std::move(hunted->entry);
 }
 
 }  // namespace sg::hunt

@@ -5,19 +5,21 @@
 // SC-07; research D-2, D-10, D-12, D-18, D-19, PD-13; data-model E-04 to
 // E-08, E-10).
 //
-// The seam is `sg::hunt::runHunt` over the scripted host of
+// The seam is `sg::hunt::runHuntNamed` over the scripted host of
 // `detail/hunt_fixture.hpp`, which publishes the catalog, the anchors and the
 // programmable-counter limits, so a scenario needs no PMU, no sysfs seam, no
-// sleep and no clock (FR-092). The printed half of a claim reads
+// sleep and no clock (FR-092). The seam answers the entry record and the
+// run-level record as one pair (T126). The printed half of a claim reads
 // `sg::detail::printResult` behind the stdout capture of
 // `harness_pass_report_test.cpp`, with the collected `EntryHunt` standing on
-// the result's own `hunt` field the way a finished run leaves it; the record
-// half reads the fields of that `EntryHunt`. The scripted window counts come
-// from `FakeProvider::readActions`, the scripted provider's own counter.
+// the result's own `hunt` field the way a finished run leaves it and the
+// pair's run-level record handed over beside it; the record half reads the
+// fields of that `EntryHunt`. The scripted window counts come from
+// `FakeProvider::readActions`, the scripted provider's own counter.
 //
-// "the run exiting 0" is read here as `runHunt` answering a value rather than
-// an error: the error is the route that ends the run nonzero, so an answered
-// record is the collected side of the exit status the contract names. The
+// "the run exiting 0" is read here as `runHuntNamed` answering the pair:
+// the error is the route that ends the run nonzero, so an answered record
+// is the collected side of the exit status the contract names. The
 // command line's own status is T018's seam.
 //
 // Each scenario scripts a provider of its own, and the counters system takes
@@ -263,13 +265,16 @@ auto needInstance(const std::string& name) -> sg::Instance*
   return nullptr;
 }
 
-// One scripted hunt run: the record `runHunt` answered and the sampling
-// actions it cost the scripted provider. `figureNs` is the nanoseconds of one
-// pass the caller hands the planner (FR-012): the library route is handed its
-// figure, while the command-line route times one (T119).
+// One scripted hunt run: the pair `runHuntNamed` answered and the sampling
+// actions it cost the scripted provider. A run that answers fills both
+// records together; a refused hunt fills neither. `figureNs` is the
+// nanoseconds of one pass the caller hands the planner (FR-012): the
+// library route is handed its figure, while the command-line route times
+// one (T119).
 struct HuntAccount
 {
   std::optional<EntryHunt> hunt;
+  std::optional<RunHunt> run;
   std::uint64_t reads = 0;
   std::uint64_t opens = 0;
 };
@@ -281,15 +286,17 @@ auto runHuntMeasured(sg::BenchmarkHandle& handle,
 {
   const std::uint64_t before = host->readActions();
   const std::uint64_t opensBefore = host->windowOpens();
-  auto answered = sg::hunt::runHunt(handle, options, figureNs);
+  auto answered = sg::hunt::runHuntNamed(handle.name(), options, figureNs);
   const std::uint64_t after = host->readActions();
   const std::uint64_t opensAfter = host->windowOpens();
   if (answered.has_value()) {
-    return HuntAccount {std::optional<EntryHunt> {std::move(*answered)},
+    return HuntAccount {std::optional<EntryHunt> {std::move(answered->entry)},
+                        std::optional<RunHunt> {std::move(answered->run)},
                         after - before,
                         opensAfter - opensBefore};
   }
-  return HuntAccount {std::nullopt, after - before, opensAfter - opensBefore};
+  return HuntAccount {
+      std::nullopt, std::nullopt, after - before, opensAfter - opensBefore};
 }
 
 // ---------------------------------------------------------------------------
@@ -368,10 +375,11 @@ auto linesHolding(const std::vector<std::string>& lines,
 
 // The printed console tail of a collected run: the benchmark's own row, then
 // the hunt lines `EntryHunt` owes, behind the capture (contracts/hunt-cli.md,
-// D-20). The run that produced the record is the real scripted run, so the
+// D-20). The run that produced the pair is the real scripted run, so the
 // bytes are those of a finished run, whole and unplanted.
 auto printedLines(sg::Instance& instance,
-                  const EntryHunt& hunt) -> std::vector<std::string>
+                  const EntryHunt& hunt,
+                  const RunHunt& run) -> std::vector<std::string>
 {
   sg::detail::RunOptions options;
   options.fixedIterations = 1;
@@ -379,7 +387,7 @@ auto printedLines(sg::Instance& instance,
   sg::detail::Runner runner(options);
   sg::BenchmarkResult result = runner.run(instance);
   result.hunt = hunt;
-  captureThrough(kScratchPath, [&] { sg::detail::printResult(result); });
+  captureThrough(kScratchPath, [&] { sg::detail::printResult(result, run); });
   return splitLines(readAll(kScratchPath));
 }
 
@@ -492,7 +500,7 @@ auto scenarioNoisyEventStandsOutOfTheTop() -> void
   check(rankCount(hunt) == 1 && hunt.top == 1,
         "at most --hunt-top entries carry a rank (I-5)");
 
-  const auto lines = printedLines(*needInstance("bmHuntNoisy"), hunt);
+  const auto lines = printedLines(*needInstance("bmHuntNoisy"), hunt, *run.run);
   check(linesHolding(lines, "hunt: rank 1 " + loud).size() == 1,
         "the console prints the high-rate event as rank 1 (D-20, AC-3)");
   const auto tailLines = linesHolding(lines, "hunt: rank - " + swing);
@@ -561,7 +569,8 @@ auto scenarioRefusedAvailabilityJoinsSkipped() -> void
   check(hunt.entries.size() == 1,
         "no refused address reaches the entries list (I-4)");
 
-  const auto lines = printedLines(*needInstance("bmHuntRefused"), hunt);
+  const auto lines =
+      printedLines(*needInstance("bmHuntRefused"), hunt, *run.run);
   for (const auto& [leaf, kind] : refused) {
     const std::string line = "hunt: skipped "
         + sg::test::huntAddress(sg::test::kHuntCpu, leaf) + " "
@@ -614,7 +623,7 @@ auto scenarioGappedWindowStandsInBothLists() -> void
         "one gapped window gives one skipped entry and one record row "
         "(FR-022)");
 
-  const auto lines = printedLines(*needInstance("bmHuntGap"), hunt);
+  const auto lines = printedLines(*needInstance("bmHuntGap"), hunt, *run.run);
   check(linesHolding(lines, "hunt: skipped " + address + " gap").size() == 1,
         "the console prints the gapped address with the kind word gap "
         "(FR-022, D-20)");
@@ -670,7 +679,8 @@ auto scenarioAllRefusedHost() -> void
         "every skipped entry carries the Availability its own refusal gave "
         "(D-10)");
 
-  const auto lines = printedLines(*needInstance("bmHuntAllRefused"), hunt);
+  const auto lines =
+      printedLines(*needInstance("bmHuntAllRefused"), hunt, *run.run);
   const auto planLines = linesHolding(lines, "hunt: plan events=0");
   check(planLines.size() == 1,
         "the plan line prints with events=0 on the host that refuses "
@@ -741,7 +751,8 @@ auto scenarioUnmeasurableAnchorSkipsEveryEvent() -> void
   check(allAbsent,
         "the kind names the denominator that is not there, not a gap the rows "
         "never show (D-10)");
-  const auto lines = printedLines(*needInstance("bmHuntUnmeasurable"), hunt);
+  const auto lines =
+      printedLines(*needInstance("bmHuntUnmeasurable"), hunt, *run.run);
   check(linesHolding(lines, "hunt: rank ").size() == kUnmeasurableEvents,
         "the ranking still prints its rows, the way the narrow host runs did");
   check(linesHolding(lines, "hunt: skipped ").size() == kUnmeasurableEvents,
@@ -783,7 +794,8 @@ auto scenarioNoLimitHostMarksEveryEvent() -> void
   check(allMultiplexed,
         "every event of a MULTIPLEX plan is marked multiplexed (D-19, SC-02)");
 
-  const auto lines = printedLines(*needInstance("bmHuntMultiplex"), hunt);
+  const auto lines =
+      printedLines(*needInstance("bmHuntMultiplex"), hunt, *run.run);
   check(linesHolding(lines, "MULTIPLEX").size() >= 1,
         "the plan line carries the method word MULTIPLEX (D-19, D-20)");
   const auto rankLines = linesHolding(lines, "hunt: rank ");
@@ -921,7 +933,8 @@ auto scenarioSoloRefusalMapsItsKind() -> void
         "the refused pass and its solo retries cost no attempt at all, which "
         "is the arming moment this arm reads its refusal from (T073)");
 
-  const auto lines = printedLines(*needInstance("bmHuntSoloRefusal"), hunt);
+  const auto lines =
+      printedLines(*needInstance("bmHuntSoloRefusal"), hunt, *run.run);
   const auto skippedLines = linesHolding(lines, "hunt: skipped ");
   check(skippedLines.size() == hunt.skipped.size(),
         "the console prints one line per still-refused event (D-20)");
@@ -1056,18 +1069,6 @@ auto scenarioTwoContextWindowOpens() -> void
 // PD-13, FR-013, SC-007: the two-stage budget run answers one merged record
 // ---------------------------------------------------------------------------
 
-// The run-level record of the hunt this process ran last: the field the report
-// writer reads, and the half of a two-stage run that holds the stage ranges
-// (E-08, PD-10).
-auto huntRecord() -> const RunHunt&
-{
-  const auto& record = sg::detail::huntRunRecord();
-  check(record.has_value(),
-        "a hunt run publishes its run-level record beside the entry record "
-        "(E-08, PD-10)");
-  return *record;
-}
-
 auto scenarioTwoStageBudgetMergesOneRecord() -> void
 {
   registerHuntHost(kCollectLimit);
@@ -1109,7 +1110,7 @@ auto scenarioTwoStageBudgetMergesOneRecord() -> void
         "the merged row set ranks at most --hunt-top entries, however many "
         "stages filled it (I-5)");
 
-  const RunHunt& record = huntRecord();
+  const RunHunt& record = *run.run;
   check(record.stages.size() == 2,
         "the record carries one range for each stage that ran (E-08, FR-013)");
   check(record.stages[0].first == 0 && record.stages[1].first == 0,
@@ -1135,7 +1136,8 @@ auto scenarioTwoStageBudgetMergesOneRecord() -> void
         "the merge invents no skipped entry beside the columns it merged "
         "(I-4)");
 
-  const auto lines = printedLines(*needInstance("bmHuntTwoStage"), hunt);
+  const auto lines =
+      printedLines(*needInstance("bmHuntTwoStage"), hunt, record);
   const auto rankLines = linesHolding(lines, "hunt: rank ");
   check(rankLines.size() == hunt.entries.size(),
         "the console prints one row set for the merged record, not one row "
@@ -1201,7 +1203,7 @@ auto scenarioSecondsBudgetWeighsThePassFigure() -> void
   check(cheap.hunt.has_value(),
         "the hunt of a pass that costs a microsecond answers its record "
         "(FR-013)");
-  const RunHunt& fit = huntRecord();
+  const RunHunt& fit = *cheap.run;
   check(fit.estimateNs.has_value() && *fit.estimateNs == std::uint64_t {1'000},
         "the estimate is the figure of one pass weighed against the passes "
         "stage 1 runs, one pass at one repeat here (FR-012, E-08)");
@@ -1209,7 +1211,7 @@ auto scenarioSecondsBudgetWeighsThePassFigure() -> void
         "a budget that a million passes fit leaves both stages standing "
         "(FR-013)");
   const auto fitLines =
-      printedLines(*needInstance("bmHuntSecondsBudget"), *cheap.hunt);
+      printedLines(*needInstance("bmHuntSecondsBudget"), *cheap.hunt, fit);
   check(linesHolding(fitLines,
                      "estimate=1000ns budget=1s stage1=4 stage2=3")
                 .size()
@@ -1224,12 +1226,12 @@ auto scenarioSecondsBudgetWeighsThePassFigure() -> void
   check(dear.hunt.has_value(),
         "the hunt of a pass that costs a whole second answers its record "
         "(FR-013)");
-  const RunHunt& cut = huntRecord();
+  const RunHunt& cut = *dear.run;
   check(cut.stages.size() == 1 && cut.cutReason == "over-budget",
         "one second holds one pass, so stage 2 is dropped whole and names the "
         "reason the cut line prints (D-2, FR-013)");
   const auto cutLines =
-      printedLines(*needInstance("bmHuntSecondsBudget"), *dear.hunt);
+      printedLines(*needInstance("bmHuntSecondsBudget"), *dear.hunt, cut);
   const auto cutPlan = linesHolding(cutLines, "estimate=1000000000ns");
   check(cutPlan.size() == 1
             && cutPlan.front().find("budget=1s") != std::string::npos
@@ -1324,6 +1326,42 @@ auto scenarioKindMappingAnswersEveryName() -> void
   std::printf("kind-mapping-cases: ok\n");
 }
 
+// ---------------------------------------------------------------------------
+// FR-081, D-15, T126: the public library route answers the entry record
+// ---------------------------------------------------------------------------
+
+// The public `runHunt` over the scripted host: the entry record stands in
+// the answer, carrying the rows and the plan figures of the hunt that ran.
+// The run-level record answers the internal pair alone, so the library
+// signature keeps the one record it states (PD-10, T126).
+auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const auto options = optionsFor(selectionOf({0, 1}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntLibraryRoute");
+  sg::detail::expandRegistry();
+
+  const auto answered =
+      sg::hunt::runHunt(handle, options, std::optional<std::uint64_t> {});
+  check(answered.has_value(),
+        "the library route answers its entry record on the scripted host, "
+        "the route that exits 0 (FR-081)");
+  if (!answered.has_value()) {
+    return;
+  }
+  check(answered->top == options.top && answered->entries.size() == 2,
+        "the answered record carries one row per planned event, ranked to "
+        "the stated top (E-06)");
+  check(answered->passCount == 1,
+        "the two scripted events seat in one pass of the scripted limit "
+        "(E-04)");
+  for (const auto& entry : answered->entries) {
+    check(entry.samples > 0,
+          "every answered row holds at least one clean sample (E-05)");
+  }
+  std::printf("library-route-entry-record: ok\n");
+}
+
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
 {
   static const std::vector<Scenario> kList {
@@ -1348,6 +1386,8 @@ auto scenarioKindMappingAnswersEveryName() -> void
                 &scenarioTwoStageBudgetMergesOneRecord},
       Scenario {"seconds-budget-weighs-figure",
                 &scenarioSecondsBudgetWeighsThePassFigure},
+      Scenario {"library-route-entry-record",
+                &scenarioLibraryRouteAnswersTheEntryRecord},
   };
   return kList;
 }

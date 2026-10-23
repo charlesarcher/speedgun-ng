@@ -417,7 +417,8 @@ auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
 auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
                     const sg::hunt::RunHunt& run) -> void;
 
-auto printResult(const BenchmarkResult& result) -> void
+auto printResult(const BenchmarkResult& result,
+                 const std::optional<sg::hunt::RunHunt>& run) -> void
 {
   if (result.outcome == RunOutcome::FAILED) {
     std::printf(
@@ -442,16 +443,16 @@ auto printResult(const BenchmarkResult& result) -> void
                   { return row.kind == RowKind::AGGREGATE; });
   const bool trimRepetitionRows = result.hideRepetitionRows && holdsAggregate;
 
-  // specs/029 T074, FR-012, FR-013, US2 scenario 1: the plan a hunt run
+  // specs/029 T074, T126, FR-012, FR-013, US2 scenario 1: the plan a hunt run
   // measured under names itself above the first row it bought, with the
   // budget cut line directly under it, so the budget the reader is being
-  // scored against stands before the figures it explains. A result that
+  // scored against stands before the figures it explains. The record is the
+  // one the hunt that built `result.hunt` answered (PD-10). A result that
   // carried no hunt reaches here false and prints the bytes it printed
   // before the hunt existed (I-8).
-  const bool printsHuntPlan =
-      result.hunt.has_value() && huntRunRecord().has_value();
+  const bool printsHuntPlan = result.hunt.has_value() && run.has_value();
   if (printsHuntPlan) {
-    printHuntPlan(*huntRunRecord());
+    printHuntPlan(*run);
   }
 
   for (const auto& row : result.rows) {
@@ -618,18 +619,17 @@ auto printResult(const BenchmarkResult& result) -> void
                 worst->stats.totalPercent);
   }
 
-  // specs/029 T027, T074, FR-040, FR-041, PD-15, data-model E-07: the hunt
-  // lines that rank print behind the rows and disclosures of the benchmark
-  // they ranked, in the order ranking, skipped list, summary; the plan line
-  // and the cut line under it already stood above the first row. A result
-  // that carried no hunt prints the bytes it printed before the hunt existed
-  // (I-8), and the norm label is the one the run measured under, `instr` when
-  // the caller named none (D-13).
+  // specs/029 T027, T074, T126, FR-040, FR-041, PD-15, data-model E-07: the
+  // hunt lines that rank print behind the rows and disclosures of the
+  // benchmark they ranked, in the order ranking, skipped list, summary; the
+  // plan line and the cut line under it already stood above the first row. A
+  // result that carried no hunt prints the bytes it printed before the hunt
+  // existed (I-8), and the norm label is the one the run measured under,
+  // `instr` when the caller named none (D-13).
   if (printsHuntPlan) {
-    const auto& run = *huntRunRecord();
     printHuntRanking(*result.hunt,
-                     run.options.norm.value_or(sg::hunt::HuntNorm::INSTR));
-    printHuntSkips(*result.hunt, run);
+                     run->options.norm.value_or(sg::hunt::HuntNorm::INSTR));
+    printHuntSkips(*result.hunt, *run);
   }
 
   // FR-025: a non-empty `contexts` vector names exactly a threaded
