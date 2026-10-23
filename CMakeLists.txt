@@ -4,9 +4,9 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    # specs/024-multipass-collection FR-031: the next free minor, past the
-    # 0.15.0 the regression gate took on master (D-12).
-    VERSION 0.16.0
+    # specs/028-full-command-line FR-078: the minor this lane reserves, after the
+    # 0.17.0 that specs/027 reserves.
+    VERSION 0.18.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
