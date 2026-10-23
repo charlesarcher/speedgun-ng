@@ -603,15 +603,11 @@ auto expandHuntSelection(RunOptions& options) -> void
   // publishes no limit stands open (D-3). An anchor leaf needs no slot of
   // its own, so only event addresses of the selection raise the refusal.
   for (const auto& address : selected) {
-    // The cut stands at the first `/`: the device this route's refusal quotes
-    // is this cut's text, where the shared `detail::devicePartOf` cuts at the
-    // last.
-    const std::size_t slash = address.find('/');
-    const std::string_view leaf = std::string_view(address).substr(slash + 1);
+    const std::string_view leaf = detail::leafPartOf(address);
     if (leaf == detail::kCyclesLeaf || leaf == detail::kInstrLeaf) {
       continue;
     }
-    const std::string device = address.substr(0, slash);
+    const std::string device = std::string(detail::devicePartOf(address));
     const auto object = counters::System::local().object(device);
     if (!object.has_value() || !object->programmableCounters().has_value()) {
       continue;
