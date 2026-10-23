@@ -512,21 +512,82 @@ auto main(const int argc, char** argv) -> int
               machine, std::vector<std::uint32_t> {0}, notLowest),
           "a yielded cpu above the group's free one stands invalid " "(D-4)");
 
+    // The mask's own gap: a yielded cpu below the mask's top stands
+    // found against a later entry, the arm the lower-bound read
+    // carries (D-4). The layout holds the mask {0, 1, 3} with cpu 2
+    // absent, and the resolution yields the absent index.
+    {
+      sg::detail::MachineLayout gapped;
+      gapped.readable = true;
+      gapped.packages = 1;
+      sg::detail::LayoutCore core;
+      core.groupOrdinal = 0;
+      for (const auto cpu : std::vector<std::uint32_t> {0, 1, 3}) {
+        sg::detail::LayoutThread thread;
+        thread.cpuIndex = cpu;
+        thread.coreOrdinal = 0;
+        thread.groupOrdinal = 0;
+        core.threads.push_back(
+            static_cast<std::uint32_t>(gapped.threads.size()));
+        gapped.threads.push_back(thread);
+        gapped.mask.push_back(cpu);
+      }
+      gapped.cores.push_back(core);
+      sg::detail::LayoutGroup group;
+      group.lowestCpu = 0;
+      group.cores = {0U};
+      gapped.groups.push_back(group);
+      sg::detail::IdleResolution gapYield;
+      gapYield.cpus = {2};
+      check(!sg::detail::idleResolutionValid(
+                gapped, std::vector<std::uint32_t> {0}, gapYield),
+            "a yielded cpu in the mask's gap stands invalid (D-4)");
+    }
+
+    // A yielded cpu whose thread names no group stands refused by the
+    // record the walk reads (D-4). The layout holds one thread with no
+    // core and no group, the mask carries its cpu, and the resolution
+    // yields it.
+    {
+      sg::detail::MachineLayout bare;
+      bare.readable = true;
+      bare.packages = 1;
+      sg::detail::LayoutThread thread;
+      thread.cpuIndex = 5;
+      thread.coreOrdinal = sg::detail::kNoGroup;
+      thread.groupOrdinal = sg::detail::kNoGroup;
+      bare.threads.push_back(thread);
+      bare.mask.push_back(5);
+      sg::detail::IdleResolution bareYield;
+      bareYield.cpus = {5};
+      check(!sg::detail::idleResolutionValid(
+                bare, {}, bareYield),
+            "a yielded cpu with no group stands invalid (D-4)");
+    }
+
     // The overlap answer's predicate: the answer names a probe cpu the
-    // list holds, and a free probe cpu names no overlap (FR-018, D-9,
-    // R-10).
+    // list holds, a free probe cpu names no overlap, and the precheck
+    // mode names none (FR-018, D-9, R-10, D-3).
     check(sg::detail::probeOverlapValid(
               std::vector<std::uint32_t> {5},
+              sg::JitterProbeMode::ALONGSIDE,
               std::optional<sg::detail::ProbeOverlap>()),
           "no overlap stands valid (FR-018)");
     check(sg::detail::probeOverlapValid(
               std::vector<std::uint32_t> {5},
+              sg::JitterProbeMode::ALONGSIDE,
               sg::detail::ProbeOverlap {5, "bmPresetOverlap"}),
           "an overlap inside the probe cpus stands valid (FR-018)");
     check(!sg::detail::probeOverlapValid(
               std::vector<std::uint32_t> {7},
+              sg::JitterProbeMode::ALONGSIDE,
               sg::detail::ProbeOverlap {5, "bmPresetOverlap"}),
           "an overlap outside the probe cpus stands invalid (FR-018)");
+    check(!sg::detail::probeOverlapValid(
+              std::vector<std::uint32_t> {5},
+              sg::JitterProbeMode::PRECHECK,
+              sg::detail::ProbeOverlap {5, "bmPresetOverlap"}),
+          "an overlap under the precheck mode stands invalid (D-3, R-10)");
 
     // The narrowing's predicate: the remaining cpus name no probe cpu,
     // stand inside the mask, and the limit answer follows the mask

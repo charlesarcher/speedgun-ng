@@ -1,10 +1,8 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <bit>
 #include <cctype>
 #include <cerrno>
-#include <climits>
 #include <cmath>
 #include <csignal>
 #include <cstdint>
@@ -180,38 +178,25 @@ auto parseProbeCpuToken(const std::string& token,
     message = "the process affinity mask is unreadable";
     return false;
   }
-  // The bounds the bit read stands under: the set type itself holds
-  // CPU_SETSIZE bits, and the count the threads report bounds the
-  // index the ExecutionContext construction reads, a count and not
-  // the highest index, so an offline cpu in the middle of the index
-  // range stands outside too (FR-011). Both bounds refuse with the
-  // same line the mask membership refuses with, and the read below
-  // stands inside them on every host.
-  const auto online = std::thread::hardware_concurrency();
+  // FR-011: the mask bit read carries the set type's own bound and
+  // the membership in one test - the read answers 0 for an index at
+  // or above the set size and for an index the mask does not hold -
+  // so one line stands for both refusals. The count the threads
+  // report bounds the index the ExecutionContext construction reads
+  // beside the mask: a count and not the highest index, so the bound
+  // refuses an online cpu the mask holds whose index stands at or
+  // above the count, on the line of its own below. The count stands
+  // behind the detail seam the tests set and clear, the way the test
+  // layout installs (FR-041).
+  const auto online = detail::onlineCpuCount();
   for (auto cpu = low; cpu <= high; ++cpu) {
-    if (cpu >= CPU_SETSIZE) {
+    if (!CPU_ISSET(cpu, &mask)) {
       message =
           "the cpu '" + token + "' stands outside the process affinity mask";
       return false;
     }
-    if (online != 0 && cpu >= static_cast<std::uint64_t>(online)) {
-      message =
-          "the cpu '" + token + "' stands outside the process affinity mask";
-      return false;
-    }
-    // The mask bit read stands in bounds: the index passed both
-    // bounds above, so the read needs no bound check of its own.
-    constexpr auto kWordBits = CHAR_BIT * sizeof(std::size_t);
-    const auto& words =
-        std::bit_cast<const std::array<std::size_t, CPU_SETSIZE / kWordBits>>(
-            mask.__bits);
-    if ((words.at(static_cast<std::size_t>(cpu) / kWordBits)
-             >> (static_cast<std::size_t>(cpu) % kWordBits)
-         & 1U)
-        == 0)
-    {
-      message =
-          "the cpu '" + token + "' stands outside the process affinity mask";
+    if (cpu >= static_cast<std::uint64_t>(online)) {
+      message = "the cpu '" + token + "' stands past the online cpu count";
       return false;
     }
     cpus.push_back(static_cast<std::uint32_t>(cpu));
@@ -538,6 +523,83 @@ auto applyNarrowedMask(const cpu_set_t& narrowed) noexcept -> void
       sched_setaffinity(0, sizeof(narrowed), &narrowed) == 0;
   SG_ASSERT(applied,
             "the affinity mask stands narrowed for the instance's run (D-5)");
+}
+
+// E-07: the record the document carries, built from the joined states
+// the fold reads (R-04). The record block is one unit of the report,
+// and the entry point below stands more than seven hundred lines, so
+// the build stands in a function of its own.
+auto buildJitterReportRecord(const JitterProbeOptions& probe,
+                             bool unavailable,
+                             bool rawGaps,
+                             const std::string& placementTail,
+                             const std::vector<detail::ProbeCpuState>& states)
+    -> detail::JitterReportRecord
+{
+  detail::JitterReportRecord record;
+  record.mode = probe.mode;
+  if (unavailable) {
+    // E-07: the unavailable answer carries the requested mode, the
+    // configured threshold, no measured period, and the disclosure;
+    // the run continues with status 0 (FR-037, D-10). No period
+    // stands measured, so the record carries a threshold value, the
+    // 200 ns default when the option named none.
+    record.thresholdNs =
+        probe.thresholdNs.value_or(kDefaultThresholdNs);
+    record.disclosure = "not available" + placementTail;
+    return record;
+  }
+  // E-07, E-09: the document sorts the cpus ascending, the one
+  // order the disclosure text carries.
+  std::vector<const detail::ProbeCpuState*> ordered;
+  ordered.reserve(states.size());
+  for (const auto& state : states) {
+    ordered.push_back(&state);
+  }
+  std::ranges::sort(ordered,
+                    [](const detail::ProbeCpuState* left,
+                       const detail::ProbeCpuState* right)
+                    { return left->cpu < right->cpu; });
+  std::string cpuList;
+  for (const auto* state : ordered) {
+    if (!cpuList.empty()) {
+      cpuList.push_back(',');
+    }
+    cpuList += std::to_string(state->cpu);
+  }
+  record.disclosure = "probe on cpus " + cpuList + "; loop period "
+      + std::to_string(ordered.front()->loopPeriodNs) + " ns, threshold "
+      + std::to_string(ordered.front()->thresholdNs) + " ns";
+  // E-07: the record carries the measured points the disclosure
+  // names; every probe cpu's fold carries the same pair (FR-007).
+  record.thresholdNs = ordered.front()->thresholdNs;
+  record.loopPeriodNs = ordered.front()->loopPeriodNs;
+  for (const auto* state : ordered) {
+    record.disclosure += "; cpu " + std::to_string(state->cpu) + " kept "
+        + std::to_string(state->kept) + " dropped "
+        + std::to_string(state->droppedGaps);
+  }
+  record.disclosure += "; split and percentiles use the kept gaps only";
+  record.disclosure += placementTail;
+  // FR-028: the gap list rides the `--json-raw=gaps` value alone;
+  // the list holds the kept records only (D-6).
+  record.rawGaps = rawGaps;
+  for (const auto* state : ordered) {
+    record.cpus.push_back(state->cpu);
+    detail::JitterReportCpu entry;
+    entry.cpu = state->cpu;
+    entry.stats = detail::gapStatsOf(*state);
+    if (record.rawGaps) {
+      entry.gaps.assign(
+          state->buffer.begin(),
+          state->buffer.begin() + static_cast<std::ptrdiff_t>(state->kept));
+    }
+    record.stats.push_back(std::move(entry));
+  }
+  for (const auto& state : states) {
+    record.droppedGaps += state.droppedGaps;
+  }
+  return record;
 }
 
 // D-5: the narrowing reads the mask the run already answered once -
@@ -877,9 +939,7 @@ auto speedgunMain(int argc, char** argv) -> int
         // causes stand apart: a precheck batch with no pinned instance
         // plans no cpu at all, and a batch whose plans leave no group
         // with a free cpu resolves none.
-        if (options.jitterProbe->mode == JitterProbeMode::PRECHECK
-            && planned.empty())
-        {
+        if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
           std::fprintf(
               stderr,
               "--jitter-probe: no cpu is planned for the idle preset\n");
@@ -1168,18 +1228,7 @@ auto speedgunMain(int argc, char** argv) -> int
   // specs/027 E-09: the placement-safety disclosure rides the record
   // T012 prints: the skipped groups, the cpuset limit and the mask
   // narrowing (FR-017, FR-036, D-5, D-12, R-08).
-  std::string skippedText;
-  if (!skippedGroups.empty()) {
-    skippedText = "skipped L3 group(s) ";
-    bool firstGroup = true;
-    for (const auto group : skippedGroups) {
-      if (!firstGroup) {
-        skippedText.push_back(',');
-      }
-      skippedText += std::to_string(group);
-      firstGroup = false;
-    }
-  }
+  const std::string skippedText = detail::skippedGroupsText(skippedGroups);
   std::string placementTail;
   if (!skippedText.empty()) {
     placementTail += "; " + skippedText;
@@ -1210,75 +1259,16 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
-  // E-07: the record the document carries, filled from the joined
-  // states the fold reads (R-04).
-  std::optional<detail::JitterReportRecord> jitterRecord;
-  if (options.jitterProbe.has_value()) {
-    detail::JitterReportRecord record;
-    record.mode = options.jitterProbe->mode;
-    if (jitterUnavailable) {
-      // E-07: the unavailable answer carries the requested mode, the
-      // configured threshold, no measured period, and the disclosure;
-      // the run continues with status 0 (FR-037, D-10). No period
-      // stands measured, so the record carries a threshold value, the
-      // 200 ns default when the option named none.
-      record.thresholdNs =
-          options.jitterProbe->thresholdNs.value_or(kDefaultThresholdNs);
-      record.disclosure = "not available" + placementTail;
-    } else {
-      // E-07, E-09: the document sorts the cpus ascending, the one
-      // order the disclosure text carries.
-      std::vector<const detail::ProbeCpuState*> ordered;
-      ordered.reserve(jitterProbe->states().size());
-      for (const auto& state : jitterProbe->states()) {
-        ordered.push_back(&state);
-      }
-      std::ranges::sort(ordered,
-                        [](const detail::ProbeCpuState* left,
-                           const detail::ProbeCpuState* right)
-                        { return left->cpu < right->cpu; });
-      std::string cpuList;
-      for (const auto* state : ordered) {
-        if (!cpuList.empty()) {
-          cpuList.push_back(',');
-        }
-        cpuList += std::to_string(state->cpu);
-      }
-      record.disclosure = "probe on cpus " + cpuList + "; loop period "
-          + std::to_string(ordered.front()->loopPeriodNs) + " ns, threshold "
-          + std::to_string(ordered.front()->thresholdNs) + " ns";
-      // E-07: the record carries the measured points the disclosure
-      // names; every probe cpu's fold carries the same pair (FR-007).
-      record.thresholdNs = ordered.front()->thresholdNs;
-      record.loopPeriodNs = ordered.front()->loopPeriodNs;
-      for (const auto* state : ordered) {
-        record.disclosure += "; cpu " + std::to_string(state->cpu) + " kept "
-            + std::to_string(state->kept) + " dropped "
-            + std::to_string(state->droppedGaps);
-      }
-      record.disclosure += "; split and percentiles use the kept gaps only";
-      record.disclosure += placementTail;
-      // FR-028: the gap list rides the `--json-raw=gaps` value alone;
-      // the list holds the kept records only (D-6).
-      record.rawGaps = options.rawContent == RawContent::GAPS;
-      for (const auto* state : ordered) {
-        record.cpus.push_back(state->cpu);
-        detail::JitterReportCpu entry;
-        entry.cpu = state->cpu;
-        entry.stats = detail::gapStatsOf(*state);
-        if (record.rawGaps) {
-          entry.gaps.assign(
-              state->buffer.begin(),
-              state->buffer.begin() + static_cast<std::ptrdiff_t>(state->kept));
-        }
-        record.stats.push_back(std::move(entry));
-      }
-      for (const auto& state : jitterProbe->states()) {
-        record.droppedGaps += state.droppedGaps;
-      }
-    }
-    jitterRecord = std::move(record);
-  }
+  // E-07: the record the document carries, built in the function
+  // above from the joined states the fold reads (R-04).
+  const auto jitterRecord = options.jitterProbe.has_value()
+      ? std::optional(buildJitterReportRecord(
+          *options.jitterProbe,
+          jitterUnavailable,
+          options.rawContent == RawContent::GAPS,
+          placementTail,
+          jitterProbe->states()))
+      : std::nullopt;
 
   // FR-030: a document the file system refused reports on stderr and
   // leaves the exit status at the usage error the table names, which

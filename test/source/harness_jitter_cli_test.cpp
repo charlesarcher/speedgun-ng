@@ -163,46 +163,26 @@ auto pickCpuOutsideMask() -> std::string
   return {};
 }
 
-// The layout cpus nothing pins: the mask's cpus the picked pair
-// leaves first, then the cpus below the online count that neither the
-// mask nor the pair holds, failing fast when the host offers fewer
-// than the shape asks for (FR-040, VI). Every filler stands a real
-// cpu the ExecutionContext construction accepts, and no benchmark or
-// probe pins one in an exit-0 scenario (VI).
-auto pickFillers(const std::vector<std::uint32_t>& picked,
-                 std::size_t count) -> std::vector<std::uint32_t>
+// The layout cpus nothing pins: the lowest indexes the process
+// affinity mask does not hold, each a layout-only cpu that no
+// benchmark or probe pins, no value parses, and no mask check reads
+// (VI). A filler needs no real cpu, so the shapes build on any mask, a
+// two-cpu host included, and the count the threads report stands
+// unread (VI).
+auto pickFillers(std::size_t count) -> std::vector<std::uint32_t>
 {
   cpu_set_t mask {};
   CPU_ZERO(&mask);
   if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
     fail("the process affinity mask is unreadable (FR-040)");
   }
-  const auto online = std::thread::hardware_concurrency();
   std::vector<std::uint32_t> fillers;
-  const auto offer = [&](std::uint32_t cpu)
-  {
-    if (fillers.size() < count
-        && std::find(picked.begin(), picked.end(), cpu) == picked.end()
-        && std::find(fillers.begin(), fillers.end(), cpu) == fillers.end())
-    {
-      fillers.push_back(cpu);
+  for (std::size_t index = 0; fillers.size() < count; ++index) {
+    if (CPU_ISSET(index, &mask) != 0) {
+      continue;
     }
-  };
-  for (std::size_t index = 0; index < CPU_SETSIZE; ++index) {
-    if (CPU_ISSET(index, &mask)) {
-      offer(static_cast<std::uint32_t>(index));
-    }
+    fillers.push_back(static_cast<std::uint32_t>(index));
   }
-  if (online != 0) {
-    for (std::uint32_t cpu = 0;
-         cpu < static_cast<std::uint32_t>(online) && fillers.size() < count;
-         ++cpu)
-    {
-      offer(cpu);
-    }
-  }
-  check(fillers.size() == count,
-        "the host offers the layout cpus the shape asks for (FR-040, VI)");
   return fillers;
 }
 
@@ -351,7 +331,7 @@ auto allMaskCpus() -> std::string
 // mates the FR-018 line names stand on the fillers nothing pins (VI).
 auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
-  const auto fillers = pickFillers({base, sibling}, 2);
+  const auto fillers = pickFillers(2);
   std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
   placed.emplace_back(base, 0);
   placed.emplace_back(fillers.at(0), 0);
@@ -376,54 +356,12 @@ auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
     installed.threads.push_back(thread);
     installed.mask.push_back(cpu);
   }
+  // The l3 preset pins each group's lowestCpu, so the groups stand
+  // lowest at the picked cpus, the ones the scenarios pin and the
+  // probe names, on any mask (FR-040, VI).
   for (std::uint32_t group = 0; group < 2; ++group) {
     sg::detail::LayoutGroup layoutGroup;
-    const auto first = std::ranges::find_if(
-        placed,
-        [group](const std::pair<std::uint32_t, std::uint32_t>& slot)
-        { return slot.second == group; });
-    layoutGroup.lowestCpu = first->first;
-    layoutGroup.cores.push_back(group);
-    installed.groups.push_back(layoutGroup);
-  }
-  sg::detail::installTestLayout(installed);
-}
-
-// Two groups of one core with two siblings each: the cpus stand the
-// mask's own first and the below-online ones after, so every pin the
-// scenario makes lands a real cpu (FR-040, VI), and the siblings
-// cover the rest, so no cpu stays free (FR-017).
-auto installTwoGroupPairsShape(std::uint32_t base) -> void
-{
-  const auto fillers = pickFillers({}, 4);
-  std::array<std::uint32_t, 4> cpus {
-      fillers.at(0), fillers.at(1), fillers.at(2), fillers.at(3)};
-  std::ranges::sort(cpus);
-  const auto basePosition = std::ranges::find(cpus, base);
-  check(basePosition != cpus.end(),
-        "the shape's cpus hold the mask's lowest (FR-040, VI)");
-  sg::detail::MachineLayout installed;
-  installed.readable = true;
-  installed.packages = 1;
-  for (std::uint32_t group = 0; group < 2; ++group) {
-    sg::detail::LayoutCore layoutCore;
-    layoutCore.groupOrdinal = group;
-    for (std::uint32_t sibling = 0; sibling < 2; ++sibling) {
-      const std::uint32_t cpu = cpus.at(group * 2 + sibling);
-      sg::detail::LayoutThread thread;
-      thread.cpuIndex = cpu;
-      thread.coreOrdinal = group;
-      thread.groupOrdinal = group;
-      layoutCore.threads.push_back(
-          static_cast<std::uint32_t>(installed.threads.size()));
-      installed.threads.push_back(thread);
-      installed.mask.push_back(cpu);
-    }
-    installed.cores.push_back(layoutCore);
-  }
-  for (std::uint32_t group = 0; group < 2; ++group) {
-    sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = cpus.at(group * 2);
+    layoutGroup.lowestCpu = group == 0 ? base : sibling;
     layoutGroup.cores.push_back(group);
     installed.groups.push_back(layoutGroup);
   }
@@ -436,11 +374,10 @@ auto installTwoGroupPairsShape(std::uint32_t base) -> void
 // cpuset holds; group 0's second core stands planned by nothing, so
 // the free cpu the idle resolution yields stands in the touched group
 // 0, outside the cpuset the disclosure names (FR-036). The fillers
-// stand the real cpus pickFillers offers, every pin below the online
-// count (VI).
+// stand the layout-only cpus pickFillers offers outside the mask (VI).
 auto installCpusetPairShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
-  const auto fillers = pickFillers({base, sibling}, 2);
+  const auto fillers = pickFillers(2);
   std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
   placed.emplace_back(base, 0);
   placed.emplace_back(fillers.at(0), 0);
@@ -470,23 +407,19 @@ auto installCpusetPairShape(std::uint32_t base, std::uint32_t sibling) -> void
     installed.threads.push_back(thread);
     installed.mask.push_back(cpu);
   }
+  // The l3 preset pins each group's lowestCpu, so the groups stand
+  // lowest at the picked pair, the cpus the child's cpuset holds, on
+  // any mask (FR-036, FR-040, VI).
+  const std::array<std::uint32_t, 2> groupLowest {{base, sibling}};
   const std::array<std::uint32_t, 2> groupCoreCounts {{2, 1}};
   std::uint32_t coreCursor = 0;
-  for (const auto count : groupCoreCounts) {
+  for (std::uint32_t group = 0; group < 2; ++group) {
+    const auto count = groupCoreCounts.at(group);
     sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = 0;
-    bool first = true;
+    layoutGroup.lowestCpu = groupLowest.at(group);
     for (std::uint32_t offset = 0; offset < count; ++offset) {
       const auto core = coreCursor + offset;
       layoutGroup.cores.push_back(core);
-      const auto found = std::ranges::find_if(
-          placed,
-          [core](const std::pair<std::uint32_t, std::uint32_t>& slot)
-          { return slot.second == core; });
-      if (first || found->first < layoutGroup.lowestCpu) {
-        layoutGroup.lowestCpu = found->first;
-        first = false;
-      }
     }
     coreCursor += count;
     installed.groups.push_back(layoutGroup);
@@ -562,7 +495,7 @@ auto setupNoLayout() -> void {}
 
 auto setupIdleNoFree() -> void
 {
-  installTwoGroupPairsShape(baseCpu);
+  installThrawnShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitIdleNoFree, "bmJitIdleNoFree");
   handle.threads(2);
 }
@@ -584,6 +517,20 @@ auto setupMaskEmpty() -> void
 auto setupSeccompGetaffinity() -> void
 {
   blockSyscallWithEperm(SYS_sched_getaffinity);
+}
+
+// The single-cpu affinity child: the child holds the picked base cpu
+// alone in its process affinity mask, the way a host whose cpuset
+// holds fewer cpus than the online count stands at the run, so a cpu
+// the host mask held stands outside the child's (FR-011).
+auto setupOutsideMask() -> void
+{
+  cpu_set_t cpus {};
+  CPU_ZERO(&cpus);
+  CPU_SET(baseCpu, &cpus);
+  if (sched_setaffinity(0, sizeof(cpus), &cpus) != 0) {
+    fail("the child cannot hold its single-cpu mask (FR-011)");
+  }
 }
 
 auto setupSingle() -> void
@@ -657,33 +604,6 @@ auto setupSkip() -> void
   auto handle = sg::registerBenchmark(&bmJitSkip, "bmJitSkip");
   handle.placement("compact");
   handle.threads(2);
-}
-
-auto bmJitPlannedNone(sg::State& state) -> void
-{
-  for (auto _ : state) {
-  }
-}
-
-auto bmJitPlannedL3(sg::State& state) -> void
-{
-  for (auto _ : state) {
-  }
-}
-
-// The idle resolution's plan walk skips the multi-context instance
-// whose preset names none (FR-017), and the narrowing narrows the
-// calling thread's mask for it (D-5). The cpuset shape gives the `l3`
-// instance its planned pair and the walk a free cpu outside both, so
-// the scenario reads no host fact (VI).
-auto setupMultiIdle() -> void
-{
-  installCpusetPairShape(baseCpu, siblingCpu);
-  auto none = sg::registerBenchmark(&bmJitPlannedNone, "bmJitPlannedNone");
-  none.threads(2);
-  auto placed = sg::registerBenchmark(&bmJitPlannedL3, "bmJitPlannedL3");
-  placed.placement("l3");
-  placed.threads(2);
 }
 
 auto bmFit(sg::State& state) -> void
@@ -907,7 +827,10 @@ auto childUnavailableThreaded() -> int
 // FR-011, FR-017: the idle value parses, and the resolution over a run
 // whose instances carry no plan names no free cpu: one line naming the
 // preset word and status 2. The child installs no layout, so the
-// resolution answers the host read its own first read caches.
+// resolution answers the host read its own first read caches. The
+// value names no precheck key, so the parse assigns the 200 ms default
+// the option table carries; the stop precedes any phase, so the
+// default stands a parsed value and no run (FR-014).
 auto scenarioIdleNoPlans() -> int
 {
   const Captured run = runChildScenario("idleNoPlans",
@@ -1019,6 +942,8 @@ auto scenarioPrecheckAllows() -> int
        "--jitter-probe=" + probe + ",mode=precheck,precheck=1"},
       &setupOverlap);
   check(run.status == 0, "the precheck mode allows the overlap (D-3, R-10)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
   check(run.out.find("bmJitOverlap") != std::string::npos,
         "the benchmark ran under the precheck allowance (D-3)");
   check(run.out.find("affinity mask narrowed") == std::string::npos,
@@ -1041,6 +966,8 @@ auto scenarioPrecheckWholeMask() -> int
       &setupSingle);
   check(run.status == 0,
         "the precheck run over the whole mask continues (FR-006, R-10)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
   check(run.out.find("affinity mask narrowed") == std::string::npos,
         "the precheck run prints no narrowing line (D-5)");
   check(run.out.find("bmJitSingle") != std::string::npos,
@@ -1099,9 +1026,12 @@ auto scenarioSingleContext() -> int
                                          "^bmJitSingle$",
                                          "--repetitions=1",
                                          "--iterations=2",
-                                         "--jitter-probe=" + probe},
+                                         "--jitter-probe=" + probe
+                                             + ",precheck=1"},
                                         &setupSingle);
   check(run.status == 0, "the single-context preset run continues (FR-019)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
   check(run.out.find("affinity mask narrowed for 'bmJitSingle'")
             != std::string::npos,
         "the disclosure names the narrowed mask (FR-019, D-5)");
@@ -1147,34 +1077,15 @@ auto scenarioCpusetLimit() -> int
                                          "^bmJitLimit",
                                          "--repetitions=1",
                                          "--iterations=2",
-                                         "--jitter-probe=idle"},
+                                         "--jitter-probe=idle,precheck=1"},
                                         &setupCpusetLimit);
   check(run.status == 0, "the cpuset limit discloses and continues (FR-036)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
   check(run.out.find("cpusets limit the probe cpus") != std::string::npos,
         "the disclosure names the cpuset limit (FR-036, D-12)");
   check(run.out.find("bmJitLimitProbe") != std::string::npos,
         "the second benchmark ran (FR-036)");
-  return 0;
-}
-
-// FR-017, D-4: the plan walk skips the multi-context instance whose
-// preset names none, and the narrowing narrows the calling thread's
-// mask for that unpinned instance, whose name the disclosure carries
-// (D-5).
-auto scenarioMultiIdle() -> int
-{
-  const Captured run = runChildScenario("multiIdle",
-                                        {"--filter=^bmJitPlanned",
-                                         "--repetitions=1",
-                                         "--iterations=2",
-                                         "--jitter-probe=idle"},
-                                        &setupMultiIdle);
-  check(run.status == 0, "the preset-none instance continues the run (D-5)");
-  check(run.out.find("affinity mask narrowed for 'bmJitPlannedNone")
-            != std::string::npos,
-        "the disclosure names the narrowed mask (FR-019, D-5)");
-  check(run.out.find("bmJitPlannedNone") != std::string::npos,
-        "the unpinned instance ran (D-5)");
   return 0;
 }
 
@@ -1208,9 +1119,12 @@ auto scenarioFitBesideProbe() -> int
                                         {"--filter=^bmFit",
                                          "--repetitions=1",
                                          "--iterations=2",
-                                         "--jitter-probe=" + probe},
+                                         "--jitter-probe=" + probe
+                                             + ",precheck=1"},
                                         &setupFitFamilies);
   check(run.status == 0, "the two families run beside the probe (R-08)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
   check(run.out.find("bmFitA") != std::string::npos
             && run.out.find("bmFitB") != std::string::npos,
         "the batch carries both families (FR-022)");
@@ -1226,6 +1140,8 @@ auto scenarioUnavailableProbe() -> int
       runExecChild("--jitter-cli-child=unavailable", "unavailable");
   check(run.status == 0,
         "the unavailable probe discloses and continues (FR-037, D-10)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
   check(run.out.find("not available") != std::string::npos,
         "the run discloses the unavailable answer (FR-037)");
   check(run.out.find("affinity mask narrowed") == std::string::npos,
@@ -1251,6 +1167,8 @@ auto scenarioUnavailableBlocked() -> int
                                     "unavailable-blocked");
   check(run.status == 0,
         "the blocked leaf discloses and continues (FR-037, D-10)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
   check(run.out.find("not available") != std::string::npos,
         "the run discloses the unavailable answer (FR-037)");
   check(run.out.find("bmQuiet") != std::string::npos,
@@ -1268,6 +1186,8 @@ auto scenarioUnavailableThreaded() -> int
                                     "unavailable-threaded");
   check(run.status == 0,
         "the threaded unavailable run discloses and continues (FR-037)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
   check(run.out.find("not available") != std::string::npos,
         "the run discloses the unavailable answer (FR-037)");
   check(run.out.find("bmThreaded") != std::string::npos,
@@ -1359,7 +1279,6 @@ auto main(int argc, char** argv) -> int
   check(scenarioSingleContext() == 0, "singleContext");
   check(scenarioSkipDisclosure() == 0, "skipDisclosure");
   check(scenarioCpusetLimit() == 0, "cpusetLimit");
-  check(scenarioMultiIdle() == 0, "multiIdle");
   check(scenarioUnreadableMask() == 0, "unreadableMask");
   check(scenarioFitBesideProbe() == 0, "fitBesideProbe");
   check(scenarioUnavailableProbe() == 0, "unavailableProbe");
@@ -1373,7 +1292,7 @@ auto main(int argc, char** argv) -> int
   {
     auto arguments = quickRun;
     arguments.push_back("--jitter-probe=" + cpu + ",threshold=500,"
-                        "mode=precheck,precheck=50,gaps=4,strict");
+                        "mode=precheck,precheck=1,gaps=4,strict");
     const auto report = captureRun(arguments);
     check(report.find("bmQuiet") != std::string::npos,
           "the accepted value runs the batch (FR-011)");
@@ -1404,11 +1323,12 @@ auto main(int argc, char** argv) -> int
     const std::string second = std::to_string(cpus.at(1));
     auto accepted = quickRun;
     accepted.push_back("--jitter-probe=" + cpu + "," + second
-                       + ",mode=precheck");
+                       + ",mode=precheck,precheck=1");
     check(captureRun(accepted).find("bmQuiet") != std::string::npos,
           "a bare cpu extension joins the head's list (FR-011)");
     auto range = quickRun;
-    range.push_back("--jitter-probe=" + cpu + "-" + second + ",mode=precheck");
+    range.push_back("--jitter-probe=" + cpu + "-" + second
+                    + ",mode=precheck,precheck=1");
     // A closed range joins both cpus when the mask holds every cpu
     // between them; under a gapped mask the range's interior stands
     // outside, and the same grammar rejects it (FR-011).
@@ -1432,26 +1352,51 @@ auto main(int argc, char** argv) -> int
     reversed.push_back("--jitter-probe=" + second + "-" + cpu);
     checkOneLine(captureError(reversed, 2),
                  "a reversed cpu range stands rejected (FR-011)");
-    const std::string outside = pickCpuOutsideMask();
-    auto beyond = quickRun;
-    beyond.push_back("--jitter-probe=" + outside);
-    checkOneLine(captureError(beyond, 2),
-                 "a cpu outside the mask stands rejected (FR-011)");
-    // The set type's own bound and the count the threads report both
-    // refuse before the mask bit read: an index the set cannot hold,
-    // and the count-as-index that names no cpu the threads run on
-    // (FR-011, FR-041).
+    // The mask-membership refusal: on a host whose mask holds every
+    // online cpu the count bound stands first, so the bit read's own
+    // refusal reads in a child that holds one cpu of the mask alone
+    // and names the other, a cpu below the count the threads report
+    // (FR-011).
+    const Captured outside = runChildScenario(
+        "outside",
+        {"--filter=bmQuiet", "--repetitions=1", "--iterations=2",
+         "--jitter-probe=" + std::to_string(siblingCpu)},
+        &setupOutsideMask);
+    check(outside.status == 2,
+          "a cpu outside the child's mask stands rejected (FR-011)");
+    checkOneLine(outside.err,
+                 "the mask-membership refusal prints one line (FR-011)");
+    check(outside.err.find("stands outside the process affinity mask")
+              != std::string::npos,
+          "the line names the mask the child holds (FR-011)");
+    // The set type's own bound stands in the bit read itself, and the
+    // count the threads report refuses after it, on the line of its
+    // own: an index the set cannot hold, and the count-as-index that
+    // names no cpu the threads run on (FR-011, FR-041).
     auto bound = quickRun;
     bound.push_back("--jitter-probe=" + std::to_string(CPU_SETSIZE));
     checkOneLine(captureError(bound, 2),
                  "a cpu at the set's own bound stands rejected (FR-011)");
+    // The count bound reads the seam, the way the test layout
+    // installs: the count stands at the mask's lowest cpu and the run
+    // names the mask's second, an online cpu the mask holds whose
+    // index stands at or above the count, so the bound refuses on the
+    // line of its own; the seam clears after, and the other cases read
+    // the count the threads report (FR-041, FR-011).
+    sg::detail::installTestOnlineCount(cpus.at(0));
     auto pastCount = quickRun;
-    pastCount.push_back("--jitter-probe="
-                        + std::to_string(std::thread::hardware_concurrency()));
-    checkOneLine(captureError(pastCount, 2),
-                 "the count-as-index stands rejected the same way (FR-011)");
+    pastCount.push_back("--jitter-probe=" + second);
+    checkOneLine(
+        captureError(pastCount, 2),
+        "a cpu past the installed count stands rejected (FR-041)");
+    check(
+        captureError(pastCount, 2).find("stands past the online cpu count")
+            != std::string::npos,
+        "the count bound names the online count (FR-041)");
+    sg::detail::installTestOnlineCount({});
     auto rangeBeyond = quickRun;
-    rangeBeyond.push_back("--jitter-probe=" + cpu + "-" + outside);
+    rangeBeyond.push_back("--jitter-probe=" + cpu + "-"
+                          + pickCpuOutsideMask());
     checkOneLine(
         captureError(rangeBeyond, 2),
         "a range that ends outside the mask stands rejected " "(FR-011)");
@@ -1593,6 +1538,19 @@ auto main(int argc, char** argv) -> int
     check(values.size() > 15, "the scan read the whole table (FR-011, R-06)");
   }
 
+  // FR-017, D-4, E-09: the skipped-groups line the disclosure carries
+  // reads one group alone, two groups joined on the comma, and no
+  // group to no line, off the one function the console line and the
+  // JSON text read (E-09).
+  {
+    check(sg::detail::skippedGroupsText({5}) == "skipped L3 group(s) 5",
+          "one group names the group alone (E-09)");
+    check(sg::detail::skippedGroupsText({3, 9}) == "skipped L3 group(s) 3,9",
+          "two groups join on the comma (E-09)");
+    check(sg::detail::skippedGroupsText({}).empty(),
+          "no group names no line (E-09)");
+  }
+
   // FR-013, SC-003: a run with no probe option prints the console
   // report with the fields and the shape master prints.
   {
@@ -1612,7 +1570,7 @@ auto main(int argc, char** argv) -> int
     const std::string path = "harness_jitter_cli_mode.json";
     auto arguments = quickRun;
     arguments.push_back("--json=" + path);
-    arguments.push_back("--jitter-probe=" + cpu);
+    arguments.push_back("--jitter-probe=" + cpu + ",precheck=1");
     captureRun(arguments);
     const auto document = readDocument(path);
     std::remove(path.c_str());

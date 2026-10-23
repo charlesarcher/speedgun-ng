@@ -234,6 +234,12 @@ auto installedLoadFailureSlot() -> std::optional<int>&
   return slot;
 }
 
+auto installedOnlineCountSlot() -> std::optional<std::uint64_t>&
+{
+  static std::optional<std::uint64_t> slot;
+  return slot;
+}
+
 }  // namespace
 
 namespace detail
@@ -253,6 +259,17 @@ auto installTestTopologyDescription(std::optional<std::string> description)
 auto installTestLoadFailure(std::optional<int> answer) -> void
 {
   installedLoadFailureSlot() = answer;
+}
+
+auto installTestOnlineCount(std::optional<std::uint64_t> count) -> void
+{
+  installedOnlineCountSlot() = std::move(count);
+}
+
+auto onlineCpuCount() -> std::uint64_t
+{
+  return installedOnlineCountSlot().value_or(
+      std::thread::hardware_concurrency());
 }
 
 // FR-002, R-04: the one cached read. An installed layout short-circuits
