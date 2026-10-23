@@ -1462,7 +1462,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   double overheadFloorNs = 0.0;
   std::vector<bool> measuredColumn(columns.size(), true);
   const auto seatPass = [&](const std::vector<std::size_t>& columnsOfPass)
-      -> std::expected<void, std::string>
+      -> std::expected<void, sg::counters::Error>
   {
     cores.clear();
     cores.push_back(&realTime.core);
@@ -1480,9 +1480,16 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     auto seated =
         sg::counters::detail::compileCore(sys, sg::counters::Target {}, cores);
     if (!seated.has_value()) {
-      return std::expected<void, std::string> {
+      // specs/029 D-18, T073: the refusal travels as the error the counter
+      // layer answered, so a seat that fails inside the pass loop still names
+      // the cause the host gave and not a message this file wrote over it.
+      return std::expected<void, sg::counters::Error> {
           std::unexpect,
-          "the run plan does not compile: " + seated.error().message};
+          sg::counters::Error {
+              .message =
+                  "the run plan does not compile: " + seated.error().message,
+              .suggestions = seated.error().suggestions,
+          }};
     }
     plan = std::move(*seated);
     slotReset = plan->recorder(2);
@@ -1495,20 +1502,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // audit point compiled; a run the plan split seats its first pass's own
   // leaf list, because the whole spine is the leaf list that does not fit
   // the source's programmable-counter limit (FR-004).
-  auto huntPassZeroRefused = false;
+  // specs/029 spec PC-9, contracts/hunt-api.md: this seat is the run's one
+  // clean failure and a hunt run keeps it, because the same compile serves
+  // warm-up and calibration. A host that refuses the first pass's group
+  // therefore ends the run on the failure route with exit 1 naming the
+  // refusal; the retry of D-18 belongs to a pass after the first, inside the
+  // loop below, where the seat is a runtime condition and not the ground the
+  // measured numbers stand on.
   if (const auto seated = seatPass(passColumns.front()); !seated.has_value()) {
-    if (!instance.huntPlan.has_value()) {
-      return fail(seated.error());
-    }
-    // specs/029 D-18, PD-11: a hunt run retries the refused pass instead of
-    // failing it. spec PC-9 keeps the failure route for the device that
-    // seats no window at all: the one-leaf seat is the probe that tells the
-    // refused group from the host that carries nothing.
-    const std::vector<std::size_t> oneLeaf {passColumns.front().front()};
-    if (!seatPass(oneLeaf).has_value()) {
-      return fail(seated.error());
-    }
-    huntPassZeroRefused = true;
+    return fail(seated.error().message);
   }
 
   // FR-023: the availability of every leaf a metric needs is read
@@ -2487,13 +2489,6 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     passCount = passColumns.size();
   };
   for (std::size_t pass = 0; pass < passCount; ++pass) {
-    if (pass == 0 && huntRun && huntPassZeroRefused) {
-      // specs/029 D-18, FR-021: the pre-loop seat refused this pass's group,
-      // so the pass hands each of its events a pass of its own and the one
-      // pass measured by the retry loop takes its place (PD-11).
-      retryHuntPass(0);
-      continue;
-    }
     if (pass > 0) {
       // E-04, FR-012: the previous pass's seat closes first - the recorder
       // that stood over it, then the plan - and this pass compiles its own
@@ -2519,9 +2514,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           columns[lone].unavailable = true;
           columns[lone].availability =
               sg::counters::Availability::NOT_ENCODABLE;
-          // specs/029 D-18, FR-021: the event that still refuses is named
-          // for the record, so `runHunt` can give it a skipped entry.
-          instance.refusedHuntEvents.push_back(columns[lone].label);
+          // specs/029 D-18, FR-021, T073: the event that still refuses is
+          // recorded with the refusal itself, so `runHunt` gives it the kind
+          // the host's error maps to. No kind is guessed here.
+          instance.refusedHuntEvents.push_back(detail::RefusedRetry {
+              .address = columns[lone].label, .refusal = seated.error()});
         } else {
           retryHuntPass(pass);
         }

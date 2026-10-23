@@ -409,9 +409,9 @@ auto printRowPercentiles(const BenchmarkResult& result,
   }
 }
 
-// specs/029 T027, FR-040, PD-15: the three hunt printers stand below this
-// file's `printResult`, and the hunt block of a result calls them from here.
-auto printHuntPlan(const sg::hunt::RunHunt& run) -> void;
+// specs/029 T027, FR-040, PD-15: the hunt printers stand below this file's
+// `printResult`, and the hunt block of a result calls them from here. The plan
+// printer is declared in `detail/internal.hpp`, where the test lane reads it.
 auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
                       const sg::hunt::HuntNorm norm) -> void;
 auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
@@ -442,6 +442,19 @@ auto printResult(const BenchmarkResult& result) -> void
                   [](const sg::ResultRow& row) noexcept -> bool
                   { return row.kind == RowKind::AGGREGATE; });
   const bool trimRepetitionRows = result.hideRepetitionRows && holdsAggregate;
+
+  // specs/029 T074, FR-012, FR-013, US2 scenario 1: the plan a hunt run
+  // measured under names itself above the first row it bought, with the
+  // budget cut line directly under it, so the budget the reader is being
+  // scored against stands before the figures it explains. A result that
+  // carried no hunt reaches here false and prints the bytes it printed
+  // before the hunt existed (I-8).
+  const bool printsHuntPlan =
+      result.hunt.has_value() && huntRunRecord().has_value();
+  if (printsHuntPlan) {
+    printHuntPlan(*huntRunRecord());
+  }
+
   for (const auto& row : result.rows) {
     if (trimRepetitionRows && row.kind == RowKind::REPETITION) {
       continue;
@@ -606,15 +619,15 @@ auto printResult(const BenchmarkResult& result) -> void
                 worst->stats.totalPercent);
   }
 
-  // specs/029 T027, FR-040, FR-041, PD-15, data-model E-07: the hunt lines
-  // print behind the rows and disclosures of the benchmark they ranked, in
-  // the order plan, ranking, skipped list, summary. A result that carried no
-  // hunt prints the bytes it printed before the hunt existed (I-8), and the
-  // norm label is the one the run measured under, `instr` when the caller
-  // named none (D-13).
-  if (result.hunt.has_value() && huntRunRecord().has_value()) {
+  // specs/029 T027, T074, FR-040, FR-041, PD-15, data-model E-07: the hunt
+  // lines that rank print behind the rows and disclosures of the benchmark
+  // they ranked, in the order ranking, skipped list, summary; the plan line
+  // and the cut line under it already stood above the first row. A result
+  // that carried no hunt prints the bytes it printed before the hunt existed
+  // (I-8), and the norm label is the one the run measured under, `instr` when
+  // the caller named none (D-13).
+  if (printsHuntPlan) {
     const auto& run = *huntRunRecord();
-    printHuntPlan(run);
     printHuntRanking(*result.hunt,
                      run.options.norm.value_or(sg::hunt::HuntNorm::INSTR));
     printHuntSkips(*result.hunt, run, std::nullopt);
@@ -834,16 +847,20 @@ constexpr std::array<const char*, 3> kHuntMethodWords {
 static_assert(kHuntMethodWords.size()
               == std::to_underlying(sg::MetricMethod::MULTIPLEX) + 1);
 
-// specs/029 T027, FR-040, FR-041, PD-15, data-model E-07: the plan line of
-// one hunt run, spelled from the run record the report lane reads. `events=`
+// specs/029 T027, T035, FR-012, FR-013, FR-040, FR-041, PD-15, data-model
+// E-07: the plan line of one hunt run, spelled from the run record the report
+// lane reads, and the one line a cut plan adds below it. `events=`
 // counts the planned columns and `passes=` the passes of the plan, `method=`
 // names the settled collection method in the capital word the data model
 // spells, and the estimate is the plan's own figure: it is
 // calibration data, so a plan the run reached before any calibration answered
-// prints `estimate=not available` (FR-012). The record carries the norm the
-// run measured under, so a device that lacked an anchors the run normalized
-// by iterations, which the line states openly (D-13). The line carries no
-// measurement: every figure is a field of the record the caller handed over.
+// prints `estimate=not available` (FR-012). A plan of two stages names both
+// stages with the events each measures, which is where a seconds budget shows
+// the sweep and the re-run it bought (US2 scenario 2). The record carries the
+// norm the run measured under, so a device that lacked an anchors the run
+// normalized by iterations, which the line states openly (D-13). The line
+// carries no measurement: every figure is a field of the record the caller
+// handed over.
 auto printHuntPlan(const sg::hunt::RunHunt& run) -> void
 {
   std::printf("hunt: plan events=%zu passes=%zu method=%s",
@@ -860,10 +877,28 @@ auto printHuntPlan(const sg::hunt::RunHunt& run) -> void
   }
   std::printf(" budget=");
   printHuntBudget(run.options.budget);
+  // specs/029 T035, FR-013: the stages the run measured, named in order with
+  // the event count each carries. A record that holds one stage - the
+  // un-budgeted plan, and the budgeted plan whose stage 2 was cut - names
+  // none: no split stands there to be read.
+  if (run.stages.size() > 1) {
+    for (std::size_t index = 0; index < run.stages.size(); ++index) {
+      std::printf(" stage%zu=%zu", index + 1, run.stages[index].count);
+    }
+  }
   if (run.options.norm == sg::hunt::HuntNorm::ITER) {
     std::printf(" normalized=iter");
   }
   std::printf("\n");
+  // specs/029 D-2, FR-013, E-07: the cut line. `splitStages` drops stage 2
+  // whole when the two-stage estimate does not fit the budget, leaving a
+  // budgeted record with one stage. The reason of the drop is the record's own
+  // field, the value the planner recorded, so this file spells no reason and
+  // reads no shape into it. A record that carries both stages prints no line.
+  if (run.options.budget.has_value() && run.stages.size() == 1) {
+    std::printf("hunt: plan budget cut stage=2 reason=%s\n",
+                run.cutReason.c_str());
+  }
 }
 
 // specs/029 T027, FR-040, FR-042, PD-14, PD-15, data-model E-07: the ranked

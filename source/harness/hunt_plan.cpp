@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
@@ -37,9 +38,6 @@ constexpr double kPercentScale = 100.0;
 // The anchor leaves one column asks of its device besides the event itself,
 // the leaves that make the limit of a device below 3 admit no event (E-04).
 constexpr std::size_t kAnchorLeaves = 2;
-
-// The width of the stage-2 set as a multiple of `--hunt-top` (D-2).
-constexpr std::size_t kStageTwoFactor = 3;
 
 [[nodiscard]] auto refusal(const std::string& message) -> counters::Error
 {
@@ -178,30 +176,38 @@ auto planHunt(const std::vector<CatalogAddress>& events,
       plan.passes = passPlan.columns;
     }
 
-    // shortcut: plan order stands in for the stage-1 rate order, which no rate
-    // exists for before the run measured stage 1; splitStages (T033) owns the
-    // ordering and the budget cut verdict.
-    auto stages = std::vector<HuntStage> {};
-    if (!options.budget.has_value()) {
-      stages.push_back(
-          HuntStage {columnIndices(plan.columns.size()), options.repeats});
-    } else {
-      stages.push_back(HuntStage {columnIndices(plan.columns.size()), 1});
-      const auto width =
-          std::min(kStageTwoFactor * options.top, plan.columns.size());
-      stages.push_back(HuntStage {columnIndices(width), options.repeats});
-    }
-    plan.stages = std::move(stages);
+    // The split owns the stages, so the plan line and the run read one answer.
+    // No stage-1 rate exists before the run measured stage 1: every column
+    // hands the same rate here, so the stable rate order leaves the columns in
+    // plan order and the leading ones form the planned stage-2 set. No figure
+    // re-splits it later: the run drives these stages unchanged (PD-13), and
+    // FR-014 derives a stage's columns from the seed and the catalog order
+    // only, never from a measured rate (D-2, FR-013, D-9).
+    auto split =
+        detail::splitStages(plan,
+                            std::vector<double>(plan.columns.size(), 0.0),
+                            options,
+                            calibrationNsPerPass);
+    plan.stages = std::move(split.stages);
 
-    if (calibrationNsPerPass.has_value() && !plan.stages.empty()) {
+    if (calibrationNsPerPass.has_value()) {
       plan.estimateNs = *calibrationNsPerPass * plan.passes.size()
           * plan.stages.front().repeats;
     }
   }
 
   auto seated = std::size_t {0};
+  auto seats = std::vector<char>(plan.columns.size(), 0);
   for (const auto& pass : plan.passes) {
-    seated += pass.size();
+    for (const auto column : pass) {
+      // I-3: the pass plan covers the column space once, so one column stands
+      // in no second pass and no index leaves the space.
+      SG_INVARIANT(column < seats.size() && seats[column] == 0,
+                   "the planner covers every column index exactly once, so no "
+                   "column stands in two passes (I-3)");
+      seats[column] = 1;
+      ++seated;
+    }
   }
   SG_ENSURE(seated == plan.columns.size(),
             "the planner seats every column of the request in one pass and "
@@ -243,9 +249,10 @@ auto rankEvents(const std::vector<EventSamples>& collected,
         rates.push_back(*rate);
       }
     }
-    SG_ASSERT(!rates.empty() || event.skipped.has_value(),
-              "every address with no refusal kind holds at least one sample "
-              "free of a disclosure, the guard `statisticsOf` carries");
+    SG_INVARIANT(!rates.empty() || event.skipped.has_value(),
+                 "every address with no refusal kind holds at least one "
+                 "sample free of a disclosure, the guard `statisticsOf` "
+                 "carries");
 
     auto& entry = result.entries.emplace_back();
     entry.address = event.address;
@@ -330,9 +337,164 @@ auto rankEvents(const std::vector<EventSamples>& collected,
   }
   result.entries = std::move(ordered);
 
+  // I-4: one discovery answer decides one address, so neither half of the
+  // record holds an address twice.
+  for (const auto& entry : result.entries) {
+    const auto once = std::count_if(result.entries.begin(),
+                                    result.entries.end(),
+                                    [&entry](const RankedEvent& other)
+                                    { return other.address == entry.address; });
+    SG_INVARIANT(once == 1,
+                 "one address stands at most once in the ranked table, so the "
+                 "run hands every address to the rank table once (I-4)");
+  }
+  for (const auto& skip : result.skipped) {
+    const auto once = std::count_if(result.skipped.begin(),
+                                    result.skipped.end(),
+                                    [&skip](const SkippedEvent& other)
+                                    { return other.address == skip.address; });
+    SG_INVARIANT(once == 1,
+                 "one address stands at most once in the skipped list, because "
+                 "one discovery answer decides its membership (I-4)");
+  }
+
   SG_ENSURE(result.entries.size() == collected.size(),
             "one record stands in the table per address the run handed over");
   return result;
 }
 
 }  // namespace sg::hunt
+
+namespace sg::detail
+{
+
+namespace
+{
+
+// The width of the stage-2 set as a multiple of `--hunt-top` (D-2).
+constexpr std::size_t kStageTwoFactor = 3;
+
+// The nanoseconds of one second, the factor a seconds budget needs to become
+// the pass count the calibration figure counts (FR-012).
+constexpr std::uint64_t kNanosecondsPerSecond = 1'000'000'000;
+
+// The pass runs one stage costs: every pass of the plan that holds one of the
+// stage's columns, once for each repeat the stage carries (D-2).
+[[nodiscard]] auto passRuns(const sg::hunt::HuntPlan& plan,
+                            const sg::hunt::HuntStage& stage) -> std::size_t
+{
+  auto seated = std::vector<char>(plan.columns.size(), 0);
+  for (const auto column : stage.columns) {
+    seated[column] = 1;
+  }
+  auto runs = std::size_t {0};
+  for (const auto& pass : plan.passes) {
+    const auto holds = std::ranges::any_of(pass,
+                                           [&seated](const std::size_t column)
+                                           { return seated[column] != 0; });
+    runs += holds ? 1 : 0;
+  }
+  return runs;
+}
+
+// The pass count a budget allows, in the unit the caller named. A pass budget
+// answers itself; a seconds budget answers only through the calibration figure,
+// the same figure `estimateNs` multiplies, and answers nothing when no
+// calibration answered or when its nanoseconds leave the range of the count,
+// because no clock stands here to weigh it another way (FR-012, I-7).
+[[nodiscard]] auto allowedPasses(
+    const sg::hunt::HuntBudget& budget,
+    const std::optional<std::uint64_t> calibrationNsPerPass)
+    -> std::optional<std::size_t>
+{
+  if (budget.kind == sg::hunt::HuntBudget::Kind::PASSES) {
+    return static_cast<std::size_t>(budget.amount);
+  }
+  if (!calibrationNsPerPass.has_value() || *calibrationNsPerPass == 0
+      || budget.amount
+          > std::numeric_limits<std::uint64_t>::max() / kNanosecondsPerSecond)
+  {
+    return std::nullopt;
+  }
+  return static_cast<std::size_t>(budget.amount * kNanosecondsPerSecond
+                                  / *calibrationNsPerPass);
+}
+
+}  // namespace
+
+auto splitStages(const sg::hunt::HuntPlan& plan,
+                 const std::vector<double>& stageOneRates,
+                 const sg::hunt::HuntOptions& options,
+                 const std::optional<std::uint64_t> calibrationNsPerPass)
+    -> StageSplit
+{
+  SG_REQUIRE(stageOneRates.size() == plan.columns.size(),
+             "the caller hands one stage-1 rate per planned column");
+  SG_REQUIRE(!plan.columns.empty(),
+             "a plan with no column has no stage to split");
+  SG_REQUIRE(options.top > 0 && options.repeats > 0,
+             "the caller hands the settled options, every value inside the "
+             "range its own option states");
+
+  const auto count = plan.columns.size();
+  const auto budgeted = options.budget.has_value();
+  const auto all = hunt::columnIndices(count);
+  // Stage 1 runs the whole plan, at one repeat of a budgeted run and at the
+  // full repeats of an un-budgeted one: it never shrinks (FR-013).
+  auto first =
+      sg::hunt::HuntStage {all, budgeted ? std::size_t {1} : options.repeats};
+
+  const auto width = std::min(kStageTwoFactor * options.top, count);
+  auto second =
+      sg::hunt::HuntStage {std::vector<std::size_t> {}, options.repeats};
+  auto overBudget = false;
+  if (budgeted) {
+    // Stage 2 runs the columns the stage-1 rate ranks highest, the leading
+    // `3 x top` of them (D-2, FR-013). The order is stable, so columns of
+    // equal rate keep column order, and the set stands in column order as E-04
+    // spells a stage's column list.
+    auto ranked = all;
+    std::ranges::stable_sort(
+        ranked,
+        [&stageOneRates](const std::size_t lhs, const std::size_t rhs)
+        { return stageOneRates[lhs] > stageOneRates[rhs]; });
+    ranked.resize(width);
+    std::ranges::sort(ranked);
+    second.columns = std::move(ranked);
+
+    const auto runs = (passRuns(plan, first) * first.repeats)
+        + (passRuns(plan, second) * second.repeats);
+    const auto allowed = allowedPasses(*options.budget, calibrationNsPerPass);
+    overBudget = allowed.has_value() && runs > *allowed;
+  }
+
+  auto split = StageSplit {};
+  split.stages.push_back(std::move(first));
+  if (budgeted && !overBudget) {
+    split.stages.push_back(std::move(second));
+  }
+  if (overBudget) {
+    // The stage is dropped whole, never shortened, and the plan line names the
+    // one reason E-07 spells (D-2, FR-013).
+    split.cutStage2 = true;
+    split.cutReason = "over-budget";
+  }
+
+  SG_ENSURE(
+      split.stages.size()
+          == (budgeted && !split.cutStage2 ? std::size_t {2} : std::size_t {1}),
+      "one stage stands for an un-budgeted or cut plan, two for a fit one");
+  SG_ENSURE(split.stages.front().columns.size() == count
+                && split.stages.front().repeats
+                    == (budgeted ? std::size_t {1} : options.repeats),
+            "stage 1 covers every column at the repeats its rule gives");
+  SG_ENSURE(split.stages.size() == 1
+                || (split.stages[1].columns.size() == width
+                    && split.stages[1].repeats == options.repeats),
+            "stage 2 covers the top 3 x top columns at the full repeats");
+  SG_ENSURE(!split.cutStage2 || !split.cutReason.empty(),
+            "a cut stage names the reason the plan line prints");
+  return split;
+}
+
+}  // namespace sg::detail

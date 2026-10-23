@@ -184,8 +184,9 @@ counting its anchors (I-3, FR-011); `method` is the `settleMethod` answer, which
 is `MULTIPLEX` exactly when no needed device publishes a limit (FR-011, D-19,
 spec PC-2); `stages` holds one stage when `options.budget` is empty: every
 column at `options.repeats`. With a budget `stages` holds two: stage 1 over
-every column at one repeat and stage 2 over the top `3 x top` columns at
-`options.repeats` (D-2, FR-013); the budget rule below drops stage 2 whole when
+every column at one repeat and stage 2 over the leading `3 x top` columns of the
+plan at `options.repeats` (D-2, FR-013, FR-014); the budget rule below drops
+stage 2 whole when
 the two-stage estimate does not fit; `estimateNs` holds
 `calibrationNsPerPass x passes x repeats`, the stage-1 figures on a split plan,
 or stands empty; `normalized` is false exactly when `anchorsPerPass` is zero.
@@ -214,10 +215,12 @@ path from `Object::programmableCounters()` (`counters_system.hpp:85`), the one
 source of the limit (spec PC-2).
 
 **Budget rule** (D-2, FR-013, no reduction of its own): a budgeted plan runs
-stage 1 over every event at one repeat and stage 2 over the top `3 x top` events
-at `options.repeats`. When the two-stage estimate does not fit the budget, the
-plan drops stage 2 entirely and the run prints one `budget cut` line naming the
-reason. Stage 1 never shrinks.
+stage 1 over every event at one repeat and stage 2 over the leading `3 x top`
+events of the plan order at `options.repeats`. No measured rate re-ranks that
+set: FR-014 derives a stage from the seed and the catalog order only, so the
+stages `planHunt` answers are the stages the run drives (PD-13). When the
+two-stage estimate does not fit the budget, the plan drops stage 2 entirely and
+the run prints one `budget cut` line naming the reason. Stage 1 never shrinks.
 
 ## `EventSamples`, `rankEvents` and the result records (E-05, E-06)
 

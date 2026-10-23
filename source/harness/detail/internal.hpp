@@ -128,6 +128,23 @@ struct PlacementPlan
   std::uint32_t places = 0;
 };
 
+/**
+ * @brief specs/029 data-model.md E-05, D-18, T073: one hunt event whose solo
+ * retry pass refused too, kept with the refusal that refused it.
+ *
+ * The pass loop cannot name the kind of a refusal - the mapping of the errno
+ * the open failed with to a skipped kind belongs to `hunt.cpp` - so it hands
+ * the refusal over whole, so no kind is guessed beside the address.
+ */
+struct RefusedRetry
+{
+  // The address of the event the retry pass measured alone.
+  std::string address;
+  // The error the seat of that pass answered, the counters-layer text with
+  // the errno name the skipped kind is read from.
+  counters::Error refusal;
+};
+
 }  // namespace detail
 
 /**
@@ -261,10 +278,10 @@ public:
   // fell back to one pass per event of that pass.
   std::vector<detail::RetriedPass> retriedHuntPasses;
 
-  // specs/029 D-18, FR-021: the addresses of the events whose own retry pass
-  // refused too: the run keeps going and `runHunt` turns each into a skipped
-  // entry with the kind of the refusal.
-  std::vector<std::string> refusedHuntEvents;
+  // specs/029 D-18, FR-021: the events whose own retry pass refused too, each
+  // with the refusal that refused it: the run keeps going and `runHunt` turns
+  // each into a skipped entry with the kind of that refusal.
+  std::vector<detail::RefusedRetry> refusedHuntEvents;
 
   /// @brief specs/029 PD-12, D-18: the passes of this instance's hunt run that
   /// fell back to one event per pass, in the order the pass loop appended them.
@@ -279,14 +296,15 @@ public:
     return retriedHuntPasses;
   }
 
-  /// @brief specs/029 D-18, FR-021: the addresses of the events that still
-  /// refused after their solo retry pass.
+  /// @brief specs/029 D-18, FR-021, T073: the events that still refused after
+  /// their solo retry pass, each with the refusal that refused it.
   ///
   /// \pre none
-  /// \post one address per refused solo retry, in refusal order; empty for a
-  ///       run whose retries all seated (D-18)
+  /// \post one entry per refused solo retry, in refusal order, each holding the
+  ///       error its seat answered; empty for a run whose retries all seated
+  ///       (D-18)
   [[nodiscard]] auto huntRefusedEvents() const noexcept
-      -> const std::vector<std::string>&
+      -> const std::vector<detail::RefusedRetry>&
   {
     return refusedHuntEvents;
   }
@@ -943,6 +961,17 @@ auto printResult(const BenchmarkResult& result) -> void;
 /// not-available disclosure only.
 auto printJitterReport(bool available,
                        const std::vector<const ProbeCpuState*>& states) -> void;
+/// @brief specs/029 T035, FR-012, FR-013, data-model E-07: the plan line of
+/// one hunt run, and the one line a cut plan adds below it.
+///
+/// Every figure is a field of the record the caller hands over, the cut
+/// reason included: the printer decides no plan shape and spells no reason.
+///
+/// \pre none
+/// \post the plan line of the record stands on stdout, and a budgeted record
+///       that holds one stage is followed by the cut line naming
+///       `RunHunt::cutReason`
+auto printHuntPlan(const hunt::RunHunt& run) -> void;
 
 /// @brief Print the catalog listing; false when the listing failed
 /// (FR-037).

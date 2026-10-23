@@ -275,36 +275,85 @@ auto walkCatalog(const counters::Object& root, CatalogView& view) -> void
   return view;
 }
 
-// E-01's invariant is `addresses()` empty until `expand` succeeds, and the
-// class declares no member to hold a list, so the expansion of the run stands
-// in one list of the translation unit that `expand` clears on entry (D-15:
-// `hunt.hpp` states the surface this file implements and nothing else).
-[[nodiscard]] auto expandedAddresses() -> std::vector<std::string>&
+// E-01's invariant is that the expansion stands empty until `expand` answers
+// no error, so `expand` fills a list of its own and commits it to the catalog
+// only on the route that answers no error; the checks below read that committed
+// list at the points the documented contract names (D-15: `hunt.hpp` states the
+// surface this file implements and nothing else).
+[[nodiscard]] [[maybe_unused]] auto holdsNoRepeat(
+    const std::vector<std::string>& addresses) -> bool
 {
-  static std::vector<std::string> addresses;
-  return addresses;
+  for (std::size_t left = 0; left < addresses.size(); ++left) {
+    for (std::size_t right = left + 1; right < addresses.size(); ++right) {
+      if (addresses[left] == addresses[right]) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
-/// @brief E-05, I-4, FR-022, D-10: the kind the skipped entry of one measured
-/// column carries.
+/// @brief E-01, spec PC-1: true when one address carries the
+/// `Object::path() + "/" + entry.name` spelling the catalog composes.
+[[nodiscard]] [[maybe_unused]] auto carriesCatalogSpelling(
+    const std::string_view address) -> bool
+{
+  // The last separator splits device from leaf: a device path of its own can
+  // hold slashes, so only the one the catalog composed has to bound two
+  // non-empty parts.
+  const auto separator = address.rfind('/');
+  return separator != std::string_view::npos && separator != 0U
+      && separator + 1U < address.size();
+}
+
+/// @brief E-05, AC-10, contracts/hunt-api.md: true when one sample can give a
+/// rate under the norm the rank reads.
 ///
-/// \pre `rows` holds at least one sample of one planned address
+/// `rateOf` answers a rate over a denominator that stands: the anchor of the
+/// norm as that window read it, or the iteration count of a run that
+/// normalizes by neither. A sample whose anchor read zero contributes no rate,
+/// exactly as a disclosed one contributes none, so both stand in one predicate
+/// here.
+[[nodiscard]] auto yieldsRate(const HuntSample& sample,
+                              const HuntNorm norm) -> bool
+{
+  if (sample.disclosure.has_value()) {
+    return false;
+  }
+  if (norm == HuntNorm::ITER) {
+    return sample.iterations != 0;
+  }
+  const auto anchor =
+      norm == HuntNorm::CYCLE ? sample.anchorCycle : sample.anchorInstr;
+  return anchor.value_or(0) != 0;
+}
+
+/// @brief E-05, I-4, FR-022, D-10, AC-10: the kind the skipped entry of one
+/// measured column carries.
+///
+/// \pre `rows` holds at least one sample of one planned address; `rated` states
+///      whether any of them gives a rate under the norm the rank reads
 /// \post the first disclosure of the run answers its own kind through
 ///       `detail::skippedKindOf`, so a column that measured and gapped stands
 ///       in `entries` and in `skipped` at once (FR-022) and a column whose
 ///       every window disclosed answers the refusal the pass loop left on the
-///       column (D-18, FR-021); no disclosure answers nothing
-[[nodiscard]] auto skippedOf(const EventSamples& rows)
-    -> std::optional<SkippedKind>
+///       column (D-18, FR-021)
+/// \post a column no window gave a rate carries `ABSENT`, the denominator that
+///       is not there: `rankEvents` reads an address with no rate and no kind
+///       as a broken precondition and aborts the process over it (AC-10, the
+///       corsairone defect record)
+[[nodiscard]] auto skippedOf(const EventSamples& rows,
+                             const bool rated) -> std::optional<SkippedKind>
 {
   const auto disclosed = std::find_if(
       rows.samples.begin(),
       rows.samples.end(),
       [](const HuntSample& sample) { return sample.disclosure.has_value(); });
-  if (disclosed == rows.samples.end()) {
-    return std::nullopt;
+  if (disclosed != rows.samples.end()) {
+    return detail::skippedKindOf(*disclosed->disclosure);
   }
-  return detail::skippedKindOf(*disclosed->disclosure);
+  return rated ? std::nullopt
+               : std::optional<SkippedKind> {SkippedKind::ABSENT};
 }
 
 // One stage's run: the leaf list the run opens its columns in, and for each
@@ -548,13 +597,14 @@ auto collectStageSamples(std::vector<EventSamples>& collected,
 /// `all` takes the events of the core devices and excludes uncore (D-1); the
 /// two anchor leaves of a device ride its passes as denominators and stand out
 /// of the candidate list (I-1).
-auto appendAll(const CatalogView& view) -> void
+auto appendAll(const CatalogView& view,
+               std::vector<std::string>& expanded) -> void
 {
   for (const auto& row : view.rows) {
     const auto device = devicePartOf(row.address);
     const auto leaf = leafPartOf(row.address);
     if (coreDevicePart(device) && leaf != kCyclesLeaf && leaf != kInstrLeaf) {
-      expandedAddresses().push_back(row.address);
+      expanded.push_back(row.address);
     }
   }
 }
@@ -562,15 +612,16 @@ auto appendAll(const CatalogView& view) -> void
 /// @brief FR-007: the catalog addresses one glob pattern matches, in catalog
 /// order; the refusal names the pattern that matched none.
 [[nodiscard]] auto appendPattern(const CatalogView& view,
-                                 const std::string_view pattern)
+                                 const std::string_view pattern,
+                                 std::vector<std::string>& expanded)
     -> std::optional<counters::Error>
 {
   for (const auto& row : view.rows) {
     if (globMatches(pattern, row.address)) {
-      expandedAddresses().push_back(row.address);
+      expanded.push_back(row.address);
     }
   }
-  if (expandedAddresses().empty()) {
+  if (expanded.empty()) {
     return failure("the hunt pattern '" + std::string(pattern)
                    + "' matches no catalog address");
   }
@@ -581,7 +632,8 @@ auto appendAll(const CatalogView& view) -> void
 /// separated list, in the order the text gave them; a repeated address keeps
 /// its first position and drops the repeat (E-01).
 [[nodiscard]] auto appendList(const CatalogView& view,
-                              const std::vector<std::string_view>& entries)
+                              const std::vector<std::string_view>& entries,
+                              std::vector<std::string>& expanded)
     -> std::optional<counters::Error>
 {
   for (const auto entry : entries) {
@@ -597,10 +649,8 @@ auto appendAll(const CatalogView& view) -> void
                      + "', which the catalog holds no such address "
                        "(FR-004)");
     }
-    const auto& addresses = expandedAddresses();
-    if (std::find(addresses.begin(), addresses.end(), entry) == addresses.end())
-    {
-      expandedAddresses().emplace_back(entry);
+    if (std::find(expanded.begin(), expanded.end(), entry) == expanded.end()) {
+      expanded.emplace_back(entry);
     }
   }
   return std::nullopt;
@@ -628,8 +678,9 @@ auto appendAll(const CatalogView& view) -> void
 auto EventCatalog::expand(std::string_view selection)
     -> std::expected<void, counters::Error>
 {
-  auto& addresses = expandedAddresses();
-  addresses.clear();
+  // E-01: the expansion belongs to this catalog and to the selection it is
+  // given, so a second `expand` replaces it and a refusal leaves none behind.
+  m_addresses = std::nullopt;
   const auto entries = splitEntries(selection);
   for (const auto entry : entries) {
     if (isRawCode(entry)) {
@@ -646,34 +697,57 @@ auto EventCatalog::expand(std::string_view selection)
     return std::unexpected(failure(std::string(text)));
   }
   const auto whole = trim(selection);
+  auto expanded = std::vector<std::string> {};
   if (whole == kAllSelection) {
-    appendAll(*view);
-    return {};
+    appendAll(*view, expanded);
+  } else {
+    const bool glob = whole.find_first_of("*?") != std::string_view::npos
+        && whole.find_first_of(",\n") == std::string_view::npos;
+    const auto refusal = glob ? appendPattern(*view, whole, expanded)
+                              : appendList(*view, entries, expanded);
+    if (refusal.has_value()) {
+      // The half-built list stands only in `expanded`, so a refused selection
+      // commits no expansion of its own (E-01).
+      SG_INVARIANT(!m_addresses.has_value(),
+                   "a refused selection commits no expansion, so the expansion "
+                   "stands empty until `expand` answers no error (E-01)");
+      return std::unexpected(*refusal);
+    }
   }
-  const bool glob = whole.find_first_of("*?") != std::string_view::npos
-      && whole.find_first_of(",\n") == std::string_view::npos;
-  const auto refusal =
-      glob ? appendPattern(*view, whole) : appendList(*view, entries);
-  if (refusal.has_value()) {
-    return std::unexpected(*refusal);
-  }
+  m_addresses = std::move(expanded);
+  SG_ENSURE(holdsNoRepeat(*m_addresses),
+            "the expansion holds each selected address once, because every "
+            "selection shape deduplicates by address (E-01)");
   return {};
 }
 
 auto EventCatalog::addresses() const -> const std::vector<std::string>&
 {
-  return expandedAddresses();
+  SG_REQUIRE(m_addresses.has_value(),
+             "the caller reads the expansion after `expand` answered no error "
+             "(E-01)");
+  SG_ENSURE(holdsNoRepeat(*m_addresses)
+                && std::all_of(m_addresses->begin(),
+                               m_addresses->end(),
+                               carriesCatalogSpelling),
+            "no address of the expansion repeats and each carries the "
+            "`path` + `/` + `name` spelling the catalog composes (spec PC-1, "
+            "PC-8)");
+  return *m_addresses;
 }
 
 auto EventCatalog::split(const std::uint64_t seed) const
     -> std::pair<std::vector<CatalogAddress>, std::vector<SkippedEvent>>
 {
+  SG_REQUIRE(m_addresses.has_value(),
+             "the split reads the availability of the addresses one `expand` "
+             "answered without error (E-01, FR-010)");
   const auto view = discoverCatalog();
   // The expansion filled its list out of this same walk, so the walk stands for
   // the availability of every address of the expansion (FR-002, FR-010).
-  SG_ASSERT(view.has_value(),
-            "an expansion answered only where the machine object walked, so "
-            "the walk of the split of its addresses stands too (FR-002)");
+  SG_INVARIANT(view.has_value(),
+               "an expansion answered only where the machine object walked, so "
+               "the walk of the split of its addresses stands too (FR-002)");
   auto answer =
       std::pair<std::vector<CatalogAddress>, std::vector<SkippedEvent>> {};
   for (const auto& address : addresses()) {
@@ -682,9 +756,9 @@ auto EventCatalog::split(const std::uint64_t seed) const
                                   [&address](const CatalogRow& candidate)
                                   { return candidate.address == address; });
     // Every address of the expansion is an address of the walk it came from.
-    SG_ASSERT(row != view->rows.end(),
-              "the split reads the availability of a walked address, so the "
-              "walk holds its entry (FR-010)");
+    SG_INVARIANT(row != view->rows.end(),
+                 "the split reads the availability of a walked address, so the "
+                 "walk holds its entry (FR-010)");
     if (row->availability == counters::Availability::COUNTABLE) {
       answer.first.push_back(CatalogAddress {
           .address = address,
@@ -709,18 +783,32 @@ auto EventCatalog::split(const std::uint64_t seed) const
       std::swap(answer.first[width - 1], answer.first[draw]);
     }
   }
+  SG_ENSURE(answer.first.size() + answer.second.size()
+                == addresses().size(),
+            "one entry per address of the expansion stands in exactly one "
+            "member of the split, so no address stands in both (FR-010)");
   return answer;
 }
 
 auto EventCatalog::devicePart(const std::string_view address)
     -> std::string_view
 {
-  return devicePartOf(address);
+  const auto part = devicePartOf(address);
+  const auto leaf = address.substr(part.size());
+  SG_ENSURE(leaf.empty() || leaf.find_last_of('/') == 0,
+            "the device part is the text before the last `/`, or the whole "
+            "address when it holds none (E-01)");
+  return part;
 }
 
 auto EventCatalog::isCoreDevice(const std::string_view address) const -> bool
 {
-  return coreDevicePart(devicePartOf(address));
+  const auto device = devicePartOf(address);
+  const bool core = coreDevicePart(device);
+  SG_ENSURE(!core || !device.starts_with("uncore"),
+            "the core-device rule of D-1 admits the core devices and keeps "
+            "every uncore device out of the candidate list (D-1)");
+  return core;
 }
 
 }  // namespace sg::hunt
@@ -855,7 +943,7 @@ auto runHuntNamed(std::string_view name,
   }
 
   auto collected = std::vector<EventSamples> {};
-  auto refused = std::vector<std::string> {};
+  auto refused = std::vector<detail::RefusedRetry> {};
   collected.reserve(plan.columns.size());
   for (const auto& column : plan.columns) {
     collected.push_back(
@@ -946,21 +1034,25 @@ auto runHuntNamed(std::string_view name,
   }
 
   // `rankEvents` takes the columns the run measured: its precondition names a
-  // sample free of a disclosure for every address that carries no skipped kind,
-  // so a column that produced no sample at all - the run stopped mid-collection
-  // - joins no list (E-06, PD-14).
+  // rate for every address that carries no skipped kind, so a column that
+  // produced no sample at all - the run stopped mid-collection - joins no list
+  // (E-06, PD-14) and a column no window could rate carries the kind its rate
+  // would have stood beside (AC-10).
   auto measured = std::vector<EventSamples> {};
   measured.reserve(collected.size());
+  const auto rankNorm = options.norm.value_or(HuntNorm::INSTR);
   for (auto& rows : collected) {
     if (rows.samples.empty()) {
       continue;
     }
-    rows.skipped = skippedOf(rows);
-    const auto clean = std::any_of(rows.samples.begin(),
+    const auto rated = std::any_of(rows.samples.begin(),
                                    rows.samples.end(),
-                                   [](const HuntSample& sample)
-                                   { return !sample.disclosure.has_value(); });
-    if (clean) {
+                                   [rankNorm](const HuntSample& sample)
+                                   { return yieldsRate(sample, rankNorm); });
+    rows.skipped = skippedOf(rows, rated);
+    if (rated) {
+      // FR-041: the summary counts the addresses a window rated, the
+      // figure `hunt: plan summary events=` prints.
       ++runRecord.ranEvents;
     }
     measured.push_back(std::move(rows));
@@ -971,20 +1063,35 @@ auto runHuntNamed(std::string_view name,
   // The pass count of the plan that ran, the passes a retry appended included
   // (PD-12, D-18).
   entry.passCount = plan.passes.size() + lonePasses;
+  // PD-12, D-18: the record counts every pass the run opened, so no collected
+  // sample stands on a pass the record leaves out.
+  for (const auto& rows : measured) {
+    for (const auto& sample : rows.samples) {
+      SG_INVARIANT(sample.pass < entry.passCount,
+                   "the record counts the passes of the plan that ran, the "
+                   "passes a retry appended included (PD-12, D-18)");
+    }
+  }
   entry.retriedPasses = retriedPasses;
   const bool multiplexed =
       plan.method.has_value() && *plan.method == MetricMethod::MULTIPLEX;
   for (auto& ranked : entry.entries) {
     ranked.multiplexed = multiplexed;
   }
-  // specs/029 D-18, FR-021: the event whose solo retry refused too stands in
-  // the skipped list with the kind its open refusal maps to, beside the
-  // halves the discovery and the disclosures already filled.
-  for (const auto& address : refused) {
+  // specs/029 D-18, FR-021, T073: the event whose solo retry refused too
+  // stands in the skipped list with the kind its own refusal maps to, beside
+  // the halves the discovery and the disclosures already filled. The refusal
+  // takes the place of a gap the same address collected with: a pass that
+  // refused its seat leaves its columns gap-disclosed in the rows of the
+  // passes that did run, and one address names one reason, the one the host
+  // answered (I-4).
+  for (const auto& refusal : refused) {
+    std::erase_if(entry.skipped,
+                  [&refusal](const SkippedEvent& skipped)
+                  { return skipped.address == refusal.address; });
     entry.skipped.push_back(SkippedEvent {
-        .address = address,
-        .kind =
-            detail::skippedKindOf(sg::counters::Availability::NOT_ENCODABLE),
+        .address = refusal.address,
+        .kind = detail::skippedKindOf(refusal.refusal),
         .stage = std::nullopt,
     });
   }
@@ -1002,7 +1109,17 @@ auto runHunt(BenchmarkHandle& benchmark,
              std::optional<std::uint64_t> calibrationNsPerPass)
     -> std::expected<EntryHunt, counters::Error>
 {
-  return runHuntNamed(benchmark.name(), options, calibrationNsPerPass);
+  SG_REQUIRE(options.top > 0 && options.repeats > 0 && options.noise > 0.0
+                 && !options.selection.empty(),
+             "the caller hands the settled values of one run, every count and "
+             "threshold inside the range its own option states and the "
+             "selection `--hunt` named");
+  auto answer = runHuntNamed(benchmark.name(), options, calibrationNsPerPass);
+  SG_ENSURE(answer.has_value() ? answer->top == options.top
+                               : !answer.error().message.empty(),
+            "a hunt that ran states the top it ran with, and a refused hunt "
+            "names the cause the caller prints (FR-081)");
+  return answer;
 }
 
 }  // namespace sg::hunt

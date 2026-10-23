@@ -1191,6 +1191,11 @@ auto speedgunMain(int argc, char** argv) -> int
         }
       } else {
         std::fprintf(stderr, "hunt: %s\n", hunted.error().message.c_str());
+        // A refused hunt carries the failed outcome its status comes from
+        // (FR-081), so the flag rides it too: the FR-036 table compares the
+        // status against the flags, and a status standing over no flag aborts
+        // on the postcondition below before the shell sees it.
+        anyFailed = true;
         status = 1;
       }
     }
