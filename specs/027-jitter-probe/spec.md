@@ -33,14 +33,16 @@ criteria AC-1 to AC-8, and the scope."
 
 - **Spec number**: 027, the next free number under `specs/` on master at
   the audit point. Master carries `specs/` up to 023 plus
-  `specs/025-topology-placement`. The number 024 lives on
-  `origin/024-multipass-collection` (PR #44, the N6 fixes) and the number
-  026 lives on `origin/026-regression-gate` (PR #45, the N5 fixes), so
-  both stand reserved by their open pull requests. The `gh` CLI is
+  `specs/025-topology-placement`. At the audit point the number 024
+  stood on `origin/024-multipass-collection` (PR #44, the N6 fixes) and
+  the number 026 stood on `origin/026-regression-gate` (PR #45, the N5
+  fixes), each reserved by its then-open pull request; the two merged
+  since, as `bd10d76` and `9976768` on `master`. The `gh` CLI is
   present on this machine and unauthenticated, so `gh pr list` answers
   with an auth prompt and no list; the open-PR state above comes from
-  the two remote branches, which stand at the tips the pull requests
-  review. 027 is free, and this feature records why it takes it.
+  the two remote branches, which stood at the tips the pull requests
+  reviewed. 027 was free at the audit point, and this feature records
+  why it takes it.
 - **Branch base**: `aec8fcef6a3664ec311890930b65ea20541c0fa7`, the tip
   of `master` at run time (2026-10-21), equal to the tip of
   `origin/master` after `git fetch origin --prune`. Master carries
@@ -126,12 +128,11 @@ named beside it.
   measures the loop period before its window and discloses the loop
   period and the threshold. `threshold=<ns>` sets the value; a value of
   0, a negative value, or a value that is not a number exits with
-  status 2 (FR-007, FR-008). Corrected at the PR #46 review: an
-  explicit `threshold=200` sets exactly 200 ns - the default rule
-  applies only when the option names no threshold value, and the
-  library type carries the absence (`JitterProbeOptions::thresholdNs`
-  is `std::optional<std::uint64_t>`) so no in-range value can stand in
-  for it (FR-009, R-05).
+  status 2 (FR-007, FR-008). An explicit `threshold=200` sets exactly
+  200 ns - the default rule applies only when the option names no
+  threshold value, and the library type carries the absence
+  (`JitterProbeOptions::thresholdNs` is `std::optional<std::uint64_t>`)
+  so no in-range value can stand in for it (FR-009, R-05).
 - **D-3 Overlap (D-13.2, R-13.2).** In `alongside` mode, a probe cpu
   that is a planned cpu of a benchmark context, or an SMT sibling of
   one, is a usage error: one line naming the cpu and the benchmark, and
@@ -231,7 +232,7 @@ named beside it.
 | Audit-point date | 2026-10-21 (commit date 2026-10-20) |
 | Default branch at run time | `master`, tip `aec8fce`, equal to the `origin/master` tip after `git fetch origin --prune` |
 | Working tree at run time | no tracked-file changes; 28 untracked scratch files from the specs/025 acceptance runs, `cli-placement-*.txt` pairs; they carry no code this feature reads |
-| Feature number at run time | 027, the next free number under `specs/`; 024 and 026 stand reserved by the open pull requests #44 and #45 (Run-time binding) |
+| Feature number at run time | 027, the next free number under `specs/`; 024 and 026 stood reserved by the then-open pull requests #44 and #45, merged since as `bd10d76` and `9976768` (Run-time binding) |
 | Short name at run time | `jitter-probe` |
 | Git branch at run time | none created: `.specify/extensions.yml` is absent, so this command created the directory on `master` and the orchestrator owns every commit |
 | Project version at the audit point | 0.14.0 (the `project()` `VERSION` in `CMakeLists.txt` line 7) |
