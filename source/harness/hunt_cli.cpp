@@ -19,6 +19,7 @@
 
 #include "speedgun-ng/hunt.hpp"
 
+#include "detail/hunt_selection.hpp"
 #include "detail/internal.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/dbc.hpp"
@@ -28,12 +29,6 @@ namespace sg::detail
 
 namespace
 {
-
-// The two anchor leaves of a device: the denominators every hunt pass rides
-// beside its event (D-13, I-1). `hunt.cpp` names the same pair beside the walk
-// that seats them, and the rule of which addresses `all` selects stands there.
-constexpr std::string_view kCyclesLeaf {"cpu-cycles"};
-constexpr std::string_view kInstrLeaf {"instructions"};
 
 // FR-034, FR-081: a value outside the range its option states is a usage error
 // that reports one line naming the option, what it expected and the text it
@@ -205,82 +200,38 @@ auto readSelectionFile(const std::string& path) -> std::string
   return elements;
 }
 
-// The raw event code of D-11: the perf spelling, a lower-case `r` and one or
-// more hex digits. The leaf of an entry carries it, so the shape refuses inside
-// an address, inside a list, inside a pattern (whose trailing glob characters
-// stand outside the shape) and on a line of a `@file` alike. The answer is the
-// code and nothing when the entry carries none, and the check runs before the
-// catalog is consulted, so `r4a03` is refused on a host whose kernel would
-// encode it (spec PC-6).
+// The raw event code one element carries, read the way this route reads an
+// element: the shape test itself is the shared `detail::hasRawCodeShape`
+// (D-11, spec PC-6); what stands here is the cut, which takes the leaf of the
+// entry and drops the trailing glob characters so a pattern's leaf is still
+// read as a code.
 [[nodiscard]] auto rawCodeOf(const std::string_view entry) -> std::string_view
 {
-  const std::size_t slash = entry.find_last_of('/');
-  std::string_view leaf =
-      slash == std::string_view::npos ? entry : entry.substr(slash + 1);
+  std::string_view leaf = detail::leafPartOf(entry);
   while (!leaf.empty() && (leaf.back() == '*' || leaf.back() == '?')) {
     leaf.remove_suffix(1);
   }
-  if (leaf.size() < 2 || leaf.front() != 'r') {
-    return {};
-  }
-  for (std::size_t at = 1; at < leaf.size(); ++at) {
-    const char digit = leaf[at];
-    const bool hex = (digit >= '0' && digit <= '9')
-        || (digit >= 'a' && digit <= 'f') || (digit >= 'A' && digit <= 'F');
-    if (!hex) {
-      return {};
-    }
-  }
-  return leaf;
+  return detail::hasRawCodeShape(leaf) ? leaf : std::string_view {};
 }
 
-// The case-sensitive match of one catalog address against one pattern: `*`
-// matches any run of characters including none, `?` matches one character, and
-// every other character matches itself. The last star carries the backtracking,
-// so one pass over the address decides it.
-[[nodiscard]] auto matchesGlob(const std::string_view address,
-                               const std::string_view pattern) -> bool
-{
-  std::size_t at = 0;
-  std::size_t here = 0;
-  std::size_t star = std::string_view::npos;
-  std::size_t resume = 0;
-  while (at < address.size()) {
-    if (here < pattern.size()
-        && (pattern[here] == '?' || pattern[here] == address[at]))
-    {
-      ++at;
-      ++here;
-    } else if (here < pattern.size() && pattern[here] == '*') {
-      star = here;
-      ++here;
-      resume = at;
-    } else if (star != std::string_view::npos) {
-      here = star + 1;
-      at = ++resume;
-    } else {
-      return false;
-    }
-  }
-  while (here < pattern.size() && pattern[here] == '*') {
-    ++here;
-  }
-  return here == pattern.size();
-}
-
-// The catalog addresses of the host, the walk `catalog.cpp:83-92` performs: the
-// address has the one spelling `Object::path() + "/" + entry.name`, in the
-// order the walk reaches the devices and the order each device reports its
-// counters (spec PC-1).
+// The catalog addresses of the host: the machine object's own entries first,
+// then the walk of `detail::catalogWalkOrder`, which is the listing
+// `printObject` of `catalog.cpp` prints - the address has the one spelling
+// `Object::path() + "/" + entry.name`, in the order the walk reaches the
+// devices and the order each device reports its counters (spec PC-1).
 auto collectCatalog(const counters::Object& object,
                     std::vector<std::string>& addresses) -> void
 {
-  const std::string prefix = std::string(object.path()) + "/";
-  for (const auto& entry : object.counters()) {
-    addresses.push_back(prefix + std::string(entry.name));
-  }
-  for (const auto* child : object.children()) {
-    collectCatalog(*child, addresses);
+  const auto addEntries = [&addresses](const counters::Object& node)
+  {
+    const std::string prefix = std::string(node.path()) + "/";
+    for (const auto& entry : node.counters()) {
+      addresses.push_back(prefix + std::string(entry.name));
+    }
+  };
+  addEntries(object);
+  for (const auto* walked : detail::catalogWalkOrder(object)) {
+    addEntries(*walked);
   }
 }
 
@@ -549,7 +500,7 @@ auto expandHuntSelection(RunOptions& options) -> void
     return;
   }
   std::string& selection = options.hunt->selection;
-  const bool whole = selection == "all";
+  const bool whole = selection == detail::kAllSelection;
 
   std::vector<std::string> elements;
   bool fromFile = false;
@@ -599,7 +550,7 @@ auto expandHuntSelection(RunOptions& options) -> void
     // leaves of a device riding its passes as denominators and standing out of
     // the candidate list (I-1), is stated once, in `appendAll` of `hunt.cpp`.
     // The set validated here is the set the plan seats.
-    const auto expanded = events.expand("all");
+    const auto expanded = events.expand(detail::kAllSelection);
     SG_ASSERT(expanded.has_value(),
               "the machine object that walked for the catalog answers the "
               "expansion of the whole selection too, so no host refuses the "
@@ -619,7 +570,7 @@ auto expandHuntSelection(RunOptions& options) -> void
     }
     const std::size_t first = selected.size();
     for (const auto& address : catalog) {
-      if (matchesGlob(address, element)) {
+      if (detail::globMatches(element, address)) {
         selected.push_back(address);
       }
     }
@@ -638,7 +589,9 @@ auto expandHuntSelection(RunOptions& options) -> void
   {
     const bool cycle = *options.hunt->norm == hunt::HuntNorm::CYCLE;
     const std::string word = cycle ? "cycle" : "instr";
-    if (!holdsCountableAnchor(*machine, cycle ? kCyclesLeaf : kInstrLeaf)) {
+    if (!holdsCountableAnchor(*machine,
+                              cycle ? detail::kCyclesLeaf : detail::kInstrLeaf))
+    {
       rejectHuntSelection("--hunt-norm: '" + word
                           + "' has no countable anchor on this host");
     }
@@ -650,9 +603,12 @@ auto expandHuntSelection(RunOptions& options) -> void
   // publishes no limit stands open (D-3). An anchor leaf needs no slot of
   // its own, so only event addresses of the selection raise the refusal.
   for (const auto& address : selected) {
+    // The cut stands at the first `/`: the device this route's refusal quotes
+    // is this cut's text, where the shared `detail::devicePartOf` cuts at the
+    // last.
     const std::size_t slash = address.find('/');
     const std::string_view leaf = std::string_view(address).substr(slash + 1);
-    if (leaf == kCyclesLeaf || leaf == kInstrLeaf) {
+    if (leaf == detail::kCyclesLeaf || leaf == detail::kInstrLeaf) {
       continue;
     }
     const std::string device = address.substr(0, slash);

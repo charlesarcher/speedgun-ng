@@ -20,6 +20,7 @@
 #include "speedgun-ng/hunt.hpp"
 
 #include "detail/hunt_plan.hpp"
+#include "detail/hunt_selection.hpp"
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
@@ -31,13 +32,6 @@ namespace sg::hunt
 
 namespace
 {
-
-// The selection words and the leaf names the plan seats as denominators:
-// `all` names the core devices, the two anchors ride every pass of their own
-// device and stand out of the candidate list (D-1, I-1).
-constexpr std::string_view kAllSelection {"all"};
-constexpr std::string_view kCyclesLeaf {"cpu-cycles"};
-constexpr std::string_view kInstrLeaf {"instructions"};
 
 // D-1's core-device rule, written hunt-side: the three exact device parts and
 // the `armv8_` prefix. The library's own match at `counter_limits.cpp:284-295`
@@ -73,12 +67,6 @@ constexpr std::size_t kNoLeaf = std::numeric_limits<std::size_t>::max();
       || symbol == '\f';
 }
 
-[[nodiscard]] auto isHex(const char symbol) noexcept -> bool
-{
-  return (symbol >= '0' && symbol <= '9') || (symbol >= 'a' && symbol <= 'f')
-      || (symbol >= 'A' && symbol <= 'F');
-}
-
 [[nodiscard]] auto trim(std::string_view text) -> std::string_view
 {
   while (!text.empty() && isSpace(text.front())) {
@@ -88,16 +76,6 @@ constexpr std::size_t kNoLeaf = std::numeric_limits<std::size_t>::max();
     text.remove_suffix(1);
   }
   return text;
-}
-
-/// @brief FR-005, D-11: the raw event code shape `r` plus hex digits, refused
-/// before the catalog is consulted.
-[[nodiscard]] auto isRawCode(const std::string_view token) noexcept -> bool
-{
-  if (token.size() < 2 || token.front() != 'r') {
-    return false;
-  }
-  return std::all_of(token.begin() + 1, token.end(), isHex);
 }
 
 /// @brief The address entries of a selection text, split on commas and
@@ -118,56 +96,6 @@ constexpr std::size_t kNoLeaf = std::numeric_limits<std::size_t>::max();
     start = stop + 1;
   }
   return entries;
-}
-
-/// @brief The case-sensitive glob matcher over one address: `*` stands for any
-/// run of characters and `?` for one character (FR-007).
-[[nodiscard]] auto globMatches(std::string_view pattern,
-                               std::string_view text) -> bool
-{
-  std::size_t mark = std::string_view::npos;
-  std::size_t markText = 0;
-  std::size_t left = 0;
-  std::size_t read = 0;
-  while (read < text.size()) {
-    if (left < pattern.size()
-        && (pattern[left] == '?' || pattern[left] == text[read]))
-    {
-      ++left;
-      ++read;
-    } else if (left < pattern.size() && pattern[left] == '*') {
-      mark = left++;
-      markText = read;
-    } else if (mark != std::string_view::npos) {
-      left = mark + 1;
-      read = ++markText;
-    } else {
-      return false;
-    }
-  }
-  while (left < pattern.size() && pattern[left] == '*') {
-    ++left;
-  }
-  return left == pattern.size();
-}
-
-/// @brief E-01: the device part of an address, the text before the last `/`.
-/// `splitAddress` of `runner.cpp:39-47` answers the same way for the same
-/// spelling; this is the hunt-side half of that pair.
-[[nodiscard]] auto devicePartOf(const std::string_view address)
-    -> std::string_view
-{
-  const std::size_t slash = address.find_last_of('/');
-  return slash == std::string_view::npos ? address : address.substr(0, slash);
-}
-
-/// @brief E-01: the leaf part of an address, the text after the last `/`, or
-/// the whole address where it holds none.
-[[nodiscard]] auto leafPartOf(const std::string_view address)
-    -> std::string_view
-{
-  const std::size_t slash = address.find_last_of('/');
-  return slash == std::string_view::npos ? address : address.substr(slash + 1);
 }
 
 /// @brief D-1, PD-02: the core-device rule over one device part.
@@ -223,20 +151,14 @@ struct CatalogView
   return static_cast<std::size_t>(found - view.devices.begin());
 }
 
-// The walk of `catalog.cpp:83-92`: every child object of the machine object
-// contributes its entries and stands as one source of the limit list. The
-// machine object's own entries are its clock leaves, which count no event, so
-// they join neither list (E-01). The stack of objects left to walk keeps the
-// depth-first order of that walk, so the device order is the catalog order and
-// the order of the limit list (spec PC-2, PC-8).
+// The walk order of `detail::catalogWalkOrder`: every child object of the
+// machine object contributes its entries and stands as one source of the limit
+// list. The machine object's own entries are its clock leaves, which count no
+// event, so they join neither list (E-01). The order of the walk is the
+// catalog order and the order of the limit list (spec PC-2, PC-8).
 auto walkCatalog(const counters::Object& root, CatalogView& view) -> void
 {
-  const auto roots = root.children();
-  auto pending =
-      std::vector<const counters::Object*>(roots.rbegin(), roots.rend());
-  while (!pending.empty()) {
-    const counters::Object* walked = pending.back();
-    pending.pop_back();
+  for (const auto* walked : detail::catalogWalkOrder(root)) {
     auto device = DeviceRow {.path = std::string(walked->path()),
                              .limit = walked->programmableCounters(),
                              .cycles = {},
@@ -244,9 +166,9 @@ auto walkCatalog(const counters::Object& root, CatalogView& view) -> void
     for (const auto& entry : walked->counters()) {
       const std::string leaf = std::string(entry.name);
       const std::string address = device.path + "/" + leaf;
-      if (leaf == kCyclesLeaf) {
+      if (leaf == detail::kCyclesLeaf) {
         device.cycles = address;
-      } else if (leaf == kInstrLeaf) {
+      } else if (leaf == detail::kInstrLeaf) {
         device.instructions = address;
       }
       view.rows.push_back(
@@ -257,8 +179,6 @@ auto walkCatalog(const counters::Object& root, CatalogView& view) -> void
       device.instructions.clear();
     }
     view.devices.push_back(std::move(device));
-    const auto children = walked->children();
-    pending.insert(pending.end(), children.rbegin(), children.rend());
   }
 }
 
@@ -649,9 +569,11 @@ auto appendAll(const CatalogView& view,
                std::vector<std::string>& expanded) -> void
 {
   for (const auto& row : view.rows) {
-    const auto device = devicePartOf(row.address);
-    const auto leaf = leafPartOf(row.address);
-    if (coreDevicePart(device) && leaf != kCyclesLeaf && leaf != kInstrLeaf) {
+    const auto device = detail::devicePartOf(row.address);
+    const auto leaf = detail::leafPartOf(row.address);
+    if (coreDevicePart(device) && leaf != detail::kCyclesLeaf
+        && leaf != detail::kInstrLeaf)
+    {
       expanded.push_back(row.address);
     }
   }
@@ -665,7 +587,7 @@ auto appendAll(const CatalogView& view,
     -> std::optional<counters::Error>
 {
   for (const auto& row : view.rows) {
-    if (globMatches(pattern, row.address)) {
+    if (detail::globMatches(pattern, row.address)) {
       expanded.push_back(row.address);
     }
   }
@@ -731,7 +653,7 @@ auto EventCatalog::expand(std::string_view selection)
   m_addresses = std::nullopt;
   const auto entries = splitEntries(selection);
   for (const auto entry : entries) {
-    if (isRawCode(entry)) {
+    if (detail::hasRawCodeShape(entry)) {
       const std::string text = "the hunt selection names the raw event code '"
           + std::string(entry) + "'; no host resolves a raw code (FR-005)";
       return std::unexpected(failure(text));
@@ -746,7 +668,7 @@ auto EventCatalog::expand(std::string_view selection)
   }
   const auto whole = trim(selection);
   auto expanded = std::vector<std::string> {};
-  if (whole == kAllSelection) {
+  if (whole == detail::kAllSelection) {
     appendAll(*view, expanded);
   } else {
     const bool glob = whole.find_first_of("*?") != std::string_view::npos
@@ -810,8 +732,8 @@ auto EventCatalog::split(const std::uint64_t seed) const
     if (row->availability == counters::Availability::COUNTABLE) {
       answer.first.push_back(CatalogAddress {
           .address = address,
-          .device = std::string(devicePartOf(address)),
-          .source = sourceOf(*view, devicePartOf(address)),
+          .device = std::string(detail::devicePartOf(address)),
+          .source = sourceOf(*view, detail::devicePartOf(address)),
       });
     } else {
       answer.second.push_back(SkippedEvent {
@@ -840,7 +762,7 @@ auto EventCatalog::split(const std::uint64_t seed) const
 auto EventCatalog::devicePart(const std::string_view address)
     -> std::string_view
 {
-  const auto part = devicePartOf(address);
+  const auto part = detail::devicePartOf(address);
   [[maybe_unused]] const auto leaf = address.substr(part.size());
   SG_ENSURE(leaf.empty() || leaf.find_last_of('/') == 0,
             "the device part is the text before the last `/`, or the whole "
@@ -850,7 +772,7 @@ auto EventCatalog::devicePart(const std::string_view address)
 
 auto EventCatalog::isCoreDevice(const std::string_view address) const -> bool
 {
-  const auto device = devicePartOf(address);
+  const auto device = detail::devicePartOf(address);
   const bool core = coreDevicePart(device);
   SG_ENSURE(!core || !device.starts_with("uncore"),
             "the core-device rule of D-1 admits the core devices and keeps "
