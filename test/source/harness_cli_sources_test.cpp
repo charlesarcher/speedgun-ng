@@ -2070,6 +2070,15 @@ constexpr RepeatCase kRepeats[] = {
     {"placement", "balanced", "pinned", false},
     {"threads", "2", "4", true},
     {"interleave", "7", "9", false},
+    {"list", "0", "1", false},
+    {"dry-run", "false", "true", false},
+    {"catalog", "1", "0", false},
+    {"topology", "true", "false", false},
+    {"compare-strict", "0", "1", false},
+    {"json", "one.json", "two.json", false},
+    {"json-raw", "chunks", "none", false},
+    {"metric-method", "passes", "auto", false},
+    {"compare", "one.json,two.json", "three.json,four.json", false},
 };
 
 auto oneWordTwiceKeepsTheLastWordOfOneSource() -> void
@@ -2135,6 +2144,95 @@ auto oneWordTwiceKeepsTheLastWordOfOneSource() -> void
   } else {
     fail("the gather settles a command line that fixes the count twice");
   }
+
+  const Gathered paths =
+      gatherFile({}, "json=one.json\njson=two.json\njson-raw=chunks\n");
+  if (paths.settled.has_value()) {
+    check(paths.settled->options.jsonPath == "two.json"
+              && paths.settled->options.rawContent == sg::RawContent::CHUNKS,
+          "the later path of one file stands and the raw word of the next "
+          "line settles its own row (FR-035, FR-050)");
+  } else {
+    fail("the gather settles a file that names a path twice and a raw word");
+  }
+
+  const Gathered modes = gatherFile({},
+                                    "list=0\nlist=1\ndry-run=false\n"
+                                    "metric-method=passes\nmetric-method=auto\n");
+  if (modes.settled.has_value()) {
+    check(modes.settled->options.listMode && !modes.settled->options.dryRun
+              && modes.settled->options.metricMethod == sg::MetricMethod::AUTO,
+          "the later word of one file settles each row of the group (FR-035)");
+  } else {
+    fail("the gather settles a file that spells three rows twice");
+  }
+}
+
+// The one line of the rules-file reader the gather reads with: a file of no
+// rule stands for the path the higher line names, a file of one rule for the
+// path that took effect.
+auto oneRuleFile(const std::string& path)
+    -> std::expected<std::vector<sg::CompareRule>, std::string>
+{
+  if (path != "second.rules") {
+    return std::vector<sg::CompareRule> {};
+  }
+  const auto rule = sg::parseCompareRule("time@median:lower:5%");
+  if (!rule.has_value()) {
+    return std::unexpected(rule.error());
+  }
+  return std::vector<sg::CompareRule> {*rule};
+}
+
+auto theLaterRulesFileOfOneSourceStands() -> void
+{
+  // A second `compare-rules` line of one source keeps its own path, the
+  // scalar rule of FR-035, so the rules of the later file are the rules of
+  // the run and the disclosure names the row once with that path (FR-063).
+  const Gathered twice = gatherSources(
+      {},
+      {},
+      "compare-rules=first.rules\n" "compare-rules=second.rules\n",
+      &oneRuleFile);
+  if (!twice.settled.has_value()) {
+    fail("the gather settles a file that names two rules files");
+    return;
+  }
+  check(twice.settled->rules.size() == 1,
+        "the rules of the later file are the rules of the run (FR-063)");
+  std::size_t named = 0;
+  std::string text;
+  for (const sg::detail::OptionUse& use : twice.settled->uses) {
+    if (use.row != nullptr
+        && std::string_view(use.row->name) == "compare-rules")
+    {
+      ++named;
+      text = use.value;
+    }
+  }
+  check(named == 1 && text == "second.rules",
+        "the row is named once, with the path that took effect (FR-040, "
+        "FR-063)");
+
+  // The same source naming a rules file, then a rule, then a second rules
+  // file: the first path settles before any rule of the source stands, and
+  // the later line replaces it the way a scalar of one source replaces its
+  // earlier line, so the file joins after the rule the source spells
+  // (FR-035, FR-038, FR-063).
+  const Gathered paired = gatherSources({},
+                                        {},
+                                        "compare-rules=first.rules\n"
+                                        "compare-rule=time@median:lower:5%\n"
+                                        "compare-rules=second.rules\n",
+                                        &oneRuleFile);
+  if (!paired.settled.has_value()) {
+    fail("the gather settles a file that names a rules file twice across a "
+         "rule");
+    return;
+  }
+  check(paired.settled->rules.size() == 2,
+        "the rule of the source stands before the rules of the later file "
+        "(FR-038, FR-063)");
 }
 
 auto aRulesFileTheReaderCannotOpenFaultsTheGather() -> void
@@ -2415,6 +2513,7 @@ auto main(int argc, char** argv) -> int
   aWordOfTwoValuesFaultsTheEntry();
   aSourceLineWithANulByteIsRefused();
   oneWordTwiceKeepsTheLastWordOfOneSource();
+  theLaterRulesFileOfOneSourceStands();
   aRulesFileTheReaderCannotOpenFaultsTheGather();
   theEnvironmentRowOfOneProcessName();
   aRefusedThreadRowFaultsTheEntry();
