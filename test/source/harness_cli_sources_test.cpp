@@ -226,12 +226,17 @@
 //                                option on with the seed 0 and discloses that
 //                                text (FR-029, FR-051, E-10)
 //   everyRowOfTheTableSettlesItsRow
-//                                each of the nine rows a file line can
-//                                name settles from its own line and
-//                                discloses that word, and a word its
-//                                reader refuses answers one line naming
-//                                the file and the number (FR-033,
-//                                FR-035, FR-040, FR-050)
+//                                each word a file line can carry settles
+//                                from its own line and discloses that
+//                                word, and a word its reader refuses
+//                                answers one line naming the file and
+//                                the number (FR-033, FR-035, FR-040,
+//                                FR-050)
+//   aGoodLineOfALowerSourceYieldsAndDrops
+//                                a good line under a command-line word
+//                                is read and dropped: the higher value
+//                                stands and the drop discloses nothing
+//                                (FR-035, FR-037, FR-040)
 //   aShadowedBadValueStillNamesItsSource
 //                                a value a higher source shadows is
 //                                still read, so the bad word of a file
@@ -1845,8 +1850,10 @@ constexpr RowSettleCase kRowSettle[] = {
     {"compare-strict=1", "compare-strict=nope", "1"},
     {"json=report.json", "json=", "report.json"},
     {"json-raw=chunks", "json-raw=bogus", "chunks"},
+    {"json-raw=none", "json-raw=", "none"},
     {"metric-method=passes", "metric-method=bogus", "passes"},
     {"compare=base.json,run.json", "compare=nocomma", "base.json,run.json"},
+    {"compare=left.json,right.json", "compare=left,", "left.json,right.json"},
 };
 
 auto everyRowOfTheTableSettlesItsRow() -> void
@@ -1873,6 +1880,79 @@ auto everyRowOfTheTableSettlesItsRow() -> void
               && fault.find('\n') == std::string::npos,
           "the refused word of the same row answers one line naming the file "
           "and the number (FR-031, FR-035, SC-003)");
+  }
+}
+
+// The nine rows the file can name, each with a word the command line gives
+// above it. The two values differ, so the check can tell which one settled
+// (FR-037).
+struct RowYieldCase
+{
+  const char* word;
+  const char* line;
+};
+
+constexpr RowYieldCase kRowYield[] = {
+    {"--list", "list=0"},
+    {"--dry-run", "dry-run=false"},
+    {"--catalog", "catalog=0"},
+    {"--topology", "topology=false"},
+    {"--compare-strict", "compare-strict=0"},
+    {"--json=top.json", "json=below.json"},
+    {"--json-raw=none", "json-raw=chunks"},
+    {"--metric-method=auto", "metric-method=passes"},
+    {"--compare=top.json,below.json", "compare=below.json,below.json"},
+};
+
+auto aGoodLineOfALowerSourceYieldsAndDrops() -> void
+{
+  // FR-024, FR-037, FR-040: a value the reader accepts, handed while a higher
+  // source holds the row, is read and then dropped: the higher value stands
+  // and the drop discloses nothing. The nine rows the file can name each
+  // carry the pair, so no row of the settle function keeps its drop line
+  // unseen (FR-035).
+  for (const RowYieldCase& row : kRowYield) {
+    const Gathered gathered =
+        gatherFile({row.word}, std::string(row.line) + '\n');
+    if (!gathered.settled.has_value()) {
+      report("a good file line under a command-line word settles (FR-037)",
+             "no fault",
+             gathered.fault);
+      continue;
+    }
+    const std::string label = std::string(row.line) + " yields to " + row.word
+        + " and discloses " + "nothing (FR-037, FR-040)";
+    check(gathered.settled->uses.empty(), label.c_str());
+  }
+
+  // The four rows whose settled value the answer carries by name: the word
+  // of the higher source is the value the run reads.
+  const Gathered path = gatherFile({"--json=top.json"}, "json=below.json\n");
+  if (path.settled.has_value()) {
+    check(path.settled->options.jsonPath == "top.json",
+          "the path of the words stands over the path of the file (FR-037)");
+  }
+  const Gathered raw = gatherFile({"--json-raw=none"}, "json-raw=chunks\n");
+  if (raw.settled.has_value()) {
+    check(raw.settled->options.rawContent == sg::RawContent::NONE,
+          "the content of the words stands over the content of the file "
+          "(FR-037, FR-050)");
+  }
+  const Gathered method =
+      gatherFile({"--metric-method=auto"}, "metric-method=passes\n");
+  if (method.settled.has_value()) {
+    check(method.settled->options.metricMethod
+              == sg::MetricMethod::AUTO,
+          "the method of the words stands over the method of the file "
+          "(FR-037)");
+  }
+  const Gathered pair = gatherFile({"--compare=top.json,below.json"},
+                                   "compare=below.json,under.json\n");
+  if (pair.settled.has_value()) {
+    check(pair.settled->options.compareBaseline == "top.json"
+              && pair.settled->options.compareContender == "below.json",
+          "the pair of the words stands over the pair of the file (FR-037, "
+          "FR-052)");
   }
 }
 
@@ -2327,6 +2407,7 @@ auto main(int argc, char** argv) -> int
   theLastLineOfASourceMayCarryNoBreak();
   aBareSeedLineStandsForTheSeedZero();
   everyRowOfTheTableSettlesItsRow();
+  aGoodLineOfALowerSourceYieldsAndDrops();
   aShadowedBadValueStillNamesItsSource();
   theEnvironmentWalkReadsTheTableItIsGiven();
   aBadLetterOfAShortGroupAfterALongOption();

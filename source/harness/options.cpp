@@ -265,6 +265,44 @@ auto parseMetricMethod(const char* text) -> std::optional<MetricMethod>
   return std::nullopt;
 }
 
+// The content the `--json-raw` row names, and the line that refuses any
+// other word. The scan and the settle function of the row read the word
+// through here, so the two words are written once (FR-034, FR-035, FR-050).
+auto parseRawContent(const std::string_view text)
+    -> std::expected<RawContent, std::string>
+{
+  if (text == "chunks") {
+    return RawContent::CHUNKS;
+  }
+  if (text == "none") {
+    return RawContent::NONE;
+  }
+  return std::unexpected(
+      "--json-raw: 'chunks' and 'none' are the values the " "option names");
+}
+
+// The pair of report paths of the `--compare` row, split at the first comma.
+// A missing comma and an empty side are refused here, before the mode could
+// open a document, and the text the line echoes carries the quoting of the
+// refusal helper (FR-048, FR-052, spec D-16).
+auto parseComparePair(const std::string_view text)
+    -> std::expected<std::pair<std::string, std::string>, std::string>
+{
+  const std::size_t comma = text.find(',');
+  if (comma == std::string_view::npos || comma == 0 || comma + 1 == text.size())
+  {
+    return std::unexpected("--compare: expected '<baseline>,<contender>', got '"
+                           + quotedText(text) + "'");
+  }
+  return std::pair {std::string(text.substr(0, comma)),
+                    std::string(text.substr(comma + 1))};
+}
+
+// The one line of the `--json` row whose word stands empty, read the same way
+// by the scan and by the settle function of the row (FR-030, FR-035).
+constexpr const char* kEmptyPathFault =
+    "--json: the path the option names stands empty";
+
 // One whole number of a `--threads` item: `from_chars` reads the digits of
 // the item whole, and a text with a stray character, an empty item or a
 // number past what an `int` holds names no count (FR-045).
@@ -733,23 +771,23 @@ auto scanCommandLine(int argc, char** argv)
         // FR-030: an empty path is a usage error, and it reports before
         // anything runs.
         if (std::string_view(optarg).empty()) {
-          return std::unexpected(
-              "--json: the path the option names stands " "empty");
+          return std::unexpected(kEmptyPathFault);
         }
         options.jsonPath = optarg;
         break;
-      case 'J':
+      case 'J': {
         // FR-029: `chunks` is the one content the option names besides
-        // `none`; any other word is a usage error (FR-034).
-        if (std::string_view(optarg) == "chunks") {
-          options.rawContent = RawContent::CHUNKS;
-        } else if (std::string_view(optarg) == "none") {
-          options.rawContent = RawContent::NONE;
-        } else {
-          return std::unexpected("--json-raw: 'chunks' and 'none' are the "
-                                 "values the option names");
+        // `none`; any other word is a usage error (FR-034). The row has no
+        // unset word, so the name itself is what the gather reads to tell a
+        // word of the command line from the default (FR-037, FR-050).
+        const auto content = parseRawContent(optarg);
+        if (!content.has_value()) {
+          return std::unexpected(content.error());
         }
+        options.rawContent = *content;
+        scan.rawContentNamed = true;
         break;
+      }
       case kMetricMethodOption: {
         // specs/024 FR-025, FR-026: the word is the method the run is asked
         // for and wins over the family's own request the way `--percentiles`
@@ -769,17 +807,12 @@ auto scanCommandLine(int argc, char** argv)
         // specs/026 FR-048: the text is the two report paths split at the
         // first comma. A missing comma or an empty side is a usage fault:
         // one line naming the option and the text read, status 2 (FR-051).
-        const std::string_view pair = optarg;
-        const std::size_t comma = pair.find(',');
-        if (comma == std::string_view::npos || comma == 0
-            || comma + 1 == pair.size())
-        {
-          return std::unexpected(
-              "--compare: expected '<baseline>,<contender>', got " "'"
-              + std::string(optarg) + "'");
+        const auto pair = parseComparePair(optarg);
+        if (!pair.has_value()) {
+          return std::unexpected(pair.error());
         }
-        options.compareBaseline = std::string(pair.substr(0, comma));
-        options.compareContender = std::string(pair.substr(comma + 1));
+        options.compareBaseline = pair->first;
+        options.compareContender = pair->second;
         break;
       }
       case kCompareRuleOptionValue: {
@@ -1495,8 +1528,8 @@ auto applySourceValue(const OptionRow& row,
       return true;
     }
     case 'j':
-      if (std::string_view(text).empty()) {
-        return refuse("--json: the path the option names stands empty");
+      if (text.empty()) {
+        return refuse(kEmptyPathFault);
       }
       if (!options.jsonPath.empty() && prior != kSameSourceSettled) {
         return false;
@@ -1504,37 +1537,32 @@ auto applySourceValue(const OptionRow& row,
       options.jsonPath = text;
       return true;
     case 'J': {
-      // The word is read against the two words the contract names, the way
-      // the scan's `case 'J'` reads it (FR-049, FR-050).
-      if (text != "chunks" && text != "none") {
-        return refuse("--json-raw: 'chunks' and 'none' are the values the "
-                      "option names");
+      // The word is read against the two words the contract names, through
+      // the one reader of the row (FR-049, FR-050).
+      const auto content = parseRawContent(text);
+      if (!content.has_value()) {
+        return refuse(content.error());
       }
       if (resolved.rawContentSettled && prior != kSameSourceSettled) {
         return false;
       }
-      options.rawContent =
-          text == "chunks" ? RawContent::CHUNKS : RawContent::NONE;
+      options.rawContent = *content;
       resolved.rawContentSettled = true;
       return true;
     }
     case kCompareOptionValue: {
-      // The pair of paths splits at the first comma, the way the scan's arm
-      // splits it, and an empty side is refused before the mode could open
+      // The pair of paths splits at the first comma through the one reader
+      // of the row, and an empty side is refused before the mode could open
       // a document (FR-052, spec D-16).
-      const std::string_view pair {text};
-      const std::size_t comma = pair.find(',');
-      if (comma == std::string_view::npos || comma == 0
-          || comma + 1 == pair.size())
-      {
-        return refuse("--compare: expected '<baseline>,<contender>', got '"
-                      + quotedText(pair) + "'");
+      const auto pair = parseComparePair(text);
+      if (!pair.has_value()) {
+        return refuse(pair.error());
       }
       if (!options.compareBaseline.empty() && prior != kSameSourceSettled) {
         return false;
       }
-      options.compareBaseline = std::string(pair.substr(0, comma));
-      options.compareContender = std::string(pair.substr(comma + 1));
+      options.compareBaseline = pair->first;
+      options.compareContender = pair->second;
       return true;
     }
     case kMetricMethodOption: {
@@ -1777,6 +1805,10 @@ auto gatherOptionSources(const CommandLineOptions& scan,
              "the gather settles a line the scan walked to its end");
   ResolvedOptions resolved;
   resolved.options = scan.options;
+  // The `--json-raw` row has no unset word, so the name the scan carries is
+  // what marks the row settled before any lower source is asked (FR-037,
+  // FR-050).
+  resolved.rawContentSettled = scan.rawContentNamed;
   // FR-051: the seed of the command line is the highest source, so it
   // settles before any lower source is asked, and the rule that a seed of
   // another source answers nothing is what keeps a file or a variable from

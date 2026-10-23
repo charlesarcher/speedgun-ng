@@ -155,6 +155,10 @@ struct CommandLineOptions
   std::vector<OptionUse> uses;
   InterleaveSeed interleave;
   StopKind stop = StopKind::NONE;
+  // The words named the `--json-raw` row, whose value has no unset word of
+  // its own: the gather reads this to tell `none` given from nothing given
+  // (FR-037, FR-050).
+  bool rawContentNamed = false;
 };
 
 /// @brief What the gather answers: every option at the value of the
