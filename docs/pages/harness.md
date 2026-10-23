@@ -1564,7 +1564,10 @@ every host. `--hunt-repeats` sets the repeats of the hunt stages, and
 `--repetitions` keeps its own meaning for the repetitions of the report rows. A
 hunt option given twice keeps its last value, and a hunt option beside no
 `--hunt` leaves the hunt off. Beside `--list`, `--catalog` or `--topology` the
-hunt forms no plan, because those modes print and stop.
+hunt forms no plan and prints no `hunt:` line, because those modes print and
+stop. A selection that fails expansion refuses first: the scan expands it
+before the listing modes, so the run prints its one line and ends with
+status 2 ahead of any listing.
 
 ### The refusal lines
 

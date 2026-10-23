@@ -183,7 +183,7 @@ fails on the solo retry maps its error the way the counters discovery probe maps
 an open refusal (`provider.cpp:774-786`, spec PC-1): `EINVAL` or `EOPNOTSUPP`
 answers `NOT_ENCODABLE`, and `EACCES` or `EPERM` answers `PERMISSION_BLOCKED`
 (D-18). The console prints every kind with the spelling the `--catalog` listing
-prints for an `Availability` (`report.cpp:36 availabilityName`).
+prints for an `Availability` (`report.cpp:38 availabilityName`).
 
 ## E-07 Printed records
 
@@ -194,6 +194,7 @@ the `hunt:` prefix.
 |---|---|
 | plan | `hunt: plan events=<n> passes=<p> method=<WORD> estimate=<ns>ns budget=<text>|none` |
 | plan, no anchor | the plan line with ` normalized=iter` appended |
+| plan, two stages | the plan line with ` stage1=<n> stage2=<n>` after `budget=`, each field the event count that stage measured (`report.cpp:774-778`) |
 | plan, budget cut | `hunt: plan budget cut stage=2 reason=over-budget`, one line when the plan drops stage 2 |
 | ranking row | `hunt: rank <n> <address> <norm>=<value> cv=<percent> [multiplexed]` |
 | excluded tail | `hunt: rank - <address> <norm>=<value> cv=<percent> mark=<noisy|unrepeated|beyond-top>` |
@@ -219,11 +220,12 @@ The run-level record on `ReportData::hunt`. Public in `hunt.hpp`.
 | `stages` | `std::vector<HuntStageRange>` | the stages that ran; each holds its first index into `plannedAddresses`, its event count and its repeats |
 | `ranEvents` | `std::size_t` | columns that produced at least one clean sample |
 | `stageTwoEvents` | `std::size_t` | columns stage 2 measured |
+| `cutReason` | `std::string` | the reason the planner recorded for the stage it dropped, the word the budget cut line prints (`hunt.hpp:457`, `report.cpp:788-791`) |
 
 ## E-09 `RunOptions` hunt fields
 
 `source/harness/detail/internal.hpp` adds one member beside the specs/024
-`metricMethod` field (its block runs to line 476):
+`metricMethod` field (its block runs to line 552):
 
 ```text
 // specs/029 FR-080 to FR-082, D-22: the hunt selection and its settled
@@ -233,14 +235,14 @@ std::optional<HuntOptions> hunt;
 
 `hunt` stands empty for a run with no `--hunt`, which is the fact the printers,
 the writer and the runner test. The conflict check reads the existing members it
-shares the struct with: `counterAddresses` (line 444), `metricNames` (line 455)
-and `compareBaseline` (line 474).
+shares the struct with: `counterAddresses` (line 516), `metricNames` (line 527)
+and `compareBaseline` (line 545).
 
 ## E-10 Scripted group refusal
 
 `FakeProvider` gains one scripted machine fact beside `programmableCounters`
-(`counters_fake.hpp:268` in the private `ObjectSeedData`, setter in the public
-block at 135-248):
+(`counters_fake.hpp:330` in the private `ObjectSeedData` at `315`, setter in
+the public block at `195`):
 
 ```text
 auto setGroupLeafLimit(std::string_view objectPath, std::size_t leaves)
@@ -265,8 +267,8 @@ its definition in `source/harness/statistics.cpp`, unchanged in behaviour.
 | `statisticsOf` | `auto statisticsOf(std::vector<double> values) -> sg::Statistics` |
 
 Its contract moves with it: `SG_ASSERT(!values.empty(), ...)` and
-`SG_ASSERT(n > 1, ...)` stay as the two guards `runner.cpp:52-55` and
-`runner.cpp:74-76` hold today, so every caller keeps the empty-list and
+`SG_ASSERT(n > 1, ...)` stay as the two guards `statistics.cpp:23-25` and
+`statistics.cpp:46-48` hold, so every caller keeps the empty-list and
 single-value guard at its own call site, and `rankEvents` keeps one sample out of
 the call (PD-14).
 
@@ -351,7 +353,7 @@ the call (PD-14).
 | rate of one sample, `INSTR` | `eventValue / anchorInstr x 1000` |
 | rate of one sample, `CYCLE` | `eventValue / anchorCycle x 1000` |
 | rate of one sample, `ITER` | `eventValue / iterations` |
-| `rate` of an event | median of its clean sample rates, the even-count median being the average of the two central values, which is the `statisticsOf` convention `runner.cpp:49-82` carries today and E-11 states |
+| `rate` of an event | median of its clean sample rates, the even-count median being the average of the two central values, which is the `statisticsOf` convention `statistics.cpp:39-40` carries and E-11 states |
 | `cv` of an event | `sampleStdDev / mean x 100` from the same `statisticsOf` call |
 | noisy | `cv` above `options.noise`, read on the unrounded value |
 | rank order, `RATE` | `rate` descending, ties by address ascending |
@@ -365,7 +367,7 @@ excluded, counted out the way a gap repetition is counted out of
 ## JSON mapping
 
 The in-memory name, the document key, and the reader path. Every per-entry key
-is read through `optionalField` (`json_load.cpp:103`); a present key keeps its
+is read through `optionalField` (`json_load.cpp:107`); a present key keeps its
 own kind and its own refusal (hard rule 7).
 
 | In memory | Document key | Kind | In `required` |

@@ -382,13 +382,18 @@ capture matches that shape on all three counts, and the abort of §1
 violated it at the third count.
 
 The usage route was re-checked on the same binary: `--hunt=cpu/cycles`
-prints `--hunt: 'cpu/cycles' is not a catalog address`, then
-`BENCHMARK_NO_RUN`, and answers 2 (FR-081).
+prints the one refusal line `--hunt: 'cpu/cycles' is not a catalog address`
+on stderr and answers 2. Nothing else prints: the run leaves through
+`rejectHuntSelection` at `source/harness/hunt_cli.cpp:54-58`, ahead of any
+benchmark (FR-081).
 
 Two things this capture does not carry. No event reached a rate, so every
 row stands at `instr=0.000` and the row order carries no signal; a host
 that measures needs `perf_event_paranoid` below 2, or a device that
-answers user-space reads. The Zen 5 record on gary stays owed under
-SC-010. Sections 5 and 6 stand superseded here for the plan line and the
+answers user-space reads. The Zen 5 half of SC-010 stands recorded beside
+this file: `gary-hunt-all.md` captures `--hunt=all` on an AMD Ryzen 9
+9950X3D on 2026-10-22, with one instance selected by `--filter` on its own
+tree. T061 and T110 ask for that record, and this directory holds it.
+Sections 5 and 6 stand superseded here for the plan line and the
 top-20 table; those 20 rows are attached as
 `corsairone-hunt-all-top20.txt`.
