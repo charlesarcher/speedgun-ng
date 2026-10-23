@@ -1,0 +1,40 @@
+# Master's console answers, replayed by test/base_cli/run_matrix.py.
+#
+# One record per case: the case name, the digit-masked console text and
+# the sorted key set of the document the run wrote, joined by " | ".
+# Console lines are split by a literal backslash-n, standard output
+# stands before standard error, the version banner is left out, and a
+# run of blanks stands for one blank. A single dash records an empty
+# answer.
+#
+# Every record was captured from the harness binary built out of master
+# at bd10d76, before any code of this feature, replaying the command
+# lines of test/data/base_cli_matrix.txt. A record stays the answer of
+# that binary: when a change means one case answers differently on
+# purpose, drop that case's record and name it below, so every line here
+# keeps holding an answer this branch did not write.
+#
+# The matrix holds 26 cases and 15 of them carry a record. Three cases
+# print a host's own table, so they would name a difference on another
+# machine: --catalog lists the events of this cpu, --topology its
+# packages and cache groups, and --counter reaches the perf layer, whose
+# pass lines follow the host as well. The cases this feature answers
+# differently carry no record either: --help and --version now answer,
+# --threads and --interleave run, where the base refused them, and a
+# usage fault now prints one line where the base printed getopt's line
+# beside its own. (SC-007, FR-003, FR-059, FR-086)
+case01 | bmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=# | -
+case04 | bmRead/cells:#\nbmWrite/cells:# | -
+case07 | bmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=# | -
+case08 | no benchmark matches the filter 'nosuch' | -
+case09 | bmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmRead/cells:# AGGREGATE primary time/iter (ns) mean= #.# median= #.# sd= #.# cv= #.# min= #.# max= #.# n=#\nbmWrite/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# AGGREGATE primary time/iter (ns) mean= #.# median= #.# sd= #.# cv= #.# min= #.# max= #.# n=# | -
+case11 | bmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=# | -
+case12 | bmRead/cells:# iterations= # real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations= # real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=# | -
+case13 | bmRead/cells:# iterations= # real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations= # real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=# | -
+case14 | bmRead/cells:# iterations= # real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations= # real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=# | -
+case15 | bmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=# | -
+case16 | --metric nosuch: no metric named 'nosuch' in the event table of this host (FR-#) | -
+case22 | --min-time: expected a finite positive number of seconds at most #, got 'abc' | -
+case24 | bmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=# | benchmarks;benchmarks[].case;benchmarks[].contexts;benchmarks[].counterLabels;benchmarks[].counterStats;benchmarks[].hideRepetitionRows;benchmarks[].metricLabels;benchmarks[].metricMethod;benchmarks[].name;benchmarks[].noiseWarning;benchmarks[].outcome;benchmarks[].passCount;benchmarks[].passSpread;benchmarks[].pauseSamplesFolded;benchmarks[].percentilePoints;benchmarks[].primaryIsCpu;benchmarks[].reason;benchmarks[].rows;benchmarks[].rows[].chunkCount;benchmarks[].rows[].chunkIterations;benchmarks[].rows[].counterDisclosure;benchmarks[].rows[].counters;benchmarks[].rows[].cpuTimePerIterationNs;benchmarks[].rows[].endpointSamples;benchmarks[].rows[].fit;benchmarks[].rows[].iterations;benchmarks[].rows[].kind;benchmarks[].rows[].label;benchmarks[].rows[].metricStats;benchmarks[].rows[].metrics;benchmarks[].rows[].overheadFloorNs;benchmarks[].rows[].pauseSamplesFolded;benchmarks[].rows[].percentiles;benchmarks[].rows[].timeAvailability;benchmarks[].rows[].timePerIterationNs;benchmarks[].rows[].timeStats;benchmarks[].spreadWarning;benchmarks[].statisticValues;benchmarks[].suite;benchmarks[].timeUnit;speedgun;speedgun.buildType;speedgun.version
+case25 | bmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmRead/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmRead/cells:# AGGREGATE primary time/iter (ns) mean= #.# median= #.# sd= #.# cv= #.# min= #.# max= #.# n=#\nbmWrite/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# iterations=# real time/iter (ns)= #.# cpu time/iter (ns)= #.# overhead floor (ns)= #.# endpoint samples=#\nbmWrite/cells:# AGGREGATE primary time/iter (ns) mean= #.# median= #.# sd= #.# cv= #.# min= #.# max= #.# n=# | benchmarks;benchmarks[].case;benchmarks[].contexts;benchmarks[].counterLabels;benchmarks[].counterStats;benchmarks[].hideRepetitionRows;benchmarks[].metricLabels;benchmarks[].metricMethod;benchmarks[].name;benchmarks[].noiseWarning;benchmarks[].outcome;benchmarks[].passCount;benchmarks[].passSpread;benchmarks[].pauseSamplesFolded;benchmarks[].percentilePoints;benchmarks[].primaryIsCpu;benchmarks[].reason;benchmarks[].rows;benchmarks[].rows[].chunkCount;benchmarks[].rows[].chunkIterations;benchmarks[].rows[].counterDisclosure;benchmarks[].rows[].counters;benchmarks[].rows[].cpuTimePerIterationNs;benchmarks[].rows[].endpointSamples;benchmarks[].rows[].fit;benchmarks[].rows[].iterations;benchmarks[].rows[].kind;benchmarks[].rows[].label;benchmarks[].rows[].metricStats;benchmarks[].rows[].metrics;benchmarks[].rows[].overheadFloorNs;benchmarks[].rows[].pauseSamplesFolded;benchmarks[].rows[].percentiles;benchmarks[].rows[].timeAvailability;benchmarks[].rows[].timePerIterationNs;benchmarks[].rows[].timeStats;benchmarks[].rows[].timeStats.coefficientOfVariation;benchmarks[].rows[].timeStats.max;benchmarks[].rows[].timeStats.mean;benchmarks[].rows[].timeStats.median;benchmarks[].rows[].timeStats.min;benchmarks[].rows[].timeStats.sampleStdDev;benchmarks[].rows[].timeStats.samples;benchmarks[].spreadWarning;benchmarks[].statisticValues;benchmarks[].suite;benchmarks[].timeUnit;speedgun;speedgun.buildType;speedgun.version
+case26 | --percentiles: expected comma-separated points in (#, #), got '--repetitions=#' | -
