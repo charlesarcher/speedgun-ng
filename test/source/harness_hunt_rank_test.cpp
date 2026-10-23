@@ -461,6 +461,82 @@ auto zeroAnchorExcluded() -> void
   checkRecordShape(result, options);
 }
 
+// A window whose divisor for the norm of the run carries no reading
+// contributes no rate at all: the cycle norm over a window with no cycle
+// reading and over one whose cycle reading is 0, and the iter norm over a
+// window that counted no iteration. Every excluded window carries an event
+// figure that would move the median and the deviation, so no exclusion here
+// can pass by coincidence (E-08, contracts/hunt-api.md).
+auto zeroDivisorExcluded() -> void
+{
+  const auto device = deviceIndex(sg::test::kHuntCpu);
+  const auto cycle = sg::test::huntCycle(device);
+  const auto wide = sg::test::huntValue(sg::test::kHuntEvents - 1);
+
+  // One window of three carries a cycle reading, and it is the narrowest of
+  // the three: the median of the run is that one rate, and the two windows
+  // without a divisor would answer another figure each if they stood in the
+  // list.
+  auto anchorless = sg::hunt::EventSamples {};
+  anchorless.address =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(4));
+  anchorless.samples.push_back(window(0,
+                                      sg::test::huntValue(4),
+                                      sg::test::huntInstr(device),
+                                      cycle * 2,
+                                      kOneIteration));
+  anchorless.samples.push_back(window(
+      1, wide, sg::test::huntInstr(device), std::nullopt, kOneIteration));
+  anchorless.samples.push_back(
+      window(2, wide, sg::test::huntInstr(device), 0, kOneIteration));
+
+  const auto cycleOptions = optionsFor(sg::hunt::HuntNorm::CYCLE);
+  const auto cycled = sg::hunt::rankEvents({anchorless}, cycleOptions);
+  const auto& cycleEntry = entryOf(cycled, anchorless.address);
+  const auto kept = static_cast<double>(sg::test::huntValue(4))
+      / static_cast<double>(cycle * 2) * kRateScale;
+  check(cycleEntry.samples == 1,
+        "the windows with no cycle divisor contribute no rate");
+  check(sameDouble(cycleEntry.rate, kept),
+        "the rate is the one window that carries a cycle reading");
+  check(!cycleEntry.repeated, "one rate leaves the entry unrepeated");
+  check(!cycleEntry.rank.has_value(), "an unrepeated entry carries no rank");
+  checkRecordShape(cycled, cycleOptions);
+
+  // The iter norm over the same shape: the window that counted no iteration is
+  // out of the list, and the two that stand in it answer different rates, so
+  // the median and the deviation both read the exclusion.
+  auto uncounted = sg::hunt::EventSamples {};
+  uncounted.address =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(2));
+  uncounted.samples.push_back(window(0,
+                                     sg::test::huntValue(2),
+                                     sg::test::huntInstr(device),
+                                     cycle,
+                                     kOneIteration));
+  uncounted.samples.push_back(
+      window(1, wide, sg::test::huntInstr(device), cycle, 0));
+  uncounted.samples.push_back(window(2,
+                                     sg::test::huntValue(2),
+                                     sg::test::huntInstr(device),
+                                     cycle,
+                                     kOneIteration * 2));
+
+  const auto iterOptions = optionsFor(sg::hunt::HuntNorm::ITER);
+  const auto iterated = sg::hunt::rankEvents({uncounted}, iterOptions);
+  const auto& iterEntry = entryOf(iterated, uncounted.address);
+  check(iterEntry.samples == kWindows - 1,
+        "the window that counted no iteration contributes no rate");
+  const auto stats = summaryOf(ratesOf(uncounted, sg::hunt::HuntNorm::ITER));
+  check(stats.samples == kWindows - 1,
+        "the expectation list drops the window with no iteration count");
+  check(sameDouble(iterEntry.rate, stats.median),
+        "the median reads the windows that counted iterations");
+  check(sameDouble(iterEntry.cv, kPercentScale * stats.coefficientOfVariation),
+        "the deviation reads the windows that counted iterations");
+  checkRecordShape(iterated, iterOptions);
+}
+
 // A window that carries a disclosure contributes none at all, and the address
 // that measured and gapped stands in the ranked list and in the skipped list
 // (I-4, D-10). The gapped window carries a rate that would move the median, so
@@ -895,6 +971,7 @@ struct Scenario
       Scenario {"norm-cycle", normCycle},
       Scenario {"norm-iter", normIter},
       Scenario {"zero-anchor-excluded", zeroAnchorExcluded},
+      Scenario {"zero-divisor-excluded", zeroDivisorExcluded},
       Scenario {"disclosure-excluded", disclosureExcluded},
       Scenario {"statistics-agreement", statisticsAgreement},
       Scenario {"noise-threshold", noiseThreshold},
