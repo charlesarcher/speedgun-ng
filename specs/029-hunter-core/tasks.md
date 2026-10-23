@@ -631,7 +631,7 @@ as was the coverage bar. Two rows are BLOCKING.
       95, and drop the declaration read at `:32`: line 219 of
       `source/harness/detail/json_report.hpp` declares `checkReport`, and
       `checkNode` is a definition inside `json_load.cpp` (FR-053, D-17)
-- [ ] T149 Re-read the line reads in `specs/029-hunter-core/contracts/hunt-cli.md`
+- [x] T149 Re-read the line reads in `specs/029-hunter-core/contracts/hunt-cli.md`
       at 12, 19, 108, 109 and 128: `longOptions[]` opens at `cli.cpp:391`,
       `kMetricMethodOption` at `:390`, `expandHuntSelection` is called at
       `:602`, the listing modes answer at `:641`, `:646` and `:676`, and

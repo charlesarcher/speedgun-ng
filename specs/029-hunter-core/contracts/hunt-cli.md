@@ -9,14 +9,14 @@ hard rules 2, 3, 9 and 10
 
 Eight long options, no short letters, named constants 270 to 277 inside the
 block 270 to 279 the lane reserves (D-22). `cli.cpp` gains the
-eight rows of the one `option longOptions[]` table at `cli.cpp:388` and eight
+eight rows of the one `option longOptions[]` table at `cli.cpp:375` and eight
 named constants; every parse, range check, refusal message, `@file` reader, glob
 matcher and conflict check lives in `hunt_cli.cpp` (D-22). The table stays the
 single source `tools/docs/example_drift.py:458-465` reads for the README option
 rows, so a hunt option with no README row fails `example_drift --options`.
 
 Values 256 to 259 are taken at `bd10d76` (`cli.cpp:69-71` for the three
-comparison options, `cli.cpp:387` for `kMetricMethodOption`), so 270 to 279 stand
+comparison options, `cli.cpp:374` for `kMetricMethodOption`), so 270 to 279 stand
 free for this lane (spec D-22).
 
 ## The option table
@@ -106,8 +106,9 @@ round-trips exactly like `--hunt=none` does (spec Assumptions).
 `--hunt` combined with `--list`, `--catalog` or `--topology` prints no `hunt:`
 line: those modes print and stop before any run, so the hunt plan never forms.
 A refusal the expansion answers still precedes them, because `cli.cpp` calls
-`expandHuntSelection` at `cli.cpp:599` and the listing modes answer later, at
-`cli.cpp:639`, `cli.cpp:655` and `cli.cpp:673`. `--catalog --hunt=r4a03`
+`expandHuntSelection` at `cli.cpp:586` and the listing modes answer later:
+`catalogMode` prints and returns at `cli.cpp:625`, `topologyMode` at
+`cli.cpp:630` and `listMode` at `cli.cpp:660`. `--catalog --hunt=r4a03`
 therefore prints the one refusal line and exits with status 2, and the catalog
 stays unprinted. `--hunt` with `--filter` applies the hunt to the instances
 the filter selected. `--hunt-repeats` sets the repeats of the hunt stages, and
