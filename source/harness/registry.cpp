@@ -667,8 +667,7 @@ auto BenchmarkHandle::jitterProbe(const JitterProbeOptions& options)
              "an option setter runs before the run starts (E-02)");
   // The field bounds the suite-level call states (FR-008, FR-009, D-13);
   // the command line enforces the same bounds where it parses.
-  SG_REQUIRE(!options.thresholdNs.has_value()
-                 || *options.thresholdNs >= 1,
+  SG_REQUIRE(!options.thresholdNs.has_value() || *options.thresholdNs >= 1,
              "the threshold stands at or above 1 ns (FR-008, D-13)");
   SG_REQUIRE(
       options.gapCount >= kMinGapCount && options.gapCount <= kMaxGapCount,
