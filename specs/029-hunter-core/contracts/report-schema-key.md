@@ -27,11 +27,11 @@ object and the per-entry object, and joins neither `required` list.
 
 ## Why `properties` must carry the keys
 
-The per-entry object is closed. `checkNode` (`json_load.cpp:1060`, reached
-through `checkReport` at `json_load.cpp:1156` and declared at
-`detail/json_report.hpp:219`) compares the key set, the key order and the value
-kinds of a written document against the schema, and a key that stands in a
-closed node's document and not in its `properties` is a finding. The hunt
+The per-entry object is closed. `checkNode` (`json_load.cpp:1450`, reached
+through `checkReport` at `json_load.cpp:1546`) compares the key set, the key
+order and the value kinds of a written document against the schema, and a key
+that stands in a closed node's document and not in its `properties` is a
+finding. The hunt
 documents the harness writes therefore fail the schema check unless the schema
 lists the keys: `harness_json_report_test.cpp:278,382` and
 `harness_compare_cli_test.cpp:636,704` run `checkReport` over written documents,
@@ -45,7 +45,7 @@ byte order a document had before.
 ## Why `required` must not carry them
 
 A required key of a closed node that stands absent is a finding, and the reader
-cannot rescue it: `optionalField` (`json_load.cpp:103`) answers a key that is
+cannot rescue it: `optionalField` (`json_load.cpp:107`) answers a key that is
 not there, and the schema check has already reported the absence. Every entry
 key written by master stands in the entry's `required` list except `reason` and
 `noiseWarning`, so the pattern of a key that a document may omit exists and is
@@ -91,8 +91,8 @@ inside a present `hunt` object every key is required by the hunt node's own
 
 Both nodes are closed and both list every key as required, because a hunt object
 the harness wrote always carries all of them: an absent value inside one is
-written as `null`, which is the shape `passSpread` already uses
-(`json_report.cpp:508`). The null-accepting kinds are the top-level `budget`
+written as `null`, which is the shape `putOrNull` writes for `passSpread`
+(`json_report.cpp:589`). The null-accepting kinds are the top-level `budget`
 and `estimate_ns` and `entries[].rank`, each written as a
 one-of pair of its kind
 and `null` in the form the existing optional entries of the schema use.
