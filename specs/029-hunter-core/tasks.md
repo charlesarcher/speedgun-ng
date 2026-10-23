@@ -616,7 +616,7 @@ as was the coverage bar. Two rows are BLOCKING.
       `--scope` is the `--placement` option of this tree, which no file in
       this branch spells `--scope` (FR-016, FR-081, D-16, PD-15) [BLOCKING]
       (round 3 code F2)
-- [ ] T147 Re-anchor the nine JSON citations in
+- [x] T147 Re-anchor the nine JSON citations in
       `specs/029-hunter-core/contracts/hunt-json.md` at 64, 134, 135, 142,
       143, 146 and 158: `metricMethod` is written at `json_report.cpp:586`,
       the `putOrNull` path of `passSpread` at `:589`, `writeReport` at `:726`,

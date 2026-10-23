@@ -61,7 +61,7 @@ either level, so its document differs from the master capture in the
 | `noisePercent` | number | never |
 | `seed` | integer | never |
 | `budget` | string such as `120s`, or null | a run with no budget writes null |
-| `method` | string, the settled `MetricMethod` word in the spelling `metricMethod` already uses (`json_report.cpp:504-506`, `kMetricMethodWords`) | never |
+| `method` | string, the settled `MetricMethod` word in the spelling `metricMethod` already uses (`json_report.cpp:586`, `kMetricMethodWords`) | never |
 | `events` | array of strings | never; every planned address in plan order (D-17, FR-050); the example shows two of 42 for space |
 | `stages` | array of closed objects `first`, `count`, `repeats` | never; one object per stage that ran: its first index into `events`, its event count, its repeats; the exact membership of a stage-2 subset stays visible in the rank column of `entries` |
 | `estimate_ns` | integer, or null | a plan with no calibration estimate writes null |
@@ -131,19 +131,19 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
   writer already holds, so a failed buffer is handled the way 023 handles it and
   adds no new branch.
 - A `std::nullopt` estimate or budget writes `null` through `putOrNull`, the
-  path `passSpread` already takes (`json_report.cpp:508`).
-- `writeReport` takes `const ReportData&` (`json_report.cpp:571`), so the run
+  path `passSpread` already takes (`json_report.cpp:589`).
+- `writeReport` takes `const ReportData&` (`json_report.cpp:726`), so the run
   data reaches the writer with no new parameter: `ReportData::hunt` carries it
   (PD-10).
 - No `LCOV_EXCL` marker joins either file (FR-091).
 
 ## Reader rules
 
-- `readEntry` (`json_load.cpp:654`) reads the entry object with
-  `optionalField(value, "hunt")` (`json_load.cpp:103`): an absent key leaves
+- `readEntry` (`json_load.cpp:1031`) reads the entry object with
+  `optionalField(value, "hunt")` (`json_load.cpp:107`): an absent key leaves
   `BenchmarkResult::hunt` empty and the rest of the entry reads as it does
   today, and a present key keeps its own kind and its own refusal. `loadReport`
-  (`json_load.cpp:1190`) does the same for the top-level key before it reads the
+  (`json_load.cpp:1580`) does the same for the top-level key before it reads the
   `benchmarks` array.
 - Inside a present hunt object every key is required, so a key that stands
   missing is a refusal naming the pointer, the way the 024 record reads do
@@ -153,9 +153,9 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
   string where a number stands, a boolean where a number stands, an unknown
   word for `method` or `norm` or `rank` or `kind`, an integer too wide for the
   field, an array where an object stands, and a missing key of a present object.
-- The schema-major gate is untouched: a text that states no major or a major
-  other than 1 is refused before any hunt key is read
-  (`json_load.cpp:1214-1219`).
+- The schema-major gate is untouched: `detail::schemaMajor` inside
+  `loadReport` refuses a text that states no major or a major other than 1
+  before any hunt key is read (`json_load.cpp:1604-1613`).
 - Unknown keys stay tolerated by the reader (spec PC-5), and the schema checker
   reports them for the closed hunt objects.
 
