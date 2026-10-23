@@ -255,17 +255,16 @@ constexpr int kReservedHigh = 296;
 // The eight hunt rows and the numbers
 // `specs/029-hunter-core/contracts/hunt-cli.md` assigns them; the rule binds
 // the number, whichever constant spells it (specs/029 FR-083, D-22).
-constexpr std::array<std::pair<std::string_view, int>, 8>
-    kHuntValues = {{
-        {"hunt", 270},
-        {"hunt-norm", 271},
-        {"hunt-rank", 272},
-        {"hunt-top", 273},
-        {"hunt-noise", 274},
-        {"hunt-repeats", 275},
-        {"hunt-budget", 276},
-        {"hunt-seed", 277},
-    }};
+constexpr std::array<std::pair<std::string_view, int>, 8> kHuntValues = {{
+    {"hunt", 270},
+    {"hunt-norm", 271},
+    {"hunt-rank", 272},
+    {"hunt-top", 273},
+    {"hunt-noise", 274},
+    {"hunt-repeats", 275},
+    {"hunt-budget", 276},
+    {"hunt-seed", 277},
+}};
 
 // The hunt rows of the fixture twin: the eight of the contract plus the row
 // whose name is the planted duplicate.
@@ -857,19 +856,17 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
     const bool master = index < kMasterRows;
     const bool hunt = index >= kRowsBeforeHunt;
     const bool inside = hunt
-                          ? inHuntBlock(row.value)
-                          : (master ? inMasterBlock(row.value)
-                                    : inNewBlock(row.value));
+        ? inHuntBlock(row.value)
+        : (master ? inMasterBlock(row.value) : inNewBlock(row.value));
     if (!inside) {
-      const std::string label = std::string(hunt ? "the hunt row '"
-                                         : master
-                                             ? "the master row '"
-                                             : "the new row '")
-                              + row.name + "' answers inside its block (FR-004, FR-079)";
+      const std::string label = std::string(hunt         ? "the hunt row '"
+                                                : master ? "the master row '"
+                                                         : "the new row '")
+          + row.name + "' answers inside its block (FR-004, FR-079)";
       report(label.c_str(),
-             hunt ? "a constant from 270 to 279"
-                  : master ? "a letter or a constant from 256 to 259"
-                           : "a constant from 290 to 296",
+             hunt         ? "a constant from 270 to 279"
+                 : master ? "a letter or a constant from 256 to 259"
+                          : "a constant from 290 to 296",
              valueWord(row.value));
     }
     if (hunt) {
@@ -900,9 +897,10 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
                + std::to_string(lowestHunt));
   }
   if (sawHunt && sawNew && highestHunt >= lowestNew) {
-    report("the hunt block and the new block share no number (FR-004, FR-079)",
-           "the highest hunt value below the lowest new value",
-           std::to_string(highestHunt) + " against " + std::to_string(lowestNew));
+    report(
+        "the hunt block and the new block share no number (FR-004, FR-079)",
+        "the highest hunt value below the lowest new value",
+        std::to_string(highestHunt) + " against " + std::to_string(lowestNew));
   }
   if (sawMaster && sawNew && highestMaster >= lowestNew) {
     report("the two value blocks share no number (FR-004, FR-079)",
@@ -972,10 +970,10 @@ auto theFixtureTwinReportsItsPlantedDefects() -> void
 
   const Row* clash = repeatedValue(fixtureRows());
   if (clash == nullptr || clash->value != sg::test::kCliFixturePlantedValue) {
-    report("the value rule reports the planted clash of the twin (T020)",
-           std::to_string(sg::test::kCliFixturePlantedValue),
-           clash == nullptr ? "no repeated value"
-                            : std::to_string(clash->value));
+    report(
+        "the value rule reports the planted clash of the twin (T020)",
+        std::to_string(sg::test::kCliFixturePlantedValue),
+        clash == nullptr ? "no repeated value" : std::to_string(clash->value));
   }
 }
 

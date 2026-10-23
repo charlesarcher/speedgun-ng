@@ -326,15 +326,6 @@ public:
 namespace detail
 {
 
-/// @brief specs/029 data-model.md E-08, FR-031: the record of the hunt this
-/// process last ran.
-///
-/// \pre none
-/// \post the record `runHunt` last assembled, and empty in a process that ran
-///       no hunt (I-8); `hunt.cpp` owns the storage, the report lane reads the
-///       plan fields through this name (D-15)
-auto huntRunRecord() -> std::optional<hunt::RunHunt>&;
-
 /**
  * @brief The fold-path sink of one run (E-03, FR-052): one running
  * total per leaf column, fed at the commit of every folded pause pair
@@ -733,8 +724,19 @@ auto printTopologyListing(const MachineLayout&) -> void;
  */
 auto printContext(bool placementInEffect) -> void;
 
-/// @brief Format one benchmark result in fixed columns (FR-035, FR-036).
-auto printResult(const BenchmarkResult& result) -> void;
+/**
+ * @brief Format one benchmark result in fixed columns (FR-035, FR-036).
+ *
+ * specs/029 T126, FR-040, E-08, PD-10: the hunt block of a result that
+ * carries a hunt prints from the run-level record handed over beside it,
+ * so the plan line and the lines that rank read the record of the hunt
+ * that built `result.hunt`. The record stands empty for a result that
+ * carried no hunt, and such a result prints the bytes it printed before
+ * the hunt existed (I-8).
+ */
+auto printResult(const BenchmarkResult& result,
+                 const std::optional<hunt::RunHunt>& run = std::nullopt)
+    -> void;
 
 /// @brief specs/029 T035, FR-012, FR-013, data-model E-07: the plan line of
 /// one hunt run, and the one line a cut plan adds below it.
@@ -835,6 +837,46 @@ auto appendCounterColumns(std::vector<double>& printed,
                           const std::uint64_t iterations) -> void;
 
 }  // namespace detail
+
+namespace hunt
+{
+
+/**
+ * @brief specs/029 T126: the pair of records one hunt answered: the entry
+ * record a result carries at `BenchmarkResult::hunt`, and the run-level
+ * record the printers and `ReportData::hunt` read (E-06, E-08, PD-10).
+ * The record travels with the answer, so a printer reads the record of
+ * the hunt that built the entry standing beside it.
+ */
+struct Hunted
+{
+  /// @brief the ranked rows, the skipped list and the pass figures of the
+  /// hunt that ran (E-06)
+  EntryHunt entry;
+  /// @brief the plan the hunt ran under and the stages that ran (E-08)
+  RunHunt run;
+};
+
+/**
+ * @brief specs/029 D-23: the name-addressable driver behind the public
+ * `runHunt`, so the entry point hunts the instances the filter selected
+ * without a handle of its own (FR-040).
+ *
+ * `hunt.cpp` defines it. `timedPass` states which route calls: the
+ * harness run path prints the figures of E-07, holds no calibration data
+ * of its own, and measures one pass of the plan to price it (T119,
+ * FR-012). A hunt that ran answers both records; a hunt that refuses
+ * answers the error whose text the caller prints (FR-081).
+ */
+[[nodiscard]] auto runHuntNamed(
+    std::string_view name,
+    const HuntOptions& options,
+    std::optional<std::uint64_t> calibrationNsPerPass,
+    std::optional<MetricMethod> forcedMethod = std::nullopt,
+    bool dryRun = false,
+    bool timedPass = false) -> std::expected<Hunted, counters::Error>;
+
+}  // namespace hunt
 
 }  // namespace sg
 

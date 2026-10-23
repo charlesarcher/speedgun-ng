@@ -238,22 +238,6 @@ auto environmentRows(char* const* table) -> std::vector<EnvironmentRow>
 
 }  // namespace detail
 
-// specs/029 D-23: the name-addressable driver behind the public `runHunt`, so
-// the entry point hunts the instances the filter selected without a handle of
-// its own (FR-040). `hunt.cpp` defines it. `timedPass` states the route: the
-// run path that prints the figures of E-07 times one pass of its own to price
-// the plan, and leaves the figure to the caller otherwise (T119, FR-012).
-namespace hunt
-{
-[[nodiscard]] auto runHuntNamed(
-    std::string_view name,
-    const HuntOptions& options,
-    std::optional<std::uint64_t> calibrationNsPerPass,
-    std::optional<MetricMethod> forcedMethod,
-    bool dryRun,
-    bool timedPass) -> std::expected<EntryHunt, counters::Error>;
-}  // namespace hunt
-
 /**
  * @brief Run the benchmark suite the command line names (FR-040).
  *
@@ -544,6 +528,10 @@ auto speedgunMain(int argc, char** argv) -> int
     BenchmarkResult result;
     std::vector<RowRaw> raw;
     std::vector<std::vector<RowRaw>> contextRaw;
+    // specs/029 T126: the record of the hunt that built this row's hunt
+    // object rides the row, so the deferred print of a shuffled run prints
+    // the same hunt block the immediate print of an ordered run prints.
+    std::optional<hunt::RunHunt> hunt;
   };
 
   std::vector<std::optional<HeldRow>> held(selected.size());
@@ -571,6 +559,7 @@ auto speedgunMain(int argc, char** argv) -> int
     // selected, and the record rides the result the printers and the writer
     // read; a hunt that refuses stands its error line on stderr with the
     // failed outcome's exit status (FR-081, spec PC-9).
+    auto runRecord = std::optional<hunt::RunHunt> {};
     if (options.hunt.has_value()) {
       // specs/029 T080 superseded by T119, FR-012: the run hands the hunt no
       // calibration figure. The sampling overhead a row carries prices one
@@ -584,14 +573,16 @@ auto speedgunMain(int argc, char** argv) -> int
                                        options.dryRun,
                                        true);
       if (hunted.has_value()) {
-        result.hunt = std::move(*hunted);
-        // specs/029 FR-031, PD-10: the run-level record `runHunt` assembled
-        // for this hunt rides the report data the document writer reads, so
-        // the root `hunt` object stands in the document of a hunt run. The
-        // record is a copy: the console printer reads the same record
-        // after this line. A run with no hunt leaves the member empty
-        // and the document keeps its former bytes (I-8, FR-052).
-        report.hunt = detail::huntRunRecord();
+        result.hunt = std::move(hunted->entry);
+        runRecord = std::move(hunted->run);
+        // specs/029 FR-031, PD-10, T126: the run-level record the hunt
+        // answered rides the report data the document writer reads, so the
+        // root `hunt` object stands in the document of a hunt run. The
+        // record reaches here with the answer of its own hunt, and the
+        // console printer below reads the same record. A run with no hunt
+        // leaves both empty and the document keeps its former bytes (I-8,
+        // FR-052).
+        report.hunt = runRecord;
         // D-19: a hunt run states its method outright, so the method of the
         // forced collection rides the result the document writer reads even
         // where no counter column of its own settled one.
@@ -609,10 +600,12 @@ auto speedgunMain(int argc, char** argv) -> int
       }
     }
     if (interleaved) {
-      held[position] =
-          HeldRow {result, runner.rowRaw().back(), runner.contextRaw().back()};
+      held[position] = HeldRow {result,
+                                runner.rowRaw().back(),
+                                runner.contextRaw().back(),
+                                runRecord};
     } else {
-      detail::printResult(result);
+      detail::printResult(result, runRecord);
       report.results.push_back(result);
       report.rowRaw.push_back(runner.rowRaw().back());
       report.contextRaw.push_back(runner.contextRaw().back());
@@ -656,7 +649,7 @@ auto speedgunMain(int argc, char** argv) -> int
       if (!row.has_value()) {
         continue;
       }
-      detail::printResult(row->result);
+      detail::printResult(row->result, row->hunt);
       report.results.push_back(row->result);
       report.rowRaw.push_back(row->raw);
       report.contextRaw.push_back(row->contextRaw);
