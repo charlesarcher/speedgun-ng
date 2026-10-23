@@ -645,7 +645,7 @@ as was the coverage bar. Two rows are BLOCKING.
 - [x] T151 Re-read `cutReason` at `specs/029-hunter-core/data-model.md:224`
       against `include/speedgun-ng/hunt.hpp:467` and `ObjectSeedData` at `:245`
       against `include/speedgun-ng/counters_fake.hpp:315` (FR-013, FR-090)
-- [ ] T152 Repoint the byte-identity `SG_INVARIANT` read at
+- [x] T152 Repoint the byte-identity `SG_INVARIANT` read at
       `specs/029-hunter-core/quickstart.md:249` from
       `source/harness/runner.cpp:2287-2292` at `source/harness/runner.cpp:2391`
       (FR-090, I-8)
