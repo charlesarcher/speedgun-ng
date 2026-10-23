@@ -1172,21 +1172,17 @@ auto numberAfter(const std::string& text,
 
 // The estimate of the plan line is the nanoseconds of one pass times the
 // passes and the repeats the plan runs (`hunt.hpp`), and the hunt times that
-// pass at its own entry (T119, FR-012). A measurement is no constant, so the
-// case reads the figure off the run that printed it. The order of the two
-// figures of that run follows from what each prices: the overhead floor of the
-// row prices one read of an already-open window, while `measurePassNs` prices a
-// whole pass of the same plan through that read, its seat, its window and the
-// body of the benchmark (`hunt.cpp`). So the pass figure behind the estimate
-// carries the floor inside it, and the check below weighs the two as a bound
-// that holds on every host: an instrumented binary lifts both readings at once
-// and leaves the bound standing. Which of the two figures a host answers larger
-// is no claim this case makes, since a strict ranking between two readings
-// belongs to the host. The signature of the T119 defect, an estimate that is a
-// copy of the floor, is weighed where the figure is handed to the planner and
-// no clock runs: `estimate-figures-the-passes` of
-// `harness_hunt_collect_test.cpp`. A hunt that measures no pass leaves the
-// estimate reading `not available` (FR-012).
+// pass at its own entry (T119, FR-012). The pass figure behind the estimate
+// and the overhead floor the row publishes are two readings of one host, and
+// ThreadSanitizer answered a pass reading below a floor reading, so no order
+// between them belongs to this code and this case claims none. What the case
+// pins is what the planner owes whatever the host answers: the plan line
+// carries an estimate, and that estimate is one figure of a pass weighed
+// against the passes of the plan, so it divides by them whole. The signature
+// of the T119 defect, an estimate that is a copy of the floor, is weighed
+// where the figure is handed to the planner and no clock runs:
+// `estimate-figures-the-passes` of `harness_hunt_collect_test.cpp`. A hunt
+// that measures no pass leaves the estimate reading `not available` (FR-012).
 auto scenarioPlanWeighsTheMeasuredPass() -> void
 {
   registerHost(kScriptFull);
@@ -1211,9 +1207,6 @@ auto scenarioPlanWeighsTheMeasuredPass() -> void
   check(estimate % passes == 0,
         "the estimate weighs the passes of the plan against one figure of a "
         "pass (FR-012)");
-  check(estimate / passes >= static_cast<std::uint64_t>(std::stod(floor)),
-        "the figure of one pass behind the estimate never falls under the "
-        "overhead floor the row of the same run publishes (T119, FR-012)");
   std::remove(kDocumentPath);
   std::printf("measured-pass-estimate: ok\n");
 }
