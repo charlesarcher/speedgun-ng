@@ -330,3 +330,65 @@ Status: defect observed, not acceptance evidence
 
 and this file is a defect record under AC-10, ready to be superseded
 by the acceptance capture the fixed tree will produce.
+
+## 11. The acceptance capture on the fixed tree
+
+Date: 2026-10-23. Tree: `029-hunter-core` at `3df7a76` with the hunt
+slice uncommitted: `skippedOf` in `source/harness/hunt.cpp` answers
+`SkippedKind::ABSENT` for an address whose windows opened and yielded no
+rate, and the refusal route of `source/harness/cli.cpp` sets the failed
+flag its status comes from. Lane `/home/archerc/sg029-lanes/hwfix`,
+preset `ci-rocky`, release build. Binary: `build/example/first_benchmark`,
+the same quickstart benchmark of §1, on the same host.
+
+```text
+$ cd /home/archerc/sg029-lanes/ac10
+$ stdbuf -oL /home/archerc/sg029-lanes/hwfix/build/example/first_benchmark \
+    --hunt=all --json=/home/archerc/sg029-lanes/ac10/hunt.json \
+    > out.txt 2> err.txt
+$ echo $?
+0
+$ wc -l < out.txt; wc -c < err.txt
+990
+0
+```
+
+Section 1 captured exit 134, no `hunt:` line and a core dump. The same
+invocation on the fixed tree answers 0, prints the ranking and the
+skipped list, and leaves stderr empty (AC-10).
+
+| fact | value |
+| --- | --- |
+| plan line | `hunt: plan events=489 passes=245 method=PASSES estimate=not available budget=none` |
+| summary line | `hunt: plan summary events=0/497 passes=245 spend=not available budget=none` |
+| rank rows | 489 rows, each `instr=0.000 cv=0.00 mark=unrepeated` |
+| skipped lines | 497 lines: 458 `absent`, 31 `gap`, 8 `permission-blocked` |
+| document | `hunt.json`, 120531 bytes, `schemaVersion` `1.4` |
+| host state | `perf_event_paranoid` 2, no `perf` utility installed |
+
+The `spend` field carries the figure the caller hands `runHuntNamed`.
+The command-line path hands none, so the summary records that the run
+holds no calibration figure; T080 tracks wiring the overhead floor of
+the finished row into that argument.
+
+SC-010 states that the recorded `perf_event_paranoid` value may push
+kernel-scoped events into the skipped list, that the disclosure belongs
+to the recorded result, and that the run stands passed. The host state
+row is that disclosure.
+
+FR-041 names the shape this host answers: a host without PMU access shows
+every event in the skipped list, prints the plan, and exits 0 (D-12). The
+capture matches that shape on all three counts, and the abort of §1
+violated it at the third count.
+
+The usage route was re-checked on the same binary: `--hunt=cpu/cycles`
+prints `--hunt: 'cpu/cycles' is not a catalog address`, then
+`BENCHMARK_NO_RUN`, and answers 2 (FR-081).
+
+Two things this capture does not carry. No event reached a rate, so every
+row stands at `instr=0.000` and the row order carries no signal; a host
+that measures needs `perf_event_paranoid` below 2, or a device that
+answers user-space reads. The Zen 5 record on gary stays owed under
+SC-010. Sections 5 and 6 stand superseded here for the plan line and the
+top-20 table; those 20 rows are attached as
+`corsairone-hunt-all-top20.txt`.
