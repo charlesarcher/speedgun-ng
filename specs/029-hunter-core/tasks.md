@@ -284,7 +284,7 @@ IV.1.
 - [ ] T061 [P] Record the second AC-10 host: the same invocation on `gary` (Zen 5) when the N7 lane leaves it free, so two microarchitecture families stand in the record (FR-093)
 - [ ] T062 Rebase onto `master` and retake the four reserved values from what master states: `CMakeLists.txt` `VERSION`, the harness and archive `SOVERSION` lines, `kSchemaVersion` with `docs/schema/report-v1.json`, carrying the keys of the lanes that merged before this one in the same schema document and recording each value with its reason in the merge notes (PD-20, hard rules 11 and 12, FR-094)
 - [ ] T063 Re-measure `tools/docs/example_drift.py` `PAGE_LINE_CAP` and the section budgets against the rebased `README.md`, run every Principle VIII gate on the rebased tree, push once with `--force-with-lease`, record `git ls-remote origin 029-hunter-core` beside the gate output, and read every CI job after the push including the coverage artifact (FR-094, V-10)
-- [ ] T064 Make the main-page impact check of IV.1 and write its answer into the merge notes: the `Hunter mode` section teaches the capability with a snippet CI builds and runs, the quick-reference rows name the new public surface, and nothing on the page states a fact the code does not keep
+- [x] T064 Make the main-page impact check of IV.1 and write its answer into the merge notes: the `Hunter mode` section teaches the capability with a snippet CI builds and runs, the quick-reference rows name the new public surface, and nothing on the page states a fact the code does not keep
 
 **Checkpoint (V-10)**: 100 percent line, branch and DBC coverage with no marker
 and no waiver, the rank equal to the printed table on the scripted run and on
