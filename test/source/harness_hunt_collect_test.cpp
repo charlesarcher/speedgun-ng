@@ -29,6 +29,7 @@
 // ============================================================================
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -219,7 +220,7 @@ auto optionsFor(std::string selection,
 // the arm, so an arm at the wrong moment cannot pass unseen.
 std::size_t armAfterAttempts = 0;
 std::size_t armedCeiling = 0;
-std::size_t bodyAttempts = 0;
+std::atomic<std::size_t> bodyAttempts {0};
 
 auto armRetryCeilingAfterPass(const std::size_t repeats,
                               const std::size_t ceiling) -> void
