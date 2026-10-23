@@ -45,16 +45,17 @@ constexpr std::size_t kAnchorLeaves = 2;
 }
 
 // The rate one window contributes under one normalization, and nothing when it
-// contributes none: a window that disclosed a gap or a refusal and a window
-// whose divisor reads zero both stand out of the rate list, the way a gap
-// repetition stands out of `Statistics::samples` today.
+// contributes none: a window whose divisor reads zero stands out of the rate
+// list, the way a gap repetition stands out of `Statistics::samples` today.
 [[nodiscard]] auto rateOf(const HuntSample& sample,
                           const HuntNorm norm) -> std::optional<double>
 {
   const auto counted = static_cast<double>(sample.eventValue);
-  if (sample.disclosure.has_value()) {
-    return std::nullopt;
-  }
+  // `rankEvents` continues past a window that disclosed before it calls here,
+  // so that filter alone settles a disclosure (E-05, FR-022).
+  SG_ASSERT(!sample.disclosure.has_value(),
+            "the caller keeps a window that disclosed a gap or a refusal out "
+            "of the rate list (E-05, FR-022)");
   if (norm == HuntNorm::INSTR) {
     if (!sample.anchorInstr.has_value() || *sample.anchorInstr == 0) {
       return std::nullopt;
