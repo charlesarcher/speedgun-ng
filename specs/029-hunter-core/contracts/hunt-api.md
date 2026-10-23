@@ -86,7 +86,7 @@ struct HuntOptions
 | `HuntNorm` | `\pre` none. `\post` `INSTR` divides by the instructions count of the same pass, `CYCLE` by the cycles count of the same pass, `ITER` by the iteration count of the attempt. No enumerator names `SENSITIVITY`, `DELTA` or `SCORE`: N14b adds those when its method exists (D-3) |
 | `HuntRank` | `\pre` none. `\post` `RATE` orders by median rate descending, `CV` by coefficient of variation ascending; both break a tie by catalog address, so one sample list gives one order |
 | `HuntBudget` | `\pre` `amount` is greater than zero. `\post` the record states the budget in the unit the caller named, and no conversion to the other unit happens here. `\invariant` `amount` above zero |
-| `HuntOptions` | `\pre` `top` stands in 1 to 10000, `repeats` in 1 to 1000, `noise` above `0.0`. `selection` is non-empty for the hunt a record drives: `runHunt` requires it at `hunt.cpp:1105-1109`. The empty text is the spelling of hunt options that never met `--hunt`, the state the option scan parks at `hunt_cli.cpp:332-334` and `hunt.hpp:122` documents. `\post` the record holds exactly one run's settled values; a default-constructed record is the run `--hunt` names with no other hunt option (D-1, D-3, D-6 to D-9). `\invariant` `budget` is empty or holds an `amount` above zero |
+| `HuntOptions` | `\pre` `top` stands in 1 to 10000, `repeats` in 1 to 1000, `noise` above `0.0`. `selection` is non-empty for the hunt a record drives: `runHunt` requires it at `hunt.cpp:1101-1105`. The empty text is the spelling of hunt options that never met `--hunt`, the state the option scan parks at `hunt_cli.cpp:332-334` and `hunt.hpp:122` documents. `\post` the record holds exactly one run's settled values; a default-constructed record is the run `--hunt` names with no other hunt option (D-1, D-3, D-6 to D-9). `\invariant` `budget` is empty or holds an `amount` above zero |
 
 `selection` holds the text the option carried, because the plan line and the
 document repeat it. A `@file` selection holds the joined address lines rather
@@ -281,7 +281,8 @@ struct EntryHunt
 };
 
 [[nodiscard]] auto rankEvents(const std::vector<EventSamples>& collected,
-                              const HuntOptions& options) -> EntryHunt;
+                              const HuntOptions& options,
+                              std::optional<MetricMethod> method) -> EntryHunt;
 ```
 
 `SkippedKind` states the refusal of one event. The five enumerators are the
@@ -300,14 +301,16 @@ The console prints every kind with the spelling
 
 | Name | Contract |
 |---|---|
-| `rankEvents` `\pre` | every address in `collected` with no `skipped` kind holds at least one sample free of a disclosure, the guard `statisticsOf` carries at `statistics.cpp:23-25`; an address with exactly one such sample is reported and never handed to the summary call, so the deviation assert at `statistics.cpp:46-48` stays out of reach (PD-14) |
-| `rankEvents` `\post` | one `RankedEvent` per address in `collected` and one `SkippedEvent` per address that carries a `skipped` kind; an address stands at most once in each list, and an address that measured and gapped stands in both (I-4, D-10); `rate` is the median of the per-pass normalized rates and `cv` is the coefficient of variation, both from the single `statisticsOf` call over those rates, so `cv` is one hundred times the `cv=` column ratio of the same samples (I-6); `noisy` is the comparison of the unrounded `cv` against `options.noise`; at most `options.top` entries carry a rank, those ranks are `1` to `k` with no gap, and an entry that is noisy or unrepeated carries none (I-5); `multiplexed` states the settled method; entries come first in rank order and then in address order |
+| `rankEvents` `\pre` | every address in `collected` with no `skipped` kind holds at least one sample free of a disclosure, the guard `statisticsOf` carries at `statistics.cpp:23-25`; `method` is the method the plan that produced `collected` settled, `std::nullopt` for samples no plan produced; an address with exactly one such sample is reported and never handed to the summary call, so the deviation assert at `statistics.cpp:46-48` stays out of reach (PD-14) |
+| `rankEvents` `\post` | one `RankedEvent` per address in `collected` and one `SkippedEvent` per address that carries a `skipped` kind; an address stands at most once in each list, and an address that measured and gapped stands in both (I-4, D-10); `rate` is the median of the per-pass normalized rates and `cv` is the coefficient of variation, both from the single `statisticsOf` call over those rates, so `cv` is one hundred times the `cv=` column ratio of the same samples (I-6); `noisy` is the comparison of the unrounded `cv` against `options.noise`; at most `options.top` entries carry a rank, those ranks are `1` to `k` with no gap, and an entry that is noisy or unrepeated carries none (I-5); `method` states the method the caller handed and `multiplexed` stands set for every entry exactly when that method is `MULTIPLEX`, so the rank route names one method for one table (AC-2, D-19); entries come first in rank order and then in address order |
 | `rankEvents` `\post` (exclusion) | a sample whose anchor read zero for its pass contributes no rate for that pass, and a sample with a disclosure contributes none at all, the way a gap repetition stands out of `Statistics::samples` today |
 | `rankEvents` `\invariant` | no address repeats in `entries`, and no address repeats in `skipped` |
 | `RankedEvent` | `\pre` none: the record is data. `\post` `cv` is `0.0` when `samples` is one, and `rank` is empty when `noisy` is true or `repeated` is false |
 
 `rankEvents` is pure: it reads no clock and no counter, and two calls over equal
-arguments give equal results (I-7, FR-014, D-9).
+arguments give equal results (I-7, FR-014, D-9). The method settles no figure of
+the table: the rate, the deviation and the rank of an entry stand the same under
+every method its caller hands.
 
 ## `runHunt` (public)
 

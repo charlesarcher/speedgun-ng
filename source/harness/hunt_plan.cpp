@@ -213,7 +213,8 @@ auto planHunt(const std::vector<CatalogAddress>& events,
 }
 
 auto rankEvents(const std::vector<EventSamples>& collected,
-                const HuntOptions& options) -> EntryHunt
+                const HuntOptions& options,
+                const std::optional<MetricMethod> method) -> EntryHunt
 {
   SG_REQUIRE(options.top > 0 && options.noise > 0.0,
              "the caller hands the settled options, every value inside the "
@@ -223,10 +224,11 @@ auto rankEvents(const std::vector<EventSamples>& collected,
   const auto norm = options.norm.value_or(HuntNorm::INSTR);
   auto result = EntryHunt {};
   result.top = options.top;
-  // `rankEvents` takes no plan and settles no method of its own, so the record
-  // states none and the mark reads false; the run that settled `MULTIPLEX`
-  // marks its entries with that method (AC-2).
-  const auto multiplexed = result.method == MetricMethod::MULTIPLEX;
+  // The caller hands the method its collection settled, so the rank route
+  // states a method the way the plan route does and every row mark reads it
+  // (AC-2, D-19).
+  result.method = method;
+  const auto multiplexed = method == MetricMethod::MULTIPLEX;
   result.entries.reserve(collected.size());
 
   for (const auto& event : collected) {
@@ -355,6 +357,16 @@ auto rankEvents(const std::vector<EventSamples>& collected,
 
   SG_ENSURE(result.entries.size() == collected.size(),
             "one record stands in the table per address the run handed over");
+  // AC-2, D-19: the row mark is the settled method of the record read off that
+  // record, so the word the console prints and the boolean the document writes
+  // cannot part over one table.
+  SG_ENSURE(result.method == method
+                && std::ranges::all_of(
+                    result.entries,
+                    [multiplexed](const RankedEvent& entry)
+                    { return entry.multiplexed == multiplexed; }),
+            "the record states the method the caller handed and every entry "
+            "marks that method");
   return result;
 }
 

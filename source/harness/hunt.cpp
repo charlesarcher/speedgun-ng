@@ -1045,8 +1045,9 @@ auto runHuntNamed(std::string_view name,
     }
     measured.push_back(std::move(rows));
   }
-  auto entry = rankEvents(measured, options);
-  entry.method = plan.method;
+  // The plan's settled method rides the record from the rank call, so the row
+  // marks and the method of the record are one answer (AC-2, D-19).
+  auto entry = rankEvents(measured, options, plan.method);
   entry.top = options.top;
   // The pass count of the plan that ran, the passes a retry appended included
   // (PD-12, D-18).
@@ -1061,11 +1062,6 @@ auto runHuntNamed(std::string_view name,
     }
   }
   entry.retriedPasses = retriedPasses;
-  const bool multiplexed =
-      plan.method.has_value() && *plan.method == MetricMethod::MULTIPLEX;
-  for (auto& ranked : entry.entries) {
-    ranked.multiplexed = multiplexed;
-  }
   // specs/029 D-18, FR-021, T073, T118: the event whose solo retry refused
   // too stands in the skipped list with the kind of the state its own refusal
   // names, beside the halves the discovery and the disclosures already filled.
