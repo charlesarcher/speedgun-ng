@@ -184,7 +184,13 @@ PAGE_LINE_CAP = 813
 # the landing never added. The budgets that carry a copy hold their measured
 # span already (Fixtures 43, Registration 38, Hardware counter 25), so
 # SECTION_LINE_CAP and SECTION_LINE_CAPS keep their values.
-PAGE_LINE_CAP = 822
+# T063 re-measures the cap as the T090 rows land: the thirteen
+# quick-reference name rows for the hunt types add 13, so 13 lines move
+# the cap from 822 to 835, the measured length of the page with the rows
+# in place. The rows join the Quick reference table, which the
+# per-section budgets do not inspect, so SECTION_LINE_CAP and
+# SECTION_LINE_CAPS keep their values.
+PAGE_LINE_CAP = 835
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

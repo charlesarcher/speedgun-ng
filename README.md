@@ -798,6 +798,19 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `hunt::EntryHunt` | type | The ranked table and the skipped list of one benchmark's hunt | [hunter mode](#hunter-mode) |
 | `hunt::RunHunt` | type | The hunt record one run reports beside its benchmarks | [hunter mode](#hunter-mode) |
 | `hunt::EventCatalog` | type | Expands a selection text against the catalog and splits it | [hunter mode](#hunter-mode) |
+| `hunt::HuntNorm` | type | The denominator one hunt run normalizes an event count by | [hunter mode](#hunter-mode) |
+| `hunt::HuntRank` | type | The key one hunt run orders its ranks by | [hunter mode](#hunter-mode) |
+| `hunt::HuntBudget` | type | The bound one hunt run collects under, in seconds or passes | [hunter mode](#hunter-mode) |
+| `hunt::SkippedKind` | type | The kind of refusal one skipped entry carries | [hunter mode](#hunter-mode) |
+| `hunt::SkippedEvent` | type | One event the run will not measure, with the kind of its refusal | [hunter mode](#hunter-mode) |
+| `hunt::CatalogAddress` | type | One catalog address, its device and the device's slot in the limit list | [hunter mode](#hunter-mode) |
+| `hunt::HuntColumn` | type | The plan's one column: one event and the anchors of its own device | [hunter mode](#hunter-mode) |
+| `hunt::HuntStage` | type | The columns one plan stage measures and the repeats each column gets | [hunter mode](#hunter-mode) |
+| `hunt::HuntPlan` | type | The columns, passes, stages and estimate one hunt run executes | [hunter mode](#hunter-mode) |
+| `hunt::HuntSample` | type | One measured repetition of one column of one pass, with its anchors | [hunter mode](#hunter-mode) |
+| `hunt::EventSamples` | type | The collected rows of one event address, the input of the rank table | [hunter mode](#hunter-mode) |
+| `hunt::RankedEvent` | type | One row of the ranked table, with the marks the console prints | [hunter mode](#hunter-mode) |
+| `hunt::HuntStageRange` | type | The range of planned addresses one stage measured, with its repeats | [hunter mode](#hunter-mode) |
 | `hunt::runHunt` | free function | Plans, measures and ranks one hunt of one benchmark | [hunter mode](#hunter-mode) |
 | `hunt::planHunt` | free function | Answers the passes and stages of a hunt over events it is given | [hunter mode](#hunter-mode) |
 | `hunt::rankEvents` | free function | Ranks samples the caller already holds into the hunt table | [hunter mode](#hunter-mode) |
