@@ -1055,6 +1055,237 @@ auto scenarioHuntRefusalsNameTheirInput() -> void
   std::printf("hunt-refusals-name-their-input: ok\n");
 }
 
+// The device that publishes no anchor pair answers a measured record on the
+// iteration norm: the anchor-less columns admit no denominator, so no column
+// is rated, and every column states the denominator it lacks in its own row
+// (I-1, E-05, D-19).
+auto scenarioUncoreColumnsRankByIterations() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const auto first = sg::test::huntAddress(
+      sg::test::kHuntUncore, sg::test::huntEvent(sg::test::kHuntEvents));
+  const auto last = sg::test::huntAddress(
+      sg::test::kHuntUncore, sg::test::huntEvent(sg::test::kHuntEvents + 1));
+  const auto options = optionsFor(first + "," + last);
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntUncore");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "the device that publishes no anchor still answers a measured "
+        "record (I-1, D-19)");
+  check(run.run->options.norm.has_value()
+            && *run.run->options.norm == sg::hunt::HuntNorm::ITER,
+        "a plan that found no anchors states the iteration norm it fell "
+        "back to (D-13)");
+  check(run.hunt->entries.size() == 2,
+        "both uncore columns stand in the record (I-1)");
+  const bool noRate =
+      std::all_of(run.hunt->entries.begin(),
+                  run.hunt->entries.end(),
+                  [](const RankedEvent& entry)
+                  { return entry.samples == 0 && !entry.rank.has_value(); });
+  check(noRate,
+        "a window of a column whose device lacks both anchors yields no "
+        "rate: the no-leaf position admits no denominator (E-05)");
+  check(run.hunt->skipped.size() == 2
+            && std::all_of(run.hunt->skipped.begin(),
+                           run.hunt->skipped.end(),
+                           [](const SkippedEvent& skipped) {
+                             return skipped.kind == SkippedKind::ABSENT;
+                           }),
+        "both uncore columns state the absent denominator, none a gap the "
+        "rows never show (FR-021, D-10)");
+  check(run.run->ranEvents == 0,
+        "the summary rates no event of the anchor-less plan (E-05, FR-041)");
+  check(run.run->method.has_value()
+            && *run.run->method == sg::MetricMethod::MULTIPLEX,
+        "the source that publishes no limit settles MULTIPLEX (D-19, "
+        "spec PC-2)");
+  std::printf("uncore-columns-by-iterations: ok\n");
+}
+
+// D-13, FR-081: the explicit norm whose anchor discovery refused is the one
+// refusal the plan cannot see - the catalog holds the anchor, the discovery
+// read refused it, and the run is the only reader of both facts.
+auto scenarioRefusedAnchorRefusesTheNamedNorm() -> void
+{
+  registerHuntHost(kCollectLimit,
+                   [](sg::counters::FakeProvider& provider)
+                   {
+                     refuseLeaf(provider,
+                                sg::test::kHuntCycle,
+                                sg::counters::Availability::PERMISSION_BLOCKED);
+                   });
+  const std::vector<std::string> names {sg::test::huntEvent(0),
+                                        std::string(sg::test::kHuntCycle)};
+  HuntOptions options = optionsFor(selectionOfNames(names));
+  options.norm = sg::hunt::HuntNorm::CYCLE;
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntNormAnchor");
+  sg::detail::expandRegistry();
+  const auto answered =
+      sg::hunt::runHuntNamed(handle.name(), options, std::nullopt);
+  const std::string anchor =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::kHuntCycle);
+  const std::string event =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(0));
+  check(!answered.has_value()
+            && answered.error().message == "the hunt norm cycle names the "
+                                           "anchor '"
+                + anchor + "', which discovery refused for the hunt of '" + event
+                + "'",
+        "the explicit norm whose anchor discovery refused ends the hunt, "
+        "naming the norm, the anchor and the event that was to divide by it "
+        "(D-13, FR-081)");
+  check(host->readActions() == 0 && host->windowOpens() == 0,
+        "the refused norm costs no window and no read: the refusal is "
+        "settled from the discovery answer alone (FR-003, D-13)");
+  std::printf("refused-anchor-refuses-norm: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// FR-012, spec PC-9, T119: the driver that times one pass of its own plan
+// ---------------------------------------------------------------------------
+
+// The device whose limit cannot hold an event beside its two anchors refuses
+// the plan itself, so the driver answers the planner's sentence whole.
+auto scenarioLimitBelowAnchorsRefusesThePlan() -> void
+{
+  registerHuntHost(std::optional<std::size_t> {2});
+  const auto options = optionsFor(selectionOf({0}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntTinyLimit");
+  sg::detail::expandRegistry();
+  const auto answered =
+      sg::hunt::runHuntNamed(handle.name(), options, std::nullopt);
+  check(!answered.has_value()
+            && answered.error().message
+                   == "hunt: device 'cpu' publishes a limit of 2, below the "
+                      "3 leaves one event and its two anchors need",
+        "the limit that cannot seat one event beside its anchors refuses the "
+        "plan, and the driver hands the planner's sentence through whole "
+        "(spec PC-2, FR-081)");
+  std::printf("limit-below-anchors-refusal: ok\n");
+}
+
+// The timed route over the host that runs no pass: with no column to seat
+// there is no pass to measure, so the hunt answers its record with no figure
+// and the plan line prints the estimate as not available.
+auto scenarioTimedPassWithoutAFigure() -> void
+{
+  registerHuntHost(
+      kCollectLimit,
+      [](sg::counters::FakeProvider& provider)
+      {
+        for (std::size_t index = 0; index < sg::test::kHuntEvents; ++index) {
+          refuseLeaf(provider,
+                     sg::test::huntEvent(index),
+                     sg::counters::Availability::PERMISSION_BLOCKED);
+        }
+        refuseLeaf(provider,
+                   sg::test::kHuntCycle,
+                   sg::counters::Availability::PERMISSION_BLOCKED);
+        refuseLeaf(provider,
+                   sg::test::kHuntInstr,
+                   sg::counters::Availability::PERMISSION_BLOCKED);
+      });
+  const auto options = optionsFor("all");
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntNoFigure");
+  sg::detail::expandRegistry();
+  const auto answered = sg::hunt::runHuntNamed(
+      handle.name(), options, std::nullopt, std::nullopt, false, true);
+  check(answered.has_value(),
+        "the host that refuses every event still answers the pair on the "
+        "timed route: there stands no pass to time (D-12, T119)");
+  check(!answered->run.estimateNs.has_value(),
+        "a hunt with no pass to measure holds no figure to state, so the "
+        "estimate stays unstated (E-07, FR-012)");
+  check(answered->entry.passCount == 0 && answered->run.passes == 0,
+        "no pass stands for the plan with no event, timed route included "
+        "(D-12)");
+  const auto lines = printedLines(
+      *needInstance("bmHuntNoFigure"), answered->entry, answered->run);
+  check(linesHolding(lines, "hunt: plan events=0").size() == 1,
+        "the timed route prints the same plan line for the empty plan "
+        "(D-12, FR-041)");
+  check(linesHolding(lines, "estimate=not available").size() == 1,
+        "the plan line of a hunt that timed no pass prints the estimate as "
+        "not available (FR-012, E-07)");
+  std::printf("timed-pass-without-figure: ok\n");
+}
+
+// The timed route over the host whose monotonic leaf stands flat: the probe
+// seats a pass, opens its window and folds its rows, yet the netted real
+// time of the window is nothing at all - the row's own zero divisor of the
+// runner's disclosure. A pass that folded no clock time holds no figure, so
+// the estimate stands refused exactly as it does when no pass stood.
+auto scenarioTimedPassFoldsNoClockTime() -> void
+{
+  registerHuntHost(kCollectLimit,
+                   [](sg::counters::FakeProvider& provider)
+                   {
+                     provider.setPoints(sg::test::kPassClockObject,
+                                        sg::test::kPassRealTimeLeaf,
+                                        {0});
+                   });
+  const auto options = optionsFor(selectionOf({0, 1}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntFlatClock");
+  sg::detail::expandRegistry();
+  const auto answered = sg::hunt::runHuntNamed(
+      handle.name(), options, std::nullopt, std::nullopt, false, true);
+  check(answered.has_value(),
+        "a window that folds no clock time stands no failure: the hunt "
+        "answers its record (E-07)");
+  check(answered->run.passes > 0,
+        "the plan seats its passes, so the probe held a pass to time and "
+        "the missing figure comes from the empty fold, not from an empty "
+        "plan (FR-012, E-07)");
+  check(!answered->run.estimateNs.has_value(),
+        "a pass that folds no monotonic time holds no figure to state: the "
+        "estimate of the hunt stands unstated (E-07, FR-012)");
+  const auto lines = printedLines(
+      *needInstance("bmHuntFlatClock"), answered->entry, answered->run);
+  check(linesHolding(lines, "estimate=not available").size() == 1,
+        "the plan line of a hunt whose probe folded no time prints the "
+        "estimate as not available (FR-012, E-07)");
+  std::printf("timed-pass-folds-no-time: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// E-06, PD-14: the benchmark that skips through its loop collects nothing
+// ---------------------------------------------------------------------------
+
+// The body that skips closes its window at once, so every attempt of the
+// hunt ends disclosed by the skip and the run carries no repetition row. The
+// columns that produced no sample join neither the ranked rows nor the
+// skipped list: the skipped list holds host answers alone.
+auto bmHuntSkipBody(sg::State& state) -> void
+{
+  for (auto index : state) {
+    state.skipWithMessage("scripted skip");
+    sg::doNotOptimize(index);
+  }
+}
+
+auto scenarioSkippedRunJoinsNoList() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const auto options = optionsFor(selectionOf({0, 1}));
+  auto handle = sg::registerBenchmark(&bmHuntSkipBody, "bmHuntSkipped");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "the benchmark that skips is not a failed run: the hunt answers its "
+        "record (E-06, PD-14)");
+  const EntryHunt& hunt = *run.hunt;
+  check(hunt.entries.empty(),
+        "a column that produced no sample joins no ranked row (E-06, PD-14)");
+  check(hunt.skipped.empty(),
+        "a column the benchmark skipped through no fault of the host states "
+        "no skipped kind (FR-021, I-4)");
+  check(run.run->ranEvents == 0 && run.run->plannedAddresses.size() == 2,
+        "the record planned both addresses and rated neither (E-08)");
+  std::printf("skipped-run-joins-no-list: ok\n");
+}
+
 // ---------------------------------------------------------------------------
 // FR-092: the two-context threaded run
 // ---------------------------------------------------------------------------
@@ -1490,6 +1721,15 @@ auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
                 &scenarioHandedFigureWeighsEveryPass},
       Scenario {"library-route-entry-record",
                 &scenarioLibraryRouteAnswersTheEntryRecord},
+      Scenario {"uncore-columns-by-iterations",
+                &scenarioUncoreColumnsRankByIterations},
+      Scenario {"refused-anchor-refuses-norm",
+                &scenarioRefusedAnchorRefusesTheNamedNorm},
+      Scenario {"limit-below-anchors-refusal",
+                &scenarioLimitBelowAnchorsRefusesThePlan},
+      Scenario {"timed-pass-without-figure", &scenarioTimedPassWithoutAFigure},
+      Scenario {"timed-pass-folds-no-time", &scenarioTimedPassFoldsNoClockTime},
+      Scenario {"skipped-run-joins-no-list", &scenarioSkippedRunJoinsNoList},
   };
   return kList;
 }
