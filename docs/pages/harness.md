@@ -1592,7 +1592,12 @@ hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3
 --hunt cannot combine with --counter
 --hunt cannot combine with --metric
 --hunt cannot combine with --compare
+--hunt cannot combine with --placement
 ```
+
+The placement option is the scope option of this conflict family. This tree
+spells it `--placement`. A hunt beside it leaves with the one line and the
+status 2 the three conflicts above print.
 
 ### The hunt lines
 
