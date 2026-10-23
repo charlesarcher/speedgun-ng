@@ -396,7 +396,8 @@ constexpr std::uint64_t kNanosecondsPerSecond = 1'000'000'000;
 // answers itself; a seconds budget answers only through the calibration figure,
 // the same figure `estimateNs` multiplies, and answers nothing when no
 // calibration answered or when its nanoseconds leave the range of the count,
-// because no clock stands here to weigh it another way (FR-012, I-7).
+// because no clock stands here to weigh it another way. The split reads that
+// empty answer as a budget the plan does not fit (FR-012, FR-013, I-7).
 [[nodiscard]] auto allowedPasses(
     const sg::hunt::HuntBudget& budget,
     const std::optional<std::uint64_t> calibrationNsPerPass)
@@ -451,7 +452,10 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
     const auto runs = (passRuns(plan, first) * first.repeats)
         + (passRuns(plan, second) * second.repeats);
     const auto allowed = allowedPasses(*options.budget, calibrationNsPerPass);
-    overBudget = allowed.has_value() && runs > *allowed;
+    // A seconds budget with no figure to price it bounds nothing the planner
+    // can weigh, so the plan does not fit a budget the caller did set: stage 2
+    // goes whole and the cut line discloses it (FR-012, FR-013, I-7).
+    overBudget = !allowed.has_value() || runs > *allowed;
   }
 
   auto split = StageSplit {};

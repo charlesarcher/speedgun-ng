@@ -584,7 +584,7 @@ the address the auditor read and needs one re-read by whoever takes the
 row. Rows T124, T126 and T129 were excluded as in flight in other lanes,
 as was the coverage bar. Two rows are BLOCKING.
 
-- [ ] T145 Make a seconds budget that no calibration figure can price cut
+- [x] T145 Make a seconds budget that no calibration figure can price cut
       stage 2 and disclose the cut, the way FR-013 scenario 4, PD-18 and I-7
       require: in `splitStages` treat an absent `allowedPasses` answer for a
       seconds budget as a budget the plan does not fit, keep the reason word

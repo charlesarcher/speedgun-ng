@@ -1066,11 +1066,12 @@ auto estimateStageOneFigures() -> void
 }
 
 // FR-012, I-7: no calibration figure answers no estimate, because no clock
-// stands here to supply one, so `estimateNs` stays empty, the report prints
-// `estimate=not available`, and a seconds budget with nothing to convert by
-// leaves both stages standing: nothing here weighs the budget. A calibration
-// figure of zero behaves the same way in the conversion and still answers an
-// estimate of zero (D-2, D-19).
+// stands here to supply one, so `estimateNs` stays empty and the report prints
+// `estimate=not available`. A seconds budget with nothing to convert by bounds
+// nothing the planner can weigh, so the plan does not fit it: stage 2 goes
+// whole and the verdict carries the reason E-07 prints as
+// `reason=over-budget` (D-2, D-19, FR-013). A calibration figure of zero
+// behaves the same way in the conversion and still answers an estimate of zero.
 auto estimateWithoutCalibration() -> void
 {
   const auto events = acSevenColumns();
@@ -1083,16 +1084,25 @@ auto estimateWithoutCalibration() -> void
   check(open.has_value(), "the plan stands without a calibration figure");
   check(open.has_value() && !open->estimateNs.has_value(),
         "no calibration figure answers no estimate");
-  check(open.has_value() && open->stages.size() == 2,
-        "a seconds budget with nothing to convert by keeps both stages");
+  check(open.has_value() && open->stages.size() == 1,
+        "a seconds budget with nothing to convert by drops stage 2 whole");
+
+  if (open.has_value()) {
+    const auto split = sg::detail::splitStages(*open, options, std::nullopt);
+    check(split.stages.size() == 1
+              && split.stages.front().columns.size() == sg::test::kHuntEvents,
+          "the unpriced budget leaves stage 1 whole at the full width");
+    check(split.cutStage2 && split.cutReason == "over-budget",
+          "the unpriced budget carries the reason the cut line prints");
+  }
 
   const auto zero =
       sg::hunt::planHunt(events, limits, anchors, options, std::uint64_t {0});
   check(zero.has_value() && zero->estimateNs.has_value()
             && *zero->estimateNs == 0,
         "a calibration figure of zero answers an estimate of zero");
-  check(zero.has_value() && zero->stages.size() == 2,
-        "a zero calibration figure converts no seconds budget");
+  check(zero.has_value() && zero->stages.size() == 1,
+        "a zero calibration figure prices no seconds budget, so stage 2 goes");
 }
 
 // The scenarios of this file: what CTest runs with no argument, and what
