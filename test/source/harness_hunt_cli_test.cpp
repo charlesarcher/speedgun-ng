@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -1062,6 +1063,66 @@ auto scenarioCutLinePrintsTheRecordedReason() -> void
 }
 
 // ---------------------------------------------------------------------------
+// The calibration figure the command line hands the planner (T080, FR-012)
+// ---------------------------------------------------------------------------
+
+// The JSON number that stands behind one key, scanned the way
+// `holdOutOverheadFloor` of `harness_json_report_test.cpp` scans it, or the
+// empty text when the document holds no such key.
+auto numberAfter(const std::string& text,
+                 const std::string_view key) -> std::string
+{
+  const auto at = text.find(key);
+  if (at == std::string::npos) {
+    return {};
+  }
+  const auto start = at + key.size();
+  auto stop = start;
+  while (stop < text.size()
+         && ((text[stop] >= '0' && text[stop] <= '9') || text[stop] == '.'
+             || text[stop] == '-' || text[stop] == '+' || text[stop] == 'e'
+             || text[stop] == 'E'))
+  {
+    ++stop;
+  }
+  return text.substr(start, stop - start);
+}
+
+// The estimate of the plan line is the calibration figure times the passes
+// and the repeats the plan runs (`hunt.hpp`), and the command line takes that
+// figure from the row of the finished run: the overhead floor,
+// `Plan::sampleOverheadNsMedian()`. That floor is a wall-clock calibration of
+// the host this run stands on, so the case reads it from the document the run
+// wrote and expects the plan line to carry it times the passes the same line
+// prints, at the one repeat `--hunt-repeats=1` asks for. A command line that
+// hands no figure leaves the field reading `estimate=not available` (FR-012).
+auto scenarioPlanWeighsTheRunFloor() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  std::remove(kDocumentPath);
+  const std::string run =
+      captureRun(withFilter({"--hunt=" + address(0),
+                             "--hunt-repeats=1",
+                             "--json=" + std::string(kDocumentPath)}));
+  const std::string plan = planLine(run);
+  const std::string floor =
+      numberAfter(readAll(kDocumentPath), "\"overheadFloorNs\":");
+  check(!plan.empty(), "the hunt of one address prints its plan line");
+  check(!floor.empty(), "the document carries the floor of the finished row");
+
+  const auto passes = std::stoull(numberAfter(plan, "passes="));
+  const auto figure = static_cast<std::uint64_t>(std::stod(floor)) * passes;
+  check(plan.find("estimate=" + std::to_string(figure) + "ns")
+            != std::string::npos,
+        "the plan line carries the estimate the finished row's floor weighs "
+        "(T080, FR-012)");
+  std::remove(kDocumentPath);
+  std::printf("run-floor-estimate: ok\n");
+}
+
+// ---------------------------------------------------------------------------
 // What one hunt run prints whole, on one context and on several (T074, T114,
 // FR-012, FR-025, FR-022)
 // ---------------------------------------------------------------------------
@@ -1162,6 +1223,7 @@ struct Scenario
       Scenario {"plan-line-budget-cut", &scenarioPlanLineUnderABudgetCut},
       Scenario {"cut-line-recorded-reason",
                 &scenarioCutLinePrintsTheRecordedReason},
+      Scenario {"run-floor-estimate", &scenarioPlanWeighsTheRunFloor},
       Scenario {"single-context-hunt",
                 &scenarioSingleContextHuntPrintsTheHuntWhole},
       Scenario {"threaded-hunt-context-tail",
