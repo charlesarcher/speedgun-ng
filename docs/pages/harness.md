@@ -1607,18 +1607,20 @@ hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
 hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 mark=unrepeated
 hunt: skipped cpu/l1_dc_misses permission-blocked stage=2
 hunt: skipped armv8_pmuv3/cycle not-encodable stage=2
-hunt: plan summary events=40/42 passes=14 spend=5040000ns budget=120s
+hunt: plan summary events=40/42 passes=14 budget=120s
 ```
 
 `events=` counts the planned columns and `passes=` the passes of the plan.
 `method=` names the settled collection method, and `estimate=` carries the
-plan's own figure in nanoseconds: the cost of one pass, which the hunt times by
-running one, weighed against the passes of the plan. A hunt that times no pass
-prints `estimate=not available`: the entry of a dry run runs nothing to time,
-and so does a host that refuses the seat of the pass. `spend=` on the summary
-carries the nanoseconds the hunt spent, read from its entry to the record these
-lines print, the timed pass included; a record no hunt filled leaves the field
-unread and prints `spend=not available`. A seconds budget is read against the
+plan's own figure in nanoseconds: the real-time column of one window of the
+plan's shape (`ResultRow::timePerIterationNs`), which the hunt measures by
+running that window ahead of the run, weighed against the passes of the plan. The figure is the counted span the run's own
+rows price, so the seat of the leaves and the opening of the window stand
+outside it, and no file of this layer reads a clock to get it: the time source
+rule reserves the monotonic clock for the counters layer, whose measurement this
+figure is. A hunt that measures no pass prints `estimate=not available`: the
+entry of a dry run runs nothing to measure, and so does a host that refuses the
+seat of the pass. A seconds budget is read against the
 estimate, which is why the estimate decides the two-stage run. The rank lines
 carry the rate under the label of the
 norm in force, `instr=`, `cycle=` or `iter=`. A skipped line names the kind of

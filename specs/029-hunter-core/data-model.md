@@ -192,14 +192,14 @@ the `hunt:` prefix.
 
 | Line | Shape |
 |---|---|
-| plan | `hunt: plan events=<n> passes=<p> method=<WORD> estimate=<ns>ns budget=<text>|none`, `estimate=` being the nanoseconds of one timed pass times the stage-1 pass count at one repeat (FR-012, FR-013) |
+| plan | `hunt: plan events=<n> passes=<p> method=<WORD> estimate=<ns>ns budget=<text>|none`, `estimate=` being the nanoseconds one measured pass cost times the stage-1 pass count at one repeat (FR-012, FR-013) |
 | plan, no anchor | the plan line with ` normalized=iter` appended |
-| plan, two stages | the plan line with ` stage1=<n> stage2=<n>` after `budget=`, each field the event count that stage measured (`report.cpp:775-779`) |
+| plan, two stages | the plan line with ` stage1=<n> stage2=<n>` after `budget=`, each field the event count that stage measured (`report.cpp:774-778`) |
 | plan, budget cut | `hunt: plan budget cut stage=2 reason=over-budget`, one line when the plan drops stage 2 |
 | ranking row | `hunt: rank <n> <address> <norm>=<value> cv=<percent> [multiplexed]` |
 | excluded tail | `hunt: rank - <address> <norm>=<value> cv=<percent> mark=<noisy|unrepeated|beyond-top>` |
 | skipped | `hunt: skipped <address> <kind>[ stage=<n>]` |
-| summary | `hunt: plan summary events=<ran>/<planned> passes=<p> spend=<ns>ns budget=<text>|none`, `spend=` being the nanoseconds the hunt spent, read at the hunt entry and carried on the record the printer reads (FR-040) |
+| summary | `hunt: plan summary events=<ran>/<planned> passes=<p> budget=<text>|none`, the counts and the budget the plan stood under; the line carries no spend figure, because a hunt holds no wall-clock reading (FR-040, D-6) |
 
 The table ends at `--hunt-top` rows plus the tail of excluded events, and a host
 that refuses everything prints the plan line, no ranking row, the skipped list
@@ -220,8 +220,7 @@ The run-level record on `ReportData::hunt`. Public in `hunt.hpp`.
 | `stages` | `std::vector<HuntStageRange>` | the stages that ran; each holds its first index into `plannedAddresses`, its event count and its repeats |
 | `ranEvents` | `std::size_t` | columns that produced at least one clean sample |
 | `stageTwoEvents` | `std::size_t` | columns stage 2 measured |
-| `spendNs` | `std::optional<std::uint64_t>` | the nanoseconds the hunt spent, from the hunt entry to this record, the timed pass included; the figure the plan summary prints, empty for a record no hunt filled (`hunt.cpp`, `report.cpp:866-870`) |
-| `cutReason` | `std::string` | the reason the planner recorded for the stage it dropped, the word the budget cut line prints (`hunt.hpp:463`, `report.cpp:789-792`) |
+| `cutReason` | `std::string` | the reason the planner recorded for the stage it dropped, the word the budget cut line prints (`hunt.hpp:457`, `report.cpp:788-791`) |
 
 ## E-09 `RunOptions` hunt fields
 

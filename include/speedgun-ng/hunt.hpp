@@ -451,12 +451,6 @@ struct RunHunt
   // specs/029 D-2, FR-013, E-07: the reason `splitStages` recorded for the
   // stage it dropped (`StageSplit::cutReason`), the word E-07 spells for a
   // budget that could not hold stage 2. The cut line prints this value.
-  // T120, FR-040: the nanoseconds the hunt spent, from the moment the run
-  // entered the hunt to the moment it assembled this record. The run reads
-  // the wall clock the counters layer calibrates against; no printer reads
-  // one, so the summary line states the figure this field holds. A record no
-  // hunt filled keeps the field empty, the shape E-07 prints as unavailable.
-  std::optional<std::uint64_t> spendNs = std::nullopt;
   // shortcut: the run assembles the record before it reads the split's
   // verdict, so the E-07 word stands as the default of a record the run
   // filled; upgrade when the run copies the split's reason onto the record.

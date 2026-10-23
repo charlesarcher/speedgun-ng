@@ -1096,10 +1096,8 @@ auto numberAfter(const std::string& text,
 // case reads the figure off the run that printed it: the plan line carries the
 // estimate, and one pass of it has to cost more than the overhead floor of the
 // row the same run wrote, which prices one read of an open window and nothing
-// of the seat or the window a pass carries. The summary line of the same run
-// carries the spend, and the timed pass stands inside the hunt that spent it.
-// A hunt that timed no pass leaves the estimate reading `not available`
-// (FR-012).
+// of the seat or the window a pass carries. A hunt that measures no pass leaves
+// the estimate reading `not available` (FR-012).
 auto scenarioPlanWeighsTheMeasuredPass() -> void
 {
   registerHost(kScriptFull);
@@ -1116,26 +1114,17 @@ auto scenarioPlanWeighsTheMeasuredPass() -> void
   check(!plan.empty(), "the hunt of one address prints its plan line");
   check(!floor.empty(), "the document carries the floor of the finished row");
 
-  const std::string spend = numberAfter(run, "spend=");
-  check(!spend.empty(),
-        "the plan summary states a spend figure (T120, FR-040)");
   const auto passes = std::stoull(numberAfter(plan, "passes="));
   const auto estimate = std::stoull(numberAfter(plan, "estimate="));
-  const auto spent = std::stoull(spend);
   check(estimate > 0,
-        "the plan line carries the figure of the pass the hunt timed (T119, "
+        "the plan line carries the figure of the pass the hunt measured (T119, "
         "FR-012)");
   check(estimate % passes == 0,
         "the estimate weighs the passes of the plan against one figure of a "
         "pass (FR-012)");
   check(estimate / passes > static_cast<std::uint64_t>(std::stod(floor)),
-        "one timed pass costs more than the sampling read the row of the same "
-        "run publishes (T119, FR-012)");
-  check(run.find("spend=" + std::to_string(spent) + "ns") != std::string::npos,
-        "the summary line prints the spend the record carries (T120, FR-040)");
-  check(spent >= estimate,
-        "the hunt spent at least what its one-pass plan promised, because the "
-        "timed pass stands inside the hunt (T120, FR-040)");
+        "one measured pass costs more than the sampling read the row of the "
+        "same run publishes (T119, FR-012)");
   std::remove(kDocumentPath);
   std::printf("measured-pass-estimate: ok\n");
 }

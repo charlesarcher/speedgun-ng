@@ -415,8 +415,7 @@ auto printRowPercentiles(const BenchmarkResult& result,
 auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
                       const sg::hunt::HuntNorm norm) -> void;
 auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
-                    const sg::hunt::RunHunt& run,
-                    const std::optional<std::uint64_t> spendNs) -> void;
+                    const sg::hunt::RunHunt& run) -> void;
 
 auto printResult(const BenchmarkResult& result) -> void
 {
@@ -630,7 +629,7 @@ auto printResult(const BenchmarkResult& result) -> void
     const auto& run = *huntRunRecord();
     printHuntRanking(*result.hunt,
                      run.options.norm.value_or(sg::hunt::HuntNorm::INSTR));
-    printHuntSkips(*result.hunt, run, run.spendNs);
+    printHuntSkips(*result.hunt, run);
   }
 
   // FR-025: a non-empty `contexts` vector names exactly a threaded
@@ -945,12 +944,9 @@ auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
 // one summary line. A host that refused every event prints no ranking row
 // above these lines and the summary reads `events=0/N` (D-12, FR-041), the
 // denominator being the universe of addresses the hunt stood before: the
-// planned ones plus the refusals discovery kept out of the plan. The
-// spend is the figure the caller measured: this file reads no clock, so a
-// caller that holds no spend leaves the field as `not available`.
+// planned ones plus the refusals discovery kept out of the plan.
 auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
-                    const sg::hunt::RunHunt& run,
-                    const std::optional<std::uint64_t> spendNs) -> void
+                    const sg::hunt::RunHunt& run) -> void
 {
   for (const auto& skipped : hunt.skipped) {
     std::printf("hunt: skipped %s %s",
@@ -975,11 +971,6 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
               run.ranEvents,
               run.plannedAddresses.size() + refused,
               run.passes);
-  if (spendNs.has_value()) {
-    std::printf(" spend=%lluns", static_cast<unsigned long long>(*spendNs));
-  } else {
-    std::printf(" spend=%s", kUnavailableFigure);
-  }
   std::printf(" budget=");
   printHuntBudget(run.options.budget);
   std::printf("\n");
