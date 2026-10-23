@@ -2263,16 +2263,23 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // event it measures; `rowOf` names the fold result each pass of the grown
   // list produced, so the merge and the chunk ledger read the pass that
   // measured a column; a pass that was refused keeps no ledger.
-  // `kNoHuntIndex`
-  // names the absent entry of both: no column and no row carry that index.
+  // `kNoHuntIndex` names the absent entry of both: no column and no row carry
+  // that index. The retry route exists for a hunt run alone, so the three
+  // tables stand only when one runs: a run that carries no hunt allocates what
+  // it allocated before the hunt existed (plan VII, I-8, T130).
   constexpr std::size_t kNoHuntIndex = std::numeric_limits<std::size_t>::max();
   const bool huntRun = instance.huntPlan.has_value();
-  std::vector<std::size_t> rowOf(passCount, kNoHuntIndex);
-  std::vector<std::size_t> loneEventOf(passCount, kNoHuntIndex);
+  std::vector<std::size_t> rowOf;
+  std::vector<std::size_t> loneEventOf;
   // The pass that measures each column, remapped by the retry below. It feeds
   // the merge and the ledger exactly as `planning.measuringPass` does.
-  std::vector<std::size_t> measuringOfColumn = planning.measuringPass;
-  measuringOfColumn.resize(columns.size(), 0);
+  std::vector<std::size_t> measuringOfColumn;
+  if (huntRun) {
+    rowOf.assign(passCount, kNoHuntIndex);
+    loneEventOf.assign(passCount, kNoHuntIndex);
+    measuringOfColumn = planning.measuringPass;
+    measuringOfColumn.resize(columns.size(), 0);
+  }
   const auto retryHuntPass = [&](const std::size_t pass) -> void
   {
     std::vector<std::size_t> loneColumns;
@@ -2533,7 +2540,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // attempt's recorder first, then the plan that recorder stood over.
     attemptRecorder.reset();
     plan.reset();
-    rowOf[pass] = passResults.size();
+    if (huntRun) {
+      rowOf[pass] = passResults.size();
+    }
     passResults.push_back(std::move(result));
     if (interrupted) {
       break;
