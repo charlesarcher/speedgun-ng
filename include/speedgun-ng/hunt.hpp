@@ -530,16 +530,24 @@ struct RunHunt
  * @brief The ranked table of the collected samples: one entry per
  * address, the skipped list beside it (E-06, I-5, I-6).
  *
+ * `method` is the method the collection of `collected` settled, and
+ * nothing else about the table reads it: the rate, the deviation and
+ * the rank of an entry are the same figures whichever method filled
+ * the window. The record states that method and every row mark is it,
+ * so the rank route and the run route cannot name two methods for one
+ * table (AC-2, D-19).
+ *
  * The call is pure: it reads no clock and no counter, and two calls
  * over equal arguments give equal results (I-7, FR-014, D-9).
  *
- * \pre each address stands at most once in `collected`, and every
- *      address in `collected` with no `skipped` kind holds at least
- *      one sample free of a disclosure, the guard
- *      `statisticsOf` carries at `runner.cpp:52-55`; an address with
- *      exactly one such sample is reported and never handed to the
- *      summary call, so the deviation assert at `runner.cpp:74-76`
- *      stays out of reach (PD-14)
+ * \pre each address stands at most once in `collected`, every address
+ *      in `collected` with no `skipped` kind holds at least one sample
+ *      free of a disclosure, the guard `statisticsOf` carries at
+ *      `runner.cpp:52-55`, and `method` is the method the plan that
+ *      produced `collected` settled, `std::nullopt` for samples no
+ *      plan produced; an address with exactly one such sample is
+ *      reported and never handed to the summary call, so the deviation
+ *      assert at `runner.cpp:74-76` stays out of reach (PD-14)
  * \post one `RankedEvent` per address in `collected` and one
  *       `SkippedEvent` per address that carries a `skipped` kind; an
  *       address stands at most once in each list, and an address that
@@ -551,8 +559,10 @@ struct RunHunt
  *       comparison of the unrounded `cv` against `options.noise`; at
  *       most `options.top` entries carry a rank, those ranks are `1`
  *       to `k` with no gap, and an entry that is noisy or unrepeated
- *       carries none (I-5); `multiplexed` states the settled method;
- *       entries come first in rank order and then in address order
+ *       carries none (I-5); `method` states the method the caller
+ *       handed and `multiplexed` stands set for every entry exactly
+ *       when that method is `MULTIPLEX`; entries come first in rank
+ *       order and then in address order
  * \post a sample whose anchor read zero for its pass contributes no
  *       rate for that pass, and a sample with a disclosure
  *       contributes none at all, the way a gap repetition stands out
@@ -562,7 +572,8 @@ struct RunHunt
  */
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto rankEvents(
     const std::vector<EventSamples>& collected,
-    const HuntOptions& options) -> EntryHunt;
+    const HuntOptions& options,
+    std::optional<MetricMethod> method) -> EntryHunt;
 
 /**
  * @brief The hunt of one registered entry: plan, collection over the

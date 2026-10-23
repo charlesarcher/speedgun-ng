@@ -323,8 +323,7 @@ struct Hunted
   collected[kGappedColumn].samples.push_back(gap);
   collected[kGappedColumn].skipped = sg::hunt::SkippedKind::GAP;
 
-  auto entry = sg::hunt::rankEvents(collected, options);
-  entry.method = plan.method;
+  auto entry = sg::hunt::rankEvents(collected, options, plan.method);
   // The retry lane of D-18: two passes of the plan ran a second time solo.
   entry.retriedPasses = 2;
   // The refusal of one event carries the address and the kind, the two
@@ -374,8 +373,7 @@ struct Hunted
     collected.push_back(std::move(rows));
   }
 
-  auto entry = sg::hunt::rankEvents(collected, options);
-  entry.method = plan.method;
+  auto entry = sg::hunt::rankEvents(collected, options, plan.method);
   auto run = runOf(options, plan);
   run.ranEvents = kColumns;
   run.stageTwoEvents = plan.stages[1].columns.size();

@@ -155,7 +155,7 @@ and `runHunt` fill them; `BenchmarkResult::hunt` holds the result.
 | `samples` | `std::size_t` | the number of clean samples that produced it |
 | `noisy` | `bool` | `cv` above `options.noise` |
 | `repeated` | `bool` | false when the event has one sample |
-| `multiplexed` | `bool` | true when the plan settled `MULTIPLEX` |
+| `multiplexed` | `bool` | true when the settled method of the record is `MULTIPLEX` |
 | `rank` | `std::optional<std::size_t>` | 1-based position in the top N, empty for an excluded event |
 
 | `SkippedEvent` field | Type | Meaning |
@@ -165,7 +165,7 @@ and `runHunt` fill them; `BenchmarkResult::hunt` holds the result.
 
 | `EntryHunt` field | Type | Meaning |
 |---|---|---|
-| `method` | `std::optional<MetricMethod>` | the settled method of the run |
+| `method` | `std::optional<MetricMethod>` | the settled method the producer of the record states: the run's for `runHunt`, the method its caller handed for `rankEvents` |
 | `passCount` | `std::size_t` | the pass count the run measured |
 | `top` | `std::size_t` | the `--hunt-top` value the run used |
 | `entries` | `std::vector<RankedEvent>` | every planned column, ranked ones first; an event only stage 1 measured holds a record built from its stage 1 samples |

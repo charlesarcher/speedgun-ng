@@ -18,11 +18,12 @@
 // anchor reading per pass, because the per-pass normalization of PD-08 is the
 // fact under test and a constant anchor cannot show it.
 //
-// One mark this file cannot drive is `multiplexed` set to true: `rankEvents`
-// takes no method, so the settled method it states is none and the run marks
-// events multiplexed instead (AC-2, SC-02 at `harness_hunt_collect_test.cpp`).
-// What stands here is the agreement between the mark and the method the record
-// states, which is the half of the rule this seam owns.
+// The settled method enters this seam as an argument, so the `multiplexed` mark
+// is drivable here without a PMU: `multiplexed-method` hands `MULTIPLEX` and
+// reads that word back off the record and off every row of the table (AC-2,
+// D-19, SC-02). What stays outside the seam is how a run comes to settle that
+// method, which `harness_hunt_collect_test.cpp` pins end to end from a scripted
+// host that publishes no counter limit.
 //
 // The list at the bottom is what CTest runs, so an entry absent from it never
 // runs, and `argv[1]` selects one entry of it. Frameworkless check()/fail()
@@ -315,7 +316,7 @@ auto normInstr() -> void
                                        kOneIteration));
   }
   const auto options = optionsFor(sg::hunt::HuntNorm::INSTR);
-  const auto result = sg::hunt::rankEvents({collected}, options);
+  const auto result = sg::hunt::rankEvents({collected}, options, std::nullopt);
 
   check(result.entries.size() == 1, "one address gives one ranked entry");
   const auto& entry = result.entries.front();
@@ -364,7 +365,7 @@ auto normCycle() -> void
                                        kOneIteration));
   }
   const auto options = optionsFor(sg::hunt::HuntNorm::CYCLE);
-  const auto result = sg::hunt::rankEvents({collected}, options);
+  const auto result = sg::hunt::rankEvents({collected}, options, std::nullopt);
 
   const auto& entry = entryOf(result, collected.address);
   const auto stats = summaryOf(ratesOf(collected, sg::hunt::HuntNorm::CYCLE));
@@ -395,7 +396,7 @@ auto normIter() -> void
                                        sg::test::kHuntValueStep * scale));
   }
   const auto options = optionsFor(sg::hunt::HuntNorm::ITER);
-  const auto result = sg::hunt::rankEvents({collected}, options);
+  const auto result = sg::hunt::rankEvents({collected}, options, std::nullopt);
 
   const auto& entry = entryOf(result, collected.address);
   const auto stats = summaryOf(ratesOf(collected, sg::hunt::HuntNorm::ITER));
@@ -444,7 +445,7 @@ auto zeroAnchorExcluded() -> void
                                      kOneIteration));
 
   const auto options = optionsFor(sg::hunt::HuntNorm::INSTR);
-  const auto result = sg::hunt::rankEvents({collected}, options);
+  const auto result = sg::hunt::rankEvents({collected}, options, std::nullopt);
 
   const auto& entry = entryOf(result, collected.address);
   check(entry.samples == kWindows - 1,
@@ -491,7 +492,8 @@ auto zeroDivisorExcluded() -> void
       window(2, wide, sg::test::huntInstr(device), 0, kOneIteration));
 
   const auto cycleOptions = optionsFor(sg::hunt::HuntNorm::CYCLE);
-  const auto cycled = sg::hunt::rankEvents({anchorless}, cycleOptions);
+  const auto cycled =
+      sg::hunt::rankEvents({anchorless}, cycleOptions, std::nullopt);
   const auto& cycleEntry = entryOf(cycled, anchorless.address);
   const auto kept = static_cast<double>(sg::test::huntValue(4))
       / static_cast<double>(cycle * 2) * kRateScale;
@@ -523,7 +525,8 @@ auto zeroDivisorExcluded() -> void
                                      kOneIteration * 2));
 
   const auto iterOptions = optionsFor(sg::hunt::HuntNorm::ITER);
-  const auto iterated = sg::hunt::rankEvents({uncounted}, iterOptions);
+  const auto iterated =
+      sg::hunt::rankEvents({uncounted}, iterOptions, std::nullopt);
   const auto& iterEntry = entryOf(iterated, uncounted.address);
   check(iterEntry.samples == kWindows - 1,
         "the window that counted no iteration contributes no rate");
@@ -568,7 +571,7 @@ auto disclosureExcluded() -> void
   collected.skipped = sg::hunt::SkippedKind::GAP;
 
   const auto options = optionsFor(sg::hunt::HuntNorm::INSTR);
-  const auto result = sg::hunt::rankEvents({collected}, options);
+  const auto result = sg::hunt::rankEvents({collected}, options, std::nullopt);
 
   const auto& entry = entryOf(result, collected.address);
   check(entry.samples == kWindows - 1,
@@ -612,7 +615,7 @@ auto statisticsAgreement() -> void
                                        kOneIteration));
   }
   const auto options = optionsFor(sg::hunt::HuntNorm::INSTR);
-  const auto result = sg::hunt::rankEvents({collected}, options);
+  const auto result = sg::hunt::rankEvents({collected}, options, std::nullopt);
 
   const auto& entry = entryOf(result, collected.address);
   const auto stats = summaryOf(ratesOf(collected, sg::hunt::HuntNorm::INSTR));
@@ -677,7 +680,8 @@ auto noiseThreshold() -> void
   for (const auto& row : rows) {
     const auto options = optionsFor(
         sg::hunt::HuntNorm::ITER, sg::hunt::HuntRank::RATE, 20, row.noise);
-    const auto result = sg::hunt::rankEvents({collected}, options);
+    const auto result =
+        sg::hunt::rankEvents({collected}, options, std::nullopt);
     const auto& entry = entryOf(result, collected.address);
     check(sameDouble(entry.cv, percent), "the record cv is the derived figure");
     check(entry.noisy == row.noisy,
@@ -705,8 +709,8 @@ auto rankRateOrder() -> void
   const auto low =
       repeatedEvent(2, device, sg::test::huntValue(0), kOneIteration);
   const auto options = optionsFor(sg::hunt::HuntNorm::ITER);
-  const auto result =
-      sg::hunt::rankEvents({tieSecond, high, tieFirst, low}, options);
+  const auto result = sg::hunt::rankEvents(
+      {tieSecond, high, tieFirst, low}, options, std::nullopt);
 
   check(sameDouble(entryOf(result, tieFirst.address).rate,
                    entryOf(result, tieSecond.address).rate),
@@ -747,7 +751,7 @@ auto rankCvOrder() -> void
   const auto byCv =
       optionsFor(sg::hunt::HuntNorm::ITER, sg::hunt::HuntRank::CV);
   const auto input = {wideSecond, steady, wideFirst};
-  const auto result = sg::hunt::rankEvents(input, byCv);
+  const auto result = sg::hunt::rankEvents(input, byCv, std::nullopt);
 
   const auto median = entryOf(result, steady.address).rate;
   check(sameDouble(entryOf(result, wideFirst.address).rate, median),
@@ -769,7 +773,7 @@ auto rankCvOrder() -> void
         "the steady event and the spread events carry different cvs");
 
   const auto byRate = optionsFor(sg::hunt::HuntNorm::ITER);
-  const auto rateTable = sg::hunt::rankEvents(input, byRate);
+  const auto rateTable = sg::hunt::rankEvents(input, byRate, std::nullopt);
   const std::vector<std::string> kRateOrder {
       cpuAddressOf(4),
       cpuAddressOf(9),
@@ -804,8 +808,8 @@ auto topLimit() -> void
 
   const auto options =
       optionsFor(sg::hunt::HuntNorm::ITER, sg::hunt::HuntRank::RATE, kTopLimit);
-  const auto result =
-      sg::hunt::rankEvents({lone, flat, third, second, first}, options);
+  const auto result = sg::hunt::rankEvents(
+      {lone, flat, third, second, first}, options, std::nullopt);
 
   check(result.entries.size() == 5, "every address holds one ranked record");
   check(result.top == kTopLimit, "the record states the --hunt-top it used");
@@ -842,7 +846,7 @@ auto singleSample() -> void
                                 kOneIteration));
 
   const auto options = optionsFor(sg::hunt::HuntNorm::INSTR);
-  const auto result = sg::hunt::rankEvents({lone}, options);
+  const auto result = sg::hunt::rankEvents({lone}, options, std::nullopt);
 
   const auto& entry = entryOf(result, lone.address);
   check(sameDouble(entry.rate,
@@ -857,10 +861,9 @@ auto singleSample() -> void
   check(result.skipped.empty(), "a measured event is not a skipped event");
 }
 
-// `multiplexed` states the settled method of the record. `rankEvents` is handed
-// no plan and settles no method of its own, so the mark it may set is the one
-// that agrees with the method its record states; the run marks the multiplexed
-// rows (AC-2, SC-02), at the scripted-run seam.
+// With no plan behind the samples the caller hands no method, so the record
+// states none and no row may read multiplexed (AC-2): the mark is the method of
+// the record and never a figure of the sample list.
 auto multiplexedMark() -> void
 {
   const auto device = deviceIndex(sg::test::kHuntCpu);
@@ -868,14 +871,72 @@ auto multiplexedMark() -> void
   const auto result = sg::hunt::rankEvents(
       {repeatedEvent(1, device, sg::test::huntValue(8), kOneIteration),
        repeatedEvent(2, device, sg::test::huntValue(4), kOneIteration)},
-      options);
+      options,
+      std::nullopt);
 
-  const auto settled = result.method == sg::MetricMethod::MULTIPLEX;
+  check(!result.method.has_value(),
+        "samples no plan produced leave the record with no settled method");
   check(!result.entries.empty(), "the table carries the events it was given");
   for (const auto& entry : result.entries) {
-    check(entry.multiplexed == settled,
-          "the multiplexed mark states the settled method of the record");
+    check(!entry.multiplexed,
+          "a record that states no method marks no row multiplexed");
   }
+}
+
+// The rank route settles the method its caller hands: `MULTIPLEX` is the method
+// the record states and the word every row of its table carries (AC-2, D-19,
+// SC-02), `PASSES` states itself with no row marked, and the figures of a row
+// stand the same under either method. How a run settles `MULTIPLEX` on its own
+// stays pinned at the scripted-run seam of `harness_hunt_collect_test.cpp`.
+auto multiplexedMethod() -> void
+{
+  const auto device = deviceIndex(sg::test::kHuntCpu);
+  const auto options = optionsFor(sg::hunt::HuntNorm::ITER);
+  const auto collected = std::vector<sg::hunt::EventSamples> {
+      repeatedEvent(1, device, sg::test::huntValue(8), kOneIteration),
+      repeatedEvent(2, device, sg::test::huntValue(4), kOneIteration),
+  };
+
+  const auto multiplex =
+      sg::hunt::rankEvents(collected, options, sg::MetricMethod::MULTIPLEX);
+  check(multiplex.method.has_value()
+            && multiplex.method.value() == sg::MetricMethod::MULTIPLEX,
+        "the record states the MULTIPLEX method its caller handed");
+  check(!multiplex.entries.empty(),
+        "the table carries the events it was given");
+  const bool allMarked = std::all_of(multiplex.entries.begin(),
+                                     multiplex.entries.end(),
+                                     [](const sg::hunt::RankedEvent& entry)
+                                     { return entry.multiplexed; });
+  check(allMarked,
+        "every row of a MULTIPLEX table reads multiplexed (D-19, SC-02)");
+
+  const auto passes =
+      sg::hunt::rankEvents(collected, options, sg::MetricMethod::PASSES);
+  check(passes.method.has_value()
+            && passes.method.value() == sg::MetricMethod::PASSES,
+        "the record states the PASSES method its caller handed");
+  const bool noneMarked = std::all_of(passes.entries.begin(),
+                                      passes.entries.end(),
+                                      [](const sg::hunt::RankedEvent& entry)
+                                      { return !entry.multiplexed; });
+  check(noneMarked, "a PASSES table marks no row multiplexed");
+
+  // The method marks the table and moves nothing in it: the figures of both
+  // tables are those of the table built with no method at all.
+  const auto plain = sg::hunt::rankEvents(collected, options, std::nullopt);
+  check(multiplex.entries.size() == plain.entries.size()
+            && passes.entries.size() == plain.entries.size(),
+        "the method settles no row in or out of the table");
+  for (std::size_t index = 0; index < plain.entries.size(); ++index) {
+    const auto& expected = plain.entries[index];
+    const auto& marked = multiplex.entries[index];
+    check(sameDouble(marked.rate, expected.rate)
+              && sameDouble(marked.cv, expected.cv)
+              && sameDouble(passes.entries[index].rate, expected.rate),
+          "the rate and the deviation of a row read no method");
+  }
+  checkRecordShape(multiplex, options);
 }
 
 // Entries come first in rank order and then in address order: the two excluded
@@ -896,8 +957,8 @@ auto entryOrder() -> void
 
   const auto options =
       optionsFor(sg::hunt::HuntNorm::ITER, sg::hunt::HuntRank::RATE, kTopLimit);
-  const auto result =
-      sg::hunt::rankEvents({flat, lone, runnerUp, ranked}, options);
+  const auto result = sg::hunt::rankEvents(
+      {flat, lone, runnerUp, ranked}, options, std::nullopt);
 
   const std::vector<std::string> kExpected {
       cpuAddressOf(1),
@@ -928,11 +989,11 @@ auto pureRepeat() -> void
       windowsOf(0, {sg::test::huntValue(0)}, 2),
   };
   const auto options = optionsFor(sg::hunt::HuntNorm::ITER);
-  const auto first = sg::hunt::rankEvents(collected, options);
-  const auto second = sg::hunt::rankEvents(collected, options);
+  const auto first = sg::hunt::rankEvents(collected, options, std::nullopt);
+  const auto second = sg::hunt::rankEvents(collected, options, std::nullopt);
   auto reversed =
       std::vector<sg::hunt::EventSamples>(collected.rbegin(), collected.rend());
-  const auto third = sg::hunt::rankEvents(reversed, options);
+  const auto third = sg::hunt::rankEvents(reversed, options, std::nullopt);
 
   check(first.entries.size() == second.entries.size(),
         "two calls over equal arguments answer the same count");
@@ -980,6 +1041,7 @@ struct Scenario
       Scenario {"top-limit", topLimit},
       Scenario {"single-sample", singleSample},
       Scenario {"multiplexed-mark", multiplexedMark},
+      Scenario {"multiplexed-method", multiplexedMethod},
       Scenario {"entry-order", entryOrder},
       Scenario {"pure-repeat", pureRepeat},
   };

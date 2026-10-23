@@ -1634,8 +1634,8 @@ The words these keys take are the words the options take: `method` is `AUTO`,
 `runHunt(benchmark, options, calibrationNsPerPass)` plans, measures and ranks
 one hunt for a registered benchmark. `planHunt(events, limits, anchors, options,
 calibrationNsPerPass)` answers the plan over the events, the per-device limits
-and the anchors, and `rankEvents(collected, options)` ranks samples the caller
-already holds. None of the three opens a window: every time and count figure in
-their records comes from an argument. `EventCatalog` expands a selection text
-against the catalog and splits it into the events to plan and the events
-discovery refused.
+and the anchors, and `rankEvents(collected, options, method)` ranks samples the
+caller already holds under the method it hands. None of the three opens a
+window: every time and count figure in their records comes from an argument.
+`EventCatalog` expands a selection text against the catalog and splits it into
+the events to plan and the events discovery refused.

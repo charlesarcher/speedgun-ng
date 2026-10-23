@@ -90,13 +90,13 @@ auto collectedRows() -> std::vector<sg::hunt::EventSamples>
 // sg-example:begin hunt-rank
 // The ranked table of a hunt, with the refusals discovery handed back folded
 // into the skipped list of the record. `rankEvents` decides the order, the
-// noise mark and the size of the table; the caller reads all three back off
-// the answer (FR-014, FR-021, I-5).
+// noise mark and the size of the table (FR-014, FR-021, I-5).
 auto rankHuntEvents(const std::vector<sg::hunt::EventSamples>& collected,
                     const std::vector<sg::hunt::SkippedEvent>& refused,
                     const sg::hunt::HuntOptions& options) -> sg::hunt::EntryHunt
 {
-  auto hunt = sg::hunt::rankEvents(collected, options);
+  // No plan collected these scripted rows, so the record states no method.
+  auto hunt = sg::hunt::rankEvents(collected, options, std::nullopt);
   hunt.skipped.insert(hunt.skipped.end(), refused.begin(), refused.end());
   return hunt;
 }
