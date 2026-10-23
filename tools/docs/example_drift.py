@@ -472,16 +472,21 @@ def table_rows(page: Path, header: str) -> list[str]:
     raise Finding(f"{rel(page)}: no table with header '{header}'")
 
 
+# The headers the quick-reference name scan reads (FR-070). The finding text
+# names this tuple, so the message cannot lag the scan.
+NAME_SCAN_HEADERS = (
+    "benchmark.hpp",
+    "barrier.hpp",
+    "execution_context.hpp",
+    "counters_metrics.hpp",
+    "counters_system.hpp",
+    "hunt.hpp",
+)
+
+
 def header_names(root: Path) -> set[str]:
     names: set[str] = set()
-    for header in (
-        "benchmark.hpp",
-        "barrier.hpp",
-        "execution_context.hpp",
-        "counters_metrics.hpp",
-        "counters_system.hpp",
-        "hunt.hpp",
-    ):
+    for header in NAME_SCAN_HEADERS:
         path = root / "include" / "speedgun-ng" / header
         if path.is_file():
             names.update(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]{2,}\b", path.read_text()))
@@ -714,7 +719,8 @@ def run_all(root: Path, main_page: Path, args: argparse.Namespace) -> list[str]:
         present = header_names(root)
         findings.extend(
             f"{rel(main_page)}: quick-reference name '{name}' is not in "
-            "benchmark.hpp, barrier.hpp, or execution_context.hpp"
+            + ", ".join(NAME_SCAN_HEADERS[:-1])
+            + f", or {NAME_SCAN_HEADERS[-1]}"
             for name in table_rows(main_page, "| Name |")
             if any(part not in present for part in name.split("::") if part)
         )
