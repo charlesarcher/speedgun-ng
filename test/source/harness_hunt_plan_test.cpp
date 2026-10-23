@@ -642,6 +642,73 @@ auto catalogOrderAndDedup() -> void
       "a list keeps the order of its text and the first position of a repeat");
 }
 
+// The selection shapes `expand` reads beside a plain list, and the refusals it
+// answers for the shapes it will not take. Spaces and tabs stand outside every
+// address of a list (FR-006); a `*` with the rest of the pattern spent matches
+// the address it follows (FR-007); a raw event code is refused before the
+// catalog is consulted (FR-005); a pattern that matches nothing, an empty
+// address line, and an address the catalog holds none of each answer the error
+// naming the value it was given (FR-004, FR-006, E-01).
+auto selectionShapesAndRefusals() -> void
+{
+  check(registerHuntHost(), "the scripted hunt host registered");
+  const auto catalog = sg::test::huntCatalog();
+  const auto first = std::string(catalog[0]);
+  const auto second = std::string(catalog[1]);
+
+  auto padded = sg::hunt::EventCatalog {};
+  check(padded.expand("  " + first + " ,\t" + second + " \t").has_value(),
+        "a list padded around every address expands (FR-006)");
+  check(
+      padded.addresses().size() == 2 && padded.addresses()[0] == first
+          && padded.addresses()[1] == second,
+      "the spaces stand outside the addresses the expansion answers (FR-006)");
+
+  auto trailing = sg::hunt::EventCatalog {};
+  check(trailing.expand(first + "*").has_value(),
+        "a pattern with its star at the end matches (FR-007)");
+  check(trailing.addresses().size() == 1 && trailing.addresses()[0] == first,
+        "the star at the end admits the one address it covers (FR-007)");
+
+  const auto unmatchedPattern = std::string(sg::test::kHuntCpu) + "/zzz*";
+  auto unmatched = sg::hunt::EventCatalog {};
+  const auto pattern = unmatched.expand(unmatchedPattern);
+  check(!pattern.has_value(),
+        "a pattern that matches no catalog address answers an error (FR-004)");
+  check(pattern.has_value()
+            || pattern.error().message.find(unmatchedPattern)
+                != std::string::npos,
+        "the refusal of a pattern names the pattern it was given (FR-004)");
+
+  auto blanked = sg::hunt::EventCatalog {};
+  const auto blankLine = blanked.expand(first + ",,");
+  check(!blankLine.has_value(),
+        "an empty address line of a list answers an error (FR-006)");
+  check(blankLine.has_value()
+            || blankLine.error().message.find("empty address line")
+                != std::string::npos,
+        "the refusal of an empty line states the shape it refuses (FR-006)");
+
+  const auto missing = std::string(sg::test::kHuntCpu) + "/rose";
+  auto unlisted = sg::hunt::EventCatalog {};
+  const auto unknown = unlisted.expand(missing);
+  check(!unknown.has_value(),
+        "an address the catalog holds none of answers an error (FR-004)");
+  check(unknown.has_value()
+            || unknown.error().message.find(missing) != std::string::npos,
+        "the refusal of an address names the address (FR-004)");
+
+  auto untouched = sg::hunt::EventCatalog {};
+  const auto rawCode = untouched.expand("r4a03");
+  check(
+      !rawCode.has_value(),
+      "a raw event code answers an error before the catalog is read (FR-005)");
+  check(rawCode.has_value()
+            || rawCode.error().message.find("raw event code")
+                != std::string::npos,
+        "the refusal of a raw code states what it was given (FR-005)");
+}
+
 // One seed gives one order and two seeds give two orders, over the same
 // catalog, and the order is a permutation of the selection - no address enters
 // twice and none disappears (D-9, PD-06, FR-014).
@@ -1117,6 +1184,7 @@ auto estimateWithoutCalibration() -> void
       Scenario {"narrow-limit-refusal", narrowLimitRefusal},
       Scenario {"empty-event-list", emptyEventList},
       Scenario {"catalog-order-dedup", catalogOrderAndDedup},
+      Scenario {"selection-shapes", selectionShapesAndRefusals},
       Scenario {"seed-order", seedOrder},
       Scenario {"core-device-rule", coreDeviceRule},
       Scenario {"norm-anchor-refused", normAnchorRefused},
