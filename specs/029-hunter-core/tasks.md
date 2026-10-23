@@ -213,7 +213,7 @@ the conformance half of V-7 closes here.
 
 ## Phase 6: User Story 4 - Read the page and copy a working block (Priority: P3)
 
-**Plan phase**: P9, gate V-9, decisions D-11, PD-19, IV.1, FR-070 to FR-073.
+**Plan phase**: P9, gate V-9, decisions D-11, PD-19, IV.1, FR-070 to FR-072.
 
 **Goal**: the main page carries a `Hunter mode` section whose snippets come from
 `example/docs/hunt_rank.cpp`, that example builds and runs on every host, and its
@@ -225,10 +225,10 @@ builds against the canonical includes and runs (AC-8). The drift, snippet and
 shape gates that read the page and the tool lists run after Phase 7 lands the
 README section and the tool lists.
 
-- [x] T042 [P] [US4] Create `example/docs/hunt_rank.cpp`: the marked regions that own the main-page section, benchmarks that register and print rows on every host, a scripted provider under `sg::counters` whose events stand not countable so the skipped list prints the same on every host (PD-19), and a hunt run through the public `sg::hunt` surface with the canonical include block the snippet gate copies (FR-070, FR-071)
-- [x] T043 [US4] Edit `example/CMakeLists.txt`: `add_docs_example(hunt_rank)` after the `regression_gate` line at line 74, the registration that creates `docs_hunt_rank` and `run_docs_hunt_rank` and that `test/example_run.sh:35-36` needs, because a docs example with no built binary fails that gate (FR-071)
+- [x] T042 [P] [US4] Create `example/docs/hunt_rank.cpp`: the marked regions that own the main-page section, benchmarks that register and print rows on every host, a scripted provider under `sg::counters` whose events stand not countable so the skipped list prints the same on every host (PD-19), and a hunt run through the public `sg::hunt` surface with the canonical include block the snippet gate copies (FR-070)
+- [x] T043 [US4] Edit `example/CMakeLists.txt`: `add_docs_example(hunt_rank)` after the `regression_gate` line at line 74, the registration that creates `docs_hunt_rank` and `run_docs_hunt_rank` and that `test/example_run.sh:35-36` needs, because a docs example with no built binary fails that gate (FR-070)
 - [x] T044 [US4] Create `example/docs/hunt_rank.expected`: the recorded run of `docs_hunt_rank` in the `# sg-example:begin report` form the other recorded goldens use, with the plan line, the marked tail and the skipped list as the scripted host prints them (FR-070, AC-9)
-- [x] T045 [P] [US4] Edit `docs/pages/harness.md`: the `Hunter mode` option detail with the eight options, their defaults and their refusals, the two hunt objects with their key lists, the `MULTIPLEX` interaction of D-16, and the statement that a budgeted run measures everything once and the top set again (FR-072)
+- [x] T045 [P] [US4] Edit `docs/pages/harness.md`: the `Hunter mode` option detail with the eight options, their defaults and their refusals, the two hunt objects with their key lists, the `MULTIPLEX` interaction of D-16, and the statement that a budgeted run measures everything once and the top set again (FR-071)
 - [x] T046 [US4] Read the story gates: `cmake --build build --target run_docs_hunt_rank` with its output compared against `example/docs/hunt_rank.expected` the way `tools/docs/report_shape.py` compares it, `bash test/example_run.sh` for the example, and the AC-8 copy check that the section's C++ block builds against the canonical includes and runs (V-9 part 1)
 
 **Checkpoint**: the example builds, runs, records and matches its golden on this
@@ -541,6 +541,6 @@ Every FR of `spec.md` and every Success Criterion maps to at least one task.
 - [ ] T112 Declare the lastRefusalMessage accessor beside setGroupLeafLimit in specs/029-hunter-core/contracts/hunt-api.md per specs/029-hunter-core/contracts/hunt-api.md (unrequested)
 - [ ] T113 Give rankEvents the settled method in include/speedgun-ng/hunt.hpp and source/harness/hunt_plan.cpp and pin a true multiplexed case in the rank test per source/harness/hunt_plan.cpp (partial)
 - [x] T114 Resolved by spec, no change owed: the hunt ranking and skip lines print at source/harness/report.cpp:611-616, above the return at :621, and that return guards only `printContextDisclosure` at :624 and the per-context percentile loop below it, which FR-025 keeps off a single-context result, so a single-context hunt run prints every hunt line it has and the code carries the FR-025 citation at :618-620. The order is specified and pinned by `scenarioPlanLineStandsAboveTheRows` at test/source/harness_hunt_cli_test.cpp:888, which captures a real hunt run and asserts the plan line once, `plan + 1` as the first row line, and the rank lines after the rows.
-- [ ] T115 Repoint the US4 citations at lines 216, 228, 229 and 231 of specs/029-hunter-core/tasks.md at the FR-070 and FR-071 the spec defines per specs/029-hunter-core/tasks.md (contradicts)
+- [x] T115 Repoint the US4 citations at lines 216, 228, 229 and 231 of specs/029-hunter-core/tasks.md at the FR-070 and FR-071 the spec defines per specs/029-hunter-core/tasks.md (contradicts)
 - [ ] T116 Record the restricted-CPU-set ctest -R hunt results and reword the three prose matches in test/source/harness_hunt_collect_test.cpp and the CLI test per test/source/harness_hunt_collect_test.cpp (partial)
-- [ ] T117 Record the four reserved values of CMakeLists.txt and kSchemaVersion with their reasons in the merge notes, retaking them if master moved per CMakeLists.txt (partial)
+- [x] T117 Record the four reserved values of CMakeLists.txt and kSchemaVersion with their reasons in the merge notes, retaking them if master moved per CMakeLists.txt (partial)
