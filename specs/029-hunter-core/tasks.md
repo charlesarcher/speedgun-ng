@@ -574,3 +574,117 @@ Every FR of `spec.md` and every Success Criterion maps to at least one task.
 - [x] T142 Correct specs/029-hunter-core/results/corsairone-hunt-all.md:391-392 to cite specs/029-hunter-core/results/gary-hunt-all.md and settle whether T061 and T110 are still owed (SC-010) (round 2 docs F15)
 - [x] T143 Re-read the report.cpp and harness_hunt_cli_test.cpp line reads inside tasks.md rows T027 and T114 so each cited line holds the symbol the row names (round 2 docs F16)
 - [x] T144 Widen the finding text at tools/docs/example_drift.py:696-698 to the header tuple header_names scans, so a hunt:: name failure names hunt.hpp (FR-070) (round 2 docs F18)
+
+## Phase 11: Convergence
+
+Round 3 audited the code surface and the artifact surface in a detached
+worktree at `d6d60f2`. Every citation in a row below was opened there; the
+tip moved to `6749455` while the round ran, so an address inside a row is
+the address the auditor read and needs one re-read by whoever takes the
+row. Rows T124, T126 and T129 were excluded as in flight in other lanes,
+as was the coverage bar. Two rows are BLOCKING.
+
+- [ ] T145 Make a seconds budget that no calibration figure can price cut
+      stage 2 and disclose the cut, the way FR-013 scenario 4, PD-18 and I-7
+      require: in `splitStages` treat an absent `allowedPasses` answer for a
+      seconds budget as a budget the plan does not fit, keep the reason word
+      the printers spell reachable from that route, state the case in the
+      `\post` at `source/harness/detail/hunt_plan.hpp:68`, restate the pin at
+      `test/source/harness_hunt_plan_test.cpp:1086`, which today reads "a
+      seconds budget with nothing to convert by keeps both stages", and carry
+      the word into the E-07 and E-08 tables at
+      `specs/029-hunter-core/data-model.md:199` and `:224`, where
+      `RunHunt::cutReason` already defaults to the one word the printers spell
+      at `include/speedgun-ng/hunt.hpp:467` (FR-012, FR-013, PD-18, I-7)
+      [BLOCKING] (round 3 code F1)
+      Measured at `d6d60f2`: `--hunt=all --hunt-budget=1s --dry-run` answered
+      exit 0 with `hunt: plan events=489 passes=245 method=PASSES
+      estimate=not available budget=1s stage1=489 stage2=60` and no cut line.
+      The figure reaches the planner only through the probe at
+      `source/harness/hunt.cpp:982-999`, which `--dry-run` skips, and
+      `hunt_plan.cpp:453` reads `overBudget = allowed.has_value() && runs >
+      *allowed`, so an unpriceable budget looks unlimited.
+- [ ] T146 Refuse `--hunt` given with the scope option the tree actually
+      carries: `--placement` (`source/harness/cli.cpp:404`, five preset names)
+      has no branch in `validateHuntCombination` at
+      `source/harness/hunt_cli.cpp:687-701`, so `--hunt=cpu/cpu-cycles
+      --placement=core` ran a hunt and answered 0. Add the one-line stderr
+      refusal with status 2 beside the `--counter`, `--metric` and `--compare`
+      branches, pin it in `test/source/harness_hunt_cli_test.cpp` beside the
+      three existing conflict cases, and record in
+      `contracts/hunt-cli.md` and `docs/pages/harness.md` that FR-016's
+      `--scope` is the `--placement` option of this tree, which no file in
+      this branch spells `--scope` (FR-016, FR-081, D-16, PD-15) [BLOCKING]
+      (round 3 code F2)
+- [ ] T147 Re-anchor the nine JSON citations in
+      `specs/029-hunter-core/contracts/hunt-json.md` at 64, 134, 135, 142,
+      143, 146 and 158: `metricMethod` is written at `json_report.cpp:586`,
+      the `putOrNull` path of `passSpread` at `:589`, `writeReport` at `:726`,
+      `readEntry` at `json_load.cpp:1031`, `optionalField` at `:107`,
+      `loadReport` at `:1580` and the schema-major gate at `:1604-1610`. Name
+      each item by its symbol in the sentence and keep the number as a second
+      address, the way the spec states its own citation rule (FR-050, FR-051)
+- [ ] T148 Re-anchor `checkNode` at `source/harness/json_load.cpp:1450`,
+      `checkReport` at `:1546`, `optionalField` at `:107` and the `putOrNull`
+      path at `source/harness/json_report.cpp:589` in
+      `specs/029-hunter-core/contracts/report-schema-key.md` at 30, 31, 48 and
+      95, and drop the declaration read at `:32`: line 219 of
+      `source/harness/detail/json_report.hpp` declares `checkReport`, and
+      `checkNode` is a definition inside `json_load.cpp` (FR-053, D-17)
+- [ ] T149 Re-read the line reads in `specs/029-hunter-core/contracts/hunt-cli.md`
+      at 12, 19, 108, 109 and 128: `longOptions[]` opens at `cli.cpp:391`,
+      `kMetricMethodOption` at `:390`, `expandHuntSelection` is called at
+      `:602`, the listing modes answer at `:641`, `:646` and `:676`, and
+      `counterAddresses`, `metricNames` and `compareBaseline` stand at
+      `detail/internal.hpp:523`, `:534` and `:552` (FR-080, FR-081, FR-083)
+- [ ] T150 Repoint the `HuntOptions` precondition read at
+      `specs/029-hunter-core/contracts/hunt-api.md:89` from
+      `source/harness/hunt.cpp:1181-1185` at the `SG_REQUIRE` of `runHunt` at
+      `source/harness/hunt.cpp:1213-1216`, which is the require the sentence
+      names (FR-001)
+- [ ] T151 Re-read `cutReason` at `specs/029-hunter-core/data-model.md:224`
+      against `include/speedgun-ng/hunt.hpp:467` and `ObjectSeedData` at `:245`
+      against `include/speedgun-ng/counters_fake.hpp:315` (FR-013, FR-090)
+- [ ] T152 Repoint the byte-identity `SG_INVARIANT` read at
+      `specs/029-hunter-core/quickstart.md:249` from
+      `source/harness/runner.cpp:2287-2292` at `source/harness/runner.cpp:2391`
+      (FR-090, I-8)
+- [ ] T153 Correct the reads inside
+      `specs/029-hunter-core/results/corsairone-hunt-all.md`: the usage route
+      leaves through `rejectHuntSelection` at
+      `source/harness/hunt_cli.cpp:67-71`, the range quoted at `:390` holds
+      `rejectHuntRankReserved`, and restate the summary-line cell at `:363` to
+      the bytes the printer answers, `hunt: plan summary events=<ran>/<planned>
+      passes=<p> budget=<text>|none` (`source/harness/report.cpp:857-863`), so
+      the fact table of a hardware record quotes no figure the shipped binary
+      cannot print (FR-040, FR-081, T120, AC-10)
+- [ ] T154 Tick the rows whose deliverable stands in the tree and note what
+      each one landed behind: T077 and T080 (named closed by the T121 and T119
+      rows at `specs/029-hunter-core/tasks.md:553` and `:551`), T082, T083 and
+      T084 (the round trip, the per-code reader refusals and the no-hunt
+      capture behind `test/data/hunt_no_hunt_document.json` and
+      `test/data/hunt_no_hunt_console.txt`), T086
+      (`example/docs/hunt_rank.expected`), T087 (`json_report.cpp:34`), T090
+      (eleven `hunt::` rows in README.md), T106
+      (`test/source/harness_hunt_json_test.cpp:1471`), T109
+      (`test/CMakeLists.txt:1300-1308`) and T111 (numbered steps and both
+      non-hunt greps at `specs/029-hunter-core/quickstart.md:155-160`)
+      (FR-012, FR-040, FR-050, FR-070, FR-090)
+
+Round 3 judged these surfaces clean and reported no row against them: the
+test surface (every hunt test guards its scenario list against emptiness,
+no scenario list sits behind a capability guard, no test file names a sleep,
+a clock or `hardware_concurrency`, one expectation per literal), and the
+console shapes of `harness_hunt_report_test.cpp:414-537`, which pin the plan
+line, the cut line, the ranked table, the marked tail, the skipped list and
+the summary line byte for byte in the order PD-15 gives.
+
+Acceptance reachability, stated plainly: `results/corsairone-hunt-all.md`
+belongs to this machine, and the refusal routes and every console and
+document shape it quotes were re-checked here, while its `--hunt=all`
+figures (489 events, 245 passes, 120531 document bytes, 497 skipped lines)
+stand unverified because four lanes build and run on this box at once and
+Principle VII forbids restating a figure from a contended system.
+`results/gary-hunt-all.md` belongs to `gary`, which this machine cannot
+reach, so that record is unjudged and AC-10 scores unreachable on both
+hosts from here.
