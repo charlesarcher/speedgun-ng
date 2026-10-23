@@ -366,10 +366,13 @@ skipped list, and leaves stderr empty (AC-10).
 | document | `hunt.json`, 120531 bytes, `schemaVersion` `1.4` |
 | host state | `perf_event_paranoid` 2, no `perf` utility installed |
 
-The `spend` field carries the figure the caller hands `runHuntNamed`.
-The command-line path hands none, so the summary records that the run
-holds no calibration figure; T080 tracks wiring the overhead floor of
-the finished row into that argument.
+Those lines came off the tree of this capture, whose summary line still
+printed a `spend` field: the command-line path handed `runHuntNamed` no
+calibration figure, so the capture records `spend=not available`. The field
+left the summary line when the time source rule (D-6) took away the wall-clock
+figure behind it; the printer answers
+`hunt: plan summary events=<ran>/<planned> passes=<p> budget=<text>|none`
+today (T120).
 
 SC-010 states that the recorded `perf_event_paranoid` value may push
 kernel-scoped events into the skipped list, that the disclosure belongs

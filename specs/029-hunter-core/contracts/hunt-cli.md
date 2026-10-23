@@ -144,10 +144,13 @@ hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s stag
 line when the plan ran two stages; a one-stage plan names neither.
 
 `estimate=` carries the nanoseconds one hunt pass costs, weighed against the
-pass count: the stage-1 pass count times one timed pass at one repeat
-(`hunt_plan.cpp`). The hunt times that pass itself, through the pass loop its
-stages run through, so the figure covers the seat of the pass's leaves, the
-window it opens and the reads that window answers (`hunt.cpp`, FR-012, FR-013).
+pass count: the stage-1 pass count times one measured pass at one repeat
+(`hunt_plan.cpp`). The hunt measures that pass itself, through the pass loop its
+stages run through, and reads the real-time column of the row that window
+produced, so the figure covers the seat of the pass's leaves, the window it
+opens and the reads that window answers (`hunt.cpp`, FR-012, FR-013). No clock
+of the harness stands behind the number: the monotonic clock belongs to the
+counters layer (D-6).
 A seconds budget is read against this figure, which is why the field decides
 the two-stage run: a plan the budget covers prints the line above with no cut
 line under it, and a plan the budget does not cover prints the cut line.
@@ -161,21 +164,20 @@ hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
 hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 mark=unrepeated
 hunt: skipped cpu/l1_dc_misses permission-blocked stage=2
 hunt: skipped armv8_pmuv3/cycle not-encodable stage=2
-hunt: plan summary events=40/42 passes=14 spend=5040000ns budget=120s
+hunt: plan summary events=40/42 passes=14 budget=120s
 ```
 
-`spend=` on the summary line carries the nanoseconds the hunt spent: the wall
-time from the hunt entry to the record the printers read, the timed pass of
-the estimate included. The run reads that clock once and the printer states
-the figure the record holds (FR-040).
+The summary line states the counts and the budget the plan stood under. It
+states no spend figure: a hunt carries no wall-clock reading, because the time
+source rule reserves the monotonic clock for the counters layer (D-6), and the
+record holds no such field (FR-040).
 
 | Rule | Detail |
 |---|---|
 | Ranked table size | at most `--hunt-top` ranked rows, then the excluded tail with `rank=-` and a `mark=` of `noisy`, `unrepeated` or `beyond-top` (D-7, D-8; PD-14) |
 | `MULTIPLEX` | a run whose plan settled `MULTIPLEX` prints the method word `MULTIPLEX` in the plan line and the word `multiplexed` on every row (D-19) |
 | No anchor | the plan line carries ` normalized=iter`, and the rate column is labeled `iter=`; the silent fallback belongs to the unset norm, an explicit word refuses first (D-13) |
-| No estimate | `estimate=not available`, because the hunt timed no pass to weigh the plan against: the entry of a dry run runs nothing to time, and a host that refused the seat of the timed pass holds no figure for it (FR-012) |
-| No spend | `spend=not available`, the word the plan line uses: the summary states the figure the record carries, and a record that carries none leaves the field unread (FR-040) |
+| No estimate | `estimate=not available`, because the hunt measured no pass to weigh the plan against: the entry of a dry run runs nothing to measure, and a host that refused the seat of the measured pass holds no figure for it (FR-012) |
 | Host that refuses everything | the plan line, no ranked row, the skipped list with one line per refused event, and the summary reading `events=0/N`, the plan line carrying `events=0` (D-12, FR-041) |
 | No hunt | no `hunt:` line at all, and no `hunt` key in the document (FR-052, I-8) |
 | `--dry-run` | composes with the hunt: the pass loop runs one iteration per pass (`runner.cpp:2184,2394`), so every column prints with one sample, a `cv` of `0.0` and the `unrepeated` mark |
