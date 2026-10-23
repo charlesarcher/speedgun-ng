@@ -304,75 +304,42 @@ auto allMaskCpus() -> std::string
   return joined;
 }
 
-// The thrawn shape built from the two cpus the mask gives: 4 L3
-// groups, 24 cores, 48 threads, two siblings per core. Cpus `base` and
-// `sibling` share group 0's one core, so the `l3` plan, which names
-// each group's lowest cpu, plans `base` first; group 1's seven and
-// groups 2 and 3's eight cores each carry the fillers, two a core. The
-// fillers are real cpus: the mask's own cpus first, then the cpus
-// below the online count the mask leaves free, so no pinned thread
-// names a cpu the kernel refuses and none names one past the online
-// count (VI, FR-040).
+// The overlap shape: four L3 groups of one core each, the picked pair
+// sharing group 0's core, so the `l3` plan of two contexts pins the
+// picked `base` and group 1's lowest made-up cpu, both below the
+// host's count, and the sibling of a planned cpu the FR-018 line
+// names stands on the second of the two real cpus (VI).
 auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
-  // The filler pool: every cpu the process mask holds beside the two
-  // picked ones, then the cpus below the online count neither the mask
-  // nor the shape has taken, each a real cpu the pin can name (FR-040).
-  const long online = ::sysconf(_SC_NPROCESSORS_ONLN);
-  check(online > 0, "the online count is readable (FR-040)");
-  cpu_set_t held {};
-  CPU_ZERO(&held);
-  if (sched_getaffinity(0, sizeof(held), &held) != 0) {
-    fail("the process affinity mask is unreadable (FR-040)");
-  }
   std::vector<std::uint32_t> fillers;
-  const auto takeFiller = [&fillers](std::uint32_t cpu)
-  {
-    if (fillers.size() < 46
-        && std::find(fillers.begin(), fillers.end(), cpu) == fillers.end())
-    {
+  for (std::uint32_t cpu = base + 1; fillers.size() < 6; ++cpu) {
+    if (cpu != sibling) {
       fillers.push_back(cpu);
     }
-  };
-  for (std::size_t cpu = 0;
-       cpu < static_cast<std::size_t>(CPU_SETSIZE) && fillers.size() < 46;
-       ++cpu)
-  {
-    if (CPU_ISSET(cpu, &held) != 0 && cpu != base && cpu != sibling) {
-      takeFiller(static_cast<std::uint32_t>(cpu));
-    }
   }
-  const auto onlineBound = static_cast<std::size_t>(online);
-  for (std::size_t cpu = 0; cpu < onlineBound && fillers.size() < 46; ++cpu) {
-    if (CPU_ISSET(cpu, &held) == 0) {
-      takeFiller(static_cast<std::uint32_t>(cpu));
-    }
-  }
-  check(fillers.size() == 46,
-        "the machine hosts the shape's 46 filler cpus (FR-040)");
   std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
   placed.emplace_back(base, 0);
   placed.emplace_back(sibling, 0);
-  for (std::uint32_t core = 1; core < 24; ++core) {
-    placed.emplace_back(fillers.at(2 * (core - 1)), core);
-    placed.emplace_back(fillers.at(2 * (core - 1) + 1), core);
-  }
-  // The thread walk emits the cpus ascending, the order the layout read
-  // builds and the resolver's lookups read through (R-07).
+  placed.emplace_back(fillers.at(0), 1);
+  placed.emplace_back(fillers.at(1), 1);
+  placed.emplace_back(fillers.at(2), 2);
+  placed.emplace_back(fillers.at(3), 2);
+  placed.emplace_back(fillers.at(4), 3);
+  placed.emplace_back(fillers.at(5), 3);
   std::ranges::sort(placed);
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
-  for (std::uint32_t core = 0; core < 24; ++core) {
+  for (std::uint32_t core = 0; core < 4; ++core) {
     sg::detail::LayoutCore layoutCore;
-    layoutCore.groupOrdinal = core / 6;
+    layoutCore.groupOrdinal = core;
     installed.cores.push_back(layoutCore);
   }
   for (const auto& [cpu, core] : placed) {
     sg::detail::LayoutThread thread;
     thread.cpuIndex = cpu;
     thread.coreOrdinal = core;
-    thread.groupOrdinal = core / 6;
+    thread.groupOrdinal = core;
     installed.cores.at(core).threads.push_back(
         static_cast<std::uint32_t>(installed.threads.size()));
     installed.threads.push_back(thread);
@@ -383,11 +350,9 @@ auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
     const auto first = std::ranges::find_if(
         placed,
         [group](const std::pair<std::uint32_t, std::uint32_t>& slot)
-        { return slot.second / 6 == group; });
+        { return slot.second == group; });
     layoutGroup.lowestCpu = first->first;
-    for (std::uint32_t core = group * 6; core < group * 6 + 6; ++core) {
-      layoutGroup.cores.push_back(core);
-    }
+    layoutGroup.cores.push_back(group);
     installed.groups.push_back(layoutGroup);
   }
   sg::detail::installTestLayout(installed);
@@ -432,34 +397,16 @@ auto installTwoGroupPairsShape(std::uint32_t base) -> void
 // cpuset holds; group 0's second core stands planned by nothing, so
 // the free cpu the idle resolution yields stands in the touched group
 // 0, outside the cpuset the disclosure names (FR-036). The fillers
-// read from the mask and the online count the way the thrawn shape's
-// do (VI).
+// carry the made-up indexes the structure needs, the way the thrawn
+// shape's do.
 auto installCpusetPairShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
-  const long online = ::sysconf(_SC_NPROCESSORS_ONLN);
-  check(online > 0, "the online count is readable (FR-040)");
-  cpu_set_t held {};
-  CPU_ZERO(&held);
-  if (sched_getaffinity(0, sizeof(held), &held) != 0) {
-    fail("the process affinity mask is unreadable (FR-040)");
-  }
   std::vector<std::uint32_t> fillers;
-  for (std::size_t cpu = 0;
-       cpu < static_cast<std::size_t>(CPU_SETSIZE) && fillers.size() < 6;
-       ++cpu)
-  {
-    if (CPU_ISSET(cpu, &held) != 0 && cpu != base && cpu != sibling) {
-      fillers.push_back(static_cast<std::uint32_t>(cpu));
+  for (std::uint32_t cpu = base + 1; fillers.size() < 6; ++cpu) {
+    if (cpu != sibling) {
+      fillers.push_back(cpu);
     }
   }
-  const auto onlineBound = static_cast<std::size_t>(online);
-  for (std::size_t cpu = 0; cpu < onlineBound && fillers.size() < 6; ++cpu) {
-    if (CPU_ISSET(cpu, &held) == 0) {
-      fillers.push_back(static_cast<std::uint32_t>(cpu));
-    }
-  }
-  check(fillers.size() == 6,
-        "the machine hosts the cpuset shape's filler cpus (FR-040)");
   std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
   placed.emplace_back(base, 0);
   placed.emplace_back(fillers.at(0), 0);
@@ -473,31 +420,44 @@ auto installCpusetPairShape(std::uint32_t base, std::uint32_t sibling) -> void
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
+  // The group each core stands in: group 0 carries the two cores the
+  // l3 walk's first places come from, groups 1 and 2 carry one core
+  // each, so the group list indexes cores the shape built (VI).
+  const std::array<std::uint32_t, 4> coreGroup {{0, 0, 1, 2}};
   for (std::uint32_t core = 0; core < 4; ++core) {
     sg::detail::LayoutCore layoutCore;
-    layoutCore.groupOrdinal = core / 2;
+    layoutCore.groupOrdinal = coreGroup.at(core);
     installed.cores.push_back(layoutCore);
   }
   for (const auto& [cpu, core] : placed) {
     sg::detail::LayoutThread thread;
     thread.cpuIndex = cpu;
     thread.coreOrdinal = core;
-    thread.groupOrdinal = core / 2;
+    thread.groupOrdinal = coreGroup.at(core);
     installed.cores.at(core).threads.push_back(
         static_cast<std::uint32_t>(installed.threads.size()));
     installed.threads.push_back(thread);
     installed.mask.push_back(cpu);
   }
-  for (std::uint32_t group = 0; group < 3; ++group) {
+  const std::array<std::uint32_t, 3> groupCoreCounts {{2, 1, 1}};
+  std::uint32_t coreCursor = 0;
+  for (const auto count : groupCoreCounts) {
     sg::detail::LayoutGroup layoutGroup;
-    const auto first = std::ranges::find_if(
-        placed,
-        [group](const std::pair<std::uint32_t, std::uint32_t>& slot)
-        { return slot.second / 2 == group; });
-    layoutGroup.lowestCpu = first->first;
-    for (std::uint32_t core = group * 2; core < group * 2 + 2; ++core) {
+    layoutGroup.lowestCpu = 0;
+    bool first = true;
+    for (std::uint32_t offset = 0; offset < count; ++offset) {
+      const auto core = coreCursor + offset;
       layoutGroup.cores.push_back(core);
+      const auto found = std::ranges::find_if(
+          placed,
+          [core](const std::pair<std::uint32_t, std::uint32_t>& slot)
+          { return slot.second == core; });
+      if (first || found->first < layoutGroup.lowestCpu) {
+        layoutGroup.lowestCpu = found->first;
+        first = false;
+      }
     }
+    coreCursor += count;
     installed.groups.push_back(layoutGroup);
   }
   sg::detail::installTestLayout(installed);
@@ -580,7 +540,7 @@ auto setupOverlap() -> void
 {
   installThrawnShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitOverlap, "bmJitOverlap");
-  handle.threads(4);
+  handle.threads(2);
 }
 
 auto setupMaskEmpty() -> void
@@ -626,15 +586,81 @@ auto setupCpusetLimit() -> void
   (void)sg::registerBenchmark(&bmJitLimitFree, "bmJitLimitFree");
 }
 
-// The `compact` plan of thirteen contexts covers group 0's one core
-// fully and eleven of group 1's fourteen threads, so the idle
-// resolution skips group 0 and yields group 1's third thread, and the
-// disclosure names the skipped group (FR-017, D-4).
+// The `compact` plan of three contexts covers group 0's planned
+// threads and names group 0's second core's first thread, so the
+// idle resolution skips group 0 and yields its free cpu, and the
+// disclosure names the skipped group (FR-017, D-4). The shape stands
+// the cpuset one: its planned threads ride the picked pair and the
+// low made-up indexes, every pin below the host's count (VI).
+auto installSkipShape(std::uint32_t base, std::uint32_t sibling) -> void
+{
+  std::vector<std::uint32_t> fillers;
+  for (std::uint32_t cpu = base + 1; fillers.size() < 4; ++cpu) {
+    if (cpu != sibling) {
+      fillers.push_back(cpu);
+    }
+  }
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
+  placed.emplace_back(base, 0);
+  placed.emplace_back(sibling, 0);
+  placed.emplace_back(fillers.at(0), 1);
+  placed.emplace_back(fillers.at(2), 1);
+  placed.emplace_back(fillers.at(1), 2);
+  placed.emplace_back(fillers.at(3), 2);
+  std::ranges::sort(placed);
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  // The group each core stands in: group 0 carries the one core the
+  // compact plan's first two places cover whole, group 1 carries the
+  // two cores the plan's third place and the idle resolution's free
+  // cpu come from (VI).
+  const std::array<std::uint32_t, 3> coreGroup {{0, 1, 1}};
+  for (std::uint32_t core = 0; core < 3; ++core) {
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = coreGroup.at(core);
+    installed.cores.push_back(layoutCore);
+  }
+  for (const auto& [cpu, core] : placed) {
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = cpu;
+    thread.coreOrdinal = core;
+    thread.groupOrdinal = coreGroup.at(core);
+    installed.cores.at(core).threads.push_back(
+        static_cast<std::uint32_t>(installed.threads.size()));
+    installed.threads.push_back(thread);
+    installed.mask.push_back(cpu);
+  }
+  const std::array<std::uint32_t, 2> groupCoreCounts {{1, 2}};
+  std::uint32_t coreCursor = 0;
+  for (const auto count : groupCoreCounts) {
+    sg::detail::LayoutGroup layoutGroup;
+    layoutGroup.lowestCpu = 0;
+    bool first = true;
+    for (std::uint32_t offset = 0; offset < count; ++offset) {
+      const auto core = coreCursor + offset;
+      layoutGroup.cores.push_back(core);
+      const auto found = std::ranges::find_if(
+          placed,
+          [core](const std::pair<std::uint32_t, std::uint32_t>& slot)
+          { return slot.second == core; });
+      if (first || found->first < layoutGroup.lowestCpu) {
+        layoutGroup.lowestCpu = found->first;
+        first = false;
+      }
+    }
+    coreCursor += count;
+    installed.groups.push_back(layoutGroup);
+  }
+  sg::detail::installTestLayout(installed);
+}
+
 auto setupSkip() -> void
 {
-  installThrawnShape(baseCpu, siblingCpu);
+  installSkipShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitSkip, "bmJitSkip");
-  handle.threads(13);
+  handle.placement("compact");
+  handle.threads(3);
 }
 
 auto bmJitPlannedNone(sg::State& state) -> void
@@ -651,12 +677,12 @@ auto bmJitPlannedL3(sg::State& state) -> void
 
 // The idle resolution's plan walk skips the multi-context instance
 // whose preset names none (FR-017), and the narrowing narrows the
-// calling thread's mask for it (D-5). The thrawn shape gives the `l3`
+// calling thread's mask for it (D-5). The cpuset shape gives the `l3`
 // instance its planned pair and the walk a free cpu outside both, so
 // the scenario reads no host fact (VI).
 auto setupMultiIdle() -> void
 {
-  installThrawnShape(baseCpu, siblingCpu);
+  installCpusetPairShape(baseCpu, siblingCpu);
   auto none = sg::registerBenchmark(&bmJitPlannedNone, "bmJitPlannedNone");
   none.threads(2);
   auto placed = sg::registerBenchmark(&bmJitPlannedL3, "bmJitPlannedL3");
@@ -670,17 +696,80 @@ auto bmJitSkip25(sg::State& state) -> void
   }
 }
 
-// The `compact` plan of twenty-five contexts covers group 0's one
-// core, group 1's seven cores fully, and nine of group 2's sixteen
-// threads, so the idle resolution skips groups 0 and 1 and yields
-// group 2's eleventh thread, and the disclosure names both skipped
-// groups (FR-017, D-4).
+// The `compact` plan of three contexts covers the one-thread groups 0
+// and 1 fully and names group 2's first core's first thread, so the
+// idle resolution skips groups 0 and 1 and yields group 2's second
+// core's first thread, and the disclosure names both skipped groups
+// (FR-017, D-4). The shape's planned threads ride the picked pair and
+// the low made-up indexes, every pin below the host's count (VI).
+auto installTwoGroupSkipShape(std::uint32_t base, std::uint32_t sibling) -> void
+{
+  std::vector<std::uint32_t> fillers;
+  for (std::uint32_t cpu = base + 1; fillers.size() < 4; ++cpu) {
+    if (cpu != sibling) {
+      fillers.push_back(cpu);
+    }
+  }
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
+  placed.emplace_back(base, 0);
+  placed.emplace_back(sibling, 1);
+  placed.emplace_back(fillers.at(0), 2);
+  placed.emplace_back(fillers.at(2), 2);
+  placed.emplace_back(fillers.at(1), 3);
+  placed.emplace_back(fillers.at(3), 3);
+  std::ranges::sort(placed);
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  // The group each core stands in: groups 0 and 1 carry one core each
+  // so the compact plan's first two places cover them whole, group 2
+  // carries the two cores the plan's third place comes from (VI).
+  const std::array<std::uint32_t, 4> coreGroup {{0, 1, 2, 2}};
+  for (std::uint32_t core = 0; core < 4; ++core) {
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = coreGroup.at(core);
+    installed.cores.push_back(layoutCore);
+  }
+  for (const auto& [cpu, core] : placed) {
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = cpu;
+    thread.coreOrdinal = core;
+    thread.groupOrdinal = coreGroup.at(core);
+    installed.cores.at(core).threads.push_back(
+        static_cast<std::uint32_t>(installed.threads.size()));
+    installed.threads.push_back(thread);
+    installed.mask.push_back(cpu);
+  }
+  const std::array<std::uint32_t, 3> groupCoreCounts {{1, 1, 2}};
+  std::uint32_t coreCursor = 0;
+  for (const auto count : groupCoreCounts) {
+    sg::detail::LayoutGroup layoutGroup;
+    layoutGroup.lowestCpu = 0;
+    bool first = true;
+    for (std::uint32_t offset = 0; offset < count; ++offset) {
+      const auto core = coreCursor + offset;
+      layoutGroup.cores.push_back(core);
+      const auto found = std::ranges::find_if(
+          placed,
+          [core](const std::pair<std::uint32_t, std::uint32_t>& slot)
+          { return slot.second == core; });
+      if (first || found->first < layoutGroup.lowestCpu) {
+        layoutGroup.lowestCpu = found->first;
+        first = false;
+      }
+    }
+    coreCursor += count;
+    installed.groups.push_back(layoutGroup);
+  }
+  sg::detail::installTestLayout(installed);
+}
+
 auto setupSkipTwoGroups() -> void
 {
-  installThrawnShape(baseCpu, siblingCpu);
+  installTwoGroupSkipShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitSkip25, "bmJitSkip25");
   handle.placement("compact");
-  handle.threads(25);
+  handle.threads(3);
 }
 
 auto bmFit(sg::State& state) -> void
@@ -1094,7 +1183,7 @@ auto scenarioSingleContext() -> int
 
 // FR-017, D-4: a group with no free cpu stands skipped and disclosed,
 // and the run continues over the free cpu the other touched group
-// yields; the `compact` plan of thirteen contexts covers group 0
+// yields; the `compact` plan of three contexts covers group 0
 // fully and names group 1's lowest cpu.
 auto scenarioSkipDisclosure() -> int
 {
