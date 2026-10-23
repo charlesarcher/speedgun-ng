@@ -177,17 +177,11 @@ auto planHunt(const std::vector<CatalogAddress>& events,
     }
 
     // The split owns the stages, so the plan line and the run read one answer.
-    // No stage-1 rate exists before the run measured stage 1: every column
-    // hands the same rate here, so the stable rate order leaves the columns in
-    // plan order and the leading ones form the planned stage-2 set. No figure
-    // re-splits it later: the run drives these stages unchanged (PD-13), and
     // FR-014 derives a stage's columns from the seed and the catalog order
-    // only, never from a measured rate (D-2, FR-013, D-9).
-    auto split =
-        detail::splitStages(plan,
-                            std::vector<double>(plan.columns.size(), 0.0),
-                            options,
-                            calibrationNsPerPass);
+    // only, so the leading columns of the plan order form the planned stage-2
+    // set. No figure re-splits it later: the run drives these stages unchanged
+    // (PD-13, D-2, FR-013).
+    auto split = detail::splitStages(plan, options, calibrationNsPerPass);
     plan.stages = std::move(split.stages);
 
     if (calibrationNsPerPass.has_value()) {
@@ -424,13 +418,10 @@ constexpr std::uint64_t kNanosecondsPerSecond = 1'000'000'000;
 }  // namespace
 
 auto splitStages(const sg::hunt::HuntPlan& plan,
-                 const std::vector<double>& stageOneRates,
                  const sg::hunt::HuntOptions& options,
                  const std::optional<std::uint64_t> calibrationNsPerPass)
     -> StageSplit
 {
-  SG_REQUIRE(stageOneRates.size() == plan.columns.size(),
-             "the caller hands one stage-1 rate per planned column");
   SG_REQUIRE(!plan.columns.empty(),
              "a plan with no column has no stage to split");
   SG_REQUIRE(options.top > 0 && options.repeats > 0,
@@ -450,18 +441,12 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
       sg::hunt::HuntStage {std::vector<std::size_t> {}, options.repeats};
   auto overBudget = false;
   if (budgeted) {
-    // Stage 2 runs the columns the stage-1 rate ranks highest, the leading
-    // `3 x top` of them (D-2, FR-013). The order is stable, so columns of
-    // equal rate keep column order, and the set stands in column order as E-04
-    // spells a stage's column list.
-    auto ranked = all;
-    std::ranges::stable_sort(
-        ranked,
-        [&stageOneRates](const std::size_t lhs, const std::size_t rhs)
-        { return stageOneRates[lhs] > stageOneRates[rhs]; });
-    ranked.resize(width);
-    std::ranges::sort(ranked);
-    second.columns = std::move(ranked);
+    // FR-013, FR-014: stage 2 measures the leading `3 x top` columns of the
+    // plan order, capped at the column count. FR-014 derives a stage from the
+    // seed and the catalog order only, so no measured figure reorders this
+    // set, and it stands in column order as E-04 spells a stage's column
+    // list.
+    second.columns = hunt::columnIndices(width);
 
     const auto runs = (passRuns(plan, first) * first.repeats)
         + (passRuns(plan, second) * second.repeats);
@@ -492,7 +477,7 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
   SG_ENSURE(split.stages.size() == 1
                 || (split.stages[1].columns.size() == width
                     && split.stages[1].repeats == options.repeats),
-            "stage 2 covers the top 3 x top columns at the full repeats");
+            "stage 2 covers the leading 3 x top columns at the full repeats");
   SG_ENSURE(!split.cutStage2 || !split.cutReason.empty(),
             "a cut stage names the reason the plan line prints");
   return split;

@@ -382,20 +382,6 @@ auto refusesBudget(const char* text, const std::string_view line) -> void
           split.first.begin() + static_cast<std::ptrdiff_t>(count)};
 }
 
-// One stage-1 rate per column, the highest standing at the last column. The
-// planner hands no such table, because FR-014 derives a stage from the seed and
-// the catalog order only, so this figure reaches `splitStages` solely through
-// the rows that pin the seam it documents (D-2).
-[[nodiscard]] auto stageOneRates(const std::size_t count) -> std::vector<double>
-{
-  std::vector<double> rates;
-  rates.reserve(count);
-  for (std::size_t index = 0; index < count; ++index) {
-    rates.push_back(static_cast<double>(index + 1));
-  }
-  return rates;
-}
-
 struct Scenario
 {
   std::string_view name;
@@ -934,24 +920,17 @@ auto acSevenStages() -> void
   check(plan.stages[1].columns == plannedStageTwo,
         "stage 2 is the leading 3 x top columns the run measures");
 
-  // The seam beneath the plan, reached only from this row: the same split over
-  // a hand-raised rate table ranks by that rate, whose highest stands at the
-  // last column, so it answers the columns 188 to 199 (D-2, FR-013). The
-  // planner hands no such table: FR-014 derives a stage from the seed and the
-  // catalog order only.
-  const auto split = sg::detail::splitStages(
-      plan, stageOneRates(events.size()), options, kCalibrationNsPerPass);
-  check(!split.cutStage2, "the stage-1 rates leave the budget fit");
+  // The seam beneath the plan, reached only from this row: the same split
+  // called directly answers stage 2 with the leading `3 x top` columns, the
+  // set the plan itself holds, because FR-014 derives a stage from the seed
+  // and the catalog order only and no measured figure reaches the split
+  // (D-2, FR-013).
+  const auto split =
+      sg::detail::splitStages(plan, options, kCalibrationNsPerPass);
+  check(!split.cutStage2, "the row's budget hosts the two-stage run");
   check(split.stages.size() == 2, "the split of the measured plan keeps both");
-  std::vector<std::size_t> expectedTop;
-  for (std::size_t index = events.size() - kStageTwoWidth;
-       index < events.size();
-       ++index)
-  {
-    expectedTop.push_back(index);
-  }
-  check(split.stages[1].columns == expectedTop,
-        "the seam ranks its stage-2 set by the rate it is handed");
+  check(split.stages[1].columns == plannedStageTwo,
+        "the seam takes stage 2 as the leading set of the plan order");
 }
 
 // The `3 x top` set capped at the event count: a top of 2 asks for 6 stage-2
@@ -1005,8 +984,8 @@ auto overBudgetCut() -> void
   check(plan.estimateNs == kCalibrationNsPerPass * kAcSevenPasses,
         "the cut plan states the stage-1 estimate of the walkthrough");
 
-  const auto split = sg::detail::splitStages(
-      plan, stageOneRates(events.size()), options, kCalibrationNsPerPass);
+  const auto split =
+      sg::detail::splitStages(plan, options, kCalibrationNsPerPass);
   check(split.stages.size() == 1, "the split answers one stage");
   check(split.stages.front().columns.size() == sg::test::kHuntEvents,
         "the split drops the second stage whole, never the first");
