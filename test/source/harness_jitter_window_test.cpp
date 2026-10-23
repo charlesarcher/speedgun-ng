@@ -87,6 +87,17 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
                    sg::counters::Availability::COUNTABLE,
                    sg::counters::ReadMode::FAST_TSC);
     ref.setPoints("machine", "tsc", {0}, 1);
+    // The multi-pass family's event source: two scripted leaves on one
+    // object whose scripted limit holds one counter, so the planner
+    // opens one pass per column (E-01, FR-004). Every scripted fact
+    // stands here, before the registration: a leaf declared after the
+    // system opens the tree stays invisible to it.
+    ref.addObject("cpu", "pmu", "the multi-pass family's event source");
+    ref.setProgrammableCounters("cpu", 1);
+    ref.addCounter("cpu", "multi0", "none", "the first column's leaf");
+    ref.setPoints("cpu", "multi0", {0}, 1000);
+    ref.addCounter("cpu", "multi1", "none", "the second column's leaf");
+    ref.setPoints("cpu", "multi1", {0}, 1000);
     const auto registered =
         sg::counters::System::local().registerProvider(std::move(owned));
     check(registered.has_value(), "the scripted provider registers (R-02)");
@@ -159,6 +170,58 @@ auto bmGate(sg::State& state) -> void
   // The tail stays jumped past the window close: the close edge reads
   // the same tail, so the close stamp stands above every kept stamp
   // this window holds (FR-039, R-04).
+  for (auto _ : state) {
+  }
+}
+
+// The body-call count of the multi-pass gate, mutable so the T047
+// scenario resets it before its run: the k-th call scripts the k-th
+// pass's jump magnitude. The function-local static keeps the mutable
+// state out of namespace scope, the way `seriesJump` keeps its own.
+auto passGateCalls() -> std::uint64_t&
+{
+  static std::uint64_t calls = 0;
+  return calls;
+}
+
+// The multi-pass gate: the body of the family whose two metric columns
+// force the passes method (FR-022, E-01). Each call is one pass's one
+// measured attempt. The call restores the one-tick tail the earlier
+// pass's jump left, scripts the jump magnitude of its own pass, waits
+// for 64 of the probe's reads to ride that tail inside its own timed
+// window, and restores the one-tick tail again, so the kept set of the
+// pass's window carries the pass's magnitude alone and counts 64
+// records at the minimum: the reads outside a jump phase stand one
+// tick apart and keep no gap (FR-022, R-04). The wait after the
+// restore stands the window's close read behind a hand-off the
+// restored tail carries, so the close stamp answers the one-tick tail
+// and the reads it brackets keep no gap (R-04). The two waits count
+// the probe's reads alone, because the runner samples the metric plan
+// outside the body's statements, so the margins below stand above
+// them (FR-039).
+auto bmPassGate(sg::State& state) -> void
+{
+  auto& provider = scriptedProvider();
+  const auto pass = ++passGateCalls();
+  provider.setPoints("machine", "tsc", {}, 1);
+  provider.setPoints("machine", "tsc", {}, pass * kSeriesJump);
+  const auto jumped = provider.readActions();
+  std::uint64_t spins = 0;
+  while (provider.readActions() < jumped + 64) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the probe's reads never rode the pass's jump (FR-039)");
+    }
+  }
+  provider.setPoints("machine", "tsc", {}, 1);
+  const auto restored = provider.readActions();
+  spins = 0;
+  while (provider.readActions() < restored + 2) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the probe's reads never resumed the one-tick tail (FR-039)");
+    }
+  }
   for (auto _ : state) {
   }
 }
@@ -344,6 +407,83 @@ auto integerValueAfter(const std::string& document,
   return value;
 }
 
+// The real value one JSON key carries, read as the text that follows
+// the key's colon from `from` on: the writer writes the three real
+// stats fields through the shortest text that reads back the same
+// double (E-03), so this parse returns the value the loaded record
+// holds.
+auto doubleValueAfter(const std::string& document,
+                      std::size_t from,
+                      const char* key) -> double
+{
+  const auto at = document.find(std::string("\"") + key + "\":", from);
+  check(at != std::string::npos, "the document carries the key");
+  const char* begin = document.c_str() + at + std::strlen(key) + 3;
+  char* end = nullptr;
+  const double value = std::strtod(begin, &end);
+  check(end != begin, "the key carries a number");
+  return value;
+}
+
+// The loaded result whose name the entry carries, the lookup the
+// round-trip scenario compares the entries through (FR-029).
+auto resultNamed(const std::vector<sg::BenchmarkResult>& results,
+                 std::string_view name) -> const sg::BenchmarkResult*
+{
+  for (const auto& result : results) {
+    if (result.name == name) {
+      return &result;
+    }
+  }
+  return nullptr;
+}
+
+// The sixteen fields of one loaded per-cpu stats object against the
+// object the document carries at `objectAt`: the writer's value for
+// every field, the integers as bare digits and the reals as the
+// shortest text that reads back the same double (E-03, SC-001).
+auto checkStatsRoundTrip(const sg::JitterStats& stats,
+                         const std::string& document,
+                         std::size_t objectAt,
+                         const char* what) -> void
+{
+  check(integerValueAfter(document, objectAt, "gapCount") == stats.gapCount,
+        what);
+  check(std::fabs(doubleValueAfter(document, objectAt, "gapsPerSecond")
+                  - stats.gapsPerSecond)
+            <= 1e-9,
+        what);
+  check(integerValueAfter(document, objectAt, "minNs") == stats.minNs, what);
+  check(integerValueAfter(document, objectAt, "medianNs") == stats.medianNs,
+        what);
+  check(std::fabs(doubleValueAfter(document, objectAt, "meanNs") - stats.meanNs)
+            <= 1e-9,
+        what);
+  check(integerValueAfter(document, objectAt, "p90Ns") == stats.p90Ns, what);
+  check(integerValueAfter(document, objectAt, "p99Ns") == stats.p99Ns, what);
+  check(integerValueAfter(document, objectAt, "p999Ns") == stats.p999Ns, what);
+  check(integerValueAfter(document, objectAt, "p9999Ns") == stats.p9999Ns,
+        what);
+  check(integerValueAfter(document, objectAt, "maxNs") == stats.maxNs, what);
+  check(integerValueAfter(document, objectAt, "totalNs") == stats.totalNs,
+        what);
+  check(std::fabs(doubleValueAfter(document, objectAt, "totalPercent")
+                  - stats.totalPercent)
+            <= 1e-9,
+        what);
+  check(integerValueAfter(document, objectAt, "runtimeNs") == stats.runtimeNs,
+        what);
+  check(
+      integerValueAfter(document, objectAt, "thresholdNs") == stats.thresholdNs,
+      what);
+  check(integerValueAfter(document, objectAt, "loopPeriodNs")
+            == stats.loopPeriodNs,
+        what);
+  check(
+      integerValueAfter(document, objectAt, "droppedGaps") == stats.droppedGaps,
+      what);
+}
+
 // The per-thread stamp state of the seam reader below: each probe
 // thread carries its own series, so the two cpus' reads interleave
 // without sharing a cursor (R-02, FR-039). The probe threads are new
@@ -385,6 +525,21 @@ SG_BENCHMARK(bmGate);
 auto main() -> int
 {
   scriptedProvider();
+  // The multi-pass family the T047 scenario runs: two metric columns of
+  // one scripted leaf each, attached here after the provider's
+  // registration so the leaves resolve the way the pass tests resolve
+  // theirs (E-01, FR-004).
+  const auto cpuSource = sg::counters::System::local().object("cpu");
+  check(cpuSource.has_value(), "the scripted cpu source resolves (FR-022)");
+  const auto firstLeaf = cpuSource->counter<sg::counters::Dim<0, 1>>("multi0");
+  check(firstLeaf.has_value(), "the first column's leaf resolves (FR-022)");
+  const auto secondLeaf = cpuSource->counter<sg::counters::Dim<0, 1>>("multi1");
+  check(secondLeaf.has_value(), "the second column's leaf resolves (FR-022)");
+  auto passHandle = sg::registerBenchmark(&bmPassGate, "bmPassGate");
+  passHandle.addMetric(
+      sg::counters::Expression<sg::counters::Dim<0, 1>>(*firstLeaf), "first");
+  passHandle.addMetric(
+      sg::counters::Expression<sg::counters::Dim<0, 1>>(*secondLeaf), "second");
   const auto cpus = pickCpus(2);
   const std::string cpuList =
       std::to_string(cpus.at(0)) + "," + std::to_string(cpus.at(1));
@@ -538,19 +693,123 @@ auto main() -> int
             "the per-entry key stands after noiseWarning (FR-027, E-08)");
     }
 
-    // FR-029, SC-001: the reader reads the written file back with every
-    // jitter field equal. Red against the reader T014 lands: the fields
-    // the wave still misses.
+    // FR-029, SC-001, convergence T050: the reader reads the written
+    // file back with every jitter field equal to the value the writer
+    // produced. The comparison parses the written document's own values
+    // and holds them against the loaded record, so no host-measured
+    // figure stands as a literal here. The run carries the probe over
+    // the quiet entry and the two gate entries, so the loaded record
+    // holds one fold per probe cpu at the run level and at the entries
+    // whose windows kept gaps, and the quiet entry loads none (FR-027,
+    // E-08). The mode and the disclosure stand in the document alone,
+    // the shape the reader reads them with, so the scenario holds
+    // their text against the run's own facts (E-07).
     {
+      auto& provider = scriptedProvider();
+      provider.setPoints("machine", "tsc", {}, 1);
       const std::string path = "harness_jitter_window_roundtrip.json";
-      auto arguments = quickRun;
-      arguments.push_back("--json=" + path);
-      arguments.push_back("--jitter-probe=" + cpuList);
-      captureRun(arguments);
+      captureRun({"--repetitions=1",
+                  "--iterations=2",
+                  "--json=" + path,
+                  "--jitter-probe=" + cpuList});
+      const auto document = readDocument(path);
       const auto loaded = sg::loadReport(path);
       std::remove(path.c_str());
       check(loaded.has_value(),
             "the document of a probed run loads (FR-029, SC-001)");
+      const auto& folds = loaded->runJitterStats;
+      check(
+          folds.has_value(),
+          "the loaded document carries the run-level record (FR-029, " "E-07)");
+      check(folds->size() == 2,
+            "the run-level record carries one fold per probe cpu (E-07)");
+      check(folds->at(0).cpu == cpus.at(0) && folds->at(1).cpu == cpus.at(1),
+            "the run-level folds carry the probe cpus ascending (E-07)");
+
+      const auto rootJitter = document.find("\"jitter\"");
+      check(rootJitter != std::string::npos,
+            "the document carries the root jitter object (E-07)");
+      check(document.find("\"mode\":\"ALONGSIDE\"", rootJitter)
+                != std::string::npos,
+            "the root record carries the mode the run ran (E-07)");
+      check(document.find("\"cpus\":[" + cpuList + "]", rootJitter)
+                != std::string::npos,
+            "the root record names the probe cpus (E-07)");
+      const auto rootThreshold =
+          integerValueAfter(document, rootJitter, "thresholdNs");
+      const auto rootPeriod =
+          integerValueAfter(document, rootJitter, "loopPeriodNs");
+      const auto rootStats = document.find("\"stats\":", rootJitter);
+      check(rootStats != std::string::npos,
+            "the root record carries the stats array (E-07)");
+      for (std::size_t index = 0; index < folds->size(); ++index) {
+        const auto& fold = folds->at(index);
+        check(fold.stats.thresholdNs == rootThreshold
+                  && fold.stats.loopPeriodNs == rootPeriod,
+              "every fold carries the measured points the root record "
+              "names (E-07)");
+        const auto objectAt =
+            document.find("\"cpu\":" + std::to_string(fold.cpu), rootStats);
+        check(objectAt != std::string::npos,
+              "the root stats array carries the fold's cpu (E-07)");
+        checkStatsRoundTrip(fold.stats,
+                            document,
+                            objectAt,
+                            "the run-level fold carries the writer's sixteen "
+                            "fields " "(FR-029, SC-001)");
+      }
+      const auto disclosureAt = document.find("\"disclosure\"", rootJitter);
+      check(disclosureAt != std::string::npos,
+            "the root record carries the disclosure (E-07)");
+      const auto rootDroppedAt =
+          document.rfind("\"droppedGaps\":", disclosureAt);
+      check(rootDroppedAt != std::string::npos,
+            "the root record carries the dropped count (E-07)");
+      check(integerValueAfter(document, rootDroppedAt, "droppedGaps")
+                == (folds->at(0).stats.droppedGaps
+                    + folds->at(1).stats.droppedGaps),
+            "the root dropped count sums the folds' own counts (E-07)");
+      check(document.find("probe on cpus " + cpuList, rootJitter)
+                != std::string::npos,
+            "the disclosure names the probe and the cpus (E-07, E-09)");
+      check(document.find("split and percentiles use the kept gaps only",
+                          rootJitter)
+                != std::string::npos,
+            "the disclosure carries the kept-gaps-only rule (E-09)");
+
+      const auto* quiet = resultNamed(loaded->results, "bmQuiet");
+      check(
+          quiet != nullptr && quiet->jitterFolds.empty(),
+          "the entry whose windows kept no gap loads no fold (FR-027, " "E-"
+                                                                        "08)");
+      const char* gateNames[] {"bmGate", "bmPassGate"};
+      for (const char* gateName : gateNames) {
+        const auto* gate = resultNamed(loaded->results, gateName);
+        check(gate != nullptr && gate->jitterFolds.size() == 2,
+              "the gate entry loads one fold per probe cpu (FR-027, E-08)");
+        check(gate->jitterFolds.at(0).cpu == cpus.at(0)
+                  && gate->jitterFolds.at(1).cpu == cpus.at(1),
+              "the entry's folds carry the probe cpus ascending (E-08)");
+        const auto entryName =
+            document.find("\"" + std::string(gateName) + "\"");
+        check(entryName != std::string::npos,
+              "the document carries the entry (FR-027)");
+        const auto entryJitter = document.find("\"jitter\"", entryName);
+        check(entryJitter != std::string::npos,
+              "the entry carries its jitter object (FR-027, E-08)");
+        for (std::size_t index = 0; index < gate->jitterFolds.size(); ++index) {
+          const auto& fold = gate->jitterFolds.at(index);
+          const auto objectAt =
+              document.find("\"cpu\":" + std::to_string(fold.cpu), entryJitter);
+          check(objectAt != std::string::npos,
+                "the entry's stats array carries the fold's cpu (E-08)");
+          checkStatsRoundTrip(fold.stats,
+                              document,
+                              objectAt,
+                              "the entry's fold carries the writer's sixteen "
+                              "fields " "(FR-029, SC-001)");
+        }
+      }
     }
 
     // FR-028, E-10: the gaps value of the raw JSON option writes the
@@ -726,6 +985,52 @@ auto main() -> int
           "each repetition's windows placed their kept gaps (FR-022, PC-5)");
     check(integerValueAfter(document, gateName, "maxNs") == kSeriesJump,
           "the kept gaps carry the scripted jump (E-04, R-04)");
+  }
+
+  // US3 scenario 3, FR-022, PC-5, convergence T047: the probe over a
+  // multi-pass run. The family's two metric columns carry one scripted
+  // leaf each and the cpu source they need publishes a limit of one
+  // counter, so the auto request settles the passes method and the
+  // planner opens one pass per column (E-01, FR-004). Each pass's one
+  // attempt runs the gate body, which restores the one-tick tail the
+  // earlier pass's jump left, scripts its own pass's jump magnitude,
+  // waits for 64 of the probe's reads to ride that tail inside its own
+  // timed window, and restores the one-tick tail again, so the kept set
+  // of each pass's window carries the pass's magnitude alone. The
+  // fold's minimum equals the first pass's magnitude, its maximum
+  // equals the second pass's, and each magnitude stands in one pass's
+  // window only, so a fold over one pass's windows alone fails either
+  // bound (FR-022, PC-5).
+  {
+    auto& provider = scriptedProvider();
+    provider.setPoints("machine", "tsc", {}, 1);
+    passGateCalls() = 0;
+    const std::string path = "harness_jitter_window_passsplit.json";
+    captureRun({"--filter=bmPassGate",
+                "--repetitions=1",
+                "--iterations=2",
+                "--json=" + path,
+                "--jitter-probe=" + std::to_string(cpus.at(0))});
+    const auto document = readDocument(path);
+    std::remove(path.c_str());
+    const auto gateName = document.find("\"bmPassGate\"");
+    check(gateName != std::string::npos,
+          "the document carries the multi-pass entry (FR-022)");
+    check(document.find("\"metricMethod\":\"PASSES\"", gateName)
+              != std::string::npos,
+          "the columns forced the passes method (FR-022, E-01)");
+    check(integerValueAfter(document, gateName, "passCount") == 2,
+          "the planner opened one pass per column (FR-022, E-01)");
+    check(document.find("\"jitter\":{\"stats\"", gateName) != std::string::npos,
+          "the fold covers the windows of every pass (FR-022, PC-5)");
+    check(integerValueAfter(document, gateName, "gapCount") >= 128,
+          "each pass's windows placed their kept gaps (FR-022, PC-5)");
+    check(
+        integerValueAfter(document, gateName, "minNs") == kSeriesJump,
+        "the first pass's window kept the jump its body scripted " "(FR-022)");
+    check(
+        integerValueAfter(document, gateName, "maxNs") == 2 * kSeriesJump,
+        "the second pass's window kept the jump its body scripted " "(FR-022)");
   }
 
   // FR-010, D-6: a buffer that filled attributes only the kept records.
