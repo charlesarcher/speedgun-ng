@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/execution_context.hpp"
@@ -186,6 +187,21 @@ inline constexpr double kSpreadWarningLimitPercent = 5.0;
 }
 
 /**
+ * @brief What the writer is given beside the results: the option uses a
+ * source other than the command line settled, and the interleaving seed
+ * (specs/028 E-08, FR-040, D-24).
+ *
+ * `uses` holds the disclosed uses in table order, and `interleave` holds
+ * the seed only when `--interleave` stands given. `ReportData` carries no
+ * field of either, so the public headers stay as they are (FR-076).
+ */
+struct RunDisclosure
+{
+  std::span<const OptionUse> uses;
+  std::optional<std::uint64_t> interleave;
+};
+
+/**
  * @brief Write the report document of a finished batch to `path`
  * (specs/023 FR-001, D-02).
  *
@@ -194,14 +210,23 @@ inline constexpr double kSpreadWarningLimitPercent = 5.0;
  * columns writes them under `raw`; every other row writes no `raw` key,
  * which is the whole of the raw setting as the document sees it (E-05).
  *
+ * `disclosure` carries the run facts of specs/028: a disclosure that names
+ * a use or a seed writes the top-level `run` object between `speedgun` and
+ * `benchmarks`, and an empty one writes no such key (specs/028 FR-039 to
+ * FR-041, D-18).
+ *
  * @pre `path` is not empty, and `data.rowRaw.size() ==
  *      data.results.size() == data.contextRaw.size()`
+ * @pre every `disclosure.uses` entry points at a row of
+ *      `detail::optionRows()` and names a source other than the command
+ *      line (specs/028 E-05)
  * @post true when the file holds the whole document, false when the file
  *       system refused it; the call reports the refusal on stderr and
  *       throws nothing (FR-030)
  */
 [[nodiscard]] auto writeReport(const std::string& path,
-                               const ReportData& data) -> bool;
+                               const ReportData& data,
+                               const RunDisclosure& disclosure = {}) -> bool;
 
 /**
  * @brief Check one written document against the schema file at

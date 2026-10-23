@@ -151,8 +151,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # of the page with both features landed. The round-1 audit of specs/024 (F-4)
 # took the "Multi-pass collection" section back under SECTION_LINE_CAP, as
 # FR-027 always asked, so 7 lines leave the page and the cap is the measured
-# 773.
-PAGE_LINE_CAP = 773
+# 773. specs/028 FR-066 and FR-068 grow the "The command line" section from
+# 14 lines to 20 and add seven quick-reference rows for the new long options,
+# so 13 lines move the cap from 773 to 786, the measured length of the page
+# with both in place. The section stays under SECTION_LINE_CAP, so no entry
+# joins SECTION_LINE_CAPS (FR-073).
+PAGE_LINE_CAP = 786
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
@@ -456,13 +460,20 @@ def header_names(root: Path) -> set[str]:
 
 
 def cli_options(root: Path) -> list[str]:
-    path = root / "source" / "harness" / "cli.cpp"
+    """The long option names of the one table, in table order (FR-075).
+
+    The table stands in `source/harness/options.cpp` as rows of
+    `OptionRow`, so the declaration regex follows the `to_array` of
+    `optionRows()` while the row regex keeps naming the first cell of
+    each row.
+    """
+    path = root / "source" / "harness" / "options.cpp"
     if not path.is_file():
-        raise Finding(f"{rel(path)}: CLI source not found")
+        raise Finding(f"{rel(path)}: option source not found")
     text = path.read_text()
-    table = re.search(r"option\s+\w+\s*\[\]\s*=\s*\{(.*?)\n\s*\};", text, re.S)
+    table = re.search(r"to_array<OptionRow>\(\{(.*?)\n\s*\}\);", text, re.S)
     if table is None:
-        raise Finding(f"{rel(path)}: no long-option table found")
+        raise Finding(f"{rel(path)}: no option row table found")
     return re.findall(r'\{\s*"([a-z0-9-]+)"', table.group(1))
 
 

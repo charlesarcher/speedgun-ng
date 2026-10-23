@@ -15,6 +15,7 @@
 #include <simdjson.h>
 
 #include "detail/internal.hpp"
+#include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -26,9 +27,24 @@ namespace
 using Builder = simdjson::builder::string_builder;
 
 // The schema the writer emits and the checker reads (FR-007). The minor
-// stands at 1.1 since specs/024 added the pass keys, the move
-// specs/023/contracts/schema-file.md states for a key added inside major 1.
-constexpr std::string_view kSchemaVersion = "1.1";
+// stands at 1.3 since specs/028 added the `run` object, the move
+// specs/023/contracts/schema-file.md states for a key added inside major 1
+// (specs/028 FR-086, PC-6).
+constexpr std::string_view kSchemaVersion = "1.3";
+
+// The `source` word of one disclosed use, spelled as the enum of
+// `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
+// gather answers a use for the two sources other than the command line, so
+// the first word of the table stands in no written document.
+inline constexpr std::array<std::string_view, 3> kSourceWords {
+    "command line",
+    "file",
+    "environment",
+};
+static_assert(
+    kSourceWords.size()
+    == static_cast<std::size_t>(std::to_underlying(OptionSource::ENVIRONMENT))
+        + 1);
 
 // The builder is a low-level writer that emits no separator of its own,
 // so every object and array of the document opens a scope that puts one
@@ -568,7 +584,36 @@ auto spreadWarned(const std::optional<double> spread) noexcept -> bool
   return spread.has_value() && *spread > kSpreadWarningLimitPercent;
 }
 
-auto writeReport(const std::string& path, const ReportData& data) -> bool
+// The `run` object of specs/028: the seed, then one entry per disclosed use
+// in the order the gather handed them, which is table order (FR-040,
+// E-09). The option text is the long spelling with the leading dashes, the
+// form the console line carries too (FR-039).
+auto writeRunObject(Builder& builder, const RunDisclosure& disclosure) -> void
+{
+  JsonObjectWriter run(builder);
+  if (disclosure.interleave.has_value()) {
+    put(builder, run, "interleave", *disclosure.interleave);
+  }
+  run.key("options");
+  {
+    JsonArrayWriter entries(builder);
+    for (const OptionUse& use : disclosure.uses) {
+      entries.item();
+      JsonObjectWriter entry(builder);
+      put(builder, entry, "option", "--" + std::string {use.row->name});
+      put(builder,
+          entry,
+          "source",
+          enumWord(kSourceWords,
+                   static_cast<std::size_t>(std::to_underlying(use.source))));
+      put(builder, entry, "value", use.value);
+    }
+  }
+}
+
+auto writeReport(const std::string& path,
+                 const ReportData& data,
+                 const RunDisclosure& disclosure) -> bool
 {
   SG_REQUIRE(!path.empty(),
              "writeReport takes the path the option scanner settled "
@@ -587,6 +632,12 @@ auto writeReport(const std::string& path, const ReportData& data) -> bool
       JsonObjectWriter speedgun(builder);
       put(builder, speedgun, "version", SG_PROJECT_VERSION);
       put(builder, speedgun, "buildType", SG_BUILD_TYPE);
+    }
+    // FR-041: the object stands when a use or a seed stands, and the run of
+    // a command line alone writes neither the key nor its members.
+    if (!disclosure.uses.empty() || disclosure.interleave.has_value()) {
+      root.key("run");
+      writeRunObject(builder, disclosure);
     }
     root.key("benchmarks");
     {

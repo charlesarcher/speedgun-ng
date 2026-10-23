@@ -613,6 +613,16 @@ name, and `--catalog` lists the metrics the host offers.
 ./build/example/docs_command_line --filter='bmWrite' --min-time=0.2
 ./build/example/docs_command_line --counter=machine/monotonic --dry-run
 ./build/example/docs_command_line --catalog
+printf '%s\n' 'filter=bmWrite' 'min-time=0.2' > run.options
+./build/example/docs_command_line --options=run.options
+SPEEDGUN_FILTER=bmWrite SPEEDGUN_MIN_TIME=0.2 ./build/example/docs_command_line
+./build/example/docs_command_line --threads=1,4
+./build/example/docs_command_line --threads=2:16
+./build/example/docs_command_line --interleave=7
+printf '%s\n' 'time@median:lower:5%' > rules.txt
+./build/example/docs_command_line \
+  --compare=test/data/gate_ok_base.json,test/data/gate_ok_contender.json \
+  --compare-rules=rules.txt
 ```
 
 `--metric` names one metric the host's table defines, in the shape
@@ -632,6 +642,45 @@ count.
 ```text
 bmSum                     AGGREGATE  primary time/iter (ns) mean=  649.108 median=  649.499 sd=    0.942 cv=  0.0015 min=  648.034 max=  649.792 n=3
 ```
+
+`speedgunMain` accepts the long options below, in the order its option table
+carries them. Only the command line sets an option that names no environment
+variable.
+
+| Option | Argument | Environment | Help text |
+| --- | --- | --- | --- |
+| `filter` | required | `SPEEDGUN_FILTER` | Selects the instances whose names match |
+| `list` | none |  | Prints the registry and stops |
+| `repetitions` | required | `SPEEDGUN_REPETITIONS` | Sets how many times one instance runs |
+| `min-time` | required | `SPEEDGUN_MIN_TIME` | Sets the least measuring seconds of one instance |
+| `iterations` | required | `SPEEDGUN_ITERATIONS` | Fixes the iteration count and skips calibration |
+| `warmup-time` | required | `SPEEDGUN_WARMUP_TIME` | Sets the untimed warm-up seconds |
+| `dry-run` | none |  | Runs one iteration and prints the row shape |
+| `counter` | required | `SPEEDGUN_COUNTER` | Adds one catalog counter to the report columns |
+| `metric` | required | `SPEEDGUN_METRIC` | Adds one metric of the host's table to the report columns |
+| `catalog` | none |  | Prints the counter catalog and stops |
+| `percentiles` | required | `SPEEDGUN_PERCENTILES` | Sets the percentile points one run reports |
+| `no-percentiles` | none | `SPEEDGUN_NO_PERCENTILES` | Turns the percentile lines off |
+| `placement` | required | `SPEEDGUN_PLACEMENT` | Selects the preset that plans the run's cpus |
+| `topology` | none |  | Prints the machine layout listing and stops |
+| `json` | required |  | Writes one JSON report document for the run |
+| `json-raw` | required |  | Selects the chunk columns the document carries |
+| `compare` | required |  | Compares two report documents; the mode runs no benchmark |
+| `compare-rule` | required |  | Adds one comparison rule, repeatable in order |
+| `compare-strict` | none |  | Makes every noisy row fail the verdict |
+| `metric-method` | required |  | Sets the metric collection method to auto, passes or multiplex |
+| `options` | required |  | Reads one option per line from a file |
+| `env` | required |  | Takes off so the process environment sets nothing |
+| `threads` | required | `SPEEDGUN_THREADS` | Sets the thread counts of every family |
+| `interleave` | optional | `SPEEDGUN_INTERLEAVE` | Runs the selected instances in a seeded random order |
+| `compare-rules` | required |  | Reads one comparison rule per line from a file |
+| `help` | none |  | Prints one line per option and stops |
+| `version` | none |  | Prints the project version and stops |
+
+The highest source that sets an option wins: the command line, then the option
+file, then the environment, then the built-in default. A repeatable option from
+a higher source replaces the whole list of a lower one; the comparison rules
+from every source combine.
 
 ## User counters
 

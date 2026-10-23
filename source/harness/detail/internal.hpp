@@ -474,6 +474,25 @@ struct RunOptions
   std::string compareContender;
   std::vector<CompareRule> compareRules;
   bool compareStrict = false;
+  // specs/028-full-command-line FR-061, FR-063, D-24: the path the
+  // `--compare-rules` word named on the command line, empty when it named
+  // none. The rules of that file join the list after the command line's own
+  // rules, which is the second position of the order spec D-23 states.
+  std::string compareRulesFile;
+  // specs/028-full-command-line data-model.md E-11, FR-044, FR-045,
+  // FR-050: the counts `--threads=`, an option-file line and
+  // `SPEEDGUN_THREADS` settled, in item order, a `min:max` range already
+  // expanded by `buildThreadCounts`. An empty list means no source named
+  // the option, and the counts a family registered then stand.
+  std::vector<int> threadCounts;
+  // specs/028-full-command-line FR-029, FR-034, E-03: the path the
+  // `--options` word named, empty when it named none. The entry point owns
+  // the read and hands the text to the gather (D-05).
+  std::string optionsFile;
+  // specs/028-full-command-line FR-028, D-04: the word of `--env`. Only
+  // `off` stands, and it settles the run with no environment source, so the
+  // gather is handed no rows at all.
+  bool environmentOff = false;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
@@ -500,6 +519,13 @@ public:
   [[nodiscard]] auto fitForFamilyEnd(const Instance* next)
       -> std::optional<BenchmarkResult>;
 
+  /// @brief The complexity fit of `family` out of every instance of it this
+  /// runner ran, whatever order the instances ran in, and once only: the
+  /// second call for the same family answers nothing (FR-022, FR-023,
+  /// specs/028 FR-056).
+  [[nodiscard]] auto fitForFamily(RegistryEntry* family)
+      -> std::optional<BenchmarkResult>;
+
   /// @brief The chunk columns the runs of this runner retained, one entry
   /// per row of the result that run handed back, in the order the rows
   /// stand (specs/023 E-01, FR-029).
@@ -520,17 +546,33 @@ public:
 private:
   const RunOptions& m_options;
 
-  // FR-022: the instances of one family since its last fit. The sizes and the
-  // values of every quantity stand in instance order, and a quantity a later
-  // instance opens joins the lists with the earlier instances backfilled.
-  RegistryEntry* m_pendingFamily = nullptr;
-  std::optional<TimeUnit> m_pendingUnit;
-  std::vector<std::int64_t> m_sizes;
-  std::vector<double> m_times;
-  std::vector<std::string> m_counterLabels;
-  std::vector<std::vector<double>> m_counterValues;
-  std::vector<std::string> m_metricLabels;
-  std::vector<std::vector<double>> m_metricValues;
+  // FR-022: the instances of one family since its fit was handed out. The
+  // sizes and the values of every quantity stand in run order, and a
+  // quantity a later instance opens joins the lists with the earlier
+  // instances backfilled. specs/028 FR-056: a shuffled run hands the
+  // instances of one family in any order and the walk of another family
+  // stands between them, so the samples of a family keep their own
+  // accumulator. One family holds one record, because the expansion groups
+  // the instances of a family in one block and each print path names a
+  // family once.
+  struct FitSamples
+  {
+    RegistryEntry* family = nullptr;
+    std::optional<TimeUnit> unit;
+    std::vector<std::int64_t> sizes;
+    std::vector<double> times;
+    std::vector<std::string> counterLabels;
+    std::vector<std::vector<double>> counterValues;
+    std::vector<std::string> metricLabels;
+    std::vector<std::vector<double>> metricValues;
+  };
+
+  std::vector<FitSamples> m_fits;
+
+  // The family of the last sample, the one `fitForFamilyEnd` compares with
+  // the instance the run turns to. An index, because the list of families
+  // grows as a family opens.
+  std::optional<std::size_t> m_pending;
 
   // specs/023 E-01: the chunk columns each run retained, one entry per
   // row of that run's result; the aggregate row and every row of a run
@@ -541,7 +583,8 @@ private:
   void noteFitSample(const Instance& instance,
                      const BenchmarkResult& result,
                      std::optional<std::int64_t> statedSize);
-  void clearPending() noexcept;
+  [[nodiscard]] auto accumulatorFor(RegistryEntry* family) -> FitSamples&;
+  [[nodiscard]] auto outcomeOf(FitSamples& fit) -> BenchmarkResult;
 };
 
 // specs/025 data-model.md E-01, E-10: the internal seams of topology
@@ -664,6 +707,21 @@ struct MetricColumn
 /// failure is stated once, with its near-miss names (FR-028, FR-042).
 [[nodiscard]] auto metricNameFailure(const std::vector<std::string>& names)
     -> int;
+
+/**
+ * @brief The text of one file, for every source that needs a whole
+ * file: the report loader, the option file and the rules file
+ * (research D-05, FR-029, FR-061).
+ *
+ * The answer is the text, or one fault line naming the path and the
+ * reason the system refused: `the file '<path>' cannot be opened:
+ * <reason>` where the open fails, `the file '<path>' cannot be read:
+ * <reason>` where the read itself fails. The reader moved out of the
+ * anonymous namespace of `json_load.cpp` with both texts byte-identical,
+ * so the loader tests keep their expectations (D-05).
+ */
+[[nodiscard]] auto readTextFile(const std::string& path)
+    -> std::expected<std::string, std::string>;
 
 /// @brief The refusal kind of an availability state, as the report and
 /// the listing print it (FR-023, FR-037).

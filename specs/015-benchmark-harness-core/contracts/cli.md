@@ -80,6 +80,22 @@ contender, split at the first comma (specs/026 FR-047, FR-048),
 state word stays `NOISY` (FR-044, FR-045). The mode's rows join the
 table below (FR-052).
 
+The command line (specs/028) answers `--help` with the option list and
+`--version` with the project version, each on standard output before any
+benchmark runs (FR-015 to FR-017), and answers each usage fault the scan
+reports with one line naming the rejected text: an unknown name, an
+unknown name within two edits of a table name, an ambiguous prefix, and
+an option given with no value (FR-007 to FR-009). Those rows join the
+table below (FR-082).
+
+The sources of specs/028 answer their own faults before a run starts: a
+`SPEEDGUN_*` value, a `--threads` list and an `--interleave` seed each
+print one line when the reader of the option they set refuses the text, a
+line of the `--options` file or of the `--compare-rules` file the parse
+refuses names its file, its line number and its text, and a file the
+system cannot open names its path. Those rows join the table below
+(FR-027, FR-033, FR-034, FR-036, FR-046, FR-054, FR-064, FR-065, FR-082).
+
 | Condition | Status |
 | --- | --- |
 | a benchmark failed, the catalog listing failed, or SIGINT interrupted a run | nonzero |
@@ -99,6 +115,19 @@ table below (FR-052).
 | a value a rule names is absent, unanswered or uncountable, a zero baseline stands under a relative threshold, or a rule's whole scope holds no readable row | 2, with one line naming the rule, the benchmark and the report (specs/026 FR-031, FR-036 to FR-038, FR-040) |
 | the comparison document could not be written | 2, with one line naming the path (specs/026 FR-074) |
 | the comparison passes, or the pair matched nothing | 0 |
+| `--help` prints the option list and runs no benchmark | 0 (specs/028 FR-015, FR-017) |
+| `--version` prints the project version and runs no benchmark | 0 (specs/028 FR-016, FR-017) |
+| an option name that matches no table row | 2, with one line naming the rejected text (specs/028 FR-007) |
+| an unknown name within two edits of a table name | 2, with one line naming the rejected text and the nearest table name (specs/028 FR-007) |
+| an option name that is an ambiguous prefix of table rows | 2, with one line naming the rejected text and the candidate names in table order (specs/028 FR-009) |
+| an option given with no value | 2, with one line naming the rejected text (specs/028 FR-008) |
+| a `SPEEDGUN_*` variable holds a value the reader of its option refuses | 2, with one line naming the variable and the value (specs/028 FR-027) |
+| a line of the `--options` file the parse cannot read | 2, with one line naming the file, the line number and the text (specs/028 FR-033, FR-036) |
+| the `--options` file cannot be opened | 2, with one line naming the path (specs/028 FR-034) |
+| a line of the `--compare-rules` file the rule parser refuses | 2, with one line naming the file, the line number and the parser's fault (specs/028 FR-064) |
+| the `--compare-rules` file cannot be opened | 2, with one line naming the path (specs/028 FR-065) |
+| a `--threads` list holds a malformed item, a count below one, or a range whose low bound stands above its high | 2, with one line naming the option and the text (specs/028 FR-045, FR-046) |
+| `--interleave` names a text the seed reader refuses | 2, with one line naming the option and the text (specs/028 FR-054) |
 
 ## Interrupt behavior (clarification, FR-032)
 

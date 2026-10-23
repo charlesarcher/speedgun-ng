@@ -2700,13 +2700,14 @@ auto Runner::noteFitSample(const Instance& instance,
   const bool aggregate = chosen->kind == RowKind::AGGREGATE;
   const RegistryEntry& entry = *instance.family;
 
-  m_pendingFamily = instance.family;
-  m_pendingUnit = result.timeUnit;
-  m_sizes.push_back(size);
-  m_times.push_back(aggregate ? chosen->timeStats.mean
-                              : (entry.manualTime || entry.realTime
-                                     ? chosen->timePerIterationNs
-                                     : chosen->cpuTimePerIterationNs));
+  FitSamples& samples = accumulatorFor(instance.family);
+  m_pending = static_cast<std::size_t>(&samples - m_fits.data());
+  samples.unit = result.timeUnit;
+  samples.sizes.push_back(size);
+  samples.times.push_back(aggregate ? chosen->timeStats.mean
+                                    : (entry.manualTime || entry.realTime
+                                           ? chosen->timePerIterationNs
+                                           : chosen->cpuTimePerIterationNs));
 
   auto counters = std::vector<double> {};
   if (aggregate) {
@@ -2727,39 +2728,80 @@ auto Runner::noteFitSample(const Instance& instance,
     }
   }
 
-  appendQuantities(m_counterLabels,
-                   m_counterValues,
+  appendQuantities(samples.counterLabels,
+                   samples.counterValues,
                    result.counterLabels,
                    counters,
-                   m_sizes.size());
-  appendQuantities(m_metricLabels,
-                   m_metricValues,
+                   samples.sizes.size());
+  appendQuantities(samples.metricLabels,
+                   samples.metricValues,
                    result.metricLabels,
                    metrics,
-                   m_sizes.size());
+                   samples.sizes.size());
 }
 
-auto Runner::clearPending() noexcept -> void
+// The samples of `family`, opened the first time that family asked for a fit.
+auto Runner::accumulatorFor(RegistryEntry* const family) -> FitSamples&
 {
-  m_pendingFamily = nullptr;
-  m_pendingUnit = std::nullopt;
-  m_sizes = {};
-  m_times = {};
-  m_counterLabels = {};
-  m_counterValues = {};
-  m_metricLabels = {};
-  m_metricValues = {};
+  for (std::size_t index = 0; index < m_fits.size(); ++index) {
+    if (m_fits[index].family == family) {
+      return m_fits[index];
+    }
+  }
+  auto& samples = m_fits.emplace_back();
+  samples.family = family;
+  return samples;
 }
 
 auto Runner::fitForFamilyEnd(const Instance* next)
     -> std::optional<BenchmarkResult>
 {
-  if (m_pendingFamily == nullptr
-      || (next != nullptr && next->family == m_pendingFamily))
+  if (!m_pending.has_value()
+      || (next != nullptr && next->family == m_fits[*m_pending].family))
   {
     return std::nullopt;
   }
+  return fitForFamily(m_fits[*m_pending].family);
+}
 
+// FR-022, FR-023, specs/028 FR-056: the fit of one family out of the samples
+// of every instance of it this runner ran. A shuffled run reaches those
+// instances in the order of its walk and the walk of another family stands
+// between them, so the family is named here and the samples keep the order
+// they arrived in: `fitFamily` regresses each quantity on the size of its
+// instance, an answer no ordering of the pairs changes. One family answers
+// once, which is the account the print pass reads at the last row of that
+// family.
+auto Runner::fitForFamily(RegistryEntry* const family)
+    -> std::optional<BenchmarkResult>
+{
+  for (std::size_t index = 0; index < m_fits.size(); ++index) {
+    FitSamples& samples = m_fits[index];
+    // The expansion groups the instances of one family into one block, so
+    // each print path names a family once and the record found here still
+    // holds the samples of every instance of that family this runner ran
+    // (FR-022, FR-056).
+    if (samples.family != family) {
+      continue;
+    }
+    auto outcome = outcomeOf(samples);
+    samples.unit = std::nullopt;
+    samples.sizes = {};
+    samples.times = {};
+    samples.counterLabels = {};
+    samples.counterValues = {};
+    samples.metricLabels = {};
+    samples.metricValues = {};
+    if (m_pending == index) {
+      m_pending = std::nullopt;
+    }
+    return outcome;
+  }
+  return std::nullopt;
+}
+
+auto Runner::outcomeOf(FitSamples& samples) -> BenchmarkResult
+{
   // FR-022: the quantities of the fit in the order the report prints them: the
   // primary time first, then the named counters and the attached metrics in the
   // order their names and expressions opened.
@@ -2767,38 +2809,39 @@ auto Runner::fitForFamilyEnd(const Instance* next)
   quantities.push_back(FitQuantity {
       .label = "time/iter",
       .scalesWithUnit = true,
-      .values = m_times,
+      .values = samples.times,
       .curve = {},
       .coefficient = 0.0,
       .rmsPercent = 0.0,
       .reason = {},
   });
-  for (std::size_t column = 0; column < m_counterLabels.size(); ++column) {
-    quantities.push_back(FitQuantity {.label = m_counterLabels.at(column),
-                                      .scalesWithUnit = false,
-                                      .values = m_counterValues.at(column),
-                                      .curve = {},
-                                      .coefficient = 0.0,
-                                      .rmsPercent = 0.0,
-                                      .reason = {}});
+  for (std::size_t column = 0; column < samples.counterLabels.size(); ++column)
+  {
+    quantities.push_back(
+        FitQuantity {.label = samples.counterLabels.at(column),
+                     .scalesWithUnit = false,
+                     .values = samples.counterValues.at(column),
+                     .curve = {},
+                     .coefficient = 0.0,
+                     .rmsPercent = 0.0,
+                     .reason = {}});
   }
-  for (std::size_t column = 0; column < m_metricLabels.size(); ++column) {
-    quantities.push_back(FitQuantity {.label = m_metricLabels.at(column),
+  for (std::size_t column = 0; column < samples.metricLabels.size(); ++column) {
+    quantities.push_back(FitQuantity {.label = samples.metricLabels.at(column),
                                       .scalesWithUnit = false,
-                                      .values = m_metricValues.at(column),
+                                      .values = samples.metricValues.at(column),
                                       .curve = {},
                                       .coefficient = 0.0,
                                       .rmsPercent = 0.0,
                                       .reason = {}});
   }
 
-  const auto fit = fitFamily(m_sizes,
+  const auto fit = fitFamily(samples.sizes,
                              std::move(quantities),
-                             m_pendingFamily->bigO,
-                             m_pendingFamily->bigOFun);
-  const std::string familyName = m_pendingFamily->name;
-  const auto timeUnit = m_pendingUnit.value_or(TimeUnit::NANOSECONDS);
-  clearPending();
+                             samples.family->bigO,
+                             samples.family->bigOFun);
+  const std::string familyName = samples.family->name;
+  const auto timeUnit = samples.unit.value_or(TimeUnit::NANOSECONDS);
 
   auto outcome = BenchmarkResult {};
   // FR-022: the fit reports for the family and for no single instance, so the

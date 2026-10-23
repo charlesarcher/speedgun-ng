@@ -7,6 +7,10 @@
 // request, and the two modes that end before any method settles (FR-025,
 // FR-026, SC-04).
 //
+// T036 of specs/028-full-command-line adds the console disclosure line of a
+// run that takes one option from an option file, with and without
+// `--interleave` given (FR-039, FR-040, FR-041).
+//
 // A scripted FakeProvider owns the machine time leaves and one events leaf,
 // so the option effects are read as exact numbers in the captured report and
 // no run can grow into a long calibration. The usage-error cases exit the
@@ -770,7 +774,7 @@ auto main(const int argc, char** argv) -> int
         UsageCase {"--warmup-time=0", "", true},
         UsageCase {"--counter=machine/nosuchleaf", "no such leaf", true},
         UsageCase {"--metric=nosuchmetric", "no metric named", false},
-        UsageCase {"--metric", "unknown option", false}})
+        UsageCase {"--metric", "option '--metric' needs a value", false}})
   {
     std::string output;
     const int status = subprocessOutput(
@@ -1461,6 +1465,80 @@ auto main(const int argc, char** argv) -> int
         "the accepted word leaves --compare to name its own unreadable "
         "document, so the two option values answer separate arms (FR-025, "
         "specs/026 FR-048)");
+
+  // ---- specs/028-full-command-line T036: the console disclosure line ----
+  //
+  // FR-039, FR-040, FR-041 and `contracts/disclosure-and-schema.md`. One
+  // option of the run comes from an option file, so the run prints one line
+  // that opens with the contract's exact words and carries that option in
+  // the `--<name>=<value>` form. `--interleave` given on the command line
+  // adds the `interleave=<seed>` tail behind the entries. The line stands
+  // after the version line and before the first benchmark row (FR-042), so
+  // the row of the run follows it in the same stream.
+  const std::string lead = "options from a file or the environment: ";
+  const std::string optionFile = "harness_cli_options_file.txt";
+  {
+    std::ofstream stream(optionFile);
+    stream << "repetitions=2\n";
+  }
+
+  std::string fromFile;
+  const int fromFileStatus =
+      childRun(self, "arg", {"--options=" + optionFile}, fromFile);
+  const auto disclosed = linesOf(fromFile, lead);
+  if (disclosed.size() != 1) {
+    std::fprintf(stderr,
+                 "the run with --options exited %d with:\n%s\n",
+                 WEXITSTATUS(fromFileStatus),
+                 fromFile.c_str());
+  }
+  check(disclosed.size() == 1
+            && disclosed.front() == lead + "--repetitions=2",
+          "one option taken from an option file prints one line that opens "
+          "with the contract's words and names that option in the "
+          "--<name>=<value> form (FR-039, FR-041)");
+  check(WEXITSTATUS(fromFileStatus) == 0
+            && fromFile.find("BENCHMARK_RAN") != std::string::npos,
+          "the option file is accepted and the run reaches its benchmark "
+          "(FR-029, FR-039)");
+
+  std::string interleaved;
+  const int interleavedStatus = childRun(
+      self, "arg", {"--options=" + optionFile, "--interleave=7"}, interleaved);
+  const auto disclosedTail = linesOf(interleaved, lead);
+  if (disclosedTail.size() != 1) {
+    std::fprintf(stderr,
+                 "the run with --interleave=7 exited %d with:\n%s\n",
+                 WEXITSTATUS(interleavedStatus),
+                 interleaved.c_str());
+  }
+  check(disclosedTail.size() == 1
+            && disclosedTail.front() == lead + "--repetitions=2; interleave=7",
+          "the line of a run that also gives --interleave=7 ends with "
+          "interleave=7 behind the option the file set (FR-039, FR-040)");
+  check(WEXITSTATUS(interleavedStatus) == 0
+            && interleaved.find("BENCHMARK_RAN") != std::string::npos,
+        "the seeded interleave carries the run to its benchmark (FR-051)");
+
+  // FR-040, FR-041: the same two facts stand in the document of a run that
+  // takes one option from a file and gives a seed. The `run` object carries the
+  // seed behind the option that file set.
+  const std::string disclosedPath = "harness_cli_disclosed.json";
+  std::remove(disclosedPath.c_str());
+  captureRun({"--filter",
+              "^bmAlpha$",
+              "--iterations=1",
+              "--options=" + optionFile,
+              "--interleave=7",
+              "--json=" + disclosedPath});
+  std::ifstream document(disclosedPath);
+  std::ostringstream documentText;
+  documentText << document.rdbuf();
+  check(documentText.str().find("\"interleave\":7") != std::string::npos,
+        "the document carries the seed --interleave=7 gave (FR-040)");
+  check(documentText.str().find("\"--repetitions\"") != std::string::npos,
+        "and the option that file set beside that seed (FR-040)");
+  std::remove(disclosedPath.c_str());
 
   std::puts("harness_cli_test: ok");
   return 0;

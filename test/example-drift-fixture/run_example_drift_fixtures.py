@@ -114,13 +114,19 @@ def build_tree(root: Path) -> None:
     (root / "include" / "speedgun-ng" / "barrier.hpp").write_text(
         "auto barrier() -> void;\n"
     )
-    (root / "source" / "harness" / "cli.cpp").write_text(
-        "static option longOptions[] = {\n"
-        "    {\"filter\", required_argument, nullptr, 'f'},\n"
-        "    {\"list\", no_argument, nullptr, 'l'},\n"
-        "    {\"repetitions\", required_argument, nullptr, 'r'},\n"
-        "    {nullptr, 0, nullptr, 0},\n"
-        "};\n"
+    (root / "source" / "harness" / "options.cpp").write_text(
+        "auto optionRows() -> std::span<const OptionRow>\n"
+        "{\n"
+        "  static constexpr auto kRows = std::to_array<OptionRow>({\n"
+        "      {\"filter\", 'f', OptionArgument::REQUIRED, true,\n"
+        "       \"Selects by name\", \"specs/015\"},\n"
+        "      {\"list\", 'l', OptionArgument::NONE, false,\n"
+        "       \"Prints the registry\", \"specs/015\"},\n"
+        "      {\"repetitions\", 'r', OptionArgument::REQUIRED, true,\n"
+        "       \"Sets the repetition count\", \"specs/015\"},\n"
+        "  });\n"
+        "  return kRows;\n"
+        "}\n"
     )
     (root / "README.md").write_text(mini_page())
     (root / "docs" / "pages" / "detail.md").write_text(

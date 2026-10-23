@@ -1,0 +1,26 @@
+case01 |  | 0 | -
+case02 | --help | 0 | -
+case03 | --version | 0 | -
+case04 | --list | 0 | -
+case05 | --catalog | 0 | -
+case06 | --topology | 0 | -
+case07 | --filter=bmRead | 0 | -
+case08 | --filter=nosuch | 0 | no benchmark matches the filter 'nosuch'
+case09 | --repetitions=2 | 0 | -
+case10 | --percentiles | 2 | option '--percentiles' needs a value
+case11 | --no-percentiles | 0 | -
+case12 | --min-time=0.001 | 0 | -
+case13 | --iterations=10 | 0 | -
+case14 | --dry-run | 0 | -
+case15 | --warmup-time=0.001 | 0 | -
+case16 | --metric=nosuch | 2 | --metric nosuch: no metric named 'nosuch' in the event table of this host (FR-#)
+case17 | --counter=/nosuch/leaf | 0 | /nosuch/leaf: no object at path '/nosuch'
+case18 | --nonsense=1 | 2 | unknown option '--nonsense'; --help lists the options
+case19 | --threads=2 | 0 | -
+case20 | --interleave=7 | 0 | -
+case21 | --min-time | 2 | option '--min-time' needs a value
+case22 | --min-time=abc | 2 | --min-time: expected a finite positive number of seconds at most #, got 'abc'
+case23 | -j | 2 | unknown option '-j'; --help lists the options
+case24 | --json=/tmp/sg028_base.json | 0 | -
+case25 | --json=/tmp/sg028_base2.json --repetitions=2 | 0 | -
+case26 | --percentiles --repetitions=2 | 2 | --percentiles: expected comma-separated points in (#, #), got '--repetitions=#'

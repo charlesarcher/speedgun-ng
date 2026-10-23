@@ -1,11 +1,12 @@
 // ============================================================================
-// T019, T025, T028, T032, T042, T044, T061: the compare mode of the regression
-// gate driven through the entry point over the committed fixture documents
-// of test/data (specs/026; FR-006, FR-011, FR-021, FR-024, FR-031, FR-034,
-// FR-039, FR-040, FR-044, FR-045, FR-048, FR-049, FR-051, FR-052, FR-053,
-// FR-054, FR-056, FR-057, FR-058, FR-074, SC-001, SC-002, SC-003, SC-004,
-// SC-005, SC-006, SC-009, SC-013, D-13, D-14, D-19, E-10, spec D-6,
-// spec D-20).
+// T019, T025, T028, T032, T042, T044, T051, T061: the compare mode of the
+// regression gate driven through the entry point over the committed fixture
+// documents of test/data (specs/026; FR-006, FR-011, FR-021, FR-024, FR-031,
+// FR-034, FR-039, FR-040, FR-044, FR-045, FR-048, FR-049, FR-051, FR-052,
+// FR-053, FR-054, FR-056, FR-057, FR-058, FR-074, SC-001, SC-002, SC-003,
+// SC-004, SC-005, SC-006, SC-009, SC-013, D-13, D-14, D-19, E-10, spec D-6,
+// spec D-20) and over the rules files specs/028 puts in front of that mode
+// (FR-061 to FR-065, SC-003, SC-006, spec D-23).
 //
 // The mode reads two documents and answers a verdict, so every case calls
 // `speedgunMain` with the option and reads back both streams it prints
@@ -41,9 +42,19 @@
 // test/data stands the repository root, and `docs/schema/compare-v1.json`
 // under it (D-14).
 //
+// The rules-file cases of T051 write their files the same way, each under a
+// name of its own, and read the printed line back. The fault of a line the
+// rule parser refuses is the file path, the raw line number and the text
+// `sg::parseCompareRule` answers for that very text, joined in that order;
+// the fault of a file the system cannot read is led by the option name and
+// carries the reader's reason (FR-064, FR-065). Line numbers count the raw
+// lines, so a comment and a blank line ahead of a refused rule hold the
+// number the line prints (FR-062).
+//
 // Frameworkless check()/fail() convention.
 // ============================================================================
 
+#include <array>
 #include <cstdio>
 #include <initializer_list>
 #include <sstream>
@@ -72,6 +83,29 @@ constexpr const char* kFirstRunDocument = "harness_compare_cli_first.json";
 constexpr const char* kSecondRunDocument = "harness_compare_cli_second.json";
 constexpr const char* kFitDocument = "harness_compare_cli_fit.json";
 constexpr const char* kPlainDocument = "harness_compare_cli_plain.json";
+
+// One path per rules file, for the same reason (T051, FR-061, FR-062,
+// FR-063, FR-064, FR-065).
+constexpr const char* kThreeRuleFile = "harness_compare_cli_three_rules.txt";
+constexpr const char* kCommentRuleFile =
+    "harness_compare_cli_comment_rules.txt";
+constexpr const char* kCountedRuleFile =
+    "harness_compare_cli_counted_rules.txt";
+constexpr const char* kRefusedRuleFile = "harness_compare_cli_refused_rule.txt";
+constexpr const char* kNestedRuleTarget = "harness_compare_cli_other_rules.txt";
+constexpr const char* kAbsentRuleFile = "harness_compare_cli_absent_rules.txt";
+constexpr const char* kCommandLineRuleFile =
+    "harness_compare_cli_order_file.txt";
+constexpr const char* kOptionFile = "harness_compare_cli_options_file.txt";
+constexpr const char* kOptionFileRuleFile =
+    "harness_compare_cli_option_nested.txt";
+
+// The three rule texts of the rules-file cases, in the order each file
+// writes them: the first bound sits below the pass pair's change, the other
+// two sit above it, so a row's state word reads as the bound of the line
+// that wrote it (T051, FR-061).
+constexpr std::array<const char*, 3> kThreeRuleTexts = {
+    "time@median:lower:1%", "time@median:lower:5%", "time@median:lower:50%"};
 
 // The two streams and the status of one entry-point call.
 struct ModeRun
@@ -154,6 +188,302 @@ auto dump(const char* what, const ModeRun& run) -> void
                run.status,
                run.out.c_str(),
                run.err.c_str());
+}
+
+// One rules file written in the working directory the registered command
+// runs in, beside the two stream captures: the rules-file cases own their
+// own bytes the way the document cases of T044 own theirs. A line written
+// as the empty text stands blank in the file, and every line carries its
+// own end of line (T051, FR-061, FR-062).
+auto writeRulesFile(const char* path,
+                    std::initializer_list<const char*> lines) -> std::string
+{
+  std::string text;
+  for (const char* line : lines) {
+    text += line;
+    text += '\n';
+  }
+  sg::test::writeText(path, text);
+  return std::string(path);
+}
+
+// T051, FR-061, SC-006: `--compare-rules=` reads one rule per line, and the
+// rows follow that line order. Three rules over the fit pair answer six
+// rows: the three of `bmGate` in file order, each carrying the bound its own
+// line wrote, then the three of `bmGateFit` answering `SKIPPED`. The same
+// three rules written as repeated `--compare-rule` options answer the same
+// table byte for byte and the same status, which is what SC-006 states.
+auto threeFileRulesAnswerTheirRowsInLineOrder(const std::string& data) -> void
+{
+  const std::string baseline = data + "/gate_fit_base.json";
+  const std::string contender = data + "/gate_fit_contender.json";
+  const std::string pair = "--compare=" + baseline + "," + contender;
+  const std::string file = writeRulesFile(
+      kThreeRuleFile,
+      {kThreeRuleTexts[0], kThreeRuleTexts[1], kThreeRuleTexts[2]});
+  const ModeRun fromFile = runMode({pair, "--compare-rules=" + file});
+
+  check(fromFile.status == 1,
+        "the file whose first bound sits below the pair's change answers "
+        "status 1 (FR-061, FR-052)");
+  check(fromFile.err.empty(),
+        "a readable rules file prints nothing on standard error (FR-061)");
+
+  const ModeRun fromOptions =
+      runMode({pair,
+               std::string("--compare-rule=") + kThreeRuleTexts[0],
+               std::string("--compare-rule=") + kThreeRuleTexts[1],
+               std::string("--compare-rule=") + kThreeRuleTexts[2]});
+  check(fromOptions.status == fromFile.status,
+        "the rules file and the repeated options answer one status (SC-006)");
+  check(fromFile.out == fromOptions.out,
+        "the rules file and the repeated options answer the same table byte "
+        "for byte (SC-006, FR-061)");
+
+  const std::vector<std::string> lines = linesOf(fromFile.out);
+  if (lines.size() != 9) {
+    dump("the three-rule file over the fit pair", fromFile);
+  }
+  check(lines.size() == 9,
+        "two header lines, the column line and six rows are the whole of the "
+        "output, one row per rule per benchmark of the pair (FR-061, SC-005)");
+  if (lines.size() != 9) {
+    return;
+  }
+  for (std::size_t index = 0; index < kThreeRuleTexts.size(); ++index) {
+    const std::string& row = lines[3 + index];
+    check(row.rfind("bmGate ", 0) == 0
+              && row.find(kThreeRuleTexts[index]) != std::string::npos,
+          "the row of the readable benchmark carries the rule of the file "
+          "line at that position, in the order the file writes them (FR-061)");
+    check(endsWith(row, index == 0 ? "REGRESSED" : "OK"),
+          "the state word of that row answers the bound of the rule its file "
+          "line wrote (FR-061, FR-054)");
+    const std::string& fitRow = lines[6 + index];
+    check(fitRow.rfind("bmGateFit", 0) == 0
+              && fitRow.find(kThreeRuleTexts[index]) != std::string::npos
+              && endsWith(fitRow, "SKIPPED"),
+          "the fit entry answers SKIPPED for the rule of the same file line "
+          "(FR-061, FR-011, spec D-20)");
+  }
+}
+
+// T051, FR-062: a line whose first non-space character is `#` is a comment
+// and a blank line sets no rule, so the table holds the rows of the rules
+// the file spells and nothing else. The same six lines with the last one
+// replaced by a rule the parser refuses answer the fault at line 6: the
+// comment and blank lines count, so the number is the raw line number.
+auto aCommentAndABlankLineSetNoRuleAndHoldTheLineNumber(const std::string& data)
+    -> void
+{
+  const std::string baseline = data + "/gate_ok_base.json";
+  const std::string contender = data + "/gate_ok_contender.json";
+  const std::string pair = "--compare=" + baseline + "," + contender;
+
+  const std::string counted = writeRulesFile(kCountedRuleFile,
+                                             {"# the bounds this gate keeps",
+                                              "",
+                                              kThreeRuleTexts[0],
+                                              "   # indented under nothing",
+                                              "",
+                                              "compare-rules=other.txt"});
+  const ModeRun fault = runMode({pair, "--compare-rules=" + counted});
+  const auto parser = sg::parseCompareRule("compare-rules=other.txt");
+  if (parser.has_value()) {
+    fail("the rule parser reads a nesting line as a rule");
+    return;
+  }
+  const std::vector<std::string> faultLines = linesOf(fault.out + fault.err);
+  if (faultLines.size() != 1) {
+    dump("the refused rule standing at raw line 6", fault);
+  }
+  check(faultLines.size() == 1,
+        "the refused line answers one line and no table (FR-064, SC-003)");
+  if (faultLines.size() != 1) {
+    return;
+  }
+  check(faultLines[0] == counted + ":6: " + parser.error(),
+        "the number in that line counts the comment and the blank lines, so "
+        "it is the raw line number of the refused rule (FR-062, FR-064)");
+
+  const std::string commented = writeRulesFile(kCommentRuleFile,
+                                               {"# the bounds this gate keeps",
+                                                "",
+                                                kThreeRuleTexts[0],
+                                                "   # indented under nothing",
+                                                "",
+                                                kThreeRuleTexts[2]});
+  const ModeRun run = runMode({pair, "--compare-rules=" + commented});
+
+  check(run.status == 1,
+        "the file of two rules and two comments answers the verdict of the "
+        "tighter bound (FR-062, FR-052)");
+  check(run.err.empty(),
+        "a comment line and a blank line answer no fault (FR-062)");
+  const std::vector<std::string> lines = linesOf(run.out);
+  if (lines.size() != 5) {
+    dump("the file with a comment and a blank line", run);
+  }
+  check(lines.size() == 5,
+        "the comment lines and the blank lines set no rule, so two rows stand "
+        "beside the three header lines (FR-062, SC-005)");
+  if (lines.size() != 5) {
+    return;
+  }
+  check(lines[3].rfind("bmGate ", 0) == 0
+            && lines[3].find(kThreeRuleTexts[0]) != std::string::npos
+            && endsWith(lines[3], "REGRESSED"),
+          "the first row answers the rule of the first rule line (FR-061, "
+          "FR-062)");
+  check(lines[4].rfind("bmGate ", 0) == 0
+            && lines[4].find(kThreeRuleTexts[2]) != std::string::npos
+            && endsWith(lines[4], "OK"),
+          "the second row answers the rule of the second rule line, past the "
+          "comment and the blank line between them (FR-061, FR-062)");
+}
+
+// T051, FR-061, FR-064, SC-003: a rules file holds rules alone. The line
+// `compare-rules=other.txt` names a file that stands readable and carries
+// one good rule, and the reader answers no table for it: the line reaches
+// the rule parser, which refuses it, and the printed line is the file, the
+// line number and the parser's own text for that text, joined in that order
+// at status 2.
+auto aRulesLineNamingAnotherFileAnswersTheParserFault(const std::string& data)
+    -> void
+{
+  const std::string baseline = data + "/gate_ok_base.json";
+  const std::string contender = data + "/gate_ok_contender.json";
+  const std::string pair = "--compare=" + baseline + "," + contender;
+
+  const std::string target =
+      writeRulesFile(kNestedRuleTarget, {kThreeRuleTexts[2]});
+  const std::string nesting = "compare-rules=" + target;
+  const std::string refused =
+      writeRulesFile(kRefusedRuleFile, {nesting.c_str()});
+  const ModeRun run = runMode({pair, "--compare-rules=" + refused});
+
+  const auto parser = sg::parseCompareRule(nesting);
+  if (parser.has_value()) {
+    fail("the rule parser reads a nesting line as a rule");
+    return;
+  }
+
+  check(run.status == 2,
+        "a rules line that names another file answers status 2 (FR-061, "
+        "FR-064, SC-003)");
+  const std::vector<std::string> lines = linesOf(run.out + run.err);
+  if (lines.size() != 1) {
+    dump("the rules line that names another file", run);
+  }
+  check(lines.size() == 1,
+        "the refused line answers exactly one line (FR-064, SC-003)");
+  if (lines.size() != 1) {
+    return;
+  }
+  check(lines[0] == refused + ":1: " + parser.error(),
+        "that line names the file, the line number and the fault the rule "
+        "parser itself answers for that text (FR-064)");
+  check(run.out.find("benchmark") == std::string::npos
+            && run.out.find("iterations=") == std::string::npos,
+        "the refused line prints no table and runs no benchmark (SC-003, "
+        "SC-005)");
+}
+
+// T051, FR-065: a rules file the system cannot read answers one line led by
+// the option name, naming the path and the reason the open answered, at
+// status 2. The path stands in the line as the option spelled it.
+auto anUnreadableRulesFileNamesThePathAndItsReason(const std::string& data)
+    -> void
+{
+  const std::string baseline = data + "/gate_ok_base.json";
+  const std::string contender = data + "/gate_ok_contender.json";
+  const std::string pair = "--compare=" + baseline + "," + contender;
+  const std::string absent = kAbsentRuleFile;
+  const ModeRun run = runMode({pair, "--compare-rules=" + absent});
+
+  check(run.status == 2,
+        "a rules file the system cannot read answers status 2 (FR-065, "
+        "SC-003)");
+  const std::vector<std::string> lines = linesOf(run.out + run.err);
+  if (lines.size() != 1) {
+    dump("the rules file the system cannot read", run);
+  }
+  check(lines.size() == 1,
+        "the unreadable rules file answers exactly one line (FR-065, SC-003)");
+  if (lines.size() != 1) {
+    return;
+  }
+  const std::string lead =
+      "--compare-rules: the file '" + absent + "' cannot be opened: ";
+  check(lines[0].rfind(lead, 0) == 0,
+        "that line carries the option name, the path and the open the system "
+        "refused, in the shape the contract states (FR-065)");
+  check(lines[0].size() > lead.size(),
+        "the line names the reason the open answered (FR-065)");
+  check(run.out.find("benchmark") == std::string::npos
+            && run.out.find("iterations=") == std::string::npos,
+        "the unreadable rules file prints no table and runs no benchmark "
+        "(SC-003, SC-005)");
+}
+
+// T051, FR-063, spec D-23: rules combine across the four places a rule can
+// stand and no source replaces another. The order is the `--compare-rule`
+// options of the command line, then the file `--compare-rules` names, then
+// the `compare-rule` line of the `--options` file, then the file that a
+// `compare-rules` line of that option file names. Four bounds of one
+// benchmark answer four rows in that order.
+auto rulesFromTheFourPlacesAnswerRowsInThatOrder(const std::string& data)
+    -> void
+{
+  // The fail pair carries a nine percent change, so all four bounds of this
+  // case sit below it and every row answers `REGRESSED`. The pass pair
+  // changes by three percent, which would leave the two wider bounds of the
+  // list standing at `OK` (FR-063).
+  const std::string baseline = data + "/gate_fail_base.json";
+  const std::string contender = data + "/gate_fail_contender.json";
+  const std::string pair = "--compare=" + baseline + "," + contender;
+
+  const std::string commandFile =
+      writeRulesFile(kCommandLineRuleFile, {"time@median:lower:2%"});
+  const std::string nestedFile =
+      writeRulesFile(kOptionFileRuleFile, {"time@median:lower:4%"});
+  const std::string optionFile =
+      writeRulesFile(kOptionFile,
+                     {"compare-rule=time@median:lower:3%",
+                      ("compare-rules=" + nestedFile).c_str()});
+
+  const ModeRun run = runMode({pair,
+                               "--compare-rule=time@median:lower:1%",
+                               "--compare-rules=" + commandFile,
+                               "--options=" + optionFile});
+
+  check(run.status == 1,
+        "four bounds all sitting below the pair's change answer status 1 "
+        "(FR-063, FR-052)");
+  check(run.err.empty(),
+        "rules gathered from the four places print no fault (FR-063)");
+  const std::vector<std::string> lines = linesOf(run.out);
+  if (lines.size() != 7) {
+    dump("the four places of one rule list", run);
+  }
+  check(lines.size() == 7,
+        "every source contributes its rule, so four rows stand beside the "
+        "three header lines and no source replaces another (FR-063)");
+  if (lines.size() != 7) {
+    return;
+  }
+  const std::array<const char*, 4> kOrder = {"time@median:lower:1%",
+                                             "time@median:lower:2%",
+                                             "time@median:lower:3%",
+                                             "time@median:lower:4%"};
+  for (std::size_t index = 0; index < kOrder.size(); ++index) {
+    const std::string& row = lines[3 + index];
+    check(row.rfind("bmGate ", 0) == 0
+              && row.find(kOrder[index]) != std::string::npos
+              && endsWith(row, "REGRESSED"),
+          "the row at that position carries the rule of the source at that "
+          "position of the order spec D-23 states (FR-063)");
+  }
 }
 
 // The pass pair: status 0, the header of FR-056, and one `OK` row whose
@@ -935,6 +1265,11 @@ auto main(const int argc, char** argv) -> int
   aMissingContenderAnswersTheLoadFault(data);
   anInvalidBatchFilterAnswersTheFilterFault(data);
   aFullDeviceRefusesTheWrittenDocument(data);
+  threeFileRulesAnswerTheirRowsInLineOrder(data);
+  aCommentAndABlankLineSetNoRuleAndHoldTheLineNumber(data);
+  aRulesLineNamingAnotherFileAnswersTheParserFault(data);
+  anUnreadableRulesFileNamesThePathAndItsReason(data);
+  rulesFromTheFourPlacesAnswerRowsInThatOrder(data);
 
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

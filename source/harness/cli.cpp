@@ -1,26 +1,24 @@
 #include <algorithm>
 #include <atomic>
-#include <cctype>
-#include <cerrno>
-#include <cmath>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <expected>
-#include <limits>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <regex>
 #include <string>
 #include <string_view>
 #include <vector>
 
-#include <getopt.h>
+#include <sched.h>
+#include <unistd.h>
 
 #include "detail/compare.hpp"
 #include "detail/internal.hpp"
 #include "detail/json_report.hpp"
+#include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
@@ -39,142 +37,9 @@ void handleInterrupt(const int) noexcept
   detail::interruptFlag().store(true);
 }
 
-// The largest whole number of seconds whose nanoseconds fit the signed
-// count the run control carries.
-constexpr std::int64_t kMaxWholeSeconds =
-    std::numeric_limits<std::int64_t>::max() / 1'000'000'000;
-
 // FR-020, R-11: the prefix of a disabled instance. The gate is a prefix
 // test on the expanded instance name, and selection is where it stands.
 constexpr std::string_view kDisabledPrefix = "DISABLED_";
-
-// FR-034: an invalid value is a usage error that reports and exits
-// nonzero without running anything. The signed read is deliberate:
-// `strtoull` wraps `-5` to a huge count, so a negative count would
-// parse, run, and hang. The signed read turns it into a usage error
-// that reports (T044).
-// specs/021 FR-021, FR-022: the point list of `--percentiles=`. One
-// element is optional spaces, one or more digits, an optional point with
-// digits after it, and optional spaces; it stands in the open interval
-// (0, 100). A list holds at least one element and at most
-// kMaxPercentilePoints of them. The shape is checked by hand rather than
-// left to `strtod`, which reads `.5` and `50.` as numbers and a trailing
-// space as the end of the element.
-constexpr std::size_t kMaxPercentilePoints = 16;
-
-// specs/026 FR-048, FR-049, FR-045: the value each compare option answers
-// from `getopt_long`. A long option with no letter of its own takes a number
-// of 256 or more, so it cannot collide with a short option. The number 256
-// belongs to the metric method option of the counters feature.
-constexpr int kCompareOptionValue = 257;
-constexpr int kCompareRuleOptionValue = 258;
-constexpr int kCompareStrictOptionValue = 259;
-
-[[noreturn]] auto rejectPercentileList(const char* option,
-                                       const char* text) -> void
-{
-  std::fprintf(stderr,
-               "%s: expected comma-separated points in (0, 100), got '%s'\n",
-               option,
-               text);
-  std::exit(2);
-}
-
-auto parsePercentileList(const char* text,
-                         const char* option,
-                         std::vector<double>& points) -> void
-{
-  const char* at = text;
-  bool more = true;
-  while (more) {
-    while (std::isspace(static_cast<unsigned char>(*at)) != 0) {
-      ++at;
-    }
-    const char* const begin = at;
-    while (std::isdigit(static_cast<unsigned char>(*at)) != 0) {
-      ++at;
-    }
-    const bool hasInteger = at != begin;
-    bool shaped = true;
-    if (*at == '.') {
-      ++at;
-      const char* const afterPoint = at;
-      while (std::isdigit(static_cast<unsigned char>(*at)) != 0) {
-        ++at;
-      }
-      shaped = at != afterPoint;
-    }
-    while (std::isspace(static_cast<unsigned char>(*at)) != 0) {
-      ++at;
-    }
-    points.push_back(std::strtod(begin, nullptr));
-    const double point = points.back();
-    if (!shaped || !hasInteger || (*at != '\0' && *at != ',') || point <= 0.0
-        || point >= 100.0 || points.size() > kMaxPercentilePoints)
-    {
-      rejectPercentileList(option, text);
-    }
-    more = *at == ',';
-    if (more) {
-      ++at;
-    }
-  }
-}
-
-auto parseCount(const char* text, const char* option) -> std::uint64_t
-{
-  errno = 0;
-  char* end = nullptr;
-  const long long value = std::strtoll(text, &end, 10);
-  if (errno != 0 || end == text || *end != '\0' || value <= 0) {
-    std::fprintf(
-        stderr, "%s: expected a positive integer, got '%s'\n", option, text);
-    std::exit(2);
-  }
-  return static_cast<std::uint64_t>(value);
-}
-
-auto parseSeconds(const char* text, const char* option) -> std::int64_t
-{
-  errno = 0;
-  char* end = nullptr;
-  const double seconds = std::strtod(text, &end);
-  if (errno != 0 || end == text || *end != '\0' || seconds < 0.0
-      || !std::isfinite(seconds)
-      || seconds > static_cast<double>(kMaxWholeSeconds))
-  {
-    std::fprintf(
-        stderr,
-        "%s: expected a finite number of seconds at most %lld, got " "'%s'\n",
-        option,
-        static_cast<long long>(kMaxWholeSeconds),
-        text);
-    std::exit(2);
-  }
-  return static_cast<std::int64_t>(seconds * 1'000'000'000.0);
-}
-
-// FR-034 with the option table of contracts/cli.md: the min-time option
-// takes a positive count of seconds, where the warmup-time option admits zero.
-auto parsePositiveSeconds(const char* text, const char* option) -> std::int64_t
-{
-  errno = 0;
-  char* end = nullptr;
-  const double seconds = std::strtod(text, &end);
-  if (errno != 0 || end == text || *end != '\0' || !(seconds > 0.0)
-      || !std::isfinite(seconds)
-      || seconds > static_cast<double>(kMaxWholeSeconds))
-  {
-    std::fprintf(stderr,
-                 "%s: expected a finite positive number of seconds at most "
-                 "%lld, got '%s'\n",
-                 option,
-                 static_cast<long long>(kMaxWholeSeconds),
-                 text);
-    std::exit(2);
-  }
-  return static_cast<std::int64_t>(seconds * 1'000'000'000.0);
-}
 
 // The batch filter pattern of FR-024 and FR-050, compiled once for either
 // path to read: the expression the option names, no pattern when the option
@@ -194,25 +59,46 @@ auto compileFilterPattern(const std::string& pattern)
   }
 }
 
-// specs/024 FR-023, FR-026, research D-09: the word of `--metric-method`, read
-// against the three words of contracts/metric-method-option.md. The comparison
-// is exact and case-sensitive, so `Auto` is a fourth word, and the reader
-// answers with nothing for one of those: the entry point owns the report, so
-// that a refusal returns the usage status and the entry point keeps the
-// process exit.
-auto parseMetricMethod(const char* text) -> std::optional<MetricMethod>
+// FR-047: the cpu count the process affinity allows, read for the one line
+// that discloses a count standing above it. The mask stands zeroed before
+// the call and a call the system refuses leaves it as it stands, so the
+// count of a refused call is zero all by itself and the line stands only for
+// a run that asked a count of its own.
+auto affinityCpuCount() -> int
 {
-  const std::string_view word {text};
-  if (word == "auto") {
-    return MetricMethod::AUTO;
+  cpu_set_t affinity {};
+  CPU_ZERO(&affinity);
+  (void)sched_getaffinity(0, sizeof(affinity), &affinity);
+  return CPU_COUNT(&affinity);
+}
+
+// FR-039, FR-040, FR-042: the console line of the settled sources. Every
+// entry names its option in the `--<name>=<value>` form the option table
+// spells, the entries join with `; `, and the tail carries the seed of a run
+// that interleaved. No entry and no seed prints nothing at all, which is the
+// run that took all of its options off the command line (FR-041). The
+// document of the same run carries these facts in its `run` object.
+auto printOptionDisclosure(const std::vector<detail::OptionUse>& uses,
+                           const detail::InterleaveSeed& interleave) -> void
+{
+  std::vector<std::string> parts;
+  for (const detail::OptionUse& use : uses) {
+    parts.push_back("--" + std::string(use.row->name) + "=" + use.value);
   }
-  if (word == "passes") {
-    return MetricMethod::PASSES;
+  if (interleave.given) {
+    parts.push_back("interleave=" + std::to_string(interleave.seed));
   }
-  if (word == "multiplex") {
-    return MetricMethod::MULTIPLEX;
+  if (parts.empty()) {
+    return;
   }
-  return std::nullopt;
+  std::string line = "options from a file or the environment: ";
+  for (std::size_t index = 0; index < parts.size(); ++index) {
+    if (index != 0) {
+      line += "; ";
+    }
+    line += parts[index];
+  }
+  std::printf("%s\n", line.c_str());
 }
 
 }  // namespace
@@ -225,6 +111,11 @@ namespace
 // R-06: one flag for the process. The signal handler sets it, and the
 // runner reads it after each run.
 constinit std::atomic<bool> interruptFlagValue {false};
+
+// specs/028 FR-019, D-2: the prefix of every variable the harness reads.
+// The gather computes each full name from its option row, so this is the
+// one place the prefix is spelled for the process side of the seam.
+constexpr std::string_view kEnvironmentPrefix = "SPEEDGUN_";
 
 }  // namespace
 
@@ -299,6 +190,47 @@ auto metricNameFailure(const std::vector<std::string>& names) -> int
   return 0;
 }
 
+// The row one entry of the process environment carries, or no row when the
+// entry holds no `=` or names nothing the `SPEEDGUN_` prefix covers. The
+// split of one entry stands apart from the walk of the array so the shape of
+// a single entry is the seam a test reads (FR-021, FR-026).
+auto environmentRowOf(std::string_view entry) -> std::optional<EnvironmentRow>
+{
+  const std::size_t cut = entry.find('=');
+  if (cut == std::string_view::npos) {
+    return std::nullopt;
+  }
+  const std::string_view name = entry.substr(0, cut);
+  if (!name.starts_with(kEnvironmentPrefix)) {
+    return std::nullopt;
+  }
+  return EnvironmentRow {std::string(name), std::string(entry.substr(cut + 1))};
+}
+
+// specs/028 FR-019, FR-026, D-04: the process environment reaches the
+// gather as data, so `environ` is read once here at the entry point and
+// nowhere else in the library. The rows carry the `SPEEDGUN_*` names with
+// the text each holds, and a name no flagged row claims travels along to
+// be ignored by the gather (FR-026). The sources test reads the split of one
+// entry through `environmentRowOf` and calls this walk once against the
+// running process, while the end-to-end inheritance check execs a built
+// binary with an explicit environment array (FR-012).
+auto environmentRows() -> std::vector<EnvironmentRow>
+{
+  std::vector<EnvironmentRow> rows;
+  // The platform hands every process a NULL-terminated array, so the walk
+  // is pointer arithmetic by construction and needs no null check of its
+  // own, the way the platform's own `getenv` walks it.
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  for (char* const* entry = environ; *entry != nullptr; ++entry) {
+    if (const auto row = environmentRowOf(*entry)) {
+      rows.push_back(*row);
+    }
+  }
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  return rows;
+}
+
 }  // namespace detail
 
 /**
@@ -338,174 +270,74 @@ auto speedgunMain(int argc, char** argv) -> int
   // refusal kind while the benchmark still runs (FR-023, SC-008).
   (void)sys.registerProvider(std::make_unique<counters::PmuProvider>());
 
-  detail::RunOptions options;
-  // The scanner carries no short letters, so the long-only option answers a
-  // value outside the letter range: no option a later feature adds can reach
-  // the same switch arm by claiming a letter.
-  constexpr int kMetricMethodOption = 256;
-  static option longOptions[] = {
-      {"filter", required_argument, nullptr, 'f'},
-      {"list", no_argument, nullptr, 'l'},
-      {"repetitions", required_argument, nullptr, 'r'},
-      {"min-time", required_argument, nullptr, 'm'},
-      {"iterations", required_argument, nullptr, 'i'},
-      {"warmup-time", required_argument, nullptr, 'w'},
-      {"dry-run", no_argument, nullptr, 'd'},
-      {"counter", required_argument, nullptr, 'c'},
-      {"metric", required_argument, nullptr, 'M'},
-      {"catalog", no_argument, nullptr, 'C'},
-      {"percentiles", required_argument, nullptr, 'p'},
-      {"no-percentiles", no_argument, nullptr, 'P'},
-      {"placement", required_argument, nullptr, 'A'},
-      {"topology", no_argument, nullptr, 'T'},
-      {"json", required_argument, nullptr, 'j'},
-      {"json-raw", required_argument, nullptr, 'J'},
-      // specs/026 FR-048, FR-049, FR-045: the three options of the
-      // regression gate. The mode stands off until `--compare` names a
-      // baseline.
-      {"compare", required_argument, nullptr, kCompareOptionValue},
-      {"compare-rule", required_argument, nullptr, kCompareRuleOptionValue},
-      {"compare-strict", no_argument, nullptr, kCompareStrictOptionValue},
-      {"metric-method", required_argument, nullptr, kMetricMethodOption},
-      {nullptr, 0, nullptr, 0},
-  };
-
-  int choice = 0;
-  // The option scanner keeps process state, and a suite can call the
-  // entry point more than once (a test does), so the scan restarts here.
-  optind = 0;
-  while ((choice = getopt_long(argc, argv, "", longOptions, nullptr)) != -1) {
-    switch (choice) {
-      case 'f':
-        options.filter = optarg;
-        break;
-      case 'l':
-        options.listMode = true;
-        break;
-      case 'r':
-        options.repetitions = parseCount(optarg, "--repetitions");
-        break;
-      case 'm':
-        options.minTimeNs = parsePositiveSeconds(optarg, "--min-time");
-        break;
-      case 'i':
-        options.fixedIterations = parseCount(optarg, "--iterations");
-        break;
-      case 'w':
-        options.warmupTimeNs = parseSeconds(optarg, "--warmup-time");
-        break;
-      case 'd':
-        options.dryRun = true;
-        break;
-      case 'c':
-        options.counterAddresses.emplace_back(optarg);
-        break;
-      case 'M':
-        options.metricNames.emplace_back(optarg);
-        break;
-      case 'C':
-        options.catalogMode = true;
-        break;
-      case 'p':
-        // specs/021 FR-020, FR-021: the command line wins over the family.
-        options.showPercentiles = true;
-        parsePercentileList(optarg, "--percentiles", options.percentilePoints);
-        break;
-      case 'P':
-        options.showPercentiles = false;
-        break;
-      case 'A':
-        // specs/025 FR-016: the text stands raw here; the parse below
-        // runs it once before the first run.
-        options.placement = std::string(optarg);
-        break;
-      case 'T':
-        options.topologyMode = true;
-        break;
-      case 'j':
-        // FR-030: an empty path is a usage error, and it reports before
-        // anything runs.
-        if (std::string_view(optarg).empty()) {
-          std::fprintf(stderr,
-                       "--json: the path the option names stands " "empty\n");
-          return 2;
-        }
-        options.jsonPath = optarg;
-        break;
-      case 'J':
-        // FR-029: `chunks` is the one content the option names besides
-        // `none`; any other word is a usage error (FR-034).
-        if (std::string_view(optarg) == "chunks") {
-          options.rawContent = RawContent::CHUNKS;
-        } else if (std::string_view(optarg) == "none") {
-          options.rawContent = RawContent::NONE;
-        } else {
-          std::fprintf(stderr, "--json-raw: 'chunks' and 'none' are the "
-                               "values the option names\n");
-          return 2;
-        }
-        break;
-      case kMetricMethodOption: {
-        // specs/024 FR-025, FR-026: the word is the method the run is asked
-        // for and wins over the family's own request the way `--percentiles`
-        // wins over `showPercentiles`; the assignment overwrites, so a
-        // repeated flag keeps its last word. A word outside the three ends the
-        // run here, before the expansion, the listing and the first
-        // measurement, so a typo costs no measured time.
-        const auto method = parseMetricMethod(optarg);
-        if (!method.has_value()) {
-          std::fprintf(
-              stderr,
-              "--metric-method '%s' is not auto, passes or multiplex\n",
-              optarg);
-          return 2;
-        }
-        options.metricMethod = method;
-        break;
-      }
-      case kCompareOptionValue: {
-        // specs/026 FR-048: the text is the two report paths split at the
-        // first comma. A missing comma or an empty side is a usage fault:
-        // one line naming the option and the text read, status 2 (FR-051).
-        const std::string_view pair = optarg;
-        const std::size_t comma = pair.find(',');
-        if (comma == std::string_view::npos || comma == 0
-            || comma + 1 == pair.size())
-        {
-          std::fprintf(
-              stderr,
-              "--compare: expected '<baseline>,<contender>', got " "'%s'\n",
-              optarg);
-          return 2;
-        }
-        options.compareBaseline = std::string(pair.substr(0, comma));
-        options.compareContender = std::string(pair.substr(comma + 1));
-        break;
-      }
-      case kCompareRuleOptionValue: {
-        // specs/026 FR-049: one rule per option, in the order given. The
-        // parse call names the field of its fault and the text it read, so
-        // the line below adds the option and nothing else (FR-051).
-        const auto rule = parseCompareRule(optarg);
-        if (!rule.has_value()) {
-          std::fprintf(stderr, "--compare-rule: %s\n", rule.error().c_str());
-          return 2;
-        }
-        options.compareRules.push_back(std::move(*rule));
-        break;
-      }
-      case kCompareStrictOptionValue:
-        // specs/026 FR-045: a NOISY row fails the run; the state word
-        // stands as printed.
-        options.compareStrict = true;
-        break;
-      default:
-        std::fprintf(stderr, "unknown option; see the option table of "
-                             "specs/015-benchmark-harness-core/contracts/"
-                             "cli.md\n");
-        return 2;
-    }
+  // specs/028 FR-002, FR-010, FR-011, SC-013: the scan stands behind
+  // its own seam and reads the one option table, so the entry point
+  // holds no option list of its own. It applies what the scan answers,
+  // and the fault the scan hands back is one line on standard error at
+  // status 2, which is how the entry point ends the run.
+  auto scan = detail::scanCommandLine(argc, argv);
+  if (!scan.has_value()) {
+    std::fprintf(stderr, "%s\n", scan.error().c_str());
+    return 2;
   }
+
+  // specs/028 FR-017, FR-018: the scan records the first of `--help`,
+  // `--version` or a usage fault that its walk meets, so the word that
+  // stands first is the word that answers. Both print options write on
+  // standard output and end the run at status 0, ahead of the filter
+  // compile, the placement parse and the run loop.
+  if (scan->stop == detail::StopKind::HELP) {
+    detail::printHelp();
+    return 0;
+  }
+  if (scan->stop == detail::StopKind::VERSION) {
+    detail::printVersion();
+    return 0;
+  }
+
+  // specs/028 FR-019 to FR-028, FR-037, SC-002: the environment reaches
+  // the run through the gather, which settles every option at the value
+  // of the highest source that named it. The gather reads no process
+  // environment and opens no file, so the rows are read once here (D-04,
+  // D-05). The fault the gather hands back is one line on standard error at
+  // status 2, the shape the scan fault above uses, and it stands ahead of
+  // the filter compile, the placement parse and the run loop (SC-003).
+  std::vector<detail::EnvironmentRow> environment;
+  if (!scan->options.environmentOff) {
+    environment = detail::environmentRows();
+  }
+
+  // specs/028 FR-029, FR-034, D-05: the entry point owns the read of the
+  // option file and hands the gather the text as data. A file the system
+  // refused is one line naming the path and the reason the open answered,
+  // at status 2, ahead of the filter compile, the placement parse and the
+  // run loop (SC-003, SC-013).
+  std::optional<detail::OptionFileText> optionFile;
+  if (!scan->options.optionsFile.empty()) {
+    const auto text = detail::readTextFile(scan->options.optionsFile);
+    if (!text.has_value()) {
+      std::fprintf(stderr, "--options: %s\n", text.error().c_str());
+      return 2;
+    }
+    optionFile = detail::OptionFileText {
+        scan->options.optionsFile,
+        std::move(*text),
+    };
+  }
+
+  const auto resolved = detail::gatherOptionSources(
+      *scan, environment, optionFile, &detail::readCompareRulesFile);
+  if (!resolved.has_value()) {
+    std::fprintf(stderr, "%s\n", resolved.error().c_str());
+    return 2;
+  }
+
+  detail::RunOptions options = std::move(resolved->options);
+
+  // specs/028 FR-063, spec D-23: the compare mode reads the settled list,
+  // which carries the rules of every source in the order spec D-23 states,
+  // where the words of the command line alone no longer stand (FR-061).
+  options.compareRules = std::move(resolved->rules);
 
   // specs/026 FR-024, FR-050, FR-051: the batch filter is compiled while
   // the scan is all that has happened, so an invalid pattern answers one
@@ -565,6 +397,20 @@ auto speedgunMain(int argc, char** argv) -> int
     return 0;
   }
 
+  // specs/028 FR-044, FR-048, FR-050, SC-004, D-14: the settled counts
+  // reach every family record here, ahead of the expansion that crosses
+  // the argument lists with the counts at `family.cpp:404` and `:425`, so
+  // the option applies whatever thread call the family made and the names
+  // follow the master rule at `family.cpp:246`: no `/threads:` segment at
+  // one count, the segment above one. An empty list means no source named
+  // the option, and the registered counts stand. The loop runs once per
+  // family before any measurement, far outside the timed run loop.
+  if (!options.threadCounts.empty()) {
+    for (auto& entry : registry()) {
+      entry->threadCounts = options.threadCounts;
+    }
+  }
+
   // FR-003, R-03: expansion completes here, before the filter and
   // before the first run, so a run carries no expansion work.
   detail::expandRegistry(processPreset);
@@ -617,6 +463,24 @@ auto speedgunMain(int argc, char** argv) -> int
   std::signal(SIGINT, handleInterrupt);
   detail::printContext(fitOutcome.second);
 
+  // FR-047: a count above the affinity count runs, and the console discloses
+  // it in one line naming the option and the count. The line stands below
+  // the version line of the context block and above the first row.
+  int widest = 0;
+  for (const int count : options.threadCounts) {
+    widest = std::max(widest, count);
+  }
+  if (widest > affinityCpuCount()) {
+    std::printf("--threads=%d stands above the %d cpus the affinity allows\n",
+                widest,
+                affinityCpuCount());
+  }
+
+  // FR-039, FR-040, FR-042: the settled sources disclose themselves here,
+  // after the version line of the context block and before the first row of
+  // the run.
+  printOptionDisclosure(resolved->uses, resolved->interleave);
+
   int status = 0;
   // The two run-wide flags are read by the postcondition below, which the
   // default semantic compiles away, so a consumer build needs the marker.
@@ -627,26 +491,58 @@ auto speedgunMain(int argc, char** argv) -> int
   // nothing on its way to the file (FR-005).
   ReportData report;
   detail::Runner runner(options);
+  // specs/028 FR-051, FR-055, D-12: the order the run walks. A seeded run
+  // walks the selected instances in the order `detail::shuffledOrder`
+  // answers, and every other run walks them in the order they registered.
+  // The order settles here, before the first measurement, so the walk costs
+  // the loop below nothing.
+  const bool interleaved = resolved->interleave.given;
+  std::vector<std::size_t> walk(selected.size());
+  std::iota(walk.begin(), walk.end(), std::size_t {0});
+  if (interleaved) {
+    walk = detail::shuffledOrder(selected.size(), resolved->interleave.seed);
+  }
+
+  // FR-056, FR-057: a shuffled run holds the row of each instance beside the
+  // raw columns of the run that made them, and prints what it holds after the
+  // walk. The entry of an instance the walk never reached stays empty.
+  struct HeldRow
+  {
+    BenchmarkResult result;
+    std::vector<RowRaw> raw;
+    std::vector<std::vector<RowRaw>> contextRaw;
+  };
+
+  std::vector<std::optional<HeldRow>> held(selected.size());
   // The loop variable keeps the spelling `entry`: `test/cli_shape.sh`
   // locates this loop by the `runner.run(*entry)` line and reads the
   // flag exactly once inside it.
-  for (auto* entry : selected) {
+  for (const std::size_t position : walk) {
+    auto* entry = selected[position];
     // FR-022, FR-023: the complexity fit of the family that ended prints
     // between the rows of two families, after every row of the family it
-    // summarizes.
-    if (const auto fit = runner.fitForFamilyEnd(entry)) {
-      detail::printResult(*fit);
-      // FR-002: a fit stands as its own entry of the document, beside
-      // the entries of the runs it summarizes.
-      report.results.push_back(*fit);
-      report.rowRaw.emplace_back();
-      report.contextRaw.emplace_back();
+    // summarizes. A shuffled run holds its fits for the print pass, where a
+    // family ends at its last row in registration order (FR-056).
+    if (!interleaved) {
+      if (const auto fit = runner.fitForFamilyEnd(entry)) {
+        detail::printResult(*fit);
+        // FR-002: a fit stands as its own entry of the document, beside
+        // the entries of the runs it summarizes.
+        report.results.push_back(*fit);
+        report.rowRaw.emplace_back();
+        report.contextRaw.emplace_back();
+      }
     }
     const auto result = runner.run(*entry);
-    detail::printResult(result);
-    report.results.push_back(result);
-    report.rowRaw.push_back(runner.rowRaw().back());
-    report.contextRaw.push_back(runner.contextRaw().back());
+    if (interleaved) {
+      held[position] =
+          HeldRow {result, runner.rowRaw().back(), runner.contextRaw().back()};
+    } else {
+      detail::printResult(result);
+      report.results.push_back(result);
+      report.rowRaw.push_back(runner.rowRaw().back());
+      report.contextRaw.push_back(runner.contextRaw().back());
+    }
     // FR-036: the flag is read once per pass, so the status update, the
     // per-pass check and the break all see one instant of the flag.
     const bool interrupted = detail::interruptFlag().load();
@@ -667,8 +563,43 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
+  // FR-056, FR-057: the held rows print after the walk in registration
+  // order, and the fit of a family follows the last held row of that family.
+  // The rows an interrupted run holds are those of the instances its walk
+  // reached, in the same order.
+  if (interleaved) {
+    const auto endsFamily = [&selected, &held](const std::size_t index)
+    {
+      for (std::size_t later = index + 1; later < selected.size(); ++later) {
+        if (held[later].has_value()) {
+          return selected[later]->family != selected[index]->family;
+        }
+      }
+      return true;
+    };
+    for (std::size_t index = 0; index < selected.size(); ++index) {
+      const auto& row = held[index];
+      if (!row.has_value()) {
+        continue;
+      }
+      detail::printResult(row->result);
+      report.results.push_back(row->result);
+      report.rowRaw.push_back(row->raw);
+      report.contextRaw.push_back(row->contextRaw);
+      if (endsFamily(index)) {
+        if (const auto fit = runner.fitForFamily(selected[index]->family)) {
+          detail::printResult(*fit);
+          report.results.push_back(*fit);
+          report.rowRaw.emplace_back();
+          report.contextRaw.emplace_back();
+        }
+      }
+    }
+  }
+
   // FR-022: the run is over, so the fit of the last family prints after its
-  // rows.
+  // rows. The print pass answered every family a shuffled run ran, so this
+  // answers nothing for such a run.
   if (const auto fit = runner.fitForFamilyEnd(nullptr)) {
     detail::printResult(*fit);
     report.results.push_back(*fit);
@@ -681,7 +612,15 @@ auto speedgunMain(int argc, char** argv) -> int
   // outranks the 1 a failed benchmark leaves.
   [[maybe_unused]] bool reportFailed = false;
   if (!options.jsonPath.empty()) {
-    if (!detail::writeReport(options.jsonPath, report)) {
+    // specs/028 FR-039, FR-040: the document carries the same facts the
+    // console line carries. A disclosure naming no use and no seed writes no
+    // `run` key at all (FR-041).
+    std::optional<std::uint64_t> seed;
+    if (resolved->interleave.given) {
+      seed = resolved->interleave.seed;
+    }
+    const detail::RunDisclosure disclosure {resolved->uses, seed};
+    if (!detail::writeReport(options.jsonPath, report, disclosure)) {
       reportFailed = true;
       status = 2;
     }
