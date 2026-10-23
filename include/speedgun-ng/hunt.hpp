@@ -86,12 +86,10 @@ enum class HuntRank : std::uint8_t
  *
  * A budget of `120s` is `{SECONDS, 120}` and `8p` is `{PASSES, 8}`;
  * a value with no suffix is refused by the CLI before this record
- * exists, so the kind is never a default the caller forgot.
- *
- * \pre `amount` is greater than zero
- * \post the record states the budget in the unit the caller named,
- *       and no conversion to the other unit happens here
- * \invariant `amount` above zero
+ * exists, so the kind is never a default the caller forgot. The
+ * record is data: `amount` is the figure the caller named and `kind`
+ * the unit that figure stands in, and this record converts nothing
+ * from one unit to the other (FR-012).
  */
 struct HuntBudget
 {
@@ -116,12 +114,14 @@ struct HuntBudget
  * CLI refuses a value outside the range its option states before
  * this record exists.
  *
- * \pre `top` stands in 1 to 10000, `repeats` in 1 to 1000, `noise`
- *      above `0.0`, `selection` non-empty
- * \post the record holds exactly one run's settled values; a
- *       default-constructed record is the run `--hunt` names with no
- *       other hunt option (D-1, D-3, D-6 to D-9)
- * \invariant `budget` is empty or holds an `amount` above zero
+ * The record is data: it holds exactly one run's settled values, and
+ * a default-constructed record is the run `--hunt` names with no
+ * other hunt option (D-1, D-3, D-6 to D-9). `top` and `repeats`
+ * carry the counts of the settled run, `noise` the threshold it
+ * compared against, `selection` the text of the run that asked for a
+ * hunt (the empty text marks hunt options that never met `--hunt`),
+ * and `budget` nothing for a run no bound limits or the bound in the
+ * unit its own kind names (FR-012).
  */
 struct HuntOptions
 {
@@ -197,7 +197,8 @@ struct CatalogAddress
  * `Object::counters()`, the walk `catalog.cpp` already performs; no
  * clock and no counter read enter this class (FR-003).
  *
- * \invariant `addresses()` is empty until `expand` succeeds
+ * \invariant the expansion stands empty until `expand` answers no
+ *            error, and a refused selection leaves it empty
  */
 class SPEEDGUN_NG_EXPORT EventCatalog
 {
@@ -206,10 +207,14 @@ public:
    * @brief Expands the selection text into the catalog addresses it
    * selects, in catalog order.
    *
-   * \pre `selection` holds `all`, one glob pattern, or a catalog
-   *      address list whose entries are separated by commas, newlines
-   *      or both; the text of an `@file` arrives as its address lines
-   *      under the same separator rule
+   * The text is what the option carried: `all`, one glob pattern, or
+   * a catalog address list whose entries are separated by commas,
+   * newlines or both; the text of an `@file` arrives as its address
+   * lines under the same separator rule. No shape of that text is a
+   * precondition, because a text outside the three answers a
+   * recoverable error naming the value (FR-004 to FR-006).
+   *
+   * \pre none
    * \post on success `addresses()` holds the selected catalog
    *       addresses in catalog order, deduplicated by address, for
    *       `all` and the pattern in catalog-scan order and for a list
@@ -273,6 +278,12 @@ public:
    *       false for every other device, uncore included (D-1)
    */
   [[nodiscard]] auto isCoreDevice(std::string_view address) const -> bool;
+
+private:
+  /// E-01: the expansion of the last selection that expanded without
+  /// error. One catalog of one hunt run holds its own list, so two live
+  /// catalogs share no expansion and clobber no list of the other.
+  std::optional<std::vector<std::string>> m_addresses;
 };
 
 /**
@@ -369,9 +380,9 @@ struct EventSamples
  * the coefficient of variation as a percent, one hundred times the
  * printed `cv=` ratio of the same samples (I-6).
  *
- * \pre none: the record is data
- * \post `cv` is `0.0` when `samples` is one, and `rank` is empty
- *       when `noisy` is true or `repeated` is false
+ * The record is data: `cv` stands at `0.0` for a record of one
+ * sample, and `rank` stands empty for an entry that is noisy or
+ * unrepeated (I-5, PD-14).
  */
 struct RankedEvent
 {
@@ -422,6 +433,9 @@ struct HuntStageRange
  *
  * The harness run path assembles it from the plan and the stages
  * that ran; it stands empty for a run that carried no hunt (I-8).
+ * The cut reason of a plan that dropped a stage stands on the record,
+ * so the plan line prints what the planner decided. A printer adds no
+ * word of its own.
  */
 struct RunHunt
 {
@@ -434,6 +448,13 @@ struct RunHunt
   std::vector<HuntStageRange> stages;
   std::size_t ranEvents = 0;
   std::size_t stageTwoEvents = 0;
+  // specs/029 D-2, FR-013, E-07: the reason `splitStages` recorded for the
+  // stage it dropped (`StageSplit::cutReason`), the word E-07 spells for a
+  // budget that could not hold stage 2. The cut line prints this value.
+  // shortcut: the run assembles the record before it reads the split's
+  // verdict, so the E-07 word stands as the default of a record the run
+  // filled; upgrade when the run copies the split's reason onto the record.
+  std::string cutReason = "over-budget";
 };
 
 /**
@@ -458,8 +479,8 @@ struct RunHunt
  *      for; the `source` index of every entry stands within
  *      `sourceLimits`; `anchors` holds one pair per device in
  *      `sourceLimits` order, a pair of empty strings where the device
- *      lacks `cpu-cycles` or `instructions`; `options` satisfies its
- *      own precondition
+ *      lacks `cpu-cycles` or `instructions`; `options` holds the
+ *      settled values of one run
  * \post `columns` holds one column per entry of `events`, each naming
  *       the two anchors of its own device (I-1); `passes` is the
  *       `planPasses` answer for the columns and `sourceLimits`, so a
@@ -486,7 +507,7 @@ struct RunHunt
  * \invariant `passes` covers every column index exactly once, so no
  *            column stands in two passes
  */
-[[nodiscard]] auto planHunt(
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto planHunt(
     const std::vector<CatalogAddress>& events,
     const std::vector<std::optional<std::size_t>>& sourceLimits,
     const std::vector<std::pair<std::string, std::string>>& anchors,
@@ -501,8 +522,9 @@ struct RunHunt
  * The call is pure: it reads no clock and no counter, and two calls
  * over equal arguments give equal results (I-7, FR-014, D-9).
  *
- * \pre every address in `collected` with no `skipped` kind holds at
- *      least one sample free of a disclosure, the guard
+ * \pre each address stands at most once in `collected`, and every
+ *      address in `collected` with no `skipped` kind holds at least
+ *      one sample free of a disclosure, the guard
  *      `statisticsOf` carries at `runner.cpp:52-55`; an address with
  *      exactly one such sample is reported and never handed to the
  *      summary call, so the deviation assert at `runner.cpp:74-76`
@@ -527,8 +549,9 @@ struct RunHunt
  * \invariant no address repeats in `entries`, and no address repeats
  *            in `skipped`
  */
-[[nodiscard]] auto rankEvents(const std::vector<EventSamples>& collected,
-                              const HuntOptions& options) -> EntryHunt;
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto rankEvents(
+    const std::vector<EventSamples>& collected,
+    const HuntOptions& options) -> EntryHunt;
 
 /**
  * @brief The hunt of one registered entry: plan, collection over the
@@ -536,11 +559,15 @@ struct RunHunt
  *
  * Public in this header (D-15); the `Runner` and `Instance` types it
  * drives behind its definition in `source/harness/hunt.cpp` stay
- * harness internals, and the signature names public types alone.
+ * harness internals, and the signature names public types alone. The
+ * driver that assembles the record keeps `EntryHunt::passCount` equal
+ * to the pass count of the plan that ran, the passes a retry appended
+ * included (PD-12, D-18), and this call adds nothing to it.
  *
- * \pre `options` satisfies its precondition, `benchmark` names a
- *      registered entry, and the harness registered its providers so
- *      the catalog answers
+ * \pre `options` holds the settled values of one run: `top` and
+ *      `repeats` above zero, `noise` above `0.0` and `selection` the
+ *      text `--hunt` named; `benchmark` names a registered entry, and
+ *      the harness registered its providers so the catalog answers
  * \post the plan ran through the existing N6 pass loop, so no second
  *       pass loop and no second counter path exists (D-23, hard rule
  *       15); every event that produced no value stands in `skipped`
@@ -552,12 +579,11 @@ struct RunHunt
  *       that serves warm-up and calibration (spec PC-9); `entries`
  *       covers every planned column, an event that only stage 1
  *       measured holding a record built from its stage 1 samples
- * \invariant `EntryHunt::passCount` equals the pass count of the plan
- *            that ran, counting the passes a retry appended
  */
-[[nodiscard]] auto runHunt(BenchmarkHandle& benchmark,
-                           const HuntOptions& options,
-                           std::optional<std::uint64_t> calibrationNsPerPass)
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto runHunt(
+    BenchmarkHandle& benchmark,
+    const HuntOptions& options,
+    std::optional<std::uint64_t> calibrationNsPerPass)
     -> std::expected<EntryHunt, counters::Error>;
 
 }  // namespace sg::hunt

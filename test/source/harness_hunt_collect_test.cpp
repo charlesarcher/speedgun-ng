@@ -1,7 +1,9 @@
 // ============================================================================
-// The hunt collection runs (specs/029-hunter-core T017; US1;
-// FR-021, FR-022, FR-041, FR-092; AC-2 to AC-4, SC-02 to SC-04; research
-// D-10, D-12, D-18, D-19; data-model E-04 to E-06, E-10).
+// The hunt collection runs (specs/029-hunter-core T017, T036, T071, T073;
+// US1, US2;
+// FR-013, FR-021, FR-022, FR-041, FR-092; AC-2 to AC-4, SC-02 to SC-04,
+// SC-07; research D-2, D-10, D-12, D-18, D-19, PD-13; data-model E-04 to
+// E-08, E-10).
 //
 // The seam is `sg::hunt::runHunt` over the scripted host of
 // `detail/hunt_fixture.hpp`, which publishes the catalog, the anchors and the
@@ -59,8 +61,10 @@ namespace
 {
 
 using sg::hunt::EntryHunt;
+using sg::hunt::HuntBudget;
 using sg::hunt::HuntOptions;
 using sg::hunt::RankedEvent;
+using sg::hunt::RunHunt;
 using sg::hunt::SkippedEvent;
 using sg::hunt::SkippedKind;
 
@@ -77,6 +81,14 @@ constexpr std::size_t kCollectLimit = 6;
 // for and a narrower scripted leaf ceiling refuses exactly that open.
 constexpr std::size_t kWidePassEvents = 4;
 
+// The events the two retry arms select: two passes of four at the scripted
+// limit, so the run reaches a second seat with the first pass measured.
+constexpr std::size_t kRetryPassEvents = 2 * kWidePassEvents;
+
+// The leaves the narrowest retry pass asks for: one event beside the two
+// anchors of its device (D-18).
+constexpr std::size_t kSoloRetryLeaves = 3;
+
 // The windows of the gapped arm: twenty repeats of one column, one of whose
 // windows carries the scripted gap, so nineteen clean windows stand (FR-022).
 constexpr std::size_t kGapRepeats = 20;
@@ -88,6 +100,14 @@ constexpr int kThreadCount = 2;
 // consecutive differences spread wide, so the coefficient of variation of the
 // column clears any threshold the scenario can pick.
 constexpr std::uint64_t kNoisySeed = 1;
+
+// The events the two-stage arm selects: four of them at the scripted limit of
+// six, which one pass seats, so each stage of the run costs one pass run.
+constexpr std::size_t kStageEvents = 4;
+
+// The columns stage 2 re-measures: three times the `--hunt-top=1` the scenario
+// sets, one short of the events it selects (D-2, FR-013).
+constexpr std::size_t kStageTwoColumns = 3;
 
 [[noreturn]] auto fail(const char* what) -> void
 {
@@ -186,10 +206,48 @@ auto optionsFor(std::string selection,
   return options;
 }
 
+// The arming of the two retry arms. `planPasses` seats by first fit, so pass 0
+// carries at least as many leaves of a device as any later pass, and no
+// ceiling fixed before the run refuses a later pass while admitting pass 0 -
+// which pass 0 must keep admitting, because its seat failure is the run's one
+// clean failure (spec PC-9, T071). The scripted group ceiling is a plain
+// member the provider reads at each `open`, so the benchmark body lowers it
+// between the two seats: the runner calls the body once per attempt, and a
+// hunt run fixes one iteration per window with no warm-up and no calibration,
+// so the attempts of the first pass are the first `repeats` calls. Each arm
+// asserts the attempt count its run ends on, so a change to that shape fails
+// the arm, so an arm at the wrong moment cannot pass unseen.
+std::size_t armAfterAttempts = 0;
+std::size_t armedCeiling = 0;
+std::size_t bodyAttempts = 0;
+
+auto armRetryCeilingAfterPass(const std::size_t repeats,
+                              const std::size_t ceiling) -> void
+{
+  armAfterAttempts = repeats;
+  armedCeiling = ceiling;
+}
+
+// The catalog addresses of the first `count` events, the selection of an arm
+// that takes one event per catalog entry from the front.
+auto selectionCount(const std::size_t count) -> std::string
+{
+  std::vector<std::size_t> indexes;
+  for (std::size_t index = 0; index < count; ++index) {
+    indexes.push_back(index);
+  }
+  return selectionOf(indexes);
+}
+
 auto bmHuntBody(sg::State& state) -> void
 {
   for (auto index : state) {
     sg::doNotOptimize(index);
+  }
+  // The retry arms' mid-run arming, stated above `armRetryCeilingAfterPass`.
+  ++bodyAttempts;
+  if (armAfterAttempts != 0 && bodyAttempts == armAfterAttempts) {
+    host->setGroupLeafLimit(sg::test::kHuntCpu, armedCeiling);
   }
 }
 
@@ -626,6 +684,74 @@ auto scenarioAllRefusedHost() -> void
 }
 
 // ---------------------------------------------------------------------------
+// AC-10: the host that opens everything and yields no rate
+// ---------------------------------------------------------------------------
+
+// The events of the arm: three of them seat in one pass at the scripted limit
+// of six, so nothing refuses and every window opens.
+constexpr std::size_t kUnmeasurableEvents = 3;
+
+// The corsairone defect record (`specs/029-hunter-core/results/
+// corsairone-hunt-all.md`): the host opens every window and every event
+// counts, while the anchor of the norm reads zero, so no sample contributes a
+// rate (contracts/hunt-api.md: "a sample whose anchor read zero for its pass
+// contributes no rate"). `rankEvents` refuses to summarise an empty rate list,
+// so the collection path owes the precondition it hands that function; this
+// arm pins the run answering a skipped ranking that states its reason, over
+// the abort the record captured.
+auto scenarioUnmeasurableAnchorSkipsEveryEvent() -> void
+{
+  registerHuntHost(kCollectLimit,
+                   [](sg::counters::FakeProvider& provider) {
+                     provider.setPoints(
+                         sg::test::kHuntCpu, sg::test::kHuntInstr, {0}, 0);
+                   });
+
+  const auto options = optionsFor(selectionCount(kUnmeasurableEvents));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntUnmeasurable");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "the host that yields no rate ends as a record, not as the abort the "
+        "record captured (AC-10)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.entries.size() == kUnmeasurableEvents,
+        "every address whose windows opened still stands as a rank row (E-06)");
+  const bool noRate =
+      std::all_of(hunt.entries.begin(),
+                  hunt.entries.end(),
+                  [](const RankedEvent& entry) { return entry.samples == 0; });
+  check(noRate,
+        "an anchor that never counted leaves no sample for any address to "
+        "summarise");
+  check(hunt.skipped.size() == kUnmeasurableEvents,
+        "an address with no rate carries the skipped entry that states why "
+        "(FR-021, I-4)");
+  const bool allAbsent =
+      std::all_of(hunt.skipped.begin(),
+                  hunt.skipped.end(),
+                  [](const SkippedEvent& skipped)
+                  { return skipped.kind == SkippedKind::ABSENT; });
+  check(allAbsent,
+        "the kind names the denominator that is not there, not a gap the rows "
+        "never show (D-10)");
+  const auto lines = printedLines(*needInstance("bmHuntUnmeasurable"), hunt);
+  check(linesHolding(lines, "hunt: rank ").size() == kUnmeasurableEvents,
+        "the ranking still prints its rows, the way the narrow host runs did");
+  check(linesHolding(lines, "hunt: skipped ").size() == kUnmeasurableEvents,
+        "every address stands beside the reason it ranked nothing, so no "
+        "empty table prints without a word why (AC-10)");
+  check(linesHolding(lines,
+                     "hunt: plan summary events=0/"
+                         + std::to_string(kUnmeasurableEvents))
+                .size()
+            == 1,
+        "the summary reads events=0/N on the host that measured nothing");
+  std::printf("unmeasurable-anchor-skips-every-event: ok\n");
+}
+
+// ---------------------------------------------------------------------------
 // AC-2, SC-02, D-19: the device that publishes no limit
 // ---------------------------------------------------------------------------
 
@@ -682,15 +808,13 @@ auto scriptGroupCeiling(const std::size_t leaves) -> void
 auto scenarioWidePassRetriesOneAtATime() -> void
 {
   registerHuntHost(kCollectLimit);
-  // Six leaves fill the pass, three fit a solo retry: the group open refuses
-  // and the one-at-a-time retry inside the same pass loop succeeds (D-18).
-  scriptGroupCeiling(3);
-
-  std::vector<std::size_t> indexes;
-  for (std::size_t index = 0; index < kWidePassEvents; ++index) {
-    indexes.push_back(index);
-  }
-  const auto options = optionsFor(selectionOf(indexes));
+  // Eight events fill two passes at the scripted limit of six, and the body
+  // drops the ceiling to the three leaves a solo retry carries once the first
+  // pass has measured its attempts: the second group is the refused one, the
+  // first keeps its failure route, and the one-at-a-time retry inside the same
+  // pass loop measures the events (D-18, FR-021, T071).
+  const auto options = optionsFor(selectionCount(kRetryPassEvents));
+  armRetryCeilingAfterPass(options.repeats, kSoloRetryLeaves);
   auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntRetry");
   sg::detail::expandRegistry();
   const HuntAccount run = runHuntMeasured(handle, options);
@@ -703,31 +827,35 @@ auto scenarioWidePassRetriesOneAtATime() -> void
         "retriedPasses counts the pass whose group open refused (D-18)");
   check(hunt.skipped.empty(),
         "an event the solo retry measured joins no skipped list (D-18)");
-  check(hunt.entries.size() == kWidePassEvents,
-        "every event of the refused pass still reaches the record (D-18, "
-        "FR-021)");
+  check(hunt.entries.size() == kRetryPassEvents,
+        "every event of the plan, those of the refused pass included, still "
+        "reaches the record (D-18, FR-021)");
+  check(hunt.passCount == 2 + kWidePassEvents,
+        "the record counts the two planned passes and the four the retry "
+        "appended (PD-12, D-18)");
   const std::string message = host->lastRefusalMessage();
-  check(message.find(std::string(sg::test::kHuntCpu)) != std::string::npos,
-        "the scripted refusal names the object it refused (PD-09)");
-  check(message.find(std::to_string(kWidePassEvents + 2)) != std::string::npos,
-        "the scripted refusal names the leaf count it refused (PD-09)");
+  check(message.find(std::string(sg::test::kHuntCpu)) != std::string::npos
+            && message.find("scripted count of "
+                            + std::to_string(kSoloRetryLeaves))
+                   != std::string::npos,
+        "the refusal the retry answered is the scripted group refusal of the "
+        "armed ceiling, naming the device it refused (PD-09, T071)");
+  check(bodyAttempts == options.repeats * (1 + kWidePassEvents),
+        "the first pass ran its own attempts and only the four solo retry "
+        "passes ran after the ceiling was armed, which is the arming moment "
+        "this arm reads its refusal from (T071)");
   std::printf("group-leaf-retry: ok\n");
 }
 
 auto scenarioSoloRefusalMapsItsKind() -> void
 {
   registerHuntHost(kCollectLimit);
-  // One leaf per window: even the solo retry cannot seat an event beside its
+  // Two leaves per window: even the solo retry cannot seat an event beside its
   // two anchors, so the event that still refuses joins the skipped list with
-  // the kind its open refusal maps to, and the run still exits 0 (D-18,
-  // FR-021, spec PC-1).
-  scriptGroupCeiling(1);
-
-  std::vector<std::size_t> indexes;
-  for (std::size_t index = 0; index < kWidePassEvents; ++index) {
-    indexes.push_back(index);
-  }
-  const auto options = optionsFor(selectionOf(indexes));
+  // the kind of its own refusal, and the run still exits 0 (D-18, FR-021,
+  // spec PC-1, T073).
+  const auto options = optionsFor(selectionCount(kRetryPassEvents));
+  armRetryCeilingAfterPass(options.repeats, kSoloRetryLeaves - 1);
   auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntSoloRefusal");
   sg::detail::expandRegistry();
   const HuntAccount run = runHuntMeasured(handle, options);
@@ -736,23 +864,28 @@ auto scenarioSoloRefusalMapsItsKind() -> void
         "the run exits 0 (D-18, FR-021)");
   const EntryHunt& hunt = *run.hunt;
 
-  check(hunt.retriedPasses >= 1,
+  check(hunt.retriedPasses == 1,
         "the retry pass is counted even when the solo retry refuses (D-18)");
+  check(hunt.entries.size() == kRetryPassEvents,
+        "the events of the refused pass keep their row, gap-disclosed, while "
+        "their refusal is what the skipped list names (PD-14, T073)");
   check(hunt.skipped.size() == kWidePassEvents,
-        "every event that still refuses after its solo retry joins the "
-        "skipped list (D-18, FR-021)");
-  const bool mapped =
-      std::all_of(hunt.skipped.begin(),
-                  hunt.skipped.end(),
-                  [](const SkippedEvent& skipped)
-                  {
-                    return skipped.kind == SkippedKind::NOT_ENCODABLE
-                        || skipped.kind == SkippedKind::PERMISSION_BLOCKED;
-                  });
+        "every event of the refused pass stands once in the skipped list after "
+        "its own retry refused, the gap it collected with replaced by the "
+        "refusal (D-18, FR-021, I-4)");
+  const bool mapped = std::all_of(hunt.skipped.begin(),
+                                  hunt.skipped.end(),
+                                  [](const SkippedEvent& skipped) {
+                                    return skipped.kind == SkippedKind::ABSENT;
+                                  });
   check(mapped,
-        "the open refusal maps EINVAL and EOPNOTSUPP to not-encodable and "
-        "EACCES and EPERM to permission-blocked, the mapping the counters "
-        "probe carries (D-18, spec PC-1)");
+        "the kind of a skipped retry entry is the kind its own refusal maps "
+        "to: the scripted group refusal carries no errno name, so the mapping "
+        "answers ABSENT, the answer the pass loop's guessed NOT_ENCODABLE "
+        "could never give (D-18, FR-021, spec PC-1, T073)");
+  check(bodyAttempts == options.repeats,
+        "the refused pass and its solo retries cost no attempt at all, which "
+        "is the arming moment this arm reads its refusal from (T073)");
 
   const auto lines = printedLines(*needInstance("bmHuntSoloRefusal"), hunt);
   const auto skippedLines = linesHolding(lines, "hunt: skipped ");
@@ -798,6 +931,38 @@ auto scenarioPassZeroSeatFailureKeepsExitOne() -> void
         "the run reached the scripted provider before it failed its seat "
         "(spec PC-9)");
   std::printf("pass-zero-seat-failure: ok\n");
+}
+
+// The same route for the refusal a real host answers: the group of the first
+// pass is too wide while a narrower set is admitted, which is exactly the
+// refusal the retry route of D-18 answers for a pass after the first. Pass 0
+// keeps its failure route, because the same compile serves warm-up and
+// calibration, so the run answers the error the command line prints at exit 1
+// (spec PC-9, contracts/hunt-api.md, T071).
+auto scenarioPassZeroGroupRefusalExitsOne() -> void
+{
+  registerHuntHost(kCollectLimit);
+  scriptGroupCeiling(kSoloRetryLeaves);
+
+  const auto options = optionsFor(selectionCount(kWidePassEvents));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntPassZeroGroup");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(!run.hunt.has_value(),
+        "a refused pass-0 group answers the error route, the one the command "
+        "line ends with exit 1, and not a record (spec PC-9, T071)");
+  const std::string message = host->lastRefusalMessage();
+  check(message.find(std::string(sg::test::kHuntCpu)) != std::string::npos
+            && message.find(std::to_string(kWidePassEvents + 2))
+                   != std::string::npos,
+        "the seat failed on the scripted group refusal, naming the object and "
+        "the leaf count it refused (PD-09)");
+  check(needInstance("bmHuntPassZeroGroup")->huntRetriedPasses().empty(),
+        "the refused pass-0 group opens no solo retry pass: the refusal is "
+        "answered, not swallowed into the retry route (D-18, T071)");
+  check(bodyAttempts == 0,
+        "a run whose first seat refused samples nothing at all (spec PC-9)");
+  std::printf("pass-zero-group-refusal-exits-one: ok\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -851,6 +1016,126 @@ auto scenarioTwoContextWindowOpens() -> void
   check(threadedRun.hunt->entries.size() == singleRun.hunt->entries.size(),
         "both context shapes report the same events (FR-013)");
   std::printf("two-context-window-opens: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// PD-13, FR-013, SC-007: the two-stage budget run answers one merged record
+// ---------------------------------------------------------------------------
+
+// The run-level record of the hunt this process ran last: the field the report
+// writer reads, and the half of a two-stage run that holds the stage ranges
+// (E-08, PD-10).
+auto huntRecord() -> const RunHunt&
+{
+  const auto& record = sg::detail::huntRunRecord();
+  check(record.has_value(),
+        "a hunt run publishes its run-level record beside the entry record "
+        "(E-08, PD-10)");
+  return *record;
+}
+
+auto scenarioTwoStageBudgetMergesOneRecord() -> void
+{
+  registerHuntHost(kCollectLimit);
+  // Four events seat in one pass at the scripted limit, so the two stages cost
+  // the four pass runs of stage 1 plus the three of stage 2: the budget of
+  // eight passes fits both and no stage is cut (D-2, FR-013).
+  HuntOptions options = optionsFor(selectionOf({0, 1, 2, 3}), 1);
+  options.budget = HuntBudget {HuntBudget::Kind::PASSES, 8};
+  const std::string again =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(2));
+  const std::string once =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(3));
+
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntTwoStage");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "a two-stage budget run answers its record, so the run exits 0 "
+        "(FR-013)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.entries.size() == kStageEvents,
+        "one merged row set covers every planned column, the column stage 2 "
+        "left out among them (PD-13, I-4)");
+  const auto* onceRow = entryOf(hunt, once);
+  check(onceRow != nullptr,
+        "the address only stage 1 measured still stands in the record "
+        "(PD-13, I-4)");
+  check(onceRow != nullptr && onceRow->samples == 1 && !onceRow->repeated
+            && !onceRow->rank.has_value(),
+        "that row is built from its stage 1 samples alone, so it holds one "
+        "sample and no rank (PD-14)");
+  const auto* againRow = entryOf(hunt, again);
+  check(againRow != nullptr && againRow->samples == options.repeats
+            && againRow->repeated,
+        "the column stage 2 re-measured carries its stage 2 samples, which "
+        "win over its stage 1 ones (PD-13)");
+  check(rankCount(hunt) == 1 && hunt.top == 1,
+        "the merged row set ranks at most --hunt-top entries, however many "
+        "stages filled it (I-5)");
+
+  const RunHunt& record = huntRecord();
+  check(record.stages.size() == 2,
+        "the record carries one range for each stage that ran (E-08, FR-013)");
+  check(record.stages[0].first == 0 && record.stages[1].first == 0,
+        "each stage range names the first planned address it measured (E-08)");
+  check(record.stages[0].count == kStageEvents && record.stages[0].repeats == 1,
+        "stage 1 covers every column at one repeat (E-04, FR-013)");
+  check(record.stages[1].count == kStageTwoColumns
+            && record.stages[1].repeats == options.repeats,
+        "stage 2 covers the top three columns at the full repeats (D-2, "
+        "FR-013)");
+  check(record.plannedAddresses.size() == kStageEvents
+            && record.ranEvents == kStageEvents
+            && record.stageTwoEvents == kStageTwoColumns,
+        "the record counts the planned columns, those that produced a sample "
+        "and those stage 2 measured (E-08)");
+  check(hunt.passCount == record.passes,
+        "the one pass of the plan stands as the pass count of the run that "
+        "measured it in both stages (E-06, E-08)");
+  check(hunt.retriedPasses == 0,
+        "the merge leaves the retried-pass lane alone: no group open refused "
+        "in either stage (D-18)");
+  check(hunt.skipped.empty(),
+        "the merge invents no skipped entry beside the columns it merged "
+        "(I-4)");
+
+  const auto lines = printedLines(*needInstance("bmHuntTwoStage"), hunt);
+  const auto rankLines = linesHolding(lines, "hunt: rank ");
+  check(rankLines.size() == hunt.entries.size(),
+        "the console prints one row set for the merged record, not one row "
+        "set per stage (PD-13, PD-15)");
+  const bool oncePerAddress = std::all_of(
+      hunt.entries.begin(),
+      hunt.entries.end(),
+      [&rankLines](const RankedEvent& entry)
+      { return linesHolding(rankLines, entry.address).size() == 1; });
+  check(oncePerAddress,
+        "no address of the plan prints twice across the merged row set "
+        "(I-4, PD-13)");
+  const auto tailLines = linesHolding(lines, "hunt: rank - " + once);
+  check(tailLines.size() == 1
+            && tailLines[0].find(" mark=unrepeated") != std::string::npos,
+        "the stage-1-only address prints in the marked tail marked "
+        "unrepeated (PD-14, D-20)");
+  const std::string stageField =
+      " budget=8p stage1=" + std::to_string(kStageEvents)
+      + " stage2=" + std::to_string(kStageTwoColumns);
+  check(linesHolding(lines, stageField).size() == 1,
+        "the plan line names both stages with the events each measures "
+        "(FR-012, FR-013, E-07)");
+  check(linesHolding(lines, "hunt: plan budget cut").empty(),
+        "a budget that fits both stages prints no cut line (FR-013, E-07)");
+  check(linesHolding(lines, "hunt: skipped ").empty(),
+        "a merged run that refused nothing prints no skipped line (PD-15)");
+  const std::string summary = "hunt: plan summary events="
+      + std::to_string(kStageEvents) + "/" + std::to_string(kStageEvents)
+      + " passes=" + std::to_string(record.passes);
+  check(linesHolding(lines, summary).size() == 1,
+        "the summary counts the merged columns once, the stage-1-only column "
+        "included (E-07, PD-15)");
+  std::printf("two-stage-merged-record: ok\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -912,13 +1197,19 @@ auto scenarioKindMappingAnswersEveryName() -> void
       Scenario {"gapped-window-both-lists",
                 &scenarioGappedWindowStandsInBothLists},
       Scenario {"all-refused-host", &scenarioAllRefusedHost},
+      Scenario {"unmeasurable-anchor",
+                &scenarioUnmeasurableAnchorSkipsEveryEvent},
       Scenario {"multiplex-no-limit", &scenarioNoLimitHostMarksEveryEvent},
       Scenario {"group-leaf-retry", &scenarioWidePassRetriesOneAtATime},
       Scenario {"solo-refusal-maps-kind", &scenarioSoloRefusalMapsItsKind},
       Scenario {"kind-mapping-cases", &scenarioKindMappingAnswersEveryName},
       Scenario {"pass-zero-seat-failure",
                 &scenarioPassZeroSeatFailureKeepsExitOne},
+      Scenario {"pass-zero-group-refusal-exits-one",
+                &scenarioPassZeroGroupRefusalExitsOne},
       Scenario {"two-context-window-opens", &scenarioTwoContextWindowOpens},
+      Scenario {"two-stage-merged-record",
+                &scenarioTwoStageBudgetMergesOneRecord},
   };
   return kList;
 }

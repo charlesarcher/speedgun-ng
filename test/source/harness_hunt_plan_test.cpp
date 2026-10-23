@@ -1,8 +1,8 @@
 // ============================================================================
-// The hunt discovery and plan tables (specs/029-hunter-core T006, filled by
-// T015; US1; FR-001 to FR-003, FR-011, FR-020, FR-041, FR-081; AC-1, SC-01;
-// research D-1, D-9, D-12, D-13, PD-01 to PD-04, PD-06; data-model E-01, E-04,
-// I-1, I-3).
+// The hunt discovery, plan, budget and stage tables (specs/029-hunter-core
+// T006, filled by T015 and T031; US1, US2; FR-001 to FR-003, FR-011 to FR-013,
+// FR-020, FR-041, FR-081; AC-1, AC-7, SC-01, SC-07; research D-1, D-2, D-9,
+// D-12, D-13, PD-01 to PD-04, PD-06; data-model E-01, E-04, I-1, I-3).
 //
 // The seams are the two plan-side units, `sg::hunt::EventCatalog` and
 // `sg::hunt::planHunt`, both of which read the published catalog and the
@@ -14,10 +14,21 @@
 //
 // `planHunt` takes its limit list and its anchor list as arguments, so the
 // limit rows are driven at that seam with `huntLimits` and `huntAnchors` and
-// need no provider at all; only the discovery rows reach the counters system,
-// and they register the fixture host once per process the way
+// need no provider at all; the discovery rows and the budget rows reach the
+// counters system, and they register the fixture host once per process the way
 // `registerPassFixture` registers the pass host, because the system takes an
 // object path once.
+//
+// The budget and stage tables of T031 read two further units of the same plan
+// lane. The option body behind `--hunt-budget` stands in `hunt_cli.cpp`, read
+// here as it is read in `cli.cpp:326`, and a refused value is checked in a
+// child of its own because the refusal path calls `std::exit(2)`. The stage
+// split stands in `detail::splitStages`, the call `planHunt` makes for its own
+// `stages` field: the plan record carries the stages but not the cut verdict,
+// so the cut row reads the verdict there and every other row reads the same
+// split through `planHunt`. One fixed seed and one fixed calibration figure are
+// the only inputs, so each row states its whole numbers before it plans
+// (FR-012, FR-013, SC-07, quickstart US2).
 //
 // The pass counts and the per-pass widths are derived from the fixture's own
 // figures - the event count, the limit of the row and the `max(L - 2, 0)` rule
@@ -36,17 +47,33 @@
 #include <cstdio>
 #include <cstdlib>
 #include <expected>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include "detail/hunt_fixture.hpp"
+#include "detail/hunt_plan.hpp"
+#include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/hunt.hpp"
+
+// The `--hunt-budget` body of `hunt_cli.cpp`, declared here the way
+// `cli.cpp:326` declares it beside its option row and
+// `harness_compare_test.cpp:106` declares the compare bodies it drives: the
+// parse core has no header of its own.
+namespace sg::detail
+{
+auto parseHuntBudget(const char* text, RunOptions& options) -> void;
+}  // namespace sg::detail
 
 namespace
 {
@@ -65,6 +92,32 @@ constexpr std::size_t kRowEvents = 4;
 // The per-pass calibration figure of the quickstart walkthrough, the only
 // figure `planHunt` multiplies into `estimateNs`.
 constexpr std::uint64_t kCalibrationNsPerPass = 1'920'000;
+
+// The two fixed inputs SC-07 names: the seed of the column order and the
+// calibration figure above. Every figure of the budget tables follows from
+// these two, the fixture event count and the AC-7 limit, so no row reads a host
+// value.
+constexpr std::uint64_t kFixedSeed = 0;
+constexpr std::size_t kDefaultRepeats = 3;
+constexpr std::uint64_t kNanosecondsPerSecond = 1'000'000'000;
+
+// The AC-7 shape: 200 events at limit 6 with a top of 4. Stage 2 spans three
+// times the top (D-2), `kAcSevenPasses` passes hold the 200 columns at the four
+// events per pass of I-3, and the 12 stage-2 columns stand in 3 of those
+// passes. The two stages therefore cost 50 + 3 x 3 = 59 pass runs, the count
+// quickstart US2 states.
+constexpr std::size_t kAcSevenTop = 4;
+constexpr std::size_t kStageTwoWidth = 3 * kAcSevenTop;
+constexpr std::size_t kAcSevenPasses = sg::test::kHuntEvents / kAcOneCapacity;
+constexpr std::size_t kAcSevenRuns =
+    kAcSevenPasses + (kStageTwoWidth / kAcOneCapacity) * kDefaultRepeats;
+
+// The budgets of the tables: 60 passes host the 59 runs, the quickstart 8 does
+// not, and 120 seconds hosts them through the calibration figure alone, because
+// 120 x 1'000'000'000 / 1'920'000 answers 62'500 passes.
+constexpr std::uint64_t kFitPasses = 60;
+constexpr std::uint64_t kCutPasses = 8;
+constexpr std::uint64_t kFitSeconds = 120;
 
 [[noreturn]] auto fail(const char* what) -> void
 {
@@ -227,6 +280,119 @@ auto checkLimitRule(const sg::hunt::HuntPlan& plan,
     check(leavesOf(plan, pass).size() <= limit,
           "a pass holds at most L leaves counting its anchors");
   }
+}
+
+// ---------------------------------------------------------------------------
+// The budget and stage seams (T031)
+// ---------------------------------------------------------------------------
+
+// One pass budget, the record the `<n>p` spelling settles (FR-012).
+[[nodiscard]] auto passBudget(const std::uint64_t passes)
+    -> sg::hunt::HuntBudget
+{
+  return {sg::hunt::HuntBudget::Kind::PASSES, passes};
+}
+
+// One seconds budget, the record the `<n>s` spelling settles (FR-012).
+[[nodiscard]] auto secondsBudget(const std::uint64_t seconds)
+    -> sg::hunt::HuntBudget
+{
+  return {sg::hunt::HuntBudget::Kind::SECONDS, seconds};
+}
+
+// The settled values of one budget row: the top the row names, the budget it
+// names and the defaults of E-03 beside them. The repeats of those defaults are
+// checked here, because every figure of the stage tables counts them.
+[[nodiscard]] auto budgetOptions(
+    const std::optional<sg::hunt::HuntBudget>& budget,
+    const std::size_t top) -> sg::hunt::HuntOptions
+{
+  auto options = sg::hunt::HuntOptions {};
+  options.top = top;
+  options.budget = budget;
+  check(options.repeats == kDefaultRepeats,
+        "the settled defaults run the repeats the rows state");
+  return options;
+}
+
+// The budget the option body settles for one text: the parse creates the hunt
+// record the way the option scan does, and the row reads that record back
+// (FR-012, contracts/hunt-cli.md).
+[[nodiscard]] auto settledBudget(const char* text) -> sg::hunt::HuntBudget
+{
+  auto run = sg::detail::RunOptions {};
+  sg::detail::parseHuntBudget(text, run);
+  check(run.hunt.has_value() && run.hunt->budget.has_value(),
+        "the option settles a budget in the hunt record");
+  return *run.hunt->budget;
+}
+
+// One refused budget, in a child of its own: the refusal path prints the one
+// line its contract names and calls `std::exit(2)`, so the row needs the
+// process that exit can take, the pattern of the refusal children of
+// `harness_hunt_cli_test.cpp`. The child sends its stderr to a file the parent
+// reads back, so the row sees the refusal line and none of this binary's own
+// output (FR-012, FR-081).
+auto refusesBudget(const char* text, const std::string_view line) -> void
+{
+  const std::string capture {"hunt_plan_budget_refusal.txt"};
+  const pid_t child = ::fork();
+  check(child >= 0, "the refusal row forked a child");
+  if (child == 0) {
+    if (std::freopen(capture.c_str(), "w", stderr) == nullptr) {
+      std::exit(3);
+    }
+    auto run = sg::detail::RunOptions {};
+    sg::detail::parseHuntBudget(text, run);
+    // The parse returned, so it accepted a value the contract refuses.
+    std::exit(0);
+  }
+  int status = 0;
+  check(::waitpid(child, &status, 0) == child,
+        "the refusal row waited for the child it forked");
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 2,
+        "a malformed budget leaves with the usage status (FR-012, FR-081)");
+  std::ifstream file(capture);
+  const std::string printed {std::istreambuf_iterator<char>(file),
+                             std::istreambuf_iterator<char>()};
+  check(printed == std::string(line) + "\n",
+        "one line names the value the option read (FR-081)");
+  std::remove(capture.c_str());
+}
+
+// The columns of the AC-7 shape: the scripted catalog expanded and split at the
+// fixed seed, the seam FR-014 fixes the stage order to. A row takes the leading
+// `count` of that order, so every budget table stands on one fixed column order
+// (SC-07).
+[[nodiscard]] auto acSevenColumns(
+    const std::size_t count = sg::test::kHuntEvents)
+    -> std::vector<sg::hunt::CatalogAddress>
+{
+  check(registerHuntHost(), "the scripted hunt host registered");
+  auto catalog = sg::hunt::EventCatalog {};
+  check(catalog.expand("all").has_value(), "the fixed selection expands");
+  const auto split = catalog.split(kFixedSeed);
+  check(split.second.empty(), "every scripted entry is countable");
+  check(split.first.size() == sg::test::kHuntEvents,
+        "the fixed seed orders the 200 planned columns");
+  check(count <= split.first.size(),
+        "the row asks for columns the fixed order holds");
+  return {split.first.begin(),
+          split.first.begin() + static_cast<std::ptrdiff_t>(count)};
+}
+
+// One stage-1 rate per column, the highest standing at the last column. The
+// planner hands no such table, because FR-014 derives a stage from the seed and
+// the catalog order only, so this figure reaches `splitStages` solely through
+// the rows that pin the seam it documents (D-2).
+[[nodiscard]] auto stageOneRates(const std::size_t count) -> std::vector<double>
+{
+  std::vector<double> rates;
+  rates.reserve(count);
+  for (std::size_t index = 0; index < count; ++index) {
+    rates.push_back(static_cast<double>(index + 1));
+  }
+  return rates;
 }
 
 struct Scenario
@@ -629,6 +795,326 @@ auto uncoreListOwnDevice() -> void
         "the multiplex plan lists the one column");
 }
 
+// ---------------------------------------------------------------------------
+// The budget tables (US2, FR-012, FR-013)
+// ---------------------------------------------------------------------------
+
+// The `120s` parse row: the suffix settles the seconds unit and the count, and
+// the planner converts the seconds by the calibration figure alone, because 120
+// x 1'000'000'000 / 1'920'000 answers 62'500 passes, above the 59 pass runs the
+// two-stage AC-7 plan costs, so both stages stand (FR-012, D-2).
+auto parseSecondsForm() -> void
+{
+  const auto budget = settledBudget("120s");
+  check(budget.kind == sg::hunt::HuntBudget::Kind::SECONDS,
+        "the s suffix settles the seconds unit");
+  check(budget.amount == kFitSeconds,
+        "the parse keeps the count the option named");
+  check(kFitSeconds * kNanosecondsPerSecond / kCalibrationNsPerPass
+            >= kAcSevenRuns,
+        "the seconds budget hosts the 59 pass runs of the AC-7 plan");
+  const auto plan = planned(acSevenColumns(),
+                            kAcOneLimit,
+                            budgetOptions(budget, kAcSevenTop),
+                            "the seconds row plans");
+  check(plan.stages.size() == 2, "a seconds budget that fits keeps stage 2");
+  check(plan.stages[1].columns.size() == kStageTwoWidth,
+        "the kept stage 2 spans three times the top");
+}
+
+// The `8p` parse row, the budget of the walkthrough: the suffix settles the
+// pass unit, the count needs no conversion, and the 59 runs of the AC-7 plan
+// stand above 8, so the plan answers stage 1 alone (FR-012, FR-013).
+auto parsePassesForm() -> void
+{
+  const auto budget = settledBudget("8p");
+  check(budget.kind == sg::hunt::HuntBudget::Kind::PASSES,
+        "the p suffix settles the pass unit");
+  check(budget.amount == kCutPasses,
+        "the parse keeps the count the option named");
+  const auto plan = planned(acSevenColumns(),
+                            kAcOneLimit,
+                            budgetOptions(budget, kAcSevenTop),
+                            "the passes row plans");
+  check(plan.stages.size() == 1,
+        "a pass budget below the 59 runs leaves stage 1 alone");
+}
+
+// The `1p` parse row: a count of one is the smallest budget above zero, so the
+// run still splits into stages and still cannot host the 59 runs. Stage 1 keeps
+// every column at its one repeat (FR-012, FR-013).
+auto parseOnePassForm() -> void
+{
+  const auto budget = settledBudget("1p");
+  check(budget.kind == sg::hunt::HuntBudget::Kind::PASSES && budget.amount == 1,
+        "one pass is the smallest budget the contract admits");
+  const auto plan = planned(acSevenColumns(),
+                            kAcOneLimit,
+                            budgetOptions(budget, kAcSevenTop),
+                            "the one-pass row plans");
+  check(plan.stages.size() == 1,
+        "one pass cannot host the 59 runs of the two-stage plan");
+  check(plan.stages.front().columns.size() == sg::test::kHuntEvents,
+        "stage 1 of a cut plan still covers every column");
+  check(plan.stages.front().repeats == 1, "stage 1 runs one repeat");
+}
+
+// `0s` reads as a number, so the count test is the one that refuses it, and the
+// refusal quotes the whole value the option carried (FR-012, FR-081).
+auto refusesZeroSeconds() -> void
+{
+  refusesBudget("0s", "--hunt-budget: expected a count above 0, got '0s'");
+}
+
+// `0p` is the same refusal in the pass unit (FR-012, FR-081).
+auto refusesZeroPasses() -> void
+{
+  refusesBudget("0p", "--hunt-budget: expected a count above 0, got '0p'");
+}
+
+// A value with no suffix names no unit, so no budget record can stand behind
+// it: the unit test refuses it before the count is read (FR-012).
+auto refusesNoSuffix() -> void
+{
+  refusesBudget("120", "--hunt-budget: expected <n>s or <n>p, got '120'");
+}
+
+// A negative count has no spelling in a hunt count at all: the unit suffix
+// stands, so the value reaches the count test and fails it (FR-012).
+auto refusesNegativeCount() -> void
+{
+  refusesBudget("-5p", "--hunt-budget: expected a count above 0, got '-5p'");
+}
+
+// A non-numeric value names no count either; `garbage` of AC-3 and `abc` of the
+// contract table are the same row (FR-012, FR-081).
+auto refusesNonNumeric() -> void
+{
+  refusesBudget("abc", "--hunt-budget: expected <n>s or <n>p, got 'abc'");
+}
+
+// ---------------------------------------------------------------------------
+// The stage tables (US2, AC-7, SC-07, D-2, FR-013)
+// ---------------------------------------------------------------------------
+
+// AC-7 and SC-07, the row of the walkthrough: 200 events at limit 6 with a top
+// of 4 and a budget that fits give stage 1 over every column at one repeat and
+// stage 2 over the leading 12 plan columns at the settled repeats. The figures
+// are the walkthrough's: 50 passes hold the 200 columns, the 12 stage-2 columns
+// stand in 3 of them, and 50 + 3 x 3 = 59 runs fit inside the 60 the budget
+// names.
+auto acSevenStages() -> void
+{
+  const auto events = acSevenColumns();
+  const auto options = budgetOptions(passBudget(kFitPasses), kAcSevenTop);
+  const auto plan = planned(events, kAcOneLimit, options, "the AC-7 row plans");
+
+  check(plan.passes.size() == kAcSevenPasses,
+        "200 columns at limit 6 give 50 passes");
+  check(plan.stages.size() == 2, "a budget that hosts the 59 runs keeps both");
+  check(plan.stages[0].columns.size() == sg::test::kHuntEvents,
+        "stage 1 covers every column");
+  check(plan.stages[0].repeats == 1, "stage 1 measures one repeat");
+  check(plan.stages[1].columns.size() == kStageTwoWidth,
+        "stage 2 covers three times the top");
+  check(plan.stages[1].repeats == kDefaultRepeats,
+        "stage 2 measures the settled repeats");
+  check(std::ranges::is_sorted(plan.stages[1].columns),
+        "stage 2 lists its columns in column order");
+
+  // What the run drives: the runner is called once per stage of this plan
+  // (PD-13), so stage 2 measures the leading `3 x top` columns of the plan
+  // order. E-08 records a stage as `first`, `count` and `repeats`, a shape
+  // that describes a contiguous leading set and no other (FR-013, FR-014).
+  std::vector<std::size_t> plannedStageTwo;
+  for (std::size_t index = 0; index < kStageTwoWidth; ++index) {
+    plannedStageTwo.push_back(index);
+  }
+  check(plan.stages[1].columns == plannedStageTwo,
+        "stage 2 is the leading 3 x top columns the run measures");
+
+  // The seam beneath the plan, reached only from this row: the same split over
+  // a hand-raised rate table ranks by that rate, whose highest stands at the
+  // last column, so it answers the columns 188 to 199 (D-2, FR-013). The
+  // planner hands no such table: FR-014 derives a stage from the seed and the
+  // catalog order only.
+  const auto split = sg::detail::splitStages(
+      plan, stageOneRates(events.size()), options, kCalibrationNsPerPass);
+  check(!split.cutStage2, "the stage-1 rates leave the budget fit");
+  check(split.stages.size() == 2, "the split of the measured plan keeps both");
+  std::vector<std::size_t> expectedTop;
+  for (std::size_t index = events.size() - kStageTwoWidth;
+       index < events.size();
+       ++index)
+  {
+    expectedTop.push_back(index);
+  }
+  check(split.stages[1].columns == expectedTop,
+        "the seam ranks its stage-2 set by the rate it is handed");
+}
+
+// The `3 x top` set capped at the event count: a top of 2 asks for 6 stage-2
+// columns and the row holds 4, so stage 2 measures all 4 at the settled
+// repeats. The 4 columns stand in the one pass of the plan, so the run costs 1
+// pass of stage 1 plus 1 x 3 of stage 2: 4 runs. A 4-pass budget hosts them and
+// a 3-pass one drops stage 2 whole, stage 1 keeping its full width (E-04,
+// FR-013).
+auto stageTwoSetCapped() -> void
+{
+  const auto events = acSevenColumns(kRowEvents);
+  const auto wide = planned(events,
+                            kAcOneLimit,
+                            budgetOptions(passBudget(4), 2),
+                            "the capped row plans");
+  check(wide.passes.size() == 1, "four columns at limit 6 stand in one pass");
+  check(wide.stages.size() == 2,
+        "a budget that hosts the 4 runs keeps stage 2");
+  check(wide.stages[1].columns.size() == kRowEvents,
+        "the 3 x top set is capped at the column count");
+  check(wide.stages[1].repeats == kDefaultRepeats,
+        "the capped set measures the settled repeats");
+
+  const auto tight = planned(events,
+                             kAcOneLimit,
+                             budgetOptions(passBudget(3), 2),
+                             "the tight capped row plans");
+  check(tight.stages.size() == 1,
+        "a budget below the 4 runs drops the capped stage whole");
+  check(tight.stages.front().columns.size() == kRowEvents,
+        "the cut plan keeps stage 1 whole");
+}
+
+// An estimate that does not fit the budget answers one stage with the cut
+// verdict, stage 2 absent and stage 1 whole: the walkthrough row of the 8-pass
+// budget over the AC-7 plan, whose 59 runs stand above 8. The
+// verdict names the reason E-07 prints as `reason=over-budget`, and the plan
+// line still states the stage-1 figure of 1'920'000 x 50 = 96'000'000 ns (D-2,
+// FR-013).
+auto overBudgetCut() -> void
+{
+  const auto events = acSevenColumns();
+  const auto options = budgetOptions(passBudget(kCutPasses), kAcSevenTop);
+  const auto plan = planned(events, kAcOneLimit, options, "the cut row plans");
+
+  check(plan.stages.size() == 1,
+        "the unfit budget leaves one stage of the plan");
+  check(plan.stages.front().columns.size() == sg::test::kHuntEvents,
+        "stage 1 of a cut plan is not shortened");
+  check(plan.stages.front().repeats == 1, "stage 1 keeps its one repeat");
+  check(plan.estimateNs == kCalibrationNsPerPass * kAcSevenPasses,
+        "the cut plan states the stage-1 estimate of the walkthrough");
+
+  const auto split = sg::detail::splitStages(
+      plan, stageOneRates(events.size()), options, kCalibrationNsPerPass);
+  check(split.stages.size() == 1, "the split answers one stage");
+  check(split.stages.front().columns.size() == sg::test::kHuntEvents,
+        "the split drops the second stage whole, never the first");
+  check(split.cutStage2, "the split carries the cut verdict");
+  check(split.cutReason == "over-budget",
+        "the verdict names the reason the cut line prints");
+}
+
+// FR-013: stage 1 never shrinks whatever the budget, and no stage carries a
+// reduced repeat count. The 59 runs of the AC-7 plan are the boundary, so 58
+// passes cut and 59 fit. Over every budget of the table stage 1 holds all 200
+// columns, at one repeat of a budgeted run and at the full 3 of an un-budgeted
+// one.
+auto stageOneNeverShrinks() -> void
+{
+  struct Row
+  {
+    std::optional<sg::hunt::HuntBudget> budget;
+    std::size_t stages;
+  };
+
+  const Row rows[] = {
+      Row {std::nullopt, 1},
+      Row {passBudget(1), 1},
+      Row {passBudget(kCutPasses), 1},
+      Row {passBudget(kAcSevenRuns - 1), 1},
+      Row {passBudget(kAcSevenRuns), 2},
+      Row {passBudget(kFitPasses), 2},
+      Row {secondsBudget(kFitSeconds), 2},
+  };
+  const auto events = acSevenColumns();
+  for (const auto& row : rows) {
+    const auto plan = planned(events,
+                              kAcOneLimit,
+                              budgetOptions(row.budget, kAcSevenTop),
+                              "every budget of the table plans");
+    check(plan.stages.size() == row.stages,
+          "the budget decides the stage count and nothing else");
+    check(plan.stages.front().columns.size() == sg::test::kHuntEvents,
+          "stage 1 never shrinks");
+    check(plan.stages.front().repeats
+              == (row.budget.has_value() ? std::size_t {1} : kDefaultRepeats),
+          "stage 1 runs one repeat when budgeted and all repeats otherwise");
+    if (plan.stages.size() == 2) {
+      check(plan.stages[1].columns.size() == kStageTwoWidth,
+            "a standing stage 2 holds three times the top");
+      check(plan.stages[1].repeats == kDefaultRepeats,
+            "no stage keeps a reduced repeat count");
+    }
+  }
+}
+
+// FR-012: `estimateNs` is the calibration figure times the passes times the
+// repeats, with the stage-1 figures on a split plan. The fixed calibration
+// answers 1'920'000 x 50 x 3 = 288'000'000 ns for the plan of one stage and the
+// walkthrough figure 1'920'000 x 50 x 1 = 96'000'000 ns for the split one.
+auto estimateStageOneFigures() -> void
+{
+  const auto events = acSevenColumns();
+  const auto whole = planned(events,
+                             kAcOneLimit,
+                             budgetOptions(std::nullopt, kAcSevenTop),
+                             "the un-budgeted plan stands");
+  check(whole.stages.size() == 1, "no budget answers one stage");
+  check(whole.stages.front().repeats == kDefaultRepeats,
+        "the one stage measures the full repeats");
+  check(whole.estimateNs
+            == kCalibrationNsPerPass * kAcSevenPasses * kDefaultRepeats,
+        "the estimate is calibration times passes times repeats");
+
+  const auto split = planned(events,
+                             kAcOneLimit,
+                             budgetOptions(passBudget(kFitPasses), kAcSevenTop),
+                             "the split plan stands");
+  check(split.stages.size() == 2, "the fit budget splits the plan");
+  check(split.estimateNs == kCalibrationNsPerPass * kAcSevenPasses,
+        "a split plan states the stage-1 figures");
+}
+
+// FR-012, I-7: no calibration figure answers no estimate, because no clock
+// stands here to supply one, so `estimateNs` stays empty, the report prints
+// `estimate=not available`, and a seconds budget with nothing to convert by
+// leaves both stages standing: nothing here weighs the budget. A calibration
+// figure of zero behaves the same way in the conversion and still answers an
+// estimate of zero (D-2, D-19).
+auto estimateWithoutCalibration() -> void
+{
+  const auto events = acSevenColumns();
+  const auto limits = sg::test::huntLimits(kAcOneLimit);
+  const auto anchors = sg::test::huntAnchors();
+  const auto options = budgetOptions(secondsBudget(kFitSeconds), kAcSevenTop);
+
+  const auto open =
+      sg::hunt::planHunt(events, limits, anchors, options, std::nullopt);
+  check(open.has_value(), "the plan stands without a calibration figure");
+  check(open.has_value() && !open->estimateNs.has_value(),
+        "no calibration figure answers no estimate");
+  check(open.has_value() && open->stages.size() == 2,
+        "a seconds budget with nothing to convert by keeps both stages");
+
+  const auto zero =
+      sg::hunt::planHunt(events, limits, anchors, options, std::uint64_t {0});
+  check(zero.has_value() && zero->estimateNs.has_value()
+            && *zero->estimateNs == 0,
+        "a calibration figure of zero answers an estimate of zero");
+  check(zero.has_value() && zero->stages.size() == 2,
+        "a zero calibration figure converts no seconds budget");
+}
+
 // The scenarios of this file: what CTest runs with no argument, and what
 // `argv[1]` selects from.
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -645,6 +1131,20 @@ auto uncoreListOwnDevice() -> void
       Scenario {"core-device-rule", coreDeviceRule},
       Scenario {"norm-anchor-refused", normAnchorRefused},
       Scenario {"uncore-list-own-device", uncoreListOwnDevice},
+      Scenario {"budget-seconds-form", parseSecondsForm},
+      Scenario {"budget-passes-form", parsePassesForm},
+      Scenario {"budget-one-pass-form", parseOnePassForm},
+      Scenario {"budget-zero-seconds", refusesZeroSeconds},
+      Scenario {"budget-zero-passes", refusesZeroPasses},
+      Scenario {"budget-no-suffix", refusesNoSuffix},
+      Scenario {"budget-negative-count", refusesNegativeCount},
+      Scenario {"budget-non-numeric", refusesNonNumeric},
+      Scenario {"budget-two-stage-plan", acSevenStages},
+      Scenario {"stage-two-set-capped", stageTwoSetCapped},
+      Scenario {"over-budget-cut-verdict", overBudgetCut},
+      Scenario {"stage-one-never-shrinks", stageOneNeverShrinks},
+      Scenario {"estimate-stage-one-figures", estimateStageOneFigures},
+      Scenario {"estimate-no-calibration", estimateWithoutCalibration},
   };
   return kList;
 }

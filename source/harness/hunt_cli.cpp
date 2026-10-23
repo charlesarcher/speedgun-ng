@@ -29,6 +29,12 @@ namespace sg::detail
 namespace
 {
 
+// The two anchor leaves of a device: the denominators every hunt pass rides
+// beside its event (D-13, I-1). `hunt.cpp` names the same pair beside the walk
+// that seats them, and the rule of which addresses `all` selects stands there.
+constexpr std::string_view kCyclesLeaf {"cpu-cycles"};
+constexpr std::string_view kInstrLeaf {"instructions"};
+
 // FR-034, FR-081: a value outside the range its option states is a usage error
 // that reports one line naming the option, what it expected and the text it
 // read, and leaves with status 2 before anything runs. The form is the
@@ -265,6 +271,27 @@ auto collectCatalog(const counters::Object& object,
   }
 }
 
+// True when one object of the walk or one of its children publishes `leaf` in
+// the countable state. The anchor of D-13 is the address the rate divides by,
+// so a leaf the host refuses is no anchor for a norm the caller stated.
+[[nodiscard]] auto holdsCountableAnchor(const counters::Object& object,
+                                        const std::string_view leaf) -> bool
+{
+  for (const auto& entry : object.counters()) {
+    if (std::string_view {entry.name} == leaf
+        && entry.avail == counters::Availability::COUNTABLE)
+    {
+      return true;
+    }
+  }
+  for (const auto* child : object.children()) {
+    if (holdsCountableAnchor(*child, leaf)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // The selection text with each address kept the first time it stands, the
 // deduplication of FR-006: the same address through a list and a file is one
 // column, and the joined text of a `@file` states it once.
@@ -294,12 +321,41 @@ auto joinAddresses(const std::vector<std::string>& addresses) -> std::string
   return text;
 }
 
+// The record one hunt option writes into, created when the option stands
+// ahead of `--hunt` and so finds no record yet. The parked record carries no
+// selection: that empty text is the mark of a scan which has not read `--hunt`,
+// and the expansion below settles or discards the record once the scan is
+// over, so the accepted run follows from the values and never from their
+// position in argv (D-22).
+[[nodiscard]] auto huntValues(RunOptions& options) -> hunt::HuntOptions&
+{
+  if (!options.hunt.has_value()) {
+    options.hunt = hunt::HuntOptions {};
+    options.hunt->selection.clear();
+  }
+  return *options.hunt;
+}
+
+// True when the scan read `--hunt` beside the values it collected. A record
+// with no selection is a hunt option that never met a `--hunt`, and such a run
+// carries no hunt (contracts/hunt-cli.md, spec Assumptions).
+[[nodiscard]] auto huntRequested(const RunOptions& options) -> bool
+{
+  return options.hunt.has_value() && !options.hunt->selection.empty();
+}
+
 }  // namespace
 
 // specs/029 D-22, PD-17: the eight parse calls, the post-scan expansion and the
 // conflict check stand here so the scan of `cli.cpp` holds table rows and calls
 // alone. `hunt.hpp` states the settled record; the ranges and the refusal texts
 // are contracts/hunt-cli.md.
+//
+// Every option writes the record whether or not `--hunt` has stood yet, so the
+// order of the options on the command line decides nothing: an option ahead of
+// `--hunt` parks the record with an empty selection and the expansion settles
+// it once the scan is over. A value outside its range still refuses at the
+// option that read it, before the record means anything.
 
 // \pre `text` is the value getopt_long read, or null when `--hunt` carried no
 //      value at all, which is the attached-form-only reading of an optional
@@ -309,18 +365,21 @@ auto joinAddresses(const std::vector<std::string>& addresses) -> std::string
 //       discovery and planning never see it (FR-001). The shape of the text is
 //       the expansion's decision, because a `@path` must be read where the
 //       providers stand registered.
+// \post an attached value with nothing in it is the empty address line and
+//       leaves with the line an empty address line of a list leaves, because
+//       an empty selection is the mark of a record the scan parked.
 auto parseHuntSelection(const char* text, RunOptions& options) -> void
 {
+  if (text != nullptr && *text == '\0') {
+    rejectHuntSelection("--hunt: '' is not a catalog address");
+  }
   const std::string_view value =
       text != nullptr ? std::string_view {text} : std::string_view {"all"};
   if (value == "none") {
     options.hunt.reset();
     return;
   }
-  if (!options.hunt.has_value()) {
-    options.hunt = hunt::HuntOptions {};
-  }
-  options.hunt->selection = std::string(value);
+  huntValues(options).selection = std::string(value);
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.
@@ -342,9 +401,7 @@ auto parseHuntNorm(const char* text, RunOptions& options) -> void
   } else {
     rejectHuntValue("--hunt-norm", "expected instr, cycle or iter", text);
   }
-  if (options.hunt.has_value()) {
-    options.hunt->norm = norm;
-  }
+  huntValues(options).norm = norm;
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.
@@ -365,9 +422,7 @@ auto parseHuntRank(const char* text, RunOptions& options) -> void
   } else {
     rejectHuntValue("--hunt-rank", "expected rate or cv", text);
   }
-  if (options.hunt.has_value()) {
-    options.hunt->rank = rank;
-  }
+  huntValues(options).rank = rank;
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.
@@ -379,9 +434,7 @@ auto parseHuntTop(const char* text, RunOptions& options) -> void
             "a value for it (FR-082)");
   const std::uint64_t top =
       readHuntCount(text, "--hunt-top", "expected 1 to 10000", 1, 10'000);
-  if (options.hunt.has_value()) {
-    options.hunt->top = static_cast<std::size_t>(top);
-  }
+  huntValues(options).top = static_cast<std::size_t>(top);
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.
@@ -392,9 +445,7 @@ auto parseHuntNoise(const char* text, RunOptions& options) -> void
             "the option row is a required-argument row, so getopt_long answers "
             "a value for it (FR-082)");
   const double noise = readHuntPercent(text);
-  if (options.hunt.has_value()) {
-    options.hunt->noise = noise;
-  }
+  huntValues(options).noise = noise;
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.
@@ -407,9 +458,7 @@ auto parseHuntRepeats(const char* text, RunOptions& options) -> void
             "a value for it (FR-082)");
   const std::uint64_t repeats =
       readHuntCount(text, "--hunt-repeats", "expected 1 to 1000", 1, 1'000);
-  if (options.hunt.has_value()) {
-    options.hunt->repeats = static_cast<std::size_t>(repeats);
-  }
+  huntValues(options).repeats = static_cast<std::size_t>(repeats);
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.
@@ -437,9 +486,7 @@ auto parseHuntBudget(const char* text, RunOptions& options) -> void
     rejectHuntValue("--hunt-budget", "expected a count above 0", text);
   }
   budget.amount = amount;
-  if (options.hunt.has_value()) {
-    options.hunt->budget = budget;
-  }
+  huntValues(options).budget = budget;
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.
@@ -454,18 +501,17 @@ auto parseHuntSeed(const char* text, RunOptions& options) -> void
   if (!scanHuntNumber(text, seed)) {
     rejectHuntValue("--hunt-seed", "expected a whole number", text);
   }
-  if (options.hunt.has_value()) {
-    options.hunt->seed = seed;
-  }
+  huntValues(options).seed = seed;
 }
 
 // \pre the clock and PMU providers stand registered, so the catalog answers
-//      (FR-006); `options` carries the settled hunt values or no hunt.
+//      (FR-006); the option scan has ended, so `options` carries the hunt
+//      values the scan read, whether `--hunt` named them or parked them.
 // \post the selection holds the addresses the text selects: `all` keeps its
-//       word and selects every entry of every core device (D-1), a list and a
-//       pattern keep their text for the plan line and the document, and a
-//       selection that read a `@path` holds the joined address lines it carried
-//       (FR-006).
+//       word and selects the events of every core device (D-1, FR-004), and
+//       every other form holds the joined address lines it resolved to, so the
+//       run counts the addresses the option settled on and a list that carries
+//       a glob character reaches the plan resolved (FR-006).
 // \post an unknown address, a pattern that matches nothing, an empty address
 //       line, a raw event code, an unopenable `@path` and a `@path` that holds
 //       no address each leave with one line naming the value and status 2
@@ -474,9 +520,16 @@ auto parseHuntSeed(const char* text, RunOptions& options) -> void
 // \post a selection reaching a device that publishes a programmable-counter
 //       limit below three leaves with one line naming the device and its
 //       count before any planning states a pass (spec PC-2, FR-081).
+// \post a norm the caller stated whose anchor the host counts nowhere leaves
+//       with the one line naming that norm and status 2 (D-13, FR-081); an
+//       unset norm keeps the fallback to iterations.
+// \post the scan is over, so a parked record of a hunt option with no `--hunt`
+//       beside it leaves the field empty: the values parsed, validated and
+//       stood, and the run carries no hunt (contracts/hunt-cli.md).
 auto expandHuntSelection(RunOptions& options) -> void
 {
-  if (!options.hunt.has_value()) {
+  if (!huntRequested(options)) {
+    options.hunt.reset();
     return;
   }
   std::string& selection = options.hunt->selection;
@@ -521,15 +574,21 @@ auto expandHuntSelection(RunOptions& options) -> void
             "publishes the machine object (FR-002)");
   std::vector<std::string> catalog;
   collectCatalog(*machine, catalog);
-  const hunt::EventCatalog events;
+  hunt::EventCatalog events;
 
   std::vector<std::string> selected;
   if (whole) {
-    for (const auto& address : catalog) {
-      if (events.isCoreDevice(address)) {
-        selected.push_back(address);
-      }
-    }
+    // FR-004, D-1: the whole selection is answered by the expansion the run
+    // itself uses, so the rule of which addresses `all` holds, the two anchor
+    // leaves of a device riding its passes as denominators and standing out of
+    // the candidate list (I-1), is stated once, in `appendAll` of `hunt.cpp`.
+    // The set validated here is the set the plan seats.
+    const auto expanded = events.expand("all");
+    SG_ASSERT(expanded.has_value(),
+              "the machine object that walked for the catalog answers the "
+              "expansion of the whole selection too, so no host refuses the "
+              "word 'all' at this call (FR-004)");
+    selected.assign(events.addresses().begin(), events.addresses().end());
   }
   for (const auto& element : elements) {
     if (element.find_first_of("*?") == std::string::npos) {
@@ -554,6 +613,21 @@ auto expandHuntSelection(RunOptions& options) -> void
     }
   }
 
+  // D-13, FR-081: the caller stated which denominator the rates divide by, so
+  // a host that counts no anchor of that name is a usage error. The unset norm
+  // keeps the fallback to iterations, which is why the check reads whether the
+  // option stood.
+  if (options.hunt->norm.has_value()
+      && *options.hunt->norm != hunt::HuntNorm::ITER)
+  {
+    const bool cycle = *options.hunt->norm == hunt::HuntNorm::CYCLE;
+    const std::string word = cycle ? "cycle" : "instr";
+    if (!holdsCountableAnchor(*machine, cycle ? kCyclesLeaf : kInstrLeaf)) {
+      rejectHuntSelection("--hunt-norm: '" + word
+                          + "' has no countable anchor on this host");
+    }
+  }
+
   // specs/029 spec PC-2, FR-081: a device that publishes fewer than three
   // programmable counters cannot carry a hunt pass beside its two anchors,
   // so the run is refused before any planning states a pass. A device that
@@ -562,7 +636,7 @@ auto expandHuntSelection(RunOptions& options) -> void
   for (const auto& address : selected) {
     const std::size_t slash = address.find('/');
     const std::string_view leaf = std::string_view(address).substr(slash + 1);
-    if (leaf == "cpu-cycles" || leaf == "instructions") {
+    if (leaf == kCyclesLeaf || leaf == kInstrLeaf) {
       continue;
     }
     const std::string device = address.substr(0, slash);
@@ -578,12 +652,17 @@ auto expandHuntSelection(RunOptions& options) -> void
     }
   }
 
-  if (fromFile) {
+  // Every form but `all` hands the run the addresses it resolved to, the
+  // spelling `EventCatalog::expand` seats without a second reading of the
+  // glob characters (FR-006). `all` keeps its word, because that word is the
+  // one expansion the run reads for it (FR-004).
+  if (!whole) {
     selection = joinAddresses(dedupAddresses(std::move(selected)));
   }
 }
 
-// \pre `options` holds the values the scan settled.
+// \pre the option scan has ended, so `options` holds every value it read;
+//      a record the scan parked is not a hunt.
 // \post a hunt together with a counter list, a metric list or a compare
 //       baseline leaves with one line naming both options and status 2, the
 //       same refusal for either order on the command line (D-16, FR-081); a run
@@ -591,7 +670,7 @@ auto expandHuntSelection(RunOptions& options) -> void
 //       `--topology`, is not a refusal.
 auto validateHuntCombination(const RunOptions& options) -> void
 {
-  if (!options.hunt.has_value()) {
+  if (!huntRequested(options)) {
     return;
   }
   if (!options.counterAddresses.empty()) {

@@ -32,6 +32,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -57,6 +58,14 @@ namespace
 constexpr const char* kScriptFull = "full";
 constexpr const char* kScriptNarrow = "narrow";
 constexpr const char* kScriptNoLimit = "nolimit";
+// `nocycles` and `noinstr` refuse one anchor leaf on every core device, the
+// host D-13 refuses an explicit norm on.
+constexpr const char* kScriptNoCycles = "nocycles";
+constexpr const char* kScriptNoInstr = "noinstr";
+// `seatrefuse` opens nothing at all: the scripted group ceiling of zero leaves
+// refuses every window the run asks for, the host the corsairone defect record
+// met at its first seat.
+constexpr const char* kScriptSeatRefuse = "seatrefuse";
 constexpr std::size_t kFullLimit = 6;
 constexpr std::size_t kNarrowLimit = 2;
 
@@ -114,6 +123,23 @@ auto writeSelectionFiles() -> void
 // The capture and child seams of `harness_cli_test.cpp`
 // ---------------------------------------------------------------------------
 
+// Refuse one anchor leaf on every core device that owns one: the leaf stays in
+// the catalog with its disclosure, the shape D-13 describes.
+auto refuseAnchor(sg::counters::FakeProvider& host,
+                  const std::string_view leaf) -> void
+{
+  for (const auto device : sg::test::huntDevices()) {
+    if (device == sg::test::kHuntUncore) {
+      continue;
+    }
+    host.addCounter(device,
+                    leaf,
+                    "none",
+                    "a refused anchor",
+                    sg::counters::Availability::PERMISSION_BLOCKED);
+  }
+}
+
 auto registerHost(const std::string& script) -> void
 {
   auto provider = std::make_unique<sg::counters::FakeProvider>();
@@ -121,6 +147,15 @@ auto registerHost(const std::string& script) -> void
     sg::test::huntHost(*provider, std::nullopt);
   } else if (script == kScriptNarrow) {
     sg::test::huntHost(*provider, kNarrowLimit);
+  } else if (script == kScriptNoCycles) {
+    refuseAnchor(sg::test::huntHost(*provider, kFullLimit),
+                 sg::test::kHuntCycle);
+  } else if (script == kScriptNoInstr) {
+    refuseAnchor(sg::test::huntHost(*provider, kFullLimit),
+                 sg::test::kHuntInstr);
+  } else if (script == kScriptSeatRefuse) {
+    sg::test::huntHost(*provider, kFullLimit)
+        .setGroupLeafLimit(sg::test::kHuntCpu, 0);
   } else {
     sg::test::huntHost(*provider, kFullLimit);
   }
@@ -417,6 +452,68 @@ auto scenarioLimitRefusal() -> void
   std::printf("limit-refusal: ok\n");
 }
 
+// The command line on the host that opens nothing: the half the collect suite
+// disclaims in its header, the status itself. The corsairone defect record
+// captured exit 134 on the wider selections, and this route aborted the same
+// way for a different reason - a status set over no failure flag tripped the
+// CLI's own postcondition. What is pinned here is what the shell reads: one
+// line naming the refusal, and the failure status of a failed outcome
+// (FR-081, spec PC-9, AC-10).
+auto scenarioSeatRefusalExitsOneWithReason() -> void
+{
+  std::string output;
+  const int status = childRun(
+      selfPath, "hunt", {kScriptSeatRefuse, "--hunt=" + address(0)}, output);
+  check(WIFEXITED(status),
+        "a hunt whose every open refuses ends of its own accord, not on a "
+        "signal (AC-10)");
+  check(WEXITSTATUS(status) == 1,
+        "the refused hunt answers the failure status, not the usage status "
+        "(FR-081, spec PC-9)");
+  // What the child owes is read by content and by count, never as whole bytes
+  // and never as a line order between the two streams. `--hunt` runs the
+  // benchmark first and hunts the outcome after (`cli.cpp:736`), so the
+  // refused hunt still prints that run's row, and the row's
+  // `overhead floor (ns)=` field is the median the plan measured on this host:
+  // equal invocations differ in those bytes. And stderr reaches this pipe
+  // unbuffered while stdout leaves it block-buffered at exit, so which stream
+  // speaks first is no part of the contract either.
+  check(countOf(output, "hunt: ") == 1,
+        "the refused hunt prints its one error line and no hunt block beside "
+        "it (FR-081, FR-052)");
+  const std::string line = lineHolding(output, "hunt: ");
+  check(line.rfind("hunt: ", 0) == 0 && line.size() > 6,
+        "the refused hunt stands its one error line on stderr (FR-081)");
+  check(line.find("does not compile") != std::string::npos,
+        "the refusal names the seat that failed, not a bare status (PD-09)");
+  check(line.find("cannot open a window") != std::string::npos,
+        "the refusal carries the cause the counter layer answered, the words "
+        "`plan.cpp:599` states and not ones this file wrote over them (D-18)");
+  check(output.find("BENCHMARK_RAN") != std::string::npos
+            && output.find("BENCHMARK_NO_RUN") == std::string::npos,
+        "the refusal belongs to the hunt route only: the run of the benchmark "
+        "itself reached its body and stands beside the refusal line");
+  std::printf("seat-refusal-status: ok\n");
+}
+
+auto scenarioNormAnchorRefusals() -> void
+{
+  // D-13: a norm the caller stated refuses when the host counts no anchor of
+  // that name (contracts/hunt-cli.md). The accepted word of the same option is
+  // pinned by "repeated-option-keeps-last", where both anchors count: a run of
+  // its own cannot ride the two hosts below, because a pass seats the anchors
+  // of its device and the plan compiler refuses a leaf the catalog marks
+  // countable nowhere (FR-023).
+  checkRefusals(
+      {{kScriptNoCycles,
+        {"--hunt=" + address(0), "--hunt-norm=cycle"},
+        "--hunt-norm: 'cycle' has no countable anchor on this host"},
+       {kScriptNoInstr,
+        {"--hunt=" + address(0), "--hunt-norm=instr"},
+        "--hunt-norm: 'instr' has no countable anchor on this host"}});
+  std::printf("norm-anchor-refusals: ok\n");
+}
+
 auto scenarioConflictRefusals() -> void
 {
   const std::vector<std::pair<std::string, std::string>> pairs {
@@ -490,6 +587,61 @@ auto scenarioBareHuntSelectsTheCatalog() -> void
           == std::string::npos,
       "the core catalog the bare option selects holds no uncore address (D-1)");
   std::printf("bare-hunt-whole-catalog: ok\n");
+}
+
+auto scenarioListCarriesAGlob() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  // One element of a list may carry glob characters beside the commas around
+  // it. The parser settles the whole text, so the run sees ten addresses and
+  // no pattern to resolve (FR-006).
+  const auto run =
+      captureRun(withFilter({"--hunt=" + address(0) + ",cpu/hunt00?"}));
+  check(countOf(run, "hunt: plan events=10 ") == 1,
+        "a list whose element carries a glob character selects the ten "
+        "addresses it names, the one the list repeats standing once (FR-006)");
+  check(huntLines(run, "hunt: rank ").size() == 10,
+        "the resolved selection gives one column per address the text "
+        "selected (FR-006)");
+  std::printf("list-carries-glob: ok\n");
+}
+
+auto scenarioAllSelectionCount() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  // FR-004, I-1: the option parser and the plan answer `all` from one
+  // expansion, so the pinned count holds on both sides of the seam.
+  sg::hunt::EventCatalog catalog;
+  const auto expanded = catalog.expand("all");
+  check(expanded.has_value(),
+        "the whole selection expands on the scripted host (FR-004)");
+  check(catalog.addresses().size() == sg::test::kHuntEvents,
+        "--hunt=all yields one event per catalog event of the core devices "
+        "(FR-004)");
+  const bool anchorsOut = std::none_of(
+      catalog.addresses().begin(),
+      catalog.addresses().end(),
+      [](const std::string& address)
+      {
+        return address.find(sg::test::kHuntCycle) != std::string::npos
+            || address.find(sg::test::kHuntInstr) != std::string::npos;
+      });
+  check(anchorsOut,
+        "no anchor leaf stands among them: the two anchors of a device ride "
+        "its passes as denominators (I-1)");
+
+  const auto run = captureRun(withFilter({"--hunt", "--dry-run"}));
+  check(countOf(run,
+                "hunt: plan events="
+                    + std::to_string(catalog.addresses().size()) + " ")
+                == 1,
+        "the count the option parser validates for --hunt=all is the count the "
+        "plan seats, so the two cannot drift (FR-004)");
+  std::printf("all-selection-count: ok\n");
 }
 
 auto scenarioHuntNoneBehavesLikeNoHunt() -> void
@@ -647,6 +799,332 @@ auto scenarioNoLimitHostPlanLine() -> void
 }
 
 // ---------------------------------------------------------------------------
+// The position of a hunt option beside `--hunt` (FR-080 to FR-082, D-22)
+// ---------------------------------------------------------------------------
+
+// One value for every hunt option that carries one, in the spelling the option
+// takes. The scenario below moves the whole list around `--hunt`, so a value
+// that settles in one order and not the other names the option that lost it.
+const std::vector<std::string> kOptionValues {"--hunt-norm=iter",
+                                              "--hunt-rank=cv",
+                                              "--hunt-top=3",
+                                              "--hunt-noise=25",
+                                              "--hunt-repeats=5",
+                                              "--hunt-budget=8p",
+                                              "--hunt-seed=7"};
+
+// The document spelling of each value above, in the same order. The settled
+// `hunt` object states the values the run planned with (E-08), and no needle
+// here stands in the document of defaults a discarded value leaves behind.
+const std::vector<std::string> kSettledWords {"\"norm\":\"iter\"",
+                                              "\"rank\":\"cv\"",
+                                              "\"top\":3",
+                                              "\"noisePercent\":25",
+                                              "\"repeats\":5",
+                                              "\"budget\":\"8p\"",
+                                              "\"seed\":7"};
+
+// The document one hunt run wrote, which is where every settled option value
+// stands once beside the plan it decided.
+auto huntDocument(const std::vector<std::string>& arguments) -> std::string
+{
+  std::remove(kDocumentPath);
+  std::vector<std::string> full = withFilter(arguments);
+  full.push_back("--json=" + std::string(kDocumentPath));
+  captureRun(full);
+  const std::string text = readAll(kDocumentPath);
+  check(text.find("\"hunt\"") != std::string::npos,
+        "a hunt run writes the hunt key (FR-050)");
+  return text;
+}
+
+auto scenarioOptionOrderSettles() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  std::vector<std::string> ahead {kOptionValues.begin(), kOptionValues.end()};
+  ahead.push_back("--hunt=" + address(0));
+  const std::string parked = huntDocument(ahead);
+
+  std::vector<std::string> behind {"--hunt=" + address(0)};
+  behind.insert(behind.end(), kOptionValues.begin(), kOptionValues.end());
+  const std::string named = huntDocument(behind);
+
+  check(kOptionValues.size() == kSettledWords.size(),
+        "one settled word per hunt option");
+  for (std::size_t index = 0; index < kSettledWords.size(); ++index) {
+    const std::string word {kSettledWords[index]};
+    const bool aheadOfHunt = countOf(parked, word) > 0;
+    const bool afterHunt = countOf(named, word) > 0;
+    if (!aheadOfHunt || !afterHunt) {
+      std::fprintf(stderr,
+                   "%s settled ahead=%d behind=%d\n",
+                   kOptionValues[index].c_str(),
+                   aheadOfHunt,
+                   afterHunt);
+    }
+    check(aheadOfHunt, "an option ahead of --hunt settles (FR-080)");
+    check(afterHunt, "the same option behind --hunt settles (FR-080)");
+  }
+  std::printf("option-order-settles: ok\n");
+}
+
+auto scenarioOptionWithoutHunt() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  // A hunt option with no `--hunt` keeps the hunt off (contracts/hunt-cli.md):
+  // the value parses and stands nowhere the run reads, so the conflict check
+  // sees a run with no hunt beside its `--counter`.
+  const std::string run = captureRun(
+      withFilter({"--hunt-budget=8p", "--counter=cpu/instructions"}));
+  check(run.find("hunt: ") == std::string::npos,
+        "a hunt option with no --hunt runs no hunt (FR-001)");
+
+  std::remove(kDocumentPath);
+  captureRun(withFilter({"--hunt-norm=iter",
+                         "--hunt-seed=7",
+                         "--json=" + std::string(kDocumentPath)}));
+  check(readAll(kDocumentPath).find("\"hunt\"") == std::string::npos,
+        "a hunt option with no --hunt writes no hunt key (FR-052)");
+  std::printf("option-without-hunt: ok\n");
+}
+
+auto scenarioOptionOrderRefusals() -> void
+{
+  // A value outside its range refuses at the option that read it, whether
+  // `--hunt` stood before it or after it: the scan defers no range check, and
+  // the refusal line names the value in the spelling the option carried.
+  checkRefusals({{"full",
+                  {"--hunt-budget=0p", "--hunt=all"},
+                  "--hunt-budget: expected a count above 0, got '0p'"},
+                 {"full",
+                  {"--hunt-top=0", "--hunt"},
+                  "--hunt-top: expected 1 to 10000, got '0'"},
+                 {"full",
+                  {"--hunt=cpu/nope", "--hunt-norm=iter"},
+                  "--hunt: 'cpu/nope' is not a catalog address"}});
+  std::printf("option-order-refusals: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// Where the plan line stands beside the rows it bought (T074, US2 scenario 1,
+// FR-012, FR-013)
+// ---------------------------------------------------------------------------
+
+// The line a needle first stands on, counted from the first line of the
+// report, or `npos` when no line holds it. Where the report puts a line is
+// what the two cases below weigh, and a line position states it in the bytes
+// of the report itself, where a reader can see it.
+auto lineIndex(const std::string& text,
+               const std::string& needle) -> std::size_t
+{
+  const std::size_t hit = text.find(needle);
+  if (hit == std::string::npos) {
+    return std::string::npos;
+  }
+  std::size_t index = 0;
+  for (std::size_t at = 0; at < hit; ++at) {
+    if (text[at] == '\n') {
+      ++index;
+    }
+  }
+  return index;
+}
+
+// The lines that rank a hunt stand behind the rows they measured, but the plan
+// line says what the run set out to measure, so it stands above the first row:
+// the reader holds the budget before the figures it explains (FR-012).
+auto scenarioPlanLineStandsAboveTheRows() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  const std::string run = captureRun(withFilter({"--hunt=all"}));
+  const std::size_t plan = lineIndex(run, "hunt: plan events=");
+  const std::size_t row = lineIndex(run, "iterations=");
+  check(countOf(run, "hunt: plan events=") == 1,
+        "the run prints the plan line once (FR-012)");
+  check(lineHolding(run, "iterations=").rfind("bmHuntCli", 0) == 0,
+        "the line weighed as the first row is the row of this benchmark");
+  check(plan < row, "the plan line stands above the first result row (FR-012)");
+  check(plan + 1 == row,
+        "no line of the report stands between the plan line and the row");
+  check(row < lineIndex(run, "hunt: rank "),
+        "the lines that rank still stand behind the rows (FR-040)");
+  check(lineIndex(run, "hunt: plan budget cut") == std::string::npos,
+        "a plan with no budget prints no cut line (FR-013)");
+  std::printf("plan-line-above-rows: ok\n");
+}
+
+// A budget too small to hold stage 2 drops it whole and says so on the line
+// directly under the plan line, which stands above the rows as well (E-07).
+auto scenarioPlanLineUnderABudgetCut() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  const std::string run =
+      captureRun(withFilter({"--hunt=all", "--hunt-budget=1p"}));
+  const std::size_t plan = lineIndex(run, "hunt: plan events=");
+  const std::size_t cut = lineIndex(run, "hunt: plan budget cut");
+  const std::size_t row = lineIndex(run, "iterations=");
+  check(cut != std::string::npos,
+        "a budget that cannot hold stage 2 prints the cut line (FR-013)");
+  check(lineHolding(run, "iterations=").rfind("bmHuntCli", 0) == 0,
+        "the line weighed as the first row is the row of this benchmark");
+  check(cut == plan + 1,
+        "the cut line stands directly under the plan line (FR-013)");
+  check(cut < row,
+        "the plan line and the cut line under it stand above the first result "
+        "row (FR-012, US2 scenario 1)");
+  std::printf("plan-line-budget-cut: ok\n");
+}
+
+// The bytes one print of the console writes, captured while stdout points at
+// the scratch file - the redirection seam of `captureRun` around a call that
+// needs no run.
+template<typename Print>
+[[nodiscard]] auto capturePrint(const Print& print) -> std::string
+{
+  const int saved = dup(STDOUT_FILENO);
+  if (saved < 0 || std::freopen(kScratchPath, "w", stdout) == nullptr) {
+    fail("cannot redirect the plan line");
+  }
+  print();
+  std::fflush(stdout);
+  if (dup2(saved, STDOUT_FILENO) < 0) {
+    fail("cannot restore stdout");
+  }
+  close(saved);
+  std::ifstream file(kScratchPath);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
+// The reason of the cut line is the value the planner recorded for the drop
+// (`RunHunt::cutReason`, the `StageSplit::cutReason` of the split that dropped
+// the stage), and not a word the console chooses for the shape it sees
+// (FR-013, data-model E-07). The case builds the record, and no run does: the
+// case weighs which source the line reads, and it carries a reason
+// no shape of a record could answer, so a console that derived the word from
+// the pair of a budget and one stage prints something else. A run with no
+// budget prints no cut line, which `plan-line-above-rows` weighs on real
+// bytes.
+auto scenarioCutLinePrintsTheRecordedReason() -> void
+{
+  const auto record = sg::hunt::RunHunt {
+      .selection = "all",
+      .options = sg::hunt::HuntOptions {
+          .selection = "all",
+          .norm = std::nullopt,
+          .rank = sg::hunt::HuntRank::RATE,
+          .top = 20,
+          .noise = 10.0,
+          .repeats = 3,
+          .seed = 0,
+          .budget = sg::hunt::HuntBudget {
+              .kind = sg::hunt::HuntBudget::Kind::PASSES,
+              .amount = 1,
+          },
+      },
+      .passes = 1,
+      .method = std::nullopt,
+      .estimateNs = std::nullopt,
+      .plannedAddresses = {},
+      .stages = {
+          sg::hunt::HuntStageRange {.first = 0, .count = 4, .repeats = 1}},
+      .ranEvents = 4,
+      .stageTwoEvents = 0,
+      .cutReason = "planner-recorded",
+  };
+
+  const std::string lines =
+      capturePrint([&record] { sg::detail::printHuntPlan(record); });
+  check(countOf(lines, "hunt: plan budget cut") == 1,
+        "a budgeted record that holds one stage prints the cut line once "
+        "(FR-013)");
+  check(lineHolding(lines, "hunt: plan budget cut")
+            .find("reason=planner-recorded")
+        != std::string::npos,
+        "the cut line prints the reason the record carries, not a word the "
+        "console chooses for the shape it sees (FR-013, E-07)");
+  check(lineHolding(lines, "hunt: plan events=").find(" budget=1p")
+            != std::string::npos,
+        "the plan line above the cut line still spells the budget it was "
+        "given (FR-012)");
+  std::printf("cut-line-recorded-reason: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// What one hunt run prints whole, on one context and on several (T074, T114,
+// FR-012, FR-025, FR-022)
+// ---------------------------------------------------------------------------
+
+// A hunt run on one context answers with the plan line, the rows, and the
+// lines that rank: the context tail names a threaded result only, so a
+// single-context run keeps the bytes it printed before the contexts existed
+// (FR-025, FR-022). The case below is the guard against moving the hunt block
+// behind that single-context return, which would leave the plan line standing
+// alone with nothing that ranks below it.
+auto scenarioSingleContextHuntPrintsTheHuntWhole() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  const std::string run = captureRun(withFilter({"--hunt=all"}));
+  const std::size_t plan = lineIndex(run, "hunt: plan events=");
+  const std::size_t row = lineIndex(run, "iterations=");
+  const std::size_t rank = lineIndex(run, "hunt: rank ");
+  check(plan < row, "the plan line stands above the first result row (FR-012)");
+  check(rank != std::string::npos,
+        "a single-context hunt run prints the lines that rank (FR-040)");
+  check(countOf(run, "hunt: ") >= 2,
+        "a single-context hunt run prints the whole hunt block, not the plan "
+        "line alone (FR-040, FR-041)");
+  check(row < rank, "the hunt lines stand below the rows they rank (FR-040)");
+  check(lineIndex(run, "contexts=") == std::string::npos,
+        "a single-context hunt run prints no context tail (FR-025)");
+  std::printf("single-context-hunt: ok\n");
+}
+
+// The threaded case of the scenario below, and the filter that picks it out of
+// the command line `withFilter` builds (the last `--filter` settles).
+constexpr const char* kThreadedCase = "bmHuntCliThreads";
+constexpr const char* kThreadedFilter = "bmHuntCliThreads";
+
+// The one run where a context tail does print is a threaded hunt: the plan
+// line, the lines that rank and the tail naming the contexts all stand in the
+// same report, above and below the rows in that order (FR-012, FR-025).
+auto scenarioThreadedHuntPrintsTheContextTail() -> void
+{
+  registerHost(kScriptFull);
+  registerCase(kThreadedCase).threads(2);
+
+  const std::string run = captureRun(withFilter({"--filter",
+                                                 kThreadedFilter,
+                                                 "--hunt=all",
+                                                 "--hunt-rank=cv",
+                                                 "--hunt-top=2"}));
+  const std::size_t plan = lineIndex(run, "hunt: plan events=");
+  const std::size_t row = lineIndex(run, "iterations=");
+  const std::size_t tail = lineIndex(run, "contexts=");
+  check(plan != std::string::npos,
+        "a threaded hunt run prints the plan line (FR-012)");
+  check(row != std::string::npos, "a threaded hunt run prints its rows");
+  check(countOf(run, "hunt: ") >= 2,
+        "a threaded hunt run prints the whole hunt block (FR-040, FR-041)");
+  check(tail != std::string::npos,
+        "a threaded hunt run prints the context tail (FR-025)");
+  check(plan < row, "the plan line stands above the first result row (FR-012)");
+  check(row < tail, "the context tail stands below the rows it names (FR-025)");
+  std::printf("threaded-hunt-context-tail: ok\n");
+}
+
+// ---------------------------------------------------------------------------
 // The scenario list CTest runs
 // ---------------------------------------------------------------------------
 
@@ -664,9 +1142,13 @@ struct Scenario
       Scenario {"selection-refusals", &scenarioSelectionRefusals},
       Scenario {"option-value-refusals", &scenarioOptionValueRefusals},
       Scenario {"limit-refusal", &scenarioLimitRefusal},
+      Scenario {"seat-refusal-status", &scenarioSeatRefusalExitsOneWithReason},
+      Scenario {"norm-anchor-refusals", &scenarioNormAnchorRefusals},
       Scenario {"conflict-refusals", &scenarioConflictRefusals},
       Scenario {"accepted-forms", &scenarioAcceptedSelectionForms},
       Scenario {"bare-hunt-whole-catalog", &scenarioBareHuntSelectsTheCatalog},
+      Scenario {"all-selection-count", &scenarioAllSelectionCount},
+      Scenario {"list-carries-glob", &scenarioListCarriesAGlob},
       Scenario {"hunt-none-like-no-hunt", &scenarioHuntNoneBehavesLikeNoHunt},
       Scenario {"multiplex-combination", &scenarioMultiplexCombination},
       Scenario {"dry-run-one-row-per-column", &scenarioDryRunCombination},
@@ -674,6 +1156,17 @@ struct Scenario
       Scenario {"filter-applies", &scenarioFilterAppliesToTheHunt},
       Scenario {"repeated-option-keeps-last", &scenarioRepeatedOptionKeepsLast},
       Scenario {"no-limit-host", &scenarioNoLimitHostPlanLine},
+      Scenario {"plan-line-above-rows", &scenarioPlanLineStandsAboveTheRows},
+      Scenario {"plan-line-budget-cut", &scenarioPlanLineUnderABudgetCut},
+      Scenario {"cut-line-recorded-reason",
+                &scenarioCutLinePrintsTheRecordedReason},
+      Scenario {"single-context-hunt",
+                &scenarioSingleContextHuntPrintsTheHuntWhole},
+      Scenario {"threaded-hunt-context-tail",
+                &scenarioThreadedHuntPrintsTheContextTail},
+      Scenario {"option-order-settles", &scenarioOptionOrderSettles},
+      Scenario {"option-without-hunt", &scenarioOptionWithoutHunt},
+      Scenario {"option-order-refusals", &scenarioOptionOrderRefusals},
   };
   return kList;
 }
@@ -747,7 +1240,16 @@ auto main(const int argc, char** argv) -> int
     std::string output;
     const int status = childRun(self, std::string(scenario.name), {}, output);
     if (output.find(": ok") == std::string::npos) {
-      std::fprintf(stderr, "%s\n", output.c_str());
+      // Name the scenario, the wait status and the path the walk re-execed:
+      // a child the walk could not start (a relink of this binary between two
+      // scenarios answers 127 with "No such file or directory") must read as
+      // that, and never as a scenario whose checks disagree.
+      std::fprintf(stderr,
+                   "%s: status %d from \"%s\":\n%s\n",
+                   std::string(scenario.name).c_str(),
+                   WEXITSTATUS(status),
+                   self.c_str(),
+                   output.c_str());
     }
     check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
           "the re-executed scenario passes");
