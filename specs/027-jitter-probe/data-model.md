@@ -147,8 +147,8 @@ into benchmarks (FR-021, FR-022, R-04).
 | --- | --- | --- |
 | `start` | `std::uint64_t`, TSC counts | Sampled on the benchmark thread at the window open, from `machine/tsc` (R-04) |
 | `end` | `std::uint64_t`, TSC counts | Sampled at the window close; the window is the half-open `[start, end)` (R-04) |
-| `entry` | index into the batch's benchmark entries | The entry the window belongs to (FR-021) |
-| `pass` | repetition, chunk and pass indexes | A multi-pass run gives each pass its own windows, and the split covers all of them (FR-022, PC-5) |
+| `entry` | index into the batch's benchmark entries | The entry the window belongs to (FR-021); the attribution rides the per-entry window vector the split takes, one `takeRunWindows` vector per benchmark entry paired with the result at the same position, so the field stands 0 on the record (R-04) |
+| `pass` | repetition, chunk and pass indexes | The runner fills the repetition and pass indexes from its own loops, and a multi-pass run gives each pass its own windows, so the split covers all of them (FR-022, PC-5); the window covers one attempt's whole timed loop, and the chunk refills run inside that loop, so the chunk index stands 0 on the attempt-level window (specs/021 FR-008) |
 
 Validation: the window edges and the gap stamps come from the same leaf in
 one time base, so the comparison needs no conversion (R-04). A kept gap

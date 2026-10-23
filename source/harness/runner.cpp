@@ -1407,6 +1407,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   }
   const std::size_t passCount = passColumns.size();
 
+  // E-06, FR-022: the pass index the attempt-level windows carry. The
+  // window-stamping lambdas below read it through their reference
+  // capture. The warm-up and the calibration stand ahead of pass 0, so
+  // their windows carry 0 the way their repetition index does.
+  std::size_t pass = 0;
+
   // E-07, FR-017, FR-019: the disclosure of a collection whose method has
   // settled. Every return that follows this settling publishes it through this
   // one call, the stops inside the pass loop included, so a run stopped
@@ -2063,7 +2069,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // same frozen catalog the open stamp read - registration closed at
     // the boundary the first lookup opened (FR-009) - so the close's
     // refusal stands only where the open's does, and the guard re-tests
-    // the open alone (K-8).
+    // the open alone (K-8). The `entry` attribution rides the
+    // per-entry window vector the split takes (E-06). The `chunk`
+    // index stands 0 on the attempt-level window, whose timed loop
+    // spans every chunk the plan reserves (specs/021 FR-008).
     const auto windowOpen = m_windowStamping ? windowStampNow() : std::nullopt;
     launchBodies(body, count);
     const auto windowClose = m_windowStamping ? windowStampNow() : std::nullopt;
@@ -2074,7 +2083,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           .entry = 0,
           .repetition = m_repetition,
           .chunk = 0,
-          .pass = 0,
+          .pass = pass,
       });
     }
 
@@ -2178,7 +2187,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // attempt's measured span stands inside one `[start, end)` window
     // the split folds the kept gaps into; a callable that throws leaves
     // the close unstamped and the window unrecorded. The stamps stand
-    // outside the measured span the window covers.
+    // outside the measured span the window covers. The `entry`
+    // attribution rides the per-entry window vector the split takes
+    // (E-06). The `chunk` index stands 0 on the attempt-level window,
+    // whose timed loop spans every chunk the plan reserves (specs/021
+    // FR-008).
     const auto windowOpen = m_windowStamping ? windowStampNow() : std::nullopt;
     try {
       // R-10: the callback pair wraps the run, the setup callback
@@ -2218,7 +2231,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           .entry = 0,
           .repetition = m_repetition,
           .chunk = 0,
-          .pass = 0,
+          .pass = pass,
       });
     }
 
@@ -2356,7 +2369,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     m_contextRaw.back().erase(m_contextRaw.back().begin(),
                               m_contextRaw.back().begin() + drop);
   };
-  for (std::size_t pass = 0; pass < passCount; ++pass) {
+  for (pass = 0; pass < passCount; ++pass) {
     if (pass > 0) {
       // E-04, FR-012: the previous pass's seat closes first - the recorder
       // that stood over it, then the plan - and this pass compiles its own
