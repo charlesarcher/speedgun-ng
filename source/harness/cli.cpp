@@ -1,5 +1,11 @@
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <bit>
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cmath>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -11,6 +17,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include <sched.h>
@@ -173,8 +180,36 @@ auto parseProbeCpuToken(const std::string& token,
     message = "the process affinity mask is unreadable";
     return false;
   }
+  // The bounds the bit read stands under: the set type itself holds
+  // CPU_SETSIZE bits, and the count the threads report bounds the
+  // index the ExecutionContext construction reads, a count and not
+  // the highest index, so an offline cpu in the middle of the index
+  // range stands outside too (FR-011). Both bounds refuse with the
+  // same line the mask membership refuses with, and the read below
+  // stands inside them on every host.
+  const auto online = std::thread::hardware_concurrency();
   for (auto cpu = low; cpu <= high; ++cpu) {
-    if (!CPU_ISSET(static_cast<std::size_t>(cpu), &mask)) {
+    if (cpu >= CPU_SETSIZE) {
+      message =
+          "the cpu '" + token + "' stands outside the process affinity mask";
+      return false;
+    }
+    if (online != 0 && cpu >= static_cast<std::uint64_t>(online)) {
+      message =
+          "the cpu '" + token + "' stands outside the process affinity mask";
+      return false;
+    }
+    // The mask bit read stands in bounds: the index passed both
+    // bounds above, so the read needs no bound check of its own.
+    constexpr auto kWordBits = CHAR_BIT * sizeof(std::size_t);
+    const auto& words =
+        std::bit_cast<const std::array<std::size_t, CPU_SETSIZE / kWordBits>>(
+            mask.__bits);
+    if ((words.at(static_cast<std::size_t>(cpu) / kWordBits)
+             >> (static_cast<std::size_t>(cpu) % kWordBits)
+         & 1U)
+        == 0)
+    {
       message =
           "the cpu '" + token + "' stands outside the process affinity mask";
       return false;
@@ -838,9 +873,20 @@ auto speedgunMain(int argc, char** argv) -> int
       }
       if (probeCpus.empty()) {
         // FR-017: no free cpu at all stops the batch with one line
-        // naming the preset word, before any benchmark runs.
-        std::fprintf(stderr,
-                     "--jitter-probe: the idle preset names no free cpu\n");
+        // naming the preset word, before any benchmark runs. The two
+        // causes stand apart: a precheck batch with no pinned instance
+        // plans no cpu at all, and a batch whose plans leave no group
+        // with a free cpu resolves none.
+        if (options.jitterProbe->mode == JitterProbeMode::PRECHECK
+            && planned.empty())
+        {
+          std::fprintf(
+              stderr,
+              "--jitter-probe: no cpu is planned for the idle preset\n");
+        } else {
+          std::fprintf(stderr,
+                       "--jitter-probe: the idle preset names no free cpu\n");
+        }
         return 2;
       }
     }
