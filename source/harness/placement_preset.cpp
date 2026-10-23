@@ -196,29 +196,13 @@ auto plannedCpusResolve(const MachineLayout& machine,
   if (!std::ranges::is_sorted(resolution.skippedGroups)) {
     return false;
   }
-  // The covered groups are the touched ones, each named exactly once
-  // across the skip record and the yielded cpus' groups (FR-017, D-4).
+  // The skip record ascends, and the covered groups are the touched
+  // ones, each named exactly once across the two lists (FR-017, D-4);
+  // the touched record stands unique, so the covered set's equality
+  // reads the whole account. One walk carries every refusal: the
+  // planned and sibling names, the mask membership, the group record,
+  // and the lowest-free-cpu rule (FR-016, D-4).
   std::vector<std::uint32_t> covered = resolution.skippedGroups;
-  for (const auto cpu : resolution.cpus) {
-    const auto found = std::ranges::lower_bound(machine.mask, cpu);
-    if (found == machine.mask.end() || *found != cpu) {
-      return false;
-    }
-    const auto& thread = machine.threads.at(
-        static_cast<std::size_t>(found - machine.mask.begin()));
-    if (thread.groupOrdinal == kNoGroup) {
-      return false;
-    }
-    covered.push_back(thread.groupOrdinal);
-  }
-  std::ranges::sort(covered);
-  if (covered != touched
-      || std::adjacent_find(covered.begin(), covered.end()) != covered.end())
-  {
-    return false;
-  }
-  // Every yielded cpu names no planned cpu and no sibling, and it is
-  // the lowest free cpu of its group (FR-016, D-4).
   for (const auto cpu : resolution.cpus) {
     if (isPlanned(cpu) || isSibling(cpu)) {
       return false;
@@ -229,6 +213,10 @@ auto plannedCpusResolve(const MachineLayout& machine,
     }
     const auto& thread = machine.threads.at(
         static_cast<std::size_t>(found - machine.mask.begin()));
+    if (thread.groupOrdinal == kNoGroup) {
+      return false;
+    }
+    covered.push_back(thread.groupOrdinal);
     for (const auto& other : machine.threads) {
       if (other.groupOrdinal == thread.groupOrdinal && other.cpuIndex < cpu
           && !isPlanned(other.cpuIndex) && !isSibling(other.cpuIndex))
@@ -237,7 +225,8 @@ auto plannedCpusResolve(const MachineLayout& machine,
       }
     }
   }
-  return true;
+  std::ranges::sort(covered);
+  return covered == touched;
 }
 
 // specs/027 D-4, R-07: the idle resolution. A group stands touched when
@@ -305,16 +294,14 @@ auto resolveIdleCpus(const MachineLayout& machine,
   return result;
 }
 
-// FR-018, D-3, R-10: the overlap answer's postcondition predicate, the
-// planCpusDistinct precedent.
+// FR-018, D-9, R-10: the overlap answer's postcondition predicate, the
+// planCpusDistinct precedent. The predicate is consulted only inside
+// SG_ENSURE, which expands to nothing in a Release build, so the
+// attribute keeps it compiling in every build type.
 [[maybe_unused]] auto probeOverlapValid(
     const std::vector<std::uint32_t>& probeCpus,
-    const JitterProbeMode mode,
     const std::optional<ProbeOverlap>& overlap) -> bool
 {
-  if (mode == JitterProbeMode::PRECHECK) {
-    return !overlap.has_value();
-  }
   return !overlap.has_value()
       || std::find(probeCpus.begin(), probeCpus.end(), overlap->cpu)
       != probeCpus.end();
@@ -375,7 +362,7 @@ auto probeOverlapOf(const MachineLayout& machine,
       break;
     }
   }
-  SG_ENSURE(probeOverlapValid(probeCpus, mode, overlap),
+  SG_ENSURE(probeOverlapValid(probeCpus, overlap),
             "the answer names a probe cpu, and the precheck mode "
             "names none (D-3, R-10)");
   return overlap;

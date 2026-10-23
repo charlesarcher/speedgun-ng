@@ -43,27 +43,6 @@ inline constexpr std::uint64_t kRiseFactor = 10;
 // clears with an empty optional.
 std::unique_ptr<counters::WindowReader> installedReader;
 
-// The duration-division relation of E-03: the fields the fold filled
-// answer the covered span. `-Wfloat-equal` bars the direct comparison,
-// so the relation reads the difference against the scale of the
-// values, the reading percentiles.cpp's ceiling takes. True on the
-// zero span, the case a kept set with shared stamps answers no finite
-// division through.
-[[maybe_unused]] auto durationDivisionsHold(const JitterStats& stats) -> bool
-{
-  if (stats.runtimeNs == 0) {
-    return true;
-  }
-  const double perSecond = static_cast<double>(stats.gapCount) * 1e9
-      / static_cast<double>(stats.runtimeNs);
-  const double percent = static_cast<double>(stats.totalNs) * 100.0
-      / static_cast<double>(stats.runtimeNs);
-  return std::fabs(stats.gapsPerSecond - perSecond)
-      <= 1e-9 * (std::fabs(perSecond) + 1.0)
-      && std::fabs(stats.totalPercent - percent)
-      <= 1e-9 * (std::fabs(percent) + 1.0);
-}
-
 // The availability check (Q-1): the machine object publishes the tsc
 // leaf, countable, at the read mode the probe reads through (R-02).
 // `System::local()` constructs the machine root beside its catalog
@@ -316,6 +295,28 @@ auto percentileField(const std::vector<double>& sorted,
 }
 
 }  // namespace
+
+// The duration-division relation of E-03: the fields the fold filled
+// answer the covered span. `-Wfloat-equal` bars the direct comparison,
+// so the relation reads the difference against the scale of the
+// values, the reading percentiles.cpp's ceiling takes. True on the
+// zero span, the case a kept set with shared stamps answers no finite
+// division through. The relation stands outside the file's unnamed
+// namespace because the contract tests read it by name (E-03).
+[[maybe_unused]] auto durationDivisionsHold(const JitterStats& stats) -> bool
+{
+  if (stats.runtimeNs == 0) {
+    return true;
+  }
+  const double perSecond = static_cast<double>(stats.gapCount) * 1e9
+      / static_cast<double>(stats.runtimeNs);
+  const double percent = static_cast<double>(stats.totalNs) * 100.0
+      / static_cast<double>(stats.runtimeNs);
+  return std::fabs(stats.gapsPerSecond - perSecond)
+      <= 1e-9 * (std::fabs(perSecond) + 1.0)
+      && std::fabs(stats.totalPercent - percent)
+      <= 1e-9 * (std::fabs(percent) + 1.0);
+}
 
 JitterProbe::JitterProbe(const JitterProbeOptions& options)
     : m_options(options)

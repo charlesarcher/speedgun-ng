@@ -48,9 +48,15 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include "detail/gcov_flush.hpp"
 #include "detail/internal.hpp"
 
 namespace
@@ -124,6 +130,12 @@ auto overlapInstance() -> sg::Instance
 
 auto main(const int argc, char** argv) -> int
 {
+  if (argc > 1) {
+    // The breach children die at the contract call; the counters the
+    // lines ran reach the coverage report only when the handler writes
+    // them first (R-07).
+    sg::test::flushCountersOnAbort();
+  }
   if (argc > 1 && std::string(argv[1]) == "idle-unresolved") {
     // The planned cpu stands outside the layout's mask: the resolver's
     // precondition is a violation, and the checked semantic terminates
@@ -145,6 +157,31 @@ auto main(const int argc, char** argv) -> int
     group.lowestCpu = 0;
     group.cores = {0U};
     machine.groups.push_back(group);
+    (void)sg::detail::resolveIdleCpus(machine, std::vector<std::uint32_t> {7});
+    return 0;
+  }
+  if (argc > 1 && std::string(argv[1]) == "mask-gap-unresolved") {
+    // The planned cpu stands below the set's bound and inside the
+    // index range, and the layout's mask names cpus 0 and 9 only, so
+    // the mask membership reads the gap where the cpu stands (R-07).
+    sg::detail::MachineLayout machine;
+    machine.readable = true;
+    machine.packages = 1;
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = 0;
+    thread.coreOrdinal = 0;
+    thread.groupOrdinal = 0;
+    machine.threads.push_back(thread);
+    machine.mask.push_back(0);
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = 0;
+    layoutCore.threads = {0U};
+    machine.cores.push_back(layoutCore);
+    sg::detail::LayoutGroup group;
+    group.lowestCpu = 0;
+    group.cores = {0U};
+    machine.groups.push_back(group);
+    machine.mask.push_back(9);
     (void)sg::detail::resolveIdleCpus(machine, std::vector<std::uint32_t> {7});
     return 0;
   }
@@ -416,13 +453,263 @@ auto main(const int argc, char** argv) -> int
           "stands allowed (FR-018)");
   }
 
+  // The contract-only predicates the SG_ENSURE contracts read, with the
+  // bad input each reachable false arm names (D-4, D-9, D-5).
+  {
+    // The planned-cpus rule: a cpu the mask holds stands true, a cpu
+    // the mask lacks stands false (R-07).
+    check(
+        sg::detail::plannedCpusResolve(machine, std::vector<std::uint32_t> {0}),
+        "a planned cpu inside the mask stands resolved (R-07)");
+    check(!sg::detail::plannedCpusResolve(machine,
+                                          std::vector<std::uint32_t> {48}),
+          "a planned cpu past the mask stands unresolved (R-07)");
+
+    // The resolution's predicate: the true answer over the planned pair
+    // the free-cpu block above reads, and the false arms each refusal
+    // names (FR-016, FR-017, D-4).
+    const sg::detail::IdleResolution genuine =
+        sg::detail::resolveIdleCpus(machine, std::vector<std::uint32_t> {0});
+    check(sg::detail::idleResolutionValid(
+              machine, std::vector<std::uint32_t> {0}, genuine),
+          "the true resolution stands valid (D-4)");
+
+    sg::detail::IdleResolution unsortedSkips = genuine;
+    unsortedSkips.skippedGroups = {2, 1};
+    check(!sg::detail::idleResolutionValid(
+              machine, std::vector<std::uint32_t> {0}, unsortedSkips),
+          "a skip record out of order stands invalid (D-4)");
+
+    sg::detail::IdleResolution pastMask = genuine;
+    pastMask.cpus = {1000};
+    check(!sg::detail::idleResolutionValid(
+              machine, std::vector<std::uint32_t> {0}, pastMask),
+          "a yielded cpu the mask lacks stands invalid (D-4)");
+
+    sg::detail::IdleResolution wrongGroup = genuine;
+    wrongGroup.cpus = {0};
+    check(!sg::detail::idleResolutionValid(
+              machine, std::vector<std::uint32_t> {6}, wrongGroup),
+          "a covered set apart from the touched one stands invalid " "(D-4)");
+
+    sg::detail::IdleResolution plannedYield = genuine;
+    plannedYield.cpus = {0};
+    check(!sg::detail::idleResolutionValid(
+              machine, std::vector<std::uint32_t> {0}, plannedYield),
+          "a yielded planned cpu stands invalid (D-4)");
+
+    sg::detail::IdleResolution siblingYield = genuine;
+    siblingYield.cpus = {24};
+    siblingYield.skippedGroups = {};
+    check(!sg::detail::idleResolutionValid(
+              machine, std::vector<std::uint32_t> {0}, siblingYield),
+          "a yielded sibling of a planned cpu stands invalid (D-4)");
+
+    sg::detail::IdleResolution notLowest = genuine;
+    notLowest.cpus = {25};
+    notLowest.skippedGroups = {};
+    check(!sg::detail::idleResolutionValid(
+              machine, std::vector<std::uint32_t> {0}, notLowest),
+          "a yielded cpu above the group's free one stands invalid " "(D-4)");
+
+    // The overlap answer's predicate: the answer names a probe cpu the
+    // list holds, and a free probe cpu names no overlap (FR-018, D-9,
+    // R-10).
+    check(sg::detail::probeOverlapValid(
+              std::vector<std::uint32_t> {5},
+              std::optional<sg::detail::ProbeOverlap>()),
+          "no overlap stands valid (FR-018)");
+    check(sg::detail::probeOverlapValid(
+              std::vector<std::uint32_t> {5},
+              sg::detail::ProbeOverlap {5, "bmPresetOverlap"}),
+          "an overlap inside the probe cpus stands valid (FR-018)");
+    check(!sg::detail::probeOverlapValid(
+              std::vector<std::uint32_t> {7},
+              sg::detail::ProbeOverlap {5, "bmPresetOverlap"}),
+          "an overlap outside the probe cpus stands invalid (FR-018)");
+
+    // The narrowing's predicate: the remaining cpus name no probe cpu,
+    // stand inside the mask, and the limit answer follows the mask
+    // (FR-019, FR-036, D-5).
+    check(sg::detail::maskNarrowingValid(
+              std::vector<std::uint32_t> {1},
+              std::vector<std::uint32_t> {0, 1, 2},
+              sg::detail::MaskNarrowing {{0, 2}, false}),
+          "the plain narrowing stands valid (D-5)");
+    check(!sg::detail::maskNarrowingValid(
+              std::vector<std::uint32_t> {1},
+              std::vector<std::uint32_t> {0, 1, 2},
+              sg::detail::MaskNarrowing {{1, 2}, false}),
+          "a remaining probe cpu stands invalid (D-5)");
+    check(
+        !sg::detail::maskNarrowingValid(std::vector<std::uint32_t> {1},
+                                        std::vector<std::uint32_t> {0, 1, 2},
+                                        sg::detail::MaskNarrowing {{3}, false}),
+        "a remaining cpu outside the mask stands invalid (D-5)");
+    check(!sg::detail::maskNarrowingValid(
+              std::vector<std::uint32_t> {5},
+              std::vector<std::uint32_t> {0, 1},
+              sg::detail::MaskNarrowing {{0, 1}, false}),
+          "a limit answer the mask contradicts stands invalid (FR-036)");
+  }
+
+  // FR-017, D-4: the two single-thread groups the plan covers whole
+  // stand skipped, and the touched group with cpus left yields its
+  // lowest free cpu, so the run over the skipped groups continues
+  // (FR-017, D-4) - the rule the removed compact-25 CLI case carried,
+  // read as a pure function (VI).
+  {
+    sg::detail::MachineLayout threeGroup;
+    threeGroup.readable = true;
+    threeGroup.packages = 1;
+    const std::array<std::uint32_t, 6> cpuIndexes {0U, 1U, 2U, 3U, 4U, 5U};
+    const std::array<std::uint32_t, 6> coreOf {{0U, 1U, 2U, 4U, 2U, 4U}};
+    const std::array<std::uint32_t, 6> groupOf {{0U, 1U, 2U, 2U, 2U, 2U}};
+    for (std::size_t index = 0; index < cpuIndexes.size(); ++index) {
+      sg::detail::LayoutThread thread;
+      thread.cpuIndex = cpuIndexes.at(index);
+      thread.coreOrdinal = coreOf.at(index);
+      thread.groupOrdinal = groupOf.at(index);
+      threeGroup.threads.push_back(thread);
+      threeGroup.mask.push_back(cpuIndexes.at(index));
+    }
+    const std::array<std::uint32_t, 4> coreGroup {{0U, 1U, 2U, 2U}};
+    for (std::uint32_t core = 0; core < 4; ++core) {
+      sg::detail::LayoutCore layoutCore;
+      layoutCore.groupOrdinal = coreGroup.at(core);
+      for (std::size_t index = 0; index < cpuIndexes.size(); ++index) {
+        if (coreOf.at(index) == core) {
+          layoutCore.threads.push_back(static_cast<std::uint32_t>(index));
+        }
+      }
+      threeGroup.cores.push_back(layoutCore);
+    }
+    const std::array<std::uint32_t, 3> groupLowest {{0U, 1U, 2U}};
+    const std::array<std::uint32_t, 3> groupCores {{1U, 1U, 2U}};
+    std::uint32_t coreCursor = 0;
+    for (std::uint32_t group = 0; group < 3; ++group) {
+      sg::detail::LayoutGroup layoutGroup;
+      layoutGroup.lowestCpu = groupLowest.at(group);
+      for (std::uint32_t offset = 0; offset < groupCores.at(group); ++offset) {
+        layoutGroup.cores.push_back(coreCursor + offset);
+      }
+      coreCursor += groupCores.at(group);
+      threeGroup.groups.push_back(layoutGroup);
+    }
+
+    const auto mixed = sg::detail::resolveIdleCpus(
+        threeGroup, std::vector<std::uint32_t> {0, 1, 2});
+    const std::vector<std::uint32_t> freeCpus {3};
+    check(mixed.cpus == freeCpus,
+          "the touched group with cpus left yields its lowest free cpu "
+          "(FR-016)");
+    const std::vector<std::uint32_t> skippedBoth {0, 1};
+    check(mixed.skippedGroups == skippedBoth,
+          "the two covered groups stand in the skip record (FR-017, D-4)");
+  }
+
+  // FR-018, D-9: a planned cpu the layout carries with an L3 group and
+  // no core record: the read leaves the PU's coreOrdinal at kNoGroup
+  // while the group's lowest names it, so the `l3` plan names it and
+  // the overlap walk collects no core mates through it (FR-018, R-07).
+  {
+    sg::detail::MachineLayout puWithoutCore;
+    puWithoutCore.readable = true;
+    puWithoutCore.packages = 1;
+    sg::detail::LayoutThread bare;
+    bare.cpuIndex = 0;
+    bare.coreOrdinal = sg::detail::kNoGroup;
+    bare.groupOrdinal = 0;
+    puWithoutCore.threads.push_back(bare);
+    puWithoutCore.mask.push_back(0);
+    sg::detail::LayoutThread paired;
+    paired.cpuIndex = 2;
+    paired.coreOrdinal = 0;
+    paired.groupOrdinal = 1;
+    puWithoutCore.threads.push_back(paired);
+    puWithoutCore.mask.push_back(2);
+    sg::detail::LayoutThread mate;
+    mate.cpuIndex = 3;
+    mate.coreOrdinal = 0;
+    mate.groupOrdinal = 1;
+    puWithoutCore.threads.push_back(mate);
+    puWithoutCore.mask.push_back(3);
+    sg::detail::LayoutCore shared;
+    shared.groupOrdinal = 1;
+    shared.threads = {1U, 2U};
+    puWithoutCore.cores.push_back(shared);
+    sg::detail::LayoutGroup bareGroup;
+    bareGroup.lowestCpu = 0;
+    bareGroup.cores = {};
+    puWithoutCore.groups.push_back(bareGroup);
+    sg::detail::LayoutGroup pairedGroup;
+    pairedGroup.lowestCpu = 2;
+    pairedGroup.cores = {0U};
+    puWithoutCore.groups.push_back(pairedGroup);
+
+    const auto plan =
+        sg::detail::resolvePreset(sg::detail::Preset::L3, puWithoutCore, 2);
+    check(plan.cpu == std::vector<std::uint32_t> {0, 2},
+          "the group's lowest names the coreless PU (FR-018)");
+
+    sg::Instance corelessInstance;
+    corelessInstance.name = "bmPresetCoreless";
+    corelessInstance.threadCount = 2;
+    corelessInstance.placement = sg::detail::Preset::L3;
+    std::vector<sg::Instance*> corelessSelected {&corelessInstance};
+    const auto refused =
+        sg::detail::probeOverlapOf(puWithoutCore,
+                                   corelessSelected,
+                                   std::vector<std::uint32_t> {0},
+                                   sg::JitterProbeMode::ALONGSIDE);
+    check(refused.has_value() && refused->cpu == 0,
+          "a probe on the coreless PU's lowest stands refused (FR-018)");
+
+    const auto mateRefused =
+        sg::detail::probeOverlapOf(puWithoutCore,
+                                   corelessSelected,
+                                   std::vector<std::uint32_t> {3},
+                                   sg::JitterProbeMode::ALONGSIDE);
+    check(mateRefused.has_value() && mateRefused->cpu == 3,
+          "a probe on a planned cpu's core mate stands refused (FR-018)");
+  }
+
   // R-07: the self-exec the registry test carries: a planned cpu that
   // names no thread of the layout violates the resolver's precondition,
-  // and the checked semantic terminates the child.
+  // and the checked semantic terminates the child. The breach reads the
+  // exact death: the child stands signaled by SIGABRT, the way master's
+  // breach tests read it. The second breach names the planned cpu 7
+  // against a mask that holds cpus 0 and 9: the gap in the index range
+  // is the same violation one run lower (R-07).
   const std::string self = argc > 0 ? argv[0] : "harness_jitter_preset_test";
-  const int violated =
-      std::system(("\"" + self + "\" idle-unresolved 2>/dev/null").c_str());
-  check(violated != 0, "a planned cpu outside the mask is a violation (R-07)");
+  for (const auto* mode : {"idle-unresolved", "mask-gap-unresolved"}) {
+    const char* const path = "harness_jitter_preset_breach.txt";
+    const pid_t pid = fork();
+    if (pid < 0) {
+      fail("cannot fork the breached child");
+    }
+    if (pid == 0) {
+      if (std::freopen(path, "w", stderr) == nullptr) {
+        _exit(2);
+      }
+      char* const execArgv[] = {
+          const_cast<char*>(self.c_str()), const_cast<char*>(mode), nullptr};
+      (void)execv(self.c_str(), execArgv);
+      _exit(2);
+    }
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) {
+      fail("cannot wait for the breached child");
+    }
+    check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT,
+          "a planned cpu outside the mask is a violation (R-07)");
+    std::ifstream breachFile(path);
+    std::stringstream breachBuffer;
+    breachBuffer << breachFile.rdbuf();
+    check(breachBuffer.str().find("every planned cpu names a thread")
+              != std::string::npos,
+          "the breach message names the planned-cpu rule (R-07)");
+  }
 
   std::puts("harness_jitter_preset_test: ok");
   return 0;
