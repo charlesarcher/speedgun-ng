@@ -185,12 +185,15 @@ auto walkCatalog(const counters::Object& root, CatalogView& view) -> void
 /// @brief The discovery read: `System::local().object("machine")` and its
 /// `children()`, the walk `catalog.cpp` already performs. No clock, no counter
 /// read, no sysfs and no CPUID stand here (FR-003, I-7).
-[[nodiscard]] auto discoverCatalog() -> std::optional<CatalogView>
+[[nodiscard]] auto discoverCatalog() -> CatalogView
 {
   const auto machine = counters::System::local().object("machine");
-  if (!machine.has_value()) {
-    return std::nullopt;
-  }
+  // `System::System()` emplaces the `machine` root when the one system
+  // instance is made and the counters layer offers no way to remove an
+  // object, so the root of the walk stands for the life of the process.
+  SG_ASSERT(machine.has_value(),
+            "the counters system publishes the machine object the hunt "
+            "selection walks");
   auto view = CatalogView {};
   walkCatalog(*machine, view);
   return view;
@@ -660,21 +663,15 @@ auto EventCatalog::expand(std::string_view selection)
     }
   }
   const auto view = discoverCatalog();
-  if (!view.has_value()) {
-    const std::string_view text
-        = "the counters system publishes no machine object, so the hunt "
-          "selection resolves to no catalog address";
-    return std::unexpected(failure(std::string(text)));
-  }
   const auto whole = trim(selection);
   auto expanded = std::vector<std::string> {};
   if (whole == detail::kAllSelection) {
-    appendAll(*view, expanded);
+    appendAll(view, expanded);
   } else {
     const bool glob = whole.find_first_of("*?") != std::string_view::npos
         && whole.find_first_of(",\n") == std::string_view::npos;
-    const auto refusal = glob ? appendPattern(*view, whole, expanded)
-                              : appendList(*view, entries, expanded);
+    const auto refusal = glob ? appendPattern(view, whole, expanded)
+                              : appendList(view, entries, expanded);
     if (refusal.has_value()) {
       // The half-built list stands only in `expanded`, so a refused selection
       // commits no expansion of its own (E-01).
@@ -715,25 +712,22 @@ auto EventCatalog::split(const std::uint64_t seed) const
   const auto view = discoverCatalog();
   // The expansion filled its list out of this same walk, so the walk stands for
   // the availability of every address of the expansion (FR-002, FR-010).
-  SG_INVARIANT(view.has_value(),
-               "an expansion answered only where the machine object walked, so "
-               "the walk of the split of its addresses stands too (FR-002)");
   auto answer =
       std::pair<std::vector<CatalogAddress>, std::vector<SkippedEvent>> {};
   for (const auto& address : addresses()) {
-    const auto row = std::find_if(view->rows.begin(),
-                                  view->rows.end(),
+    const auto row = std::find_if(view.rows.begin(),
+                                  view.rows.end(),
                                   [&address](const CatalogRow& candidate)
                                   { return candidate.address == address; });
     // Every address of the expansion is an address of the walk it came from.
-    SG_INVARIANT(row != view->rows.end(),
+    SG_INVARIANT(row != view.rows.end(),
                  "the split reads the availability of a walked address, so the "
                  "walk holds its entry (FR-010)");
     if (row->availability == counters::Availability::COUNTABLE) {
       answer.first.push_back(CatalogAddress {
           .address = address,
           .device = std::string(detail::devicePartOf(address)),
-          .source = sourceOf(*view, detail::devicePartOf(address)),
+          .source = sourceOf(view, detail::devicePartOf(address)),
       });
     } else {
       answer.second.push_back(SkippedEvent {
@@ -885,16 +879,13 @@ auto runHuntNamed(std::string_view name,
     return std::unexpected(expanded.error());
   }
   const auto view = discoverCatalog();
-  SG_ASSERT(view.has_value(),
-            "the expansion answered, so the machine object it walked stands "
-            "for the limit list and the anchors of the plan (FR-011)");
   const auto [events, discoverySkips] = catalog.split(options.seed);
 
   std::vector<std::optional<std::size_t>> sourceLimits;
   std::vector<std::pair<std::string, std::string>> anchors;
-  sourceLimits.reserve(view->devices.size());
-  anchors.reserve(view->devices.size());
-  for (const auto& device : view->devices) {
+  sourceLimits.reserve(view.devices.size());
+  anchors.reserve(view.devices.size());
+  for (const auto& device : view.devices) {
     // `Object::programmableCounters()` is the one source of the limit, and the
     // anchor pair of a device that lacks either anchor stands empty (spec PC-2,
     // I-1).
@@ -971,9 +962,11 @@ auto runHuntNamed(std::string_view name,
   std::size_t lonePasses = 0;
   for (std::size_t index = 0; index < plan.stages.size(); ++index) {
     const HuntStage& stage = plan.stages[index];
-    if (stage.columns.empty()) {
-      continue;
-    }
+    // `splitStages` owns the shape and enforces it on its own answer: stage 1
+    // covers every column and stage 2 carries `min(3 x top, count)` of them,
+    // with `top` and the column count both above zero (FR-013, D-2).
+    SG_ASSERT(!stage.columns.empty(),
+              "each stage of the split carries columns to measure (FR-013)");
     const auto leaves = buildStageLeaves(plan, stage);
     auto runOptions = detail::RunOptions {};
     runOptions.counterAddresses = leaves.leaves;
