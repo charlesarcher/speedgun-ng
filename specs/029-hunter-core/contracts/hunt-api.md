@@ -395,3 +395,20 @@ No test above sleeps, reads a clock, or assumes a CPU count: a test that needs a
 CPU set calls `sched_getaffinity`, the way `harness_threads_test.cpp` does
 (FR-092). Every branch above is reachable from the scripted provider, so none of
 them carries an exclusion marker (FR-091).
+
+## Scripted refusal message the tests read
+
+```text
+// counters_fake.hpp, exported class at line 103
+auto lastRefusalMessage() const -> std::string;
+```
+
+`lastRefusalMessage` (`include/speedgun-ng/counters_fake.hpp:286`, defined at
+`source/counters/fake_provider.cpp:351`) answers the message of the last
+`open` the scripted host refused for a scripted leaf count, and an empty
+message says no open was ever refused for one. `\pre` none, `\post` none: the
+accessor reads the scripted state, so a test reads it after the refusal it
+asks about and before the next `open`.
+`test/source/harness_hunt_collect_test.cpp:853` reads the object path and the
+leaf count out of that message, which is how the retry scenario names the
+ceiling it hit (spec PC-3, D-18).
