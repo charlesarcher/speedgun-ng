@@ -1226,10 +1226,13 @@ target_compile_definitions(
 )
 add_test(NAME harness_hunt_json_test COMMAND harness_hunt_json_test)
 
-# The option table gate needs no registration of its own: the table moved
-# from `cli.cpp` to `options.cpp` on the master line, and the single
-# `harness_cli_table_test` registered above reads both sides of the merged
-# table through the directory it takes by argument.
+# The byte-identity scenario compares a run with no hunt option against the
+# bytes committed under test/data, so its entry names that directory beside
+# scenario, the shape harness_pass_report_test_identity gives its fixture
+# (T038; FR-052, SC-006).
+add_test(NAME harness_hunt_json_test_no_hunt
+         COMMAND harness_hunt_json_test no-hunt-bytes
+                 ${CMAKE_SOURCE_DIR}/test/data)
 
 # ---- Main-page documentation gates (feature 018) ----
 

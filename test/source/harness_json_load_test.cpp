@@ -110,7 +110,7 @@ auto versionRuleGatesTheReader() -> void
       !refused.has_value() && refused.error().find("2.0") != std::string::npos,
       "a later major is refused, naming the version it carries (FR-023)");
 
-  sg::test::writeText("harness_json_load_current.json", withVersion("\"1.1\""));
+  sg::test::writeText("harness_json_load_current.json", withVersion("\"1.4\""));
   check(sg::loadReport("harness_json_load_current.json").has_value(),
         "the version this build writes loads (FR-010)");
 
@@ -526,7 +526,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
-    {"\"schemaVersion\":\"1.3\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.4\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.

@@ -28,10 +28,14 @@ namespace
 using Builder = simdjson::builder::string_builder;
 
 // The schema the writer emits and the checker reads (FR-007). The minor
-// stands at 1.3 since specs/028 added the `run` object, the move
+// The schema the writer emits and the checker reads (FR-007). The minor
+// stands at 1.3 since specs/028 added the `run` object and at 1.4 since
+// specs/029 added the root `hunt` object and the per-benchmark `hunt`
+// object, the move
 // specs/023/contracts/schema-file.md states for a key added inside major 1
 // (specs/028 FR-086, PC-6).
-constexpr std::string_view kSchemaVersion = "1.3";
+// At rebase onto a master that already took 1.4, retake the next free minor.
+constexpr std::string_view kSchemaVersion = "1.4";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
