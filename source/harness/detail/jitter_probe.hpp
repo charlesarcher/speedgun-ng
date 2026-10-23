@@ -101,9 +101,12 @@ private:
 };
 
 /// @brief The run-level fold: the whole kept set of one probe cpu
-/// (E-03, R-15, contracts/public-api.md).
+/// (E-03, R-15, contracts/public-api.md). The caller reads the buffer
+/// only after the probe context is joined (R-04). That ordering is a
+/// happens-before fact between threads. The state carries no field a
+/// runtime check could read, so the contract stands as prose and no
+/// `SG_REQUIRE` pairs with it.
 ///
-/// \pre the buffer is read after the probe context is joined (R-04)
 /// \post the percentile fields follow the nearest-rank rule of
 ///       `source/harness/percentiles.cpp` over the sorted kept gaps
 ///       (PC-4, R-05)
@@ -115,8 +118,12 @@ private:
 
 /// @brief The per-benchmark fold: the kept gaps of one probe cpu
 /// inside the timed windows of one benchmark entry (FR-021, E-06).
+/// The caller reads the buffer only after the probe context is
+/// joined (R-04). That ordering is a happens-before fact between
+/// threads. The state carries no field a runtime check could read,
+/// so the contract stands as prose and no `SG_REQUIRE` pairs with
+/// it.
 ///
-/// \pre the buffer is read after the probe context is joined (R-04)
 /// \post a kept gap folds into every window whose half-open
 ///       `[start, end)` contains its stamp, and the fields carry the
 ///       contracts the run-level fold states (E-06, R-04)
