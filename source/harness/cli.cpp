@@ -1169,9 +1169,16 @@ auto speedgunMain(int argc, char** argv) -> int
     // read; a hunt that refuses stands its error line on stderr with the
     // failed outcome's exit status (FR-081, spec PC-9).
     if (options.hunt.has_value()) {
+      // specs/029 T080, FR-012: the estimate weighs the pass count against
+      // the sampling floor the finished run's row carries; no row, no figure.
+      auto calibration = std::optional<std::uint64_t> {};
+      if (!result.rows.empty()) {
+        calibration =
+            static_cast<std::uint64_t>(result.rows.front().overheadFloorNs);
+      }
       auto hunted = hunt::runHuntNamed(entry->name,
                                        *options.hunt,
-                                       std::nullopt,
+                                       calibration,
                                        options.metricMethod,
                                        options.dryRun);
       if (hunted.has_value()) {
