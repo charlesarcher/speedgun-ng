@@ -624,7 +624,7 @@ as was the coverage bar. Two rows are BLOCKING.
       `loadReport` at `:1580` and the schema-major gate at `:1604-1610`. Name
       each item by its symbol in the sentence and keep the number as a second
       address, the way the spec states its own citation rule (FR-050, FR-051)
-- [ ] T148 Re-anchor `checkNode` at `source/harness/json_load.cpp:1450`,
+- [x] T148 Re-anchor `checkNode` at `source/harness/json_load.cpp:1450`,
       `checkReport` at `:1546`, `optionalField` at `:107` and the `putOrNull`
       path at `source/harness/json_report.cpp:589` in
       `specs/029-hunter-core/contracts/report-schema-key.md` at 30, 31, 48 and
