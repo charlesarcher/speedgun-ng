@@ -1513,14 +1513,20 @@ hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
 hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 mark=unrepeated
 hunt: skipped cpu/l1_dc_misses permission-blocked stage=2
 hunt: skipped armv8_pmuv3/cycle not-encodable stage=2
-hunt: plan summary events=40/42 passes=14 spend=1184000ns budget=120s
+hunt: plan summary events=40/42 passes=14 spend=5040000ns budget=120s
 ```
 
 `events=` counts the planned columns and `passes=` the passes of the plan.
 `method=` names the settled collection method, and `estimate=` carries the
-plan's own figure in nanoseconds. That figure is calibration data, so a run
-that reaches the plan before any calibration answers prints
-`estimate=not available`. The rank lines carry the rate under the label of the
+plan's own figure in nanoseconds: the cost of one pass, which the hunt times by
+running one, weighed against the passes of the plan. A hunt that times no pass
+prints `estimate=not available`: the entry of a dry run runs nothing to time,
+and so does a host that refuses the seat of the pass. `spend=` on the summary
+carries the nanoseconds the hunt spent, read from its entry to the record these
+lines print, the timed pass included; a record no hunt filled leaves the field
+unread and prints `spend=not available`. A seconds budget is read against the
+estimate, which is why the estimate decides the two-stage run. The rank lines
+carry the rate under the label of the
 norm in force, `instr=`, `cycle=` or `iter=`. A skipped line names the kind of
 the refusal in the words the `--catalog` listing prints, and adds `stage=` when
 a stage lost the event. The summary denominator counts the planned events plus
@@ -1605,7 +1611,7 @@ array, holding `selection`, `norm`, `rank`, `top`, `noisePercent`, `repeats`,
 arrives here as the deduplicated address lines it read. `events` holds every planned address in plan order,
 and `stages` holds one item per stage that ran, each with `first`, `count` and
 `repeats`. `budget` stands `null` with no budget and `estimate_ns` stands
-`null` with no calibration figure. `ran_events` counts the events that produced
+`null` when the hunt timed no pass. `ran_events` counts the events that produced
 a usable sample and `stage_two_events` the events the second stage re-measured.
 
 The words these keys take are the words the options take: `method` is `AUTO`,

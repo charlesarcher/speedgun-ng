@@ -240,7 +240,9 @@ auto environmentRows(char* const* table) -> std::vector<EnvironmentRow>
 
 // specs/029 D-23: the name-addressable driver behind the public `runHunt`, so
 // the entry point hunts the instances the filter selected without a handle of
-// its own (FR-040). `hunt.cpp` defines it.
+// its own (FR-040). `hunt.cpp` defines it. `timedPass` states the route: the
+// run path that prints the figures of E-07 times one pass of its own to price
+// the plan, and leaves the figure to the caller otherwise (T119, FR-012).
 namespace hunt
 {
 [[nodiscard]] auto runHuntNamed(
@@ -248,7 +250,8 @@ namespace hunt
     const HuntOptions& options,
     std::optional<std::uint64_t> calibrationNsPerPass,
     std::optional<MetricMethod> forcedMethod,
-    bool dryRun) -> std::expected<EntryHunt, counters::Error>;
+    bool dryRun,
+    bool timedPass) -> std::expected<EntryHunt, counters::Error>;
 }  // namespace hunt
 
 /**
@@ -569,18 +572,17 @@ auto speedgunMain(int argc, char** argv) -> int
     // read; a hunt that refuses stands its error line on stderr with the
     // failed outcome's exit status (FR-081, spec PC-9).
     if (options.hunt.has_value()) {
-      // specs/029 T080, FR-012: the estimate weighs the pass count against
-      // the sampling floor the finished run's row carries; no row, no figure.
-      auto calibration = std::optional<std::uint64_t> {};
-      if (!result.rows.empty()) {
-        calibration =
-            static_cast<std::uint64_t>(result.rows.front().overheadFloorNs);
-      }
+      // specs/029 T080 superseded by T119, FR-012: the run hands the hunt no
+      // calibration figure. The sampling overhead a row carries prices one
+      // read of an open window; the hunt entry times one pass of its own
+      // plan, so the estimate of the plan line weighs the pass count against
+      // the cost of a pass. No figure here means no figure lies there.
       auto hunted = hunt::runHuntNamed(entry->name,
                                        *options.hunt,
-                                       calibration,
+                                       std::nullopt,
                                        options.metricMethod,
-                                       options.dryRun);
+                                       options.dryRun,
+                                       true);
       if (hunted.has_value()) {
         result.hunt = std::move(*hunted);
         // specs/029 FR-031, PD-10: the run-level record `runHunt` assembled
