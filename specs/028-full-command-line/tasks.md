@@ -1086,3 +1086,49 @@ measurement contradicts.
   headers. None of them is content a reviewer reads, and the widened
   pattern still walks every tracked source, every specification page and
   every script.
+
+## Phase 10: Convergence
+
+The second `/speckit.converge` pass of 2026-10-23 read the tree at head
+`3ab94fe` against `spec.md`, `plan.md`, the eight contracts and the
+constitution, then re-ran the gates. `ctest -j 8` answers 120 of 120, and
+the same suite pinned to two cpus answers 120 of 120 at exit 0 in 178.81
+seconds, which settles the FR-081 clause on a machine holding 32 cores.
+The coverage chain closes at 100.0% lines (8938 of 8938) and 100.0%
+branches (4369 of 4369) at gate exit 0. The prose gate reads 560 sources,
+95514 units and 0 findings, and `spell-check`, `dbc-gate` (274 interfaces,
+0 gaps), `format-check`, `cli_shape`, `loop_shape`, `time_source_gate`,
+`cppcheck --inline-suppr --quiet source/harness` and
+`python3 tools/docs/example_drift.py .` add nothing beside the base
+readings. The reverse check still reads 86 FRs, 14 SCs and 100 coverage
+map rows with no gap in either direction, and 75 tasks closed.
+
+One item stands. The exit status table of
+`specs/015-benchmark-harness-core/contracts/cli.md` carries seven of the
+ten status-2 answers this feature prints: the doubled `--options`, the
+`--env` word beside `off` and the environment percentile pair have no row,
+and the table's own prose at `:91` to `:97` omits them too. `ci-sanitize`
+stays open on this machine for the reason Phase 9 records.
+
+A reading the artifacts leave open goes to the owner, with no task. A
+value a lower source holds never reaches its reader once a higher source
+names the option (`source/harness/options.cpp:1190` to `:1202`), so
+`SPEEDGUN_ITERATIONS=nonsense` beside `--iterations=1` answers status 0
+with no line while the same variable beside `--min-time=1` answers status
+2. FR-027, FR-033, FR-046, FR-054 and SC-003 state those fault lines
+unqualified, `contracts/environment.md:81` to `:83` says a flagged variable
+reaches its reader with the text as spelled, and
+`contracts/environment.md:76` says the percentile pair runs ahead of the
+precedence rule. Narrowing the spec wording and moving the reader ahead of
+the settled check answer differently, so the pass reported the question
+rather than change what a run answers.
+
+- [x] T076: carry the three remaining status-2 answers in the exit status
+  table, writes `specs/015-benchmark-harness-core/contracts/cli.md`,
+  proves a row stands for the doubled `--options` (FR-032), for the
+  `--env` word beside `off` (FR-028) and for the environment percentile
+  pair (FR-023), each naming the status 2 answer and the line the harness
+  prints at `source/harness/options.cpp:761`, `:773` and `:1644`, the
+  introducing sentence names all three beside the faults it already lists,
+  and the prose gate reads zero findings over the file per FR-082, SC-003
+  (partial).
