@@ -221,7 +221,7 @@ The run-level record on `ReportData::hunt`. Public in `hunt.hpp`.
 | `stages` | `std::vector<HuntStageRange>` | the stages that ran; each holds its first index into `plannedAddresses`, its event count and its repeats |
 | `ranEvents` | `std::size_t` | columns that produced at least one clean sample |
 | `stageTwoEvents` | `std::size_t` | columns stage 2 measured |
-| `cutReason` | `std::string` | the reason the planner recorded for the stage it dropped, the word the budget cut line prints; the planner records `over-budget` for an estimate above the budget and for a seconds budget no calibration figure prices (`hunt.hpp:457`, `report.cpp:788-791`) |
+| `cutReason` | `std::string` | the reason the planner recorded for the stage it dropped, the word the budget cut line prints; the planner records `over-budget` for an estimate above the budget and for a seconds budget no calibration figure prices (`hunt.hpp:467`, `report.cpp:788-791`) |
 
 ## E-09 `RunOptions` hunt fields
 
@@ -242,8 +242,8 @@ and `compareBaseline` (line 545).
 ## E-10 Scripted group refusal
 
 `FakeProvider` gains one scripted machine fact beside `programmableCounters`
-(`counters_fake.hpp:330` in the private `ObjectSeedData` at `315`, setter in
-the public block at `195`):
+(`groupLeafLimit` at `counters_fake.hpp:330` in the private `ObjectSeedData`
+at `315`, `setGroupLeafLimit` in the public block at `195`):
 
 ```text
 auto setGroupLeafLimit(std::string_view objectPath, std::size_t leaves)

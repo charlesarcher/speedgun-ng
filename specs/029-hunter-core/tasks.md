@@ -642,7 +642,7 @@ as was the coverage bar. Two rows are BLOCKING.
       `source/harness/hunt.cpp:1181-1185` at the `SG_REQUIRE` of `runHunt` at
       `source/harness/hunt.cpp:1213-1216`, which is the require the sentence
       names (FR-001)
-- [ ] T151 Re-read `cutReason` at `specs/029-hunter-core/data-model.md:224`
+- [x] T151 Re-read `cutReason` at `specs/029-hunter-core/data-model.md:224`
       against `include/speedgun-ng/hunt.hpp:467` and `ObjectSeedData` at `:245`
       against `include/speedgun-ng/counters_fake.hpp:315` (FR-013, FR-090)
 - [ ] T152 Repoint the byte-identity `SG_INVARIANT` read at
