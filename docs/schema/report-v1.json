@@ -544,13 +544,12 @@
                 "type": "array",
                 "items": {
                   "type": "object",
-                  "x-order": ["address", "kind", "stage"],
-                  "required": ["address", "kind", "stage"],
+                  "x-order": ["address", "kind"],
+                  "required": ["address", "kind"],
                   "additionalProperties": false,
                   "properties": {
                     "address": { "type": "string" },
-                    "kind": { "type": "string" },
-                    "stage": { "type": ["integer", "null"] }
+                    "kind": { "type": "string" }
                   }
                 }
               }

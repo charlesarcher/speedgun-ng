@@ -162,7 +162,6 @@ and `runHunt` fill them; `BenchmarkResult::hunt` holds the result.
 |---|---|---|
 | `address` | `std::string` | the refused address |
 | `kind` | `SkippedKind` | the refusal kind, E-06 rule below |
-| `stage` | `std::optional<std::size_t>` | the stage that lost the event, empty for a discovery skip |
 
 | `EntryHunt` field | Type | Meaning |
 |---|---|---|
@@ -179,10 +178,12 @@ values a skipped entry can carry (`counters_core.hpp:88-95`), through one named
 mapping function (D-10, FR-021, FR-050). `GAP` names the mid-run window
 disclosure (`counters_measurement.hpp:406-413`, disclosed by `fold` and
 `foldPairs`). A group-open refusal that still
-fails on the solo retry maps its error the way the counters discovery probe maps
-an open refusal (`provider.cpp:774-786`, spec PC-1): `EINVAL` or `EOPNOTSUPP`
-answers `NOT_ENCODABLE`, and `EACCES` or `EPERM` answers `PERMISSION_BLOCKED`
-(D-18). The console prints every kind with the spelling the `--catalog` listing
+fails on the solo retry carries the kind of the catalog state its refusal
+names, the state the counters discovery probe settled for the entry
+(`provider.cpp:773-786`, spec PC-1, T118): `EINVAL`, `EOPNOTSUPP` and `ENOENT`
+settle `NOT_ENCODABLE`, every other errno settles `PERMISSION_BLOCKED`, and a
+refusal that names no state settles `ABSENT` (D-18). The console prints every
+kind with the spelling the `--catalog` listing
 prints for an `Availability` (`report.cpp:38 availabilityName`).
 
 ## E-07 Printed records
@@ -198,7 +199,7 @@ the `hunt:` prefix.
 | plan, budget cut | `hunt: plan budget cut stage=2 reason=over-budget`, one line when the plan drops stage 2 |
 | ranking row | `hunt: rank <n> <address> <norm>=<value> cv=<percent> [multiplexed]` |
 | excluded tail | `hunt: rank - <address> <norm>=<value> cv=<percent> mark=<noisy|unrepeated|beyond-top>` |
-| skipped | `hunt: skipped <address> <kind>[ stage=<n>]` |
+| skipped | `hunt: skipped <address> <kind>` |
 | summary | `hunt: plan summary events=<ran>/<planned> passes=<p> budget=<text>|none`, the counts and the budget the plan stood under; the line carries no spend figure, because a hunt holds no wall-clock reading (FR-040, D-6) |
 
 The table ends at `--hunt-top` rows plus the tail of excluded events, and a host
@@ -313,7 +314,7 @@ the call (PD-14).
 | skipped (discovery) | `avail` is not `COUNTABLE` | terminal | `SkippedEvent` with that kind |
 | column | `avail` is `COUNTABLE` | seated, skipped | one `HuntColumn` |
 | seated | the pass's `seatPass` succeeded | sampled | columns of that pass measured |
-| skipped (retry refusal) | the pass fell back and the lone event refused too | terminal | `SkippedEvent` with the kind the refusal's error maps to, run continues, exit 0 |
+| skipped (retry refusal) | the pass fell back and the lone event refused too | terminal | `SkippedEvent` with the kind of the state the refusal names, run continues, exit 0 |
 | sampled | the window closed clean | terminal | one `HuntSamples` row |
 | skipped (`GAP`) | the window disclosed a gap | terminal | sample excluded, `SkippedEvent` |
 | ranked | stage 2 or stage 1 produced samples | terminal | `RankedEvent` with or without a rank |
@@ -384,7 +385,7 @@ own kind and its own refusal (hard rule 7).
 | `EntryHunt` | per-entry `hunt` | object | no, PD-20 records the exception |
 | `EntryHunt::entries` | `hunt.entries` | array of objects | no |
 | `RankedEvent::address`, `rate`, `cv`, `noisy`, `multiplexed`, `rank` | the same words | string, number, number, boolean, boolean, integer or null | no |
-| `EntryHunt::skipped` | `hunt.skipped` | array of `{address, kind, stage}` | no |
+| `EntryHunt::skipped` | `hunt.skipped` | array of `{address, kind}` | no |
 | `EntryHunt::method`, `passCount`, `top`, `retriedPasses` | `hunt.method`, `pass_count`, `top`, `retried_passes` | string, integer, integer, integer | no |
 
 `RankedEvent::samples` and `repeated` stay in memory: PD-20 names the six entry

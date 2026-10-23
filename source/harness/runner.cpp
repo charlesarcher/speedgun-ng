@@ -2358,20 +2358,24 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         // condition, so a hunt run keeps going where the invariant below would
         // stop every other run.
         if (const std::size_t lone = loneEventOf[pass]; lone != kNoHuntIndex) {
-          // specs/029 D-18, FR-021: the event that still refuses after its own
-          // pass stands unavailable the way an unavailable column stands
-          // today, so no row carries a sample of it and the run reaches its
-          // exit status 0. An open refusal of a schedulable set is the
-          // encodability arm of the mapping D-18 names, and the report and
-          // `runHunt` read the kind off the column.
+          // specs/029 D-18, FR-021, T128: the state the refusal names is the
+          // state the column publishes, so the row of that address and the
+          // skipped line of that event answer one state. A refusal that names
+          // no state publishes `Availability::ABSENT`, the state the run
+          // reports for an event that produced no value.
+          const auto published =
+              sg::detail::availabilityOfRefusal(seated.error())
+                  .value_or(sg::counters::Availability::ABSENT);
           columns[lone].unavailable = true;
-          columns[lone].availability =
-              sg::counters::Availability::NOT_ENCODABLE;
-          // specs/029 D-18, FR-021, T073: the event that still refuses is
-          // recorded with the refusal itself, so `runHunt` gives it the kind
-          // the host's error maps to. No kind is guessed here.
-          instance.refusedHuntEvents.push_back(detail::RefusedRetry {
-              .address = columns[lone].label, .refusal = seated.error()});
+          columns[lone].availability = published;
+          // specs/029 D-18, FR-021, T073, T118: the event that still refuses
+          // is recorded with the refusal itself and the state published for
+          // it, so `runHunt` gives it the kind that state names. No kind is
+          // guessed here.
+          instance.refusedHuntEvents.push_back(
+              detail::RefusedRetry {.address = columns[lone].label,
+                                    .refusal = seated.error(),
+                                    .availability = published});
         } else {
           retryHuntPass(pass);
         }

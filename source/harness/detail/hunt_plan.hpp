@@ -90,20 +90,26 @@ struct RetriedPass
 [[nodiscard]] auto skippedKindOf(counters::Availability availability) noexcept
     -> hunt::SkippedKind;
 
-/// @brief specs/029 D-18, spec PC-1 (T026): the refusal kind of a group open
-/// that still fails when its event is opened alone.
+/// @brief specs/029 D-18, spec PC-1 (T118): the availability one refusal of a
+/// seat names.
 ///
-/// `refusal` is the error the lone retry answered, mapped the way the counters
-/// discovery probe maps an open refusal at
-/// `source/counters/linux_pmu/provider.cpp:774-786`.
+/// A refusal the counters layer can name carries the catalog state that
+/// refused it. `compileCore` composes such a message from the word
+/// `availabilityName` gives that state at
+/// `source/counters/plan.cpp:485-490`, and the state itself is the verdict
+/// the discovery probe settled for the entry at
+/// `source/counters/linux_pmu/provider.cpp:773-786`. Reading the word reads
+/// the probe's answer, so the errno rule is stated once, beside the switch
+/// that applies it, and no second errno table stands in the harness.
 ///
-/// \pre none: every error text answers a kind
-/// \post `EINVAL` or `EOPNOTSUPP` in the refusal answer `NOT_ENCODABLE` and
-///       `EACCES` or `EPERM` answer `PERMISSION_BLOCKED`; any other refusal
-///       answer `ABSENT`, the state the run reports for an event that
-///       produced no value (D-18, FR-021)
-[[nodiscard]] auto skippedKindOf(const counters::Error& refusal)
-    -> hunt::SkippedKind;
+/// \pre none: every error text answers a state or names none
+/// \post the availability whose counters-layer word `refusal` names, and
+///       `std::nullopt` for a refusal that names no state: the group open a
+///       provider answers with a null window carries no state, so no kind is
+///       guessed for it (D-18, FR-021)
+[[nodiscard]] auto availabilityOfRefusal(
+    const counters::Error& refusal) noexcept
+    -> std::optional<counters::Availability>;
 
 }  // namespace sg::detail
 

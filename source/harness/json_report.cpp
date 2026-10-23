@@ -482,7 +482,6 @@ void writeEntryHunt(Builder& builder, const hunt::EntryHunt& record)
           item,
           "kind",
           enumWord(kSkippedKindWords, std::to_underlying(skip.kind)));
-      putOrNull(builder, item, "stage", skip.stage);
     }
   }
 }

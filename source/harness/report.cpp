@@ -842,9 +842,6 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
     std::printf("hunt: skipped %s %s",
                 skipped.address.c_str(),
                 skippedKindName(skipped.kind));
-    if (skipped.stage.has_value()) {
-      std::printf(" stage=%zu", *skipped.stage);
-    }
     std::printf("\n");
   }
   std::size_t refused = 0;

@@ -270,8 +270,7 @@ auto rankEvents(const std::vector<EventSamples>& collected,
       entry.rate = rates.front();
     }
     if (event.skipped.has_value()) {
-      result.skipped.push_back(
-          SkippedEvent {event.address, *event.skipped, std::nullopt});
+      result.skipped.push_back(SkippedEvent {event.address, *event.skipped});
     }
   }
 

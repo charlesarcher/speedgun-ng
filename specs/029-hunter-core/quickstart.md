@@ -84,9 +84,11 @@ Expected, one case per row of the plan decision table in
   `armv8_`, and `--hunt=all` selects that device's entries (D-1)
 - `setGroupLeafLimit` refuses the wide pass, the run retries its events one at a
   time inside the same pass loop, `retriedPasses` counts the pass, an event that
-  still refuses joins the skipped list with the kind its error maps to (an
-  `EINVAL` or `EOPNOTSUPP` refusal answers `not-encodable`, an `EACCES` or
-  `EPERM` refusal answers `permission-blocked`), and the run exits 0
+  still refuses joins the skipped list with the kind of the state its refusal
+  names (a refusal reporting `not_encodable` answers `not-encodable`, one
+  reporting `permission_blocked` answers `permission-blocked`, and one that
+  names no state answers `absent`, which is the answer the scripted refusal of
+  this host gives), and the run exits 0
 - two contexts: the window-open count per pass read from the scripted provider
   equals one per context per pass, with no sleep and no clock read
 

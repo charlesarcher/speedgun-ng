@@ -1511,8 +1511,8 @@ hunt: rank 1 cpu/instructions_retired_any instr=1042.300 cv=1.20
 hunt: rank 2 cpu/l2_lines_out.any_core instr=6.910 cv=2.05 multiplexed
 hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
 hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 mark=unrepeated
-hunt: skipped cpu/l1_dc_misses permission-blocked stage=2
-hunt: skipped armv8_pmuv3/cycle not-encodable stage=2
+hunt: skipped cpu/l1_dc_misses permission-blocked
+hunt: skipped armv8_pmuv3/cycle not-encodable
 hunt: plan summary events=40/42 passes=14 budget=120s
 ```
 
@@ -1529,9 +1529,9 @@ entry of a dry run runs nothing to measure, and so does a host that refuses the
 seat of the pass. A seconds budget is read against the
 estimate, which is why the estimate decides the two-stage run. The rank lines
 carry the rate under the label of the
-norm in force, `instr=`, `cycle=` or `iter=`. A skipped line names the kind of
-the refusal in the words the `--catalog` listing prints, and adds `stage=` when
-a stage lost the event. The summary denominator counts the planned events plus
+norm in force, `instr=`, `cycle=` or `iter=`. A skipped line names the address
+and the kind of the refusal in the words the `--catalog` listing prints. The
+summary denominator counts the planned events plus
 the refusals that kept an event out of the plan, and its numerator counts the
 events that produced at least one usable sample.
 
@@ -1602,8 +1602,9 @@ with the passes a retry appended included, `top` is the `--hunt-top` value, and
 `entries` carries `address`, `rate`, `cv`, `noisy`, `multiplexed` and `rank`,
 the ranked events first in rank order and the excluded ones after them in
 address order, each `rank` of an excluded event standing `null`. Every item of
-`skipped` carries `address`, `kind` and `stage`, and `stage` stands `null`
-unless a stage lost that event. A run with no hunt writes no `hunt` key in any
+`skipped` carries `address` and `kind`, the two figures one refused event
+states: the stage an event stood in belongs to the plan, which `stages` already
+prints. A run with no hunt writes no `hunt` key in any
 entry.
 
 The document closes with one run-level `hunt` object after the `benchmarks`

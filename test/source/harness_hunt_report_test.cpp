@@ -30,13 +30,12 @@
 // `test/source/detail/pass_identity.expected` carries for the floor of a
 // finished row, and every byte around them is compared.
 //
-// Three arms stand pinned off a record the scenario builds, the way
+// Two arms stand pinned off a record the scenario builds, the way
 // `harness_hunt_cli_test.cpp` pins the cut reason, because the run that
-// answers them leaves the bytes of the line unpinnable: the `stage=` arm of
-// the skipped line, since no run path fills `SkippedEvent::stage`; the `noisy`
-// mark, since a scripted window folds one constant and no scripted `cv` passes
+// answers them leaves the bytes of the line unpinnable: the `noisy` mark,
+// since a scripted window folds one constant and no scripted `cv` passes
 // the noise threshold; and the `estimate=not available` arm, which only the
-// entry of a dry run answers, since a hunt that ran nothing to time holds no
+// entry of a dry run answers, since a hunt that measured no pass holds no
 // figure (T119). Each states its reason where it is pinned.
 //
 // The list below is what CTest runs, so an entry absent from it never runs, and
@@ -615,11 +614,10 @@ auto scenarioRankRowMarks() -> void
 // ---------------------------------------------------------------------------
 
 // One line per event the run will not measure, with the kind in the words the
-// catalog listing prints, and the stage that lost the event where a stage did:
-// no run path fills `SkippedEvent::stage` today, so that arm stands built here
-// beside the arm a run prints. The summary closes the list with the events that
-// rated over the universe the hunt stood before and the budget in the unit it
-// was given (FR-041).
+// catalog prints: the record holds an address and a kind, so the line holds
+// those two figures and nothing else (T123, FR-041). The summary closes the
+// list with the events that rated over the universe the hunt stood before and
+// the budget in the unit it was given.
 auto scenarioSkippedListLine() -> void
 {
   auto table = sg::hunt::EntryHunt {};
@@ -627,12 +625,10 @@ auto scenarioSkippedListLine() -> void
       sg::hunt::SkippedEvent {
           .address = address(5),
           .kind = sg::hunt::SkippedKind::PERMISSION_BLOCKED,
-          .stage = std::nullopt,
       },
       sg::hunt::SkippedEvent {
           .address = address(6),
           .kind = sg::hunt::SkippedKind::NOT_ENCODABLE,
-          .stage = 2,
       },
   };
   // Nothing stands in the plan, so both refusals join the denominator: the
@@ -643,11 +639,11 @@ auto scenarioSkippedListLine() -> void
           sg::detail::printHuntSkips(table, record);
         })
             == "hunt: skipped cpu/hunt005 permission-blocked\n"
-               "hunt: skipped cpu/hunt006 not-encodable stage=2\n"
+               "hunt: skipped cpu/hunt006 not-encodable\n"
                "hunt: plan summary events=0/2 passes=14 budget=120s\n",
-        "the skipped line prints the kind the catalog prints and the stage "
-        "that lost the event, and the summary prints the counts and the "
-        "budget under which the plan stood (FR-041, D-10)");
+        "the skipped line prints the address and the kind the catalog prints, "
+        "and the summary prints the counts and the budget under which the plan "
+        "stood (FR-041, D-10)");
   std::printf("skipped-list-line: ok\n");
 }
 

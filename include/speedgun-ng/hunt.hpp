@@ -147,10 +147,12 @@ struct HuntOptions
  * The five enumerators are the `counters::Availability` values a
  * skipped entry carries, reached through one named mapping function.
  * `GAP` names the mid-run window disclosure. A group-open refusal
- * that still fails on the solo retry maps its error the way the
- * counters discovery probe maps an open refusal: `EINVAL` or
- * `EOPNOTSUPP` answers `NOT_ENCODABLE`, and `EACCES` or `EPERM`
- * answers `PERMISSION_BLOCKED` (D-18, spec PC-1). The console prints
+ * that still fails on the solo retry carries the kind of the catalog
+ * state its refusal names, the state the counters discovery probe
+ * settled for the entry: `EINVAL`, `EOPNOTSUPP` and `ENOENT` settle
+ * `NOT_ENCODABLE`, every other errno settles `PERMISSION_BLOCKED`,
+ * and a refusal that names no state settles `ABSENT` (D-18, spec
+ * PC-1, T118). The console prints
  * every kind with the spelling `report.cpp availabilityName` prints.
  */
 enum class SkippedKind : std::uint8_t
@@ -165,12 +167,15 @@ enum class SkippedKind : std::uint8_t
 /**
  * @brief One event the run will not measure, with the kind of the
  * refusal (E-06, D-10).
+ *
+ * The record holds the address and the kind, the two figures FR-050
+ * names. The stage a skip came from belongs to the plan and the run
+ * record, so no stage stands here (T123).
  */
 struct SkippedEvent
 {
   std::string address;
   SkippedKind kind = SkippedKind::ABSENT;
-  std::optional<std::size_t> stage;
 };
 
 /**

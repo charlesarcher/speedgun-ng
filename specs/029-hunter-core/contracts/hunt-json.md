@@ -93,8 +93,8 @@ either level, so its document differs from the master capture in the
     }
   ],
   "skipped": [
-    { "address": "cpu/l1_dc_misses", "kind": "permission-blocked", "stage": 2 },
-    { "address": "armv8_pmuv3/cycle", "kind": "not-encodable", "stage": 2 }
+    { "address": "cpu/l1_dc_misses", "kind": "permission-blocked" },
+    { "address": "armv8_pmuv3/cycle", "kind": "not-encodable" }
   ]
 }
 ```
@@ -114,8 +114,7 @@ either level, so its document differs from the master capture in the
 | `entries[].rank` | integer, or null | null for a noisy event, a single-sample event and an event outside the top N (D-7) |
 | `skipped` | array | one object per event whose open was refused or whose window disclosed a non-`COUNTABLE` availability; an event that measured and gapped stands here and in `entries` (D-10) |
 | `skipped[].address` | string | the address the run dropped |
-| `skipped[].kind` | string | `permission-blocked`, `not-encodable`, `absent`, `scope-refused`, `gap`, the console spelling of `SkippedKind` |
-| `skipped[].stage` | integer, or null | null for a discovery skip |
+| `skipped[].kind` | string | `permission-blocked`, `not-encodable`, `absent`, `scope-refused`, `gap`, the console spelling of `SkippedKind`. The record holds the address and the kind: the stage an event stood in belongs to the plan, and `hunt.stages` states the ranges one run measured (T123) |
 
 `RankedEvent::samples` and `repeated` stay out of the document: D-17 names the
 six entry keys, and the console derives the `unrepeated` mark from `samples`.
