@@ -47,6 +47,19 @@ constexpr std::string_view kInstrLeaf {"instructions"};
   std::exit(2);
 }
 
+// D-3, FR-032: `sensitivity`, `delta` and `score` are the rank keys N14b
+// brings, so the refusal for one of those three words names the work that owns
+// it beside the words this option takes. Any other word is a malformed value
+// and keeps the refusal above.
+[[noreturn]] auto rejectHuntRankReserved(const char* text) -> void
+{
+  std::fprintf(stderr,
+               "--hunt-rank: '%s' is reserved for N14b; "
+               "--hunt-rank takes rate or cv\n",
+               text);
+  std::exit(2);
+}
+
 // The refusals that name a selection carry their whole
 // line, because the line names the value in the spelling the option carried it
 // (FR-081). Every hunt refusal stands on stderr; the `hunt:` lines the run
@@ -406,8 +419,9 @@ auto parseHuntNorm(const char* text, RunOptions& options) -> void
 
 // \pre `text` is the value getopt_long read for a required-argument row.
 // \post the rank is the word named; `sensitivity`, `delta` and `score` are the
-//       words of a method that does not exist yet and are refused with the
-//       accepted words beside them (D-3).
+//       keys N14b brings and leave with the refusal naming N14b, and a word
+//       outside the five leaves with the refusal naming the accepted words
+//       (D-3, FR-032, FR-081).
 auto parseHuntRank(const char* text, RunOptions& options) -> void
 {
   SG_ASSERT(text != nullptr,
@@ -419,6 +433,8 @@ auto parseHuntRank(const char* text, RunOptions& options) -> void
     rank = hunt::HuntRank::RATE;
   } else if (word == "cv") {
     rank = hunt::HuntRank::CV;
+  } else if (word == "sensitivity" || word == "delta" || word == "score") {
+    rejectHuntRankReserved(text);
   } else {
     rejectHuntValue("--hunt-rank", "expected rate or cv", text);
   }

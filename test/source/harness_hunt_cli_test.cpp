@@ -258,6 +258,15 @@ auto rawCodeLine() -> std::string
   return "--hunt: 'r4a03' is a raw event code; --hunt takes catalog addresses";
 }
 
+// The one line a reserved rank key leaves with, naming the word the option
+// carried, the work that owns it and the words the option takes
+// (contracts/hunt-cli.md, D-3, FR-032).
+auto reservedRankLine(const char* word) -> std::string
+{
+  return std::string {"--hunt-rank: '"} + word
+      + "' is reserved for N14b; --hunt-rank takes rate or cv";
+}
+
 // One row, checked in a child: status 2, exactly one line naming the value, and
 // no benchmark function reached (FR-081, AC-5, SC-05).
 auto checkRefusal(const RefusalRow& row) -> void
@@ -392,15 +401,12 @@ auto scenarioOptionValueRefusals() -> void
       {{"full",
         {"--hunt-norm=ipc"},
         "--hunt-norm: expected instr, cycle or iter, got 'ipc'"},
+       {"full", {"--hunt-rank=sensitivity"}, reservedRankLine("sensitivity")},
+       {"full", {"--hunt-rank=delta"}, reservedRankLine("delta")},
+       {"full", {"--hunt-rank=score"}, reservedRankLine("score")},
        {"full",
-        {"--hunt-rank=sensitivity"},
-        "--hunt-rank: expected rate or cv, got 'sensitivity'"},
-       {"full",
-        {"--hunt-rank=delta"},
-        "--hunt-rank: expected rate or cv, got 'delta'"},
-       {"full",
-        {"--hunt-rank=score"},
-        "--hunt-rank: expected rate or cv, got 'score'"},
+        {"--hunt-rank=rate2"},
+        "--hunt-rank: expected rate or cv, got 'rate2'"},
        {"full", {"--hunt-top=0"}, "--hunt-top: expected 1 to 10000, got '0'"},
        {"full",
         {"--hunt-top=10001"},

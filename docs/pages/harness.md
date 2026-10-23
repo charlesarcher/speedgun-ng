@@ -1581,7 +1581,7 @@ text being the value the option carried. The run then ends with status 2.
 --hunt: '@blank.txt' holds no catalog address
 --hunt: 'r4a03' is a raw event code; --hunt takes catalog addresses
 --hunt-norm: expected instr, cycle or iter, got 'ipc'
---hunt-rank: expected rate or cv, got 'sensitivity'
+--hunt-rank: 'sensitivity' is reserved for N14b; --hunt-rank takes rate or cv
 --hunt-top: expected 1 to 10000, got '0'
 --hunt-noise: expected a percentage above 0, got '0'
 --hunt-repeats: expected 1 to 1000, got '1001'

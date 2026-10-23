@@ -56,8 +56,8 @@ namespace sg::hunt
  * \post `INSTR` divides by the instructions count of the same pass,
  *       `CYCLE` by the cycles count of the same pass, `ITER` by the
  *       iteration count of the attempt. No enumerator names
- *       `SENSITIVITY`, `DELTA` or `SCORE`: specs/031 adds those when
- *       its method exists (D-3)
+ *       `SENSITIVITY`, `DELTA` or `SCORE`: N14b adds those when its method
+ *       exists (D-3)
  */
 enum class HuntNorm : std::uint8_t
 {
