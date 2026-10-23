@@ -16,9 +16,14 @@ single dash when the answer is empty. Console lines are joined with a
 literal backslash-n, and the record holds the standard-output lines
 before the standard-error ones with the version banner left out. A case
 the record holds is compared line by line, and the document it wrote is
-read back and compared by key set with the values and `schemaVersion`
-left out; a case the record does not hold is compared by status and fault
-fragment alone. (FR-005, FR-059, FR-086, SC-007)
+read back: its sorted key set, with `schemaVersion` left out, has to be
+the recorded set, which is also what refuses a `run` object the base
+record does not name, and the unmeasured values the key set cannot hold
+have to be the ones the record and the run's own banner name. A case the
+record does not hold is compared by status and fault line alone. Every
+row that answers a fault line has to answer the recorded line and no
+other, and a usage fault answers exactly one line. (FR-005, FR-007 to
+FR-009, FR-059, FR-086, SC-007, AC-7)
 """
 
 from __future__ import annotations
@@ -32,6 +37,11 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+
+# One replayed row: the exit status, the standard-error lines, the masked
+# console text, the sorted key set of the document the run wrote, that
+# document, and the version and build type the run's banner names.
+Answer = tuple[int, list[str], list[str], list[str], object, tuple[str, str]]
 
 
 def mask(text: str) -> str:
@@ -94,10 +104,17 @@ def read_rows(path: Path) -> tuple[list[tuple[str, list[str], int, str]], int]:
     return rows, broken
 
 
-def fault_of(stderr: str, prefixes: list[str], name: str) -> str:
-    lines = [mask(strip_program(line, prefixes, name))
-             for line in stderr.splitlines() if line.strip()]
-    return min(lines, key=len) if lines else ""
+def fault_lines(stderr: str, prefixes: list[str],
+                name: str) -> list[str]:
+    """Every standard-error line the run printed, prefix left out.
+
+    The shortest line rule is gone: it compared one of several lines with
+    the record, so a row that answers a second fault line passed. Every
+    line is held to the record now, and the caller counts them. (FR-007 to
+    FR-009, SC-007)
+    """
+    return [mask(strip_program(line, prefixes, name))
+            for line in stderr.splitlines() if line.strip()]
 
 
 def console_of(stdout: str, stderr: str, prefixes: list[str],
@@ -108,6 +125,23 @@ def console_of(stdout: str, stderr: str, prefixes: list[str],
     out += [collapse(mask(strip_program(line, prefixes, name)))
             for line in stderr.splitlines() if line.strip()]
     return out
+
+
+def banner_of(stdout: str) -> tuple[str, str]:
+    """Report the version and the build type this run's banner names.
+
+    The banner stands in no console record, because it moves with the
+    release and with the preset. It is read from the run instead, so the
+    two `speedgun` members of the document that run wrote have something
+    to agree with. (SC-007, AC-7)
+    """
+    for line in stdout.splitlines():
+        if not is_banner(line):
+            continue
+        words = line.split()
+        build = words[2].partition("=")[2] if len(words) > 2 else ""
+        return words[1], build
+    return "", ""
 
 
 def read_console(path: Path) -> tuple[dict[str, tuple[list[str], list[str]]],
@@ -142,12 +176,18 @@ def key_set(node: object, path: str):
             yield from key_set(item, f"{path}[]" if path else "[]")
 
 
-def written_keys(target: Path) -> list[str]:
-    """The sorted key set of the written document, schemaVersion left out."""
+def written_document(target: Path) -> tuple[list[str], object]:
+    """The sorted key set of the written document and the document.
+
+    `schemaVersion` is left out of the set, because SC-007 states that the
+    document of a run with no new option differs from the base document in
+    that one value alone: every other path the record names has to stand.
+    """
     with target.open() as stream:
-        keys = set(key_set(json.load(stream), ""))
+        document = json.load(stream)
+    keys = set(key_set(document, ""))
     keys.discard("schemaVersion")
-    return sorted(keys)
+    return sorted(keys), document
 
 
 def reroute(argv: list[str]) -> tuple[list[str], Path | None]:
@@ -165,21 +205,94 @@ def reroute(argv: list[str]) -> tuple[list[str], Path | None]:
 
 
 def run_row(binary: Path, argv: list[str],
-            prefixes: list[str]) -> tuple[int, str, list[str], list[str]]:
+            prefixes: list[str]) -> Answer:
     argv, target = reroute(argv)
     done = subprocess.run([str(binary), *argv], cwd=REPO,
                           capture_output=True, text=True)
     keys: list[str] = []
+    document: object = None
     if target is not None:
         try:
-            keys = written_keys(target)
+            keys, document = written_document(target)
         except (OSError, ValueError):
             keys = [f"no readable document at {target}"]
         target.unlink(missing_ok=True)
     return (done.returncode,
-            fault_of(done.stderr, prefixes, binary.name),
+            fault_lines(done.stderr, prefixes, binary.name),
             console_of(done.stdout, done.stderr, prefixes, binary.name),
-            keys)
+            keys, document, banner_of(done.stdout))
+
+
+# The document word of one printed column unit: the console prints the
+# label of `kUnitScales` (source/harness/report.cpp) and the document the
+# word of `kTimeUnitWords` (source/harness/detail/json_report.hpp), both
+# indexed by the same enumerator.
+UNIT_WORDS = {"ns": "NANOSECONDS", "us": "MICROSECONDS",
+              "ms": "MILLISECONDS", "s": "SECONDS"}
+
+
+def value_problems(record: list[str], banner: tuple[str, str],
+                   doc: object) -> list[str]:
+    """One phrase per unmeasured document value that moved.
+
+    The field set, and the reason each member is here: every path of the
+    document is held by the key set rule, but a key set carries no value,
+    so the values a run does not measure are compared on their own.
+    `benchmarks[].name` has to be the row name the recorded console text
+    prints, and has to split into the recorded `benchmarks[].suite` and
+    `benchmarks[].case`; `benchmarks[].timeUnit` has to be the unit that
+    text prints the time column in; and `speedgun.version` and
+    `speedgun.buildType` have to be what this very run's banner names.
+    The key set rule alone is what refuses a `run` object the record does
+    not name. Nothing a run measures enters here: iterations, times,
+    percentiles, statistics and the sample and pass counts answer again
+    every run, which is why the console mask hides their digits. (SC-007,
+    AC-7)
+    """
+    if not isinstance(doc, dict):
+        return []          # the key set rule already named the unreadable one
+    problems: list[str] = []
+    rows = [row for row in doc.get("benchmarks", [])
+            if isinstance(row, dict)]
+    printed: list[str] = []
+    for line in record:
+        head = line.split(" ")[0] if line else ""
+        if head and head not in printed:
+            printed.append(head)
+    named = [mask(row.get("name") or "") for row in rows]
+    if named != printed:
+        problems.append("document names '" + "|".join(named)
+                        + "', the record prints '" + "|".join(printed) + "'")
+    for row in rows:
+        name, suite, case = row.get("name"), row.get("suite"), row.get("case")
+        if f"{suite}/{case}" != name:
+            problems.append(f"benchmark '{name}' is named '{suite}' "
+                            f"of case '{case}'")
+    unit = ""
+    for line in record:
+        found = re.search(r"time/iter \((\w+)\)", line)
+        if found is not None:
+            unit = UNIT_WORDS.get(found.group(1), "")
+            break
+    for row in rows:
+        if unit and row.get("timeUnit") != unit:
+            problems.append(f"benchmark '{row.get('name')}' carries the "
+                            f"unit '{row.get('timeUnit')}', the record "
+                            f"prints '{unit}'")
+    version, build = banner
+    config = doc.get("speedgun")
+    if not isinstance(config, dict):
+        config = {}
+    if not version or not build:
+        problems.append("the run printed no version banner to read the "
+                        "two config members against")
+    elif config.get("version") != version:
+        problems.append(f"document version '{config.get('version')}', the "
+                        f"banner names '{version}'")
+    elif config.get("buildType") != build:
+        problems.append(f"document build type '{config.get('buildType')}', "
+                        f"the banner names '{build}'")
+    return problems
 
 
 def console_problems(want: list[str], got: list[str]) -> list[str]:
@@ -229,18 +342,41 @@ def main() -> int:
     total = len(rows) + broken + broken_records
     passed = 0
     for case, argv, want_status, want_fragment in rows:
-        status, fault, text, keys = run_row(binary, argv, prefixes)
+        status, faults, text, keys, doc, banner = run_row(binary, argv,
+                                                          prefixes)
         want = ("" if want_fragment == "-"
                 else mask(strip_program(want_fragment, prefixes, binary.name)))
         problems = []
         if status != want_status:
-            problems.append(f"status expected {want_status}, observed {status}")
-        if fault != want:
-            problems.append(f"fault expected '{want}', observed '{fault}'")
+            problems.append(f"status expected {want_status}, "
+                            f"observed {status}")
+        # Every line of a fault row is held to the recorded line, so a
+        # second line of its own is a mismatch rather than the line the
+        # shortest rule happened to leave out. A row the base refuses,
+        # the status 2 a rejected command line answers, has to answer that
+        # one line and nothing beside it. A row that runs on to a normal
+        # end may print one warning per column it refused, so there it is
+        # the distinct lines that have to be the recorded line alone.
+        # (FR-007 to FR-009, FR-046, SC-007)
+        if want_fragment == "-":
+            if faults:
+                problems.append("fault expected no line, observed "
+                                + str(len(faults)) + ": '"
+                                + "' '".join(faults) + "'")
+        else:
+            distinct = sorted(set(faults))
+            if distinct != [want]:
+                problems.append("fault expected '" + want + "', observed "
+                                + str(len(faults)) + " line(s): '"
+                                + "' '".join(distinct) + "'")
+            if want_status == 2 and len(faults) != 1:
+                problems.append(f"the fault answers {len(faults)} lines, "
+                                "a usage fault prints exactly one line")
         record = records.pop(case, None)
         if record is not None:
             problems += console_problems(record[0], text)
             problems += key_problems(record[1], keys)
+            problems += value_problems(record[0], banner, doc)
         if problems:
             print(f"{case}: " + "; ".join(problems))
         else:
