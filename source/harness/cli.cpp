@@ -208,21 +208,26 @@ auto environmentRowOf(std::string_view entry) -> std::optional<EnvironmentRow>
 }
 
 // specs/028 FR-019, FR-026, D-04: the process environment reaches the
-// gather as data, so `environ` is read once here at the entry point and
+// gather as data, so the table is read once here at the entry point and
 // nowhere else in the library. The rows carry the `SPEEDGUN_*` names with
 // the text each holds, and a name no flagged row claims travels along to
-// be ignored by the gather (FR-026). The sources test reads the split of one
-// entry through `environmentRowOf` and calls this walk once against the
+// be ignored by the gather (FR-026). The table arrives as a parameter, so
+// the walk takes a table the caller holds: a null table holds no entry and
+// answers no row, the way an empty one does (FR-012). The sources test
+// reads the split of one entry through `environmentRowOf` and calls this
+// walk against a table it builds, against a null table and against the
 // running process, while the end-to-end inheritance check execs a built
-// binary with an explicit environment array (FR-012).
-auto environmentRows() -> std::vector<EnvironmentRow>
+// binary with an explicit environment array.
+auto environmentRows(char* const* table) -> std::vector<EnvironmentRow>
 {
   std::vector<EnvironmentRow> rows;
+  if (table == nullptr) {
+    return rows;
+  }
   // The platform hands every process a NULL-terminated array, so the walk
-  // is pointer arithmetic by construction and needs no null check of its
-  // own, the way the platform's own `getenv` walks it.
+  // below is pointer arithmetic over the table it was handed.
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  for (char* const* entry = environ; *entry != nullptr; ++entry) {
+  for (char* const* entry = table; *entry != nullptr; ++entry) {
     if (const auto row = environmentRowOf(*entry)) {
       rows.push_back(*row);
     }
@@ -304,7 +309,7 @@ auto speedgunMain(int argc, char** argv) -> int
   // the filter compile, the placement parse and the run loop (SC-003).
   std::vector<detail::EnvironmentRow> environment;
   if (!scan->options.environmentOff) {
-    environment = detail::environmentRows();
+    environment = detail::environmentRows(environ);
   }
 
   // specs/028 FR-029, FR-034, D-05: the entry point owns the read of the

@@ -171,12 +171,22 @@ struct ResolvedOptions
   // names none. Its rules join after that file's own lines, the last
   // position of the order spec D-23 states (FR-063).
   std::string optionFileRulesPath;
+  // The `--json-raw` row has no unset word: its master default is the same
+  // value the word `none` answers, so the marker is what tells a source
+  // that settled the row from one that never named it (FR-037, FR-050).
+  bool rawContentSettled = false;
 };
 
 /// @brief The one option table, in the order
 /// `specs/028-full-command-line/contracts/option-table.md` fixes it
 /// (E-01, FR-001, FR-002, D-01, D-02).
 [[nodiscard]] auto optionRows() -> std::span<const OptionRow>;
+
+/// @brief The row of the table that carries `name`, or null when the table
+/// holds none: the option file, the help printer and the disclosure tests
+/// share this one lookup, so the table is walked in one place (FR-033,
+/// FR-017).
+[[nodiscard]] auto rowNamed(std::string_view name) -> const OptionRow*;
 
 /**
  * @brief Scan one command line into the options its words name
@@ -216,10 +226,12 @@ auto printHelp() -> void;
  */
 auto printVersion() -> void;
 
-/// @brief The `SPEEDGUN_*` names the process holds, read once by the
-/// entry point and handed to the gather as data (E-02, FR-019, FR-026,
-/// D-04).
-[[nodiscard]] auto environmentRows() -> std::vector<EnvironmentRow>;
+/// @brief The `SPEEDGUN_*` names one environment table holds, read once by
+/// the entry point and handed to the gather as data (E-02, FR-019, FR-026,
+/// D-04). The table is the caller's: a null table holds no entry, so it
+/// answers no row (FR-012).
+[[nodiscard]] auto environmentRows(char* const* table)
+    -> std::vector<EnvironmentRow>;
 
 /// @brief The row one `NAME=TEXT` entry of the process environment carries,
 /// or no row for an entry that holds no `=` or that the `SPEEDGUN_` prefix

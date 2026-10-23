@@ -562,15 +562,11 @@ auto headerCarriesNoVolatileKey() -> void
 // the test carries no option name of its own (specs/028 E-05).
 auto rowNamed(const std::string_view name) -> const sg::detail::OptionRow*
 {
-  for (const sg::detail::OptionRow& row : sg::detail::optionRows()) {
-    if (name == row.name) {
-      // optionRows() is static constexpr storage, so this address is stable.
-      // cppcheck-suppress returnDanglingLifetime
-      return &row;
-    }
+  const sg::detail::OptionRow* const row = sg::detail::rowNamed(name);
+  if (row == nullptr) {
+    fail("the option table holds no row of the name the case asks for");
   }
-  fail("the option table holds no row of the name the case asks for");
-  return nullptr;
+  return row;
 }
 
 // One scripted run written out beside the disclosure the case hands over,
