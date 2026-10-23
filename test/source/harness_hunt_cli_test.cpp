@@ -412,6 +412,17 @@ auto scenarioSelectionRefusals() -> void
   std::printf("selection-refusals: ok\n");
 }
 
+// An attached value with nothing in it is one thing and a bare `--hunt` is
+// another: the bare form parks the record for the scan to settle, while
+// `--hunt=` carried a value, and that value is the empty text, which is no
+// catalog address. The shape rule answers it where the option read it, so the
+// same empty text refuses on a host that counts nothing (D-11, FR-006, FR-081).
+auto scenarioEmptyAttachedValue() -> void
+{
+  checkRefusals({{"full", {"--hunt="}, "--hunt: '' is not a catalog address"}});
+  std::printf("empty-attached-value: ok\n");
+}
+
 auto scenarioOptionValueRefusals() -> void
 {
   checkRefusals(
@@ -475,6 +486,39 @@ auto scenarioLimitRefusal() -> void
        {"--hunt=all"},
        "hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3"});
   std::printf("limit-refusal: ok\n");
+}
+
+// The slot rule of spec PC-2 asks of event addresses only: an anchor leaf needs
+// no slot of its own (D-3). So `--hunt=cpu/cpu-cycles` of the two-slot host
+// stands open at the gate that refuses the event addresses of the same host,
+// the benchmark runs, and what the run answers is the planner's own limit
+// refusal, naming the limit and the leaves one event and its two anchors need.
+auto scenarioAnchorLeafNeedsNoSlot() -> void
+{
+  const std::string anchor =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::kHuntCycle);
+  std::string output;
+  const int status =
+      childRun(selfPath, "hunt", {kScriptNarrow, "--hunt=" + anchor}, output);
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 1,
+        "an anchor-only selection passes the slot gate and answers the failure "
+        "status of the refused plan, not the usage status (FR-081, spec PC-2)");
+  check(output.find("BENCHMARK_RAN") != std::string::npos,
+        "the run of an anchor-only selection reaches the benchmark");
+  check(output.find("slots and a hunt pass needs 3") == std::string::npos,
+        "the gate that refuses event addresses of a narrow host stands open "
+        "for " "an anchor leaf (D-3, spec PC-2)");
+  const std::string line =
+      lineHolding(output, "device 'cpu' publishes a limit");
+  check(!line.empty(),
+        "the refused plan of the anchor-only selection names the device and "
+        "its " "limit");
+  check(line.find("3 leaves one event and its two anchors need")
+            != std::string::npos,
+        "the refusal names the leaves one event and its two anchors need");
+  check(countOf(output, "publishes a limit of") == 1,
+        "the run states its one refusal line");
+  std::printf("anchor-leaf-needs-no-slot: ok\n");
 }
 
 // The nested device, the same rule one path level deeper: the limit list keys a
@@ -1337,8 +1381,10 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
 {
   static const std::vector<Scenario> kList {
       Scenario {"selection-refusals", &scenarioSelectionRefusals},
+      Scenario {"empty-attached-value", &scenarioEmptyAttachedValue},
       Scenario {"option-value-refusals", &scenarioOptionValueRefusals},
       Scenario {"limit-refusal", &scenarioLimitRefusal},
+      Scenario {"anchor-leaf-needs-no-slot", &scenarioAnchorLeafNeedsNoSlot},
       Scenario {"nested-device-limit-refusal",
                 &scenarioNestedDeviceLimitRefusal},
       Scenario {"seat-refusal-status", &scenarioSeatRefusalExitsOneWithReason},

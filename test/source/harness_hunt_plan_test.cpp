@@ -579,6 +579,56 @@ auto narrowLimitRefusal() -> void
   }
 }
 
+// The limit list of a walk that named one device more than the list holds:
+// every entry of the walk carries the index of its device in the catalog order,
+// so an event whose `source` stands at or past the end of the list is a caller
+// that trimmed the list short of the device it plans on. The plan answers the
+// recoverable error naming the address, the source and the length of the list,
+// and seats no column (FR-081). The same event plans as soon as the list
+// carries its device, so the refusal follows from the length alone.
+auto sourceIndexRefusal() -> void
+{
+  const auto options = sg::hunt::HuntOptions {};
+  // The uncore device stands last in `huntDevices()` order, so its event
+  // carries the highest source index of the scripted host.
+  const auto events = eventsOn(sg::test::kHuntUncore, 1);
+  const auto source = deviceIndex(sg::test::kHuntUncore);
+
+  auto limits = sg::test::huntLimits(kAcOneLimit);
+  limits.resize(1);
+  auto anchors = sg::test::huntAnchors();
+  anchors.resize(1);
+  check(limits.size() == anchors.size(),
+        "the caller hands one limit entry and one anchor pair per device");
+  check(source > limits.size(),
+        "the event names a device past the end of the list");
+
+  const auto plan = sg::hunt::planHunt(
+      events, limits, anchors, options, kCalibrationNsPerPass);
+  check(!plan.has_value(),
+        "an event whose source stands past the limit list is refused");
+  if (!plan.has_value()) {
+    const std::string expected = "hunt: event '" + events.front().address
+        + "' names counter source " + std::to_string(source)
+        + " of a limit list that holds " + std::to_string(limits.size())
+        + " devices";
+    check(plan.error().message == expected,
+          "the refusal names the address, the source index and the number of "
+          "devices the list holds");
+  }
+
+  const auto held = planOf(events, kAcOneLimit, options);
+  check(held.has_value(),
+        "the same event plans once the list carries its own device");
+  if (held.has_value()) {
+    check(!held->columns.empty(), "the plan seats the event it refused");
+    if (!held->columns.empty()) {
+      check(held->columns.front().source == source,
+            "the column plans on the device the event named");
+    }
+  }
+}
+
 // An empty event list is not a refusal: it is the shape of a host whose
 // discovery refused every event, and the plan is zero columns, empty passes,
 // `anchorsPerPass` 0 and `normalized` false, so the run prints the plan line,
@@ -1182,6 +1232,7 @@ auto estimateWithoutCalibration() -> void
       Scenario {"two-hundred-events", twoHundredEvents},
       Scenario {"limit-three", limitThree},
       Scenario {"narrow-limit-refusal", narrowLimitRefusal},
+      Scenario {"source-index-refusal", sourceIndexRefusal},
       Scenario {"empty-event-list", emptyEventList},
       Scenario {"catalog-order-dedup", catalogOrderAndDedup},
       Scenario {"selection-shapes", selectionShapesAndRefusals},
