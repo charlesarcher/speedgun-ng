@@ -360,19 +360,20 @@ skipped list, and leaves stderr empty (AC-10).
 | fact | value |
 | --- | --- |
 | plan line | `hunt: plan events=489 passes=245 method=PASSES estimate=not available budget=none` |
-| summary line | `hunt: plan summary events=0/497 passes=245 spend=not available budget=none` |
+| summary line | `hunt: plan summary events=<ran>/<planned> passes=<p> budget=<text>\|none` |
 | rank rows | 489 rows, each `instr=0.000 cv=0.00 mark=unrepeated` |
 | skipped lines | 497 lines: 458 `absent`, 31 `gap`, 8 `permission-blocked` |
 | document | `hunt.json`, 120531 bytes, `schemaVersion` `1.4` |
 | host state | `perf_event_paranoid` 2, no `perf` utility installed |
 
-Those lines came off the tree of this capture, whose summary line still
-printed a `spend` field: the command-line path handed `runHuntNamed` no
-calibration figure, so the capture records `spend=not available`. The field
-left the summary line when the time source rule (D-6) took away the wall-clock
-figure behind it; the printer answers
+Those lines came off the tree of this capture, whose summary line read
+`hunt: plan summary events=0/497 passes=245 spend=not available budget=none`:
+that tree printed a `spend` field, and the command-line path handed
+`runHuntNamed` no calibration figure. The field left the summary line when the
+time source rule (D-6) took away the wall-clock figure behind it.
+`printHuntSkips` (`source/harness/report.cpp:857-863`) answers
 `hunt: plan summary events=<ran>/<planned> passes=<p> budget=<text>|none`
-today (T120).
+today (T120), and the table row above quotes those bytes.
 
 SC-010 states that the recorded `perf_event_paranoid` value may push
 kernel-scoped events into the skipped list, that the disclosure belongs
@@ -387,7 +388,7 @@ violated it at the third count.
 The usage route was re-checked on the same binary: `--hunt=cpu/cycles`
 prints the one refusal line `--hunt: 'cpu/cycles' is not a catalog address`
 on stderr and answers 2. Nothing else prints: the run leaves through
-`rejectHuntSelection` at `source/harness/hunt_cli.cpp:54-58`, ahead of any
+`rejectHuntSelection` at `source/harness/hunt_cli.cpp:62-66`, ahead of any
 benchmark (FR-081).
 
 Two things this capture does not carry. No event reached a rate, so every
