@@ -794,7 +794,7 @@ auto EventCatalog::devicePart(const std::string_view address)
     -> std::string_view
 {
   const auto part = devicePartOf(address);
-  const auto leaf = address.substr(part.size());
+  [[maybe_unused]] const auto leaf = address.substr(part.size());
   SG_ENSURE(leaf.empty() || leaf.find_last_of('/') == 0,
             "the device part is the text before the last `/`, or the whole "
             "address when it holds none (E-01)");
@@ -1066,7 +1066,7 @@ auto runHuntNamed(std::string_view name,
   // PD-12, D-18: the record counts every pass the run opened, so no collected
   // sample stands on a pass the record leaves out.
   for (const auto& rows : measured) {
-    for (const auto& sample : rows.samples) {
+    for ([[maybe_unused]] const auto& sample : rows.samples) {
       SG_INVARIANT(sample.pass < entry.passCount,
                    "the record counts the passes of the plan that ran, the "
                    "passes a retry appended included (PD-12, D-18)");
