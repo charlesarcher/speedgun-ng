@@ -48,9 +48,9 @@
 #include <cstdlib>
 #include <expected>
 #include <fstream>
-#include <iterator>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -353,8 +353,9 @@ auto refusesBudget(const char* text, const std::string_view line) -> void
   check(WIFEXITED(status) && WEXITSTATUS(status) == 2,
         "a malformed budget leaves with the usage status (FR-012, FR-081)");
   std::ifstream file(capture);
-  const std::string printed {std::istreambuf_iterator<char>(file),
-                             std::istreambuf_iterator<char>()};
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  const std::string printed = buffer.str();
   check(printed == std::string(line) + "\n",
         "one line names the value the option read (FR-081)");
   std::remove(capture.c_str());
