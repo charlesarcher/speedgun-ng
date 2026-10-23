@@ -96,6 +96,7 @@ status 2 (FR-081). The message form follows the percentile list refusal at
 | `--hunt` with `--counter=cpu/instructions` | `--hunt cannot combine with --counter` |
 | `--hunt` with `--metric=ipc` | `--hunt cannot combine with --metric` |
 | `--hunt` with `--compare=a.json,b.json` | `--hunt cannot combine with --compare` |
+| `--hunt` with `--placement=core` | `--hunt cannot combine with --placement` |
 
 A hunt option given twice keeps the last value, the way every other option in
 the table behaves. A hunt option with no `--hunt` keeps the hunt off: the value
@@ -125,10 +126,17 @@ which are the rows the report prints.
 
 `hunt_cli.cpp` owns `validateHuntCombination(const RunOptions&)`, which `cli.cpp`
 calls once after the scan. It reads the settled members of
-`detail/internal.hpp:506-552`: `counterAddresses` (line 516), `metricNames`
-(line 527) and `compareBaseline` (line 545). The check runs
-after the scan because a `--counter` that stands after `--hunt` on the command
-line is the same conflict as one that stands before it.
+`detail/internal.hpp:504-550`: `counterAddresses` (line 514), `metricNames`
+(line 525), `placement` (line 529) and `compareBaseline` (line 543). The check
+runs after the scan because a `--counter` that stands after `--hunt` on the
+command line is the same conflict as one that stands before it.
+
+FR-016 of specs/025 governs the scope option: the command-line option that
+selects a placement preset for every threaded run of the process. This tree
+spells that option `--placement`, and no file of this branch spells `--scope`,
+so the table above names `--placement` and the refusal carries that spelling.
+The check reads the presence of the option, so any preset value reaches it. The
+preset-name refusal of FR-016 still stands for a run with no hunt.
 
 ## Console output
 
@@ -204,7 +212,7 @@ pattern `SG_SCHEMA_PATH` uses at
 | Each refusal line of the table above, one case per row, status 2 and one stderr line | `test/source/harness_hunt_cli_test.cpp` |
 | In-process `speedgunMain` status checks, and forked children where the refusal path calls `std::exit`, following `test/source/harness_cli_test.cpp:800,1166,1417` | `harness_hunt_cli_test.cpp` |
 | Selection forms: `all`, `none`, list, pattern, `@file`, dedup across a list and a file | `harness_hunt_cli_test.cpp`, `harness_hunt_plan_test.cpp` |
-| The conflict check for `--counter`, `--metric` and `--compare`, in both command-line orders | `harness_hunt_cli_test.cpp` |
+| The conflict check for `--counter`, `--metric`, `--compare` and `--placement`, in both command-line orders | `harness_hunt_cli_test.cpp` |
 | `--hunt` with `--metric-method=multiplex` runs every event multiplexed and discloses it in the plan line, the rows and the document | `harness_hunt_cli_test.cpp` |
 | `--dry-run` with `--hunt` prints the plan line and one unrepeated row per column | `harness_hunt_cli_test.cpp` |
 | `--hunt=none` runs exactly like a run with no `--hunt`: no `hunt:` line and no `hunt` key | `harness_hunt_cli_test.cpp`, `harness_hunt_report_test.cpp` |

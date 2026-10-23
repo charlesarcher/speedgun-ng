@@ -453,7 +453,7 @@ Every FR of `spec.md` and every Success Criterion maps to at least one task.
 | FR-001 to FR-003, FR-009, FR-010 | T015, T017, T022 |
 | FR-004, FR-005, FR-007, FR-008 | T015, T018, T022, T028 |
 | FR-006 | T018, T028 |
-| FR-011, FR-016, FR-017, FR-020 | T015, T023 |
+| FR-011, FR-020, FR-016 and FR-017 of specs/025 | T015, T023, T146 |
 | FR-012, FR-013 | T031, T033, T034, T035 |
 | FR-014 | T016, T022, T024 |
 | FR-015, FR-018, FR-019 | T016, T024 |
@@ -604,7 +604,7 @@ as was the coverage bar. Two rows are BLOCKING.
       `source/harness/hunt.cpp:982-999`, which `--dry-run` skips, and
       `hunt_plan.cpp:453` reads `overBudget = allowed.has_value() && runs >
       *allowed`, so an unpriceable budget looks unlimited.
-- [ ] T146 Refuse `--hunt` given with the scope option the tree actually
+- [x] T146 Refuse `--hunt` given with the scope option the tree actually
       carries: `--placement` (`source/harness/cli.cpp:404`, five preset names)
       has no branch in `validateHuntCombination` at
       `source/harness/hunt_cli.cpp:687-701`, so `--hunt=cpu/cpu-cycles

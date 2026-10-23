@@ -541,6 +541,20 @@ auto scenarioConflictRefusals() -> void
   std::printf("conflict-refusals: ok\n");
 }
 
+// specs/025 FR-016 governs the scope option of a run, and this tree spells
+// that option `--placement`. A hunt beside it leaves with the refusal of the
+// family above, for either order on the command line.
+auto scenarioPlacementConflictRefusal() -> void
+{
+  checkRefusals({{"full",
+                  {"--hunt", "--placement=core"},
+                  "--hunt cannot combine with --placement"},
+                 {"full",
+                  {"--placement=core", "--hunt"},
+                  "--hunt cannot combine with --placement"}});
+  std::printf("placement-conflict-refusal: ok\n");
+}
+
 // ---------------------------------------------------------------------------
 // The accepted forms (FR-001, FR-006, D-1)
 // ---------------------------------------------------------------------------
@@ -1322,6 +1336,8 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
       Scenario {"option-order-settles", &scenarioOptionOrderSettles},
       Scenario {"option-without-hunt", &scenarioOptionWithoutHunt},
       Scenario {"option-order-refusals", &scenarioOptionOrderRefusals},
+      Scenario {"placement-conflict-refusal",
+                &scenarioPlacementConflictRefusal},
   };
   return kList;
 }

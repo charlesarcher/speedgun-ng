@@ -635,11 +635,11 @@ auto expandHuntSelection(RunOptions& options) -> void
 
 // \pre the option scan has ended, so `options` holds every value it read;
 //      a record the scan parked is not a hunt.
-// \post a hunt together with a counter list, a metric list or a compare
-//       baseline leaves with one line naming both options and status 2, the
-//       same refusal for either order on the command line (D-16, FR-081); a run
-//       that carries no hunt, or a hunt beside `--list`, `--catalog` or
-//       `--topology`, is not a refusal.
+// \post a hunt together with a counter list, a metric list, a compare
+//       baseline or a placement preset leaves with one line naming both
+//       options and status 2, the same refusal for either order on the
+//       command line (D-16, FR-081); a run that carries no hunt, or a hunt
+//       beside `--list`, `--catalog` or `--topology`, is not a refusal.
 auto validateHuntCombination(const RunOptions& options) -> void
 {
   if (!huntRequested(options)) {
@@ -653,6 +653,13 @@ auto validateHuntCombination(const RunOptions& options) -> void
   }
   if (!options.compareBaseline.empty()) {
     rejectHuntCombination("--compare");
+  }
+  // The placement preset plans the cpus of the run's threaded contexts and a
+  // hunt plans its counter passes, so one run carries one plan (specs/025
+  // FR-015, D-16). The option is the whole conflict, so any preset value
+  // reaches this refusal and the value stays unread here.
+  if (options.placement.has_value()) {
+    rejectHuntCombination("--placement");
   }
 }
 
