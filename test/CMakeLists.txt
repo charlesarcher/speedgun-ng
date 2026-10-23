@@ -1348,6 +1348,23 @@ if(TARGET docs_json_reports)
   set_tests_properties(report_shape_json_reports_sample PROPERTIES TIMEOUT 120)
 endif()
 
+if(TARGET docs_hunt_rank)
+  # The guide page carries the recorded run of the hunter example, so the selector
+  # names the golden that owns this invocation's block. The fold checks the
+  # recorded run against a real run of the example, which is what fails the suite
+  # when a hunt column is renamed or dropped while the page still quotes it
+  # (T109, FR-070, PD-19).
+  add_test(
+      NAME report_shape_hunt_rank_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_hunt_rank>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example hunt_rank
+  )
+  set_tests_properties(report_shape_hunt_rank_sample PROPERTIES TIMEOUT 120)
+endif()
+
 # Each docs example is a complete program whose regions the page quotes, so the
 # gate runs every one of them and requires a row for each registered benchmark,
 # with no FAILED row and with every skip declared in the source (T035; FR-034,
