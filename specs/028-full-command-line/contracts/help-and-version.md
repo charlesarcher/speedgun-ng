@@ -32,7 +32,7 @@ speedgun-ng <version>
 ## The rules
 
 Both options print on standard output, stop before any benchmark runs,
-and are accepted on the command line alone (FR-017): neither carries the
+and stand on the command line alone (FR-017): neither carries the
 environment flag, and the option file refuses both names (FR-031).
 
 The scan answers the first of `--help`, `--version` or a usage fault

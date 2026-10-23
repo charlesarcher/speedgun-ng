@@ -22,8 +22,8 @@ per new long option, in the existing two-column form: `--options`,
 (`tools/docs/example_drift.py:155`) moves from the measured 773 to the
 measured 786, and the comment above it records the arithmetic the way the
 note at `:146` to `:154` does (FR-071). `SECTIONS` at `:32` to `:58` and
-the `SECTION_OWNERS` entry at `:75` gain nothing: the title already
-stands at `:44` and the owner `command_line.cpp` is already recorded (FR-073).
+the section map entry at `:75` gain nothing: the title already
+stands at `:44` with `command_line.cpp` recorded beside it (FR-073).
 
 ## The guide reference
 
@@ -43,11 +43,11 @@ to `:639`.
 
 ## The example
 
-The region `options` of `example/docs/command_line.sh` (`:8` to `:13`)
+The region `options` of `example/docs/command_line.sh` (`:14` to `:27`)
 gains the command lines a reader types for the option file, the
 environment, the thread list, the interleaving and the rules file, in the
 file's existing form of one typed line per case (FR-072). The fenced
-block at `docs/pages/harness.md:611` to `:616` grows to match the region
+block at `docs/pages/harness.md:611` to `:626` grows to match the region
 byte for byte, which is what the drift tool compares.
 
 The snippet region `command-line-read` of `example/docs/command_line.cpp`

@@ -56,7 +56,7 @@ named expectation, and the revert is byte-identical.
 | Coverage | `cmake --preset=ci-coverage` into `build/coverage`, `CMAKE_BUILD_TYPE=Coverage` |
 | Build and test | `cmake --build build`, then `ctest --test-dir build --output-on-failure` |
 | Harness target | `speedgun-ng_harness` at `CMakeLists.txt:200`, sources globbed at `:196` to `:199`, `SOVERSION 10` at `:261` |
-| Library archive | `SOVERSION 3` at `CMakeLists.txt:53`; the project `VERSION 0.16.0` at `:9` |
+| Library archive | `SOVERSION 3` at `CMakeLists.txt:53`; the project `VERSION 0.18.0` at `:9` |
 | JSON | the vendored simdjson 4.6.11: `simdjson::builder::string_builder` writes (`source/harness/json_report.cpp:26`), `simdjson::dom` reads (`source/harness/json_load.cpp:1198`) |
 | Standard library facilities new to this tree | `getopt_long` with `opterr` and `optopt` (already used at `source/harness/cli.cpp:377`), `environ`, `std::to_array`, `std::span`, `std::mt19937_64`, `std::raise` |
 | Facilities unchanged | `sched_getaffinity` for every cpu count, `std::regex` for the batch filter, `std::expected` for the internal fault channel |
@@ -119,7 +119,7 @@ before precedence (FR-023, D-10). A repeatable splits on `;` and a flag
 takes `1`, `0`, `true`, `false` (FR-024, FR-025, D-11); an unknown
 `SPEEDGUN_*` name is ignored (FR-026); a value its own reader refuses
 names the variable and the value (FR-027). `--env=off` turns the
-environment off for one run and is accepted on the command line alone
+environment off for one run and stands on the command line alone
 (FR-028). See [contracts/environment.md](./contracts/environment.md).
 
 ### C-4: The option file (FR-029 to FR-036)
@@ -169,16 +169,20 @@ interrupt case runs a body that raises `SIGINT` at a named instance
 
 `--compare-rules=<file>` reads the text through the shared reader and
 calls `sg::parseCompareRule` (`include/speedgun-ng/benchmark.hpp:2589`)
-per line; the grammar stays as specs/026 wrote it (D-13). The order
-across the four places a rule can stand is spec D-23, restated in
-[contracts/rules-file.md](./contracts/rules-file.md).
+per line; the grammar stays as specs/026 wrote it (D-13). The rules of one
+source keep the order their entries were written, spec D-23, and the rule
+list does not combine across sources: the highest source that names rules
+settles it, and a lower rule reaches the parser before it drops
+(FR-038). [contracts/rules-file.md](./contracts/rules-file.md) states
+both.
 
 ### C-8: Precedence and disclosure (FR-037 to FR-043)
 
-The gather combines the sources in the order command line, option file,
-environment, master default (FR-037), and a repeatable set by a higher
-source replaces the whole lower list (FR-038) with the comparison rule
-list as the one combining exception. The disclosure is one console line
+The gather takes the sources in the order command line, option file,
+environment, master default (FR-037), a repeatable set by a higher source
+replaces the whole lower list, and the rule list is settled by the highest
+source that names rules, a lower rule read before it drops (FR-038,
+FR-063). The disclosure is one console line
 and one `run` object (D-18, E-08, E-09): the line prints after the
 version line and before the first row, and the object stands between
 `speedgun` and `benchmarks` in the document and in the schema's
@@ -196,11 +200,11 @@ option table (`README.md:745` to `:766`) gains seven rows, and
 measured 773 to the measured 786 with the arithmetic recorded in the
 gate's comment (D-21). `docs/pages/harness.md` gains the full option
 reference in its section `The command line of an example` (the heading at
-`:603`), beside the fenced block at `:611` to `:616`, and the two-way
+`:603`), beside the fenced block at `:611` to `:626`, and the two-way
 comparison against the table is a case of `harness_cli_table_test`
 (D-22). The shell region `options` of `example/docs/command_line.sh`
 gains the typed command lines and the fenced block at
-`docs/pages/harness.md:611` to `:616` grows to match byte for byte
+`docs/pages/harness.md:611` to `:626` grows to match byte for byte
 (D-23). See [contracts/page-and-examples.md](./contracts/page-and-examples.md).
 
 ### Discipline (FR-075 to FR-086)
@@ -220,6 +224,30 @@ keeps its error-code form (D-30, FR-084). Every new contract carries its
 macro and its `\pre` or `\post` line in the form the pair gate reads
 (D-31, FR-085). Coverage reaches 100% of the new lines and branches
 with no exclusion marker (D-32, FR-080).
+
+The same move fixes what a rebase does when a parallel lane merges
+first. If PR #46 or PR #47 lands first, the rebase of this branch takes
+these steps:
+
+1. Move the option rows of the lane that merged first, the values 260
+   to 269 of one lane and 270 to 276 of the other, from `cli.cpp` into
+   `optionRows()` in `source/harness/options.cpp` and their constants
+   into `source/harness/detail/options.hpp`, remove the old table from
+   `cli.cpp`, and leave `tools/docs/example_drift.py` finding every row
+   there.
+2. Join the two `test/source/harness_cli_table_test.cpp` files keeping
+   every case of each lane.
+3. Add the schema keys of the lane that merged first to
+   `docs/schema/report-v1.json`.
+4. Keep the lines of each lane in `README.md`, `docs/pages/harness.md`,
+   `tools/docs/example_drift.py` (`PAGE_LINE_CAP`, `SECTIONS`,
+   `SECTION_LINE_CAPS`) and `test/CMakeLists.txt`, and set
+   `PAGE_LINE_CAP` to the measured length.
+5. Apply the version rule of FR-078 and the rule that the harness
+   `SOVERSION` stays at the value `master` carries.
+
+These steps stand open while both pull requests stay open, and no merge
+of this branch is taken.
 
 ## Source Layout
 
@@ -270,8 +298,8 @@ Edited:
 - `source/harness/detail/internal.hpp`: `RunOptions` gains the new
   fields, `readTextFile` is declared.
 - `source/harness/compare.cpp`: the rule list the compare mode walks is
-  assembled here in the order spec D-23 fixes, once the rules file of
-  C-7 has been read (FR-064, FR-065).
+  assembled here in the order spec D-23 fixes for the source that settles
+  it, once the rules file of C-7 has been read (FR-063, FR-064, FR-065).
 - `source/harness/json_load.cpp`: the local `readFile` at `:26` to `:48`
   is deleted and its two call sites call `detail::readTextFile`.
 - `source/harness/json_report.cpp`: `kSchemaVersion` at `:31` moves to
@@ -290,9 +318,9 @@ Edited:
 - `README.md`: the section at `:357` to `:370` and the option table at
   `:745` to `:766`.
 - `docs/pages/harness.md`: the option reference in the section at `:603`
-  to `:616`, and the fenced block at `:611` to `:616` follows the shell
+  to `:684`, and the fenced block at `:611` to `:626` follows the shell
   region.
-- `example/docs/command_line.sh`: the region `options` at `:8` to `:13`.
+- `example/docs/command_line.sh`: the region `options` at `:14` to `:27`.
 - `example/docs/command_line.cpp`: the `command-line-read` region grows
   the option file and the environment rows, and its recorded output
   region follows (T058, T059).

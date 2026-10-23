@@ -119,7 +119,7 @@ never rewritten by it.
 - [x] T012: Print the fault at the entry point, which writes the fault
   line of the scan to standard error and returns 2, writes
   `source/harness/cli.cpp` and follows the two count modes of
-  `test/source/harness_gap_test.cpp:357` and `:364` that answered 0
+  `test/source/harness_gap_test.cpp:357` and `:364` that reported 0
   because the library exited for them, proves
   `ctest --test-dir build -R harness_cli_test` passes, proves
   `ctest --test-dir build -R harness_gap_test` passes, and proves no
@@ -271,7 +271,7 @@ never rewritten by it.
 - [x] T029: turn the environment off for one run, any other word
   answering `--env: expected 'off', got '<word>'` at status 2, writes
   source/harness/options.cpp and source/harness/cli.cpp, proves
-  `--env=off` is accepted on the command line alone and clears the rows,
+  `--env=off` stands on the command line alone and clears the rows,
   with `environmentRows()` never called and no environment use disclosed
   (FR-028).
 
@@ -314,20 +314,23 @@ never rewritten by it.
   proves those cases pass through the shared text reader (FR-025,
   FR-029, FR-031, FR-032, FR-033, FR-034, FR-035).
 
-  Verified 2026-10-22: `source/harness/options.cpp` runs 1382 lines with the gather splitting the text into lines, opening no file, holding 1-based numbers for comment and blank lines, refusing the four names and naming an unknown one, accumulating a repeatable in line order and reaching the flag reader; the eight option-file cases moved from red to green. `--options=<path>` is accepted but the entry point opens no file until T035, so a run with a written file behaves as if it were empty - measured with a `filter = ^bmRead` file against `docs_command_line`, which ran both families. `base_cli_matrix` reads 26 of 26 and `harness_cli_table_test` fails one check (the guide row T057 owns).
+  Verified 2026-10-22: `source/harness/options.cpp` runs 1382 lines with the gather splitting the text into lines, opening no file, holding 1-based numbers for comment and blank lines, refusing the four names and naming an unknown one, accumulating a repeatable in line order and reaching the flag reader; the eight option-file cases moved from red to green. `--options=<path>` parses but the entry point opens no file until T035, so a run with a written file behaves as if it were empty - measured with a `filter = ^bmRead` file against `docs_command_line`, which ran both families. `base_cli_matrix` reads 26 of 26 and `harness_cli_table_test` fails one check (the guide row T057 owns).
 - [x] T034: state the precedence rules, writes
   test/source/harness_cli_sources_test.cpp, proves ctest fails on the
   four-source order of command line, option file, environment and master
-  default, the whole-list replacement of a repeatable set by a higher
-  source, and the comparison rule list as the one list that combines
+  default, and that a repeatable list is settled whole by the higher
+  source, the comparison rule list included, its lower rules read before
+  they drop
   (FR-036, FR-037, FR-038, FR-041).
 
-  Verified 2026-10-23: the precedence cases in `test/source/harness_cli_sources_test.cpp` pass in `build-ulw` (CTest #67). The cases cover the command line over the option file, the option file over the environment, the environment over the built-in default, a repeatable option replaced whole by the higher source, and the rule list as the one source pair that combines (C1, FR-036 to FR-041).
+  Verified 2026-10-23: the precedence cases in `test/source/harness_cli_sources_test.cpp` pass in `build-ulw` (CTest #67). The cases cover the command line over the option file, the option file over the environment, the environment over the built-in default, and a repeatable option replaced whole by the higher source (C1, FR-036 to FR-041). A rule-list case written against the older reading is stale: D-23 and FR-038 as they stand on 2026-10-23 replace a lower source's rule list with the higher source's list, so a later change owns that test half (FR-038, FR-063).
 - [x] T035: gather the four sources in `detail::gatherOptionSources` ,
   which touches no file system and no process state and answers
   `ResolvedOptions` or one fault line, writes
-  source/harness/options.cpp, proves those cases pass with the rule list
-  as the one combining exception (FR-036, FR-037, FR-038, FR-041).
+  source/harness/options.cpp, proves those cases pass with every repeatable
+  list settled whole by the higher source, the rule list included and its
+  lower rules read before they drop (FR-036, FR-037, FR-038,
+  FR-041).
 
   Verified 2026-10-23: `detail::gatherOptionSources` stands at `source/harness/options.cpp:1538` and settles the four sources in the order C1 fixes, the command line first so a seed or a count of a lower source answers nothing there. The precedence cases of T034 pass with it, and `--threads=2` under `SPEEDGUN_THREADS=8` answers the command-line count alone through `example/docs_command_line` (FR-036 to FR-041).
 - [x] T036: state the disclosure, writes
@@ -492,7 +495,8 @@ never rewritten by it.
   `<path>:<line>: ` plus the parser's own text, and an unreadable path
   answering
   `--compare-rules: the file '<path>' cannot be opened: <reason>` , and
-  the row order across the four places a rule stands (FR-061, FR-062,
+  the row order within the source that settles, beside the lower rule
+  read for its fault before it drops (FR-061, FR-062,
   FR-063, FR-064, FR-065, SC-003, SC-006).
 - [x] T052: read the rules file through `detail::readTextFile` and call
   `sg::parseCompareRule` once per line, writes
@@ -501,15 +505,15 @@ never rewritten by it.
   counted from 1 over the raw lines (FR-061, FR-062, FR-063).
 
   Verified 2026-10-23: `detail::readCompareRulesFile` reads the path through `detail::readTextFile` and hands each line to `parseCompareRule`, the fault naming `<path>:<line>` with the line counted from 1, and the `compare-rules` scan arm refuses a second occurrence. Measured through `build-ulw/example/docs_command_line` from a scratch directory: a refused path answers status 2 with zero lines on standard output and `--compare-rules: the file '/proc/nope/rules.txt' cannot be opened: No such file or directory` on standard error; a file whose second line is `not-a-rule` answers status 2 with `rules_ok.txt:2: the value name of the rule 'not-a-rule' is not readable` and the line number counted from 1; a line naming a direction `upper` answers `rules_two.txt:2: the direction of the rule 'time@max:upper:10%' is not readable: 'upper' is neither lower nor higher`. The line-number cases pass in `harness_cli_sources_test` and `harness_compare_cli_test` stays green (FR-061, FR-062, FR-063, FR-064).
-- [x] T053: combine the rule sources in the order of spec D-23, the
-  command-line `--compare-rule` options in the order typed, the
-  `--compare-rules` file in line order, the `compare-rule` lines of the
-  option file, then the file a `compare-rules` line of that file names,
+- [x] T053: gather the rule list of one source in the order of spec D-23,
+  its `--compare-rule` options in the order they stand then the file that
+  source's `--compare-rules` names in line order, the higher source
+  settling the list and a lower rule read before it drops,
   writes source/harness/compare.cpp, proves `harness_compare_cli_test`
   passes with the printed rows and the verdict following that order
   (FR-064, FR-065, SC-006).
 
-  Verified 2026-10-23: `detail::gatherOptionSources` builds the one rule list at `source/harness/options.cpp:1558` in the order FR-063 and spec D-23 state: the `--compare-rule` words of the command line, then the file its `--compare-rules` word names in line order, then the option file's own lines, then the file that file's `compare-rules` line names. No source replaces another's list. The `compare-rule` row carries no environment flag, the list D-3 fixes, so a variable names no rule and FR-026 ignores the name. Measured through `build-ulw/example/docs_command_line --compare=r_base.json,r_cont.json --compare-rules=rules_good.txt --compare-rule=time@min:lower:5%`: three rows in that order, `time@min`, `time@median`, `time@max`, at status 0, while `SPEEDGUN_COMPARE_RULE=time@median:upper:200%` adds no fourth row. `harness_compare_cli_test` passes in `build-ulw` (CTest #64) (FR-063, FR-064, SC-006).
+  Verified 2026-10-23: `detail::gatherOptionSources` builds the one rule list at `source/harness/options.cpp:1558` in the order FR-063 and spec D-23 state for one source: the `--compare-rule` words of that source, then the file its `--compare-rules` word names in line order. At that head a rule of a lower source still reached the list beside the higher source's rules. The reading of FR-038 and FR-063 taken on 2026-10-23 replaces that whole list with the higher source's, so a later change owns the gather half and any case that pins the older cross-source order. The `compare-rule` row carries no environment flag, the list D-3 fixes, so a variable names no rule and FR-026 ignores the name. Measured through `build-ulw/example/docs_command_line --compare=r_base.json,r_cont.json --compare-rules=rules_good.txt --compare-rule=time@min:lower:5%`: three rows in that order, `time@min`, `time@median`, `time@max`, at status 0, while `SPEEDGUN_COMPARE_RULE=time@median:upper:200%` adds no fourth row. `harness_compare_cli_test` passes in `build-ulw` (CTest #64) (FR-063, FR-064, SC-006).
 - [x] T054: show the rules option in help, writes
   test/source/harness_cli_table_test.cpp, proves the `compare-rules` row
   appears in the recorded `--help` output built from
@@ -575,7 +579,20 @@ never rewritten by it.
   `CMakeLists.txt:261` while the archive `SOVERSION` stays 3 at `:53`
   (FR-076, FR-077, FR-078, FR-086).
 
-  Verified 2026-10-22: `origin/master` stands at `bd10d76` with `VERSION 0.16.0`, so the next free minor is `0.17.0` and `CMakeLists.txt:9` now carries it (one line changed). `--version` answers `speedgun-ng 0.17.0` at status 0 with nothing on standard error, `harness_cli_table_test` still fails exactly one check (the guide row T057 owns) because its version expectation reads the `project()` line rather than a literal, and no test under `test/source/` pins the build version as a literal. `git diff --name-only origin/master -- include/speedgun-ng` prints nothing, so the harness `SOVERSION` stays 10 at `CMakeLists.txt:261` and the archive `SOVERSION` stays 3 at `:53`. The `project()` comment above the value was corrected the same evening to name `specs/028-full-command-line` FR-076 as the lane that took the minor, where it had carried the wording of the lane that took `0.16.0`.
+  Verified 2026-10-22, read again 2026-10-23: `origin/master` stood at
+  `bd10d76` with `VERSION 0.16.0`. The fleet now carries `0.17.0` on
+  PR #46 and `0.19.0` on PR #47, so this branch takes `0.18.0` and
+  `CMakeLists.txt:9` carries it. Read through
+  `build-fix-oracle/example/docs_command_line`, `--version` answers
+  `speedgun-ng 0.18.0` at status 0 with nothing on standard error.
+  `harness_cli_table_test` takes its version expectation from the
+  `project()` line rather than from a literal, and no test under
+  `test/source/` pins the build version as a literal.
+  `git diff --name-only origin/master -- include/speedgun-ng` prints
+  nothing, so the harness `SOVERSION` stays at the value `master` carries,
+  10 at each edge, and the archive `SOVERSION` stays 3 at `:53`. The
+  `project()` comment above the value names
+  `specs/028-full-command-line` FR-078 for the minor this lane took.
 - [x] T061: audit the test list and the coverage reading, writes no
   file, proves `ctest --test-dir build` lists `harness_cli_table_test` ,
   `harness_cli_sources_test` , `harness_cli_threads_test` and
@@ -832,29 +849,32 @@ measurement contradicts.
   `CMakeLists.txt`, `source/harness/json_report.cpp`,
   `docs/schema/report-v1.json` and the `1.3` pins of
   `test/source/harness_json_report_test.cpp`, proves the project version
-  and the schema minor each equal the next free minor master carries at
-  that head (`bd10d76` answers `VERSION 0.16.0` at `CMakeLists.txt:9` and
-  `kSchemaVersion` `1.1` at `json_report.cpp:31`, while the branch answers
-  `0.17.0` with `1.3`, so one of the two readings of the rule stands), or
-  carries the owner's recorded reservation in its place, and corrects the
-  Phase 8 note of T060, which reads `1.2` as a value master carries per
+  and the schema minor each equal the value the fleet numbers leave for
+  this lane at that head (`bd10d76` answers `VERSION 0.16.0` at
+  `CMakeLists.txt:9` and `kSchemaVersion` `1.1` at `json_report.cpp:31`;
+  PR #46 carries `0.17.0` and PR #47 carries `0.19.0`, so this branch
+  takes `0.18.0` with `1.3`), and corrects the
+  Phase 8 note of T060 where it names a version `master` carries per
   FR-078, FR-086, D-19 (contradicts).
 
   Verified 2026-10-23: the branch stands on `origin/master` `bd10d76`,
   which answers `VERSION 0.16.0` at `CMakeLists.txt:9` and
-  `kSchemaVersion` `1.1` at `source/harness/json_report.cpp:31`. The rule
-  gives `0.17.0` for the project version and `CMakeLists.txt:9` carries
-  that value, so the version half of the pair already matched at this
-  head. The schema minor keeps the reservation recorded at `spec.md:454`,
-  where N13a takes `1.2`, N7 takes `1.3` and N14a takes `1.4`; `1.3`
+  `kSchemaVersion` `1.1` at `source/harness/json_report.cpp:31`. The
+  version half is `0.18.0`: `CMakeLists.txt:9` carries it, PR #46 carries
+  `0.17.0` and PR #47 carries `0.19.0`, so the pair this branch answers is
+  `0.18.0` with `1.3` (FR-078, FR-086). An earlier reading here paired
+  `0.17.0` with this branch, the staleness this task exists to catch. The
+  schema minor keeps the reservation the Schema minors bullet of Parallel
+  work records, where N13a takes `1.2`, N7 takes `1.3` and N14a takes
+  `1.4`; `1.3`
   stands at `source/harness/json_report.cpp:33` with its test pins at
   `test/source/harness_json_report_test.cpp:508` and `:526`.
   `docs/schema/report-v1.json` carries no version literal to stamp: its
   `schemaVersion` property is a plain string at `:11` to `:13`. The stale
-  reading sat in `research.md` D-19, which said the project version
-  becomes `0.18.0`; that entry now records the measured `0.17.0` at
-  `bd10d76` and names `1.2` as the minor specs/027 holds while it stays
-  unlanded. No number moved in the tree.
+  reading sat in `research.md` D-19, which named the version as the next
+  free minor master carries; that entry now names `0.18.0` beside `1.3`
+  and names `1.2` as the minor specs/027 holds while it stays
+  unlanded. No number moved in the tree this pass.
 - [x] T069: record the base console and document oracle beside the status
   matrix, writes `test/data/base_cli_console.txt` and
   `test/base_cli/run_matrix.py`, proves a run with no new option prints
@@ -888,7 +908,7 @@ measurement contradicts.
   again.
 
   Corrected by the sanitizer gates on 2026-10-23. The `ci-tsan` suite
-  answered 116 of 117 and the `ci-coverage` suite answered one failure,
+  reported 116 of 117 and the `ci-coverage` suite reported one failure,
   `base_cli_matrix` in both trees, on seven of the fifteen records. Each
   failure was one blank: the report right-aligns a number to the widest
   value of its run, so a build that measures a narrower value in the same
@@ -1067,25 +1087,43 @@ measurement contradicts.
   named above. The five lines T074 landed, each checked against the
   definition at `options.cpp:404`, are what make a clean scan true at this
   head.
-- [x] T075: justify or drop the widened codespell skip, writes
-  `.codespellrc`, proves `cmake -P cmake/spell.cmake` answers zero
-  findings with the `*/build-*` pattern in place and names in the commit
-  body why a per-task build tree is not project content, or restores the
-  base skip list (no FR, task or contract of this feature names the file)
-  per Principle VIII (unrequested).
+- [x] T075: restores the base codespell skip list, writes `.codespellrc`,
+  proves `cmake -P cmake/spell.cmake` answers zero findings over a source
+  tree holding no scratch build dir, proves `.codespellrc` equals the
+  file `master` carries once the branch change to it stands dropped, and
+  records in this ledger why the
+  `*/build-*` pattern is gone, because no FR, task or contract of this
+  feature names that file (Principle VIII, unrequested).
 
-  Verified 2026-10-23: `cmake -P cmake/spell.cmake` answers exit 0, prints
-  no finding, and finishes in one second with the `*/build-*` pattern in
-  the skip list at `.codespellrc:14`. The reason the pattern is there is
-  measured: this checkout holds 293,553 files under `build` beside 49
-  further `build-*` trees, because a parallel lane configures its own build
-  directory and an implement session configures one per task, and the leg
-  driving the base skip list was killed after ten minutes without
-  finishing. Those directories are machine-local CMake state: configure
-  caches, compiler-detected feature files, vendored copies, generated
-  headers. None of them is content a reviewer reads, and the widened
-  pattern still walks every tracked source, every specification page and
-  every script.
+  Verified 2026-10-23: `git diff --stat origin/master -- .codespellrc`
+  prints nothing, so `.codespellrc` equals the file `master` carries and
+  the skip list is the base list
+  `*/.git,*/build,*/build-tidy,*/prefix,*/node_modules,*/.omo,*/external`.
+  The commit that added `*/build-*` was dropped. Two reasons stand beside
+  that. No FR of this feature names `.codespellrc`: the spell gate is a
+  Principle VIII gate this feature inherits as `master` configures it, so a
+  widened skip list is work no requirement asked for. The pattern also
+  reaches past build trees: codespell 2.4.3 matches the skip list with
+  `fnmatch` over the full path and `*` matches `/`, so `*/build-*` skips
+  four tracked pages, each named `build-integration.md`, at
+  `specs/004-vendor-simdjson/contracts/build-integration.md`,
+  `specs/005-vendor-hdrhistogram/contracts/build-integration.md`,
+  `specs/006-vendor-yaml-cpp/contracts/build-integration.md` and
+  `specs/009-vendor-quill/contracts/build-integration.md`. The match is
+  measured: a planted misspelling in a copy of such a path is reported
+  under the base list and absent under the list that adds `*/build-*`.
+  The reading that matters for the gate is where the gate runs: the CI
+  `lint` job calls `cmake -P cmake/spell.cmake` at
+  `.github/workflows/ci.yml:42` from a checkout that configures no build
+  (`.github/workflows/ci.yml:25` to `:27`). Measured inside a `git archive
+  HEAD` export, that call answers exit 0 and prints no finding, so the
+  tracked tree is clean under the base list and the four vendor pages are
+  read. Inside this checkout the same call answers exit 65 and prints
+  2,226 findings, and every line names a path under `build-fix/` or
+  `build-fix-oracle/`, two untracked scratch build trees this machine
+  holds beside `build` and `build-tidy`, which the base list skips. Adding
+  those two directory names to the skip list on the command line, with no
+  file changed, prints no finding there either (FR-083).
 
 ## Phase 10: Convergence
 
@@ -1110,18 +1148,17 @@ ten status-2 answers this feature prints: the doubled `--options`, the
 and the table's own prose at `:91` to `:97` omits them too. `ci-sanitize`
 stays open on this machine for the reason Phase 9 records.
 
-A reading the artifacts leave open goes to the owner, with no task. A
-value a lower source holds never reaches its reader once a higher source
-names the option (`source/harness/options.cpp:1190` to `:1202`), so
-`SPEEDGUN_ITERATIONS=nonsense` beside `--iterations=1` answers status 0
-with no line while the same variable beside `--min-time=1` answers status
-2. FR-027, FR-033, FR-046, FR-054 and SC-003 state those fault lines
-unqualified, `contracts/environment.md:81` to `:83` says a flagged variable
-reaches its reader with the text as spelled, and
-`contracts/environment.md:76` says the percentile pair runs ahead of the
-precedence rule. Narrowing the spec wording and moving the reader ahead of
-the settled check answer differently, so the pass reported the question
-rather than change what a run answers.
+The reading this pass left open now stands in the requirement text: a bad
+option value from any source prints exactly one line naming the source and
+the text, and the run answers status 2, even when a higher source names the
+same option (FR-027, FR-033, FR-046, FR-054, FR-064, SC-003).
+`contracts/environment.md` and `contracts/option-file.md` carry the same
+rule. A run answers differently at the head this round measured:
+`source/harness/options.cpp:1190` to `:1202` walks the sources top-down and
+stops at the value it takes, so `SPEEDGUN_ITERATIONS=nonsense` beside
+`--iterations=1` answers status 0 with no line while the same variable
+beside `--min-time=1` answers status 2. A later change owns that reader
+half; the requirement text states the rule it must reach.
 
 - [x] T076: carry the three remaining status-2 answers in the exit status
   table, writes `specs/015-benchmark-harness-core/contracts/cli.md`,

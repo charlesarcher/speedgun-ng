@@ -55,7 +55,7 @@ at rebase, when those rows join the table (research D-27).
 ## The value forms
 
 A repeatable read from the environment splits on `;` into items, each
-read under the command-line rule (FR-024). A flag accepts `1`, `0`,
+read under the command-line rule (FR-024). A flag takes `1`, `0`,
 `true`, `false` (FR-025). Every other value goes through the same reader
 the command line uses (FR-027, D-11).
 
@@ -81,13 +81,15 @@ word wins and the status stays 0.
 A `SPEEDGUN_*` variable that matches no flagged row is ignored, with no
 line and no status change (FR-026). A variable that matches a flagged
 row reaches that row's reader with the text as spelled, empty included,
-and the reader's own rule decides what that text means.
+and the reader's own rule decides what that text means. A text the reader
+refuses answers its one line and status 2 even when a higher source names
+the same option with a text that reads (FR-027, FR-046, FR-054, SC-003).
 
 ## `--env=off`
 
 `--env` takes the word `off` and turns the environment off for one run;
 any other word answers `--env: expected 'off', got '<word>'` at status
-2 (FR-028). The option is accepted on the command line alone: the option
+2 (FR-028). The option stands on the command line alone: the option
 file refuses its name (FR-031) and it carries no environment flag. With
 the environment off, `environmentRows()` is not called and no
 environment use is disclosed.

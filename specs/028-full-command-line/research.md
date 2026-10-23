@@ -213,19 +213,19 @@ one line per row in table order: the name with its argument kind, then
 the help text. `--version` stops the scan and prints
 `speedgun-ng <version>` on one line (spec D-26). Both answer status 0
 and both run no benchmark. `--help` beside `--version` prints the help
-alone, the clarification of 2026-10-22.
+alone, the reading FR-017 states.
 
 **Rationale:** the base rejects both words with the unrecognized-option
 line at status 2, measured in the base matrix at rows 15 and 16, so
 this feature changes command lines the base refused. The Unchanged run
-constraint of the spec covers command lines the base accepts, so those
+constraint of the spec covers command lines the base runs, so those
 two rows are inside the change. The version text is the one the console
 report carries: `SG_PROJECT_VERSION` (`CMakeLists.txt:231`) printed by
 `detail::printContext` (`source/harness/report.cpp:317`).
 
 **Alternatives:** answering the fault first regardless of order would
-make `--help --nonsense=1` print a fault, which the clarification
-rejects. Printing help on standard error for a usage fault is the
+make `--help --nonsense=1` print a fault, which FR-017 forbids. Printing
+help on standard error for a usage fault is the
 common convention elsewhere and would break FR-017's single stream and
 the one-line rule; rejected.
 
@@ -265,7 +265,7 @@ behavior of the command-line pair is a measured row of the base matrix
 Unchanged run constraint keeps it.
 
 **Alternatives:** one rule for both sources changes a command line the
-base accepts, which the constraint forbids. Reading the pair after
+base runs, which the constraint forbids. Reading the pair after
 precedence cannot see the pair at all when one half is overridden.
 
 ## D-11: The value forms the environment and the file share
@@ -314,8 +314,10 @@ reader opens in an editor; rejected.
 blank line, and calls `sg::parseCompareRule`
 (`include/speedgun-ng/benchmark.hpp:2589`) on each remaining line. A
 refused line answers one line naming the file, the line number and the
-parser's own text at status 2 (FR-064). The rules append in D-23 order
-across the four places they can stand (FR-063).
+parser's own text at status 2 (FR-064). The rules of one source keep the
+order their entries were written, spec D-23, and the rule list does not
+combine across sources: the highest source that names rules settles it, a
+lower rule reaching the parser before it drops (FR-038).
 
 **Rationale:** the grammar stays exactly as specs/026 wrote it
 (FR-061), and the parser already answers its fault text. A rules file
@@ -467,21 +469,21 @@ facts above the version the reader checks first.
 ## D-19: The schema minor and the project version are taken at rebase
 
 **Decision:** the writer stamps `kSchemaVersion` as `1.3` and the
-project version takes the next free minor master carries, `0.17.0` at
-the measured head `bd10d76`, and both numbers are read from master at
-rebase time; no number is fixed here. The check the plan records is
-the reading itself: `VERSION` at `CMakeLists.txt:9` on master at rebase
-gives the next free minor, and the schema minor keeps the reserved
-value of spec D-22 while specs/027 still holds `1.2` unlanded.
+project version takes `0.18.0`. The fleet carries three numbers: PR #46
+takes `0.17.0` and PR #47 takes `0.19.0`, so this lane's minor is
+`0.18.0`, the value `CMakeLists.txt:9` carries. Both numbers are read
+from master at rebase; the schema minor keeps the reserved value the
+Parallel work bullet of the spec records for N7 while specs/027 still
+holds `1.2` unlanded.
 
 **Rationale:** FR-078 and FR-086 name a value that depends on a merge
 that has not happened, so no test at this head can assert it. The
 harness `SOVERSION` at `CMakeLists.txt:261` and the archive `SOVERSION`
 at `:53` stay at 10 and 3 (D-24).
 
-**Alternatives:** pinning `0.18.0` in the artifacts and never checking
-it is the failure mode the parallel-work rule warns about; the plan
-records the read instead. Bumping the schema minor to `1.2` here would
+**Alternatives:** a number stated once and never re-read at rebase is the
+failure mode the parallel-work rule warns about, so this entry keeps the
+read beside the number. Bumping the schema minor to `1.2` here would
 collide with specs/027.
 
 ## D-20: The option-row check follows the table
@@ -529,8 +531,9 @@ sources, the precedence order, the disclosure line and the two run
 options in the page's sentence style.
 
 **Alternatives:** a new capability section title is what FR-073 forbids
-and would need a `SECTIONS` entry, a `SECTION_OWNERS` entry and an
-example owner. Raising `SECTION_LINE_CAPS` for this section is allowed
+and would need a `SECTIONS` entry, a section map entry and an
+example source file. Raising `SECTION_LINE_CAPS` for this section is
+allowed
 by the tool and is the lazier move; it is rejected because the section
 fits under the ordinary cap.
 
@@ -563,8 +566,8 @@ lines and not the page; rejected as a second oracle for one fact.
 ## D-23: The example grows its shell region and keeps its snippet region
 
 **Decision:** `example/docs/command_line.sh` region `options` (the
-lines at `:8` to `:13`) gains the typed command lines for the new
-options, and the fenced block at `docs/pages/harness.md:611` to `:616`
+lines at `:14` to `:27`) gains the typed command lines for the new
+options, and the fenced block at `docs/pages/harness.md:611` to `:626`
 grows to match it byte for byte. The snippet region
 `command-line-read` of `example/docs/command_line.cpp` (`:4` to `:14`)
 stays as it is, since FR-067 only requires that the example builds and
@@ -580,7 +583,7 @@ byte for byte, so the two move in one task. The snippet-compile check
 shell block growth leaves it clean.
 
 **Alternatives:** a new example program for the command line would need
-a `SECTIONS` owner entry for a section that already has one; rejected.
+a `SECTIONS` map entry for a section that already has one; rejected.
 Recording a run of the new options as a sample block would add a fifth
 `report_shape` registration for facts the reference table already
 states.
@@ -808,15 +811,20 @@ rule keeps the base linear.
 **Alternatives:** a merge commit keeps both version numbers and leaves
 the resolution to whoever builds next; rejected against the house rule.
 
-## Open questions for the owner
+## Open questions
 
-- The percentile column qualifier, the spec's second open question, stays
-  the owner's. No requirement of this feature depends on it and the plan
-  builds nothing for it.
+Four open questions stand: D-22, D-25, D-27, and the percentile column
+qualifier specs/026 D-16 left for N7. Each carries its reason under Open
+questions in `spec.md`, and the plan builds to the reading stated there.
+
+## Limits the plan labels
+
+- The percentile column qualifier has no requirement behind it, and the
+  plan builds nothing for it.
 - The project version and the schema minor (FR-078, FR-086) are recorded
-  as 0.18.0 and 1.3 under the merge order the fleet notes give, and both
-  are read from master at rebase (D-19). A different merge order moves
-  both numbers, and the call on which lane lands first is the owner's.
+  as 0.18.0 and 1.3, and both are read from master again at rebase (D-19).
+  A different merge order moves both numbers: PR #46 carries 0.17.0 and
+  PR #47 carries 0.19.0.
 - FR-053's claim across standard libraries reaches past the gate set, and
   a libc++ build leg is a build-configuration change no requirement asks
   for. The plan argues the claim from the construction and labels it

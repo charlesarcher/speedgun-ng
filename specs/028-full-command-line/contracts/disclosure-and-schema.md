@@ -9,9 +9,12 @@ E-05, E-08, E-09). **Covers:** FR-037 to FR-043, FR-084, FR-086; SC-009.
 
 The gather settles every option from the highest source that names it:
 command line, option file, environment, master default (FR-037, spec
-D-1). A repeatable set by a higher source replaces the whole lower list
-(FR-038); the comparison rule list is the one list that combines, in the
-order of [contracts/rules-file.md](./rules-file.md).
+D-1). A repeatable set by a higher source replaces the whole lower list,
+and the comparison rule list is settled by the highest source that names
+rules, a lower rule read for its fault before it drops (FR-038, FR-063),
+in the order of [contracts/rules-file.md](./rules-file.md). A value its
+reader refuses answers its fault line and status 2 whatever a higher
+source names beside it (FR-027, FR-033, SC-003).
 
 ## The console line
 

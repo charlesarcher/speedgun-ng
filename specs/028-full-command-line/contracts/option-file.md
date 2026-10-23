@@ -42,7 +42,9 @@ compares sources (FR-035, FR-038).
 
 ## The faults
 
-Each answers one line on standard error at status 2.
+Each answers one line on standard error at status 2, and it stands when a
+higher source names the same option with a value that reads (FR-033,
+SC-003).
 
 | Case | Line |
 | --- | --- |

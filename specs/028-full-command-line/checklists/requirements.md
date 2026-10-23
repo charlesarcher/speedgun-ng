@@ -45,11 +45,12 @@ behavior.
 
 ## Requirement Completeness
 
-- [x] No [NEEDS CLARIFICATION] markers remain: the prompt carried
-  recommendations 1 to 16 as accepted, recorded as D-1 to D-16, and the
-  eleven points the audit of `bd10d76` settled are recorded as D-17 to D-27
-  with a recommendation each. The three the owner has not ruled on are
-  listed again under Open questions.
+- [x] No open-question markers remain: the prompt carried twelve
+  recommendations, recorded as D-1 to D-16, because recommendation 2 is
+  D-2 to D-7, and the eleven points the audit of `bd10d76` gives are
+  recorded as D-17 to D-27, each naming the fact it rests on. Four open
+  questions stand: D-22, D-25, D-27, and the percentile column qualifier
+  specs/026 D-16 left for N7.
 - [x] Requirements are testable and unambiguous: each `FR-0nn` states one
   observable answer, and every fault requirement names the one line it
   prints, the source and value that line carries, and the exit status 2 it
@@ -111,28 +112,25 @@ behavior.
 - [x] No implementation details leak into the requirements: the option
   spellings, the environment variable names and the exit statuses a CI job
   reads are the contract; the parse unit name, the table variable name, the
-  environment seam type and the shuffle helper are left open for the plan
+  environment seam type and the shuffle helper are left to the plan
   and appear nowhere in the `FR-0nn` list.
 
 ## Notes
 
-- The prompt's recommendations are recorded as D-1 to D-16, dated
-  2026-10-22 and attributed to Charles, who accepted them in the prompt.
-  D-17 to D-27 come from this session's audit of `bd10d76` and carry no
-  approval; each is stated as a recommendation. The Clarifications session
-  of 2026-10-22 settled two of the three points listed under Open
-  questions: the percentile pair reading of D-27, and whether an option
-  file may name `compare-rules=`. The percentile column qualifier
-  specs/026 D-16 left for N7 stays open for Charles to settle before the
-  code lands.
-- The Clarifications session of 2026-10-22 answered five questions, and
-  each answer stands in the requirement text: rule lists combine across
-  sources (D-1, D-23, FR-038, FR-061, FR-063), the `run` object and the
-  console line name their members and their form (D-8, D-21, FR-039,
-  FR-040, FR-043, SC-009), the percentile pair reads the environment pair
-  alone (D-5, D-27, FR-023), the scan answers the first of `--help`,
-  `--version` or a usage fault (D-14, FR-017, SC-003, SC-008), and one
-  seed reader covers both seed forms (D-4, D-17, FR-022, FR-051, FR-054).
+- The prompt's recommendations are recorded as D-1 to D-16: D-1 to D-16
+  restate recommendations 1 to 12 of the feature prompt (recommendation 2
+  is D-2 to D-7). D-17 to D-27 come from the audit of `bd10d76` and each
+  names the code fact it rests on. Four open questions stand: D-22, D-25,
+  D-27, and the percentile column qualifier specs/026 D-16 left for N7.
+- The spec takes four readings, each stated in the requirement text: the
+  `run` object and the console line name their members and their form
+  (D-8, D-21, FR-039, FR-040, FR-043, SC-009), the percentile pair reads
+  the environment pair alone (D-5, D-27, FR-023), the scan takes the first
+  of `--help`, `--version` or a usage fault (D-14, FR-017, SC-003, SC-008),
+  and one seed reader covers both seed forms (D-4, D-17, FR-022, FR-051,
+  FR-054). A repeatable list is replaced whole by the higher source, the
+  comparison rules of `--compare-rule` and `--compare-rules` included
+  (D-1, D-23, FR-038, FR-061, FR-063).
 - Three prompt statements needed a code fact to become testable, and the
   spec records the resolution the wording needs: `--interleave` needs an
   optional argument because the prompt requires both the bare and the
@@ -146,11 +144,11 @@ behavior.
   number: `README.md` stands at 773 lines with `PAGE_LINE_CAP` at 773, so
   the page has no room and the cap must move (PC-5, FR-071, Budget note);
   and the section `The command line` already sits in `SECTIONS`, so this
-  feature adds no section title and no `SECTION_OWNERS` entry (PC-5,
+  feature adds no section title and no entry in the section map (PC-5,
   FR-073).
 - The roadmap file the prompt names,
   `/workspace/speedgun-ng-harness-roadmap.md`, is absent from this machine,
   so the prompt text is the authority for scope and the Audit point says so
   (Assumptions).
-- Items marked incomplete require spec updates before `/speckit.clarify` or
-  `/speckit.plan`.
+- Items marked incomplete require spec updates before `/speckit.plan`
+  runs.
