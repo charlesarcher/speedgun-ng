@@ -264,7 +264,9 @@ auto needInstance(const std::string& name) -> sg::Instance*
 }
 
 // One scripted hunt run: the record `runHunt` answered and the sampling
-// actions it cost the scripted provider.
+// actions it cost the scripted provider. `figureNs` is the nanoseconds of one
+// pass the caller hands the planner (FR-012): the library route is handed its
+// figure, while the command-line route times one (T119).
 struct HuntAccount
 {
   std::optional<EntryHunt> hunt;
@@ -273,11 +275,13 @@ struct HuntAccount
 };
 
 auto runHuntMeasured(sg::BenchmarkHandle& handle,
-                     const HuntOptions& options) -> HuntAccount
+                     const HuntOptions& options,
+                     std::optional<std::uint64_t> figureNs = std::nullopt)
+    -> HuntAccount
 {
   const std::uint64_t before = host->readActions();
   const std::uint64_t opensBefore = host->windowOpens();
-  auto answered = sg::hunt::runHunt(handle, options, std::nullopt);
+  auto answered = sg::hunt::runHunt(handle, options, figureNs);
   const std::uint64_t after = host->readActions();
   const std::uint64_t opensAfter = host->windowOpens();
   if (answered.has_value()) {
@@ -1140,6 +1144,78 @@ auto scenarioTwoStageBudgetMergesOneRecord() -> void
 }
 
 // ---------------------------------------------------------------------------
+// FR-012, FR-013: a seconds budget weighs the plan against the figure of a pass
+// ---------------------------------------------------------------------------
+
+// A budget is read in passes: the seconds of the budget divided by the
+// nanoseconds of one pass (`allowedPasses`). One second divided by a pass of a
+// microsecond is a million passes, and divided by a pass that costs a second is
+// one pass, so the same plan fits the first and does not fit the second. The
+// figure reaches that division from the caller of the library entry, which is
+// why both arms stand here: they answer the same way on every host, while the
+// command line reaches the same two shapes through a figure it times, whose
+// digits belong to the host (T119, FR-012, FR-013, E-07).
+auto scenarioSecondsBudgetWeighsThePassFigure() -> void
+{
+  registerHuntHost(kCollectLimit);
+  // Four columns seat in one pass at the scripted limit; a budgeted plan runs
+  // stage 1 once and stage 2 - the three columns of `--hunt-top=1` - at the
+  // full repeats, so four passes of work stand against the one second.
+  auto options = optionsFor(selectionOf({0, 1, 2, 3}), 1);
+  options.budget = HuntBudget {HuntBudget::Kind::SECONDS, 1};
+
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntSecondsBudget");
+  sg::detail::expandRegistry();
+
+  const HuntAccount cheap =
+      runHuntMeasured(handle, options, std::uint64_t {1'000});
+  check(cheap.hunt.has_value(),
+        "the hunt of a pass that costs a microsecond answers its record "
+        "(FR-013)");
+  const RunHunt& fit = huntRecord();
+  check(fit.estimateNs.has_value() && *fit.estimateNs == std::uint64_t {1'000},
+        "the estimate is the figure of one pass weighed against the passes "
+        "stage 1 runs, one pass at one repeat here (FR-012, E-08)");
+  check(fit.stages.size() == 2,
+        "a budget that a million passes fit leaves both stages standing "
+        "(FR-013)");
+  const auto fitLines =
+      printedLines(*needInstance("bmHuntSecondsBudget"), *cheap.hunt);
+  check(linesHolding(fitLines,
+                     "estimate=1000ns budget=1s stage1=4 stage2=3")
+                .size()
+            == 1,
+        "the plan line of a fit plan states the figure the budget weighed and "
+        "names both stages (FR-012, FR-013, E-07)");
+  check(linesHolding(fitLines, "hunt: plan budget cut").empty(),
+        "a plan the budget covers prints no cut line (FR-013, E-07)");
+
+  const HuntAccount dear =
+      runHuntMeasured(handle, options, std::uint64_t {1'000'000'000});
+  check(dear.hunt.has_value(),
+        "the hunt of a pass that costs a whole second answers its record "
+        "(FR-013)");
+  const RunHunt& cut = huntRecord();
+  check(cut.stages.size() == 1 && cut.cutReason == "over-budget",
+        "one second holds one pass, so stage 2 is dropped whole and names the "
+        "reason the cut line prints (D-2, FR-013)");
+  const auto cutLines =
+      printedLines(*needInstance("bmHuntSecondsBudget"), *dear.hunt);
+  const auto cutPlan = linesHolding(cutLines, "estimate=1000000000ns");
+  check(cutPlan.size() == 1
+            && cutPlan.front().find("budget=1s") != std::string::npos
+            && cutPlan.front().find(" stage2=") == std::string::npos,
+        "the cut plan states the figure that decided it and names the one "
+        "stage it ran (FR-012, FR-013, E-07)");
+  check(!linesHolding(cutLines,
+                      "hunt: plan budget cut stage=2 reason=over-budget")
+              .empty(),
+        "a budget the plan does not fit prints the cut line naming the stage "
+        "it dropped (FR-013, E-07)");
+  std::printf("seconds-budget-weighs-figure: ok\n");
+}
+
+// ---------------------------------------------------------------------------
 // The scenario list CTest runs
 // ---------------------------------------------------------------------------
 
@@ -1211,6 +1287,8 @@ auto scenarioKindMappingAnswersEveryName() -> void
       Scenario {"two-context-window-opens", &scenarioTwoContextWindowOpens},
       Scenario {"two-stage-merged-record",
                 &scenarioTwoStageBudgetMergesOneRecord},
+      Scenario {"seconds-budget-weighs-figure",
+                &scenarioSecondsBudgetWeighsThePassFigure},
   };
   return kList;
 }

@@ -630,7 +630,7 @@ auto printResult(const BenchmarkResult& result) -> void
     const auto& run = *huntRunRecord();
     printHuntRanking(*result.hunt,
                      run.options.norm.value_or(sg::hunt::HuntNorm::INSTR));
-    printHuntSkips(*result.hunt, run, std::nullopt);
+    printHuntSkips(*result.hunt, run, run.spendNs);
   }
 
   // FR-025: a non-empty `contexts` vector names exactly a threaded
@@ -847,16 +847,17 @@ constexpr std::array<const char*, 3> kHuntMethodWords {
 static_assert(kHuntMethodWords.size()
               == std::to_underlying(sg::MetricMethod::MULTIPLEX) + 1);
 
-// specs/029 T027, T035, FR-012, FR-013, FR-040, FR-041, PD-15, data-model
+// specs/029 T027, T035, T119, FR-012, FR-013, FR-040, FR-041, PD-15, data-model
 // E-07: the plan line of one hunt run, spelled from the run record the report
 // lane reads, and the one line a cut plan adds below it. `events=`
 // counts the planned columns and `passes=` the passes of the plan, `method=`
 // names the settled collection method in the capital word the data model
-// spells, and the estimate is the plan's own figure: it is
-// calibration data, so a plan the run reached before any calibration answered
-// prints `estimate=not available` (FR-012). A plan of two stages names both
-// stages with the events each measures, which is where a seconds budget shows
-// the sweep and the re-run it bought (US2 scenario 2). The record carries the
+// spells, and the estimate is the plan's own figure: the pass count weighed
+// against the nanoseconds of one pass the hunt entry timed, so a plan whose
+// hunt timed no pass prints `estimate=not available` (FR-012). A plan of two
+// stages names both stages with the events each measures, which is where a
+// seconds budget shows the sweep and the re-run it bought (US2 scenario 2).
+// The record carries the
 // norm the run measured under, so a device that lacked an anchors the run
 // normalized by iterations, which the line states openly (D-13). The line
 // carries no measurement: every figure is a field of the record the caller

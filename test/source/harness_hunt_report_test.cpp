@@ -23,21 +23,24 @@
 // scripted window folds the same figure, so a column the run repeated has no
 // spread and prints `cv=0.00`.
 //
-// The one figure no scenario states is the estimate of the plan line: the
-// calibration figure is the sampling floor the finished row carries (T080), so
-// its digits belong to the host. They stand behind the `<host-calibrated>`
-// token `test/source/detail/pass_identity.expected` carries, and every byte
-// around them is compared.
+// The two figures no scenario states are the estimate of the plan line and the
+// spend of the plan summary: the nanoseconds of the pass the hunt timed and the
+// nanoseconds the hunt spent (T119, T120), so their digits belong to the host.
+// They stand behind the `<host-calibrated>` token this file's captures
+// substitute, the same stand-in
+// `test/source/detail/pass_identity.expected` carries for the floor of a
+// finished row, and every byte around them is compared.
 //
 // Four arms stand pinned off a record the scenario builds, the way
-// `harness_hunt_cli_test.cpp` pins the cut reason, because no run answers them
-// today: the `spend=<ns>ns` arm of the summary, since the report hands the
-// printer no spend figure and every run prints `spend=not available`; the
-// `stage=` arm of the skipped line, since no run path fills
-// `SkippedEvent::stage`; the `noisy` mark, since a scripted window folds one
-// constant and no scripted `cv` passes the noise threshold; and the
-// `estimate=not available` arm, since a run that reached a plan holds a
-// finished row, hence a floor. Each states its reason where it is pinned.
+// `harness_hunt_cli_test.cpp` pins the cut reason, because the run that
+// answers them leaves the bytes of the line unpinnable: the `spend=<ns>ns`
+// arm of the summary, whose figure is the wall time a hunt spent (T120), so
+// its digits belong to the host; the `stage=` arm of the skipped line, since
+// no run path fills `SkippedEvent::stage`; the `noisy` mark, since a scripted
+// window folds one constant and no scripted `cv` passes the noise threshold;
+// and the `estimate=not available` arm, which only the entry of a dry run
+// answers, since a hunt that ran nothing to time holds no figure (T119). Each
+// states its reason where it is pinned.
 //
 // The list below is what CTest runs, so an entry absent from it never runs, and
 // `argv[1]` selects one entry of it. Frameworkless check()/fail() convention,
@@ -88,9 +91,10 @@ namespace
 // The scratch file every capture of this binary reads back.
 constexpr const char* kScratchPath = "harness_hunt_report_out.txt";
 
-// The token that stands for the one figure of a hunt line that belongs to the
-// host: the estimate of the plan line, whose calibration is the sampling floor
-// of the finished row (T080).
+// The token that stands for a figure of a hunt line that belongs to the host:
+// the estimate of the plan line, the nanoseconds of one pass the hunt timed,
+// and the spend of the plan summary, the nanoseconds the hunt spent (T119,
+// T120).
 constexpr std::string_view kCalibrated = "<host-calibrated>";
 
 // The scripted host: the hunt fixture at the limit of 6 the AC-1 row states,
@@ -261,31 +265,34 @@ template<typename Print>
 // The report text read line by line
 // ---------------------------------------------------------------------------
 
-// The estimate figure of a line behind the token that stands for it: only the
-// digits of a settled estimate are masked, so the unit stays visible and
-// `estimate=not available` keeps its bytes (T080, E-07).
-[[nodiscard]] auto maskEstimate(std::string line) -> std::string
+// The host-priced figure of a line behind the token that stands for it: the
+// digits of a settled `estimate=` or `spend=` are masked, so the unit stays
+// visible and the `not available` arm of either field keeps its bytes (T119,
+// T120, E-07).
+[[nodiscard]] auto maskFigure(std::string line) -> std::string
 {
-  constexpr std::string_view kField {"estimate="};
-  const auto at = line.find(kField);
-  if (at == std::string::npos
-      || !std::isdigit(static_cast<unsigned char>(line[at + kField.size()])))
-  {
-    return line;
+  for (const std::string_view field : {"estimate=", "spend="}) {
+    const auto at = line.find(field);
+    if (at == std::string::npos
+        || !std::isdigit(static_cast<unsigned char>(line[at + field.size()])))
+    {
+      continue;
+    }
+    auto stop = at + field.size();
+    while (stop < line.size()
+           && std::isdigit(static_cast<unsigned char>(line[stop])))
+    {
+      ++stop;
+    }
+    line.replace(at + field.size(), stop - (at + field.size()), kCalibrated);
   }
-  auto stop = at + kField.size();
-  while (stop < line.size()
-         && std::isdigit(static_cast<unsigned char>(line[stop])))
-  {
-    ++stop;
-  }
-  line.replace(at + kField.size(), stop - (at + kField.size()), kCalibrated);
   return line;
 }
 
-// The hunt lines of a capture, in the order they printed, one token standing
-// for the host figure: the block is what the shape scenarios compare byte for
-// byte, and it carries every hunt line and no other line of the report.
+// The hunt lines of a capture, in the order they printed, the token standing
+// for each figure of the host: the block is what the shape scenarios compare
+// byte for byte, and it carries every hunt line and no other line of the
+// report.
 [[nodiscard]] auto huntBlock(const std::string& text) -> std::string
 {
   std::string block;
@@ -293,7 +300,7 @@ template<typename Print>
   std::string line;
   while (std::getline(stream, line)) {
     if (line.rfind("hunt: ", 0) == 0) {
-      block += maskEstimate(line);
+      block += maskFigure(line);
       block += '\n';
     }
   }
@@ -417,10 +424,10 @@ auto scenarioPlanLineShape() -> void
         "the plan line prints E-07 row one, one pass of four events per pass "
         "at the limit of 6, and no field the run did not settle (FR-012)");
 
-  // The other arm of the estimate field: calibration data, so a plan the run
-  // reached before any calibration answered prints the word. No run of this
-  // host answers it - the figure is the floor of the row the finished run
-  // carries (T080) - so the record stands in for the run.
+  // The other arm of the estimate field: the nanoseconds of a pass the hunt
+  // timed, so a hunt that ran nothing to time prints the word. The entry of a
+  // dry run is the route that answers it (T119); the byte shape of the line
+  // stands pinned here on the record the contract states.
   const auto record = contractRecord(std::nullopt, {}, 0);
   check(capturePrint([&record] { sg::detail::printHuntPlan(record); })
             == "hunt: plan events=0 passes=14 method=PASSES "
@@ -524,8 +531,8 @@ auto scenarioHuntBlockOrder() -> void
                    "hunt: rank - cpu/hunt000 instr=25.000 cv=0.00 "
                    "mark=beyond-top\n"
                    "hunt: skipped cpu/hunt007 permission-blocked\n"
-                   "hunt: plan summary events=3/4 passes=1 spend=not "
-                   "available budget=none\n",
+                   "hunt: plan summary events=3/4 passes=1 "
+                   "spend=<host-calibrated>ns budget=none\n",
         "the hunt lines of one run print the shapes of E-07 in the order PD-15 "
         "fixes, the tail marked beyond-top and the summary counting the "
         "refusal in its denominator (FR-040, FR-041, SC-08)");
@@ -619,9 +626,10 @@ auto scenarioRankRowMarks() -> void
 // catalog listing prints, and the stage that lost the event where a stage did:
 // no run path fills `SkippedEvent::stage` today, so that arm stands built here
 // beside the arm a run prints. The summary closes the list: the events that
-// rated over the universe the hunt stood before, the spend figure the caller
-// measured - no run hands one, so a run prints `spend=not available` (T099) -
-// and the budget in the unit it was given.
+// rated over the universe the hunt stood before, the spend figure the hunt
+// measured (T120) - a run's digits belong to its host, so the arm with a
+// figure and the arm without one both stand built here - and the budget in
+// the unit it was given.
 auto scenarioSkippedListLine() -> void
 {
   auto table = sg::hunt::EntryHunt {};
@@ -651,6 +659,18 @@ auto scenarioSkippedListLine() -> void
         "the skipped line prints the kind the catalog prints and the stage "
         "that lost the event, and the summary prints the spend figure and the "
         "budget under which the plan stood (E-07, FR-041, D-10)");
+  // The arm a record leaves unread. A run now always carries the figure, so its
+  // digits are masked wherever a run prints them; the word for no figure
+  // stands pinned here instead, off the record that holds none (T120).
+  check(capturePrint([&] {
+          sg::detail::printHuntSkips(table, record, std::nullopt);
+        })
+            == "hunt: skipped cpu/hunt005 permission-blocked\n"
+               "hunt: skipped cpu/hunt006 not-encodable stage=2\n"
+               "hunt: plan summary events=0/2 passes=14 spend=not available "
+               "budget=120s\n",
+        "a record that carries no spend figure prints the word the contract "
+        "states for the field (FR-040, E-07)");
   std::printf("skipped-list-line: ok\n");
 }
 
@@ -669,8 +689,8 @@ auto scenarioNormalizedIterLine() -> void
             == "hunt: plan events=1 passes=1 method=PASSES estimate="
                    "<host-calibrated>ns budget=none normalized=iter\n"
                    "hunt: rank 1 cpu/hunt000 iter=100.000 cv=0.00\n"
-                   "hunt: plan summary events=1/1 passes=1 spend=not "
-                   "available budget=none\n",
+                   "hunt: plan summary events=1/1 passes=1 "
+                   "spend=<host-calibrated>ns budget=none\n",
         "the norm the run measured under is the norm both the plan line and "
         "the rate column name (D-13, E-07)");
   std::printf("normalized-iter-line: ok\n");

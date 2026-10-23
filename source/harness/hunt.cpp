@@ -1,11 +1,14 @@
 // specs/029 FR-002 to FR-005, FR-021, FR-022: the event-catalog discovery and
 // the hunt run driver. T022 defines `EventCatalog` here and T026 `runHunt`,
-// both public in speedgun-ng/hunt.hpp; T036 adds the two-stage merge. No time
-// header enters this file: the driver reads no clock of its own.
+// both public in speedgun-ng/hunt.hpp; T036 adds the two-stage merge. T119,
+// T120: the driver reads the wall clock of the two figures the plan line and
+// the plan summary state, the price of one pass and the time the hunt spent;
+// the planner still reads none (FR-012, D-2).
 
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -402,6 +405,59 @@ struct StageLeaves
     }
   }
   return leaves;
+}
+
+// The nanoseconds spent since `started`, on the wall clock the counters layer
+// calibrates its own sampling overhead against (`source/counters/plan.cpp`,
+// FR-025): the one clock the hunt reads, and a monotonic one, so the figure
+// cannot run backwards.
+[[nodiscard]] auto spentNs(const std::chrono::steady_clock::time_point& started)
+    -> std::uint64_t
+{
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+  return static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count());
+}
+
+/// @brief T119, FR-012, FR-013: the nanoseconds one pass of `plan` costs, the
+/// figure the estimate of the plan line weighs the pass count against.
+///
+/// \pre `instance` names a registered instance and `plan` holds at least one
+///      pass
+/// \post the figure is the wall time of one pass of `plan` driven through the
+///       existing N6 pass loop of the `Runner` - the seat of that pass's
+///       leaves, one window of one repetition, and the reads that window
+///       answers - which is the cost a pass of the run carries (D-23: no
+///       second pass loop and no second counter path stands in this file)
+/// \post `std::nullopt` when that pass refused its seat or measured nothing:
+///       a host that runs no pass holds no figure to state, and the plan line
+///       prints the estimate of a hunt with no figure as `not available`
+///       (E-07)
+[[nodiscard]] auto measurePassNs(sg::Instance& instance, const HuntPlan& plan)
+    -> std::optional<std::uint64_t>
+{
+  if (plan.passes.empty()) {
+    return std::nullopt;
+  }
+  const auto leaves = buildStageLeaves(plan,
+                                       HuntStage {
+                                           .columns = plan.passes.front(),
+                                           .repeats = 1,
+                                       });
+  auto runOptions = detail::RunOptions {};
+  runOptions.counterAddresses = leaves.leaves;
+  runOptions.repetitions = 1;
+  // One hunt window measures one iteration, the shape every hunt window has
+  // (FR-013), so the figure prices a pass and not a long run.
+  runOptions.fixedIterations = 1;
+  runOptions.metricMethod = plan.method;
+  const auto started = std::chrono::steady_clock::now();
+  const sg::BenchmarkResult result = detail::Runner {runOptions}.run(instance);
+  const auto spent = spentNs(started);
+  if (result.outcome == sg::RunOutcome::FAILED || result.rows.empty()) {
+    return std::nullopt;
+  }
+  return spent;
 }
 
 // One pass's leaf list with the anchors of its own device joined: the seat
@@ -881,20 +937,28 @@ namespace sg::hunt
 
 // The name-addressable driver the public `runHunt` delegates to, prototyped
 // beside its definition so the one translation unit that defines it answers
-// the declaration check.
+// the declaration check. `timedPass` states which route calls: the harness run
+// path prints the figures of E-07, holds no calibration data of its own, and
+// times one pass of the plan to price it (T119, FR-012).
 [[nodiscard]] auto runHuntNamed(
     std::string_view name,
     const HuntOptions& options,
     std::optional<std::uint64_t> calibrationNsPerPass,
     std::optional<MetricMethod> forcedMethod = std::nullopt,
-    bool dryRun = false) -> std::expected<EntryHunt, counters::Error>;
+    bool dryRun = false,
+    bool timedPass = false) -> std::expected<EntryHunt, counters::Error>;
 
 auto runHuntNamed(std::string_view name,
                   const HuntOptions& options,
                   std::optional<std::uint64_t> calibrationNsPerPass,
                   std::optional<MetricMethod> forcedMethod,
-                  bool dryRun) -> std::expected<EntryHunt, counters::Error>
+                  bool dryRun,
+                  bool timedPass) -> std::expected<EntryHunt, counters::Error>
 {
+  // T120, FR-040: the time the hunt spent, read once here so the plan summary
+  // states a figure the run measured. A hunt that refuses on the way answers
+  // no record at all, so no early return leaves a figure unclaimed.
+  const auto entered = std::chrono::steady_clock::now();
   auto* instance = instanceNamed(name);
   if (instance == nullptr) {
     return std::unexpected(
@@ -924,8 +988,26 @@ auto runHuntNamed(std::string_view name,
     sourceLimits.push_back(device.limit);
     anchors.emplace_back(device.cycles, device.instructions);
   }
-  auto planned =
-      planHunt(events, sourceLimits, anchors, options, calibrationNsPerPass);
+  auto figure = calibrationNsPerPass;
+  if (!figure.has_value() && !dryRun && timedPass) {
+    // T119, FR-012: the estimate prices the passes of this plan against the
+    // cost of one pass, and the planner reads no clock (D-2), so the figure
+    // has to reach it as data. The sampling overhead a row publishes prices
+    // one read of an already-open window: it leaves the seat, the window and
+    // the reads of a pass unpriced, and that is the pair of orders a budget
+    // cut decides on. So the hunt times one pass of its own plan, through the
+    // pass loop the stages run through (FR-013, D-23). The probe plan stands
+    // only to name that pass: a figure moves the stages and the estimate of a
+    // plan, never its columns or its passes, so the pass timed off the probe
+    // is the pass the plan that runs seats.
+    if (const auto probe =
+            planHunt(events, sourceLimits, anchors, options, std::nullopt);
+        probe.has_value())
+    {
+      figure = measurePassNs(*instance, *probe);
+    }
+  }
+  auto planned = planHunt(events, sourceLimits, anchors, options, figure);
   if (!planned.has_value()) {
     return std::unexpected(planned.error());
   }
@@ -1100,6 +1182,9 @@ auto runHuntNamed(std::string_view name,
   entry.skipped.insert(
       entry.skipped.end(), discoverySkips.begin(), discoverySkips.end());
 
+  // T120, FR-040: the record carries the time the hunt spent, the pass the
+  // hunt timed for T119 included: the hunt ran it, so the hunt paid for it.
+  runRecord.spendNs = spentNs(entered);
   detail::huntRunRecord() = std::move(runRecord);
   return entry;
 }
@@ -1114,6 +1199,9 @@ auto runHunt(BenchmarkHandle& benchmark,
              "the caller hands the settled values of one run, every count and "
              "threshold inside the range its own option states and the "
              "selection `--hunt` named");
+  // The library route leaves `timedPass` down: the figure of its estimate is
+  // the caller's to hand, and the driver runs no extra pass of the caller's
+  // benchmark (T119, FR-012).
   auto answer = runHuntNamed(benchmark.name(), options, calibrationNsPerPass);
   SG_ENSURE(answer.has_value() ? answer->top == options.top
                                : !answer.error().message.empty(),

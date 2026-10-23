@@ -1064,7 +1064,8 @@ auto scenarioCutLinePrintsTheRecordedReason() -> void
 }
 
 // ---------------------------------------------------------------------------
-// The calibration figure the command line hands the planner (T080, FR-012)
+// The estimate the plan line weighs the passes against (T119, FR-012;
+// T120, FR-040)
 // ---------------------------------------------------------------------------
 
 // The JSON number that stands behind one key, scanned the way
@@ -1089,15 +1090,17 @@ auto numberAfter(const std::string& text,
   return text.substr(start, stop - start);
 }
 
-// The estimate of the plan line is the calibration figure times the passes
-// and the repeats the plan runs (`hunt.hpp`), and the command line takes that
-// figure from the row of the finished run: the overhead floor,
-// `Plan::sampleOverheadNsMedian()`. That floor is a wall-clock calibration of
-// the host this run stands on, so the case reads it from the document the run
-// wrote and expects the plan line to carry it times the passes the same line
-// prints, at the one repeat `--hunt-repeats=1` asks for. A command line that
-// hands no figure leaves the field reading `estimate=not available` (FR-012).
-auto scenarioPlanWeighsTheRunFloor() -> void
+// The estimate of the plan line is the nanoseconds of one pass times the
+// passes and the repeats the plan runs (`hunt.hpp`), and the hunt times that
+// pass at its own entry (T119, FR-012). A measurement is no constant, so the
+// case reads the figure off the run that printed it: the plan line carries the
+// estimate, and one pass of it has to cost more than the overhead floor of the
+// row the same run wrote, which prices one read of an open window and nothing
+// of the seat or the window a pass carries. The summary line of the same run
+// carries the spend, and the timed pass stands inside the hunt that spent it.
+// A hunt that timed no pass leaves the estimate reading `not available`
+// (FR-012).
+auto scenarioPlanWeighsTheMeasuredPass() -> void
 {
   registerHost(kScriptFull);
   registerCase();
@@ -1113,14 +1116,28 @@ auto scenarioPlanWeighsTheRunFloor() -> void
   check(!plan.empty(), "the hunt of one address prints its plan line");
   check(!floor.empty(), "the document carries the floor of the finished row");
 
+  const std::string spend = numberAfter(run, "spend=");
+  check(!spend.empty(),
+        "the plan summary states a spend figure (T120, FR-040)");
   const auto passes = std::stoull(numberAfter(plan, "passes="));
-  const auto figure = static_cast<std::uint64_t>(std::stod(floor)) * passes;
-  check(plan.find("estimate=" + std::to_string(figure) + "ns")
-            != std::string::npos,
-        "the plan line carries the estimate the finished row's floor weighs "
-        "(T080, FR-012)");
+  const auto estimate = std::stoull(numberAfter(plan, "estimate="));
+  const auto spent = std::stoull(spend);
+  check(estimate > 0,
+        "the plan line carries the figure of the pass the hunt timed (T119, "
+        "FR-012)");
+  check(estimate % passes == 0,
+        "the estimate weighs the passes of the plan against one figure of a "
+        "pass (FR-012)");
+  check(estimate / passes > static_cast<std::uint64_t>(std::stod(floor)),
+        "one timed pass costs more than the sampling read the row of the same "
+        "run publishes (T119, FR-012)");
+  check(run.find("spend=" + std::to_string(spent) + "ns") != std::string::npos,
+        "the summary line prints the spend the record carries (T120, FR-040)");
+  check(spent >= estimate,
+        "the hunt spent at least what its one-pass plan promised, because the "
+        "timed pass stands inside the hunt (T120, FR-040)");
   std::remove(kDocumentPath);
-  std::printf("run-floor-estimate: ok\n");
+  std::printf("measured-pass-estimate: ok\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -1224,7 +1241,7 @@ struct Scenario
       Scenario {"plan-line-budget-cut", &scenarioPlanLineUnderABudgetCut},
       Scenario {"cut-line-recorded-reason",
                 &scenarioCutLinePrintsTheRecordedReason},
-      Scenario {"run-floor-estimate", &scenarioPlanWeighsTheRunFloor},
+      Scenario {"measured-pass-estimate", &scenarioPlanWeighsTheMeasuredPass},
       Scenario {"single-context-hunt",
                 &scenarioSingleContextHuntPrintsTheHuntWhole},
       Scenario {"threaded-hunt-context-tail",
