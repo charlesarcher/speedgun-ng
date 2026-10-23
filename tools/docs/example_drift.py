@@ -178,7 +178,13 @@ PAGE_LINE_CAP = 813
 # measured length of the page with the block in place. The section then spans
 # 25 lines, the per-section budget itself, so the section holds no spare line
 # and no entry joins SECTION_LINE_CAPS.
-PAGE_LINE_CAP = 826
+# FR-072 asks for the re-measure as the feature lands. The page carries the
+# Hunter mode section, the quick-reference rows and the hunt-rank block, and
+# measures 822 lines, so the cap is the measured 822: the 826 kept four lines
+# the landing never added. The budgets that carry a copy hold their measured
+# span already (Fixtures 43, Registration 38, Hardware counter 25), so
+# SECTION_LINE_CAP and SECTION_LINE_CAPS keep their values.
+PAGE_LINE_CAP = 822
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
