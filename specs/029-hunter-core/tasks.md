@@ -649,7 +649,7 @@ as was the coverage bar. Two rows are BLOCKING.
       `specs/029-hunter-core/quickstart.md:249` from
       `source/harness/runner.cpp:2287-2292` at `source/harness/runner.cpp:2391`
       (FR-090, I-8)
-- [ ] T153 Correct the reads inside
+- [x] T153 Correct the reads inside
       `specs/029-hunter-core/results/corsairone-hunt-all.md`: the usage route
       leaves through `rejectHuntSelection` at
       `source/harness/hunt_cli.cpp:67-71`, the range quoted at `:390` holds
