@@ -68,6 +68,14 @@ constexpr const char* kScriptNoInstr = "noinstr";
 // refuses every window the run asks for, the host the corsairone defect record
 // met at its first seat.
 constexpr const char* kScriptSeatRefuse = "seatrefuse";
+// `narrowgiraffe` is the `narrow` host beside the out-of-tree device of the
+// giraffe provider of specs/007: a path two levels deep, so its address carries
+// two slashes and the device the limit list keys by is not the text before the
+// first one.
+constexpr const char* kScriptNarrowGiraffe = "narrowgiraffe";
+constexpr std::string_view kGiraffeParent {"menagerie"};
+constexpr std::string_view kGiraffeDevice {"menagerie/giraffe-2"};
+constexpr std::string_view kGiraffeLeaf {"honks"};
 constexpr std::size_t kFullLimit = 6;
 constexpr std::size_t kNarrowLimit = 2;
 
@@ -158,6 +166,15 @@ auto registerHost(const std::string& script) -> void
   } else if (script == kScriptSeatRefuse) {
     sg::test::huntHost(*provider, kFullLimit)
         .setGroupLeafLimit(sg::test::kHuntCpu, 0);
+  } else if (script == kScriptNarrowGiraffe) {
+    // The parent object has to stand for the nested device to reach a catalog
+    // walk at all: `Object::children()` nests one level per `/`.
+    sg::test::huntHost(*provider, kFullLimit)
+        .addObject(kGiraffeParent, "menagerie", "hunt fixture menagerie")
+        .addObject(kGiraffeDevice, "menagerie", "hunt fixture giraffe")
+        .setProgrammableCounters(kGiraffeDevice, kNarrowLimit)
+        .addCounter(kGiraffeDevice, kGiraffeLeaf, "none", "fixture honks")
+        .setPoints(kGiraffeDevice, kGiraffeLeaf, {0}, sg::test::huntValue(0));
   } else {
     sg::test::huntHost(*provider, kFullLimit);
   }
@@ -458,6 +475,21 @@ auto scenarioLimitRefusal() -> void
        {"--hunt=all"},
        "hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3"});
   std::printf("limit-refusal: ok\n");
+}
+
+// The nested device, the same rule one path level deeper: the limit list keys a
+// device by the text before the *last* `/` (E-01, `detail::devicePartOf`), so
+// `menagerie/giraffe-2/honks` is checked against `menagerie/giraffe-2` and its
+// two slots refuse the pass. A cut at the first `/` looks the limit up under
+// `menagerie`, finds no such object, and lets the device stand open.
+auto scenarioNestedDeviceLimitRefusal() -> void
+{
+  checkRefusal(
+      {kScriptNarrowGiraffe,
+       {"--hunt=" + sg::test::huntAddress(kGiraffeDevice, kGiraffeLeaf)},
+       "hunt: device '" + std::string(kGiraffeDevice)
+           + "' publishes 2 slots and a hunt pass needs 3"});
+  std::printf("nested-device-limit-refusal: ok\n");
 }
 
 // The command line on the host that opens nothing: the half the collect suite
@@ -1308,6 +1340,8 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
       Scenario {"selection-refusals", &scenarioSelectionRefusals},
       Scenario {"option-value-refusals", &scenarioOptionValueRefusals},
       Scenario {"limit-refusal", &scenarioLimitRefusal},
+      Scenario {"nested-device-limit-refusal",
+                &scenarioNestedDeviceLimitRefusal},
       Scenario {"seat-refusal-status", &scenarioSeatRefusalExitsOneWithReason},
       Scenario {"norm-anchor-refusals", &scenarioNormAnchorRefusals},
       Scenario {"conflict-refusals", &scenarioConflictRefusals},
