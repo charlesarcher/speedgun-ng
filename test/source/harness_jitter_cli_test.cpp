@@ -45,6 +45,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -119,8 +120,9 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
   return *provider;
 }
 
-// The cpu index the scenarios pin probe threads to, taken from the
-// process affinity mask, below the online count (FR-040).
+// The cpu indexes the scenarios pin probe threads to, each standing
+// in the process affinity mask. Membership in the mask is the rule
+// the pins obey; the position inside it names nothing (FR-040).
 auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
 {
   cpu_set_t mask {};
@@ -128,15 +130,11 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
     fail("the process affinity mask is unreadable (FR-040)");
   }
-  const int online = CPU_COUNT(&mask);
-  check(online > 0, "the affinity mask holds cpus (FR-040)");
   std::vector<std::uint32_t> cpus;
   for (std::size_t index = 0; index < CPU_SETSIZE && cpus.size() < count;
        ++index)
   {
     if (CPU_ISSET(index, &mask)) {
-      check(index < static_cast<std::size_t>(online),
-            "a picked cpu stands below the online count (FR-040)");
       cpus.push_back(static_cast<std::uint32_t>(index));
     }
   }
@@ -163,6 +161,49 @@ auto pickCpuOutsideMask() -> std::string
   }
   fail("the mask leaves no cpu index free (FR-040)");
   return {};
+}
+
+// The layout cpus nothing pins: the mask's cpus the picked pair
+// leaves first, then the cpus below the online count that neither the
+// mask nor the pair holds, failing fast when the host offers fewer
+// than the shape asks for (FR-040, VI). Every filler stands a real
+// cpu the ExecutionContext construction accepts, and no benchmark or
+// probe pins one in an exit-0 scenario (VI).
+auto pickFillers(const std::vector<std::uint32_t>& picked,
+                 std::size_t count) -> std::vector<std::uint32_t>
+{
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the process affinity mask is unreadable (FR-040)");
+  }
+  const auto online = std::thread::hardware_concurrency();
+  std::vector<std::uint32_t> fillers;
+  const auto offer = [&](std::uint32_t cpu)
+  {
+    if (fillers.size() < count
+        && std::find(picked.begin(), picked.end(), cpu) == picked.end()
+        && std::find(fillers.begin(), fillers.end(), cpu) == fillers.end())
+    {
+      fillers.push_back(cpu);
+    }
+  };
+  for (std::size_t index = 0; index < CPU_SETSIZE; ++index) {
+    if (CPU_ISSET(index, &mask)) {
+      offer(static_cast<std::uint32_t>(index));
+    }
+  }
+  if (online != 0) {
+    for (std::uint32_t cpu = 0;
+         cpu < static_cast<std::uint32_t>(online) && fillers.size() < count;
+         ++cpu)
+    {
+      offer(cpu);
+    }
+  }
+  check(fillers.size() == count,
+        "the host offers the layout cpus the shape asks for (FR-040, VI)");
+  return fillers;
 }
 
 // The syscall refusal seam: one seccomp filter that answers the named
@@ -304,33 +345,23 @@ auto allMaskCpus() -> std::string
   return joined;
 }
 
-// The overlap shape: four L3 groups of one core each, the picked pair
-// sharing group 0's core, so the `l3` plan of two contexts pins the
-// picked `base` and group 1's lowest made-up cpu, both below the
-// host's count, and the sibling of a planned cpu the FR-018 line
-// names stands on the second of the two real cpus (VI).
+// The overlap shape: two L3 groups of one core each, the picked pair
+// standing as the two groups' lowest cpus, so the `l3` plan of two
+// contexts pins exactly the two cpus pickCpus returned, and the core
+// mates the FR-018 line names stand on the fillers nothing pins (VI).
 auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
-  std::vector<std::uint32_t> fillers;
-  for (std::uint32_t cpu = base + 1; fillers.size() < 6; ++cpu) {
-    if (cpu != sibling) {
-      fillers.push_back(cpu);
-    }
-  }
+  const auto fillers = pickFillers({base, sibling}, 2);
   std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
   placed.emplace_back(base, 0);
-  placed.emplace_back(sibling, 0);
-  placed.emplace_back(fillers.at(0), 1);
+  placed.emplace_back(fillers.at(0), 0);
+  placed.emplace_back(sibling, 1);
   placed.emplace_back(fillers.at(1), 1);
-  placed.emplace_back(fillers.at(2), 2);
-  placed.emplace_back(fillers.at(3), 2);
-  placed.emplace_back(fillers.at(4), 3);
-  placed.emplace_back(fillers.at(5), 3);
   std::ranges::sort(placed);
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
-  for (std::uint32_t core = 0; core < 4; ++core) {
+  for (std::uint32_t core = 0; core < 2; ++core) {
     sg::detail::LayoutCore layoutCore;
     layoutCore.groupOrdinal = core;
     installed.cores.push_back(layoutCore);
@@ -345,7 +376,7 @@ auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
     installed.threads.push_back(thread);
     installed.mask.push_back(cpu);
   }
-  for (std::uint32_t group = 0; group < 4; ++group) {
+  for (std::uint32_t group = 0; group < 2; ++group) {
     sg::detail::LayoutGroup layoutGroup;
     const auto first = std::ranges::find_if(
         placed,
@@ -358,11 +389,19 @@ auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
   sg::detail::installTestLayout(installed);
 }
 
-// Two groups of one core with two siblings each: the `l3` plan names
-// base and base + 2, and the siblings cover the rest, so no cpu stays
-// free (FR-017).
+// Two groups of one core with two siblings each: the cpus stand the
+// mask's own first and the below-online ones after, so every pin the
+// scenario makes lands a real cpu (FR-040, VI), and the siblings
+// cover the rest, so no cpu stays free (FR-017).
 auto installTwoGroupPairsShape(std::uint32_t base) -> void
 {
+  const auto fillers = pickFillers({}, 4);
+  std::array<std::uint32_t, 4> cpus {
+      fillers.at(0), fillers.at(1), fillers.at(2), fillers.at(3)};
+  std::ranges::sort(cpus);
+  const auto basePosition = std::ranges::find(cpus, base);
+  check(basePosition != cpus.end(),
+        "the shape's cpus hold the mask's lowest (FR-040, VI)");
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
@@ -370,7 +409,7 @@ auto installTwoGroupPairsShape(std::uint32_t base) -> void
     sg::detail::LayoutCore layoutCore;
     layoutCore.groupOrdinal = group;
     for (std::uint32_t sibling = 0; sibling < 2; ++sibling) {
-      const std::uint32_t cpu = base + group * 2 + sibling;
+      const std::uint32_t cpu = cpus.at(group * 2 + sibling);
       sg::detail::LayoutThread thread;
       thread.cpuIndex = cpu;
       thread.coreOrdinal = group;
@@ -384,7 +423,7 @@ auto installTwoGroupPairsShape(std::uint32_t base) -> void
   }
   for (std::uint32_t group = 0; group < 2; ++group) {
     sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = base + group * 2;
+    layoutGroup.lowestCpu = cpus.at(group * 2);
     layoutGroup.cores.push_back(group);
     installed.groups.push_back(layoutGroup);
   }
@@ -397,34 +436,26 @@ auto installTwoGroupPairsShape(std::uint32_t base) -> void
 // cpuset holds; group 0's second core stands planned by nothing, so
 // the free cpu the idle resolution yields stands in the touched group
 // 0, outside the cpuset the disclosure names (FR-036). The fillers
-// carry the made-up indexes the structure needs, the way the thrawn
-// shape's do.
+// stand the real cpus pickFillers offers, every pin below the online
+// count (VI).
 auto installCpusetPairShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
-  std::vector<std::uint32_t> fillers;
-  for (std::uint32_t cpu = base + 1; fillers.size() < 6; ++cpu) {
-    if (cpu != sibling) {
-      fillers.push_back(cpu);
-    }
-  }
+  const auto fillers = pickFillers({base, sibling}, 2);
   std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
   placed.emplace_back(base, 0);
   placed.emplace_back(fillers.at(0), 0);
   placed.emplace_back(fillers.at(1), 1);
-  placed.emplace_back(fillers.at(2), 1);
   placed.emplace_back(sibling, 2);
-  placed.emplace_back(fillers.at(3), 2);
-  placed.emplace_back(fillers.at(4), 3);
-  placed.emplace_back(fillers.at(5), 3);
   std::ranges::sort(placed);
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
   // The group each core stands in: group 0 carries the two cores the
-  // l3 walk's first places come from, groups 1 and 2 carry one core
-  // each, so the group list indexes cores the shape built (VI).
-  const std::array<std::uint32_t, 4> coreGroup {{0, 0, 1, 2}};
-  for (std::uint32_t core = 0; core < 4; ++core) {
+  // l3 walk's first places and the idle resolution's free cpu come
+  // from, group 1 carries the one core the picked sibling lowest
+  // names, so the group list indexes cores the shape built (VI).
+  const std::array<std::uint32_t, 3> coreGroup {{0, 0, 1}};
+  for (std::uint32_t core = 0; core < 3; ++core) {
     sg::detail::LayoutCore layoutCore;
     layoutCore.groupOrdinal = coreGroup.at(core);
     installed.cores.push_back(layoutCore);
@@ -439,7 +470,7 @@ auto installCpusetPairShape(std::uint32_t base, std::uint32_t sibling) -> void
     installed.threads.push_back(thread);
     installed.mask.push_back(cpu);
   }
-  const std::array<std::uint32_t, 3> groupCoreCounts {{2, 1, 1}};
+  const std::array<std::uint32_t, 2> groupCoreCounts {{2, 1}};
   std::uint32_t coreCursor = 0;
   for (const auto count : groupCoreCounts) {
     sg::detail::LayoutGroup layoutGroup;
@@ -586,72 +617,37 @@ auto setupCpusetLimit() -> void
   (void)sg::registerBenchmark(&bmJitLimitFree, "bmJitLimitFree");
 }
 
-// The `compact` plan of three contexts covers group 0's planned
-// threads and names group 0's second core's first thread, so the
-// idle resolution skips group 0 and yields its free cpu, and the
-// disclosure names the skipped group (FR-017, D-4). The shape stands
-// the cpuset one: its planned threads ride the picked pair and the
-// low made-up indexes, every pin below the host's count (VI).
+// The skipped-group shape: one L3 group of one core holding the
+// picked pair, so the `compact` plan of two contexts covers the
+// touched group whole, the idle resolution stands the skip record
+// with no free cpu, and the status-2 stop names the condition
+// (FR-017, D-4). Two pins, both picked (VI).
 auto installSkipShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
-  std::vector<std::uint32_t> fillers;
-  for (std::uint32_t cpu = base + 1; fillers.size() < 4; ++cpu) {
-    if (cpu != sibling) {
-      fillers.push_back(cpu);
-    }
-  }
   std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
   placed.emplace_back(base, 0);
   placed.emplace_back(sibling, 0);
-  placed.emplace_back(fillers.at(0), 1);
-  placed.emplace_back(fillers.at(2), 1);
-  placed.emplace_back(fillers.at(1), 2);
-  placed.emplace_back(fillers.at(3), 2);
   std::ranges::sort(placed);
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
-  // The group each core stands in: group 0 carries the one core the
-  // compact plan's first two places cover whole, group 1 carries the
-  // two cores the plan's third place and the idle resolution's free
-  // cpu come from (VI).
-  const std::array<std::uint32_t, 3> coreGroup {{0, 1, 1}};
-  for (std::uint32_t core = 0; core < 3; ++core) {
-    sg::detail::LayoutCore layoutCore;
-    layoutCore.groupOrdinal = coreGroup.at(core);
-    installed.cores.push_back(layoutCore);
-  }
+  sg::detail::LayoutCore layoutCore;
+  layoutCore.groupOrdinal = 0;
+  installed.cores.push_back(layoutCore);
   for (const auto& [cpu, core] : placed) {
     sg::detail::LayoutThread thread;
     thread.cpuIndex = cpu;
     thread.coreOrdinal = core;
-    thread.groupOrdinal = coreGroup.at(core);
+    thread.groupOrdinal = 0;
     installed.cores.at(core).threads.push_back(
         static_cast<std::uint32_t>(installed.threads.size()));
     installed.threads.push_back(thread);
     installed.mask.push_back(cpu);
   }
-  const std::array<std::uint32_t, 2> groupCoreCounts {{1, 2}};
-  std::uint32_t coreCursor = 0;
-  for (const auto count : groupCoreCounts) {
-    sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = 0;
-    bool first = true;
-    for (std::uint32_t offset = 0; offset < count; ++offset) {
-      const auto core = coreCursor + offset;
-      layoutGroup.cores.push_back(core);
-      const auto found = std::ranges::find_if(
-          placed,
-          [core](const std::pair<std::uint32_t, std::uint32_t>& slot)
-          { return slot.second == core; });
-      if (first || found->first < layoutGroup.lowestCpu) {
-        layoutGroup.lowestCpu = found->first;
-        first = false;
-      }
-    }
-    coreCursor += count;
-    installed.groups.push_back(layoutGroup);
-  }
+  sg::detail::LayoutGroup layoutGroup;
+  layoutGroup.lowestCpu = base;
+  layoutGroup.cores = {0U};
+  installed.groups.push_back(layoutGroup);
   sg::detail::installTestLayout(installed);
 }
 
@@ -660,7 +656,7 @@ auto setupSkip() -> void
   installSkipShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitSkip, "bmJitSkip");
   handle.placement("compact");
-  handle.threads(3);
+  handle.threads(2);
 }
 
 auto bmJitPlannedNone(sg::State& state) -> void
@@ -688,88 +684,6 @@ auto setupMultiIdle() -> void
   auto placed = sg::registerBenchmark(&bmJitPlannedL3, "bmJitPlannedL3");
   placed.placement("l3");
   placed.threads(2);
-}
-
-auto bmJitSkip25(sg::State& state) -> void
-{
-  for (auto _ : state) {
-  }
-}
-
-// The `compact` plan of three contexts covers the one-thread groups 0
-// and 1 fully and names group 2's first core's first thread, so the
-// idle resolution skips groups 0 and 1 and yields group 2's second
-// core's first thread, and the disclosure names both skipped groups
-// (FR-017, D-4). The shape's planned threads ride the picked pair and
-// the low made-up indexes, every pin below the host's count (VI).
-auto installTwoGroupSkipShape(std::uint32_t base, std::uint32_t sibling) -> void
-{
-  std::vector<std::uint32_t> fillers;
-  for (std::uint32_t cpu = base + 1; fillers.size() < 4; ++cpu) {
-    if (cpu != sibling) {
-      fillers.push_back(cpu);
-    }
-  }
-  std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
-  placed.emplace_back(base, 0);
-  placed.emplace_back(sibling, 1);
-  placed.emplace_back(fillers.at(0), 2);
-  placed.emplace_back(fillers.at(2), 2);
-  placed.emplace_back(fillers.at(1), 3);
-  placed.emplace_back(fillers.at(3), 3);
-  std::ranges::sort(placed);
-  sg::detail::MachineLayout installed;
-  installed.readable = true;
-  installed.packages = 1;
-  // The group each core stands in: groups 0 and 1 carry one core each
-  // so the compact plan's first two places cover them whole, group 2
-  // carries the two cores the plan's third place comes from (VI).
-  const std::array<std::uint32_t, 4> coreGroup {{0, 1, 2, 2}};
-  for (std::uint32_t core = 0; core < 4; ++core) {
-    sg::detail::LayoutCore layoutCore;
-    layoutCore.groupOrdinal = coreGroup.at(core);
-    installed.cores.push_back(layoutCore);
-  }
-  for (const auto& [cpu, core] : placed) {
-    sg::detail::LayoutThread thread;
-    thread.cpuIndex = cpu;
-    thread.coreOrdinal = core;
-    thread.groupOrdinal = coreGroup.at(core);
-    installed.cores.at(core).threads.push_back(
-        static_cast<std::uint32_t>(installed.threads.size()));
-    installed.threads.push_back(thread);
-    installed.mask.push_back(cpu);
-  }
-  const std::array<std::uint32_t, 3> groupCoreCounts {{1, 1, 2}};
-  std::uint32_t coreCursor = 0;
-  for (const auto count : groupCoreCounts) {
-    sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = 0;
-    bool first = true;
-    for (std::uint32_t offset = 0; offset < count; ++offset) {
-      const auto core = coreCursor + offset;
-      layoutGroup.cores.push_back(core);
-      const auto found = std::ranges::find_if(
-          placed,
-          [core](const std::pair<std::uint32_t, std::uint32_t>& slot)
-          { return slot.second == core; });
-      if (first || found->first < layoutGroup.lowestCpu) {
-        layoutGroup.lowestCpu = found->first;
-        first = false;
-      }
-    }
-    coreCursor += count;
-    installed.groups.push_back(layoutGroup);
-  }
-  sg::detail::installTestLayout(installed);
-}
-
-auto setupSkipTwoGroups() -> void
-{
-  installTwoGroupSkipShape(baseCpu, siblingCpu);
-  auto handle = sg::registerBenchmark(&bmJitSkip25, "bmJitSkip25");
-  handle.placement("compact");
-  handle.threads(3);
 }
 
 auto bmFit(sg::State& state) -> void
@@ -1008,6 +922,21 @@ auto scenarioIdleNoPlans() -> int
         "the stop names the preset word (FR-017)");
   check(run.out.find("bmQuiet") == std::string::npos,
         "no benchmark ran (FR-017)");
+  // FR-017, FR-006: the precheck mode with no pinned instance plans no
+  // cpu at all. The stop names that cause; the free-cpu absence stands
+  // a different line (FR-017).
+  const Captured precheckRun =
+      runChildScenario("idleNoPlansPrecheck",
+                       {"--filter=bmQuiet",
+                        "--repetitions=1",
+                        "--iterations=2",
+                        "--jitter-probe=idle,mode=precheck"},
+                       &setupNoLayout);
+  check(precheckRun.status == 2,
+        "a plan-free precheck idle run stops (FR-017)");
+  checkOneLine(precheckRun.err, "the idle stop prints one line (FR-017)");
+  check(precheckRun.err.find("no cpu is planned") != std::string::npos,
+        "the stop names the absent plan (FR-017)");
   return 0;
 }
 
@@ -1181,10 +1110,11 @@ auto scenarioSingleContext() -> int
   return 0;
 }
 
-// FR-017, D-4: a group with no free cpu stands skipped and disclosed,
-// and the run continues over the free cpu the other touched group
-// yields; the `compact` plan of three contexts covers group 0
-// fully and names group 1's lowest cpu.
+// FR-017, D-4: the touched group whose planned cpus and their
+// siblings cover it whole stands in the skip record, the resolution
+// names no free cpu, and the status-2 stop names the condition; the
+// continuing run over a skipped group stands the cpuset-limit
+// scenario's own proof (FR-017, D-4).
 auto scenarioSkipDisclosure() -> int
 {
   const Captured run = runChildScenario("skipDisclosure",
@@ -1195,11 +1125,13 @@ auto scenarioSkipDisclosure() -> int
                                          "--iterations=2",
                                          "--jitter-probe=idle"},
                                         &setupSkip);
-  check(run.status == 0, "a skipped group continues the run (FR-017)");
-  check(run.out.find("skipped L3 group(s) 0") != std::string::npos,
-        "the disclosure names the skipped group (FR-017, D-4)");
-  check(run.out.find("bmJitSkip") != std::string::npos,
-        "the benchmark ran (FR-017)");
+  check(run.status == 2,
+        "the touched group with no free cpu stops the run (FR-017)");
+  checkOneLine(run.err, "the idle stop prints one line (FR-017)");
+  check(run.err.find("the idle preset names no free cpu") != std::string::npos,
+        "the stop names the empty resolution (FR-017, D-4)");
+  check(run.out.find("bmJitSkip") == std::string::npos,
+        "no benchmark ran (FR-017)");
   return 0;
 }
 
@@ -1263,22 +1195,6 @@ auto scenarioUnreadableMask() -> int
   checkOneLine(run.err, "the unreadable mask prints one line (FR-011)");
   check(run.err.find("unreadable") != std::string::npos,
         "the line names the unreadable mask (FR-011)");
-  return 0;
-}
-
-auto scenarioSkipTwoGroups() -> int
-{
-  const Captured run = runChildScenario("skipTwoGroups",
-                                        {"--filter=^bmJitSkip25",
-                                         "--repetitions=1",
-                                         "--iterations=2",
-                                         "--jitter-probe=idle"},
-                                        &setupSkipTwoGroups);
-  check(run.status == 0, "the two skipped groups continue the run (FR-017)");
-  check(run.out.find("skipped L3 group(s) 0,1") != std::string::npos,
-        "the disclosure names both skipped groups (FR-017, D-4)");
-  check(run.out.find("bmJitSkip25") != std::string::npos,
-        "the benchmark ran (FR-017)");
   return 0;
 }
 
@@ -1445,7 +1361,6 @@ auto main(int argc, char** argv) -> int
   check(scenarioCpusetLimit() == 0, "cpusetLimit");
   check(scenarioMultiIdle() == 0, "multiIdle");
   check(scenarioUnreadableMask() == 0, "unreadableMask");
-  check(scenarioSkipTwoGroups() == 0, "skipTwoGroups");
   check(scenarioFitBesideProbe() == 0, "fitBesideProbe");
   check(scenarioUnavailableProbe() == 0, "unavailableProbe");
   check(scenarioUnavailableBlocked() == 0, "unavailableBlocked");
@@ -1462,6 +1377,14 @@ auto main(int argc, char** argv) -> int
     const auto report = captureRun(arguments);
     check(report.find("bmQuiet") != std::string::npos,
           "the accepted value runs the batch (FR-011)");
+    // The alongside mode stands named in the value the same way; the
+    // parse assigns it like the other two names (FR-011).
+    auto alongsideArguments = quickRun;
+    alongsideArguments.push_back("--jitter-probe=" + cpu
+                                 + ",mode=alongside,precheck=1");
+    const auto alongsideReport = captureRun(alongsideArguments);
+    check(alongsideReport.find("bmQuiet") != std::string::npos,
+          "the named alongside mode stands accepted (FR-011)");
   }
 
   // FR-011: a repeated key stands rejected on one line and status 2,
@@ -1486,8 +1409,16 @@ auto main(int argc, char** argv) -> int
           "a bare cpu extension joins the head's list (FR-011)");
     auto range = quickRun;
     range.push_back("--jitter-probe=" + cpu + "-" + second + ",mode=precheck");
-    check(captureRun(range).find("bmQuiet") != std::string::npos,
-          "a closed cpu range joins both cpus (FR-011)");
+    // A closed range joins both cpus when the mask holds every cpu
+    // between them; under a gapped mask the range's interior stands
+    // outside, and the same grammar rejects it (FR-011).
+    if (std::stoi(second) == std::stoi(cpu) + 1) {
+      check(captureRun(range).find("bmQuiet") != std::string::npos,
+            "a closed cpu range joins both cpus (FR-011)");
+    } else {
+      checkOneLine(captureError(range, 2),
+                   "a range over the mask's gap stands rejected (FR-011)");
+    }
 
     auto extension = quickRun;
     extension.push_back("--jitter-probe=" + cpu + ",zzz");
@@ -1506,6 +1437,19 @@ auto main(int argc, char** argv) -> int
     beyond.push_back("--jitter-probe=" + outside);
     checkOneLine(captureError(beyond, 2),
                  "a cpu outside the mask stands rejected (FR-011)");
+    // The set type's own bound and the count the threads report both
+    // refuse before the mask bit read: an index the set cannot hold,
+    // and the count-as-index that names no cpu the threads run on
+    // (FR-011, FR-041).
+    auto bound = quickRun;
+    bound.push_back("--jitter-probe=" + std::to_string(CPU_SETSIZE));
+    checkOneLine(captureError(bound, 2),
+                 "a cpu at the set's own bound stands rejected (FR-011)");
+    auto pastCount = quickRun;
+    pastCount.push_back("--jitter-probe="
+                        + std::to_string(std::thread::hardware_concurrency()));
+    checkOneLine(captureError(pastCount, 2),
+                 "the count-as-index stands rejected the same way (FR-011)");
     auto rangeBeyond = quickRun;
     rangeBeyond.push_back("--jitter-probe=" + cpu + "-" + outside);
     checkOneLine(
