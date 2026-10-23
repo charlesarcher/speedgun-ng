@@ -699,3 +699,11 @@ hosts from here.
       library route, where the calibration figure is one the test hands over and the
       product must weigh exactly (`test/source/harness_hunt_cli_test.cpp`,
       `test/source/harness_hunt_collect_test.cpp`; T119, FR-012)
+
+- [x] T156 Read the plan estimate free of the overhead floor. The bound T155
+      introduced ordered two readings of one host, and the ThreadSanitizer and
+      AddressSanitizer lanes both timed a pass below a floor at that head. The
+      comparison is gone; the case keeps the relations the planner owes whatever
+      the host answers, an estimate present and divisible by the passes of the
+      plan, and the defect stays pinned on the library route, where no clock
+      runs (`test/source/harness_hunt_cli_test.cpp`; T119, FR-012)
