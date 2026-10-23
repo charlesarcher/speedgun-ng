@@ -1247,6 +1247,61 @@ auto scenarioSecondsBudgetWeighsThePassFigure() -> void
 }
 
 // ---------------------------------------------------------------------------
+// FR-012, T119: the estimate weighs the handed figure against every pass
+// ---------------------------------------------------------------------------
+
+// `hunt_plan.cpp` forms the estimate as the product of the figure the caller
+// hands and the passes the plan seats, so a claim about that product needs a
+// figure of its own. A live overhead floor is a reading of one window read, and
+// an instrumented binary lifts such a reading by several orders of magnitude
+// while still leaving it under a second, so the figure handed below stands
+// beyond any floor a host can answer. The equality then fails on every host, in
+// a normal build included, exactly when the estimate copies the floor in place
+// of weighing the handed figure (the T119 defect). The plan carries no budget:
+// `splitStages` reads the figure only to weigh a budget, so the handed figure
+// moves no stage and no pass count and reaches the estimate whole.
+auto scenarioHandedFigureWeighsEveryPass() -> void
+{
+  // A pass of a second. The widest floor a host has been seen to answer is
+  // measured in nanoseconds of one window read, orders under this figure.
+  constexpr std::uint64_t kHandedFigureNs {1'000'000'000};
+  // The passes the scripted host seats eight events in: the limit is six
+  // leaves counting the two anchors, so four events fill one pass and eight
+  // need two (E-04).
+  constexpr std::uint64_t kHandedFigurePasses {2};
+
+  registerHuntHost(kCollectLimit);
+  // One repeat, the stage count of an un-budgeted plan: stage 1 then runs the
+  // plan at one repeat and the estimate is the figure weighed by the passes
+  // alone (FR-012, E-08).
+  const auto options =
+      optionsFor(selectionCount(2 * kWidePassEvents), 20, 10.0, 1);
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntHandedFigure");
+  sg::detail::expandRegistry();
+
+  const HuntAccount account = runHuntMeasured(
+      handle, options, std::optional<std::uint64_t> {kHandedFigureNs});
+  check(account.hunt.has_value(),
+        "the hunt of a handed figure answers its pair (FR-012)");
+  const RunHunt& run = *account.run;
+  check(run.passes == kHandedFigurePasses,
+        "the eight scripted events seat in the two passes the scripted limit "
+        "gives (E-04)");
+  check(run.estimateNs.has_value()
+            && *run.estimateNs == kHandedFigureNs * kHandedFigurePasses,
+        "the record estimate is the handed figure weighed against both passes "
+        "of the plan (T119, FR-012)");
+  const auto lines =
+      printedLines(*needInstance("bmHuntHandedFigure"), *account.hunt, run);
+  const std::string product = "estimate="
+      + std::to_string(kHandedFigureNs * kHandedFigurePasses) + "ns";
+  check(linesHolding(lines, product).size() == 1,
+        "the plan line prints that product whole, a figure no host can answer "
+        "as the floor of its own run (T119, FR-012)");
+  std::printf("estimate-figures-the-passes: ok\n");
+}
+
+// ---------------------------------------------------------------------------
 // The scenario list CTest runs
 // ---------------------------------------------------------------------------
 
@@ -1386,6 +1441,8 @@ auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
                 &scenarioTwoStageBudgetMergesOneRecord},
       Scenario {"seconds-budget-weighs-figure",
                 &scenarioSecondsBudgetWeighsThePassFigure},
+      Scenario {"estimate-figures-the-passes",
+                &scenarioHandedFigureWeighsEveryPass},
       Scenario {"library-route-entry-record",
                 &scenarioLibraryRouteAnswersTheEntryRecord},
   };

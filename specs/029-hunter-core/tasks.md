@@ -688,3 +688,14 @@ Principle VII forbids restating a figure from a contended system.
 `results/gary-hunt-all.md` belongs to `gary`, which this machine cannot
 reach, so that record is unjudged and AC-10 scores unreachable on both
 hosts from here.
+
+- [x] T155 Replace the CLI estimate assertion that ranked two live
+      measurements. `scenarioPlanWeighsTheMeasuredPass` compared the figure of one pass
+      behind the estimate with the overhead floor the same run publishes, and an
+      instrumented host lifts a measured pass until it costs what a window read costs,
+      so the ranking flipped and the sanitizer lane failed at two heads under two
+      operators. The scenario now bounds a measured pass below by the floor of its own
+      run, and the floor-copy defect the ranking was written for is pinned on the
+      library route, where the calibration figure is one the test hands over and the
+      product must weigh exactly (`test/source/harness_hunt_cli_test.cpp`,
+      `test/source/harness_hunt_collect_test.cpp`; T119, FR-012)
