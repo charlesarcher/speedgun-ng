@@ -162,9 +162,6 @@ auto plannedCpusResolve(const MachineLayout& machine,
     const std::vector<std::uint32_t>& plannedCpus,
     const IdleResolution& resolution) -> bool
 {
-  if (!plannedCpusResolve(machine, plannedCpus)) {
-    return false;
-  }
   const auto isPlanned = [&](const std::uint32_t cpu)
   {
     return std::find(plannedCpus.begin(), plannedCpus.end(), cpu)
@@ -192,16 +189,14 @@ auto plannedCpusResolve(const MachineLayout& machine,
     return std::find(siblings.begin(), siblings.end(), cpu) != siblings.end();
   };
   // The skip record ascends, and the covered groups are the touched
-  // ones, each named exactly once across the two lists (FR-017, D-4).
-  if (!std::ranges::is_sorted(resolution.skippedGroups)) {
-    return false;
-  }
-  // The skip record ascends, and the covered groups are the touched
   // ones, each named exactly once across the two lists (FR-017, D-4);
   // the touched record stands unique, so the covered set's equality
   // reads the whole account. One walk carries every refusal: the
   // planned and sibling names, the mask membership, the group record,
   // and the lowest-free-cpu rule (FR-016, D-4).
+  if (!std::ranges::is_sorted(resolution.skippedGroups)) {
+    return false;
+  }
   std::vector<std::uint32_t> covered = resolution.skippedGroups;
   for (const auto cpu : resolution.cpus) {
     if (isPlanned(cpu) || isSibling(cpu)) {
@@ -300,11 +295,34 @@ auto resolveIdleCpus(const MachineLayout& machine,
 // attribute keeps it compiling in every build type.
 [[maybe_unused]] auto probeOverlapValid(
     const std::vector<std::uint32_t>& probeCpus,
+    const sg::JitterProbeMode mode,
     const std::optional<ProbeOverlap>& overlap) -> bool
 {
   return !overlap.has_value()
-      || std::find(probeCpus.begin(), probeCpus.end(), overlap->cpu)
-      != probeCpus.end();
+      || (mode != sg::JitterProbeMode::PRECHECK
+          && std::find(probeCpus.begin(), probeCpus.end(), overlap->cpu)
+              != probeCpus.end());
+}
+
+// FR-017, D-4, E-09: the skipped-groups line the placement disclosure
+// carries, the one function the console line and the JSON text read, so
+// the one and the many group record stand one shape (E-09).
+auto skippedGroupsText(const std::vector<std::uint32_t>& groups)
+    -> std::string
+{
+  if (groups.empty()) {
+    return {};
+  }
+  std::string text = "skipped L3 group(s) ";
+  bool firstGroup = true;
+  for (const auto group : groups) {
+    if (!firstGroup) {
+      text.push_back(',');
+    }
+    text += std::to_string(group);
+    firstGroup = false;
+  }
+  return text;
 }
 
 // specs/027 D-3, D-9, R-10: the overlap check of the alongside phase.
@@ -362,7 +380,7 @@ auto probeOverlapOf(const MachineLayout& machine,
       break;
     }
   }
-  SG_ENSURE(probeOverlapValid(probeCpus, overlap),
+  SG_ENSURE(probeOverlapValid(probeCpus, mode, overlap),
             "the answer names a probe cpu, and the precheck mode "
             "names none (D-3, R-10)");
   return overlap;

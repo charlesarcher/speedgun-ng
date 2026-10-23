@@ -641,6 +641,17 @@ private:
 /// clears the installed one (FR-006, Q-5).
 auto installTestLayout(std::optional<MachineLayout>) -> void;
 
+/// @brief Install (or clear, with an empty optional) the online cpu
+/// count the value grammar's count bound reads in place of the count
+/// the threads report, the way `installTestLayout` stands in for the
+/// layout read (FR-041, Q-5).
+auto installTestOnlineCount(std::optional<std::uint64_t>) -> void;
+
+/// @brief The online cpu count the value grammar's count bound reads:
+/// the installed count when one stands, the count the threads report
+/// otherwise (FR-041).
+[[nodiscard]] auto onlineCpuCount() -> std::uint64_t;
+
 /// @brief Install a synthetic description the read hands to
 /// `hwloc_topology_set_synthetic`; an empty optional clears it
 /// (FR-006, Q-5, R-04).
@@ -761,10 +772,18 @@ struct MaskNarrowing
 
 /// @brief The overlap answer's postcondition predicate, read only
 /// inside the SG_ENSURE contract of the overlap check: the answer
-/// names a probe cpu, and no overlap names none (FR-018, D-9, R-10).
+/// names a probe cpu, and the precheck mode names none (FR-018, D-9,
+/// R-10).
 [[maybe_unused]] [[nodiscard]] auto probeOverlapValid(
     const std::vector<std::uint32_t>& probeCpus,
+    sg::JitterProbeMode mode,
     const std::optional<ProbeOverlap>& overlap) -> bool;
+
+/// @brief The skipped-groups line the placement disclosure carries
+/// (FR-017, D-4, E-09): the empty vector names no line, one group
+/// stands alone, and two join on the comma.
+[[nodiscard]] auto skippedGroupsText(
+    const std::vector<std::uint32_t>& groups) -> std::string;
 
 /// @brief The narrowing's postcondition predicate, read only inside
 /// the SG_ENSURE contract of the mask decision: the narrowed mask
