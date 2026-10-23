@@ -695,7 +695,7 @@ constexpr std::size_t kUnmeasurableEvents = 3;
 // corsairone-hunt-all.md`): the host opens every window and every event
 // counts, while the anchor of the norm reads zero, so no sample contributes a
 // rate (contracts/hunt-api.md: "a sample whose anchor read zero for its pass
-// contributes no rate"). `rankEvents` refuses to summarise an empty rate list,
+// contributes no rate"). `rankEvents` refuses to summarize an empty rate list,
 // so the collection path owes the precondition it hands that function; this
 // arm pins the run answering a skipped ranking that states its reason, over
 // the abort the record captured.
@@ -724,7 +724,7 @@ auto scenarioUnmeasurableAnchorSkipsEveryEvent() -> void
                   [](const RankedEvent& entry) { return entry.samples == 0; });
   check(noRate,
         "an anchor that never counted leaves no sample for any address to "
-        "summarise");
+        "summarize");
   check(hunt.skipped.size() == kUnmeasurableEvents,
         "an address with no rate carries the skipped entry that states why "
         "(FR-021, I-4)");

@@ -88,7 +88,7 @@ and Phase 7 is "gates V-9 and the version rows of V-7". Parallel Opportunities
 `tasks.md:354-356` confirms where conformance actually lands: "T038's cases go
 green with them". But the Phase 5 checkpoint (`:205-207`) never mentions
 conformance or the schema keys: it stops at round trip, refusal by pointer and
-no `hunt` key. The Phase 7 checkpoint is labelled `(V-7, V-9)` whole and
+no `hunt` key. The Phase 7 checkpoint is labeled `(V-7, V-9)` whole and
 opens with "a hunt document conforms at both nodes and a planted out-of-order
 hunt key is a finding", an outcome no Phase 7 task produces, against its own
 Purpose at `:239-241`. plan.md V-7 (`:472`) states all three clauses as one gate,

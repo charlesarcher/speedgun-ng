@@ -110,7 +110,7 @@ Problem: the file promises "Plan phase numbers (P1 to P10) and gate numbers (V-1
 to V-10) are named in each phase heading". Grep finds no `P8` and no `V-8` in
 the file. All of plan P8's work (the eight options in `hunt_cli.cpp`, the
 `cli.cpp` rows and constants, the `report.cpp` printers,
-`harness_cli_table_test.cpp`) is folded into Phase 3, which is labelled P4 and
+`harness_cli_table_test.cpp`) is folded into Phase 3, which is labeled P4 and
 P5. V-8's own observable end state ("`bash test/cli_shape.sh` stays clean",
 plan.md P8 row) therefore has no gate number: T030 runs that command under
 V-4 and V-5. An implementer or auditor who reconciles gates to tasks finds one
@@ -119,7 +119,7 @@ gate missing and cannot tell whether the CLI story was verified.
 Fix: either name P8 and V-8 on the Phase 3 tasks that carry the CLI and console
 work (T018, T019, T020, T027, T028, T029, T030) or split Phase 3 into a P4/P5
 half and a P8 half. Same for P2 and P3, which Phase 2 carries under one heading
-labelled "CRITICAL" without naming them.
+labeled "CRITICAL" without naming them.
 
 ### 4. T049 depends on T048, yet both carry `[P]` and the ordering section runs them together
 
