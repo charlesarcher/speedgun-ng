@@ -196,7 +196,7 @@ auto planHunt(const std::vector<CatalogAddress>& events,
     }
   }
 
-  auto seated = std::size_t {0};
+  [[maybe_unused]] auto seated = std::size_t {0};
   auto seats = std::vector<char>(plan.columns.size(), 0);
   for (const auto& pass : plan.passes) {
     for (const auto column : pass) {
@@ -340,19 +340,21 @@ auto rankEvents(const std::vector<EventSamples>& collected,
   // I-4: one discovery answer decides one address, so neither half of the
   // record holds an address twice.
   for (const auto& entry : result.entries) {
-    const auto once = std::count_if(result.entries.begin(),
-                                    result.entries.end(),
-                                    [&entry](const RankedEvent& other)
-                                    { return other.address == entry.address; });
+    [[maybe_unused]] const auto once =
+        std::count_if(result.entries.begin(),
+                      result.entries.end(),
+                      [&entry](const RankedEvent& other)
+                      { return other.address == entry.address; });
     SG_INVARIANT(once == 1,
                  "one address stands at most once in the ranked table, so the "
                  "run hands every address to the rank table once (I-4)");
   }
   for (const auto& skip : result.skipped) {
-    const auto once = std::count_if(result.skipped.begin(),
-                                    result.skipped.end(),
-                                    [&skip](const SkippedEvent& other)
-                                    { return other.address == skip.address; });
+    [[maybe_unused]] const auto once =
+        std::count_if(result.skipped.begin(),
+                      result.skipped.end(),
+                      [&skip](const SkippedEvent& other)
+                      { return other.address == skip.address; });
     SG_INVARIANT(once == 1,
                  "one address stands at most once in the skipped list, because "
                  "one discovery answer decides its membership (I-4)");
