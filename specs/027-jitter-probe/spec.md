@@ -595,7 +595,10 @@ that never prints.
   `--jitter-probe=<cpu-list|idle>[,threshold=<ns>][,mode=alongside|precheck|both][,precheck=<ms>][,gaps=<n>][,strict]`.
   The option shall take no short letter; its long-option values shall
   be distinct and 256 or more, held as named constants, and one test
-  shall assert every value in the option table is unique.
+  shall assert every value in the option table is unique. A cpu that
+  stands more than once in one value, as `0,0` or `0-1,1` spell it, shall
+  stand an invalid value: the run shall print one line naming the cpu and
+  the whole value, and shall exit with status 2.
 - **FR-012**: `alongside` shall be the default mode when the option is
   given with no `mode=` value (D-1).
 - **FR-013**: With no `--jitter-probe` option, there shall be no probe,
