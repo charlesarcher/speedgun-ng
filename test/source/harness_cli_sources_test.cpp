@@ -2561,6 +2561,81 @@ auto oneWordTwiceKeepsTheLastWordOfOneSource() -> void
   }
 }
 
+// The two percentile rows write one flag, so one source settles that flag
+// once and the last word of the source wins the flag and the points, the way
+// a scalar keeps its last word (FR-025, FR-035, FR-038). The refusal of the
+// pair stands across sources alone, where the environment names both halves
+// (FR-023).
+auto thePercentilePairKeepsTheLastWordOfOneSource() -> void
+{
+  struct Order
+  {
+    const char* first;
+    const char* later;
+    bool percentiles;
+  };
+  const Order orders[] {
+      {"--percentiles=50", "--no-percentiles", false},
+      {"--no-percentiles", "--percentiles=50", true},
+  };
+  for (const Order& order : orders) {
+    const std::string label = std::string("the words ") + order.first + " then "
+        + order.later + " leave percentiles "
+        + (order.percentiles ? "on" : "off") + " (FR-025, FR-035)";
+    const auto scan = scanOf({order.first, order.later});
+    if (!scan.has_value()) {
+      report(label.c_str(), "the scan accepts the pair", scan.error());
+      continue;
+    }
+    const sg::detail::RunOptions& words = scan->settled.options;
+    if (!words.showPercentiles.has_value()) {
+      report(label.c_str(), "a settled percentile flag", "no flag");
+      continue;
+    }
+    check(*words.showPercentiles == order.percentiles, label.c_str());
+    if (order.percentiles) {
+      check(sameValues(words.percentilePoints, {50.0}),
+            (label + ": the points of the word that settled").c_str());
+    }
+    const Run run =
+        runEntryWithEnv({order.first, order.later, "--dry-run"}, {});
+    const std::string statusLabel =
+        std::string("the pair ") + order.first + " " + order.later
+        + " keeps status 0 (FR-025, FR-035)";
+    check(run.status == 0, statusLabel.c_str());
+  }
+
+  struct FileOrder
+  {
+    const char* text;
+    bool percentiles;
+  };
+  const FileOrder fileOrders[] {
+      {"percentiles=50\nno-percentiles\n", false},
+      {"no-percentiles\npercentiles=50\n", true},
+  };
+  for (const FileOrder& order : fileOrders) {
+    const std::string label =
+        std::string("the two lines of one file leave percentiles ")
+        + (order.percentiles ? "on" : "off") + " (FR-025, FR-035)";
+    const Gathered gathered = gatherFile({}, order.text);
+    if (!gathered.settled.has_value()) {
+      report(label.c_str(), "the gather settles the pair", gathered.fault);
+      continue;
+    }
+    const sg::detail::RunOptions& lines = gathered.settled->options;
+    if (!lines.showPercentiles.has_value()) {
+      report(label.c_str(), "a settled percentile flag", "no flag");
+      continue;
+    }
+    check(*lines.showPercentiles == order.percentiles, label.c_str());
+    if (order.percentiles) {
+      check(sameValues(lines.percentilePoints, {50.0}),
+            (label + ": the points of the line that settled").c_str());
+    }
+  }
+}
+
 // The one line of the rules-file reader the gather reads with: a path this
 // helper does not know answers a file of no rule, and each name a case uses
 // answers one rule of its own text, so the order of a settled list is read
@@ -3089,6 +3164,7 @@ auto main(int argc, char** argv) -> int
   aWordOfTwoValuesFaultsTheEntry();
   aSourceLineWithANulByteIsRefused();
   oneWordTwiceKeepsTheLastWordOfOneSource();
+  thePercentilePairKeepsTheLastWordOfOneSource();
   theLaterRulesFileOfOneSourceStands();
   aRulesLineBeforeItsRulesFileOfOneSourceJoins();
   anEmptyRulesFilePathNamesNoSource();
