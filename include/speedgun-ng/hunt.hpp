@@ -540,14 +540,25 @@ struct RunHunt
  * The call is pure: it reads no clock and no counter, and two calls
  * over equal arguments give equal results (I-7, FR-014, D-9).
  *
- * \pre each address stands at most once in `collected`, every address
- *      in `collected` with no `skipped` kind holds at least one sample
- *      free of a disclosure, the guard `statisticsOf` carries at
- *      `runner.cpp:52-55`, and `method` is the method the plan that
- *      produced `collected` settled, `std::nullopt` for samples no
- *      plan produced; an address with exactly one such sample is
- *      reported and never handed to the summary call, so the deviation
- *      assert at `runner.cpp:74-76` stays out of reach (PD-14)
+ * One layer marks: the collection knows why a column gave no rate.
+ *
+ * \pre each address stands at most once in `collected`, and `options`
+ *      holds the settled values of one run, so `top` stands above zero
+ *      and `noise` above `0.0` in the range its own option states
+ *      (`hunt_plan.cpp:220`); every address with no `skipped` kind
+ *      holds at least one sample that is free of a disclosure and
+ *      yields a rate under the norm `options.norm` names (`instr` when
+ *      it is unset), which needs `anchorInstr` present above zero for
+ *      `instr`, `anchorCycle` present above zero for `cycle` and
+ *      `iterations` above zero for `iter`: a denominator absent or at
+ *      zero answers no rate for that pass, so an address that breaches
+ *      this empties the rate list the guard at `statistics.cpp:23-25`
+ *      protects, and the invariant at `hunt_plan.cpp:249` ends the
+ *      process over it (AC-10); `method` is the method the plan that
+ *      produced `collected` settled, `std::nullopt` for samples no plan
+ *      produced; an address with exactly one such sample is reported
+ *      and never handed to the summary call, so the deviation assert at
+ *      `statistics.cpp:46-48` stays out of reach (PD-14)
  * \post one `RankedEvent` per address in `collected` and one
  *       `SkippedEvent` per address that carries a `skipped` kind; an
  *       address stands at most once in each list, and an address that
