@@ -1,5 +1,9 @@
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <cctype>
+#include <cerrno>
+#include <cmath>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -8,15 +12,19 @@
 #include <numeric>
 #include <optional>
 #include <regex>
+#include <set>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include <sched.h>
 #include <unistd.h>
 
+#include "detail/cli_options.hpp"
 #include "detail/compare.hpp"
 #include "detail/internal.hpp"
+#include "detail/jitter_probe.hpp"
 #include "detail/json_report.hpp"
 #include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -35,6 +43,15 @@ namespace
 void handleInterrupt(const int) noexcept
 {
   detail::interruptFlag().store(true);
+}
+
+// FR-015's run-not-started pre: the predicate the suite-level probe
+// binding requires, named beside the other helpers so the contract
+// macro carries no lambda (the lane's review rule).
+[[maybe_unused]] auto noRunStarted() -> bool
+{
+  return std::ranges::none_of(
+      registry(), [](const auto& entry) { return entry->runStarted; });
 }
 
 // FR-020, R-11: the prefix of a disabled instance. The gate is a prefix
@@ -135,6 +152,15 @@ auto batchDefaultTimeUnit() -> std::optional<TimeUnit>&
 {
   static std::optional<TimeUnit> batch;
   return batch;
+}
+
+// FR-015: the suite-level binding `runJitterProbe` writes. The batch
+// reads it where the command line named none, and the command-line
+// value wins when both stand (FR-015, R-01).
+auto suiteJitterProbe() -> std::optional<JitterProbeOptions>&
+{
+  static std::optional<JitterProbeOptions> binding;
+  return binding;
 }
 
 // FR-042: the entry point needs a time source. The counters system opens
@@ -239,6 +265,161 @@ auto environmentRows(char* const* table) -> std::vector<EnvironmentRow>
 }  // namespace detail
 
 /**
+ * @brief State the jitter probe options of the suite's next run
+ * (FR-015).
+ *
+ * The options bind the suite the way the command-line option does.
+ * The availability rule of FR-037 binds the probe the run starts,
+ * whatever entry point configured it: the run discloses `not
+ * available` and continues with status 0, and `strict` stops it with
+ * status 2.
+ *
+ * \pre the run has not started for any benchmark (E-02, FR-015)
+ * \pre `options.cpus` carries the probe cpu request: an empty vector
+ *      names the `idle` preset, and a non-empty vector names cpus
+ *      inside the process affinity mask (FR-011, FR-016, D-4)
+ * \pre `options` carries a `thresholdNs` value at or above 1 when the
+ *      field carries one, `gapCount` inside the `kMinGapCount` through
+ *      `kMaxGapCount` range, and `precheckMs` stands at or above 1
+ *      (FR-008, FR-009, D-13)
+ * \post the suite's next run starts the probe before its first
+ *       selected instance and stops, drains and joins it after the
+ *       last, over these options (FR-006, R-01)
+ * \post the command-line value wins when both stand (FR-015, R-01)
+ */
+auto runJitterProbe(const JitterProbeOptions& options) -> void
+{
+  // The field bounds the contract states; the command line enforces
+  // the same bounds where it parses (FR-008, FR-009, D-13).
+  SG_REQUIRE(!options.thresholdNs.has_value() || *options.thresholdNs >= 1,
+             "the threshold stands at or above 1 ns (FR-008, D-13)");
+  SG_REQUIRE(
+      options.gapCount >= kMinGapCount && options.gapCount <= kMaxGapCount,
+      "the gap count stands inside the bounded range (FR-009, D-13)");
+  SG_REQUIRE(options.precheckMs >= 1,
+             "the pre-check duration stands at or above 1 ms (FR-008, D-13)");
+  SG_REQUIRE(noRunStarted(),
+             "the run has not started for any benchmark (E-02, FR-015)");
+  detail::suiteJitterProbe() = options;
+  SG_ENSURE(detail::suiteJitterProbe().has_value(),
+            "the suite carries the options of its next run (FR-015)");
+}
+
+// D-5: the mask stands restored after the instance ends. The restore
+// applies the saved mask the read returned, so the call stands
+// answered on every path a test drives; a host that refuses it breaks
+// the contract the assertion owns, the way the pin's UNAPPLIED
+// account names the miss (specs/025 FR-005).
+auto restoreSavedMask(const cpu_set_t& saved) noexcept -> void
+{
+  [[maybe_unused]] const bool restored =
+      sched_setaffinity(0, sizeof(saved), &saved) == 0;
+  SG_ASSERT(
+      restored,
+      "the affinity mask stands restored after the instance " "ends (D-5)");
+}
+
+// D-5: the narrowed mask the run carries is a subset of the mask the
+// same thread read from the kernel a moment earlier, so the write
+// answers success the way the read did; a host that refuses it breaks
+// the contract the assertion owns, the way the restore above does.
+auto applyNarrowedMask(const cpu_set_t& narrowed) noexcept -> void
+{
+  [[maybe_unused]] const bool applied =
+      sched_setaffinity(0, sizeof(narrowed), &narrowed) == 0;
+  SG_ASSERT(applied,
+            "the affinity mask stands narrowed for the instance's run (D-5)");
+}
+
+// E-07: the record the document carries, built from the joined states
+// the fold reads (R-04). The record block is one unit of the report,
+// and the entry point below stands more than seven hundred lines, so
+// the build stands in a function of its own.
+auto buildJitterReportRecord(const JitterProbeOptions& probe,
+                             bool unavailable,
+                             bool rawGaps,
+                             const std::string& placementTail,
+                             const std::vector<const detail::ProbeCpuState*>&
+                                 states) -> detail::JitterReportRecord
+{
+  detail::JitterReportRecord record;
+  record.mode = probe.mode;
+  if (unavailable) {
+    // E-07: the unavailable answer carries the requested mode, the
+    // configured threshold, no measured period, and the disclosure;
+    // the run continues with status 0 (FR-037, D-10). No period
+    // stands measured, so the record carries a threshold value, the
+    // 200 ns default when the option named none.
+    record.thresholdNs = probe.thresholdNs.value_or(kDefaultThresholdNs);
+    record.disclosure = "not available" + placementTail;
+    return record;
+  }
+  // E-07, E-09: the document sorts the cpus ascending, the one
+  // order the disclosure text carries.
+  std::vector<const detail::ProbeCpuState*> ordered(states.begin(),
+                                                    states.end());
+  std::ranges::sort(
+      ordered,
+      [](const detail::ProbeCpuState* left, const detail::ProbeCpuState* right)
+      { return left->cpu < right->cpu; });
+  std::string cpuList;
+  for (const auto* state : ordered) {
+    if (!cpuList.empty()) {
+      cpuList.push_back(',');
+    }
+    cpuList += std::to_string(state->cpu);
+  }
+  record.disclosure = "probe on cpus " + cpuList + "; loop period "
+      + std::to_string(ordered.front()->loopPeriodNs) + " ns, threshold "
+      + std::to_string(ordered.front()->thresholdNs) + " ns";
+  // E-07: the record carries the measured points the disclosure
+  // names; every probe cpu's fold carries the same pair (FR-007).
+  record.thresholdNs = ordered.front()->thresholdNs;
+  record.loopPeriodNs = ordered.front()->loopPeriodNs;
+  for (const auto* state : ordered) {
+    record.disclosure += "; cpu " + std::to_string(state->cpu) + " kept "
+        + std::to_string(state->kept) + " dropped "
+        + std::to_string(state->droppedGaps);
+  }
+  record.disclosure += "; split and percentiles use the kept gaps only";
+  record.disclosure += placementTail;
+  // FR-028: the gap list rides the `--json-raw=gaps` value alone;
+  // the list holds the kept records only (D-6).
+  record.rawGaps = rawGaps;
+  for (const auto* state : ordered) {
+    record.cpus.push_back(state->cpu);
+    detail::JitterReportCpu entry;
+    entry.cpu = state->cpu;
+    entry.stats = detail::gapStatsOf(*state);
+    if (record.rawGaps) {
+      entry.gaps.assign(
+          state->buffer.begin(),
+          state->buffer.begin() + static_cast<std::ptrdiff_t>(state->kept));
+    }
+    record.stats.push_back(std::move(entry));
+  }
+  for (const auto* state : ordered) {
+    record.droppedGaps += state->droppedGaps;
+  }
+  return record;
+}
+
+// D-5: the narrowing reads the mask the run already answered once -
+// the value's parse or the plan's resolution read it first, and both
+// stop the run beside their refusal - so the read stands answered the
+// way those reads did; a host that refuses it breaks the contract the
+// assertion owns, the way the narrowed write and the restore do. A
+// filter a benchmark's own context installs stands on that context's
+// thread and never reaches the calling thread the narrowing runs on.
+auto readNarrowingMask(cpu_set_t& saved) noexcept -> void
+{
+  [[maybe_unused]] const bool readable =
+      sched_getaffinity(0, sizeof(saved), &saved) == 0;
+  SG_ASSERT(readable,
+            "the narrowing reads the mask it narrows for the instance (D-5)");
+}
+
+/**
  * @brief Run the benchmark suite the command line names (FR-040).
  *
  * @pre none
@@ -339,6 +520,14 @@ auto speedgunMain(int argc, char** argv) -> int
 
   detail::RunOptions options = std::move(resolved->options);
 
+  // FR-015: the gather pass parses the option file's value where the
+  // file settles it and leaves the command line's own text for the
+  // parse below, so a jitter-probe value that stands settled at this
+  // point came from the option file: no environment row names this
+  // option. The flag records that fact, and the family-probe build
+  // reads it (FR-015, R-06).
+  const bool jitterProbeFromOptionFile = options.jitterProbe.has_value();
+
   // specs/028 FR-063, spec D-23: the compare mode reads the settled list,
   // which carries the rules of every source in the order spec D-23 states,
   // where the words of the command line alone no longer stand (FR-061).
@@ -379,6 +568,29 @@ auto speedgunMain(int argc, char** argv) -> int
       return 2;
     }
     processPreset = parsed;
+  }
+
+  // FR-011, FR-038, R-06: the command line's text parses once here,
+  // before the expansion and before any run; every rejection stands one
+  // line and exits 2. The option file's value parsed where it settled,
+  // so the text stands only for the command line's own (FR-027).
+  if (options.jitterProbeText.has_value()) {
+    auto parsed = JitterProbeOptions {};
+    std::string message;
+    if (!detail::parseJitterProbeValue(
+            *options.jitterProbeText, parsed, message))
+    {
+      std::fprintf(stderr, "--jitter-probe: %s\n", message.c_str());
+      return 2;
+    }
+    options.jitterProbe = parsed;
+  }
+
+  // FR-015: the option sources stand in order: the command line's
+  // value, then the option file's, then the suite-level call's; the
+  // call answers only where no higher source named the probe.
+  if (!options.jitterProbe.has_value()) {
+    options.jitterProbe = detail::suiteJitterProbe();
   }
 
   if (options.catalogMode) {
@@ -495,7 +707,246 @@ auto speedgunMain(int argc, char** argv) -> int
   // console prints, and the document writer reads no clock and samples
   // nothing on its way to the file (FR-005).
   ReportData report;
-  detail::Runner runner(options);
+
+  // FR-015: the per-family probes the handle named. The option file's
+  // value stands over the handle's, so a family runs its own probe
+  // only when no option file named the option; the handle's value
+  // stands over the command line's for that family (FR-015, R-06).
+  // R-01 holds one probe session on the process at a time, so a
+  // family's own probe starts before its first instance in the walk
+  // and stops after its last, and the batch's own probe stands down
+  // for the run beside one (FR-006, R-01); the walk's spans hand the
+  // session over at each family's first and last instance, outside
+  // the timed windows.
+  struct FamilyProbe
+  {
+    const RegistryEntry* family;
+    sg::JitterProbeOptions options;
+    std::vector<std::uint32_t> cpus;
+    std::optional<detail::JitterProbe> holder;
+    bool unavailable = false;
+    bool started = false;
+    bool joined = false;
+    std::size_t first = 0;
+    std::size_t last = 0;
+  };
+
+  std::vector<FamilyProbe> familyProbes;
+  if (!jitterProbeFromOptionFile) {
+    for (std::size_t position = 0; position < selected.size(); ++position) {
+      auto* entry = selected[position];
+      if (!entry->family->jitterProbeOptions.has_value()) {
+        continue;
+      }
+      auto found = std::find_if(familyProbes.begin(),
+                                familyProbes.end(),
+                                [&](const FamilyProbe& probe)
+                                { return probe.family == entry->family; });
+      if (found == familyProbes.end()) {
+        familyProbes.push_back(FamilyProbe {entry->family,
+                                            *entry->family->jitterProbeOptions,
+                                            {},
+                                            {},
+                                            false,
+                                            false,
+                                            false,
+                                            position,
+                                            position});
+      } else {
+        found->last = position;
+      }
+    }
+  }
+  // The probe holder rides the batch state: the lifecycle starts before
+  // the first run and stops after the selected loop ends (T010, R-01).
+  // A family the handle named holds the session beside its own probe,
+  // so the batch's stands down while one runs (FR-015, R-01).
+  std::optional<detail::JitterProbe> jitterProbe;
+  bool jitterUnavailable = false;
+  // specs/027 E-09: the disclosure facts the placement safety gathers
+  // before and during the batch (FR-017, FR-036, D-5, D-12, R-08).
+  std::vector<std::uint32_t> probeCpus;
+  std::vector<std::uint32_t> skippedGroups;
+  std::vector<std::string> maskNarrowedNames;
+  bool cpusetLimited = false;
+  // FR-015: the batch's probe stands only when no family carries its
+  // own, the one session the process holds (R-01) running the family's
+  // own probe beside its instances.
+  const bool batchProbed =
+      options.jitterProbe.has_value() && familyProbes.empty();
+  if (batchProbed) {
+    probeCpus = options.jitterProbe->cpus;
+    if (probeCpus.empty()) {
+      // D-4, R-07: the idle resolution runs against the selected
+      // instances' plans before the batch starts.
+      std::vector<std::uint32_t> planned =
+          detail::plannedCpusOf(selected, detail::layout());
+      if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
+        // FR-006, R-10: no probe thread runs beside a benchmark in the
+        // precheck mode - start() returns only after every pre-check
+        // phase ends - so the planned cpus stand as the probe's own and
+        // no group stands skipped (D-4, R-07).
+        std::ranges::sort(planned);
+        planned.erase(std::unique(planned.begin(), planned.end()),
+                      planned.end());
+        probeCpus = std::move(planned);
+      } else {
+        const auto idle = detail::resolveIdleCpus(detail::layout(), planned);
+        probeCpus = idle.cpus;
+        skippedGroups = idle.skippedGroups;
+      }
+      if (probeCpus.empty()) {
+        // FR-017: no free cpu at all stops the batch with one line
+        // naming the preset word, before any benchmark runs. The two
+        // causes stand apart: a precheck batch with no pinned instance
+        // plans no cpu at all, and a batch whose plans leave no group
+        // with a free cpu resolves none.
+        if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
+          std::fprintf(
+              stderr,
+              "--jitter-probe: no cpu is planned for the idle preset\n");
+        } else {
+          std::fprintf(stderr,
+                       "--jitter-probe: the idle preset names no free cpu\n");
+        }
+        return 2;
+      }
+    }
+    sg::JitterProbeOptions probeOptions = *options.jitterProbe;
+    probeOptions.cpus = probeCpus;
+    jitterProbe.emplace(probeOptions);
+    jitterProbe->start();
+    if (jitterProbe->states().empty()) {
+      // The availability answer (Q-1): strict stops the batch before
+      // any run, and the plain run discloses and continues (FR-037,
+      // D-10).
+      if (options.jitterProbe->strict) {
+        std::fprintf(
+            stderr,
+            "--jitter-probe: the machine/tsc leaf is not " "available\n");
+        return 2;
+      }
+      jitterUnavailable = true;
+    } else {
+      // FR-018, D-3, R-10: the overlap check binds the alongside
+      // phase; the precheck mode allows every overlap, and in `both`
+      // the pre-check phase began with the start, before the stop
+      // lands.
+      const auto overlap = detail::probeOverlapOf(
+          detail::layout(), selected, probeCpus, options.jitterProbe->mode);
+      if (overlap.has_value()) {
+        std::fprintf(stderr,
+                     "--jitter-probe: probe cpu %u overlaps the planned "
+                     "cpus of '%s'\n",
+                     overlap->cpu,
+                     overlap->benchmark.c_str());
+        jitterProbe->stopAndJoin();
+        return 2;
+      }
+    }
+  }
+  // FR-015: the cpus each family's own probe resolves, and the overlap
+  // check over the family's own plans, before any run (FR-018, FR-037,
+  // R-10); the start lands in the walk, before the family's first
+  // instance (FR-006, R-01).
+  for (auto& probe : familyProbes) {
+    std::vector<Instance*> familyInstances;
+    for (auto* entry : selected) {
+      if (entry->family == probe.family) {
+        familyInstances.push_back(entry);
+      }
+    }
+    std::vector<std::uint32_t> planned =
+        detail::plannedCpusOf(familyInstances, detail::layout());
+    if (probe.options.cpus.empty()) {
+      if (probe.options.mode == JitterProbeMode::PRECHECK) {
+        // FR-006, R-10: the precheck mode plans no probe thread beside
+        // a benchmark, so the planned cpus stand as the probe's own.
+        std::ranges::sort(planned);
+        planned.erase(std::unique(planned.begin(), planned.end()),
+                      planned.end());
+        probe.cpus = std::move(planned);
+      } else {
+        const auto idle = detail::resolveIdleCpus(detail::layout(), planned);
+        probe.cpus = idle.cpus;
+        skippedGroups.insert(skippedGroups.end(),
+                             idle.skippedGroups.begin(),
+                             idle.skippedGroups.end());
+      }
+      if (probe.cpus.empty()) {
+        if (probe.options.mode == JitterProbeMode::PRECHECK) {
+          std::fprintf(
+              stderr,
+              "--jitter-probe: no cpu is planned for the idle preset\n");
+        } else {
+          std::fprintf(stderr,
+                       "--jitter-probe: the idle preset names no free cpu\n");
+        }
+        return 2;
+      }
+    } else {
+      probe.cpus = probe.options.cpus;
+    }
+    // FR-018, D-3, R-10: the overlap check binds the alongside phase
+    // over the family's own plans before any run; the precheck mode
+    // allows every overlap, and in `both` the pre-check phase begins
+    // with the start.
+    if (probe.options.mode != JitterProbeMode::PRECHECK) {
+      const auto overlap = detail::probeOverlapOf(
+          detail::layout(), familyInstances, probe.cpus, probe.options.mode);
+      if (overlap.has_value()) {
+        std::fprintf(stderr,
+                     "--jitter-probe: probe cpu %u overlaps the planned "
+                     "cpus of '%s'\n",
+                     overlap->cpu,
+                     overlap->benchmark.c_str());
+        return 2;
+      }
+    }
+  }
+
+  // FR-019, D-5, R-10: the empty-intersection refusal stands before
+  // the walk, next to the overlap check the batch probe runs: the
+  // process mask and the probe cpus are known before any run, so an
+  // entry whose mask the probe cpus empty stops the batch before the
+  // first row prints (FR-036). A family the handle named runs its own
+  // probe's narrowing in the walk, where its availability settles.
+  if (batchProbed && !jitterUnavailable
+      && options.jitterProbe->mode != JitterProbeMode::PRECHECK)
+  {
+    cpu_set_t walkMask {};
+    readNarrowingMask(walkMask);
+    std::vector<std::uint32_t> walkMaskCpus;
+    for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE);
+         ++cpu)
+    {
+      if (CPU_ISSET(cpu, &walkMask) != 0) {
+        walkMaskCpus.push_back(static_cast<std::uint32_t>(cpu));
+      }
+    }
+    for (auto* entry : selected) {
+      // R-01: this precheck stands under `batchProbed`, which holds
+      // only when no family carries a probe of its own, so no family
+      // probe covers an entry on any path that reaches here.
+      if (entry->threadCount > 1 && entry->placement != detail::Preset::NONE) {
+        continue;
+      }
+      const auto narrowing = detail::maskNarrowingOf(probeCpus, walkMaskCpus);
+      if (narrowing.remaining.empty()) {
+        std::fprintf(stderr,
+                     "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
+                     entry->name.c_str());
+        // R-01: the batch probe is emplaced on every path that reaches
+        // this precheck, so the session this stop lands on is the live
+        // one (FR-006, R-01).
+        jitterProbe->stopAndJoin();
+        return 2;
+      }
+    }
+  }
+
+  detail::Runner runner(
+      options, options.jitterProbe.has_value() || !familyProbes.empty());
   // specs/028 FR-051, FR-055, D-12: the order the run walks. A seeded run
   // walks the selected instances in the order `detail::shuffledOrder`
   // answers, and every other run walks them in the order they registered.
@@ -516,37 +967,201 @@ auto speedgunMain(int argc, char** argv) -> int
     BenchmarkResult result;
     std::vector<RowRaw> raw;
     std::vector<std::vector<RowRaw>> contextRaw;
+    std::vector<sg::detail::TimedWindow> windows;
+    const std::vector<detail::ProbeCpuState>* states;
   };
 
   std::vector<std::optional<HeldRow>> held(selected.size());
+  // E-06, R-04, FR-015: the states each result's folds read, one entry
+  // per result of the batch in the order the results push: the family
+  // probe's own states for a family the handle named, the batch probe's
+  // for every other, and none for a fit row.
+  std::vector<const std::vector<detail::ProbeCpuState>*> resultProbes;
+  // R-08, R-04: a probed run prints its benchmark tables behind the join
+  // edge, so the per-benchmark attribution line reads the folds the
+  // split fills after the stop; the printed order keeps the order the
+  // streaming carries, and a probe-free run keeps today's bytes.
+  const bool consoleDeferred = jitterProbe.has_value() || !familyProbes.empty();
+  // E-06, R-04: the windows each entry's runs stamped, one entry per
+  // result of the batch in the order the results push, the alignment the
+  // split reads below.
+  std::vector<std::vector<sg::detail::TimedWindow>> entryWindows;
   // The loop variable keeps the spelling `entry`: `test/cli_shape.sh`
   // locates this loop by the `runner.run(*entry)` line and reads the
   // flag exactly once inside it.
   for (const std::size_t position : walk) {
     auto* entry = selected[position];
+    // FR-015: the probe that covers this instance: the family's own
+    // probe when the handle named one, the batch probe for every
+    // other (FR-015, R-06).
+    FamilyProbe* covering = nullptr;
+    for (auto& probe : familyProbes) {
+      if (probe.family == entry->family) {
+        covering = &probe;
+        break;
+      }
+    }
+    // FR-015: the family's own probe starts before its first instance
+    // in the walk, outside the timed windows (FR-006); R-01 holds one
+    // session on the process at a time, so a live session hands over
+    // here, the way the walk's spans meet.
+    if (covering != nullptr && !covering->started
+        && position == covering->first)
+    {
+      // R-01: the batch probe stands only when no family carries a
+      // probe of its own (`batchProbed`), so no batch session is live
+      // when a family's own probe starts.
+      for (auto& other : familyProbes) {
+        if (other.holder.has_value() && !other.joined) {
+          other.holder->stopAndJoin();
+          other.joined = true;
+        }
+      }
+      auto startedOptions = covering->options;
+      startedOptions.cpus = covering->cpus;
+      covering->holder.emplace(startedOptions);
+      covering->holder->start();
+      covering->started = true;
+      if (covering->holder->states().empty()) {
+        // The availability answer (Q-1): strict stops the batch, and
+        // the plain run discloses and continues (FR-037, D-10).
+        if (covering->options.strict) {
+          std::fprintf(
+              stderr,
+              "--jitter-probe: the machine/tsc leaf is not available\n");
+          for (auto& probe : familyProbes) {
+            if (probe.holder.has_value() && !probe.joined) {
+              probe.holder->stopAndJoin();
+              probe.joined = true;
+            }
+          }
+          return 2;
+        }
+        covering->unavailable = true;
+      }
+    }
+    const bool familyActive =
+        covering != nullptr && covering->started && !covering->unavailable;
+    const bool batchActive = batchProbed && !jitterUnavailable;
+    const std::vector<std::uint32_t>& coveringCpus =
+        familyActive ? covering->cpus : probeCpus;
     // FR-022, FR-023: the complexity fit of the family that ended prints
     // between the rows of two families, after every row of the family it
     // summarizes. A shuffled run holds its fits for the print pass, where a
-    // family ends at its last row in registration order (FR-056).
+    // family ends at its last row in registration order (FR-056); a probed
+    // run holds its print behind the join edge the same way (R-08).
     if (!interleaved) {
       if (const auto fit = runner.fitForFamilyEnd(entry)) {
-        detail::printResult(*fit);
+        report.results.push_back(*fit);
+        entryWindows.emplace_back();
+        resultProbes.push_back(nullptr);
         // FR-002: a fit stands as its own entry of the document, beside
         // the entries of the runs it summarizes.
-        report.results.push_back(*fit);
         report.rowRaw.emplace_back();
         report.contextRaw.emplace_back();
+        if (!consoleDeferred) {
+          detail::printResult(report.results.back());
+        }
       }
     }
+    // FR-019, D-5: an instance the runner does not pin narrows the
+    // calling thread's affinity mask by the probe cpus for the run -
+    // `sched_setaffinity(0, ...)` names the calling thread, never the
+    // process. A pinned instance is exactly one with more than one
+    // context and a preset: the runner pins only instances with more
+    // than one context, and then only when the preset is not `none`,
+    // so a single-context instance that carries a preset is unpinned
+    // and narrows too. A live probe stands behind every narrowing: the
+    // precheck mode runs no probe thread beside a benchmark, and an
+    // unavailable probe runs none at all, so neither narrows (FR-006,
+    // R-10, FR-037). The order is what makes that safe: the probe threads
+    // start before the narrowing and keep their own masks, and the
+    // runner creates the benchmark's worker threads after it, so they
+    // inherit the narrowed mask the benchmark runs under. The change
+    // is disclosed and the mask restored after the instance ends; the
+    // empty intersection stops with one line naming the benchmark.
+    const bool probeLive = familyActive || batchActive;
+    const JitterProbeMode coveringMode = familyActive
+        ? covering->options.mode
+        : (batchActive ? options.jitterProbe->mode
+                       : JitterProbeMode::ALONGSIDE);
+    cpu_set_t savedMask {};
+    bool maskNarrowed = false;
+    if (detail::narrowingApplies(*entry, probeLive, coveringMode)) {
+      CPU_ZERO(&savedMask);
+      readNarrowingMask(savedMask);
+      std::vector<std::uint32_t> maskCpus;
+      for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE);
+           ++cpu)
+      {
+        if (CPU_ISSET(cpu, &savedMask) != 0) {
+          maskCpus.push_back(static_cast<std::uint32_t>(cpu));
+        }
+      }
+      const auto narrowing = detail::maskNarrowingOf(coveringCpus, maskCpus);
+      cpusetLimited = cpusetLimited || narrowing.limited;
+      if (narrowing.remaining.empty()) {
+        std::fprintf(stderr,
+                     "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
+                     entry->name.c_str());
+        // The family holders stand emplaced beside the handles that
+        // named their probes (R-01), so the stops land on the live
+        // sessions before the run leaves them. R-01 keeps the batch
+        // probe out of reach here too: it stands only under
+        // `batchProbed`, which holds when no family carries a probe of
+        // its own.
+        for (auto& probe : familyProbes) {
+          if (probe.holder.has_value() && !probe.joined) {
+            probe.holder->stopAndJoin();
+            probe.joined = true;
+          }
+        }
+        return 2;
+      }
+      cpu_set_t narrowed {};
+      CPU_ZERO(&narrowed);
+      for (const auto cpu : narrowing.remaining) {
+        CPU_SET(cpu, &narrowed);
+      }
+      applyNarrowedMask(narrowed);
+      maskNarrowed = true;
+      maskNarrowedNames.push_back(entry->name);
+    }
     const auto result = runner.run(*entry);
+    if (maskNarrowed) {
+      restoreSavedMask(savedMask);
+    }
+    // E-06, R-04, FR-015: the states this result's folds read: the
+    // family probe's own for a family the handle named, the batch
+    // probe's for every other, and none when no probe stands.
+    const std::vector<detail::ProbeCpuState>* coveringStates = nullptr;
+    if (covering != nullptr && covering->holder.has_value()) {
+      coveringStates = &covering->holder->states();
+    } else if (batchProbed) {
+      coveringStates = &jitterProbe->states();
+    }
     if (interleaved) {
-      held[position] =
-          HeldRow {result, runner.rowRaw().back(), runner.contextRaw().back()};
+      held[position] = HeldRow {result,
+                                runner.rowRaw().back(),
+                                runner.contextRaw().back(),
+                                runner.takeRunWindows(),
+                                coveringStates};
     } else {
-      detail::printResult(result);
       report.results.push_back(result);
+      entryWindows.push_back(runner.takeRunWindows());
+      resultProbes.push_back(coveringStates);
       report.rowRaw.push_back(runner.rowRaw().back());
       report.contextRaw.push_back(runner.contextRaw().back());
+      if (!consoleDeferred) {
+        detail::printResult(report.results.back());
+      }
+    }
+    // FR-015: the family's probe stops after the family's last
+    // instance in the walk, outside the timed windows (FR-006).
+    if (covering != nullptr && !covering->joined && position == covering->last)
+    {
+      covering->holder->stopAndJoin();
+      covering->joined = true;
     }
     // FR-036: the flag is read once per pass, so the status update, the
     // per-pass check and the break all see one instant of the flag.
@@ -565,6 +1180,20 @@ auto speedgunMain(int argc, char** argv) -> int
 
     if (interrupted) {
       break;
+    }
+  }
+
+  // FR-006, R-01: the probe spans the batch, so the stop lands after
+  // the selected loop ends, before the print passes and the split.
+  if (jitterProbe.has_value()) {
+    jitterProbe->stopAndJoin();
+  }
+  // FR-015: a family probe the walk's interruption left live stops
+  // here; a family the walk completed stopped at its last instance.
+  for (auto& probe : familyProbes) {
+    if (probe.holder.has_value() && !probe.joined) {
+      probe.holder->stopAndJoin();
+      probe.joined = true;
     }
   }
 
@@ -587,14 +1216,25 @@ auto speedgunMain(int argc, char** argv) -> int
       if (!row.has_value()) {
         continue;
       }
-      detail::printResult(row->result);
+      if (!consoleDeferred) {
+        detail::printResult(row->result);
+      }
       report.results.push_back(row->result);
+      entryWindows.push_back(std::move(row->windows));
+      resultProbes.push_back(row->states);
       report.rowRaw.push_back(row->raw);
       report.contextRaw.push_back(row->contextRaw);
       if (endsFamily(index)) {
         if (const auto fit = runner.fitForFamily(selected[index]->family)) {
-          detail::printResult(*fit);
+          if (!consoleDeferred) {
+            detail::printResult(*fit);
+          }
           report.results.push_back(*fit);
+          entryWindows.emplace_back();
+          // R-08: a fit is no run of its own, so it carries no probe
+          // states - the split reads one pointer per entry, and the
+          // held rows' pointers stand ahead of it (FR-022, E-06).
+          resultProbes.push_back(nullptr);
           report.rowRaw.emplace_back();
           report.contextRaw.emplace_back();
         }
@@ -606,11 +1246,133 @@ auto speedgunMain(int argc, char** argv) -> int
   // rows. The print pass answered every family a shuffled run ran, so this
   // answers nothing for such a run.
   if (const auto fit = runner.fitForFamilyEnd(nullptr)) {
-    detail::printResult(*fit);
+    if (!consoleDeferred) {
+      detail::printResult(*fit);
+    }
     report.results.push_back(*fit);
+    entryWindows.emplace_back();
+    resultProbes.push_back(nullptr);
     report.rowRaw.emplace_back();
     report.contextRaw.emplace_back();
   }
+
+  // R-04, E-06: the split reads the buffers behind the join edge the
+  // stop gives, folding each probe cpu's kept gaps into the windows
+  // each entry's runs stamped, in ascending cpu order; an entry
+  // carries one fold per cpu whose kept gaps landed inside its
+  // windows, and a cpu whose gaps landed inside none stands absent
+  // (E-06, FR-021).
+  for (std::size_t index = 0; index < report.results.size(); ++index) {
+    const auto* coveringStates = resultProbes.at(index);
+    if (coveringStates == nullptr) {
+      continue;
+    }
+    // E-06: the document sorts the cpus ascending, the one order the
+    // disclosure text carries (E-07).
+    std::vector<const detail::ProbeCpuState*> ordered;
+    ordered.reserve(coveringStates->size());
+    for (const auto& state : *coveringStates) {
+      ordered.push_back(&state);
+    }
+    std::ranges::sort(ordered,
+                      [](const detail::ProbeCpuState* left,
+                         const detail::ProbeCpuState* right)
+                      { return left->cpu < right->cpu; });
+    auto& stored = report.results.at(index);
+    for (const auto* state : ordered) {
+      const auto fold = detail::gapStatsOf(*state, entryWindows.at(index));
+      if (fold.gapCount != 0) {
+        stored.jitterFolds.push_back(
+            sg::JitterEntryFold {.cpu = state->cpu, .stats = fold});
+      }
+    }
+  }
+
+  // R-08: the benchmark tables print here, behind the join edge, in
+  // the order the batch pushed them.
+  if (consoleDeferred) {
+    for (const auto& stored : report.results) {
+      detail::printResult(stored);
+    }
+  }
+
+  // specs/027 E-09: the placement-safety disclosure rides the record
+  // T012 prints: the skipped groups, the cpuset limit and the mask
+  // narrowing (FR-017, FR-036, D-5, D-12, R-08).
+  const std::string skippedText = detail::skippedGroupsText(skippedGroups);
+  std::string placementTail;
+  if (!skippedText.empty()) {
+    placementTail += "; " + skippedText;
+  }
+  if (cpusetLimited) {
+    placementTail += "; cpusets limit the probe cpus";
+  }
+  for (const auto& name : maskNarrowedNames) {
+    placementTail += "; affinity mask narrowed for '" + name + "'";
+  }
+
+  // FR-023, FR-036, R-08: the probe block and the disclosure print in
+  // the end-of-report region, after the benchmark tables; a probe-free
+  // run prints none of them (FR-013, SC-003). A family probe's record
+  // and lines read the states the family's own probe joined, the way
+  // the batch probe's read its own (FR-015).
+  const bool anyFamilyProbe = !familyProbes.empty();
+  // FR-015: the states the record and the lines read, carried as the
+  // pointers the non-copyable states lend (R-04).
+  std::vector<const detail::ProbeCpuState*> batchStatePointers;
+  if (batchProbed) {
+    for (const auto& state : jitterProbe->states()) {
+      batchStatePointers.push_back(&state);
+    }
+  }
+  std::vector<const detail::ProbeCpuState*> familyStates;
+  for (const auto& probe : familyProbes) {
+    if (probe.holder.has_value()) {
+      for (const auto& state : probe.holder->states()) {
+        familyStates.push_back(&state);
+      }
+    }
+  }
+  const bool familyUnavailable =
+      std::all_of(familyProbes.begin(),
+                  familyProbes.end(),
+                  [](const FamilyProbe& probe) { return probe.unavailable; });
+  if (batchProbed || anyFamilyProbe) {
+    if (batchProbed) {
+      detail::printJitterReport(!jitterUnavailable, batchStatePointers);
+    } else {
+      detail::printJitterReport(!familyUnavailable, familyStates);
+    }
+    // E-09: the placement-safety items print as new lines in the same
+    // region; the JSON disclosure text carries the same content as one
+    // string (FR-017, FR-036, D-5, D-12, R-08, FR-026).
+    if (!skippedText.empty()) {
+      std::printf("jitter: %s\n", skippedText.c_str());
+    }
+    if (cpusetLimited) {
+      std::printf("jitter: cpusets limit the probe cpus\n");
+    }
+    for (const auto& name : maskNarrowedNames) {
+      std::printf("jitter: affinity mask narrowed for '%s'\n", name.c_str());
+    }
+  }
+
+  // E-07: the record the document carries, built in the function
+  // above from the joined states the fold reads (R-04).
+  const auto jitterRecord = (batchProbed || anyFamilyProbe)
+      ? std::optional(batchProbed ? buildJitterReportRecord(
+                                        *options.jitterProbe,
+                                        jitterUnavailable,
+                                        options.rawContent == RawContent::GAPS,
+                                        placementTail,
+                                        batchStatePointers)
+                                  : buildJitterReportRecord(
+                                        familyProbes.front().options,
+                                        familyUnavailable,
+                                        options.rawContent == RawContent::GAPS,
+                                        placementTail,
+                                        familyStates))
+      : std::nullopt;
 
   // FR-030: a document the file system refused reports on stderr and
   // leaves the exit status at the usage error the table names, which
@@ -625,7 +1387,9 @@ auto speedgunMain(int argc, char** argv) -> int
       seed = resolved->interleave.seed;
     }
     const detail::RunDisclosure disclosure {resolved->uses, seed};
-    if (!detail::writeReport(options.jsonPath, report, disclosure)) {
+    if (!detail::writeReport(
+            options.jsonPath, report, disclosure, jitterRecord))
+    {
       reportFailed = true;
       status = 2;
     }

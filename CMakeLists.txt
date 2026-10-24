@@ -4,9 +4,9 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    # specs/028-full-command-line FR-078: the minor this lane reserves, after the
-    # 0.17.0 that specs/027 reserves.
-    VERSION 0.18.0
+    # specs/027-jitter-probe lands after specs/028-full-command-line: the
+    # next free minor past the 0.18.0 that lane took on master.
+    VERSION 0.19.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -258,7 +258,13 @@ set_target_properties(
     # BenchmarkResult gains metricMethod, passCount and passSpread, and
     # MetricValue gains pass, so the exported layouts move again and the
     # number goes to 10 (D-12).
-    SOVERSION 10
+    # specs/027 D-16: the exported layouts move again - JitterStats,
+    # JitterEntryFold, JitterProbeMode, JitterProbeOptions and
+    # runJitterProbe join the surface, BenchmarkResult gains jitterFolds,
+    # ReportData gains runJitterStats, RawContent gains GAPS, and
+    # BenchmarkHandle gains the jitterProbe member - so the number
+    # rises to 11 (D-16, the ABI list the spec records).
+    SOVERSION 11
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )

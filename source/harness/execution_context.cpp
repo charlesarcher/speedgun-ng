@@ -645,12 +645,18 @@ ExecutionContext::ExecutionContext()
 ExecutionContext::ExecutionContext(const ContextPolicy policy)
 {
   // FR-005, SC-05: the host bound of the slot's index stands at the
-  // construction call, where the online cpu count stands; the placement
-  // itself lands on the context's thread at its start (D-04).
-  [[maybe_unused]] const auto onlineCpus =
-      static_cast<std::uint32_t>(std::thread::hardware_concurrency());
-  SG_REQUIRE(policy.placement.cpuIndex == kNoPin
-                 || policy.placement.cpuIndex < onlineCpus,
+  // construction call, where the online cpu set stands; the placement
+  // itself lands on the context's thread at its start (D-04). The set is
+  // the one the topology seam owns, read at each call, so an installed
+  // set decides the call that follows it. The process affinity mask
+  // stands a separate rule of its own: a placement the kernel would
+  // refuse at the pinning call is accounted where that call happens
+  // (FR-005, FR-041).
+  const auto onlineCpus = detail::onlineCpuSet();
+  [[maybe_unused]] const bool online =
+      std::find(onlineCpus.begin(), onlineCpus.end(), policy.placement.cpuIndex)
+      != onlineCpus.end();
+  SG_REQUIRE(policy.placement.cpuIndex == kNoPin || online,
              "the policy's placement names a cpu the host lacks (FR-005)");
 
   // FR-002: one identity per live context, from the harness-wide

@@ -654,8 +654,9 @@ target_compile_features(harness_cli_test PRIVATE cxx_std_23)
 add_test(NAME harness_cli_test COMMAND harness_cli_test)
 
 # The one option table of the contract, read out of the source that holds
-# it: 27 rows in the fixed order, each with its argument kind and its
-# value, the seven new names at the constants 290 to 296 (T004; FR-001,
+# it: 28 rows in the fixed order, each with its argument kind and its
+# value, the seven new names at the constants 290 to 296 and the one row
+# this feature brings at 260 (T004; FR-001,
 # FR-003, FR-004, FR-079, SC-001). The directory that holds the table
 # reaches the test by argument, the way the fixture directory reaches
 # `harness_compare_test`. The test is red until Phase 1 lands the seven
@@ -741,6 +742,80 @@ target_link_libraries(harness_gap_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_gap_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_gap_test PRIVATE cxx_std_23)
 add_test(NAME harness_gap_test COMMAND harness_gap_test)
+
+# The foundational jitter probe surface: the option defaults of data-model.md
+# E-01 (FR-003, R-15), the sixteen-field stats aggregate in the E-03 order
+# (FR-002), the three mode enumerators (E-02, R-10), the declared entry point
+# and seam signatures (contracts/public-api.md, R-02), and the record and
+# per-cpu state shapes (E-04, E-05).
+add_executable(harness_jitter_probe_test
+               source/harness_jitter_probe_test.cpp)
+target_link_libraries(harness_jitter_probe_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_jitter_probe_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_jitter_probe_test PRIVATE cxx_std_23)
+add_test(NAME harness_jitter_probe_test COMMAND harness_jitter_probe_test)
+
+# The no-allocation proof of the probe loop (T003; FR-041, SC-005, Q-2,
+# K-13): the proof replaces the global operator new and delete - the
+# basic four forms and the four aligned forms std::align_val_t names -
+# and the thread sanitizer runtime defines those operators too, so the
+# two definitions cannot link, and this proof stays out of that preset
+# for the same reason as counters_noalloc_test above. The threaded
+# probe scenarios stand in harness_jitter_probe_test, which replaces
+# nothing, so that preset builds them.
+if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "fsanitize=thread")
+  add_executable(harness_jitter_probe_alloc_test
+                 source/harness_jitter_probe_alloc_test.cpp)
+  target_link_libraries(harness_jitter_probe_alloc_test
+                        PRIVATE speedgun-ng::harness)
+  target_include_directories(harness_jitter_probe_alloc_test
+                             PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+  target_compile_features(harness_jitter_probe_alloc_test PRIVATE cxx_std_23)
+  add_test(NAME harness_jitter_probe_alloc_test
+           COMMAND harness_jitter_probe_alloc_test)
+endif()
+
+# The probe's report surfaces (T007): the console block of a run with the
+# probe (FR-023, R-08), the run-level and per-entry JSON keys (FR-026,
+# FR-027), the round trip (FR-029), the raw gap list (FR-028), and the
+# reader error codes on the new keys.
+add_executable(harness_jitter_window_test
+               source/harness_jitter_window_test.cpp)
+target_link_libraries(harness_jitter_window_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_jitter_window_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_jitter_window_test PRIVATE cxx_std_23)
+add_test(NAME harness_jitter_window_test
+         COMMAND harness_jitter_window_test)
+
+# The option grammar of contracts/cli-options.md (T008): every
+# status-2 case, the standing getopt paths, the option-value uniqueness
+# over the parser's own table (FR-011, R-06), and the probe-free shape
+# (FR-013, SC-003). The uniqueness scan reads the parser's source
+# through the path the registration hands the binary, the way the
+# schema tests read their schema path.
+add_executable(harness_jitter_cli_test source/harness_jitter_cli_test.cpp)
+target_link_libraries(harness_jitter_cli_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_jitter_cli_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_jitter_cli_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_jitter_cli_test
+    PRIVATE SG_OPTIONS_SOURCE="${CMAKE_SOURCE_DIR}/source/harness/options.cpp")
+add_test(NAME harness_jitter_cli_test COMMAND harness_jitter_cli_test)
+
+# The idle resolver, the overlap check and the mask decision over
+# installed layouts (T017; US2, FR-016 to FR-020, D-3 to D-5, D-9, R-07,
+# PC-2).
+add_executable(harness_jitter_preset_test
+               source/harness_jitter_preset_test.cpp)
+target_link_libraries(harness_jitter_preset_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_jitter_preset_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_jitter_preset_test PRIVATE cxx_std_23)
+add_test(NAME harness_jitter_preset_test
+         COMMAND harness_jitter_preset_test)
 
 # The machine layout read, the two install seams and the mask intersection
 # (T007; US1, FR-001, FR-002, FR-003, FR-005, FR-006, R-04, R-11, R-13,
@@ -1279,6 +1354,22 @@ if(TARGET docs_json_reports)
         --example json_reports
   )
   set_tests_properties(report_shape_json_reports_sample PROPERTIES TIMEOUT 120)
+endif()
+if(TARGET docs_jitter_probe)
+  # The guide page carries the recorded run of the jitter probe example, so
+  # the selector names which recorded run this invocation owns. The fold
+  # checks the recorded file against a real run of the example, which is what
+  # keeps a quoted probe block from drifting away from what the harness
+  # prints (027 FR-034, FR-035).
+  add_test(
+      NAME report_shape_jitter_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_jitter_probe>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example jitter_probe
+  )
+  set_tests_properties(report_shape_jitter_sample PROPERTIES TIMEOUT 120)
 endif()
 
 # Each docs example is a complete program whose regions the page quotes, so the

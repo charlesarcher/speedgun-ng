@@ -24,6 +24,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <fstream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -234,10 +236,72 @@ auto installedLoadFailureSlot() -> std::optional<int>&
   return slot;
 }
 
+auto installedOnlineCountSlot() -> std::optional<std::uint64_t>&
+{
+  static std::optional<std::uint64_t> slot;
+  return slot;
+}
+
+auto installedOnlineCpusSlot() -> std::optional<std::vector<std::uint32_t>>&
+{
+  static std::optional<std::vector<std::uint32_t>> slot;
+  return slot;
+}
+
 }  // namespace
 
 namespace detail
 {
+
+// The list `/sys/devices/system/cpu/online` carries one line in the
+// kernel's cpu-list spelling: comma-separated lone indices and
+// `low-high` spans in ascending order, the gaps standing for the cpus
+// the kernel holds offline. A token that parses as no number names no
+// cpu and the read moves to the token after it, so a short read answers
+// the cpus it did carry.
+auto appendOnlineCpuList(std::vector<std::uint32_t>& cpus,
+                         std::string_view text) -> void
+{
+  while (!text.empty()) {
+    const std::size_t comma = text.find_first_of(',');
+    const auto part = text.substr(0, comma);
+    text = comma == std::string_view::npos ? std::string_view {}
+                                           : text.substr(comma + 1);
+    std::size_t at = 0;
+    auto readNumber = [&part, &at]() -> std::optional<std::uint32_t>
+    {
+      std::uint32_t value = 0;
+      const std::size_t first = at;
+      while (at < part.size() && part[at] >= '0' && part[at] <= '9') {
+        value = value * 10U + static_cast<std::uint32_t>(part[at] - '0');
+        ++at;
+      }
+      if (at == first) {
+        return std::nullopt;
+      }
+      return value;
+    };
+    const auto low = readNumber();
+    if (!low.has_value()) {
+      continue;
+    }
+    auto high = low;
+    if (at < part.size() && part[at] == '-') {
+      ++at;
+      const auto end = readNumber();
+      if (!end.has_value()) {
+        continue;
+      }
+      high = end;
+    }
+    // The counter stands wider than an index, so a span whose high end
+    // is the last index the spelling carries answers every index in the
+    // span and cannot wrap around.
+    for (auto cpu = std::uint64_t {*low}; cpu <= *high; ++cpu) {
+      cpus.push_back(static_cast<std::uint32_t>(cpu));
+    }
+  }
+}
 
 auto installTestLayout(std::optional<detail::MachineLayout> layout) -> void
 {
@@ -253,6 +317,52 @@ auto installTestTopologyDescription(std::optional<std::string> description)
 auto installTestLoadFailure(std::optional<int> answer) -> void
 {
   installedLoadFailureSlot() = answer;
+}
+
+auto installTestOnlineCount(std::optional<std::uint64_t> count) -> void
+{
+  installedOnlineCountSlot() = std::move(count);
+}
+
+auto installTestOnlineCpus(std::optional<std::vector<std::uint32_t>> cpus)
+    -> void
+{
+  installedOnlineCpusSlot() = std::move(cpus);
+}
+
+auto onlineCpuCount() -> std::uint64_t
+{
+  return installedOnlineCountSlot().value_or(
+      std::thread::hardware_concurrency());
+}
+
+// FR-005, FR-041: the online cpu set the placement bound and the option
+// value grammar read. The set is consulted at each call, never cached,
+// so an installed set decides the call that follows it (Q-5). The host
+// read is the line the kernel owns; a host whose line cannot be read
+// answers the indices the online count counts, the count the seam
+// installs too (FR-005, FR-041).
+auto onlineCpuSet() -> std::vector<std::uint32_t>
+{
+  if (const auto& installed = installedOnlineCpusSlot(); installed.has_value())
+  {
+    return *installed;
+  }
+  auto text = std::string {};
+  auto stream = std::ifstream("/sys/devices/system/cpu/online");
+  if (stream.good()) {
+    std::getline(stream, text);
+  }
+  auto cpus = std::vector<std::uint32_t> {};
+  appendOnlineCpuList(cpus, text);
+  if (cpus.empty()) {
+    const auto count = onlineCpuCount();
+    cpus.reserve(static_cast<std::size_t>(count));
+    for (auto index = std::uint64_t {0}; index < count; ++index) {
+      cpus.push_back(static_cast<std::uint32_t>(index));
+    }
+  }
+  return cpus;
 }
 
 // FR-002, R-04: the one cached read. An installed layout short-circuits

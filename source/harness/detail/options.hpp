@@ -69,12 +69,14 @@ enum class StopKind
 // with no letter of its own takes a number of 256 or more, so it cannot
 // collide with a short option, and no option a later feature adds can
 // reach a switch arm by claiming a letter. The four carried values keep
-// the options master gives them, the seven names this feature brings take
-// 290 to 296, and 297 to 319 stay free (FR-001, FR-004, FR-005, D-24).
+// the options master gives them, the jitter probe's lane block holds
+// 260 to 269, the seven names the command-line lane brings take
+// 290 to 296, and 298 to 319 stay free (FR-001, FR-004, FR-005, D-24).
 inline constexpr int kMetricMethodOption = 256;
 inline constexpr int kCompareOptionValue = 257;
 inline constexpr int kCompareRuleOptionValue = 258;
 inline constexpr int kCompareStrictOptionValue = 259;
+inline constexpr int kJitterProbeOptionValue = 260;
 inline constexpr int kOptionsOptionValue = 290;
 inline constexpr int kEnvOptionValue = 291;
 inline constexpr int kThreadsOptionValue = 292;
@@ -272,6 +274,13 @@ using RuleFileReader = std::expected<std::vector<CompareRule>, std::string> (*)(
     const std::optional<OptionFileText>& optionFile,
     RuleFileReader ruleFiles = nullptr)
     -> std::expected<ResolvedOptions, std::string>;
+
+/// @brief The text of a value as one fault record carries it: a line
+/// break named with its own words and a backslash doubled, so the break
+/// cannot be confused with the two letters of its own name (FR-024,
+/// FR-027, FR-035). The one place the value parsers quote an echoed
+/// token, so every refusal stands one line (FR-038).
+[[nodiscard]] auto quotedText(std::string_view text) -> std::string;
 
 /// @brief The thread counts of one `--threads=` list: a comma-separated
 /// sequence of counts and `min:max` ranges, the ranges expanded by

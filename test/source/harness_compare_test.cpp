@@ -2297,6 +2297,29 @@ auto aHandBuiltRuleWithAnUnreadableFilterAnswersOneFault() -> void
         "one fault naming the rule and the filter (FR-051, D-08)");
 }
 
+// FR-030, D-08: a rule built in code whose jitter value name the
+// grammar would refuse answers the same fault the parse answers: one
+// line naming the rule and the unreadable field (D-08).
+auto aHandBuiltRuleWithAnUnreadableJitterNameFaults() -> void
+{
+  const auto baseline = makeReport({measured("first", 100.0)});
+  const auto contender = makeReport({measured("first", 104.0)});
+  const sg::CompareRule handBuilt {.text = "jitter:zz:p99Ns:lower:abs=1",
+                                   .valueName = "jitter:zz:p99Ns",
+                                   .aggregate = std::nullopt,
+                                   .direction = sg::Direction::LOWER_IS_BETTER,
+                                   .relativeThreshold = 1.0,
+                                   .absoluteThreshold = 1.0,
+                                   .filter = ""};
+  const auto answer = libraryCall(baseline, contender, {handBuilt}, false);
+  check(!answer.has_value()
+            && faultNames(answer.error(),
+                          "jitter:zz:p99Ns:lower:abs=1",
+                          "zz"),
+        "a rule built in code whose jitter name the grammar refuses answers "
+        "one fault naming the rule and the cpu token (FR-030, D-08)");
+}
+
 // FR-008, FR-009, SC-003: a name that stands at the start of another name
 // pairs with nothing, so the pair answers one REMOVED row beside one ADDED
 // row.
@@ -2860,6 +2883,7 @@ auto main() -> int
   aLibraryRuleCarriesItsParsedFieldsIntoTheComparison();
   aFilteredRuleBesideAnUnfilteredRuleAnswersItsOwnRows();
   aHandBuiltRuleWithAnUnreadableFilterAnswersOneFault();
+  aHandBuiltRuleWithAnUnreadableJitterNameFaults();
   aPrefixOfAnotherNamePairsWithNothing();
   aValidRuleBesideAFaultyRuleAnswersOneFault();
   theTableScalesEveryDeclaredUnit();

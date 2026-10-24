@@ -436,6 +436,179 @@ auto readFit(Element value,
   return fit;
 }
 
+// One per-cpu stats object of a jitter record: the cpu index and the
+// sixteen fields in the E-03 order, plus the kept gap records when the
+// document carries them (E-03, E-10). The reader answers the parsed cpu
+// and stats so the per-entry read fills the result's carrier with them
+// (E-08, FR-027); the run-level read lets them go. Each key is read and
+// kind-checked in order, so a wrong kind names itself before a later
+// key's absence does (FR-029).
+auto readJitterCpu(Element value, const std::string& where)
+    -> std::expected<std::pair<std::uint32_t, sg::JitterStats>, std::string>
+{
+  std::pair<std::uint32_t, sg::JitterStats> read {};
+  std::uint64_t cpuValue = 0;
+  const auto readUnsignedKey =
+      [&](std::string_view key,
+          std::uint64_t* into) -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto number = asUnsigned(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  const auto readRealKey = [&](std::string_view key,
+                               double* into) -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto number = asDouble(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  auto settledValues =
+      allSettled(readUnsignedKey("cpu", &cpuValue),
+                 readUnsignedKey("gapCount", &read.second.gapCount),
+                 readRealKey("gapsPerSecond", &read.second.gapsPerSecond),
+                 readUnsignedKey("minNs", &read.second.minNs),
+                 readUnsignedKey("medianNs", &read.second.medianNs),
+                 readRealKey("meanNs", &read.second.meanNs),
+                 readUnsignedKey("p90Ns", &read.second.p90Ns),
+                 readUnsignedKey("p99Ns", &read.second.p99Ns),
+                 readUnsignedKey("p999Ns", &read.second.p999Ns),
+                 readUnsignedKey("p9999Ns", &read.second.p9999Ns),
+                 readUnsignedKey("maxNs", &read.second.maxNs),
+                 readUnsignedKey("totalNs", &read.second.totalNs),
+                 readRealKey("totalPercent", &read.second.totalPercent),
+                 readUnsignedKey("runtimeNs", &read.second.runtimeNs),
+                 readUnsignedKey("thresholdNs", &read.second.thresholdNs),
+                 readUnsignedKey("loopPeriodNs", &read.second.loopPeriodNs),
+                 readUnsignedKey("droppedGaps", &read.second.droppedGaps));
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  if (const auto gaps = field(value, where, "gaps"); gaps.has_value()) {
+    auto items = asArray(*gaps, where + "/gaps");
+    if (!items.has_value()) {
+      return std::unexpected(items.error());
+    }
+    std::size_t index = 0;
+    for (const auto item : *items) {
+      const std::string here = where + "/gaps/" + std::to_string(index);
+      auto stamp = field(item, here, "stamp");
+      if (!stamp.has_value()) {
+        return std::unexpected(stamp.error());
+      }
+      auto stampValue = asUnsigned(*stamp, here + "/stamp");
+      if (!stampValue.has_value()) {
+        return std::unexpected(stampValue.error());
+      }
+      auto gap = field(item, here, "gapNs");
+      if (!gap.has_value()) {
+        return std::unexpected(gap.error());
+      }
+      auto gapValue = asUnsigned(*gap, here + "/gapNs");
+      if (!gapValue.has_value()) {
+        return std::unexpected(gapValue.error());
+      }
+      ++index;
+    }
+  }
+  read.first = static_cast<std::uint32_t>(cpuValue);
+  return read;
+}
+
+// The run-level jitter record: the seven keys of E-07 in the kinds the
+// schema states. The reader checks the record and lets the values go,
+// the shape the noise warning read uses (E-07, E-08, FR-029); each key
+// is read and kind-checked in order, so a wrong kind names itself
+// before a later key's absence does (FR-029).
+auto readJitterRecord(Element value, const std::string& where)
+    -> std::expected<std::vector<sg::JitterEntryFold>, std::string>
+{
+  const auto readKey =
+      [&](std::string_view key) -> std::expected<Element, std::string>
+  { return field(value, where, key); };
+  auto mode = readKey("mode").and_then(
+      [&](Element found)
+      {
+        return asEnum<sg::JitterProbeMode>(
+            detail::kJitterModeWords, found, where + "/mode");
+      });
+  if (!mode.has_value()) {
+    return std::unexpected(mode.error());
+  }
+  auto threshold =
+      readKey("thresholdNs")
+          .and_then([&](Element found)
+                    { return asUnsigned(found, where + "/thresholdNs"); });
+  if (!threshold.has_value()) {
+    return std::unexpected(threshold.error());
+  }
+  auto period =
+      readKey("loopPeriodNs")
+          .and_then([&](Element found)
+                    { return asUnsigned(found, where + "/loopPeriodNs"); });
+  if (!period.has_value()) {
+    return std::unexpected(period.error());
+  }
+  auto cpus = readKey("cpus").and_then(
+      [&](Element found) { return asArray(found, where + "/cpus"); });
+  if (!cpus.has_value()) {
+    return std::unexpected(cpus.error());
+  }
+  for (const auto item : *cpus) {
+    auto number = asUnsigned(item, where + "/cpus");
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+  }
+  auto stats = readKey("stats").and_then(
+      [&](Element found) { return asArray(found, where + "/stats"); });
+  if (!stats.has_value()) {
+    return std::unexpected(stats.error());
+  }
+  std::vector<sg::JitterEntryFold> folds;
+  std::size_t index = 0;
+  for (const auto item : *stats) {
+    auto read = readJitterCpu(item, where + "/stats/" + std::to_string(index));
+    if (!read.has_value()) {
+      return std::unexpected(read.error());
+    }
+    // E-07: the record reads back into the carrier a `jitter:run:`
+    // comparison rule reads, the same shape the per-entry stats ride
+    // (FR-031).
+    folds.push_back({.cpu = read->first, .stats = read->second});
+    ++index;
+  }
+  auto dropped =
+      readKey("droppedGaps")
+          .and_then([&](Element found)
+                    { return asUnsigned(found, where + "/droppedGaps"); });
+  if (!dropped.has_value()) {
+    return std::unexpected(dropped.error());
+  }
+  auto disclosure =
+      readKey("disclosure")
+          .and_then([&](Element found)
+                    { return asString(found, where + "/disclosure"); });
+  if (!disclosure.has_value()) {
+    return std::unexpected(disclosure.error());
+  }
+  return folds;
+}
+
 auto readRow(Element value,
              const std::string& where,
              sg::ResultRow& row,
@@ -759,6 +932,36 @@ auto readEntry(Element value,
         .runnableCpus = *runnableCount,
         .sharesOneCpu = *oneCpu,
     };
+  }
+  if (const auto jitter = field(value, where, "jitter");
+      jitter.has_value() && !jitter->is_null())
+  {
+    // E-08: the object form carries `stats`, one object per probe cpu
+    // over the entry's windows; the reader checks the record and lets
+    // the values go (FR-027, E-08).
+    const std::string here = where + "/jitter";
+    auto stats = field(*jitter, here, "stats");
+    if (!stats.has_value()) {
+      return std::unexpected(stats.error());
+    }
+    auto items = asArray(*stats, here + "/stats");
+    if (!items.has_value()) {
+      return std::unexpected(items.error());
+    }
+    std::size_t index = 0;
+    for (const auto item : *items) {
+      auto read = readJitterCpu(item, here + "/stats/" + std::to_string(index));
+      if (!read.has_value()) {
+        return std::unexpected(read.error());
+      }
+      // E-08, FR-029: the object reads back into the result's carrier,
+      // the value the round trip compares equal (SC-001).
+      result.jitterFolds.push_back(sg::JitterEntryFold {
+          .cpu = read->first,
+          .stats = read->second,
+      });
+      ++index;
+    }
   }
   auto rows = asArray(at(11), where + "/rows");
   if (!rows.has_value()) {
@@ -1196,6 +1399,14 @@ auto loadReport(const std::string& path)
                            + "', which this build cannot read: the reader "
                              "knows version 1");
   }
+  ReportData data;
+  if (const auto jitter = field(root, "", "jitter"); jitter.has_value()) {
+    auto read = readJitterRecord(*jitter, "/jitter");
+    if (!read.has_value()) {
+      return std::unexpected(read.error());
+    }
+    data.runJitterStats = std::move(*read);
+  }
   auto entries = field(root, "", "benchmarks");
   if (!entries.has_value()) {
     return std::unexpected(entries.error());
@@ -1204,7 +1415,6 @@ auto loadReport(const std::string& path)
   if (!items.has_value()) {
     return std::unexpected(items.error());
   }
-  ReportData data;
   data.schemaVersion = *versionText;
   if (const auto header = field(root, "", "speedgun"); header.has_value()) {
     // A header text the reader only ever prints stays lenient: the object

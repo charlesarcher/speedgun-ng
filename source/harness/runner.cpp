@@ -36,6 +36,42 @@ constexpr std::uint64_t kDefaultRepetitions = 1;
 
 using sg::detail::MetricColumn;
 
+// The machine/tsc stamp one timed-window edge carries (R-04, E-06): a
+// fresh reader over the leaf through the same catalog the probe opens,
+// read once on the calling thread. The fresh window seeds from the
+// position the leaf carries at the edge, so an edge and the probe's gap
+// stamps read as one series with no conversion between them (R-04).
+// The machine object always stands in a run's catalog - the entry point
+// registers the clock provider beside it before the batch starts - and
+// the ring mint over the literal capacity 2, a power of two, succeeds
+// (FR-025), so the assertions own those contracts; a leaf the catalog
+// lacks, or a plan the build cannot compile over it, leaves the edge
+// unstamped and the window unrecorded.
+auto windowStampNow() -> std::optional<std::uint64_t>
+{
+  auto& sys = sg::counters::System::local();
+  const auto machine = sys.object("machine");
+  SG_ASSERT(machine.has_value(),
+            "the machine object stands in the run's catalog (R-02)");
+  const auto leaf = machine.value().counter<sg::counters::Dim<0, 1>>("tsc");
+  if (!leaf.has_value()) {
+    return std::nullopt;
+  }
+  sg::counters::Expression<sg::counters::Dim<0, 1>> expression(leaf.value());
+  auto compiled = sg::counters::detail::compileCore(
+      sys, sg::counters::Target {}, {&expression.core});
+  if (!compiled.has_value()) {
+    return std::nullopt;
+  }
+  sg::counters::Plan plan(std::move(compiled.value()));
+  auto minted = plan.recorder(2, sg::counters::ring);
+  SG_ASSERT(minted.has_value(),
+            "the ring recorder mints over the literal capacity (FR-025)");
+  auto& recorder = minted.value();
+  recorder.sample();
+  return recorder.mColumns[(recorder.mHead - 1) & (recorder.mCapacity - 1)];
+}
+
 auto splitAddress(std::string_view address)
     -> std::pair<std::string_view, std::string_view>
 {
@@ -1081,6 +1117,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // rows they answer, in the order those rows are built.
   m_rowRaw.emplace_back();
   m_contextRaw.emplace_back();
+  // specs/027 E-06, R-04: this run's windows stand alone in the store
+  // the caller takes after the run, and the warm-up and the measured
+  // repetitions name their pass below.
+  m_runWindows.clear();
+  m_repetition = 0;
 
   auto& sys = sg::counters::System::local();
   const std::int64_t minTimeNs =
@@ -1365,6 +1406,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     passColumns.push_back(wholeRun);
   }
   const std::size_t passCount = passColumns.size();
+
+  // E-06, FR-022: the pass index the attempt-level windows carry. The
+  // window-stamping lambdas below read it through their reference
+  // capture. The warm-up and the calibration stand ahead of pass 0, so
+  // their windows carry 0 the way their repetition index does.
+  std::size_t pass = 0;
 
   // E-07, FR-017, FR-019: the disclosure of a collection whose method has
   // settled. Every return that follows this settling publishes it through this
@@ -2014,7 +2061,31 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       outcome.record = std::move(record);
     };
 
+    // R-04, E-06: the attempt's timed window opens on this thread
+    // before the bodies run and closes after they settle, so the
+    // attempt's measured spans stand inside one `[start, end)` window
+    // the split folds the kept gaps into. The stamps stand outside the
+    // measured spans the window covers. The close stamp answers the
+    // same frozen catalog the open stamp read - registration closed at
+    // the boundary the first lookup opened (FR-009) - so the close's
+    // refusal stands only where the open's does, and the guard re-tests
+    // the open alone (K-8). The `entry` attribution rides the
+    // per-entry window vector the split takes (E-06). The `chunk`
+    // index stands 0 on the attempt-level window, whose timed loop
+    // spans every chunk the plan reserves (specs/021 FR-008).
+    const auto windowOpen = m_windowStamping ? windowStampNow() : std::nullopt;
     launchBodies(body, count);
+    const auto windowClose = m_windowStamping ? windowStampNow() : std::nullopt;
+    if (m_windowStamping && windowOpen.has_value()) {
+      m_runWindows.push_back(sg::detail::TimedWindow {
+          .start = *windowOpen,
+          .end = *windowClose,
+          .entry = 0,
+          .repetition = m_repetition,
+          .chunk = 0,
+          .pass = pass,
+      });
+    }
 
     if (const auto failure = firstThreadedError(outcomes)) {
       return std::unexpected(*failure);
@@ -2111,6 +2182,17 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // loop and skip operations are precondition violations (FR-017,
     // FR-018).
     std::unique_ptr<Fixture> fixture;
+    // R-04, E-06: the attempt's timed window opens on this thread
+    // before the measured loop and closes after it tops up, so the
+    // attempt's measured span stands inside one `[start, end)` window
+    // the split folds the kept gaps into; a callable that throws leaves
+    // the close unstamped and the window unrecorded. The stamps stand
+    // outside the measured span the window covers. The `entry`
+    // attribution rides the per-entry window vector the split takes
+    // (E-06). The `chunk` index stands 0 on the attempt-level window,
+    // whose timed loop spans every chunk the plan reserves (specs/021
+    // FR-008).
+    const auto windowOpen = m_windowStamping ? windowStampNow() : std::nullopt;
     try {
       // R-10: the callback pair wraps the run, the setup callback
       // first and the teardown callback last, the warm-up,
@@ -2137,6 +2219,21 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       return std::unexpected("the benchmark threw an unknown exception");
     }
     state.topUpWindow();
+    const auto windowClose = m_windowStamping ? windowStampNow() : std::nullopt;
+    // The close stamp answers the same frozen catalog the open stamp
+    // read - registration closed at the boundary the first lookup
+    // opened (FR-009) - so the close's refusal stands only where the
+    // open's does, and the guard re-tests the open alone (K-8).
+    if (m_windowStamping && windowOpen.has_value()) {
+      m_runWindows.push_back(sg::detail::TimedWindow {
+          .start = *windowOpen,
+          .end = *windowClose,
+          .entry = 0,
+          .repetition = m_repetition,
+          .chunk = 0,
+          .pass = pass,
+      });
+    }
 
     if (const auto built = buildRecord(state, *attemptRecorder, record);
         !built.has_value())
@@ -2272,7 +2369,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     m_contextRaw.back().erase(m_contextRaw.back().begin(),
                               m_contextRaw.back().begin() + drop);
   };
-  for (std::size_t pass = 0; pass < passCount; ++pass) {
+  for (pass = 0; pass < passCount; ++pass) {
     if (pass > 0) {
       // E-04, FR-012: the previous pass's seat closes first - the recorder
       // that stood over it, then the plan - and this pass compiles its own
@@ -2298,6 +2395,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     for (std::uint64_t repetition = 0; repetition < repetitionsOfRun;
          ++repetition)
     {
+      // E-06: the windows this repetition's attempts stamp name the pass
+      // they belong to.
+      m_repetition = repetition;
       std::uint64_t iterations = dryRun ? 1 : settled;
       std::expected<RunRecord, std::string> chosen = std::unexpected("");
 

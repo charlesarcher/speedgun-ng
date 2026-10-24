@@ -469,6 +469,57 @@ struct ContextDisclosure
  * the roadmap reuses the pair (FR-021, R-07). `ResultRow` carries
  * neither field: it is one repetition or aggregate (FR-021).
  */
+/**
+ * @brief The jitter result of one probe cpu over one set of covered
+ * windows: the sixteen fields of data-model.md E-03 in the E-03 order
+ * (FR-002, R-05).
+ *
+ * The percentile fields follow the nearest-rank rule of
+ * `source/harness/percentiles.cpp` over the sorted kept gaps (PC-4),
+ * the rule the report columns fill through. The fold of an empty kept
+ * set leaves every field at 0. The fold functions of the probe carry
+ * the field relations this struct's fills establish; the aggregate
+ * itself imposes nothing at construction.
+ *
+ * \pre none
+ * \post none
+ */
+struct JitterStats
+{
+  std::uint64_t gapCount = 0;
+  double gapsPerSecond = 0.0;
+  std::uint64_t minNs = 0;
+  std::uint64_t medianNs = 0;
+  double meanNs = 0.0;
+  std::uint64_t p90Ns = 0;
+  std::uint64_t p99Ns = 0;
+  std::uint64_t p999Ns = 0;
+  std::uint64_t p9999Ns = 0;
+  std::uint64_t maxNs = 0;
+  std::uint64_t totalNs = 0;
+  double totalPercent = 0.0;
+  std::uint64_t runtimeNs = 0;
+  std::uint64_t thresholdNs = 0;
+  std::uint64_t loopPeriodNs = 0;
+  std::uint64_t droppedGaps = 0;
+};
+
+/**
+ * @brief One probe cpu's fold over one benchmark's timed windows
+ * (E-08): the cpu index and the fold the split placed into them. A
+ * probe cpu whose kept gaps landed inside no window of the benchmark
+ * carries no entry here (E-06, FR-021). The split reads the probe's
+ * buffers only after the probe contexts are joined (R-04).
+ *
+ * \pre none
+ * \post none
+ */
+struct JitterEntryFold
+{
+  std::uint32_t cpu = 0;
+  JitterStats stats {};
+};
+
 struct BenchmarkResult
 {
   std::string name;
@@ -546,6 +597,12 @@ struct BenchmarkResult
   // prints the disclosure line, so the runner fills it and the report reads
   // it.
   bool metricMethodForced = false;
+  // specs/027 E-08, FR-027: one entry per probe cpu whose kept gaps
+  // landed inside this benchmark's windows, in ascending cpu order, the
+  // value the per-benchmark attribution line names and the document's
+  // per-entry `jitter` object writes; empty when no kept gap landed
+  // inside the windows or the run carried no probe (E-08, FR-027).
+  std::vector<JitterEntryFold> jitterFolds;
   // specs/021 FR-001, FR-010: true when the primary time of this result is
   // the CPU fold, the default, and false when the family asked for the real
   // fold. The row reports both time columns, so the percentile column that
@@ -565,12 +622,15 @@ struct BenchmarkResult
  * `NONE` writes the ranks the run computed and no chunk value; `CHUNKS`
  * writes the chunk values themselves beside them. `CHUNKS` also turns
  * the chunk capture on for a run whose percentile output stands off, so
- * the file can hold values the console never ranked (FR-020).
+ * the file can hold values the console never ranked (FR-020). `GAPS`
+ * writes the kept gap records of the jitter probe beside the stats, and
+ * no chunk value (specs/027 FR-028).
  */
 enum class RawContent : std::uint8_t
 {
   NONE,
-  CHUNKS
+  CHUNKS,
+  GAPS
 };
 
 /**
@@ -638,6 +698,12 @@ struct ReportData
   // entry holds nothing when the document carried no warning for that
   // result (specs/026 E-07, FR-070).
   std::vector<std::optional<NoiseWarning>> noiseWarnings;
+  // specs/027 E-07, FR-031: the run-level jitter stats the document
+  // carried, one entry per probe cpu. The load call fills it when the
+  // document carried the root `jitter` object; absent stands for a
+  // document that carries no probe. The run path never fills it and
+  // never reads it: the value a `jitter:run:` comparison rule reads.
+  std::optional<std::vector<JitterEntryFold>> runJitterStats;
 };
 
 /**
@@ -1814,6 +1880,89 @@ private:
  */
 using ThreadRunnerFn = std::function<void(ThreadRun&)>;
 
+// specs/027 data-model.md E-02, R-10: the three closed values of the
+// jitter probe mode. The pre-check phase runs when the mode is PRECHECK
+// or BOTH, and the alongside phase runs when the mode is ALONGSIDE or
+// BOTH; the overlap check binds the alongside phase only (FR-014, D-3).
+enum class JitterProbeMode : std::uint8_t
+{
+  ALONGSIDE,
+  PRECHECK,
+  BOTH,
+};
+
+// specs/027 data-model.md E-01, contracts/public-api.md: the bounds of
+// the option fields (FR-007 to FR-009, D-13).
+inline constexpr std::uint64_t kDefaultThresholdNs = 200;
+inline constexpr std::uint32_t kDefaultGapCount = 65536;
+inline constexpr std::uint32_t kMinGapCount = 1;
+inline constexpr std::uint32_t kMaxGapCount = 16777216;
+inline constexpr std::uint32_t kDefaultPrecheckMs = 200;
+
+/**
+ * @brief The one argument of every jitter probe entry point (FR-003,
+ * FR-015).
+ *
+ * `cpus` carries the probe cpu request: an empty vector names the
+ * `idle` preset, and a non-empty vector names the probe cpus in the
+ * order given (FR-016, D-4). `thresholdNs` carries the gap threshold
+ * in ns as `std::optional<std::uint64_t>`: a field with no value names
+ * the default rule, the 200 ns default rising to 10 times the measured
+ * loop period when that stands larger, and a value stands as given, an
+ * explicit `threshold=200` staying exactly 200 ns (FR-007, FR-008,
+ * D-2). `mode` carries the default when the option
+ * names no mode value (FR-012, D-1). `gapCount` carries the per-cpu
+ * buffer size in records (FR-009). `precheckMs` carries the pre-check
+ * duration in ms (FR-014, D-13). `strict` stops the run with status 2
+ * when the time-stamp counter stands unavailable; a non-strict run
+ * discloses and continues with status 0 (FR-037, D-10). The entry
+ * points that take the options require a `thresholdNs` value at or
+ * above 1 when the field carries one, `gapCount` inside the
+ * `kMinGapCount` through `kMaxGapCount` range,
+ * and `precheckMs` at or above 1, and enforce the bounds where they
+ * parse and bind (FR-008, FR-009, D-13).
+ *
+ * \pre none
+ * \post none
+ */
+struct JitterProbeOptions
+{
+  std::vector<std::uint32_t> cpus = {};
+  std::optional<std::uint64_t> thresholdNs = std::nullopt;
+  JitterProbeMode mode = JitterProbeMode::ALONGSIDE;
+  std::uint32_t gapCount = kDefaultGapCount;
+  std::uint32_t precheckMs = kDefaultPrecheckMs;
+  bool strict = false;
+};
+
+/**
+ * @brief State the jitter probe options of the suite's next run
+ * (FR-015).
+ *
+ * The options bind the suite the way the command-line option does.
+ * The availability rule of FR-037 binds the probe the run starts,
+ * whatever entry point configured it: the run discloses `not
+ * available` and continues with status 0, and `strict` stops it with
+ * status 2.
+ *
+ * \pre the run has not started for any benchmark (E-02, FR-015)
+ * \pre `options.cpus` carries the probe cpu request: an empty vector
+ *      names the `idle` preset, and a non-empty vector names cpus
+ *      inside the process affinity mask (FR-011, FR-016, D-4)
+ * \pre `options` carries a `thresholdNs` value at or above 1 when the
+ *      field carries one, `gapCount` inside the `kMinGapCount` through
+ *      `kMaxGapCount` range, and `precheckMs` at or above 1 (FR-008,
+ *      FR-009, D-13)
+ * \post the suite's next run starts the probe before its first
+ *       selected instance and stops, drains and joins it after the
+ *       last, over these options (FR-006, R-01)
+ * \post the option sources stand in order: the command line's value,
+ *       then the option file's, then the suite call's, each answering
+ *       only where no higher source named the probe (FR-015, R-01)
+ */
+SPEEDGUN_NG_EXPORT auto runJitterProbe(const JitterProbeOptions& options)
+    -> void;
+
 /**
  * @brief The registration result: the caller's view of one registry
  * entry (E-02).
@@ -2391,6 +2540,27 @@ public:
    *       handle (FR-021)
    */
   auto threadRunner(ThreadRunnerFn runner) -> BenchmarkHandle&;
+
+  /**
+   * @brief State the jitter probe options of this family's runs
+   * (FR-015).
+   *
+   * Where the handle and the command line both stand, the handle wins;
+   * where the suite-level call and the command line both stand, the
+   * command line wins; where the suite-level call and the option file
+   * both stand, the option file's value wins (FR-015, R-01).
+   *
+   * \pre the handle names a registered entry and the run has not
+   *      started for this benchmark (E-02, FR-015)
+   * \pre `options` carries the validation the suite-level call
+   *      states (FR-008, FR-009, D-13)
+   * \post the entry carries the options in place of any set an
+   *       earlier jitterProbe call stated, and the returned handle
+   *       is this handle (FR-015)
+   * \post the run of that family starts the probe before its first
+   *       instance and stops it after the last (FR-006, FR-015)
+   */
+  auto jitterProbe(const JitterProbeOptions& options) -> BenchmarkHandle&;
 
 private:
   friend class RegistryEntry;

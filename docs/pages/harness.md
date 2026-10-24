@@ -664,7 +664,7 @@ variable.
 | `placement` | required | `SPEEDGUN_PLACEMENT` | Selects the preset that plans the run's cpus |
 | `topology` | none |  | Prints the machine layout listing and stops |
 | `json` | required |  | Writes one JSON report document for the run |
-| `json-raw` | required |  | Selects the chunk columns the document carries |
+| `json-raw` | required |  | Selects the chunk columns or the kept gaps the document carries |
 | `compare` | required |  | Compares two report documents; the mode runs no benchmark |
 | `compare-rule` | required |  | Adds one comparison rule, repeatable in order |
 | `compare-strict` | none |  | Makes every noisy row fail the verdict |
@@ -676,6 +676,7 @@ variable.
 | `compare-rules` | required |  | Reads one comparison rule per line from a file |
 | `help` | none |  | Prints one line per option and stops |
 | `version` | none |  | Prints the project version and stops |
+| `jitter-probe` | required |  | Runs the jitter probe over the batch by that value |
 
 The highest source that sets an option wins: the command line, then the option
 file, then the environment, then the built-in default. A repeatable option from
@@ -1387,3 +1388,86 @@ the two. The split, the merge and the disclosure run in
 `test/source/harness_pass_collect_test.cpp` and
 `test/source/harness_pass_report_test.cpp`, on the fake provider with a set
 counter limit.
+## Jitter probe
+The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables.
+<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+```cpp
+auto bmMeasured(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
+
+auto main(int argc, char** argv) -> int
+{
+  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK});
+  return sg::speedgunMain(argc, argv);
+}
+```
+
+<!-- sg-sample-output: example/docs/jitter_probe.expected#report -->
+```text
+speedgun-ng 0.17.0 build=Release
+topology: packages=1 l3-groups=4 cores=24 threads=48
+bmMeasured/threads:2     iterations=  26039366  real time/iter (ns)=    0.529  cpu time/iter (ns)=    0.528  overhead floor (ns)=  219.000  endpoint samples=4
+  contexts=2  ctx0=SPIN/0@0/applied  ctx1=SPIN/24@0/applied
+jitter probe: cpus 0,24
+gapCount: 54 65
+gapsPerSecond: 272.44 327.94
+minNs: 420 252
+medianNs: 5670 4662
+meanNs: 8494.89 5272.62
+p90Ns: 10542 9534
+p99Ns: 93072 27048
+p999Ns: 93072 27048
+p9999Ns: 93072 27048
+maxNs: 93072 27048
+totalNs: 458724 342720
+totalPercent: 0.23 0.17
+runtimeNs: 198208038 198206316
+thresholdNs: 420 200
+loopPeriodNs: 42 1
+droppedGaps: 0 0
+jitter: probe on cpus 0,24
+jitter: loop period 42 ns, threshold 420 ns
+jitter: cpu 0 kept 54 dropped 0
+jitter: cpu 24 kept 65 dropped 0
+jitter: split and percentiles use the kept gaps only
+```
+
+The value takes a head, a cpu list or the word `idle`, and the keys follow, each once:
+
+| Part | Meaning | Default |
+| --- | --- | --- |
+| `<cpu-list\|idle>` | One or more cpu indexes or closed `a-b` ranges, comma separated, or the word `idle` | None: the head names the probe cpus; the word `idle` resolves one probe cpu per L3 group the plans touch, or the planned cpus in `precheck` mode |
+| `threshold=<ns>` | The gap threshold in ns, at or above 1; a value stands as given | When the option names no threshold value: 200, or 10 times the measured loop period when that stands larger |
+| `mode=` | `alongside`, `precheck`, or `both` | `alongside` |
+| `precheck=<ms>` | The pre-check duration in ms, at or above 1 | 200 |
+| `gaps=<n>` | The gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 |
+| `strict` | An unavailable time-stamp counter stops the run | Absent: the run discloses it and continues |
+
+The block prints one field line per stats field, in this order, one value per probe cpu:
+
+| Field | Unit | Rule |
+| --- | --- | --- |
+| `gapCount` | count | The kept gaps of the covered windows |
+| `gapsPerSecond` | 1/s | `gapCount` over the seconds of the covered windows' span |
+| `minNs` | ns | The smallest kept gap |
+| `medianNs` | ns | The nearest-rank median over the sorted kept gaps |
+| `meanNs` | ns | The mean of the kept gaps |
+| `p90Ns` | ns | The nearest rank of the sorted kept gaps |
+| `p99Ns` | ns | The nearest rank of the sorted kept gaps |
+| `p999Ns` | ns | The nearest rank of the sorted kept gaps |
+| `p9999Ns` | ns | The nearest rank of the sorted kept gaps |
+| `maxNs` | ns | The largest kept gap |
+| `totalNs` | ns | The sum of the kept gaps |
+| `totalPercent` | percent | `totalNs` over the covered duration |
+| `runtimeNs` | ns | The span from the loop start to the read of the stop flag |
+| `thresholdNs` | ns | The effective threshold the run used |
+| `loopPeriodNs` | ns | The minimum loop period the measurement pass measured |
+| `droppedGaps` | count | The gaps a full buffer dropped; zero when the buffer never filled |
+
+The block ends with the disclosure lines: the probe cpus, the loop period and the threshold the run used, one `kept` and `dropped` line per cpu, and the kept-gaps-only rule the split reads.

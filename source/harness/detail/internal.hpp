@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "jitter_probe.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
@@ -201,6 +202,11 @@ public:
   // handle stated, the last call winning the slot the way the thread
   // calls replace an earlier set. Empty when the family named none.
   std::optional<std::string> placement;
+  // specs/027 FR-015: the jitter probe options the handle stated for
+  // this family's runs, the last call winning the slot the way the
+  // thread calls replace an earlier set. Empty when the family named
+  // none.
+  std::optional<JitterProbeOptions> jitterProbeOptions;
   // FR-021: the dispatch function the family attached for its threaded
   // runs, empty when the harness dispatches the bodies itself.
   ThreadRunnerFn threadRunner;
@@ -403,6 +409,13 @@ enum class WalkStep : std::uint8_t
 [[nodiscard]] auto batchDefaultTimeUnit() -> std::optional<TimeUnit>&;
 
 /**
+ * @brief The suite-level jitter probe binding `runJitterProbe` writes
+ * (FR-015). The batch reads it where the command line named none, and
+ * the command-line value wins when both stand (FR-015, R-01).
+ */
+[[nodiscard]] auto suiteJitterProbe() -> std::optional<JitterProbeOptions>&;
+
+/**
  * @brief Expand every family record in the registry into its instance
  * set (FR-003, R-03).
  *
@@ -493,6 +506,15 @@ struct RunOptions
   // `off` stands, and it settles the run with no environment source, so the
   // gather is handed no rows at all.
   bool environmentOff = false;
+  // specs/027 FR-015, R-01, R-06: the parsed jitter probe options, parsed
+  // once before the expansion and before any run. Empty when the option
+  // stood absent.
+  std::optional<JitterProbeOptions> jitterProbe;
+  // specs/027 FR-015, R-06: the option's raw text as the command line
+  // reads it, standing only while the scan carried it; the option
+  // file's settle arm parses its own value in place, so the entry
+  // point parses the command line's text alone (FR-027, R-06).
+  std::optional<std::string> jitterProbeText;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
@@ -505,12 +527,26 @@ struct RunOptions
 class Runner
 {
 public:
-  explicit Runner(const RunOptions& options) noexcept
+  explicit Runner(const RunOptions& options,
+                  std::optional<bool> stampWindows = std::nullopt) noexcept
       : m_options(options)
+      ,
+      // R-04: the runner stamps the timed windows when the batch
+      // carries a probe, the split's one consumer; a per-family probe
+      // stamps the same way, and the caller states it (FR-015).
+      m_windowStamping(stampWindows.value_or(options.jitterProbe.has_value()))
   {
   }
 
   [[nodiscard]] auto run(Instance& instance) -> BenchmarkResult;
+
+  /// @brief The timed windows the runs of this runner recorded since the
+  /// last take, moved out (R-04, E-06): the window-stamp access the
+  /// split reads, behind the join edge the probe's stop gives.
+  [[nodiscard]] auto takeRunWindows() -> std::vector<sg::detail::TimedWindow>
+  {
+    return std::move(m_runWindows);
+  }
 
   /// @brief The complexity fit of the family the runner has been collecting,
   /// when that family ends here: `next` names the instance the run turns to
@@ -580,6 +616,14 @@ private:
   std::vector<std::vector<RowRaw>> m_rowRaw;
   std::vector<std::vector<std::vector<RowRaw>>> m_contextRaw;
 
+  // specs/027 E-06, R-04: the timed windows the current run's attempts
+  // stamped, cleared at each run's start and taken by the caller after
+  // it; the repetition index the windows name; and the stamping gate the
+  // probe option sets.
+  std::vector<sg::detail::TimedWindow> m_runWindows;
+  std::uint64_t m_repetition = 0;
+  bool m_windowStamping = false;
+
   void noteFitSample(const Instance& instance,
                      const BenchmarkResult& result,
                      std::optional<std::int64_t> statedSize);
@@ -599,6 +643,36 @@ private:
 /// @brief Install a layout in place of the host read; an empty optional
 /// clears the installed one (FR-006, Q-5).
 auto installTestLayout(std::optional<MachineLayout>) -> void;
+
+/// @brief Install (or clear, with an empty optional) the online cpu
+/// count a caller reads in place of the count the threads report, the
+/// way `installTestLayout` stands in for the layout read (FR-041, Q-5).
+auto installTestOnlineCount(std::optional<std::uint64_t>) -> void;
+
+/// @brief The online cpu count a caller reads: the installed count when
+/// one stands, the count the threads report otherwise (FR-041).
+[[nodiscard]] auto onlineCpuCount() -> std::uint64_t;
+
+/// @brief Install (or clear, with an empty optional) the online cpu set
+/// the placement bound and the option value grammar read, in place of
+/// the list the kernel owns, the way `installTestLayout` stands in for
+/// the layout read (FR-005, FR-041, Q-5).
+auto installTestOnlineCpus(std::optional<std::vector<std::uint32_t>>) -> void;
+
+/// @brief The online cpu set the placement bound and the option value
+/// grammar read: the installed set when one stands, the list
+/// `/sys/devices/system/cpu/online` carries otherwise, and the indices
+/// the online count counts where that list stands unreadable. The set
+/// is consulted at each call, so an install decides the call that
+/// follows it (FR-005, FR-041).
+[[nodiscard]] auto onlineCpuSet() -> std::vector<std::uint32_t>;
+
+/// @brief Append the cpus one kernel cpu-list line spells: comma-
+/// separated lone indices and `low-high` spans in the order the line
+/// carries them, a token that parses as no number naming no cpu
+/// (FR-005, FR-041).
+auto appendOnlineCpuList(std::vector<std::uint32_t>& cpus,
+                         std::string_view text) -> void;
 
 /// @brief Install a synthetic description the read hands to
 /// `hwloc_topology_set_synthetic`; an empty optional clears it
@@ -624,6 +698,141 @@ auto installTestLoadFailure(std::optional<int>) -> void;
 [[nodiscard]] auto resolvePreset(Preset,
                                  const MachineLayout&,
                                  int contexts) -> PlacementPlan;
+
+/**
+ * @brief specs/027 data-model.md D-4: the `idle` preset's resolution
+ * over one layout (FR-016, FR-017, R-07).
+ *
+ * \pre `machine` stands readable (FR-020)
+ * \post every cpu of `cpus` stands inside one group a planned cpu
+ *       names, is the lowest cpu of that group that names no planned
+ *       cpu and no SMT sibling of a planned cpu, and the list carries
+ *       one cpu per non-skipped touched group in group order (FR-016,
+ *       D-4, R-07)
+ * \post `skippedGroups` carries exactly the touched groups that name
+ *       no free cpu, ascending (FR-017, D-4)
+ */
+struct IdleResolution
+{
+  std::vector<std::uint32_t> cpus;
+  std::vector<std::uint32_t> skippedGroups;
+};
+
+/// @brief The `idle` resolution: the lowest free cpu of each L3 group
+/// the planned cpus name, with the skip record (FR-016, FR-017, R-07).
+[[nodiscard]] auto resolveIdleCpus(
+    const MachineLayout& machine,
+    const std::vector<std::uint32_t>& plannedCpus) -> IdleResolution;
+
+/// @brief specs/027 data-model.md D-3: one probe cpu the plans refuse,
+/// with the benchmark whose plan it meets (FR-018, D-9).
+struct ProbeOverlap
+{
+  std::uint32_t cpu = 0;
+  std::string benchmark;
+};
+
+/// @brief The overlap check of the alongside phase: the first probe cpu
+/// that names a planned cpu of a selected instance or an SMT sibling of
+/// one; the `precheck` mode allows every overlap, because it stops
+/// before the benchmarks start (FR-018, D-3, R-10).
+///
+/// \pre `machine` stands readable (FR-020)
+/// \post a `precheck` mode names no overlap, and every other mode
+///       names the first probe cpu a plan refuses, if one stands
+///       (D-3, R-10)
+/// @brief The planned cpus the idle resolution skips: every instance
+/// with more than one context and a preset contributes its plan's cpus
+/// (D-4, FR-016). An instance with one context contributes nothing, and
+/// a multi-context instance the preset names none contributes nothing,
+/// its threads running unpinned beside the probe (FR-019, R-10).
+/// \pre `machine` stands readable (FR-020)
+[[nodiscard]] auto plannedCpusOf(const std::vector<Instance*>& selected,
+                                 const MachineLayout& machine)
+    -> std::vector<std::uint32_t>;
+
+/// @brief The narrowing rule: the calling thread's mask narrows by the
+/// probe cpus for an instance the runner does not pin, beside a live
+/// probe that runs beside the benchmark; the precheck mode runs no
+/// thread beside one (FR-019, FR-006, R-10).
+[[nodiscard]] auto narrowingApplies(const Instance& entry,
+                                    bool probeLive,
+                                    JitterProbeMode mode) -> bool;
+
+[[nodiscard]] auto probeOverlapOf(const MachineLayout& machine,
+                                  const std::vector<Instance*>& selected,
+                                  const std::vector<std::uint32_t>& probeCpus,
+                                  JitterProbeMode mode)
+    -> std::optional<ProbeOverlap>;
+
+/**
+ * @brief specs/027 data-model.md D-5: the affinity-mask narrowing of
+ * one benchmark that carries no placement (FR-019, FR-036).
+ *
+ * \post `remaining` carries the mask cpus the probe cpus leave, in the
+ *       mask's order, and the empty list is the status-2 condition
+ *       (FR-019, D-5)
+ * \post `limited` stands when a probe cpu names no mask cpu, the
+ *       cpuset limit FR-036 discloses
+ */
+struct MaskNarrowing
+{
+  std::vector<std::uint32_t> remaining;
+  bool limited = false;
+};
+
+/// @brief The mask decision: the mask minus the probe cpus, with the
+/// cpuset-limit answer (FR-019, D-5, FR-036).
+[[nodiscard]] auto maskNarrowingOf(const std::vector<std::uint32_t>& probeCpus,
+                                   const std::vector<std::uint32_t>& maskCpus)
+    -> MaskNarrowing;
+
+/// @brief The planned-cpus rule the idle resolution's precondition
+/// reads: every planned cpu names a thread the layout's mask holds
+/// (R-07).
+[[maybe_unused]] [[nodiscard]] auto plannedCpusResolve(
+    const MachineLayout& machine,
+    const std::vector<std::uint32_t>& plannedCpus) -> bool;
+
+/// @brief The duration-division relation of data-model.md E-03: the
+/// derived fields the fold filled answer the covered span, read against
+/// the scale of the values (E-03).
+[[maybe_unused]] [[nodiscard]] auto durationDivisionsHold(
+    const JitterStats& stats) -> bool;
+
+/// @brief The resolution's postcondition predicate, read only inside
+/// the SG_ENSURE contract of the idle resolution: the covered groups
+/// equal the touched ones across the skip record and the yielded cpus,
+/// and every yielded cpu stands the lowest free cpu of its group
+/// (FR-016, FR-017, D-4).
+[[maybe_unused]] [[nodiscard]] auto idleResolutionValid(
+    const MachineLayout& machine,
+    const std::vector<std::uint32_t>& plannedCpus,
+    const IdleResolution& resolution) -> bool;
+
+/// @brief The overlap answer's postcondition predicate, read only
+/// inside the SG_ENSURE contract of the overlap check: the answer
+/// names a probe cpu, and the precheck mode names none (FR-018, D-9,
+/// R-10).
+[[maybe_unused]] [[nodiscard]] auto probeOverlapValid(
+    const std::vector<std::uint32_t>& probeCpus,
+    sg::JitterProbeMode mode,
+    const std::optional<ProbeOverlap>& overlap) -> bool;
+
+/// @brief The skipped-groups line the placement disclosure carries
+/// (FR-017, D-4, E-09): the empty vector names no line, one group
+/// stands alone, and two join on the comma.
+[[nodiscard]] auto skippedGroupsText(const std::vector<std::uint32_t>& groups)
+    -> std::string;
+
+/// @brief The narrowing's postcondition predicate, read only inside
+/// the SG_ENSURE contract of the mask decision: the narrowed mask
+/// drops the probe cpus only, and the limit answer follows the mask
+/// (FR-019, FR-036).
+[[maybe_unused]] [[nodiscard]] auto maskNarrowingValid(
+    const std::vector<std::uint32_t>& probeCpus,
+    const std::vector<std::uint32_t>& maskCpus,
+    const MaskNarrowing& narrowing) -> bool;
 
 /// @brief Print the layout listing `--topology` states (FR-036).
 auto printTopologyListing(const MachineLayout&) -> void;
@@ -653,6 +862,13 @@ auto printContext(bool placementInEffect) -> void;
 
 /// @brief Format one benchmark result in fixed columns (FR-035, FR-036).
 auto printResult(const BenchmarkResult& result) -> void;
+
+/// @brief Print the console probe block, one column per probe cpu in the
+/// E-03 order, and the run-level disclosure lines in the end-of-report
+/// region (FR-023, FR-036, R-08, E-09). A false `available` prints the
+/// not-available disclosure only.
+auto printJitterReport(bool available,
+                       const std::vector<const ProbeCpuState*>& states) -> void;
 
 /// @brief Print the catalog listing; false when the listing failed
 /// (FR-037).

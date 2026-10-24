@@ -1116,6 +1116,46 @@ auto scenarioTwoPassContextBytesUntouched() -> void
         "audit point printed, unchanged (FR-022, spec D-8)");
 }
 
+// FR-024, R-08: the attribution line names the fold whose max stands
+// largest, ties keeping the ascending cpu order the carrier fills. The
+// single-fold runs keep the update at the front, so two folds over one
+// entry, the second cpu's max standing larger, drive the update and
+// name the second cpu.
+auto scenarioWorstCpuUpdate() -> void
+{
+  auto result = sg::BenchmarkResult {};
+  result.name = "bmWorst";
+  sg::JitterStats small {};
+  small.maxNs = 100;
+  sg::JitterStats large {};
+  large.maxNs = 900;
+  result.jitterFolds.push_back(sg::JitterEntryFold {.cpu = 0, .stats = small});
+  result.jitterFolds.push_back(sg::JitterEntryFold {.cpu = 1, .stats = large});
+  const auto lines = captureThrough([&] { sg::detail::printResult(result); });
+  bool named = false;
+  for (const auto& line : lines) {
+    if (line.rfind("jitter: worst cpu ", 0) == 0) {
+      named = true;
+      check(line.find("worst cpu 1") != std::string::npos,
+            "the line names the fold whose max stands largest (FR-024, R-08)");
+    }
+  }
+  check(named, "the report prints the attribution line (FR-024, R-08)");
+}
+
+// FR-023, PC-6: the probe block prints one column per probe cpu, so an
+// available probe whose states stand empty prints nothing the block
+// could carry.
+auto scenarioJitterEmptyStates() -> void
+{
+  const auto lines =
+      captureThrough([&] { sg::detail::printJitterReport(true, {}); });
+  for (const auto& line : lines) {
+    check(line.rfind("jitter", 0) != 0,
+          "an available probe with no states prints no block (FR-023)");
+  }
+}
+
 }  // namespace
 
 auto main() -> int
@@ -1141,6 +1181,8 @@ auto main() -> int
        scenarioContextPercentilesCarryTheirOwnPoints},
       {"noFoldCrossesContexts", scenarioNoFoldCrossesContexts},
       {"twoPassContextBytesUntouched", scenarioTwoPassContextBytesUntouched},
+      {"worstCpuUpdate", scenarioWorstCpuUpdate},
+      {"jitterEmptyStates", scenarioJitterEmptyStates},
   };
   std::size_t failed = 0;
   for (const auto& scenario : scenarios) {

@@ -576,6 +576,24 @@ auto printResult(const BenchmarkResult& result) -> void
   // describes, and the context disclosure below it prints what it printed
   // before the pass mechanism existed (spec D-8, N4).
   printPassDisclosure(result);
+  // FR-024, R-08: the per-benchmark attribution line under the rows,
+  // naming the worst probe cpu for this benchmark's windows: the fold
+  // whose max stands largest, ties keeping the ascending cpu order the
+  // carrier fills. A benchmark whose windows placed no kept gap prints
+  // no line (E-06, FR-021).
+  if (!result.jitterFolds.empty()) {
+    const sg::JitterEntryFold* worst = &result.jitterFolds.front();
+    for (const auto& fold : result.jitterFolds) {
+      if (fold.stats.maxNs > worst->stats.maxNs) {
+        worst = &fold;
+      }
+    }
+    std::printf("jitter: worst cpu %u gaps=%llu max=%llu total=%.2f\n",
+                static_cast<unsigned>(worst->cpu),
+                static_cast<unsigned long long>(worst->stats.gapCount),
+                static_cast<unsigned long long>(worst->stats.maxNs),
+                worst->stats.totalPercent);
+  }
 
   // FR-025: a non-empty `contexts` vector names exactly a threaded
   // result, so a single-context result leaves here holding the bytes its
@@ -605,6 +623,100 @@ auto printResult(const BenchmarkResult& result) -> void
   // FR-026: the warning of a result stands after that result's own
   // disclosure line, one line for each result whose condition holds.
   printNoiseWarning(result);
+}
+
+// T012, FR-023, R-08: the console probe block. One line per stats field
+// in the E-03 order, one value per probe cpu; the disclosure lines
+// follow in the end-of-report region the noise warning owns (FR-036,
+// D-8, D-12), the block extending and replacing nothing the probe-free
+// report prints (PC-6, FR-013).
+auto printJitterReport(const bool available,
+                       const std::vector<const ProbeCpuState*>& states) -> void
+{
+  if (!available) {
+    std::printf("jitter: not available\n");
+    return;
+  }
+  if (states.empty()) {
+    return;
+  }
+
+  std::string cpuList;
+  for (const auto* state : states) {
+    if (!cpuList.empty()) {
+      cpuList.push_back(',');
+    }
+    cpuList += std::to_string(state->cpu);
+  }
+  std::printf("jitter probe: cpus %s\n", cpuList.c_str());
+
+  // The per-cpu folds, taken once: the block reads them and so does the
+  // disclosure (E-03, E-09).
+  std::vector<JitterStats> folds;
+  folds.reserve(states.size());
+  for (const auto* state : states) {
+    folds.push_back(gapStatsOf(*state));
+  }
+
+  // FR-002: the sixteen fields in the E-03 order.
+  const auto printUintField = [&folds](const char* name, auto get)
+  {
+    std::printf("%s:", name);
+    for (const auto& fold : folds) {
+      std::printf(" %llu", static_cast<unsigned long long>(get(fold)));
+    }
+    std::printf("\n");
+  };
+  const auto printRealField = [&folds](const char* name, auto get)
+  {
+    std::printf("%s:", name);
+    for (const auto& fold : folds) {
+      std::printf(" %.2f", get(fold));
+    }
+    std::printf("\n");
+  };
+  printUintField("gapCount",
+                 [](const JitterStats& fold) { return fold.gapCount; });
+  printRealField("gapsPerSecond",
+                 [](const JitterStats& fold) { return fold.gapsPerSecond; });
+  printUintField("minNs", [](const JitterStats& fold) { return fold.minNs; });
+  printUintField("medianNs",
+                 [](const JitterStats& fold) { return fold.medianNs; });
+  printRealField("meanNs", [](const JitterStats& fold) { return fold.meanNs; });
+  printUintField("p90Ns", [](const JitterStats& fold) { return fold.p90Ns; });
+  printUintField("p99Ns", [](const JitterStats& fold) { return fold.p99Ns; });
+  printUintField("p999Ns", [](const JitterStats& fold) { return fold.p999Ns; });
+  printUintField("p9999Ns",
+                 [](const JitterStats& fold) { return fold.p9999Ns; });
+  printUintField("maxNs", [](const JitterStats& fold) { return fold.maxNs; });
+  printUintField("totalNs",
+                 [](const JitterStats& fold) { return fold.totalNs; });
+  printRealField("totalPercent",
+                 [](const JitterStats& fold) { return fold.totalPercent; });
+  printUintField("runtimeNs",
+                 [](const JitterStats& fold) { return fold.runtimeNs; });
+  printUintField("thresholdNs",
+                 [](const JitterStats& fold) { return fold.thresholdNs; });
+  printUintField("loopPeriodNs",
+                 [](const JitterStats& fold) { return fold.loopPeriodNs; });
+  printUintField("droppedGaps",
+                 [](const JitterStats& fold) { return fold.droppedGaps; });
+
+  // FR-036, E-09: the disclosure lines: the availability and the cpus,
+  // the measured points, the per-cpu counts, and the kept-gaps-only
+  // rule; the JSON disclosure text carries the same content (FR-025,
+  // D-8, D-12). The disclosure reads no clock (R-08).
+  std::printf("jitter: probe on cpus %s\n", cpuList.c_str());
+  std::printf("jitter: loop period %llu ns, threshold %llu ns\n",
+              static_cast<unsigned long long>(folds.front().loopPeriodNs),
+              static_cast<unsigned long long>(folds.front().thresholdNs));
+  for (const auto* state : states) {
+    std::printf("jitter: cpu %u kept %llu dropped %llu\n",
+                static_cast<unsigned>(state->cpu),
+                static_cast<unsigned long long>(state->kept),
+                static_cast<unsigned long long>(state->droppedGaps));
+  }
+  std::printf("jitter: split and percentiles use the kept gaps only\n");
 }
 
 }  // namespace sg::detail

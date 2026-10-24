@@ -213,6 +213,144 @@ auto readThreshold(std::string_view field, CompareRule& rule) -> bool
   return true;
 }
 
+// The prefix the jitter value names carry (specs/027 FR-030).
+constexpr std::string_view kJitterPrefix = "jitter:";
+
+// One field of the sixteen `JitterStats` carries, with the reader that
+// answers its value.
+struct JitterField
+{
+  std::string_view name;
+  double (*value)(const JitterStats&);
+};
+
+// The sixteen field names of `JitterStats` in the E-03 order, each with
+// the reader that answers its value: the one table the name lookup and
+// the value read share, so a field name outside the sixteen reads
+// nowhere (specs/027 FR-002, E-03, FR-030).
+constexpr std::array<JitterField, 16> kJitterFields {{
+    {"gapCount",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.gapCount); }},
+    {"gapsPerSecond",
+     [](const JitterStats& stats) { return stats.gapsPerSecond; }},
+    {"minNs",
+     [](const JitterStats& stats) { return static_cast<double>(stats.minNs); }},
+    {"medianNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.medianNs); }},
+    {"meanNs", [](const JitterStats& stats) { return stats.meanNs; }},
+    {"p90Ns",
+     [](const JitterStats& stats) { return static_cast<double>(stats.p90Ns); }},
+    {"p99Ns",
+     [](const JitterStats& stats) { return static_cast<double>(stats.p99Ns); }},
+    {"p999Ns",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.p999Ns); }},
+    {"p9999Ns",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.p9999Ns); }},
+    {"maxNs",
+     [](const JitterStats& stats) { return static_cast<double>(stats.maxNs); }},
+    {"totalNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.totalNs); }},
+    {"totalPercent",
+     [](const JitterStats& stats) { return stats.totalPercent; }},
+    {"runtimeNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.runtimeNs); }},
+    {"thresholdNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.thresholdNs); }},
+    {"loopPeriodNs",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.loopPeriodNs); }},
+    {"droppedGaps",
+     [](const JitterStats& stats)
+     { return static_cast<double>(stats.droppedGaps); }},
+}};
+
+// The parts of one jitter value name, the grammar
+// specs/027-jitter-probe/contracts/rule-names.md carries (specs/027
+// FR-030, FR-031): the `jitter:run:` scope, the cpu index or the word
+// `any` for the worst one, and the field as its index into the table
+// above.
+struct JitterNameParts
+{
+  bool runScoped = false;
+  bool worstCpu = true;
+  std::uint32_t cpu = 0;
+  std::size_t field = 0;
+};
+
+// Read the parts of one jitter value name and the length the name ends
+// at, where `name` is the text after the `jitter:` prefix: the optional
+// `run:` scope, the cpu (the word `any` or a decimal index), and one of
+// the sixteen field names (specs/027 FR-030, FR-031). The parse of the
+// value name and the comparison's own read share this one reader, so
+// the grammar stands in one place (FR-033, R-12).
+auto readJitterName(std::string_view name)
+    -> std::expected<std::pair<JitterNameParts, std::size_t>, std::string>
+{
+  std::string_view rest = name;
+  JitterNameParts parts;
+  // The `run:` scope names the whole-run values of the run-level
+  // object; its absence names the per-benchmark stats of the entry
+  // (FR-031).
+  if (rest.starts_with("run:")) {
+    parts.runScoped = true;
+    rest.remove_prefix(4);
+  }
+  const std::size_t cpuEnd = findOrEnd(rest, ':', 0);
+  const std::string_view cpuToken = rest.substr(0, cpuEnd);
+  // The word `any` names the worst cpu for the field; a decimal index
+  // names one cpu the report's jitter object carries (FR-030).
+  if (cpuToken != "any") {
+    parts.worstCpu = false;
+    if (cpuToken.empty()
+        || !std::all_of(cpuToken.begin(), cpuToken.end(), isDigit))
+    {
+      return std::unexpected("'" + std::string(cpuToken)
+                             + "' is neither an index nor 'any'");
+    }
+    const auto* const begin = cpuToken.data();
+    const auto* const end = begin + cpuToken.size();
+    const auto conversion = std::from_chars(begin, end, parts.cpu);
+    // The token stands all digits and ends at the colon or at the end
+    // of the name, so the conversion consumes the token whole or
+    // refuses the value; a partial consumption stands outside the
+    // grammar (FR-030).
+    if (conversion.ec != std::errc {}) {
+      return std::unexpected("'" + std::string(cpuToken)
+                             + "' is neither an index nor 'any'");
+    }
+  }
+  if (cpuEnd == rest.size()) {
+    return std::unexpected("the name carries no field");
+  }
+  rest.remove_prefix(cpuEnd + 1);
+  // The field name ends at the colon that opens the standing suffix, at
+  // an aggregate marker, or at the end of the name; a written aggregate
+  // marker then reads as the fault of a single-value name (spec D-21).
+  std::size_t fieldEnd = findOrEnd(rest, ':', 0);
+  const std::size_t atMark = findOrEnd(rest, '@', 0);
+  if (atMark < fieldEnd) {
+    fieldEnd = atMark;
+  }
+  const std::string_view fieldToken = rest.substr(0, fieldEnd);
+  const auto field = std::find_if(kJitterFields.begin(),
+                                  kJitterFields.end(),
+                                  [fieldToken](const JitterField& candidate)
+                                  { return candidate.name == fieldToken; });
+  if (field == kJitterFields.end()) {
+    return std::unexpected("'" + std::string(fieldToken)
+                           + "' names none of the sixteen jitter fields");
+  }
+  parts.field = static_cast<std::size_t>(field - kJitterFields.begin());
+  return {std::pair {parts, name.size() - rest.size() + fieldEnd}};
+}
+
 // Read one whole rule text into one rule value, the fields in the order
 // the grammar gives them (FR-004, FR-012, FR-021).
 auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
@@ -227,6 +365,10 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
   // aggregate: a percentile cell and a custom statistic carry one value
   // (FR-016, FR-018, spec D-21).
   bool statisticsValue = false;
+  // The end of a value name that carries a grammar of its own: the
+  // jitter names read their scope, cpu and field before the standing
+  // suffix reads (specs/027 FR-030, FR-031).
+  std::optional<std::size_t> valueEnd;
   if (!prefix.empty()) {
     if (name.empty()) {
       return ruleFault(
@@ -236,6 +378,16 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
     }
     rule.valueName = std::string(prefix) + name;
     statisticsValue = prefix != "stat:";
+  } else if (name == "jitter" && afterName < text.size()
+             && text[afterName] == ':')
+  {
+    const auto jitterName = readJitterName(text.substr(afterName + 1));
+    if (!jitterName.has_value()) {
+      return ruleFault("value name", text, jitterName.error());
+    }
+    rule.valueName =
+        std::string(text.substr(0, afterName + 1 + jitterName->second));
+    valueEnd = afterName + 1 + jitterName->second;
   } else if (name == "time" || name == "real_time" || name == "cpu_time") {
     rule.valueName = name;
     statisticsValue = true;
@@ -250,7 +402,7 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
         "value name", text, "'" + name + "' is not a value the report carries");
   }
 
-  std::size_t cursor = afterName;
+  std::size_t cursor = valueEnd.value_or(afterName);
   if (cursor < text.size() && text[cursor] == '@') {
     if (!statisticsValue) {
       return ruleFault("aggregate",
@@ -1269,6 +1421,53 @@ auto metricAvailabilityOf(const BenchmarkResult& result,
   return row.metrics[index].availability;
 }
 
+// The value one jitter rule names in one report (specs/027 FR-030 to
+// FR-032): the entry's per-benchmark stats for a bare name, the
+// run-level record for a `jitter:run:` name, the worst cpu for `any`,
+// the named cpu's own value otherwise. A report that carries no stats
+// where the rule looks, a probe-free report included, is the usage
+// error of FR-032: the fault the comparison run prints as its one line
+// at status 2.
+auto jitterValueOf(const std::optional<std::vector<JitterEntryFold>>& runStats,
+                   const BenchmarkResult& entry,
+                   const JitterNameParts& parts,
+                   const CompareRule& rule,
+                   std::string_view name,
+                   std::string_view reportLabel)
+    -> std::expected<double, std::string>
+{
+  const std::vector<JitterEntryFold> noStats;
+  const std::vector<JitterEntryFold>& stats = parts.runScoped
+      ? (runStats.has_value() ? *runStats : noStats)
+      : entry.jitterFolds;
+  if (!parts.worstCpu) {
+    const auto found = std::find_if(stats.begin(),
+                                    stats.end(),
+                                    [parts](const JitterEntryFold& fold)
+                                    { return fold.cpu == parts.cpu; });
+    if (found == stats.end()) {
+      return std::unexpected(
+          "the rule '" + rule.text + "' names cpu " + std::to_string(parts.cpu)
+          + " and the jitter stats of " + std::string(name) + " in the "
+          + std::string(reportLabel) + " report do not carry it");
+    }
+    return kJitterFields.at(parts.field).value(found->stats);
+  }
+  if (stats.empty()) {
+    return std::unexpected(
+        "the rule '" + rule.text + "' names the worst cpu and the jitter "
+        "stats of " + std::string(name) + " in the "
+        + std::string(reportLabel) + " report carry no probe cpu");
+  }
+  // FR-030, D-11: the worst cpu is the one carrying the largest value,
+  // every field of `JitterStats` alike, so the maximum is uniform.
+  double worst = 0.0;
+  for (const auto& fold : stats) {
+    worst = std::max(worst, kJitterFields.at(parts.field).value(fold.stats));
+  }
+  return worst;
+}
+
 /**
  * @brief The walk of one rule over its scope, before any value is compared
  * (specs/026 FR-035, FR-036, FR-037, FR-038, FR-039, FR-040, spec D-20).
@@ -1285,7 +1484,9 @@ auto metricAvailabilityOf(const BenchmarkResult& result,
  *       lacks, a metric that is not countable, or a scope of paired
  *       benchmarks none of which holds a readable row
  */
-auto scopedValuesOf(const std::vector<PairSite>& matched,
+auto scopedValuesOf(const ReportData& baseline,
+                    const ReportData& contender,
+                    const std::vector<PairSite>& matched,
                     const CompareRule& rule)
     -> std::expected<std::vector<ScopedValue>, std::string>
 {
@@ -1316,6 +1517,22 @@ auto scopedValuesOf(const std::vector<PairSite>& matched,
                            + "' selects no benchmark: its filter '"
                            + rule.filter + "' matches neither report");
   }
+  // The parts of a jitter value name, read once for the whole walk. The
+  // parse validated the name the rule carries, so a rule built in code
+  // with a name the grammar does not carry answers the same fault here
+  // (D-08, specs/027 FR-030).
+  std::optional<JitterNameParts> jitterParts;
+  if (rule.valueName.starts_with(kJitterPrefix)) {
+    const auto parts =
+        readJitterName(rule.valueName.substr(kJitterPrefix.size()));
+    if (!parts.has_value()) {
+      return std::unexpected("the rule '" + rule.text
+                             + "' names a jitter value that is not "
+                               "readable: "
+                             + parts.error());
+    }
+    jitterParts = parts->first;
+  }
   std::size_t comparable = 0;
   std::string_view firstPaired;
   for (ScopedValue& slot : scope) {
@@ -1329,32 +1546,43 @@ auto scopedValuesOf(const std::vector<PairSite>& matched,
     if (baselineRow == nullptr || contenderRow == nullptr) {
       continue;
     }
-    const auto readValue =
-        [&](const BenchmarkResult& result,
-            const ResultRow& row,
-            const std::string_view report) -> std::expected<double, std::string>
+    const auto readValue = [&](const BenchmarkResult& result,
+                               const ResultRow& row,
+                               const ReportData& report,
+                               const std::string_view reportLabel)
+        -> std::expected<double, std::string>
     {
+      // specs/027 FR-030 to FR-032: a jitter name reads the stats the
+      // report carries for it, with the usage errors of FR-032.
+      if (jitterParts.has_value()) {
+        return jitterValueOf(report.runJitterStats,
+                             result,
+                             *jitterParts,
+                             rule,
+                             site.name,
+                             reportLabel);
+      }
       const auto read = resolveCompareValue(result, rule);
       if (!read.has_value()) {
         return std::unexpected(
-            missingValueFault(rule, site.name, report, false));
+            missingValueFault(rule, site.name, reportLabel, false));
       }
       // FR-037: a metric that is not countable counts as a missing value.
       if (metricAvailabilityOf(result, row, rule.valueName)
           != counters::Availability::COUNTABLE)
       {
         return std::unexpected(
-            missingValueFault(rule, site.name, report, true));
+            missingValueFault(rule, site.name, reportLabel, true));
       }
       return *read;
     };
     const auto baselineValue =
-        readValue(*site.baseline, *baselineRow, "baseline");
+        readValue(*site.baseline, *baselineRow, baseline, "baseline");
     if (!baselineValue.has_value()) {
       return std::unexpected(baselineValue.error());
     }
     const auto contenderValue =
-        readValue(*site.contender, *contenderRow, "contender");
+        readValue(*site.contender, *contenderRow, contender, "contender");
     if (!contenderValue.has_value()) {
       return std::unexpected(contenderValue.error());
     }
@@ -1460,7 +1688,7 @@ auto compareReportValues(const ReportData& baseline,
   std::vector<std::vector<ScopedValue>> scopes;
   scopes.reserve(rules.size());
   for (const CompareRule& rule : rules) {
-    auto scope = scopedValuesOf(matched, rule);
+    auto scope = scopedValuesOf(baseline, contender, matched, rule);
     if (!scope.has_value()) {
       return std::unexpected(scope.error());
     }

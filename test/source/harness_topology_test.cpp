@@ -545,6 +545,34 @@ auto main(int argc, char** argv) -> int
     check(WIFEXITED(status) && WEXITSTATUS(status) == 0, scenario.what);
   }
 
+  // FR-005, FR-041: the kernel cpu-list spelling the online read
+  // parses. The list carries comma-separated lone indices and closed
+  // `low-high` spans; a token naming no number names no cpu, a span
+  // with no high end names none either, and a span whose high end is
+  // the last index the spelling carries stops at that end.
+  {
+    auto parse = [](std::string_view text) -> std::vector<std::uint32_t>
+    {
+      auto cpus = std::vector<std::uint32_t> {};
+      sg::detail::appendOnlineCpuList(cpus, text);
+      return cpus;
+    };
+    check(parse("0-3,5,7-8")
+              == (std::vector<std::uint32_t> {0, 1, 2, 3, 5, 7, 8}),
+          "the list spelling answers every index it carries (FR-005)");
+    check(parse("4294967294-4294967295")
+              == (std::vector<std::uint32_t> {4294967294U, 4294967295U}),
+          "a span to the last index stops at that end (FR-005)");
+    check(parse("3,x,4") == (std::vector<std::uint32_t> {3, 4}),
+          "a token that names no number names no cpu (FR-005)");
+    check(parse("2-").empty(),
+          "a span with no high end names no cpu " "(FR-005)");
+    check(parse("5x") == (std::vector<std::uint32_t> {5}),
+          "an index followed by a non-digit stands alone (FR-005)");
+    check(parse("0,") == (std::vector<std::uint32_t> {0}),
+          "a trailing comma answers the index it carried (FR-005)");
+  }
+
   std::printf("harness_topology_test: all scenarios passed\n");
   return 0;
 }
