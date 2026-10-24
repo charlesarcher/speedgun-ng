@@ -290,6 +290,13 @@
 //                                file line settles the row, so a lower
 //                                source leaves the empty pattern standing
 //                                (FR-035, FR-037, FR-050)
+//   aLowerPercentileListIsCountedAlone
+//                                the cap of sixteen points counts the points
+//                                of the source that settles, so two lists
+//                                that stand on their own settle to the
+//                                higher source and a list of seventeen
+//                                points answers behind its own source
+//                                (FR-022, FR-038)
 //   theEnvironmentRowOfOneProcessName
 //                                one process name answers a row only when it
 //                                carries the prefix and an `=`, and the rows of
@@ -2158,6 +2165,42 @@ auto anEmptyFilterWordSettlesTheRowItNames() -> void
   }
 }
 
+auto aLowerPercentileListIsCountedAlone() -> void
+{
+  // FR-022, FR-038: the cap of sixteen points counts the points of the source
+  // that settles the row. A list that drops is never joined to the points a
+  // higher source holds, so two lists that each stand on their own settle to
+  // the higher source, and only a list that passes the cap within its own
+  // source answers a refusal.
+  const Gathered held =
+      gather({"--percentiles=1,2,3,4,5,6,7,8,9,10"},
+             {{"SPEEDGUN_PERCENTILES", "11,12,13,14,15,16,17"}});
+  if (!held.settled.has_value()) {
+    fail("a percentile list of the environment under a list of the words "
+         "settles the row (FR-022, FR-038)");
+  } else {
+    const std::vector<double> expected {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    check(held.settled->options.percentilePoints == expected,
+          "the points of the words settle the row (FR-037)");
+    check(held.settled->options.showPercentiles.value_or(false),
+          "the row that settled turns the percentiles on (FR-020)");
+  }
+
+  const Gathered over =
+      gather({"--percentiles=1,2,3,4,5,6,7,8,9,10"},
+             {{"SPEEDGUN_PERCENTILES",
+               "11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27"}});
+  if (over.settled.has_value()) {
+    fail(
+        "a percentile list of seventeen points is read and refused " "(FR-"
+                                                                     "022)");
+  } else {
+    check(over.fault.starts_with("SPEEDGUN_PERCENTILES: --percentiles: "),
+          "the refusal of the list that drops names the variable that holds "
+          "it (FR-033, FR-038)");
+  }
+}
+
 auto theEnvironmentWalkReadsTheTableItIsGiven() -> void
 {
   // FR-012, FR-026: the entry point owns the read of the process table and
@@ -2789,6 +2832,7 @@ auto main(int argc, char** argv) -> int
   aShadowedBadValueStillNamesItsSource();
   aHeldValueOfALowerSourceNamesItsSource();
   anEmptyFilterWordSettlesTheRowItNames();
+  aLowerPercentileListIsCountedAlone();
   theEnvironmentWalkReadsTheTableItIsGiven();
   aBadLetterOfAShortGroupAfterALongOption();
   everyRefusedRowLineFaultsTheEntry();
