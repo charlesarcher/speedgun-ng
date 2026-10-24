@@ -1315,27 +1315,40 @@ auto childFamilyProbe(const bool withCommandLineProbe) -> int
                       "raw tick counter",
                       sg::counters::Availability::COUNTABLE,
                       sg::counters::ReadMode::FAST_TSC);
-  std::vector<std::uint64_t> series;
-  series.reserve(20000);
-  for (std::size_t index = 0; index < 20000; ++index) {
-    series.push_back(series.empty()
-                         ? 0
-                         : series.back() + (index % 10 == 0 ? 1000000ULL : 1));
-  }
-  // The tail jumps far above the threshold too: the runner's own reads
-  // walk the script past its points, and a read past the end answers
-  // the tail delta, so the probe's gaps keep pace with the windows
-  // whatever the runner consumed (R-02, E-06). The points' steps stand
-  // at one tick, so the measurement pass reads the small minDelta the
-  // adaptive threshold rises from (FR-007, R-05).
-  provider.setPoints("machine", "tsc", std::move(series), 1000000);
+  // The leaf carries the seeded delta tail and no explicit points: each
+  // read steps the orbit `state = state * 37 + 11 (mod 2^16)`, which
+  // walks all 65,536 values, so a read stands at or above the probe's
+  // threshold once every 123 reads and never farther apart than 775
+  // reads (T014, FR-015). The orbit never exhausts, so the gap rate
+  // stands the same in the last window as in the first. Two properties
+  // make a fold's presence stand still across builds and loads. The
+  // threshold stands explicit, because the default is ten times the
+  // smallest delta of the probe's own measurement pass, and that pass
+  // reads the same leaf the window stamps and the probe read, so a
+  // default would follow how far each reader walked (E-05, FR-007). And
+  // the gap rate stands low against the buffer's 2,000,000 slots, which
+  // hold about a hundred and twenty times as many reads as they hold
+  // gaps, so no gap stands dropped and every gap a window places is a
+  // gap the buffer kept: a buffer that fills ahead of the first window
+  // keeps only the gaps of the spin in front of it, and no later window
+  // can place one (FR-010, D-6, E-06).
+  provider.setPoints("machine", "tsc", {}, 0, 1);
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(owned));
   check(registered.has_value(), "the fresh process registers its fake (R-02)");
   const auto cpus = pickCpus(2);
-  // The body spins long enough that every attempt's window spans tens
-  // of probe reads, so the folds the scenarios read stand deterministic
-  // (VI: no sleep and no clock).
+  // The timed window has to span the interval in which the scheduler may
+  // leave the probe thread unscheduled. The probe samples on its own cpu
+  // beside whatever else the machine runs, and `start` promises only
+  // that the item stands at the start latch when the batch begins
+  // (R-04): when the alongside loop is next read is the scheduler's
+  // decision. A window that holds no probe read places no gap, folds
+  // nothing, and reports "jitter":null, and a batch that ends before the
+  // probe thread is scheduled again keeps no gap at all. One iteration of
+  // this spin is 600,000,000 volatile adds, so a window spans many times
+  // that interval on every build and the probe's share of its cpu falls
+  // inside it (FR-015, R-04; VI: no sleep and no clock).
+  constexpr int kSpinSteps = 600000000;
   auto handle = sg::registerBenchmark(
       [](sg::State& state)
       {
@@ -1343,7 +1356,7 @@ auto childFamilyProbe(const bool withCommandLineProbe) -> int
           // The unsigned wrap stands defined, so the sanitizer build
           // keeps the spin's work without a signed overflow (VI).
           volatile std::uint32_t sink = 0;
-          for (int step = 0; step < 2000000; ++step) {
+          for (int step = 0; step < kSpinSteps; ++step) {
             sink += static_cast<std::uint32_t>(step);
           }
           (void)sink;
@@ -1352,10 +1365,14 @@ auto childFamilyProbe(const bool withCommandLineProbe) -> int
       "bmProbed");
   auto probeOptions = sg::JitterProbeOptions {};
   probeOptions.cpus = {cpus.at(0)};
-  // The buffer holds every read the run can make, so no kept gap
-  // stands dropped and the folds the scenarios read stand the run's
-  // own (FR-010, D-6).
-  probeOptions.gapCount = 20000;
+  // The threshold stands explicit for the reason the script above
+  // states: a default is set from the measurement pass's own minDelta
+  // over the leaf the window stamps share (E-05, FR-007).
+  probeOptions.thresholdNs = 65000;
+  // The buffer holds every gap a run of this shape makes at the
+  // script's gap rate, so no kept gap stands dropped and the folds the
+  // scenarios read stand the run's own (FR-010, D-6).
+  probeOptions.gapCount = 2000000;
   handle.jitterProbe(probeOptions);
   std::vector<std::string> arguments {
       "--repetitions=1",
@@ -1530,6 +1547,10 @@ auto scenarioFamilyProbe() -> int
         "the run-level record names the handle's cpus (FR-015)");
   check(run.out.find("jitter probe: cpus " + familyCpu) != std::string::npos,
         "the console block names the handle's cpus (FR-015)");
+  check(probed.find("\"droppedGaps\":0") != std::string::npos,
+        "the family's fold keeps every gap the run made (FR-010)");
+  check(document.find("\"gapCount\":0") == std::string::npos,
+        "the family's own probe kept a gap the entries could fold " "(FR-015)");
   return 0;
 }
 
@@ -1560,6 +1581,10 @@ auto scenarioFamilyVersusCommandLine() -> int
         "the family the handle named not carries no fold (FR-015)");
   check(document.find("\"cpus\":[" + familyCpu + "]") != std::string::npos,
         "the run-level record names the handle's cpus (FR-015)");
+  check(probed.find("\"droppedGaps\":0") != std::string::npos,
+        "the family's fold keeps every gap the run made (FR-010)");
+  check(document.find("\"gapCount\":0") == std::string::npos,
+        "the family's own probe kept a gap the entries could fold " "(FR-015)");
   return 0;
 }
 
@@ -1790,21 +1815,29 @@ auto main(int argc, char** argv) -> int
     bound.push_back("--jitter-probe=" + std::to_string(CPU_SETSIZE));
     checkOneLine(captureError(bound, 2),
                  "a cpu at the set's own bound stands rejected (FR-011)");
-    // The count bound reads the seam, the way the test layout
-    // installs: the count stands at the mask's lowest cpu and the run
-    // names the mask's second, an online cpu the mask holds whose
-    // index stands at or above the count, so the bound refuses on the
-    // line of its own; the seam clears after, and the other cases read
-    // the count the threads report (FR-041, FR-011).
-    sg::detail::installTestOnlineCount(cpus.at(0));
-    auto pastCount = quickRun;
-    pastCount.push_back("--jitter-probe=" + second);
-    checkOneLine(captureError(pastCount, 2),
-                 "a cpu past the installed count stands rejected (FR-041)");
-    check(captureError(pastCount, 2).find("stands past the online cpu count")
+    // The online-set bound reads the seam, the way the test layout
+    // installs: the installed set holds the mask's first cpu and lacks
+    // its second, so the bound refuses the second on the line of its
+    // own. The count seam stands at zero beside it and leaves the answer
+    // of the cpu the set holds unchanged; the seams clear after, so the
+    // cases below read the list the kernel owns (FR-041, FR-011, R-11).
+    sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {cpus.at(0)});
+    sg::detail::installTestOnlineCount(0);
+    auto pastSet = quickRun;
+    pastSet.push_back("--jitter-probe=" + second);
+    checkOneLine(captureError(pastSet, 2),
+                 "a cpu the installed set lacks stands rejected (FR-041)");
+    check(captureError(pastSet, 2).find("stands outside the online cpu set")
               != std::string::npos,
-          "the count bound names the online count (FR-041)");
+          "the set bound names the online cpu set (FR-041)");
+    auto countSeamRun = quickRun;
+    countSeamRun.push_back("--jitter-probe=" + cpu);
+    const auto countSeam = captureRun(countSeamRun);
+    check(countSeam.find("bmQuiet") != std::string::npos,
+          "the count seam at zero leaves a cpu the set holds accepted "
+          "(FR-041, R-11)");
     sg::detail::installTestOnlineCount({});
+    sg::detail::installTestOnlineCpus(std::nullopt);
     auto rangeBeyond = quickRun;
     rangeBeyond.push_back("--jitter-probe=" + cpu + "-" + pickCpuOutsideMask());
     checkOneLine(
