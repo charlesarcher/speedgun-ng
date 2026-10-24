@@ -227,6 +227,15 @@ auto mappingCount() -> std::size_t
   return count;
 }
 
+// Every scratch file this test writes carries the process id, the way the
+// sibling CLI tests name theirs, so two runs in one directory cannot read one
+// another's document.
+auto scratchName(std::string_view stem, std::string_view suffix) -> std::string
+{
+  return std::string(stem) + "_" + std::to_string(static_cast<long>(getpid()))
+      + std::string(suffix);
+}
+
 // FR-020, FR-023: a family that asked for the tail, for the precedence pair.
 auto bmAsked(sg::State& state) -> void
 {
@@ -243,7 +252,8 @@ auto captureRun(const std::vector<std::string>& arguments,
     argv.push_back(const_cast<char*>(argument.c_str()));
   }
 
-  const char* const path = "harness_cli_out.txt";
+  const std::string scratch = scratchName("harness_cli_out", ".txt");
+  const char* const path = scratch.c_str();
   const int saved = dup(STDOUT_FILENO);
   if (saved < 0 || std::freopen(path, "w", stdout) == nullptr) {
     fail("cannot redirect the report");
@@ -481,7 +491,9 @@ auto metricFailureTextScenario() -> void
 
   const std::expected<sg::counters::MetricView, sg::counters::Error> missing {
       std::unexpected(bare)};
-  const char* const notePath = "harness_cli_column_note.txt";
+  const std::string scratchNote =
+      scratchName("harness_cli_column_note", ".txt");
+  const char* const notePath = scratchNote.c_str();
   const int savedNote = dup(STDERR_FILENO);
   if (savedNote < 0 || std::freopen(notePath, "w", stderr) == nullptr) {
     fail("cannot redirect the column note");
@@ -501,7 +513,8 @@ auto metricFailureTextScenario() -> void
   check(noteBuffer.str() == "slots: " + bare.message + " (" + kind + ")\n",
         "the run's line names the refusal kind of the row (FR-026, FR-027)");
 
-  const char* const path = "harness_cli_name_out.txt";
+  const std::string scratch = scratchName("harness_cli_name_out", ".txt");
+  const char* const path = scratch.c_str();
   const int saved = dup(STDERR_FILENO);
   if (saved < 0 || std::freopen(path, "w", stderr) == nullptr) {
     fail("cannot redirect the failure line");
@@ -1160,6 +1173,11 @@ auto main(const int argc, char** argv) -> int
     captureRun(failing, 1);
   }
   const std::size_t descriptors = openDescriptorCount();
+  // The first read of the mapping listing maps the chunks the allocation of
+  // that read itself takes, and they stay mapped, so under a sanitizer the
+  // first answer is smaller than every later one. Discard it and take the
+  // baseline from the state the measured window's read returns to.
+  static_cast<void>(mappingCount());
   const std::size_t mappings = mappingCount();
   for (int run = 0; run < kFailedRunWindow; ++run) {
     captureRun(failing, 1);
@@ -1467,11 +1485,12 @@ auto main(const int argc, char** argv) -> int
   // specs/023 T031, T035, SC-004: the report options answer the status the
   // contract names, and the console keeps its bytes ahead of the file.
   {
-    std::remove("harness_cli_none.json");
+    const std::string absentPath = scratchName("harness_cli_none", ".json");
+    std::remove(absentPath.c_str());
     const std::string plain =
         captureRun({"--filter", "^bmAlpha$", "--iterations=2"});
     check(!linesOf(plain, "bmAlpha").empty(), "the plain run prints its row");
-    std::ifstream absent("harness_cli_none.json");
+    std::ifstream absent(absentPath);
     check(!absent.is_open(), "no option writes no file (FR-002)");
   }
   {
@@ -1489,13 +1508,14 @@ auto main(const int argc, char** argv) -> int
     // FR-034, E-05: `none` is a spelling the option names, and as the
     // document sees it it is the whole of the raw setting: the file is
     // written and no row carries a chunk column.
-    std::remove("harness_cli_rawnone.json");
+    const std::string rawPath = scratchName("harness_cli_rawnone", ".json");
+    std::remove(rawPath.c_str());
     captureRun({"--filter",
                 "^bmAlpha$",
                 "--iterations=2",
-                "--json=harness_cli_rawnone.json",
+                "--json=" + rawPath,
                 "--json-raw=none"});
-    const auto loaded = sg::loadReport("harness_cli_rawnone.json");
+    const auto loaded = sg::loadReport(rawPath);
     bool bare = loaded.has_value() && loaded->results.size() == 1
         && loaded->rowRaw.size() == 1;
     for (const auto& rows : loaded->rowRaw) {
@@ -1528,14 +1548,16 @@ auto main(const int argc, char** argv) -> int
   {
     // FR-001, T035: an interrupted batch still writes the file, and the
     // status stays the one the interrupt earns.
-    std::remove("harness_cli_interrupt.json");
+    const std::string interruptPath =
+        scratchName("harness_cli_interrupt", ".json");
+    std::remove(interruptPath.c_str());
     captureRun({"--filter",
                 "^bmInterrupts$",
                 "--iterations=1",
                 "--repetitions=3",
-                "--json=harness_cli_interrupt.json"},
+                "--json=" + interruptPath},
                1);
-    const auto loaded = sg::loadReport("harness_cli_interrupt.json");
+    const auto loaded = sg::loadReport(interruptPath);
     check(loaded.has_value() && loaded->results.size() == 1
               && loaded->results[0].outcome == sg::RunOutcome::SKIPPED
               && loaded->results[0].reason.find("interrupted")
@@ -1764,7 +1786,8 @@ auto main(const int argc, char** argv) -> int
   // after the version line and before the first benchmark row (FR-042), so
   // the row of the run follows it in the same stream.
   const std::string lead = "options from a file or the environment: ";
-  const std::string optionFile = "harness_cli_options_file.txt";
+  const std::string optionFile =
+      scratchName("harness_cli_options_file", ".txt");
   {
     std::ofstream stream(optionFile);
     stream << "repetitions=2\n";
@@ -1811,7 +1834,8 @@ auto main(const int argc, char** argv) -> int
   // FR-040, FR-041: the same two facts stand in the document of a run that
   // takes one option from a file and gives a seed. The `run` object carries the
   // seed behind the option that file set.
-  const std::string disclosedPath = "harness_cli_disclosed.json";
+  const std::string disclosedPath =
+      scratchName("harness_cli_disclosed", ".json");
   std::remove(disclosedPath.c_str());
   captureRun({"--filter",
               "^bmAlpha$",
