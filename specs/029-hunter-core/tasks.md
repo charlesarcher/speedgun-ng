@@ -1235,11 +1235,11 @@ citation row are settled, and both say so where they stand.
       working directory while it runs. That reach stops at one `ctest`
       invocation, which is the gap T187 records. `RESOURCE_LOCK`, following
       `:297`, is the named upgrade if a job ever raises `-j`.
-- [ ] T186 LOW Decide whether the contract and the header must match byte for
-      byte. `contracts/hunt-api.md:194` ends the refusal sentence with a
-      period where `include/speedgun-ng/hunt.hpp:512` keeps a semicolon, a
-      split that predates this round. The pair gate reads the meaning and
-      passes; a gate that compared bytes would flag it.
+- [x] T186 LOW Settle the pair comparison at meaning, recorded here: a gate
+      that compared bytes would flag `contracts/hunt-api.md:194` for the
+      period at the end of its refusal sentence beside the semicolon of
+      `include/speedgun-ng/hunt.hpp:512`, a split that predates this round.
+      The pair gate reads the meaning and passes, so the split stays.
 - [ ] T187 LOW Give the three scratch names in `harness_cli_test.cpp` the pid
       the T165 shape gives the others. `:476` writes
       `harness_cli_column_note.txt`, `:1243` to `:1250` write and read back
