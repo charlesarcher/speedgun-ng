@@ -56,6 +56,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <optional>
@@ -92,8 +93,13 @@ auto printHuntSkips(const hunt::EntryHunt& hunt,
 namespace
 {
 
-// The scratch file every capture of this binary reads back.
-constexpr const char* kScratchPath = "harness_hunt_report_out.txt";
+// The scratch file every capture of this binary reads back. The name stands
+// in the system temporary directory under this process number, so a run from
+// the checkout root leaves no file behind and a second copy of this binary
+// shares no file.
+const auto kScratchPath = std::filesystem::temp_directory_path()
+    / ("harness_hunt_report_" + std::to_string(static_cast<long>(getpid()))
+       + "_out.txt");
 
 // The token that stands for the figure of a hunt line that belongs to the
 // host: the estimate of the plan line, the nanoseconds of one pass the hunt
@@ -237,7 +243,7 @@ auto ensureCase() -> void
   }
 
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kScratchPath, "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(kScratchPath.c_str(), "w", stdout) == nullptr) {
     fail("cannot redirect the report");
   }
   const int status =
@@ -289,7 +295,7 @@ template<typename Print>
 [[nodiscard]] auto capturePrint(const Print& print) -> std::string
 {
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kScratchPath, "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(kScratchPath.c_str(), "w", stdout) == nullptr) {
     fail("cannot redirect the printer");
   }
   print();

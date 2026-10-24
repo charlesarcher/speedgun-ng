@@ -500,7 +500,7 @@ Every FR of `spec.md` and every Success Criterion maps to at least one task.
 - [x] T071 Restore the single pass-0 seat failure route in source/harness/runner.cpp and pin the refused-group exit-1 case in test/source/harness_hunt_collect_test.cpp per source/harness/runner.cpp (contradicts)
 - [x] T072 Print the two --hunt-norm anchor refusals of contracts/hunt-cli.md at exit 2 from source/harness/hunt_cli.cpp and add both rows to test/source/harness_hunt_cli_test.cpp per source/harness/hunt_cli.cpp (contradicts)
 - [x] T073 Carry the solo retry counters::Error in source/harness/detail/internal.hpp and source/harness/runner.cpp and map it through skippedKindOf in source/harness/hunt.cpp per source/harness/detail/internal.hpp (contradicts)
-- [x] T074 us1-4 and us2-5: print the hunt plan line before the benchmark rows from source/harness/report.cpp or source/harness/cli.cpp and pin that order in the collect test per source/harness/report.cpp (contradicts). Landed: printHuntPlan runs at report.cpp:455, above the rows, and the ranking and skip lines follow at 611-616. The order is pinned by `scenarioPlanLineStandsAboveTheRows` at test/source/harness_hunt_cli_test.cpp:946; the collect test pins the presence and the count of the plan lines it captures (harness_hunt_collect_test.cpp:670), and the order needs a full console capture, which the collect seam does not take
+- [x] T074 us1-4 and us2-5: print the hunt plan line before the benchmark rows from source/harness/report.cpp or source/harness/cli.cpp and pin that order in the collect test per source/harness/report.cpp (contradicts). Landed: printHuntPlan runs at report.cpp:455, above the rows, and the ranking and skip lines follow at 611-616. The order is pinned by `scenarioPlanLineStandsAboveTheRows` at test/source/harness_hunt_cli_test.cpp:1202; the collect test pins the presence and the count of the plan lines it captures (harness_hunt_collect_test.cpp:670), and the order needs a full console capture, which the collect seam does not take
 - [x] T075 us1-7 and us2-12: keep every settled hunt value, budget included, across option order in source/harness/hunt_cli.cpp and pin one option-before-hunt case per source/harness/hunt_cli.cpp (partial)
 - [x] T076 Print the hunt plan budget cut line from printHuntPlan in source/harness/report.cpp when splitStages sets cutStage2 and pin its exact bytes per source/harness/report.cpp (missing)
 - [x] T077 Fill the empty scenario list at test/source/harness_hunt_report_test.cpp:51 with the E-07 console shapes, the PD-15 order, the MULTIPLEX line and the --hunt=none silence per test/source/harness_hunt_report_test.cpp (missing)
@@ -540,7 +540,7 @@ Every FR of `spec.md` and every Success Criterion maps to at least one task.
 - [x] T111 Fix the version grep at specs/029-hunter-core/quickstart.md:156, add the two non-hunt document greps and number the walkthrough steps per specs/029-hunter-core/quickstart.md (contradicts)
 - [x] T112 Declare the lastRefusalMessage accessor beside setGroupLeafLimit in specs/029-hunter-core/contracts/hunt-api.md per specs/029-hunter-core/contracts/hunt-api.md (unrequested)
 - [x] T113 Give rankEvents the settled method in include/speedgun-ng/hunt.hpp and source/harness/hunt_plan.cpp and pin a true multiplexed case in the rank test per source/harness/hunt_plan.cpp (partial)
-- [x] T114 Resolved by spec, no change owed: the hunt ranking and skip lines print at source/harness/report.cpp:611-616, above the return at :621, and that return guards only `printContextDisclosure` at :624 and the per-context percentile loop below it, which FR-025 keeps off a single-context result, so a single-context hunt run prints every hunt line it has and the code carries the FR-025 citation at :618-620. The order is specified and pinned by `scenarioPlanLineStandsAboveTheRows` at test/source/harness_hunt_cli_test.cpp:946, registered at :1227, which captures a real hunt run and asserts the plan line once, `plan + 1` as the first row line, and the rank lines after the rows.
+- [x] T114 Resolved by spec, no change owed: the hunt ranking and skip lines print at source/harness/report.cpp:611-616, above the return at :621, and that return guards only `printContextDisclosure` at :624 and the per-context percentile loop below it, which FR-025 keeps off a single-context result, so a single-context hunt run prints every hunt line it has and the code carries the FR-025 citation at :618-620. The order is specified and pinned by `scenarioPlanLineStandsAboveTheRows` at test/source/harness_hunt_cli_test.cpp:1202, registered at :1542, which captures a real hunt run and asserts the plan line once, `plan + 1` as the first row line, and the rank lines after the rows.
 - [x] T115 Repoint the US4 citations at lines 216, 228, 229 and 231 of specs/029-hunter-core/tasks.md at the FR-070 and FR-071 the spec defines per specs/029-hunter-core/tasks.md (contradicts)
 - [x] T116 Record the restricted-CPU-set ctest -R hunt results and reword the three prose matches in test/source/harness_hunt_collect_test.cpp and the CLI test per test/source/harness_hunt_collect_test.cpp (partial)
 - [x] T117 Record the four reserved values of CMakeLists.txt and kSchemaVersion with their reasons in the merge notes, retaking them if master moved per CMakeLists.txt (partial)
@@ -1240,7 +1240,7 @@ citation row are settled, and both say so where they stand.
       period at the end of its refusal sentence beside the semicolon of
       `include/speedgun-ng/hunt.hpp:512`, a split that predates this round.
       The pair gate reads the meaning and passes, so the split stays.
-- [ ] T187 LOW Give the three scratch names in `harness_cli_test.cpp` the pid
+- [x] T187 LOW Give the three scratch names in `harness_cli_test.cpp` the pid
       the T165 shape gives the others. `:476` writes
       `harness_cli_column_note.txt`, `:1243` to `:1250` write and read back
       `harness_cli_interrupt.json`, and `:1479` writes
@@ -1556,7 +1556,7 @@ prose row joins this phase.
 
 ## Phase 17: Convergence
 
-- [ ] T213 Give every scratch name of the three hunt suites a process id and a
+- [x] T213 Give every scratch name of the three hunt suites a process id and a
       temp directory (round eight F7; Constitution III and VII,
       `test/CMakeLists.txt:659`). Ten declarations name a fixed file in the
       working directory: `test/source/harness_hunt_cli_test.cpp:84-89` and
