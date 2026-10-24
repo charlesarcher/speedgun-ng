@@ -54,11 +54,6 @@ void handleInterrupt(const int) noexcept
       registry(), [](const auto& entry) { return entry->runStarted; });
 }
 
-// The largest whole number of seconds whose nanoseconds fit the signed
-// count the run control carries.
-constexpr std::int64_t kMaxWholeSeconds =
-    std::numeric_limits<std::int64_t>::max() / 1'000'000'000;
-
 // FR-020, R-11: the prefix of a disabled instance. The gate is a prefix
 // test on the expanded instance name, and selection is where it stands.
 constexpr std::string_view kDisabledPrefix = "DISABLED_";
