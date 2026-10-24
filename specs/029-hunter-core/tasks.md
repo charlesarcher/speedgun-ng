@@ -1271,3 +1271,110 @@ citation row are settled, and both say so where they stand.
       unfixed head exiting 1 with the report and the fixed tree exiting 0 with zero
       `AddressSanitizer` lines, while the release preset still runs the test green in
       12.62 s.
+
+## Phase 14: Convergence
+
+Assessed at `f5df59d` in the detached worktree
+`/home/archerc/sg029-lanes/ph12-audit`, with the tree clean before and after,
+with no write to any source, header, contract or doc file, to the index or to
+any ref. Reads only, plus the prose gate, which answered `prose-lint: 591
+sources, 105825 units examined, 0 findings, 0 skipped`. Of 299 citations in
+this file and the five contracts, 91 were opened at the cited line and 45 do
+not hold. `test/source/harness_cli_table_test.cpp` carries the T188 fix above
+this head, so a cite below its `:955` moves by two lines on integration, and
+the twin gate is not reopened below. No coverage row is drafted here: a branch
+gap needs the `coverage-info` artifact of a CI run, because a local `lcov`
+2.5-beta counts exception and cleanup edges that CI's gcov never emits. The
+full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
+
+- [ ] T189 HIGH Correct the nine addresses `:634-639` records for the option
+      table. Row T149 re-anchored the reads to `cli.cpp:390` and `:391`, `:602`,
+      `:641`, `:646`, `:676` and `detail/internal.hpp:523`, `:534`, `:552`. At
+      this head the table is the `to_array<OptionRow>` of `optionRows()` at
+      `source/harness/options.cpp:496-716`, the eight hunt values are
+      `source/harness/detail/options.hpp:91-98`, `expandHuntSelection` is
+      called at `source/harness/cli.cpp:357`, the three listing modes return at
+      `:396`, `:401` and `:445`, and the settled members stand at
+      `detail/internal.hpp:514`, `:525` and `:543`. No `longOptions[]` exists
+      in any source file. Restate the row; no code edit follows (Principle IV,
+      X.3).
+- [ ] T190 MEDIUM Re-anchor the addresses `contracts/hunt-cli.md` states. `:12`
+      names the one `option longOptions[]` table at `cli.cpp:375`, where the
+      compare-mode branch stands. `:15` names
+      `tools/docs/example_drift.py:458-465` as the README option-row reader,
+      where `table_rows()` scans the quick reference and `cli_options()` at
+      `:493-505` reads `options.cpp`. `:38-40` places the eight constants in
+      `cli.cpp` beside the comparison constants, which live at
+      `detail/options.hpp:91-98`. `:66` cites `cli.cpp:367-381` for the
+      provider registration at `cli.cpp:263` and `:276`. `:74` cites
+      `cli.cpp:87-95` for the percentile refusal at `options.cpp:806-810`.
+      `:109-111` cite `cli.cpp:586`, `:625`, `:630` and `:660` for the sites at
+      `:357`, `:396`, `:401` and `:445`. `:123` and `:193` cite
+      `runner.cpp:2184,2394` for one iteration per pass, where `:2184` settles
+      repetitions, `:2394` is an `SG_INVARIANT` about seat compilability, and
+      `:2405` holds the iteration.
+- [ ] T191 MEDIUM Retire the `SG_CLI_SOURCE` reading the contract and three
+      rows state. `contracts/hunt-cli.md:198` says the option table test reads
+      `cli.cpp` through a compiled-in `SG_CLI_SOURCE` path, the registration
+      pattern `SG_SCHEMA_PATH` uses at
+      `test/source/harness_json_schema_test.cpp:21-22`. That analogy holds: the
+      macro is set at `test/CMakeLists.txt:607`. `SG_CLI_SOURCE` appears
+      nowhere under `test/`, CMake included: the test takes the source
+      directory as an argument and opens `detail/options.hpp`, `options.cpp`
+      and `cli.cpp` at `test/source/harness_cli_table_test.cpp:1670-1672`.
+      Rows `:55`, `:118` and `:119` still describe the compiled-in path and the
+      source spelling it parses. Restate all three (Principle IV).
+- [ ] T192 MEDIUM Rewrite the fixture comment at
+      `test/source/detail/cli_table_fixture.hpp:15-23`. It states the gate
+      reads the one `option longOptions[]` table of `source/harness/cli.cpp`
+      because that table is a function-local `static` array of `speedgunMain`
+      at `cli.cpp:346`, and compares the way `cli.cpp:66-71` names the
+      comparison constants. `source/harness/cli.cpp` is 702 lines and holds
+      neither, and the constants are `detail/options.hpp:91-98`.
+- [ ] T193 MEDIUM Correct the frozen-fixture read `:261` rests on. Row T053
+      grounds its no-edit decision in
+      `test/source/harness_compare_cli_test.cpp:516` asserting the console
+      header of `gate_schema_11.json`. That case loads the `gate_ok_*` pair at
+      `:496-497` and asserts `schema 1.0` at `:519` and `:524`; the pair that
+      carries `schema 1.1` is checked at `:847-848`. The decision survives at
+      the second site; restate the address.
+- [ ] T194 MEDIUM Re-anchor the ten contract addresses the last sweep left.
+      `hunt-api.md:134` cites `counters_system.hpp:47`, which is `path()` where
+      `children()` begins near `:112`; `:319` cites `internal.hpp:561`, which
+      is `optionsFile` where `Runner` begins at `:578`; `:415` cites
+      `harness_hunt_collect_test.cpp:853` for a read at `:857`.
+      `hunt-json.md:125` cites `json_report.cpp:43-78` for writers at `:89` and
+      `:118`; `:134` cites `:589` for `passSpread` at `:607`; `:135` cites
+      `:726` for `writeReport` at `:771`. `report-schema-key.md:26` cites
+      `json_report.cpp:31` for the schema constant at `:38`; `:36` cites
+      `harness_json_report_test.cpp:278` and `:382`, two blank lines whose
+      `checkReport` calls follow at `:282` and `:386`; `:37` cites
+      `harness_compare_cli_test.cpp:636` and `:704`, where those calls sit at
+      `:968` and `:1036`; `:125` reads the words `schema 1.1` at `:516`, which
+      asserts `schema 1.0`.
+- [ ] T195 MEDIUM Narrow the exclusion scan T055 runs. FR-091 bars any
+      exclusion marker, and the row's command
+      `git grep -n 'LCOV_EXCL' -- source/harness include/speedgun-ng example
+      test` returns 14 markers in three files this change never touched:
+      `include/speedgun-ng/counters_provider.hpp:100` and `:106`,
+      `include/speedgun-ng/counters_system.hpp:145-159`, and
+      `include/speedgun-ng/dbc.hpp`, each recorded against
+      `specs/007-counters-and-timers` Complexity Tracking. As written the scan
+      can never read clean. Scope it to the paths this change writes, or
+      record the 14 as pre-existing beside the coverage run (FR-091).
+- [ ] T196 LOW Drop the property claim `:1040` still makes. Row T172 states
+      `test/CMakeLists.txt:654` registers `harness_cli_test` bare.
+      `set_tests_properties(harness_cli_test PROPERTIES PROCESSORS 2)` stands at
+      `test/CMakeLists.txt:660` from `6c05452`, with no `TIMEOUT` beside it.
+- [ ] T197 LOW Move the folded-string address T180 carries. It cites
+      `source/harness/json_report.cpp:613`; the folded choice is `:630-631`. The
+      `source/harness/compare.cpp:1247` half of the pair reads true.
+- [ ] T198 LOW Correct the row count of the table-test comment.
+      `test/CMakeLists.txt:663` says the table holds 27 rows in the fixed order
+      with the seven new names at 290 to 296. `optionRows()` holds 35 rows: the
+      27 of `kRowsBeforeHunt` at `test/source/harness_cli_table_test.cpp:241`
+      plus the eight hunt rows `kRows` carries after them.
+- [ ] T199 LOW Delete the repeated comment line of the writer.
+      `source/harness/json_report.cpp:30` and `:31` hold one sentence twice, a
+      residue of the re-anchor that `contracts/report-schema-key.md:26` reads
+      past.
