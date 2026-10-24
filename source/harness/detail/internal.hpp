@@ -527,12 +527,14 @@ struct RunOptions
 class Runner
 {
 public:
-  explicit Runner(const RunOptions& options) noexcept
+  explicit Runner(const RunOptions& options,
+                  std::optional<bool> stampWindows = std::nullopt) noexcept
       : m_options(options)
       ,
-      // R-04: the runner stamps the timed windows only when the batch
-      // carries a probe, the split's one consumer.
-      m_windowStamping(options.jitterProbe.has_value())
+      // R-04: the runner stamps the timed windows when the batch
+      // carries a probe, the split's one consumer; a per-family probe
+      // stamps the same way, and the caller states it (FR-015).
+      m_windowStamping(stampWindows.value_or(options.jitterProbe.has_value()))
   {
   }
 
@@ -829,7 +831,7 @@ auto printResult(const BenchmarkResult& result) -> void;
 /// region (FR-023, FR-036, R-08, E-09). A false `available` prints the
 /// not-available disclosure only.
 auto printJitterReport(bool available,
-                       const std::vector<ProbeCpuState>& states) -> void;
+                       const std::vector<const ProbeCpuState*>& states) -> void;
 
 /// @brief Print the catalog listing; false when the listing failed
 /// (FR-037).

@@ -1240,6 +1240,154 @@ auto scenarioUnavailableStrict() -> int
   return 0;
 }
 
+// The fresh process of the per-family probe scenarios: the fake it
+// registers scripts the tsc series the runner's window stamps and the
+// probe's own reads share, with a jump far above the threshold every
+// few actions, so the probe keeps gaps inside the windows the runs
+// stamp (R-02, E-06). The handle names the probe on the first cpu the
+// mask holds; the command line's value, when the caller names one,
+// stands on the second (FR-015).
+auto childFamilyProbe(const bool withCommandLineProbe) -> int
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+  provider.setPoints("machine", "monotonic", {0}, 4000);
+  provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  provider.setPoints("machine", "thread_cpu", {0}, 2000);
+  provider.addCounter("machine",
+                      "tsc",
+                      "none",
+                      "raw tick counter",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::FAST_TSC);
+  std::vector<std::uint64_t> series;
+  for (std::size_t index = 0; index < 20000; ++index) {
+    series.push_back(series.empty()
+                         ? 0
+                         : series.back() + (index % 10 == 0 ? 1000000ULL : 1));
+  }
+  provider.setPoints("machine", "tsc", std::move(series), 1);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  const auto cpus = pickCpus(2);
+  // The body spins long enough that every attempt's window spans many
+  // probe reads, so the folds the scenarios read stand deterministic
+  // (VI: no sleep and no clock).
+  auto handle = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+          volatile int sink = 0;
+          for (int step = 0; step < 200000; ++step) {
+            sink += step;
+          }
+          (void)sink;
+        }
+      },
+      "bmProbed");
+  auto probeOptions = sg::JitterProbeOptions {};
+  probeOptions.cpus = {cpus.at(0)};
+  handle.jitterProbe(probeOptions);
+  std::vector<std::string> arguments {
+      "--repetitions=1",
+      "--iterations=2",
+      "--json=harness_jitter_cli_"
+          + std::string(withCommandLineProbe ? "family-vs-cli" : "family-probe")
+          + ".json"};
+  if (withCommandLineProbe) {
+    arguments.push_back("--jitter-probe=" + std::to_string(cpus.at(1)));
+  }
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+// The text of one benchmark entry's object in the document: the span
+// from the entry's name to the next entry's name, the span the entry's
+// own keys read in (E-10).
+auto entrySegment(const std::string& document,
+                  const std::string& name) -> std::string
+{
+  const auto begin = document.find("\"name\":\"" + name + "\"");
+  if (begin == std::string::npos) {
+    return {};
+  }
+  const auto next = document.find("\"name\":\"", begin + 1);
+  return document.substr(
+      begin, next == std::string::npos ? std::string::npos : next - begin);
+}
+
+// FR-015: the per-family probe the handle promises. The fresh process
+// registers one family whose handle names the probe and runs the batch
+// with no option named: the probed family's entries carry the folds of
+// its own probe, the family the handle named not carries none, and the
+// run-level record and lines name the handle's cpus (FR-015, R-06).
+auto scenarioFamilyProbe() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=family-probe", "family-probe");
+  check(run.status == 0, "the family-probed run stands status 0 (FR-015)");
+  const auto document = readDocument("harness_jitter_cli_family-probe.json");
+  const auto cpus = pickCpus(2);
+  const std::string familyCpu = std::to_string(cpus.at(0));
+  const std::string probed = entrySegment(document, "bmProbed");
+  const std::string plain = entrySegment(document, "bmQuiet");
+  check(!probed.empty() && !plain.empty(),
+        "the document carries both families' entries (FR-015)");
+  check(probed.find("\"jitter\":{\"stats\":[{\"cpu\":" + familyCpu)
+            != std::string::npos,
+        "the probed family's entries carry its own probe's folds " "(FR-015)");
+  check(plain.find("\"jitter\":null") != std::string::npos,
+        "the family the handle named not carries no fold (FR-015)");
+  check(
+      run.out.find("affinity mask narrowed for 'bmProbed'")
+          != std::string::npos,
+      "the probed family's instances narrow by the family's cpus " "(FR-015)");
+  check(
+      run.out.find("affinity mask narrowed for 'bmQuiet'") == std::string::npos,
+      "the family the handle named not narrows by nothing (FR-015)");
+  check(document.find("\"cpus\":[" + familyCpu + "]") != std::string::npos,
+        "the run-level record names the handle's cpus (FR-015)");
+  check(run.out.find("jitter probe: cpus " + familyCpu) != std::string::npos,
+        "the console block names the handle's cpus (FR-015)");
+  return 0;
+}
+
+// FR-015: the handle and the command line both stand, and the handle
+// wins for its family: the probed family's folds carry the handle's
+// cpu and no command-line cpu, the run-level record names the handle's
+// cpus, and the family the handle named not carries no fold, the one
+// session the process holds running the family's own probe (FR-015,
+// R-01, R-06).
+auto scenarioFamilyVersusCommandLine() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=family-vs-cli", "family-vs-cli");
+  check(run.status == 0, "the two-probe run stands status 0 (FR-015)");
+  const auto document = readDocument("harness_jitter_cli_family-vs-cli.json");
+  const auto cpus = pickCpus(2);
+  const std::string familyCpu = std::to_string(cpus.at(0));
+  const std::string cliCpu = std::to_string(cpus.at(1));
+  const std::string probed = entrySegment(document, "bmProbed");
+  const std::string plain = entrySegment(document, "bmQuiet");
+  check(!probed.empty() && !plain.empty(),
+        "the document carries both families' entries (FR-015)");
+  check(probed.find("\"cpu\":" + familyCpu + ",") != std::string::npos,
+        "the family's folds carry the handle's cpu (FR-015)");
+  check(probed.find("\"cpu\":" + cliCpu + ",") == std::string::npos,
+        "the family's folds carry no command-line cpu (FR-015)");
+  check(plain.find("\"jitter\":null") != std::string::npos,
+        "the family the handle named not carries no fold (FR-015)");
+  check(document.find("\"cpus\":[" + familyCpu + "]") != std::string::npos,
+        "the run-level record names the handle's cpus (FR-015)");
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -1259,6 +1407,13 @@ auto main(int argc, char** argv) -> int
       return std::freopen(outPath.c_str(), "w", stdout) != nullptr
           && std::freopen(errPath.c_str(), "w", stderr) != nullptr;
     };
+    if (mode == "--jitter-cli-child=family-probe" && redirect("family-probe")) {
+      return childFamilyProbe(false);
+    }
+    if (mode == "--jitter-cli-child=family-vs-cli" && redirect("family-vs-cli"))
+    {
+      return childFamilyProbe(true);
+    }
     if (mode == "--jitter-cli-child=file-over-suite"
         && redirect("fileOverSuite"))
     {
@@ -1319,6 +1474,8 @@ auto main(int argc, char** argv) -> int
   check(scenarioUnavailableBlocked() == 0, "unavailableBlocked");
   check(scenarioUnavailableThreaded() == 0, "unavailableThreaded");
   check(scenarioUnavailableStrict() == 0, "unavailableStrict");
+  check(scenarioFamilyProbe() == 0, "familyProbe");
+  check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
 
   // FR-011: the cpu list, `idle`, and every key parse once, each key
   // standing once in the value; the accepted value proceeds into the
