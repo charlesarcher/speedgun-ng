@@ -191,13 +191,25 @@ auto parsePercentileList(const char* text,
   return {};
 }
 
+// The blanks a C number reader steps over. The option file trims a line at
+// its ends alone, so a blank that opens a value reaches the reader beside
+// the digits and the whole text stands refused (FR-035, FR-054).
+constexpr std::string_view kOpeningBlanks = " \t\n\v\f\r";
+
+auto opensWithBlank(const char* text) -> bool
+{
+  return kOpeningBlanks.find(text[0]) != std::string_view::npos;
+}
+
 auto parseCount(const char* text,
                 const char* option) -> std::expected<std::uint64_t, std::string>
 {
   errno = 0;
   char* end = nullptr;
   const long long value = std::strtoll(text, &end, 10);
-  if (errno != 0 || end == text || *end != '\0' || value <= 0) {
+  if (errno != 0 || end == text || *end != '\0' || value <= 0
+      || opensWithBlank(text))
+  {
     return std::unexpected(std::string(option)
                            + ": expected a positive integer, got '"
                            + quotedText(text) + "'");
@@ -232,7 +244,16 @@ auto parseSeconds(const char* text, const char* option, const ZeroWord zeroWord)
   // below.
   const bool signHolds = zeroAdmitted ? seconds >= 0.0 : seconds > 0.0;
   if (errno != 0 || end == text || *end != '\0' || !std::isfinite(seconds)
-      || seconds > static_cast<double>(kMaxWholeSeconds) || !signHolds)
+      || seconds > static_cast<double>(kMaxWholeSeconds)
+      || !signHolds
+      // A word below one whole nanosecond leaves `--min-time` no minimum for
+      // the run to hold, so the row refuses it the way it refuses zero, where
+      // `--warmup-time` keeps its answer for the same word (FR-046). The test
+      // stands after the finite test and the range test, because the cast it
+      // needs is defined only for a value those two admitted.
+      || (!zeroAdmitted
+          && static_cast<std::int64_t>(seconds * 1'000'000'000.0) == 0)
+      || opensWithBlank(text))
   {
     const std::string_view qualifier =
         zeroAdmitted ? "number" : "positive number";
