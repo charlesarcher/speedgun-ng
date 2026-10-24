@@ -126,6 +126,42 @@ auto overlapInstance() -> sg::Instance
   return instance;
 }
 
+// FR-018, D-3, R-10: one instance whose plan the preset names none
+// carries: the threads run unpinned beside the probe, so the overlap
+// check sees no overlap for it, the narrowing rule owning them
+// (FR-019, R-10).
+auto noneInstance() -> sg::Instance
+{
+  sg::Instance instance;
+  instance.name = "bmPresetNone";
+  instance.threadCount = 2;
+  instance.placement = sg::detail::Preset::NONE;
+  return instance;
+}
+
+// D-4, FR-016, R-10: one single-thread instance that carries a preset:
+// the runner pins only instances with more than one context, so the
+// planned-cpus step contributes nothing for it (FR-019).
+auto singlePinnedInstance() -> sg::Instance
+{
+  sg::Instance instance;
+  instance.name = "bmPresetSingle";
+  instance.threadCount = 1;
+  instance.placement = sg::detail::Preset::L3;
+  return instance;
+}
+
+// D-4, FR-016, R-10: one multi-context pinned instance: the planned-
+// cpus step contributes its plan's cpus for it alone.
+auto pinnedInstance() -> sg::Instance
+{
+  sg::Instance instance;
+  instance.name = "bmPresetPinned";
+  instance.threadCount = 2;
+  instance.placement = sg::detail::Preset::L3;
+  return instance;
+}
+
 }  // namespace
 
 auto main(const int argc, char** argv) -> int
@@ -289,6 +325,59 @@ auto main(const int argc, char** argv) -> int
                                    sg::JitterProbeMode::BOTH);
     check(both.has_value() && both->cpu == 24,
           "the alongside phase of `both` refuses the overlap (D-3, R-10)");
+  }
+
+  // FR-018, D-3, R-10: a multi-context instance the preset names none
+  // contributes no plan, so the overlap check sees no overlap for it:
+  // its threads run unpinned beside the probe, the narrowing rule
+  // owning them (FR-019, R-10).
+  {
+    sg::Instance none = noneInstance();
+    const std::vector<sg::Instance*> selected {&none};
+    const auto skipped =
+        sg::detail::probeOverlapOf(machine,
+                                   selected,
+                                   std::vector<std::uint32_t> {0},
+                                   sg::JitterProbeMode::ALONGSIDE);
+    check(!skipped.has_value(),
+          "a multi-context instance with no preset names no overlap "
+          "(FR-019, R-10)");
+  }
+
+  // D-4, FR-016, R-10: the planned-cpus step over three instances: a
+  // single-thread instance plans nothing, a multi-context instance the
+  // preset names none plans nothing, and the multi-context pinned
+  // instance plans its cpus alone (FR-019, R-10).
+  {
+    sg::Instance single = singlePinnedInstance();
+    sg::Instance none = noneInstance();
+    sg::Instance pinned = pinnedInstance();
+    const std::vector<sg::Instance*> selected {&single, &none, &pinned};
+    const auto planned = sg::detail::plannedCpusOf(selected, machine);
+    const std::vector<std::uint32_t> expected {0, 6};
+    check(planned == expected,
+          "only the multi-context pinned instance plans cpus (D-4, R-10)");
+  }
+
+  // FR-019, FR-006, R-10: the narrowing rule as one named step: a
+  // pinned multi-context entry beside a live alongside probe narrows
+  // nothing, an unpinned entry narrows, the precheck mode narrows
+  // nothing, and no live probe narrows nothing (FR-019, R-10).
+  {
+    sg::Instance pinned = pinnedInstance();
+    sg::Instance single = singlePinnedInstance();
+    check(!sg::detail::narrowingApplies(
+              pinned, true, sg::JitterProbeMode::ALONGSIDE),
+          "a pinned multi-context entry narrows nothing (FR-019, R-10)");
+    check(sg::detail::narrowingApplies(
+              single, true, sg::JitterProbeMode::ALONGSIDE),
+          "an unpinned entry narrows beside a live probe (FR-019, R-10)");
+    check(!sg::detail::narrowingApplies(
+              single, true, sg::JitterProbeMode::PRECHECK),
+          "the precheck mode narrows nothing (FR-006, R-10)");
+    check(!sg::detail::narrowingApplies(
+              single, false, sg::JitterProbeMode::ALONGSIDE),
+          "no live probe narrows nothing (FR-006, R-10)");
   }
 
   // FR-020, PC-2: the new functions change no preset rule; the specs/025

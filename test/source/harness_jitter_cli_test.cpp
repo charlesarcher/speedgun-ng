@@ -1160,6 +1160,56 @@ auto scenarioFitBesideProbe() -> int
   return 0;
 }
 
+// FR-056, R-08: an interleaved probed run holds every row and the fit
+// for the print pass the probe's stop owns, so each prints one time,
+// in registration order, after the probe join and before the probe
+// block. The document carries the rows and the fits in the same order.
+auto countOf(const std::string& text, const std::string& needle) -> std::size_t
+{
+  std::size_t found = 0;
+  for (std::size_t at = text.find(needle); at != std::string::npos;
+       at = text.find(needle, at + 1))
+  {
+    ++found;
+  }
+  return found;
+}
+
+auto scenarioInterleaveProbe() -> int
+{
+  const std::string probe = std::to_string(baseCpu);
+  const Captured run =
+      runChildScenario("interleaveProbe",
+                       {"--filter=^bmFit",
+                        "--repetitions=1",
+                        "--iterations=2",
+                        "--interleave=1",
+                        "--jitter-probe=" + probe,
+                        "--json=harness_jitter_cli_interleaveProbe.json"},
+                       &setupFitFamilies);
+  check(run.status == 0,
+        "the interleaved probed run stands status 0 (FR-056, R-08)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
+  // Two instances per family print once each, and the BIG_O and RMS
+  // fits of each family print once: a doubled print pass would carry
+  // eight row lines (FR-056, R-08). The narrowing disclosure quotes
+  // the rows' names, so the counts read the shapes; the disclosure's
+  // own quotes stand beside them.
+  check(countOf(run.out, "iterations=") == 4 && countOf(run.out, "BIG_O") == 2
+            && countOf(run.out, "RMS") == 2,
+        "each row and the fit print one time (FR-056, R-08)");
+  // The last fit line stands before the probe block; the narrowing
+  // disclosure quotes the rows' names after it, so the anchor reads
+  // the fits; the disclosure's quotes stand past them (R-08).
+  check(run.out.rfind("RMS") < run.out.find("jitter probe:"),
+        "the rows and the fit stand before the probe block (R-08)");
+  const auto document = readDocument("harness_jitter_cli_interleaveProbe.json");
+  check(countOf(document, "\"kind\":\"BIG_O\"") == 2,
+        "the document carries the two fits (FR-022, R-08)");
+  return 0;
+}
+
 // FR-037, D-10: a probe the machine/tsc leaf is missing for stands
 // disclosed and the batch continues at status 0; the document carries
 // the unavailable record with the default threshold (E-07).
@@ -1620,6 +1670,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioCpusetLimit() == 0, "cpusetLimit");
   check(scenarioUnreadableMask() == 0, "unreadableMask");
   check(scenarioFitBesideProbe() == 0, "fitBesideProbe");
+  check(scenarioInterleaveProbe() == 0, "interleaveProbe");
   check(scenarioUnavailableProbe() == 0, "unavailableProbe");
   check(scenarioUnavailableBlocked() == 0, "unavailableBlocked");
   check(scenarioUnavailableThreaded() == 0, "unavailableThreaded");

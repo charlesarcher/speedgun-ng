@@ -410,6 +410,39 @@ auto probeOverlapOf(const MachineLayout& machine,
   return narrowing.limited == limited;
 }
 
+// specs/027 D-4, FR-016: the planned cpus the idle resolution skips.
+// Every instance with more than one context and a preset contributes
+// its plan's cpus; an instance with one context contributes nothing,
+// and a multi-context instance the preset names none contributes
+// nothing, its threads running unpinned beside the probe (FR-019,
+// R-10). The named step stands beside the resolver the plans read
+// (N-2.7).
+auto plannedCpusOf(const std::vector<Instance*>& selected,
+                   const MachineLayout& machine) -> std::vector<std::uint32_t>
+{
+  std::vector<std::uint32_t> planned;
+  for (const auto* instance : selected) {
+    if (instance->threadCount > 1 && instance->placement != Preset::NONE) {
+      const auto plan =
+          resolvePreset(instance->placement, machine, instance->threadCount);
+      planned.insert(planned.end(), plan.cpu.begin(), plan.cpu.end());
+    }
+  }
+  return planned;
+}
+
+// specs/027 FR-019, FR-006, R-10: the narrowing rule as one named
+// step. The calling thread's mask narrows by the probe cpus for an
+// instance the runner does not pin, beside a live probe that runs
+// beside the benchmark; the precheck mode runs no thread beside one.
+auto narrowingApplies(const Instance& entry,
+                      const bool probeLive,
+                      const JitterProbeMode mode) -> bool
+{
+  return probeLive && mode != JitterProbeMode::PRECHECK
+      && !(entry.threadCount > 1 && entry.placement != Preset::NONE);
+}
+
 // specs/027 D-5, FR-036: the mask decision of one benchmark that
 // carries no placement. The narrowed mask carries the mask cpus the
 // probe cpus leave, in the mask's order; a probe cpu that names no mask
