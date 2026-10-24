@@ -1480,7 +1480,8 @@ status 2 ahead of any listing.
 ### The refusal lines
 
 Each line below is the whole of what the run prints on stderr, with the quoted
-text being the value the option carried. The run then ends with status 2.
+text being the value the option carried. The run then ends with status 2. The
+block states the shape of that output.
 
 ```text
 --hunt: 'cpu/nope' is not a catalog address
@@ -1510,7 +1511,8 @@ status 2 the three conflicts above print.
 ### The hunt lines
 
 The plan line prints once above the first result row, the cut line directly
-under it, and the lines that rank print after the benchmark tables.
+under it, and the lines that rank print after the benchmark tables. The block
+states the shape of the output.
 
 ```text
 hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s stage1=42 stage2=42
@@ -1563,7 +1565,7 @@ Each anchor rides every pass of its own device, so a device that lacks one of
 the two anchors leaves the whole plan to measure under `iter`. The plan line
 then carries `normalized=iter`, and the rate column reads `iter=`. An explicit
 word whose anchor discovery refused for the hunt is a refusal, and it ends the
-run with status 1:
+run with status 1, and the block states the shape of the output:
 
 ```text
 hunt: the hunt norm cycle names the anchor 'cpu/cpu-cycles', which discovery refused for the hunt of 'cpu/l2_lines_out.any_core'
