@@ -429,9 +429,7 @@ auto scenarioSelectionRefusals() -> void
                  {"full",
                   {"--hunt=cpu/cpu-cycles,,"},
                   "--hunt: '' is not a catalog address"},
-                 {"full",
-                  {"--hunt= "},
-                  "--hunt: ' ' is not a catalog address"},
+                 {"full", {"--hunt= "}, "--hunt: ' ' is not a catalog address"},
                  {"full", {"--hunt=r4A"}, rawCodeLine("r4A")}});
   std::printf("selection-refusals: ok\n");
 }
@@ -566,9 +564,8 @@ auto scenarioAnchorLeafNeedsNoSlot() -> void
   const std::string instr =
       sg::test::huntAddress(sg::test::kHuntCpu, sg::test::kHuntInstr);
   std::string instrOutput;
-  const int instrStatus = childRun(selfPath, "hunt",
-                                   {kScriptNarrow, "--hunt=" + instr},
-                                   instrOutput);
+  const int instrStatus = childRun(
+      selfPath, "hunt", {kScriptNarrow, "--hunt=" + instr}, instrOutput);
   check(WIFEXITED(instrStatus) && WEXITSTATUS(instrStatus) == 1,
         "the instructions anchor passes the slot gate as its sibling does "
         "and answers the refused plan's status (FR-081, spec PC-2)");
@@ -725,8 +722,8 @@ auto scenarioAcceptedSelectionForms() -> void
   check(countOf(dup, address(0)) == 1,
         "one column means one row naming that address once (FR-006)");
 
-  const auto rated = captureRun(
-      withFilter({"--hunt=" + address(0), "--hunt-rank=rate"}));
+  const auto rated =
+      captureRun(withFilter({"--hunt=" + address(0), "--hunt-rank=rate"}));
   check(!planLine(rated).empty(),
         "a run whose rank option spells the word the default answers plans "
         "the same hunt (FR-032)");
