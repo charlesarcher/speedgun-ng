@@ -959,6 +959,120 @@ auto scenarioSoloRefusalMapsItsKind() -> void
 // spec PC-9: a seat that fails for pass 0 keeps the present failure route
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// D-18, I-1: the retry of a column whose device holds neither anchor
+// ---------------------------------------------------------------------------
+
+// The group leaf limit of the armed refusal: one leaf below the three an
+// event and the two anchors of its device need, one leaf above the single
+// leaf an anchorless event needs alone, and the smallest limit the hunt plan
+// admits for a device that holds no anchor (I-1).
+constexpr std::size_t kAnchorlessRetryLimit = 2;
+constexpr std::size_t kAnchorlessDeviceLimit = 3;
+// The uncore events this scenario selects: the two the fixture scripts and
+// the two its scripted callback adds beside the limit.
+constexpr std::size_t kUncoreSelectedEvents = 4;
+
+[[nodiscard]] auto uncoreAddress(const std::size_t offset) -> std::string
+{
+  return sg::test::huntAddress(
+      sg::test::kHuntUncore,
+      sg::test::huntEvent(sg::test::kHuntEvents + offset));
+}
+
+// D-18, FR-021, PD-12, I-1: the retry of a column takes the two anchors of
+// that column's plan entry as the leaves of its pass and answers an anchor
+// that stands empty with no leaf at all - the plan entry of a device that
+// holds neither anchor carries neither (I-1). At the ceiling above, the retry
+// of a `cpu` event asks three leaves and refuses while the retry of an
+// anchorless event asks one and measures: two arms of one refusal answer one
+// ceiling with two different leaf counts.
+auto scenarioAnchorlessRetrySeatsItsEventAlone() -> void
+{
+  // The uncore device publishes a limit here and still holds neither anchor,
+  // so its fourth event overflows the first pass beside the cpu events and
+  // stands in the pass this scenario refuses (I-1, FR-011).
+  registerHuntHost(
+      kCollectLimit,
+      []([[maybe_unused]] sg::counters::FakeProvider& provider)
+      {
+        provider.setProgrammableCounters(sg::test::kHuntUncore,
+                                         kAnchorlessDeviceLimit);
+        for (const std::size_t offset : {std::size_t {2}, std::size_t {3}}) {
+          const auto name = sg::test::huntEvent(sg::test::kHuntEvents + offset);
+          provider.addCounter(
+              sg::test::kHuntUncore, name, "none", "hunt fixture uncore event");
+          provider.setPoints(sg::test::kHuntUncore, name, {0}, 10.0);
+        }
+      });
+  // The eight events of `all` beside four uncore events: the first pass seats
+  // four cpu events beside the two anchors of `cpu` and three uncore events,
+  // so the second pass carries the four remaining cpu events and the fourth
+  // uncore event. Arming the limit of `cpu` below that seat refuses the pass,
+  // and the retry that follows opens one pass per event of it (D-18, PD-12).
+  const auto options = optionsFor(
+      selectionCount(kRetryPassEvents) + ',' + uncoreAddress(0) + ','
+      + uncoreAddress(1) + ',' + uncoreAddress(2) + ',' + uncoreAddress(3));
+  armRetryCeilingAfterPass(options.repeats, kAnchorlessRetryLimit);
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntAnchorlessRetry");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "a hunt whose refused pass holds an event of a device with no anchor "
+        "answers the entry record (D-18, FR-021)");
+  const EntryHunt& hunt = *run.hunt;
+  const auto& refused =
+      needInstance("bmHuntAnchorlessRetry")->huntRefusedEvents();
+  check(hunt.retriedPasses == 1, "one pass retried (D-18)");
+  // The decision's product, one number: five events of the refused pass each
+  // opened a retry pass, and exactly one of them - the anchorless event, whose
+  // two anchors stand empty and therefore add no leaf - seated inside the
+  // ceiling of two and measured (I-1).
+  check(hunt.passCount == 2 + kWidePassEvents + 1,
+        "the published pass count carries the two planned passes, the four "
+        "the refused events opened and the one the anchorless event measured "
+        "(PD-12, D-18, I-1)");
+  check(run.opens == 2,
+        "the first pass and the anchorless retry opened a group each, and no "
+        "anchored retry opened one at this ceiling (I-1, FR-021)");
+  check(bodyAttempts == options.repeats * 2,
+        "the body ran in the first pass and in the one retry whose one-leaf "
+        "seat the ceiling holds (I-1)");
+  check(refused.size() == kWidePassEvents,
+        "the refusal list holds the four anchored retries and not the "
+        "anchorless retry, which seated its event alone (D-18, FR-021, I-1)");
+  bool onlyAnchoredRefused = refused.size() == kWidePassEvents;
+  for (const auto& event : refused) {
+    if (event.address.rfind("cpu/", 0) != 0) {
+      onlyAnchoredRefused = false;
+    }
+  }
+  check(onlyAnchoredRefused,
+        "every refusal names a cpu event, because the anchorless event seated "
+        "its one leaf and refused nothing (I-1, FR-021)");
+  // The four anchorless events do stand in the skipped list, and for their own
+  // reason: no anchor of their device divides their value, so no rate of the
+  // norm answers them (E-05, D-13). Their retry is not that reason - it
+  // measured, which the pass count above reads.
+  check(hunt.skipped.size() == kWidePassEvents + kUncoreSelectedEvents,
+        "the skipped list carries the four refused anchored retries beside "
+        "the four anchorless events the norm divides by nothing (E-05, D-13, "
+        "FR-021)");
+  bool everyAnchorlessSkipped = true;
+  for (std::size_t offset = 0; offset < kUncoreSelectedEvents; ++offset) {
+    if (skippedOf(hunt, uncoreAddress(offset)) == nullptr) {
+      everyAnchorlessSkipped = false;
+    }
+  }
+  check(everyAnchorlessSkipped,
+        "each anchorless event answers a skipped entry of its own address, the "
+        "state its device discloses and not a seat refusal (E-05, FR-021)");
+  check(hunt.entries.size() == kRetryPassEvents + kUncoreSelectedEvents,
+        "every event of the selection keeps its entry, the measured anchorless "
+        "column beside the refused cpu ones (FR-021, PD-12)");
+  std::printf("anchorless-retry-one-leaf: ok\n");
+}
+
 auto scenarioPassZeroSeatFailureKeepsExitOne() -> void
 {
   registerHuntHost(kCollectLimit);
@@ -1705,6 +1819,8 @@ auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
       Scenario {"multiplex-no-limit", &scenarioNoLimitHostMarksEveryEvent},
       Scenario {"group-leaf-retry", &scenarioWidePassRetriesOneAtATime},
       Scenario {"solo-refusal-maps-kind", &scenarioSoloRefusalMapsItsKind},
+      Scenario {"anchorless-retry-one-leaf",
+                &scenarioAnchorlessRetrySeatsItsEventAlone},
       Scenario {"kind-mapping-cases", &scenarioKindMappingAnswersEveryName},
       Scenario {"pass-zero-seat-failure",
                 &scenarioPassZeroSeatFailureKeepsExitOne},
