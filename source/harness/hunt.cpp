@@ -63,8 +63,10 @@ constexpr std::size_t kNoLeaf = std::numeric_limits<std::size_t>::max();
 
 [[nodiscard]] auto isSpace(const char symbol) noexcept -> bool
 {
-  return symbol == ' ' || symbol == '\t' || symbol == '\r' || symbol == '\v'
-      || symbol == '\f';
+  // No requirement asks to trim a vertical tab or a form feed, and no input
+  // in the tree carries either class, so these two arms stand untaken in the
+  // trace; FR-091 bars the marker that would hide them.
+  return symbol == ' ' || symbol == '\t' || symbol == '\r';
 }
 
 [[nodiscard]] auto trim(std::string_view text) -> std::string_view
