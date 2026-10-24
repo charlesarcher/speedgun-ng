@@ -2474,7 +2474,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           // any column, and the two anchors of one column are two distinct
           // addresses, so a matched index cannot already stand in `single`
           // (specs/029 D-18).
-          const bool fresh =
+          [[maybe_unused]] const bool fresh =
               std::find(single.begin(), single.end(), index) == single.end();
           SG_ASSERT(fresh, "one retry pass opens each anchor column once");
           single.push_back(index);
