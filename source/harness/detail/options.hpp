@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <regex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -146,19 +147,13 @@ struct InterleaveSeed
   std::uint64_t seed = 0;
 };
 
-/// @brief What the scan of one command line answers: the options the
-/// words named, the seed `--interleave` settled, the uses it recorded in
-/// scan order, and the stop the walk met (E-06, FR-010, FR-017, FR-051).
-struct CommandLineOptions
+/// @brief One metric name one source named, with the origin that names that
+/// source (FR-028, FR-033, FR-038). The origin stands empty for the words of
+/// the command line, whose own refusal line names the option.
+struct MetricName
 {
-  RunOptions options;
-  std::vector<OptionUse> uses;
-  InterleaveSeed interleave;
-  StopKind stop = StopKind::NONE;
-  // The words named the `--json-raw` row, whose value has no unset word of
-  // its own: the gather reads this to tell `none` given from nothing given
-  // (FR-037, FR-050).
-  bool rawContentNamed = false;
+  std::string origin;
+  std::string name;
 };
 
 /// @brief What the gather answers: every option at the value of the
@@ -171,14 +166,58 @@ struct ResolvedOptions
   std::vector<OptionUse> uses;
   InterleaveSeed interleave;
   std::vector<CompareRule> rules;
-  // The file a `compare-rules` line of the option file names, empty when it
-  // names none. Its rules join after that file's own lines, the last
-  // position of the order spec D-23 states (FR-063).
-  std::string optionFileRulesPath;
+  // The highest source that named a rule or a rules file, when one did: that
+  // source settles the whole list, and a lower source is read for its faults
+  // and then dropped. An empty path word is refused by the row itself, so
+  // nothing here stands for a row no source named (FR-038, FR-063,
+  // spec D-23).
+  std::optional<OptionSource> rulesSource;
+  // The rules, and the rules files in the order their lines stood, that the
+  // source being applied named, held until that source is applied in full:
+  // the rules a source spells stand before the rules of the last file it
+  // names, whichever of the two lines came first (FR-035, FR-063).
+  std::vector<CompareRule> stagedRules;
+  std::vector<std::string> stagedRulesPaths;
   // The `--json-raw` row has no unset word: its master default is the same
   // value the word `none` answers, so the marker is what tells a source
   // that settled the row from one that never named it (FR-037, FR-050).
   bool rawContentSettled = false;
+  // The `--filter` row is settled the same way: its master default is the
+  // empty pattern that selects every benchmark, so the empty word names the
+  // row without filling the text and the mark of the text would miss it
+  // (FR-024, FR-037, FR-050).
+  bool filterSettled = false;
+  // The batch filter pattern of the row that settled, compiled once where it
+  // settles: no pattern when the settled text stands empty, since the empty
+  // pattern selects every benchmark (FR-024, FR-050, FR-051).
+  std::optional<std::regex> filterPattern;
+  // The preset the `--placement` row settled. The row parses the name where
+  // it settles, so the preset it read stands here for the entry point to
+  // read, and that text is parsed one time (FR-046, FR-048).
+  std::optional<Preset> preset;
+  // Every metric name every source named, settled or dropped, in the order
+  // the sources named them, each behind the origin that names its source.
+  // The table lookup is a reading of the host, so the entry point walks this
+  // list and the gather holds the settled text alone; a name a higher source
+  // dropped answers its own line behind the source that held it (FR-028,
+  // FR-033, FR-038).
+  std::vector<MetricName> metricNames;
+  // Every counter address every source named, settled or dropped, in the order
+  // the sources named them, each behind the origin that names its source. The
+  // host resolves an address, so the entry point walks this list rather than
+  // the gather, and an address a higher source dropped answers its own line
+  // behind the source that held it (FR-038, FR-087).
+  std::vector<CounterAddress> counterAddresses;
+};
+
+/// @brief What the scan of one command line answers: the settled state of the
+/// words, in the shape the gather carries on from, and the stop the walk met
+/// (E-06, FR-010, FR-017, FR-051). The words are the highest source, so the
+/// gather starts here and asks the sources below it (FR-037).
+struct CommandLineOptions
+{
+  ResolvedOptions settled;
+  StopKind stop = StopKind::NONE;
 };
 
 /// @brief The one option table, in the order
@@ -191,6 +230,30 @@ struct ResolvedOptions
 /// share this one lookup, so the table is walked in one place (FR-033,
 /// FR-017).
 [[nodiscard]] auto rowNamed(std::string_view name) -> const OptionRow*;
+
+/**
+ * @brief The text of a value as one fault record carries it: a backslash
+ * stands doubled, and a line break, a carriage return and a NUL byte each
+ * stand named with their own words. Every other byte a terminal acts on,
+ * which is each byte below 0x20 and the byte 0x7f, stands as `\xHH`, so the
+ * fault of any source stays one line and reads alike in a pipe and on a
+ * screen (FR-024, FR-027, FR-035, SC-003).
+ */
+[[nodiscard]] auto quotedText(const std::string_view text) -> std::string;
+
+/**
+ * @brief The batch filter pattern of FR-024 and FR-050, compiled where the
+ * option settles: the expression the row names, no pattern when the settled
+ * text stands empty, or one text naming the expression the regex library
+ * refused (FR-051).
+ */
+[[nodiscard]] auto compileFilterPattern(const std::string& pattern)
+    -> std::expected<std::optional<std::regex>, std::string>;
+
+/// @brief The exit status when a metric name carries nothing: the first
+/// failure is stated once, with its near-miss names, behind the origin of the
+/// source whose name failed (FR-028, FR-033, FR-038, FR-042).
+[[nodiscard]] auto metricNameFailure(std::span<const MetricName> names) -> int;
 
 /**
  * @brief Scan one command line into the options its words name

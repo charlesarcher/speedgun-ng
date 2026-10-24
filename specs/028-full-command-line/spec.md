@@ -736,6 +736,12 @@ and run the example through `example_run`.
 - `SPEEDGUN_NOT_AN_OPTION` set to anything: ignored.
 - A variable that names an environment row with an empty value: one line
   names the variable and the value, status 2.
+- `--min-time=1e-12` and `--min-time=4e-10`: the cast to nanoseconds leaves
+  nothing, so each answers the min-time fault line, status 2, while
+  `--warmup-time=0` keeps its answer.
+- A number word that opens with a blank, such as `repetitions= 3` from the
+  command line, the environment or a file line: the reader takes the whole
+  text, so the value answers its own fault line, status 2.
 - `SPEEDGUN_PERCENTILES` and `SPEEDGUN_NO_PERCENTILES` set together beside
   a command line that overrides one half: one line names both variables,
   status 2. Two percentile options on the command line alone: the last one
@@ -867,7 +873,9 @@ and run the example through `example_run`.
   value on `;` into one entry per item (D-6).
 - **FR-025**: A flag read from the environment shall accept `1`, `0`,
   `true` and `false`, and any other text shall print one line naming the
-  variable and its value and answer status 2 (D-6).
+  variable and its value and answer status 2. A variable of any row whose
+  value stands empty shall answer that one line ahead of the row's own
+  reader, and the line shall name the variable (D-6).
 - **FR-026**: A variable that starts with `SPEEDGUN_` and matches no row
   marked with the environment flag shall be ignored (D-6).
 - **FR-027**: An environment value that the option's own reader rejects
@@ -888,7 +896,8 @@ and run the example through `example_run`.
   shall print one line naming the file, the line number and the rejected
   name, and answer status 2 (D-9).
 - **FR-032**: A second `--options` option shall print one line naming the
-  option and answer status 2 (D-9).
+  option and answer status 2. An `--options` word whose path stands empty
+  shall print one line naming the option and answer status 2 (D-9).
 - **FR-033**: A line the parse cannot read shall print one line naming the
   file, the line number and the text, and answer status 2, and that answer
   stands when a higher source names the same option with a line that reads
@@ -1021,7 +1030,11 @@ and run the example through `example_run`.
   contributes shall keep the order that source wrote them in. The rule
   list shall not combine across sources: the highest source that names
   rules shall settle it, and a rule of a lower source shall reach the
-  parser before it drops under FR-038 (D-13, D-23).
+  parser before it drops under FR-038 (D-13, D-23). The row shall be
+  scalar within one source: every path that source names shall be read
+  while that source is read, and the last of those paths shall name the
+  rules that join (FR-035). A path word that stands empty shall print
+  one line naming the row and answer status 2 (FR-033).
 - **FR-064**: A line the rule parser refuses shall print one line naming
   the file, the line number and the parser's fault, and answer status 2
   (D-13).
@@ -1076,7 +1089,8 @@ and run the example through `example_run`.
 - **FR-077**: The `speedgun-ng` archive `SOVERSION` shall stay 3
   (PC-8).
 - **FR-078**: The project version shall take the next free minor at rebase
-  time, 0.18.0 under the planned merge order.
+  time, 0.18.0 under the planned merge order. The fix branch 028b takes
+  the patch 0.18.1, the next version above master at its last rebase.
 - **FR-079**: One test file, `test/source/harness_cli_table_test.cpp`,
   shall check that every option name and every option value in the table is
   unique, and that the values 256 to 259 keep their options.
@@ -1101,6 +1115,25 @@ and run the example through `example_run`.
   that only a contract reads shall carry `[[maybe_unused]]`.
 - **FR-086**: The report schema shall take the next free schema minor,
   1.3 under the planned merge order, and the writer shall stamp it (PC-6).
+
+### Counter addresses this host does not find
+
+- **FR-087**: For a counter that a user names from any source, an address this
+  host does not find shall exit 2 on one line naming the source that held it,
+  the address, and what the host found there. The listing and the catalog
+  shall answer before the addresses are read, and an address that a higher
+  source dropped shall answer its own line behind the source that named it.
+
+This requirement is a ruling, and it is recorded here because it moves a
+status spec 015 sets. For a counter that a user names, an address this host
+does not find exits 2 (FR-087). FR-023 of spec 015 stays for internal leaves:
+a caller that hands addresses to the runner keeps the absent column it
+answers today, and a leaf a metric needs keeps its refusal kind with the run
+going on. The status table of
+`specs/015-benchmark-harness-core/contracts/cli.md:102` answers zero for a run
+whose counter address the host cannot resolve; this requirement answers 2 for
+the address a user named, and spec 015 is not edited for it. The oracle row
+`case17` of `test/data/base_cli_matrix.txt` carries the new status.
 
 ## Key Entities *(include if feature involves data)*
 
@@ -1247,7 +1280,7 @@ and run the example through `example_run`.
 
 ## Scope
 
-In: FR-001 to FR-086. The one option table with its fields, the help and
+In: FR-001 to FR-087. The one option table with its fields, the help and
 version options, the environment defaults with their twelve rows, the
 option file, the precedence rule, the disclosure object and console line,
 `--threads`, `--interleave` with its print order, the comparison rules

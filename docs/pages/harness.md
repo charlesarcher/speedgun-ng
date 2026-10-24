@@ -634,6 +634,16 @@ prints its refusal kind in place of the number, and the run continues. The
 `--catalog` listing marks a metric line with `mode=metric` and prints it under
 the object its first leaf reaches, after that object's counter lines.
 
+`--counter` names one catalog counter address, in the shape
+`--counter=machine/monotonic`, and adds one column per address in the order
+the addresses are given. An address this host does not find, a typo or a valid
+path whose device the host lacks, stops the run before any measurement with
+status 2, on one line naming the source that held the address, the address,
+and what the host found there. The listing and the catalog answer before the
+addresses are read, so `--counter=/no/such/leaf --list` still prints them. A
+caller that hands addresses to the runner keeps the absent column the runner
+answers for a leaf it cannot resolve.
+
 The aggregate row of the quick-start benchmark carries the built-in statistics
 for one benchmark: mean, median, `sd=`, `cv=`, min, max and the repetition
 count.
@@ -679,8 +689,8 @@ variable.
 
 The highest source that sets an option wins: the command line, then the option
 file, then the environment, then the built-in default. A repeatable option from
-a higher source replaces the whole list of a lower one; the comparison rules
-from every source combine.
+a higher source, the comparison rules included, replaces the whole list of a
+lower one.
 
 ## User counters
 

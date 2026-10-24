@@ -40,6 +40,7 @@
 #include <unistd.h>
 
 #include "../source/harness/detail/internal.hpp"
+#include "../source/harness/detail/options.hpp"
 #include "detail/pass_fixture.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
@@ -400,6 +401,13 @@ auto scriptedProvider() -> void
   provider->addObject("fake", "fake", "scripted events object");
   provider->addCounter("fake", "events", "none", "scripted events");
   provider->setPoints("fake", "events", {0}, 900);
+  // A leaf the scripted catalog lists and this host cannot count, so the
+  // counter walk meets a known leaf that answers nothing (FR-087).
+  provider->addCounter("fake",
+                       "blocked",
+                       "none",
+                       "scripted leaf this host cannot count",
+                       sg::counters::Availability::PERMISSION_BLOCKED);
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(provider));
   check(registered.has_value(), "the fake provider registers");
@@ -498,7 +506,8 @@ auto metricFailureTextScenario() -> void
   if (saved < 0 || std::freopen(path, "w", stderr) == nullptr) {
     fail("cannot redirect the failure line");
   }
-  const int status = sg::detail::metricNameFailure({"cpi_x_no_such_metric"});
+  const sg::detail::MetricName one[] {{"", "cpi_x_no_such_metric"}};
+  const int status = sg::detail::metricNameFailure(one);
   std::fflush(stderr);
   if (dup2(saved, STDERR_FILENO) < 0) {
     fail("cannot restore stderr");
@@ -512,6 +521,216 @@ auto metricFailureTextScenario() -> void
   check(
       buffer.str().find("--metric cpi_x_no_such_metric:") != std::string::npos,
       "the walk prints the failure of the first bad name (FR-042)");
+}
+
+// FR-024, FR-035: the `;` list belongs to the environment alone, so a file
+// line hands the whole of its value to the reader of its row and answers the
+// line of the command line behind the file and the number of the line. The
+// counter row is the one of the four whose reader takes any text at all, so
+// its two forms answer the run's own line for the one address, with no
+// prefix of a source.
+auto aSemicolonOfAFileLineIsNoList(const std::string& self) -> void
+{
+  struct RowCase
+  {
+    const char* name;
+    const char* value;
+    bool faults;
+  };
+
+  for (const RowCase& wanted : {RowCase {"threads", "1;2", true},
+                                RowCase {"percentiles", "50;90", true},
+                                RowCase {"metric", "a;b", true},
+                                RowCase {"counter", "a;b", false}})
+  {
+    const std::string opts =
+        std::string("harness_cli_semicolon_") + wanted.name + ".txt";
+    {
+      std::ofstream stream(opts);
+      stream << wanted.name << '=' << wanted.value << "\n";
+    }
+    std::string words;
+    const int wordsStatus =
+        subprocessOutput("\"" + self + "\" arg \"--" + wanted.name + "="
+                             + wanted.value + "\" 2>&1",
+                         words);
+    std::string held;
+    const int heldStatus = subprocessOutput(
+        "\"" + self + "\" arg \"--options=" + opts + "\" 2>&1", held);
+    std::remove(opts.c_str());
+
+    const std::string line = words.substr(0, words.find('\n'));
+    const std::string what = std::string("the ") + wanted.name
+        + " line of a file is the line of "
+        + "the words behind the file and its number (FR-024, FR-035)";
+    if (wanted.faults) {
+      check(WEXITSTATUS(wordsStatus) == 2 && WEXITSTATUS(heldStatus) == 2,
+            (what + ", at the usage status (SC-003)").c_str());
+      check(held.find(opts + ":1: " + line) != std::string::npos, what.c_str());
+    } else {
+      // The counter row takes any text, so neither form faults: each runs and
+      // names the whole value as one address, never two halves of it
+      // (FR-021, FR-024).
+      check(WEXITSTATUS(wordsStatus) == WEXITSTATUS(heldStatus),
+            (what + ", at the status of the run").c_str());
+      check(words.find("no object at path '" + std::string(wanted.value) + "'")
+                != std::string::npos,
+            (what + ", and the words name the whole value").c_str());
+      check(held.find("no object at path '" + std::string(wanted.value) + "'")
+                != std::string::npos,
+            what.c_str());
+      check(held.find("no object at path 'a'") == std::string::npos,
+            (what + ", and the value splits nowhere").c_str());
+    }
+  }
+}
+
+// The count of lines a child answered across the two streams it merged. The
+// sentinel a run prints when nothing measured stands beside the fault line, so
+// it counts as no line of the answer (SC-003).
+auto lineCount(const std::string& text) -> std::size_t
+{
+  constexpr std::string_view kSentinel {"BENCHMARK_NO_RUN"};
+  std::size_t count = 0;
+  std::size_t at = 0;
+  while (at < text.size()) {
+    const std::size_t end = text.find('\n', at);
+    const std::string_view line = std::string_view {text}.substr(
+        at, (end == std::string::npos ? text.size() : end) - at);
+    if (!line.empty() && line != kSentinel) {
+      ++count;
+    }
+    if (end == std::string::npos) {
+      break;
+    }
+    at = end + 1;
+  }
+  return count;
+}
+
+auto aBreakOfAValueIsOneFaultLine(const std::string& self) -> void
+{
+  // The metric and counter rows are refused by the walk of a run, so they
+  // stand here, where a benchmark stands to run. A value that carries a break
+  // is named with its own words, so each answer stays the one line the source
+  // owes (FR-021, FR-033, SC-003).
+  std::string out;
+  const int metric =
+      subprocessOutput("\"" + self + "\" arg '--metric=a\nb' 2>&1", out);
+  check(WEXITSTATUS(metric) == 2,
+        "a break of the metric word answers status 2 (FR-033, SC-003)");
+  check(lineCount(out) == 1,
+        "a break of the metric word answers one line (SC-003)");
+  check(out.find("no metric named 'a\\nb'") != std::string::npos,
+        "the refusal of the metric names the break with its own words "
+        "(FR-033)");
+
+  out.clear();
+  const int held = subprocessOutput(
+      "SPEEDGUN_METRIC='a\nb' \"" + self + "\" arg '--iterations=1' 2>&1", out);
+  check(WEXITSTATUS(held) == 2,
+        "a break of the metric variable answers status 2 (FR-027, SC-003)");
+  check(lineCount(out) == 1,
+        "a break of the metric variable answers one line (SC-003)");
+  check(out.find("SPEEDGUN_METRIC: --metric ") != std::string::npos,
+        "the refusal of the metric names the variable that holds it "
+        "(FR-033, FR-046)");
+
+  // An address of the variable that this host does not find ends the run, and
+  // a value that carries a backslash is named with its own words in that line:
+  // the variable, the address, and the reason (FR-021, FR-033, FR-087,
+  // SC-003).
+  out.clear();
+  const int counter = subprocessOutput(
+      "SPEEDGUN_COUNTER='/a\nb' \"" + self + "\" arg '--iterations=1' 2>&1",
+      out);
+  check(WEXITSTATUS(counter) == 2,
+        "an address of the variable this host does not find answers status 2 "
+        "(FR-087, SC-003)");
+  check(out.find("SPEEDGUN_COUNTER: /a\\nb: no object at path")
+            != std::string::npos,
+        "the counter line names the variable that holds it and the break with "
+        "its own words (FR-021, FR-033, SC-003)");
+}
+
+// The counter walk: an address a user names that this host does not find ends
+// the run with the usage status, from every source, alone and under a good
+// address of the words. The line names the source that held the address, the
+// address, and what the host found there, and no benchmark runs (FR-087).
+auto counterAddressesOfEverySourceExitTwo(const std::string& self) -> void
+{
+  // The text the child printed before its own marker: the entry point hands
+  // the status back, so the marker of a run that never started can stand
+  // behind the refusal.
+  const auto refusal = [](const std::string& out)
+  {
+    const auto marker = out.find("BENCHMARK_NO_RUN");
+    return marker == std::string::npos ? out : out.substr(0, marker);
+  };
+  const auto refused = [&self, &refusal](const std::string& argument,
+                                         const std::string& environment,
+                                         const std::string& expected)
+  {
+    std::string out;
+    const int status = subprocessOutput(
+        environment + "\"" + self + "\" arg " + argument + " 2>&1", out);
+    check(WEXITSTATUS(status) == 2,
+          "an address this host does not find answers the usage status "
+          "(FR-087)");
+    check(refusal(out) == expected + "\n",
+          "the refusal names its source, the address and what the host found "
+          "there (FR-087, FR-033)");
+    check(out.find("BENCHMARK_RAN") == std::string::npos,
+          "an address this host does not find runs no benchmark (FR-087)");
+  };
+
+  refused("\"--counter=/nosuch/leaf\"",
+          "",
+          "--counter: /nosuch/leaf: no object at path '/nosuch'");
+  refused("\"--counter=fake/nosuchleaf\"",
+          "",
+          "--counter: fake/nosuchleaf: no such leaf in the catalog (FR-023)");
+  refused("\"--counter=fake/blocked\"",
+          "",
+          "--counter: fake/blocked: listed as permission-blocked (FR-023)");
+  refused("\"--iterations=1\"",
+          "SPEEDGUN_COUNTER=/nosuch/leaf ",
+          "SPEEDGUN_COUNTER: /nosuch/leaf: no object at path '/nosuch'");
+  refused("\"--counter=fake/events\"",
+          "SPEEDGUN_COUNTER=/nosuch/leaf ",
+          "SPEEDGUN_COUNTER: /nosuch/leaf: no object at path '/nosuch'");
+
+  const std::string opts = "harness_cli_counter_opts.txt";
+  {
+    std::ofstream stream(opts);
+    stream << "counter=/nosuch/leaf\n";
+  }
+  refused("\"--options=" + opts + "\"",
+          "",
+          opts + ":1: /nosuch/leaf: no object at path '/nosuch'");
+  refused("\"--options=" + opts + "\" \"--counter=fake/events\"",
+          "",
+          opts + ":1: /nosuch/leaf: no object at path '/nosuch'");
+  std::remove(opts.c_str());
+
+  // An address this host counts runs, and the listing answers before the walk,
+  // the way the metric names keep it (FR-087, FR-009).
+  {
+    std::string out;
+    const int status = subprocessOutput(
+        "\"" + self + "\" arg \"--counter=fake/events\" 2>&1", out);
+    check(WEXITSTATUS(status) == 0,
+          "an address this host counts exits zero (FR-087)");
+    check(out.find("BENCHMARK_RAN") != std::string::npos,
+          "a counted address runs the benchmark (FR-087)");
+  }
+  {
+    std::string out;
+    const int status = subprocessOutput(
+        "\"" + self + "\" arg \"--counter=/nosuch/leaf\" \"--list\" 2>&1", out);
+    check(WEXITSTATUS(status) == 0 && out.find("bmAlpha") != std::string::npos,
+          "the listing answers before any address is walked (FR-087, FR-009)");
+  }
 }
 
 }  // namespace
@@ -772,7 +991,7 @@ auto main(const int argc, char** argv) -> int
         UsageCase {"--filter=(", "invalid regular expression", false},
         UsageCase {"--nonsense=1", "unknown option", false},
         UsageCase {"--warmup-time=0", "", true},
-        UsageCase {"--counter=machine/nosuchleaf", "no such leaf", true},
+        UsageCase {"--counter=machine/nosuchleaf", "no such leaf", false},
         UsageCase {"--metric=nosuchmetric", "no metric named", false},
         UsageCase {"--metric", "option '--metric' needs a value", false}})
   {
@@ -818,6 +1037,72 @@ auto main(const int argc, char** argv) -> int
             && bareOutput.find("BENCHMARK_RAN") == std::string::npos,
         "a --metric with no value ends the same way (FR-028, FR-042)");
 
+  // FR-027, FR-033, FR-038: the refused metric of the environment names the
+  // variable that holds it, and it names it also where a metric of the words
+  // settles the row and the variable's own name drops. The environment is
+  // handed to the child in its own environment, as every case of a lower
+  // source does.
+  {
+    std::string output;
+    const int status = subprocessOutput("SPEEDGUN_METRIC=nosuchmetric \""
+                                        + self + "\" arg \"--iterations=1\" "
+                                          "2>&1",
+                                        output);
+    check(WEXITSTATUS(status) == 2,
+          "a refused metric of the environment ends with the usage status "
+          "(FR-027, FR-038)");
+    check(output.find("SPEEDGUN_METRIC: --metric nosuchmetric")
+              != std::string::npos,
+          "the refused metric of the environment names the variable that "
+            "holds it (FR-033)");
+    check(output.find("BENCHMARK_RAN") == std::string::npos,
+          "a refused metric of the environment runs no benchmark (FR-028)");
+  }
+  if (!first.empty()) {
+    std::string output;
+    const int status = subprocessOutput("SPEEDGUN_METRIC=nosuchmetric \"" + self
+                                            + "\" arg \"--metric=" + first
+                                            + "\" \"--iterations=1\" 2>&1",
+                                        output);
+    check(WEXITSTATUS(status) == 2,
+          "a refused metric of the environment ends with the usage status "
+          "under a metric of the words (FR-038)");
+    check(output.find("SPEEDGUN_METRIC: --metric nosuchmetric")
+              != std::string::npos,
+          "the metric that drops still names the variable that held it "
+          "(FR-038, FR-033)");
+    check(output.find("BENCHMARK_RAN") == std::string::npos,
+          "the dropped metric of the environment runs no benchmark (FR-028)");
+  }
+
+  {
+    // FR-033, FR-035: the refused metric of a file line names the file and
+    // the number of the line that holds it, behind the same walk.
+    const std::string opts = "harness_cli_metric_opts.txt";
+    {
+      std::ofstream stream(opts);
+      stream << "metric=nosuchmetric\n";
+    }
+    std::string output;
+    const int status =
+        subprocessOutput("\"" + self + "\" arg \"--options=" + opts
+                             + "\" \"--iterations=1\" " + "2>&1",
+                         output);
+    std::remove(opts.c_str());
+    check(WEXITSTATUS(status) == 2,
+          "a refused metric of an option file ends with the usage status "
+          "(FR-027, FR-038)");
+    check(output.find(opts + ":1: --metric nosuchmetric") != std::string::npos,
+          "the refused metric of a file line names the file and its number "
+            "(FR-033, FR-035)");
+    check(output.find("BENCHMARK_RAN") == std::string::npos,
+          "a refused metric of a file line runs no benchmark (FR-028)");
+  }
+
+  aSemicolonOfAFileLineIsNoList(self);
+  aBreakOfAValueIsOneFaultLine(self);
+  counterAddressesOfEverySourceExitTwo(self);
+
   // FR-027: a metric the host carries but cannot count prints its refusal
   // kind, the benchmark still runs, and the exit status is the run's own.
   if (!refusedName.empty()) {
@@ -848,14 +1133,17 @@ auto main(const int argc, char** argv) -> int
         "a skipped benchmark prints no statistics (FR-031)");
 
   // FR-032, SC-006: a throw reports the exception text, releases every
-  // descriptor and mapping, and the run continues. The leaf of the real
-  // pmu provider is what opens a descriptor per run, so the failed runs
-  // are counted against it.
-  const std::vector<std::string> failing = {"--filter",
-                                            "^bmThrows$",
-                                            "--iterations=1",
-                                            "--counter",
-                                            "cpu/instructions"};
+  // descriptor and mapping, and the run continues. The leaf of the real pmu
+  // provider is what opens a descriptor per run, so the failed runs are
+  // counted against it. A host that publishes no `cpu` object cannot open
+  // that address at all, and the entry point refuses it (FR-087), so such a
+  // host keeps the shape of the run on the leaf every host publishes.
+  const std::string pmuLeaf =
+      sg::counters::System::local().object("cpu").has_value()
+      ? "cpu/instructions"
+      : "machine/monotonic";
+  const std::vector<std::string> failing = {
+      "--filter", "^bmThrows$", "--iterations=1", "--counter", pmuLeaf};
   const std::string thrown = captureRun(failing, 1);
   check(thrown.find("FAILED: the scripted failure") != std::string::npos,
         "the failure reports the exception text (FR-032)");

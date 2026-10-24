@@ -452,6 +452,44 @@ auto aRefusedWriteAnswersFalse() -> void
         "a file system that refuses the bytes answers false (FR-030)");
 }
 
+// T-1, FR-061, FR-074: the report path a run cannot open names itself in
+// the one line that fault answers, and a byte a terminal acts on inside
+// that path reaches the line as text.
+auto aRefusedOpenQuotesTheReportPath() -> void
+{
+  sg::ReportData data;
+  data.results.emplace_back();
+  data.rowRaw.push_back({});
+  data.contextRaw.push_back({});
+
+  const char* const path = "harness_json_report_stderr.txt";
+  const int saved = dup(STDERR_FILENO);
+  if (saved < 0 || std::freopen(path, "w", stderr) == nullptr) {
+    fail("cannot redirect the fault stream");
+  }
+  const bool written =
+      sg::detail::writeReport("/no/such\ndir/report.json", data);
+  std::fflush(stderr);
+  if (dup2(saved, STDERR_FILENO) < 0) {
+    fail("cannot restore the fault stream");
+  }
+  close(saved);
+
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  const std::string text = buffer.str();
+  std::size_t breaks = 0;
+  for (const char letter : text) {
+    breaks += static_cast<std::size_t>(letter == '\n');
+  }
+  check(!written,
+        "a report path the file system refuses answers false (FR-074)");
+  check(breaks == 1, "that fault is one line (FR-061, SC-004)");
+  check(text.find("such\\ndir") != std::string::npos,
+        "the report path reaches the line as text (FR-024)");
+}
+
 // A row with no retained chunk-value entry reads the two empty column
 // sets rather than running past the vector, and writes no `raw` key
 // (specs/023 E-05, D-02).
@@ -688,6 +726,7 @@ auto main() -> int
   theNoiseWarningRoundTrips();
   thePassDisclosureRoundTrips();
   aRefusedWriteAnswersFalse();
+  aRefusedOpenQuotesTheReportPath();
   aRowWithoutARawEntryWritesNoColumns();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

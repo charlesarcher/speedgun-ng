@@ -10,6 +10,7 @@
 
 #include "detail/internal.hpp"
 #include "detail/json_report.hpp"
+#include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/dbc.hpp"
@@ -189,7 +190,7 @@ auto asEnum(const auto& words,
   }
   const auto found = detail::enumOf<Enum>(words, *text);
   if (!found.has_value()) {
-    return std::unexpected(where + ": '" + *text
+    return std::unexpected(where + ": '" + detail::quotedText(*text)
                            + "' stands outside the names the schema lists");
   }
   return *found;
@@ -1053,7 +1054,7 @@ auto checkNode(const SchemaNode& node,
     if (!holds) {
       auto asked = std::string(": the document holds a value");
       if (value.is_string()) {
-        asked += " '" + std::string(std::string_view(value)) + "'";
+        asked += " '" + detail::quotedText(std::string_view(value)) + "'";
       } else {
         asked += std::string(" of kind ") + kindName(value);
       }
@@ -1078,7 +1079,8 @@ auto checkNode(const SchemaNode& node,
         // added; a closed object names the key the schema does not list
         // (FR-008, FR-010).
         if (node.closed) {
-          return std::unexpected(here(pointer) + "/" + std::string(pair.key)
+          return std::unexpected(here(pointer) + "/"
+                                 + detail::quotedText(std::string(pair.key))
                                  + ": the schema lists no key of that name");
         }
         continue;
@@ -1089,9 +1091,11 @@ auto checkNode(const SchemaNode& node,
         const auto index =
             static_cast<std::size_t>(position - node.order.begin());
         if (index < previous) {
-          return std::unexpected(here(pointer) + "/" + std::string(pair.key)
-                                 + ": the key stands out of the order the"
-                                   " schema states");
+          return std::unexpected(
+              here(pointer) + "/"
+              + detail::quotedText(std::string(pair.key))
+              + ": the key stands out of the order the"
+                " schema states");
         }
         previous = index + 1;
       }
@@ -1140,9 +1144,9 @@ auto checkReport(std::string_view schemaPath,
       simdjson::padded_string(std::string_view(*schemaText)));
   simdjson::dom::element schemaRoot;
   if (auto code = schemaDocument.get(schemaRoot); code != simdjson::SUCCESS) {
-    return std::unexpected("the schema file '" + std::string(schemaPath)
-                           + "' holds no JSON the parser reads: "
-                           + simdjson::error_message(code));
+    return std::unexpected(
+        "the schema file '" + detail::quotedText(std::string(schemaPath))
+        + "' holds no JSON the parser reads: " + simdjson::error_message(code));
   }
   auto root = parseSchema(schemaRoot, "");
   if (!root.has_value()) {
@@ -1174,7 +1178,7 @@ auto loadReport(const std::string& path)
   auto parsed = parser.parse(simdjson::padded_string(std::string_view(*text)));
   simdjson::dom::element root;
   if (auto code = parsed.get(root); code != simdjson::SUCCESS) {
-    return std::unexpected("the file '" + path
+    return std::unexpected("the file '" + detail::quotedText(path)
                            + "' holds no JSON the parser reads: "
                            + simdjson::error_message(code));
   }
@@ -1191,8 +1195,9 @@ auto loadReport(const std::string& path)
   // text that states no major is no version this build can read
   // (specs/023 FR-010, FR-023, specs/026 D-13).
   if (detail::schemaMajor(*versionText) != std::string_view("1")) {
-    return std::unexpected("the file '" + path + "' carries schema version '"
-                           + *versionText
+    return std::unexpected("the file '" + detail::quotedText(path)
+                           + "' carries schema version '"
+                           + detail::quotedText(*versionText)
                            + "', which this build cannot read: the reader "
                              "knows version 1");
   }

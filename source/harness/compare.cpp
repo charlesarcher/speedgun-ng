@@ -22,6 +22,7 @@
 #include <simdjson.h>
 
 #include "detail/json_report.hpp"
+#include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -64,7 +65,8 @@ auto ruleFault(std::string_view field,
     -> std::expected<CompareRule, std::string>
 {
   return std::unexpected("the " + std::string(field) + " of the rule '"
-                         + std::string(text) + "' is not readable: " + detail);
+                         + detail::quotedText(text)
+                         + "' is not readable: " + detail);
 }
 
 // The tolerance that matches a percentile point written in a rule to the
@@ -232,7 +234,7 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
       return ruleFault(
           "value name",
           text,
-          "the '" + std::string(prefix) + "' prefix names nothing");
+          "the '" + detail::quotedText(prefix) + "' prefix names nothing");
     }
     rule.valueName = std::string(prefix) + name;
     statisticsValue = prefix != "stat:";
@@ -242,12 +244,16 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
   } else if (name.starts_with('p')) {
     if (!readNumber(name.substr(1)).has_value()) {
       return ruleFault(
-          "value name", text, "'" + name + "' carries no percentile point");
+          "value name",
+          text,
+          "'" + detail::quotedText(name) + "' carries no percentile point");
     }
     rule.valueName = name;
   } else {
     return ruleFault(
-        "value name", text, "'" + name + "' is not a value the report carries");
+        "value name",
+        text,
+        "'" + detail::quotedText(name) + "' is not a value the report carries");
   }
 
   std::size_t cursor = afterName;
@@ -287,7 +293,7 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
     return ruleFault(
         "direction",
         text,
-        "'" + std::string(direction) + "' is neither lower nor higher");
+        "'" + detail::quotedText(direction) + "' is neither lower nor higher");
   }
   cursor = directionEnd;
 
@@ -299,7 +305,7 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
       text.substr(cursor + 1, findOrEnd(text, ':', cursor + 1) - cursor - 1);
   if (!readThreshold(field, rule)) {
     return ruleFault("threshold", text,
-                     "'" + std::string(field)
+                     "'" + detail::quotedText(field)
                          + "' is neither a percent, nor the abs= marker, nor "
                            "the two in that order with one comma between");
   }
@@ -312,10 +318,11 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
       try {
         static_cast<void>(std::regex(rule.filter));
       } catch (const std::regex_error& error) {
-        return ruleFault(
-            "filter",
-            text,
-            "'" + rule.filter + "' is no regular expression: " + error.what());
+        return ruleFault("filter",
+                         text,
+                         "'" + detail::quotedText(rule.filter)
+                             + "' is no regular expression: "
+                             + detail::quotedText(error.what()));
       }
     }
   }
@@ -942,9 +949,10 @@ auto compareValues(const CompareRule& rule,
   // FR-031: a percent of a zero baseline has no value, so a rule that
   // carries the relative test measures this pair not at all.
   if (zeroBaseline && rule.relativeThreshold.has_value()) {
-    return std::unexpected("the rule '" + rule.text + "' cannot measure "
-                           + std::string(name) + ": the baseline of "
-                           + rule.valueName + " is zero");
+    return std::unexpected("the rule '" + detail::quotedText(rule.text)
+                           + "' cannot measure " + std::string(name)
+                           + ": the baseline of " + rule.valueName
+                           + " is zero");
   }
   // FR-026, FR-027, FR-028, spec D-4: every test the rule carries must be
   // exceeded, so with both thresholds the row regresses only when both are
@@ -1243,9 +1251,9 @@ auto missingValueFault(const CompareRule& rule,
                        std::string_view report,
                        const bool uncountable) -> std::string
 {
-  return "the rule '" + rule.text + "' finds no "
+  return "the rule '" + detail::quotedText(rule.text) + "' finds no "
       + (uncountable ? "countable " : "") + rule.valueName + " for "
-      + std::string(name) + " in the " + std::string(report) + " report";
+      + detail::quotedText(name) + " in the " + std::string(report) + " report";
 }
 
 // The availability of the metric column a value name reads in one row,
@@ -1294,10 +1302,10 @@ auto scopedValuesOf(const std::vector<PairSite>& matched,
     try {
       filter.emplace(rule.filter);
     } catch (const std::regex_error& error) {
-      return std::unexpected("the rule '" + rule.text
+      return std::unexpected("the rule '" + detail::quotedText(rule.text)
                              + "' carries a filter that is no regular "
                                "expression: "
-                             + error.what());
+                             + detail::quotedText(error.what()));
     }
   }
   std::vector<ScopedValue> scope;
@@ -1312,9 +1320,10 @@ auto scopedValuesOf(const std::vector<PairSite>& matched,
   }
   // FR-039: a written filter that matches no benchmark in either report.
   if (filter.has_value() && scope.empty()) {
-    return std::unexpected("the rule '" + rule.text
+    return std::unexpected("the rule '" + detail::quotedText(rule.text)
                            + "' selects no benchmark: its filter '"
-                           + rule.filter + "' matches neither report");
+                           + detail::quotedText(rule.filter)
+                           + "' matches neither report");
   }
   std::size_t comparable = 0;
   std::string_view firstPaired;
@@ -1368,8 +1377,8 @@ auto scopedValuesOf(const std::vector<PairSite>& matched,
   // D-19, which answers no entry and no fault.
   if (comparable == 0 && !firstPaired.empty()) {
     return std::unexpected(
-        "the rule '" + rule.text
-        + "' reaches no comparable row: " + std::string(firstPaired)
+        "the rule '" + detail::quotedText(rule.text)
+        + "' reaches no comparable row: " + detail::quotedText(firstPaired)
         + " holds no row the rule can read in either report");
   }
   return scope;
@@ -1452,8 +1461,8 @@ auto compareReportValues(const ReportData& baseline,
   if (!baselineMajor || baselineMajor != contenderMajor) {
     return std::unexpected(
         "the two reports carry no common schema major version: '"
-        + baseline.schemaVersion + "' against '" + contender.schemaVersion
-        + "'");
+        + detail::quotedText(baseline.schemaVersion) + "' against '"
+        + detail::quotedText(contender.schemaVersion) + "'");
   }
   const std::vector<PairSite> matched = matchPair(baseline, contender);
   // FR-035: every rule walks its whole scope before any value is compared.
@@ -1533,7 +1542,7 @@ auto runCompareMode(const RunOptions& options) -> CompareExit
   if (!baseline.has_value()) {
     std::fprintf(stderr,
                  "error: the compare document '%s' was rejected: %s\n",
-                 options.compareBaseline.c_str(),
+                 detail::quotedText(options.compareBaseline).c_str(),
                  baseline.error().c_str());
     return {.status = 2, .failed = true};
   }
@@ -1541,7 +1550,7 @@ auto runCompareMode(const RunOptions& options) -> CompareExit
   if (!contender.has_value()) {
     std::fprintf(stderr,
                  "error: the compare document '%s' was rejected: %s\n",
-                 options.compareContender.c_str(),
+                 detail::quotedText(options.compareContender).c_str(),
                  contender.error().c_str());
     return {.status = 2, .failed = true};
   }
@@ -1609,13 +1618,13 @@ auto printCompareTable(const CompareResult& result,
   // FR-056: the header names the two files and, for each report, the two
   // texts the load call read.
   std::printf("compare: baseline %s (speedgun %s, schema %s)\n",
-              baselinePath.c_str(),
-              baseline.speedgunVersion.c_str(),
-              baseline.schemaVersion.c_str());
+              detail::quotedText(baselinePath).c_str(),
+              detail::quotedText(baseline.speedgunVersion).c_str(),
+              detail::quotedText(baseline.schemaVersion).c_str());
   std::printf("compare: contender %s (speedgun %s, schema %s)\n",
-              contenderPath.c_str(),
-              contender.speedgunVersion.c_str(),
-              contender.schemaVersion.c_str());
+              detail::quotedText(contenderPath).c_str(),
+              detail::quotedText(contender.speedgunVersion).c_str(),
+              detail::quotedText(contender.schemaVersion).c_str());
   // FR-053: the seven columns of one row. The name field takes the
   // console report's width, so a long instance name overflows its field
   // the way a report row does.
@@ -1746,8 +1755,8 @@ auto writeCompareReport(const std::string& path,
   if (!stream.is_open()) {
     std::fprintf(stderr,
                  "error: the comparison file '%s' cannot be opened: %s\n",
-                 path.c_str(),
-                 std::strerror(errno));
+                 detail::quotedText(path).c_str(),
+                 detail::quotedText(std::strerror(errno)).c_str());
     return false;
   }
   stream.write(text->data(), static_cast<std::streamsize>(text->size()));
@@ -1755,8 +1764,8 @@ auto writeCompareReport(const std::string& path,
   if (stream.fail()) {
     std::fprintf(stderr,
                  "error: the comparison file '%s' could not be written: %s\n",
-                 path.c_str(),
-                 std::strerror(errno));
+                 detail::quotedText(path).c_str(),
+                 detail::quotedText(std::strerror(errno)).c_str());
     return false;
   }
   return true;

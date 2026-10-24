@@ -14,7 +14,7 @@ case13 | --iterations=10 | 0 | -
 case14 | --dry-run | 0 | -
 case15 | --warmup-time=0.001 | 0 | -
 case16 | --metric=nosuch | 2 | --metric nosuch: no metric named 'nosuch' in the event table of this host (FR-#)
-case17 | --counter=/nosuch/leaf | 0 | /nosuch/leaf: no object at path '/nosuch'
+case17 | --counter=/nosuch/leaf | 2 | --counter: /nosuch/leaf: no object at path '/nosuch'
 case18 | --nonsense=1 | 2 | unknown option '--nonsense'; --help lists the options
 case19 | --threads=2 | 0 | -
 case20 | --interleave=7 | 0 | -

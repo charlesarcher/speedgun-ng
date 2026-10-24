@@ -41,24 +41,6 @@ void handleInterrupt(const int) noexcept
 // test on the expanded instance name, and selection is where it stands.
 constexpr std::string_view kDisabledPrefix = "DISABLED_";
 
-// The batch filter pattern of FR-024 and FR-050, compiled once for either
-// path to read: the expression the option names, no pattern when the option
-// stands absent, or one text naming the expression the regex library refused
-// (FR-051).
-auto compileFilterPattern(const std::string& pattern)
-    -> std::expected<std::optional<std::regex>, std::string>
-{
-  if (pattern.empty()) {
-    return std::optional<std::regex> {};
-  }
-  try {
-    return std::optional<std::regex>(pattern);
-  } catch (const std::regex_error& error) {
-    return std::unexpected("invalid regular expression '" + pattern
-                           + "': " + error.what());
-  }
-}
-
 // FR-047: the cpu count the process affinity allows, read for the one line
 // that discloses a count standing above it. The mask stands zeroed before
 // the call and a call the system refuses leaves it as it stands, so the
@@ -83,7 +65,8 @@ auto printOptionDisclosure(const std::vector<detail::OptionUse>& uses,
 {
   std::vector<std::string> parts;
   for (const detail::OptionUse& use : uses) {
-    parts.push_back("--" + std::string(use.row->name) + "=" + use.value);
+    parts.push_back("--" + std::string(use.row->name) + "="
+                    + detail::quotedText(use.value));
   }
   if (interleave.given) {
     parts.push_back("interleave=" + std::to_string(interleave.seed));
@@ -151,12 +134,14 @@ auto timeSourcePresent(counters::System& sys) -> bool
 
 // FR-028, FR-042: a metric name the host's table carries nothing for ends the
 // run before any measurement starts, so a typo costs no measured time. The
-// walk is in option order and states the first failure, with its near-miss
-// names on the same line.
+// walk is in the order the sources named the names and states the first
+// failure, with its near-miss names on the same line behind the origin of the
+// source that held the name (FR-033, FR-038).
 [[nodiscard]] auto metricNameFailureLine(
     const std::string& name, const counters::Error& error) -> std::string
 {
-  std::string line = "--metric " + name + ": " + error.message;
+  std::string line =
+      "--metric " + quotedText(name) + ": " + quotedText(error.message);
   for (std::size_t here = 0; here < error.suggestions.size(); ++here) {
     line += here == 0 ? " (near: " : ", ";
     line += error.suggestions[here];
@@ -167,24 +152,29 @@ auto timeSourcePresent(counters::System& sys) -> bool
   return line;
 }
 
-auto metricNameFailure(const std::vector<std::string>& names) -> int
+auto metricNameFailure(std::span<const MetricName> names) -> int
 {
   const std::vector<counters::MetricListing> listed =
       counters::catalogMetrics();
-  for (const auto& name : names) {
+  for (const MetricName& item : names) {
     const bool carried = std::any_of(listed.begin(),
                                      listed.end(),
                                      [&](const counters::MetricListing& row)
-                                     { return row.name == name; });
+                                     { return row.name == item.name; });
     if (carried) {
       continue;
     }
-    const auto miss = counters::metricByName(name);
+    const auto miss = counters::metricByName(item.name);
     SG_ASSERT(!miss.has_value(),
               "a name the catalog lists nothing for is a miss the lookup "
               "answers with an error (FR-016)");
-    std::fprintf(
-        stderr, "%s\n", metricNameFailureLine(name, miss.error()).c_str());
+    const std::string line = metricNameFailureLine(item.name, miss.error());
+    // The line of the words names the option the name came from, so only a
+    // file and a variable carry an origin ahead of it (FR-033, FR-038).
+    std::fprintf(stderr,
+                 "%s\n",
+                 item.origin.empty() ? line.c_str()
+                                     : (item.origin + ": " + line).c_str());
     return 2;
   }
   return 0;
@@ -308,7 +298,7 @@ auto speedgunMain(int argc, char** argv) -> int
   // status 2, the shape the scan fault above uses, and it stands ahead of
   // the filter compile, the placement parse and the run loop (SC-003).
   std::vector<detail::EnvironmentRow> environment;
-  if (!scan->options.environmentOff) {
+  if (!scan->settled.options.environmentOff) {
     environment = detail::environmentRows(environ);
   }
 
@@ -318,14 +308,14 @@ auto speedgunMain(int argc, char** argv) -> int
   // at status 2, ahead of the filter compile, the placement parse and the
   // run loop (SC-003, SC-013).
   std::optional<detail::OptionFileText> optionFile;
-  if (!scan->options.optionsFile.empty()) {
-    const auto text = detail::readTextFile(scan->options.optionsFile);
+  if (!scan->settled.options.optionsFile.empty()) {
+    const auto text = detail::readTextFile(scan->settled.options.optionsFile);
     if (!text.has_value()) {
       std::fprintf(stderr, "--options: %s\n", text.error().c_str());
       return 2;
     }
     optionFile = detail::OptionFileText {
-        scan->options.optionsFile,
+        scan->settled.options.optionsFile,
         std::move(*text),
     };
   }
@@ -340,20 +330,15 @@ auto speedgunMain(int argc, char** argv) -> int
   detail::RunOptions options = std::move(resolved->options);
 
   // specs/028 FR-063, spec D-23: the compare mode reads the settled list,
-  // which carries the rules of every source in the order spec D-23 states,
-  // where the words of the command line alone no longer stand (FR-061).
+  // which the highest source that names rules sets in the order spec D-23
+  // states, so a rule of the words or of a file can stand here (FR-061).
   options.compareRules = std::move(resolved->rules);
 
-  // specs/026 FR-024, FR-050, FR-051: the batch filter is compiled while
-  // the scan is all that has happened, so an invalid pattern answers one
-  // line and status 2 on the compare path beside the run path, and the
-  // pattern is compiled once for either path to read.
-  const auto compiled = compileFilterPattern(options.filter);
-  if (!compiled.has_value()) {
-    std::fprintf(stderr, "--filter: %s\n", compiled.error().c_str());
-    return 2;
-  }
-  std::optional<std::regex> filterPattern = *compiled;
+  // specs/026 FR-024, FR-050, FR-051: the batch filter pattern is compiled
+  // where the row settles, so an invalid expression has already answered one
+  // line naming its source at status 2, on the compare path beside the run
+  // path, and the one pattern stands for either path to read.
+  std::optional<std::regex> filterPattern = std::move(resolved->filterPattern);
 
   // specs/026 FR-048, FR-052, D-15: the compare mode stands ahead of the
   // expansion, so the comparison runs no benchmark, reads no clock and
@@ -366,20 +351,12 @@ auto speedgunMain(int argc, char** argv) -> int
     return exit.status;
   }
 
-  // specs/025 FR-016, E-05: the process preset name is parsed once here,
-  // before the expansion and before any run, so a rejected text stops
-  // the batch with one line and status 2.
-  std::optional<detail::Preset> processPreset;
-  if (options.placement.has_value()) {
-    const auto parsed = detail::parsePreset(*options.placement);
-    if (!parsed.has_value()) {
-      std::fprintf(stderr,
-                   "--placement: '%s' is not one of the five preset names\n",
-                   options.placement->c_str());
-      return 2;
-    }
-    processPreset = parsed;
-  }
+  // specs/025 FR-016, E-05: the process preset is the preset of the source
+  // that settled the `--placement` row, which parsed the name where it
+  // settled (FR-046, FR-048). The entry point reads that preset ahead of the
+  // expansion and ahead of any run, so no name is parsed twice and no status
+  // is decided here.
+  std::optional<detail::Preset> processPreset = resolved->preset;
 
   if (options.catalogMode) {
     detail::printCatalog();
@@ -440,17 +417,29 @@ auto speedgunMain(int argc, char** argv) -> int
   if (selected.empty()) {
     std::fprintf(stderr,
                  "no benchmark matches the filter '%s'\n",
-                 options.filter.c_str());
+                 detail::quotedText(options.filter).c_str());
     return 0;
   }
 
-  // FR-028, FR-042: an unknown metric name ends the run before any
-  // measurement starts, before a lookup of its own (FR-016).
-  if (!options.metricNames.empty()) {
-    const int nameStatus = detail::metricNameFailure(options.metricNames);
-    if (nameStatus != 0) {
-      return nameStatus;
-    }
+  // FR-028, FR-042, FR-038: every metric name every source named is checked
+  // against the table, so a name that a higher source dropped answers its own
+  // line before any measurement starts and before a lookup of its own
+  // (FR-016).
+  const int nameStatus = detail::metricNameFailure(resolved->metricNames);
+  if (nameStatus != 0) {
+    return nameStatus;
+  }
+
+  // FR-087: every counter address every source named is resolved against the
+  // host here, at the place the metric names keep, after the listing and
+  // before any measurement starts. An address this host does not find prints
+  // one line naming its source and ends the run with the usage status; a
+  // library caller that hands addresses to the runner keeps the runner's own
+  // absent column (FR-023, FR-033).
+  const int addressStatus =
+      detail::counterAddressFailure(resolved->counterAddresses);
+  if (addressStatus != 0) {
+    return addressStatus;
   }
 
   // specs/025 FR-005, FR-018, Q-6, Q-7: the fit walk, before the first
